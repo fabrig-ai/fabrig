@@ -234,7 +234,13 @@ fn application_set_is_judged_kept_and_recorded_without_its_bytes() {
     assert!(revision.items.is_empty());
     assert_eq!(
         revision.applications.as_ref(),
-        &[app::Recorded { kind: 1, scope: 0, number: 1, edit: app::SizedEdit::Set { size: 5 } }]
+        &[app::RevisionRecorded {
+            kind: 1,
+            scope: 0,
+            number: 1,
+            edit: app::SizedEdit::Set { size: 5 },
+            replaced: app::Replaced::NotOffered
+        }]
     );
 }
 #[test]

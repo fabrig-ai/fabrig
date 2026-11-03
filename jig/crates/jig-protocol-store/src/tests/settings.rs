@@ -148,6 +148,10 @@ fn template() -> core::Template {
     }
 }
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+)]
 fn each_settings_record_round_trips_its_whole_domain_value() {
     let mut domain = fixtures::CORE_LIMITS;
     domain.run_bytes = 4096;
@@ -196,12 +200,34 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         ]);
         rows.push(s::Record::Revision {
             history: false,
-            revision: s::Revision { applications: Box::default(), head: head.clone(), items: items.clone() },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: head.clone(),
+                items: items
+                    .iter()
+                    .map(|item| s::RevisionItem {
+                        setting: item.setting,
+                        edit: item.edit.clone(),
+                        replaced: s::Replaced::NotOffered,
+                    })
+                    .collect(),
+            },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Revision {
             history: true,
-            revision: s::Revision { applications: Box::default(), head: head.clone(), items: items.clone() },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: head.clone(),
+                items: items
+                    .iter()
+                    .map(|item| s::RevisionItem {
+                        setting: item.setting,
+                        edit: item.edit.clone(),
+                        replaced: s::Replaced::NotOffered,
+                    })
+                    .collect(),
+            },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Proposal {
@@ -439,6 +465,10 @@ fn charter_with_documents() -> core::Charter {
     core::Charter { documents: Box::new([document, without_heading]), ..charter() }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+)]
 fn document_records(charter: core::Charter) -> [s::Record; 6] {
     let setting = s::Setting::Charter(charter.number);
     let value = s::Value::Charter(Box::new(charter.clone()));
@@ -453,7 +483,14 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
             proposal: None,
             moved: false,
         },
-        items: items.clone(),
+        items: items
+            .iter()
+            .map(|item| s::RevisionItem {
+                setting: item.setting,
+                edit: item.edit.clone(),
+                replaced: s::Replaced::NotOffered,
+            })
+            .collect(),
     };
     [
         s::Record::Default { setting, default: s::Default { value: value.clone(), revision: 2 } },

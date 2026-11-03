@@ -1568,19 +1568,33 @@ fn encode_revision(
     let field_head = encode_head(&value.head, limits)?;
     let mut list_35 = List::with_capacity(limits.revision_items);
     for entry in &value.items {
-        let element = encode_item(entry, limits)?;
+        let element = encode_item(&settings::Item { setting: entry.setting, edit: entry.edit.clone() }, limits)?;
         if list_35.push(element).is_err() {
             return Err(bound());
         }
     }
     let field_items = list_35;
+    let mut applications = List::with_capacity(limits.revision_applications);
+    for item in &value.applications {
+        if applications
+            .push(application::Recorded {
+                kind: item.kind,
+                scope: item.scope,
+                number: item.number,
+                edit: item.edit.clone(),
+            })
+            .is_err()
+        {
+            return Err(bound());
+        }
+    }
     wire::Revision::new(
         limits,
         wire::RevisionParts {
             models: encode_names(names, limits)?,
             head: field_head,
             items: field_items,
-            applications: encode_recorded(&value.applications, limits, limits.revision_applications)?,
+            applications: encode_recorded(applications.as_slice(), limits, limits.revision_applications)?,
         },
     )
 }
@@ -1594,7 +1608,14 @@ fn decode_revision(
     let mut list_36 = List::with_capacity((items).len());
     for entry in (items).into_boxed() {
         let element = decode_item(entry, limits)?;
-        list_36.push(element).expect("decoded list bound");
+        // The store keeps no replaced state until settings-store.
+        list_36
+            .push(settings::RevisionItem {
+                setting: element.setting,
+                edit: element.edit,
+                replaced: settings::Replaced::NotOffered,
+            })
+            .expect("decoded list bound");
     }
     let field_items = list_36.into_boxed();
     let mut field_items = field_items;
@@ -1605,7 +1626,20 @@ fn decode_revision(
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
     }
-    Ok(settings::Revision { head: field_head, items: field_items, applications: decode_recorded(applications) })
+    let mut recorded = List::with_capacity(applications.len());
+    for item in decode_recorded(applications) {
+        // The store keeps no replaced state until settings-store.
+        recorded
+            .push(application::RevisionRecorded {
+                kind: item.kind,
+                scope: item.scope,
+                number: item.number,
+                edit: item.edit,
+                replaced: application::Replaced::NotOffered,
+            })
+            .expect("decoded application item count");
+    }
+    Ok(settings::Revision { head: field_head, items: field_items, applications: recorded.into_boxed() })
 }
 fn encode_charter_version(
     value: &settings::CharterVersion,

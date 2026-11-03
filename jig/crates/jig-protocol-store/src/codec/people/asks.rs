@@ -296,6 +296,7 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
+        domain::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         domain::Ask::RemoveProject { project, grace } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
             limits,
             wire::AskRemoveProjectParts { project: *project, grace: super::compound::encode_grace(*grace) },

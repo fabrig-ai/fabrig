@@ -225,6 +225,7 @@ pub fn settings_answer(
 pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
     use jig_domain_people::{Malformed, Refusal};
     match why {
+        Refusal::Forgotten { .. } => unreachable!("a restore: restore-request"),
         Refusal::Judged { why, .. } => {
             let mut out = settings_form::Text::measure();
             out.put(b"refused by its owner: ");
