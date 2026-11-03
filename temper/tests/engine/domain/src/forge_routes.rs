@@ -637,8 +637,8 @@ impl World {
                 config.core.defaults.rules = domain.rules().clone();
             }
             if let Some((defaults, model, _)) = stock {
-                const STOCK_CHARTERS: u32 = 4;
-                const STOCK_EXECUTORS: u32 = 7;
+                const STOCK_CHARTERS: u32 = 5;
+                const STOCK_EXECUTORS: u32 = 8;
                 const TREE_TASKS: u32 = 12; // Stock lifetime ceiling, including the root.
                 const LANDED_CHANGES: u32 = 2;
                 const RETAINED_HOLDINGS: u32 = 1 + LANDED_CHANGES * 2;
