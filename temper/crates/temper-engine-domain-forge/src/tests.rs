@@ -11,6 +11,7 @@ mod connect;
 mod fixtures;
 mod flight;
 mod goal_branch;
+mod kinds;
 #[path = "tests/landing.rs"]
 mod landing_routes;
 mod limits;
