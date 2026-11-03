@@ -1,15 +1,18 @@
 # README: status
 
-2026-11-02. Where temper's code lags or departs from [README.md](README.md).
+2026-11-03. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.4, 5.5: the composer's supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
-  with their tests. 3.5, 4.6, 8: Replace and Forget, on the Forges page
-  and as the FORGE requests `Replace` and `Forget`: no such request in
-  `temper-client-protocol-wire`'s schema or in `temper-service`'s routing.
+  with their tests. 3.5, 4.6, 8: a connected Forgejo's `Connect` with
+  `ForgejoTokens`, of a kept forge or a new one, `connected`; and
+  Replace and Forget, on the Forges page and as the FORGE requests
+  `Replace` and `Forget`: no `forgejo_tokens`, `connected`, `Replace`
+  or `Forget` in `temper-client-protocol-wire`'s schema or in
+  `temper-service`'s routing.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject`: no project's settings and no such act in

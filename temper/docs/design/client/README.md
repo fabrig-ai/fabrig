@@ -1404,12 +1404,15 @@ for its kind, its user's login and its installations. Its nodes:
   words.
 - **The forge a request makes or names, `Making`:** `kept`, `Kept`, a
   kept forge's number (u16); or `new`, `NewForge`, a forge for the
-  request to make, `ForgeAsk`: `github`; `owned`; or `managed`,
-  `ManagedForge`, a Forgejo of the person's: its API's host (at most
-  255 bytes) and port (u16), its TLS server name (at most 255 bytes,
-  none for plaintext), its git base and its web address (at most 2048
-  bytes each, the web address optional) and its git program (at most
-  4096 bytes, none for the worker's). A new forge is made as a record
+  request to make, `ForgeAsk`: `github`; `owned`; `managed`,
+  `ManagedForge`, a Forgejo of the person's connected as its admin:
+  its API's host (at most 255 bytes) and port (u16), its TLS server
+  name (at most 255 bytes, none for plaintext), its git base and its
+  web address (at most 2048 bytes each, the web address optional) and
+  its git program (at most 4096 bytes, none for the worker's); or
+  `connected`, the same `ManagedForge`, a Forgejo of the person's
+  connected with its bot's tokens, its mode connected
+  (`../protocol/setup.md`, section 4). A new forge is made as a record
   in the request's decision and numbered next, never reused
   (`../protocol/forge.md`, 2.1 and 2.2); the client finds its number
   on the `forges` watch's rows once the request is answered.
@@ -1455,16 +1458,29 @@ for its kind, its user's login and its installations. Its nodes:
   taken`, the playground's forge, which only its reset removes; or
   *unknown*.
 - **`Connect`:** of the deployment's scope (section 8): the forge,
-  `Making`, a kept forge or a new GitHub or managed Forgejo, and how
-  it connects, `How`: `github_app`, `GitHubApp`,
+  `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
+  and how it connects, `How`: `github_app`, `GitHubApp`,
   the App's id (u64, never 0) and optional `read_only` (bool, absent
   meaning false), set by ctl connect `--read-only` and kept on the forge
-  record (`../protocol/setup.md`, 17.7). The manifest's way and the Forgejo ways
-  join `How` with their work (section 8's table). The App's key is no
+  record (`../protocol/setup.md`, 17.7); `github_manifest`,
+  `GitHubManifest`; `forgejo_admin`, `ForgejoAdmin`; or
+  `forgejo_tokens`, `ForgejoTokens`, with no field, a connected
+  Forgejo's bot's tokens (section 8's table). The App's key is no
   field: it rides beside the record as jig's carried value, a bundle of
-  one `Pasted` item (`../protocol/credentials.md`, 2.2). Its outcome,
+  one `Pasted` item, and so do a Forgejo's tokens, a bundle of
+  `ApiToken`, `GitToken` and `WebhookSecret` when given
+  (`../protocol/credentials.md`, 2.2). Its outcome,
   `Answer`'s: *connecting*, the run started; *forge refused*, with why,
   `ForgeRefusal` (below); or *unknown*, as `SetUp`'s.
+- **`Replace`:** of the deployment's scope: the forge's number (u16).
+  The new key or tokens are no field: they ride as its carried value,
+  a bundle of one `Pasted` item, a GitHub App's new key, or of a
+  connected Forgejo's `ApiToken`, `GitToken` or both, and
+  `WebhookSecret` when it changes (`../protocol/credentials.md`, 2.2).
+  Its outcome is a `Connect`'s: *connecting*, the run started; *forge
+  refused*, `ForgeRefusal`; or *unknown*. It takes a GitHub forge or a
+  Forgejo of the connected mode, connected or stopped
+  (`../protocol/setup.md`, section 4 and 17.3).
 - **`Install`:** of the deployment's scope: the forge's number (u16)
   and `back`, an optional byte string checked as `Return`'s `path`
   (section 8). Its outcome: *a link*, `Link`, the install page's
@@ -1483,15 +1499,18 @@ for its kind, its user's login and its installations. Its nodes:
   GitHub down or past the run's deadline; `too large`, the accepted set
   full (`forges.installations`); `invalid answer` otherwise. The forge's
   row is unchanged by a stopped `Accept`.
-- **`ForgeRefusal`,** a `Connect`'s, an `Install`'s, an `Accept`'s or a
-  `RemoveForge`'s, by the root before any run: `role`, the sender not
-  the deployment's owner; `no such forge`; `not taken`, the forge's
-  kind or mode does not take the request (a Forgejo's install, the
-  playground's fake); `connected`, a `Connect` on a
-  forge connected or connecting already, whose key `Replace` replaces;
-  `not connected`, an `Install` or an `Accept` on a forge with no App; `busy`, a run
-  holding the forge, or `setup.runs` full; `no key`, a `Connect` of an
-  App with no carried value; `first is bot`, a `ForgejoAdmin` `Connect`
+- **`ForgeRefusal`,** a `Connect`'s, a `Replace`'s, an `Install`'s, an
+  `Accept`'s or a `RemoveForge`'s, by the root before any run: `role`,
+  the sender not the deployment's owner; `no such forge`; `not taken`,
+  the forge's kind or mode does not take the request (a Forgejo's
+  install, the playground's fake, a `Replace` on a managed or owned
+  Forgejo, a `ForgejoTokens` `Connect` on a GitHub or managed forge);
+  `connected`, a `Connect` on a forge connected or connecting already,
+  whose key or tokens `Replace` replaces; `not connected`, an `Install`
+  or an `Accept` on a forge with no App, or a `Replace` on a forge
+  neither connected nor stopped; `busy`, a run holding the forge, or
+  `setup.runs` full; `no key`, a `Connect` or a `Replace` that takes a
+  carried value and has none; `first is bot`, a `ForgejoAdmin` `Connect`
   whose `first` organization is the bot's login, case-folded
   (`../protocol/setup.md`, 5.5). Its carried value, if any, is named unused
   (section 8).
@@ -3576,10 +3595,11 @@ does for the client:
   |---|---|---|---|
   | `Connect { forge, how: GitHubManifest { back? } }` | none | the setup's host's `Manifest` run, for the person's own account, always (`forge.md`, 9.1), ending `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (`forge.md`, 9.1); the page and `back` held with the state | a link to the manifest's page for a fresh state (the routes, above): with `back`, a path on the page's own origin, `/forges/N/github/manifest?state=S`; without it, the terminal's whole address on the clients' listener |
   | `Connect { forge, how: GitHubApp { id, read_only?, key } }` | `key`, the App's private key, PEM as GitHub gives it; `id` rides in the request | `Paste`: the key decoded and matched to the App `id` names, the App's user found, its hook pointed at `https://SLUG.invalid/` unless `read_only` leaves it as read (no webhook secret on GitHub: changes are heard from the App's delivery log), its permissions and events checked | connecting |
-  | `Connect { forge, how: ForgejoAdmin { first? } }` | the site admin's token, item 1 of the carried bundle (at most 4 KiB including its six-byte header) | `Reconcile` with the paste, its `AdminOrigin` write kept, then `Create` of `first` when given; only after Done is `AdminToken` kept, then the forge connects; every end erases the carried value; never `TakeOver` (`../protocol/setup.md`, 5.5); a managed forge (`ForgeRow.admin`) offers the client's admin Details, a new one's `ManagedForge` naming its addresses, with `first`'s org, repository, new project and runner label | connecting; then the watched row, its typed `ended_stop` on a stop, or `first` made and its adoption on Ready |
+  | `Connect { forge, how: ForgejoAdmin { first? } }` | the site admin's token, a bundle of one `AdminToken` item, at most 4 KiB in all | `Reconcile` with the paste, its `AdminOrigin` write kept, then `Create` of `first` when given; only after Done is `AdminToken` kept, then the forge connects; every end erases the carried value; never `TakeOver` (`../protocol/setup.md`, 5.5); a managed forge (`ForgeRow.admin`) offers the client's admin Details, a new one's `ManagedForge` naming its addresses, with `first`'s org, repository, new project and runner label | connecting; then the watched row, its typed `ended_stop` on a stop, or `first` made and its adoption on Ready |
+  | `Connect { forge, how: ForgejoTokens }` | the bot's API token and git token, and the hooks' secret when given: `ApiToken`, `GitToken` and `WebhookSecret` in one bundle | `Check { forge }`: both tokens answer as one user, not a site admin, and on a kept forge as its kept user; on Done the run's `User` write kept, then the tokens and the secret under the forge's numbers, then `Origin`, its login kept as the record's bot, and the forge connects; every end erases the carried value (`../protocol/setup.md`, section 4); `forge` a kept connected Forgejo, not connected or stopped, or a new one, `connected` naming its addresses | connecting; then the watched row, connected as its login, or its last connect's line on a stop |
   | `Install { forge, back? }` | none | `Install`, GitHub alone; `back` held with the state | a link, the install page for a fresh state |
   | `Accept { forge, installation }` | none | `Accept` with no state, GitHub alone (`../protocol/setup.md`, 17.4) | accepted; forge refused, not found |
-  | `Replace { forge, value }` | a new App key, or a new API token, git token or both | `Paste` with the kept App id, or `Check` against the kept user: it must answer as the forge's user; the old is erased once the new is kept | connecting |
+  | `Replace { forge }` | a new App key, one `Pasted` item; or a new API token, git token or both, and the hooks' secret when it changes | `Paste` with the kept App id, or `Check` against the kept user: it must answer as the forge's user; each new record is kept over the old, then the forge connects with them, the calls its old access began ending `Forbidden` (`../protocol/forge.md`, 2.2) | connecting; then the watched row, connected, or its last connect's line on a stop, the forge as it was |
   | `Forget { forge }` | none | the admin's token erased; a managed forge becomes connected (`../protocol/credentials.md`) | forgotten |
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup.md`, 7.1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge.md`, 2.2) | setting up |
   | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge.md`, 4.1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |

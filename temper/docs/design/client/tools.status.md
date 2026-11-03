@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-02. Where temper's code lags or departs from [tools.md](tools.md).
+2026-11-03. Where temper's code lags or departs from [tools.md](tools.md).
 
 - **Not yet:** 5.1: the groups `goal`, `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
@@ -16,8 +16,9 @@
   `--tasks`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
-  `compound`; area 6's `forge replace` and `forge forget`, with no
-  request on the wire. 6.1: a task wait's refusal by a worker's hello
+  `compound`; area 6's `forge connect [FORGE] forgejo FILE`, refused as
+  not offered (`forges/connection.rs`), and `forge replace` and `forge
+  forget`, with no request on the wire. 6.1: a task wait's refusal by a worker's hello
   prints its stop bound as jig's nanoseconds, `allowed grace N ns`, not
   whole seconds (`render/document/llm.rs`, `HelloRefusal::StopBound`).
   8.1: `GROUP VERB --help`; `temper ctl` parses a
@@ -25,7 +26,10 @@
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without
-  FORGE, which `temper-client-tools`' own step tests hold alone.
+  FORGE, which `temper-client-tools`' own step tests hold alone; a
+  connected Forgejo's connect by its tokens file and its replace. 11.3:
+  the real loop's connected Forgejo, its tokens connect, a replace of
+  its git token and another user's tokens stopped.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
   `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes

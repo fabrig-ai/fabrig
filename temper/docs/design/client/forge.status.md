@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:** 2.1, 3: the `Changes` page, its queues and a queued
   change's place (no `Changes` address in `temper-client-domain`). 2.3:
@@ -12,7 +12,10 @@
   · KIND" (`temper-client-view`'s `forge/forges.rs`); its load, the
   App's setup URL and the `Lacking` line on the row; Replace
   and Forget, with no request on the wire; the warning of no git on the
-  machine. 5.4: Forgejo on this machine's Details for a forge to make,
+  machine. 5.4: a connected Forgejo's Connect with its tokens: its
+  Details' form, its Connecting, its stops' words, and the row's
+  "Connect ›" (`forge/connect.rs` `managed` draws the admin's form
+  alone). 5.4: Forgejo on this machine's Details for a forge to make,
   their words and notes, where the view draws "Show how", a link to the
   deployment's help, and the fields alone (`forge/connect.rs` `body`,
   `Choice::Owned`). 5.4, Elsewhere: the dot leaving out the playground's
