@@ -415,7 +415,7 @@ delegate from what it knows:
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
   these as they are: its agents' LLM choices; its producer, a
-  charter or a job; the landing it repairs.
+  charter or a job.
 
 #### 4.3.2 A goal, in the run's words
 
