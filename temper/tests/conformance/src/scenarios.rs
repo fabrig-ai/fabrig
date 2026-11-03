@@ -234,7 +234,7 @@ impl ScenarioApplication for Temper {
                                     connector: 0,
                                     kind: 4,
                                     pattern,
-                                    judge: people::Judge { connector: 0, requirement: 1, parameters: 0x8000_0000 },
+                                    judge: people::Judge { connector: 0, requirement: 5, parameters: 0 },
                                     guard: people::Guard::Observed { freshness: skein_lib::Duration::ZERO },
                                     must_be_guarded: false,
                                 }]),
