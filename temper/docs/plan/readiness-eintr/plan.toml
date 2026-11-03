@@ -1,0 +1,3 @@
+draft = "readiness-eintr"
+repo = "fabrig"
+sources = ["temper/docs/plan/readiness-eintr/inputs/request.md", "skein/docs/design/shell.md", "AGENTS.md"]
