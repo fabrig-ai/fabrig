@@ -84,6 +84,9 @@ mod ci_poll;
 #[path = "forge_routes/documents.rs"]
 mod documents;
 
+#[path = "forge_routes/goal_landing_title.rs"]
+mod goal_landing_title;
+
 #[test]
 #[expect(clippy::too_many_lines, reason = "one race follows the kept merge through refusal and Met to landing")]
 fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
