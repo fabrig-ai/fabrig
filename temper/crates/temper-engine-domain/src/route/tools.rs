@@ -21,6 +21,14 @@ pub(crate) fn relay_payload(
     body: crate::Call,
 ) {
     assert!(current_proof(domain, key.task, key.attempt), "fleet only relays a current claim");
+    if let Tool::ReadTask { task, from } = body.tool {
+        domain.work.push(Work::Core(core::Event::NamedAction {
+            to: reply_to,
+            key,
+            action: core::NamedAction::ReadTask { task, from },
+        }));
+        return;
+    }
     // Settings reads enter before replay and admission to the durable call map.
     // The core checks their family and answers denials through its immediate lane.
     if let Tool::Settings { mut read, .. } = body.tool {
@@ -98,6 +106,7 @@ pub(crate) fn relay_payload(
                 body.tool
             };
             match tool {
+                Tool::ReadTask { .. } => unreachable!("task reads enter before replay"),
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),
                 Tool::ProposeSettings { against, items, reason, kinds } => {
                     domain.kinds = kinds;

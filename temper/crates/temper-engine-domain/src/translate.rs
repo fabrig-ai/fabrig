@@ -167,6 +167,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
         Tool::Note { entry, .. } => notes::valid_new(entry, &limits.notes),
         Tool::Recall { by, .. } => notes::valid_recall(by, &limits.notes),
         Tool::Goal { .. }
+        | Tool::ReadTask { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::Change { .. }
@@ -205,6 +206,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             Tool::Propose { .. } | Tool::Decide { .. } | Tool::Withdraw { .. } => Tool::RejectedProposal(why),
             Tool::Note { .. } | Tool::Recall { .. } => Tool::RejectedNote(jig_domain_notes::Refusal::Oversized),
             Tool::Goal { .. }
+            | Tool::ReadTask { .. }
             | Tool::Settings { .. }
             | Tool::ProposeSettings { .. }
             | Tool::Change { .. }
@@ -240,7 +242,8 @@ pub(crate) fn relay_call(
 pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     match tool {
         Tool::Goal { agree, .. } => *agree,
-        Tool::Settings { .. }
+        Tool::ReadTask { .. }
+        | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::Change { .. }
         | Tool::Unavailable
@@ -341,6 +344,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
         },
         Tool::Goal { .. }
+        | Tool::ReadTask { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::Change { .. }
@@ -439,7 +443,7 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         Tool::EffectForge { .. } => jig_domain_core::ToolKind::Effect,
         Tool::Note { entry, .. } => jig_domain_core::ToolKind::Note { scope: entry.scope.clone() },
         Tool::Recall { by, .. } => jig_domain_core::ToolKind::Recall { by: by.clone() },
-        Tool::ReadNamed { .. } | Tool::ReadForge { .. } => jig_domain_core::ToolKind::Read,
+        Tool::ReadTask { .. } | Tool::ReadNamed { .. } | Tool::ReadForge { .. } => jig_domain_core::ToolKind::Read,
         Tool::Unavailable
         | Tool::Rejected(_)
         | Tool::RejectedMessage(_)
@@ -480,7 +484,8 @@ pub(crate) fn keep_connector_answer(
         CallAnswer::ForgeEffect { entry, deadline, outcome } => forge::CallPayload::Effect { entry, deadline, outcome },
         CallAnswer::ForgeEffectRefused(error) => forge::CallPayload::Refused(error),
         CallAnswer::ForgeRead(answer) => forge::CallPayload::Read(answer),
-        answer @ (CallAnswer::ForgeEffectDenied { .. }
+        answer @ (CallAnswer::TaskRead(_)
+        | CallAnswer::ForgeEffectDenied { .. }
         | CallAnswer::ToolDenied { .. }
         | CallAnswer::EscalationDecided { .. }
         | CallAnswer::EscalationRefused(_)
@@ -521,9 +526,9 @@ pub(crate) fn keep_connector_answer(
     }
 }
 
-pub(crate) fn is_settings_read(tool: &Tool) -> bool {
+pub(crate) fn is_core_read(tool: &Tool) -> bool {
     match tool {
-        Tool::Settings { .. } => true,
+        Tool::ReadTask { .. } | Tool::Settings { .. } => true,
         Tool::ProposeSettings { .. }
         | Tool::Goal { .. }
         | Tool::Note { .. }

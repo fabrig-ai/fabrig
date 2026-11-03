@@ -59,15 +59,16 @@ pub(crate) struct Flight {
 #[derive(Debug)]
 pub(crate) enum FlightRender {
     Plain,
+    TaskRead,
     Settings { from: u32, requested: Option<u64> },
     Amended(crate::Changed),
     Change(Box<ChangeChoice>),
 }
 
 impl FlightRender {
-    fn is_settings_read(&self) -> bool {
+    fn is_core_read(&self) -> bool {
         match self {
-            Self::Settings { .. } => true,
+            Self::TaskRead | Self::Settings { .. } => true,
             Self::Plain | Self::Amended(_) | Self::Change(_) => false,
         }
     }
@@ -113,7 +114,9 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let key =
         CallKey { task: flight.task, attempt: flight.attempt, completion: body.completion, position: body.position };
     let Some(to) = admit(domain, to, key, &body.tool) else { return };
-    let render = if let crate::Tool::Settings { from, read } = &body.tool {
+    let render = if let crate::Tool::ReadTask { .. } = &body.tool {
+        FlightRender::TaskRead
+    } else if let crate::Tool::Settings { from, read } = &body.tool {
         let requested = match read {
             jig_domain_core::SettingsRead::Revision { number } => Some(u64::from(*number)),
             jig_domain_core::SettingsRead::Inventory
@@ -148,7 +151,7 @@ fn admit(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: &crate::Tool) -> 
         Some(("call-proof", "completion is zero", true))
     } else if !super::current_proof(domain, key.task, key.attempt) {
         Some(("call-proof", "task attempt is not current", true))
-    } else if crate::translate::is_settings_read(tool) {
+    } else if crate::translate::is_core_read(tool) {
         None
     } else if !domain.core.call_room(key) {
         let reason =
@@ -194,7 +197,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
     // A flight dropped with its call has no host left to answer.
     let Some(flight) = domain.call_renders.get(&right) else { return };
     let key = flight.key.expect("decoded typed call");
-    if !flight.render.is_settings_read()
+    if !flight.render.is_core_read()
         && let Some(call) = domain.core.call_settled.get(&key).cloned()
     {
         drop(domain.call_renders.remove(&right));
@@ -223,7 +226,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
                 answer
             }
         }
-        FlightRender::Plain | FlightRender::Settings { .. } => answer,
+        FlightRender::Plain | FlightRender::TaskRead | FlightRender::Settings { .. } => answer,
     };
     emit(
         decision,
@@ -247,7 +250,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
         return;
     };
     let mut call = SettledCall { serial: 0, tool: flight.tool, answer };
-    let reading = flight.render.is_settings_read();
+    let reading = flight.render.is_core_read();
     let recorded = !reading && domain.core.call_parts.contains_key(&key);
     let answer_bytes = if reading {
         Some(0)
