@@ -91,11 +91,13 @@ impl Domain {
                     )
                 }
                 change::Delegate::Repair(_) => {
-                    (Start::Branch(row.branch.clone()), Some(row.branch.clone()), Some(row.task))
+                    (Start::Branch(row.branch.clone()), Some(row.branch.clone()), Some(self.change_branch_holder(row)))
                 }
-                change::Delegate::Resolve { base } => {
-                    (Start::Merge { branch: row.branch.clone(), base }, Some(row.branch.clone()), Some(row.task))
-                }
+                change::Delegate::Resolve { base } => (
+                    Start::Merge { branch: row.branch.clone(), base },
+                    Some(row.branch.clone()),
+                    Some(self.change_branch_holder(row)),
+                ),
                 change::Delegate::Gate { .. } => (Start::Branch(row.branch.clone()), None, None),
             },
             None => (Start::Base(repository.settings.default_branch.clone()), Some(seed.run_branch), None),
@@ -150,6 +152,14 @@ impl Domain {
             },
             bytes,
         })
+    }
+
+    /// Repairs and resolutions write under the branch's hold (temper/docs/design/domain/forge.md, 8.1).
+    fn change_branch_holder(&self, row: &crate::ChangeRow) -> u64 {
+        match crate::domain::change_branch_hold(self, row) {
+            Some((holder, _)) => holder,
+            None => row.task,
+        }
     }
 }
 

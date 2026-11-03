@@ -111,7 +111,17 @@ fn a_plan_member_from_a_task_without_control_is_refused() {
     let rows = world.store.rows.clone();
     plan_change(&mut world, &chat, br#"{"words":"Small fix","landing":"main"}"#);
     assert_eq!(world.call_errors.len(), 1);
-    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.store.rows, rows, "no delegate or call record is built");
+}
+
+#[test]
+fn a_branch_without_the_control_family_is_a_plans_member_refused() {
+    let (mut world, chat) = plan_world(false);
+    let rows = world.store.rows.clone();
+    plan_change(&mut world, &chat, br#"{"words":"Small fix","branch":"mine"}"#);
+    assert_eq!(world.call_errors.len(), 1);
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
     assert_eq!(world.store.rows, rows, "no delegate or call record is built");
 }
 
@@ -121,22 +131,22 @@ fn a_producer_from_a_task_without_control_is_refused() {
     let rows = world.store.rows.clone();
     plan_change(&mut world, &chat, br#"{"words":"Small fix","producer":6}"#);
     assert_eq!(world.call_errors.len(), 1);
-    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
     assert_eq!(world.store.rows, rows, "no delegate or call record is built");
     assert_eq!(world.assigned.len(), 1);
 }
 
 #[test]
-fn a_producer_or_llm_with_control_is_refused_before_delegation() {
-    for input in [
-        br#"{"words":"Small fix","llm":{"producer":{"main":{"model":"scripted"}}}}"#.as_slice(),
-        br#"{"words":"Small fix","producer":6}"#,
-        br#"{"changes":[{"words":"First fix"},{"words":"Second fix","llm":{"review":{"main":{"model":"scripted"}}}}]}"#,
+fn a_control_changes_choices_are_validated_before_delegation() {
+    for (input, expected) in [
+        (br#"{"words":"Small fix","producer":6}"#.as_slice(), tasks::Refusal::Executor),
+        (br#"{"changes":[{"words":"First fix"},{"words":"Second fix","producer":6}]}"#, tasks::Refusal::Executor),
     ] {
         let (mut world, chat) = plan_world(true);
         let answer = plan_change(&mut world, &chat, input);
         assert!(
-            matches!(answer, Some(engine::CallAnswer::DelegationRefused(problem)) if problem.why == tasks::Refusal::Spec)
+            matches!(&answer, Some(engine::CallAnswer::DelegationRefused(problem)) if problem.why == expected),
+            "{input:?}: {answer:?}"
         );
         assert!(world.call_errors.is_empty());
         assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
@@ -152,6 +162,25 @@ fn a_producer_or_llm_with_control_is_refused_before_delegation() {
         );
         assert_eq!(world.assigned.len(), 1);
     }
+}
+
+#[test]
+fn a_control_changes_producer_llm_is_admitted_and_saved() {
+    let (mut world, chat) = plan_world(true);
+    let answer = plan_change(
+        &mut world,
+        &chat,
+        br#"{"words":"Small fix","producer":1,"llm":{"producer":{"main":{"model":"scripted"}}}}"#,
+    );
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("configured choices admitted: {answer:?}") };
+    assert!(world.call_errors.is_empty());
+    let row = stored_change(&world, made[0].task);
+    assert_eq!(row.producing_charter, 1);
+    assert_eq!(
+        row.producing_llm.as_ref().expect("saved producer choice").main,
+        tasks::ModelEffort { model: 0, effort: None }
+    );
+    assert!(row.review_llm.is_none());
 }
 
 #[test]

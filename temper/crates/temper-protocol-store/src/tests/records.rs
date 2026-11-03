@@ -775,9 +775,11 @@ fn every_application_outcome_preserves_its_complete_record() {
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row.clone()), "{row:?}");
         assert_eq!(bytes[2], 15, "the Application family tag");
     }
+    // Settings judgement words cannot occur in a forge application refusal.
+    let limits =
+        jig_protocol_store::people_v14::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v14::CEILINGS };
     assert!(
-        jig_protocol_store::people_v14::Refusal::encoded_bound(&jig_protocol_store::people_v14::CEILINGS)
-            .expect("bounded facts")
+        jig_protocol_store::people_v14::Refusal::encoded_bound(&limits).expect("bounded facts")
             <= u64::from(v11::CEILINGS.core_refused_refusal)
     );
 }
