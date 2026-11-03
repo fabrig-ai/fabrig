@@ -108,14 +108,30 @@ fn keep_distinguishes_removed_empty_and_reset_and_reads_the_newest() {
     );
     assert_eq!(
         kept(&mut domain, Box::from([item(1, SettingEdit::Remove)])),
-        Box::from([Request::Save { record: Record::SettingChange { kind: KIND, scope: 0, number: 1, value: None } }])
+        Box::from([
+            Request::Save {
+                record: Record::SettingReplaced {
+                    kind: KIND,
+                    scope: 0,
+                    number: 1,
+                    revision: 9,
+                    value: Box::from(&b"changed"[..])
+                }
+            },
+            Request::Save { record: Record::SettingChange { kind: KIND, scope: 0, number: 1, value: None } },
+        ])
     );
     assert_eq!(read(&mut domain, 1), Box::from([Request::SettingValue { token: TOKEN, value: None }]));
     drop(kept(&mut domain, Box::from([set(1, b"")])));
     assert_eq!(read(&mut domain, 1), Box::from([Request::SettingValue { token: TOKEN, value: Some(Box::from([])) }]));
     assert_eq!(
         kept(&mut domain, Box::from([item(1, SettingEdit::Reset)])),
-        Box::from([Request::Erase { key: RecordKey::SettingChange { kind: KIND, scope: 0, number: 1 } }])
+        Box::from([
+            Request::Save {
+                record: Record::SettingReplaced { kind: KIND, scope: 0, number: 1, revision: 9, value: Box::from([]) }
+            },
+            Request::Erase { key: RecordKey::SettingChange { kind: KIND, scope: 0, number: 1 } },
+        ])
     );
     assert_eq!(
         read(&mut domain, 1),
@@ -256,6 +272,7 @@ fn restore_refuses_unowned_kind_scope_oversized_values_and_scope_capacity() {
             Record::SettingDefault { kind, scope, number: 1, value: value.clone() },
             Record::SettingChange { kind, scope, number: 1, value: Some(value.clone()) },
             Record::SettingProposal { proposal: 1, kind, scope, number: 1, edit: SettingEdit::Set(value.clone()) },
+            Record::SettingReplaced { kind, scope, number: 1, revision: 3, value: value.clone() },
         ] {
             assert_eq!(
                 run(&mut domain, Event::Restore { record }),
@@ -360,6 +377,87 @@ fn project_release_erases_settings_and_proposals_in_that_scope_only() {
 }
 
 #[test]
+fn a_kept_change_keeps_the_value_it_replaced_by_its_revision() {
+    let mut domain = connector();
+    assert_eq!(
+        run(&mut domain, Event::KeepSettings { revision: 2, proposal: None, items: Box::from([set(1, b"a")]) }),
+        Box::from([Request::Save {
+            record: Record::SettingChange { kind: KIND, scope: 0, number: 1, value: Some(Box::from(&b"a"[..])) },
+        }])
+    );
+    assert!(domain.settings.replaced.is_empty());
+    assert_eq!(
+        run(&mut domain, Event::KeepSettings { revision: 3, proposal: None, items: Box::from([set(1, b"b")]) }),
+        Box::from([
+            Request::Save {
+                record: Record::SettingReplaced {
+                    kind: KIND,
+                    scope: 0,
+                    number: 1,
+                    revision: 3,
+                    value: Box::from(&b"a"[..])
+                },
+            },
+            Request::Save {
+                record: Record::SettingChange { kind: KIND, scope: 0, number: 1, value: Some(Box::from(&b"b"[..])) },
+            },
+        ])
+    );
+    assert_eq!(domain.settings.replaced.len(), 1);
+    assert_eq!(domain.settings.replaced.get(&((KIND, 0, 1), 3)).expect("revision 3 replaced a change").as_ref(), b"a");
+}
+
+#[test]
+fn a_change_over_a_default_or_a_removal_keeps_nothing_replaced() {
+    let mut domain = connector();
+    let items = [set(1, b"a"), item(2, SettingEdit::Remove), set(2, b"b"), set(3, b"c")];
+    for (index, item) in items.into_iter().enumerate() {
+        let revision = u64::try_from(index).expect("four items") + 2;
+        let value = match &item.edit {
+            SettingEdit::Set(value) => Some(value.clone()),
+            SettingEdit::Remove => None,
+            SettingEdit::Reset => unreachable!("these changes set or remove"),
+        };
+        let number = item.number;
+        let saved = run(&mut domain, Event::KeepSettings { revision, proposal: None, items: Box::from([item]) });
+        assert_eq!(
+            saved,
+            Box::from([Request::Save { record: Record::SettingChange { kind: KIND, scope: 0, number, value } }])
+        );
+        assert!(domain.settings.replaced.is_empty());
+    }
+    let saved = run(&mut domain, Event::SaveSettingsDefaults { revision: Some(6) });
+    assert_eq!(
+        saved,
+        Box::from([Request::Save {
+            record: Record::SettingDefault { kind: KIND, scope: 0, number: 1, value: Box::from(&b"default"[..]) }
+        }])
+    );
+    assert!(domain.settings.replaced.is_empty());
+}
+
+#[test]
+fn replaced_values_are_restored_at_a_restart() {
+    let mut domain = connector();
+    let mut records = alloc::collections::BTreeMap::new();
+    for (revision, bytes) in [(2, &b"a"[..]), (3, &b"b"[..]), (u64::MAX, &b"c"[..])] {
+        let saved =
+            run(&mut domain, Event::KeepSettings { revision, proposal: None, items: Box::from([set(1, bytes)]) });
+        for request in saved {
+            let Request::Save { record } = request else { panic!("kept changes save records") };
+            records.insert(record.key(), record);
+        }
+    }
+    let mut restarted = connector();
+    for record in records.into_values() {
+        assert!(run(&mut restarted, Event::Restore { record }).is_empty());
+    }
+    assert_eq!(restarted.settings.replaced, domain.settings.replaced);
+    assert_eq!(restarted.settings.replaced.len(), 2);
+    assert_eq!(read(&mut restarted, 1), read(&mut domain, 1));
+}
+
+#[test]
 fn stored_defaults_and_changes_share_scope_capacity_in_either_restore_order() {
     for default_first in [true, false] {
         let mut domain = connector();
@@ -379,4 +477,36 @@ fn stored_defaults_and_changes_share_scope_capacity_in_either_restore_order() {
             );
         }
     }
+}
+
+#[test]
+fn replaced_values_have_their_own_scope_capacity_for_each_revision() {
+    let mut domain = connector();
+    domain.config.settings.as_mut().expect("kind").per_scope = 1;
+    drop(kept(&mut domain, Box::from([set(1, b"current")])));
+    for revision in [3, 4] {
+        let record =
+            Record::SettingReplaced { kind: KIND, scope: 0, number: 2, revision, value: Box::from(&b"old"[..]) };
+        assert!(run(&mut domain, Event::Restore { record: record.clone() }).is_empty());
+        assert!(
+            run(&mut domain, Event::Restore { record }).is_empty(),
+            "restoring the same identity uses no extra slot"
+        );
+        assert_eq!(
+            run(
+                &mut domain,
+                Event::Restore {
+                    record: Record::SettingReplaced {
+                        kind: KIND,
+                        scope: 0,
+                        number: 3,
+                        revision,
+                        value: Box::from(&b"other"[..]),
+                    }
+                }
+            ),
+            Box::from([Request::RestoreRefused { kind: KIND, scope: 0, number: 3 }]),
+        );
+    }
+    assert_eq!(domain.settings.replaced.len(), 2);
 }

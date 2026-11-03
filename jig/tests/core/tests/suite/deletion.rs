@@ -397,6 +397,7 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
                 root::Record::Connector { record, .. } => match record {
                     connector::Record::SettingDefault { .. }
                     | connector::Record::SettingChange { .. }
+                    | connector::Record::SettingReplaced { .. }
                     | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
                     connector::Record::Task { project: owner, .. }
                     | connector::Record::Adoption { project: owner, .. }

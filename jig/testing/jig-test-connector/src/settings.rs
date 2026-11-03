@@ -62,12 +62,18 @@ type Key = (u32, u32, u32);
 pub(crate) struct State {
     defaults: BTreeMap<Key, Box<[u8]>>,
     changes: BTreeMap<Key, Option<Box<[u8]>>>,
+    pub(crate) replaced: BTreeMap<(Key, u64), Box<[u8]>>,
     proposals: BTreeMap<(u64, Key), SettingEdit>,
 }
 
 impl State {
     pub(crate) fn new() -> Self {
-        Self { defaults: BTreeMap::new(), changes: BTreeMap::new(), proposals: BTreeMap::new() }
+        Self {
+            defaults: BTreeMap::new(),
+            changes: BTreeMap::new(),
+            replaced: BTreeMap::new(),
+            proposals: BTreeMap::new(),
+        }
     }
 }
 
@@ -186,10 +192,23 @@ fn judge_edit(domain: &Domain, key: Key, edit: &SettingEdit) -> SettingJudged {
     }
 }
 
-pub(crate) fn keep(domain: &mut Domain, proposal: Option<u64>, items: &[SettingItem], out: &mut Queue<Request>) {
+pub(crate) fn keep(
+    domain: &mut Domain,
+    revision: u64,
+    proposal: Option<u64>,
+    items: &[SettingItem],
+    out: &mut Queue<Request>,
+) {
     for item in items {
         let key = (item.kind, item.scope, item.number);
         let edit = chosen_edit(domain, proposal, item).expect("committed proposal item was kept");
+        if let Some(Some(value)) = domain.settings.changes.get(&key) {
+            let value = value.clone();
+            domain.settings.replaced.insert((key, revision), value.clone());
+            out.push(Request::Save {
+                record: Record::SettingReplaced { kind: key.0, scope: key.1, number: key.2, revision, value },
+            });
+        }
         match edit {
             SettingEdit::Reset => {
                 domain.settings.changes.remove(&key);
@@ -334,6 +353,26 @@ pub(crate) fn restore_change(domain: &mut Domain, key: Key, value: Option<Box<[u
         return;
     }
     domain.settings.changes.insert(key, value);
+}
+
+pub(crate) fn restore_replaced(
+    domain: &mut Domain,
+    key: Key,
+    revision: u64,
+    value: Box<[u8]>,
+    out: &mut Queue<Request>,
+) {
+    let mut count = 0_u32;
+    for (other, owner) in domain.settings.replaced.keys() {
+        if *owner == revision && other.1 == key.1 && *other != key {
+            count = count.checked_add(1).expect("bounded replaced values");
+        }
+    }
+    if !fits(domain, key, Some(&value)) || count >= domain.config.settings.as_ref().expect("owned kind").per_scope {
+        refuse(key, out);
+        return;
+    }
+    domain.settings.replaced.insert((key, revision), value);
 }
 
 pub(crate) fn restore_proposal(

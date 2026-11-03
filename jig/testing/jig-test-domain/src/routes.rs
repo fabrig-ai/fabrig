@@ -695,6 +695,7 @@ pub(super) fn route_connector(
                     }
                     connector::Record::SettingDefault { .. }
                     | connector::Record::SettingChange { .. }
+                    | connector::Record::SettingReplaced { .. }
                     | connector::Record::SettingProposal { .. }
                     | connector::Record::ApplicationObject { .. }
                     | connector::Record::ApplicationAnswer { .. }

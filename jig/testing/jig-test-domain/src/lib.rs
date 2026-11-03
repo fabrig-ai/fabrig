@@ -1167,6 +1167,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
         }
         connector::Record::SettingDefault { .. }
         | connector::Record::SettingChange { .. }
+        | connector::Record::SettingReplaced { .. }
         | connector::Record::SettingProposal { .. }
         | connector::Record::ApplicationObject { .. }
         | connector::Record::ApplicationAnswer { .. }

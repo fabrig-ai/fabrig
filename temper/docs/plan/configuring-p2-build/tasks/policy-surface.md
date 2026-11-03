@@ -99,3 +99,17 @@ Acceptance:
 The arms added, by file, as a list (file, function, body); any match left as `## Owns and may
 change` says; any test expectation corrected and why; whether the variant's order moved
 anything.
+
+## Answers
+
+2026-11-03. **May `settings/application.rs`' `projects` collect the item's project instead of
+`unreachable!`?** Yes. Give that one function the arm
+`Setting::ProjectPolicy { project } => project`, and leave `routing/settings/dispatch.rs`'s
+order as it is. A project's policy is an item of its project's scope (jig's
+`domain/engine.md`, 17.2; contract P1, "Who"), so this arm is the design's own and not a
+placeholder. It is the arm `policy-change` plans to write (its step 1), and this task now
+writes it first. With it, the people child checks that the party owns the project, and
+`change_shape` then refuses the item `Shape`, as acceptance asks. Every other arm stays as the
+table says. If another match on the path to the `Shape` refusal (direct change or proposal)
+panics the same way, give it the design's value for the item in the same way (its scope is the
+project; a boolean is `false`) and list it in the report. Never reorder routing.
