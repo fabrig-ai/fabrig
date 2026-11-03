@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/status-gaps/inputs/request.md", "AGENTS.md"]
 # (readiness-eintr, forgejo-connect, withdrawn-forms) left this plan on 11-03, answered unattended
 # by agents/loop at the director's word: each is its own plan of the same name (plan.md).
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
