@@ -1,0 +1,40 @@
+draft = "configuring-p2"
+repo = "fabrig"
+sources = ["temper/docs/plan/configuring-p2/inputs/request.md", "temper/docs/design/draft/configuring.execution.md", "temper/docs/design/draft/configuring.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+after = ["reference-m3"]
+
+# P2 of temper/docs/design/draft/configuring.execution.md: settings through ctl, on the
+# reference's M3. This cut writes the design the entry names and the parts; their tasks build
+# on M3's application settings and kinds, which this trunk does not yet hold, and are cut once
+# it does (plan.md, report.md's Question). notes/next-cut.md sketches them.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "policy-item"
+title = "a project's own policy as an item of a change of settings and of a proposal, decided by one person owning both the deployment and the project, through temper ctl's settings file"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.2"
+
+[[slice]]
+id = 1
+story = "an owner of the deployment and of project 1 proposes a settings file naming charters, a landing rule and project 1's policy; proposal show prints the policy now and proposed; accepting it sets all of them in one revision, and a member-only owner is refused"
+parts = ["policy-item"]
+walk = false
+
+[[part]]
+id = "restore"
+title = "restoring a version: each item records what it replaced, jig's kinds, temper's kinds and a project's policy proposed back as a revision left them, through temper ctl revision restore"
+mode = "direct"
+needs = ["policy-item"]
+design = "jig/docs/design/domain/engine.md, 17.10"
+
+[[slice]]
+id = 2
+story = "a settings file of each kind proposed, shown, accepted and restored through temper ctl, and P1's document reaching a run's brief"
+parts = ["restore"]
+walk = true

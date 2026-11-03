@@ -17,7 +17,10 @@
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge replace` and `forge forget`, with no
-  request on the wire. 6.1: a task wait's refusal by a worker's hello
+  request on the wire. 5.3, beside its acts above: a settings file's
+  item of a project's own policy (`temper-settings-form` decodes none),
+  and `revision restore`'s items of temper's kinds and of a project's
+  policy. 6.1: a task wait's refusal by a worker's hello
   prints its stop bound as jig's nanoseconds, `allowed grace N ns`, not
   whole seconds (`render/document/llm.rs`, `HelloRefusal::StopBound`).
   8.1: `GROUP VERB --help`; `temper ctl` parses a
