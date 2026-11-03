@@ -1,4 +1,4 @@
-//! Landing rules as settings of the forge's kinds
+//! Values and edits of the forge's kinds of settings
 //! (temper/docs/design/protocol/configuration.md, 13.2 and 13.3;
 //! temper/docs/design/domain/forge.md, 8.9).
 use alloc::boxed::Box;
@@ -9,6 +9,7 @@ use crate::{GateLast, GatePattern, JudgeFreshness, Requires, gates::covers};
 pub enum Kind {
     DeploymentRules,
     ProjectRules,
+    Charters,
 }
 
 impl Kind {
@@ -17,6 +18,7 @@ impl Kind {
         match self {
             Self::DeploymentRules => 1,
             Self::ProjectRules => 2,
+            Self::Charters => 3,
         }
     }
 
@@ -25,6 +27,7 @@ impl Kind {
         match number {
             1 => Some(Self::DeploymentRules),
             2 => Some(Self::ProjectRules),
+            3 => Some(Self::Charters),
             _ => None,
         }
     }
@@ -54,11 +57,94 @@ pub struct RuleApproval {
     pub freshness: JudgeFreshness,
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Value {
+    Rule(LandingRule),
+    Charter(u32),
+}
+
+/// A value and the bytes of its encoding counted by jig, measured where it
+/// was decoded or made (temper/docs/design/domain/root.md, 5.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct SizedValue {
+    pub value: Value,
+    pub size: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Edit {
+    Set(SizedValue),
+    Remove,
+    Reset,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Asked {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub edit: Edit,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Judged {
+    Accept { size: u32, charter: Option<u32> },
+    Same,
+    Refuse(Refusal),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Stock {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub value: SizedValue,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct DefaultState {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub size: u32,
+    pub charter: Option<u32>,
+    pub differs: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ForgeCharters {
+    pub change: u32,
+    pub review: u32,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum SettingSlot {
+    Default,
+    Change,
+    Proposal(u64),
+}
+
+/// The store's key order (temper/docs/design/protocol/store.md, sections 2 and 3).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct SettingKey {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub slot: SettingSlot,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct SettingRow {
+    pub key: SettingKey,
+    pub edit: Edit,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bounds {
     pub landing_rules: u32,
     pub gates: u32,
     pub roles: u32,
+    pub charters: u32,
     pub segments: u32,
     pub segment_bytes: u32,
 }
@@ -68,7 +154,7 @@ pub struct Item {
     pub kind: u32,
     pub scope: u32,
     pub number: u32,
-    pub rule: Option<LandingRule>,
+    pub value: Option<Value>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -79,6 +165,24 @@ pub enum Refusal {
     Pattern,
     Gates,
     Approvals,
+    Charter,
+    Value,
+}
+
+impl Refusal {
+    #[must_use]
+    pub const fn words(self) -> &'static [u8] {
+        match self {
+            Self::Kind => b"not a kind of the forge's",
+            Self::Scope => b"a scope this kind does not have",
+            Self::Number => b"a number this kind does not have",
+            Self::Pattern => b"a pattern that is not a landing branch's, or past the pattern bounds",
+            Self::Gates => b"more gates than forge.change_policy.gates, or a gate twice",
+            Self::Approvals => b"an approval of no people, a role twice, or one past authority.roles",
+            Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
+            Self::Value => b"a value of another kind",
+        }
+    }
 }
 
 fn within(len: usize, bound: u32) -> bool {
@@ -89,16 +193,32 @@ fn within(len: usize, bound: u32) -> bool {
 }
 
 pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
-    match Kind::of(item.kind).ok_or(Refusal::Kind)? {
-        Kind::DeploymentRules if item.scope != 0 => return Err(Refusal::Scope),
+    let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
+    match kind {
+        Kind::DeploymentRules | Kind::Charters if item.scope != 0 => return Err(Refusal::Scope),
         Kind::ProjectRules if item.scope == 0 => return Err(Refusal::Scope),
-        Kind::DeploymentRules | Kind::ProjectRules => {}
+        Kind::DeploymentRules | Kind::ProjectRules | Kind::Charters => {}
     }
-    if item.number == 0 || item.number > bounds.landing_rules {
+    let numbers = match kind {
+        Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
+        Kind::Charters => 2,
+    };
+    if item.number == 0 || item.number > numbers {
         return Err(Refusal::Number);
     }
-    let Some(rule) = &item.rule else {
-        return Ok(());
+    let rule = match kind {
+        Kind::DeploymentRules | Kind::ProjectRules => match &item.value {
+            Some(Value::Rule(rule)) => rule,
+            Some(Value::Charter(_)) => return Err(Refusal::Value),
+            None => return Ok(()),
+        },
+        Kind::Charters => {
+            return match &item.value {
+                Some(Value::Charter(charter)) if *charter > 0 && *charter <= bounds.charters => Ok(()),
+                Some(Value::Charter(_)) | None => Err(Refusal::Charter),
+                Some(Value::Rule(_)) => Err(Refusal::Value),
+            };
+        }
     };
     let Some(first) = rule.pattern.segments.first() else {
         return Err(Refusal::Pattern);
