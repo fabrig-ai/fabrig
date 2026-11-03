@@ -124,7 +124,7 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
 | `name` | `name` | `name`: the directory, one path component, unique in the workspace |
 | `remote` | made: the `git` base of the forge whose number is `provider.forge`, its record's (forge.md, 2.1), `/`, `owner`, `/`, `name`, `.git` | `remote`, never interpreted by the domain; the git component's URL (git.md, section 3) |
 | `git` | made by the routing: the git program of the forge whose number is `provider.forge`, its record's, or for the playground's fake forge the machine's fake `git` (configuration.md, section 3), resolved to an absolute path; none for a forge with none | `git`, never interpreted by the domain; the program the git component runs for every operation on the repository, and `workers[].git` for none (git.md, section 3) |
-| `start` | `ForgeStart::Base`, `Branch`, `Saved`, `Merge { branch, base }`; the engine never asks for a commit | `Start`, all five |
+| `start` | `ForgeStart::Base`, `Branch`, `Saved`, `Merge { branch, base }`, `Merged { branch, heads }`; the engine never asks for a commit | `Start`, all six; `Merged`'s heads in their order, one to 64 (a task's dependencies), each a full object id (`../domain/worker.md`, 4.1) |
 | `access` | `push: Some(branch)` is `writable { push: branch, expected: none, landing }`; `landing` is the change's landing branch only for an inherited writable producer starting on its push branch; `None` push is `read_only` | `Access`; landing is bounded by the branch-name limit |
 | `identity` | `identity`: the number of the forge's git identity, the credential jig grants the attempt (credentials.md, section 4) | `identity`, the grant's number in the application's table |
 | `account` | made by the routing, on a GitHub forge: the `account` of the entry in the forge's identity value, as the routing last made it (section 6), whose `account_login` equals `owner`, compared ASCII case-insensitively; none when no entry matches, and none on Forgejo | `account`, by which the worker's routing picks the identity's entry for each git operation on the repository (section 6) |
@@ -183,9 +183,10 @@ enum   PushReason       { missing_repository, missing_branch, missing_commit, re
                           unreachable, broken, timed_out, cancelled, unavailable, busy,
                           too_large, nothing, unknown }
 record Diagnostic       { output: bytes  cut: u64 }
-enum   Preparation      { transient, missing: Missed, refused: Tag }
+enum   Preparation      { transient, missing: Missed, refused: Tag, conflicted: Conflicted }
 record Missed           { tag: u64  missing: Missing }
 record Tag              { tag: u64 }
+record Conflicted       { tag: u64  head: fixed 32 }
 enum   Missing          { repository, branch, commit }
 ```
 
@@ -217,8 +218,11 @@ enum   Missing          { repository, branch, commit }
     saved work and whose save left that branch as it was;
   - `preparation`: from `missing`, the repository's tag and what the
     forge lacks; from `refused`, its tag and that the forge refused the
-    identity. The root reports them as a fact of the attempt
-    (`../domain/root.md`, 7.4).
+    identity; from `conflicted`, its tag and the head that did not merge
+    into a base with heads merged in (`../domain/worker.md`, section 5).
+    The root reports them as a fact of the attempt
+    (`../domain/root.md`, 7.4), and gives a conflict to the change
+    whose producer the run is (`../domain/forge.md`, 8.11).
 
 ## 6. A git identity's value
 

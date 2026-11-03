@@ -463,7 +463,8 @@ follow from the limits that bound each kind (5.4).
   rows keep each live task's dependency with whether it was
   named when the task was made or added by an amendment, and for an
   added one its wall and its maker, a party or a task
-  (`../domain/tasks.md`, section 7); a hold for a circle of waits, with
+  (`../domain/tasks.md`, section 7), and those its procedure marked
+  started from (`../domain/connectors.md`, 6.1); a hold for a circle of waits, with
   the circle's tasks, cut at their limit, and when the held task began
   to wait for holds (`../domain/tasks.md`, 6.7); and, for a task that left
   its queues and came back, when its wait bound counts from

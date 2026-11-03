@@ -1,3 +1,61 @@
 draft = "reference-m6"
 repo = "fabrig"
 sources = ["temper/docs/plan/reference-m6/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M6 of temper/docs/design/draft/reference-case.execution.md: early starts (N2, N14).
+# Three families: kept-jig (jig's procedure that starts kept, and a dependency marked
+# started from), checkout (the worker's base with heads merged in, and its conflict) and
+# early (the change procedure's early start, its once rule, its refusal on a conflict and
+# its amendment refused), plus charter (the reference coding charter pushing as it goes).
+# The shapes that cross them are notes/contracts.md; the design is forge.md 8.11,
+# worker.md 4.1 and 5, channel.md 4 and 5, jig's connectors.md 6.1 and tasks.md 7.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "kept-jig"
+title = "jig: a procedure that starts kept, and a dependency its step marks started from, never removed by an amendment"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/connectors.md, 6.1"
+
+[[part]]
+id = "checkout"
+title = "temper's worker: a checkout from a base with heads merged in, a conflicting head failing its preparation up to the engine"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/worker.md, 5"
+
+[[part]]
+id = "early"
+title = "temper's change procedure starts kept; its producer starts early on its dependencies' pushed heads, once, refused on a conflict"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.11"
+
+[[part]]
+id = "charter"
+title = "the reference coding charter pushes as it goes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8"
+
+[[slice]]
+id = 1
+story = "a procedure task of a kept start made with a pending dependency is active and kept at once, steps while its dependency goes on, and ends done only once the dependency is done; a dependency its step marked started from is never removed by an amendment"
+parts = ["kept-jig"]
+walk = false
+
+[[slice]]
+id = 2
+story = "the worker prepares a base with two heads merged in, each merge a commit, and pushes one history holding them; a conflicting head fails the preparation naming it, and the engine hears it as a fact of the attempt"
+parts = ["checkout"]
+walk = false
+
+[[slice]]
+id = 3
+story = "G makes two changes into g, the second after the first: the second starts kept, its producer starting from g's tip with the first's pushed head merged in, pushing as it goes; done while kept, it merges once the first lands; a conflict or an early failure makes it wait for the first to land; an amendment dropping the first is refused naming it"
+parts = ["early", "charter"]
+walk = true
