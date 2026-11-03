@@ -297,9 +297,18 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     } else {
         None
     };
+    let holds = if job {
+        match domain.run_workspaces.get(&task) {
+            Some(prepared) => workspace_holds(domain, env, &prepared.workspace),
+            None => Box::new([]),
+        }
+    } else {
+        Box::new([])
+    };
     domain.work.push(Work::Core(core::Event::WorkspacePrepared {
         task,
         attempt,
+        holds,
         writes,
         credentials,
         workspace: job_workspace,
@@ -373,15 +382,20 @@ pub(super) fn claim_workspace(
     if workspace.names.is_empty() {
         return Box::new([]);
     }
+    let hub_writes = workspace_holds(domain, env, workspace);
+    domain.work.push(Work::Forge(super::forge::Event::Names { task, resources: claim_names }));
+    for name in &workspace.own_holds {
+        domain.work.push(Work::Forge(super::forge::Event::Hold { entry: 0, task, resource: name.clone(), from: None }));
+    }
+    hub_writes
+}
+
+fn workspace_holds(domain: &Domain, env: &Env<Limits>, workspace: &forge_route::RunWorkspace) -> Box<[tasks::Name]> {
     let mut hub_writes = List::with_capacity(env.limits.tasks.holdings);
     for name in &workspace.names {
         let resource = forge_route::hub_name(domain.config.forge_connector, name, &env.limits.tasks)
             .expect("admitted forge branch name fits the hub's bound");
         hub_writes.push(resource).expect("workspace write bound fits hub");
-    }
-    domain.work.push(Work::Forge(super::forge::Event::Names { task, resources: claim_names }));
-    for name in &workspace.own_holds {
-        domain.work.push(Work::Forge(super::forge::Event::Hold { entry: 0, task, resource: name.clone(), from: None }));
     }
     hub_writes.into_boxed()
 }

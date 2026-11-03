@@ -438,6 +438,7 @@ fn route_now(
                     work.push(Work::Core(core::Event::WorkspacePrepared {
                         task,
                         attempt,
+                        holds: Box::new([]),
                         workspace: None,
                         credentials: Box::new([]),
                         writes: None,
@@ -474,9 +475,16 @@ fn route_now(
                 Some(credentials) => (credentials, Some(checks.into_boxed())),
                 None => (Box::<[u32]>::from([]), None),
             };
+            let holds = match context.executor {
+                tasks::Executor::Job { .. } => domain.workspace_writes.get(&task).expect("prepared writes").clone(),
+                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
+                    Box::new([])
+                }
+            };
             work.push(Work::Core(core::Event::WorkspacePrepared {
                 task,
                 attempt,
+                holds,
                 credentials,
                 writes,
                 workspace: None,

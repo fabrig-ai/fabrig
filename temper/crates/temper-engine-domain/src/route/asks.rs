@@ -311,7 +311,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::ClaimDone { task, attempt, kinds, version } => {
             if connector == domain.config.forge_connector {
-                let (writes, holders) = forge_route::claimed_writes(domain, env, task)
+                let workspace = &domain.assignment_parts.get(&task).expect("admitted assignment").workspace;
+                let (writes, holders) = forge_route::claimed_writes(domain, env, task, workspace)
                     .expect("the admitted assignment retains its bounded held forge writes");
                 if !writes.is_empty() {
                     domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, holders }));
@@ -342,6 +343,11 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 let crate::boundary::PreparedWorkspace { workspace: prepared, claim_names } =
                     domain.run_workspaces.remove(&task).expect("prepared job workspace");
                 drop(super::now::claim_workspace(domain, env, task, &prepared, claim_names));
+                let (writes, holders) = forge_route::claimed_writes(domain, env, task, &prepared.workspace)
+                    .expect("the admitted job retains its bounded held forge writes");
+                if !writes.is_empty() {
+                    domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, holders }));
+                }
                 if workspace.is_some() {
                     assert!(
                         domain.job_workspaces.insert(task, prepared.workspace).is_ok(),

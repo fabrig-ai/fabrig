@@ -1928,4 +1928,8 @@ fn a_resolution_after_a_merge_job_carries_its_result() {
         super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
         Some((super::forge_change::Status::Passed, false, false))
     );
+    assert_eq!(
+        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed)),
+        Some((super::forge_change::Status::Failed, true, false))
+    );
 }
