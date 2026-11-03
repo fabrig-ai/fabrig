@@ -62,3 +62,15 @@ Acceptance:
 
 As the implementer's text says, and: each crate gated and why, and each crate of another tree that
 fails, with its first error.
+
+## Rebase (2026-11-03, step merge, foreman playground-temper/playground-wasm32/foreman-1)
+
+resolve the playground manifest conflict by retaining both sides’ dev-dependencies.
+The merge fails in `temper/crates/temper-playground/Cargo.toml`, at `[dev-dependencies]`.
+Trunk commit `7b9513785f` adds `temper-worker-checkout-world.workspace = true`.
+The branch’s merged story-A commit `0364424b1a` adds `smith-domain-run.workspace = true` and `smith-agent-world.workspace = true`.
+Retain all three entries alongside the existing dev-dependencies; keep test kits out of `[dependencies]`.
+Current `origin/playground-temper/integration` already contains this combined manifest.
+Preserve the wasm32 lint gate from `2af7b0a333` in `temper-worker-protocol-git/src/boundary.rs`.
+`Cargo.lock` auto-merged; retain the combined dependency graph.
+After rebasing, run the spec’s wasm32 check and clippy commands and native playground tests through `heavy`, checking the native count against trunk.
