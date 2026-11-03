@@ -22,6 +22,8 @@ files = [
   "temper/crates/temper-service/src/limits.rs",
   "temper/crates/temper-service/src/limits/names.rs",
   "temper/crates/temper-service/src/setup/settings.rs",
+  "temper/crates/temper-service/src/setup/runtime.rs",
+  "temper/crates/temper-fake/src/backends/tests.rs",
   "temper/crates/temper-service/src/tests/**",
   "temper/docs/help/reference/commands.md",
   "temper/docs/help/reference/limits.md",
@@ -190,3 +192,19 @@ Pre-approved:
 
 As the implementer's text says, and also: each removed file and its lines; each dependency
 removed; what the acceptance's `rg` leave, by file; any test beyond the list.
+
+## Answers
+
+2026-11-03. Does the `orgs` acceptance search allow
+`temper/crates/temper/tests/suite/admission_edges.rs`'s
+`obsolete_owned_organization_members_refuse_startup`, or does that test go? It stays,
+unchanged: it pins that startup refuses an `orgs` member in `application.machine.owned`
+(and its `person`), a refusal this task keeps; it is not `setup.orgs`. The second
+acceptance search reads: `rg -n -w orgs temper/crates -g '*.rs'` finds only skein's
+`Given.orgs` and `Limits.orgs` that temper fills, Forgejo API paths (`/api/v1/orgs`), and
+that test's four lines (142, 148, 149, 154), which the report lists. The comment on
+`bounded_records` in `tests/support/owned.rs` (~752) drops "and no orgs". Two `Entry`
+literals outside the list drop `orgs` with the field, and the files list now names them:
+`temper-service/src/setup/runtime.rs` (~112, the managed arm) and
+`temper-fake/src/backends/tests.rs` (~439); the `temper-fake` check in Steps covers the
+second.

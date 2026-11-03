@@ -50,7 +50,8 @@ Acceptance:
 
 - `rg -n 'b"wait"' smith/crates/smith-domain-session/src -g '!tests.rs' -g '!tests/**'`
   finds nothing.
-- `rg -n 'AnsweredAndYield' skein smith jig temper -g '!**/docs/plan/**'` finds nothing.
+- `rg -n 'AnsweredAndYield' skein smith jig temper -g '!**/docs/plan/**' -g '!**/debt/reviews/**'`
+  finds nothing (the debt reviews are dated raw records and keep their words).
 - The tests in Steps pass, each count above zero, with no assertion changed: test edits are
   the new field in `Opening` literals and `Answered`'s `after`.
 - `session.status.md` says `No gap.`; smith's `STATUS.md` lists `domain/session.md` among
@@ -182,3 +183,12 @@ Pre-approved:
 
 As the implementer's text says, and also: every literal that names `wait` and why; any
 reader beyond the list; the four named stories' results.
+
+## Answers
+
+2026-11-03. **Q:** May the `AnsweredAndYield` search exclude the historical debt review
+(`smith/docs/development/debt/reviews/2026-10-31-quality-areas.md`, F11), or should this task
+edit it? **A:** Exclude it; do not edit the review. Reviews are kept raw and dated
+(`smith/docs/development/debt/README.md`), so they record the names of their day. The
+acceptance command now carries `-g '!**/debt/reviews/**'`; every other occurrence (code,
+tests, D004's file, which this task deletes) must go as the spec says.
