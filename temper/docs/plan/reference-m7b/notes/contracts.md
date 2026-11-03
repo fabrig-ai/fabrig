@@ -99,6 +99,10 @@ pub enum Delegate {
 - A catch-up's merge job is its producer and counts no resolution; the resolution after it,
   where the job left conflicts, counts one. Each conflict is counted once either way, as
   `change-merge-steps` has it.
+- A catch-up's resolution runs while the change stays `Producing { requested: true }`,
+  `facts.delegate` being `Resolve { base }`: its passed result with a branch read goes to
+  `Opening`, as a producer's push does, so its pull request is opened. (`delegated`'s path,
+  `pushed` to `Checking`, is a conflict's alone.)
 
 ## C4. Stored records: `temper/crates/temper-protocol-store`, `store-v11.schema`, in place
 
@@ -162,3 +166,36 @@ an item named `home` fetches the wrong repository. Revision 1, binding from batc
 
 `change-merge-surface` and `change-merge-route` build to C2 as released; `merge-r1-paths` moves
 their item, the root's command and the capability to R1, with the stories that pin them.
+
+## R2. Revision 2: what the trunk holds the merge job to (supersedes C1's bounds)
+
+Binding from batch 5 on; each item names the task it concerns.
+
+- **C1's bounds** (`merge-kind`): `MERGE_SPEC_BYTES = 4_096` and `MERGE_RESULT_BYTES = 512`.
+  jig's core asserts every declared kind's spec and result within `tasks.spec_bytes` and
+  `tasks.result_bytes` (`jig/crates/jig-domain-core/src/lib.rs`, `Core::new`), 4,096 and 512
+  in the small profile temper's engine takes, so C1's 8 KiB and 64 KiB stop the engine at its
+  start. The worker declares the same. The deadline stays 10 minutes. The merge command keeps
+  its result within 512 bytes (`temper/docs/design/protocol/tooling.md, 4.1`: the paths that
+  fit, then `"more": N`).
+- **A job task takes no words, parameters or inputs** (`jig/crates/jig-domain-tasks/src/batch.rs`
+  refuses them with `Refusal::Spec`; `change-merge-route`): the `Merge` arm of
+  `change_delegate` builds its own delegate with none of the parameters `change_delegate`
+  pushes for an agent, `llm: None`; the core sets the job's contract from the declared bound;
+  the job's item comes from its parent change's row, as a run's does.
+- **The engine world's worker declares kind 3** (`change-merge-route`): its hello
+  (`temper/tests/engine/domain/src/protocol.rs`, `jobs`) holds kind 3's bound, or the fleet
+  never places the job; the world's core declares it too.
+- **`chat_change`'s delegation kinds** (`change-merge-route`, C5) are a list of capacity 3 today,
+  each push expected: its capacity becomes 4 for `Job(3)`.
+- **Kind 3's declared bound in the root** (`change-merge-route`): the core keeps its `jobs`
+  private once it takes `config.core`; the root copies kind 3's bound from `config.core.jobs`
+  into its own `RootConfig` before (`temper/crates/temper-engine-domain/src/domain.rs`, where
+  the core is built, and its restore path), a reader edit that task may make. The domain uses
+  that bound's `result` wherever a spec names `MERGE_RESULT_BYTES` (temper-service's constant is
+  not the domain's to name).
+- **After R1** (`merge-r1-paths`, `catch-up-call`): `merge-r1-paths` also updates the engine
+  world's story that decodes C2's command and the forge's item test named for `home`, and runs
+  `heavy cargo nextest run -p temper-engine-domain-world -E 'test(/merge_job/)'`;
+  `catch-up-call`'s stories pin neither the merge job's item's name nor its command's form.
+
