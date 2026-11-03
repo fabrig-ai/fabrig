@@ -2,7 +2,7 @@
 id = "public-component"
 part = "jig-public"
 kind = "feature"
-needs = ["public-limits", "public-vocabulary", "public-wire", "visibility-wire"]
+needs = ["public-limits", "public-vocabulary", "public-wire", "visibility-wire", "public-index"]
 files = ["jig/crates/jig-protocol-engine-clients/src/public.rs", "jig/crates/jig-protocol-engine-clients/src/public/**", "jig/crates/jig-protocol-engine-clients/src/boundary.rs", "jig/crates/jig-protocol-engine-clients/src/component.rs", "jig/crates/jig-protocol-engine-clients/src/lib.rs", "jig/crates/jig-protocol-engine-clients/src/translate/owner.rs", "jig/crates/jig-protocol-engine-clients/src/tests/public.rs", "jig/crates/jig-protocol-engine-clients/src/tests/public/**", "jig/crates/jig-protocol-engine-clients/src/tests.rs", "jig/crates/jig-protocol-engine-clients/src/tests/fixtures.rs", "jig/testing/jig-test-service/src/clients.rs", "jig/testing/jig-test-service/src/clients/**", "jig/tests/engine-clients/src/peer/public.rs", "jig/tests/engine-clients/tests/suite/public.rs"]
 effort = "high"
 minutes = 150
@@ -178,3 +178,10 @@ kind then. With `limits.public.on()`, `Component::new` refuses (`Unusable::Limit
 `public_limits` is `None`, as it refuses a kind's `bound` past `answer_bytes`.
 Its records fill `PublicLine.title` from the core's title cut at 256 bytes on a character
 boundary, and `title_cut` true when the core's title was cut or is cut here.
+
+2026-11-03. **Started before its inputs** (`public-component-1`): `public-wire`'s `public_v1`,
+`PublicIndexBounds`, `public_bounds` and `public_limits` were not yet on the trunk, nor the core's
+`PublicProject`, `PublicBoard.name` and `PublicLine.title`, which `public-index` adds. The
+scope stands; `public-index` is added to `needs`, and the task runs again once `public-wire` and
+`public-index` have merged into the trunk. Merge the trunk first; neither the wire's API nor the
+core's types are this task's to write. If either is still missing then, stop and say which.
