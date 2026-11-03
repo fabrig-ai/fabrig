@@ -835,6 +835,7 @@ impl World {
             | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadLoad { .. }
+            | Delivery::PublicWait { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }
             | Delivery::NotesLoad { .. }
