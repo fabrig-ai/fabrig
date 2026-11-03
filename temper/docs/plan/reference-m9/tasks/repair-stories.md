@@ -67,3 +67,22 @@ repair naming a red landing clears it"):
 ## Report
 
 As the implementer's text asks; give each story's wall time.
+
+## Rebase (2026-11-03, step merge, foreman reference-m9/repair-stories/foreman-1)
+
+preserve landed clearing-run retention while rebasing the repair stories
+The merge conflicts in:
+- `temper/crates/temper-engine-domain/src/route/forge_route.rs`
+- `temper/crates/temper-engine-domain/src/route/forge_route/tests.rs`
+- `temper/tests/engine/domain/tests/suite/forge_routes/tiers.rs`
+
+Integration contains main commit `09010971a5` (“temper: retain clearing runs in change results”), brought in by `ba2caaa8aa`, and repairs-verdict commit `d9334e6e77`.
+Resolve both `forge_route` files to the integration versions: they retain clearing-run identities and add the named repair wording. Do not restore `tier_landing_run`, configuration-based fallback wording, or the older unit-test expectations from this branch.
+These production files are outside this task’s ownership; preserve the landed implementation without extending it.
+
+In `tiers.rs`, retain integration’s active clearing-run tests, including `a_cleared_result_reaches_its_requester_and_the_ctl_document_after_restart`.
+Preserve this task’s `pub(super)` visibility changes needed by `repairs.rs`.
+Do not reintroduce the obsolete `tier_landing_run` ignores.
+Keep the new stories and helpers in `repairs.rs` and `tier_runs.rs`.
+Trial `a_repair_naming_its_red_clears_it` without its stale ignore against the retained implementation; remove the ignore if it passes.
+Run the two new stories individually, then the spec’s focused repairs/tiers suite and required formatting/clippy checks. Report observed timings and any remaining failure under the spec’s ownership rules.
