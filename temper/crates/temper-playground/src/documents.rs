@@ -64,6 +64,41 @@ pub const AGENTS: u32 = 2;
 /// Clients for the composition.
 pub const CLIENTS: std::net::SocketAddr =
     std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 7102);
+/// The page's fetch bound: temper-client-shell-web's `limits::EXCHANGES + 1`.
+pub const VISITOR_EXCHANGES: u32 = 9;
+
+/// The deployment's clients listener and Host, with the playground's bounds.
+#[must_use]
+pub fn visitor(document: &serde_json::Value) -> skein_playground::visitor::Config {
+    let clients = &document["application"]["clients"];
+    let socket = clients["listener"]["socket"].as_str().expect("clients socket");
+    let host = clients["public"].as_str().map_or(socket.as_bytes().into(), |public| {
+        public.strip_prefix("https://").or_else(|| public.strip_prefix("http://"))
+            .expect("public origin").as_bytes().into()
+    });
+    skein_playground::visitor::Config {
+        listener: socket.parse().expect("clients address"),
+        host,
+        exchanges: VISITOR_EXCHANGES,
+        // jig's only sign-in cookie: jig-sign-in (11 bytes) and a 40-byte credential
+        // in unpadded URL base64 (54 bytes); jig/docs/design/protocol/browser.md, 11.
+        cookies: 1,
+        cookie_bytes: 65,
+        // Nine fetches and one stream, each with its own socket. HTTP's 4096-byte
+        // head and temper-client-shell-web's limits::PIECE fit the intake.
+        io: skein_io::Limits {
+            sockets: VISITOR_EXCHANGES + 1,
+            intake: 4096,
+            receive: 4096,
+            output: 16_384,
+            ..skein_io::Limits::TEST
+        },
+        // Heads match the clients listener; bodies stream within its 16384-byte
+        // send/read bounds, with responses read in the shell's 4096-byte pieces.
+        http: skein_http::client::Limits { request: 4096, head: 4096, headers: 32, read: 4096, send: 16_384 },
+    }
+}
+
 /// The scripted provider's synthetic key.
 pub const KEY: &[u8] = b"test-key";
 /// The base engine deployment document.

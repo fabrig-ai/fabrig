@@ -5,6 +5,7 @@ use crate::{
     programs::{self, Harness, Process},
 };
 use skein_lib::Wall;
+use skein_playground::{slices::Reach, visitor::Visitor};
 use skein_sim_world::{Bare, Inherited, Meter, Stream, World};
 
 /// Inputs read as a deployment, with one seed and a supplied wall clock.
@@ -82,7 +83,28 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     world.spawn_signals(|signal| {
         programs::fake_forge(fakes.peer, &Inherited { signal, pipes: vec![], roots: vec![], appends: vec![] })
     });
+    let at = world.spawn(|| Process::Visitor(Box::new(Visitor::new(&documents::visitor(&document)))));
+    assert_eq!(at, VISITOR, "the visitor follows the service and its two fake peers");
     world
+}
+
+/// The visitor follows the service and its two fake peers.
+pub const VISITOR: usize = 3;
+
+/// Reach the composition's visitor between steps.
+#[must_use]
+pub fn reach<H: Harness>() -> Reach<Process<H>> {
+    Reach {
+        at: VISITOR,
+        enter: |process, input| {
+            let Process::Visitor(visitor) = process else { unreachable!("Reach names the visitor") };
+            visitor.enter(input);
+        },
+        take: |process, reports| {
+            let Process::Visitor(visitor) = process else { unreachable!("Reach names the visitor") };
+            visitor.take(reports);
+        },
+    }
 }
 
 /// Step with this world's factory parameters installed.
