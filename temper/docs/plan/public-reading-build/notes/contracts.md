@@ -174,7 +174,9 @@ The clients' component (`jig-protocol-engine-clients`):
 - `Settings` gains `pub public: List<PublicKind>`, every kind it serves, jig's three
   included: `PublicKind { owner: u16, kind: u16, first: u16, last: u16, task: bool,
   bound: u32 }`, `owner` 0 for jig and one more than a family's number for an application's
-  (`jig/docs/design/protocol/client.md`, 17.5).
+  (`jig/docs/design/protocol/client.md`, 17.5); and `pub public_bounds:
+  jig_client_protocol_wire::PublicIndexBounds`, the core's public index bounds and
+  `people.projects`, from which the component takes `public_limits` at start and in translation.
 - The component's message: `PublicRead { owner, version, kind, ids: Box<[u64]> }` (at most
   two ids), answered `PublicReply::{Document { bytes: Box<[u8]>, decided: Time }, Unknown,
   Busy, NotServed { record: Box<[u8]> }}`, which the HTTP end maps to 17.5's answers.

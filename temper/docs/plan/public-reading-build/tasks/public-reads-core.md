@@ -157,3 +157,16 @@ writes. Give it the same `cfg_attr(not(test), expect(dead_code, ...))` as `proje
 nothing outside tests calls it; once `reads.rs` calls it, no attribute. Neither scanning
 `Core.names` or the people child nor walking project numbers is allowed. No protocol or
 stored-format change.
+
+2026-11-03. **Lint expectations and the superseded test** (asked by run `public-reads-core-2`):
+both edits are authorized, and nothing more in either file.
+- `public/index.rs`: remove each `dead_code` expectation that `reads.rs` consuming the index
+  leaves unfulfilled (on `Entry` and on `Index::project`, and, once every method under it is
+  called outside tests, the projections' one; while some are not, keep it). No other change
+  there beyond `Index::projects`.
+- `src/tests/public.rs`: drop the row `(0, 1, None, None)` from
+  `a_public_read_is_answered_unknown_and_commits_nothing`; its other rows (no project public)
+  stay `Unknown` and unchanged. A projects read is no miss: its coverage, the empty list when
+  no project is public included, goes in `projects_lists_the_public_projects_alone` in
+  `src/tests/public/reads.rs`, compared whole after the durability wait. Leave
+  `an_unasked_public_answer_changes_nothing` as it is.
