@@ -270,6 +270,13 @@ pub struct Held {
     pub rule: LandingRule,
 }
 
+/// Current rules by scope (temper/docs/design/domain/forge.md, 8.9).
+#[derive(Debug)]
+pub struct HeldRules {
+    pub deployment: Box<[Held]>,
+    pub projects: skein_lib::Map<u32, Box<[Held]>>,
+}
+
 /// The procedure's waits over the supplied scopes' rules, enforcing or not
 /// (temper/docs/design/domain/forge.md, 8.7).
 #[must_use]

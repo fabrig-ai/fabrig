@@ -185,6 +185,9 @@ pub struct Domain {
     pub(crate) tier_ops: crate::tiers::State,
     pub(crate) tiers: Map<(skein_forge::api::Repository, Box<[u8]>), crate::TierRow>,
     pub(crate) setting_rows: Map<crate::settings::SettingKey, crate::settings::Edit>,
+    pub(crate) setting_stock: Option<Box<[crate::settings::Stock]>>,
+    pub(crate) held_rules: crate::settings::HeldRules,
+    pub(crate) held_charters: crate::ForgeCharters,
     pub(crate) verifications: Map<(skein_forge::api::Repository, skein_forge::api::Commit), crate::Verification>,
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 9.1).
     restore_phase: RestorePhase,
@@ -628,6 +631,12 @@ impl Domain {
             tier_ops: crate::tiers::State::new(l),
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
             setting_rows: Map::with_capacity(crate::settings::rows(l).ok_or(skein_forge::api::Error::TooLarge)?),
+            setting_stock: None,
+            held_rules: crate::settings::HeldRules {
+                deployment: Box::new([]),
+                projects: Map::with_capacity(l.judge_projects),
+            },
+            held_charters: crate::ForgeCharters { change: 0, review: 0 },
             verifications: Map::with_capacity(l.changes),
             restore_phase: RestorePhase::Cold,
             reconciliation: crate::reconcile::Reconciliation::new(l),
@@ -5433,6 +5442,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     if d.fit_restored(&env.limits).is_err() {
         return;
     }
+    d.rebuild_settings();
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);

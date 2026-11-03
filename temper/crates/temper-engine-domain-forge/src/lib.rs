@@ -31,6 +31,7 @@ mod gates;
 mod held;
 pub mod items;
 mod judge;
+mod kinds;
 mod landing;
 mod limits;
 mod panel;
