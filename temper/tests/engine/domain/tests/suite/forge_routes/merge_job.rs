@@ -81,7 +81,7 @@ fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, bas
     let item = &items[0];
     let change = change_row(world, task);
     assert_eq!(item.provider, change.repository);
-    assert_eq!(item.name.as_ref(), b"home");
+    assert_eq!(item.name.as_ref(), b"repo");
     assert_eq!(item.push.as_deref(), Some(change.branch.as_ref()));
     assert_eq!(item.start, engine::ForgeStart::Merge { branch: change.branch.clone(), base: translate::commit(base) });
     let row = live_task(world, job.run.raw());
