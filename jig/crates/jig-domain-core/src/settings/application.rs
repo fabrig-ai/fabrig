@@ -99,7 +99,7 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
     let mut names = Map::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
         let scope = match item.setting {
-            Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
+            Setting::ProjectPolicy { project } => project,
             Setting::Application { scope, .. } => scope,
             Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => people::DEPLOYMENT,
         };
