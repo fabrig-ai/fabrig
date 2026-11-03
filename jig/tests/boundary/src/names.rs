@@ -12,7 +12,7 @@ fn codec_module(name: &str) -> bool {
     let Some((family, version)) = name.rsplit_once("_v") else {
         return false;
     };
-    ["crates/jig-protocol-store/schema", "crates/jig-client-view/schema"]
+    ["crates/jig-protocol-store/schema", "crates/jig-client-view/schema", "crates/jig-client-protocol-wire/schema"]
         .iter()
         .any(|directory| super::tests::kit_root().join(directory).join(format!("{family}-v{version}.schema")).is_file())
 }
@@ -285,6 +285,16 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
         line += source[start..index].matches('\n').count();
     }
     failures
+}
+
+#[test]
+fn versioned_codec_names_require_a_schema() {
+    let path = Path::new("fixture/codecs.rs");
+    let source = "use crate::{public_v1, unknown_v1, public_v2};";
+    assert_eq!(
+        breaches(path, source),
+        ["fixture/codecs.rs:1: identifier unknown_v1", "fixture/codecs.rs:1: identifier public_v2"]
+    );
 }
 
 #[test]
