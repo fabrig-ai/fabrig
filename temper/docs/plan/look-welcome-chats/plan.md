@@ -24,11 +24,18 @@ markup's changes into `temper-client-view`, and the journeys reprinted, so that
 | Part | Task | Needs | Owns |
 |---|---|---|---|
 | sheet | sheet | | `temper.css` (and `task-pages.css` for the cascade) |
+| pane | chats-pane | | `temper-client-view`'s chats page, `root.rs`, the accounts' banner rule; the reprint |
+| banner | banner-switcher | chats-pane | `temper-client-view`'s banner (`frame.rs`); the goldens; the reprint |
+
+Slice 1 is `sheet`; slice 2 is `pane` and `banner`, whose last reprint is the check: `02.html`
+equals the requests' page but for what the specs list (the summary's label, Rename and New
+project, the level-1 "Chats", the suggested requests kept, attribute order).
 
 ## Critical path
 
-`sheet` runs alone from the first push; the view's tasks follow in the next batch, one writer of
-`temper-client-view` at a time.
+`chats-pane` (about 120 implementer-minutes), then `banner-switcher` (75): one writer of
+`temper-client-view` at a time, since both move its tests, the terminal goldens and `02.html`.
+`sheet` (60) runs beside them; it shares no file with them.
 
 ## Decisions
 
@@ -38,6 +45,15 @@ markup's changes into `temper-client-view`, and the journeys reprinted, so that
   alone; `temper.css` carries the rules for Rename and New project, and `notes/contracts.md`
   records the requests' markup for them. Their two requests' trailers ride on `sheet`, which
   moves all they asked that is look.
+- **The suggested requests stay,** under the composer's line in the playground's start: the
+  tests that walk the playground press them (the client view's, the gallery's, the browser
+  tier's `browser_task_pages.rs`), and the request lets them back to keep tests green.
+  `README.md`, 11 holds it open for the user.
+- **The switcher is named by the project's name:** skein-ui-web prints a disclosure's name as its
+  summary's words, with no label apart (skein's `ui-web.md`, 6), so the requests'
+  `aria-label="Project: Playground"` waits for skein (`README.md`, 11). No skein change here.
+- **The accounts' banner is gone in the playground's project while it runs,** whose scripted
+  model the person's work there may use; in another project it shows as before.
 - **The pane's "Chats" is the page's level-1 heading,** since the requests' title, "Chats ·
   temper", is the main's level-1 heading's (`journeys.md`, 5.3): the print has `h1` where the
   requests' page has `h2`.

@@ -22,3 +22,23 @@ id = 1
 story = "the bundle's temper.css draws the requests' banner, switcher and chats pane as their overlay did, with overlay.css empty"
 parts = ["sheet"]
 walk = false
+
+[[part]]
+id = "pane"
+title = "temper-client-view: the chats page's pane, the prompt beside it, the journeys reprinted"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "banner"
+title = "temper-client-view: the banner's project switcher and Set up temper, the journeys reprinted"
+mode = "direct"
+needs = ["pane"]
+design = "temper/docs/design/client/README.md, 5.1"
+
+[[slice]]
+id = 2
+story = "temper-client-journeys reprints welcome-playground/02.html as the requests' page: the chats pane, the prompt and its model line beside it, the banner's switcher and Set up temper, but where the landing says why"
+parts = ["pane", "banner"]
+walk = false
