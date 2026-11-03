@@ -115,9 +115,16 @@ impl Walk {
             Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
             see(tier.states().live),
             see(heading(b"Chats")),
+            // The public index keeps goals that end while it holds the project.
+            visibility(client.path(), true),
+            exited(),
             see(Find::exactly_named(Role::Button, CHAT)),
             press(Find::exactly_named(Role::Button, CHAT)),
+            see(Find::text("I’ll delegate this change".as_bytes())
+                .within(Box::new([Target::ExactRole { role: Role::Log, name: b"Conversation".as_slice().into() }]))),
             see(Find::exactly_named(Role::Region, b"Task 2")),
+            see(Find::exactly_named(Role::Link, b"Task 2")
+                .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }]))),
             press(
                 Find::exactly_named(Role::Link, b"Task 2")
                     .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }])),
@@ -126,8 +133,6 @@ impl Walk {
             see(Find::text(b"Passed")),
             see(Find::text(b"Approved")),
             see(Find::text("Landed · merge commit ".as_bytes())),
-            visibility(client.path(), true),
-            exited(),
             press(Find::exactly_named(Role::Button, b"Sign out")),
             see(tier.states().signed_out),
             Step::Reopen,
@@ -241,7 +246,7 @@ impl Walk {
                     see(heading(PROJECT)),
                     see(Find::named(Role::Link, b"Goal ")),
                     see(Find::text(TITLE)),
-                    see(Find::text(b"done")),
+                    see(Find::text(b"ended")),
                     Step::Address(self.board.as_bytes().into()),
                 ],
             ),
@@ -251,7 +256,7 @@ impl Walk {
                     press(Find::named(Role::Link, b"Goal ")),
                     see(Find::text(TITLE)),
                     see(Find::text(b"landed")),
-                    see(Find::text(b"passed")),
+                    see(Find::text(b"Passed")),
                     see(Find::text("Gate 1 · review · blocking".as_bytes())),
                     see(Find::text(b"its change on the forge")),
                 ],
