@@ -5,6 +5,7 @@ use crate::{
 };
 use skein_fake_forge_domain::{Observation, api};
 use std::collections::BTreeMap;
+use temper_playground::programs::{Harness, Process};
 
 pub(crate) struct Forge {
     transport: temper_fake_git_hosted::Typed,
@@ -47,15 +48,15 @@ impl Forge {
             self.prepared = true;
         }
     }
-    pub(crate) fn observe(&mut self, procs: &[Proc]) {
+    pub(crate) fn observe<H: Harness>(&mut self, procs: &[Process<H>]) {
         for proc in procs {
-            if let Proc::Forge(peer) = proc {
+            if let Process::Forge(peer) = proc {
                 assert!(
                     peer.address().is_none() || peer.address() == Some(fixtures::FORGE),
                     "forge binds the configured address"
                 );
             }
-            if let Proc::Shell(shell) = proc
+            if let Process::Shell(shell) = proc
                 && !shell.written.is_empty()
             {
                 self.tree.insert(shell.target.clone(), shell.written.clone());
