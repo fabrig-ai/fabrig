@@ -1,6 +1,6 @@
 # Status
 
-2026-11-02. Where temper's code lags or departs from its design, and its
+2026-11-03. Where temper's code lags or departs from its design, and its
 design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built for
 a repository's tiers, their verdicts and a change living to cleared;
@@ -24,7 +24,10 @@ playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
 `protocol/forge.md`, `protocol/README.md`), and lags in a
 removal without the box (`domain/forge.md`) and a project's Delete
-(`client/README.md`); with `application.machine.github` null, GitHub's
+(`client/README.md`); a connected Forgejo, its connect with its bot's
+tokens and a forge's Replace lag (`protocol/forge.md`,
+`protocol/setup.md`, `protocol/credentials.md`, `client/README.md`,
+`client/forge.md`, `client/tools.md`); with `application.machine.github` null, GitHub's
 remotes come out malformed (`protocol/configuration.md`). The case library's
 purpose is retired (`domain/testing.md`). Of the drafts, the reference
 drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
