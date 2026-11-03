@@ -29,6 +29,7 @@ pub use hosts::{Hosts, WorkerName};
 pub use llm::{Endpoint, Header, Llm, Transport};
 pub mod address;
 mod document;
+pub mod members;
 pub mod names;
 pub mod overrides;
 pub mod profile;
@@ -81,7 +82,7 @@ pub fn engine(
 ) -> Result<Engine, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
-    let Some(mut object) = check::object(document, at, &path, &mut problems) else {
+    let Some(mut object) = check::object(document, at, &path, &mut problems, "engine") else {
         return Err(problems);
     };
     let mut limits = profile(Profile::Small);
