@@ -46,8 +46,11 @@ Acceptance:
     `Delegate(Produce)`; that producer's failure holds as `Hold::Failed` does today;
   - `a_change_never_starts_early_twice`: with `Spent`, pending changes with heads do not
     start a producer.
-- A change made today (`Early::None`, empty `pending`, no conflict) steps exactly as before:
-  every existing test of the crate passes unchanged.
+- A change made today (`Early::None`, empty `pending`, no conflict) steps as before, save
+  that its producing stall counts from the producer's request (`since = now` there): every
+  existing test of the crate passes unchanged, except the one Wait deadline in
+  `a_change_is_produced_opened_checked_queued_and_landed` that this moves (`at(30)` to
+  `at(31)`).
 - The forge connector and the root still build and pass their tests, with `pending` empty,
   `early` `Early::None`, `start_conflict` `None` at their literal sites, and the top's arm
   for `CancelProducer` doing what it does for `Decision::None`, its comment saying the top
@@ -102,3 +105,12 @@ schema's usual shape (as `Segments` wraps a branch's segments); `record Change` 
 `early: Early`, store version 11 unchanged, the domain's C5 types unchanged. skein is not
 widened. Run the old-forms check from `temper/` (`python3 -I -B scripts/old_forms.py`),
 where its `scripts/old-forms.txt` is.
+
+2026-11-03. Q: may the ordinary producer's stall count from its request, moving
+`a_change_is_produced_opened_checked_queued_and_landed`'s producing deadline from `at(30)` to
+`at(31)`, or must a durable dependency-wait state keep it exact? A: count from the request;
+update that one assertion, and no other existing test. `forge.md`, 8.11 says a change at
+producing with no producer does not count its stall, so the producing stall rightly starts
+when the producer is asked, for every change; an ordinary change is asked its producer in
+its first step, so the move is the gap between its making and that step. Add no stored
+state beyond C5, and say in the report that the assertion moved and why.

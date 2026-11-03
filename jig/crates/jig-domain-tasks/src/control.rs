@@ -646,7 +646,7 @@ pub(crate) fn apply_amend(
         crate::funders::resize(domain, env, number, authority.budget.spend, out);
     }
     let was_kept = crate::run::ends::kept(domain, number).blocks_claims();
-    let was_queued = crate::holds::queued(record(domain, number).expect("amendment task live"));
+    let was_queued = crate::holds::queued(domain, record(domain, number).expect("amendment task live"));
     let task = task_mut(domain, number).expect("amendment task live");
     if let Some(tracked) = amendment.tracked {
         task.record.tracked = match tracked {
@@ -697,7 +697,7 @@ pub(crate) fn apply_amend(
     }
     task.record.phase =
         crate::run::ends::for_record(&task.record).amended(task.record.executor, task.record.phase.clone());
-    let queued = crate::holds::queued(&task.record);
+    let queued = crate::holds::queued(domain, record(domain, number).expect("amendment task live"));
     if was_queued && !queued {
         crate::holds::leave(domain, number);
     }
@@ -1026,7 +1026,7 @@ pub(crate) fn return_to_waits(domain: &mut Domain, env: &Env<Limits>, number: u6
     }
     if let Err(problem) = crate::waits::check_return(domain, &crate::compound::Staged::new(0), &env.limits, number) {
         crate::waits::hold_circle(domain, env, number, problem, out);
-    } else if crate::holds::queued(record(domain, number).expect("released task")) {
+    } else if crate::holds::queued(domain, record(domain, number).expect("released task")) {
         crate::holds::back(domain, env, number, out);
     }
     if record(domain, number).expect("released task live").phase == Phase::Active(Active::Due) {

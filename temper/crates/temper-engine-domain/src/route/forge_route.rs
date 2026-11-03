@@ -1441,20 +1441,14 @@ pub(crate) fn run_workspace(
         let run_branch = tree_branch(repository, root, b'r', context.task, None, env.limits.forge.name_bytes)?;
         let save = tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?;
         let saved_branch = if saved { Some(save.clone()) } else { None };
-        let item = domain.forge.workspace_item(forge::items::Seed {
+        let mut item = domain.forge.workspace_item(forge::items::Seed {
             task: context.task,
             parent,
             repository: repository.provider,
             run_branch,
             saved_branch,
         })?;
-        let start = match item.start {
-            forge::items::Start::Base(branch) => ForgeStart::Base(branch),
-            forge::items::Start::Branch(branch) => ForgeStart::Branch(branch),
-            forge::items::Start::Saved(branch) => ForgeStart::Saved(branch),
-            forge::items::Start::Merge { branch, base } => ForgeStart::Merge { branch, base },
-        };
-        let mut push = item.push;
+        let mut push = item.push.take();
         let holder = item.holder;
         if let Some((row, _)) = inherited {
             key = row.task;
@@ -1530,31 +1524,7 @@ pub(crate) fn run_workspace(
                 names.push(name).ok()?;
             }
         }
-        let provider = item.provider;
-        repositories
-            .push(ForgeRepository {
-                save: match start {
-                    ForgeStart::Merge { .. } => None,
-                    ForgeStart::Base(_) | ForgeStart::Branch(_) | ForgeStart::Saved(_) => {
-                        if push.is_some() {
-                            Some(save)
-                        } else {
-                            None
-                        }
-                    }
-                },
-                tag: forge::tag(provider.forge, provider.repository),
-                provider,
-                name: item.name,
-                host: item.host,
-                owner: item.owner,
-                start,
-                landing: if push.is_some() { item.landing } else { None },
-                push,
-                // The repository's git identity, from configuration (D10).
-                identity: item.credential?,
-            })
-            .ok()?;
+        repositories.push(workspace_repository(item, push, save)?).ok()?;
     }
     Some(RunWorkspace {
         workspace: ForgeWorkspace { repositories: repositories.into_boxed() },
@@ -1562,6 +1532,40 @@ pub(crate) fn run_workspace(
         writes: writes.into_boxed(),
         names: names.into_boxed(),
         own_holds: own_holds.into_boxed(),
+    })
+}
+
+/// Translate a connector item after its write destination is checked
+/// (temper/docs/design/protocol/channel.md, 4).
+pub(crate) fn workspace_repository(
+    item: forge::items::Item,
+    push: Option<Box<[u8]>>,
+    save: Box<[u8]>,
+) -> Option<ForgeRepository> {
+    let start = match item.start {
+        forge::items::Start::Base(branch) => ForgeStart::Base(branch),
+        forge::items::Start::Branch(branch) => ForgeStart::Branch(branch),
+        forge::items::Start::Saved(branch) => ForgeStart::Saved(branch),
+        forge::items::Start::Merge { branch, base } => ForgeStart::Merge { branch, base },
+        forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
+    };
+    Some(ForgeRepository {
+        save: match start {
+            ForgeStart::Merge { .. } => None,
+            ForgeStart::Base(_) | ForgeStart::Branch(_) | ForgeStart::Saved(_) | ForgeStart::Merged { .. } => {
+                if push.is_some() { Some(save) } else { None }
+            }
+        },
+        tag: forge::tag(item.provider.forge, item.provider.repository),
+        provider: item.provider,
+        name: item.name,
+        host: item.host,
+        owner: item.owner,
+        start,
+        landing: if push.is_some() { item.landing } else { None },
+        push,
+        // The repository's git identity, from configuration (D10).
+        identity: item.credential?,
     })
 }
 
