@@ -841,8 +841,8 @@ files: at a first preparation, and for a runner older than its pin
   (`sign-in.md`, 9.4), and temper keeps no record of that sign-in by
   which to drop the line after it. A stopped owned
   forge says "Restart temper box: its preparation mends it". Owned and
-  managed offer "New repository", with the set up's organization,
-  repository and project fields (section 15).
+  managed offer "New repository", with the set up's organization and
+  repository fields (section 15).
 - **The person** signs in on Forgejo's web as a site admin with
   `person_password`, and may change it when they like; makes
   repositories in their orgs, with Actions,
@@ -912,16 +912,16 @@ its own for any other host.
 
 ### 6.7 The first repository
 
-- **Asked with the set up.** `SetUp` carries an organization (default
-  `work`), a repository (default `hello`) and a project: a new
-  project's name, the repository's until the person changes it, or an
-  existing project's number, which the first run never offers
-  (`../draft/archive/first-run.md`, 2.4). The forge domain keeps
+- **Asked with the set up, with no project.** `SetUp` carries an
+  organization (default `work`) and a repository (default `hello`),
+  and names no project: the repository is made unadopted, and its
+  adoption is a later act's, into a project the person has
+  (`../draft/first-run-projects.md`, 4). The forge domain keeps
   them in the forge's record (forge.md, 2.1), the set up's intent: one
   per forge, written in the decision that admits `SetUp`, and replaced
   by the next `SetUp` it admits.
 - **Asked at a managed connect.** `ForgejoAdmin.first` carries the same
-  organization, repository and project, and the person's runner label
+  organization and repository, with no project, and the person's runner label
   (default `docker` in the client and ctl), kept in the forge's record
   as `SetUp`'s are. After Reconcile and its
   `AdminOrigin` write are kept, Create makes the repository
@@ -978,29 +978,32 @@ its own for any other host.
   asked of a real forge and a real model. Forgejo's README stays, since
   Create keeps a file already there (skein's `forge-setup.md`, 4.9);
   the fake's `check.yml` is not copied, since the box's runner runs the
-  starter. The project is a new one, named `widget`, unless the set up
-  names one. A set up asked again takes its own request's fields, with
+  starter. ctl's call adopts it, as below, into a new project named
+  `widget` unless the call names one. A set up asked again takes its own request's fields, with
   the flag or without: a first repository already made stays, and the
   new one is made beside it.
 - **The row says it,** the forge's first repository beside its
   connection (`../client/forge.md`, 5.4; `../client/README.md`, 4.6):
   none; making `ORG/NAME` from the `SetUp`'s admission; made
-  `ORG/NAME`, with its project, once `Create` is done; or failed
+  `ORG/NAME`, unadopted, once `Create` is done; or failed
   `ORG/NAME`, at the step that stopped (the admin, the org, the
   repository with its access, or the file). A `Create` that stops
   blocks the connect as any step does (6.5): the forge is set up
   failed, its `why` naming the step, and "Set up again" asks with the
   same fields. A restart reads the row's first repository from the
   record, making `ORG/NAME`, until `Create` answers again.
-- **Adopted by the client, for now.** Once the row says made, the
-  client sends, under the same party, jig's `MakeProject` for a new
-  project, its name and policy 1, the default document's (8.3), then
-  `Adopt`: the project, the forge,
-  `ORG`, `NAME`, landing on `main`, owned, the project's home, with CI.
-  `temper ctl forge setup` does it (`../client/tools.md`, 5.5), and so
-  does the set up flow's Ready step (`../client/forge.md`, 5.4). It is
-  transitional, until jig carries a deployment owner's act after
-  `SetUp`'s admission (section 15).
+- **Adopted by ctl's call alone.** The welcome and `ConnectForge`
+  adopt nothing: the made repository waits, unadopted, for the person
+  to adopt it into a project of theirs from the adoption form
+  (`../client/README.md`, 3.5 and 4.4), one choice away.
+  `temper ctl forge setup` and `forge connect … --first` hold their
+  `--project` in their own run (`../client/tools.md`, 5.5): once the
+  row says made, the call sends, under the same party, jig's
+  `MakeProject` for a new project, its name and policy 1, the default
+  document's (8.3), when `--project` names no project, then `Adopt`:
+  the project, the forge, `ORG`, `NAME`, landing on `main`, owned, the
+  project's home, with CI. Nothing in the engine reads a project for
+  it.
 - **A restart before the repository is made** keeps the intent, since
   the record holds it: the start's sequence, or the box's `started`,
   makes the repository at the next connect, after reconcile (6.5).
@@ -1011,8 +1014,8 @@ its own for any other host.
   staged in memory to be written at the end, and no write spans two
   stores.
 - **Found later, it starts over.** A set up cut short, by a restart or a
-  failure, leaves its forge kept but not connected with its first
-  repository adopted: the welcome's Forge step shows it unfinished,
+  failure, leaves its forge kept but not connected, or its first
+  repository not made: the welcome's Forge step shows it unfinished,
   "FORGE · not finished", with Start over (`../client/README.md`, 3.5),
   which removes the forge (`../domain/forge.md`, 4.1) and opens the
   step's choices again. An owned Forgejo then sets up afresh, as a new
@@ -1689,7 +1692,7 @@ document.
   and its runner's versions and the person CI jobs run as; the card says
   CI is unisolated and Forgejo stops with `temper box` (6.5;
   `../client/forge.md`, 5.4). After connect it offers "New repository",
-  with the set up's organization, repository and project fields (section
+  with the set up's organization and repository fields (section
   15), including after a restart. The card
   names the `person_password` path, never its value.
 - **GitHub's connected card** shows the setup URL to set on GitHub
@@ -2070,7 +2073,8 @@ defaults for a person's real work are open (section 16).
   (jig's `domain/people.md`, 3), and the engine, the playground and the
   client run a deployment with no project. Projects are made at
   runtime: the playground's start makes the playground's, "Demo"
-  (8.4), and the welcome the person's first (6.7). A deployment whose
+  (8.4), and the welcome's Ready the person's first, "Default"
+  (`../client/README.md`, 3.5). A deployment whose
   first start seeded a project, project 1 as the document seeded it
   before, keeps it: no start removes or renames it. One policy, `engine.policies` 1 (jig's
   `protocol/configuration.md`, section 3), which each project made
@@ -3298,15 +3302,16 @@ Each is intended; what it needs is named with it.
 
 - **After the first repository** (6.7): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
-  forge's org needing an owner. Until jig carries
-  a follow-up act on `SetUp`'s admission, the first repository's
-  adoption is the client's, while the playground's start makes its acts
-  itself (8.4). Projects are
+  forge's org needing an owner, and like it adopting nothing. The
+  first repository is adopted by the person from the adoption form, or
+  by ctl's call in its own run, while the playground's start makes its
+  acts itself (8.4). Projects are
   made at runtime by jig's `MakeProject` (jig's `domain/core.md`,
-  6.1), none seeded (8.3): the first repository's set up makes its
-  project, named after the repository unless the person names one, so
-  the first run's `work/hello` is project 1's, the first made
-  (`../client/tools.md`, 5.5).
+  6.1), none seeded (8.3): the welcome's Ready makes the first run's,
+  "Default" (`../client/README.md`, 3.5), and ctl's `forge setup`
+  makes its `--project`, named after the repository unless the call
+  names one, so that on a box set up by ctl alone `work/hello` is
+  project 1's, the first made (`../client/tools.md`, 5.5).
 - **An owned forge made managed** (section 2): an act that makes an
   owned forge's record managed, after which temper stops running
   Forgejo, its directory's `forgejo/` is a stock work path a person
@@ -3350,10 +3355,6 @@ Each is intended; what it needs is named with it.
   Forgejo's web, with the scopes they choose; never the preparation's
   `admin_token`, which the engine's setup host alone takes (section
   9).
-- **The welcome's Default project after a start over** (6.7): the
-  project a removed forge's first repository was to go into, made
-  already, stays empty. Default: reused by the next set up's first
-  repository.
 - **Backups beyond an upgrade's.** Default: the person's, of the forge's
   directory and the store, with the box stopped.
 - **Two deployments on one managed forge.** Default: each its own bot

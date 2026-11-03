@@ -43,3 +43,49 @@ id = 4
 story = "in skein-ui, a node inside a form names Escape and the web page part presses it on the Escape key while the focus is in the form"
 parts = ["form-escape"]
 walk = false
+
+[[part]]
+id = "wizard"
+title = "temper: one wizard for every forge, adopting nothing; Ready makes Default and opens it; the set up's request names no project"
+mode = "direct"
+needs = ["no-seed", "demo"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "no-repository"
+title = "temper: a project with no repository says so on its chats page, with Adopt a repository to a form filled for the set up's first repository"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "on Forgejo here or GitHub the welcome connects a forge and adopts nothing; Ready makes Default and opens its chats page, which says it has no repository and links Adopt a repository, one press from work/hello adopted; ctl forge setup still adopts into its --project, its request naming none"
+parts = ["wizard", "no-repository"]
+walk = false
+
+[[part]]
+id = "first-chat"
+title = "temper: the chats page of a project with no chat offers Tell temper how you work, the first chat, naming no repository"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "after Ready, Default's chats page offers Tell temper how you work, which starts the stock chat (the configuring template once the settings offer it) with no repository"
+parts = ["first-chat"]
+walk = false
+
+[[part]]
+id = "switcher"
+title = "temper: the banner's switcher renames the open project in place for its owners and makes a new project, opening it"
+mode = "direct"
+needs = ["form-escape"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[slice]]
+id = 5
+story = "an owner renames Default from the banner's switcher, Enter or Save sending Rename and Escape cancelling, and makes a new project there, which opens with no repository"
+parts = ["switcher"]
+walk = false
