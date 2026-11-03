@@ -9,6 +9,7 @@ sources = ["temper/docs/plan/wasm32-rustls/inputs/request.md", "temper/docs/desi
 # skein/docs/design/tls.md, 4 already says ("native only"), and gives it to the two temper crates
 # whose tests use rustls's std API. plan.md says why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

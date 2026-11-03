@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/wasm32-more/inputs/request.md", "AGENTS.md"]
 # yet in its tree's status (first error's lint, file and line), closes the entries the green
 # ones settle, and answers wasm32-list's question. plan.md says what was decided and why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

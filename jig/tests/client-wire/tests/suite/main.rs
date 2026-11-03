@@ -17,4 +17,5 @@ mod test_client_wire;
 
 mod fuzzy {
     mod client_wire;
+    mod public_wire;
 }
