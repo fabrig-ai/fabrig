@@ -7,7 +7,6 @@ pub mod inbox;
 pub mod log;
 mod look;
 pub mod mapping;
-#[cfg(any(test, target_arch = "wasm32"))]
 mod navigation;
 pub mod page;
 pub mod svg;
