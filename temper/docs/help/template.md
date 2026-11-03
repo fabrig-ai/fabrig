@@ -10,6 +10,8 @@ A template is a setting, `template N`, numbered from 1. It is a recipe,
 never an executor: a client fills it, with what its creator gives, into
 a request for a new task, which temper checks as it checks any request.
 A chat defaults to template 1 and a goal to template 2.
+Template 3 is the configuring chat, run by charter 3
+(`temper help chat`); `chat start --template 3` starts it.
 `--template` selects another offered template.
 
 A template holds:
@@ -67,7 +69,8 @@ policy's override naming it is refused.
   See `temper help ctl-goal`.
 - `me` gives each project's templates, with its policy's overrides
   applied.
-- A run reads templates with the host tool `settings`.
+- A run offered the settings family reads templates with the host tool
+  `settings` (`temper help charter`).
 
 ## Limits
 

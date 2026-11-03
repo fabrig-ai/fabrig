@@ -1,0 +1,27 @@
+draft = "wasm32-more"
+repo = "fabrig"
+sources = ["temper/docs/plan/wasm32-more/inputs/request.md", "AGENTS.md"]
+
+# The design's other wasm32 crates measured for fab's gate list (inputs/request.md): one part,
+# one task, as the request asks. It clippies each named crate alone at its base, appends the
+# green ones to `.config/gate/wasm32.txt`, runs the whole list once, records each red one as Not
+# yet in its tree's status (first error's lint, file and line), closes the entries the green
+# ones settle, and answers wasm32-list's question. plan.md says what was decided and why.
+
+retired = true
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "gate-more"
+title = "fabrig: the design's other wasm32 crates measured; the green join .config/gate/wasm32.txt, the red are Not yet in their trees' status"
+mode = "direct"
+needs = []
+design = "skein/docs/design/testing.md, 10"
+
+[[slice]]
+id = 1
+story = "fab's clippy-wasm32 step clippies every crate the designs name for wasm32 that is green, and each tree's status names its red ones at their first error"
+parts = ["gate-more"]
+walk = false

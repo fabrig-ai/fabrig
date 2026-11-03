@@ -59,6 +59,7 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
             out
         },
         call_timeout: v.call_timeout,
+        tools: v.tools,
         hosts: form_setting_hosts(&v.hosts),
         spend: v.spend,
         wake: form_wake(v.wake),
@@ -101,6 +102,7 @@ pub fn client_charter(v: &n::Charter) -> c::Charter {
         shell: v.shell(),
         agents: v.agents(),
         call_timeout: v.call_timeout,
+        tools: v.tools,
         hosts: client_setting_hosts(&v.hosts),
         spend: v.spend,
         wake: client_wake(v.wake),

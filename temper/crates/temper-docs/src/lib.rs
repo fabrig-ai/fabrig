@@ -79,7 +79,7 @@ pub struct Page {
 
 /// `index`, then the concepts, walks, recipes, reference pages and guides, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 55] = [
+pub static PAGES: [Page; 57] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -457,6 +457,20 @@ pub static PAGES: [Page; 55] = [
         title: "Host tools",
         summary: "Every tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.",
         text: include_str!("../../../docs/help/reference/host-tools.md"),
+    },
+    Page {
+        name: "limits",
+        kind: Kind::Reference,
+        title: "Limits",
+        summary: "Every limit application.limits.overrides takes: its unit, the small profile's value and what it bounds.",
+        text: include_str!("../../../docs/help/reference/limits.md"),
+    },
+    Page {
+        name: "limits-engine",
+        kind: Kind::Reference,
+        title: "Engine limits",
+        summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.",
+        text: include_str!("../../../docs/help/reference/limits-engine.md"),
     },
     Page {
         name: "settings-fields",

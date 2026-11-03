@@ -410,6 +410,22 @@ fn a_template_with_resources_round_trips_through_the_settings_store() {
 }
 
 #[test]
+fn a_charters_tools_survive_the_store() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    for tools in [tasks::Tools(1_536), core::RunPolicy::EVERY_FAMILY] {
+        let mut charter = charter();
+        charter.policy.tools = tools;
+        let row = s::Record::Charter {
+            charter: 1,
+            revision: 2,
+            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+        };
+        let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+    }
+}
+
+#[test]
 fn a_charters_paced_wake_policy_round_trips() {
     let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
     let mut charter = charter();

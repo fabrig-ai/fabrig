@@ -23,6 +23,7 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
             b"shell",
             b"agents",
             b"call_timeout",
+            b"tools",
             b"hosts",
             b"spend",
             b"wake",
@@ -63,6 +64,10 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
             values
         },
         call_timeout: Duration::from_nanos(d.number(field(&fields, b"call_timeout")?)?),
+        tools: match optional(&fields, b"tools") {
+            Some(at) => d.number(at)?,
+            None => crate::CHARTER_TOOLS_DEFAULT,
+        },
         hosts: setting_hosts(d, field(&fields, b"hosts")?)?,
         spend: d.number(field(&fields, b"spend")?)?,
         wake: match optional(&fields, b"wake") {
