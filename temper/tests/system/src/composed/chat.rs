@@ -1,4 +1,4 @@
-//! Stock chat routing across Smith's writable workspace and the engine's change admission.
+//! Stock chat inspection and change routing across Smith and the engine.
 //! Contract: temper/docs/design/domain/agent.md, 4.3.1 and 8;
 //! temper/docs/design/domain/forge.md, 8.1.
 use super::{World, agreement, call, engine, fake, parties, tasks, text_script};
@@ -44,7 +44,7 @@ fn assert_prompt(world: &World) {
     assert!(prompt.messages.iter().flat_map(|message| &message.parts).any(|part| {
         matches!(part, Part::Text { text } if text.windows(REQUEST.len()).any(|bytes| bytes == REQUEST))
     }));
-    assert!(world.assignment().run.policy.modify, "the stock chat retains workspace writes");
+    assert!(!world.assignment().run.policy.modify, "the stock chat inspects its workspace");
 }
 
 fn assert_no_landing(world: &World) {
@@ -56,22 +56,66 @@ fn assert_no_landing(world: &World) {
 }
 
 #[test]
-fn a_stock_chat_workspace_edit_can_park_without_a_change_or_landing() {
-    // This system world is the lowest tier joining writable Smith tools, Open replies and durable delegation.
-    let mut turns = vec![
-        call(b"list", br#"{"path":"."}"#),
-        call(b"read", br#"{"path":"README.md"}"#),
-        call(b"write", br##"{"path":"README.md","content":"# widget\n\nTier walk: first.\n"}"##),
-    ];
+fn a_stock_chat_cannot_write_its_workspace_in_place_of_a_change() {
+    refused_workspace_change(b"write", br##"{"path":"README.md","content":"# widget\n\nTier walk: first.\n"}"##);
+}
+
+#[test]
+fn a_stock_chat_cannot_edit_its_workspace_in_place_of_a_change() {
+    refused_workspace_change(
+        b"edit",
+        br#"{"path":"README.md","edits":[{"old":"The answer is 42.\n","new":"The answer is 42.\nTier walk: first.\n"}]}"#,
+    );
+}
+
+fn refused_workspace_change(tool: &[u8], arguments: &[u8]) {
+    // The system world is the lowest tier joining Smith tools, Open replies and durable change admission.
+    let mut turns =
+        vec![call(b"list", br#"{"path":"."}"#), call(b"read", br#"{"path":"README.md"}"#), call(tool, arguments)];
+    // Scripted prose does not prove completion; the rail must reject the preceding tool call.
     turns.extend(text_script(b"Added \"Tier walk: first.\" to the end of README.md.").turns);
     let mut world = chat(turns);
     let head = world.forge.branch(b"org/repo", b"main").expect("main exists");
     finish_chat(&mut world);
-    assert!(world.agent().disk().files().values().any(|bytes| *bytes == b"# widget\n\nTier walk: first.\n"));
+    assert!(
+        world.agent().prompts().iter().all(|prompt| prompt
+            .tools
+            .iter()
+            .all(|tool| { ![b"write".as_slice(), b"edit", b"remove"].contains(&tool.name.as_ref()) })),
+        "modifying tools must not be offered"
+    );
+    assert_refused_tool(&world, tool);
+    assert!(world.agent().disk().files().values().any(|bytes| *bytes == b"The answer is 42.\n"));
+    assert!(
+        !world
+            .agent()
+            .disk()
+            .files()
+            .values()
+            .any(|bytes| bytes.windows(b"Tier walk: first.".len()).any(|line| line == b"Tier walk: first."))
+    );
     assert!(world.agent().host_submissions().is_empty(), "workspace tools made no change call");
     assert_eq!(world.forge.branch(b"org/repo", b"main"), Some(head));
     assert_no_landing(&world);
     assert_prompt(&world);
+}
+
+fn assert_refused_tool(world: &World, tool: &[u8]) {
+    let prompt = world.agent().prompts().last().expect("feedback reaches the next turn");
+    let parts = prompt.messages.iter().flat_map(|message| &message.parts).collect::<Vec<_>>();
+    let called = parts
+        .iter()
+        .find_map(|part| match part {
+            Part::ToolCall { id, name, .. } if name.as_ref() == tool => Some(id),
+            Part::Text { .. } | Part::ToolCall { .. } | Part::ToolOutput { .. } | Part::Opaque { .. } => None,
+        })
+        .expect("scripted modifying call");
+    assert!(
+        parts.iter().any(|part| matches!(part,
+            Part::ToolOutput { id, is_error: true, .. } if id == called
+        )),
+        "the attempted workspace modification must fail"
+    );
 }
 
 fn main_commit(world: &World) -> String {
