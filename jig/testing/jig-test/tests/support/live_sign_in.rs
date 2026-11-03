@@ -75,7 +75,6 @@ pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec:
     endpoint["transport"] = "tls".into();
     endpoint["server_name"] = peers.server_name().into();
     peers.trust(endpoint, "trust_der", directory);
-    endpoint["identity"] = "plain".into();
     endpoint["headers"] = serde_json::json!([]);
     endpoint["connect"] = 10_000.into();
     endpoint["handshake"] = 10_000.into();

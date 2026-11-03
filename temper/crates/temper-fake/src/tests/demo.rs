@@ -133,7 +133,7 @@ fn demo_refusals() {
             "application.demo.llm.provider: names an endpoint with TLS\n",
         ),
         (
-            vec![("/engine/llm/endpoints/1/dialect", Some(json!(1)))],
+            vec![("/engine/llm/endpoints/1/dialect", Some(json!(2)))],
             "application.demo.llm.provider: names an endpoint not in OpenAI's dialect\n",
         ),
         (vec![("/engine/llm/models/1/window", Some(json!(0)))], "application.demo.llm.provider: must be at least 1\n"),

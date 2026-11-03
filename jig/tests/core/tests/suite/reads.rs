@@ -823,9 +823,9 @@ fn a_task_answering_for_its_person_is_refused_by_name() {
     let question = question(&mut world, director, 1);
     let input = format!(r#"{{"target":{delegate},"form":"answer","question":{question},"words":"proceed"}}"#);
     let key = run_key(&world, director, 2);
-    let name = smith_channel::v5::CallName::new(
-        &smith_channel::v5::CEILINGS,
-        smith_channel::v5::CallNameParts { activation: key.attempt, completion: key.completion, position: 0 },
+    let name = smith_channel::CallName::new(
+        &smith_channel::CEILINGS,
+        smith_channel::CallNameParts { activation: key.attempt, completion: key.completion, position: 0 },
     )
     .expect("call name");
     let mut encoded = skein_lib::Writer::new(name.measure() as usize);

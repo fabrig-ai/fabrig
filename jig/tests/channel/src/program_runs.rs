@@ -45,7 +45,7 @@ fn engine_configured(inherited: &Inherited, open: bool) -> Proc {
             r#""sources":{"keys":true}"#,
             r#""manage_usage":"https://usage.example/","sources":{"programs":["claude_code"]}"#,
         )
-        .replace(r#""dialect": 1,"#, r#""dialect": 1, "program": "claude_code","#)
+        .replace(r#""dialect": 3,"#, r#""dialect": 3, "program": "claude_code","#)
         .replace(r#""window": 1048576"#, r#""window": 272000"#)
         .replace(r#""inspect": false"#, r#""inspect": true"#);
     if open {

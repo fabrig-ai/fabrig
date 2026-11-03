@@ -42,7 +42,7 @@ fn model() -> SettingModel {
     let mut efforts = List::with_capacity(1);
     efforts.push(text(b"high")).expect("one effort");
     SettingModel {
-        dialect: 1,
+        dialect: 3,
         endpoint: 2,
         program: Some(text(b"runner")),
         name: text(b"model"),
