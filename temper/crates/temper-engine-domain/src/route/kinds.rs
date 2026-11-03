@@ -116,3 +116,43 @@ fn typed_items(domain: &Domain, proposal: Option<u64>, items: &[application::Ite
 fn save_defaults(domain: &mut Domain, out: &mut Queue<temper_engine_domain_forge::Request>) {
     domain.forge.save_settings_defaults(out);
 }
+
+/// Deployment settings have the settings document's membership check (client/forge.md, 9).
+pub(super) fn read(
+    domain: &Domain,
+    env: &Env<Limits>,
+    decision: &mut crate::Decision,
+    reply: skein_lib::ReplyTo,
+    sign_in: u64,
+    scope: jig_domain_people::ApplicationScope,
+    query: crate::ForgeRead,
+) {
+    use jig_domain_core::reads::{Answer, Why};
+    use jig_domain_people::{ApplicationScope, DEPLOYMENT};
+    let party = domain.core.people.person(sign_in, env.now, env.wall);
+    let why = match party {
+        None => Some(if domain.core.people.ready() { Why::SignedOut } else { Why::Unknown }),
+        Some(party) => {
+            if scope != ApplicationScope::Deployment || domain.core.people.role(party, DEPLOYMENT).is_none() {
+                Some(Why::Unknown)
+            } else {
+                None
+            }
+        }
+    };
+    let delivery = match why {
+        Some(why) => crate::Delivery::Read { reply, answer: Answer::None(why) },
+        None => {
+            let answer = match query {
+                crate::ForgeRead::Setting { kind, scope, number } => {
+                    crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
+                }
+                crate::ForgeRead::ProposalItems { key } => {
+                    crate::ForgeReadAnswer::ProposalItems(domain.forge.proposal_settings(key))
+                }
+            };
+            crate::Delivery::ForgeRead { reply, answer }
+        }
+    };
+    super::emit(decision, &env.limits, delivery);
+}

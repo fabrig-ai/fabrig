@@ -1117,6 +1117,7 @@ fn released_into(
         | Delivery::Application { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
+        | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
         | Delivery::ReadLoad { .. }
         | Delivery::Document { .. }

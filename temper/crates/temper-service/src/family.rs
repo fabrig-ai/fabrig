@@ -253,15 +253,29 @@ pub fn to_root(
                 carried,
             }))
         }
-        kit::ToApplication::Read { reply, family, version, record, .. } => {
+        kit::ToApplication::Read { reply, sign_in, family, version, record, scope, .. } => {
             let mut answer = None;
             if family == wire::FORGE
                 && version == wire::CLIENT_VERSION
                 && let Some(reading) = wire::decode_reading(&record, limits)
-                && *reading.read() == w::Read::Playground
-                && let (Some(row), Some(demo)) = (playground, demo)
             {
-                answer = Some(playground_answer(row, demo, limits));
+                let query = match reading.into_parts().read {
+                    w::Read::Setting(value) => Some(root::ForgeRead::Setting {
+                        kind: value.kind(),
+                        scope: value.scope(),
+                        number: value.number(),
+                    }),
+                    w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+                    w::Read::Playground => {
+                        if let (Some(row), Some(demo)) = (playground, demo) {
+                            answer = Some(playground_answer(row, demo, limits));
+                        }
+                        None
+                    }
+                };
+                if let Some(query) = query {
+                    return Ok(root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }));
+                }
             }
             Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
         }
@@ -1181,4 +1195,47 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
         tiers.push(line).expect("admitted tiers");
     }
     tiers
+}
+
+/// Encode the forge's typed settings answer (temper/docs/design/client/forge.md, 9).
+#[must_use]
+pub fn forge_read(answer: root::ForgeReadAnswer, limits: &w::Limits) -> Option<Box<[u8]>> {
+    use forge::settings::Edit;
+    match answer {
+        root::ForgeReadAnswer::Setting(value) => {
+            let value = match value {
+                Some(value) => Some(temper_engine_smith::kinds::encode(&value.value)),
+                None => None,
+            };
+            let record = w::SettingAnswer::new(limits, w::SettingAnswerParts { value }).ok()?;
+            Some(wire::setting_answer(&record))
+        }
+        root::ForgeReadAnswer::ProposalItems(values) => {
+            let mut items = List::with_capacity(limits.proposal_items_answer_items);
+            for (key, edit) in values {
+                let edit = match edit {
+                    Edit::Set(value) => w::SettingEdit::Set(
+                        w::SettingValue::new(
+                            limits,
+                            w::SettingValueParts { value: temper_engine_smith::kinds::encode(&value.value) },
+                        )
+                        .ok()?,
+                    ),
+                    Edit::Remove => w::SettingEdit::Removed,
+                    Edit::Reset => w::SettingEdit::Reset,
+                };
+                items
+                    .push(
+                        w::ProposalItem::new(
+                            limits,
+                            w::ProposalItemParts { kind: key.kind, scope: key.scope, number: key.number, edit },
+                        )
+                        .ok()?,
+                    )
+                    .ok()?;
+            }
+            let record = w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items }).ok()?;
+            Some(wire::proposal_items_answer(&record))
+        }
+    }
 }

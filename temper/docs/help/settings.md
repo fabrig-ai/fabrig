@@ -7,9 +7,15 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 ## What it is
 
 The settings are a deployment's charters, templates and policies, and
-its rules. A setting is named by its kind and, but for the rules, its
-number: `charter 2`, `template 1`, `policy 1`, `rules`.
+its rules, with temper's landing rules and the forge's charters. A
+setting is named by its kind and, but for the rules, its
+number: `charter 2`, `template 1`, `policy 1`, `rules`,
+`landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`.
 
+- A landing rule governs changes landing on matching branches, for the
+  deployment or one project: `temper help landing-rule`.
+- The forge's charter 1 selects the change's charter, and 2 its reviews'.
+  Its value is a charter's number.
 - A charter is how an agent's run works: `temper help charter`.
 - A template is how a new task is filled: `temper help template`.
 - A policy is what a project made from it starts with, and the rules are
@@ -20,7 +26,7 @@ them. The current settings are the defaults with the stored changes over
 them: a setting no change names follows its default. The settings live
 in the store, never in the configuration document.
 
-A setting's value is whole: one JSON object, as `settings show` prints
+A setting's value is whole: a JSON value, as `settings show` prints
 it in JSON. Its members, with their types and bounds, are in
 `temper help settings-fields`.
 
@@ -70,7 +76,13 @@ default that changed.
   revision, each setting and where its value comes from, the held
   revisions and the pending proposals) and, given a setting's kind and
   number, its whole value; `settings apply` makes a change; `settings
-  propose` proposes one. Each verb's arguments are its help: `temper
+  propose` proposes one. `settings show landing-rule NUMBER` reads a
+  deployment landing rule; add `--project PROJECT` for a project's.
+  `settings show forge-charter NUMBER` reads one of the forge's charters.
+  Both print the setting's state and its value; `--json` prints the value
+  in the form a settings file's `set` takes. `proposal show PROPOSAL`
+  includes temper's proposed values, removals and resets.
+  Each verb's arguments are its help: `temper
   ctl help settings apply`.
 - A settings file holds a change's items: its form is
   `temper help settings-fields`.
@@ -81,8 +93,6 @@ default that changed.
 ## Limits
 
 - temper does not patch a member: an item sets a whole value.
-- temper does not hold its landing rules or the forge's charter as
-  settings: `temper help landing-rule`.
 - The person's client has no page to change settings.
 - A value's bound in `temper help settings-fields` is what ctl sends;
   the deployment may refuse a value within it, past one of its own

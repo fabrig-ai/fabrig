@@ -512,6 +512,18 @@ pub enum ApplicationAnswer {
     Reachable(forge::ReachableAnswer),
     Returning,
 }
+/// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ForgeRead {
+    Setting { kind: u32, scope: u32, number: u32 },
+    ProposalItems { key: u64 },
+}
+/// Typed answers from the forge's held settings, encoded at the clients' boundary.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ForgeReadAnswer {
+    Setting(Option<forge::settings::SizedValue>),
+    ProposalItems(Box<[(forge::settings::SettingKey, forge::settings::Edit)]>),
+}
 #[derive(Debug)]
 pub enum PartyInput {
     /// Resolve a sign-in through the people child for provider authorization.
@@ -607,6 +619,13 @@ pub enum PartyInput {
         reply_to: ReplyTo,
         sign_in: u64,
         read: core::reads::Read,
+    },
+    /// The forge's typed read, answered after preceding commits (client/forge.md, 9).
+    ForgeRead {
+        reply: ReplyTo,
+        sign_in: u64,
+        scope: people::ApplicationScope,
+        query: ForgeRead,
     },
     /// Watch one subject's whole document on a live sign-in.
     /// A forge panel uses `Watched::Application` in its project's scope, the
@@ -819,6 +838,7 @@ pub(crate) enum Work {
     StartDone(jig_domain_core::start::Phase),
     Start(jig_domain_core::start::Action),
     Decoded { to: ReplyTo, body: Call },
+    ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
     Tasks(tasks::Event),
     People(people::Event),
@@ -942,6 +962,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Application { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
+        | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }

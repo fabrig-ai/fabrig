@@ -495,3 +495,215 @@ fn a_document_rule_reaches_the_forge_as_a_default() {
         Some(&settings::SizedValue { size: CHARTER_BYTES, value: settings::Value::Charter(4) })
     );
 }
+
+const READ_SIGN_IN: u64 = 10;
+const READ_REPLY: skein_lib::ReplyTo = skein_lib::ReplyTo::new(Token::new(93));
+fn reader(role: Option<jig_domain_people::Role>) -> (Domain, Env<RootLimits>) {
+    use jig_domain_people as people;
+    let (mut domain, env) = root();
+    domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.core.people.start_restore(env.wall);
+    let mut out = Queue::uncapped();
+    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
+    for record in [
+        people::Stored::Person {
+            number: 1,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: b"reader".as_slice().into() },
+                login: Box::new([]),
+                name: Box::new([]),
+            },
+        },
+        people::Stored::SignIn { number: READ_SIGN_IN, person: 1, expires: Wall::from_nanos(100) },
+        people::Stored::Roles {
+            project: people::DEPLOYMENT,
+            holdings: match role {
+                Some(role) => Box::new([people::Holding { person: 1, role }]),
+                None => Box::new([]),
+            },
+        },
+    ] {
+        people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut out);
+    }
+    assert!(domain.core.people.start_link(&people_env));
+    domain.core.people.start_sweep();
+    assert!(domain.core.people.start_complete(&people_env));
+    (domain, env)
+}
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the fixture handles store acknowledgements and one party read answer"
+)]
+fn read_forge(
+    domain: &mut Domain,
+    env: &Env<RootLimits>,
+    sign_in: u64,
+    scope: jig_domain_people::ApplicationScope,
+    query: crate::ForgeRead,
+) -> Delivery {
+    crate::try_step(
+        domain,
+        env,
+        crate::Event::Party(crate::PartyInput::ForgeRead { reply: READ_REPLY, sign_in, scope, query }),
+    )
+    .unwrap();
+    let mut out = Queue::uncapped();
+    for _ in 0_u32..32 {
+        crate::release(domain, env, &mut out);
+        while let Some(request) = out.pop() {
+            match request {
+                crate::Request::Party(crate::PartyRequest::Deliver(delivery)) => return delivery,
+                crate::Request::Store(crate::StoreRequest::Commit { number, .. }) => {
+                    crate::try_step(domain, env, crate::Event::Store(crate::StoreInput::Committed { number, fill: 0 }))
+                        .unwrap();
+                }
+                crate::Request::ToChild(released) => {
+                    crate::try_step(domain, env, crate::Event::Released(released)).unwrap();
+                }
+                other => panic!("unexpected read output: {other:?}"),
+            }
+        }
+    }
+    panic!("one read answer");
+}
+#[test]
+fn forge_setting_reads_follow_kept_removed_and_reset_values() {
+    use jig_domain_people::{ApplicationScope, Role};
+    let (mut domain, env) = reader(Some(Role::Observer));
+    let query = crate::ForgeRead::Setting { kind: 1, scope: 0, number: RULE };
+    for edit in [settings::Edit::Set(rule(false)), settings::Edit::Remove, settings::Edit::Reset] {
+        let mut out = Queue::uncapped();
+        domain.forge.keep_settings(
+            &crate::translate::environment_forge(&env),
+            None,
+            &[settings::Asked { kind: 1, scope: 0, number: RULE, edit: edit.clone() }],
+            &mut out,
+        );
+        let expected = match edit {
+            settings::Edit::Set(value) => Some(value),
+            settings::Edit::Remove => None,
+            settings::Edit::Reset => Some(rule(true)),
+        };
+        assert_eq!(
+            read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query),
+            Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(expected) }
+        );
+    }
+    assert_eq!(
+        read_forge(
+            &mut domain,
+            &env,
+            READ_SIGN_IN,
+            ApplicationScope::Deployment,
+            crate::ForgeRead::Setting { kind: 1, scope: 0, number: RULE + 1 }
+        ),
+        Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(None) }
+    );
+}
+#[test]
+fn forge_proposal_reads_use_the_deployment_unique_key_and_preserve_edits() {
+    use jig_domain_people::{ApplicationScope, Role};
+    let (mut domain, env) = reader(Some(Role::Member));
+    let items = [
+        settings::Asked { kind: 2, scope: PROJECT, number: RULE, edit: settings::Edit::Set(rule(false)) },
+        settings::Asked { kind: 1, scope: 0, number: RULE, edit: settings::Edit::Remove },
+        settings::Asked { kind: 3, scope: 0, number: 1, edit: settings::Edit::Reset },
+    ];
+    domain.forge.keep_proposal_settings(PROPOSAL, &items, &mut Queue::uncapped());
+    domain.forge.keep_proposal_settings(
+        WITHDRAWN_PROPOSAL,
+        &[settings::Asked { kind: 3, scope: 0, number: 2, edit: settings::Edit::Set(charter(6)) }],
+        &mut Queue::uncapped(),
+    );
+    let expected = domain.forge.proposal_settings(PROPOSAL);
+    assert_eq!(expected.len(), 3);
+    assert_eq!(
+        read_forge(
+            &mut domain,
+            &env,
+            READ_SIGN_IN,
+            ApplicationScope::Deployment,
+            crate::ForgeRead::ProposalItems { key: PROPOSAL }
+        ),
+        Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::ProposalItems(expected) }
+    );
+    assert_eq!(
+        read_forge(
+            &mut domain,
+            &env,
+            READ_SIGN_IN,
+            ApplicationScope::Deployment,
+            crate::ForgeRead::ProposalItems { key: PROPOSAL + 10 }
+        ),
+        Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::ProposalItems(Box::new([])) }
+    );
+}
+#[test]
+fn forge_reads_refuse_the_same_missing_membership_and_sign_in_as_settings() {
+    use jig_domain_core::reads::{Answer, Why};
+    use jig_domain_people::{ApplicationScope, Role};
+    for query in
+        [crate::ForgeRead::Setting { kind: 3, scope: 0, number: 1 }, crate::ForgeRead::ProposalItems { key: PROPOSAL }]
+    {
+        for (role, sign_in, scope, why) in [
+            (None, READ_SIGN_IN, ApplicationScope::Deployment, Why::Unknown),
+            (Some(Role::Owner), READ_SIGN_IN + 1, ApplicationScope::Deployment, Why::SignedOut),
+            (Some(Role::Owner), READ_SIGN_IN, ApplicationScope::Own, Why::Unknown),
+            (Some(Role::Owner), READ_SIGN_IN, ApplicationScope::Project(PROJECT), Why::Unknown),
+        ] {
+            let (mut domain, env) = reader(role);
+            assert_eq!(
+                read_forge(&mut domain, &env, sign_in, scope, query),
+                Delivery::Read { reply: READ_REPLY, answer: Answer::None(why) }
+            );
+        }
+    }
+}
+
+#[test]
+fn forge_reads_wait_for_the_preceding_settings_commit() {
+    use jig_domain_people::{ApplicationScope, Role};
+    let (mut domain, env) = reader(Some(Role::Observer));
+    domain.kinds = values(rule(false));
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector::Ask::KeepSettings {
+            revision: 2,
+            proposal: None,
+            items: Box::new([project_rule(application::Edit::Set(Box::default()))]),
+        },
+    );
+    let mut out = Queue::uncapped();
+    crate::domain::close(&mut domain, &env, decision, &mut out);
+    crate::domain::send_commit(&mut domain, &mut out);
+    let Some(crate::Request::Store(crate::StoreRequest::Commit { number, .. })) = out.pop() else {
+        panic!("the settings change waits for its commit")
+    };
+    crate::try_step(
+        &mut domain,
+        &env,
+        crate::Event::Party(crate::PartyInput::ForgeRead {
+            reply: READ_REPLY,
+            sign_in: READ_SIGN_IN,
+            scope: ApplicationScope::Deployment,
+            query: crate::ForgeRead::Setting { kind: 2, scope: PROJECT, number: RULE },
+        }),
+    )
+    .unwrap();
+    crate::release(&mut domain, &env, &mut out);
+    assert!(out.is_empty(), "a read cannot escape before the settings commit");
+    crate::try_step(&mut domain, &env, crate::Event::Store(crate::StoreInput::Committed { number, fill: 0 })).unwrap();
+    crate::release(&mut domain, &env, &mut out);
+    crate::release(&mut domain, &env, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(crate::Request::Party(crate::PartyRequest::Deliver(Delivery::ForgeRead {
+            reply: READ_REPLY,
+            answer: crate::ForgeReadAnswer::Setting(Some(rule(false))),
+        })))
+    );
+    assert!(out.is_empty());
+}

@@ -83,6 +83,9 @@ pub struct Bounds {
 #[must_use]
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
+        setting_answer_value_some: v1::CEILINGS.setting_answer_value_some,
+        setting_value_value: v1::CEILINGS.setting_value_value,
+        proposal_items_answer_items: v1::CEILINGS.proposal_items_answer_items,
         landing_exact_value: bounds.segment_bytes,
         landing_open_value: bounds.segment_bytes,
         landing_pattern_segments: bounds.segments,
@@ -399,5 +402,34 @@ pub fn landings_panel(record: &v1::LandingsPanel) -> Box<[u8]> {
 pub fn decode_landings_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::LandingsPanel> {
     let mut reader = Reader::new(bytes);
     let record = v1::LandingsPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode the current value of a forge setting (client/forge.md, 9).
+#[must_use]
+pub fn setting_answer(record: &v1::SettingAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete forge setting answer.
+#[must_use]
+pub fn decode_setting_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::SettingAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::SettingAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+/// Encode the items of one pending proposal (client/forge.md, 9).
+#[must_use]
+pub fn proposal_items_answer(record: &v1::ProposalItemsAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete proposal items answer.
+#[must_use]
+pub fn decode_proposal_items_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ProposalItemsAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::ProposalItemsAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
