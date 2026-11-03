@@ -1,7 +1,7 @@
 //! The reference's settings file (temper/docs/design/protocol/configuration.md, 13.9).
 use settings_form::view::{
-    CharterDocument, ResultsWake, Setting, SettingEdit, SettingItem, SettingNumber, SettingValue, TemplateExecutor,
-    WakePolicy, WakeRule,
+    CharterDocument, ResultsWake, Setting, SettingEdit, SettingItem, SettingNumber, SettingValue, Symbol,
+    TaskContractDocument, TemplateExecutor, WakePolicy, WakeRule,
 };
 use skein_lib::{Duration, List, bytes};
 
@@ -9,11 +9,13 @@ const COORDINATOR: u32 = 5;
 const DESIGNER: u32 = 7;
 const CODER: u32 = 2;
 const FOREMAN: u32 = 6;
+const TRIAGE: u32 = 8;
 const GOAL: u32 = 4;
-// The reference supplies four charters, one template and two landing rules.
-const ITEMS: u32 = 7;
-// temper-init/template/agent.json's profile.policy.max_turns.
-const TURNS: u32 = 16;
+// The reference supplies five charters, one template and two landing rules.
+const ITEMS: u32 = 8;
+// Checked against the reference's profile.policy.max_turns below.
+const TURNS: u32 = 64;
+const INIT_TURNS: u32 = 16;
 
 fn value(items: &List<SettingItem>, setting: Setting) -> &SettingValue {
     for item in items {
@@ -52,6 +54,7 @@ fn the_reference_settings_file_decodes() {
         (DESIGNER, b"claude-opus-5-5".as_slice()),
         (CODER, b"gpt-6.1-sol".as_slice()),
         (FOREMAN, b"gpt-6.1-sol".as_slice()),
+        (TRIAGE, b"gpt-6.1-sol".as_slice()),
     ] {
         let SettingValue::Charter(charter) = value(&items, Setting::Charter(SettingNumber { number })) else {
             panic!("reference charter")
@@ -60,7 +63,7 @@ fn the_reference_settings_file_decodes() {
         assert_eq!(charter.model.name.bytes(), model);
         assert!(charter.alternatives.is_empty());
         assert_eq!(charter.hosts, settings_form::view::SettingHosts::Workers);
-        assert_eq!(charter.turns, TURNS);
+        assert_eq!(charter.turns, if matches!(number, FOREMAN | TRIAGE) { INIT_TURNS } else { TURNS });
         assert_eq!(charter.time, Duration::from_secs(1800));
         if number != CODER && number != FOREMAN {
             assert!(!charter.resume());
@@ -88,9 +91,13 @@ fn the_reference_settings_file_decodes() {
         std::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions are UTF-8");
     assert!(instructions.contains(r#""branch": "mine""#));
     assert!(instructions.contains(r#""questions": "foreman""#));
+    assert!(instructions.contains(r#""questions": "up""#));
+    assert!(instructions.contains("delegate its triage to charter 8"));
     assert!(instructions.contains("decide"));
     assert!(instructions.contains(r#""repairs""#));
     assert!(instructions.contains("a red of your goal branch's tier"));
+    assert!(instructions.contains("a live repair owning its failing tests"));
+    assert!(instructions.contains("then the draft it was built from, by path,"));
     assert!(instructions.contains("with `note`"));
     assert!(coordinator.instructions.bytes().ends_with(
         b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
@@ -138,7 +145,15 @@ fn the_reference_settings_file_decodes() {
     };
     assert_eq!(coder.wake, WakePolicy::DEFAULT);
     assert!(coder.documents.is_empty());
-    assert!(coder.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/coding.txt")));
+    assert!(coder.shell());
+    let stock = std::str::from_utf8(include_bytes!("../../../temper-service/src/stock/coding.txt"))
+        .expect("stock coding instructions are UTF-8");
+    let checks = "Before each delivery, run with the shell the lints and the focused tests of each package \
+                  you changed: `cargo clippy -p PKG --all-targets -- -D warnings`, then `cargo nextest run -p \
+                  PKG`, naming each package; fix what they find in your own files, and list a failure outside \
+                  them under Left.";
+    let instructions = stock.replace("You can run nothing.", checks);
+    assert!(coder.instructions.bytes().starts_with(instructions.as_bytes()));
     assert!(
         std::str::from_utf8(coder.instructions.bytes())
             .expect("coding instructions are UTF-8")
@@ -152,6 +167,21 @@ fn the_reference_settings_file_decodes() {
     assert!(!foreman.shell());
     assert!(!foreman.agents());
     assert!(foreman.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/foreman.txt")));
+    let SettingValue::Charter(triage) = value(&items, Setting::Charter(SettingNumber { number: TRIAGE })) else {
+        panic!("triage charter")
+    };
+    assert!(triage.inspect());
+    assert!(!triage.modify());
+    assert!(!triage.shell());
+    assert!(!triage.agents());
+    assert_eq!(triage.model, foreman.model);
+    assert_eq!(triage.reserve_turns, foreman.reserve_turns);
+    assert_eq!(triage.reserve_time, foreman.reserve_time);
+    assert_eq!(triage.call_timeout, foreman.call_timeout);
+    assert_eq!(triage.spend, foreman.spend);
+    assert_eq!(triage.wake, WakePolicy::DEFAULT);
+    assert!(triage.documents.is_empty());
+    assert!(bytes::find(triage.instructions.bytes(), b"You never edit, push or run anything.").is_some());
     assert!(
         core::str::from_utf8(coder.instructions.bytes())
             .expect("coding instructions")
@@ -168,6 +198,53 @@ fn the_reference_settings_file_decodes() {
     let llm = goal.llm.as_ref().expect("goal model choice");
     assert_eq!(llm.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(llm.main.effort.as_ref().expect("coordinator effort").bytes(), b"xhigh");
+}
+
+#[test]
+fn the_reference_settings_fit_the_reference_profile() {
+    let items = settings_form::file::decode(
+        include_bytes!("../../../../docs/examples/reference/settings.json"),
+        &temper_client_tools::limits::form(),
+    )
+    .expect("reference settings");
+    let limits: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json"))
+            .expect("reference limits");
+    let agent: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/agent.json"))
+            .expect("reference agent profile");
+    let init_agent: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../temper-init/template/agent.json"))
+            .expect("init agent configuration");
+    let max_turns = agent["profile"]["policy"]["max_turns"].as_u64().expect("reference turn limit");
+    assert_eq!(u64::from(TURNS), max_turns);
+    assert_eq!(Some(u64::from(INIT_TURNS)), init_agent["profile"]["policy"]["max_turns"].as_u64());
+    let overrides = &limits["engine"]["limits"]["overrides"];
+    let mut charters = 4_u64;
+    for item in &items {
+        if let SettingEdit::Set(set) = &item.edit
+            && let SettingValue::Charter(charter) = &set.value
+        {
+            charters += 1;
+            assert!(charter.documents.len() <= 2, "small's tasks.charter_documents");
+            assert!(u64::from(charter.turns) <= max_turns, "charter {}", charter.number);
+        }
+    }
+    assert!(charters <= overrides["tasks.charters"].as_u64().expect("charter limit"));
+    let SettingValue::Template(goal) = value(&items, Setting::Template(SettingNumber { number: GOAL })) else {
+        panic!("goal template")
+    };
+    let TaskContractDocument::Report { words } = goal.contract else { panic!("goal report") };
+    let result_bytes = overrides["tasks.result_bytes"].as_u64().expect("result limit");
+    assert!(u64::from(words) <= result_bytes);
+    assert!(result_bytes <= 4096, "small's tasks.message_bytes");
+    assert_eq!(goal.resources.len(), 1);
+    assert_eq!(goal.resources.iter().next(), Some(&Symbol { connector: 1, symbol: 1 }));
+    let SettingValue::Charter(coordinator) = value(&items, Setting::Charter(SettingNumber { number: COORDINATOR }))
+    else {
+        panic!("coordinator charter")
+    };
+    assert!(bytes::find(coordinator.instructions.bytes(), b"A `change` call makes at most").is_some());
 }
 
 #[test]

@@ -430,65 +430,7 @@ fn route_now(
         core::Now::BriefCorePlanned { task, sections, .. } => brief::plan(env, task, sections, work),
         core::Now::CompleteBrief { brief: token, order } => brief::complete(domain, token, order, work),
         core::Now::WorkspaceRequest { task, attempt, context } => {
-            let mut names = List::with_capacity(env.limits.core.tasks.holdings);
-            let mut checks = List::with_capacity(env.limits.core.authority.writes);
-            for number in [1, 2] {
-                let Some(holdings) = specification_holdings(domain, env, number, context.project, &context.spec, work)
-                else {
-                    work.push(Work::Core(core::Event::WorkspacePrepared {
-                        task,
-                        attempt,
-                        holds: Box::new([]),
-                        workspace: None,
-                        credentials: Box::new([]),
-                        writes: None,
-                    }));
-                    return;
-                };
-                for holding in holdings {
-                    match holding {
-                        tasks::Holding::Write { resource, .. } => {
-                            checks
-                                .push(authority::Write {
-                                    effect: authority::Effect {
-                                        connector: resource.connector,
-                                        kind: 5,
-                                        name: authority::Name { segments: resource.path.clone() },
-                                        state: [0; 32],
-                                        price: None,
-                                        access: authority::EffectAccess::Owned,
-                                        additional: Box::new([]),
-                                        guards: Box::new([]),
-                                    },
-                                    held: authority::Writer::Task,
-                                })
-                                .expect("workspace write check room");
-                            names.push(resource).expect("admitted holding count");
-                        }
-                        tasks::Holding::Slot { .. } => {}
-                    }
-                }
-            }
-            assert!(domain.workspace_writes.insert(task, names.into_boxed()).is_ok(), "workspace per task");
-            let prepared = workspace::credentials(domain, &env.limits, context.project, &context.spec);
-            let (credentials, writes) = match prepared {
-                Some(credentials) => (credentials, Some(checks.into_boxed())),
-                None => (Box::<[u32]>::from([]), None),
-            };
-            let holds = match context.executor {
-                tasks::Executor::Job { .. } => domain.workspace_writes.get(&task).expect("prepared writes").clone(),
-                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
-                    Box::new([])
-                }
-            };
-            work.push(Work::Core(core::Event::WorkspacePrepared {
-                task,
-                attempt,
-                holds,
-                credentials,
-                writes,
-                workspace: None,
-            }));
+            prepare_workspace(domain, env, work, task, attempt, &context);
         }
         core::Now::RunPrepared {
             live,
@@ -1157,6 +1099,81 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::Lifted { .. }
         | people::Outcome::MarkedSeen { .. } => unreachable!("release core part returns a release terminal"),
     }
+}
+
+fn prepare_workspace(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    task: u64,
+    attempt: u64,
+    context: &tasks::RunContext,
+) {
+    let checked = workspace_checks(domain, env, context, work);
+    let (holds, credentials, writes) = match checked {
+        Some(WorkspaceChecks { names, writes: checks }) => {
+            let holds = match context.executor {
+                tasks::Executor::Job { .. } => names.clone(),
+                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
+                    Box::new([])
+                }
+            };
+            assert!(domain.workspace_writes.insert(task, names).is_ok(), "workspace per task");
+            match workspace::credentials(domain, &env.limits, context.project, &context.spec) {
+                Some(credentials) => (holds, credentials, Some(checks)),
+                None => (holds, Box::<[u32]>::from([]), None),
+            }
+        }
+        None => (Box::<[tasks::Name]>::from([]), Box::<[u32]>::from([]), None),
+    };
+    let event = core::Event::WorkspacePrepared { task, attempt, holds, credentials, writes, workspace: None };
+    if let Some(waiting) = &mut domain.scripted_workspaces {
+        waiting.push(event);
+    } else {
+        work.push(Work::Core(event));
+    }
+}
+
+struct WorkspaceChecks {
+    names: Box<[tasks::Name]>,
+    writes: Box<[authority::Write]>,
+}
+
+fn workspace_checks(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    context: &tasks::RunContext,
+    work: &mut Queue<Work>,
+) -> Option<WorkspaceChecks> {
+    let mut names = List::with_capacity(env.limits.core.tasks.holdings);
+    let mut checks = List::with_capacity(env.limits.core.authority.writes);
+    for number in [1, 2] {
+        let holdings = specification_holdings(domain, env, number, context.project, &context.spec, work)?;
+        for holding in holdings {
+            match holding {
+                tasks::Holding::Write { resource, .. } => {
+                    checks
+                        .push(authority::Write {
+                            effect: authority::Effect {
+                                connector: resource.connector,
+                                kind: 5,
+                                name: authority::Name { segments: resource.path.clone() },
+                                state: [0; 32],
+                                price: None,
+                                access: authority::EffectAccess::Owned,
+                                additional: Box::new([]),
+                                guards: Box::new([]),
+                            },
+                            held: authority::Writer::Task,
+                        })
+                        .expect("workspace write check room");
+                    names.push(resource).expect("admitted holding count");
+                }
+                tasks::Holding::Slot { .. } => {}
+            }
+        }
+    }
+    Some(WorkspaceChecks { names: names.into_boxed(), writes: checks.into_boxed() })
 }
 
 #[cfg(test)]

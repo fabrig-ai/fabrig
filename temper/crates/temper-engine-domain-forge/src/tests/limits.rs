@@ -95,3 +95,14 @@ fn the_questions_bound_leaves_room_for_one_waiting_question() {
         assert_eq!(valid(&limits), accepted, "questions: {questions}");
     }
 }
+
+#[test]
+fn a_changes_delegate_must_have_a_positive_task_bound() {
+    for (tasks, accepted) in [(0, false), (1, true), (u32::MAX, true)] {
+        let limits = Limits {
+            change_policy: temper_engine_domain_forge_change::Limits { tasks, ..LIMITS.change_policy },
+            ..LIMITS
+        };
+        assert_eq!(valid(&limits), accepted, "tasks: {tasks}");
+    }
+}

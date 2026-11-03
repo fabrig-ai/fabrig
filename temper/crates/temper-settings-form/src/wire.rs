@@ -514,14 +514,14 @@ pub(crate) fn settings_restore_policy_edit_role(
 }
 
 pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Result<c::Template, w::Problem> {
+    let mut resources = List::with_capacity(value.resources().len());
+    for resource in value.resources() {
+        resources
+            .push(c::Symbol { connector: resource.connector(), symbol: resource.symbol() })
+            .expect("same capacity");
+    }
     Ok(c::Template {
-        resources: {
-            let mut rows = List::with_capacity(value.resources().len());
-            for symbol in value.resources() {
-                rows.push(c::Symbol { connector: symbol.connector(), symbol: symbol.symbol() }).expect("same capacity");
-            }
-            rows
-        },
+        resources,
         number: value.number(),
         name: facts_document_text(value.name(), limits)?,
         executor: operations_restore_executor(value.executor()),
@@ -1318,20 +1318,16 @@ pub(crate) fn asks_wire_policy_edit_role(
 }
 
 pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
+    let mut resources = List::with_capacity(value.resources.len());
+    for resource in &value.resources {
+        resources
+            .push(w::Symbol::new(limits, w::SymbolParts { connector: resource.connector, symbol: resource.symbol })?)
+            .expect("same capacity");
+    }
     w::Template::new(
         limits,
         w::TemplateParts {
-            resources: {
-                let mut rows = List::with_capacity(value.resources.len());
-                for symbol in &value.resources {
-                    rows.push(w::Symbol::new(
-                        limits,
-                        w::SymbolParts { connector: symbol.connector, symbol: symbol.symbol },
-                    )?)
-                    .expect("same capacity");
-                }
-                rows
-            },
+            resources,
             number: value.number,
             name: settings_wire_document_text(&value.name, limits)?,
             executor: operations_executor(value.executor, limits)?,

@@ -281,7 +281,11 @@ fn template_resources(d: &Decoder, at: Option<u32>) -> Result<List<c::Symbol>, E
     let positions = d.array(at, d.limits.template_resources, b"template.resources")?;
     let mut values = List::with_capacity(positions.len());
     for at in &positions {
-        values.push(template_symbol(d, *at)?).expect("checked list length");
+        let value = template_symbol(d, *at)?;
+        if values.as_slice().contains(&value) {
+            return Err(error(b"template.resources", b"duplicate pair"));
+        }
+        values.push(value).expect("checked list length");
     }
     Ok(values)
 }

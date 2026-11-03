@@ -149,6 +149,12 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.change_policy.questions" => {
             limits.forge.change_policy.questions = u32::try_from(value).or(Err(Refused::Range))?;
         }
+        b"forge.change_policy.tasks" => {
+            if value == 0 {
+                return Err(Refused::Range);
+            }
+            limits.forge.change_policy.tasks = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"forge.change_policy.stall_ms" => limits.forge.change_policy.stall = duration(value)?,
         b"forge.change_policy.gates" => {
             limits.forge.change_policy.gates = u32::try_from(value).or(Err(Refused::Range))?;

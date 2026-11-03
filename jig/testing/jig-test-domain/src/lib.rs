@@ -320,6 +320,7 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 #[derive(Debug)]
 pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
+    scripted_workspaces: Option<Queue<core::Event>>,
     hub_link: jig_domain_hub_link::Link,
     core: core::Core,
     first: connector::Domain,
@@ -339,6 +340,16 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Hold workspace completions for deterministic preparation interleavings.
+    pub fn script_workspaces(&mut self) {
+        self.scripted_workspaces = Some(Queue::uncapped());
+    }
+
+    /// Take one held completion; the world delivers it through the root's entrance.
+    pub fn take_workspace(&mut self) -> Option<core::Event> {
+        self.scripted_workspaces.as_mut()?.pop()
+    }
+
     /// The composed core, including its child timer queries.
     #[must_use]
     pub const fn core(&self) -> &core::Core {
@@ -466,6 +477,7 @@ impl Domain {
         }
         Domain {
             scripted_project_releases: None,
+            scripted_workspaces: None,
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {
                     assignments: limits.core.tasks.tasks,
