@@ -877,6 +877,10 @@ usable and settled fields beside the rows.
   the refusal in place, sending nothing. That is the engine's word read,
   not authority computed: the engine judges again when the request
   comes, by the rule that made the offer. No read assesses a draft.
+  Creating's charter and procedure lists are complete facts, each received
+  within `documents.lines`. If either list does not fit, the creating
+  offer is refused at the authority limit; a shortened list never stands
+  for the executors the party may name.
 - **Reordering,** in a project's document: whether the party may change
   its tracked tasks' priorities, in one compound request of
   priority-only amendments (3.4). It is judged by the party's role in

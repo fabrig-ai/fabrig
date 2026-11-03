@@ -2,6 +2,10 @@
 
 2026-11-03. Remaining gaps between temper's code and [tools.md](tools.md).
 
+- **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
+  capacity cause from its role cause: jig's `me` carries absence alone
+  (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
+  the role and `documents.lines` as checks, without asserting either cause.
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
