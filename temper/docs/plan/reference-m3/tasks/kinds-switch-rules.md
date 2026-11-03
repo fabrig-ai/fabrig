@@ -3,7 +3,7 @@ id = "kinds-switch-rules"
 part = "kinds-root"
 kind = "feature"
 needs = ["kinds-start", "kinds-requirements", "change-root"]
-files = ["temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain/src/lib.rs", "temper/crates/temper-engine-domain/src/route/policy_translate.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-engine-domain/src/route/landing.rs", "temper/crates/temper-engine-domain/src/route/kinds.rs", "temper/crates/temper-engine-domain/src/tests/**", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/gates.rs", "temper/crates/temper-engine-domain-forge/src/judge.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/crates/temper-engine-domain-forge/src/tests/requires.rs", "temper/crates/temper-engine-domain-forge/src/tests/**", "temper/crates/temper-service/src/system.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/application/landing.rs", "temper/crates/temper-service/src/tests/**", "temper/tests/engine/domain/src/walking.rs", "temper/tests/engine/domain/src/oracle/config.rs", "temper/tests/engine/domain/tests/suite/settings/**", "temper/docs/design/domain/root.status.md", "temper/docs/design/domain/forge.status.md", "temper/docs/design/protocol/configuration.status.md"]
+files = ["temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain/src/lib.rs", "temper/crates/temper-engine-domain/src/route/policy_translate.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-engine-domain/src/route/landing.rs", "temper/crates/temper-engine-domain/src/route/kinds.rs", "temper/crates/temper-engine-domain/src/tests/**", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/gates.rs", "temper/crates/temper-engine-domain-forge/src/judge.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/crates/temper-engine-domain-forge/src/tests/requires.rs", "temper/crates/temper-engine-domain-forge/src/tests/**", "temper/crates/temper-service/src/system.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/application/landing.rs", "temper/crates/temper-service/src/tests/root_checks.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/system.rs", "temper/crates/temper-service/src/tests/fixtures/**", "temper/tests/engine/domain/src/walking.rs", "temper/tests/engine/domain/src/oracle/config.rs", "temper/tests/engine/domain/tests/suite/settings/**", "temper/docs/design/domain/root.status.md", "temper/docs/design/domain/forge.status.md", "temper/docs/design/protocol/configuration.status.md"]
 effort = "high"
 minutes = 150
 +++
@@ -69,7 +69,9 @@ Acceptance:
 ## Owns and may change
 
 - Owns the files in the header for the edits above; in `forge_route.rs`, `configured_gates`
-  and `gate_required` alone (`kinds-switch-charters` changes `start_change` after you).
+  and `gate_required` alone (`kinds-switch-charters` changes `start_change` after you). A
+  temper-service test file the header does not list that the compiler names: the field's
+  literal alone, and say so in the report (`kinds-ctl-form` may run beside you there).
 - Options: if a world story asserts requirements 1 to 4 on a rule (the names `Ci`,
   `UpToDate`, a requirement number in an expectation), move it to 5 and 6 with the same
   expected outcome and list each in the report; a story whose outcome changes is a question.

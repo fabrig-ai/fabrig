@@ -1056,7 +1056,7 @@ and its hold (2.5) follow.
 | the browser's steps of a connect (9.1) | none of jig's: temper's routes on the clients' listener | `../protocol/forge.md`, the setup's host |
 | the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
-| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { proposer, number }`, beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
 
 ### 9.1 The browser's steps, on the clients' listener
 
