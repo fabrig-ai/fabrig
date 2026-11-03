@@ -395,6 +395,7 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         watermark: engine::default_watermark(&limits.root.journal),
         public_watermark: engine::default_watermark(&limits.root.journal).checked_div(2).expect("half the watermark"),
         public_reads: jig.clients.public.reads,
+        public: jig.core.public,
         journal: limits.root.journal,
         loads: limits.root.loads,
         brief: limits.root.brief,
