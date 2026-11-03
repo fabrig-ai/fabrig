@@ -151,3 +151,14 @@ Acceptance:
 
 As the implementer's text says, and also: each answer's exact header list as sent, the room's
 accounting beside `Mount::room()`, and every literal outside the header's files.
+
+## Answers
+
+### 2026-11-03: Should freshness for max-age=5 and Age: 2 be 3 (recommended, following the stated subtraction rule and protocol/client.md 17.5), or 2 (following the explicit acceptance-test example)? (public-reading-build/public-http-1, foreman public-reading-build/public-http/foreman-1)
+
+Freshness for max-age=5 and Age: 2 is 3, following max-age less Age, saturating at zero.
+The client-end acceptance states: “max-age less Age, saturating at zero”.
+`jig/docs/design/protocol/client.md`, 17.5 agrees: “freshness left: the `Cache-Control`'s `max-age` less the `Age` a cache added.”
+The root `AGENTS.md` establishes: “The design is the contract”.
+The test example’s expected 2 conflicts with that rule; use 3.
+The next run implements the stated subtraction rule and asserts 3 in `freshness_reads_present_absent_and_malformed_headers`, then completes the task’s checks, commit and push.
