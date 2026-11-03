@@ -518,7 +518,7 @@ fn via_is_public_for_the_exact_public_name() {
 #[test]
 fn via_is_listener_without_a_public_host_match() {
     for public in [Some(Box::from(fixtures::PUBLIC)), None] {
-        let settings = Settings { prefix: Box::from(b"/jig".as_slice()), public };
+        let settings = Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public };
         for host in [
             None,
             Some(fixtures::HOST),
@@ -628,3 +628,5 @@ fn authorize_maps_under_the_prefix_and_uses_record_error_statuses() {
     }
     assert_eq!(fixtures::answered(&mut mount, &mut out, call).0, 415);
 }
+
+mod public;

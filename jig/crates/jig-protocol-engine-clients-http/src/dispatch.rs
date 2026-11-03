@@ -2,8 +2,9 @@
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 use jig_protocol_engine_clients::Message;
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum Route {
+    Public(jig_protocol_engine_clients::PublicRead),
     Link,
     Service,
     SignOut,
@@ -20,6 +21,12 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
     let Some(path) = call.target.strip_prefix(prefix) else {
         return Route::Missing;
     };
+    if path.starts_with(b"/v1/public/") {
+        return match (call.method, crate::public_path(path)) {
+            (skein_http::Method::Get, Some(read)) => Route::Public(read),
+            _ => Route::Missing,
+        };
+    }
     if call.method == skein_http::Method::Get && path == b"/v1/stream" {
         return Route::Stream;
     }
@@ -39,12 +46,13 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
         _ => Route::Missing,
     }
 }
-pub(crate) fn body_bound(route: Route, configured: u32) -> u32 {
+pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
     match route {
         Route::Authorize => configured.min(
             u32::try_from(w::Authorize::encoded_bound(&w::CEILINGS).expect("record bound")).expect("record fits u32"),
         ),
-        Route::Link
+        Route::Public(_)
+        | Route::Link
         | Route::Service
         | Route::SignOut
         | Route::Request
@@ -56,7 +64,7 @@ pub(crate) fn body_bound(route: Route, configured: u32) -> u32 {
         | Route::Missing => configured,
     }
 }
-pub(crate) fn message(route: Route, body: Box<[u8]>) -> Option<Message> {
+pub(crate) fn message(route: &Route, body: Box<[u8]>) -> Option<Message> {
     Some(match route {
         Route::Link => Message::SignInLink(body),
         Route::Service => Message::SignInService(body),
@@ -67,7 +75,7 @@ pub(crate) fn message(route: Route, body: Box<[u8]>) -> Option<Message> {
         Route::Watch => Message::Watch(body),
         Route::Unwatch => Message::Unwatch(body),
         Route::Gone => Message::Gone(body),
-        Route::Stream | Route::Missing => return None,
+        Route::Public(_) | Route::Stream | Route::Missing => return None,
     })
 }
 
