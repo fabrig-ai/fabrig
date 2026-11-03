@@ -47,6 +47,18 @@ impl Core {
                 Record::People(people::Stored::Policy { project, name, value }) => {
                     self.restore_policy(&env.limits, project, name, value)
                 }
+                Record::People(people::Stored::Public { project }) => {
+                    // Public keys follow policy keys in the people restore walk (protocol/store.md, 4.4).
+                    if project == 0
+                        || self.authority.policy(project).is_none()
+                        || self.visibility.public.insert(project, ()).is_err()
+                    {
+                        self.restore_failure = Some(crate::start::Failure::ProjectPolicy { project });
+                        false
+                    } else {
+                        true
+                    }
+                }
                 Record::People(row) => {
                     let mut out = Queue::uncapped();
                     crate::routing::step::step_people(self, env, people::Event::Restore { record: row }, &mut out);

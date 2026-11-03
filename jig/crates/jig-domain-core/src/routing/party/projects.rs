@@ -12,6 +12,26 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 
+pub(crate) fn visibility_request(core: &mut Core, routed: &mut Routed, party: Party, public: bool) {
+    let Party { request, project, role, .. } = party;
+    let outcome = if !core.open_project(project) {
+        people::Outcome::Refused(people::Refusal::Unknown)
+    } else if role != Some(people::Role::Owner) {
+        people::Outcome::Refused(people::Refusal::Role { held: role })
+    } else {
+        if public {
+            core.visibility.public.insert(project, ()).expect("open project visibility fits the project bound");
+            routed.out.push(Request::Write(Write::Save(Record::People(people::Stored::Public { project }))));
+        } else {
+            let _previous = core.visibility.public.remove(&project);
+            routed.out.push(Request::Write(Write::Erase(crate::Key::People(people::Key::Public(project)))));
+        }
+        core.touch_project_parties(project);
+        people::Outcome::VisibilitySet { project, public }
+    };
+    decided(&mut routed.work, request, outcome);
+}
+
 pub(crate) fn rename_request(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, name: Box<str>) {
     let Party { request, person, project, .. } = party;
 

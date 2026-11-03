@@ -155,9 +155,6 @@ pub(super) fn admit_ask(
     models: Box<[Box<[u8]>]>,
     out: &mut Queue<Request>,
 ) {
-    if let Ask::SetVisibility { .. } = &ask {
-        return refused(to, Refusal::NotOffered, out);
-    }
     if !domain.ready() {
         return again(to, Again::NotReady, out);
     }

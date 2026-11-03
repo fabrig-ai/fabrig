@@ -7,3 +7,5 @@ pub(in crate::tests) mod projects;
 pub(in crate::tests) mod role_models;
 
 mod deletion;
+
+mod visibility;
