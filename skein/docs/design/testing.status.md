@@ -5,11 +5,11 @@
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
-  6, 10: these crates fail the gate's wasm32 clippy, so fab's gate list
-  (`.config/gate/wasm32.txt`) leaves them out; each at its first error:
-  `skein-tls`: `E0599` at `rustls 0.23.41 src/ticketer.rs:56`;
-  `skein-fake-forge-github`: `E0599` at `rustls 0.23.41 src/ticketer.rs:56`;
-  `skein-fake-peers`: `E0599` at `rustls 0.23.41 src/ticketer.rs:56`.
+  6, 10: fab's gate list (`.config/gate/wasm32.txt`) leaves out
+  `skein-tls`, `skein-fake-forge-github` and `skein-fake-peers`, and no
+  listed package reaches them on wasm32, so the gate's wasm32 clippy
+  lints none of them. Their wasm32 build takes rustls without `std`
+  (`tls.md`, 4); whether its clippy passes is unmeasured.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
 - **Departs:** 6: `crates/skein-fail-stop`, `crates/skein-fake-forge-protocol`
