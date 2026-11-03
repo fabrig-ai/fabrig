@@ -272,7 +272,7 @@ fn stock_limits() -> engine::Limits {
     limits.documents.grants = 16;
     limits.documents.executors = 8;
     limits.notes.scopes = 32;
-    limits.tasks.charters = 4;
+    limits.tasks.charters = 5;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
     limits
@@ -588,6 +588,26 @@ fn a_changes_delegates_read_the_coding_words_without_settings_or_message_tools()
 // document goes back through smith's ctl-shared renderer, over the root's fleet.
 fn settings_agent_config(allowed: bool) -> engine::Config {
     let mut config = walking::config(SEED);
+    let mut configuring = config.core.defaults.charters[0].clone();
+    configuring.number = 3;
+    configuring.policy.tools = jig_domain_tasks::Tools(1536);
+    configuring.policy.modify = false;
+    configuring.policy.agents = false;
+    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
+    let mut template = config.core.defaults.templates[0].clone();
+    template.number = 3;
+    template.name = b"configuring".as_slice().into();
+    template.executor = people::TemplateExecutor::Charter(3);
+    config.core.defaults.templates =
+        Box::new([config.core.defaults.templates[0].clone(), config.core.defaults.templates[1].clone(), template]);
+    config.core.defaults.rules.ceiling.delegation.kinds =
+        Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
+    for project in &mut config.core.seed_projects {
+        project.policy.policy.ceiling.delegation.kinds.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
+        for role in &mut project.policy.policy.roles {
+            role.authority.delegation.kinds.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
+        }
+    }
     if allowed {
         config.core.defaults.rules.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;
         for project in &mut config.core.seed_projects {
@@ -608,11 +628,14 @@ fn settings_agent_config(allowed: bool) -> engine::Config {
 }
 
 fn settings_agent(allowed: bool) -> (Driver, engine::Assignment) {
-    let mut driver = Driver::configured(
-        Store::new(),
-        [settings_agent_config(allowed), settings_agent_config(allowed)],
-        &walking::limits(),
-    );
+    let mut limits = walking::limits();
+    limits.tasks.charters = 2;
+    limits.tasks.executor_kinds = 2;
+    limits.authority.executors = 2;
+    limits.documents.executors = 2;
+    let config = settings_agent_config(allowed);
+    let template = config.core.defaults.templates[2].clone();
+    let mut driver = Driver::configured(Store::with_limits(&limits), [config, settings_agent_config(allowed)], &limits);
     driver.hello(Token::new(7));
     driver.settle();
     driver.sign_in();
@@ -627,21 +650,26 @@ fn settings_agent(allowed: bool) -> (Driver, engine::Assignment) {
     driver.settle();
     driver.period();
     driver.settle();
+    let mut ask = walking::configured_chat(
+        &jig_test_profile::fixtures::Creating::new(&walking::config(SEED).core, limits.tasks.tree_tasks),
+        &driver.store.rows,
+        driver.env.limits.tasks.tree_tasks,
+        1,
+        b"Read settings",
+    );
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("configuring chat") };
+    let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("configuring template") };
+    batch[0].executor = people::TaskExecutor::Agent { charter };
     driver.send(Event::Party(PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(992)),
         sign_in: driver.session(),
         key: [92; 16],
-        ask: walking::configured_chat(
-            &jig_test_profile::fixtures::Creating::new(&walking::config(SEED).core, walking::limits().tasks.tree_tasks),
-            &driver.store.rows,
-            driver.env.limits.tasks.tree_tasks,
-            1,
-            b"Read settings",
-        ),
+        ask,
     }));
     driver.settle();
     let run = driver.last_assignment();
+    assert_eq!(run.charter, 3);
     (driver, run)
 }
 

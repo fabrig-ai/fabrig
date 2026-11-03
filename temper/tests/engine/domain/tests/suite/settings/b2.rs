@@ -353,7 +353,25 @@ pub(super) fn changes_without_settings_or_message() {
     }
     let (mut driver, chat) = chat_in(config);
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
-    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 39);
+    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 37);
+    for tool in &temper_engine_smith::charter(&chat).grants.host_tools {
+        assert!(tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings");
+    }
+    let mut configuring = delegate(&driver, chat.task, b"Configure temper", 0, K);
+    configuring.executor = tasks::Executor::Agent { charter: 3 };
+    let engine::CallAnswer::Delegated(made) =
+        call(&mut driver, &chat, 40, engine::Tool::Delegate { batch: Box::new([configuring]) })
+    else {
+        panic!("configuring run admitted")
+    };
+    let configuring = assigned(&driver, made[0].task).expect("configuring run");
+    assert_eq!(configuring.charter, 3);
+    for name in [b"settings".as_slice(), b"propose_settings"] {
+        assert!(
+            temper_engine_smith::charter(&configuring).grants.host_tools.iter().any(|tool| tool.name.as_ref() == name)
+        );
+    }
+    finish(&mut driver, &configuring, tasks::TaskResult::Report { words: b"Settings read".as_slice().into() });
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
     let coordinator = delegate(&driver, chat.task, b"Land a change", 5, 11 * K);
     let engine::CallAnswer::Delegated(made) =
@@ -363,7 +381,7 @@ pub(super) fn changes_without_settings_or_message() {
     };
     let coordinator = assigned(&driver, made[0].task).expect("coordinator run");
     assert_ne!(coordinator.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
-    assert_eq!(temper_engine_smith::charter(&coordinator).grants.host_tools.len(), 39);
+    assert_eq!(temper_engine_smith::charter(&coordinator).grants.host_tools.len(), 37);
     repair_change(&mut driver, &coordinator, 43);
 }
 
