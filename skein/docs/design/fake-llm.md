@@ -122,14 +122,14 @@ answer ownership is checked before effects or payload copies.
   (`response.failed` on Responses, an `error` event on Anthropic), once
   their pieces are sent, a hold's included when released (2.2).
 - **As the route says it.** The byte peer renders the class as its
-  route's section names it (llm.md, sections 4.6 to 4.8): the status, a
+  route's section names it (llm.md, sections 4.7 and 4.8): the status, a
   code the section maps to that class unless the script gives one, the
   reset as the next bullet says, and the field as `error.param`. Where
   the section reads the class from the error's message, as Anthropic's
   context too long (llm.md, section 4.7), the peer sends that message.
   So the client's own classification reads back the class the script
   gave.
-- **A reset, per route.** On the public and the withdrawn Codex routes,
+- **A reset, per route.** On the public route,
   `Exhausted`'s reset goes in the error's `resets_in_seconds`, in whole
   seconds rounded up, never in `retry-after`, before a stream as in
   `response.failed`. Anthropic's `Exhausted` has no reset; a script that
@@ -243,8 +243,7 @@ as `x-api-key`; the peer refuses a bearer on Anthropic, as the client does
 (llm.md, section 4.7). A peer whose wire configuration takes
 calls with no credential, as a local model's server does, also
 authorizes a request that presents no credential field (llm.md, section
-2.6); that configuration is the public route's or Anthropic's, and
-refused on a peer of the Codex route. Anything else, a credential it
+2.6). Anything else, a credential it
 does not hold or no credential without that configuration, is answered
 as unauthorized.
 The fake compares bytes; it owns no sign-in, refresh, JWT parser,
@@ -252,15 +251,8 @@ credential generation or durable credential record. The caller remains
 the credential owner. The peer's provider selection is wire
 configuration, never application policy.
 
-**On OpenAI's dialect the route follows the credential.** A credential
-with an account id is the withdrawn Codex route (llm.md, section 4.6),
-whose `chatgpt-account-id` must match it; one without is the public route
-(llm.md, section 4.8). A peer's OpenAI credentials are all of one route, and its
-configured path is that route's; a mix is refused at configuration.
-
 **No observation holds a credential's value.** The head observation
-leaves out the credential's fields (`Authorization`, `x-api-key`,
-`chatgpt-account-id`). `Observation::Credential` records, for each
+leaves out the credential's fields (`Authorization`, `x-api-key`). `Observation::Credential` records, for each
 request, its route (`skein_llm::Provider`) and what it presented,
 each distinct: an accepted credential, by its scheme and its index; a
 credential that matched none, by the scheme its field shows (a key in
@@ -294,9 +286,9 @@ vouches for nothing outside a test: its key is in the tree.
 - **The peer records each request's head:** its fields, names and values,
   within the observation caps, beside the decoded query, so a world can
   assert what reached the wire: that every request of a conversation
-  carries the same affinity, and that two conversations' threads differ.
+  carries the same affinity.
 - **It reads a gzip body back with an inflater of its own.** A body sent
-  with `Content-Encoding: gzip` (the Codex route's, llm.md, section 4.8)
+  with `Content-Encoding: gzip` (llm.md, section 4.8)
   is inflated beside its member, in room the server holds from the start:
   the gzip bound of the request cap, twice. The inflater is test code,
   simple over fast, and shares nothing with the client's encoder. A body
@@ -304,9 +296,7 @@ vouches for nothing outside a test: its key is in the tree.
   inflate whole to its CRC and length is refused as invalid.
 - **It reads the dialect's cache instructions into the query.** The
   public route: `prompt_cache_key` must be the key in its rendered form,
-  and a `session-id` or `thread-id` header is refused. The withdrawn Codex
-  route: `prompt_cache_key` and the `session-id` header must be the same
-  key, and `thread-id` must be well formed. On both, the key becomes the
+  and a `session-id` or `thread-id` header is refused. The key becomes the
   query's scope. Anthropic: each `cache_control` marker becomes a
   mark; there may be at most four, never on thinking or redacted
   thinking. A request that breaks a rule the dialect promises is refused
@@ -315,11 +305,11 @@ vouches for nothing outside a test: its key is in the tree.
   request carrying a field of llm.md, section 4.8's refused list is
   answered as unsupported, naming that field.
 - **It answers with a request id,** in each response's head under its
-  route's name (`x-request-id`, `x-oai-request-id` or `request-id`):
+  route's name (`x-request-id` or `request-id`):
   numbered as its response ids are, unless a failing line gives one
   (section 2.3).
-- **It echoes as a provider does.** Its Responses events can carry, on
-  either route, the request's instructions and tools and a usage
+- **It echoes as a provider does.** Its Responses events can carry
+  the request's instructions and tools and a usage
   attribution entry per input item, sized by configuration, so worlds
   exercise a client that keeps only what it reads (llm.md, section 4.4).
 
@@ -346,8 +336,8 @@ envelope. Its seven-byte version/tag/length header is additional to the raw
 `replay_bound` includes temporary JSON and simultaneous raw/envelope
 storage. A complete raw replay admitted at its cap still fits its envelope.
 Provider compatibility is validated by the real Client when replay is used.
-`Prompt::output_ceiling` applies configured dialect support: Codex omits its
-unsupported wire field, the public route refuses an explicit cap at
+`Prompt::output_ceiling` applies configured dialect support: Responses omits
+its unsupported wire field, the public route refuses an explicit cap at
 admission (llm.md, section 4.8), and the caller still bounds local output.
 
 ## 5. Outside stories and bounds
@@ -471,7 +461,7 @@ the same observations.
   would show as a false hit; with a 64-bit digest and a world's few
   prefixes, it is accepted rather than paid for in memory.
 - **A failure's reset as a header.** Section 2.3 renders a reset on the
-  public route as the Codex route's, in the error's `resets_in_seconds`,
+  public route in the error's `resets_in_seconds`,
   though the client also reads `retry-after` (llm.md, section 4.8). What
   stays open is which the public route sends. Default: the error's field
   alone, until a capture shows it.
