@@ -4022,6 +4022,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
+ "temper-client-shell-web",
  "temper-client-tools",
  "temper-client-world",
  "temper-docs",
