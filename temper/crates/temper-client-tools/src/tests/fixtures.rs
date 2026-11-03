@@ -335,6 +335,7 @@ pub(crate) fn me(party: u64) -> c::Me {
     let mut projects = List::with_capacity(PROJECTS);
     projects
         .push(c::MeProject {
+            public: None,
             project: PROJECT,
             name: document_text(b"shop"),
             role: c::HeldRole::Owner,

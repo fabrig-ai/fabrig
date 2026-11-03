@@ -21,6 +21,7 @@ fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w:
     let project = w::MeProject::new(
         limits.wire(),
         w::MeProjectParts {
+            public: None,
             project: 3,
             name: w::DocumentText::new(limits.wire(), w::DocumentTextParts { bytes: Box::from(*b"Tally"), cut: false })
                 .unwrap(),

@@ -1098,6 +1098,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
         | people::Outcome::ProjectRemoved { .. }
+        | people::Outcome::VisibilitySet { .. }
         | people::Outcome::SettingsChanged { .. }
         | people::Outcome::MovedToNewest { .. }
         | people::Outcome::PolicyChanged { .. }

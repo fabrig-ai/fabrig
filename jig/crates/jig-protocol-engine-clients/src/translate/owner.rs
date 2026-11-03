@@ -146,6 +146,7 @@ fn project(
     w::MeProject::new(
         limits,
         w::MeProjectParts {
+            public: None, // Filled by the public names (jig/docs/design/domain/people.md, 13.8).
             project: value.project,
             name: text(&value.name, limits)?,
             role: held_role(value.role, limits)?,

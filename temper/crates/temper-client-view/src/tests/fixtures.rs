@@ -1096,6 +1096,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
     let mut projects = List::with_capacity(2);
     projects
         .push(MeProject {
+            public: None,
             project: PROJECT,
             name: DocumentText::complete(
                 contract::Text::new(skein_lib::bytes::copy_of(project_name), 32).expect("name fits"),

@@ -190,6 +190,11 @@ pub enum DocumentOutcome {
         confirmed: bool,
         failed_hosts: Box<[AccountHostFailure]>,
     },
+    /// The project is public or private from this decision (jig/docs/design/domain/people.md, 13.2).
+    VisibilitySet {
+        project: u32,
+        public: bool,
+    },
 }
 
 /// A configured worker that did not confirm the original operation.

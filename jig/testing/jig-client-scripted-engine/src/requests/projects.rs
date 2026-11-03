@@ -14,7 +14,8 @@ impl<A: Application> Engine<A> {
             Ask::RemoveProject { project, .. } => return Some(self.remove_project(party, *project)),
             Ask::Rename { project, name } => (Some(*project), name, None),
             Ask::MakeProject { name, policy } => (None, name, Some(*policy)),
-            Ask::ChangeSettings(_)
+            Ask::SetVisibility { .. }
+            | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
             | Ask::Create { .. }
             | Ask::Propose { .. }
@@ -155,6 +156,7 @@ impl<A: Application> Engine<A> {
         }
         projects
             .push(MeProject {
+                public: None,
                 project,
                 name: DocumentText::complete(name.clone()),
                 role: HeldRole::Owner,

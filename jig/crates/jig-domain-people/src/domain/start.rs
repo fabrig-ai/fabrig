@@ -92,6 +92,7 @@ impl Domain {
                 | Outcome::Renamed { .. }
                 | Outcome::ProjectMade { .. }
                 | Outcome::ProjectRemoved { .. }
+                | Outcome::VisibilitySet { .. }
                 | Outcome::SettingsChanged { .. }
                 | Outcome::MovedToNewest { .. }
                 | Outcome::PoolSet { .. }

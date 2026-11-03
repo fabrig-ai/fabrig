@@ -660,6 +660,7 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
     assert_eq!(
         frame.projects.as_slice(),
         &[FrameProjectRole {
+            public: false,
             project: 1,
             role: people::Role::Owner,
             name: Text { bytes: Box::from(&b"Project 1"[..]), cut: false },

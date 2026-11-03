@@ -47,6 +47,9 @@ pub(crate) fn escalation_choice(value: &w::EscalationChoice) -> c::EscalationCho
 
 pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> Result<c::DocumentOutcome, w::Problem> {
     Ok(match value {
+        w::DocumentOutcome::VisibilitySet(row) => {
+            c::DocumentOutcome::VisibilitySet { project: row.project(), public: row.public() }
+        }
         w::DocumentOutcome::ProjectRemoved(row) => c::DocumentOutcome::ProjectRemoved { project: row.project() },
         w::DocumentOutcome::Created(row) => c::DocumentOutcome::Created {
             first: row.first(),

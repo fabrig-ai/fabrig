@@ -226,6 +226,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

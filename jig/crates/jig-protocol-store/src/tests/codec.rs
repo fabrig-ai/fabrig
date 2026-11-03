@@ -1652,3 +1652,13 @@ fn a_stored_member_keeps_its_symbols() {
         }
     }
 }
+
+#[test]
+fn a_visibility_set_outcome_round_trips_as_kept() {
+    for public in [false, true] {
+        people_round_trip(fixtures::people_outcomes::answered(jig_domain_people::Outcome::VisibilitySet {
+            project: u32::MAX,
+            public,
+        }));
+    }
+}

@@ -9,6 +9,12 @@ use facts::{
 #[expect(clippy::too_many_lines, reason = "one exhaustive permanent outcome translation table")]
 pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> Result<wire::Outcome, wire::Problem> {
     Ok(match value {
+        domain::Outcome::VisibilitySet { project, public } => {
+            wire::Outcome::VisibilitySet(wire::OutcomeVisibilitySet::new(
+                limits,
+                wire::OutcomeVisibilitySetParts { project: *project, public: *public },
+            )?)
+        }
         domain::Outcome::ProjectRemoved { project } => wire::Outcome::ProjectRemoved(wire::OutcomeProjectRemoved::new(
             limits,
             wire::OutcomeProjectRemovedParts { project: *project },
@@ -184,6 +190,9 @@ fn account_sign_in_started(source: u32, address: &[u8], limits: &wire::Limits) -
 #[expect(clippy::too_many_lines, reason = "one exhaustive permanent outcome translation table")]
 pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
     match value {
+        wire::Outcome::VisibilitySet(value) => {
+            domain::Outcome::VisibilitySet { project: value.project(), public: value.public() }
+        }
         wire::Outcome::ProjectRemoved(value) => domain::Outcome::ProjectRemoved { project: value.project() },
         wire::Outcome::MovedToNewest(value) => {
             domain::Outcome::MovedToNewest { newest: value.newest(), moved: value.moved(), stayed: value.stayed() }

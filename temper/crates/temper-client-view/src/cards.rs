@@ -148,6 +148,7 @@ fn owner_outcome(b: &mut Builder, words: &Words, value: &c::DocumentOutcome) {
         | O::NoteEdited { .. }
         | O::ProjectMade { .. }
         | O::ProjectRemoved { .. }
+        | O::VisibilitySet { .. }
         | O::Renamed { .. }
         | O::ServiceMade { .. }
         | O::Adopted { .. }

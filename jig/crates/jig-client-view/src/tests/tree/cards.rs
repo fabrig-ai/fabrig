@@ -62,6 +62,7 @@ pub(in crate::tests) fn document() -> Me {
     let projects = crate::tests::kit::list_in(
         2,
         [MeProject {
+            public: None,
             models: List::with_capacity(0),
             templates: crate::tests::fixtures::chat_templates(),
             creating: Some(crate::tests::fixtures::creating()),

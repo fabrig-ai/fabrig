@@ -155,6 +155,7 @@ impl Offers {
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
             | Ask::RemoveProject { .. }
+            | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
             | Ask::Lift { .. }
             | Ask::ChangeSettings(_)
