@@ -125,3 +125,16 @@ nested `golden/public/` must be named among its fixtures, as the `view records` 
 `rendered` directory; the new `public` family checks that directory's contents. Append
 `"public"` to the `client` entry's `fixtures` and append the new `Family`; nothing else in the
 file changes. The location `golden/public` stays.
+
+2026-11-03. **Where does a public project's name go: a `PublicProject` record in the projects
+list (A), or on `PublicBoard` alone (B)?** A, and the board carries it too. Add
+`record PublicProject { project: u64, name: text 64 }` (the bound of the client wire's project
+name), make `PublicProjects.projects` a `list PublicProject`, and add `name: text 64` to
+`PublicBoard` after `project`: the projects page lists the projects by name, and the board page
+reads the board alone and heads it with the name (`public-web`'s and `public-walk`'s answers).
+The schema is new and nothing reads it yet, so this is the task's to set, not the user's: the
+user's decision put the name in the public records. Section 3 of `notes/contracts.md` is
+amended to match; `public_bounds` counts each name at 64 bytes; the fields golden lists the new
+record; `no_public_record_carries_text` allows `PublicLine.title`, `PublicProject.name`,
+`PublicBoard.name` and `PublicApplication.record`. contract.md 12's table and source rows say
+the same.

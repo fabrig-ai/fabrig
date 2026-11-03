@@ -75,8 +75,9 @@ module `jig_client_protocol_wire::public_v1` (`src/generated/public_v1.rs`), gol
 Every identifier is `u64`; every time is `u64` seconds since the epoch.
 
 ```
-record PublicProjects { projects: list u64, max_age: u32 }
-record PublicBoard { project: u64, live: list PublicGoal, live_folded: u32, ended: list PublicGoal }
+record PublicProjects { projects: list PublicProject, max_age: u32 }
+record PublicProject { project: u64, name: text 64 }
+record PublicBoard { project: u64, name: text 64, live: list PublicGoal, live_folded: u32, ended: list PublicGoal }
 record PublicGoal { line: PublicLine, tree: list PublicLine, folded: u32 }
 record PublicCard { line: PublicLine, lineage: list u64, delegates: list PublicLine, folded: u32 }
 record PublicLine { task: u64, parent: option u64, goal: bool, priority: option u32,

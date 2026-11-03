@@ -173,3 +173,15 @@ figures (`temper/docs/design/draft/first-release.status.md`).
 2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
 
 For this task: Fill the title and the name from their sources. A spec amendment changes the title, so the public line's last-changed covers it; the recheck after asynchronous work reads the current title.
+
+2026-11-03. **A public project's name in the wire** (answered for `public-wire`): jig's
+*projects* answer is a list of `PublicProject { project, name }`, and `PublicBoard` carries
+`name` after `project`, each the project's name within the client wire's project-name bound
+(64 bytes).
+
+For this task, since the core's public types (`public-vocabulary`'s, landed) carry neither:
+besides its module lines, this task may change `jig/crates/jig-domain-core/src/public.rs` to add
+`title` to `PublicLine` (the task's title, the first line of its spec), make
+`PublicProjects.projects` a list of a `PublicProject { project: u32, name }` and add `name` to
+`PublicBoard` after `project`, each held as the core already holds a title and a project's name;
+the index keeps a public project's name and follows a rename.
