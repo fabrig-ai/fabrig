@@ -3,7 +3,7 @@ id = "relay-up"
 part = "relay"
 kind = "feature"
 needs = ["relay-surface", "relay-policy", "questions-call"]
-files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/**", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/tests/**", "temper/crates/temper-engine-domain-forge-change/src/boundary.rs", "temper/crates/temper-engine-domain-forge-change/src/relay.rs", "temper/crates/temper-engine-domain-forge-change/src/tests/relay.rs", "temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/v11.rs", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/change.rs", "temper/crates/temper-protocol-store/src/tests/**", "temper/tests/engine/domain/tests/suite/forge_routes/questions.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/domain/agent.status.md", "temper/docs/design/domain/forge.status.md", "temper/docs/design/protocol/store.status.md"]
+files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/**", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/tests/**", "temper/crates/temper-engine-domain-forge-change/src/boundary.rs", "temper/crates/temper-engine-domain-forge-change/src/relay.rs", "temper/crates/temper-engine-domain-forge-change/src/tests/relay.rs", "temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/v11.rs", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/change.rs", "temper/crates/temper-protocol-store/src/lib.rs", "temper/crates/temper-protocol-store/src/tests/**", "temper/tests/engine/domain/tests/suite/forge_routes/questions.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/domain/agent.status.md", "temper/docs/design/domain/forge.status.md", "temper/docs/design/protocol/store.status.md"]
 effort = "high"
 minutes = 120
 +++
@@ -135,3 +135,17 @@ Owns the files in the header.
 ## Report
 
 As the implementer's text says, naming how a step with `more` is made due again.
+
+## Answers
+
+2026-11-03. Q (run relay-up-1): extend the files to the store's `src/lib.rs` for the
+runtime `open_words` binding, or leave it to the store's owner? A: extend; it is this
+task's, since its acceptance (the service tests at checked store limits) cannot hold
+without it. In `temper-protocol-store/src/lib.rs`, `bounds` gains one field beside
+`held_answer`: `open_words: forge.client.op_bytes,` and nothing else in that file. The
+schema ceiling stays 65,536 and the store stays v11. Add a store test beside
+`a_held_answer_is_bounded_by_the_forge_operation_bytes` asserting `open_words` is the same
+bound; set the owned size assertions to that runtime bound; then finish the remaining
+checks of step 3 and 4 (the service filter whole, the forge-route group, clippy, the
+`check --tests`). `change_tool.rs`'s `questions_foreman_is_not_offered_yet` and
+`stored_bytes` stay outside the task: report them under `## Left` as before.
