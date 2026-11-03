@@ -14,7 +14,19 @@ that cross tasks are `notes/contracts.md` (written with the second batch).
      the one-process world's paths edited; three design lines and two status entries say
      `crates/`.
 
-More parts follow in later pushes (the composition, story A, the fakes' pace, the bounds).
+2. **fake-pace** (temper, `temper/docs/design/protocol/setup.md, 8.4`), slice 2.
+   - `tasks/fake-pace.md`, feature, high, ~60 minutes, needs nothing: temper-fake's LLM and
+     forge documents of their own read `pace` (`reply_ms`, `ci_ms`, at most 60000), the
+     domains' latencies least and most alike; `llm::LIMITS` and `forge::checks` unchanged for
+     their readers.
+3. **composition** (temper, `temper/docs/design/playground.md, 3`), slice 3; its shapes are
+   `notes/contracts.md`, C1 to C3.
+   - `tasks/playground-documents.md`, interface, high, ~90 minutes, needs nothing: the crate
+     `temper-playground` made, with `documents` and `fakes`, the one-process world's
+     composition values and the test kits' copied as its own; nothing reads it yet.
+
+More tasks follow in later pushes (the composition's processes, the one-process world rewired,
+story A, the harness-free world, the bounds, the wasm32 build).
 
 ## Critical path (as it stands)
 
