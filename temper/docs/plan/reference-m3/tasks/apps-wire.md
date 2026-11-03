@@ -3,7 +3,7 @@ id = "apps-wire"
 part = "appsettings"
 kind = "feature"
 needs = ["apps-proposals"]
-files = ["jig/crates/jig-client-protocol-wire/schema/client-v19*.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/settings/**", "jig/crates/jig-protocol-engine-clients/src/translate/refusals.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings*.rs", "jig/crates/jig-client-protocol-link/src/translate/settings.rs", "jig/crates/jig-client-protocol-link/src/tests/settings*.rs", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-domain-core/src/documents/settings.rs", "jig/crates/jig-domain-core/src/reads/settings.rs", "jig/docs/design/client/domain/contract.status.md", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/reads/vocabulary.rs", "jig/crates/jig-client-domain/src/contract/refusals.rs", "jig/crates/jig-client-protocol-link/src/translate/answers.rs", "jig/examples/ops/domain/src/route.rs", "jig/tests/core/src/peers.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-engine-domain/src/store/settings_bytes.rs"]
+files = ["jig/crates/jig-client-protocol-wire/schema/client-v19*.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/settings/**", "jig/crates/jig-protocol-engine-clients/src/translate/refusals.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings*.rs", "jig/crates/jig-client-protocol-link/src/translate/settings.rs", "jig/crates/jig-client-protocol-link/src/tests/settings*.rs", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-domain-core/src/documents/settings.rs", "jig/crates/jig-domain-core/src/reads/settings.rs", "jig/docs/design/client/domain/contract.status.md", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/reads/vocabulary.rs", "jig/crates/jig-client-domain/src/contract/refusals.rs", "jig/crates/jig-client-protocol-link/src/translate/answers.rs", "jig/examples/ops/domain/src/route.rs", "jig/tests/core/src/peers.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-engine-domain/src/store/settings_bytes.rs", "jig/testing/jig-fake-parties/src/facts.rs", "jig/crates/jig-domain-core/src/documents.rs", "jig/crates/jig-domain-core/src/reads.rs", "jig/crates/jig-domain-core/src/limits.rs"]
 effort = "high"
 minutes = 140
 +++
@@ -130,3 +130,35 @@ the default and its size (`jig/docs/design/client/domain/contract.md`, 5.1, "the
 application serving its values"). No separate "unknown" marker, no zero for a size, no ask
 to a connector during review, no change to `State` or the store. Keeping defaults' sizes in
 the core is not this milestone's; leave it.
+
+2026-11-03. **Q:** may this task give `jig-fake-parties` a judged refusal, and price the
+settings document's application settings from the declared kinds through the core's bound
+callers (A), or leave both to other tasks (B)?
+
+**A:** A, both; acceptance cannot hold without them. The skeleton is otherwise unchanged.
+
+- **The fake's judged refusal.** `jig/testing/jig-fake-parties/src/facts.rs` is now in
+  `files`. Its `Refusal` gains `Judged { at: u32, setting: Setting, why: Box<[u8]> }`, and
+  the file its own `Setting` (`Charter(u32)`, `Template(u32)`, `Policy(u32)`, `Rules`,
+  `Application { kind, scope, number }`), mirroring `jig_domain_people`'s without naming it:
+  the fake stays independent. `jig/tests/core/src/peers.rs` maps the judged arm to it, field
+  for field. Any other consumer the compiler names takes the arm alone.
+- **The settings document's price.** The design has the core's worst case price an
+  application's kinds from their declared bounds (`jig/docs/design/domain/engine.md`, 17.5,
+  **Declared at the start**; 17.7, **The current settings**), and the kinds are the
+  configuration's, beside `Limits`, not in it: so the bound takes them, no new limit and no
+  fixed count. `documents/settings.rs::document_bound(limits, kinds: &[Kind])` adds, for
+  `settings::application::capacity(kinds, limits)` lines, a line each and each line's
+  charters priced at its kind's `charters`. `documents.rs::document_with_context_bound` and
+  `reads.rs::answer_bound` take `kinds` and pass it on (both now in `files`). A caller that
+  holds the kinds passes them (the core's own, `core.kinds`); `limits.rs::valid`, which
+  checks `Limits` alone, passes `&[]`, and so do the kind-free callers outside the core
+  (`jig-test-domain` `src/limits.rs`, temper-engine-domain `src/limits.rs` and its
+  `decision.rs` comment): the argument alone, nothing else changed there (stated
+  cross-tree allowance). A test: the bound with one declared kind exceeds the bound with
+  none by at least that kind's lines.
+- **Not this task's:** checking a configuration's declared kinds against its limits when
+  it is loaded (`Current::new` still `expect`s the capacity), and temper passing its own
+  declared kinds into its held-output price. Report them under `## Left`; do not build
+  them.
+
