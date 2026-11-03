@@ -72,8 +72,16 @@ record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 51
 record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
 versioned record Forges { forges: list 16 ForgeRow }
 
-# The playground read (temper/docs/design/client/README.md, 4.6).
-enum Read { playground }
+# The forge's reads (temper/docs/design/client/forge.md, 9).
+record SettingRead { kind: u32 scope: u32 number: u32 }
+record ProposalItemsRead { key: u64 }
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead }
+# Values are kinds-codec's LandingRule and ForgeCharter records.
+versioned record SettingAnswer { value: option bytes 1048576 }
+record SettingValue { value: bytes 1048576 }
+enum SettingEdit { set: SettingValue, removed, reset }
+record ProposalItem { kind: u32 scope: u32 number: u32 edit: SettingEdit }
+versioned record ProposalItemsAnswer { items: list 1024 ProposalItem }
 versioned record Reading { read: Read }
 
 # temper/docs/design/client/README.md, 4.6: no playground is no record.
@@ -149,3 +157,15 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused }
 versioned record Answer { outcome: Outcome }
+
+# Values of temper's settings kinds (temper/docs/design/domain/root.md, 5.6;
+# temper/docs/design/protocol/configuration.md, 13.2).
+record LandingExact { value: bytes 4096 }
+record LandingOpen { value: bytes 4096 }
+enum LandingLast { exact: LandingExact, open: LandingOpen }
+record LandingPattern { segments: list 16 bytes 4096 last: LandingLast }
+enum RuleFreshness { exact, clean }
+record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
+record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
+record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
+record ForgeCharter { charter: u32 }

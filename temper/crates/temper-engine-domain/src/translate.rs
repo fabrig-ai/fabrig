@@ -21,16 +21,15 @@ pub struct Config {
     /// configuration too, set by an in-process hosts' listener: standalone,
     /// they do (domain/root.md, 2).
     pub core: jig_domain_core::Config,
-    /// Forge landing requirements and their connector-owned judge parameters.
-    pub landing: LandingPolicy,
+    /// Each project's landing way and repository checks.
+    pub landings: Map<u32, ProjectLanding>,
+    /// The forge's kind defaults at this start (temper/docs/design/domain/root.md, 5.6).
+    pub kinds_stock: Box<[forge::settings::Stock]>,
     /// Forge writer identities and this deployment's branch namespace.
     pub forge: skein_forge_client::Config,
     /// Each forge's git identity, an application credential (D10;
     /// protocol/credentials.md, "each repository to a git identity").
     pub identities: Box<[forge::GitIdentity]>,
-    /// The charter the forge's procedures start their agent work under, one
-    /// of the core's charters (domain/root.md, 6).
-    pub forge_charter: u32,
     /// Machine places for new forge records (temper/docs/design/protocol/configuration.md, 3).
     pub machine: Option<forge::Machine>,
     pub forges: Box<[forge::Configured]>,
@@ -43,16 +42,14 @@ pub struct Config {
 pub(crate) struct RootConfig {
     pub(crate) merge_kind: Option<jig_domain_host::JobBound>,
     pub(crate) forge_connector: u16,
-    pub(crate) forge_charter: u32,
     pub(crate) landings: Map<u32, ProjectLanding>,
 }
 
-/// Typed forge landing policy retained by the application for policy snapshots.
+/// Landing rules for test worlds' builders alone (domain/root.md, 6).
 #[derive(Debug)]
-pub struct LandingPolicy {
+pub struct LandingRules {
     pub deployment: Box<[LandingRule]>,
     pub projects: Map<u32, Box<[LandingRule]>>,
-    pub landings: Map<u32, ProjectLanding>,
 }
 
 /// A project's landing way and repository checks (protocol/configuration.md, 3).
@@ -555,4 +552,15 @@ pub(crate) fn is_settings_read(tool: &Tool) -> bool {
         | Tool::RejectedNote(_)
         | Tool::Unavailable => false,
     }
+}
+
+/// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root.md, 6).
+#[must_use]
+pub fn landing_stock(
+    deployment: &[LandingRule],
+    projects: &Map<u32, Box<[LandingRule]>>,
+    change: u32,
+    review: u32,
+) -> Box<[forge::settings::Stock]> {
+    crate::route::policy_translate::landing_stock(deployment, projects, change, review)
 }

@@ -3,6 +3,9 @@
     clippy::disallowed_macros,
     reason = "stock instructions are held in the binary (protocol/configuration.md, 13.4)"
 )]
+mod kinds;
+pub use kinds::kinds;
+
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{
@@ -16,15 +19,16 @@ use skein_lib::{Duration, List, Map, bytes};
 /// Settings defaults supplied at a start (protocol/configuration.md, 13.4).
 /// The binary uses Stock; an in-process test world may pass its own values.
 #[derive(Debug)]
+#[expect(clippy::large_enum_variant, reason = "worlds supply jig and forge defaults together at startup")]
 pub enum Given {
     Stock,
-    Own(Box<Defaults>),
+    Own { jig: Defaults, forge: Box<[temper_engine_domain_forge::settings::Stock]> },
 }
 impl Given {
     pub(crate) fn defaults(&self, llm: &jig_protocol_config::Llm) -> Option<Defaults> {
         match self {
             Self::Stock => checked(llm),
-            Self::Own(own) => {
+            Self::Own { jig: own, .. } => {
                 let mut policies = Map::with_capacity(own.policies.len());
                 for (number, policy) in &own.policies {
                     policies.insert(*number, policy.clone()).expect("counted policies");
@@ -329,4 +333,41 @@ fn goal() -> Template {
         grace: None,
         llm: None,
     }
+}
+
+/// The forge's defaults at each start (temper/docs/design/protocol/configuration.md, 13.4).
+#[must_use]
+pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domain_forge::settings::Stock]> {
+    use temper_engine_domain_forge::{self as forge, settings};
+    use temper_engine_smith::kinds::size;
+    let values = [
+        (
+            1,
+            1,
+            settings::Value::Rule(settings::LandingRule {
+                pattern: forge::GatePattern {
+                    segments: Box::new([b"forge".as_slice().into()]),
+                    last: forge::GateLast::Open(Box::default()),
+                },
+                enforce: true,
+                ci: true,
+                up_to_date: true,
+                gates: Box::new([settings::RuleGate {
+                    number: 1,
+                    blocking: true,
+                    freshness: forge::JudgeFreshness::Clean,
+                }]),
+                approvals: Box::default(),
+            }),
+        ),
+        (3, 1, settings::Value::Charter(2)),
+        (3, 2, settings::Value::Charter(4)),
+    ];
+    let mut stock = List::with_capacity(3);
+    for (kind, number, value) in values {
+        stock
+            .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
+            .expect("one landing rule and two forge charters");
+    }
+    stock.into_boxed()
 }

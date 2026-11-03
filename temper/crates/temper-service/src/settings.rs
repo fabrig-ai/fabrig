@@ -112,8 +112,8 @@ pub struct Engine {
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub demo: Option<Demo>,
-    pub landing: temper_engine_domain::LandingPolicy,
-    pub charter: u32,
+    pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
+    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     pub limits: super::limits::Limits,
 }
 

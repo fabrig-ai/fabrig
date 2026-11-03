@@ -15,6 +15,7 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    Application { kind: u32, scope: u32, number: u32 },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingModel {
@@ -95,6 +96,7 @@ pub enum SettingValue {
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
+    Application(Box<[u8]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingSet {
@@ -145,6 +147,7 @@ pub enum SettingFault {
     Budget,
     Grace,
     Owner,
+    Judged,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {
@@ -171,11 +174,24 @@ pub enum SettingFollows {
     Change,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ApplicationFollows {
+    Default,
+    Changed { revision: u32 },
+    Removed { revision: u32 },
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationState {
+    pub follows: ApplicationFollows,
+    pub size: u32,
+    pub charters: List<u32>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingLine {
     pub setting: Setting,
     pub name: Option<DocumentText>,
     pub follows: SettingFollows,
-    pub last: u32,
+    pub last: Option<u32>,
+    pub application: Option<ApplicationState>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RevisionParty {
@@ -217,16 +233,25 @@ pub struct SettingsDocument {
 pub struct SettingDocument {
     pub setting: Setting,
     pub revision: u32,
-    pub value: SettingValue,
+    pub value: Option<SettingValue>,
+    pub application: Option<ApplicationState>,
+    pub proposed: Option<SizedEdit>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Size {
     pub bytes: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SizedEdit {
+    Set { size: u32 },
+    Remove,
+    Reset,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionEdit {
     Set(SettingSet),
     TooLarge(Size),
+    Application(SizedEdit),
     Removed,
     Reset,
 }
@@ -301,15 +326,22 @@ pub enum ReviewValue {
     None,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationReview {
+    pub edit: SizedEdit,
+    pub now: Option<ApplicationState>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReviewItem {
     pub setting: Setting,
     pub edit: RevisionItemEdit,
     pub now: ReviewValue,
     pub origin: SettingOrigin,
     pub would_be: ReviewValue,
+    pub application: Option<ApplicationReview>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingsReview {
+    pub key: Option<u64>,
     pub newest: u32,
     pub items: List<ReviewItem>,
     pub cut: bool,

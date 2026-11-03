@@ -72,7 +72,9 @@ fn a_run_reads_its_own_held_charter_by_revision() {
             core::SettingsAnswer::Setting(reads::SettingDocument {
                 setting: settings::Setting::Charter(1),
                 revision,
-                value: settings::Value::Charter(Box::new(charter))
+                value: Some(settings::Value::Charter(Box::new(charter))),
+                application: None,
+                proposed: None,
             })
         );
     }

@@ -544,7 +544,9 @@ fn proposed_settings_read_whole_set_removed_and_reset_with_the_reviews_audience(
             assert_eq!(review.items.get(0).expect("review item").would_be, expected);
             let answer = read(&mut world, reader, point.clone());
             match &expected {
-                Some(value) => assert!(matches!(answer, reads::Answer::Setting(document) if document.value == *value)),
+                Some(value) => assert!(
+                    matches!(answer, reads::Answer::Setting(document) if document.value.as_ref() == Some(value))
+                ),
                 None => assert_eq!(answer, reads::Answer::None(reads::Why::Unknown)),
             }
         }
@@ -644,7 +646,7 @@ fn run_propose(world: &mut World, against: u32, items: Box<[settings::Item]>) ->
         &settings::Record::Proposal {
             proposer: people::Proposer::Task(1),
             proposal: 1,
-            value: settings::Proposal { against, items },
+            value: settings::Proposal { key: None, applications: Box::default(), against, items },
         },
         &jig_protocol_store::codec::settings::limits(&limits.core).expect("settings codec limits"),
         &models,

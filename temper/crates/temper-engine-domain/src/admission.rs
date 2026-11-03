@@ -42,6 +42,7 @@ pub fn completes(event: &Event) -> bool {
             | PartyInput::SignedIn { .. }
             | PartyInput::Ask { .. }
             | PartyInput::Key { .. }
+            | PartyInput::ForgeRead { .. }
             | PartyInput::Read { .. }
             | PartyInput::Watch { .. }
             | PartyInput::WatchRun { .. },

@@ -83,6 +83,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
             redirect_bytes: 4096,
             llm_providers: jig_domain_accounts::Providers::none(),
         },
+        kinds: Box::default(),
         defaults: core::settings::Defaults {
             charters: Box::new([core::Charter {
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,

@@ -241,7 +241,7 @@ fn authority_limits() -> authority::Limits {
     authority::Limits {
         projects: 1,
         roles: 1,
-        requirements: 1,
+        requirements: 2,
         facts: 2,
         grants: 1,
         executors: 1,
@@ -299,6 +299,7 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
+        kinds_stock: engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -314,6 +315,7 @@ pub fn config(seed: u64) -> engine::Config {
                 identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
             }]),
             grants: Box::new([]),
+            kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
                 rules,
                 charters: Box::new([charter()]),
@@ -351,11 +353,7 @@ pub fn config(seed: u64) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landing: engine::LandingPolicy {
-            deployment: Box::new([]),
-            projects: skein_lib::Map::with_capacity(1),
-            landings: skein_lib::Map::with_capacity(1),
-        },
+        landings: skein_lib::Map::with_capacity(1),
         forge: skein_forge_client::Config {
             namespace: Box::from(&b"root"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 1 }]),
@@ -363,7 +361,6 @@ pub fn config(seed: u64) -> engine::Config {
         // The forge's git identity is application credential 1, which the
         // worlds name at start (D10).
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
-        forge_charter: 1,
         machine: None,
         forges: Box::new([configured_forge()]),
         under_box: false,
@@ -955,6 +952,7 @@ impl World {
             | Delivery::Panel { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }
+            | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Document { .. }

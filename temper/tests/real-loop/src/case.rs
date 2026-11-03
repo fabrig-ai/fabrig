@@ -450,7 +450,7 @@ pub fn fixture_4_6() -> forge::Fixture {
     forge::Fixture {
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             // The retry path is the same, only its wait is short; the backoff is not what this story tests.
             value["engine"]["limits"]["overrides"]["tasks.retries.agent.base_ms"] = 1.into();
             landing::admit(value);
@@ -492,7 +492,7 @@ pub fn fixture_5_1() -> forge::Fixture {
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
             value["world_settings"]["second_resume"] = false.into();
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..forge::fixture()
@@ -530,7 +530,7 @@ pub fn fixture_5_3() -> forge::Fixture {
                 project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
             }
             // Neither task mounts a repository or delegates a change.
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -651,7 +651,7 @@ pub fn fixture_5_5() -> forge::Fixture {
                 project["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
                 project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -691,7 +691,7 @@ pub fn fixture_5_6() -> forge::Fixture {
                 project["policy"]["ceiling"]["tools"] = tools.into();
                 project["policy"]["roles"][0]["authority"]["tools"] = tools.into();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -859,7 +859,7 @@ pub fn fixture_6_1() -> forge::Fixture {
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
                 project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 71.into();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             value["application"]["limits"]["overrides"]["root.journal.writes"] = BATCH_JOURNAL_WRITES.into();
             landing::admit(value);
         },
@@ -1041,7 +1041,7 @@ pub fn fixture_6_5() -> forge::Fixture {
                 project["policy"]["ceiling"]["tools"] = (0x0187 | 0x20).into();
                 project["policy"]["roles"][0]["authority"]["tools"] = (0x0187 | 0x20).into();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -1198,7 +1198,7 @@ pub fn fixture_6_7() -> forge::Fixture {
                 project["policy"]["ceiling"]["tools"] = 431.into();
                 project["policy"]["roles"][0]["authority"]["tools"] = 431.into();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -1271,9 +1271,9 @@ pub fn fixture_6_6() -> forge::Fixture {
         extra_setups: || Box::new([waiting_setup(waiting::KIT_ID, waiting::KIT)]),
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
-            let mut kit_rule = value["application"]["landing"]["projects"][0]["rules"][0].clone();
+            let mut kit_rule = value["world_settings"]["landing"]["projects"][0]["rules"][0].clone();
             kit_rule["pattern"]["segments"][3] = "kit".into();
-            value["application"]["landing"]["projects"][0]["rules"].as_array_mut().expect("rules").push(kit_rule);
+            value["world_settings"]["landing"]["projects"][0]["rules"].as_array_mut().expect("rules").push(kit_rule);
             // Two enforced rules each contribute CI, up-to-date and exact-head
             // blocking review: 2 * 3 = 6 requirements. Both repos are hooked.
             value["engine"]["limits"]["overrides"]["authority.requirements"] = 6.into();

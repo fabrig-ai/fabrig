@@ -199,7 +199,7 @@ fn choice_fits(main: tasks::ModelEffort, subagents: &[tasks::ModelEffort], execu
     let mut settings = template_settings();
     settings.defaults.templates.first_mut().expect("template").llm = Some(choice(main, subagents));
     {
-        let current = crate::settings::Current::new(settings.defaults, &limits());
+        let current = crate::settings::Current::new(settings.defaults, &limits(), &[]);
         templates::valid(&current, &settings.settings, &[executor_override(executor)])
     }
 }
@@ -255,7 +255,7 @@ fn template_core() -> (Core, Limits) {
     let (mut core, limits) = make_tree();
     let configured = template_settings();
     core.settings = configured.settings;
-    core.current = crate::settings::Current::new(configured.defaults, &limits);
+    core.current = crate::settings::Current::new(configured.defaults, &limits, &[]);
     (core, limits)
 }
 
@@ -311,7 +311,7 @@ fn startup_refuses_requester_templates_without_conversation_or_a_named_executor(
         let mut template = requester_template(conversation);
         template.executor = executor;
         config.defaults.templates = Box::new([template]);
-        let current = crate::settings::Current::new(config.defaults, &limits());
+        let current = crate::settings::Current::new(config.defaults, &limits(), &[]);
         assert_eq!(
             crate::settings::check(&current, &config.settings, &config.connectors, &limits()),
             Err(crate::settings::Failure {

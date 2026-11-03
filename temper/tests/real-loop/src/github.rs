@@ -153,7 +153,7 @@ pub(crate) fn write(path: &Path, address: SocketAddr, clients: SocketAddr, fixtu
         "transport":"plaintext","remote":format!("http://{address}"),"web":format!("http://{address}")});
     // Use the landing world's procedure and capacities, without a landing rule.
     (landing::fixture().configure)(&mut value, &mut agent, address);
-    value["application"]["landing"]["projects"] = json!([]);
+    value["world_settings"]["landing"]["projects"] = json!([]);
     value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 10.into();
     // Adoption must reach the forge for either account, rather than fail authority first.
     let broaden = |grants: &mut Value| {

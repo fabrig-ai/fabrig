@@ -34,6 +34,10 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
             w::Refusal::Ended(w::RefusalEnded::new(limits, w::RefusalEndedParts { how: ending(how, limits)? })?)
         }
         p::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken::new(limits, w::RefusalTakenParts { by })?),
+        p::Refusal::Judged { at, setting, why } => w::Refusal::Judged(w::RefusalJudged::new(
+            limits,
+            w::RefusalJudgedParts { at, setting: encode_setting(setting, limits)?, why },
+        )?),
         p::Refusal::Stale { newest } => {
             w::Refusal::Stale(w::RefusalStale::new(limits, w::RefusalStaleParts { newest })?)
         }
@@ -422,6 +426,10 @@ fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w
             w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
         p::Setting::Rules => w::Setting::Rules,
+        p::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
+            limits,
+            w::ApplicationSettingParts { kind, scope, number },
+        )?),
     })
 }
 fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
@@ -433,6 +441,7 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
         p::SettingFault::Budget => w::SettingFault::Budget,
         p::SettingFault::Grace => w::SettingFault::Grace,
         p::SettingFault::Owner => w::SettingFault::Owner,
+        p::SettingFault::Judged => w::SettingFault::Judged,
     }
 }
 

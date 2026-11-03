@@ -125,21 +125,8 @@ fn wake_batch(d: &Decoder, at: u32) -> Result<c::WakeRule, Error> {
     let count = u32::try_from(d.number(field(&fields, b"count")?)?).or(Err(error(b"count", b"integer bound")))?;
     Ok(c::WakeRule::Batch { count, age: Duration::from_nanos(d.number(field(&fields, b"age")?)?) })
 }
-fn wake_error(path: &[u8], mut why: Error) -> Error {
-    let nested = !why.member.is_empty() && why.member.as_ref() != b"JSON";
-    let length = if nested {
-        path.len().checked_add(why.member.len()).expect("bounded path").checked_add(1).expect("separator")
-    } else {
-        path.len()
-    };
-    let mut member = skein_lib::Writer::new(length);
-    member.put(path).expect("path length");
-    if nested {
-        member.put(b".").expect("path separator");
-        member.put(&why.member).expect("member length");
-    }
-    why.member = member.finish();
-    why
+fn wake_error(path: &[u8], why: Error) -> Error {
+    why.at(path)
 }
 
 fn documents(d: &Decoder, at: u32) -> Result<List<c::CharterDocument>, Error> {

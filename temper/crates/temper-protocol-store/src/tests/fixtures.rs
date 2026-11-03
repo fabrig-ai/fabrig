@@ -59,6 +59,9 @@ pub const LIMITS: top::Limits = top::Limits {
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
+    landing_rules: 4,
+    roles: 4,
+    setting_proposals: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     client: CLIENT,
@@ -151,7 +154,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(26) {
+    match random.below(27) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -191,6 +194,16 @@ pub fn key(random: &mut Rng) -> top::Key {
         22 => top::Key::ForgeNumber,
         23 => top::Key::Playground,
         24 => top::Key::Tier { repository: repository(random), tier: Box::from(b"tier".as_slice()) },
+        26 => top::Key::Setting(top::settings::SettingKey {
+            kind: u32::try_from(random.below(3).checked_add(1).expect("kind")).expect("kind"),
+            scope: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            slot: match random.below(3) {
+                0 => top::settings::SettingSlot::Default,
+                1 => top::settings::SettingSlot::Change,
+                _ => top::settings::SettingSlot::Proposal(random.next_u64()),
+            },
+        }),
         _ => top::Key::Verification { repository: repository(random), commit: commit(random) },
     }
 }
@@ -793,6 +806,8 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         queue_repairs: 27,
         producing_charter: 2,
         review_charter: 4,
+        producing_llm: None,
+        review_llm: None,
         foreman_charter: 6,
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,

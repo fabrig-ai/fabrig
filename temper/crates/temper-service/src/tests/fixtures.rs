@@ -76,12 +76,8 @@ pub fn engine() -> settings::Engine {
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
         demo: None,
-        landing: temper_engine_domain::LandingPolicy {
-            deployment: Box::new([]),
-            projects: skein_lib::Map::with_capacity(0),
-            landings: skein_lib::Map::with_capacity(0),
-        },
-        charter: 1,
+        kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
+        landings: skein_lib::Map::with_capacity(0),
         limits: limits::profile(limits::Profile::Small),
     }
 }
@@ -396,23 +392,40 @@ pub fn load(
     store: &mut crate::store::Store,
     range: temper_engine_domain::Range,
 ) -> Box<[temper_engine_domain::Record]> {
-    assert!(store.down(temper_engine_domain::StoreRequest::Load {
-        owner: OWNER,
-        range,
-        after: None,
-        most: 4,
-        bytes: 65_536,
-    }));
-    for _ in 0_u32..store.above.len() {
-        crate::store::route::up(&mut store.routes, store.above.pop().expect("store event"), &mut store.routed);
+    let mut collected = skein_lib::Queue::uncapped();
+    let mut after = None;
+    // Every page advances through the fixture's finite, unchanged records.
+    loop {
+        assert!(store.down(temper_engine_domain::StoreRequest::Load {
+            owner: OWNER,
+            range: range.clone(),
+            after: after.clone(),
+            most: 4,
+            bytes: 65_536,
+        }));
+        for _ in 0_u32..store.above.len() {
+            crate::store::route::up(&mut store.routes, store.above.pop().expect("store event"), &mut store.routed);
+        }
+        let Some(crate::store::route::Up::Root(event)) = store.routed.pop() else { panic!("loaded root event") };
+        let temper_engine_domain::Event::Store(temper_engine_domain::StoreInput::Loaded { rows, next, .. }) = *event
+        else {
+            panic!("loaded page")
+        };
+        assert!(store.routed.is_empty());
+        for row in rows {
+            collected.push(row);
+        }
+        if next.is_none() {
+            break;
+        }
+        assert_ne!(next, after, "the page cursor advances");
+        after = next;
     }
-    let Some(crate::store::route::Up::Root(event)) = store.routed.pop() else { panic!("loaded root event") };
-    let temper_engine_domain::Event::Store(temper_engine_domain::StoreInput::Loaded { rows, next: None, .. }) = *event
-    else {
-        panic!("one whole loaded page")
-    };
-    assert!(store.routed.is_empty());
-    rows
+    let mut rows = skein_lib::List::with_capacity(collected.len());
+    while let Some(row) = collected.pop() {
+        rows.push(row).unwrap();
+    }
+    rows.into_boxed()
 }
 
 pub fn seeds() -> settings::Seeds {
@@ -659,11 +672,11 @@ pub fn assignment_with_settings(
 ) -> temper_engine_domain::Assignment {
     let task = task_record(7);
     temper_engine_domain::Assignment {
+        charter: 1,
         task: 7,
         attempt: 2,
         conversation: 2,
         live: jig_domain_host::LiveAsk::NONE,
-        charter: 1,
         run: Box::new(temper_engine_domain::RunCharter {
             revision: 1,
             ended_by: jig_domain_tasks::EndedBy::Result,
@@ -907,6 +920,7 @@ pub fn signed_worker() -> crate::Service {
     let mut rules = settings.jig.rules;
     rules.maximum_run_spend = 100;
     service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::ChangeSettings {
+        kinds: Box::default(),
         reply_to: skein_lib::ReplyTo::new(Token::new(31_052)),
         sign_in: 1,
         key: [52; 16],

@@ -1,0 +1,100 @@
+draft = "reference-m3"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m3/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M3 of temper/docs/design/draft/reference-case.execution.md: designers and the cut.
+# Families: subagents (M4's sub-agents reachable from temper, released first), appsettings
+# (jig's application settings), kinds (temper's kinds 1 to 3 on them: the landing rules and the
+# forge's charters out of Config), change (`change` naming its producer's charter and an LLM
+# choice per role, jig's check of a batch's LLM choices against its charter's models), and
+# reference (the designer's and coordinator's charters, released last, after configuring-p1).
+# The shapes that cross them are notes/contracts.md (C1 to C6).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "subagents"
+title = "M4's sub-agents reachable from temper: the owned example's agent declares three conversations, and chat start names sub-agents"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.1"
+
+[[slice]]
+id = 1
+story = "a chat started with --model and two --sub-agent flags asks two inspect-only sub-agents side by side, each at its own LLM choice, none refused as too many"
+parts = ["subagents"]
+walk = false
+
+[[part]]
+id = "appsettings"
+title = "jig's application settings: an application's kinds declared at the start, judged and kept by their connector in the change's decision, proposed, stored as state and size"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.5"
+
+[[slice]]
+id = 2
+story = "a jig world's connector owning a kind judges a change both ways, keeps it, keeps a proposal's items until it is accepted or withdrawn, and finds a changed default at a restart, the release's revision naming it"
+parts = ["appsettings"]
+walk = false
+
+[[part]]
+id = "kinds-forge"
+title = "the forge's side of temper's kinds 1 to 3: their values, its family Setting, holding and judging them, requirements 5 and 6 over the rules it holds"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[slice]]
+id = 3
+story = "the forge judges an item of kinds 1 to 3, keeps it in its family Setting across a restart, and a merge is judged by requirements 5 and 6 over the rules it holds"
+parts = ["kinds-forge"]
+walk = false
+
+[[part]]
+id = "change-jig"
+title = "jig checks a batch's LLM choices against its charter's models, whoever makes it"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 4"
+
+[[part]]
+id = "change-temper"
+title = "change names its producer's charter and an LLM choice per role; the change procedure delegates under them"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[slice]]
+id = 4
+story = "a goal's change names a designer's charter as its producer and LLM choices for its producer and reviews; its producing task is made under them; a change naming a model its charter does not allow, or a charter the run may not delegate to, is refused naming it"
+parts = ["change-jig", "change-temper"]
+walk = false
+
+[[part]]
+id = "kinds-root"
+title = "temper's kinds 1 to 3 through the root: the codec, the routing of jig's asks to the forge, the stock's kinds and standing requirements, the document's members gone, ctl's settings"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/root.md, 5.6"
+
+[[slice]]
+id = 5
+story = "the deployment's owners change kind 1's landing rules with temper ctl settings apply; jig asks the forge to judge them, the forge keeps them, and the next merge is held by the new rule; a refused rule names its fault; a restart keeps the rules; a change's producing charter is kind 3's number 1"
+parts = ["kinds-root"]
+walk = false
+
+[[part]]
+id = "reference"
+title = "the reference's designers' edition: charter 6, the designer's, and the coordinator's second edition, with their documents and sub-agents"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 6
+story = "reference-case.md steps 1 to 6 and 22 through temper ctl, without questions or early starts: P starts a goal from the template for drafts; G surveys with inspect-only sub-agents and makes S, one designer's change per family after S with producer 6 and their LLM choices, and its own changes; each designer writes its family's design into g and lists its changes; G makes each family's batch, at gpt-6.1-sol; the changes land into g; G makes the close-out X, which lands; G reports, g kept. And M4's walk: a Claude Code chat started with two --sub-agent choices asks two inspect-only sub-agents to read two parts of the repository side by side, each at its own LLM choice, seen through ctl, each child's session ended on its budget"
+parts = ["reference"]
+walk = true

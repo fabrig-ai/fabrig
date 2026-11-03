@@ -60,6 +60,7 @@ fn setting(value: w::Setting) -> s::Setting {
         w::Setting::Template(value) => s::Setting::Template(value.number()),
         w::Setting::Policy(value) => s::Setting::Policy(value.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
 }
 fn setting_value(
@@ -68,6 +69,7 @@ fn setting_value(
     limits: &w::Limits,
 ) -> Result<s::Value, Untranslatable> {
     Ok(match value {
+        w::SettingValue::Application(value) => s::Value::Application(value.into_parts().bytes),
         w::SettingValue::Charter(value) => s::Value::Charter(Box::new(charter(*value))),
         w::SettingValue::Template(value) => s::Value::Template(Box::new(template(*value, models, limits)?)),
         w::SettingValue::Policy(value) => s::Value::Policy(Box::new(policy(*value, models, limits)?)),

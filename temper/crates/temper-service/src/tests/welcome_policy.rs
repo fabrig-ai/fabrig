@@ -64,8 +64,8 @@ fn generated() -> (engine::Config, engine::Limits) {
         webhooks: resolved.webhooks,
         files,
         demo: parsed.application.demo,
-        landing: parsed.application.landing,
-        charter: parsed.application.charter,
+        kinds_stock: Box::default(),
+        landings: parsed.application.landings,
         limits: parsed.application.limits,
     };
     let limits = super::engine_limits(&mut settings.jig.limits, &settings.limits, settings.jig.memory)
@@ -76,6 +76,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     let forges = Box::new([]);
     (
         engine::Config {
+            kinds_stock: crate::stock::forge(&limits),
             machine: Some(crate::system::machine_config(&settings.machine)),
             period_span: crate::stock::PERIOD_SPAN,
             core,
@@ -83,8 +84,7 @@ fn generated() -> (engine::Config, engine::Limits) {
             identities,
             forges,
             playground: crate::system::playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
-            landing: settings.landing,
-            forge_charter: settings.charter,
+            landings: settings.landings,
             under_box: false,
         },
         limits,
@@ -210,8 +210,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     // Init inherits today's Small profile; also prove the stricter product question.
     assert_eq!(limits.policy_bytes, 16_384);
     assert!(config.core.seed_projects.is_empty());
-    assert_eq!(config.landing.deployment.len(), 1);
-    assert!(config.landing.projects.is_empty());
+    assert_eq!(config.kinds_stock.len(), 3);
     let stock = config.core.defaults.policies.get(&1).expect("stock policy 1");
     let snapshot =
         core::policy_snapshot(&stock.policy, &stock.permissions, &stock.templates).expect("whole stock policy");

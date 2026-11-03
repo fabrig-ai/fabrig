@@ -76,6 +76,7 @@ pub struct World {
     pub forge_calls: u32,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     pub signed_in: Option<u64>,
+    pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
     pub jobs: Vec<host::JobAssignment>,
     pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
@@ -131,6 +132,7 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub kinds: bool,
     pub questions: Option<u32>,
     pub merge_kind: bool,
     pub resolutions: Option<u32>,
@@ -294,6 +296,7 @@ impl World {
             spec_bytes,
             result_bytes,
             forge_charter,
+            kinds,
             questions,
             merge_kind,
             merge_authority,
@@ -307,7 +310,7 @@ impl World {
             tier,
         } = timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
+        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|index| {
             let mut limits = walking::limits();
             if let Some(questions) = questions {
                 limits.forge.change_policy.questions = questions;
@@ -319,11 +322,10 @@ impl World {
                 jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.people.amendment_bytes;
             limits.people.people = 4;
             limits.people.holdings = 4;
-            if owner_gate {
-                limits.people.amendment_bytes = 2048;
-            }
             limits.journal.writes = journal::WALKING_WRITES;
             let mut config = walking::config(71);
+            let mut landing_rules =
+                engine::LandingRules { deployment: Box::default(), projects: skein_lib::Map::with_capacity(1) };
             if approval.is_some() || agent_gate || owner_gate {
                 limits.authority.roles = 3;
             }
@@ -373,7 +375,6 @@ impl World {
                 foreman.number = 6;
                 foreman.policy.shell = false;
                 config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer, foreman]);
-                config.forge_charter = forge_charter.unwrap_or(1);
                 limits.tasks.authority_grants = 10;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
@@ -473,7 +474,7 @@ impl World {
                     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                         connector: 0,
                         kind: 4,
-                        enforce: !owner_gate,
+                        enforce: true,
                         pattern: authority::Pattern {
                             segments: Box::new([
                                 Box::from(&b"forge"[..]),
@@ -497,9 +498,9 @@ impl World {
                         },
                     }]);
                     if !owner_gate {
-                        config.landing.deployment.clone_from(&landing);
+                        landing_rules.deployment.clone_from(&landing);
                     }
-                    assert!(config.landing.projects.insert(1, landing).is_ok());
+                    assert!(landing_rules.projects.insert(1, landing).is_ok());
                 }
                 if with_change {
                     rules.ceiling.delegation.kinds = Box::new([
@@ -583,14 +584,13 @@ impl World {
                     if across {
                         let mut lib = rule.clone();
                         lib.pattern.segments[3] = b"lib".as_slice().into();
-                        config.landing.deployment = Box::new([rule.clone(), lib.clone()]);
-                        config.landing.projects.insert(1, Box::new([rule.clone(), lib])).expect("two repository rules");
+                        landing_rules.deployment = Box::new([rule.clone(), lib.clone()]);
+                        landing_rules.projects.insert(1, Box::new([rule.clone(), lib])).expect("two repository rules");
                     } else {
-                        config.landing.deployment = Box::new([rule.clone()]);
-                        config.landing.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
+                        landing_rules.deployment = Box::new([rule.clone()]);
+                        landing_rules.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
                     }
                     config
-                        .landing
                         .landings
                         .insert(
                             1,
@@ -622,7 +622,7 @@ impl World {
                         )
                         .expect("one turn project");
                     if across {
-                        let landing = config.landing.landings.get_mut(&1).expect("turn project");
+                        let landing = config.landings.get_mut(&1).expect("turn project");
                         let mut lib = landing.repositories[0].clone();
                         lib.repository = skein_forge::api::Repository { forge: 1, repository: 4 };
                         landing.repositories = Box::new([landing.repositories[0].clone(), lib]);
@@ -661,14 +661,13 @@ impl World {
                 config.core.settings.models = Box::new([model.clone()]);
                 config.core.settings.llm_providers.providers[0].models = Box::new([model.name.clone()]);
                 config.core.connectors = Box::new([1]);
-                config.forge_charter = 2;
-                for rule in &mut config.landing.deployment {
+                for rule in &mut landing_rules.deployment {
                     rule.connector = 1;
                     for gate in &mut rule.gates {
                         gate.freshness = engine::Freshness::Clean;
                     }
                 }
-                config.landing.projects = skein_lib::Map::with_capacity(1);
+                landing_rules.projects = skein_lib::Map::with_capacity(1);
                 // Stock includes the review and configuring charters; all ten forge grants fit.
                 limits.tasks.charters = STOCK_CHARTERS;
                 limits.tasks.executor_kinds = STOCK_EXECUTORS;
@@ -753,6 +752,19 @@ impl World {
                 let mut charter = walking::charter();
                 charter.documents = charter_documents.into();
                 config.core.defaults.charters[0] = charter;
+            }
+            config.kinds_stock = engine::landing_stock(
+                &landing_rules.deployment,
+                &landing_rules.projects,
+                if stock.is_some() { 2 } else { forge_charter.unwrap_or(1) },
+                4,
+            );
+            if kinds {
+                // The story changes whole rules through the settings entrance.
+                limits.people.amendment_bytes = 2048;
+            }
+            if kinds && index == 1 {
+                config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
         });
@@ -910,6 +922,7 @@ impl World {
             forge_calls: 0,
             adopted: Vec::new(),
             signed_in: None,
+            web_replies: Vec::new(),
             assigned: Vec::new(),
             jobs: Vec::new(),
             job_workspaces: BTreeMap::new(),
@@ -955,6 +968,30 @@ impl World {
         self
     }
 
+    /// Configure a second model, allowed by charter 2 alone, before the world's first input.
+    #[must_use]
+    pub fn with_producer_model(mut self, name: &[u8]) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "models precede world startup");
+        assert!(!self.root.ready(), "models precede bootstrap");
+        let settings = &mut self.restart_config.core.settings;
+        let mut second = settings.models[0].clone();
+        second.name = name.into();
+        settings.models = Box::new([settings.models[0].clone(), second.clone()]);
+        settings.llm_providers.providers[0].models = Box::new([settings.models[0].name.clone(), second.name.clone()]);
+        let producer = self
+            .restart_config
+            .core
+            .defaults
+            .charters
+            .iter_mut()
+            .find(|charter| charter.number == 2)
+            .expect("producer charter 2");
+        producer.policy.alternatives = Box::new([second]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid producer model configuration");
+        self
+    }
+
     /// Size a goal's question story for its changes and their foremen before startup
     /// (temper/docs/design/domain/forge.md, 8.11 and 11.1).
     #[must_use]
@@ -994,11 +1031,10 @@ impl World {
     #[must_use]
     pub fn with_merge_job(mut self, command: &[u8]) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "merge command precedes world startup");
-        if let Some(landing) = self.restart_config.landing.landings.get_mut(&1) {
+        if let Some(landing) = self.restart_config.landings.get_mut(&1) {
             landing.merge_job = Some(command.into());
         } else {
             self.restart_config
-                .landing
                 .landings
                 .insert(
                     1,
@@ -1018,10 +1054,23 @@ impl World {
 
     /// Replace the deployment's landing rules before the world's first input.
     #[must_use]
+    #[expect(clippy::needless_pass_by_value, reason = "the world builder takes ownership of its startup rule inputs")]
     pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "landing rules precede world startup");
         assert!(!self.root.ready(), "landing rules precede bootstrap");
-        self.restart_config.landing.deployment = rules;
+        let replacement = engine::landing_stock(&rules, &skein_lib::Map::with_capacity(0), 1, 4);
+        let mut stock = skein_lib::List::uncapped();
+        for item in replacement {
+            if item.kind == 1 {
+                stock.push(item).expect("uncapped replacement landing rules");
+            }
+        }
+        for item in &self.restart_config.kinds_stock {
+            if item.kind != 1 {
+                stock.push(item.clone()).expect("uncapped project rules and charters");
+            }
+        }
+        self.restart_config.kinds_stock = stock.into_boxed();
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid deployment landing rules");
         self
@@ -1327,6 +1376,9 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => match delivery {
+                    Delivery::WebReply { reply, .. } if !matches!(reply, people::Reply::SignedIn { .. }) => {
+                        self.web_replies.push(reply);
+                    }
                     Delivery::WebReply { reply: people::Reply::SignedIn { sign_in, .. }, .. } => {
                         self.signed_in = Some(sign_in);
                     }
@@ -1863,67 +1915,11 @@ pub fn change_world_funded(
     policy: paths::Change,
     spend: u64,
 ) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
-    let paths::Change { no_ci, owner_gate, tracked } = policy;
+    let paths::Change { no_ci, owner_gate: _, tracked } = policy;
     if no_ci {
         world.adopt_with_checks(false, Box::new([1]));
     } else {
         world.adopt();
-    }
-    if owner_gate {
-        let branch = people::Pattern {
-            segments: Box::new([
-                Box::from(&b"forge"[..]),
-                Box::from(&b"forge.example"[..]),
-                Box::from(&b"org"[..]),
-                Box::from(&b"repo"[..]),
-                Box::from(&b"branch"[..]),
-            ]),
-            last: people::Last::Exact(Box::from(&b"main"[..])),
-        };
-        world.send(engine::Event::Party(engine::PartyInput::Ask {
-            models: Box::new([]),
-            reply_to: ReplyTo::new(Token::new(900)),
-            sign_in: world.signed_in.expect("owner session"),
-            key: [90; 16],
-            ask: people::Ask::ChangePolicy {
-                project: 1,
-                change: people::PolicyChange::Requirements {
-                    requirements: Box::new([
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch.clone(),
-                            judge: people::Judge { connector: 0, requirement: 1, parameters: 0x8000_0000 },
-                            guard: people::Guard::Guarded,
-                            must_be_guarded: true,
-                        },
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch.clone(),
-                            judge: people::Judge { connector: 0, requirement: 2, parameters: 0x8000_0001 },
-                            guard: people::Guard::Observed { freshness: Duration::ZERO },
-                            must_be_guarded: false,
-                        },
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch,
-                            judge: people::Judge { connector: 0, requirement: 3, parameters: 0x8000_0002 },
-                            guard: people::Guard::Guarded,
-                            must_be_guarded: true,
-                        },
-                    ]),
-                },
-            },
-        }));
-        world.until(Until::Ready);
-        assert!(
-            world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::People(people::Key::Policy(1)))),
-            "owner policy committed"
-        );
-        world.restart(true, true);
-        world.until(Until::Ready);
     }
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let ask = if tracked {

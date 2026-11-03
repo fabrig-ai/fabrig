@@ -263,8 +263,36 @@ fn decode_application_outcome(value: w::ApplicationOutcome) -> d::ApplicationOut
         }
     }
 }
+#[expect(clippy::too_many_lines, reason = "one exhaustive translation of connector records into their schema")]
 fn encode_record(value: &d::Record) -> w::Value {
     match value {
+        d::Record::SettingDefault { kind, scope, number, value } => w::Value::SettingDefault(
+            w::RecordSettingDefault::new(
+                &w::CEILINGS,
+                w::RecordSettingDefaultParts { kind: *kind, scope: *scope, number: *number, value: value.clone() },
+            )
+            .expect("admitted fields fit schema"),
+        ),
+        d::Record::SettingChange { kind, scope, number, value } => w::Value::SettingChange(
+            w::RecordSettingChange::new(
+                &w::CEILINGS,
+                w::RecordSettingChangeParts { kind: *kind, scope: *scope, number: *number, value: value.clone() },
+            )
+            .expect("admitted fields fit schema"),
+        ),
+        d::Record::SettingProposal { proposal, kind, scope, number, edit } => w::Value::SettingProposal(
+            w::RecordSettingProposal::new(
+                &w::CEILINGS,
+                w::RecordSettingProposalParts {
+                    proposal: *proposal,
+                    kind: *kind,
+                    scope: *scope,
+                    number: *number,
+                    edit: encode_setting_edit(edit),
+                },
+            )
+            .expect("admitted fields fit schema"),
+        ),
         d::Record::ApplicationObject { object, now } => w::Value::ApplicationObject(
             w::RecordApplicationObject::new(
                 &w::CEILINGS,
@@ -350,6 +378,18 @@ fn encode_record(value: &d::Record) -> w::Value {
 }
 fn decode_record(value: w::Value, limits: &d::Limits) -> Result<d::Record, Undecodable> {
     Ok(match value {
+        w::Value::SettingDefault(value) => {
+            let w::RecordSettingDefaultParts { kind, scope, number, value } = value.into_parts();
+            d::Record::SettingDefault { kind, scope, number, value }
+        }
+        w::Value::SettingChange(value) => {
+            let w::RecordSettingChangeParts { kind, scope, number, value } = value.into_parts();
+            d::Record::SettingChange { kind, scope, number, value }
+        }
+        w::Value::SettingProposal(value) => {
+            let w::RecordSettingProposalParts { proposal, kind, scope, number, edit } = value.into_parts();
+            d::Record::SettingProposal { proposal, kind, scope, number, edit: decode_setting_edit(edit) }
+        }
         w::Value::ApplicationObject(value) => {
             let w::RecordApplicationObjectParts { object, now } = value.into_parts();
             d::Record::ApplicationObject { object, now: decode_application_object(now) }
@@ -462,4 +502,22 @@ fn encode_step(task: u64, step: u64, child: Option<u64>, revisions: &[(u64, u64)
         )
         .expect("admitted fields fit schema"),
     )
+}
+
+fn encode_setting_edit(edit: &d::SettingEdit) -> w::SettingEdit {
+    match edit {
+        d::SettingEdit::Set(value) => w::SettingEdit::Set(
+            w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: value.clone() })
+                .expect("admitted setting fits schema"),
+        ),
+        d::SettingEdit::Remove => w::SettingEdit::Remove,
+        d::SettingEdit::Reset => w::SettingEdit::Reset,
+    }
+}
+fn decode_setting_edit(edit: w::SettingEdit) -> d::SettingEdit {
+    match edit {
+        w::SettingEdit::Set(value) => d::SettingEdit::Set(value.into_parts().value),
+        w::SettingEdit::Remove => d::SettingEdit::Remove,
+        w::SettingEdit::Reset => d::SettingEdit::Reset,
+    }
 }

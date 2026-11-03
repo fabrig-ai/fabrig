@@ -7,10 +7,6 @@ fn set(value: &mut Value, path: &str, replacement: Value) {
     *value.pointer_mut(path).expect("the member exists in the owned example") = replacement;
 }
 
-fn every_forge() -> Value {
-    json!({"segments": ["forge"], "last": "open", "value": ""})
-}
-
 #[test]
 fn the_box_keeps_eight_streams_and_four_calls_beside_them() {
     for source in [fixtures::OWNED, template::TEMPER] {
@@ -174,7 +170,6 @@ fn the_default_is_the_owned_example_so_edited() {
                     None => Value::Null,
                 },
             ),
-            ("/application/landing/projects/0/rules/0/pattern", every_forge()),
             ("/engine/projects", parse(b"[]")),
             ("/engine/hosts/workers/0/digest", json!("worker.digest")),
             ("/engine/deployment/directory", json!("deployment")),
@@ -185,9 +180,6 @@ fn the_default_is_the_owned_example_so_edited() {
         ] {
             set(&mut expected, path, value);
         }
-        expected["application"]["landing"]["deployment"] =
-            expected["application"]["landing"]["projects"][0]["rules"].clone();
-        expected["application"]["landing"]["projects"] = parse(b"[]");
         for member in ["charters", "templates", "policies", "rules"] {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
@@ -336,6 +328,14 @@ fn demo_agent(port: u16) -> Value {
 }
 
 #[test]
+fn the_agent_profile_holds_a_run_and_two_sub_agents() {
+    for source in [template::AGENT, fixtures::AGENT] {
+        let agent = parse(source);
+        assert_eq!(agent["profile"]["declared"]["conversations"], 3_u32);
+    }
+}
+
+#[test]
 fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
     let owned = parse(fixtures::AGENT);
     for (row, facts) in cases() {
@@ -473,14 +473,6 @@ fn the_template_seeds_no_project_and_no_settings_members() {
     for member in ["charters", "templates", "policies", "rules"] {
         assert!(document["engine"].get(member).is_none());
     }
-    let landing = &document["application"]["landing"];
-    assert_eq!(landing["projects"], parse(b"[]"));
-    assert_eq!(
-        landing["deployment"],
-        json!([{
-            "connector": 1_u16, "kind": 4_u16, "pattern": every_forge(),
-            "enforce": true, "ci": true, "up_to_date": true,
-            "gates": [{"number": 1_u32, "blocking": true, "freshness": "clean"}], "approvals": parse(b"[]")
-        }])
-    );
+    assert!(document["application"].get("landing").is_none());
+    assert!(document["application"].get("charter").is_none());
 }

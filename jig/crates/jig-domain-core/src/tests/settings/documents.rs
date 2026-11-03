@@ -42,7 +42,7 @@ fn bounded_charter(limits: &Limits) -> Charter {
 fn check_at_start_and_change(charter: Charter, expected: Result<(), Failure>) {
     let limits = limits();
     let mut configured = config(1);
-    let current = Current::new(configured.defaults, &limits);
+    let current = Current::new(configured.defaults, &limits, &[]);
     let items = [Item { setting: Setting::Charter(1), edit: Edit::Set(Value::Charter(Box::new(charter.clone()))) }];
     assert_eq!(
         crate::settings::check_change(&current, &items, &configured.settings, &configured.connectors, &limits),
@@ -50,7 +50,7 @@ fn check_at_start_and_change(charter: Charter, expected: Result<(), Failure>) {
     );
     configured.defaults = config(1).defaults;
     configured.defaults.charters[0] = charter;
-    let mut current = Current::new(configured.defaults, &limits);
+    let mut current = Current::new(configured.defaults, &limits, &[]);
     assert_eq!(crate::settings::check(&current, &configured.settings, &configured.connectors, &limits), expected);
     // The current overlay is checked separately from the binary's defaults.
     current.defaults.get_mut(&Setting::Charter(1)).unwrap().value =

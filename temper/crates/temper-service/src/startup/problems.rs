@@ -68,6 +68,9 @@ pub enum What {
     Handover,
     MissingNull,
     InlineSeedPolicy,
+    LandingStored,
+    ProjectLandingStored,
+    CharterStored,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Problem {
@@ -122,6 +125,9 @@ fn put(writer: &mut Writer, length: &mut usize, measuring: bool, bytes: &[u8]) {
 }
 fn words(what: What) -> &'static [u8] {
     match what {
+        What::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
+        What::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
+        What::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
         What::InlineSeedPolicy => b"name a policy, policy: 1; change it with temper ctl settings apply",
         What::MissingNull => b"missing: null for none",
         What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
@@ -335,6 +341,14 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Rules => (b"rules", None),
+            Setting::Application { kind, scope, number } => {
+                put(writer, length, measuring, b"application kind ");
+                put(writer, length, measuring, Decimal::of(u64::from(kind)).as_bytes());
+                put(writer, length, measuring, b", ");
+                put(writer, length, measuring, Decimal::of(u64::from(scope)).as_bytes());
+                put(writer, length, measuring, b", ");
+                (b"", Some(number))
+            }
         };
         put(writer, length, measuring, kind);
         if let Some(number) = number {
@@ -473,6 +487,9 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             | What::Provider
             | What::MissingNull
             | What::InlineSeedPolicy
+            | What::LandingStored
+            | What::ProjectLandingStored
+            | What::CharterStored
             | What::Handover => {}
         }
         put(writer, &mut length, measuring, b"\n");

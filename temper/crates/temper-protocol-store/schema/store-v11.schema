@@ -187,13 +187,15 @@ record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }
 record ChangeResult { head: option fixed 32 checks: ResultText failed: ResultText repairs: ResultText repair_count: u64 reviews: ResultText }
+record ModelEffort { model: u8 effort: option u8 }
+record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort account: option u32 }
 enum Route { none, foreman, up }
 record Foreman { task: option u64 }
 record Held { answer: bytes 65536 }
 enum Stands { taken, foreman: Foreman, asked, held: Held }
 record Open { asker: u64 number: u64 line: bytes 256 words: bytes 65536 stands: Stands }
 record Questions { route: Route taken: u32 open: list 16 Open }
-record ChangeRow { result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 foreman_charter: u32 effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 questions: Questions repairs: option fixed 32 catch_up: option fixed 32 merge_result: option bytes 512 }
+record ChangeRow { result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice foreman_charter: u32 effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 questions: Questions repairs: option fixed 32 catch_up: option fixed 32 merge_result: option bytes 512 }
 # 04.4ac: goal issue projections and the root-authorized desired view.
 enum Phase { waiting, active, settling, held, done, failed, cancelled }
 record PlanItem { text: text 65536 phase: Phase }
@@ -218,7 +220,6 @@ record ForgeWriter { forge: u16 author: u64 }
 # Family 18: first Google subject for a folded member address (protocol/sign-in.md, 5).
 record Binding { address: bytes 254 subject: bytes 255 }
 # Family 21: writes with a committed attempt (protocol/store.md, 2).
-# Key family 20 is reserved for Setting, still design-only. Value tags are codec-local.
 record Flight { task: u64 entry: u64 }
 # Families 23 and 24: landing state and receipts (domain/landing.md, 12).
 record LandingAt { at: u64 }
@@ -288,5 +289,17 @@ enum ResetStep { project, forge, account }
 record Resetting { step: ResetStep }
 enum PlaygroundState { starting, running, resetting: Resetting }
 record Playground { state: PlaygroundState forge: u16 project: option u32 account: option u32 }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification }
+# Family 20: the forge's kinds (temper/docs/design/protocol/store.md, 2).
+enum PatternLast { exact: Segment, open: Segment }
+record RulePattern { segments: bytes 65536 pieces Segment last: PatternLast }
+record RuleGate { number: u32 blocking: bool freshness: Freshness }
+record RuleApproval { role: u32 people: u32 freshness: Freshness }
+record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
+record CharterValue { number: u32 }
+enum SettingValue { rule: LandingRule, charter: CharterValue }
+record SizedValue { value: SettingValue size: u32 }
+enum SettingEdit { set: SizedValue, remove, reset }
+enum SettingSlot { default, change, proposal: Number }
+record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow }
 versioned record Row { value: Value }

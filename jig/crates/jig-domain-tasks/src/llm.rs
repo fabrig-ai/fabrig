@@ -4,6 +4,8 @@
 //! declares, each model among its charter's and within its authority's models (domain/tasks.md,
 //! sections 4 and 7; domain/authority.md, section 8.1). It resolves a charter's default for the
 //! root, which records it as given when a creator gives none (domain/tasks.md, section 3).
+//! The root may check a choice alone against its charter and authority's models at the newest
+//! revision, before asking for its batch (domain/tasks.md, section 4).
 //!
 //! Models and efforts are indices in configuration's order: model `i` is the `i`th configured
 //! model, bit `i` of `Models`; effort `e` is the `e`th effort that model declares
@@ -104,8 +106,18 @@ pub(crate) fn check(
             return Err(Refusal::Llm { model: choice.main.model, why: LlmFault::Procedure });
         }
     };
+    check_agent(domain, charter, revision, authority.models, choice)
+}
+
+fn check_agent(
+    domain: &Domain,
+    charter: u32,
+    revision: u32,
+    allowed: Models,
+    choice: &LlmChoice,
+) -> Result<(), Refusal> {
     let models = domain.charter_models(charter, revision).unwrap_or(&[]);
-    fits(domain, models, authority.models, choice.main)?;
+    fits(domain, models, allowed, choice.main)?;
     for (at, chosen) in choice.subagents.iter().enumerate() {
         for earlier in choice.subagents.iter().take(at) {
             if earlier.model == chosen.model {
@@ -113,7 +125,7 @@ pub(crate) fn check(
             }
         }
         // Each passing entry names another configured model, so the loop ends by `MODELS`.
-        fits(domain, models, authority.models, *chosen)?;
+        fits(domain, models, allowed, *chosen)?;
     }
     Ok(())
 }
@@ -159,6 +171,14 @@ fn first_effort(domain: &Domain, model: u8) -> Option<u8> {
 }
 
 impl Domain {
+    /// Check `choice` for an agent task of `charter` within `models`, at the newest
+    /// revision, as a batch checks it (domain/tasks.md, section 4): each model configured,
+    /// named once among the sub-agents, each effort one its model declares, each model one
+    /// the charter allows and `models` allows. A refusal names the first model that fails.
+    pub fn check_llm(&self, charter: u32, models: Models, choice: &LlmChoice) -> Result<(), Refusal> {
+        check_agent(self, charter, self.newest(), models, choice)
+    }
+
     /// The default LLM choice of an agent task of `charter` within `models`, which the root
     /// records as given (domain/tasks.md, section 3): main is the first of the charter's models,
     /// in its order, within `models`, and the sub-agents the charter's others within `models`;

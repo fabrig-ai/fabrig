@@ -25,6 +25,7 @@ pub enum RecordKind {
     Application,
     Writer,
     Binding,
+    Setting,
     Flight,
     Landing,
     Receipt,
@@ -234,6 +235,7 @@ impl Reconciliation {
             | Stored::ForgeNumber { .. }
             | Stored::Playground(_)
             | Stored::Landed { .. }
+            | Stored::Setting(_)
             | Stored::Binding { .. } => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
@@ -337,6 +339,7 @@ impl Domain {
             | RecordKind::Release
             | RecordKind::Writer
             | RecordKind::Binding
+            | RecordKind::Setting
             | RecordKind::Flight => false,
         }
     }

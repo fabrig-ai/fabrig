@@ -533,7 +533,10 @@ impl Joint {
     #[must_use]
     pub(crate) fn with_procedures(seed: u64, limits: &client::Limits) -> Self {
         const SLOTS: u32 = 1;
-        let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| Self::procedure_config(seed));
+        // The unknown-panel fixture names its repository and a malformed role choice.
+        const PARAMETERS: u32 = 2;
+        let [(bootstrap, mut engine_limits), (config, _)] = std::array::from_fn(|_| Self::procedure_config(seed));
+        engine_limits.tasks.parameters = PARAMETERS;
         Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, SLOTS)
     }
     fn procedure_config(seed: u64) -> (engine::Config, engine::Limits) {
@@ -611,8 +614,9 @@ impl Joint {
                 gates: Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }]),
                 approvals: Box::new([]),
             }]);
-            config.landing.deployment.clone_from(&landing);
-            assert!(config.landing.projects.insert(1, landing).is_ok());
+            let mut projects = skein_lib::Map::with_capacity(1);
+            projects.insert(1, landing.clone()).expect("one project landing rule");
+            config.kinds_stock = engine::landing_stock(&landing, &projects, 1, 4);
             let mut rules = config.core.defaults.rules.clone();
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
             rules.ceiling.delegation.kinds =

@@ -175,11 +175,6 @@
     }},
     "machine": {{"github": {{"api": {{"socket": "{proc.forge.ready.address}"}}, "transport": "plaintext", "remote": "http://{proc.forge.ready.address}", "web": "http://{proc.forge.ready.address}"}}}},
     "demo": null, "sign_in": null,
-    "landing": {{
-      "deployment": [],
-      "projects": []
-    }},
-    "charter": 1,
     "limits": {{
       "profile": "small",
       "overrides": {{

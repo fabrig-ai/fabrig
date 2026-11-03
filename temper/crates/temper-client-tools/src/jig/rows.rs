@@ -193,10 +193,17 @@ pub const CHAT_CREATE: Tool = Tool {
         positional(b"text", b"TEXT", Kind::Text, Required, b"The opening words"),
         super::table::Argument { line: b"A model the chat may use, as models lists it", ..MODEL },
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
+        super::table::repeated(
+            b"sub-agent",
+            b"MODEL[:EFFORT]",
+            Kind::Text,
+            64,
+            b"A sub-agent model and its effort; repeated, the whole list",
+        ),
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\n`--template` names one of the project's chat templates; one that is\nno chat's, or not offered, fails naming those `me` offers (exit 1).\nThen task show TASK --until replied.\n",
+    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\n`--template` names one of the project's chat templates; one that is\nno chat's, or not offered, fails naming those `me` offers (exit 1).\n`--sub-agent` needs `--model` and replaces the template's sub-agents.\nThen task show TASK --until replied.\n",
 };
 pub const MESSAGE: Tool = Tool {
     name: b"task message",
@@ -594,7 +601,7 @@ pub const SETTINGS: Tool = Tool {
 pub const SETTING: Tool = Tool {
     name: b"settings show",
     line: b"Read one setting's value whole",
-    prints: b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON on one line",
+    prints: b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON",
     result: b"setting",
     forms: &[
         &[
@@ -717,7 +724,7 @@ pub const PROPOSAL: Tool = Tool {
     )]],
     keyed: Keyed::Never,
     area: 2,
-    notes: b"A decided proposal prints how it was decided. Decide a live one\nwith proposal decide.\n",
+    notes: b"A settings proposal includes landing rules and the forge's charters,\neach set whole, removed or reset.\nA decided proposal prints how it was decided. Decide a live one\nwith proposal decide.\n",
 };
 
 /// The row's position in the tools table.

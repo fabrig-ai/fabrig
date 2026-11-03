@@ -237,6 +237,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
             now: Some(s::Value::Template(Box::new(template))),
             origin: Some((false, 1)),
             would_be: Some(s::Value::Template(Box::new(next))),
+            application: None,
         })
         .expect("item");
     let mut heads = skein_lib::List::with_capacity(1);
@@ -251,7 +252,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
         action: d::ProposalAction::Settings {
             against: 1,
             items: heads,
-            review: Some(Box::new(d::SettingsReview { newest: 1, items, value_bytes: 65_536 })),
+            review: Some(Box::new(d::SettingsReview { key: None, newest: 1, items, value_bytes: 65_536 })),
             made: None,
         },
         as_holder: false,

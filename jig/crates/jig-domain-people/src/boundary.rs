@@ -229,7 +229,7 @@ pub enum Ask {
     /// Delete an owned project (jig/docs/design/domain/people.md, 5.2).
     RemoveProject { project: u32, grace: Option<Duration> },
     /// Deployment owner changes settings, whose value the core holds during admission.
-    ChangeSettings { against: u32, digest: [u8; 32] },
+    ChangeSettings { against: u32, digest: [u8; 32], projects: Box<[u32]> },
     /// Deployment owner moves live agent tasks to the newest (engine.md, 17.4; people.md, 5.1).
     MoveToNewest { revision: u32 },
     /// Several task operations committed together under one key.

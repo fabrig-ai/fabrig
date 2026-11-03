@@ -8,6 +8,7 @@ use jig_client::{
 use skein_lib::{Deadlines, Env, Queue};
 mod accounts;
 pub(crate) mod acts;
+pub mod application;
 mod moves;
 pub(crate) mod proposal;
 pub(crate) mod reads;

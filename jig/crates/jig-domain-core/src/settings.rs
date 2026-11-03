@@ -1,5 +1,6 @@
 //! Deployment settings, defaults and revisions (domain/engine.md, section 17).
 
+pub mod application;
 mod change;
 pub mod charters;
 pub(crate) mod check;
@@ -17,18 +18,21 @@ use jig_domain_authority as authority;
 use jig_domain_people as people;
 use skein_lib::{List, Map, Wall};
 
+pub use application::{Kind, KindScope};
 pub(crate) use change::{apply, change_shape, changes_current};
 pub use check::{check, check_change};
 pub use held::{Held, VersionKey};
 pub use restart::revision_writes;
 
 pub use people::{Running, Setting, SettingFault as Fault};
+/// A party's setting value (jig/docs/design/domain/engine.md, 17.1, 17.5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Charter(Box<Charter>),
     Template(Box<Template>),
     Policy(Box<ConfiguredPolicy>),
     Rules(Box<authority::Rules>),
+    Application(Box<[u8]>),
 }
 #[derive(Debug)]
 pub struct Defaults {
@@ -103,6 +107,7 @@ pub fn model_names(models: &[crate::Model]) -> Box<[ModelName]> {
 pub struct Revision {
     pub head: Head,
     pub items: Box<[Item]>,
+    pub applications: Box<[application::Recorded]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Failure {
@@ -136,8 +141,10 @@ pub struct CharterVersion {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Proposal {
+    pub key: Option<u64>,
     pub against: u32,
     pub items: Box<[Item]>,
+    pub applications: Box<[application::Recorded]>,
 }
 
 /// Only defaults and changes own current values. Revision history stays in the store.
@@ -145,12 +152,14 @@ pub struct Proposal {
 pub struct Current {
     pub(crate) defaults: Map<Setting, Default>,
     pub(crate) changes: Map<Setting, Changed>,
+    pub(crate) applications: Map<Setting, application::State>,
     pub(crate) head: Head,
     pub(crate) oldest: u32,
+    pub(crate) keys: u64,
 }
 impl Current {
     #[must_use]
-    pub fn new(mut defaults: Defaults, limits: &crate::Limits) -> Self {
+    pub fn new(mut defaults: Defaults, limits: &crate::Limits, kinds: &[Kind]) -> Self {
         let mut values = Map::with_capacity(capacity(limits).expect("settings count"));
         for charter in defaults.charters {
             let previous = values
@@ -182,6 +191,7 @@ impl Current {
             .expect("rules slot");
         Self {
             defaults: values,
+            applications: Map::with_capacity(application::capacity(kinds, limits).expect("application settings count")),
             changes: Map::with_capacity(capacity(limits).expect("settings count")),
             head: Head {
                 number: 1,
@@ -192,6 +202,7 @@ impl Current {
                 moved: false,
             },
             oldest: 0,
+            keys: 1,
         }
     }
     #[must_use]
@@ -227,6 +238,7 @@ impl Current {
         match self.value(Setting::Charter(number)) {
             Some(Value::Charter(value)) => Some(value),
             Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -234,6 +246,7 @@ impl Current {
         match self.value(Setting::Template(number)) {
             Some(Value::Template(value)) => Some(value),
             Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -241,6 +254,7 @@ impl Current {
         match self.value(Setting::Policy(number)) {
             Some(Value::Policy(value)) => Some(value),
             Some(Value::Charter(_) | Value::Template(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -250,6 +264,7 @@ impl Current {
             Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_)) | None => {
                 unreachable!("checked settings always offer rules")
             }
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -304,8 +319,9 @@ fn offered(defaults: &Map<Setting, Default>, changes: &Map<Setting, Changed>) ->
 pub enum Record {
     Default { setting: Setting, default: Default },
     Changed { setting: Setting, changed: Changed },
+    Application { setting: Setting, state: application::State },
     Revision { history: bool, revision: Revision },
-    Extent { oldest: u32 },
+    Extent { oldest: u32, keys: u64 },
     Charter { charter: u32, revision: u32, value: CharterVersion },
     Proposal { proposer: people::Proposer, proposal: u32, value: Proposal },
 }
@@ -314,7 +330,7 @@ impl Record {
     pub fn key(&self) -> Key {
         match self {
             Self::Default { setting, .. } => Key::Default(*setting),
-            Self::Changed { setting, .. } => Key::Changed(*setting),
+            Self::Changed { setting, .. } | Self::Application { setting, .. } => Key::Changed(*setting),
             Self::Revision { history, revision } => {
                 if *history {
                     Key::History(revision.head.number)
@@ -372,6 +388,7 @@ impl Current {
         match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
             Value::Charter(value) => value,
             Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!("fixture charter value"),
+            Value::Application(_) => unreachable!("an application's setting: apps-core"),
         }
     }
     pub(crate) fn test_templates(&mut self, templates: Box<[Template]>) {
@@ -380,6 +397,7 @@ impl Current {
             match setting {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
                 Setting::Charter(_) | Setting::Policy(_) | Setting::Rules => {}
+                Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
             }
         }
         for setting in old.into_boxed() {
@@ -422,6 +440,9 @@ pub fn withdrawal_writes(limits: &crate::Limits) -> Option<u32> {
 pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
     let mut heads = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
+        if application::is_application(item.setting) {
+            continue;
+        }
         heads
             .push(jig_domain_tasks::SettingHead {
                 setting: match item.setting {
@@ -429,6 +450,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Template(n) => jig_domain_tasks::Setting::Template(n),
                     Setting::Policy(n) => jig_domain_tasks::Setting::Policy(n),
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
+                    Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
                 },
                 edit: match item.edit {
                     Edit::Set(_) => jig_domain_tasks::SettingEdit::Set,

@@ -322,6 +322,10 @@ fn start_flight(core: &mut Core, env: &Env<Limits>, owner: Token, number: u16, o
     };
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the connector dispatcher handles each effect and settings event exhaustively"
+)]
 pub(crate) fn connector(
     core: &mut Core,
     env: &Env<Limits>,
@@ -427,6 +431,10 @@ pub(crate) fn connector(
         | connector::Event::WorkspaceReady { .. }
         // The root maps connector completion to start_done for the phase it is serving.
         | connector::Event::RestartDone { .. } => {}
+        connector::Event::SettingsJudged { owner, judged } => return crate::settings::application::judged(core, env, work, owner, judged),
+        connector::Event::SettingsDefaults { connector, defaults } => {
+            crate::settings::application::defaults(core, connector, defaults);
+        }
     }
     out
 }

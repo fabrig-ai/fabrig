@@ -153,6 +153,10 @@ fn the_root_limits_take_jigs_children_and_temper_own() {
     let mut settings = fixtures::engine();
     settings.jig.limits.core.authority.segments =
         settings.jig.limits.core.authority.segments.checked_add(1).expect("fixture segment limit can increase");
+    settings.jig.limits.core.authority.roles =
+        settings.jig.limits.core.authority.roles.checked_sub(1).expect("fixture role limit can decrease");
+    settings.jig.limits.core.settings.proposals =
+        settings.jig.limits.core.settings.proposals.checked_add(1).expect("fixture proposal limit can increase");
     let root = limits::engine(&settings.jig.limits, &settings.limits).expect("coherent root limits");
     let jig = settings.jig.limits.core;
     assert_eq!(root.journal, settings.limits.root.journal);
@@ -160,7 +164,12 @@ fn the_root_limits_take_jigs_children_and_temper_own() {
     assert_eq!(root.brief, settings.limits.root.brief);
     assert_eq!(
         root.forge,
-        temper_engine_domain_forge::Limits { authority_segments: jig.authority.segments, ..settings.limits.forge }
+        temper_engine_domain_forge::Limits {
+            authority_segments: jig.authority.segments,
+            roles: jig.authority.roles,
+            setting_proposals: jig.settings.proposals,
+            ..settings.limits.forge
+        }
     );
     assert_eq!(root.tasks, jig.tasks);
     assert_eq!(root.authority, jig.authority);

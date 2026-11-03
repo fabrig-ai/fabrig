@@ -53,11 +53,7 @@ fn engine(document: &[u8]) -> config::Engine {
 }
 fn without_projects() -> Box<[u8]> {
     let mut document = generated();
-    for (path, value) in [
-        (b"engine.projects".as_slice(), b"[]".as_slice()),
-        (b"application.demo", b"null"),
-        (b"application.landing", br#"{"deployment":[],"projects":[]}"#),
-    ] {
+    for (path, value) in [(b"engine.projects".as_slice(), b"[]".as_slice()), (b"application.demo", b"null")] {
         document = fixtures::with(&document, path, value);
     }
     document
@@ -123,7 +119,7 @@ fn the_stock_passes_jigs_one_check() {
         for charter in &defaults.charters {
             assert_eq!(charter.hosts, jig_domain_fleet::Kinds::Workers, "{row}");
         }
-        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core);
+        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
         assert_eq!(
             jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
             Ok(()),
@@ -146,7 +142,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    let current = settings::Current::new(defaults, &engine.limits.core);
+    let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         (b"core.policy_bytes", 3266, Setting::Policy(1), "the stock's policy 1 needs 3266 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
@@ -247,8 +243,12 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     let document = limited(&document, b"core.run_bytes", needed);
     let refused = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert!(core::str::from_utf8(&crate::startup::lines(&refused)).unwrap().contains("the stock's charter"));
-    crate::startup::named_with(&document, &config::Directories::working(), &crate::stock::Given::Own(Box::new(own)))
-        .expect("a world sizes its own runs");
+    crate::startup::named_with(
+        &document,
+        &config::Directories::working(),
+        &crate::stock::Given::Own { jig: own, forge: Box::default() },
+    )
+    .expect("a world sizes its own runs");
 }
 
 #[test]
@@ -429,7 +429,7 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
     let stock = engine(&init);
     let mut own = crate::stock::defaults(&stock.llm);
     own.charters[0].policy.turns = 9;
-    let given = crate::stock::Given::Own(Box::new(own));
+    let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     for member in ["charters", "templates", "policies", "rules"] {
         let original = fixtures::value(&init, b"engine");
         let mut engine = format!("{{\"{member}\":null,").into_bytes();
@@ -519,7 +519,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     // The test's project copies this policy, whose role allowance must fit its period.
     policy.roles[0].period_spend = 41;
     own.rules.maximum_run_spend = 2;
-    let given = crate::stock::Given::Own(Box::new(own));
+    let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     let engine = crate::startup::engine_with(&document, at, &config::Directories::working(), &given).unwrap();
     assert_eq!(stock.charters[0].policy.waiting, skein_lib::Duration::from_secs(10));
     assert_eq!(engine.charters[0].policy.waiting, skein_lib::Duration::from_millis(1));
@@ -689,4 +689,111 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
     assert!(words.contains("In repairs and resolutions, preserve the requested change and unrelated base content, including independent appended lines and existing blank lines."));
     assert!(words.contains("Restore losses named in review; never remove content to pass checks."));
     assert!(words.contains("Initial production has no pull request yet:"));
+}
+
+#[test]
+fn kinds_are_declared_with_their_bounds() {
+    const CONNECTOR: u16 = 5;
+    use jig_domain_core::settings::{Kind, KindScope};
+    use temper_engine_domain_forge::{self as forge, settings};
+    let engine = fixtures::engine();
+    let mut limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    // Distinct counts exercise every bound, including the smaller name bound.
+    limits.authority.segments = 3;
+    limits.authority.segment_bytes = 13;
+    limits.forge.name_bytes = 9;
+    limits.forge.change_policy.gates = 2;
+    limits.forge.roles = 3;
+    limits.forge.landing_rules = 7;
+    let rule = settings::Value::Rule(settings::LandingRule {
+        pattern: forge::GatePattern {
+            segments: Box::new([
+                b"forge".as_slice().into(),
+                b"123456789".as_slice().into(),
+                b"abcdefghi".as_slice().into(),
+            ]),
+            last: forge::GateLast::Open(b"123456789".as_slice().into()),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: true,
+        gates: Box::new([
+            settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Exact },
+            settings::RuleGate { number: 2, blocking: false, freshness: forge::JudgeFreshness::Clean },
+        ]),
+        approvals: Box::new([
+            settings::RuleApproval { role: 0, people: 1, freshness: forge::JudgeFreshness::Exact },
+            settings::RuleApproval { role: 1, people: 2, freshness: forge::JudgeFreshness::Clean },
+            settings::RuleApproval { role: 2, people: 3, freshness: forge::JudgeFreshness::Exact },
+        ]),
+    });
+    let rule_bytes = temper_engine_smith::kinds::size(&rule);
+    assert_eq!(
+        crate::stock::kinds(&limits, CONNECTOR).as_ref(),
+        &[
+            Kind {
+                number: 1,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: rule_bytes,
+                per_scope: 7,
+                charters: 0
+            },
+            Kind {
+                number: 2,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: rule_bytes,
+                per_scope: 7,
+                charters: 0
+            },
+            Kind {
+                number: 3,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: temper_engine_smith::kinds::size(&settings::Value::Charter(2)),
+                per_scope: 2,
+                charters: 1
+            },
+        ]
+    );
+    limits.authority.segment_bytes = 6;
+    assert_eq!(crate::stock::kinds(&limits, CONNECTOR)[0].value_bytes, rule_bytes - 3 * (9 - 6));
+}
+
+#[test]
+fn the_binary_gives_the_forges_stock_at_every_start() {
+    // configuration.md, 13.4: one deployment rule and both forge charters.
+    const ITEMS: usize = 3;
+    use temper_engine_domain_forge::{self as forge, settings};
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let stock = crate::stock::forge(&limits);
+    assert_eq!(stock.len(), ITEMS);
+    assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (1, 0, 1));
+    assert_eq!(
+        stock[0].value.value,
+        settings::Value::Rule(settings::LandingRule {
+            pattern: forge::GatePattern {
+                segments: Box::new([b"forge".as_slice().into()]),
+                last: forge::GateLast::Open(Box::default()),
+            },
+            enforce: true,
+            ci: true,
+            up_to_date: true,
+            gates: Box::new([settings::RuleGate {
+                number: 1,
+                blocking: true,
+                freshness: forge::JudgeFreshness::Clean
+            }]),
+            approvals: Box::default(),
+        })
+    );
+    for (item, number, charter) in [(&stock[1], 1, 2), (&stock[2], 2, 4)] {
+        assert_eq!((item.kind, item.scope, item.number), (3, 0, number));
+        assert_eq!(item.value.value, settings::Value::Charter(charter));
+    }
+    for item in &stock {
+        assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
+    }
 }

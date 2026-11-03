@@ -29,8 +29,7 @@
     page's line that a change takes no words.
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
-    when the change asks; a verdict posted as a commit status; the review
-    charter, kind 3's number 2, is fixed at charter 4.
+    when the change asks; a verdict posted as a commit status.
   - 8.4: widening exhausted spend with ctl before release: `task amend`'s
     `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
     hold offers cancellation or asking afresh instead.
@@ -51,16 +50,7 @@
     (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`).
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
-  - 8.7: the explicit choice to adopt a GitHub repository without CI;
-    requirements 5 and 6.
-  - 8.7 to 8.9, 16, 18: the landing rules and the forge's charter as
-    settings of temper's kinds; the rules are read from the document's
-    `landing` member at start and compiled into the core's requirements
-    and the forge's gate templates (`root.md`'s status). The forge judges
-    a rule of kind 1 or 2 and answers `requires` over rules held so
-    (`temper-engine-domain-forge/src/settings.rs`), but nothing holds,
-    stores or routes one: the procedure's `Domain::requires` reads the
-    compiled rules (`gates.rs`).
+  - 8.7: the explicit choice to adopt a GitHub repository without CI.
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.

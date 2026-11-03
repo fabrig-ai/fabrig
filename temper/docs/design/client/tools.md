@@ -231,7 +231,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
 | `settings show charter NUMBER [--revision REVISION]`, `settings show template\|policy NUMBER`, `settings show rules` | one setting's value whole, as the newest reads it, or a charter as held REVISION reads it; with `--json`, the value in the form `settings apply` takes. A REVISION no longer held exits 2, `temper ctl: revision R is no longer held; its record is in temper ctl revision show R, and the held ones in temper ctl settings show` | `setting{kind, number, revision}` |
-| `settings show landing-rule NUMBER [--project PROJECT]`, `settings show forge-charter` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or the forge's charter; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
+| `settings show landing-rule NUMBER [--project PROJECT]`, `settings show forge-charter NUMBER` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
 | `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, temper's kinds' items with their sizes alone, their past values not kept; a revision forgotten past the history names the oldest kept | `revision{n}` |
 | `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
@@ -346,7 +346,8 @@ agent must name.
   `{"kind": "charter"|"template"|"policy", "number": N}`,
   `{"kind": "rules"}`, `{"kind": "landing-rule", "number": N}` for the
   deployment's, `{"kind": "landing-rule", "project": P, "number": N}`
-  for project P's, or `{"kind": "forge-charter"}`; VALUE is exactly the
+  for project P's, or `{"kind": "forge-charter", "number": N}`, N 1
+  the change's charter and 2 its reviews'; VALUE is exactly the
   `value` member `settings show … --json` prints: for a landing rule, section
   3's rule member as `temper.json` wrote it (`../protocol/configuration.md`,
   13.2), for the forge's charter a charter's number. Decoded bounded (6.4): the file's size, the item count and every
@@ -781,6 +782,13 @@ The table grows area by area, each with its stories (section 11).
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
      LLM choice, the charter's default without them (jig's
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
+     Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
+     the choice's sub-agents in the order given (jig's
+     `protocol/configuration.md`, 3.1), a model at most once, its effort
+     required where the model declares efforts as `--model`'s is; given,
+     they replace the template's sub-agents whole, and they need
+     `--model`. Without them the choice keeps the template's sub-agents,
+     or names none.
      The bracket applies only to a model with no declared efforts: when
      a model declares efforts, `--effort EFFORT` is required, naming one
      of them. An amendment replaces the main choice whole; its effort is

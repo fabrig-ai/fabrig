@@ -85,7 +85,7 @@ pub const TOOLS: &[&Tool] = &[
     &rows::EXPORT,
     &rows::IMPORT,
     &rows::SETTINGS,
-    &rows::SETTING,
+    &crate::settings::SETTING,
     &rows::REVISION,
     &rows::REVISIONS,
     &rows::CHANGE_SETTINGS,

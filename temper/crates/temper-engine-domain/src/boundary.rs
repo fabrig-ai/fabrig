@@ -125,6 +125,16 @@ pub struct ForgeWorkspace {
     pub repositories: Box<[ForgeRepository]>,
 }
 
+/// A decoded value of temper's settings kinds, retained for its request's decision
+/// (temper/docs/design/domain/root.md, 5.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct KindValue {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub value: forge::settings::SizedValue,
+}
+
 /// One typed engine tool request from the current worker claim
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -132,7 +142,12 @@ pub enum Tool {
     /// Read settings without retaining a named-call record.
     Settings { read: jig_domain_core::SettingsRead, from: u32 },
     /// Propose whole settings to the deployment's owners.
-    ProposeSettings { against: u32, items: Box<[jig_domain_core::settings::Item]>, reason: Box<[u8]> },
+    ProposeSettings {
+        against: u32,
+        items: Box<[jig_domain_core::settings::Item]>,
+        reason: Box<[u8]>,
+        kinds: Box<[KindValue]>,
+    },
     /// Write or correct one scoped note by the revision this run recalled.
     Note { entry: jig_domain_notes::New, recalled: Option<u32> },
     /// Read one bounded page of notes by name or description.
@@ -200,6 +215,22 @@ pub struct ChangeCall {
     pub after: Box<[ChangeAfter]>,
     pub questions: Option<ChangeQuestions>,
     pub repairs: Option<skein_forge::api::Commit>,
+    pub producer: Option<u32>,
+    pub llm: ChangeLlm,
+}
+
+/// A change's LLM choices by role (domain/agent.md, 4.3.1; domain/forge.md, 8.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ChangeLlm {
+    pub producer: Option<tasks::LlmChoice>,
+    pub review: Option<tasks::LlmChoice>,
+}
+
+#[expect(clippy::derivable_impls, reason = "the Default derive is banned; a change names neither role by default")]
+impl Default for ChangeLlm {
+    fn default() -> Self {
+        Self { producer: None, review: None }
+    }
 }
 
 impl ChangeCall {
@@ -213,6 +244,8 @@ impl ChangeCall {
             branch: None,
             merge: None,
             after: Box::new([]),
+            producer: None,
+            llm: ChangeLlm::default(),
             questions: None,
             repairs: None,
         }
@@ -491,6 +524,18 @@ pub enum ApplicationAnswer {
     Reachable(forge::ReachableAnswer),
     Returning,
 }
+/// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ForgeRead {
+    Setting { kind: u32, scope: u32, number: u32 },
+    ProposalItems { key: u64 },
+}
+/// Typed answers from the forge's held settings, encoded at the clients' boundary.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ForgeReadAnswer {
+    Setting(Option<forge::settings::SizedValue>),
+    ProposalItems(Box<[(forge::settings::SettingKey, forge::settings::Edit)]>),
+}
 #[derive(Debug)]
 pub enum PartyInput {
     /// Resolve a sign-in through the people child for provider authorization.
@@ -505,6 +550,7 @@ pub enum PartyInput {
         key: [u8; 16],
         digest: [u8; 32],
         change: Box<core::settings::Proposed>,
+        kinds: Box<[KindValue]>,
     },
     /// A direct owner settings change, decided by jig.
     ChangeSettings {
@@ -513,6 +559,7 @@ pub enum PartyInput {
         key: [u8; 16],
         digest: [u8; 32],
         change: Box<core::settings::Change>,
+        kinds: Box<[KindValue]>,
     },
     /// End one authenticated sign-in through the people child (ruling 116).
     SignOut {
@@ -584,6 +631,13 @@ pub enum PartyInput {
         reply_to: ReplyTo,
         sign_in: u64,
         read: core::reads::Read,
+    },
+    /// The forge's typed read, answered after preceding commits (client/forge.md, 9).
+    ForgeRead {
+        reply: ReplyTo,
+        sign_in: u64,
+        scope: people::ApplicationScope,
+        query: ForgeRead,
     },
     /// Watch one subject's whole document on a live sign-in.
     /// A forge panel uses `Watched::Application` in its project's scope, the
@@ -796,12 +850,14 @@ pub(crate) enum Work {
     StartDone(jig_domain_core::start::Phase),
     Start(jig_domain_core::start::Action),
     Decoded { to: ReplyTo, body: Call },
+    ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
     Tasks(tasks::Event),
     People(people::Event),
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),
     Forge(forge::Event),
+    ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
@@ -918,6 +974,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Application { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
+        | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }

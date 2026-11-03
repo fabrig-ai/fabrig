@@ -277,7 +277,13 @@ from here (forge.md, 2.2). Each:
 **`landing`:** the deployment's and the projects' landing rules, the
 root's `LandingPolicy`. Leaving the document: section 13 makes them
 settings in the store, temper's kinds 1 and 2; until its second step
-(13.6), they are configured here.
+(13.6), they are configured here. From that step until kinds 4 and 5
+are built, `landing` keeps `projects` alone, each entry its `project`,
+`by`, `gates` and the turn's and the tiers' project settings below, and
+no `rules`: a `deployment` member, or a project's `rules`, is refused
+as section 13.5 says, naming kind 1 or 2. That rest feeds the root's
+projects' landings (`Config.landings`), the ways and checks
+`../domain/landing.md`, 13.1 moves to kinds 4 and 5.
 
 ```
 "landing": {
@@ -1516,8 +1522,17 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
     `forge.change_policy.gates`, or a gate's number twice; with an
     approval of no people, or a role twice, or one past
     `authority.roles`;
-  - *the forge's charter* outside 1 to jig's `tasks.charters`;
-  - *a project's questions* that is not one of the three routes.
+  - *the forge's charter* outside 1 to jig's `tasks.charters`, or
+    removed: the forge always has all three charters, and an owner who
+    wants the stock's back resets it;
+  - *a project's questions* that is not one of the three routes;
+  - *any item* whose value is not its kind's (a rule for
+    kind 1 or 2, a charter's number for kind 3), or whose kind, scope or number
+    the table above does not have.
+  An item that leaves its setting as it is (a value equal to the
+  stored change's, a removal of a setting already removed, a reset of
+  one with no change) the forge answers as the same, which jig records
+  as no change of it (jig's `domain/connectors.md`, section 17).
   Whether a project's policy has an approval's role is not the forge's
   to know: a rule naming a role nobody holds is accepted, and the
   review page says so (`../client/README.md`, 5.13); a change it covers
@@ -1555,10 +1570,13 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   always current (`../draft/configuring.md`, section 4).
 - **The forge's charters are read when a change is made.** The forge
   reads its own kind 3, as it holds it, and the root grants the
-  change's procedure delegation to each of its charters. The change
-  keeps their numbers on its row: its producing, its repairs, its
-  resolutions and its checks' gates run under the change's charter it
-  was made with (number 1), its agents' gates, the reviews, under the
+  change's procedure delegation to its producer's charter, its
+  review charter and, when requested, its foreman's charter. Its producer's charter is the one its `change` call
+  names (`../domain/agent.md`, 4.3.1), or, with none, the change's
+  charter (number 1), its default. The change keeps their numbers on
+  its row: its producing, its repairs, its resolutions and its checks'
+  gates run under the producer's charter it was made with, its agents'
+  gates, the reviews, under the
   review charter it was made with (number 2; the stock's charter 4,
   fixed by the binary, until 13.6's step 2), its foremen under the
   foreman's charter it was made with (number 3; the stock's charter 6,
@@ -1835,9 +1853,14 @@ side never waits on the part of jig it does not use:
    revision.
 2. **temper's kinds,** on jig's application settings (jig's
    `domain/engine.md`, 17.5): kinds 1 to 3 (13.2), judged by the
-   forge; `application.landing` and `charter` refused; 13.3's two
+   forge; `application.landing`'s rules and `charter` refused; 13.3's two
    standing requirements in the rules, and policy 1 without
-   requirements, as 13.4 has them.
+   requirements, as 13.4 has them. `application.landing` keeps its
+   projects' ways, checks and tiers (section 3) until kinds 4 and 5;
+   the document's checks that read a landing rule's approvals' roles go
+   with the rules, the forge judging a rule as 13.2 says. Its writers
+   (13.5) move with it: their landing rules become stock or a world's
+   defaults, or a settings file applied after the start.
 3. **The configuring agent:** charter 3 and template 3 (13.4), with
    the run's `settings` tools (`../domain/agent.md`, 4.3), and the
    rules' delegation to charter 3. A deployment made before takes them
@@ -2010,9 +2033,50 @@ that changes the stock changes nothing of them.
   coordinator may ask its person through a person task (jig's
   `domain/people.md`, section 8), and jig's notes family beside it, so
   that it notes what it learns, then applied whole. Charter 5 is the
-  deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives
-  the box, and two more executors in the delegation with role 0, within
-  its 8 `authority.executors` and `tasks.executor_kinds`.
+  deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives the box;
+  it and the merge kind are two more executors in the delegation, eight
+  with the stock's six, within the 8 `authority.executors` and
+  `tasks.executor_kinds` 13.4 gives the box.
+- **Designers and the cut** (`../draft/reference-code-production.md`,
+  sections 3, 5 and 12): the same file's later edition adds
+  - *charter 7, the designer's:* instructions to write one family's
+    design into the goal's branch where the project keeps it (here
+    `docs/design`: the sections the family's work meets, the status file
+    beside each document with a Not yet for each gap between them and the
+    code, its Later for what the family leaves out, and the entries it
+    closes in the draft's status), never the draft's own text; to cite by
+    path and section; to survey with sub-agents where it judges it worth
+    it; to ask its requester with `message` only what the draft does not
+    settle; to push and finish with a report listing the family's
+    changes, a few lines each: a name, the design sections and status
+    entries it closes, what it owns, its dependencies and its effort; for
+    a revision, the sections revised and the live changes they concern;
+    for the close-out, the status files, the Later sections and the
+    draft's fate. Claude Code's model at Opus 5.5, its sub-agents
+    the same; inspect, modify and sub-agents; the workers; its runs
+    starting fresh, waiting 0, a run sized for a family's design;
+    documents: the design rules (`DESIGN.md`, whole) and `AGENTS.md`'s
+    "1. In one page", on the home repository's `main` (13.7);
+  - *charter 5's second edition:* the cut as the draft's section 5 has
+    it (S, the shared design, a designer's change; one designer's change
+    per family after S; the changes it specifies itself), each family's
+    batch on its designer's result, a revision of the design as a
+    designer's change followed by amendments of the live changes it
+    concerns, and the close-out, X, a designer's change, before its
+    report; each change's `producer` and `llm` (`../domain/agent.md`,
+    4.3.1): a designer's change `"producer": 7` at the template's LLM
+    choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high; a
+    coding change the coding agent's charter, its default, at
+    gpt-6.1-sol and the spec's effort, high or medium, on smith's direct
+    backend with an OpenAI account's key (N20); its documents:
+    `AGENTS.md`'s "1. In one page" and the code's rules, skein's
+    `docs/foundation/programming-model.md`'s "1. In one page", on the
+    home repository's `main`.
+  Charter 7 joins the rules' and policy 1's delegation as charter 5 did;
+  it is the deployment's seventh charter, so the walk's document sets
+  jig's `tasks.charters` to 8, its executors within the 8 13.4 gives.
+  Each document names the forge's host, owner and repository the walk's
+  document fills in, as `landing.json`'s rules do.
 - **The landing rules,** until 13.6's second step, are the document's
   `application.landing` (section 3): `docs/examples/reference/landing.json`
   is that member's value, which the walk's document carries, with its

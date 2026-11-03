@@ -1154,6 +1154,7 @@ fn notes_new_work(event: &notes::Event) -> bool {
     }
 }
 
+#[expect(clippy::match_same_arms, reason = "application settings placeholders have their own arm")]
 fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
     match event {
         crate::effects::connector::Event::Resource { .. }
@@ -1172,6 +1173,8 @@ fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
         | crate::effects::connector::Event::Adopted { .. }
         | crate::effects::connector::Event::Closed { .. }
         | crate::effects::connector::Event::RestartDone { .. } => false,
+        &crate::effects::connector::Event::SettingsJudged { .. }
+        | &crate::effects::connector::Event::SettingsDefaults { .. } => false,
     }
 }
 

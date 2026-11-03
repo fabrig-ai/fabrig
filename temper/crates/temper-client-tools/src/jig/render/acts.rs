@@ -273,6 +273,11 @@ pub fn party(number: u64, me: Option<&Me>, out: &mut Text) {
 }
 pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     match why {
+        Refusal::Judged { why, .. } => {
+            out.put(b"refused by its owner: ");
+            out.put(why.bytes());
+            return;
+        }
         Refusal::Stale(value) => {
             settings_form::refusal(&settings_form::Refusal::Stale(value.newest), out);
             return;
@@ -353,6 +358,7 @@ fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         Refusal::Stale(_) | Refusal::Full(_) => {
             unreachable!("the tools do not request settings")
         }
+        Refusal::Judged { why, .. } => book.say(0, word.id(), &[Hole::Name(why.bytes().into())]),
         Refusal::Account { account, .. } => book.say(0, word.id(), &[Hole::Number(u64::from(*account))]),
         Refusal::Taken { by } => book.say(0, word.id(), &[Hole::Number(*by)]),
         Refusal::Llm { model, .. } => book.say(0, word.id(), &[Hole::Name(model.bytes().into())]),

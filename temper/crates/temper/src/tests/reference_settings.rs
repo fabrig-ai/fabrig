@@ -1,15 +1,17 @@
 //! The reference's settings file (temper/docs/design/protocol/configuration.md, 13.9).
 use settings_form::view::{
-    ResultsWake, Setting, SettingEdit, SettingItem, SettingNumber, SettingValue, TemplateExecutor, WakePolicy, WakeRule,
+    CharterDocument, ResultsWake, Setting, SettingEdit, SettingItem, SettingNumber, SettingValue, TemplateExecutor,
+    WakePolicy, WakeRule,
 };
-use skein_lib::{Duration, List};
+use skein_lib::{Duration, List, bytes};
 
 const COORDINATOR: u32 = 5;
+const DESIGNER: u32 = 7;
 const CODER: u32 = 2;
 const FOREMAN: u32 = 6;
 const GOAL: u32 = 4;
-// The reference supplies three charters and one template.
-const ITEMS: u32 = 4;
+// The reference supplies four charters, one template and two landing rules.
+const ITEMS: u32 = 7;
 // temper-init/template/agent.json's profile.policy.max_turns.
 const TURNS: u32 = 16;
 
@@ -23,7 +25,21 @@ fn value(items: &List<SettingItem>, setting: Setting) -> &SettingValue {
     panic!("missing reference setting {setting:?}");
 }
 
+fn documents(documents: &List<CharterDocument>, first_path: &[u8], first_heading: Option<&[u8]>, second_path: &[u8]) {
+    assert_eq!(documents.len(), 2);
+    for (document, (path, heading)) in
+        documents.iter().zip([(first_path, first_heading), (second_path, Some(b"1. In one page".as_slice()))])
+    {
+        assert_eq!(document.path.as_ref(), path);
+        assert_eq!(document.heading.as_deref(), heading);
+    }
+}
+
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one reference fixture checks designer choices and catch-up instructions together"
+)]
 fn the_reference_settings_file_decodes() {
     let items = settings_form::file::decode(
         include_bytes!("../../../../docs/examples/reference/settings.json"),
@@ -33,6 +49,7 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(items.len(), ITEMS);
     for (number, model) in [
         (COORDINATOR, b"claude-opus-5-5".as_slice()),
+        (DESIGNER, b"claude-opus-5-5".as_slice()),
         (CODER, b"gpt-6.1-sol".as_slice()),
         (FOREMAN, b"gpt-6.1-sol".as_slice()),
     ] {
@@ -45,11 +62,28 @@ fn the_reference_settings_file_decodes() {
         assert_eq!(charter.hosts, settings_form::view::SettingHosts::Workers);
         assert_eq!(charter.turns, TURNS);
         assert_eq!(charter.time, Duration::from_secs(1800));
+        if number != CODER && number != FOREMAN {
+            assert!(!charter.resume());
+            assert_eq!(charter.waiting, Duration::ZERO);
+        }
     }
     let SettingValue::Charter(coordinator) = value(&items, Setting::Charter(SettingNumber { number: COORDINATOR }))
     else {
         panic!("coordinator charter")
     };
+    documents(
+        &coordinator.documents,
+        b"AGENTS.md",
+        Some(b"1. In one page"),
+        b"skein/docs/foundation/programming-model.md",
+    );
+    assert!(bytes::find(coordinator.instructions.bytes(), b"\"producer\": 7").is_some());
+    assert!(bytes::find(coordinator.instructions.bytes(), b"close-out").is_some());
+    assert!(
+        std::str::from_utf8(coordinator.instructions.bytes())
+            .expect("coordinator instructions are UTF-8")
+            .contains(r#""branch": "mine""#)
+    );
     let instructions =
         std::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions are UTF-8");
     assert!(instructions.contains(r#""branch": "mine""#));
@@ -84,10 +118,26 @@ fn the_reference_settings_file_decodes() {
             timers: true,
         }
     );
+    let SettingValue::Charter(designer) = value(&items, Setting::Charter(SettingNumber { number: DESIGNER })) else {
+        panic!("designer charter")
+    };
+    assert_eq!(designer.model, coordinator.model);
+    assert!(designer.inspect());
+    assert!(designer.modify());
+    assert!(!designer.shell());
+    assert!(designer.agents());
+    assert_eq!(designer.reserve_turns, coordinator.reserve_turns);
+    assert_eq!(designer.reserve_time, coordinator.reserve_time);
+    assert_eq!(designer.call_timeout, coordinator.call_timeout);
+    assert_eq!(designer.spend, coordinator.spend);
+    assert_eq!(designer.wake, WakePolicy::DEFAULT);
+    documents(&designer.documents, b"DESIGN.md", None, b"AGENTS.md");
+    assert!(bytes::find(designer.instructions.bytes(), b"Not yet").is_some());
     let SettingValue::Charter(coder) = value(&items, Setting::Charter(SettingNumber { number: CODER })) else {
         panic!("coding charter")
     };
     assert_eq!(coder.wake, WakePolicy::DEFAULT);
+    assert!(coder.documents.is_empty());
     assert!(coder.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/coding.txt")));
     assert!(
         std::str::from_utf8(coder.instructions.bytes())
@@ -118,4 +168,37 @@ fn the_reference_settings_file_decodes() {
     let llm = goal.llm.as_ref().expect("goal model choice");
     assert_eq!(llm.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(llm.main.effort.as_ref().expect("coordinator effort").bytes(), b"xhigh");
+}
+
+#[test]
+fn the_reference_sets_main_and_goal_branch_landing_rules() {
+    use temper_engine_domain_forge::{GateLast, settings};
+    let items = settings_form::file::decode(
+        include_bytes!("../../../../docs/examples/reference/settings.json"),
+        &temper_client_tools::limits::form(),
+    )
+    .expect("reference settings");
+    for (number, last, checks) in
+        [(1, GateLast::Exact(b"main".as_slice().into()), true), (2, GateLast::Open(b"temper".as_slice().into()), false)]
+    {
+        let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 1, scope: 0, number }) else {
+            panic!("reference landing rule")
+        };
+        let value = temper_engine_smith::kinds::decode(
+            1,
+            bytes,
+            &temper_engine_smith::kinds::Bounds { segments: 8, segment_bytes: 64, gates: 4, approvals: 4 },
+        )
+        .expect("reference rule codec");
+        let settings::Value::Rule(rule) = value.value else { panic!("rule value") };
+        assert_eq!(
+            rule.pattern.segments.as_ref(),
+            [b"forge".as_slice(), b"127.0.0.1:3000", b"acme", b"widget", b"branch"].map(Box::from)
+        );
+        assert_eq!(rule.pattern.last, last);
+        assert!(rule.enforce);
+        assert_eq!((rule.ci, rule.up_to_date), (checks, checks));
+        assert!(rule.gates.is_empty());
+        assert!(rule.approvals.is_empty());
+    }
 }

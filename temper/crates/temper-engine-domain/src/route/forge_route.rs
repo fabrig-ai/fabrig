@@ -17,6 +17,7 @@ pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
+mod change_llm;
 mod tier_route;
 pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
@@ -1312,7 +1313,9 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ProposalFailed { .. }
             | Work::EndedLoaded { .. }
             | Work::TaskProposalLoaded { .. }
-            | Work::EndedFailed { .. } => {}
+            | Work::EndedFailed { .. }
+            | Work::ForgeSettings(_)
+            | Work::ForgeRead { .. } => {}
         }
     }
     let Some(members) = goal_members(domain, env, goal, &topic, previous.as_ref()) else { return };
@@ -1789,27 +1792,13 @@ fn pull_what(number: Option<u64>) -> Option<forge::What> {
     }
 }
 
-/// Project landing gates are procedure gates before they become effect requirements.
-fn gate_required(domain: &Domain, project: u32, name: &authority::Name, parameters: u32, project_scope: bool) -> bool {
-    domain.core.connector_gate_required(project, domain.config.forge_connector, name, parameters, project_scope)
-}
-
 fn configured_gates(
     domain: &Domain,
     env: &Env<Limits>,
     repository: &forge::Repository,
     base: &[u8],
 ) -> Option<Box<[forge_change::Gate]>> {
-    let what = branch_what(base, env.limits.forge.name_bytes)?;
-    let name = resource_name(repository, &what, env.limits.authority.segments)?;
-    let candidates = domain.forge.gate_candidates(&env.limits.forge, repository.project, &name.segments)?;
-    let mut required = List::with_capacity(u32::try_from(candidates.len()).ok()?);
-    for candidate in &candidates {
-        required
-            .push(gate_required(domain, repository.project, &name, candidate.parameters, candidate.project_scope))
-            .ok()?;
-    }
-    domain.forge.configured_gates(&env.limits.forge, repository, &candidates, required.as_slice())
+    domain.forge.held_gates(&env.limits.forge, repository, base)
 }
 
 fn landing_reviewers(
@@ -2073,6 +2062,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut body = None;
     let mut priority = 0_i32;
     let mut base_repair = false;
+    let mut producer = None;
+    let mut llm = crate::ChangeLlm::default();
     let mut route = forge_change::Route::None;
     let mut requester_branch = false;
     let mut repairs = None;
@@ -2094,6 +2085,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority = number;
             }
             tasks::Parameter::Number { name: 9, value: 1 } => base_repair = true,
+            tasks::Parameter::Bytes { name: 11, value } => {
+                let Some(choices) = change_llm::read(value) else { return false };
+                (producer, llm) = choices;
+            }
             tasks::Parameter::Number { name: 14, value: 1 } => route = forge_change::Route::Foreman,
             tasks::Parameter::Number { name: 14, value: 2 } => route = forge_change::Route::Up,
             tasks::Parameter::Number { name: 11, value: 1 } => requester_branch = true,
@@ -2208,8 +2203,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 base_repair,
                 queue_repair: None,
                 queue_repairs: 0,
-                producing_charter: domain.config.forge_charter,
-                review_charter: 4,
+                producing_charter: producer.unwrap_or(domain.forge.charters().change),
+                review_charter: domain.forge.charters().review,
+                producing_llm: llm.producer,
+                review_llm: llm.review,
                 foreman_charter: FOREMAN_CHARTER,
                 questions: forge_change::Questions { route, taken: 0, open: Box::new([]) },
                 effect_account: None,
@@ -2481,6 +2478,8 @@ pub(crate) fn change_batch(
                 || change.questions.is_some()
                 || change.repairs.is_some()
                 || change.merge.is_some()
+                || change.producer.is_some()
+                || change.llm != crate::ChangeLlm::default()
         }
         _ => true,
     };
@@ -2493,7 +2492,7 @@ pub(crate) fn change_batch(
         let words: &[u8] = if merge {
             b"change's merge is a plan's: this task's authority lacks the control family (amend, cancel, release)."
         } else {
-            b"change's landing, branch, name, after, questions, repairs and changes are a plan's: this task's authority lacks the control family (amend, cancel, release)."
+            b"change's landing, branch, name, after, questions, repairs, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release)."
         };
         return Err(ChangeRefused::Words(Box::from(words)));
     }
@@ -2761,6 +2760,17 @@ fn chat_change(
     branch: Option<Box<[u8]>>,
     spend: u64,
 ) -> Result<super::Delegate, tasks::Refusal> {
+    let producer_charter = change.producer.unwrap_or(domain.forge.charters().change);
+    let review_charter = domain.forge.charters().review;
+    if domain.core.charter(producer_charter).is_none() || domain.core.charter(review_charter).is_none() {
+        return Err(tasks::Refusal::Executor);
+    }
+    if let Some(choice) = &change.llm.producer {
+        domain.core.tasks.check_llm(producer_charter, context.authority.models, choice)?;
+    }
+    if let Some(choice) = &change.llm.review {
+        domain.core.tasks.check_llm(review_charter, context.authority.models, choice)?;
+    }
     // The procedure takes a task and a level, and its producer another of each; with none at
     // all, the delegation's own admission names the missing authority.
     if context.tasks_left == 1 {
@@ -2774,10 +2784,10 @@ fn chat_change(
     }
     let mut authority = context.authority.clone();
     authority.grants = change_grants(domain, env, repository, &authority.grants)?;
-    let mut kinds = List::with_capacity(4);
-    kinds.push(tasks::AuthorityExecutor::Charter(domain.config.forge_charter)).expect("producer kind");
-    if domain.config.forge_charter != 4 {
-        kinds.push(tasks::AuthorityExecutor::Charter(4)).expect("review kind");
+    let mut kinds = List::with_capacity(5);
+    kinds.push(tasks::AuthorityExecutor::Charter(producer_charter)).expect("producer kind");
+    if producer_charter != review_charter {
+        kinds.push(tasks::AuthorityExecutor::Charter(review_charter)).expect("review kind");
     }
     let foreman = change.questions == Some(crate::ChangeQuestions::Foreman);
     if foreman && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)) {
@@ -2824,6 +2834,13 @@ fn chat_change(
         if !title.is_empty() && parameters.push(tasks::Parameter::Bytes { name: 10, value: title.into() }).is_err() {
             return Err(tasks::Refusal::Spec);
         }
+    }
+    if (change.producer.is_some() || change.llm != crate::ChangeLlm::default())
+        && parameters
+            .push(tasks::Parameter::Bytes { name: 11, value: change_llm::spell(change.producer, &change.llm) })
+            .is_err()
+    {
+        return Err(tasks::Refusal::Spec);
     }
     let route = match change.questions {
         Some(crate::ChangeQuestions::Foreman) => Some(1),
@@ -2909,6 +2926,7 @@ fn change_recovery(domain: &Domain, task: u64) -> Option<forge_change::Authority
 
 fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpend> {
     let context = domain.core.tasks.delegation(task)?;
+    let row = domain.forge.change(task)?;
     let left = context
         .numbers
         .budget
@@ -2918,10 +2936,8 @@ fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpen
     Some(forge_change::DelegateSpend {
         recovery: change_recovery(domain, task)?,
         left,
-        coding: jig_domain_core::reserve_floor(&domain.core.charter(domain.config.forge_charter)?.policy)
-            .unwrap_or(u64::MAX),
-        review: jig_domain_core::reserve_floor(&domain.core.charter(domain.config.forge_charter)?.policy)
-            .unwrap_or(u64::MAX),
+        coding: jig_domain_core::reserve_floor(&domain.core.charter(row.producing_charter)?.policy).unwrap_or(u64::MAX),
+        review: jig_domain_core::reserve_floor(&domain.core.charter(row.review_charter)?.policy).unwrap_or(u64::MAX),
     })
 }
 
@@ -3019,17 +3035,19 @@ fn change_delegate(
         kind: 2,
         words: env.limits.tasks.result_bytes,
     };
-    let (executor, words, contract) = match kind {
+    let (executor, words, contract, llm) = match kind {
         forge_change::Delegate::Merge { .. } => return None,
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: row.producing_charter },
             production_words(domain, env, task, row)?,
             change_contract,
+            row.producing_llm.clone(),
         ),
         forge_change::Delegate::Repair(why) => (
             tasks::Executor::Agent { charter: row.producing_charter },
             repair_words(row, why, parameters.as_slice(), env.limits.tasks.spec_bytes)?,
             change_contract,
+            row.producing_llm.clone(),
         ),
         forge_change::Delegate::Resolve { base } => {
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
@@ -3037,6 +3055,7 @@ fn change_delegate(
                 tasks::Executor::Agent { charter: row.producing_charter },
                 resolution_words(row.merge_result.as_deref(), parameters.as_slice(), env.limits.tasks.spec_bytes)?,
                 change_contract,
+                row.producing_llm.clone(),
             )
         }
         forge_change::Delegate::Gate { number, head } => {
@@ -3069,6 +3088,11 @@ fn change_delegate(
                         },
                     ]),
                 },
+                match gate.kind {
+                    forge_change::GateKind::Agent => row.review_llm.clone(),
+                    forge_change::GateKind::Check => row.producing_llm.clone(),
+                    forge_change::GateKind::Person => None,
+                },
             )
         }
     };
@@ -3085,7 +3109,7 @@ fn change_delegate(
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
         wake: Some(tasks::WakePolicy::DEFAULT),
-        llm: None,
+        llm,
     })
 }
 
@@ -4941,6 +4965,13 @@ pub(crate) fn effect_ask(
         | jig_domain_core::effects::connector::Ask::Restore { .. }
         | jig_domain_core::effects::connector::Ask::ReadAfresh
         | jig_domain_core::effects::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
+        ask @ (jig_domain_core::effects::connector::Ask::JudgeSettings { .. }
+        | jig_domain_core::effects::connector::Ask::KeepSettings { .. }
+        | jig_domain_core::effects::connector::Ask::KeepProposalSettings { .. }
+        | jig_domain_core::effects::connector::Ask::DropProposalSettings { .. }
+        | jig_domain_core::effects::connector::Ask::SaveSettingsDefaults { .. }) => {
+            super::kinds::ask(domain, env, number, ask);
+        }
     }
 }
 

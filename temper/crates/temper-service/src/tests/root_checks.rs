@@ -197,22 +197,6 @@ fn permission_mappings_past_a_rows_bytes_refuse_the_start() {
     );
 }
 #[test]
-fn landing_rules_past_the_authoritys_requirements_refuse_the_start() {
-    let rule = r#"{"connector":1,"kind":4,"pattern":{"segments":["forge","127.0.0.1:9","acme","app"],"last":"open","value":"main"},"enforce":true,"ci":true,"up_to_date":true,"gates":[{"number":3,"blocking":true,"freshness":"exact"}],"approvals":[]}"#;
-    let document = engine_with(r#""authority.requirements":2"#);
-    let deployment = fixtures::with(&document, b"application.landing.deployment", format!("[{rule}]").as_bytes());
-    let deployment = fixtures::with(&deployment, b"application.landing.projects", b"[]");
-    assert_eq!(
-        &*started(&deployment),
-        b"application.landing.deployment: must agree with root.journal.transcript_bytes, authority.requirements, forge.judge_criteria and forge.change_policy.gates\n"
-    );
-    let project = fixtures::with(&document, b"application.landing.projects[0].rules", format!("[{rule}]").as_bytes());
-    assert_eq!(
-        &*started(&project),
-        b"application.landing.projects[0].rules: must agree with root.journal.transcript_bytes, authority.requirements, forge.judge_criteria and forge.change_policy.gates\n"
-    );
-}
-#[test]
 fn forges_past_the_clients_op_bytes_refuse_the_start() {
     let mut limits = root_limits();
     limits.forge.client.op_bytes = 1;
@@ -241,23 +225,12 @@ fn configured_worker_name_past_membership_names_its_startup_path() {
 }
 
 #[test]
-fn a_joined_policy_past_its_bytes_returns_problems_before_construction() {
-    // Project 7 is document entry 0. The parsed policy (272 bytes) still fits
-    // 512; joining all three enforced requirements is the admission failure.
+fn landing_rules_do_not_enlarge_the_seed_policy() {
+    // Project 7 is document entry 0. Its policy fits without landing criteria.
     let document =
         fixtures::with(&fixtures::document(), b"engine.limits.overrides", format!("{{{ENGINE_OVERRIDES}}}").as_bytes());
     let document = fixtures::with(&document, b"engine.projects[0].number", b"7");
     let document = fixtures::with(&document, b"application.landing.projects[0].project", b"7");
-    let document = fixtures::with(
-        &document,
-        b"application.landing.projects[0].rules[0].gates",
-        br#"[{"number":3,"blocking":true,"freshness":"exact"}]"#,
-    );
-    let document = fixtures::with(
-        &document,
-        b"application.landing.projects[0].rules[0].approvals",
-        br#"[{"role":0,"people":1,"freshness":"clean"}]"#,
-    );
     // The old small inline form is jig's input only; this guard takes typed values.
     let mut engine = fixtures::guard_engine();
     engine.jig = fixtures::parse_engine(&fixtures::with(fixtures::ENGINE, b"projects", fixtures::INLINE_PROJECTS));
@@ -278,13 +251,13 @@ fn a_joined_policy_past_its_bytes_returns_problems_before_construction() {
         &mut found,
     )
     .unwrap();
-    engine.landing = application.landing;
+    engine.landings = application.landings;
     let seeds = fixtures::seeds();
     let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
     let mut limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     limits.policy_bytes = 512;
     checks::root(core, &engine, &seeds, &application.landing_projects, &limits, &mut found);
-    assert_eq!(lines(&found).as_ref(), b"engine.projects[0].policy.bytes: 761 bytes, past core.policy_bytes of 512\n");
+    assert!(found.is_empty(), "{}", String::from_utf8_lossy(&lines(&found)));
 }
 
 #[test]

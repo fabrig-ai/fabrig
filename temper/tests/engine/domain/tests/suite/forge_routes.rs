@@ -20,6 +20,8 @@ use temper_engine_domain_world::{protocol, walking};
 
 use temper_engine_forge_world::{self as forge_world, translate};
 
+#[path = "forge_routes/kind_charters.rs"]
+mod kind_charters;
 #[path = "forge_routes/resource_admission.rs"]
 mod resource_admission;
 
@@ -92,6 +94,9 @@ mod goal_branch;
 
 #[path = "forge_routes/goal_changes.rs"]
 mod goal_changes;
+
+#[path = "forge_routes/change_producer.rs"]
+mod change_producer;
 
 #[path = "forge_routes/early_start.rs"]
 mod early_start;
@@ -576,7 +581,7 @@ fn a_change_to_a_repository_without_ci_lands_on_its_checks() {
 }
 
 #[test]
-fn an_owner_adds_a_branch_requirement_and_later_changes_wait_for_it() {
+fn a_projects_own_enforced_rule_holds_landing_for_its_gate() {
     check_gate_landing(false, true);
 }
 
@@ -620,7 +625,7 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
                 Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )),
-            "the owner-added review holds landing until its verdict"
+            "the project's rule holds landing until its verdict"
         );
     }
     assert!(

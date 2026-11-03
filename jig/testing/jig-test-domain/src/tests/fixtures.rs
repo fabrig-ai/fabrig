@@ -141,6 +141,7 @@ pub fn domain() -> Domain {
                         }]),
                     },
                 },
+                kinds: Box::default(),
                 defaults: core::settings::Defaults {
                     charters: Box::new([core::Charter {
                         wake: jig_domain_tasks::WakePolicy::DEFAULT,

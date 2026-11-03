@@ -10,7 +10,7 @@ mod tests;
 mod facts;
 pub use facts::{
     Again, Bound, CeilingDimension, CeilingHolder, DependencyStatus, Ending, EndingParty, Exceeded, FailureClass,
-    HoldReason, Lack, LimitKind, Moved, Refusal,
+    HoldReason, Lack, LimitKind, Moved, Refusal, Setting,
 };
 
 use skein_lib::{Duration, Rng, Time, Wall};

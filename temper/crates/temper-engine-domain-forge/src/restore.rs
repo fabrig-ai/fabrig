@@ -12,6 +12,9 @@ pub enum RestoreSet {
     NamedAnswerRows,
     BindingAddressBytes,
     BindingSubjectBytes,
+    SettingGates,
+    SettingApprovals,
+    SettingSegments,
     ChangeTimers,
     ProjectionTimers,
     References,
@@ -265,6 +268,29 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.bindings.len(),
                 d.bindings.capacity(),
                 d.bindings.contains_key(address),
+            )
+        }
+        Stored::Setting(row) => {
+            if let crate::settings::Edit::Set(crate::settings::SizedValue {
+                value: crate::settings::Value::Rule(rule),
+                ..
+            }) = &row.edit
+            {
+                field(K::Setting, RestoreSet::SettingGates, count(rule.gates.len()), u64::from(l.change_policy.gates))?;
+                field(K::Setting, RestoreSet::SettingApprovals, count(rule.approvals.len()), u64::from(l.roles))?;
+                field(
+                    K::Setting,
+                    RestoreSet::SettingSegments,
+                    count(rule.pattern.segments.len()),
+                    u64::from(l.authority_segments),
+                )?;
+            }
+            room(
+                K::Setting,
+                Rows(K::Setting),
+                d.setting_rows.len(),
+                d.setting_rows.capacity(),
+                d.setting_rows.contains_key(&row.key),
             )
         }
         Stored::Flight { task, entry } => room(

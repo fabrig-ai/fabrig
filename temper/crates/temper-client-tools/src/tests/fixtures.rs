@@ -137,6 +137,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show"],
     &["settings", "show", "charter", "3"],
     &["settings", "show", "rules"],
+    &["settings", "show", "landing-rule", "1", "--project", "shop"],
+    &["settings", "show", "forge-charter", "1"],
     &["revision", "show", "5"],
     &["revision", "list"],
     &["settings", "apply", "FILE", "--against", "5", "--key", "settings-5"],
@@ -425,6 +427,7 @@ pub(crate) struct Harness {
     pub wall: Wall,
     pub limits: root::Limits,
     pub reads: BTreeMap<u32, (Token, c::Read)>,
+    pub family_reads: BTreeMap<u32, (Token, client::Readable)>,
     pub extra_reads: BTreeMap<u32, Queue<(Token, c::Read)>>,
     pub serving: Option<u32>,
     pub closed: List<client::Watchable>,
@@ -462,6 +465,7 @@ pub(crate) fn started_with_limits(
         wall: Wall::EPOCH,
         limits,
         reads: BTreeMap::new(),
+        family_reads: BTreeMap::new(),
         extra_reads: BTreeMap::new(),
         serving: None,
         closed: List::with_capacity(OUTPUTS),
@@ -514,6 +518,18 @@ impl Harness {
                         self.extra_reads.entry(call).or_insert(Queue::with_capacity(OUTPUTS));
                         self.extra_reads.get_mut(&call).expect("read queue").push((read, what));
                     }
+                }
+                root::Request::Client {
+                    request:
+                        client::Request::Down {
+                            down: client::Down::Read { read, what: what @ client::Readable::Family { .. } },
+                        },
+                } => {
+                    let call = match self.serving {
+                        Some(call) => call,
+                        None => self.pending_reads.pop().expect("submitted family read"),
+                    };
+                    assert!(self.family_reads.insert(call, (read, what)).is_none(), "one family read per call");
                 }
                 root::Request::Client {
                     request: client::Request::Down { down: client::Down::Open { watch, subject } },
@@ -639,7 +655,10 @@ impl Harness {
         self.serve_readout(call, client::Readout::Jig(result));
     }
     pub fn serve_readout(&mut self, call: u32, result: client::Readout) {
-        let (token, _) = self.reads.remove(&call).expect("the call read once");
+        let token = match self.reads.remove(&call) {
+            Some((token, _)) => token,
+            None => self.family_reads.remove(&call).expect("the call read once").0,
+        };
         if let Some(reads) = self.extra_reads.get_mut(&call)
             && let Some(next) = reads.pop()
         {
@@ -760,7 +779,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 70;
+pub(super) const TOOL_FORMS: u32 = 72;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

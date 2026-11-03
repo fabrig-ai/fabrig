@@ -143,6 +143,8 @@ pub struct Config {
     pub grants: Box<[people::ActGrant]>,
     /// Configured authority and policy.
     pub defaults: settings::Defaults,
+    /// An application's kinds of settings (domain/engine.md, 17.5).
+    pub kinds: Box<[settings::Kind]>,
     /// Deployment and run settings retained by the core.
     pub settings: Settings,
     /// Projects used only by the first start (configuration.md, 3).
@@ -267,6 +269,8 @@ pub struct Core {
     pub(crate) ended_chats: Map<u64, inbox::EndedChat>,
     pub(crate) proposed_input: Option<Result<Box<settings::Proposal>, people::Malformed>>,
     pub(crate) settings_proposals: Map<(people::Proposer, u32), settings::Proposal>,
+    pub(crate) kinds: Box<[settings::Kind]>,
+    pub(crate) settings_judging: settings::application::Judging,
     pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32)>,
     pub(crate) key_input: Option<Carried>,
     pub(crate) application_input: Option<routing::application_routes::Input>,
@@ -445,7 +449,7 @@ impl Core {
             );
         }
         let fleet_needs = fleet_needs::configured(&config, limits);
-        let current = settings::Current::new(config.defaults, limits);
+        let current = settings::Current::new(config.defaults, limits, &config.kinds);
         for project in &config.seed_projects {
             assert!(
                 project.policy.templates.is_empty()
@@ -479,6 +483,8 @@ impl Core {
             proposed_input: None,
             settings_proposals: Map::with_capacity(limits.settings.proposals),
             settings_input: None,
+            settings_judging: settings::application::Judging::new(&config.kinds),
+            kinds: config.kinds,
             key_input: None,
             application_input: None,
             task_capacity_mark: 0,

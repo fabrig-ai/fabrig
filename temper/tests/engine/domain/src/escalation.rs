@@ -822,6 +822,7 @@ impl World {
             | Delivery::Link { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
+            | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }

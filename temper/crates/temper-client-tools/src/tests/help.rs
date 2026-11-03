@@ -63,7 +63,7 @@ const USAGES: &[&[u8]] = &[
     b"task activity TASK [--before CURSOR] [--limit COUNT]\n",
     b"task turn TASK TURN [--part PART] [--from OFFSET]\n",
     b"task run TASK [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] --key KEY\n",
+    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
     b"task message TASK TEXT --key KEY\n",
     b"chat close TASK [--move TASK]... [--reason TEXT] --key KEY\n",
     b"task answer TASK QUESTION TEXT [--key KEY]\n",
@@ -99,7 +99,7 @@ const USAGES: &[&[u8]] = &[
     b"account export ACCOUNT FILE\n",
     b"account import FILE --key KEY\n",
     b"settings show\n",
-    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\n",
+    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT]\nsettings show forge-charter NUMBER\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
     b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
@@ -324,6 +324,10 @@ fn the_project_reference_is_what_the_table_renders() {
 }
 
 #[test]
+fn the_chat_reference_is_what_the_table_renders() {
+    reference_matches(b"chat", b"ctl-chat");
+}
+#[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
 }
@@ -360,4 +364,13 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
         return;
     }
     assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
+}
+
+#[test]
+fn the_settings_reference_is_what_the_table_renders() {
+    reference_matches(b"settings", b"ctl-settings");
+}
+#[test]
+fn the_proposal_reference_is_what_the_table_renders() {
+    reference_matches(b"proposal", b"ctl-proposal");
 }

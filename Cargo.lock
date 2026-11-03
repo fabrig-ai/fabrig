@@ -4536,6 +4536,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-run",
  "smith-domain-session",
+ "temper-client-protocol-wire",
  "temper-client-tools",
  "temper-docs",
  "temper-engine-domain",
@@ -4936,6 +4937,7 @@ dependencies = [
  "temper-protocol-records",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
+ "temper-settings-form",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
@@ -4950,6 +4952,7 @@ dependencies = [
  "skein-codec",
  "skein-json",
  "skein-lib",
+ "temper-client-protocol-wire",
 ]
 
 [[package]]

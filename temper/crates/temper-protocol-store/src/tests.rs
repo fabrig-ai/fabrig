@@ -7,3 +7,5 @@ mod records;
 mod sizes;
 
 mod tiers;
+
+mod settings;

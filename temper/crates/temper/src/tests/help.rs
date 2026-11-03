@@ -339,12 +339,12 @@ fn tier_help_contains_a_complete_landing_configuration_example() {
     let example = fenced_lines(&text).into_iter().map(|(_, line)| line).collect::<Vec<_>>().join("\n");
     let example: serde_json::Value = serde_json::from_str(&example).expect("tier configuration JSON");
     let landing = &example["application"]["landing"];
-    assert!(landing["deployment"].is_array(), "deployment rules");
+    assert!(landing.get("deployment").is_none());
     let projects = landing["projects"].as_array().expect("landing projects");
     assert_eq!(projects.len(), 1);
     let project = &projects[0];
     assert_eq!(project["project"], 1);
-    assert!(project["rules"].is_array(), "project rules");
+    assert!(project.get("rules").is_none());
     assert_eq!(project["by"], "queue");
     assert_eq!(project["tier_retries"], 2);
     assert_eq!(project["verification_bound_ms"], 7_200_000);

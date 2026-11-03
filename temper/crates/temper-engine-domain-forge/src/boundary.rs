@@ -831,6 +831,9 @@ pub struct ChangeRow {
     /// Charter numbers captured when the change is made (protocol/configuration.md, 13.6).
     pub producing_charter: u32,
     pub review_charter: u32,
+    /// The LLM choices by role it was made with (domain/forge.md, 8.1 and 8.9).
+    pub producing_llm: Option<jig_domain_tasks::LlmChoice>,
+    pub review_llm: Option<jig_domain_tasks::LlmChoice>,
     /// The foreman's charter captured when made (domain/forge.md, 8.11).
     pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
@@ -1018,6 +1021,7 @@ pub enum CallPayload {
 }
 
 /// The connector's durable records, wrapped by the root store.
+#[expect(clippy::large_enum_variant, reason = "the durable change row keeps role choices and merge-job state inline")]
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Stored {
     /// The connector part of a live named call.
@@ -1075,6 +1079,8 @@ pub enum Stored {
         address: Box<[u8]>,
         subject: Box<[u8]>,
     },
+    /// The forge's kinds (temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge.md, 8.9).
+    Setting(crate::settings::SettingRow),
     /// A sent write not yet settled (domain/forge.md, 6; protocol/store.md, 2).
     Flight {
         task: u64,
@@ -1105,6 +1111,7 @@ pub struct ProposedEffect {
 }
 
 /// Stable store key of a connector record.
+/// The settings family is temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge.md, 8.9.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Call(NamedCall),
@@ -1125,6 +1132,7 @@ pub enum Key {
     Application(u64),
     Writer(u16),
     Binding(Box<[u8]>),
+    Setting(crate::settings::SettingKey),
     Flight { task: u64, entry: u64 },
     Landing(u64),
     Receipt(ReceiptKey),

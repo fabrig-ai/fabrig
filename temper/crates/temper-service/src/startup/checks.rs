@@ -626,38 +626,37 @@ fn index_of(numbers: &[u32], number: u32) -> usize {
     }
     index
 }
-fn landing_config(engine: &settings::Engine) -> domain::LandingPolicy {
-    let mut projects = Map::with_capacity(engine.landing.projects.capacity());
-    for (&project, rules) in &engine.landing.projects {
-        projects.insert(project, rules.clone()).expect("the same capacity");
-    }
-    let mut landings = Map::with_capacity(engine.landing.landings.capacity());
-    for (&project, landing) in &engine.landing.landings {
+fn landing_config(engine: &settings::Engine) -> Map<u32, domain::ProjectLanding> {
+    let mut landings = Map::with_capacity(engine.landings.capacity());
+    for (&project, landing) in &engine.landings {
         landings.insert(project, landing.clone()).expect("the same capacity");
     }
-    domain::LandingPolicy { deployment: engine.landing.deployment.clone(), projects, landings }
+    landings
 }
 
 /// What the root's construction asserts, refused before it is made, each
 /// naming the configuration that breaks it (domain/root.md, 6).
 pub fn root(
-    core: jig_domain_core::Config,
+    mut core: jig_domain_core::Config,
     engine: &settings::Engine,
     seeds: &settings::Seeds,
     landing_projects: &[u32],
     limits: &domain::Limits,
     problems: &mut Problems,
 ) {
-    let landing = landing_config(engine);
+    let landings = landing_config(engine);
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
+    if let Some(&connector) = core.connectors.first() {
+        core.kinds = crate::stock::kinds(limits, connector);
+    }
     let config = domain::Config {
+        kinds_stock: engine.kinds_stock.clone(),
         period_span: crate::stock::PERIOD_SPAN,
         playground: crate::system::playground_config(engine.demo.as_ref(), engine.limits.setup.deadline),
         core,
-        landing,
+        landings,
         forge,
         identities,
-        forge_charter: engine.charter,
         machine: Some(crate::system::machine_config(&engine.machine)),
         forges: Box::new([]),
         under_box: false,

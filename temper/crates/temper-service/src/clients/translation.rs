@@ -10,10 +10,22 @@ use temper_engine_domain as root;
 pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> {
     let value = match event {
         core::Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
-            root::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change }
+            let kinds = match kind_values(&change.items) {
+                Ok(kinds) => kinds,
+                Err(why) => {
+                    return Err(Box::new(kit::Event::Reply { to: reply_to, reply: people::Reply::Refused(why) }));
+                }
+            };
+            root::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change, kinds }
         }
         core::Event::ChangeSettings { reply_to, sign_in, key, digest, change } => {
-            root::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change }
+            let kinds = match kind_values(&change.items) {
+                Ok(kinds) => kinds,
+                Err(why) => {
+                    return Err(Box::new(kit::Event::Reply { to: reply_to, reply: people::Reply::Refused(why) }));
+                }
+            };
+            root::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds }
         }
         core::Event::SignIn { reply_to, identity, held } => root::PartyInput::SignedIn { reply_to, identity, held },
         core::Event::People(people::Event::Ask { reply_to, sign_in, key, ask, models }) => {
@@ -98,6 +110,36 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
     Ok(value)
 }
 
+/// Decode complete values at the schema ceilings before the root routes them
+/// (temper/docs/design/domain/root.md, 5.6).
+fn kind_values(items: &[core::settings::Item]) -> Result<Box<[root::KindValue]>, people::Refusal> {
+    use core::settings as s;
+    let ceilings = temper_client_protocol_wire::v1::CEILINGS;
+    let bounds = temper_engine_smith::kinds::Bounds {
+        segments: ceilings.landing_pattern_segments,
+        segment_bytes: ceilings.landing_pattern_segments_item,
+        gates: ceilings.landing_rule_gates,
+        approvals: ceilings.landing_rule_approvals,
+    };
+    let mut values = skein_lib::List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
+    for (index, item) in items.iter().enumerate() {
+        let s::Setting::Application { kind: kind @ 1..=3, scope, number } = item.setting else { continue };
+        let value = match &item.edit {
+            s::Edit::Removed | s::Edit::Reset => continue,
+            s::Edit::Set(s::Value::Application(bytes)) => temper_engine_smith::kinds::decode(kind, bytes, &bounds),
+            s::Edit::Set(_) => None,
+        };
+        let Some(value) = value else {
+            return Err(people::Refusal::NotWellFormed {
+                at: u32::try_from(index).expect("bounded item index").checked_add(1).expect("item count fits"),
+                why: people::Malformed::Settings { setting: item.setting, fault: people::SettingFault::Shape },
+            });
+        };
+        values.push(root::KindValue { kind, scope, number, value }).expect("one value per set item");
+    }
+    Ok(values.into_boxed())
+}
+
 /// One immediate or released output belonging to the clients' component.
 #[must_use]
 pub fn to_component(request: root::PartyRequest) -> Option<kit::Event> {
@@ -142,6 +184,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Fleet(_)
         | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
+        | root::Delivery::ForgeRead { .. }
         | root::Delivery::ReadLoad { .. }
         | root::Delivery::Drained
         | root::Delivery::Refuse { .. }
@@ -168,7 +211,7 @@ pub fn not_ready(input: root::PartyInput) -> Option<kit::Event> {
         | root::PartyInput::Application { reply_to, .. } => {
             Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
         }
-        root::PartyInput::Read { reply_to, .. } => {
+        root::PartyInput::ForgeRead { reply: reply_to, .. } | root::PartyInput::Read { reply_to, .. } => {
             Some(kit::Event::Read { reply: reply_to, answer: core::reads::Answer::None(core::reads::Why::Busy) })
         }
         root::PartyInput::Watch { watcher, .. } | root::PartyInput::WatchRun { watcher, .. } => {

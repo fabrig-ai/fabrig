@@ -190,7 +190,7 @@ impl World {
                 ceiling_grants.push(authority::Grant { kind: 13, ..grant.clone() }).expect("projection issue sets");
                 rules.ceiling.grants = ceiling_grants.into_boxed();
                 if let Some(freshness) = approval {
-                    let landing = Box::new([engine::LandingRule {
+                    let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                         connector: 0,
                         kind: 4,
                         enforce: true,
@@ -209,8 +209,9 @@ impl World {
                         gates: Box::new([]),
                         approvals: Box::new([engine::Approval { role: 2, people: 1, freshness }]),
                     }]);
-                    config.landing.deployment = landing.clone();
-                    assert!(config.landing.projects.insert(1, landing).is_ok());
+                    let mut projects = skein_lib::Map::with_capacity(1);
+                    projects.insert(1, landing.clone()).expect("one project landing rule");
+                    config.kinds_stock = engine::landing_stock(&landing, &projects, 1, 4);
                 }
                 if with_change {
                     rules.ceiling.delegation.kinds = change_executors();

@@ -196,6 +196,9 @@ const FORGE: forge::Limits = forge::Limits {
     judge_projects: 2,
     // Criteria in each judge table, from the engine forge world fixture.
     judge_criteria: 8,
+    landing_rules: 4,
+    roles: 4,
+    setting_proposals: 4,
     // Forge brief sections gathering at once, from the engine forge world fixture.
     brief_sections: 32,
     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
@@ -398,7 +401,12 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         call_answer_bytes: jig.core.call_answer_bytes,
         settings: jig.core.settings,
         call_records: jig.core.call_records,
-        forge: forge::Limits { authority_segments: jig.core.authority.segments, ..limits.forge },
+        forge: forge::Limits {
+            authority_segments: jig.core.authority.segments,
+            roles: jig.core.authority.roles,
+            setting_proposals: jig.core.settings.proposals,
+            ..limits.forge
+        },
     }
 }
 

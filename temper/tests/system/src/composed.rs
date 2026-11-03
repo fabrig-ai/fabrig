@@ -891,6 +891,7 @@ impl World {
             | Delivery::ForgeDocument { .. }
             | Delivery::Panel { .. }
             | Delivery::Refuse { .. }
+            | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::ProjectMade { .. }

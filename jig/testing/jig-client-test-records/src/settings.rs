@@ -224,7 +224,8 @@ pub fn settings_document() -> SettingsDocument {
                 setting,
                 name: if setting == Setting::Rules { None } else { Some(DocumentText::complete(text(b"name"))) },
                 follows: SettingFollows::Change,
-                last: 6,
+                last: Some(6),
+                application: None,
             })
             .expect("four settings");
     }

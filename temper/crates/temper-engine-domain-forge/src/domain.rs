@@ -195,6 +195,10 @@ pub struct Domain {
     pub(crate) landing: crate::landing::State,
     pub(crate) tier_ops: crate::tiers::State,
     pub(crate) tiers: Map<(skein_forge::api::Repository, Box<[u8]>), crate::TierRow>,
+    pub(crate) setting_rows: Map<crate::settings::SettingKey, crate::settings::Edit>,
+    pub(crate) setting_stock: Option<Box<[crate::settings::Stock]>>,
+    pub(crate) held_rules: crate::settings::HeldRules,
+    pub(crate) held_charters: crate::ForgeCharters,
     pub(crate) verifications: Map<(skein_forge::api::Repository, skein_forge::api::Commit), crate::Verification>,
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 9.1).
     restore_phase: RestorePhase,
@@ -211,10 +215,7 @@ pub struct Domain {
     pub(crate) document_fetches: Map<Token, crate::brief_document::Fetch>,
     pub(crate) brief_pending: Map<Token, held::Pending>,
     pub(crate) brief_held: Map<Token, held::Held>,
-    judges: crate::Judges,
-    gate_policy: crate::GatePolicy,
     merge_kind: Option<(u32, u32)>,
-    judge_criteria: u32,
     projection_due: Map<u64, skein_lib::Wall>,
     change_due: Map<u64, skein_lib::Wall>,
     /// True wakes the procedure too; false steps only its pending dependents.
@@ -397,60 +398,10 @@ impl Domain {
         self.installations.get(&(forge, installation))
     }
 
-    pub fn gate_policy(&mut self, policy: crate::GatePolicy, limits: &Limits) -> bool {
-        if !crate::gates::within(&policy, limits) {
-            return false;
-        }
-        self.gate_policy = policy;
-        true
-    }
-    #[must_use]
-    pub fn gate_candidates(
-        &self,
-        limits: &Limits,
-        project: u32,
-        name: &[Box<[u8]>],
-    ) -> Option<Box<[crate::GateCandidate]>> {
-        crate::gates::candidates(&self.gate_policy, limits, project, name)
-    }
     /// Read the landing branch's procedure waits (temper/docs/design/domain/forge.md, 8.7).
     #[must_use]
     pub fn requires(&self, repository: &Repository, branch: &[u8]) -> crate::Requires {
-        fn branch_resource_name(repository: &Repository, branch: &[u8]) -> Option<Box<[Box<[u8]>]>> {
-            let mut segments = List::uncapped();
-            for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name, b"branch"] {
-                if segment.is_empty() {
-                    return None;
-                }
-                segments.push(Box::from(segment)).ok()?;
-            }
-            let mut start = 0;
-            for at in 0..=branch.len() {
-                if at == branch.len() || branch.get(at) == Some(&b'/') {
-                    let part = branch.get(start..at)?;
-                    if part.is_empty() {
-                        return None;
-                    }
-                    segments.push(Box::from(part)).ok()?;
-                    start = at.checked_add(1)?;
-                }
-            }
-            Some(segments.into_boxed())
-        }
-        match branch_resource_name(repository, branch) {
-            Some(name) => crate::gates::requires(&self.gate_policy, repository.project, &name),
-            None => crate::Requires { ci: true, up_to_date: true },
-        }
-    }
-    #[must_use]
-    pub fn configured_gates(
-        &self,
-        limits: &Limits,
-        repository: &Repository,
-        candidates: &[crate::GateCandidate],
-        required: &[bool],
-    ) -> Option<Box<[change::Gate]>> {
-        crate::gates::selected(limits, repository, candidates, required)
+        self.held_requires(repository, branch)
     }
 
     /// Read the connector's retained part for the exact supplied call identity.
@@ -646,6 +597,13 @@ impl Domain {
             landing: crate::landing::State::new(l),
             tier_ops: crate::tiers::State::new(l),
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
+            setting_rows: Map::with_capacity(crate::settings::rows(l).ok_or(skein_forge::api::Error::TooLarge)?),
+            setting_stock: None,
+            held_rules: crate::settings::HeldRules {
+                deployment: Box::new([]),
+                projects: Map::with_capacity(l.judge_projects),
+            },
+            held_charters: crate::ForgeCharters { change: 0, review: 0 },
             verifications: Map::with_capacity(l.changes),
             restore_phase: RestorePhase::Cold,
             reconciliation: crate::reconcile::Reconciliation::new(l),
@@ -660,10 +618,7 @@ impl Domain {
             document_fetches: Map::with_capacity(l.brief_sections),
             brief_pending: Map::with_capacity(l.brief_sections),
             brief_held: Map::with_capacity(l.brief_sections),
-            judges: crate::Judges::empty(l.judge_projects),
-            gate_policy: crate::GatePolicy::empty(l.judge_projects),
             merge_kind: None,
-            judge_criteria: l.judge_criteria,
             projection_due: Map::with_capacity(l.issues),
             change_due: Map::with_capacity(l.changes),
             procedure_wakes: Map::with_capacity(l.changes),
@@ -671,37 +626,10 @@ impl Domain {
         })
     }
 
-    /// Install deployment criteria before decisions begin.
-    pub fn deployment_judges(&mut self, criteria: Box<[crate::Criterion]>) -> bool {
-        if !self.judge_count_fits(criteria.len()) {
-            return false;
-        }
-        self.judges.deployment = criteria;
-        true
-    }
-
-    /// Replace one project's judge parameters with its committed policy.
-    pub fn project_judges(&mut self, project: u32, criteria: Box<[crate::Criterion]>) -> bool {
-        self.judge_count_fits(criteria.len()) && self.judges.projects.insert(project, criteria).is_ok()
-    }
-
-    fn judge_count_fits(&self, count: usize) -> bool {
-        match u32::try_from(count) {
-            Ok(count) => count <= self.judge_criteria,
-            Err(_) => false,
-        }
-    }
-
     /// Whether the landing effect's exact-head condition guards this judge.
     #[must_use]
-    #[expect(clippy::match_like_matches_macro, reason = "the foundation forbids matches in domain steps")]
-    pub fn guards_landing(&self, project: u32, requirement: u16, parameters: u32) -> bool {
-        match (requirement, crate::judge::criterion(&self.judges, project, parameters)) {
-            (1, Some(crate::Criterion::Ci))
-            | (3, Some(crate::Criterion::Gate { .. }))
-            | (4, Some(crate::Criterion::Approval { .. })) => true,
-            _ => false,
-        }
+    pub fn guards_landing(&self, _project: u32, requirement: u16, _parameters: u32) -> bool {
+        requirement == 5
     }
 
     /// Judge one forge requirement for the exact head of a change effect.
@@ -712,30 +640,22 @@ impl Domain {
     )]
     pub fn judge_landing(
         &self,
-        project: u32,
+        _project: u32,
         requirement: u16,
-        parameters: u32,
+        _parameters: u32,
         task: u64,
         head: skein_forge::api::Commit,
         evidence: &crate::ChangeEvidence,
         reviewers: &[crate::Reviewer],
     ) -> Option<crate::JudgeVerdict> {
-        let criterion = crate::judge::criterion(&self.judges, project, parameters)?;
-        let matching = match criterion {
-            crate::Criterion::Ci => requirement == 1,
-            crate::Criterion::UpToDate => requirement == 2,
-            crate::Criterion::Gate { .. } => requirement == 3,
-            crate::Criterion::Approval { .. } => requirement == 4,
-        };
-        if !matching {
-            return None;
+        match requirement {
+            5 => self.judge_held_landing(false, task, head, evidence, reviewers),
+            6 => self.judge_held_landing(true, task, head, evidence, reviewers),
+            // temper/docs/design/domain/forge.md, 8.7: requirements 1 to 4 attached
+            // by owners wait; their parameters no longer index a criteria table.
+            1..=4 => Some(crate::JudgeVerdict::Wait),
+            _ => None,
         }
-        if let Some(row) = self.landing.rows.get(&task) {
-            return crate::landing::judge(self, row, criterion, head, evidence, reviewers);
-        }
-        let row = self.changes.get(&task)?;
-        let repository = self.repositories.get(&row.repository)?;
-        Some(crate::judge::judge(criterion, repository, head, &row.change.clean, evidence, reviewers))
     }
 
     /// The next child timer, if one is armed.
@@ -5643,6 +5563,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                 )
                 .expect("restored entry within limits");
         }
+        Stored::Setting(row) => {
+            d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");
+        }
         Stored::Binding { address, subject } => {
             d.bindings.insert(address, subject).expect("restored binding within limits");
         }
@@ -5689,6 +5612,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     if d.fit_restored(&env.limits).is_err() {
         return;
     }
+    d.rebuild_settings();
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
@@ -6303,10 +6227,34 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Forge | RecordKind::Landed | RecordKind::Binding => unreachable!("row has no links"),
+            RecordKind::Forge | RecordKind::Landed | RecordKind::Binding | RecordKind::Setting => {
+                unreachable!("row has no links")
+            }
         }
         unreachable!("unmade link has a referencing retained row")
     }
+}
+
+pub(crate) fn branch_resource_name(repository: &Repository, branch: &[u8]) -> Option<Box<[Box<[u8]>]>> {
+    let mut segments = List::uncapped();
+    for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name, b"branch"] {
+        if segment.is_empty() {
+            return None;
+        }
+        segments.push(Box::from(segment)).ok()?;
+    }
+    let mut start = 0;
+    for at in 0..=branch.len() {
+        if at == branch.len() || branch.get(at) == Some(&b'/') {
+            let part = branch.get(start..at)?;
+            if part.is_empty() {
+                return None;
+            }
+            segments.push(Box::from(part)).ok()?;
+            start = at.checked_add(1)?;
+        }
+    }
+    Some(segments.into_boxed())
 }
 
 #[cfg(test)]

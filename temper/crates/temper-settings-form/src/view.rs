@@ -219,6 +219,7 @@ pub struct RevisionDocument {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionEdit {
+    Application(SizedEdit),
     Set(SettingSet),
     TooLarge(Size),
     Removed,
@@ -285,6 +286,7 @@ pub enum Running {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Setting {
+    Application { kind: u32, scope: u32, number: u32 },
     Charter(SettingNumber),
     Template(SettingNumber),
     Policy(SettingNumber),
@@ -294,7 +296,9 @@ pub enum Setting {
 pub struct SettingDocument {
     pub setting: Setting,
     pub revision: u32,
-    pub value: SettingValue,
+    pub value: Option<SettingValue>,
+    pub application: Option<ApplicationState>,
+    pub proposed: Option<SizedEdit>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingEdit {
@@ -304,6 +308,7 @@ pub enum SettingEdit {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFault {
+    Judged,
     Shape,
     Count,
     Reference,
@@ -333,7 +338,8 @@ pub struct SettingLine {
     pub setting: Setting,
     pub name: Option<DocumentText>,
     pub follows: SettingFollows,
-    pub last: u32,
+    pub last: Option<u32>,
+    pub application: Option<ApplicationState>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingModel {
@@ -372,6 +378,7 @@ pub struct SettingSet {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
+    Application(Box<[u8]>),
     Charter(Box<Charter>),
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
@@ -558,4 +565,23 @@ pub enum ResultsWake {
     Never,
     Each,
     LastOrFailure,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ApplicationFollows {
+    Default,
+    Changed { revision: u32 },
+    Removed { revision: u32 },
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationState {
+    pub follows: ApplicationFollows,
+    pub size: u32,
+    pub charters: List<u32>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SizedEdit {
+    Set { size: u32 },
+    Remove,
+    Reset,
 }
