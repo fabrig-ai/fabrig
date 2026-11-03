@@ -14,6 +14,7 @@ files = [
   "temper/docs/design/client/journeys/welcome-playground/02.html",
   "temper/docs/design/client/README.status.md",
   "temper/docs/design/client/journeys.status.md",
+  "temper/crates/temper-client-shell-web/tests/suite/memory.rs",
 ]
 effort = "high"
 minutes = 120
@@ -188,3 +189,27 @@ Pre-approved, with their defaults:
 `notes/common.md`'s and the implementer's text's. Beside them: the tests rewritten and removed,
 each in a line; the reader files edited; `02.html`'s remaining diff against the requests' page,
 hunk by hunk with its reason.
+
+## Answers
+
+2026-11-03. **The web host's patch ceiling fails on the new cold-start Chats page (47,174 bytes
+against 36,000): repair allocation outside the task, or defer the new chat's bar?** Neither. The
+layout stays as this spec draws it, for every project and before project facts arrive: the pane
+and its bar are the requests' page, and deferring the bar changes the contract. The page drawn on
+the first turn is larger by design, so its patch list is too; that is a real change passing the
+ceiling, and `skein/docs/foundation/testing-strategy.md`'s memory rule (the ceiling "moves by hand
+when a real change passes it", a quarter above the peak measured when it is made, rounded up to
+two significant digits) governs it, not 8.1's budgets. So:
+
+- `temper/crates/temper-client-shell-web/tests/suite/memory.rs` is now this task's file. On the
+  branch's final page, measure `a_turn_reserves_no_patch_queue`'s peak (the assertion's message
+  prints it), set `PATCH_HEAP_CEILING` to a quarter above it, rounded up to two significant digits
+  (47,174 bytes takes 59,000), and its comment to the new peak ("Scenario peak 47,174 bytes plus
+  25%, ..."). The test's exact check, `capacity() == len()`, stays and must pass unchanged; if it
+  fails, that is a defect, not the ceiling's, and a question.
+- No skein or other allocation change: the cause is the page's size, not a reservation. If the
+  peak on the final branch is above 60,000 bytes (more than the pane's nodes explain), stop and
+  ask with the measurements instead of moving the ceiling.
+- The commit that moves the ceiling is its own, saying why: the Chats page's first draw holds the
+  pane the requests ask for; old peak 28,230, new peak measured. The report lists the old and new
+  figures.
