@@ -4,7 +4,11 @@ use crate::{
     machine::{self, Machine},
     programs::{self, Harness, Process},
 };
-use skein_lib::Wall;
+use skein_lib::{Time, Wall};
+use skein_playground::{
+    slices::{Reach, Slices},
+    visitor::Visitor,
+};
 use skein_sim_world::{Bare, Inherited, Meter, Stream, World};
 
 /// Inputs read as a deployment, with one seed and a supplied wall clock.
@@ -72,10 +76,9 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
         world.spawn_restartable(programs::service_roots(), programs::service::<()>);
     });
     let printer = world.printer(b"temper serve", Stream::Output);
-    let (sim, pids, processes) = world.parts();
-    let stdout = sim.open_inherited_write(pids[0]);
+    let (_, _, processes) = world.parts();
     if let Process::Service(service) = &mut processes[0] {
-        service.capture_output(stdout, printer);
+        service.print_to(printer);
     }
     world.spawn_signals(|signal| {
         programs::llm_peer(fakes.llm, &Inherited { signal, pipes: vec![], roots: vec![], appends: vec![] })
@@ -83,28 +86,40 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     world.spawn_signals(|signal| {
         programs::fake_forge(fakes.peer, &Inherited { signal, pipes: vec![], roots: vec![], appends: vec![] })
     });
+    let at = world.spawn(|| Process::Visitor(Box::new(Visitor::new(&documents::visitor(&document)))));
+    assert_eq!(at, VISITOR, "the visitor follows the service and its two fake peers");
     world
 }
 
-/// Drain the service's simulated standard output into the world's whole-line capture.
-/// A loop calls this between steps, just as it takes `World::printed`.
-pub fn capture<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) {
-    let (sim, pids, processes) = world.parts();
-    for (pid, process) in pids.iter().zip(processes) {
-        if let Process::Service(service) = process
-            && let Some((fd, printer)) = service.output_capture()
-        {
-            use std::io::Write;
-            let bytes = sim.peer_drain(*pid, fd, skein_sim_world::PRINTED_BYTES);
-            printer.write_all(&bytes).expect("bounded world output");
-        }
+/// The visitor follows the service and its two fake peers.
+pub const VISITOR: usize = 3;
+
+/// Reach the composition's visitor between steps.
+#[must_use]
+pub fn reach<H: Harness>() -> Reach<Process<H>> {
+    Reach {
+        at: VISITOR,
+        enter: |process, input| {
+            let Process::Visitor(visitor) = process else { unreachable!("Reach names the visitor") };
+            visitor.enter(input);
+        },
+        take: |process, reports| {
+            let Process::Visitor(visitor) = process else { unreachable!("Reach names the visitor") };
+            visitor.take(reports);
+        },
     }
 }
 
-/// Step with this world's factory parameters installed, then capture its output.
+/// Step with this world's factory parameters installed.
 /// The scope ends before returning to the caller or another world's loop.
 pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> skein_sim_world::Step {
-    let parameters = world
+    programs::with(parameters(world), || world.step())
+}
+
+/// The world's factory parameters, read by its hosted programs while it steps.
+#[must_use]
+pub fn parameters<H: Harness, N: Meter>(world: &World<Process<H>, Machine, N>) -> programs::Parameters {
+    world
         .processes()
         .iter()
         .find_map(
@@ -112,10 +127,16 @@ pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> 
                 if let Process::Service(service) = process { Some(service.parameters.clone()) } else { None }
             },
         )
-        .expect("a composition has its service");
-    let stepped = programs::with(parameters, || world.step());
-    capture(world);
-    stepped
+        .expect("a composition has its service")
+}
+
+/// A slice's budget in steps (skein/docs/design/playground.md, 3).
+pub const SLICE_STEPS: u32 = 256;
+
+/// A story's world in skein's slices, its visitor reached, at 1× from `browser`.
+#[must_use]
+pub fn slices(start: Start, budget: u32, browser: Time) -> Slices<Process<()>, Machine> {
+    Slices::new(world(start), reach(), budget, browser)
 }
 
 #[cfg(test)]

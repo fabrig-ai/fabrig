@@ -20,9 +20,12 @@ fn story_a_starts_with_no_box_calm_and_prints_its_link() {
 
     assert!(
         started.world.processes().iter().all(|process| {
-            matches!(process, Process::Service(_) | Process::Peer(_) | Process::Forge(_) | Process::Git(_))
+            matches!(
+                process,
+                Process::Service(_) | Process::Peer(_) | Process::Forge(_) | Process::Git(_) | Process::Visitor(_)
+            )
         }),
-        "only the service, its two fake peers and git; no box process"
+        "only the service, its two fake peers, git and the visitor; no box process"
     );
     for process in started.world.processes() {
         let exit = process.exit();

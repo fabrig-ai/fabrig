@@ -83,6 +83,7 @@ fn name(process: &Process<()>) -> &'static str {
         Process::Git(_) | Process::GitRoute(_) => "git",
         Process::Agent(_) => "agent",
         Process::Shell(_) => "shell",
+        Process::Visitor(_) => "visitor",
         Process::Other(never) => match *never {},
     }
 }

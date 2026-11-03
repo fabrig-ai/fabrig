@@ -100,6 +100,7 @@ pub enum Role {
     Shell,
     Provider,
     Forge,
+    Visitor,
     Other,
 }
 
@@ -139,6 +140,7 @@ pub enum Process<H: Harness> {
     Shell(Box<Shell>),
     Peer(Box<SignalHost<skein_fake_peers::llm::Peer>>),
     Forge(Box<SignalHost<skein_fake_peers::forge::Peer>>),
+    Visitor(Box<skein_playground::visitor::Visitor>),
     Other(H::Process),
 }
 impl<H: Harness> Process<H> {
@@ -151,6 +153,7 @@ impl<H: Harness> Process<H> {
             Self::Shell(h) => h.as_ref(),
             Self::Peer(h) => h.as_ref(),
             Self::Forge(h) => h.as_ref(),
+            Self::Visitor(h) => h.as_ref(),
             Self::Other(h) => h,
         }
     }
@@ -163,6 +166,7 @@ impl<H: Harness> Process<H> {
             Self::Shell(h) => h.as_mut(),
             Self::Peer(h) => h.as_mut(),
             Self::Forge(h) => h.as_mut(),
+            Self::Visitor(h) => h.as_mut(),
             Self::Other(h) => h,
         }
     }
@@ -174,6 +178,7 @@ impl<H: Harness> Process<H> {
             Self::Shell(_) => Role::Shell,
             Self::Peer(_) => Role::Provider,
             Self::Forge(_) => Role::Forge,
+            Self::Visitor(_) => Role::Visitor,
             Self::Other(_) => Role::Other,
         }
     }
