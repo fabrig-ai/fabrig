@@ -759,8 +759,7 @@ agents must do stays text its runs read.
     restart; `settings-fields`, each setting's fields, bounds and
     defaults; `configuration` and `configuration-engine`, the
     document's members, and `limits` and `limits-engine`, the limits
-    it sets; and the
-    recipes. What happens when work starts, which role runs where, why
+    it sets; and the recipes. What happens when work starts, which role runs where, why
     a task's run had what it had, given the task's `settings:` line the
     person reads to it; and, asked, the settings described back as a
     workflow: who does what, under which role, and what temper holds

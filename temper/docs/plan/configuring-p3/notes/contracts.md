@@ -198,3 +198,12 @@ from its table.
   section per shape (`## engine.llm`), its paths and line, then a row a bullet: `` - `NAME`:
   TYPE, BOUND; required or optional; init writes VALUE | init leaves it out. LINE ``; a gone
   member: `` - `NAME`: refused: GONE ``.
+
+## C5. Notes on C2 (room-table, room-checks)
+
+- smith's measured schema costs are `smith_domain_run::Limits.schema_costs` (its `finish`,
+  `finish_text`, `deliver`, `deliver_text`), which `host_part`'s `limits` argument carries, and
+  `smith_domain_run::brief_room` is smith's measure the step test compares with: both through
+  `smith-domain-run`, which `temper-engine-smith` already depends on. `room-table`'s mention
+  of `smith_protocol_llm::schema_costs()` names where those figures come from; no new
+  dependency is needed or allowed for it.
