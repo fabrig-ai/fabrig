@@ -9,7 +9,8 @@ How a new task of one shape is filled: who runs it, the result it gives, what it
 A template is a setting, `template N`, numbered from 1. It is a recipe,
 never an executor: a client fills it, with what its creator gives, into
 a request for a new task, which temper checks as it checks any request.
-A chat is filled from template 1 and a goal from template 2.
+A chat defaults to template 1 and a goal to template 2.
+`--template` selects another offered template.
 
 A template holds:
 
@@ -59,7 +60,11 @@ policy's override naming it is refused.
 - `temper ctl`: `settings show template` reads one; `settings apply`
   and `settings propose` change it; `chat start` starts a chat from
   the project's chat template, or from the chat template `--template`
-  names.
+  names. `goal start` starts a goal from template 2, or the template
+  `--template` names, preserving its symbolic resources. Name `--charter`
+  only when the executor is the creator's choice. A budget given needs
+  `--budget` or `--as-allowed`; a deadline given needs `--deadline`.
+  See `temper help ctl-goal`.
 - `me` gives each project's templates, with its policy's overrides
   applied.
 - A run reads templates with the host tool `settings`.
@@ -67,8 +72,7 @@ policy's override naming it is refused.
 ## Limits
 
 - ctl starts a chat from a chat's template alone: `chat start
-  --template` refuses one that is no chat's, and no ctl tool starts a
-  goal.
+  --template` refuses one that is no chat's.
 - A template whose result is an approval is accepted, but an agent given
   one can only fail.
 - A template with `shallower` 0 is accepted, but no task can be made

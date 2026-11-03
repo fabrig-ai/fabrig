@@ -187,6 +187,7 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"NUMBER",
     b"N",
     b"TEMPLATE",
+    b"CHARTER",
     b"CURSOR",
     b"COUNT",
     b"PART",
