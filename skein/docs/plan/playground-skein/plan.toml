@@ -9,6 +9,7 @@ sources = ["skein/docs/plan/playground-skein/inputs/request.md", "skein/docs/des
 # need no survey (the messages and the platform's duties, the bundle's worker, the crate laid
 # down), then the families built on them.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

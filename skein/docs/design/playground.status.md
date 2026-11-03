@@ -4,3 +4,7 @@
 
 - **Not yet:** 8: `skein-playground` in the gate's wasm32 clippy
   (fab's gate list).
+- **Departs:** 2: `skein-playground`'s manifest names two crates past
+  those 2 and README.md, 3 give it: `skein-shell`, for the `Host` that
+  `skein-sim-world` re-exports, and `skein-sim`, which none of its code
+  uses; no reason is recorded.
