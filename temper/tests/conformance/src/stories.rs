@@ -375,7 +375,7 @@ fn goal_issue(world: &mut World) -> Result<(), Violation> {
         authority,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
     };
     let tool = engine::Tool::Delegate { batch: Box::new([milestone]) };

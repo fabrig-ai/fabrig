@@ -637,12 +637,13 @@ fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::
             policy: field_policy,
             hosts: field_hosts,
             spend: field_spend,
+            wake: encode_wake(&value.wake, limits)?,
             documents,
         },
     )
 }
 fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> Result<core::Charter, wire::Problem> {
-    let wire::CharterParts { number, policy, hosts, spend, documents } = value.into_parts();
+    let wire::CharterParts { number, policy, hosts, spend, wake, documents } = value.into_parts();
     let mut decoded = List::with_capacity(documents.len());
     for document in documents.into_boxed() {
         let wire::DocumentParts { connector, name, path, heading } = document.into_parts();
@@ -668,6 +669,7 @@ fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> Result<core::C
         policy: decode_run_policy(policy),
         hosts: decode_kinds(hosts),
         spend,
+        wake: decode_wake(wake),
         documents: decoded.into_boxed(),
     })
 }
@@ -1343,6 +1345,14 @@ fn encode_template(value: &core::Template, limits: &wire::Limits) -> Result<wire
         Some(entry) => Some(encode_llm_choice(entry, limits)?),
         None => None,
     };
+    let mut resources = List::with_capacity(limits.template_resources);
+    for resource in &value.resources {
+        let symbol =
+            wire::Symbol::new(limits, wire::SymbolParts { connector: resource.connector, symbol: resource.symbol })?;
+        if resources.push(symbol).is_err() {
+            return Err(wire::Problem { path: wire::Path::TemplateResources, reason: skein_codec::Reason::Bound });
+        }
+    }
     wire::Template::new(
         limits,
         wire::TemplateParts {
@@ -1358,6 +1368,7 @@ fn encode_template(value: &core::Template, limits: &wire::Limits) -> Result<wire
             label: field_label,
             grace: field_grace,
             llm: field_llm,
+            resources,
         },
     )
 }
@@ -1375,6 +1386,7 @@ fn decode_template(value: wire::Template) -> core::Template {
         label,
         grace,
         llm,
+        resources,
     } = value.into_parts();
     let field_number = number;
     let field_name = name;
@@ -1391,7 +1403,13 @@ fn decode_template(value: wire::Template) -> core::Template {
         Some(entry) => Some(decode_llm_choice(entry)),
         None => None,
     };
+    let mut symbols = List::with_capacity(resources.len());
+    for resource in resources.into_boxed() {
+        let wire::SymbolParts { connector, symbol } = resource.into_parts();
+        symbols.push(people::Symbol { connector, symbol }).expect("decoded resources bound");
+    }
     core::Template {
+        resources: symbols.into_boxed(),
         number: field_number,
         name: field_name,
         executor: field_executor,
@@ -1665,7 +1683,7 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
             .ok()?;
     limits.configured_policy_templates = domain.templates;
     limits.field_rule_name = domain.tasks.result_bytes;
-    limits.verdict_fields = domain.tasks.result_bytes;
+    limits.verdict_fields = tasks::VERDICT_FIELDS.min(domain.tasks.result_bytes);
     limits.part_path_segments = domain.tasks.hold_segments;
     limits.approval_state = domain.tasks.result_bytes;
     limits.verdict_choices_choices = domain.tasks.contract_choices;
@@ -1875,5 +1893,63 @@ fn remap_value(
             }
         }
         settings::Value::Charter(_) => {}
+    }
+}
+
+fn encode_wake_rule(value: tasks::WakeRule, limits: &wire::Limits) -> Result<wire::WakeRule, wire::Problem> {
+    Ok(match value {
+        tasks::WakeRule::Never => wire::WakeRule::Never,
+        tasks::WakeRule::Immediate => wire::WakeRule::Immediate,
+        tasks::WakeRule::Batch { count, age } => {
+            wire::WakeRule::Batch(wire::WakeBatch::new(limits, wire::WakeBatchParts { count, age })?)
+        }
+        tasks::WakeRule::Paced { span } => {
+            wire::WakeRule::Paced(wire::WakePace::new(limits, wire::WakePaceParts { span })?)
+        }
+    })
+}
+fn decode_wake_rule(value: wire::WakeRule) -> tasks::WakeRule {
+    match value {
+        wire::WakeRule::Never => tasks::WakeRule::Never,
+        wire::WakeRule::Immediate => tasks::WakeRule::Immediate,
+        wire::WakeRule::Batch(value) => {
+            let wire::WakeBatchParts { count, age } = value.into_parts();
+            tasks::WakeRule::Batch { count, age }
+        }
+        wire::WakeRule::Paced(value) => tasks::WakeRule::Paced { span: value.span() },
+    }
+}
+fn encode_wake(value: &tasks::WakePolicy, limits: &wire::Limits) -> Result<wire::WakePolicy, wire::Problem> {
+    wire::WakePolicy::new(
+        limits,
+        wire::WakePolicyParts {
+            words: encode_wake_rule(value.words, limits)?,
+            notices: encode_wake_rule(value.notices, limits)?,
+            news: encode_wake_rule(value.news, limits)?,
+            results: match value.results {
+                tasks::ResultsWake::Never => wire::ResultsWake::Never,
+                tasks::ResultsWake::Each => wire::ResultsWake::Each,
+                tasks::ResultsWake::LastOrFailure => wire::ResultsWake::LastOrFailure,
+            },
+            questions: value.questions,
+            answers: value.answers,
+            timers: value.timers,
+        },
+    )
+}
+fn decode_wake(value: wire::WakePolicy) -> tasks::WakePolicy {
+    let wire::WakePolicyParts { words, notices, news, results, questions, answers, timers } = value.into_parts();
+    tasks::WakePolicy {
+        words: decode_wake_rule(words),
+        notices: decode_wake_rule(notices),
+        news: decode_wake_rule(news),
+        results: match results {
+            wire::ResultsWake::Never => tasks::ResultsWake::Never,
+            wire::ResultsWake::Each => tasks::ResultsWake::Each,
+            wire::ResultsWake::LastOrFailure => tasks::ResultsWake::LastOrFailure,
+        },
+        questions,
+        answers,
+        timers,
     }
 }

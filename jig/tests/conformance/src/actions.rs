@@ -92,7 +92,7 @@ pub(crate) fn prepare_racing_decisions(world: &mut World) {
             llm: None,
             symbolic_grants: Box::new([]),
             dependencies: Box::new([]),
-            wake: tasks::WakePolicy::DEFAULT,
+            wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
         stubs: Box::new([]),
     }));

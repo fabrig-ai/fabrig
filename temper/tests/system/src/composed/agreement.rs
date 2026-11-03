@@ -92,12 +92,13 @@ pub(super) fn worker_limits() -> worker::Limits {
 // The world plays the person's inbox directly; the chat needs no notice activation.
 /// Keep routine chat notices without requesting extra model activations.
 pub(super) fn quiet(member: &mut people::Member) {
-    member.wake.notices = people::WakeRule::Never;
-    member.wake.news = people::WakeRule::Never;
-    member.wake.results = people::ResultsWake::Never;
-    member.wake.questions = false;
-    member.wake.answers = false;
-    member.wake.timers = false;
+    let wake = member.wake.as_mut().expect("chat fixture names its wake policy");
+    wake.notices = people::WakeRule::Never;
+    wake.news = people::WakeRule::Never;
+    wake.results = people::ResultsWake::Never;
+    wake.questions = false;
+    wake.answers = false;
+    wake.timers = false;
 }
 
 const ANSWER: Token = Token::new(902);

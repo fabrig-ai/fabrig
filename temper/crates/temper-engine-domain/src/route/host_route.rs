@@ -121,11 +121,15 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
             | jig_domain_core::SettingsRead::Revisions { .. } => None,
         };
         FlightRender::Settings { from: *from, requested }
-    } else if let crate::Tool::Change { repository, .. } = &body.tool {
+    } else if let crate::Tool::Change { changes } = &body.tool {
         match domain.core.tasks.delegation(key.task) {
-            Some(context) => {
-                FlightRender::Change(Box::new(ChangeChoice { named: repository.clone(), project: context.project }))
-            }
+            Some(context) => FlightRender::Change(Box::new(ChangeChoice {
+                named: match changes.first() {
+                    Some(change) => change.repository.clone(),
+                    None => None,
+                },
+                project: context.project,
+            })),
             None => FlightRender::Plain,
         }
     } else if let crate::Tool::Amend { amendment, .. } = &body.tool {

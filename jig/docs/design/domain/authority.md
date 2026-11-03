@@ -163,6 +163,11 @@ Authority
   environment", "its runs' branches") and resolves them once the task has
   its number, each with its grant, so a creator can narrow a delegate to
   its own resources without knowing its number.
+  A batch member may also name a connector's **symbol**, a resource the
+  connector names after the task and its tree (a forge's *its own goal
+  branch*), which the connector resolves into the name the task holds
+  (`connectors.md`, 3.1; tasks.md, 6.2). A symbol adds a hold, never a
+  grant: what the task may do to it is its authority's.
 - **Kinds are a connector's,** with an order of their own where one
   implies another: scaling a service may imply restarting it, while
   landing into a branch does not imply pushing to it. A kind's order is a

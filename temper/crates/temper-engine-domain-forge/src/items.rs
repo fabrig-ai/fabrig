@@ -205,3 +205,46 @@ pub(crate) fn branch_starts_with(name: &crate::Name, prefix: &[u8]) -> bool {
     }
     at == prefix.len()
 }
+
+/// The goal's own branch (temper/docs/design/domain/forge.md, 11.1).
+pub(crate) fn goal_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64)> {
+    let parts = match &name.what {
+        crate::What::Branch(parts) => parts,
+        crate::What::Repository | crate::What::Pull(_) | crate::What::Issue(_) => return None,
+    };
+    let mut length = 0_u32;
+    for (index, part) in parts.iter().enumerate() {
+        if index != 0 {
+            length = length.checked_add(1)?;
+        }
+        length = length.checked_add(u32::try_from(part.len()).ok()?)?;
+    }
+    let mut branch = List::with_capacity(length);
+    for (index, part) in parts.iter().enumerate() {
+        if index != 0 {
+            branch.push(b'/').ok()?;
+        }
+        for byte in part {
+            branch.push(*byte).ok()?;
+        }
+    }
+    let own = branch.as_slice().strip_prefix(prefix)?;
+    let slash = skein_lib::bytes::find(own, b"/")?;
+    let root = decimal(own.get(..slash)?)?;
+    let task = own.get(slash.checked_add(1)?..)?.strip_prefix(b"g")?;
+    Some((root, decimal(task)?))
+}
+
+fn decimal(bytes: &[u8]) -> Option<u64> {
+    if bytes.is_empty() || (bytes.len() != 1 && bytes.first() == Some(&b'0')) {
+        return None;
+    }
+    let mut number = 0_u64;
+    for byte in bytes {
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        number = number.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
+    }
+    Some(number)
+}

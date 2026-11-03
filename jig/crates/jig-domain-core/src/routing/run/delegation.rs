@@ -4,7 +4,8 @@
 use crate::routing::{HoldingsNeed, Work};
 
 use crate::{
-    Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, Limits, ProcedureStep, Request, StepRefusal, ToolKind,
+    Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep, Request,
+    StepRefusal, ToolKind,
     routing::{
         BatchKind, DelegateCreation, ProcedureCreation,
         run::calls::{call_decision, named_propose, proposal_refused},
@@ -132,7 +133,7 @@ pub(crate) fn delegate_validated(
                 funder: tasks::Funder::Task(key.task),
                 dependencies: dependencies.into_boxed(),
                 holdings: Box::new([]),
-                wake: member.wake,
+                wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, &member.executor)),
                 recurring: None,
                 tracked: member.tracked,
             })
@@ -155,6 +156,7 @@ pub(crate) fn delegate_validated(
             remaining,
             answered: List::with_capacity(remaining),
             failed: false,
+            refused: None,
         },
     });
     let mut out = Queue::uncapped();
@@ -174,6 +176,7 @@ pub(crate) fn delegate_holdings(
     request: Token,
     connector: u16,
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
+    refused: Option<HoldingsRefusal>,
 ) -> Queue<Request> {
     let known = core.connectors.contains(&connector);
     let Some((_, flight)) = core.delegate_creation_mut(request) else {
@@ -183,6 +186,9 @@ pub(crate) fn delegate_holdings(
     assert!(known && !flight.answered.as_slice().contains(&connector), "one answer per connector");
     flight.answered.push(connector).expect("configured connector bound");
     flight.remaining = flight.remaining.checked_sub(1).expect("one connector answer");
+    if flight.refused.is_none() {
+        flight.refused = refused;
+    }
     match holdings {
         Some(holdings) if holdings.len() == flight.members.len() => {
             for (index, added) in holdings.into_iter().enumerate() {
@@ -202,6 +208,16 @@ pub(crate) fn delegate_holdings(
         return Queue::uncapped();
     }
     let (request, mut flight) = core.take_delegate_creation(request).expect("completed delegate holdings");
+    if let Some(refused) = flight.refused {
+        let problem = holdings_problem(flight.members.first().expect("nonempty delegate batch").number, refused);
+        let part = match flight.kind {
+            BatchKind::Delegation { .. } => CallPart::DelegationRefused(problem),
+            BatchKind::Proposal { .. } => CallPart::ProposalRefused(problem),
+        };
+        let mut out = Queue::uncapped();
+        call_decision(core, &mut out, ReplyTo::new(request), flight.key, part);
+        return out;
+    }
     if flight.failed {
         return match flight.kind {
             BatchKind::Delegation { .. } => {
@@ -311,7 +327,7 @@ pub(crate) fn propose_batch(
                 funder: tasks::Funder::Task(key.task),
                 dependencies: dependencies.into_boxed(),
                 holdings: Box::new([]),
-                wake: member.wake,
+                wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, &member.executor)),
                 recurring: None,
                 tracked: tracked.or(member.tracked),
             })
@@ -331,6 +347,7 @@ pub(crate) fn propose_batch(
             remaining,
             answered: List::with_capacity(remaining),
             failed: false,
+            refused: None,
         },
     });
     let mut out = Queue::uncapped();
@@ -486,7 +503,7 @@ pub(crate) fn procedure_step(
                         funder: tasks::Funder::Task(task),
                         dependencies: dependencies.into_boxed(),
                         holdings: Box::new([]),
-                        wake: member.wake,
+                        wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, &member.executor)),
                         recurring: None,
                         tracked: member.tracked,
                     })
@@ -507,6 +524,8 @@ pub(crate) fn procedure_step(
                         number: member.number,
                         executor: member.executor,
                         spec: member.spec.clone(),
+                        tracked: member.tracked.is_some(),
+                        symbols: Box::new([]),
                     })
                     .expect("one holdings request per member");
             }
@@ -520,6 +539,7 @@ pub(crate) fn procedure_step(
                     remaining,
                     answered: List::with_capacity(remaining),
                     failed: false,
+                    refused: None,
                 },
             });
             for &connector in core.connectors.as_ref() {
@@ -533,6 +553,7 @@ pub(crate) fn procedure_step(
     out
 }
 
+#[expect(clippy::too_many_arguments, reason = "holdings answer carries its connector refusal with the route")]
 pub(crate) fn procedure_holdings(
     core: &mut Core,
     env: &Env<Limits>,
@@ -541,6 +562,7 @@ pub(crate) fn procedure_holdings(
     step: u64,
     connector: u16,
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
+    refused: Option<HoldingsRefusal>,
 ) -> Queue<Request> {
     let known = core.connectors.contains(&connector);
     let Some(token) = core.procedure_creation_token(task, step) else { return Queue::uncapped() };
@@ -553,6 +575,9 @@ pub(crate) fn procedure_holdings(
     assert!(known && !flight.answered.as_slice().contains(&connector), "one answer per connector");
     flight.answered.push(connector).expect("configured connector bound");
     flight.remaining = flight.remaining.checked_sub(1).expect("one connector answer");
+    if flight.refused.is_none() {
+        flight.refused = refused;
+    }
     match holdings {
         Some(holdings) if holdings.len() == flight.members.len() => {
             for (index, added) in holdings.into_iter().enumerate() {
@@ -575,6 +600,10 @@ pub(crate) fn procedure_holdings(
         else {
             return out;
         };
+        if let Some(refused) = flight.refused {
+            let problem = holdings_problem(flight.members.first().expect("nonempty procedure batch").number, refused);
+            return crate::routing::effect::procedure::refused(core, task, step, StepRefusal::Refused(problem));
+        }
         if flight.failed {
             return crate::routing::effect::procedure::refused(
                 core,
@@ -728,8 +757,17 @@ fn holdings_need(root: u64, members: &[tasks::New], capacity: u32) -> List<Holdi
                 number: member.number,
                 executor: member.executor,
                 spec: member.spec.clone(),
+                tracked: member.tracked.is_some(),
+                symbols: Box::new([]),
             })
             .expect("one holdings request per member");
     }
     asked
+}
+
+fn holdings_problem(member: u64, refused: HoldingsRefusal) -> tasks::Problem {
+    match refused {
+        HoldingsRefusal::Held { holder } => tasks::Problem::naming(Some(member), tasks::Refusal::HoldTaken, &[holder]),
+        HoldingsRefusal::Symbol { .. } => tasks::Problem::new(Some(member), tasks::Refusal::HoldKind),
+    }
 }

@@ -1,7 +1,7 @@
 //! Whole settings values and retained revision facts (client/domain/contract.md, 3–7; domain/engine.md, 17).
 use super::{
     Authority, DocumentText, Grant, KindImplication, PolicyEditRole, PolicyPermission, PolicyRequirement, ProposalKey,
-    Proposer, Template, TemplateOverride, Text,
+    Proposer, Template, TemplateOverride, Text, WakePolicy,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
@@ -67,6 +67,7 @@ pub struct Charter {
     pub call_timeout: Duration,
     pub hosts: SettingHosts,
     pub spend: u64,
+    pub wake: WakePolicy,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingPolicy {

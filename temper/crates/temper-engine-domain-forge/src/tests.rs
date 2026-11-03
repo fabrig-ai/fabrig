@@ -10,6 +10,7 @@ mod ci_brief;
 mod connect;
 mod fixtures;
 mod flight;
+mod goal_branch;
 #[path = "tests/landing.rs"]
 mod landing_routes;
 mod limits;
@@ -22,8 +23,10 @@ mod reconcile;
 mod records;
 mod release;
 mod removal;
+mod requires;
 mod restore_fit;
 mod runs;
+mod settings;
 mod stopping;
 mod tiers;
 mod views;
@@ -232,7 +235,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let name = branch();
-    let first = outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+    let first = outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
     assert_eq!(first.len(), 1);
     assert_eq!(
         first[0],
@@ -243,7 +246,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
         }
     );
     assert_eq!(
-        outputs(&mut d, Event::Hold { task: 8, resource: name.clone(), from: None }).as_ref(),
+        outputs(&mut d, Event::Hold { entry: 0, task: 8, resource: name.clone(), from: None }).as_ref(),
         &[Request::Taken { task: 8, resource: name.clone(), by: 7 }]
     );
     outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) });
@@ -332,6 +335,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::LostReadFailed { .. }
+        | Request::MakeFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -409,6 +413,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::LostReadFailed { .. }
+        | Request::MakeFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -483,6 +488,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::LostReadFailed { .. }
+        | Request::MakeFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -661,7 +667,7 @@ fn named_resource_reports_distinguish_private_branches_context_and_shared_landin
     outputs(&mut d, Event::Restore { record: Stored::Repository(context) });
     assert_eq!(d.resource_facts(&private), Some((Access::Context, resources::HoldKind::Shared)));
     assert_eq!(
-        outputs(&mut d, Event::Hold { task: 7, resource: private, from: None }).as_ref(),
+        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: private, from: None }).as_ref(),
         &[Request::Refused { task: 7 }]
     );
 }
@@ -892,7 +898,7 @@ fn four_writers() -> Domain {
         let name = run_branch(task);
         let head = BranchHead { name: name.clone(), commit: [2; 32], owned: true };
         outputs(&mut d, Event::Restore { record: Stored::BranchHead(head) });
-        outputs(&mut d, Event::Hold { task: holder, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Hold { entry: 0, task: holder, resource: name.clone(), from: None });
         outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name]), holders: Box::new([holder]) });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -954,7 +960,7 @@ fn a_release_waits_for_its_lost_writers_reread_even_after_restart() {
             outputs(&mut d, Event::ReadAfresh);
             outputs(&mut d, Event::SettleOutbox);
             let name = run_branch(b"7");
-            outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+            outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
             outputs(
                 &mut d,
                 Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) },
@@ -1036,7 +1042,7 @@ fn a_failed_goals_lost_writer_reports_its_read_failure() {
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
     let name = run_branch(b"7");
-    outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+    outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
     outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
     assert!(d.change(7).is_none(), "a goal has no change procedure");
     outputs(&mut d, Event::Lost { task: 7, attempt: 4 });
@@ -1060,7 +1066,7 @@ fn a_task_can_claim_its_own_stale_writer() {
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);
         let name = run_branch(b"7");
-        outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
         outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
         if lost {
             outputs(&mut d, Event::Lost { task: 7, attempt: 4 });
@@ -2004,7 +2010,7 @@ fn pushed_heads_match_their_own_forge_only() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
         let mut name = branch();
         name.forge = forge;
-        outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
         outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name]), holders: Box::new([7]) });
     }
     for forge in [1, 3] {

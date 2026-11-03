@@ -87,7 +87,7 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
                         llm: None,
                         symbolic_grants: Box::new([]),
                         dependencies: Box::new([]),
-                        wake: tasks::WakePolicy::DEFAULT,
+                        wake: Some(tasks::WakePolicy::DEFAULT),
                     }]),
                     stubs: Box::new([]),
                 }));

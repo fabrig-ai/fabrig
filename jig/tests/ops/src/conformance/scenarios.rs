@@ -313,7 +313,7 @@ fn delegate(world: &mut World, count: usize) -> Result<(), Violation> {
             llm: None,
             symbolic_grants: Box::new([]),
             dependencies: Box::new([]),
-            wake: tasks::WakePolicy::DEFAULT,
+            wake: Some(tasks::WakePolicy::DEFAULT),
         })
         .collect();
     world.send(root::Event::Core(core::Event::DelegateValidated {

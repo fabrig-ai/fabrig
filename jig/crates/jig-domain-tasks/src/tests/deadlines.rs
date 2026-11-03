@@ -303,3 +303,116 @@ fn backoff_arms_the_earlier_of_retry_and_wall() {
         assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
     }
 }
+
+#[test]
+fn a_pace_requires_a_positive_span_in_each_channel() {
+    use crate::WakePolicy;
+    for span in [Duration::ZERO, Duration::from_nanos(1)] {
+        let paced = WakeRule::Paced { span };
+        for policy in [
+            WakePolicy { words: paced, ..WakePolicy::DEFAULT },
+            WakePolicy { notices: paced, ..WakePolicy::DEFAULT },
+            WakePolicy { news: paced, ..WakePolicy::DEFAULT },
+        ] {
+            assert_eq!(crate::wake::valid(&policy), span != Duration::ZERO);
+        }
+    }
+}
+
+#[test]
+fn a_zero_pace_amendment_is_refused_without_changing_the_task() {
+    use crate::WakePolicy;
+    let paced = WakeRule::Paced { span: Duration::ZERO };
+    for policy in [
+        WakePolicy { words: paced, ..WakePolicy::DEFAULT },
+        WakePolicy { notices: paced, ..WakePolicy::DEFAULT },
+        WakePolicy { news: paced, ..WakePolicy::DEFAULT },
+    ] {
+        let mut h = Harness::new();
+        h.make(vec![task(1, &[])]);
+        let before = h.domain.task(1).unwrap().clone();
+        let out = h.send(Event::Amend {
+            reply_to: super::revisions::to(),
+            by: Party::Person(9),
+            task: 1,
+            message: 1,
+            places: Box::new([]),
+            funder: None,
+            stop_run: false,
+            amendment: crate::Amendment { wake: Some(policy), ..super::revisions::amendment() },
+        });
+        assert!(out.iter().any(|request| match request {
+            Request::Refused { problem, .. } => problem.why == crate::Refusal::Spec,
+            _ => false,
+        }));
+        assert_eq!(h.domain.task(1).unwrap(), &before);
+    }
+}
+
+fn paced_news(h: &mut Harness, number: u64) -> Vec<Request> {
+    h.send(Event::Notice {
+        task: 1,
+        word: Word {
+            number,
+            from: Party::Task(1),
+            kind: MessageKind::News { subscription: 10, class: crate::NewsClass::Wakes },
+            words: Box::new([]),
+            at: h.env.wall,
+            hits: 1,
+            eligible: false,
+        },
+    })
+}
+
+fn subscribe_news(h: &mut Harness) {
+    h.send(Event::SubscribeTopic {
+        reply_to: super::revisions::to(),
+        task: 1,
+        subscription: Subscription { number: 10, kind: SubscriptionKind::Topic { connector: 0, topic: 10 } },
+    });
+}
+
+#[test]
+fn a_held_pace_does_not_relay_news_to_a_live_run() {
+    let mut h = running_at_a_wall();
+    let mut wake = crate::WakePolicy::DEFAULT;
+    wake.news = WakeRule::Paced { span: Duration::from_nanos(1000) };
+    h.amend(1, crate::Amendment { wake: Some(wake), ..super::revisions::amendment() });
+    subscribe_news(&mut h);
+    let out = paced_news(&mut h, 2);
+    assert!(!out.iter().any(|request| match request {
+        Request::Relay { .. } => true,
+        _ => false,
+    }));
+    assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Running { attempt: 1 }));
+    assert!(!h.domain.task(1).unwrap().inbox.last().unwrap().eligible);
+    assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(1100)));
+}
+
+#[test]
+fn paced_news_wakes_an_agent_or_procedure_that_has_never_run() {
+    for executor in [crate::Executor::Agent { charter: 1 }, crate::Executor::Procedure { connector: 0, code: 1 }] {
+        let mut h = Harness::new();
+        h.make(vec![task(1, &[])]);
+        let mut row = h.domain.task(1).unwrap().clone();
+        row.executor = executor;
+        row.phase = Phase::Active(Active::Idle);
+        row.wake.news = WakeRule::Paced { span: Duration::from_nanos(1000) };
+        h.stored.insert(Key::Live(1), Stored::Live(Box::new(row)));
+        let mut h = restore(h);
+        subscribe_news(&mut h);
+        let out = paced_news(&mut h, 1);
+        assert_eq!(
+            out.iter()
+                .filter(|request| match request {
+                    Request::Activate { .. } => true,
+                    _ => false,
+                })
+                .count(),
+            1
+        );
+        assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
+        assert!(h.domain.task(1).unwrap().inbox[0].eligible);
+        assert_eq!(h.domain.next_deadline(), None);
+    }
+}

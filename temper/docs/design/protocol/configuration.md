@@ -1619,6 +1619,12 @@ init`'s document carries none of them (`setup.md`, 8.3).
   where its charter names the family and its task's authority holds it,
   and each charter's offered host part is checked against smith's bound
   (`../domain/agent.md`, 4.3).
+- **Each stock charter's default wake policy** (jig's `domain/tasks.md`,
+  8.3) is jig's default: words, notices and news at once, the last
+  delegate's result or a failure, questions, answers and timers. A
+  deployment whose work wants another, a coordinator's that wakes on each
+  result and paces its news, sets it on the charter as any of its members
+  (13.9).
 - **The configuring agent is a setting** like any other (`../draft/configuring.md`, 5.1): "Tell temper how you work" starts template 3,
   which an owner may change or remove as any template. Its runs read
   and propose settings; they never change one, since jig's `settings`
@@ -1886,3 +1892,70 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   the owned deployment and do not move with a box's.
 - **The budgets** follow the model's C (13.4), so a larger output gives
   larger spends with no setting changed: output 32,000 gives C 1,081.
+
+### 13.9 The reference's configuration
+
+The reference process (`../draft/reference-code-production.md`,
+section 14) is settings over the stock, never a stock of its own: a
+deployment runs the stock until an owner applies them, and a release
+that changes the stock changes nothing of them.
+
+- **A settings file,** `docs/examples/reference/settings.json`, in the
+  form `temper ctl settings apply` reads (`../client/tools.md`, 5.3),
+  its charters' instructions in it as text. An owner applies it once,
+  after the deployment's first start, as a walk on fabrig's box does
+  (`../draft/v0.1.0.md`, 2.1); a later edition is applied the same
+  way, its values whole. It holds:
+  - *charter 5, the coordinator's:* instructions for the cut (a plan of
+    changes it specifies itself, each made by `change` into its own
+    goal branch with its dependencies, one batch per family:
+    `../domain/agent.md`, 4.3.1), for each result and its Left list (a
+    new change for what is left, an amendment of a live change, or
+    nothing), and for the goal's end (its report once the plan's
+    changes have landed, its branch kept); the document's models, the
+    workers, its runs starting fresh, waiting 0, a run sized for a
+    plan's turns; its default wake policy the coordinator's (jig's
+    `domain/tasks.md`, 8.3): questions, failures, each delegate's
+    result, its delegates' and its person's words at once, waking news
+    at most once in 30 minutes;
+  - *charter 2, the coding agent's:* the stock's, its instructions
+    adding: push early; run the project's checks before delivering;
+    finish with a Left list of what it found and does not own; mark a
+    story that fails for code it does not own as ignored, the fault its
+    reason, and never fix that code, the change that fixes the fault
+    removing the mark; its run sized for a change's work;
+  - *template 4, the goal template for drafts:* charter 5;
+    `../draft/reference-code-production.md`, section 4's LLM choice;
+    tracked at priority 1; a report; the creator's budget; *its own
+    goal branch* among its resources (jig's `protocol/configuration.md`,
+    3.1).
+- **The rules and policy 1** are changed on the box from their current
+  values, which hold the deployment's own budgets (13.4): read with
+  `temper ctl settings show --json`, charter 5 added to the rules' and
+  policy 1's delegation and jig's control family to their tools and
+  role 0's, so the coordinator may name `change`'s plan members
+  (`../domain/agent.md`, 4.3.1), then applied whole. Charter 5 is the
+  deployment's fourth charter, within small's `tasks.charters` of 4, and
+  one more executor in the delegation, within the 8 `authority.executors`
+  and `tasks.executor_kinds` 13.4 gives the box.
+- **The landing rules,** until 13.6's second step, are the document's
+  `application.landing` (section 3): `docs/examples/reference/landing.json`
+  is that member's value, which the walk's document carries, with its
+  forge's host, owner and repository filled in: main's rule (`forge`,
+  the host, the owner, the name, `branch`, exactly `main`: enforced, CI
+  passed, up to date, gate 1) and the rule for goal branches (the same
+  path to `branch`, open on `temper`: enforced, asking no CI, no update
+  and no gate), and no rule on every branch, since rules add
+  (`../domain/forge.md`, 8.7) and such a rule's CI would hold every merge
+  into a goal's branch. From the second step they are kind 1's rules 1
+  and 2, items of the settings file.
+- **What the repository carries:** the merge commit is its merge style
+  on its forge, the repository's default on Forgejo
+  (`../domain/forge.md`, section 4), set where the repository is made;
+  the project's checks are its `.temper/pre-pr` (smith's
+  `domain/run.md`, 8.1): format, lints, the changed packages' focused
+  tests and the counted baselines.
+- **Checked as it is read:** a test decodes the settings file as
+  `temper ctl settings apply` decodes one, and the landing member as the
+  document's is parsed, so an edition that no longer reads is red before
+  a walk meets it.

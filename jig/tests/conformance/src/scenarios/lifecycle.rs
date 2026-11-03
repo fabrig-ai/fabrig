@@ -65,7 +65,7 @@ fn delegate(world: &mut World) {
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
     });
     world.send(root::Event::Core(core::Event::DelegateValidated {
         to: ReplyTo::new(Token::new(DELEGATE_REPLY)),

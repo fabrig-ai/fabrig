@@ -1,4 +1,4 @@
-//! Closed wake rules and bounded batch timers (domain/tasks.md, section 8.3).
+//! Closed wake rules and bounded batch and pace timers (domain/tasks.md, section 8.3).
 //! Policies and unread messages are durable in task rows. Monotonic deadlines
 //! are derived from injected wall and monotonic time after restore. Procedures
 //! batch news by their policy and step immediately on other messages.
@@ -7,12 +7,19 @@ use crate::{Active, Limits, MessageKind, NewsClass, Party, Phase, Request, Resul
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Wall};
 
-pub(crate) fn valid(policy: &WakePolicy) -> bool {
+/// Whether every batch count, batch age and pace span is positive.
+#[must_use]
+pub fn valid(policy: &WakePolicy) -> bool {
     for rule in [policy.words, policy.notices, policy.news] {
         match rule {
             WakeRule::Never | WakeRule::Immediate => {}
             WakeRule::Batch { count, age } => {
                 if count == 0 || age == Duration::ZERO {
+                    return false;
+                }
+            }
+            WakeRule::Paced { span } => {
+                if span == Duration::ZERO {
                     return false;
                 }
             }
@@ -208,6 +215,24 @@ pub(crate) fn after_message(
                 false
             }
         }
+        WakeRule::Paced { span } => {
+            let row = record(domain, number).expect("paced task live");
+            // A procedure has no run start, so its paced news wakes it at once.
+            let ready = match row.run_since {
+                Some(since) => env.wall.as_nanos() >= since.as_nanos().saturating_add(span.as_nanos()),
+                None => true,
+            };
+            if ready {
+                let task = task_mut(domain, number).expect("paced task live");
+                for item in &mut task.record.inbox {
+                    if category(&item.kind) == category(&word.kind) {
+                        item.eligible = true;
+                    }
+                }
+                publish(domain, env, number, out);
+            }
+            ready
+        }
     };
     schedule(domain, env, number);
     if !ready {
@@ -271,6 +296,16 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
                     break;
                 }
             }
+            WakeRule::Paced { span } => {
+                let at = match task.run_since {
+                    Some(since) => since.as_nanos().saturating_add(span.as_nanos()),
+                    None => env.wall.as_nanos(),
+                };
+                if !word.eligible && env.wall.as_nanos() >= at {
+                    candidate = Some(word.clone());
+                    break;
+                }
+            }
             WakeRule::Never | WakeRule::Immediate => {}
         }
     }
@@ -293,7 +328,17 @@ fn schedule(domain: &mut Domain, env: &Env<Limits>, number: u64) {
                     None => at,
                 });
             }
-            WakeRule::Never | WakeRule::Immediate | WakeRule::Batch { .. } => {}
+            WakeRule::Paced { span } if !word.eligible => {
+                let at = match task.run_since {
+                    Some(since) => since.as_nanos().saturating_add(span.as_nanos()),
+                    None => env.wall.as_nanos(),
+                };
+                oldest = Some(match oldest {
+                    Some(previous) => previous.min(at),
+                    None => at,
+                });
+            }
+            WakeRule::Never | WakeRule::Immediate | WakeRule::Batch { .. } | WakeRule::Paced { .. } => {}
         }
     }
     domain.wakes.cancel(number);

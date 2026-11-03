@@ -146,7 +146,7 @@ pub enum Tool {
     /// Expand a goal in the run's words into one ordinary named delegation.
     Goal { words: Box<[u8]>, advisor: bool, agree: bool },
     /// Expand a project repository change into one ordinary named delegation.
-    Change { words: Box<[u8]>, repository: Option<Box<[u8]>> },
+    Change { changes: Box<[ChangeCall]> },
     /// Create one authorized batch of direct task delegates.
     Delegate { batch: Box<[Delegate]> },
     /// Amend one live delegate after authority fitting and finite source checks.
@@ -177,6 +177,37 @@ pub enum Tool {
     RejectedNote(jig_domain_notes::Refusal),
     /// The engine records an unavailable answer for a route not yet installed.
     Unavailable,
+}
+
+/// One change of a `change` call (domain/agent.md, 4.3.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ChangeCall {
+    pub words: Box<[u8]>,
+    pub repository: Option<Box<[u8]>>,
+    pub name: Option<Box<[u8]>>,
+    pub landing: Option<ChangeLanding>,
+    pub after: Box<[ChangeAfter]>,
+}
+
+impl ChangeCall {
+    #[must_use]
+    pub fn words(words: Box<[u8]>, repository: Option<Box<[u8]>>) -> Self {
+        Self { words, repository, name: None, landing: None, after: Box::new([]) }
+    }
+}
+
+/// A change's landing choice (domain/agent.md, 4.3.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ChangeLanding {
+    Goal,
+    Branch(Box<[u8]>),
+}
+
+/// A change's dependency within a call (domain/agent.md, 4.3.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ChangeAfter {
+    Task(u64),
+    Name(Box<[u8]>),
 }
 
 /// Action a worker can submit for an authority holder's decision.

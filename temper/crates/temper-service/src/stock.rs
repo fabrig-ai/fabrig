@@ -221,6 +221,7 @@ fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_conf
         alternatives.push(alternative.clone()).expect("one per remaining configured model");
     }
     Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
         number,
         hosts: jig_domain_fleet::Kinds::Workers,
@@ -289,6 +290,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
 }
 fn chat() -> Template {
     Template {
+        resources: Box::new([]),
         number: 1,
         name: bytes::copy_of(b"chat"),
         executor: TemplateExecutor::Charter(1),
@@ -305,6 +307,7 @@ fn chat() -> Template {
 }
 fn goal() -> Template {
     Template {
+        resources: Box::new([]),
         number: 2,
         name: bytes::copy_of(b"goal"),
         executor: TemplateExecutor::Chosen,

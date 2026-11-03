@@ -4,7 +4,7 @@
 //! families so each route file stays under 1,500 lines.
 
 use crate::{
-    Ask, Core, Event, Limits, PersonTaskRoute, Record, Request, Write,
+    Ask, Core, Event, HoldingsRefusal, Limits, PersonTaskRoute, Record, Request, Write,
     routing::{
         Creation, CreationKind, Work,
         party::dispatch::{Party, Routed},
@@ -23,9 +23,10 @@ pub(crate) fn route_holdings(
     request: Token,
     connector: u16,
     holdings: Option<Box<[tasks::Holding]>>,
+    refused: Option<HoldingsRefusal>,
 ) -> Queue<Request> {
     let mut routed = Routed::new(work);
-    created_holdings(core, env, &mut routed, request, connector, holdings);
+    created_holdings(core, env, &mut routed, request, connector, holdings, refused);
     routed.finish(work)
 }
 pub(crate) fn pool_route(
@@ -134,6 +135,7 @@ pub(crate) fn begin_creation(
     request: Token,
     kind: CreationKind,
     members: Box<[tasks::New]>,
+    symbols: Box<[Box<[people::Symbol]>]>,
 ) {
     if core.creating_flights() == core.flight_people_capacity {
         crate::routing::refusals::pool_again(&mut routed.work, request, people::Again::Busy);
@@ -142,19 +144,22 @@ pub(crate) fn begin_creation(
     let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
     assert!(remaining > 0, "task creation has a numbered connector");
     let first = members.first().expect("nonempty creation").clone();
+    let first_symbols = symbols.first().expect("one symbol list per member").clone();
     let request = core.fly(crate::routing::flight::Flight::Creating {
         request,
         route: Creation {
             kind,
             members,
+            symbols,
             at: 0,
             remaining,
             holdings: List::with_capacity(env.limits.tasks.holdings),
             answered: List::with_capacity(remaining),
             failed: false,
+            refused: None,
         },
     });
-    creation_holdings(core, &mut routed.out, request, &first);
+    creation_holdings(core, &mut routed.out, request, &first, &first_symbols);
 }
 
 pub(crate) fn created_holdings(
@@ -164,6 +169,7 @@ pub(crate) fn created_holdings(
     request: Token,
     connector: u16,
     holdings: Option<Box<[tasks::Holding]>>,
+    refused: Option<HoldingsRefusal>,
 ) {
     let known = core.connectors.contains(&connector);
     let connectors = u32::try_from(core.connectors.len()).expect("connector count");
@@ -172,6 +178,9 @@ pub(crate) fn created_holdings(
     assert!(known && !creating.answered.as_slice().contains(&connector), "one answer from each numbered connector");
     creating.answered.push(connector).expect("one answer per configured connector");
     creating.remaining = creating.remaining.checked_sub(1).expect("one holdings answer per connector");
+    if creating.refused.is_none() {
+        creating.refused = refused;
+    }
     match holdings {
         Some(holdings) => {
             for holding in holdings {
@@ -193,10 +202,19 @@ pub(crate) fn created_holdings(
         creating.remaining = connectors;
         creating.answered.clear();
         let member = member.clone();
-        creation_holdings(core, &mut routed.out, request, &member);
+        let symbols = creating.symbols.get(creating.at).expect("one symbol list per member").clone();
+        creation_holdings(core, &mut routed.out, request, &member, &symbols);
         return;
     }
     let (request, creating) = core.take_creation(request).expect("completed creation flight");
+    if let Some(refused) = creating.refused {
+        let which = match refused {
+            HoldingsRefusal::Symbol { .. } => people::LimitKind::HoldKind,
+            HoldingsRefusal::Held { .. } => people::LimitKind::HoldTaken,
+        };
+        pool_refused(&mut routed.work, request, people::Refusal::Limit { which });
+        return;
+    }
     if creating.failed {
         pool_refused(&mut routed.work, request, people::Refusal::Limit { which: people::LimitKind::Holds });
         return;
@@ -460,8 +478,20 @@ pub(crate) fn change_policy_request(
     }
 }
 
-fn creation_holdings(core: &Core, out: &mut Queue<Request>, request: Token, new: &tasks::New) {
+fn creation_holdings(
+    core: &Core,
+    out: &mut Queue<Request>,
+    request: Token,
+    new: &tasks::New,
+    symbols: &[people::Symbol],
+) {
     for &connector in core.connectors.as_ref() {
+        let mut named = List::with_capacity(u32::try_from(symbols.len()).expect("bounded member symbols"));
+        for symbol in symbols {
+            if symbol.connector == connector {
+                named.push(symbol.symbol).expect("at most the member symbols");
+            }
+        }
         out.push(Request::Ask {
             connector,
             ask: Ask::TaskHoldings {
@@ -471,6 +501,8 @@ fn creation_holdings(core: &Core, out: &mut Queue<Request>, request: Token, new:
                 number: new.number,
                 executor: new.executor,
                 spec: new.spec.clone(),
+                tracked: new.tracked.is_some(),
+                symbols: named.into_boxed(),
             },
         });
     }

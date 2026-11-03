@@ -27,6 +27,7 @@ fn model() -> core::Model {
 }
 fn charter() -> core::Charter {
     core::Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
         number: 1,
         hosts: fleet::Kinds::Both,
@@ -115,6 +116,7 @@ fn policy() -> core::ConfiguredPolicy {
 }
 fn template() -> core::Template {
     core::Template {
+        resources: Box::new([]),
         number: 1,
         name: Box::from(b"template".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
@@ -338,6 +340,68 @@ fn job_delegation_kinds_round_trip_in_settings() {
     };
     let bytes = codec::settings::encode(&row, &limits.settings, &[]).unwrap();
     assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+}
+
+#[test]
+fn a_template_with_resources_round_trips_through_the_settings_store() {
+    const BOUND: u16 = 32;
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    let names = Box::new([catalogue_name(b"one"), catalogue_name(b"two")]);
+    assert_eq!(limits.settings.template_resources, u32::from(BOUND));
+    for count in [0, 2, BOUND, BOUND + 1] {
+        let mut template = template();
+        let mut symbols = skein_lib::List::with_capacity(u32::from(count));
+        for symbol in 0..count {
+            symbols.push(people::Symbol { connector: u16::MAX - symbol, symbol }).expect("symbol fixture count");
+        }
+        template.resources = symbols.into_boxed();
+        let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Default {
+            setting: s::Setting::Template(template.number),
+            default: s::Default { value: s::Value::Template(Box::new(template)), revision: 1 },
+        }));
+        if count > BOUND {
+            assert!(codec::encode(&row, &limits, &*names).is_none(), "one past the resource bound");
+            continue;
+        }
+        let bytes = codec::encode(&row, &limits, &*names).expect("bounded resources");
+        assert_eq!(codec::decode(&row.key(), &bytes, &limits, &*names), Some(row.clone()));
+        if count == BOUND {
+            let mut narrower = limits;
+            narrower.settings.template_resources = u32::from(BOUND - 1);
+            assert!(codec::decode(&row.key(), &bytes, &narrower, &*names).is_none(), "decoded resource bound");
+        }
+    }
+}
+
+#[test]
+fn a_charters_paced_wake_policy_round_trips() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    let mut charter = charter();
+    charter.wake = tasks::WakePolicy {
+        words: tasks::WakeRule::Never,
+        notices: tasks::WakeRule::Batch { count: 3, age: Duration::from_secs(2) },
+        news: tasks::WakeRule::Paced { span: Duration::from_millis(1_800_000) },
+        results: tasks::ResultsWake::Each,
+        ..tasks::WakePolicy::DEFAULT
+    };
+    let row =
+        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter)) } };
+    let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
+    assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+}
+
+#[test]
+fn a_members_absent_wake_round_trips_without_a_default() {
+    let limits = codec::people::limits(&fixtures::CORE_LIMITS).expect("people store limits");
+    let mut member = fixtures::people_member();
+    member.wake = None;
+    let ask = people::Ask::Create { project: 1, batch: Box::new([member]) };
+    let value = codec::people::encode_ask(&ask, &limits).expect("bounded batch");
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
+    value.encode(&mut writer).expect("measured batch");
+    let bytes = writer.finish();
+    let value = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
+    assert_eq!(codec::people::decode_ask(value, &limits), Ok(ask));
 }
 
 fn document_domain() -> core::Limits {

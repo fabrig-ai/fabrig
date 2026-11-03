@@ -10,6 +10,7 @@ use crate::commit_text;
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use temper_engine_domain_forge_landing as landing;
+pub(crate) const GOAL_BRANCH_SYMBOL: u16 = 1;
 pub(crate) const CHANGE_CODE: u32 = 2;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
@@ -714,8 +715,12 @@ fn write_holding(connector: u16, name: &forge::Name, limits: &tasks::Limits) -> 
     Some(tasks::Holding::Write { resource: hub_name(connector, name, limits)?, kind: 1 })
 }
 
-/// Name the forge branches a new task will own before the hub admits its batch.
-#[expect(clippy::too_many_arguments, reason = "task identity and specification arrive from separate admitted carriers")]
+/// Name the forge branches a new task will own before the hub admits its batch
+/// (temper/docs/design/domain/forge.md, 2 and 11.1).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "task identity, symbols and specification arrive from separate admitted carriers"
+)]
 pub(crate) fn task_holdings(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -725,7 +730,47 @@ pub(crate) fn task_holdings(
     executor: tasks::Executor,
     spec: &tasks::Spec,
     parent: Option<u64>,
-) -> Option<Box<[tasks::Holding]>> {
+    tracked: bool,
+    symbols: &[u16],
+) -> Result<Box<[tasks::Holding]>, Option<jig_domain_core::HoldingsRefusal>> {
+    let mut holdings = List::with_capacity(env.limits.tasks.holdings);
+    let mut reports = List::with_capacity(env.limits.tasks.holdings);
+    for &symbol in symbols {
+        if symbol != GOAL_BRANCH_SYMBOL || !tracked {
+            return Err(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol }));
+        }
+        let home = domain.forge.home(project).ok_or(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol }))?;
+        let branch = tree_branch(home, root, b'g', number, None, env.limits.forge.name_bytes).ok_or(None)?;
+        let name = forge::Name {
+            forge: home.provider.forge,
+            repository: home.provider.repository,
+            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
+        };
+        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
+        holdings.push(holding).ok().ok_or(None)?;
+        reports.push(name).ok().ok_or(None)?;
+    }
+    let implicit = implicit_task_holdings(domain, env, project, root, number, executor, spec, parent)?;
+    for holding in implicit {
+        holdings.push(holding).ok().ok_or(None)?;
+    }
+    for name in &reports {
+        report_resource(domain, env, project, name);
+    }
+    Ok(holdings.into_boxed())
+}
+
+#[expect(clippy::too_many_arguments, reason = "task identity and specification arrive from separate admitted carriers")]
+fn implicit_task_holdings(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    project: u32,
+    root: u64,
+    number: u64,
+    executor: tasks::Executor,
+    spec: &tasks::Spec,
+    parent: Option<u64>,
+) -> Result<Box<[tasks::Holding]>, Option<jig_domain_core::HoldingsRefusal>> {
     let child_of_change = match parent {
         Some(task) => domain.forge.change(task).is_some(),
         None => false,
@@ -738,7 +783,7 @@ pub(crate) fn task_holdings(
         tasks::Executor::Agent { .. } => !child_of_change,
     };
     if !eligible {
-        return Some(Box::new([]));
+        return Ok(Box::new([]));
     }
     let mut selected = List::with_capacity(env.limits.forge.resources_per_task);
     if let tasks::Executor::Procedure { connector, code: 1 | CHANGE_CODE } = executor
@@ -746,6 +791,7 @@ pub(crate) fn task_holdings(
     {
         let mut repository = None;
         let mut chosen = None;
+        let mut base = None;
         for parameter in &spec.parameters {
             match parameter {
                 tasks::Parameter::Resource { name: 1, connector, resource }
@@ -753,35 +799,39 @@ pub(crate) fn task_holdings(
                 {
                     repository = domain.forge.repository_tag(project, *resource);
                 }
+                tasks::Parameter::Bytes { name: 2, value } => base = Some(value),
                 tasks::Parameter::Bytes { name: 3, value } => chosen = Some(value.clone()),
                 tasks::Parameter::Number { .. }
                 | tasks::Parameter::Bytes { .. }
                 | tasks::Parameter::Resource { .. } => {}
             }
         }
-        let repository = repository?;
+        let repository = repository.ok_or(None)?;
+        if let Some(base) = base {
+            check_landing_holder(domain, env, repository, base, parent)?;
+        }
         let branch = match chosen {
             Some(branch) => branch,
-            None => tree_branch(repository, root, b'c', number, None, env.limits.forge.name_bytes)?,
+            None => tree_branch(repository, root, b'c', number, None, env.limits.forge.name_bytes).ok_or(None)?,
         };
         let name = forge::Name {
             forge: repository.provider.forge,
             repository: repository.provider.repository,
-            what: branch_what(&branch, env.limits.forge.name_bytes)?,
+            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
         };
-        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks)?;
+        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
         report_resource(domain, env, project, &name);
-        return Some(Box::new([holding]));
+        return Ok(Box::new([holding]));
     }
     if let Some(home) = domain.forge.home(project) {
-        include_repository(&mut selected, home)?;
+        include_repository(&mut selected, home).ok_or(None)?;
     }
     for parameter in &spec.parameters {
         if let tasks::Parameter::Resource { connector, resource, .. } = parameter
             && *connector == domain.config.forge_connector
         {
-            let repository = domain.forge.repository_tag(project, *resource)?;
-            include_repository(&mut selected, repository)?;
+            let repository = domain.forge.repository_tag(project, *resource).ok_or(None)?;
+            include_repository(&mut selected, repository).ok_or(None)?;
         }
     }
     let mut holdings = List::with_capacity(env.limits.tasks.holdings);
@@ -790,19 +840,51 @@ pub(crate) fn task_holdings(
         if repository.role == forge::Role::Context || !repository.kinds.push {
             continue;
         }
-        let branch = tree_branch(repository, root, b'r', number, None, env.limits.forge.name_bytes)?;
+        let branch = tree_branch(repository, root, b'r', number, None, env.limits.forge.name_bytes).ok_or(None)?;
         let name = forge::Name {
             forge: repository.provider.forge,
             repository: repository.provider.repository,
-            what: branch_what(&branch, env.limits.forge.name_bytes)?,
+            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
         };
-        holdings.push(write_holding(domain.config.forge_connector, &name, &env.limits.tasks)?).ok()?;
-        reports.push(name).ok()?;
+        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
+        holdings.push(holding).ok().ok_or(None)?;
+        reports.push(name).ok().ok_or(None)?;
     }
     for name in &reports {
         report_resource(domain, env, project, name);
     }
-    Some(holdings.into_boxed())
+    Ok(holdings.into_boxed())
+}
+
+/// A landing into a held branch belongs to its holder's requester subtree
+/// (temper/docs/design/domain/forge.md, 11.1).
+fn check_landing_holder(
+    domain: &Domain,
+    env: &Env<Limits>,
+    repository: &forge::Repository,
+    base: &[u8],
+    parent: Option<u64>,
+) -> Result<(), Option<jig_domain_core::HoldingsRefusal>> {
+    let name = forge::Name {
+        forge: repository.provider.forge,
+        repository: repository.provider.repository,
+        what: branch_what(base, env.limits.forge.name_bytes).ok_or(None)?,
+    };
+    let resource = hub_name(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
+    if let Some(holder) = domain.core.tasks.holder(&resource) {
+        let inside = match parent {
+            Some(requester) if requester == holder => true,
+            Some(requester) => match domain.core.tasks.task(requester) {
+                Some(task) => in_subtree(domain, task, holder),
+                None => false,
+            },
+            None => false,
+        };
+        if !inside {
+            return Err(Some(jig_domain_core::HoldingsRefusal::Held { holder }));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -1638,6 +1720,29 @@ fn describe_change_effect(
     })
 }
 
+/// Branch writes use the stored hold name for jig's writer slot
+/// (temper/docs/design/domain/forge.md, 11.1).
+/// Authority names remain separate: every additional authority resource needs a grant.
+fn change_effect_hold(domain: &Domain, env: &Env<Limits>, task: u64, kind: u16) -> Option<tasks::Name> {
+    let row = domain.forge.change(task)?;
+    let branch = match kind {
+        4 => &row.base,
+        9 | 11 => &row.branch,
+        _ => return None,
+    };
+    let resource = hub_name(
+        domain.config.forge_connector,
+        &forge::Name {
+            forge: row.repository.forge,
+            repository: row.repository.repository,
+            what: branch_what(branch, env.limits.forge.name_bytes)?,
+        },
+        &env.limits.tasks,
+    )?;
+    domain.core.tasks.holder(&resource)?;
+    Some(resource)
+}
+
 /// Once a pull is known its keep supplies the base and CI, within the same two names.
 /// Only a task still named is renamed: its release's unnamed ends the watch.
 fn watch_change_pull(domain: &mut Domain, env: &Env<Limits>, row: &forge::ChangeRow) {
@@ -1829,6 +1934,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 review_charter: 4,
                 effect_account: None,
                 producer_failure: None,
+                report: Box::new([]),
             },
         }));
         let branch_name =
@@ -1841,7 +1947,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         domain
             .work
             .push(Work::Forge(forge::Event::Names { task, resources: Box::new([branch_name.clone(), base_name]) }));
-        domain.work.push(Work::Forge(forge::Event::Hold { task, resource: branch_name, from: None }));
+        domain.work.push(Work::Forge(forge::Event::Hold { entry: 0, task, resource: branch_name, from: None }));
         if let Some(goal) = tracked_ancestor(domain, context.requester) {
             subscribe_goal(domain, env, goal, forge::Topic::Landings { repository: provider, branch: base.clone() });
         }
@@ -2042,16 +2148,102 @@ fn change_grants(
     Ok(grants.into_boxed())
 }
 
-/// Expand a chat's request; ordinary delegation shape and authority admission
-/// still decide the resulting batch by its original call name.
-pub(crate) fn chat_change(
+/// A change's expansion either refuses the batch or answers in the host's words.
+pub(crate) enum ChangeRefused {
+    Refusal(tasks::Refusal),
+    Words(Box<[u8]>),
+}
+
+/// Build a plan's changes together; jig admits all of them in one delegation.
+/// Plan members require the control family (domain/agent.md, 4.3.1).
+pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
+    task: u64,
     context: &tasks::DelegationContext,
-    words: Box<[u8]>,
-    named: Option<&[u8]>,
-) -> Result<super::Delegate, tasks::Refusal> {
-    let repositories = domain.forge.writable_repositories(context.project);
+    changes: &[crate::ChangeCall],
+) -> Result<Box<[super::Delegate]>, ChangeRefused> {
+    let plan = match changes {
+        [change] => change.name.is_some() || change.landing.is_some() || !change.after.is_empty(),
+        _ => true,
+    };
+    let control = jig_domain_core::ToolFamilies::JIG.control.0;
+    if plan && context.authority.tools.0 & control != control {
+        return Err(ChangeRefused::Words(Box::from(
+            b"change's landing, name, after and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).".as_slice(),
+        )));
+    }
+    if let Some(words) = super::goal::change_refusal(domain, task) {
+        return Err(ChangeRefused::Words(words));
+    }
+    let Ok(count) = u32::try_from(changes.len()) else {
+        return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
+    };
+    if count == 0 {
+        return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
+    }
+    let available = context
+        .numbers
+        .budget
+        .checked_sub(context.numbers.spent)
+        .ok_or(ChangeRefused::Refusal(tasks::Refusal::Funding))?
+        .checked_sub(context.numbers.spent_below)
+        .ok_or(ChangeRefused::Refusal(tasks::Refusal::Funding))?
+        .checked_sub(context.numbers.reserved)
+        .ok_or(ChangeRefused::Refusal(tasks::Refusal::Funding))?;
+    let spend = (available / 2).checked_div(u64::from(count)).ok_or(ChangeRefused::Refusal(tasks::Refusal::Batch))?;
+    let mut remaining = context.clone();
+    let mut batch = List::with_capacity(count);
+    for (index, change) in changes.iter().enumerate() {
+        if plan && remaining.tasks_left <= 1 {
+            return Err(ChangeRefused::Refusal(tasks::Refusal::Tree));
+        }
+        let earlier = changes.get(..index).expect("earlier changes in this batch");
+        for prior in earlier {
+            if change.name.is_some() && change.name == prior.name {
+                return Err(ChangeRefused::Refusal(tasks::Refusal::Duplicate));
+            }
+        }
+        let Ok(dependency_count) = u32::try_from(change.after.len()) else {
+            return Err(ChangeRefused::Refusal(tasks::Refusal::Dependencies));
+        };
+        let mut dependencies = List::with_capacity(dependency_count);
+        for after in &change.after {
+            let dependency = match after {
+                crate::ChangeAfter::Task(number) => jig_domain_core::Dependency::Existing(*number),
+                crate::ChangeAfter::Name(name) => {
+                    let mut found = None;
+                    for (at, prior) in earlier.iter().enumerate() {
+                        if prior.name.as_deref() == Some(name.as_ref()) {
+                            found = Some(u32::try_from(at).expect("bounded change batch"));
+                            break;
+                        }
+                    }
+                    jig_domain_core::Dependency::Batch(
+                        found.ok_or(ChangeRefused::Refusal(tasks::Refusal::Dependencies))?,
+                    )
+                }
+            };
+            dependencies.push(dependency).expect("bounded change dependencies");
+        }
+        let repository = match change_repository(domain, context.project, change.repository.as_deref()) {
+            Ok(repository) => repository,
+            Err(why) => return Err(ChangeRefused::Refusal(why)),
+        };
+        let base = change_landing(domain, env, task, &repository, change.landing.as_ref())?;
+        let mut member = match chat_change(domain, env, &remaining, change, &repository, base, spend) {
+            Ok(member) => member,
+            Err(why) => return Err(ChangeRefused::Refusal(why)),
+        };
+        member.dependencies = dependencies.into_boxed();
+        remaining.tasks_left = remaining.tasks_left.saturating_sub(1).saturating_sub(member.authority.delegation.tasks);
+        batch.push(member).expect("bounded change batch");
+    }
+    Ok(batch.into_boxed())
+}
+
+fn change_repository(domain: &Domain, project: u32, named: Option<&[u8]>) -> Result<forge::Repository, tasks::Refusal> {
+    let repositories = domain.forge.writable_repositories(project);
     let mut chosen = None;
     for repository in &repositories {
         let fits = match named {
@@ -2065,7 +2257,68 @@ pub(crate) fn chat_change(
             chosen = Some(*repository);
         }
     }
-    let repository = chosen.ok_or(tasks::Refusal::Unknown)?;
+    Ok(chosen.ok_or(tasks::Refusal::Unknown)?.clone())
+}
+
+fn change_landing(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    repository: &forge::Repository,
+    landing: Option<&crate::ChangeLanding>,
+) -> Result<Box<[u8]>, ChangeRefused> {
+    match landing {
+        None => Ok(repository.settings.default_branch.clone()),
+        Some(crate::ChangeLanding::Branch(branch)) => {
+            branch_parts(branch, env.limits.forge.name_bytes).ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
+            Ok(branch.clone())
+        }
+        Some(crate::ChangeLanding::Goal) => {
+            let root = domain.core.tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
+            let branch = tree_branch(repository, root, b'g', task, None, env.limits.forge.name_bytes)
+                .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
+            let name = forge::Name {
+                forge: repository.provider.forge,
+                repository: repository.provider.repository,
+                what: branch_what(&branch, env.limits.forge.name_bytes)
+                    .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?,
+            };
+            if let Some(hold) = domain.forge.hold(&name)
+                && hold.task == task
+            {
+                return Ok(branch);
+            }
+            let prefix = b"landing goal: this task holds no goal branch in ";
+            let repository = repository_name(repository);
+            let count = u32::try_from(
+                prefix
+                    .len()
+                    .checked_add(repository.len())
+                    .expect("bounded repository name")
+                    .checked_add(1)
+                    .expect("goal refusal's period"),
+            )
+            .expect("bounded goal refusal");
+            let mut words = List::with_capacity(count);
+            append(&mut words, prefix);
+            append(&mut words, &repository);
+            append(&mut words, b".");
+            Err(ChangeRefused::Words(words.into_boxed()))
+        }
+    }
+}
+
+/// Expand one change with its share of the call's remaining authority.
+/// Ordinary delegation admission decides the resulting batch by its call name.
+fn chat_change(
+    domain: &Domain,
+    env: &Env<Limits>,
+    context: &tasks::DelegationContext,
+    change: &crate::ChangeCall,
+    repository: &forge::Repository,
+    base: Box<[u8]>,
+    spend: u64,
+) -> Result<super::Delegate, tasks::Refusal> {
     // The procedure takes a task and a level, and its producer another of each; with none at
     // all, the delegation's own admission names the missing authority.
     if context.tasks_left == 1 {
@@ -2074,16 +2327,6 @@ pub(crate) fn chat_change(
     if context.authority.delegation.depth == 1 {
         return Err(tasks::Refusal::Depth);
     }
-    let available = context
-        .numbers
-        .budget
-        .checked_sub(context.numbers.spent)
-        .ok_or(tasks::Refusal::Funding)?
-        .checked_sub(context.numbers.spent_below)
-        .ok_or(tasks::Refusal::Funding)?
-        .checked_sub(context.numbers.reserved)
-        .ok_or(tasks::Refusal::Funding)?;
-    let spend = available / 2;
     if spend <= domain.core.authority.rules().minimum_run_spend {
         return Err(tasks::Refusal::Funding);
     }
@@ -2094,8 +2337,7 @@ pub(crate) fn chat_change(
     if domain.config.forge_charter != 4 {
         kinds.push(tasks::AuthorityExecutor::Charter(4)).expect("review kind");
     }
-    let gates =
-        configured_gates(domain, env, repository, &repository.settings.default_branch).ok_or(tasks::Refusal::Spec)?;
+    let gates = configured_gates(domain, env, repository, &base).ok_or(tasks::Refusal::Spec)?;
     for gate in &gates {
         if gate.kind == forge_change::GateKind::Person && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Role(1))
         {
@@ -2115,25 +2357,21 @@ pub(crate) fn chat_change(
         spec: tasks::Spec {
             job: None,
             asks: false,
-            words,
-            parameters: Box::new(change_parameters(
-                domain.config.forge_connector,
-                repository.provider,
-                repository.settings.default_branch.clone(),
-            )),
+            words: change.words.clone(),
+            parameters: Box::new(change_parameters(domain.config.forge_connector, repository.provider, base)),
             inputs: Box::new([]),
         },
         // Leave room for the pull's words and address as well as the merge id.
         contract: tasks::Contract::Change {
             connector: domain.config.forge_connector,
             kind: 1,
-            words: 512.min(env.limits.tasks.result_bytes),
+            words: env.limits.tasks.result_bytes,
         },
         authority,
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         tracked: None,
         label: 0,
         flags: tasks::Flags::PLAIN,
@@ -2302,7 +2540,7 @@ fn change_delegate(
         authority,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         llm: None,
     })
 }
@@ -2622,7 +2860,7 @@ fn start_queue_repair(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool
         inputs: Box::new([]),
     };
     let executor = tasks::Executor::Procedure { connector: domain.config.forge_connector, code: CHANGE_CODE };
-    let Some(holdings) = task_holdings(domain, env, project, repair, repair, executor, &spec, None) else {
+    let Ok(holdings) = task_holdings(domain, env, project, repair, repair, executor, &spec, None, false, &[]) else {
         return false;
     };
     domain.work.push(Work::Forge(forge::Event::QueueRepairStarted { owner: task, repair }));
@@ -2682,7 +2920,7 @@ fn change_landing_words(
     }
     let Some(head) = row.change.last_head else { return out.into_boxed() };
     let room = bound.saturating_sub(out.len()).saturating_sub(1);
-    let Some(evidence) = row.result.words(&head, bound).fitted(room) else { return out.into_boxed() };
+    let Some(evidence) = row.result.reported(&row.report, &head, bound).fitted(room) else { return out.into_boxed() };
     append(&mut out, b"\n");
     append(&mut out, &evidence);
     out.into_boxed()
@@ -2847,8 +3085,23 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     {
         return holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words.clone());
     }
-    let account =
-        if let forge_change::Hold::Authority(cause) = why { Some(forge_change::authority_words(cause)) } else { None };
+    let account = if let forge_change::Hold::Authority(cause) = why {
+        Some(forge_change::authority_words(cause))
+    } else if why == forge_change::Hold::Resolutions
+        && let Some(row) = domain.forge.change(task)
+        && let Some(repository) = domain.forge.repository(row.repository)
+        && !domain.forge.requires(repository, &row.base).up_to_date
+    {
+        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+        append(&mut words, b"The merge into ");
+        append(&mut words, &row.base);
+        append(&mut words, b" conflicts, and its landing rule asks no update: settle the conflict on ");
+        append(&mut words, &row.branch);
+        append(&mut words, b" and release the change, or cancel it.");
+        Some(words.into_boxed())
+    } else {
+        None
+    };
     let message = if let forge_change::Hold::Authority(cause) = why {
         authority_hold_message(domain, env, task, cause)
     } else if why == forge_change::Hold::Failed {
@@ -3057,10 +3310,15 @@ fn delegate_change_step(
 }
 
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
-    if connector != domain.config.forge_connector || code != CHANGE_CODE {
-        return;
-    }
+    let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
+        Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
+        Some(_) | None => {
+            if let forge_change::Decision::Delegate(kind) = choice {
+                domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
+            }
+            return;
+        }
+    };
     domain.forge.offered_change(task);
     let mut again = false;
     let decision = match choice {
@@ -3352,6 +3610,10 @@ pub(crate) fn outputs(
                     );
                 }
             }
+            forge::Request::MakeFailed { task, resource, reason } => {
+                let words = holds::make_words(domain, &resource, &reason);
+                holds::hold_as(domain, task, tasks::Hold::EffectFailed, &words);
+            }
             forge::Request::LostReadFailed { task, attempt, resource, reason } => {
                 let words = holds::lost_words(domain, task, attempt, &resource, reason);
                 holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
@@ -3600,7 +3862,38 @@ pub(crate) fn outputs(
                         match describe_change_effect(domain, env, task, effect, &evidence) {
                             Some(description) => {
                                 let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
+                                let writer = change_effect_hold(domain, env, task, description.effect.kind);
+                                if let Some(resource) = &writer
+                                    && !domain.core.tasks.effect_writer_ready(
+                                        &env.limits.tasks,
+                                        task,
+                                        resource,
+                                        Some(entry),
+                                    )
+                                {
+                                    domain.work.push(Work::Forge(forge::Event::VetoChange {
+                                        task,
+                                        entry,
+                                        prior: evidence.prior,
+                                    }));
+                                    change_decision(domain, env, task, forge_change::Decision::Wait { until: None });
+                                    continue;
+                                }
                                 let owner = effect_owner(domain);
+                                if let Some(resource) = &writer {
+                                    // Reserve before yielding to authority; another admission must see this slot.
+                                    let routed = jig_domain_core::step(
+                                        &mut domain.core,
+                                        &crate::limits::environment_core(env),
+                                        jig_domain_core::Event::Tasks(tasks::Event::EffectInFlight {
+                                            reply_to: ReplyTo::new(owner),
+                                            task,
+                                            resource: resource.clone(),
+                                            entry,
+                                        }),
+                                    );
+                                    super::route_core_requests(domain, env, decision, routed);
+                                }
                                 assert!(
                                     domain
                                         .forge_effects
@@ -3610,7 +3903,8 @@ pub(crate) fn outputs(
                                                 description: Box::new(description),
                                                 entry,
                                                 task,
-                                                evidence: Box::new(evidence)
+                                                evidence: Box::new(evidence),
+                                                writer,
                                             }
                                         )
                                         .is_ok(),
@@ -3702,6 +3996,7 @@ pub(crate) enum EffectFlight {
         entry: u64,
         task: u64,
         evidence: Box<forge::ChangeEvidence>,
+        writer: Option<tasks::Name>,
     },
 }
 
@@ -3969,7 +4264,10 @@ pub(crate) fn effect_ask(
         }
         jig_domain_core::effects::connector::Ask::Drop { owner, answer, findings, why } => {
             match domain.forge_effects.remove(&owner) {
-                Some(EffectFlight::Procedure { entry, task, evidence, description }) => {
+                Some(EffectFlight::Procedure { entry, task, evidence, description, writer }) => {
+                    if let Some(resource) = writer {
+                        domain.work.push(Work::Tasks(tasks::Event::EffectSettled { resource, entry }));
+                    }
                     domain.work.push(Work::Forge(forge::Event::VetoChange { task, entry, prior: evidence.prior }));
                     if answer == authority::Answer::Wait {
                         domain.forge.wait_change(&super::environment_forge(env), task, None);

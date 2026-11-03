@@ -1,0 +1,9 @@
+#!/bin/sh
+# The project's checks at delivery (temper/docs/design/protocol/configuration.md, 13.9;
+# smith/docs/design/domain/run.md, 8.1): the format check and the counted baselines.
+set -eu
+cd "$(dirname "$0")/.."
+cargo fmt --all --check
+for tree in skein smith jig temper; do
+    (cd "$tree" && python3 -I -B scripts/old_forms.py)
+done

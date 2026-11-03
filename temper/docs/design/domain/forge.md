@@ -81,11 +81,17 @@ makes each call to a forge and hears its deliveries, is
   The host, the owner and the name are those the repository was adopted
   with (section 4).
 - **Holds** (jig's `domain/connectors.md`, 3.3): a branch under temper's
-  prefix takes an exclusive hold, and a hold already taken makes its
-  task wait, never refuses it (jig's `domain/tasks.md`, 6.2). Landing
-  branches, pull requests, issues and the repository itself are shared
-  and take none: merging into a landing branch is ordered by its queue
-  (section 9).
+  prefix takes an exclusive hold, held by the task it is named after: a
+  change, a task's runs, a landing, or a goal for its own branch (11.1).
+  A hold already taken makes its task wait (jig's `domain/tasks.md`,
+  6.2), but a goal's own branch's, which refuses, naming the goal: no
+  two goals share one. Landing branches, pull requests, issues and the
+  repository itself are shared and take none: merging into a landing
+  branch is ordered by its queue (section 9). A goal's own branch is a
+  landing branch too, held and ordered by its queue at once (11.1).
+- **Symbols** (jig's `domain/connectors.md`, 3.1): 1, *its own goal
+  branch*, offered on a tracked task only (11.1); a batch naming it for
+  an untracked task is refused, naming the symbol.
 - **Effects:** open, edit, update, merge, close and reopen a pull
   request; post a review, a comment or a commit status; create, edit,
   close and reopen an issue; set reviewers; create and delete a branch
@@ -1028,8 +1034,14 @@ branch. Its parameters:
 - **its bounds:** repairs, resolutions, updates, and the stall of each
   wait.
 
-A chat asks for one with `change`, giving the words alone, and the root
-fills in the rest from the project (`agent.md`, 4.3.1).
+A run asks for one with `change`, giving the words, and the root fills
+in the rest from the project (`agent.md`, 4.3.1). A run whose authority
+holds jig's control family names, too, what a plan decides: the landing
+branch, its own goal branch or a branch of the repository; its
+dependencies, task numbers or changes of the same call; and several
+changes in one call, made as one batch. The landing branch is parameter
+2, the dependencies are the task's own (jig's `domain/tasks.md`, section
+4), and a change made with neither is as a chat's.
 
 Its agents hold the forge's reads (kind 1, section 2) on its
 repository, beside the kinds it makes (`agent.md`, 4.3.1): a reviewer
@@ -1097,9 +1109,11 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
 2. **Opening:** its pull request into its landing branch, keyed by its
    branches, its body naming its goal's issue ("Part of
    `ai/temper#12`").
-3. **Checking:** CI runs on its head. A failure is a repair (8.4): a task
-   given the failing output. A repository without CI is checked by its
-   checks (8.3).
+3. **Checking:** CI runs on its head, where its landing branch's rules
+   ask CI passed (8.7). A failure is a repair (8.4): a task given the
+   failing output. A repository without CI is checked by its checks
+   (8.3). Where they ask no CI, the change goes on to its gates at once,
+   and neither a check nor CI at its head holds it or asks a repair.
 4. **Gating:** each gate without a verdict valid at this head runs: a
    task at the exact head. A blocking review or check that asks for
    changes is a repair, given its remarks; a blocking approval a person
@@ -1108,11 +1122,18 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    head, and its task is not kept by a dependency) and waiting its turn
    in its landing branch's queue (section 9).
 6. **First:** its turn, which it keeps through what follows unless it
-   leaves the queue (section 9). If its head lacks the base's tip, it is
+   leaves the queue (section 9). If its head lacks the base's tip and
+   its landing branch's rules ask up to date (8.7), it is
    **updated** (section 10): cleanly, and its new head is checked again,
    its gates carried over where they count clean updates (8.3); or in
    conflict, and it leaves the queue to be
    **resolved**, its new head checked again and its gates asked again.
+   Where they ask no update, it is merged as its head is, once the forge
+   finds it mergeable; one the forge finds in conflict, or whose merge it
+   refuses for a conflict, is held as one past its resolutions (it makes
+   none), its hold's words saying that its merge into its landing branch
+   conflicts and that its landing rule asks no update. What settles such
+   a conflict is not the change's.
    A pull request whose mergeability has not settled (5.2) is neither:
    the change waits for it, until the window's end at most, and the
    stall does not count that wait.
@@ -1129,20 +1150,27 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    where the forge's queue landed it, whose id in hexadecimal is the
    result's words' first line, the pull request with its address the
    second, and the landing said in words the third, `Landed: pull request
-   #7 merged into main as 0123456789ab.`: `root.md`, section 6; then what
-   the landing passed, as facts
+   #7 merged into main as 0123456789ab.`: `root.md`, section 6; then its
+   producer's last report, the words of its producing task's last
+   successful result as that task wrote them, under a line `Report:`
+   (none for a change handed a pushed branch); then what the landing
+   passed, as facts
    the change itself saw: each check at the landed head with its
    conclusion, the repairs with their count and why each was asked (a
-   check that failed, a review's remarks), and each review's verdict,
-   cut to the result's bound from the end and marked; a check or a test
+   check that failed, a review's remarks), and each review's verdict;
+   all that follows the three lines cut to the result's bound, the
+   change's contract's words (the deployment's `tasks.result_bytes`),
+   from the end and marked; a check or a test
    the change never saw is never named, so whoever reports the landing
-   reports only what ran). It then verifies until its landing
+   reports only what ran). The report is kept with the change from its
+   producer's result, as its pull request's title is (8.1), bounded by
+   that result's own bound. It then verifies until its landing
    is cleared (`after-landing.md`, section 6), and closes, its branch
    deleted as its hold is released (section 11).
 
 Lazy, too, for runs: before a repair or a resolution is created, the
-change takes its base if its head lacks the base's tip, so a repair
-starts from current code. It never updates only because its base moved.
+change takes its base if its head lacks the base's tip and its rules ask
+up to date (8.7), so a repair starts from current code. It never updates only because its base moved.
 
 A completed change waits for its live delegates to end before offering
 its result to the core. A landing observed while a resumed repair's
@@ -1436,13 +1464,26 @@ merge, kind 4, on a pattern of landing branches (jig's
 - **Enforced, and waited for.** A rule marked `enforce` makes each of its
   criteria a requirement the core checks at the merge, whatever any
   task's authority says: the rule. Every change also waits, on its own,
-  for CI, its blocking gates and its base's tip (8.2): the mechanics. A
+  for its blocking gates and for what its landing branch's rules ask of
+  CI and of its base's tip (8.2, below): the mechanics. A
   rule not marked `enforce` leaves its criteria to those waits alone. A
   requirement that waits keeps the change at its turn until it is asked
   again; one that refuses holds the change, saying which, and never
   lands it. Approvals are waited for at the merge alone; for what the
   procedure waits for itself, a refusal at the merge is a bug in the
   procedure, counted (jig's `domain/authority.md`, section 10).
+- **What the procedure asks of the rules:** for a repository's landing
+  branch, `Requires { ci, up_to_date }`, from `temper-engine-domain-forge`'s
+  `requires` (in its `gates.rs`, beside the gates the rules name) over
+  the rules as the forge holds them (8.9): `ci` where some rule covering
+  the branch, the deployment's or its project's, enforcing or not, asks
+  CI passed; `up_to_date` where some such rule asks up to date; both
+  where no rule covers the branch, so a branch without rules keeps the
+  procedure's own waits. It is read at each step of the change, never
+  kept on it, so a rule changed reaches a live change at its next step.
+  A rule asking neither lets a change merge at its head once the forge
+  finds it mergeable, unchecked by CI and never updated (8.2 steps 3
+  and 6; section 10): the rule a goal's own branch lands under (11.1).
 - **Force-pushing does not exist.** No kind forces a push or moves a
   branch backwards: a run's push is a fast-forward
   (`../protocol/git.md`, 4.8), an update merges the base in
@@ -1656,6 +1697,10 @@ instead (`landing.md`, section 5).
 - **Lazy:** a change takes its base when it is first in its queue, or
   about to get a run for another reason (8.2). It never does only
   because its base moved.
+- **By its landing branch's rule:** only where the rules covering its
+  landing branch ask up to date (8.7, `Requires`). Under rules asking
+  none it is never updated, first or before a run, and a conflict with
+  its base holds it (8.2, step 6).
 - **Mechanical:** the update merges the base into the change's branch,
   with no LLM. The forge makes it itself (its pull request's update, by
   a merge), so it is an effect, as a merge is. A merge rather than a
@@ -1691,6 +1736,8 @@ instead (`landing.md`, section 5).
     own branch, so it starts no CI and moves no pull request;
   - a landing's own branch, for a pin-only member: `temper/<root>/l<task>`,
     the landing's task, held by the landing (`landing.md`, 4.1);
+  - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
+    its project's home, held by the goal (11.1);
   - an agent's task's own branch, for runs that push outside a change,
     as a chat making a small fix does: `temper/<root>/r<task>`, in each
     repository its runs may write, the project's home among them, which
@@ -1713,15 +1760,21 @@ instead (`landing.md`, section 5).
   another as git refs forbid, and one grant covers a tree's branches;
   a task's own branches are named in its batch symbolically and resolved
   once it has its number (jig's `domain/authority.md`, section 4).
-- **Held by the change** that lands it, and written by its delegates one
+- **Held by the task it is named after,** a change's by the change that
+  lands it, a goal's own by its goal, and written by its delegates one
   at a time (jig's `domain/tasks.md`, 6.3).
 - **Landing branches are never made by a push.** A landing branch must
-  exist when it is adopted or named; a goal's own branch (11.1) is
-  created at its base's tip by the change that lands it, as an effect.
+  exist when it is adopted or named; a goal's own branch (11.1) is made
+  at its base's tip as its goal's hold is taken, as the taking's effect
+  (jig's `domain/connectors.md`, 4.7), and a change into it reads it
+  once it is made.
 - **Deleted as their tasks close,** as the release of their holds (jig's
   `domain/tasks.md`, 6.5): a landed change's branch, a cancelled one's,
   and a task's saved work. A failed change's branch is kept for a person
-  to read, and deleted as its tree's root closes. A release waits for a lost
+  to read, and deleted as its tree's root closes. A goal's own branch is
+  deleted as its goal closes if a change landed it (its tip reachable
+  from that change's landing branch), and otherwise kept for a person to
+  read, until deleted by hand or by the deployment's retention. A release waits for a lost
   writer's reread, and fails only if that reread fails.
 
 ### 11.1 A branch per goal
@@ -1736,10 +1789,32 @@ commit of the base, which no later squash of a goal's branch replaces.
 A goal's own branch suits work likely to be dropped; a goal
 checked whole before it lands (by an end-to-end run, by a review of the
 whole); intermediate states that would break the base; and upstream
-contributions (section 14). Such a branch is short-lived: it is a change
-of its own, landed by the change procedure like any other, and it takes
-the base's landings that touch its area as they come, by an update. A
-project's rule may require or forbid it.
+contributions (section 14). Such a branch is short-lived, and the goal's
+own, never a change's:
+
+- **Named by the goal's template,** or by the batch that makes the goal
+  by hand, as the symbol *its own goal branch* (section 2), offered on a
+  tracked task only, since its goal is the one its changes serve (jig's
+  `domain/core.md`, 6.2). Resolved once the goal has its number to
+  `temper/<root>/g<task>` in the project's home (section 11). A goal
+  cannot take a hold once active (jig's `domain/tasks.md`, 6.2), so the
+  choice is made with the goal.
+- **Held by its goal for its whole life,** an exclusive hold that
+  refuses, and made at the home's default branch's tip as the hold is
+  taken, as the taking's effect. A making that fails for good holds the
+  goal, its words naming the branch and what the forge answered.
+- **Written by change alone:** each of the goal's changes lands into it
+  as its landing branch, its merge ordered by the branch's queue (section
+  9) and taking the branch's writer slot while in flight; the goal's own
+  runs inspect it and take no writer slot (jig's `domain/tasks.md`, 6.3).
+  A change whose landing branch is a goal's own, made by a task that is
+  neither that goal nor one of its subtree, is refused at its batch,
+  naming the goal.
+- **Landed whole** by a change into the base whose branch is the goal's
+  own, and deleted as the goal closes once that change has landed it
+  (section 11); otherwise kept as the goal closes. It takes the base's
+  landings that touch its area as they come, by an update. A project's
+  rule may require or forbid it.
 
 ## 12. Issues
 
@@ -2079,6 +2154,10 @@ whole.
 
 ## 20. Open questions
 
+- **A conflict under rules asking no update** holds its change (8.2,
+  step 6): what merges the base into such a change's branch and settles
+  what it can, so that the change lands without a person, is later
+  work; until then a person settles it on the branch and releases.
 - **A queue's throughput:** landings into one branch wait on CI one after
   another. If that binds, landings are batched: tested together, and
   bisected when they fail.

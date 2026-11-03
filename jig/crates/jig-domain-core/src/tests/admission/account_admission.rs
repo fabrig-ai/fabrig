@@ -92,7 +92,7 @@ fn a_delegate_preflight_uses_the_parents_financial_payer() {
         llm: Some(choice()),
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: member.wake,
+        wake: Some(member.wake),
         tracked: None,
         label: 0,
         flags: tasks::Flags::PLAIN,

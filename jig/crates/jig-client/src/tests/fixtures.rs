@@ -377,6 +377,7 @@ pub fn me() -> contract::Me {
     for number in [1, 2] {
         templates
             .push(contract::Template {
+                resources: List::with_capacity(0),
                 llm: None,
                 number,
                 name: contract::DocumentText {

@@ -1,0 +1,141 @@
+{
+  "items": [
+    {
+      "setting": {
+        "kind": "charter",
+        "number": 5
+      },
+      "set": {
+        "number": 5,
+        "instructions": "You coordinate one goal: a draft built into code through changes into your own goal branch, never into main. Your words name the draft and what to build from it.\n\nOn your first run, read the draft, the design documents it touches and the code they describe; use sub-agents for surveys that read many files. Then shape the plan: the changes the draft needs, each small enough for one producer, its words naming the design sections it builds by path and section, the files it owns and what it must not touch, and its acceptance. Make them yourself with `change`, every one with `\"landing\": \"goal\"`, its `name`, and `after` naming the changes whose merged code it builds on; make the changes that build on one another in one call, as a batch. Then end your run: you wake on each change's result.\n\nOn a change's result, read its producer's report and its Left list. For what is left that the plan needs, make a new change, or amend a live change whose words cover it; for what is not the plan's, nothing. Never fix code yourself.\n\nOn a question or an escalation, answer from the draft and the design, amend the change, or make a new change it waits on; pass up to your person only what the draft does not settle, with your options and your recommendation.\n\nWhen every change of the plan has landed into your goal branch and nothing is left that the plan needs, finish: your report names the changes that landed, what each Left list held and what became of it, and your goal branch, which stays as it is.",
+        "waiting": 0,
+        "resume": false,
+        "turns": 16,
+        "time": 1800000000000,
+        "reserve_turns": 1,
+        "reserve_time": 60000000000,
+        "model": {
+          "dialect": 3,
+          "endpoint": 1,
+          "program": null,
+          "name": "claude-opus-5-5",
+          "window": 1048576,
+          "output": 8192,
+          "input_price": 1,
+          "cached_price": 1,
+          "cache_write_price": null,
+          "output_price": 1,
+          "price_unit": 1000,
+          "efforts": [],
+          "effort": null
+        },
+        "alternatives": [],
+        "inspect": true,
+        "modify": true,
+        "shell": false,
+        "agents": true,
+        "call_timeout": 10000000000,
+        "hosts": "workers",
+        "spend": 4228,
+        "documents": [],
+        "wake": {
+          "words": "immediate",
+          "notices": "immediate",
+          "news": {
+            "paced": 1800000000000
+          },
+          "results": "each",
+          "questions": true,
+          "answers": true,
+          "timers": true
+        }
+      }
+    },
+    {
+      "setting": {
+        "kind": "charter",
+        "number": 2
+      },
+      "set": {
+        "number": 2,
+        "instructions": "Read only what the change needs, then write it in its files: your turns are few. Finish with a clear change summary. You can run nothing; a file the change drops, remove once you have read it. The change has no pull request yet: once you finish, your work is committed, its pull request opened and its checks run; what fails there, or needs the pull request's number, comes back as a repair that names it. So write only files the change keeps, and no placeholder for what you can't know yet. Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with the no_change verdict saying what the code has instead; never add a feature in a fix's place. Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with the no_change verdict only when it cannot be built there. For no_change, call finish with form verdict, label no_change, your explanation as text, and empty fields and items; it completes successfully without a landing. Use failure for an error that prevented production, not an inapplicable request.\n\nPush as you go: deliver a first head as soon as the change builds, then again as it grows. The project's checks run as you deliver (`.temper/pre-pr`); a delivery they fail is not delivered, so fix what they name in your own files first.\n\nFinish with a report: what you did, the checks that ran, and a Left list, each item what you found, where, and why it is not yours.\n\nA story that fails for code your change does not own: mark it ignored, its reason the fault in one line, and list it under Left. Never fix code you do not own; the change that fixes the fault removes the mark.",
+        "waiting": 10000000000,
+        "resume": true,
+        "turns": 16,
+        "time": 1800000000000,
+        "reserve_turns": 1,
+        "reserve_time": 60000000000,
+        "model": {
+          "dialect": 3,
+          "endpoint": 1,
+          "program": null,
+          "name": "gpt-6.1-sol",
+          "window": 1048576,
+          "output": 8192,
+          "input_price": 1,
+          "cached_price": 1,
+          "cache_write_price": null,
+          "output_price": 1,
+          "price_unit": 1000,
+          "efforts": [],
+          "effort": null
+        },
+        "alternatives": [],
+        "inspect": true,
+        "modify": true,
+        "shell": false,
+        "agents": true,
+        "call_timeout": 10000000000,
+        "hosts": "workers",
+        "spend": 4228,
+        "documents": []
+      }
+    },
+    {
+      "setting": {
+        "kind": "template",
+        "number": 4
+      },
+      "set": {
+        "number": 4,
+        "name": {
+          "bytes": "goal for a draft",
+          "cut": false
+        },
+        "executor": {
+          "charter": 5
+        },
+        "contract": {
+          "report": {
+            "words": 512
+          }
+        },
+        "shallower": 1,
+        "budget": "given",
+        "deadline": "given",
+        "tracked": 1,
+        "flags": {
+          "conversation": false,
+          "listed": true,
+          "retention": "kept",
+          "ended_by": "result"
+        },
+        "label": 2,
+        "grace": null,
+        "llm": {
+          "account": null,
+          "main": {
+            "model": "claude-opus-5-5",
+            "effort": "xhigh"
+          },
+          "subagents": [
+            {
+              "model": "claude-opus-5-5",
+              "effort": "high"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

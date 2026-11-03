@@ -25,6 +25,7 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
             b"call_timeout",
             b"hosts",
             b"spend",
+            b"wake",
             b"documents",
         ],
     )?;
@@ -64,8 +65,83 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
         call_timeout: Duration::from_nanos(d.number(field(&fields, b"call_timeout")?)?),
         hosts: setting_hosts(d, field(&fields, b"hosts")?)?,
         spend: d.number(field(&fields, b"spend")?)?,
+        wake: match optional(&fields, b"wake") {
+            Some(at) if d.kind(at)? != Kind::Null => wake_policy(d, at)?,
+            Some(_) | None => c::WakePolicy::DEFAULT,
+        },
     })
 }
+fn wake_policy(d: &Decoder, at: u32) -> Result<c::WakePolicy, Error> {
+    match wake_policy_value(d, at) {
+        Ok(value) => Ok(value),
+        Err(why) => Err(wake_error(b"charter.wake", why)),
+    }
+}
+fn wake_policy_value(d: &Decoder, at: u32) -> Result<c::WakePolicy, Error> {
+    let fields = d.object(at, &[b"words", b"notices", b"news", b"results", b"questions", b"answers", b"timers"])?;
+    Ok(c::WakePolicy {
+        words: wake_rule(d, field(&fields, b"words")?, b"words")?,
+        notices: wake_rule(d, field(&fields, b"notices")?, b"notices")?,
+        news: wake_rule(d, field(&fields, b"news")?, b"news")?,
+        results: match d.string(field(&fields, b"results")?)? {
+            b"never" => c::ResultsWake::Never,
+            b"each" => c::ResultsWake::Each,
+            b"last_or_failure" => c::ResultsWake::LastOrFailure,
+            _ => return Err(error(b"results", b"unknown results rule")),
+        },
+        questions: d.boolean(field(&fields, b"questions")?)?,
+        answers: d.boolean(field(&fields, b"answers")?)?,
+        timers: d.boolean(field(&fields, b"timers")?)?,
+    })
+}
+fn wake_rule(d: &Decoder, at: u32, path: &[u8]) -> Result<c::WakeRule, Error> {
+    match wake_rule_value(d, at) {
+        Ok(value) => Ok(value),
+        Err(why) => Err(wake_error(path, why)),
+    }
+}
+fn wake_rule_value(d: &Decoder, at: u32) -> Result<c::WakeRule, Error> {
+    if d.kind(at)? == Kind::String {
+        return match d.string(at)? {
+            b"never" => Ok(c::WakeRule::Never),
+            b"immediate" => Ok(c::WakeRule::Immediate),
+            _ => Err(error(b"", b"unknown wake rule")),
+        };
+    }
+    let fields = d.object(at, &[b"batch", b"paced"])?;
+    if fields.len() != 1 {
+        return Err(error(b"", b"one wake rule member required"));
+    }
+    if let Some(at) = optional(&fields, b"paced") {
+        return Ok(c::WakeRule::Paced { span: Duration::from_nanos(d.number(at)?) });
+    }
+    match wake_batch(d, field(&fields, b"batch")?) {
+        Ok(value) => Ok(value),
+        Err(why) => Err(wake_error(b"batch", why)),
+    }
+}
+fn wake_batch(d: &Decoder, at: u32) -> Result<c::WakeRule, Error> {
+    let fields = d.object(at, &[b"count", b"age"])?;
+    let count = u32::try_from(d.number(field(&fields, b"count")?)?).or(Err(error(b"count", b"integer bound")))?;
+    Ok(c::WakeRule::Batch { count, age: Duration::from_nanos(d.number(field(&fields, b"age")?)?) })
+}
+fn wake_error(path: &[u8], mut why: Error) -> Error {
+    let nested = !why.member.is_empty() && why.member.as_ref() != b"JSON";
+    let length = if nested {
+        path.len().checked_add(why.member.len()).expect("bounded path").checked_add(1).expect("separator")
+    } else {
+        path.len()
+    };
+    let mut member = skein_lib::Writer::new(length);
+    member.put(path).expect("path length");
+    if nested {
+        member.put(b".").expect("path separator");
+        member.put(&why.member).expect("member length");
+    }
+    why.member = member.finish();
+    why
+}
+
 fn documents(d: &Decoder, at: u32) -> Result<List<c::CharterDocument>, Error> {
     let positions = d.array(at, d.limits.charter_documents, b"charter.documents")?;
     let mut values = List::with_capacity(positions.len());

@@ -353,3 +353,92 @@ fn a_task_created_without_an_llm_choice_records_its_default_and_its_run_uses_it(
     assert_eq!(assignment.run.policy.model.name.as_ref(), b"scripted");
     assert_eq!(assignment.run.policy.model.effort.as_deref(), Some(b"low".as_slice()), "its first declared effort");
 }
+
+fn coordinator_wake() -> tasks::WakePolicy {
+    tasks::WakePolicy {
+        news: tasks::WakeRule::Paced { span: skein_lib::Duration::from_millis(1_800_000) },
+        results: tasks::ResultsWake::Each,
+        ..tasks::WakePolicy::DEFAULT
+    }
+}
+
+fn wake_world(seed: u64) -> World {
+    let (mut configuration, limits) = jig_core_world::world::fixture(seed, false);
+    configuration.core.defaults.charters[0].wake = coordinator_wake();
+    let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
+    let people::Ask::Create { project, mut batch } =
+        jig_test_profile::fixtures::create_chat(&creating, 1, 0, b"coordinate".as_slice().into())
+    else {
+        panic!("initial chat")
+    };
+    batch[0].wake = None;
+    World::new(Setup {
+        seed,
+        configuration: Some(configuration),
+        limits,
+        initial: Some(people::Ask::Create { project, batch }),
+        ..Setup::default()
+    })
+}
+
+fn task_wake(world: &World, number: u64) -> tasks::WakePolicy {
+    world
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task))) if task.number == number => {
+                Some(task.wake)
+            }
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .expect("durable task wake policy")
+}
+
+#[test]
+fn a_party_task_naming_no_wake_takes_its_charters_default() {
+    let world = wake_world(154);
+    let task = world.assigned.as_ref().expect("coordinator assigned").task;
+    assert_eq!(task_wake(&world, task), coordinator_wake());
+}
+
+fn delegate_wake(world: &mut World, wake: Option<tasks::WakePolicy>) -> u64 {
+    let assignment = world.assigned.as_ref().expect("caller assigned");
+    let run = (assignment.task, assignment.attempt);
+    let mut member = jig_core_world::fixtures::member(world, tasks::Executor::Agent { charter: 1 }, b"research");
+    member.wake = wake;
+    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    jig_core_world::fixtures::delegate(world, run, 1, member)
+}
+
+#[test]
+fn a_delegate_naming_no_wake_takes_its_charters_default() {
+    let mut world = wake_world(155);
+    let task = delegate_wake(&mut world, None);
+    assert_eq!(task_wake(&world, task), coordinator_wake());
+}
+
+#[test]
+fn a_named_wake_policy_is_kept_over_the_charters() {
+    let mut world = wake_world(156);
+    let task = delegate_wake(&mut world, Some(tasks::WakePolicy::DEFAULT));
+    assert_eq!(task_wake(&world, task), tasks::WakePolicy::DEFAULT);
+}
+
+#[test]
+fn a_procedure_naming_no_wake_takes_the_default() {
+    let mut world = wake_world(157);
+    world.hold_procedures = true;
+    let mut member = jig_test_profile::fixtures::people_member(b"procedure", 10);
+    member.executor = people::TaskExecutor::Procedure { connector: 1, code: 1 };
+    member.wake = None;
+    let sign_in = world.sign_in.expect("owner signed in");
+    jig_core_world::fixtures::ask_as(
+        &mut world,
+        sign_in,
+        91,
+        people::Ask::Create { project: 1, batch: Box::new([member]) },
+    );
+    let (_, _, _, context) = world.procedure_inputs.last().expect("procedure created");
+    assert_eq!(task_wake(&world, context.task), tasks::WakePolicy::DEFAULT);
+}

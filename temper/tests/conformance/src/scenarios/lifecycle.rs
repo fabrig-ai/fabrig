@@ -66,7 +66,7 @@ fn delegate(world: &mut World) {
         authority: authority.clone(),
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
     });
     crate::link::call(

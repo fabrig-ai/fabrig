@@ -1039,6 +1039,7 @@ pub fn withdrawn_history(task: u64, proposal: u64) -> jig_domain_core::Record {
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
+        symbols: Box::new([]),
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: words.into(),
         parameters: Box::new([]),
@@ -1057,7 +1058,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             notes: 0,
             note_resources: Box::new([]),
         },
-        wake: people::WakePolicy {
+        wake: Some(people::WakePolicy {
             words: people::WakeRule::Immediate,
             notices: people::WakeRule::Never,
             news: people::WakeRule::Never,
@@ -1065,7 +1066,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             questions: false,
             answers: false,
             timers: false,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: None,
         label: 0,

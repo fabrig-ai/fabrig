@@ -61,6 +61,7 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
         call_timeout: v.call_timeout,
         hosts: form_setting_hosts(&v.hosts),
         spend: v.spend,
+        wake: form_wake(v.wake),
         switches: [v.resume, v.inspect, v.modify, v.shell, v.agents],
     }
 }
@@ -102,6 +103,7 @@ pub fn client_charter(v: &n::Charter) -> c::Charter {
         call_timeout: v.call_timeout,
         hosts: client_setting_hosts(&v.hosts),
         spend: v.spend,
+        wake: client_wake(v.wake),
     }
 }
 pub fn form_document_text(v: &c::DocumentText) -> n::DocumentText {
@@ -935,6 +937,7 @@ pub fn form_template(v: &c::Template) -> n::Template {
 }
 pub fn client_template(v: &n::Template) -> c::Template {
     c::Template {
+        resources: List::with_capacity(0),
         number: v.number,
         name: client_document_text(&v.name),
         executor: client_template_executor(v.executor),
@@ -1168,5 +1171,53 @@ pub fn form_read_value(v: &c::ReadValue) -> n::ReadValue {
         | c::ReadValue::Spend(_)
         | c::ReadValue::Notes(_)
         | c::ReadValue::Deployment(_) => unreachable!("selected settings read"),
+    }
+}
+
+fn form_wake(v: c::WakePolicy) -> n::WakePolicy {
+    n::WakePolicy {
+        words: form_wake_rule(v.words),
+        notices: form_wake_rule(v.notices),
+        news: form_wake_rule(v.news),
+        results: match v.results {
+            c::ResultsWake::Never => n::ResultsWake::Never,
+            c::ResultsWake::Each => n::ResultsWake::Each,
+            c::ResultsWake::LastOrFailure => n::ResultsWake::LastOrFailure,
+        },
+        questions: v.questions,
+        answers: v.answers,
+        timers: v.timers,
+    }
+}
+fn form_wake_rule(v: c::WakeRule) -> n::WakeRule {
+    match v {
+        c::WakeRule::Never => n::WakeRule::Never,
+        c::WakeRule::Immediate => n::WakeRule::Immediate,
+        c::WakeRule::Batch { count, age } => n::WakeRule::Batch { count, age },
+        c::WakeRule::Paced { span } => n::WakeRule::Paced { span },
+    }
+}
+
+fn client_wake(v: n::WakePolicy) -> c::WakePolicy {
+    c::WakePolicy {
+        words: client_wake_rule(v.words),
+        notices: client_wake_rule(v.notices),
+        news: client_wake_rule(v.news),
+        results: match v.results {
+            n::ResultsWake::Never => c::ResultsWake::Never,
+            n::ResultsWake::Each => c::ResultsWake::Each,
+            n::ResultsWake::LastOrFailure => c::ResultsWake::LastOrFailure,
+        },
+        questions: v.questions,
+        answers: v.answers,
+        timers: v.timers,
+    }
+}
+fn client_wake_rule(v: n::WakeRule) -> c::WakeRule {
+    match v {
+        n::WakeRule::Never => c::WakeRule::Never,
+        n::WakeRule::Immediate => c::WakeRule::Immediate,
+        n::WakeRule::Batch { count, age } => c::WakeRule::Batch { count, age },
+        n::WakeRule::Paced { span } => c::WakeRule::Paced { span },
     }
 }

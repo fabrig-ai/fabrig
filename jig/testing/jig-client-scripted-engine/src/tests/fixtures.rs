@@ -66,6 +66,7 @@ pub(super) fn query(project: u32) -> TaskQuery {
 /// One root using the shared task's specification and authority.
 pub(super) fn new_task(words: Text) -> NewTask {
     NewTask {
+        symbols: skein_lib::List::with_capacity(0),
         llm: None,
         deadline: jig_client_domain::contract::NewDeadline::Named,
         executor: Executor::Agent { charter: 1 },

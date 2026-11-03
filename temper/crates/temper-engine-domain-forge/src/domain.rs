@@ -13,6 +13,8 @@ use crate::{
 };
 use crate::{adoption, brief, held, topics};
 
+#[path = "goal_branch.rs"]
+mod goal_branch;
 mod hints;
 #[path = "make.rs"]
 pub(crate) mod make;
@@ -165,6 +167,7 @@ pub struct Domain {
     pub(crate) sequence: u64,
     pub(crate) changes: Map<u64, ChangeRow>,
     steps: Map<Token, PendingStep>,
+    makings: Map<Token, goal_branch::Making>,
     pub(crate) panel_ci: Map<u64, change::Ci>,
     pub(crate) issues: Map<u64, IssueRow>,
     releases: Map<u64, ReleaseRow>,
@@ -392,6 +395,35 @@ impl Domain {
     ) -> Option<Box<[crate::GateCandidate]>> {
         crate::gates::candidates(&self.gate_policy, limits, project, name)
     }
+    /// Read the landing branch's procedure waits (temper/docs/design/domain/forge.md, 8.7).
+    #[must_use]
+    pub fn requires(&self, repository: &Repository, branch: &[u8]) -> crate::Requires {
+        fn branch_resource_name(repository: &Repository, branch: &[u8]) -> Option<Box<[Box<[u8]>]>> {
+            let mut segments = List::uncapped();
+            for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name, b"branch"] {
+                if segment.is_empty() {
+                    return None;
+                }
+                segments.push(Box::from(segment)).ok()?;
+            }
+            let mut start = 0;
+            for at in 0..=branch.len() {
+                if at == branch.len() || branch.get(at) == Some(&b'/') {
+                    let part = branch.get(start..at)?;
+                    if part.is_empty() {
+                        return None;
+                    }
+                    segments.push(Box::from(part)).ok()?;
+                    start = at.checked_add(1)?;
+                }
+            }
+            Some(segments.into_boxed())
+        }
+        match branch_resource_name(repository, branch) {
+            Some(name) => crate::gates::requires(&self.gate_policy, repository.project, &name),
+            None => crate::Requires { ci: true, up_to_date: true },
+        }
+    }
     #[must_use]
     pub fn configured_gates(
         &self,
@@ -579,6 +611,7 @@ impl Domain {
             sequence: 0,
             changes: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
+            makings: Map::with_capacity(l.holds),
             panel_ci: Map::with_capacity(l.changes),
             issues: Map::with_capacity(l.issues),
             releases: Map::with_capacity(l.tasks),
@@ -730,7 +763,8 @@ impl Domain {
         self.next_handoff().is_some()
             || !self.procedure_wakes.is_empty()
             || self.client.is_ready()
-            || ((self.lost_waiting() || brief::waiting(self)) && self.client.has_room())
+            || ((self.lost_waiting() || brief::waiting(self) || goal_branch::read_waiting(self))
+                && self.client.has_room())
     }
 
     fn next_handoff(&self) -> Option<u64> {
@@ -1195,6 +1229,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                             waiting.push(*owner).expect("lost reads bounded by holds");
                         }
                     }
+                    goal_branch::connected(d, forge);
                     for owner in &waiting {
                         d.lost.get_mut(owner).expect("collected lost read").state = LostReadState::WaitingForRoom;
                     }
@@ -1342,7 +1377,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 unnamed(d, env, task, false, out);
             }
         }
-        Event::Hold { task, resource, from } => hold(d, env, task, resource, from, out),
+        Event::Hold { entry, task, resource, from } => hold(d, env, entry, task, resource, from, out),
         Event::Claim { task, attempt, writes, holders } => claim(d, env, task, attempt, &writes, &holders, out),
         Event::Answered { task, attempt, pushed } => answered(d, env, task, attempt, &pushed, out),
         Event::Lost { task, attempt } => lost(d, env, task, attempt, out),
@@ -1386,7 +1421,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 save_change(d, out, saved);
             }
         }
-        Event::ProducedTitle { task, child, title } => produced_title(d, task, child, &title, out),
+        Event::ProducedTitle { task, child, title, report } => produced_title(d, task, child, &title, report, out),
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
@@ -1472,6 +1507,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.client.has_room() {
         brief::retry(d, out);
         ask_lost_again(d, env, out);
+        goal_branch::retry(d, env, out);
     }
     if out.room() > 0
         && let Some((task, _)) = d.procedure_wakes.iter().next()
@@ -1668,6 +1704,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     landing_read(d, owner, result, out);
                 } else if d.goal_file_reads.contains_key(&owner) {
                     topics::answer(d, env, owner, result, out);
+                } else if d.makings.contains_key(&owner) {
+                    goal_branch::answered(d, env, owner, result, out);
                 } else if d.steps.contains_key(&owner) {
                     step_read(d, env, owner, result, out);
                 } else if d.pending_ci.contains_key(&owner) {
@@ -1714,6 +1752,7 @@ fn outcome_facts(
     projection_outcome(d, env, entry, outcome, out);
     change_outcome(d, env, entry, outcome, out);
     release_outcome(d, entry, outcome, out);
+    goal_branch::outcome(d, entry, outcome, out);
     match outcome {
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Branch(commit), .. } => {
             if let Some(Outboxed { entry: kept, .. }) = d.entries.get(&entry) {
@@ -1773,13 +1812,29 @@ fn outcome_facts(
                         repository,
                         what: skein_forge_client::What::Branch(branch.clone()),
                     };
-                    let before = match from_client(&resource, &env.limits) {
-                        Some(name) => match d.heads.get(&name) {
+                    let name = from_client(&resource, &env.limits);
+                    let before = match &name {
+                        Some(name) => match d.heads.get(name) {
                             Some(head) => Some(head.commit),
                             None => None,
                         },
                         None => None,
                     };
+                    if let Some(name) = name
+                        && let Some(head) = d.heads.get_mut(&name)
+                        && head.owned
+                    {
+                        head.commit = commit;
+                        emit(
+                            out,
+                            Request::Save {
+                                read_afresh: None,
+                                release: None,
+                                record: Stored::BranchHead(head.clone()),
+                            },
+                        );
+                        child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
+                    }
                     crate::tiers::observed(d, env, repository, &branch, before, commit, out);
                 }
             }
@@ -2089,7 +2144,15 @@ fn kept(out: &Queue<skein_forge_client::Request>) -> bool {
     false
 }
 
-fn hold(d: &mut Domain, env: &Env<Limits>, task: u64, resource: Name, from: Option<u64>, out: &mut Queue<Request>) {
+fn hold(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    entry: u64,
+    task: u64,
+    resource: Name,
+    from: Option<u64>,
+    out: &mut Queue<Request>,
+) {
     let holdable = match d.resource_facts(&resource) {
         Some((_, crate::resources::HoldKind::Exclusive { .. })) => true,
         Some((_, crate::resources::HoldKind::Shared)) | None => false,
@@ -2119,8 +2182,9 @@ fn hold(d: &mut Domain, env: &Env<Limits>, task: u64, resource: Name, from: Opti
         None => None,
     };
     let row = Hold { name: resource.clone(), task, writer, drift };
-    d.holds.insert(resource, row.clone()).expect("preflighted hold capacity");
+    d.holds.insert(resource.clone(), row.clone()).expect("preflighted hold capacity");
     save_hold(out, row);
+    goal_branch::start(d, env, resource, Some(entry), out);
 }
 
 fn claim(
@@ -2142,6 +2206,10 @@ fn claim(
             return;
         };
         if row.task != task && !holders.contains(&row.task) {
+            emit(out, Request::Taken { task, resource: name.clone(), by: row.task });
+            return;
+        }
+        if goal_branch::is_goal(d, name) && goal_branch::waiting(d, name) {
             emit(out, Request::Taken { task, resource: name.clone(), by: row.task });
             return;
         }
@@ -2497,21 +2565,19 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
     save_queue_change(d, env, None, row, out);
 }
 
-fn produced_title(d: &mut Domain, task: u64, child: u64, title: &[u8], out: &mut Queue<Request>) {
+fn produced_title(d: &mut Domain, task: u64, child: u64, title: &[u8], report: Box<[u8]>, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get_mut(&task) else { return };
-    if row.pull.is_some() || !row.title.is_empty() {
+    if row.delegate != Some((child, change::Delegate::Produce)) {
         return;
     }
-    if let Some(delegate) = row.delegate
-        && delegate != (child, change::Delegate::Produce)
-    {
-        return;
+    if row.pull.is_none() && row.title.is_empty() {
+        row.title = if title.is_empty() {
+            Box::from(b"Update repository".as_slice())
+        } else {
+            crate::text::fit(title, 256, "…".as_bytes())
+        };
     }
-    row.title = if title.is_empty() {
-        Box::from(b"Update repository".as_slice())
-    } else {
-        crate::text::fit(title, 256, "…".as_bytes())
-    };
+    row.report = report;
     let saved = row.clone();
     d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     save_change(d, out, saved);
@@ -2933,10 +2999,34 @@ fn step_read(
                     return;
                 }
             }
+            if goal_branch::base_wait(d, repository, &base) {
+                emit(
+                    out,
+                    Request::ChangeDecision {
+                        task: pending.task,
+                        decision: change::Decision::Wait { until: None },
+                        entry: None,
+                        evidence: None,
+                    },
+                );
+                return;
+            }
             pending.stage = StepStage::Base;
             skein_forge::api::Read::Branch { branch: base }
         }
         StepStage::Base => {
+            if goal_branch::base_wait(d, repository, &base) {
+                emit(
+                    out,
+                    Request::ChangeDecision {
+                        task: pending.task,
+                        decision: change::Decision::Wait { until: None },
+                        entry: None,
+                        evidence: None,
+                    },
+                );
+                return;
+            }
             match result {
                 Ok(skein_forge::api::Answer::Commit(commit)) => {
                     pending.base_tip =
@@ -3378,6 +3468,10 @@ fn change_facts(
         Some(repository) => repository.ci,
         None => true,
     };
+    let requires = match d.repositories.get(&row.repository) {
+        Some(repository) => d.requires(repository, &row.base),
+        None => crate::Requires { ci: true, up_to_date: true },
+    };
     let window = crate::settle::window(d, row.task);
     change::Facts {
         verification: d.change_verification(row.task),
@@ -3388,14 +3482,15 @@ fn change_facts(
         pull,
         ci: change::Ci {
             head: pending.branch.unwrap_or([0; 32]),
-            status: if has_ci { pending.ci } else { change::Status::Passed },
+            status: if has_ci && requires.ci { pending.ci } else { change::Status::Passed },
         },
         base_ci: change::Ci {
             head: base_tip,
-            status: if !has_ci || row.base_repair { change::Status::Passed } else { pending.base_ci },
+            status: if !has_ci || !requires.ci || row.base_repair { change::Status::Passed } else { pending.base_ci },
         },
         base_tip,
-        contains_base: pending.contains_base,
+        contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
+        updates: requires.up_to_date,
         mergeable: match &pending.pull {
             Some(pull) if pull.mergeable => change::Status::Passed,
             Some(_) if window.is_some() => change::Status::Pending,
@@ -3907,9 +4002,17 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
                     }
                 }
             }
+            if goal_branch::reading(d, &name) {
+                return;
+            }
             if writer.is_some() {
                 emit(out, Request::ReleaseFailed { task, account: None });
                 return;
+            }
+            if goal_branch::is_goal(d, &name) {
+                d.holds.remove(&name);
+                emit(out, Request::Erase { key: Key::Hold(name) });
+                continue;
             }
             if row.ending == ReleaseEnding::Failed && row.root != task {
                 let hold = d.holds.get_mut(&name).expect("selected hold");
@@ -5406,6 +5509,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         ci_refresh(d, env, *repository, *head, out);
     }
     crate::landing::refresh(d, env, out);
+    goal_branch::restart(d, env, out);
     crate::tiers::restart(d, env, out);
     child(d, env, skein_forge_client::Event::ReadAfresh, out);
 }
@@ -5414,6 +5518,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 // kept task names retain repository rows; live watches and release gates retire.
 /// Drop the forge's local reads now; the event's environment retires its watches before returning.
 pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
+    goal_branch::retire(d, forge);
     let mut removed = List::with_capacity(d.lost.capacity());
     for (owner, pending) in &d.lost {
         if pending.name.forge == forge {
@@ -5570,6 +5675,7 @@ fn read_afresh_complete(d: &mut Domain, out: &mut Queue<Request>) {
         && d.pending_ci.is_empty()
         && d.goal_file_reads.is_empty()
         && d.lost.is_empty()
+        && d.makings.is_empty()
     {
         d.restart_fresh = None;
         emit(out, Request::RestartDone { stage: RestartStage::ReadAfresh });

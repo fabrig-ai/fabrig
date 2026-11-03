@@ -126,8 +126,11 @@ fn a_goal_without_modify_cannot_modify_but_its_change_producer_can() {
 
     agree_plan(&mut world, chat.task, &work);
     let work = admitted(&world, task);
-    let change =
-        delegated(&mut world, &work, engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None });
+    let change = delegated(
+        &mut world,
+        &work,
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(b"Small fix".as_slice().into(), None)]) },
+    );
     advance(&mut world);
     let producer = admitted(&world, next_child(&world, change, change));
     assert_eq!(producer.charter, 2);
@@ -341,7 +344,11 @@ fn land_change(world: &mut World, work: &engine::Assignment) -> (u64, [u64; 3]) 
 }
 
 fn land_change_with_words(world: &mut World, work: &engine::Assignment, words: &[u8]) -> (u64, [u64; 3]) {
-    let change = delegated(world, work, engine::Tool::Change { words: words.into(), repository: None });
+    let change = delegated(
+        world,
+        work,
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(words.into(), None)]) },
+    );
     answer(world, work, WORK_TURNS, tasks::End::Parked);
     assert_eq!(
         record(world, work.task).phase,

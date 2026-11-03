@@ -168,7 +168,7 @@ fn configured(count: usize, latency: u64) -> (Protocol, Scheduler) {
         world.event(forge::Event::Change { row });
         let name = branch_name(&branch);
         world.event(forge::Event::Names { task, resources: Box::new([name.clone(), branch_name(b"main")]) });
-        world.event(forge::Event::Hold { task, resource: name.clone(), from: None });
+        world.event(forge::Event::Hold { entry: 0, task, resource: name.clone(), from: None });
         world.event(forge::Event::Rename {
             task,
             resources: Box::new([

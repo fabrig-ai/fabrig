@@ -115,6 +115,9 @@ pub fn wake_rule(value: t::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, 
         t::WakeRule::Batch { count, age } => {
             w::WakeRule::Batch(w::WakeRuleBatch::new(limits, w::WakeRuleBatchParts { count, age })?)
         }
+        t::WakeRule::Paced { span } => {
+            w::WakeRule::Paced(w::WakeRulePaced::new(limits, w::WakeRulePacedParts { span })?)
+        }
     })
 }
 pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
