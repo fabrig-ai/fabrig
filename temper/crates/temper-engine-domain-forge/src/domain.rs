@@ -3498,6 +3498,8 @@ fn change_facts(
         contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
         updates: requires.up_to_date,
         merge_job: false,
+        delegate: None,
+        catch_up: None,
         contains_catch_up: change::Status::Pending,
         mergeable: match &pending.pull {
             Some(pull) if pull.mergeable => change::Status::Passed,

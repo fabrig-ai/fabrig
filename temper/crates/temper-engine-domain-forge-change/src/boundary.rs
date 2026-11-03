@@ -271,6 +271,11 @@ pub struct Facts {
     pub contains_base: Status,
     /// Whether a merge job is configured, declared and authorized (temper/docs/design/domain/forge.md, 8.4).
     pub merge_job: bool,
+    /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
+    /// `None` when it has none.
+    pub delegate: Option<Delegate>,
+    /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
+    pub catch_up: Option<Commit>,
     /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge.md, 8.2).
     pub contains_catch_up: Status,
     /// Whether its landing branch's rules ask up to date (domain/forge.md, 8.7).

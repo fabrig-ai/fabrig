@@ -45,6 +45,8 @@ fn facts() -> Facts {
         base_tip: BASE,
         contains_base: Status::Passed,
         merge_job: false,
+        delegate: None,
+        catch_up: None,
         contains_catch_up: Status::Pending,
         updates: true,
         mergeable: Status::Passed,
@@ -308,16 +310,17 @@ fn a_release_keeps_other_producing_holds_and_a_pushed_head_goes_on_without_a_new
     assert_eq!(next.change.last_head, Some(NEW));
 }
 
+/// A conflict resolves under rules asking no update (temper/docs/design/domain/forge.md, 8.4).
 #[test]
-fn a_conflict_under_rules_asking_no_update_holds_the_change() {
+fn a_conflict_under_rules_asking_no_update_is_resolved() {
     let c = change(State::First { head: HEAD, ready_since: at(0) });
     let mut f = facts();
     f.mergeable = Status::Failed;
     f.updates = false;
     let next = decide(&c, &f, &heard());
-    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::Resolutions });
-    assert_eq!(next.decision, Decision::Hold(Hold::Resolutions));
-    assert_eq!(next.change.resolutions, 0);
+    assert_eq!(next.change.state, State::Resolving { requested: true, base: BASE });
+    assert_eq!(next.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
+    assert_eq!(next.change.resolutions, 1);
 }
 
 #[test]
@@ -843,4 +846,5 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
     assert_eq!(decide(&c, &f, &heard()).decision, Decision::CancelGates { head: HEAD });
 }
 
+mod merge;
 mod verifying;
