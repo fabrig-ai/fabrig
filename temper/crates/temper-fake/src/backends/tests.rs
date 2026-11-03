@@ -331,7 +331,7 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
 
 #[test]
 fn backend_rewrite_keeps_creating_list_capacity() {
-    for (receiving, expected) in [(Some(2), Some(3)), (Some(8), Some(8)), (None, None)] {
+    for (receiving, expected) in [(Some(2), Some(3)), (Some(8), Some(8)), (None, Some(3))] {
         let (mut temper, agent, paths, peers) = fixture();
         let overrides = temper["engine"]["limits"]["overrides"].as_object_mut().unwrap();
         match receiving {
@@ -341,6 +341,7 @@ fn backend_rewrite_keeps_creating_list_capacity() {
         let docs = write(&temper, &agent, &paths, &peers).expect("backend rewrite");
         let effective = json(&docs.temper);
         assert_eq!(effective["engine"]["limits"]["overrides"]["documents.lines"], json!(expected));
+        assert_eq!(effective["engine"]["limits"]["overrides"]["accounts.credentials"], json!(4));
     }
 }
 

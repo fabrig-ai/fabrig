@@ -126,7 +126,9 @@ impl Edits {
                     }
                     skip = edit.after;
                     edited = true;
-                    break;
+                    if skip > at {
+                        break;
+                    }
                 }
             }
             if !edited || skip == at {
@@ -462,11 +464,12 @@ fn capacity(d: &Document, edits: &mut Edits) -> Result<(), Refusal> {
     object_member(d, overrides, b"accounts.credentials", b"4", edits)?;
     let path = Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"documents.lines");
     let mut object = read::object(d, overrides, &path)?;
-    if let Some(at) = object.member(d, b"documents.lines") {
-        let receiving = read::integer(d, at, u64::from(u32::MAX), &path)?;
-        let lines = Decimal::of(receiving.max(u64::from(PROVIDER_LINES)));
-        object_member(d, overrides, b"documents.lines", lines.as_bytes(), edits)?;
-    }
+    let receiving = match object.member(d, b"documents.lines") {
+        Some(at) => read::integer(d, at, u64::from(u32::MAX), &path)?,
+        None => 0,
+    };
+    let lines = Decimal::of(receiving.max(u64::from(PROVIDER_LINES)));
+    object_member(d, overrides, b"documents.lines", lines.as_bytes(), edits)?;
     let workers = member(d, 0, b"workers", &Path::root())?;
     for worker in &read::list(d, workers, 1, &Path::root().member(b"workers"))? {
         let limits = member(d, *worker, b"limits", &Path::root())?;
