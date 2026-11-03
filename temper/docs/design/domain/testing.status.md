@@ -27,7 +27,7 @@
   skein's fake machine runs no `sh` and no `rg`. 4.3, 7:
   `temper-fake-git-hosted` in `crates/`; it is in `testing/`. 6.4: the
   settings stories that need temper's kinds of settings (`root.md`'s
-  status). 6.4: the four stories of a charter's documents. 6: a state
+  status). 6: a state
   digest for replay (`testing-strategy.md`, section 6); the walking
   world compares its formatted state
   (`tests/engine/domain/src/walking.rs`, `run_replayed`).
