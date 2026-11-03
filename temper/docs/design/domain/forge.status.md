@@ -23,16 +23,10 @@
   - 7.1, 12: the findings topic and findings (`findings.md`).
   - 7.3: a hold parked until a landing.
   - 8.1: a change's own bounds, gates and charters: `change` takes
-    parameters 1 to 6 and 9 to 11, its bounds are the deployment's
+    parameters 1 to 6, 9 to 11 and 16, its bounds are the deployment's
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
-  - 8.1, 8.2 step 1, 10: a catch-up, the merge job its producer
-    (parameter 16): the change procedure has no producer but an agent.
-  - 8.2 step 6, 8.4, 10: the merge job before a resolution: a conflict
-    goes to a resolution at once under rules asking an update, and holds
-    the change under rules asking none
-    (`temper-engine-domain-forge-change/src/domain.rs`, `first`).
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
@@ -47,6 +41,15 @@
     the released landing, the restart oracle finds the deployment's
     `messages` number changed across a restart, its cause not yet found
     (`tests/engine/domain/tests/suite/forge_routes/goal_landing_held.rs`).
+  - 8.4, 10, 11.1: a goal's landing whose update into main conflicts,
+    settled by the merge job and a resolution on its goal's branch
+    (`../draft/reference-landing.md`, section 9's first story), is built
+    by every change's path, the job writing the branch under the goal's
+    hold as the landing's resolution does
+    (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),
+    but no story runs it: the merge job's stories are changes into a
+    goal's branch and into main, none a goal's landing
+    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`).
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
   - 8.7: the explicit choice to adopt a GitHub repository without CI;
