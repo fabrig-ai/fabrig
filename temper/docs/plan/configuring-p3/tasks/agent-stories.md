@@ -2,7 +2,7 @@
 id = "agent-stories"
 part = "configuring-agent"
 kind = "feature"
-needs = ["stock-configuring", "agent-kinds"]
+needs = ["stock-configuring", "agent-kinds", "tools-store"]
 files = ["temper/tests/engine/domain/tests/suite/configuring.rs", "temper/tests/engine/domain/tests/suite/configuring/**", "temper/tests/engine/domain/tests/suite/main.rs", "temper/tests/engine/domain/src/host_tool.rs", "temper/tests/engine/domain/src/lib.rs", "temper/tests/engine/domain/tests/suite/settings.rs", "temper/tests/engine/domain/tests/suite/agent_reads.rs"]
 effort = "high"
 minutes = 150
@@ -89,3 +89,19 @@ defaults (`stock::Given::Stock`, or the stock's defaults as the world's own):
 ## Report
 
 As the implementer's text says, and each story's wall time.
+
+## Answers
+
+2026-11-03. **Q** (`agent-stories-1`): add `tools-store` as a dependency and merge it, or defer
+until fab supplies it? **A:** add it; it is now in `needs`. The restart oracle's failures (the
+new story's and the seven inherited ones) come from the settings codec decoding every charter's
+tools as `RunPolicy::EVERY_FAMILY`, which `tools-store` replaces by the stored mask; this task's
+own acceptance ("the focused tests of the engine's domain world pass, all of them") cannot hold
+without it. `tools-store` has landed in the run's trunk (its rebased branch
+`configuring-p3/tools-store-r1`, `60948c78f4`, is an ancestor of
+`origin/configuring-p3/integration`): merge `origin/configuring-p3/integration` into this
+branch (merge, never rebase), then rerun the owner's story alone and confirm the seven
+inherited stories pass again before going on with the remaining stories, one at a time. Leave
+the codec, the schema and `src/oracle.rs` unchanged. If a story still fails at the oracle
+after the merge, read its log and report it under `## Left` with the log rather than editing
+outside this spec's `files`.

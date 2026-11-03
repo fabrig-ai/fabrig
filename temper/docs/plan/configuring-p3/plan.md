@@ -61,7 +61,7 @@ document's members); the standing rules, `notes/common.md`.
    `room-table`, `stock-configuring`, `agent-kinds`): the start's and the three entrances'
    refusals.
 
-4. `agent-stories` (150; needs `stock-configuring`, `agent-kinds`): 6.4's row in the
+4. `agent-stories` (150; needs `stock-configuring`, `agent-kinds`, `tools-store`): 6.4's row in the
    engine's domain world, charter 3's flows; `agent-ctl-story` (120; the same needs): the
    walk's story through ctl in the joined client world; `help-stock` (docs, 60; the same
    needs): the help pages that state the stock; `limits-jig` (interface, 120; no needs):
