@@ -259,9 +259,7 @@ pub(crate) fn row(
     // Keep the number's link in a container: a paragraph is flattened to text
     // by the terminal, hiding the command promised by client/README.md, 3.5.
     b.open(Role::Slot);
-    if let Some(project) =
-        super::project_name(root.pages().me(root.client()), root.forge().playground(), line.project, words)
-    {
+    if let Some(project) = super::project_name(root.pages().me(root.client()), line.project) {
         b.text(Run::Plain, &project);
         words.text(b, Word::ToolSeparator, &[]);
     }

@@ -1055,24 +1055,18 @@ fn setup_field(
 }
 pub(crate) fn project_name(root: &Domain, w: &Words, project: &SetUpProject) -> Box<[u8]> {
     match project {
-        SetUpProject::Existing(project) => {
-            match crate::pages::project_name(root.pages().me(root.client()), root.forge().playground(), *project, w) {
-                Some(name) => name,
-                None => w.say(Word::Project, &[Hole::Number(u64::from(*project))]),
-            }
-        }
+        SetUpProject::Existing(project) => match crate::pages::project_name(root.pages().me(root.client()), *project) {
+            Some(name) => name,
+            None => w.say(Word::Project, &[Hole::Number(u64::from(*project))]),
+        },
         SetUpProject::New(name) => {
             if let Some(last) = root.forge().set_up()
                 && let Some(starting) = &last.starting
                 && last.project == *project
             {
                 if starting.value.adoption.project != 0
-                    && let Some(name) = crate::pages::project_name(
-                        root.pages().me(root.client()),
-                        root.forge().playground(),
-                        starting.value.adoption.project,
-                        w,
-                    )
+                    && let Some(name) =
+                        crate::pages::project_name(root.pages().me(root.client()), starting.value.adoption.project)
                 {
                     return name;
                 }

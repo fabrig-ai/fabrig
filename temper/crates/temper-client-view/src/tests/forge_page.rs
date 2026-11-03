@@ -17,7 +17,7 @@ fn adoption_names_the_playground_project_playground() {
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);
         let tree = fixtures::build(&mut view, &root);
-        assert!(has_text(tree, b"Adopt a repository into Playground"));
+        assert!(has_text(tree, b"Adopt a repository into Project 1"));
     }
 }
 #[test]
