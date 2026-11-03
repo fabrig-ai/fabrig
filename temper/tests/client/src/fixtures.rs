@@ -1041,6 +1041,37 @@ pub fn give(world: &mut World<Temper, Joint>, agent: jig_client_world::harness::
     world.event(agent, crate::app::Event::Call { number, call, json, value: None });
     number
 }
+/// Supply the host's already-loaded FILE bytes without touching the filesystem.
+pub fn give_with_file(
+    world: &mut World<Temper, Joint>,
+    agent: jig_client_world::harness::ClientId,
+    words: &[&[u8]],
+    bytes: &[u8],
+) -> u32 {
+    use jig_client_world::harness::Until;
+    use temper_client_tools::jig::call::{Value, Values};
+    let start = world.now();
+    for _ in 0..ANSWER_STEPS {
+        if world.root(agent).agent().ready() && world.root(agent).agent().kept() == 0 {
+            break;
+        }
+        world.run(Until::Steps(2));
+    }
+    assert!(world.now() <= start.saturating_add(WITHIN), "agent ready within world time");
+    assert!(world.root(agent).agent().ready() && world.root(agent).agent().kept() == 0, "agent ready before call");
+    let number = world.root(agent).agent().calls() + 1;
+    let crate::app::Event::Call { mut call, json, .. } = call(words) else { unreachable!() };
+    let mut files = 0;
+    for slot in &mut call.values {
+        if matches!(slot, Some(Values::One(Value::File(_)))) {
+            *slot = Some(Values::One(Value::Text(bytes.into())));
+            files += 1;
+        }
+    }
+    assert_eq!(files, 1, "one FILE slot");
+    world.event(agent, crate::app::Event::Call { number, call, json, value: None });
+    number
+}
 pub fn answered(
     world: &mut World<Temper, Joint>,
     agent: jig_client_world::harness::ClientId,
