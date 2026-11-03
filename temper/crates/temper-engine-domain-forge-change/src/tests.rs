@@ -56,6 +56,7 @@ fn facts() -> Facts {
         gates: Box::new([]),
         live_gate: None,
         writer_taken: false,
+        requester_branch: false,
         drift: None,
         first: false,
         may_merge: true,
@@ -487,6 +488,120 @@ fn drift_writer_slots_and_stalls_do_not_write_over_a_branch() {
         Decision::Hold(Hold::Stalled)
     );
 }
+fn movable_phases() -> [(State, Option<Wall>); 7] {
+    [
+        (State::Opening { requested: false }, Some(at(30))),
+        (State::Opening { requested: true }, Some(at(30))),
+        (State::Checking { head: HEAD }, Some(at(30))),
+        (State::Gating { head: HEAD, asked: Box::new([9]) }, Some(at(30))),
+        (State::Queued { head: HEAD, ready_since: at(0) }, Some(at(30))),
+        (State::First { head: HEAD, ready_since: at(0) }, Some(at(30))),
+        (State::Ready { head: HEAD, ready_since: at(0) }, None),
+    ]
+}
+
+fn moved_branch(requester_branch: bool) -> Facts {
+    Facts { requester_branch, branch: Some(NEW), ..facts() }
+}
+
+#[test]
+fn a_move_of_a_requesters_held_branch_is_its_new_head_in_each_phase() {
+    for (way, expected) in [
+        (crate::Way::Queue, State::Checking { head: NEW }),
+        (crate::Way::Turn, State::Gating { head: NEW, asked: Box::new([]) }),
+    ] {
+        for (state, _) in movable_phases() {
+            let mut c = change(state);
+            c.way = way;
+            c.clean = Box::new([BASE]);
+            c.gate_failures = Box::new([GateFailure { number: 9, count: 1 }]);
+            c.owns_turn = true;
+            c.repairs = LIMITS.repairs;
+            c.resolutions = LIMITS.resolutions;
+            c.updates = LIMITS.updates;
+            let next = decide(&c, &moved_branch(true), &heard());
+            assert_eq!(next.change.state, expected, "{:?}", c.state);
+            assert_eq!(next.change.last_head, Some(NEW));
+            assert_eq!(next.change.since, at(1));
+            assert!(next.change.clean.is_empty());
+            assert!(next.change.gate_failures.is_empty());
+            assert!(!next.change.owns_turn);
+            assert_eq!(next.change.repairs, c.repairs);
+            assert_eq!(next.change.resolutions, c.resolutions);
+            assert_eq!(next.change.updates, c.updates);
+            assert_eq!(next.decision, Decision::None);
+        }
+    }
+}
+
+#[test]
+fn a_move_of_its_own_branch_still_holds_it() {
+    for (state, _) in movable_phases() {
+        let c = change(state);
+        let next = decide(&c, &moved_branch(false), &heard());
+        assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::BranchMoved });
+        assert_eq!(next.decision, Decision::Hold(Hold::BranchMoved));
+    }
+}
+
+#[test]
+fn a_requesters_branch_with_drift_or_a_writer_is_not_taken() {
+    for (state, _) in movable_phases() {
+        let c = change(state);
+        for why in [Hold::BranchMoved, Hold::Retargeted, Hold::BranchMissing] {
+            let mut f = moved_branch(true);
+            f.drift = Some(why);
+            let next = decide(&c, &f, &heard());
+            assert_eq!(next.change.state, State::Held { was: Box::new(c.state.clone()), why });
+            assert_eq!(next.change.last_head, Some(HEAD));
+            assert_eq!(next.decision, Decision::Hold(why));
+        }
+    }
+    for (state, until) in movable_phases() {
+        let c = change(state);
+        let mut f = moved_branch(true);
+        f.writer_taken = true;
+        let next = decide(&c, &f, &heard());
+        assert_eq!(next.change, c);
+        assert_eq!(next.decision, Decision::Wait { until });
+    }
+}
+
+#[test]
+fn a_held_change_on_its_requesters_branch_takes_the_head_at_release() {
+    let mut c = change(State::Checking { head: HEAD });
+    c.repairs = LIMITS.repairs;
+    let mut f = facts();
+    f.requester_branch = true;
+    f.ci.status = Status::Failed;
+    let held = decide(&c, &f, &heard()).change;
+    f.branch = Some(NEW);
+    let waiting = decide(&held, &f, &heard());
+    assert_eq!(waiting.change, held);
+    assert_eq!(waiting.decision, Decision::None);
+    assert_eq!(waiting.change.state, State::Held { was: Box::new(c.state), why: Hold::Repairs });
+
+    let lifted = released(&waiting.change, at(1));
+    let reset = decide(&lifted, &f, &heard());
+    let taken = decide(&reset.change, &f, &heard());
+    assert_eq!(taken.change.last_head, Some(NEW));
+    assert_eq!(taken.change.state, State::Checking { head: NEW });
+    assert_eq!(taken.change.repairs, 0);
+    assert_eq!(taken.decision, Decision::None);
+    f.ci = Ci { head: NEW, status: Status::Pending };
+    assert_eq!(decide(&taken.change, &f, &heard()).decision, Decision::Wait { until: Some(at(31)) });
+    f.ci.status = Status::Passed;
+    assert_eq!(decide(&taken.change, &f, &heard()).change.state, State::Gating { head: NEW, asked: Box::new([]) });
+}
+
+#[test]
+fn a_requesters_branch_move_during_landing_keeps_the_merge_head() {
+    let c = change(State::Landing { head: HEAD });
+    let next = decide(&c, &moved_branch(true), &heard());
+    assert_eq!(next.change, c);
+    assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
+}
+
 #[test]
 fn generated_phase_cells_decide_the_same_from_the_same_snapshot() {
     let states = [
