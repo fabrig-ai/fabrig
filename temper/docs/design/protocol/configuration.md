@@ -1429,10 +1429,11 @@ name with reset instructions, without generating a replacement on reuse.
 
 ## 13. Settings in the store
 
-How work is run leaves the document for the store,
-by the rule of `../draft/configuring.md`, 3.1: the document keeps
+How work is run leaves the document for the store: the document keeps
 what a start needs before it can read its store, and what belongs to
-the machine. The mechanism is jig's (jig's `domain/engine.md`, section
+the machine, and everything else that configures work is a setting,
+changed while temper runs and kept in the store, as projects already
+are. The mechanism is jig's (jig's `domain/engine.md`, section
 17; `domain/connectors.md`, section 17): a setting is a kind, a scope
 and a number; the current settings are the binary's defaults with the
 stored changes over them; a change is one decision, checked whole and
@@ -1456,17 +1457,26 @@ The pages a person meets it on are `../client/README.md`, 5.13.
   the directories, the listeners, the workers and their secrets' files,
   the limits, the first owners and the sign-in providers, `machine`,
   `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
-  providers (`engine.llm`), each its own design
-  later (`../draft/configuring.md`, section 10). jig's `engine.projects`,
+  providers (`engine.llm`), which are configuration of the work too,
+  and leave the document by a design of their own, later. jig's
+  `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper init`'s
   project 1 names its policy as `policy: 1` (jig's
   `protocol/configuration.md`, section 3), so the seed copies the
   stock's policy 1 and no document carries a copy of it (13.6, step
   1).
 - **A project's own policy** is not a setting: it is in the store
-  already, and its owners change it (jig's `domain/people.md`, 5.2).
-  What a project adds to how its changes land is its landing rules, a
-  setting of kind 2, decided by its owners.
+  already, and its owners change it (jig's `domain/people.md`, 5.2),
+  part by part, or whole as an item of a change of settings (jig's
+  `domain/engine.md`, 17.2), so that one proposal sets a project up
+  beside the deployment's settings: the charters and templates its
+  work runs under, its landing rules, and its policy, with its roles,
+  delegations, tasks and depth. Such a set is decided by one person
+  who owns both the deployment and the project, in one decision; a
+  restored version sets the policy back as it set the rest (jig's
+  `domain/engine.md`, 17.10). What a project adds to how its changes
+  land is its landing rules, a setting of kind 2, decided by its
+  owners.
 
 ### 13.2 temper's kinds
 
@@ -1829,8 +1839,12 @@ side never waits on the part of jig it does not use:
 
 ### 13.7 A charter's documents
 
-The rules a person wrote down reach the runs (`../draft/configuring.md`,
-section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
+A rule a person wrote down in a repository, and that only changes how
+an agent behaves, reaches the runs that should follow it from where it
+was written, by jig's charter documents (jig's `domain/engine.md`,
+17.9): a chat has no workspace and reads no repository's `AGENTS.md`,
+so its charter names the documents, and a rule that lands reaches its
+next run.
 
 - **A document** is a branch of an adopted repository, by its resource
   name (`../domain/forge.md`, section 2: `forge`, the host, the owner,

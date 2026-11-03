@@ -321,10 +321,10 @@ agent must name.
 | `task answer TASK QUESTION TEXT` | answers question QUESTION of the task | `Answer` | |
 | `proposal decide PROPOSAL accept\|reject\|pass-up [REASON] [--running stays\|moves]` | decides a proposal: PROPOSAL is `tN/K` for task N's, `pN/K` for party N's | `Decide` | |
 | `task decide TASK --hold REV release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |
-| `settings propose FILE [REASON] --against REVISION` | proposes the whole settings set to the deployment owners; FILE or `-` shares the format and bounds of `settings apply`; the optional reason is forwarded unchanged | `Propose` settings | yes |
+| `settings propose FILE [REASON] --against REVISION` | proposes the whole settings set to the owners of its items, the deployment's and each project's it names; FILE or `-` shares the format and bounds of `settings apply`; the optional reason is forwarded unchanged | `Propose` settings | yes |
 | `settings apply FILE --against REVISION [--running stays\|moves]` | changes the settings in one decision: FILE (or `-`) holds the items; REVISION is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
 | `revision advance REVISION` | moves every live agent task on held REVISION that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
-| `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items; prints the proposal's number and the settings of temper's kinds it leaves out; `proposal show` then shows its items, and an owner decides it | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
+| `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items: jig's kinds, temper's (`../protocol/configuration.md`, 13.2) and each project's policy a later revision set; REASON follows jig's "restores revision R"; prints the proposal's number and what it leaves out, a deleted project's settings and policy, by kind, project and number; `proposal show` then shows its items, and an owner decides it with `proposal decide`. A revision forgotten past the history exits 2 naming the oldest kept, `temper ctl: revision R is forgotten; the oldest kept is revision O`, and one too large to restore says so, exit 2, a later revision restorable instead | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
 | `task release TASK --hold REV [--again]` | lifts a hold | `Release` | |
 | `task stop TASK` | cancels a task's run, the task held | `Stop` | |
 | `task move TASK --under TASK` | makes the second task the first's requester (jig's `domain/tasks.md`, section 7) | `Move` | yes |
@@ -346,11 +346,15 @@ agent must name.
   `{"kind": "charter"|"template"|"policy", "number": N}`,
   `{"kind": "rules"}`, `{"kind": "landing-rule", "number": N}` for the
   deployment's, `{"kind": "landing-rule", "project": P, "number": N}`
-  for project P's, or `{"kind": "forge-charter", "number": N}`, N 1
-  the change's charter and 2 its reviews'; VALUE is exactly the
+  for project P's, `{"kind": "forge-charter", "number": N}`, N 1
+  the change's charter and 2 its reviews', or `{"kind":
+  "project-policy", "project": P}`, project P's own policy (jig's
+  `domain/engine.md`, 17.2), set alone and at most once in a file; VALUE is exactly the
   `value` member `settings show … --json` prints: for a landing rule, section
   3's rule member as `temper.json` wrote it (`../protocol/configuration.md`,
-  13.2), for the forge's charter a charter's number. Decoded bounded (6.4): the file's size, the item count and every
+  13.2), for the forge's charter a charter's number, and for a
+  project's policy a policy in the form `settings show policy NUMBER
+  --json` prints, the stock's policy 1 a project's starting point. Decoded bounded (6.4): the file's size, the item count and every
   value's bounds are jig's (`ChangeSettings`' own, and the limits the engine's
   `me` gives where it gives them). Past a bound it is refused before anything
   is sent, naming the item and the bound. Unknown members are refused,
@@ -363,12 +367,21 @@ agent must name.
   member by its path in the file, `charter.alternatives`, never by the
   wire's limit's name. `null` is refused where a member takes a value:
   a charter's `model` is a model and its `alternatives` a list, and an
-  authority's models are `"all"` or a list of model names. jig's kinds are the deployment's; a landing rule names
-  its scope, the deployment's or a project's, and a set that touches a
-  project's needs an owner of it (jig's `domain/people.md`, 5.1).
+  authority's models are `"all"` or a list of model names. A project's
+  policy `removed` or `reset`, or a second one, is refused before
+  anything is sent, naming the item. jig's kinds are the deployment's; a landing rule names
+  its scope, the deployment's or a project's, as a project's policy
+  names its project, and a set that touches a project's needs an owner
+  of it, one that touches the deployment's too one person who owns both
+  (jig's `domain/people.md`, 5.1); `settings propose` sends such a set
+  to them, and `settings apply` from one who is not both is refused
+  naming the item, exit 2.
   `proposal show` prints the values of temper's items from the forge's
-  `ProposalItems` read, and `settings show` lists temper's settings with
-  jig's, by the names above.
+  `ProposalItems` read, and a project's policy as it is now and as it
+  would be, each whole, from jig's review; `settings show` lists
+  temper's settings with jig's, by the names above, and no project's
+  policy, which is no setting (`project show` prints its roles and
+  spends).
 - **The form's fields are one table,** `FIELDS`, beside the form's
   decoder in the crate ctl and the runs' `propose_settings` share
   (`temper-settings-form`): a row per member of a shape, by the shape's

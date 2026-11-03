@@ -8,7 +8,9 @@
   project's settings of its scope erased: the deletion's rows step
   erases none of the core's settings records of the project's scope, and
   `Ask::ReleaseProject` asks a connector to release its adoptions alone
-  (`jig-domain-core/src/admission/deletion.rs`, `rows` and `release`).
+  (`jig-domain-core/src/admission/deletion.rs`, `rows` and `release`);
+  a project's policy changed whole by a change of settings, and a
+  pending proposal of settings naming it withdrawn by its deletion.
   6: retention; a delegate's question to a conversation kept with the
   conversation. 7: a chat answering its delegates' questions and asking
   its person by a person task.
