@@ -35,3 +35,62 @@ id = 2
 story = "jig-test-service and temper-service check their provider templates with Component::check, no generator copied, and a CryptoRng cannot be cloned, a trait check holding it"
 parts = ["crypto-rng"]
 walk = false
+
+[[part]]
+id = "skein-debug"
+title = "skein: file records and FileIo, the issuer's token request and form, the channel's opening credential and the playground's cookies print secret bytes as lengths"
+mode = "direct"
+needs = []
+design = "skein/docs/design/io.md, 5"
+
+[[part]]
+id = "jig-holders"
+title = "jig: the runner's program environment, the reference service's printed links, the web shell's taken secret and the HTTP call's bearer print as counts or lengths"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 6"
+
+[[part]]
+id = "temper-holders"
+title = "temper: temper-box's inherited environment prints as a count"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 6"
+
+[[slice]]
+id = 3
+story = "a debug print of a stored or loaded file, a FileIo with one in flight, an issuer's token request or form, a channel's opening and a playground visitor's jar shows each secret's length and none of its bytes"
+parts = ["skein-debug"]
+walk = false
+
+[[slice]]
+id = 4
+story = "a debug print of jig-test's agent start, jig-test-service's clients, the web shell's taken link and a keyed HTTP call shows counts and lengths, no environment entry, link, secret or bearer"
+parts = ["jig-holders"]
+walk = false
+
+[[slice]]
+id = 5
+story = "a debug print of temper-box's settings or service shows the environment's count and none of its values"
+parts = ["temper-holders"]
+walk = false
+
+[[question]]
+id = "byte-carriers"
+text = """Item 4's search found generic byte carriers whose derived Debug prints a credential on a known path: skein-channel's Frame (smith's grant refresh, a bearer or key, travels in one, printed up through smith-host-protocol's Component and Process and smith-local-service's HostIo) and Event::Body; skein-http's Header, server Call and Client's written head (Authorization, Cookie and Set-Cookie values, so jig-protocol-engine-clients-http's Call and temper-service's google sign-in queues print them); and, with no known credential path, skein-io's stream, pipe and kernel Op bytes, skein-kv's Put and Row values, skein-oauth's Json and jig's encoded message bodies (Message::SignInLink, engine-clients' Waiting and Checked). Whether a generic carrier hides its bytes is a design rule this plan does not set: io.md 5.3 says a secret's bytes are their owner's to keep out of Debug. Options: (a) a skein rule (lib.md 6) that a record carrying a peer's bytes prints them as their length and a header its name and its value's length, carried out crate by crate in a follow-up plan, skein-http's Header and skein-channel's Frame first (recommended: the two with a known credential path); (b) leave the carriers as they are, each owner keeping its records out of Debug. No task waits; none taken."""
+parts = ["skein-debug"]
+
+[[question]]
+id = "issuer-authorization"
+text = """skein-oauth-issuer's Authorization derives Debug over the client's state and nonce (skein/docs/design/oauth-issuer.md, 4 shows the derive), while skein/docs/design/oauth.md, 4 says every type carrying a state or a nonce omits its bytes from Debug. issuer-debug fixes TokenRequest and the form, which both documents agree on, and leaves Authorization. Options: (a) follow oauth.md 4: a hand-written Debug printing state_len and nonce_len, oauth-issuer.md 4's sketch changed to match (recommended: the two documents then agree, at one small task); (b) keep the derive: the issuer's state and nonce are the client's, already in the address the person's browser shows, and oauth.md 4 speaks of the client's side. No task waits; none taken."""
+parts = ["skein-debug"]
+
+[[question]]
+id = "link-sign-in-secret"
+text = """jig's client-wire 19 declares record LinkSignIn { secret: bytes 64 }, so the generated LinkSignIn (jig-client-protocol-wire src/generated/v19.rs, ~7199) derives Debug over the sign-in link's secret, while jig/docs/design/protocol/README.md (~392) gives credentials' values the generator's secret type, which prints its length. The fix is the schema's field type and a regeneration, which changes the public LinkSignInParts to take a Secret at about 12 call sites across jig and temper; client-v19's schema and generated file are also being changed by public-reading-build and fabrig-scale. Options: (a) a follow-up plan once those drafts land (recommended: a regeneration on a moving schema conflicts); (b) a migration task in this plan, chained after them. No task waits; none taken."""
+parts = ["jig-holders"]
+
+[[question]]
+id = "machine-environment"
+text = """smith-protocol-machine's Variable { value }, Environment and Spawn { args, env } (environment.rs ~16 and ~23, boundary.rs ~67) derive Debug and print the variables' values, and the Component holding the environment derives Debug over it. smith's design keeps credentials out of that environment (smith/docs/design/domain/tools.md and protocol/hosts.md), while skein-io's Spawn prints each variable's name only (skein/docs/design/kernel.md). Options: (a) print names only, as skein's Spawn does, in a small smith task (recommended: one rule for a spawned environment, whatever it holds); (b) leave them: the design says no credential is there. No task waits; none taken."""
+parts = ["skein-debug"]
