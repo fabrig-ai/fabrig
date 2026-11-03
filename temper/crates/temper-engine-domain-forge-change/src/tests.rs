@@ -285,8 +285,23 @@ fn a_released_failed_producers_replacement_needs_authority_and_a_bare_release_ho
         assert_eq!(blocked.decision, Decision::Hold(Hold::Authority(cause)));
         let again = decide(&released(&blocked.change, at(1)), &f, &h);
         assert_eq!(again.decision, Decision::Hold(Hold::Authority(AuthorityHold { released: true, ..cause })));
-        let words = crate::authority_words(cause);
-        assert!(words.ends_with(b"release it: task release 7 --hold 2 (it holds again unless it has more); or cancel it: task cancel 7 REASON"));
+        for released in [false, true] {
+            let words = crate::authority_words(AuthorityHold { released, ..cause });
+            assert!(words.ends_with(b"; or ask afresh; bare release holds again"));
+            assert!(
+                words
+                    .windows(b"; cancel: task cancel 7 REASON".len())
+                    .any(|part| part == b"; cancel: task cancel 7 REASON")
+            );
+            let text = core::str::from_utf8(&words).expect("hold words");
+            if lack == AuthorityLack::Tasks {
+                assert!(
+                    text.contains("task amend 7 --rev 0 --tasks 4 REASON; then release it: task release 7 --hold 2")
+                );
+            } else {
+                assert!(!text.contains("task release"));
+            }
+        }
     }
 }
 

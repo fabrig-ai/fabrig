@@ -16,34 +16,29 @@ fn call(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> Printed {
 }
 
 fn offered(world: &mut ClientWorld, agent: ClientId, task: u64) -> Vec<Vec<String>> {
-    let printed = call(world, agent, &[b"change", b"show", task.to_string().as_bytes(), b"--project", b"1"]);
-    let text = std::str::from_utf8(&printed.stdout).expect("panel text");
+    let panel = call(world, agent, &[b"change", b"show", task.to_string().as_bytes(), b"--project", b"1"]);
+    let task_read = call(world, agent, &[b"task", b"show", task.to_string().as_bytes()]);
+    let text = std::str::from_utf8(&panel.stdout).expect("panel text");
     let reason = text.lines().find_map(|line| line.strip_prefix("held: ")).expect("held panel");
-    let (release, cancel) = reason.split_once("; or cancel it: ").expect("both ways out");
-    let (amend, release) = release
-        .split_once("; grant more tasks: ")
-        .expect("amend command")
-        .1
-        .split_once("; then release it: ")
-        .expect("release command");
-    let release = release.split_once(" (it holds again unless it has more)").expect("release's consequence").0;
-    let cancel = cancel.split_once(" at ").expect("held step").0;
+    let (cancel, commands) = reason.split_once("; grant more tasks: ").expect("amend command");
+    let cancel = cancel.split_once("; cancel: ").expect("cancel command").1;
+    let (amend, release) = commands.split_once("; then release it: ").expect("release command");
+    let release = release.split_once("; or ask afresh; bare release holds again").expect("release's consequence").0;
+    let task_text = std::str::from_utf8(&task_read.stdout).expect("task text");
+    assert!(task_text.contains("its 0 tasks are made"), "the cause survives the summary's cut: {task_text}");
+    assert!(task_text.contains(cancel), "task read offers the same cancellation: {task_text}");
     assert_eq!(reason.matches("task ").count(), 3, "every offered command is checked: {reason}");
-    [release, cancel, amend]
-        .into_iter()
-        .map(|command| {
-            let words: Vec<String> = command
-                .split_ascii_whitespace()
-                .map(|word| if word == "REASON" { "because" } else { word }.to_owned())
-                .collect();
-            let argv: Vec<&[u8]> = words.iter().map(String::as_bytes).collect();
-            assert!(
-                matches!(temper_client_tools::table::parse(&argv), Ok(Parsed::Call { .. })),
-                "ctl takes the printed command: {command}"
-            );
-            words
-        })
-        .collect()
+    [release, cancel, amend].into_iter().map(command_words).collect()
+}
+
+fn command_words(command: &str) -> Vec<String> {
+    let words: Vec<String> = command
+        .split_ascii_whitespace()
+        .map(|word| if word == "REASON" { "because" } else { word }.to_owned())
+        .collect();
+    let argv: Vec<&[u8]> = words.iter().map(String::as_bytes).collect();
+    assert!(matches!(temper_client_tools::table::parse(&argv), Ok(Parsed::Call { .. })), "{command}");
+    words
 }
 
 #[test]
@@ -52,9 +47,9 @@ fn a_holds_offered_commands_are_ones_ctl_takes() {
     call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"held"]);
     let before = world.front().engine.task(task).expect("held change").clone();
     assert!(matches!(before.phase, tasks::Phase::Held { .. }));
-    let commands = offered(&mut world, agent, task);
-    let release: Vec<&[u8]> = commands[0].iter().map(String::as_bytes).collect();
-    call(&mut world, agent, &release);
+    offered(&mut world, agent, task);
+    let hold = before.revisions.hold.to_string();
+    call(&mut world, agent, &[b"task", b"release", task.to_string().as_bytes(), b"--hold", hold.as_bytes()]);
     call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"held"]);
     let after = world.front().engine.task(task).expect("held again");
     assert!(matches!(after.phase, tasks::Phase::Held { .. }));
@@ -118,18 +113,7 @@ fn task_commands(world: &mut ClientWorld, agent: ClientId, task: u64, expected: 
     let line = text.lines().find_map(|line| line.strip_prefix("way out: ")).expect("way out");
     let release = &line[line.find("task release ").expect("release command")..];
     let (release, cancel) = release.split_once("; or cancel it: ").expect("cancel command");
-    [release, cancel]
-        .into_iter()
-        .map(|command| {
-            let words: Vec<String> = command
-                .split_ascii_whitespace()
-                .map(|word| if word == "REASON" { "because" } else { word }.to_owned())
-                .collect();
-            let argv: Vec<&[u8]> = words.iter().map(String::as_bytes).collect();
-            assert!(matches!(temper_client_tools::table::parse(&argv), Ok(Parsed::Call { .. })), "{command}");
-            words
-        })
-        .collect()
+    [release, cancel].into_iter().map(command_words).collect()
 }
 
 #[test]

@@ -1129,14 +1129,13 @@ fn assert_authority_hold(
         matches!(live_task(world, task).phase, tasks::Phase::Held { why, .. } if why == expected),
         "never left due"
     );
+    let way = format!("; cancel: task cancel {task} REASON");
     let parent = requester(world, task);
     assert!(
-        live_task(world, parent)
-            .inbox
-            .iter()
-            .any(|word| word.from == tasks::Party::Task(task)
-                && word.words.windows(words.len()).any(|part| part == words)),
-        "requester heard the precise cause"
+        live_task(world, parent).inbox.iter().any(|word| word.from == tasks::Party::Task(task)
+            && word.words.windows(words.len()).any(|part| part == words)
+            && word.words.windows(way.len()).any(|part| part == way.as_bytes())),
+        "requester heard the precise cause and actionable recovery"
     );
     let live = live_task(world, task);
     assert_eq!(cause.recovery.task, task);
@@ -1144,15 +1143,13 @@ fn assert_authority_hold(
     assert_eq!(cause.recovery.hold, live.revisions.hold);
     let needed = u64::from(live.made);
     assert_eq!(cause.recovery.tasks, needed);
-    let way = format!(
-        "release it: task release {task} --hold {} (it holds again unless it has more); or cancel it: task cancel {task} REASON",
-        live.revisions.hold,
-    );
     let printed = temper_engine_domain_forge_change::authority_words(cause);
-    assert!(printed.ends_with(way.as_bytes()));
+    assert!(printed.ends_with(b"; or ask afresh; bare release holds again"));
     if lack == temper_engine_domain_forge_change::AuthorityLack::Tasks {
         let amendment = format!("task amend {task} --rev {} --tasks {} REASON; then ", live.revisions.spec, needed + 2);
         assert!(printed.windows(amendment.len()).any(|part| part == amendment.as_bytes()));
+        let release = format!("task release {task} --hold {}", live.revisions.hold);
+        assert!(printed.windows(release.len()).any(|part| part == release.as_bytes()));
     }
 }
 
@@ -1545,7 +1542,7 @@ fn a_review_without_spend_holds_for_budget_before_delegating() {
     let task = read_change_task(&mut world, change);
     assert_eq!(task.hold.as_ref().map(|hold| hold.reason), Some(tasks::Hold::Budget));
     let words = task.hold.as_ref().expect("budget hold").words.as_ref().expect("spend account").bytes.as_ref();
-    for expected in [b"spend".as_slice(), b"task release"] {
+    for expected in [b"spend".as_slice(), b"task cancel", b"ask afresh", b"bare release holds again"] {
         assert!(words.windows(expected.len()).any(|part| part == expected));
     }
     assert_eq!(world.merges, 0);
