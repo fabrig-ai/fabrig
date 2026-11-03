@@ -17,7 +17,7 @@ fn chat_world(turn: bool, options: Tier) -> (World, engine::Assignment) {
     (world, chat)
 }
 
-fn baseline(world: &mut World) {
+pub(super) fn baseline(world: &mut World) {
     until(world, RUN_TICKS, "baseline judged", |world| tier(world).record.sequence == 1);
     // The 90-second baseline outlives the fixture's 60-second sign-in.
     sign_in(world);
@@ -50,7 +50,7 @@ fn sign_in(world: &mut World) {
     }
 }
 
-fn produce(world: &mut World, chat: &engine::Assignment, call: u64, path: &[u8], content: &[u8]) -> u64 {
+pub(super) fn produce(world: &mut World, chat: &engine::Assignment, call: u64, path: &[u8], content: &[u8]) -> u64 {
     let answer = change_tool::change(world, chat, call, None, b"Small fix");
     produce_delegated(world, answer, b"main", path, content)
 }
@@ -79,7 +79,7 @@ fn verifying(world: &mut World, number: u64) {
     assert!(matches!(panel(world, number), forge_top::PanelStep::Verifying { .. }));
 }
 
-fn result(world: &World, number: u64) -> &str {
+pub(super) fn result(world: &World, number: u64) -> &str {
     let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { words, .. })) = &task(world, number).phase
     else {
         panic!("change {number} done: {:?}", task(world, number).phase)
@@ -87,7 +87,7 @@ fn result(world: &World, number: u64) -> &str {
     std::str::from_utf8(words).expect("result words")
 }
 
-fn cleared(world: &mut World, number: u64) {
+pub(super) fn cleared(world: &mut World, number: u64) {
     until(world, RUN_TICKS * 3, "change cleared", |world| matches!(task(world, number).phase, tasks::Phase::Ended(_)));
     assert!(matches!(change(world, number).change.state, State::Cleared { .. }));
     assert!(matches!(panel(world, number), forge_top::PanelStep::Cleared { uncleared: false, .. }));
