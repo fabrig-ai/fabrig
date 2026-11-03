@@ -84,7 +84,6 @@ pub(in crate::settings) fn endpoints(settings: &Settings, models: &[Model]) -> R
         let provider = input::text(settings, &format!("{prefix}dialect"))?;
         let dialect = match provider {
             "openai" => 3,
-            "codex" => 1,
             "anthropic" => 2,
             _ => return Err(input::refuse(settings, &format!("{prefix}dialect"), "unsupported dialect")),
         };
@@ -97,7 +96,7 @@ pub(in crate::settings) fn endpoints(settings: &Settings, models: &[Model]) -> R
             "address":input::text(settings,&format!("{prefix}address"))?,"server_name":input::text(settings,&format!("{prefix}server_name"))?,
             "connect":input::millis(settings,&format!("{prefix}connect"))?,"handshake":input::millis(settings,&format!("{prefix}handshake"))?,
             "models":declared,"headers":headers});
-        for (setting, field) in [(&format!("{prefix}identity"), "identity"), (&format!("{prefix}program"), "program")] {
+        for (setting, field) in [(&format!("{prefix}program"), "program")] {
             if let Some(value) = settings.values.get(setting) {
                 endpoint
                     .as_object_mut()

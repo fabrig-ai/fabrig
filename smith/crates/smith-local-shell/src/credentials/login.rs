@@ -153,7 +153,7 @@ mod tests {
         let files = Files::new("smith-credentials");
         let shared = invocation(
             &files,
-            &["accounts.work.source='none'", "endpoints.custom.preset='codex'", "endpoints.custom.account='work'"],
+            &["accounts.work.source='none'", "endpoints.custom.preset='openai'", "endpoints.custom.account='work'"],
         );
         let outcome = run(&shared, "work", false, &Clock::new(), &Environment::default()).expect("account command");
         assert_eq!(outcome, LoginOutcome::Usable, "account selection does not select a run model");

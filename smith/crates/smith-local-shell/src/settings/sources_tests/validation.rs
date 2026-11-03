@@ -20,7 +20,7 @@ fn credential_commands_refuse_the_startup_declaration_matrix() {
 #[test]
 fn repository_accounts_name_the_file_and_authority() {
     let refusal =
-        settings(&[source(Layer::Repository, "[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n")])
+        settings(&[source(Layer::Repository, "[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n")])
             .expect_err("repository account authority");
     assert_eq!(refusal.key, "accounts", "authority belongs to the accounts table");
     assert_eq!(refusal.problem, super::super::Problem::RepositoryAuthority, "authority refusal");
@@ -93,7 +93,7 @@ fn program_documents_use_the_supplied_path() {
 fn withdrawn_source_settings_name_the_replacement() {
     let mut base = settings(&[source(
         Layer::User,
-        "[accounts.work]\nsource='borrow'\nfile='auth.json'\nformat='withdrawn'\nprogram='codex'\n",
+        "[accounts.work]\nsource='borrow'\nfile='auth.json'\nformat='withdrawn'\nprogram='openai'\n",
     )])
     .expect("withdrawn keys reach source validation");
     base.values.retain(|key, _| key.starts_with("accounts.work."));
@@ -119,5 +119,25 @@ fn withdrawn_source_settings_name_the_replacement() {
                 .contains("declare `provider = \"openai\"` and `source = \"sign_in\"`, then run `smith login work`"),
             "replacement names the account"
         );
+    }
+}
+
+#[test]
+fn withdrawn_endpoint_settings_name_the_replacement_at_their_key() {
+    for (text, key, line) in [
+        ("[endpoints.work]\nidentity='claude-code'\n", "endpoints.work.identity", 2),
+        ("[endpoints.work]\ndialect='codex'\n", "endpoints.work.dialect", 2),
+        ("[endpoints.work]\npreset='codex'\n", "endpoints.work.preset", 2),
+        ("[endpoints.codex]\n", "endpoints.codex", 1),
+        ("model='codex/gpt-6-luna'\n", "model", 1),
+        ("[models.'codex/gpt-6-luna']\nwindow=272000\n", "models.codex/gpt-6-luna", 1),
+    ] {
+        let refusal = settings(&[source(Layer::User, text)]).expect_err("withdrawn endpoint");
+        assert_eq!(refusal.key, key);
+        assert_eq!(refusal.origin, super::super::Origin::File {
+            layer: Layer::User, path: "fixture.toml".into(), line,
+        });
+        assert_eq!(crate::startup::Failure::Configuration { detail: refusal.line() }.exit_code(), 2);
+        assert_eq!(refusal.line(), format!("smith: fixture.toml:{line}: {key}: use `openai/<model>`"));
     }
 }
