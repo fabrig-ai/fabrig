@@ -167,6 +167,7 @@ fn review_value_text(
 ) {
     if let c::Setting::ProjectPolicy { .. } = setting
         && let c::ReviewValue::TooLarge(size) = value
+        && page.is_none()
     {
         out.put(b"too large, ");
         out.number(size.bytes);
@@ -413,6 +414,7 @@ fn encode_review_value(
 ) {
     if let c::Setting::ProjectPolicy { .. } = setting
         && let c::ReviewValue::TooLarge(size) = value
+        && page.is_none()
     {
         out.object_start();
         out.key(b"too_large");

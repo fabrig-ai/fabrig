@@ -2063,22 +2063,53 @@ fn proposal_show_prints_a_project_policy_now_and_as_it_would_be() {
     }
 }
 #[test]
-fn a_large_project_policy_review_prints_its_size_without_a_setting_read() {
+fn a_large_project_policy_review_reads_the_proposed_value_and_keeps_the_current_size() {
     // The fixture exceeds the review's envelope by carrying its size alone.
     const POLICY_BYTES: u64 = 8192;
     let review = project_policy_review(
         c::ReviewValue::TooLarge(c::Size { bytes: POLICY_BYTES }),
         c::ReviewValue::TooLarge(c::Size { bytes: POLICY_BYTES }),
     );
-    let (mut root, call) = fixtures::read_call(&["proposal", "show", "p73/7"]);
-    root.serve(call, c::ReadResult::Value(review));
-    let answer = root.answer(call).expect("review completes without a follow-up read");
-    assert_eq!(answer.status, 0);
-    assert!(
-        core::str::from_utf8(&answer.stdout)
-            .expect("review text")
-            .contains("project-policy 1 · set · now too large, 8192 bytes · would be too large, 8192 bytes")
-    );
+    let policy = project_policy_json();
+    for (argv, expected) in [
+        (
+            vec!["proposal", "show", "p73/7"],
+            format!("project-policy 1 · set · now too large, 8192 bytes · would be {policy}"),
+        ),
+        (
+            vec!["proposal", "show", "p73/7", "--json"],
+            format!(
+                "{}{}",
+                r#""now":{"too_large":{"bytes":8192}},"origin":"not_offered","would_be":{"value":{"value":{"policy":"#,
+                policy
+            ),
+        ),
+    ] {
+        let (mut root, call) = fixtures::read_call(&argv);
+        root.serve(call, c::ReadResult::Value(review.clone()));
+        let setting = c::Setting::ProjectPolicy { project: 1 };
+        assert_eq!(
+            root.reads.get(&call).expect("proposed policy read").1,
+            c::Read::Setting(c::ReadSetting {
+                setting,
+                revision: 0,
+                proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
+            })
+        );
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(project_policy()),
+                application: None,
+                proposed: None,
+            }))),
+        );
+        let answer = root.answer(call).expect("review resolves the proposed policy");
+        assert_eq!(answer.status, 0);
+        assert!(core::str::from_utf8(&answer.stdout).expect("review text or JSON").contains(&expected));
+    }
 }
 #[test]
 fn an_engine_refusal_naming_a_project_policy_prints_its_setting() {
