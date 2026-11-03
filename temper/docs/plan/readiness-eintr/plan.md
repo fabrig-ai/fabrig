@@ -53,3 +53,11 @@ Critical path: `interrupted-once` alone.
 None found: no branch of `reference-m1` or `configuring-p1` touches `skein/`, and the queued
 drafts (`v0.1.0-ladder`, `sign-in-wait`, `reference-walks`) name no files yet. `STATUS.md`'s
 summary paragraph is shared by every skein draft; this task edits one clause of it.
+
+## 11-03: other-interrupted leaves this plan
+
+Answered unattended by agents/loop (the user asleep; the director's word to take recommended
+options): (a), every other operation the readiness backend makes again on EINTR completes
+`Other(EINTR)` as the ring's do; callers outside the readiness backend that share those calls
+(open_listener's bind and listen among them) keep their retry. A direct plan's part is not
+designed again after an answer, so the work is its own plan, `interrupted-calls`.
