@@ -9,6 +9,7 @@ use skein_lib::Writer;
 )]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-wire"),
         // Only ChangeSettings emits Stale; forge applications never carry that ask.
         p::Refusal::Stale { .. }
         // Only settings admission emits Full; a forge application carries no settings value.

@@ -62,6 +62,9 @@ impl Word {
             Self::Refusal(RefusalWord::HoldOwnerTask) => (119, b"", &[HoleKind::Number, HoleKind::Number]),
             Self::Lifted => (120, b"", &[HoleKind::Number, HoleKind::Number]),
             Self::Refusal(RefusalWord::Judged) => (122, b"refused by its owner: ", &[HoleKind::Name]),
+            Self::Refusal(RefusalWord::Forgotten) => {
+                (123, b"That revision is forgotten; the oldest kept is revision ", &[HoleKind::Number])
+            }
             Self::Refusal(RefusalWord::Stale) => (112, b"Settings changed; newest revision ", &[HoleKind::Number]),
             Self::Refusal(RefusalWord::Full) => {
                 (113, b"Settings history is full; oldest held revision ", &[HoleKind::Number])

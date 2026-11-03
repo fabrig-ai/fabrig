@@ -4995,6 +4995,8 @@ pub(crate) fn effect_ask(
         | jig_domain_core::effects::connector::Ask::ReadAfresh
         | jig_domain_core::effects::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
         ask @ (jig_domain_core::effects::connector::Ask::JudgeSettings { .. }
+        | jig_domain_core::effects::connector::Ask::RestoreSettings { .. }
+        | jig_domain_core::effects::connector::Ask::ForgetReplaced { .. }
         | jig_domain_core::effects::connector::Ask::KeepSettings { .. }
         | jig_domain_core::effects::connector::Ask::KeepProposalSettings { .. }
         | jig_domain_core::effects::connector::Ask::DropProposalSettings { .. }

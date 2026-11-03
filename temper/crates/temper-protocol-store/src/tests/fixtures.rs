@@ -62,6 +62,7 @@ pub const LIMITS: top::Limits = top::Limits {
     landing_rules: 4,
     roles: 4,
     setting_proposals: 4,
+    setting_history: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     client: CLIENT,
@@ -199,10 +200,11 @@ pub fn key(random: &mut Rng) -> top::Key {
             kind: u32::try_from(random.below(3).checked_add(1).expect("kind")).expect("kind"),
             scope: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
-            slot: match random.below(3) {
+            slot: match random.below(4) {
                 0 => top::settings::SettingSlot::Default,
                 1 => top::settings::SettingSlot::Change,
-                _ => top::settings::SettingSlot::Proposal(random.next_u64()),
+                2 => top::settings::SettingSlot::Proposal(random.next_u64()),
+                _ => top::settings::SettingSlot::Replaced(random.next_u64()),
             },
         }),
         _ => top::Key::Verification { repository: repository(random), commit: commit(random) },

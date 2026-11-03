@@ -21,6 +21,7 @@ pub fn status(b: &mut Builder, words: &Words, word: P, holes: &[Hole]) {
 }
 pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
     let hole = match value {
+        c::Refusal::Forgotten { .. } => unreachable!("a restore: restore-ctl"),
         c::Refusal::Judged { why, .. } => Some(Hole::Name(why.bytes().into())),
         c::Refusal::Account { account, .. } => Some(Hole::Number(u64::from(*account))),
         c::Refusal::Taken { by } => Some(Hole::Number(*by)),
@@ -102,6 +103,7 @@ pub fn progress(b: &mut Builder, words: &Words, value: jig_client::Progress) {
 pub fn outcome(b: &mut Builder, words: &Words, value: &c::Outcome) {
     // The outcome names the engine's answer; it is never inferred from local state.
     let phrase = match value {
+        c::Outcome::Restored { .. } => unreachable!("a restore: restore-ctl"),
         c::Outcome::Document(value) => return owner_outcome(b, words, value),
 
         c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) | c::Outcome::Made { .. } => P::Applied,

@@ -9,6 +9,19 @@ use facts::{
 #[expect(clippy::too_many_lines, reason = "one exhaustive permanent outcome translation table")]
 pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> Result<wire::Outcome, wire::Problem> {
     Ok(match value {
+        domain::Outcome::Restored { proposal, to, left_out } => {
+            let mut settings = skein_lib::List::with_capacity(limits.outcome_restored_left_out);
+            for &setting in left_out {
+                let setting = facts::encode_setting(setting, limits)?;
+                if settings.push(setting).is_err() {
+                    return Err(super::problem());
+                }
+            }
+            wire::Outcome::Restored(wire::OutcomeRestored::new(
+                limits,
+                wire::OutcomeRestoredParts { proposal: *proposal, to: *to, left_out: settings },
+            )?)
+        }
         domain::Outcome::ProjectRemoved { project } => wire::Outcome::ProjectRemoved(wire::OutcomeProjectRemoved::new(
             limits,
             wire::OutcomeProjectRemovedParts { project: *project },
@@ -246,6 +259,14 @@ pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
         wire::Outcome::Adopted(value) => {
             let wire::OutcomeAdoptedParts { project } = value.into_parts();
             domain::Outcome::Adopted { project }
+        }
+        wire::Outcome::Restored(value) => {
+            let wire::OutcomeRestoredParts { proposal, to, left_out } = value.into_parts();
+            let mut settings = skein_lib::List::with_capacity(left_out.len());
+            for setting in &left_out {
+                settings.push(facts::decode_setting(setting)).expect("decoded left-out settings count");
+            }
+            domain::Outcome::Restored { proposal, to, left_out: settings.into_boxed() }
         }
         wire::Outcome::Proposed(value) => {
             let wire::OutcomeProposedParts { proposal, to } = value.into_parts();

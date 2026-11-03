@@ -47,6 +47,18 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         prepared(runner, client, env, called, Ok((Request::Ask(ask), None)), out);
         return;
     }
+    if called.call.tool == rows::RESTORE_AT {
+        let request = match words(&called.call, 1, &env.limits) {
+            Ok(reason) => {
+                let revision =
+                    u32::try_from(number(&called.call, 0).expect("revision argument")).expect("revision fits u32");
+                Ok((Request::Ask(c::Ask::Restore { revision, reason }), None))
+            }
+            Err(why) => Err(why),
+        };
+        prepared(runner, client, env, called, request, out);
+        return;
+    }
     if called.call.tool == rows::MOVE_TO_NEWEST_AT {
         let revision = u32::try_from(number(&called.call, 0).expect("revision argument")).expect("revision fits u32");
         prepared(

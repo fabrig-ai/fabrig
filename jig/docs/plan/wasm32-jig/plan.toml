@@ -6,6 +6,7 @@ sources = ["jig/docs/plan/wasm32-jig/inputs/request.md", "AGENTS.md", "AGENTS.md
 # expectation met on the host and not on wasm32, where sizes differ, is scoped to the host.
 # One part, one task, no design (the request says so). plan.md says why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

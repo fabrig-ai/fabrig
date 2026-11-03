@@ -229,6 +229,8 @@ pub enum NoteChange {
     )
 )]
 pub enum Ask {
+    /// Propose the settings as a revision left them (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/people.md, 5.1).
+    Restore { revision: u32, reason: Box<[u8]> },
     /// Delete an owned project (jig/docs/design/domain/people.md, 5.2).
     RemoveProject { project: u32, grace: Option<Duration> },
     /// Deployment owner changes settings, whose value the core holds during admission.
@@ -399,6 +401,12 @@ pub enum EscalationChoice {
 /// final outcomes with the parent's task decision. (domain/people.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
+    /// A restore's proposal and omitted settings (jig/docs/design/domain/engine.md, 17.10).
+    Restored {
+        proposal: u64,
+        to: u32,
+        left_out: Box<[crate::Setting]>,
+    },
     /// The project is closed and its deletion kept; the rest completes on its own
     /// (jig/docs/design/domain/people.md, 5.2).
     ProjectRemoved {
@@ -1156,6 +1164,7 @@ impl Outcome {
             | Outcome::NoteEdited { .. }
             | Outcome::ServiceMade { .. }
             | Outcome::Adopted { .. }
+            | Outcome::Restored { .. }
             | Outcome::Proposed { .. }
             | Outcome::Withdrawn { .. }
             | Outcome::Stopped { .. }

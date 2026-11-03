@@ -105,13 +105,28 @@ other fields as the read gave them:
 ]}
 ```
 
+For a project's own policy, start from policy 1, the stock's starting
+point, and set the whole policy for `PROJECT`:
+
+```
+temper ctl DIR settings show policy 1 --json | jq --argjson project PROJECT '{items: [{setting: {kind: "project-policy", project: $project}, set: .value}]}' > FILE
+```
+
+The item is set alone, at most once a file: it takes no `number`, and
+neither `"edit": "removed"` nor `"edit": "reset"`. Change the policy's
+fields in `set` before sending it; setting policy 1 itself changes only
+what projects made after it start with.
+
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
 A proposal's temper items, with their whole values or their removed or
 reset edits, are included in `proposal show PROPOSAL`.
 
 ## 3. Apply it, or propose it
 
-An owner applies it, naming the newest revision read:
+The deployment's owners decide its items, a project's owners its
+policy and landing rules. A file touching both needs one person who
+owns both; its proposal waits for them. An owner applies it, naming the
+newest revision read:
 
 ```
 temper ctl DIR settings apply FILE --against NEWEST --key KEY
@@ -125,7 +140,7 @@ temper ctl DIR settings propose FILE TEXT --against NEWEST --key KEY
 temper ctl DIR proposal show PROPOSAL
 ```
 
-An owner then decides it, from the inbox:
+An owner of every scope the file touches then decides it, from the inbox:
 
 ```
 temper ctl DIR inbox
@@ -137,7 +152,9 @@ from now on; or `proposed: PROPOSAL, to ` and who decides, then
 `proposal PROPOSAL · settings · against revision NEWEST, newest
 NEWEST` and a line per item, `charter 1 · set · now {...} (default) ·
 would be {...}`, each value whole; the owner's decision prints `done:
-decide`, and prints it again when asked again under its key.
+decide`, and prints it again when asked again under its key. A project's
+policy line is `project-policy PROJECT · set · now {...} · would be
+{...}`, each policy whole.
 
 If not:
 
@@ -206,27 +223,42 @@ printf '{"items": [{"setting": {"kind": "charter", "number": 1}, "edit": "reset"
 temper ctl DIR settings apply FILE --against NEWEST --key KEY
 ```
 
-To what an earlier revision set, find it in the history, newest first,
-a page at a time: a page's last line is the call that reads on,
-`revision list --before REVISION`. Its items are a settings file:
-
-```
-temper ctl DIR revision list
-temper ctl DIR revision show REVISION --json | jq '{items: .items}' > FILE
-temper ctl DIR settings apply FILE --against NEWEST --key KEY
-```
-
 Expect: `revision` and the new revision's number. After a reset,
 `settings show` lists `charter 1: default, last changed in revision
 NEWEST`.
 
-If not: an item that prints `too_large` in place of `set` is too large
-for the record: read its value with `settings show`, as `revision
-show` names it. `revision R is forgotten; the oldest kept is revision
-O`: temper keeps a bounded history, and a forgotten revision cannot be
-read. `settings show` of a charter at an older revision answers
-`unknown` (exit 2) once that revision is no longer held: read it from
-`revision show`.
+To the settings as an earlier revision left them, find it in the history,
+newest first, a page at a time. A page's last line is the call that reads
+on, `revision list --before REVISION`:
+
+```
+temper ctl DIR revision list
+temper ctl DIR revision show REVISION
+temper ctl DIR revision restore REVISION TEXT --key KEY
+temper ctl DIR proposal show PROPOSAL
+temper ctl DIR proposal decide PROPOSAL accept --running stays --key KEY
+```
+
+Use a different KEY for each act.
+
+Expect: `proposed restoring revision REVISION as proposal PROPOSAL to
+role K`, then `left out: SETTING` for
+each deleted project's setting or policy left out. Read the proposal's
+items before accepting it. The acceptance makes a new revision; running
+work stays on its revision.
+
+If not:
+
+- `temper ctl: revision R is forgotten; the oldest kept is revision O`
+  (exit 2): choose a kept revision; a forgotten one cannot be restored.
+- `revision restore: too large; revision R's settings pass a proposal's
+  bound; restore a later revision` (exit 2): choose a later revision.
+- `revision restore: nothing to restore; the settings are as revision R
+  left them` (exit 2): no change is needed.
+- `revision restore: no revision R; the newest is revision N` (exit 2):
+  choose a revision from the history, numbered from 1.
+- `revision restore: stale; newest revision N; read settings show again`
+  (exit 2): read again, then restore with a new key.
 
 ## Clean up
 
