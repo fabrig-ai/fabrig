@@ -2,7 +2,7 @@
 id = "relay-story"
 part = "relay"
 kind = "feature"
-needs = ["relay-foreman", "questions-panel"]
+needs = ["relay-foreman", "questions-panel", "person-answers-chats"]
 files = ["temper/tests/engine/domain/tests/suite/forge_routes/goal_questions.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/src/forge_routes.rs"]
 effort = "high"
 minutes = 70
@@ -75,3 +75,17 @@ them.
 ## Report
 
 As the implementer's text says, with each story's steps and wall time.
+
+## Answers
+
+2026-11-03. Q (run `relay-story-1`): keep the person-owned goal of `goal_changes.rs` and have
+a jig change let it answer, or delegate the story's goal beneath a chat? A: keep the setup
+as it is: the reference's coordinator is a goal its person starts from the template
+(`reference-code-production.md`, sections 4 and 8), so its answering its changes is the
+story. The fault is jig's: `Core::person_answers()` puts a question to any task its person
+asked for in the person's inbox, where jig's `domain/people.md`, section 6 gives it a
+conversation's reason alone. Task `person-answers-chats` (now a need of this one) narrows it
+to conversations; this task changes no jig or root file. Once it lands, take the
+`#[ignore]`s off the three blocked stories, run them, and finish as the Steps say. The
+`change_tool.rs:147` failure (`questions_foreman_is_not_offered_yet`) is not this task's:
+keep it under Left.
