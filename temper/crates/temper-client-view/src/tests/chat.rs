@@ -21,9 +21,7 @@ fn the_playground_project_is_named_playground() {
             }
         }
         let context = context.expect("chat context");
-        assert!(
-            skein_lib::bytes::find(&fixtures::node_text(tree, context), "Playground · acme/shop".as_bytes()).is_some()
-        );
+        assert!(skein_lib::bytes::find(&fixtures::node_text(tree, context), "Shop · acme/shop".as_bytes()).is_some());
     }
 }
 

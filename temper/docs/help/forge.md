@@ -44,12 +44,14 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
   playground's.
 - **Set up:** a box's owned Forgejo is fetched, prepared and started
   with its runner, then makes its first repository with a starter CI
-  workflow and adopts it.
+  workflow; `forge setup` adopts it, and the client's welcome leaves it
+  for you to adopt.
 - **Connected:** GitHub by its App; a Forgejo by its admin's token, or
   by a user's two tokens: `forge connect forgejo FILE`, FILE a tokens
   file, one `NAME VALUE` line each for `api`, `git` and, for hooks to
   temper's listener, `webhook_secret`; a managed Forgejo can make
-  and adopt a first repository as it connects.
+  a first repository as it connects, which `forge connect --first`
+  adopts.
 - **Its installations,** on GitHub: one made through temper's install
   link is accepted at once; one made on GitHub waits to be accepted. An
   installation not accepted prints ` · not accepted · uninstalled at

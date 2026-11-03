@@ -458,7 +458,6 @@ fn setup_fields_reach_the_engine_and_unknown_project_names_are_admitted() {
             playground: false,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
-            project: d::SetUpProject::Existing(1),
             state: d::FirstState::Making,
             label: Box::from(b"temper-host".as_slice()),
         })
@@ -473,10 +472,7 @@ fn setup_fields_reach_the_engine_and_unknown_project_names_are_admitted() {
     assert!(!world.printed.contains_key(&next));
     assert_eq!(world.box_calls, 1, "new project is admitted to the box");
     world.read();
-    assert_eq!(
-        row(&world, FORGE).first.as_ref().expect("first repository").project,
-        d::SetUpProject::New(b"Next".as_slice().into())
-    );
+    assert_eq!(row(&world, FORGE).first.as_ref().expect("first repository").repository.as_ref(), b"hello");
 }
 #[test]
 fn invalid_setup_names_are_refused_without_a_box_effect() {

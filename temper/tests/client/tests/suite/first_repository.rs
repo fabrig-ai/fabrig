@@ -128,12 +128,6 @@ fn made(world: &mut ClientWorld) {
 fn connected(world: &mut ClientWorld) {
     connection(world, forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() });
 }
-fn ctl(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> temper_client_tools::jig::Printed {
-    let number = fixtures::give(world, agent, words);
-    let outcome = world.run(Until::Steps(256));
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "all competing requests settled: {outcome:?}");
-    fixtures::answered(world, agent, number)
-}
 
 #[test]
 fn empty_organization_is_required_without_starting_the_box() {
@@ -152,9 +146,9 @@ fn empty_organization_is_required_without_starting_the_box() {
     );
     assert!(world.front().set_ups().is_empty(), "an empty organization must not start the box");
     assert!(
-        world.tree(person).nodes().iter().any(|node| node.role == Role::TextField
+        !world.tree(person).nodes().iter().any(|node| node.role == Role::TextField
             && node.name.as_deref() == Some(b"Into a new project, named".as_slice())),
-        "setup form must expose its new project name"
+        "setup asks no project name"
     );
 }
 
@@ -200,7 +194,7 @@ fn without_the_box_the_flow_says_to_start_temper_with_the_box_and_offers_no_setu
 }
 
 #[test]
-fn made_without_connected_must_not_adopt_early() {
+fn setup_leaves_the_first_repository_unadopted_even_after_connection() {
     // client/tools.md, 5.5; client/forge.md, 5.4: wait for made AND connected.
     let mut world = configured(true);
     let person = world.client(fixtures::PARTY, flow());
@@ -211,13 +205,13 @@ fn made_without_connected_must_not_adopt_early() {
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "made alone must not adopt before the forge connects");
     connected(&mut world);
-    script(&mut world, person, vec![see(b"acme/shop is ready")]);
-    assert!(world.front().engine_adopted(FORGE, REPOSITORY), "the asking client must adopt after connection");
+    script(&mut world, person, vec![see(b"Forgejo on this machine is connected")]);
+    assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "the asking client leaves the repository unadopted");
 }
 
 #[test]
 fn a_second_tab_that_never_asked_does_not_adopt_the_made_repository() {
-    // client/forge.md, 5.4: only the client that sent SetUp sends its one Adopt.
+    // client/forge.md, 5.4: the observer adopts nothing; ctl completes its own call.
     let mut world = configured(true);
     let agent = fixtures::agent(&mut world);
     let person = world.client(fixtures::PARTY, flow());
@@ -228,7 +222,7 @@ fn a_second_tab_that_never_asked_does_not_adopt_the_made_repository() {
     connected(&mut world);
     let answer = fixtures::answered(&mut world, agent, number);
     assert_eq!(answer.status, 0, "{answer:?}");
-    script(&mut world, person, vec![see(b"acme/shop is ready")]);
+    script(&mut world, person, vec![see(b"Forgejo on this machine is connected")]);
     assert_eq!(
         world.front().applications_admitted(),
         2,
@@ -237,8 +231,8 @@ fn a_second_tab_that_never_asked_does_not_adopt_the_made_repository() {
 }
 
 #[test]
-fn leaving_the_flow_still_adopts_exactly_once() {
-    // client/forge.md, 5.4: the asking client adopts on whatever page the person is.
+fn leaving_the_flow_keeps_the_made_repository_unadopted() {
+    // client/forge.md, 5.4: setup adopts nothing on any page.
     let mut world = configured(true);
     let person = world.client(fixtures::PARTY, flow());
     setup(&mut world, person);
@@ -246,105 +240,15 @@ fn leaving_the_flow_still_adopts_exactly_once() {
     made(&mut world);
     connected(&mut world);
     let _ = world.run(Until::Steps(256));
-    assert!(world.front().engine_adopted(FORGE, REPOSITORY), "leaving the flow must not lose adoption");
+    assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "leaving the flow adopts nothing");
     let count = world.front().applications_admitted();
     send(&mut world, forge::Event::FirstMade { forge: FORGE, id: u64::from(REPOSITORY) });
-    script(&mut world, person, vec![Step::Go { address: flow() }, see(b"acme/shop is ready")]);
+    script(&mut world, person, vec![Step::Go { address: flow() }, see(b"Forgejo on this machine is connected")]);
     assert_eq!(
         world.front().applications_admitted(),
         count,
         "duplicate row updates and returning to Ready must not send another Adopt"
     );
-}
-
-#[test]
-fn page_and_ctl_replayed_adoptions_share_the_first_repository_key() {
-    // client/forge.md, 5.4; client/tools.md, 5.5: page and ctl share first-repository-F.
-    let mut world = configured(true);
-    let agent = fixtures::agent(&mut world);
-    let _ = ctl(&mut world, agent, &[b"forge", b"list"]);
-    let person = world.client(fixtures::PARTY, flow());
-    setup(&mut world, person);
-    made(&mut world);
-    connected(&mut world);
-    script(&mut world, person, vec![see(b"acme/shop is ready")]);
-    let adopt: &[&[u8]] = &[
-        b"repository",
-        b"adopt",
-        b"--project",
-        b"2",
-        b"--forge",
-        b"1",
-        b"--owner",
-        b"acme",
-        b"--name",
-        b"shop",
-        b"--landing",
-        b"main",
-        b"--key",
-        b"first-repository-1",
-    ];
-    // ctl can name project 2 only once the page has made it, so it replays the page's key rather
-    // than racing it. A second replay from the same ctl client goes unanswered: a finding, not this
-    // story's.
-    let answer = ctl(&mut world, agent, adopt);
-    assert_eq!(answer.status, 0, "another client must receive the shared adoption's outcome: {answer:?}");
-    script(&mut world, person, vec![see(b"acme/shop is ready")]);
-    assert!(world.front().engine_adopted(FORGE, REPOSITORY));
-    assert_eq!(world.front().applications_admitted(), 2, "one SetUp and one Adopt across the page and ctl replays");
-}
-
-#[test]
-fn setup_keeps_an_existing_projects_home_and_gives_the_new_project_its_own() {
-    // client/tools.md, 5.5; client/forge.md, 5.4: home only when the project has none.
-    let mut world = configured(true);
-    connected(&mut world);
-    let agent = fixtures::agent(&mut world);
-    let answer = ctl(
-        &mut world,
-        agent,
-        &[
-            b"repository",
-            b"adopt",
-            b"--project",
-            b"1",
-            b"--forge",
-            b"1",
-            b"--owner",
-            b"acme",
-            b"--name",
-            b"second",
-            b"--landing",
-            b"main",
-            b"--key",
-            b"existing-home",
-        ],
-    );
-    assert_eq!(answer.status, 0, "seed the project's existing home: {answer:?}");
-    connection(&mut world, forge::Connection::NotSetUp);
-    let person = world.client(fixtures::PARTY, flow());
-    setup(&mut world, person);
-    made(&mut world);
-    connected(&mut world);
-    script(&mut world, person, vec![see(b"acme/shop is ready")]);
-    assert!(
-        world.front().engine_adopted(FORGE, REPOSITORY),
-        "the first repository must be adopted beside the existing home"
-    );
-    let rows = &world.front().engine.store.rows;
-    let homes: Vec<_> = rows
-        .values()
-        .filter_map(|record| {
-            if let engine::Record::Forge { row } = record
-                && let forge::Stored::Repository(repository) = row.as_ref()
-                && repository.home
-            {
-                return Some(repository.name.as_ref());
-            }
-            None
-        })
-        .collect();
-    assert_eq!(homes, vec![b"shop".as_slice(), b"second".as_slice()], "both projects keep their home");
 }
 
 #[test]
@@ -378,4 +282,17 @@ fn every_create_failure_offers_setup_again_with_the_same_names() {
         acknowledge(&mut world);
         script(&mut world, person, vec![see(b"acme/shop")]);
     }
+}
+
+#[test]
+fn the_made_repository_waits_until_the_person_adopts_it_from_the_form() {
+    let mut world = configured(true);
+    let person = world.client(fixtures::PARTY, flow());
+    setup(&mut world, person);
+    made(&mut world);
+    connected(&mut world);
+    script(&mut world, person, vec![see(b"Made acme/shop.")]);
+    assert!(!world.front().engine_adopted(FORGE, REPOSITORY));
+    script(&mut world, person, fixtures::adopt_and_see_outcome(b"acme", b"shop"));
+    assert!(world.front().engine_adopted(FORGE, REPOSITORY));
 }

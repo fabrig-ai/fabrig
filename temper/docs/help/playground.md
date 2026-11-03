@@ -8,7 +8,7 @@ The playground is temper's demo: a repository on a fake forge and a scripted mod
 
 - **Its parts:** a fake Forgejo, with the repository
   `playground/widget`; provider 3, a scripted model, with a key the
-  deployment holds; the project `Playground`, which adopts the
+  deployment holds; the project `Demo`, which adopts the
   repository. `temper init` writes the model and the fake forge's
   place, `application.machine.fake`, into the configuration; the
   forge, the account and the project are made when the playground
@@ -20,7 +20,7 @@ The playground is temper's demo: a repository on a fake forge and a scripted mod
   `Add a dark theme to widget` and `Fix widget's empty search state`
   each explain that nothing changes. Any other request is answered that
   it is not one of these, and that other work needs a connected model.
-  Its account is used by the project `Playground` alone.
+  Its account is used by the project `Demo` alone.
 - **Under a box,** the fakes run as one of its groups of child
   processes; elsewhere, the deployment must reach fakes of its own.
 
@@ -28,14 +28,14 @@ The playground is temper's demo: a repository on a fake forge and a scripted mod
 
 - **Started:** `playground start` makes the fake forge, numbered as
   any forge, and starts it; adds the model's key as a deployment
-  account; makes the project `Playground`; waits for the forge; and
+  account; makes the project `Demo`; waits for the forge; and
   adopts `playground/widget` into the project. It prints `running`
   once the playground runs.
-- **Running:** a chat in `Playground` asks for one of the three
+- **Running:** a chat in `Demo` asks for one of the three
   requests (temper help chat). A start of the deployment starts the
   fakes again and keeps the account and the adoption.
 - **Reset:** `playground end`, or "set up temper" on the client's
-  banner, deletes the project `Playground` with its chats and tasks,
+  banner, deletes the project `Demo` with its chats and tasks,
   removes the fake forge, and removes the scripted account. The
   deployment is then as it was before the start, and the client opens
   its welcome at the Forge step. It prints `reset`.
@@ -54,7 +54,7 @@ The playground is temper's demo: a repository on a fake forge and a scripted mod
 ## Acting on it
 
 - **ctl:** `playground start` starts it, as a party with a role in the
-  deployment; `chat start` in `Playground` asks it for a change; `task
+  deployment; `chat start` in `Demo` asks it for a change; `task
   show` and `change show` follow the work; `playground end` resets it.
 - `forge setup` can make the same repository, `playground/widget`, on
   the owned Forgejo of a box (temper help forge).

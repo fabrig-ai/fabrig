@@ -58,22 +58,13 @@ fn encode_bot(row: &d::Bot) -> w::Bot {
 }
 
 fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
-    let d::FirstIntent { playground, org, repository, project, label } = row;
-    let project = match project {
-        d::SetUpProject::Existing(project) => w::FirstProject::Existing(
-            w::ExistingFirst::new(&w::CEILINGS, w::ExistingFirstParts { project: *project }).expect(FITS),
-        ),
-        d::SetUpProject::New(name) => {
-            w::FirstProject::New(w::NewFirst::new(&w::CEILINGS, w::NewFirstParts { name: name.clone() }).expect(FITS))
-        }
-    };
+    let d::FirstIntent { playground, org, repository, label } = row;
     w::FirstIntent::new(
         &w::CEILINGS,
         w::FirstIntentParts {
             playground: *playground,
             org: org.clone(),
             repository: repository.clone(),
-            project,
             label: label.clone(),
         },
     )
@@ -127,18 +118,8 @@ fn decode_bot(row: w::Bot) -> d::Bot {
 }
 
 fn decode_first(row: w::FirstIntent) -> d::FirstIntent {
-    let w::FirstIntentParts { playground, org, repository, project, label } = row.into_parts();
-    let project = match project {
-        w::FirstProject::Existing(row) => {
-            let w::ExistingFirstParts { project } = row.into_parts();
-            d::SetUpProject::Existing(project)
-        }
-        w::FirstProject::New(row) => {
-            let w::NewFirstParts { name } = row.into_parts();
-            d::SetUpProject::New(name)
-        }
-    };
-    d::FirstIntent { playground, org, repository, project, label }
+    let w::FirstIntentParts { playground, org, repository, label } = row.into_parts();
+    d::FirstIntent { playground, org, repository, label }
 }
 
 pub(super) fn encode_playground(row: &d::Playground) -> w::Playground {
