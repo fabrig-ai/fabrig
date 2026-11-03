@@ -184,7 +184,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::JudgeSettings { token, revision: _, proposal, items } => {
             crate::settings::judge(domain, token, proposal, &items, out);
         }
-        Event::KeepSettings { revision: _, proposal, items } => crate::settings::keep(domain, proposal, &items, out),
+        Event::KeepSettings { revision, proposal, items } => {
+            crate::settings::keep(domain, revision, proposal, &items, out);
+        }
         Event::KeepProposalSettings { proposal, items } => {
             crate::settings::keep_proposal(domain, proposal, &items, out);
         }
@@ -510,6 +512,9 @@ fn unsubscribe(domain: &mut Domain, task: u64, topic: u16, out: &mut Queue<Reque
 
 fn restore(domain: &mut Domain, record: Record, out: &mut Queue<Request>) {
     match record {
+        Record::SettingReplaced { kind, scope, number, revision, value } => {
+            crate::settings::restore_replaced(domain, (kind, scope, number), revision, value, out);
+        }
         Record::SettingDefault { kind, scope, number, value } => {
             crate::settings::restore_default(domain, (kind, scope, number), value, out);
         }
