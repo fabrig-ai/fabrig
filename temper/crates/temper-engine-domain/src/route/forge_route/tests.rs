@@ -1874,3 +1874,128 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
     assert!(domain.forge_effects.is_empty());
     assert!(domain.work.is_empty());
 }
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table compares each pending dependency kind against the same restored task graph"
+)]
+fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
+    use super::{forge, forge_change as change, tasks};
+    use skein_lib::{Env, Queue};
+    let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
+    let template = fixture.core.tasks.task(task).unwrap().clone();
+    for (registered, repository, base, executor, head, kept, expected) in [
+        (
+            true,
+            3,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            Some(SHA1),
+            false,
+            change::PendingKind::Change { head: Some(SHA1), kept: false },
+        ),
+        (
+            true,
+            3,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            None,
+            true,
+            change::PendingKind::Change { head: None, kept: true },
+        ),
+        (
+            true,
+            1,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            None,
+            false,
+            change::PendingKind::Elsewhere,
+        ),
+        (
+            true,
+            3,
+            b"other".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            None,
+            false,
+            change::PendingKind::Other,
+        ),
+        (
+            false,
+            3,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 1 },
+            None,
+            false,
+            change::PendingKind::Other,
+        ),
+        (
+            false,
+            3,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            None,
+            false,
+            change::PendingKind::Change { head: None, kept: false },
+        ),
+    ] {
+        let (mut domain, env) = two_forges();
+        domain.core.tasks = tasks::Domain::new(&env.limits.tasks, 7, 0, Box::new([]), Box::new([]));
+        let mut row = template.clone();
+        row.number = 7;
+        row.dependencies = Box::new([8]);
+        row.waiting_on = Box::new([8]);
+        let mut upstream = template.clone();
+        upstream.number = 8;
+        upstream.executor = executor;
+        upstream.waiting_on = if kept { Box::new([9]) } else { Box::new([]) };
+        let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+        for row in [row, upstream] {
+            tasks::step(
+                &mut domain.core.tasks,
+                &task_env,
+                tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
+                &mut Queue::uncapped(),
+            );
+        }
+        assert!(domain.core.tasks.task(7).is_some());
+        assert!(domain.core.tasks.task(8).is_some());
+        let forge_env = super::super::environment_forge(&env);
+        let mut upstream = change_row(None);
+        upstream.task = 8;
+        upstream.change.task = 8;
+        upstream.repository.forge = repository;
+        upstream.base = base.into();
+        upstream.branch = b"temper/8".as_slice().into();
+        if registered {
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Restore { record: forge::Stored::Change(upstream.clone()) },
+                &mut Queue::uncapped(),
+            );
+        }
+        if let Some(commit) = head {
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Restore {
+                    record: forge::Stored::BranchHead(forge::BranchHead {
+                        name: forge::Name {
+                            forge: repository,
+                            repository: 1,
+                            what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"8".as_slice().into()])),
+                        },
+                        commit,
+                        owned: true,
+                    }),
+                },
+                &mut Queue::uncapped(),
+            );
+        }
+        let pending = super::landing_route::pending(&domain, &env, 7, change_row(None).repository, b"main");
+        assert_eq!(pending.as_ref(), &[change::Pending { task: 8, kind: expected }]);
+    }
+}

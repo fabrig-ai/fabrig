@@ -97,6 +97,7 @@ fn change_step_task(
         },
         gates,
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -486,6 +487,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
 }
@@ -545,6 +547,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::ProjectionEffect { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -900,6 +903,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                 },
                 gates: Box::new([]),
                 queue_repair_active: false,
+                pending: Box::new([]),
                 kept: false,
             });
             entry += 1;
