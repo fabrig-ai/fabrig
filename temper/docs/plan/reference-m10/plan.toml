@@ -24,3 +24,44 @@ id = 1
 story = "the reference coordinator closes out only once its goal branch's tier is settled, and its landing's pull request names the draft"
 parts = ["charter"]
 walk = false
+
+[[part]]
+id = "checks"
+title = "temper: the reference's coding agent runs its changed packages' lints and focused tests with the shell; .temper/pre-pr stays as it is"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[part]]
+id = "change-tasks"
+title = "temper: a change's tasks bounded by forge.change_policy.tasks, 6 in small, in place of a constant"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[part]]
+id = "next-run"
+title = "temper: a goal branch's change's next producer merges the branch's tip first, as an early-started one's does"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.11"
+
+[[part]]
+id = "template"
+title = "temper: a settings file's template carries its resources, so a goal template names its own goal branch"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[part]]
+id = "room"
+title = "jig: a procedure's batch refused for live room waits for that room, in refusal order, across a restart"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/connectors.md, 6.2"
+
+[[slice]]
+id = 2
+story = "a producer runs its own lints and tests; a change's tasks come from a limit; a goal branch's producer goes on from g's tip; a template applied from a file names its goal branch; a procedure refused for room waits for it"
+parts = ["checks", "change-tasks", "next-run", "template", "room"]
+walk = false

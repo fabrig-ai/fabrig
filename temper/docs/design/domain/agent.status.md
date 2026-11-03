@@ -11,4 +11,6 @@ The remaining gaps concern charters, settings, brief admission and result delive
   the task's authority alone decides (`temper-engine-smith/src/calls.rs`).
   4.3, 8.1: the configuring agent: the stock's template and charter 3.
   4.4: a verdict's follow-up tasks. 8: a change's agents under charters of its own
-  (`forge.md`, 8.1).
+  (`forge.md`, 8.1). 4.3.1: a change's tasks bounded by
+  `forge.change_policy.tasks`: the route makes the six tasks a constant
+  (`temper-engine-domain/src/route/forge_route.rs`, `chat_change`).
