@@ -28,6 +28,7 @@ mod requires;
 mod restore_fit;
 mod runs;
 mod settings;
+mod standing;
 mod stopping;
 mod tiers;
 mod views;
