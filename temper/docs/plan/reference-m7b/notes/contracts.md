@@ -76,6 +76,27 @@ pub enum Delegate {
 - **Counting:** making a merge job adds one to `Change::resolutions` (and holds past the bound
   as `resolving_due` does); the resolution made after a merge job that left conflicts adds none.
 
+## C3.1. The steps' facts (added with the steps, batch 3; compatible with C3)
+
+`Facts` gains two more fields, which `change-merge-steps` adds and `change-merge-route` fills:
+
+```rust
+    /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
+    /// `None` when it has none.
+    pub delegate: Option<Delegate>,
+    /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
+    pub catch_up: Option<Commit>,
+```
+
+- A merge job runs while the change is `Resolving { requested: true, base }` (a conflict) or
+  `Producing { requested: true }` (a catch-up), and `facts.delegate` says it is
+  `Delegate::Merge { base, from }`. On its passed result, `facts.branch` (read afresh, as every
+  fact a decision depends on: `temper/docs/design/domain/forge.md, 5.3`) other than `from`
+  means the merge was pushed; equal to `from` means the command left conflicts.
+- The resolution after a merge job is `Delegate::Resolve { base }` with the same base, made in
+  the step that reads the job's result, adding nothing to `Change::resolutions`; a resolution
+  asked again after a release is a resolution, never a merge job.
+
 ## C4. Stored records: `temper/crates/temper-protocol-store`, `store-v11.schema`, in place
 
 - `record MergeDelegate { base: Commit from: option fixed 32 }`;
