@@ -362,7 +362,10 @@ wasm-bindgen-cli-support = { version = "=0.2.126" }
 io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
 ring = { version = "0.17" }
-rustls = { version = "=0.23.41", default-features = false, features = ["ring", "std", "tls12"] }
+# rustls, pinned, without std and with ring for its cryptography (skein/docs/design/tls.md, 4):
+# its std, whose clock wasm32-unknown-unknown lacks, is native only, asked for by each crate
+# that uses it.
+rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 skein-tls-world = { path = "skein/tests/tls" }
