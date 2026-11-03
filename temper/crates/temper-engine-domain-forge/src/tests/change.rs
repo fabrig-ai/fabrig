@@ -193,6 +193,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             },
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept,
         },
     );

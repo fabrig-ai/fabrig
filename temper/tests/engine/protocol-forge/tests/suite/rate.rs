@@ -120,6 +120,7 @@ impl Scheduler {
                         },
                         gates: Box::new([]),
                         queue_repair_active: false,
+                        pending: Box::new([]),
                         kept: self.iterating,
                     });
                     self.entry += 1;

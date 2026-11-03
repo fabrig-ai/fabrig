@@ -96,6 +96,7 @@ pub fn change_step_task(
         },
         gates,
         queue_repair_active: false,
+        pending: Box::new([]),
         kept,
     });
     world.run_for(1);

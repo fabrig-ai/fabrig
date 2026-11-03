@@ -307,6 +307,7 @@ fn advance(d: &mut Domain, task: u64, wall: Wall, cancelled: bool) -> Queue<Requ
             heard: heard(cancelled),
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept: false,
         },
         &mut out,
