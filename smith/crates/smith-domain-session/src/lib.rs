@@ -60,7 +60,7 @@ mod tests;
 mod window;
 
 pub use boundary::{
-    Budget, BudgetDenial, Deadlines, Dimension, End, Event, FinalTurn, NoSummary, Progress, Request, Spec, Yield,
+    After, Budget, BudgetDenial, Deadlines, Dimension, End, Event, FinalTurn, NoSummary, Progress, Request, Spec, Yield,
 };
 pub use domain::{Domain, fire, resume, step};
 pub use facts::{Choice, Compacted, Fact, FactKind, ResponseInfo, ToolCall, ToolSource};
