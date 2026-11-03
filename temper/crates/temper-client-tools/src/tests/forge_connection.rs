@@ -164,8 +164,8 @@ fn every_forge_refusal_prints_words_json_and_exit_two() {
         (w::ForgeRefusal::Role, "role", "not the deployment's owner"),
         (w::ForgeRefusal::NoSuchForge, "no_such_forge", "no such forge"),
         (w::ForgeRefusal::NotTaken, "not_taken", "not taken by this forge"),
-        (w::ForgeRefusal::Connected, "connected", "connected already: forge-replace replaces its key"),
-        (w::ForgeRefusal::NotConnected, "not_connected", "not connected: connect the App first"),
+        (w::ForgeRefusal::Connected, "connected", "connected already: forge replace replaces its key or tokens"),
+        (w::ForgeRefusal::NotConnected, "not_connected", "not connected: connect it first"),
         (w::ForgeRefusal::Busy, "busy", "busy"),
         (w::ForgeRefusal::NoKey, "no_key", "no key"),
         (w::ForgeRefusal::FirstIsBot, "first_is_bot", "the organization is the bot's login: name another organization"),
@@ -861,7 +861,7 @@ fn github_forms_without_a_number_send_a_new_github_forge() {
         match connect.how() {
             w::How::GithubApp(app) => assert_eq!(app.id(), 4242),
             w::How::GithubManifest(_) => assert!(words.contains(&"github")),
-            other @ w::How::ForgejoAdmin(_) => panic!("unexpected {other:?}"),
+            other @ (w::How::ForgejoAdmin(_) | w::How::ForgejoTokens(_)) => panic!("unexpected {other:?}"),
         }
     }
 }
