@@ -12,6 +12,7 @@ files = [
   "temper/tests/one-process/tests/suite/story_a.rs",
   "temper/crates/temper-playground/src/documents.rs",
   "temper/crates/temper-playground/src/documents/**",
+  "temper/crates/temper-playground/stories/a/deployment.json",
   "temper/crates/temper-engine-domain/src/route/playground.rs",
   "temper/crates/temper-engine-domain/src/tests/setup.rs",
   "Cargo.lock",
@@ -263,3 +264,23 @@ handover, then the takeover, then the account). The branch's pushed commits stay
 from them, not afresh. The previous answer's step 3 still holds: a second new failure past the
 project repair is a question with its evidence, and the run commits and pushes its repairs, each with
 its own test passing, before it asks.
+
+2026-11-03. **Project creation is refused `Again(Busy)` at `people.pending` 2: add story A's
+`stories/a/deployment.json` to this task's files, or leave the walk blocked?** Add it, for this
+repair alone. The cause is the composition's documents, the branch the previous answer named, and
+story A's compiled deployment is one of those documents: it is not just big enough for its story
+(`temper/docs/design/playground.md`, 8) while the outer `StartPlayground` application and the
+account request hold both pending slots when the project is asked.
+
+- `people.pending` becomes 3 in `temper/crates/temper-playground/stories/a/deployment.json` and in
+  `src/documents.rs` (~172) together, the value the diagnosis measured sufficient; no other value
+  of either changes for this.
+- The previous answer's regression: a test in `temper-playground`'s `src/tests/` that a fresh world
+  of story A, after `StartPlayground`, holds the project.
+- Past the project (the uses, the adoption): if the next refusal is again a capacity of the same
+  documents (`Again(Busy)` or a `CapacityRefusal` naming a limit), raise that one limit in both
+  places to the value a diagnostic run shows sufficient, name it and its evidence in the report,
+  and go on. Any other new failure past the project is a question with its evidence, as the
+  previous answer's step 3 says.
+- Then the previous answer's steps 4 and 5 (the read loop under `## Left` if it is the host's; the
+  one-process `story_a.rs` run once alone with `--run-ignored all`) and the acceptance as written.
