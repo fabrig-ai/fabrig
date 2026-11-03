@@ -775,7 +775,7 @@ The table grows area by area, each with its stories (section 11).
      output in tokens, efforts, and input, cached input, cache write and
      output prices per the supplied token unit, in deployment spend units.
      Missing provider numbers, names and descriptions print `unknown`;
-     an empty effort list prints `none declared`. The accompanying accounts
+     an empty effort list prints `none listed`. The accompanying accounts
      use the account text above, preserving supplied source and readiness
      states without inferring provider readiness. Loss prints `cut: true`
      and the result keeps its `models` digest; JSON retains its records.

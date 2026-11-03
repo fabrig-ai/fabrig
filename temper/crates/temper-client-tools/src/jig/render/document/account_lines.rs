@@ -73,7 +73,7 @@ impl Panel {
         out.put(b" tokens\n    efforts:");
         let efforts = self.rows(model, b"efforts");
         if efforts.is_empty() {
-            out.put(b" none declared");
+            out.put(b" none listed");
         }
         for effort in &efforts {
             out.put(b" ");

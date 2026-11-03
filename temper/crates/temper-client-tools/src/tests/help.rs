@@ -106,7 +106,7 @@ fn chat_start_points_to_model_list_and_models_print_readably() {
         "not usable",
         "model plain-model",
         "provider unknown",
-        "efforts: none declared",
+        "efforts: none listed",
         "digest: models ",
     ] {
         assert!(fixtures::has(&printed, fact.as_bytes()), "{fact}: {printed:?}");
