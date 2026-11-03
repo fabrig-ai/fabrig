@@ -21,13 +21,7 @@
           "enforce": true,
           "ci": true,
           "up_to_date": true,
-          "gates": [
-            {
-              "number": 1,
-              "blocking": true,
-              "freshness": "clean"
-            }
-          ],
+          "gates": [],
           "approvals": []
         },
         {

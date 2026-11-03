@@ -225,6 +225,7 @@ fn settings_history_loads_with_the_roots_effective_envelope() {
             moved: false,
         },
         items: Box::new([]),
+        applications: Box::new([]),
     };
     fixtures::commit(
         &mut store,

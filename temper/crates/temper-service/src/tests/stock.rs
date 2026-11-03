@@ -123,7 +123,7 @@ fn the_stock_passes_jigs_one_check() {
         for charter in &defaults.charters {
             assert_eq!(charter.hosts, jig_domain_fleet::Kinds::Workers, "{row}");
         }
-        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core);
+        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &core.kinds);
         assert_eq!(
             jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
             Ok(()),
@@ -146,7 +146,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    let current = settings::Current::new(defaults, &engine.limits.core);
+    let current = settings::Current::new(defaults, &engine.limits.core, &core.kinds);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         (b"core.policy_bytes", 3250, Setting::Policy(1), "the stock's policy 1 needs 3250 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
