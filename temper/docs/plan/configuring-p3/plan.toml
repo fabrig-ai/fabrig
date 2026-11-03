@@ -47,3 +47,16 @@ id = 3
 story = "A configuring chat started through temper ctl on a real model reads the settings, proposes a small description, and an owner accepts it"
 parts = ["configuring-agent"]
 walk = true
+
+[[part]]
+id = "pages"
+title = "The reference pages limits, limits-engine, configuration and configuration-engine, rendered from tables beside their parsers"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/documentation.md, 8"
+
+[[slice]]
+id = 4
+story = "temper help and a run's read_docs give the limits and the configuration document's members, each page held to the parser it describes"
+parts = ["pages"]
+walk = false

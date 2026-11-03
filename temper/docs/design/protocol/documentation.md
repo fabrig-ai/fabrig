@@ -220,8 +220,9 @@ in `../draft/agent-docs.md` 6's voice.
 - **`configuration` and `configuration-engine`:** every member is read
   at a start, so a change to any of them needs a restart; each page says
   so once, and the concepts' `Limits` link `configuration`. Each shape's
-  decoder takes its members from its table's rows, so that every member
-  the decoder takes is a row; a step test holds that every member
+  decoder reads its members through its table, a member it asks for
+  that the table lacks failing every test that decodes it, so that
+  every member the decoder takes is a row; a step test holds that every member
   `temper init` writes is a row, and that every row is a member the
   decoder takes or one of the members gone, which its decoder refuses
   naming where it went. Where the decoder is jig's, its members' rows
