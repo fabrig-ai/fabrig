@@ -10,7 +10,9 @@ are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,
 between hosts and contained process trees for workers' agents are not
 built (the protocol documents), nor the store's retention, rehearsal and
 going back (`protocol/store.md`, `protocol/client.md`), nor a policy's
-job kinds in the operator's configuration (`protocol/configuration.md`).
+job kinds in the operator's configuration (`protocol/configuration.md`),
+nor an application's own kinds of setting, which temper's landing rules
+and charters as settings wait on (`domain/engine.md`).
 Of the acts, `Hold`, `Move` under another task, `Succeed`, a settings
 revision's `Restore`, successors, markers, a drain and a conversation's
 questions lag (`domain/people.md`, `domain/tasks.md`, `domain/engine.md`,

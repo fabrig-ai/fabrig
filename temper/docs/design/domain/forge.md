@@ -25,7 +25,8 @@ makes each call to a forge and hears its deliveries, is
 - **The change procedure** takes a change from produced to landed:
   produce, open, CI, gates, its turn in its landing branch's queue, an
   update from its base when it lacks the base's tip, and a merge at
-  exactly its head. Agents are woken for what needs judgement: producing,
+  exactly its head; CI and the update only where its landing branch's
+  rules ask them (8.7). Agents are woken for what needs judgement: producing,
   repairs, reviews, conflicts.
 - **Landing rules are requirements.** A project's rules say what a merge
   into a branch needs: CI passed, the head up to date with the branch,
@@ -1120,8 +1121,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    task at the exact head. A blocking review or check that asks for
    changes is a repair, given its remarks; a blocking approval a person
    declines holds the change (8.3).
-5. **Queued:** ready (CI passed and every blocking gate holds, at its
-   head, and its task is not kept by a dependency) and waiting its turn
+5. **Queued:** ready (CI passed where its landing branch's rules ask
+   it, and every blocking gate holds, at its head, and its task is not
+   kept by a dependency) and waiting its turn
    in its landing branch's queue (section 9).
 6. **First:** its turn, which it keeps through what follows unless it
    leaves the queue (section 9). If its head lacks the base's tip and
@@ -1654,7 +1656,8 @@ one project (another may read it as context), so its goals' priorities
 are comparable.
 
 - **In the queue:** a change is in the queue once it is ready (CI passed
-  and every blocking gate holds, at its head, and its task is not kept:
+  where its landing branch's rules ask it (8.7), and every blocking gate
+  holds, at its head, and its task is not kept:
   no dependency it was given is pending, jig's `domain/tasks.md`, 5.7).
   It keeps the time it
   first became ready while it stays live, so leaving and coming back

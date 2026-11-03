@@ -6,6 +6,7 @@ sources = ["temper/docs/plan/forgejo-connect/inputs/request.md", "temper/docs/de
 # open points are settled in temper's designs (this branch's first commit), then built. The
 # shapes that cross tasks are notes/contracts.md (C1 to C5); every task names notes/common.md.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

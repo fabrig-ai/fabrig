@@ -4,7 +4,8 @@
 
 - **Not yet:**
   - 11, 11.1: a goal's own branch deleted as its goal closes once a change
-    has landed it: the release keeps it whatever way the goal ended.
+    has landed it: the release keeps it whatever way the goal ended
+    (`temper-engine-domain-forge/src/goal_branch.rs`).
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
@@ -40,7 +41,11 @@
   - 8.7 to 8.9, 16, 18: the landing rules and the forge's charter as
     settings of temper's kinds; the rules are read from the document's
     `landing` member at start and compiled into the core's requirements
-    and the forge's gate templates (`root.md`'s status).
+    and the forge's gate templates (`root.md`'s status). The forge judges
+    a rule of kind 1 or 2 and answers `requires` over rules held so
+    (`temper-engine-domain-forge/src/settings.rs`), but nothing holds,
+    stores or routes one: the procedure's `Domain::requires` reads the
+    compiled rules (`gates.rs`).
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.
@@ -53,7 +58,6 @@
   - 9: a branch a tier follows still pauses its queue on its own CI's
     red and makes a repair, where its tiers judge it instead
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
-  - 11.1: a goal's own branch.
   - 12: the issue's milestones but its lifecycle and revisions: the plan
     accepted, a change landed or held, a report kept.
   - 12.1: questions on the forge.
