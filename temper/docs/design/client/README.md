@@ -837,13 +837,15 @@ keeps (`../protocol/configuration.md`, section 2).
     forges and the plans v0.1.0 supports (the user, 2026-10-26), not
     the offered `me.providers` ways.
   - *Forge* is `ConnectForge`'s Choose and Details (`forge.md`, 5.4),
-    its cards and their order the same, its choice in the welcome's
-    address (`browser.md`, 2.3); inside a choice, the foot's one "‹
+    its Choose two cards, GitHub's and one Forgejo card whose "Run on
+    this machine" opens Forgejo on this machine's Details (`forge.md`,
+    5.4), its choice in the welcome's address (`browser.md`, 2.3);
+    inside a choice, the foot's one "‹
     Back" returns to Forge's Choose. The welcome has no "‹ All
     forges"; `ConnectForge` keeps it. The step connects a forge and
     nothing more, on every kind: it adopts no repository and asks no
-    project's name (`../draft/first-run-projects.md`, 4). Forgejo on this machine's card
-    opens its Details, its set up's fields, `work` and `hello`, as
+    project's name (`../draft/first-run-projects.md`, 4). "Run on this
+    machine" opens Forgejo on this machine's Details, its set up's fields, `work` and `hello`, as
     `ConnectForge`'s, and "Set up
     a Forgejo here" sends the `SetUp` that makes the forge
     (`forge.md`, 5.4), its repository made unadopted
@@ -894,7 +896,8 @@ keeps (`../protocol/configuration.md`, section 2).
     tab's departure). Until it does (`ConnectModel`, Signing in),
     the step's body draws the sign-in as `ConnectModel`'s does, its
     address and then its end, and an account made there `ConnectModel`'s
-    Ready. Above
+    Ready, its "Start a chat" replaced by "Continue", to the welcome's
+    Ready (`/welcome?at=ready`), whose act makes the project. Above
     them, once a forge is acted on, the forge's line, so that Model
     says what Forge did: while it sets up or connects, "FORGE ·
     CONNECTION · ORG/NAME", ORG/NAME its first repository, and a disclosure, "Each

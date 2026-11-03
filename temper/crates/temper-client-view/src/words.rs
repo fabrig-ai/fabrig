@@ -35,6 +35,7 @@ pub enum Word {
     WelcomeForgejoDescription,
     WelcomeForgejoRun,
     WelcomeForgejoDeployment,
+    WelcomeContinue,
     WelcomeYourModel,
     BrandChats,
     ForgeHereVersionDetails,
@@ -697,9 +698,10 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
 // The banner's setup link and project switcher add two literal phrases (5.1 and 5.6).
 // Restore's forgotten refusal adds one phrase and two segments.
-const PHRASES: u32 = 1219;
-const SEGMENTS: u32 = 2100;
-const ALL: [Word; 624] = [
+// The welcome's "Continue" to Ready adds one literal phrase (client/README.md, 3.5).
+const PHRASES: u32 = 1220;
+const SEGMENTS: u32 = 2101;
+const ALL: [Word; 625] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -724,6 +726,7 @@ const ALL: [Word; 624] = [
     Word::WelcomeForgejoDescription,
     Word::WelcomeForgejoRun,
     Word::WelcomeForgejoDeployment,
+    Word::WelcomeContinue,
     Word::WelcomeYourModel,
     Word::BrandChats,
     Word::ForgeHereVersionDetails,
@@ -1787,6 +1790,7 @@ impl Word {
             Self::NewChat => 286,
             Self::ProjectPane => 2192,
             Self::DescribeChange => 2193,
+            Self::WelcomeContinue => 2194,
             Self::NewChatLink => 1258,
             Self::Ready => 287,
             Self::Playground => 187,
@@ -2272,6 +2276,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgejoDescription => (&[b"A forge of your own. temper can start it and manage it, or you can connect your own deployment."], &[]),
         Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
         Word::WelcomeForgejoDeployment => (&[b"Or connect your deployment"], &[]),
+        Word::WelcomeContinue => (&[b"Continue"], &[]),
         Word::WelcomeYourModel => (&[b"Your model: ChatGPT or Claude"], &[]),
         Word::BrandChats => (&[b"temper chats"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),
@@ -2457,7 +2462,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeSetupTime => (&[b"About five minutes"], &[]),
         Word::WelcomeAfter => (&[b"Started in the playground? Connect your own forge and model whenever you like; the playground then steps aside."], &[]),
         Word::WelcomeForgeTitle => (&[b"Connect a forge"], &[]),
-        Word::WelcomeForgeLead => (&[b"Where your code lives: you file issues, agents push and land code."], &[]),
+        Word::WelcomeForgeLead => (&[b"Where your code lives: you tell temper what you want, agents push and land code."], &[]),
         Word::WelcomeModelTitle => (&[b"Connect a model"], &[]),
         Word::WelcomeModelLead => (&[b"temper\xe2\x80\x99s agents run on it: on a plan you sign in to, or on a key."], &[]),
         Word::WelcomeReadyTitle => (&[b"Almost ready"], &[]),

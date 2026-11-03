@@ -495,7 +495,17 @@ fn ready_body(
     }
     b.open(Role::Slot);
     b.style(crate::look::MODEL_ACTIONS);
-    go(b, bindings, &say(w, W::StartChat), Address::Chats { filter: ChatsFilter::All, start: false }, true);
+    if welcome(root) {
+        go(
+            b,
+            bindings,
+            &w.say(Word::WelcomeContinue, &[]),
+            Address::Welcome { step: temper_client_domain::Step::Ready },
+            true,
+        );
+    } else {
+        go(b, bindings, &say(w, W::StartChat), Address::Chats { filter: ChatsFilter::All, start: false }, true);
+    }
     manage_usage(b, root, w, way);
     if model::model_way(way).kind == WayKind::SignIn {
         button(

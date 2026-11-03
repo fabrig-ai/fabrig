@@ -82,7 +82,7 @@ fn run_owned(front: &mut Joint, root: &mut Root, now: &mut Time) {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: None } }) },
     );
     let mut choose = view(root);
-    let button = node(&choose, Role::Link, b"Forgejo on this machine");
+    let button = node(&choose, Role::Link, b"Run on this machine");
     let action = temper_client_view::act(&mut choose, button, skein_ui::Act::Press).expect("bound choice");
     pump(front, root, now, d::Event::Act { action });
     let mut details = view(root);

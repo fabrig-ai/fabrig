@@ -251,7 +251,13 @@ pub(crate) fn welcome(
 fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, place: Place) {
     b.open(Role::Slot);
     b.style(look::FLOW_CHOICES);
-    for kind in &connect::choices(connect::records(root.forges()), connect::playground(root.forge()), true) {
+    let kinds = connect::choices(connect::records(root.forges()), connect::playground(root.forge()), true);
+    if let Place::Welcome = place {
+        welcome_choices(b, root, w, bindings, forge, &kinds);
+        b.close();
+        return;
+    }
+    for kind in &kinds {
         let (choice, heading, description, note) = match kind {
             connect::Choice::GitHub => {
                 (Choice::GitHub, Word::ConnectGitHub, Word::ForgeGitHubDescription, Word::ForgeGitHubTime)
@@ -283,6 +289,52 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
             );
         }
     }
+    b.close();
+}
+/// The welcome's Forge step: GitHub's card, then one Forgejo card, whose
+/// button runs one on this machine and whose link shows how to connect a
+/// deployment (`temper/docs/design/client/forge.md`, 5.4).
+fn welcome_choices(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    forge: &mut ForgeBindings,
+    kinds: &[connect::Choice],
+) {
+    if kinds.contains(&connect::Choice::GitHub) {
+        flow::choice_card(b, &w.say(Word::ConnectGitHub, &[]));
+        text(b, w, Role::Paragraph, Word::ForgeGitHubDescription);
+        text(b, w, Role::Paragraph, Word::ForgeGitHubTime);
+        app_control(b, root, w, forge, 0, Word::ForgeConnectGitHub, Some(Place::Welcome.address(None)));
+        b.close();
+    }
+    let owned = kinds.contains(&connect::Choice::Owned);
+    if !owned && !kinds.contains(&connect::Choice::Managed) {
+        return;
+    }
+    let note = w.say(if owned { Word::ForgeHereTime } else { Word::ForgeElsewhereTime }, &[]);
+    flow::choice_card(b, &w.say(Word::WelcomeForgejo, &[]));
+    text(b, w, Role::Paragraph, Word::WelcomeForgejoDescription);
+    b.open(Role::Paragraph);
+    b.style(look::FLOW_MUTED);
+    b.name(&note);
+    b.text(Run::Plain, &note);
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::FLOW_ACTIONS);
+    if owned {
+        let run = w.say(Word::WelcomeForgejoRun, &[]);
+        flow::control(
+            b,
+            Control::SecondaryLink {
+                name: &run,
+                to: bindings.insert(Act::Go { address: Place::Welcome.address(Some(Choice::Owned)) }),
+            },
+        );
+    }
+    flow::control(b, Control::External { name: &w.say(Word::WelcomeForgejoDeployment, &[]), address: DEPLOYMENT });
+    b.close();
     b.close();
 }
 pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
