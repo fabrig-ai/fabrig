@@ -3,8 +3,7 @@
 2026-11-02. Where temper's code lags or departs from [agent.md](agent.md).
 The remaining gaps concern charters, settings, brief admission and result delivery.
 
-- **Not yet:** 4.1: a charter's documents, each a `Document` section of
-  its runs' briefs (`../protocol/configuration.md`, 13.7). 4.3: the
+- **Not yet:** 4.3: the
   check that each charter leaves its brief 2,048 bytes, at start and at
   the three entrances of a change of settings;
   only fitting exists (`temper-engine-smith/src/start.rs`). 4.3: the
