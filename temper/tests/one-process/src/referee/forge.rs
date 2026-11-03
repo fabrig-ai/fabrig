@@ -119,14 +119,17 @@ impl Forge {
         );
     }
     pub(crate) fn complete(&self) -> bool {
+        if matches!(self.story, Story::PlaygroundA) && crate::world::playground_answers() != 3 {
+            return false;
+        }
+        self.forge_complete()
+    }
+    /// Completion judged from the forge alone; the terminal person's replies belong to `complete`.
+    pub(crate) fn forge_complete(&self) -> bool {
         if matches!(self.story, Story::PlaygroundA) {
-            if crate::world::playground_answers() != 3 {
-                return false;
-            }
             let outcome = crate::stories::playground::outcome(&self.transport);
             return outcome.csv
                 && outcome.green
-                && outcome.answered == 3
                 && self.pushed.iter().any(|push| push.commit == outcome.main);
         }
         self.pushed.iter().any(|push| {

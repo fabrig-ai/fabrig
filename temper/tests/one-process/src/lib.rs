@@ -4,6 +4,7 @@ pub mod fixtures;
 
 mod oracle;
 pub mod referee;
+pub mod replay;
 mod restart_control;
 mod stories;
 pub mod world;
