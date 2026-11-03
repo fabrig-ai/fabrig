@@ -179,6 +179,52 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     private(&path, &serde_json::to_vec(&agent).expect("demo agent JSON"));
 }
 
+/// Public reading's demo alone (temper/docs/design/protocol/sign-in.md, 2.4;
+/// jig/docs/design/domain/people.md, 13.7). Its two-second freshness is the walk's subject.
+pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
+    demo(directory, program, bundle);
+    let path = directory.join("temper.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).expect("public demo deployment")).expect("JSON");
+    let overrides = value["engine"]["limits"]["overrides"].as_object_mut().expect("demo overrides");
+    for (name, figure) in [
+        ("clients.public.rate", 20),
+        ("clients.public.rate_burst", 20),
+        ("clients.public.bytes", 2_097_152),
+        ("clients.public.bytes_burst", 2_097_152),
+        // The 20/20/50 board reserves 730,728 bytes; this tier's approved ceiling is 1 MiB.
+        ("clients.public.answer_bytes", 1_048_576),
+        ("clients.public.reads", 8),
+        ("clients.public.max_age", 2),
+        ("clients_http.public_calls", 8),
+        ("core.public.goals", 20),
+        ("core.public.ended", 20),
+        ("core.public.lines", 50),
+        ("core.public.depth", 16),
+    ] {
+        overrides.insert(name.into(), figure.into());
+    }
+    let mut delegates = 0_u32;
+    for script in value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts") {
+        if script["cue"] != "Add CSV export to widget" {
+            continue;
+        }
+        for turn in script["turns"].as_array_mut().expect("CSV turns") {
+            for line in turn["lines"].as_array_mut().expect("CSV lines") {
+                if line["call"] == "delegate" {
+                    for member in line["arguments"]["batch"].as_array_mut().expect("delegate batch") {
+                        // delegate's host-tool spelling of tracked priority 1.
+                        member["tracked"] = serde_json::json!({"priority": 1});
+                        delegates = delegates.checked_add(1).expect("bounded script");
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(delegates, 1, "one CSV delegate becomes a public goal");
+    private(&path, &serde_json::to_vec(&value).expect("public demo JSON"));
+}
+
 /// Update references to a reserved listener in both documents, including the forge's git URL.
 fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, String)]) {
     match value {
