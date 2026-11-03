@@ -869,6 +869,7 @@ impl World {
                 | top::Request::BoxRemove { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::Connect { .. }
+                | top::Request::Replace { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }

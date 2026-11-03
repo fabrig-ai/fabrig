@@ -800,6 +800,7 @@ pub fn settle_root(
                 | root::Request::ResetAct { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Connect { .. }
+                | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Install { .. }

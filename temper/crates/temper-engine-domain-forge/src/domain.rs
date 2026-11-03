@@ -1152,6 +1152,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::InstallAnswered { forge, request, answer, stopped } => {
             crate::connect::installed(d, forge, request, answer, stopped, out);
         }
+        // The connect fills the record's bot login when Check is staged.
+        Event::BotLogin { .. } => {}
         Event::ConnectEnded { forge, request, connected, why, stop } => {
             crate::connect::ended(d, forge, request, connected, why, stop, out);
         }
@@ -1242,6 +1244,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 crate::removal::admit(d, request, token, role, forge, out);
             }
             ask @ (crate::Ask::Connect { .. }
+            | crate::Ask::Replace { .. }
             | crate::Ask::Install { .. }
             | crate::Ask::Accept { .. }
             | crate::Ask::Reachable { .. }) => {
