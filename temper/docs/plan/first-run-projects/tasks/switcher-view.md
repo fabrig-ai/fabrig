@@ -6,6 +6,7 @@ needs = ["switcher-acts", "skein-form-escape"]
 files = [
   "temper/crates/temper-client-view/src/frame.rs",
   "temper/crates/temper-client-view/src/words.rs",
+  "temper/crates/temper-client-view/src/pages/chats.rs",
   "temper/crates/temper-client-view/src/tests/frame.rs",
   "temper/crates/temper-client-shell-terminal/src/tests/golden/**",
   "temper/docs/design/client/README.status.md",
@@ -104,3 +105,13 @@ Acceptance:
 ## Report
 
 As the implementer's text says, which banner you found, and the goldens and journeys that moved.
+
+## Answers
+
+2026-11-03. May this task edit `temper-client-view/src/pages/chats.rs` so the composer's focus
+request yields to an open rename? Yes, that narrow guard and nothing else there: the composer on
+`/chats?at=start` requests focus only while `root.pages().switcher().renaming().is_none()`, so the
+rename field opening from the banner takes the tree's one focus request (skein-ui's `focus`
+asserts at most one) and the composer's focus returns once the rename is saved or cancelled. Add
+a frame or chats test that opens Rename on `/chats?at=start` and finds the field focused and no
+panic. `pages/chats.rs` is added to `files` for this alone; other tasks' edits there stand.
