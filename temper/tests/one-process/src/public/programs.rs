@@ -27,6 +27,12 @@ impl Upstream {
     pub fn idle(&self) -> bool {
         self.wire.idle()
     }
+    pub fn release(&mut self) {
+        self.hold = false;
+        for id in self.held.drain(..) {
+            self.wire.respond(id, self.answer.wire());
+        }
+    }
     pub fn stop(&mut self) {
         self.wire.stop();
     }

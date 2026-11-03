@@ -21,6 +21,7 @@ struct Connection {
     outgoing: Option<Box<[u8]>>,
     incoming: Vec<u8>,
     client: bool,
+    abandon: bool,
 }
 pub(super) struct Wire {
     pub completions: Queue<Complete>,
@@ -76,10 +77,21 @@ impl Wire {
         self.next += 1;
         self.connections.insert(
             id,
-            Connection { fd: None, peer: address, method, outgoing: Some(bytes), incoming: Vec::new(), client: true },
+            Connection {
+                fd: None,
+                peer: address,
+                method,
+                outgoing: Some(bytes),
+                incoming: Vec::new(),
+                client: true,
+                abandon: false,
+            },
         );
         self.submit(Some(id), Op::Socket { family: Family::of(&address) });
         id
+    }
+    pub fn abandon(&mut self, id: u64) {
+        self.connections.get_mut(&id).expect("new client request").abandon = true;
     }
     fn recv(&mut self, id: u64, fd: Fd) {
         self.submit(Some(id), Op::Recv { fd, buf: vec![0; PIECE].into() });
@@ -152,6 +164,7 @@ impl Wire {
                         outgoing: None,
                         incoming: Vec::new(),
                         client: false,
+                        abandon: false,
                     },
                 );
                 self.recv(id, fd);
@@ -186,9 +199,12 @@ impl Wire {
                 let from = from + n;
                 if usize::try_from(from).expect("sent length") != bytes.len() {
                     self.submit(Some(id), Op::Send { fd, bytes, from });
-                } else if conn.client {
+                } else if conn.client && !conn.abandon {
                     self.recv(id, fd);
                 } else {
+                    if conn.abandon {
+                        self.events.push_back(Event::Answer { id, answer: None });
+                    }
                     self.submit(Some(id), Op::Close { fd });
                 }
             }

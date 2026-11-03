@@ -62,7 +62,7 @@ struct Flight {
     key: Key,
 }
 pub(crate) struct Proxy {
-    config: ProxyConfig,
+    pub(super) config: ProxyConfig,
     pub counts: ProxyCounts,
     pub forwarded: Vec<Box<[u8]>>,
     wire: Wire,

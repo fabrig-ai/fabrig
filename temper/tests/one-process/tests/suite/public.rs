@@ -51,3 +51,28 @@ fn every_owner_version_and_kind_answers_as_declared() {
 fn a_members_set_visibility_is_refused() {
     public::walk(SEED, "a_members_set_visibility_is_refused");
 }
+
+#[test]
+fn public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered() {
+    public::walk(SEED, "public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered");
+}
+
+#[test]
+fn abandoned_reads_leave_the_budgets_whole() {
+    public::walk(SEED, "abandoned_reads_leave_the_budgets_whole");
+}
+
+#[test]
+fn a_private_or_deleted_project_is_unknown_at_once_and_through_the_proxy_within_the_max_age() {
+    public::walk(SEED, "a_private_or_deleted_project_is_unknown_at_once_and_through_the_proxy_within_the_max_age");
+}
+
+#[test]
+fn every_inaccessible_identifier_is_one_unknown_byte_for_byte() {
+    public::walk(SEED, "every_inaccessible_identifier_is_one_unknown_byte_for_byte");
+}
+
+#[test]
+fn a_store_written_before_public_reading_reads_every_project_private() {
+    public::walk(SEED, "a_store_written_before_public_reading_reads_every_project_private");
+}

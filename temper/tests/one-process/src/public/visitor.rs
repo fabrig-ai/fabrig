@@ -17,6 +17,9 @@ impl Visitor {
     pub fn new() -> Self {
         Self { answers: BTreeMap::new(), wire: Wire::new(None) }
     }
+    pub fn abandon(&mut self, id: u64) {
+        self.wire.abandon(id);
+    }
     pub fn send(&mut self, address: SocketAddr, method: Method, path: &[u8], headers: &[(&[u8], &[u8])]) -> u64 {
         self.send_body(address, method, path, headers, &[])
     }

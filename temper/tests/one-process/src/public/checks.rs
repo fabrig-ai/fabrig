@@ -72,7 +72,15 @@ impl Judge {
             return;
         }
         self.wake = None;
-        if self.calls.iter().any(|id| !visitor.answers.contains_key(id)) {
+        if !matches!(self.stage, 8 | 9)
+            && self.name == "the_proxy_keeps_age_and_serves_nothing_stale"
+            && self.calls.iter().any(|id| !visitor.answers.contains_key(id))
+        {
+            return;
+        }
+        if self.name != "the_proxy_keeps_age_and_serves_nothing_stale"
+            && self.calls.iter().any(|id| !visitor.answers.contains_key(id))
+        {
             return;
         }
         match self.name.as_str() {
@@ -117,9 +125,15 @@ impl Judge {
             3 => {
                 assert_eq!(self.last(visitor).header(b"Age"), Some(b"2".as_slice()));
                 assert_eq!(proxy.counts.upstream_public, 1);
-                upstream.stop();
-                self.send(visitor, b"one.example", PATH);
-                self.stage = 4;
+                if self.name == "the_proxy_keeps_age_and_serves_nothing_stale" {
+                    upstream.hold = true;
+                    self.wake = Some(Time::from_nanos(now.as_nanos() + 1_000_000_000));
+                    self.stage = 7;
+                } else {
+                    upstream.stop();
+                    self.send(visitor, b"one.example", PATH);
+                    self.stage = 4;
+                }
             }
             4 => {
                 assert_eq!(self.last(visitor).body.as_ref(), b"first");
@@ -134,6 +148,37 @@ impl Judge {
                 assert_eq!(self.last(visitor).status, 502, "no stale copy on upstream failure");
                 assert_eq!(proxy.counts.upstream_public, 2);
                 assert_eq!(proxy.counts.served_from_cache, 2);
+                self.stage = usize::MAX;
+            }
+            7 => {
+                self.send(visitor, b"one.example", PATH);
+                self.stage = 8;
+            }
+            8 => {
+                if upstream.requests.len() != 2 {
+                    return;
+                }
+                assert!(
+                    !visitor.answers.contains_key(self.calls.last().expect("refresh request")),
+                    "no stale copy while refreshing"
+                );
+                self.send(visitor, b"one.example", PATH);
+                self.stage = 9;
+            }
+            9 => {
+                if upstream.requests.len() != 3 {
+                    return;
+                }
+                for id in self.calls.iter().rev().take(2) {
+                    assert!(!visitor.answers.contains_key(id), "no stale copy for either refresher");
+                }
+                assert_eq!(proxy.counts.served_from_cache, 1);
+                upstream.release();
+                self.stage = 10;
+            }
+            10 => {
+                assert_eq!(proxy.counts.upstream_public, 3, "refreshes are foreground reads");
+                assert_eq!(self.last(visitor).status, 200);
                 self.stage = usize::MAX;
             }
             usize::MAX => {}
@@ -151,10 +196,35 @@ impl Judge {
             (200, b"public, max-age=0, must-revalidate", 2),
             (201, b"public, max-age=2, must-revalidate", 2),
             (200, b"public, max-age=2, must-revalidate, no-store", 2),
+            (200, b"public, max-age=2, must-revalidate, stale-while-revalidate=2", 2),
+            (200, b"public, max-age=2, must-revalidate, stale-if-error=2", 2),
         ];
+        if self.stage == usize::MAX {
+            return;
+        }
         let row = self.stage / 3;
         if row >= ROWS.len() {
-            self.stage = usize::MAX;
+            let extra = row - ROWS.len();
+            if extra == 2 {
+                self.stage = usize::MAX;
+                return;
+            }
+            if self.stage % 3 < 2 {
+                upstream.answer = document(200, b"public, max-age=2, must-revalidate", None, b"other route");
+                self.calls.push(visitor.send(
+                    PROXY,
+                    if extra == 0 { Method::Post } else { Method::Get },
+                    if extra == 0 { PATH } else { b"/jig/v1/read" },
+                    &[(b"Host", b"one.example")],
+                ));
+            } else {
+                assert_eq!(
+                    proxy.counts.upstream_other,
+                    u32::try_from((extra + 1) * 2).expect("other requests"),
+                    "neither a public POST nor another GET is cached"
+                );
+            }
+            self.stage += 1;
             return;
         }
         let (status, control, reached) = ROWS[row];
@@ -199,6 +269,21 @@ impl Judge {
             }
             5 => {
                 assert_eq!(proxy.counts.upstream_public, 3, "validated Host is part of the key even on one upstream");
+            }
+            6..=8 => self.send(
+                visitor,
+                b"one.example",
+                match self.stage {
+                    6 => b"/jig/v1/public/0/1/%31",
+                    7 => b"/jig/v1/public/0/1/./1",
+                    _ => b"/jig/v1/public/0/1%2F1",
+                },
+            ),
+            9 => {
+                assert_eq!(
+                    proxy.counts.upstream_public, 6,
+                    "raw paths are neither decoded nor normalized into the canonical cached path"
+                );
                 self.stage = usize::MAX;
                 return;
             }
@@ -240,7 +325,8 @@ impl skein_world::Referee<Program> for Judge {
             && proxy.ready()
             && upstream.ready()
             && second.ready()
-            && self.calls.iter().all(|id| visitor.answers.contains_key(id));
+            && (self.calls.iter().all(|id| visitor.answers.contains_key(id))
+                || (self.name == "the_proxy_keeps_age_and_serves_nothing_stale" && matches!(self.stage, 8 | 9)));
     }
     fn act(&mut self, now: Time, procs: &mut [Program]) {
         let [Program::Proxy(proxy), Program::Visitor(visitor), Program::Upstream(upstream), Program::Upstream(second)] =

@@ -49,7 +49,7 @@ pub(super) fn policy(answer: &Answer, cached: bool) {
         assert!(!control.windows(6).any(|w| w == b"stale-"), "no stale directive");
     }
 }
-fn cacheable(answer: &Answer) {
+pub(super) fn cacheable(answer: &Answer) {
     let control = std::str::from_utf8(answer.header(b"cache-control").expect("cache control")).expect("ASCII policy");
     assert!(control.starts_with("public, max-age="), "{control}");
     assert!(control.ends_with(", must-revalidate"), "{control}");
@@ -78,6 +78,12 @@ pub(super) struct Judge {
     project: Option<u64>,
     baseline: Option<Answer>,
     owners: super::owners::Walk,
+    load: super::load::Walk,
+    abandoned: super::abandoned::Walk,
+    revocation: super::revocation::Walk,
+    identifiers: super::identifiers::Walk,
+    prepared: bool,
+    previous: super::previous::Walk,
 }
 impl Judge {
     pub fn new(
@@ -99,7 +105,13 @@ impl Judge {
             ready: false,
             project: None,
             baseline: None,
-            owners: super::owners::Walk::new(store),
+            owners: super::owners::Walk::new(store.clone()),
+            load: super::load::Walk::new(),
+            abandoned: super::abandoned::Walk::new(),
+            revocation: super::revocation::Walk::new(),
+            identifiers: super::identifiers::Walk::new(store),
+            prepared: false,
+            previous: super::previous::Walk::new(name),
         }
     }
     fn send(&mut self, visitor: &mut Visitor, address: SocketAddr, method: Method, path: &[u8]) {
@@ -113,6 +125,10 @@ impl Judge {
             .as_ref()
             .expect("HTTP answer")
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the shared deployment hands each negative walk its programs and drains them together"
+    )]
     fn act_inner(&mut self, now: Time, procs: &mut [Proc]) {
         let [
             Proc::Service(service),
@@ -128,67 +144,129 @@ impl Judge {
             return;
         }
         self.wake = None;
-        if !self.handed
-            && let Some(link) = service.service.links().pop()
-        {
-            let mut sign_in = Command::new(&[b"sign-in", b"-"]);
-            let link = String::from_utf8(link.into_vec()).expect("printed link URL");
-            // The native world uses plaintext on the listener; the public name belongs to its proxy.
-            sign_in.input =
-                link.replace("https://one.example", &format!("http://{}", fixtures::CLIENTS)).into_bytes().into();
-            caller.commands.push_back(sign_in);
-            service::command(caller, &["project", "amend", "1", "--visibility", "public", "--key", "open-one"]);
-            self.handed = true;
-        }
-        if !self.setup {
-            if caller.answers.len() != 2 || !proxy.ready() {
+        if super::previous::handles(&self.name) {
+            if !self.previous.act(caller, proxy, visitor, &mut service.service) {
                 return;
             }
-            for answer in &caller.answers {
-                assert_eq!(
-                    answer.exit,
-                    skein_io::kernel::Exit::Code(0),
-                    "public deployment setup: {} {}",
-                    String::from_utf8_lossy(&answer.output),
-                    String::from_utf8_lossy(&answer.error)
-                );
+            self.stage = usize::MAX;
+        } else {
+            if !self.handed
+                && let Some(link) = service.service.links().pop()
+            {
+                let mut sign_in = Command::new(&[b"sign-in", b"-"]);
+                let link = String::from_utf8(link.into_vec()).expect("printed link URL");
+                // The native world uses plaintext on the listener; the public name belongs to its proxy.
+                sign_in.input =
+                    link.replace("https://one.example", &format!("http://{}", fixtures::CLIENTS)).into_bytes().into();
+                caller.commands.push_back(sign_in);
+                service::command(caller, &["project", "amend", "1", "--visibility", "public", "--key", "open-one"]);
+                self.handed = true;
             }
-            self.send(visitor, fixtures::CLIENTS, Method::Get, PROJECTS);
-            self.setup = true;
-            return;
-        }
-        if self.calls.iter().any(|id| !visitor.answers.contains_key(id)) {
-            return;
-        }
-        if self.project.is_none() {
-            let answer = self.last(visitor);
-            assert_eq!(answer.status, 200, "public projects after owner's ctl");
-            policy(answer, false);
-            let projects = public::PublicProjects::decode(&public::CEILINGS, &mut Reader::new(&answer.body))
-                .expect("public projects record");
-            assert_eq!(projects.projects().len(), 1, "only the opened project");
-            self.project = Some(projects.projects().iter().next().expect("one project").project());
-        }
-        if self.stage != usize::MAX {
-            match self.name.as_str() {
-                "every_owner_version_and_kind_answers_as_declared" => {
-                    if self.owners.act(
-                        now,
-                        caller,
-                        proxy,
-                        visitor,
-                        self.project.expect("public project"),
-                        &service.parameters.forge,
-                    ) {
-                        self.stage = usize::MAX;
-                    }
+            if !self.setup {
+                if caller.answers.len() != 2 || !proxy.ready() {
+                    return;
                 }
-                "a_members_set_visibility_is_refused" => self.member(caller, visitor),
-                "malformed_paths_are_404_no_store_and_never_kept" => self.malformed(proxy, visitor),
-                "no_credential_anywhere_else_is_signed_out" => self.signed_out(visitor),
-                "a_cookie_or_bearer_on_a_public_read_changes_no_byte" => self.credentials(now, proxy, visitor),
-                "no_answer_carries_an_access_control_header" => self.cors(proxy, visitor),
-                other => panic!("unknown service walk {other}"),
+                for answer in &caller.answers {
+                    assert_eq!(
+                        answer.exit,
+                        skein_io::kernel::Exit::Code(0),
+                        "public deployment setup: {} {}",
+                        String::from_utf8_lossy(&answer.output),
+                        String::from_utf8_lossy(&answer.error)
+                    );
+                }
+                self.send(visitor, fixtures::CLIENTS, Method::Get, PROJECTS);
+                self.setup = true;
+                return;
+            }
+            if self.calls.iter().any(|id| !visitor.answers.contains_key(id)) {
+                return;
+            }
+            if self.project.is_none() {
+                let answer = self.last(visitor);
+                assert_eq!(answer.status, 200, "public projects after owner's ctl");
+                policy(answer, false);
+                let projects = public::PublicProjects::decode(&public::CEILINGS, &mut Reader::new(&answer.body))
+                    .expect("public projects record");
+                assert_eq!(projects.projects().len(), 1, "only the opened project");
+                self.project = Some(projects.projects().iter().next().expect("one project").project());
+            }
+            if self.stage != usize::MAX {
+                match self.name.as_str() {
+                    "every_owner_version_and_kind_answers_as_declared" => {
+                        if self.owners.act(
+                            now,
+                            caller,
+                            proxy,
+                            visitor,
+                            self.project.expect("public project"),
+                            &service.parameters.forge,
+                        ) {
+                            self.stage = usize::MAX;
+                        }
+                    }
+                    "public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered" => {
+                        if self.load.act(now, &mut service.observer, proxy, visitor, self.project.expect("project")) {
+                            self.stage = usize::MAX;
+                        }
+                    }
+                    "abandoned_reads_leave_the_budgets_whole" => {
+                        if self.abandoned.act(now, proxy, visitor, self.project.expect("project")) {
+                            self.stage = usize::MAX;
+                        }
+                    }
+                    "a_private_or_deleted_project_is_unknown_at_once_and_through_the_proxy_within_the_max_age" => {
+                        let quiescent = !service.service.work_pending(now);
+                        if self.revocation.act(
+                            now,
+                            &mut service.observer,
+                            proxy,
+                            visitor,
+                            self.project.expect("project"),
+                            quiescent,
+                        ) {
+                            self.stage = usize::MAX;
+                        }
+                    }
+                    "every_inaccessible_identifier_is_one_unknown_byte_for_byte" => {
+                        if !self.prepared {
+                            self.prepared = self.owners.act(
+                                now,
+                                caller,
+                                proxy,
+                                visitor,
+                                self.project.expect("project"),
+                                &service.parameters.forge,
+                            );
+                        } else if self.identifiers.act(
+                            now,
+                            &mut service.observer,
+                            proxy,
+                            visitor,
+                            self.project.expect("project"),
+                        ) {
+                            self.stage = usize::MAX;
+                        }
+                    }
+                    "a_members_set_visibility_is_refused" => self.member(caller, visitor),
+                    "malformed_paths_are_404_no_store_and_never_kept" => self.malformed(proxy, visitor),
+                    "no_credential_anywhere_else_is_signed_out" => self.signed_out(visitor),
+                    "a_cookie_or_bearer_on_a_public_read_changes_no_byte" => self.credentials(now, proxy, visitor),
+                    "no_answer_carries_an_access_control_header" => {
+                        if !self.prepared {
+                            self.cors(proxy, visitor);
+                        } else if self.load.act(
+                            now,
+                            &mut service.observer,
+                            proxy,
+                            visitor,
+                            self.project.expect("project"),
+                        ) {
+                            self.stage = usize::MAX;
+                        }
+                    }
+                    other => panic!("unknown service walk {other}"),
+                }
             }
         }
         if self.stage == usize::MAX && proxy.idle() {
@@ -440,7 +518,7 @@ impl Judge {
         ];
         if row == cases.len() {
             assert!(proxy.counts.refused_host > 0);
-            self.stage = usize::MAX;
+            self.prepared = true;
             return;
         }
         let (address, method, path, host, status) = cases[row];
@@ -467,7 +545,7 @@ impl skein_world::Referee<Proc> for Judge {
     }
     fn observe(&mut self, _: Time, procs: &[Proc]) {
         let [
-            _,
+            Proc::Service(service),
             Proc::Other(Extra::Native(HarnessProcess::Calls(caller))),
             Proc::Other(Extra::Proxy(proxy)),
             Proc::Other(Extra::Visitor(visitor)),
@@ -480,19 +558,37 @@ impl skein_world::Referee<Proc> for Judge {
             && proxy.ready()
             && (self.setup || caller.answers.len() == 2 || !self.handed)
             && self.calls.iter().all(|id| visitor.answers.contains_key(id));
-        if self.name == "every_owner_version_and_kind_answers_as_declared" && self.setup {
+        if (self.name == "public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered"
+            || (self.name == "no_answer_carries_an_access_control_header" && self.prepared))
+            && self.setup
+        {
+            self.ready = self.load.ready(visitor, &service.observer);
+        }
+        if matches!(
+            self.name.as_str(),
+            "every_owner_version_and_kind_answers_as_declared"
+                | "every_inaccessible_identifier_is_one_unknown_byte_for_byte"
+        ) && self.setup
+            && !self.prepared
+        {
             self.ready &= self.owners.ready(caller, visitor);
         }
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake
             .or_else(|| self.owners.wake())
+            .or_else(|| self.load.wake())
+            .or_else(|| self.abandoned.wake())
+            .or_else(|| self.revocation.wake())
+            .or_else(|| self.identifiers.wake())
             .or_else(|| self.ready.then_some(Time::ZERO))
             .or_else(|| (!self.stopping).then_some(Time::from_nanos(20_000_000_000)))
     }
     fn overdue(&self, now: Time) -> Option<String> {
         (!self.stopping && now >= Time::from_nanos(20_000_000_000)).then(|| {
-            format!("public {}, stage {}, seed {}", self.name, self.stage, self.seed) + &self.owners.diagnostic()
+            format!("public {}, stage {}, seed {}", self.name, self.stage, self.seed)
+                + &self.owners.diagnostic()
+                + &self.load.diagnostic()
         })
     }
     fn passed(&self) -> bool {

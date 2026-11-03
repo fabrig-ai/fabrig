@@ -23,7 +23,7 @@ pub(super) fn bearer() -> Box<[u8]> {
 pub(super) struct Deployment;
 pub(super) type Proc = programs::Process<Deployment>;
 impl Harness for Deployment {
-    type Service = world::ServiceObserver;
+    type Service = super::observation::Observer;
     type Process = Extra;
     fn complete(role: programs::Role, complete: &Complete) {
         if role != programs::Role::Other {
@@ -117,17 +117,28 @@ pub(super) fn command(caller: &mut Caller, words: &[&str]) {
 }
 
 pub(super) fn run(seed: u64, name: &str) {
+    let mut disk = temper_playground::machine::fresh();
+    temper_playground::machine::setup(&mut disk);
+    phase(seed, name, disk, Rc::new(RefCell::new(Store::new())));
+}
+pub(super) fn phase(
+    seed: u64,
+    name: &str,
+    mut disk: skein_fake_machine::Machine,
+    records: Rc<RefCell<Store>>,
+) -> skein_fake_machine::Machine {
     super::ACTIVE.with(|active| active.set(true));
     BEARER.with(|held| *held.borrow_mut() = None);
-    let advanced = name == "every_owner_version_and_kind_answers_as_declared";
+    let advanced = matches!(
+        name,
+        "every_owner_version_and_kind_answers_as_declared"
+            | "every_inaccessible_identifier_is_one_unknown_byte_for_byte"
+    );
     let story = if advanced { Story::Merge } else { Story::Chat { words: b"Hello" } };
     stories::set(story);
     stories::setup_settings(if advanced { world::Phase::Story } else { world::Phase::Restart });
-    let mut disk = temper_playground::machine::fresh();
-    temper_playground::machine::setup(&mut disk);
     let root = disk.reopen_root(2);
     let machine = Machine::new(disk);
-    let records = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(records.clone()));
     let transport = stories::forge(story);
     let parameters = world::parameters(&machine, transport.clone());
@@ -177,4 +188,5 @@ pub(super) fn run(seed: u64, name: &str) {
     });
     assert!(outcome.procs.iter().all(Host::is_empty), "public service world drains, seed {seed}");
     world::lower_store(None);
+    std::mem::replace(&mut *outcome.machine.0.borrow_mut(), temper_playground::machine::fresh())
 }

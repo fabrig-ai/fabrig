@@ -168,8 +168,24 @@ impl Walk {
                 assert_eq!(answer.status, 200);
                 let board = p::PublicBoard::decode(&p::CEILINGS, &mut Reader::new(&answer.body)).expect("board");
                 let goals: Vec<_> = board.live().iter().chain(board.ended().iter()).collect();
+                if !super::TRACKED.with(core::cell::Cell::get) {
+                    assert!(goals.is_empty(), "untracked change and its conversation delegates leave no goal");
+                    self.calls.push(visitor.send(
+                        fixtures::CLIENTS,
+                        Method::Get,
+                        format!("/jig/v1/public/2/1/2/{project:016x}").as_bytes(),
+                        &[(b"Host", b"one.example")],
+                    ));
+                    self.stage = 100;
+                    return false;
+                }
                 assert_eq!(goals.len(), 1, "one tracked goal, conversation excluded: {}", self.diagnostic());
                 let goal = goals[0];
+                super::identifiers::remember(
+                    project,
+                    goal.line().task(),
+                    goal.tree().iter().map(p::PublicLine::task).collect(),
+                );
                 assert!(goal.line().goal());
                 assert_eq!(goal.line().parent(), &None, "conversation ancestry never crosses");
                 assert_eq!(goal.line().title(), b"@edit Public change title");
@@ -184,6 +200,22 @@ impl Walk {
                 self.task = Some(goal.line().task());
                 self.stage = 4;
             }
+            100 => {
+                let answer = self.last(visitor);
+                assert_eq!(answer.status, 200);
+                service_checks::policy(answer, false);
+                let app = p::PublicApplication::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
+                    .expect("untracked forge envelope");
+                assert!(app.tasks().is_empty(), "no excluded task enters the envelope");
+                let mut fields = Reader::new(app.record());
+                assert_eq!(fields.u16(), Some(1));
+                assert_eq!(fields.u8(), Some(0), "no excluded turn holder");
+                assert_eq!(fields.u32(), Some(0), "no excluded landing counted");
+                assert_eq!(fields.u32(), Some(0), "no excluded queue counted or ordered");
+                assert!(fields.is_empty());
+                return true;
+            }
+            200..=205 => return self.cross_project(visitor, project),
             _ => {
                 let row = (self.stage - 4) / 2;
                 let task = self.task.expect("public change");
@@ -191,16 +223,17 @@ impl Walk {
                     "/jig/v1/public/0/1/1".to_owned(),
                     format!("/jig/v1/public/0/1/2/{project:016x}"),
                     format!("/jig/v1/public/0/1/3/{project:016x}/{task:016x}"),
-                    format!("/jig/v1/public/1/1/1/{project:016x}/{task:016x}"),
-                    format!("/jig/v1/public/1/1/2/{project:016x}"),
-                    format!("/jig/v1/public/1/1/3/{project:016x}/{task:016x}"),
+                    format!("/jig/v1/public/2/1/1/{project:016x}/{task:016x}"),
+                    format!("/jig/v1/public/2/1/2/{project:016x}"),
+                    format!("/jig/v1/public/2/1/3/{project:016x}/{task:016x}"),
                     "/jig/v1/public/0/2/1".to_owned(),
-                    format!("/jig/v1/public/1/2/2/{project:016x}"),
+                    format!("/jig/v1/public/2/2/2/{project:016x}"),
                     "/jig/v1/public/0/1/65535".to_owned(),
                     format!("/jig/v1/public/65535/1/2/{project:016x}"),
                 ];
                 if row == paths.len() {
-                    return true;
+                    self.stage = 200;
+                    return false;
                 }
                 if (self.stage - 4).is_multiple_of(2) {
                     self.calls.push(visitor.send(
@@ -218,6 +251,7 @@ impl Walk {
                         paths[row]
                     );
                     service_checks::policy(answer, true);
+                    declared(row, answer, project, task);
                     for marker in [
                         b"PRIVATE_SPEC_BODY".as_slice(),
                         b"PRIVATE_WORDS",
@@ -236,12 +270,160 @@ impl Walk {
                     if (6..8).contains(&row) {
                         assert_eq!(answer.header(b"cache-control"), Some(b"no-store".as_slice()));
                     }
-                    // Refill the eight-read bucket between independently priced kinds.
-                    self.wake = Some(Time::from_nanos(now.as_nanos() + 1_000_000_000));
+                    // Two read tokens refill between independently priced kinds.
+                    self.wake = Some(Time::from_nanos(now.as_nanos() + 250_000_000));
                 }
                 self.stage += 1;
             }
         }
         false
+    }
+    fn cross_project(&mut self, visitor: &mut Visitor, project: u64) -> bool {
+        use jig_client::contract as c;
+        match self.stage {
+            200 => self.calls.push(super::requests::ask(
+                visitor,
+                &c::Ask::MakeProject {
+                    name: c::Text::new(b"Other public project".as_slice().into(), 64).expect("name"),
+                    policy: 1,
+                },
+                171,
+            )),
+            201 => {
+                assert!(matches!(
+                    super::requests::answer(&self.last(visitor).body),
+                    c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 2 }))
+                ));
+                self.calls.push(super::requests::ask(
+                    visitor,
+                    &c::Ask::SetVisibility { project: 2, public: true },
+                    172,
+                ));
+            }
+            202 => {
+                assert!(matches!(super::requests::answer(&self.last(visitor).body), c::Answer::Done(_)));
+                self.calls.push(visitor.send(
+                    crate::fixtures::CLIENTS,
+                    Method::Get,
+                    b"/jig/v1/public/0/1/1",
+                    &[(b"Host", b"one.example")],
+                ));
+            }
+            203 => {
+                let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&self.last(visitor).body))
+                    .expect("public projects");
+                assert_eq!(projects.projects().len(), 2);
+                let other =
+                    projects.projects().iter().find(|row| row.project() != project).expect("other project").project();
+                let task = self.task.expect("a genuinely public task of project one");
+                for (address, task) in [(crate::fixtures::CLIENTS, task), (PROXY, task), (crate::fixtures::CLIENTS, 0)]
+                {
+                    self.calls.push(visitor.send(
+                        address,
+                        Method::Get,
+                        format!("/jig/v1/public/0/1/3/{other:016x}/{task:016x}").as_bytes(),
+                        &[(b"Host", b"one.example")],
+                    ));
+                }
+            }
+            204 => {
+                let baseline = self.last(visitor);
+                for id in self.calls.iter().rev().take(3) {
+                    let answer = visitor.answers[id].as_ref().expect("cross-project answer");
+                    assert_eq!(answer.status, 404, "a public task is still excluded from another public project");
+                    assert!(answer.body.is_empty());
+                    service_checks::policy(answer, false);
+                    assert_eq!(
+                        answer, baseline,
+                        "a foreign public task is the same unknown directly and through the proxy"
+                    );
+                }
+                self.calls.push(super::requests::ask(
+                    visitor,
+                    &c::Ask::SetVisibility { project: 2, public: false },
+                    173,
+                ));
+            }
+            205 => {
+                assert!(matches!(super::requests::answer(&self.last(visitor).body), c::Answer::Done(_)));
+                return true;
+            }
+            _ => unreachable!("cross-project stages"),
+        }
+        self.stage += 1;
+        false
+    }
+}
+
+fn declared(row: usize, answer: &Answer, project: u64, task: u64) {
+    let mut reader = Reader::new(&answer.body);
+    if !(6..8).contains(&row) {
+        service_checks::cacheable(answer);
+    }
+    if row < 6 {
+        assert_eq!(answer.header(b"content-type"), Some(b"application/octet-stream".as_slice()));
+    }
+    match row {
+        0 => {
+            let projects = p::PublicProjects::decode(&p::CEILINGS, &mut reader).expect("projects record");
+            assert_eq!(projects.projects().iter().map(p::PublicProject::project).collect::<Vec<_>>(), [project]);
+        }
+        1 => {
+            let board = p::PublicBoard::decode(&p::CEILINGS, &mut reader).expect("board record");
+            assert_eq!(board.project(), project);
+            assert_eq!(board.live().len() + board.ended().len(), 1);
+        }
+        2 => {
+            let card = p::PublicCard::decode(&p::CEILINGS, &mut reader).expect("card record");
+            assert_eq!(card.line().task(), task);
+            assert_eq!(card.line().title(), b"@edit Public change title");
+        }
+        3..=5 => {
+            let application =
+                p::PublicApplication::decode(&p::CEILINGS, &mut reader).expect("forge record in its public envelope");
+            assert_eq!(
+                application.tasks().iter().copied().collect::<Vec<_>>(),
+                [task],
+                "only the public member is named; the landing's task stays private"
+            );
+            forge_references(row, application.record());
+        }
+        6 | 7 => {
+            use jig_client_protocol_wire::v19 as w;
+            let versions = w::NotServed::decode(&w::CEILINGS, &mut reader).expect("not-served record");
+            assert_eq!(versions.served().len(), 1);
+            let version = versions.served().iter().next().expect("served version");
+            assert_eq!((version.first(), version.last()), (1, 1));
+        }
+        _ => assert!(answer.body.is_empty(), "unknown carries no body"),
+    }
+    assert!(reader.is_empty(), "the declared record consumes every byte");
+}
+
+// The public wire's leading fields bind task references to envelope places (temper/docs/design/client/forge.md, 11.4).
+fn forge_references(row: usize, record: &[u8]) {
+    let mut fields = Reader::new(record);
+    assert_eq!(fields.u16(), Some(1), "the declared public record version");
+    match row {
+        3 => assert_eq!(fields.u16(), Some(0), "a change names its envelope place, never its internal task number"),
+        4 => {
+            assert_eq!(fields.u8(), Some(0), "the ended landing holds no turn");
+            assert_eq!(fields.u32(), Some(1), "one public landing");
+            assert_eq!(fields.u32(), Some(1), "one public member");
+            assert_eq!(fields.u16(), Some(0), "member is the envelope's task");
+            assert_eq!(fields.u8(), Some(5), "landed phase");
+            assert_eq!(fields.u32(), Some(1), "one landed commit");
+            fields.bytes(32).expect("public merge commit");
+            assert_eq!(fields.u32(), Some(0), "ended changes occupy no queue");
+            assert!(fields.is_empty());
+        }
+        5 => {
+            assert_eq!(fields.u8(), Some(5), "landed phase");
+            assert_eq!(fields.u8(), Some(0), "no landing hold");
+            fields.u32().expect("preparation count");
+            assert_eq!(fields.u32(), Some(1), "one public member");
+            assert_eq!(fields.u16(), Some(0), "member is the envelope's task");
+        }
+        _ => unreachable!("forge kinds"),
     }
 }
