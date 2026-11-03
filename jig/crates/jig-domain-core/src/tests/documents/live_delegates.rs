@@ -59,7 +59,15 @@ fn live_delegate_documents_keep_every_identity_and_the_owner_takeover_reservatio
     assert_eq!(doc.delegates.get(2).unwrap().chip.number, 4);
     assert_eq!(doc.delegates.get(0).unwrap().takeover_budget, 8);
     limits.documents.lines = 2;
-    assert_eq!(make(&core, &limits, 1, &Subject::Task { task: 1 }, &window(), Wall::EPOCH), Err(Missing::TooLarge));
+    let Document::Task(doc) = make(&core, &limits, 1, &Subject::Task { task: 1 }, &window(), Wall::EPOCH).unwrap()
+    else {
+        panic!("task past document lines")
+    };
+    assert_eq!(doc.delegates.len(), 3);
+    assert_eq!(doc.delegates.get(0).unwrap().chip.number, 2);
+    assert_eq!(doc.delegates.get(1).unwrap().chip.number, 3);
+    assert_eq!(doc.delegates.get(2).unwrap().chip.number, 4);
+    assert_eq!(doc.delegates.get(0).unwrap().takeover_budget, 8);
     limits.documents.lines = 8;
     send_task(
         &mut core,
@@ -88,6 +96,68 @@ fn live_delegate_documents_keep_every_identity_and_the_owner_takeover_reservatio
     assert_eq!(doc.delegates.len(), 2);
     assert_eq!(doc.delegates.get(0).unwrap().chip.number, 3);
     assert_eq!(doc.delegates.get(1).unwrap().chip.number, 4);
+}
+
+#[test]
+fn a_chat_document_lists_live_delegates_past_its_lines() {
+    let (mut core, mut limits) = tree_core();
+    limits.documents.lines = 2;
+    assert_eq!(limits.tasks.delegates, 8);
+    let mut chat = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
+    chat.flags.conversation = true;
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Make {
+            reply_to: ReplyTo::new(Token::new(1)),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([chat]),
+        },
+    );
+    for number in 2..=9 {
+        let mut child = new_row(&core, number, tasks::Funder::Task(1), None);
+        child.numbers.budget = number;
+        child.authority.budget.spend = number;
+        send_task(
+            &mut core,
+            &limits,
+            tasks::Event::Make {
+                reply_to: ReplyTo::new(Token::new(1)),
+                creator: tasks::Party::Task(1),
+                batch: Box::new([child]),
+            },
+        );
+    }
+    assert_eq!(core.tasks.task(1).unwrap().delegates.len(), 8);
+    let Document::Task(doc) = make(&core, &limits, 1, &Subject::Task { task: 1 }, &window(), Wall::EPOCH).unwrap()
+    else {
+        panic!("chat task")
+    };
+    assert_eq!(doc.delegates.len(), 8);
+    assert_eq!(doc.delegates.capacity(), limits.tasks.delegates);
+    for (delegate, number) in doc.delegates.iter().zip(2..=9) {
+        assert_eq!(delegate.chip.number, number);
+        assert_eq!(delegate.takeover_budget, number);
+        assert_eq!(Some(delegate.takeover_budget), core.tasks.takeover_budget(number));
+    }
+    limits.tasks.delegates = 7;
+    assert_eq!(make(&core, &limits, 1, &Subject::Task { task: 1 }, &window(), Wall::EPOCH), Err(Missing::TooLarge));
+}
+
+#[test]
+fn document_context_prices_each_live_delegate_and_its_chip_heap_at_the_tasks_bound() {
+    let (core, mut limits) = tree_core();
+    limits.documents.lines = 2;
+    limits.tasks.delegates = 3;
+    let smaller = document_with_context_bound(&limits, &core.kinds).unwrap();
+    let document = document_bound(&limits.documents).unwrap();
+    limits.tasks.delegates = 8;
+    let larger = document_with_context_bound(&limits, &core.kinds).unwrap();
+    assert_eq!(document_bound(&limits.documents), Some(document));
+    assert_eq!(
+        larger - smaller,
+        List::<LiveDelegate>::price(5).unwrap() + 5 * chip_heap_bound(&limits.documents).unwrap()
+    );
 }
 
 #[test]
