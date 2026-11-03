@@ -51,7 +51,7 @@ pub(crate) fn parse(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Llm> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "llm")?;
     let mut endpoints = List::<Endpoint>::with_capacity(document.len());
     if let Some(items) = check::list(&mut object, document, b"endpoints", document.len(), path, problems) {
         for (index, at) in items.iter().enumerate() {
@@ -136,7 +136,7 @@ fn endpoint(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Endpoint> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "endpoint")?;
     let name = check::text(&mut object, document, b"name", path, problems);
     let number = check::count(&mut object, document, b"number", path, problems);
     let dialect = check::count(&mut object, document, b"dialect", path, problems);
@@ -220,7 +220,7 @@ fn headers(object: &mut read::Object, document: &Document, path: &Path, problems
     if let Some(items) = check::list(object, document, b"headers", document.len(), path, problems) {
         for (index, at) in items.iter().enumerate() {
             let path = path.member(b"headers").child(Segment::Index(u32::try_from(index).expect("bounded list")));
-            if let Some(mut object) = check::object(document, *at, &path, problems) {
+            if let Some(mut object) = check::object(document, *at, &path, problems, "header") {
                 let name = check::text(&mut object, document, b"name", &path, problems);
                 let value = check::text(&mut object, document, b"value", &path, problems);
                 object.finish(document, &path, problems);
@@ -245,7 +245,7 @@ fn model(
     endpoints: &[Endpoint],
     problems: &mut Problems,
 ) -> Option<ParsedModel> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "model")?;
     let mut name = None;
     if let Some(at) = object.required(document, b"name", path, problems) {
         match read::text(document, at, jig_domain_core::MODEL_NAME_BYTES) {
@@ -331,7 +331,7 @@ fn model_efforts(document: &Document, at: u32, path: &Path, problems: &mut Probl
     Some(efforts.into_boxed())
 }
 fn price(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Model> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "prices")?;
     let input_price = check::integer(&mut object, document, b"input", path, problems);
     let cached_price = check::integer(&mut object, document, b"cached", path, problems);
     let output_price = check::integer(&mut object, document, b"output", path, problems);

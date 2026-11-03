@@ -316,6 +316,28 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
 pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
     decode_root(bytes, limits, false)
 }
+/// Decode a host read's setting through the settings file's kind decoder.
+pub fn read_setting(bytes: &[u8], limits: &Limits) -> Result<c::Setting, Box<[u8]>> {
+    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limits.ask_bytes {
+        return Err(message(None, bound(b"file bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX))));
+    }
+    let doc = crate::json::document_depth(bytes, 32)
+        .or(Err(message(None, error(b"JSON", b"invalid JSON or depth bound 32"))))?;
+    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds };
+    let fields = d.object(0, &[b"setting", b"revision", b"history", b"from"]);
+    let fields = match fields {
+        Ok(fields) => fields,
+        Err(why) => return Err(message(None, why)),
+    };
+    let at = match field(&fields, b"setting") {
+        Ok(at) => at,
+        Err(why) => return Err(message(None, why)),
+    };
+    match setting(&d, at) {
+        Ok(setting) => Ok(setting),
+        Err(why) => Err(message(None, why)),
+    }
+}
 /// Decode a host proposal's items in the settings file form.
 pub fn proposal_items(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
     decode_root(bytes, limits, true)

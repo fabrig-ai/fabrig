@@ -88,7 +88,7 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
     for authority in [&defaults.rules.ceiling, &policy.ceiling, &policy.roles[0].authority] {
         assert_eq!(
             authority.tools,
-            jig_domain_authority::Tools(families.delegate.0 | families.message.0 | families.read.0)
+            jig_domain_authority::Tools(families.delegate.0 | families.message.0 | families.read.0 | families.settings)
         );
         assert_eq!(authority.delegation.tasks, 18);
         assert_eq!(authority.delegation.depth, 4);
@@ -105,6 +105,31 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
         assert_eq!(charter.policy.modify, charter.number == 2);
         assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2);
     }
+}
+
+#[test]
+fn the_configuring_agent_is_charter_3_and_template_3() {
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm);
+    assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 6]);
+    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1536, 512, 512]) {
+        assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
+    }
+    let mut expected = defaults.charters[0].clone();
+    expected.number = 3;
+    expected.policy.instructions = include_bytes!("../stock/configuring.txt").as_slice().into();
+    expected.policy.agents = false;
+    expected.policy.tools = jig_domain_tasks::Tools(1536);
+    assert_eq!(defaults.charters[2], expected);
+    assert!(!defaults.charters[2].policy.modify);
+    assert!(!defaults.charters[2].policy.agents);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 3058);
+    assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
+    let mut expected = defaults.templates[0].clone();
+    expected.number = 3;
+    expected.name = b"configuring".as_slice().into();
+    expected.executor = jig_domain_people::TemplateExecutor::Charter(3);
+    assert_eq!(defaults.templates[2], expected);
 }
 
 #[test]
@@ -146,17 +171,17 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 3266, Setting::Policy(1), "the stock's policy 1 needs 3266 bytes"),
+        (b"core.policy_bytes", 3282, Setting::Policy(1), "the stock's policy 1 needs 3282 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 7, Setting::Rules, "the stock's rules need 7 executors"),
+        (b"authority.executors", 8, Setting::Rules, "the stock's rules need 8 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 1, Setting::Policy(1), "the stock's policy 1 needs 1 role"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 4, Setting::Charter(1), "the stock offers 4 charters"),
-        (b"core.templates", 2, Setting::Template(1), "the stock offers 2 templates"),
-        (b"documents.text_bytes", 4, Setting::Template(1), "the stock's template 1 needs 4 bytes"),
+        (b"tasks.charters", 5, Setting::Charter(1), "the stock offers 5 charters"),
+        (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
+        (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
         (b"tasks.result_bytes", 32, Setting::Template(1), "the stock's template 1 needs 32 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
         (b"core.settings.alternatives", 1, Setting::Charter(1), "the stock's charter 1 needs 1 alternative"),
@@ -261,7 +286,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3266 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3282 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -474,9 +499,9 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 fn the_foremans_charter_reads_and_gives_a_verdict() {
     let engine = engine(&single_model());
     let defaults = crate::stock::defaults(&engine.llm);
-    assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 4, 6]);
+    assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 6]);
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
-    let mut expected = defaults.charters[2].clone();
+    let mut expected = defaults.charters[3].clone();
     expected.number = 6;
     expected.policy.instructions = include_bytes!("../stock/foreman.txt").as_slice().into();
     assert_eq!(*foreman, expected);
@@ -563,7 +588,7 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
         let stock = crate::stock::defaults(&engine.llm);
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (charter, turns) in stock.charters.iter().zip([8, 16, 16, 16]) {
+        for (charter, turns) in stock.charters.iter().zip([8, 16, 8, 16, 16]) {
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(120), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
@@ -603,7 +628,8 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
     expected.policy.instructions = include_bytes!("../stock/review.txt").as_slice().into();
     expected.policy.modify = false;
     expected.policy.agents = false;
-    assert_eq!(defaults.charters[2], expected);
+    expected.policy.tools = jig_domain_tasks::Tools(512);
+    assert_eq!(defaults.charters[3], expected);
     for authority in [
         &defaults.rules.ceiling,
         &defaults.policies.get(&1).expect("policy 1").policy.ceiling,
@@ -631,6 +657,7 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
             [
                 Executor::Charter(1),
                 Executor::Charter(2),
+                Executor::Charter(3),
                 Executor::Charter(4),
                 Executor::Charter(6),
                 Executor::Procedure(2),

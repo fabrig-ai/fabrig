@@ -10,7 +10,7 @@ use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as people;
 use skein_lib::{Duration, ReplyTo, Token};
 use temper_engine_domain::{self as engine, Delivery, Event, Key, PartyInput, Record, Write};
-use temper_engine_domain_world::{direct::Driver, store::Store, walking};
+use temper_engine_domain_world::{direct::Driver, host_tool::host_tool, store::Store, walking};
 
 const SEED: u64 = 9761;
 // Restoration keeps two archived revisions; pruning keeps one (jig's domain/engine.md, 17.7).
@@ -272,7 +272,7 @@ fn stock_limits() -> engine::Limits {
     limits.documents.grants = 16;
     limits.documents.executors = 8;
     limits.notes.scopes = 32;
-    limits.tasks.charters = 4;
+    limits.tasks.charters = 5;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
     limits
@@ -588,6 +588,26 @@ fn a_changes_delegates_read_the_coding_words_without_settings_or_message_tools()
 // document goes back through smith's ctl-shared renderer, over the root's fleet.
 fn settings_agent_config(allowed: bool) -> engine::Config {
     let mut config = walking::config(SEED);
+    let mut configuring = config.core.defaults.charters[0].clone();
+    configuring.number = 3;
+    configuring.policy.tools = jig_domain_tasks::Tools(1536);
+    configuring.policy.modify = false;
+    configuring.policy.agents = false;
+    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
+    let mut template = config.core.defaults.templates[0].clone();
+    template.number = 3;
+    template.name = b"configuring".as_slice().into();
+    template.executor = people::TemplateExecutor::Charter(3);
+    config.core.defaults.templates =
+        Box::new([config.core.defaults.templates[0].clone(), config.core.defaults.templates[1].clone(), template]);
+    config.core.defaults.rules.ceiling.delegation.kinds =
+        Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
+    for project in &mut config.core.seed_projects {
+        project.policy.policy.ceiling.delegation.kinds.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
+        for role in &mut project.policy.policy.roles {
+            role.authority.delegation.kinds.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
+        }
+    }
     if allowed {
         config.core.defaults.rules.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;
         for project in &mut config.core.seed_projects {
@@ -608,11 +628,14 @@ fn settings_agent_config(allowed: bool) -> engine::Config {
 }
 
 fn settings_agent(allowed: bool) -> (Driver, engine::Assignment) {
-    let mut driver = Driver::configured(
-        Store::new(),
-        [settings_agent_config(allowed), settings_agent_config(allowed)],
-        &walking::limits(),
-    );
+    let mut limits = walking::limits();
+    limits.tasks.charters = 2;
+    limits.tasks.executor_kinds = 2;
+    limits.authority.executors = 2;
+    limits.documents.executors = 2;
+    let config = settings_agent_config(allowed);
+    let template = config.core.defaults.templates[2].clone();
+    let mut driver = Driver::configured(Store::with_limits(&limits), [config, settings_agent_config(allowed)], &limits);
     driver.hello(Token::new(7));
     driver.settle();
     driver.sign_in();
@@ -627,104 +650,27 @@ fn settings_agent(allowed: bool) -> (Driver, engine::Assignment) {
     driver.settle();
     driver.period();
     driver.settle();
+    let mut ask = walking::configured_chat(
+        &jig_test_profile::fixtures::Creating::new(&walking::config(SEED).core, limits.tasks.tree_tasks),
+        &driver.store.rows,
+        driver.env.limits.tasks.tree_tasks,
+        1,
+        b"Read settings",
+    );
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("configuring chat") };
+    let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("configuring template") };
+    batch[0].executor = people::TaskExecutor::Agent { charter };
     driver.send(Event::Party(PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(992)),
         sign_in: driver.session(),
         key: [92; 16],
-        ask: walking::configured_chat(
-            &jig_test_profile::fixtures::Creating::new(&walking::config(SEED).core, walking::limits().tasks.tree_tasks),
-            &driver.store.rows,
-            driver.env.limits.tasks.tree_tasks,
-            1,
-            b"Read settings",
-        ),
+        ask,
     }));
     driver.settle();
     let run = driver.last_assignment();
+    assert_eq!(run.charter, 3);
     (driver, run)
-}
-
-fn host_tool(
-    driver: &mut Driver,
-    run: &engine::Assignment,
-    completion: u32,
-    tool: &[u8],
-    input: &[u8],
-) -> (Box<[u8]>, bool) {
-    use jig_domain_host as host;
-    use smith_domain_run as smith;
-    use temper_engine_domain_world::protocol;
-    let mut name = skein_lib::Writer::new(16);
-    name.put(&run.attempt.to_be_bytes()).expect("activation");
-    name.put(&completion.to_be_bytes()).expect("completion");
-    name.put(&0_u32.to_be_bytes()).expect("position");
-    let name = name.finish();
-    driver.protocol.defer_render = true;
-    driver.send(protocol::up(
-        Token::new(7),
-        host::LinkUp::Call {
-            run: Token::new(run.task),
-            attempt: Token::new(run.attempt),
-            call: name.clone(),
-            tool: tool.into(),
-            writes: tool != b"settings",
-            input: input.into(),
-            deadline: Duration::from_secs(10),
-        },
-        engine::Parts::none(),
-    ));
-    driver.pump();
-    let request = driver.host_requests.pop().expect("host decoder called");
-    let engine::HostRequest::Decode { to, call, .. } = *request else { panic!("decode") };
-    assert_eq!(call.name, name);
-    let input = smith::HostInput::attested(call.input).expect("host input");
-    let decoded = temper_engine_smith::call_configured(
-        smith::CallName { activation: run.attempt, completion, position: 0 },
-        &call.tool,
-        &input,
-        driver.root.models(),
-    )
-    .expect("valid host call");
-    let temper_engine_smith::Decoded::Call(body) = decoded else { panic!("valid settings tool enters the root") };
-    driver.send(Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }));
-    driver.pump();
-    let mut settings_delivery = None;
-    for (index, delivery) in driver.delivered.iter().enumerate() {
-        if let Delivery::Host(delivery) = delivery
-            && matches!(delivery.as_ref(), engine::HostDelivery::Settings { .. })
-        {
-            settings_delivery = Some(index);
-            break;
-        }
-    }
-    let (to, answer) = if let Some(index) = settings_delivery {
-        let Delivery::Host(delivery) = driver.delivered.remove(index) else { panic!("settings delivery") };
-        let engine::HostDelivery::Settings { to, answer, from, requested } = *delivery else { panic!("settings read") };
-        (to, temper_engine_smith::settings_answer(&answer, from, requested, driver.root.models()))
-    } else {
-        let (to, rendered_name) = driver.protocol.pending_renders.pop().expect("host answer to render");
-        assert_eq!(rendered_name, name);
-        let (_, answer) = driver.protocol.answers.last().expect("typed answer");
-        (to, temper_engine_smith::answer(answer))
-    };
-    let (body, error) = answer.into_parts();
-    driver.send(Event::Worker(engine::WorkerInput::RenderedHostCall {
-        to,
-        answer: core::SettledAnswer::Host { error, body },
-    }));
-    driver.pump();
-    for delivery in driver.delivered.iter().rev() {
-        if let Delivery::Link {
-            down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { text, error }, .. },
-            ..
-        } = delivery
-            && *call == name
-        {
-            return (text.clone(), *error);
-        }
-    }
-    panic!("settings tool answer reached the run");
 }
 
 fn owner_reviews_run_proposal(driver: &mut Driver, task: u64, proposal: u64) {

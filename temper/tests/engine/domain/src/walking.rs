@@ -300,6 +300,7 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
+        host_part: None,
         kinds_stock: engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
@@ -447,6 +448,7 @@ pub fn charter() -> engine::Charter {
             shell: true,
             agents: true,
             call_timeout: Duration::from_secs(10),
+            tools: engine::RunPolicy::EVERY_FAMILY,
         },
         hosts: fleet::Kinds::Workers,
         spend: 100,

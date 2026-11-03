@@ -78,7 +78,7 @@ pub static FORMS: [Form; 52] = [
     Form { shape: Shape::LandingLast, name: b"landing-last", choice: Choice::One { words: &[] }, line: b"The final resource segment, in the same hex form as a pattern's last segment." },
     Form { shape: Shape::ForgeCharter, name: b"forge-charter", choice: Choice::Number, line: b"An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'." },
 ];
-pub static FIELDS: [Field; 190] = [
+pub static FIELDS: [Field; 191] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -200,6 +200,7 @@ pub static FIELDS: [Field; 190] = [
         null: false,
         line: b"The longest one of the run's calls to temper's tools may take.",
     },
+    Field { shape: Shape::Charter, name: b"tools", value: Value::Integer(Width::U64), list: None, null: false, line: b"The host families its runs are offered, a bit each as an authority's `tools` has them; a family it or its task's authority leaves out is not offered, and temper offers by it the settings family's tools (1024) alone; 1023, every family but settings, when left out." },
     Field {
         shape: Shape::Charter,
         name: b"hosts",
