@@ -115,3 +115,14 @@ refusing a second `Connect` of a connected forge) is a question.
 ## Report
 
 As the implementer's text says, with what a second connect of a connected forge needed.
+
+## Rebase (2026-11-03, step merge, foreman forgejo-connect/replace-run/foreman-1)
+
+resolve setup.status.md by retaining the playground retention clarification and removing the completed Replace gap.
+The merge conflicts only in `temper/docs/design/protocol/setup.status.md`, on the single-line `Not yet` paragraph.
+Branch commit `4d671f2928` removes the Replace gap; main commit `74d7c626a5`, incorporated into the integration trunk by `f236af0705`, expands the playground removal gap.
+Resolve by preserving both changes:
+- Remove exactly: “4: a connected Forgejo's `Replace`, and 17.3: a pasted App's (`temper-service/src/route.rs` refuses it `not taken`).”
+- Preserve the trunk's 8.4 clarification beginning “; the record stays while any kept task names one of its repositories” through its citation to jig's `protocol/store.md`, 11.1.
+Keep all other status text unchanged. No Rust changes are needed for this refusal.
+Run the citations check after resolving.
