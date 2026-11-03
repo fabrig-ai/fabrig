@@ -59,6 +59,7 @@ pub fn limits() -> engine::Limits {
         saved_resources: 2,
         contract_choices: 1,
         charters: 1,
+        charter_documents: 2,
         revisions: 4,
         versions: 8,
         authority_grants: 1,
@@ -179,6 +180,7 @@ pub fn limits() -> engine::Limits {
             parts: 2,
             read_bytes: 256,
             budgets: engine::BriefBudgets {
+                document: 4096,
                 task: 128,
                 dependencies: 128,
                 ci: 128,
@@ -387,6 +389,7 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        documents: Box::new([]),
         number: 1,
         policy: engine::RunPolicy {
             instructions: b"Complete the task within its authority.".as_slice().into(),

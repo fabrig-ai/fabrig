@@ -27,8 +27,9 @@
   skein's fake machine runs no `sh` and no `rg`. 4.3, 7:
   `temper-fake-git-hosted` in `crates/`; it is in `testing/`. 6.4: the
   settings stories that need temper's kinds of settings (`root.md`'s
-  status). 6: a state digest for replay (`testing-strategy.md`, section
-  6); the walking world compares its formatted state
+  status). 6: a state
+  digest for replay (`testing-strategy.md`, section 6); the walking
+  world compares its formatted state
   (`tests/engine/domain/src/walking.rs`, `run_replayed`).
 - **Departs:** 5.3: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and

@@ -511,3 +511,13 @@ fn server_connections_carry_the_box_streams_and_four_calls() {
     jig.clients_http.calls = 12;
     assert_eq!(limits::server(&jig).connections, 12);
 }
+
+#[test]
+fn small_holds_two_document_sections_with_their_own_budget_and_override() {
+    let mut limits = limits::profile(limits::Profile::Small);
+    assert_eq!(limits.root.brief.sections, 8);
+    assert_eq!(limits.root.brief.budgets.document, 4096);
+    assert_eq!(limits.forge.brief_sections, limits.root.brief.briefs * limits.root.brief.sections * 2);
+    assert_eq!(limits::apply(&mut limits, b"root.brief.budgets.document", 2048), Ok(()));
+    assert_eq!(limits.root.brief.budgets.document, 2048);
+}

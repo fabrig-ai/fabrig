@@ -19,6 +19,7 @@ mod adoption;
 pub mod boundary;
 mod brief;
 mod brief_ci;
+mod brief_document;
 mod capabilities;
 mod ci;
 mod commit;
