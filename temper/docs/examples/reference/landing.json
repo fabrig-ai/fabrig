@@ -44,6 +44,17 @@
           "gates": [],
           "approvals": []
         }
+      ],
+      "gates": [
+        {
+          "forge": 1,
+          "repository": 1,
+          "gates": [],
+          "tiers": [
+            {"name": "slow", "workflow": "tier-slow.yml", "ignored": [], "artifact": "failing", "format": "lines"},
+            {"name": "goal", "workflow": "tier-goal.yml", "ignored": [], "artifact": "failing", "format": "lines", "branch": "goal", "span_ms": 1200000}
+          ]
+        }
       ]
     }
   ]
