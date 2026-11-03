@@ -80,13 +80,13 @@ small's constants, with:
 | `forge.landings` | 32 |
 | `forge.change_policy.questions`, `.tasks`, `.repairs`, `.resolutions`, `.updates` | 80 |
 | `forge.issue_policy.plan_items` | 384 |
-| `root.brief.budgets.task` | a whole spec, 131,072, with its contract's and requester's lines (*derived*, as small's 4,608 is 4,096 and its lines) |
 
 - The forge's open questions kept on a change's record: at most 128
   (`temper-engine-domain-forge-change`'s `QUESTIONS_OPEN`, store-v11's `Questions.open`), so
   `change_policy.questions` up to 127 passes (task `forge-questions`).
-- The root's other limits the start's checks couple (loads, journal, brief bytes, the forge's
-  output and facts) move with them, *derived*, the least that passes.
+- The root's other limits the start's checks couple (loads, journal, the forge's output and
+  facts) move with them, *derived*, the least that passes. The brief's budgets are K8's (task
+  `brief-room`), small's until then.
 
 ## K5. init's documents (task `init-standard`)
 
@@ -99,6 +99,12 @@ small's constants, with:
 - **T**, the agent's largest turn, *derived* by smith's measurement with that agent, and the
   carriers of `temper/docs/design/protocol/configuration.md`, 13.8's table from it, written by
   the `startup::turn_bounds` writer.
+- **The box's message and result bounds follow its agent:** smith offers a run a message within
+  the tool payload, two bytes less, and the fleet holds the agent to the engine's
+  `tasks.message_bytes` at its hello; so init's `tasks.message_bytes` and `tasks.result_bytes`
+  are `tool_payload` − 2 (*derived*, about 10,660), overridden below `standard`'s 262,144
+  (`temper/docs/design/protocol/configuration.md`, 13.4 and 13.8). `tasks.spec_bytes` stays the
+  profile's 131,072 (the brief carries a spec, K8).
 - **The machine's concurrency stays init's:** the worker's `slots` 1 and every hub, fleet and
   clients figure init takes today (small's or its overrides) is kept by override where
   `standard` sets another.
@@ -116,7 +122,21 @@ small's constants, with:
 - A chat's spend stays 24K (role 0's authority spend, which a chat or goal takes as allowed);
   the rules' and policy 1's ceilings and periods and role 0's period are 80 × 24K, so 80 chats
   or goals are funded at once from the owner's pool.
-- Templates 1 and 2's report: 262,144 words (`tasks.result_bytes`).
+- Templates 1 and 2's report: the deployment's `tasks.result_bytes`, read at each start as C is
+  (so the stock's floor on `tasks.result_bytes` always holds).
+
+## K8. The room (task `brief-room`; `temper/docs/design/domain/agent.md`, 4.3)
+
+- init's scripted model, `demo`, takes `gpt-6-luna`'s window, 1,048,576, in both init documents
+  (`template/temper.json`'s `engine.llm.models` and `template/agent.json`'s endpoint), so the
+  smallest window over init's models is luna's and the host part's bound is luna's room
+  (*derived* by smith; about six times today's 51,717).
+- The stock's `CHAT_TOOLS` gains the control family (4) in this task, since control's plan form of
+  `change` (1,939 bytes more in charters 1 and 2) is what the room must hold.
+- temper's `standard` brief: its task section a whole spec (131,072) with its contract's and
+  requester's lines; `root.brief.brief_bytes` and `root.journal.result_bytes` equal, the most the
+  host part leaves the largest stock charter (charter 1, a Change contract, control) with its 64
+  sections' titles and at least small's margin, 1,129 bytes (*derived*).
 
 ## K7. The override refusal (task `override-relations`; `jig/docs/design/protocol/configuration.md`, 6)
 

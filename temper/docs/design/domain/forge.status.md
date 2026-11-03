@@ -3,6 +3,10 @@
 2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 8.11: a change keeps at most 16 open questions, so its bound is below 16
+    (`temper-engine-domain-forge-change/src/boundary.rs`, `QUESTIONS_OPEN`; store-v11's
+    `Questions.open`); and temper's `standard` profile, its `forge.tasks`, `forge.holds` and
+    resource capacity 128, is not built (`temper-service/src/limits.rs`).
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
