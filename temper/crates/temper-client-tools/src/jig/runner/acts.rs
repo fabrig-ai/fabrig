@@ -116,6 +116,7 @@ pub(crate) enum Failed {
     Fixed(&'static [u8]),
     Unknown { what: &'static [u8], name: Box<[u8]> },
     EffortRequired { name: Box<[u8]> },
+    SubAgentNamedTwice { name: Box<[u8]> },
     Detail(Box<[u8]>),
 }
 pub(crate) type Prepared = Result<(Request, Option<c::Recipient>), Failed>;
@@ -157,6 +158,14 @@ fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let c::Ask::Create { tasks, .. } = &mut ask else { unreachable!("chat creates") };
     let task = tasks.get_mut(0).expect("chat creates one task");
     task.llm = choice::llm(call, 3, 4, me, project, task.llm.as_ref())?;
+    if let Some(Some(_)) = call.values.get(5)
+        && value(call, 3).is_none()
+    {
+        return Err(Failed::Fixed(b"--sub-agent needs --model"));
+    }
+    if let Some(subagents) = choice::sub_agents(call, 5, me, project)? {
+        task.llm.as_mut().expect("sub-agents require a main model").subagents = subagents;
+    }
     let mut creating = None;
     for membership in &me.projects {
         if membership.project == project {
@@ -551,6 +560,7 @@ pub(crate) fn prepared(
                 Failed::Detail(why) => render::failure(&why, called.json, 1),
                 Failed::Unknown { what, name } => choice::named(b"unknown ", what, &name, called.json),
                 Failed::EffortRequired { name } => choice::named(b"effort required", b"", &name, called.json),
+                Failed::SubAgentNamedTwice { name } => choice::named(b"sub-agent named twice", b"", &name, called.json),
             };
             finish(called, printed, out);
             return;
