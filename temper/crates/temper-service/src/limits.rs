@@ -1,6 +1,9 @@
 //! The small profile and checked field overrides (protocol/configuration.md, section 7).
 mod names;
+mod reference;
 use alloc::boxed::Box;
+pub use names::{NAMES, Name, Unit, find};
+pub use reference::{engine_reference, reference};
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;

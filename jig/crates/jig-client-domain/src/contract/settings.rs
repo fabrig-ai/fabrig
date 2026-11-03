@@ -74,6 +74,7 @@ pub struct Charter {
     pub shell: bool,
     pub agents: bool,
     pub call_timeout: Duration,
+    pub tools: u64,
     pub hosts: SettingHosts,
     pub spend: u64,
     pub wake: WakePolicy,

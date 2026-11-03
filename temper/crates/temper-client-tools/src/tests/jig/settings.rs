@@ -342,6 +342,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
                 shell: false,
                 agents: false,
                 call_timeout: Duration::from_secs(3),
+                tools: 1536,
                 hosts: c::SettingHosts::Both,
                 spend: 900,
                 wake: c::WakePolicy {

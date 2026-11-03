@@ -22,7 +22,7 @@ fn positive(value: &Value, name: &'static [u8]) -> Result<u32, Problem> {
     let n = value.small(name)?;
     if n == 0 { Err(Problem::Range(name)) } else { Ok(n) }
 }
-pub(crate) fn read(value: &Value) -> Result<engine::Tool, Problem> {
+pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem> {
     only(value, &[b"setting", b"revision", b"history", b"from"], b"settings")?;
     let from = match value.field(b"from")? {
         Some(v) => v.small(b"from")?,
@@ -45,22 +45,34 @@ pub(crate) fn read(value: &Value) -> Result<engine::Tool, Problem> {
         };
         SettingsRead::Revisions { before }
     } else if let Some(setting) = setting {
-        only(setting, &[b"kind", b"number"], b"setting")?;
+        only(setting, &[b"kind", b"number", b"project"], b"setting")?;
         let kind = setting.required(b"kind")?.text(b"kind")?;
         let number = setting.field(b"number")?;
-        let setting = if kind.as_ref() == b"rules" {
+        let project = setting.field(b"project")?;
+        if project.is_some() && kind.as_ref() != b"landing-rule" && kind.as_ref() != b"project-policy" {
+            return Err(Problem::Range(b"project"));
+        }
+        if kind.as_ref() == b"rules" || kind.as_ref() == b"project-policy" {
             if number.is_some() {
                 return Err(Problem::Range(b"number"));
             }
-            s::Setting::Rules
         } else {
-            let number = positive(number.ok_or(Problem::Missing(b"number"))?, b"number")?;
-            match kind.as_ref() {
-                b"charter" => s::Setting::Charter(number),
-                b"template" => s::Setting::Template(number),
-                b"policy" => s::Setting::Policy(number),
-                _ => return Err(Problem::Range(b"kind")),
-            }
+            positive(number.ok_or(Problem::Missing(b"number"))?, b"number")?;
+        }
+        if let Some(project) = project {
+            positive(project, b"project")?;
+        } else if kind.as_ref() == b"project-policy" {
+            return Err(Problem::Missing(b"project"));
+        }
+        let setting = settings_form::file::read_setting(bytes, &settings_form::Limits::standard())
+            .or(Err(Problem::Range(b"kind")))?;
+        let setting = match setting {
+            c::Setting::Charter(value) => s::Setting::Charter(value.number),
+            c::Setting::Template(value) => s::Setting::Template(value.number),
+            c::Setting::Policy(value) => s::Setting::Policy(value.number),
+            c::Setting::Rules => s::Setting::Rules,
+            c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
+            c::Setting::ProjectPolicy { project } => s::Setting::ProjectPolicy { project },
         };
         SettingsRead::Setting { setting, revision: revision.unwrap_or(0) }
     } else if let Some(number) = revision {
@@ -200,7 +212,17 @@ pub fn settings_answer(
     from: u32,
     requested: Option<u64>,
     models: &[engine::Model],
+    application: Option<&temper_engine_domain_forge::settings::SizedValue>,
 ) -> run::HostAnswer {
+    let enriched;
+    let answer = if let (SettingsAnswer::Setting(document), Some(value)) = (answer, application) {
+        let mut document = document.clone();
+        document.value = Some(s::Value::Application(crate::kinds::encode(&value.value)));
+        enriched = SettingsAnswer::Setting(document);
+        &enriched
+    } else {
+        answer
+    };
     match settings_text(answer, requested, models) {
         Ok(text) => match settings_form::page::page(&text, from) {
             Ok(body) => {

@@ -116,24 +116,26 @@ fn callback() -> Vec<u8> {
     bytes
 }
 
-// client/README.md 3.5 From another computer: no Return or departure,
-// for both the main flow and the welcome's shared Model card.
+// client/README.md 3.5 From another computer: no Return or departure on
+// Connect a model; the welcome's Model cards do not offer it.
 #[test]
-fn elsewhere_keeps_connect_and_welcome_in_the_page() {
-    for path in [b"/accounts/connect".as_slice(), b"/welcome?at=model"] {
-        let (front, root, _) = begin(path, true, true);
-        assert!(front.engine.protocol.returns.is_empty(), "no native tab return for elsewhere");
-        assert!(front.leaves.is_empty(), "the sign-in remains in this tab");
-        assert!(has(&root, "Open ChatGPT's sign-in ›".as_bytes()), "elsewhere link has the promised words");
-        assert!(
-            Temper::tree(&shown(&root))
-                .nodes()
-                .iter()
-                .any(|node| { node.role == Role::Link && node.external.as_deref() == Some(ISSUER) })
-        );
-        assert!(offered(&root, Role::TextField, FIELD));
-        assert!(disabled(&root), "an empty field cannot submit");
-    }
+fn elsewhere_keeps_connect_in_the_page_and_the_welcome_offers_none() {
+    let (mut front, mut root) = h::plan_fixture(f::SEED);
+    h::event(&mut front, &mut root, Temper::went(at(b"/welcome?at=model")));
+    assert!(offered(&root, Role::Button, b"Continue with ChatGPT"));
+    assert!(!offered(&root, Role::Button, ELSEWHERE));
+    let (front, root, _) = begin(b"/accounts/connect", true, true);
+    assert!(front.engine.protocol.returns.is_empty(), "no native tab return for elsewhere");
+    assert!(front.leaves.is_empty(), "the sign-in remains in this tab");
+    assert!(has(&root, "Open ChatGPT's sign-in ›".as_bytes()), "elsewhere link has the promised words");
+    assert!(
+        Temper::tree(&shown(&root))
+            .nodes()
+            .iter()
+            .any(|node| { node.role == Role::Link && node.external.as_deref() == Some(ISSUER) })
+    );
+    assert!(offered(&root, Role::TextField, FIELD));
+    assert!(disabled(&root), "an empty field cannot submit");
 }
 
 // client/README.md 3.5 Signing in and 6.5: the ordinary browser still departs;

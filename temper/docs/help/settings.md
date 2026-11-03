@@ -31,6 +31,11 @@ them. The current settings are the defaults with the stored changes over
 them: a setting no change names follows its default. The settings live
 in the store, never in the configuration document.
 
+The stock has five charters, numbered 1, 2, 3, 4 and 6, and three
+templates: 1 for a chat, 2 for a goal and 3 for the configuring chat.
+Its rules offer those five charter executors and procedure executors
+2, 3 and 4.
+
 A setting's value is whole: a JSON value, as `settings show` prints
 it in JSON. Its members, with their types and bounds, are in
 `temper help settings-fields`.
@@ -79,6 +84,9 @@ default that changed.
 
 ## Acting on it
 
+- Describe how you work to the configuring agent (`temper help chat`).
+  It reads the settings and proposes one change, with what temper
+  enforces and what your agents follow; an owner decides it.
 - `temper ctl`: `settings show` reads the inventory (the newest
   revision, each setting and where its value comes from, the held
   revisions and the pending proposals) and, given a setting's kind and
@@ -94,11 +102,19 @@ default that changed.
   ctl help settings apply`.
 - A settings file holds a change's items: its form is
   `temper help settings-fields`.
-- A run whose authority holds the settings tool family reads with the
-  host tool `settings` and proposes with `propose_settings`
-  (`temper help host-tools`).
+- A run whose charter names the settings family and whose authority
+  holds it reads with the host tool `settings` and proposes with
+  `propose_settings`: charter 3 alone in the stock
+  (`temper help charter`). It reads and proposes `charter`, `template`,
+  `policy`, `rules`, `landing-rule`, `forge-charter` and
+  `project-policy`, in the settings file's form. A landing rule names
+  its project, or none for the deployment; a project's policy names its
+  project and is set alone. The inventory lists no project's policy;
+  the tool reads it when named.
 
 ## Limits
+
+For the configuration members that need a restart, read `temper help configuration`.
 
 - temper does not patch a member: an item sets a whole value.
 - The person's client has no page to change settings.
@@ -110,3 +126,6 @@ default that changed.
   a change to them needs a restart. Its limits must hold the stock's
   settings: a start refuses one that does not, and another model or a
   release with new stock can move what they need.
+- The stock needs room for at least five charters, three templates and
+  eight executor kinds: its five charters and three procedures. These
+  are floors; a deployment's own settings may need more.

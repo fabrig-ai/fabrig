@@ -12,6 +12,7 @@ mod change_panel;
 mod chat;
 mod choice;
 mod clearing;
+mod configuring_chat;
 mod connect_forge;
 mod connect_model;
 mod forges;

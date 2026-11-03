@@ -32,6 +32,26 @@ fn every_settings_read_form_and_offset_decodes() {
             0,
         ),
         (br#"{"setting":{"kind":"rules"}}"#, SettingsRead::Setting { setting: s::Setting::Rules, revision: 0 }, 0),
+        (
+            br#"{"setting":{"kind":"landing-rule","number":1}}"#,
+            SettingsRead::Setting { setting: s::Setting::Application { kind: 1, scope: 0, number: 1 }, revision: 0 },
+            0,
+        ),
+        (
+            br#"{"setting":{"kind":"landing-rule","number":2,"project":3}}"#,
+            SettingsRead::Setting { setting: s::Setting::Application { kind: 2, scope: 3, number: 2 }, revision: 0 },
+            0,
+        ),
+        (
+            br#"{"setting":{"kind":"forge-charter","number":1}}"#,
+            SettingsRead::Setting { setting: s::Setting::Application { kind: 3, scope: 0, number: 1 }, revision: 0 },
+            0,
+        ),
+        (
+            br#"{"setting":{"kind":"project-policy","project":3}}"#,
+            SettingsRead::Setting { setting: s::Setting::ProjectPolicy { project: 3 }, revision: 0 },
+            0,
+        ),
         (br#"{"revision":4,"from":9}"#, SettingsRead::Revision { number: 4 }, 9),
         (br#"{"history":{},"from":10}"#, SettingsRead::Revisions { before: None }, 10),
         (br#"{"history":{"before":4},"from":11}"#, SettingsRead::Revisions { before: Some(4) }, 11),
@@ -47,6 +67,12 @@ fn settings_bad_fields_are_refused_by_name() {
         (br#"{"setting":4}"#, Problem::Type(b"setting")),
         (br#"{"setting":{"kind":"charter"}}"#, Problem::Missing(b"number")),
         (br#"{"setting":{"kind":"rules","number":1}}"#, Problem::Range(b"number")),
+        (br#"{"setting":{"kind":"charter","number":1,"project":1}}"#, Problem::Range(b"project")),
+        (br#"{"setting":{"kind":"forge-charter","number":1,"project":1}}"#, Problem::Range(b"project")),
+        (br#"{"setting":{"kind":"landing-rule","number":1,"project":0}}"#, Problem::Range(b"project")),
+        (br#"{"setting":{"kind":"project-policy"}}"#, Problem::Missing(b"project")),
+        (br#"{"setting":{"kind":"project-policy","project":0}}"#, Problem::Range(b"project")),
+        (br#"{"setting":{"kind":"project-policy","project":1,"number":1}}"#, Problem::Range(b"number")),
         (br#"{"history":[],"from":0}"#, Problem::Type(b"history")),
         (br#"{"history":{"before":0}}"#, Problem::Range(b"before")),
         (br#"{"history":{},"revision":1}"#, Problem::Range(b"history")),
@@ -115,7 +141,7 @@ fn settings_inventory_pages_continue_at_the_exact_offset_and_end() {
     let mut combined = skein_lib::Writer::new(whole.len());
     let mut pages = 0_u32;
     loop {
-        let (body, error) = settings_answer(&answer, from, None, &[]).into_parts();
+        let (body, error) = settings_answer(&answer, from, None, &[], None).into_parts();
         assert!(!error);
         assert!(body.len() <= usize::try_from(crate::DOC_ANSWER).expect("host bound"));
         let mut marker = None;
@@ -145,7 +171,7 @@ fn settings_inventory_pages_continue_at_the_exact_offset_and_end() {
     }
     assert!(pages >= 1, "the long inventory requires a continuation");
     assert_eq!(combined.finish(), whole);
-    assert_eq!(settings_answer(&answer, u32::MAX, None, &[]).into_parts().0.as_ref(), b"end\n");
+    assert_eq!(settings_answer(&answer, u32::MAX, None, &[], None).into_parts().0.as_ref(), b"end\n");
 }
 #[test]
 fn engine_and_ctl_render_the_same_settings_inventory() {
@@ -444,4 +470,17 @@ fn a_runs_proposal_carries_a_project_policy_item() {
     let s::Edit::Set(s::Value::Policy(value)) = &item.edit else { panic!("whole policy value") };
     assert_eq!(value.policy.period_spend, 200);
     assert_eq!(value.policy.ceiling.budget.spend, 100);
+}
+
+#[test]
+fn a_runs_proposal_carries_the_forges_charter_number() {
+    let call = decided(
+        b"propose_settings",
+        br#"{"against":1,"reason":"the change charter","items":[{"setting":{"kind":"forge-charter","number":1},"set":2}]}"#,
+    ).expect("forge charter proposal");
+    let engine::Tool::ProposeSettings { items, kinds, .. } = call.tool else { panic!("settings proposal") };
+    assert_eq!(items[0].setting, s::Setting::Application { kind: 3, scope: 0, number: 1 });
+    assert_eq!(kinds.len(), 1);
+    assert_eq!((kinds[0].kind, kinds[0].scope, kinds[0].number), (3, 0, 1));
+    assert_eq!(kinds[0].value.value, temper_engine_domain_forge::settings::Value::Charter(2));
 }

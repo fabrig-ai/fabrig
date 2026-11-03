@@ -220,7 +220,7 @@ fn the_reference_settings_fit_the_reference_profile() {
     assert_eq!(u64::from(TURNS), max_turns);
     assert_eq!(Some(u64::from(INIT_TURNS)), init_agent["profile"]["policy"]["max_turns"].as_u64());
     let overrides = &limits["engine"]["limits"]["overrides"];
-    let mut charters = 4_u64;
+    let mut charters = 5_u64;
     for item in &items {
         if let SettingEdit::Set(set) = &item.edit
             && let SettingValue::Charter(charter) = &set.value
@@ -357,9 +357,10 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
 
 fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] {
     use jig_client::contract::AuthorityExecutor as Executor;
-    let nine = vec![
+    let ten = vec![
         Executor::Charter(1),
         Executor::Charter(2),
+        Executor::Charter(3),
         Executor::Charter(4),
         Executor::Charter(COORDINATOR),
         Executor::Charter(FOREMAN),
@@ -368,10 +369,10 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] 
         Executor::Procedure(3),
         Executor::Procedure(4),
     ];
-    let eight = nine.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
-    let mut eleven = nine.clone();
-    eleven.extend([Executor::Job(3), Executor::Role(0)]);
-    [nine.clone(), eight, nine, eleven]
+    let nine = ten.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
+    let mut twelve = ten.clone();
+    twelve.extend([Executor::Job(3), Executor::Role(0)]);
+    [ten.clone(), nine, ten, twelve]
 }
 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {

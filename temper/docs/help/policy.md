@@ -80,6 +80,8 @@ Each member, with its type and bound, is in
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - temper may spend, for a project, its period spend a week: each week
   a new period opens, full, at the spend its policy holds then
   (`temper help weekly-budget`). `project fund PROJECT AMOUNT` raises

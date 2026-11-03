@@ -3,7 +3,7 @@ id = "public-negative"
 part = "public-checks"
 kind = "feature"
 needs = ["forge-public", "public-http", "public-ctl"]
-files = ["temper/tests/one-process/src/public.rs", "temper/tests/one-process/src/public/**", "temper/tests/one-process/tests/suite/public.rs", "temper/tests/one-process/tests/suite/public/**"]
+files = ["temper/tests/one-process/src/public.rs", "temper/tests/one-process/src/public/**", "temper/tests/one-process/tests/suite/public.rs", "temper/tests/one-process/tests/suite/public/**", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/clients.rs", "temper/crates/temper-service/src/tests/limits.rs", "temper/crates/temper-service/src/tests/public.rs"]
 effort = "high"
 minutes = 210
 +++
@@ -186,3 +186,21 @@ The ownership rule says: “A fault the walk finds in another task's code is rep
 `temper/crates/temper-service/src/clients.rs` maps the component refusal to `engine.clients`; that diagnostic does not satisfy the required path.
 Fab routes the reported failure, seed 7 and log evidence to the service owner. The next public-negative run preserves the assertion and continues the remaining walk within its files.
 This settles the diagnostic question; the task remains incomplete under its own report.
+
+### 2026-11-03: Should fab route the discarded core.public.* bounds to the temper service/root owner (recommended), or explicitly expand public-negative's ownership to repair that wiring? The tracked change lands, but its public board contains no goal; the required assertion is preserved and the work is committed and pushed. (public-reading-build/public-negative-4, foreman public-reading-build/public-negative/foreman-4)
+
+Route the discarded core.public.* bounds to the temper service/root owner; preserve the goal assertion and public-negative’s ownership.
+The spec says: “Nothing outside the world. A fault the walk finds in another task's code is reported with the failing test, its seed and log, never repaired here.”
+`temper/crates/temper-engine-domain/src/limits.rs`, `core_limits`, sets `public` to `PublicIndexLimits::OFF`; this file is outside the task’s ownership.
+Fab routes `public::every_owner_version_and_kind_answers_as_declared`, seed 7, with the reported `target/public-owners-final.log` evidence to that owner.
+The next public-negative run preserves the assertion, reruns the affected walk after repair, and completes the remaining acceptance within its owned files.
+This settles the routing question; the task remains incomplete under its own report.
+
+### 2026-11-03: Four runs without landing: how does the walk get past the two faults outside its files? (public-reading-build/public-negative-4)
+
+The task is widened to repair both, narrowly; the earlier "route to the owner" answers had no owner to reach, since `public-limits` and `forge-public`, which own that code, have landed. Without the two repairs the task's own acceptance cannot hold (the board, card and forge rows, and the relation's path), and `public-walk`'s board would be empty for the same reason. The five files below join the header's `files`; nothing else outside the world changes.
+
+1. **The configured index reaches the core** (`jig/docs/design/domain/root.md`, 10; `jig/docs/design/domain/people.md`, 13): temper's root `Limits` (`temper/crates/temper-engine-domain/src/limits.rs`) gains `public: jig_domain_core::PublicIndexLimits`, documented as its neighbours are; `core_limits` copies `limits.public` instead of `PublicIndexLimits::OFF`; `temper-service/src/limits.rs`, `engine_candidate`, sets `public: jig.core.public`. Every other literal of temper's root `Limits` the compiler names takes the one-line edit `public: jig_domain_core::PublicIndexLimits::OFF` (or the configured value where the literal is built from a configuration), each listed in the report. A step test in `temper-service/src/tests/limits.rs`: a configuration with `core.public.*` set gives an engine whose `core_limits(..).public` equals them, and the default profile's is `OFF`.
+2. **The ceiling's refusal names its path** (`jig/docs/design/protocol/configuration.md`, section 6): in `temper-service/src/clients.rs`, before `kit::Component::new`, each declared public kind (jig's three and the forge's six, as `client_settings` builds them) whose bound exceeds `config.limits.clients.public.answer_bytes` refuses the start at `clients.public.answer_bytes` with the `What` the relations of section 6 use for a bound, not at `engine.clients`. The component's own refusal stays as it is behind it. A step test in `temper-service/src/tests/public.rs`: `answer_bytes` one below the forge's largest bound refuses at that path.
+
+Run each new step test alone, then `heavy cargo nextest run -p temper-engine-domain` and `-p temper-service` once each besides the world's checks, and `heavy cargo clippy` on both packages. Then resume the walk where run 4 left it (`## Left`): every assertion as it stands, no assertion weakened. Report both repairs' diffs.
