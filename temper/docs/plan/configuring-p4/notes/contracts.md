@@ -23,8 +23,11 @@ temper/tools/stage-one/
   src/tests/fixtures/   evidence directories and ctl outputs the tests read
 ```
 
-Dependencies: `serde_json` (workspace), `serde` with `derive` (workspace) and `temper-settings-form`
-(workspace) only; dev-dependencies `skein-scratch` (workspace) for temporary directories.
+Dependencies: `serde_json` (workspace), `serde` with `derive` and `temper-settings-form`
+(workspace) only; dev-dependencies `skein-scratch` (workspace) for temporary directories. `serde`
+has no workspace key: the crate declares `serde = { version = "1", features = ["derive"] }`
+itself, as `smith/tests/fake-claude/Cargo.toml` does, which adds nothing to `Cargo.lock` but the
+crate.
 
 Each command is a function of its module, `pub fn main(args: &[String]) -> std::process::ExitCode`
 (`golden::main` for `obligations`, `collect::main`, `check::main`, `judge::main` for `judge`,

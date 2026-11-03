@@ -2298,7 +2298,8 @@ profile, `docs/examples/reference/` (`../protocol/configuration.md`,
 
 #### 6.5.1 The obligations
 
-Each obligation is one field of one row of section 14, and of one kind:
+Each obligation is one field of one row of the reference's table, and
+of one kind:
 
 - *a setting*, which the accepted settings hold, by one of eight
   tests: `equal` (the value, whole), `at-least` (a number no smaller),
@@ -2311,7 +2312,7 @@ Each obligation is one field of one row of section 14, and of one kind:
   the golden's roles);
 - *the box's*, a prerequisite the box brings (6.5.2), which the agent
   proposes nothing for, and names where the box lacks it;
-- *a gap*, a field of section 14 no design carries
+- *a gap*, a field of the table no design carries
   (`../draft/reference-code-production.status.md`), which the agent
   must say temper cannot model, offering the nearest thing
   (`agent.md`, 8.1): the golden gives the words, any of whose
@@ -2365,13 +2366,13 @@ obligations missing.
 The golden's file holds each obligation with its id, its row, its kind,
 and for a setting its subject, member, test and any value of its own;
 its rows above are the design, the file their only encoding. The
-triage's charter, which section 14 does not name, is an obligation
+triage's charter, which the reference's table does not name, is an obligation
 through the profile (`../draft/reference-landing.md`, section 6), as
 `../protocol/configuration.md`, 13.9 makes it the reference's: its
 instructions (`judged`), its model, and `inspect` true with `modify`,
 `shell` and `agents` false. With the reference's milestones landed, no
-field of section 14 is a gap: each is a setting or the box's. The kind
-stays for a field a later edition of section 14 adds before a design
+field of the table is a gap: each is a setting or the box's. The kind
+stays for a field a later edition of the table adds before a design
 carries it.
 
 **Beyond the obligations,** the check fails on:
@@ -2407,7 +2408,11 @@ the forge's API as an observer, the limits against the box's document):
   `DESIGN.md`, its code rules, `.temper/pre-pr`, `.temper/merge`, the
   tiers' workflows and a merge-commit merge style; and, at the path the
   walk's brief names, `reference-code-production.md` and
-  `reference-landing.md`, the person's process documents.
+  `reference-landing.md`, the person's process documents. It holds no
+  recipe of the reference either: a copy of fabrig keeps neither the
+  profile, this crate nor the plans that describe them, and an agent
+  found reading a description of the reference's settings elsewhere
+  is a finding against the walk's premise.
 
 Each is a box obligation, recorded present or lacking with what the
 pass saw. A lacking one ends the walk before the chat, a finding against
@@ -2443,7 +2448,8 @@ become structure, and accepts with running work staying as it is.
   pass's), at Opus 5.5:
   - *the rules:* the golden's rules, the reference's text that stays
     text (`../draft/configuring.md`, section 2's table, and the
-    instructions section 14 gives each charter), each with the role it
+    instructions `../draft/reference-code-production.md`, section 14
+    gives each charter), each with the role it
     concerns; for each, whether it reaches that role's runs, from where
     the person wrote it, through the bound charter's instructions or a
     document it names: `reaches`, `missing`, or `elsewhere` (another
