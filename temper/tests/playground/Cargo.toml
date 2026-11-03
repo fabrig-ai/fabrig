@@ -1,0 +1,40 @@
+[package]
+name = "temper-playground-world"
+description = "The playground's stories on the harness-free simulated world"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+temper-playground.workspace = true
+skein-sim-world.workspace = true
+skein-sim = { path = "../../../skein/crates/skein-sim" }
+skein-lib.workspace = true
+skein-io.workspace = true
+
+[dev-dependencies]
+skein-heap.workspace = true
+temper-service.workspace = true
+serde_json.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"          # the world asserts its invariants by panicking
+wildcard_enum_match_arm = "deny"      # a new variant must break the translation
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"

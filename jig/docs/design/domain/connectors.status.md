@@ -5,7 +5,7 @@
 - **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's
   horizon, which is not built (`../protocol/store.md`, 11.1).
   4.2: a projection's or a release's failure for good, kept
-  durably as news. 6.2: a procedure step whose batch is refused for the live tasks in the deployment or in its project waits for that room; the step is refused and only re-stepped when a later fact moves it (`jig-domain-tasks/src/batch.rs`; `jig-domain-core/src/routing/effect/procedure.rs`). 6.3: every effect of a step within its one decision.
+  durably as news. 6.3: every effect of a step within its one decision.
   6.7: a procedure told to drain. 13: request budgets. 17: what its items
   replaced, for a restore: no ask hands a connector a restore's items,
   nor erases what a forgotten revision's items replaced, and

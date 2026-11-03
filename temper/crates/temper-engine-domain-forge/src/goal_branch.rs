@@ -18,6 +18,18 @@ pub(super) struct Making {
     state: LostReadState,
 }
 
+/// A taking retains its outbox number through branch reads and read retries.
+pub(super) fn reserved_before(d: &Domain, number: u64) -> bool {
+    for (_, pending) in &d.makings {
+        if let Some(entry) = pending.entry
+            && entry < number
+        {
+            return true;
+        }
+    }
+    false
+}
+
 pub(super) fn is_goal(d: &Domain, name: &Name) -> bool {
     let provider = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
     match d.repositories.get(&provider) {

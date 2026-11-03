@@ -57,10 +57,6 @@
   - 8.11: a dependent's landing holding its dependency's pushed head in
     g's ancestry is unobserved in stories, the fake forge squashing
     merges (skein's `fake-forge.md`, 2.2).
-  - 8.11: the next producer of a change into a goal's own branch,
-    started from its pushed branch or saved work, merges the landing
-    branch's tip first only where the change started early
-    (`temper-engine-domain-forge/src/items.rs`, `workspace_item`).
   - 8.11: a repair's or a resolution's question, relayed as a producer's
     is (`temper-engine-domain/src/route/forge_route/relay.rs`,
     `asking_delegate`), is unobserved in stories: every relay story's

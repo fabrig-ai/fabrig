@@ -5,7 +5,7 @@
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
-  `qa passes` and `hold list`. 5.3: a template's `resources` in a settings file: `temper-settings-form`'s `Template` (`src/view.rs`) has no such member and the file decodes none, and `temper-client-tools`' `client_template` (`src/jig/settings_adapter.rs`) gives every template applied from a file none. 5.3: `task move
+  `qa passes` and `hold list`. 5.3: `task move
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
   `finding drop`, `qa choose`, `task hold` and `project hold`.
   5.5: area 2's procedure executor choice for `goal start`,

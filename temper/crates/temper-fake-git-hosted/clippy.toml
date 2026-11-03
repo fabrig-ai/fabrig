@@ -1,6 +1,4 @@
-# What the worlds, their tests and harnesses under tests/ may not use: they are
-# ordinary Rust, but a seed must replay to the same run.
-
+# Ordinary Rust (programming-model.md, 10.2) that the binary ships: the hosted fake git program.
 disallowed-types = [
     { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },
     { path = "std::collections::HashSet", reason = "iteration order depends on a random seed: BTreeSet" },
