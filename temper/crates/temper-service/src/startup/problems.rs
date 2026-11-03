@@ -335,7 +335,14 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Rules => (b"rules", None),
-            Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
+            Setting::Application { kind, scope, number } => {
+                put(writer, length, measuring, b"application kind ");
+                put(writer, length, measuring, Decimal::of(u64::from(kind)).as_bytes());
+                put(writer, length, measuring, b", ");
+                put(writer, length, measuring, Decimal::of(u64::from(scope)).as_bytes());
+                put(writer, length, measuring, b", ");
+                (b"", Some(number))
+            }
         };
         put(writer, length, measuring, kind);
         if let Some(number) = number {

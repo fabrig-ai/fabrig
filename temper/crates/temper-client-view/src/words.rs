@@ -700,8 +700,8 @@ pub enum Word {
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
 // The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
-const PHRASES: u32 = 1220;
-const SEGMENTS: u32 = 2135;
+const PHRASES: u32 = 1221;
+const SEGMENTS: u32 = 2137;
 const ALL: [Word; 628] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,

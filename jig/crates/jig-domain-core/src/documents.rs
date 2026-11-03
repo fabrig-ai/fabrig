@@ -67,7 +67,7 @@ pub use project_note::{
 };
 pub(crate) use settings::inventory as settings_inventory;
 pub use settings::{Follows, HeldRevision, SettingLine, Settings, SettingsProposal};
-pub use settings_review::{ReviewItem, SettingsReview, settings_heads};
+pub use settings_review::{ApplicationReview, ReviewItem, SettingsReview, settings_heads};
 pub(crate) use small::text as bounded_text;
 pub use task_lines::{ConversationRead, TaskLine, task_line};
 pub use task_query::{Lines, PhaseClass, QueryOrder, TaskQuery, lines};

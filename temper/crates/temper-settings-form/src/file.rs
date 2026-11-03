@@ -252,6 +252,7 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
                 c::Setting::Charter(_) => c::SettingValue::Charter(Box::new(values::charter(d, at)?)),
                 c::Setting::Template(_) => c::SettingValue::Template(Box::new(values::template(d, at)?)),
                 c::Setting::Policy(_) => c::SettingValue::Policy(Box::new(values::setting_policy(d, at)?)),
+                c::Setting::Application { .. } => return Err(error(b"value", b"application values are bytes")),
                 c::Setting::Rules => c::SettingValue::Rules(Box::new(values::rules(d, at)?)),
             };
             c::SettingEdit::Set(c::SettingSet { value })

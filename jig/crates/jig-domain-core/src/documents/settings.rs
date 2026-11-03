@@ -17,7 +17,8 @@ pub struct SettingLine {
     pub setting: Setting,
     pub name: Option<Text>,
     pub follows: Follows,
-    pub last: u32,
+    pub last: Option<u32>,
+    pub application: Option<crate::settings::application::State>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct HeldRevision {
@@ -63,7 +64,8 @@ pub(crate) fn build(core: &Core) -> Settings {
     for (&setting, _) in &current.changes {
         names.insert(setting, ()).expect("change names");
     }
-    let mut settings = List::with_capacity(names.len());
+    let mut settings =
+        List::with_capacity(names.len().checked_add(current.applications.len()).expect("settings count"));
     for (&setting, ()) in &names {
         let (follows, last) = match current.changes.get(&setting) {
             Some(change) => (Follows::Change, change.revision),
@@ -74,7 +76,19 @@ pub(crate) fn build(core: &Core) -> Settings {
             Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
             Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         };
-        settings.push(SettingLine { setting, name, follows, last }).expect("one line per setting");
+        settings
+            .push(SettingLine { setting, name, follows, last: Some(last), application: None })
+            .expect("one line per setting");
+    }
+    for (&setting, state) in &current.applications {
+        let (follows, last) = match state.follows {
+            crate::settings::application::Follows::Default => (Follows::Default, None),
+            crate::settings::application::Follows::Changed { revision }
+            | crate::settings::application::Follows::Removed { revision } => (Follows::Change, Some(revision)),
+        };
+        settings
+            .push(SettingLine { setting, name: None, follows, last, application: Some(state.clone()) })
+            .expect("one line per application setting");
     }
     let mut held = List::with_capacity(core.held.heads.capacity().checked_add(1).expect("held inventory bound"));
     for (&revision, head) in &core.held.heads {
@@ -155,15 +169,22 @@ mod tests {
                 setting: Setting::Template(1),
                 name: Some(Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
                 follows: Follows::Default,
-                last: 1
+                application: None,
+                last: Some(1)
             }
         );
         current.changes.insert(Setting::Template(1), Changed { value: Some(original.clone()), revision: 2 }).unwrap();
-        assert_eq!((line(&current).follows, line(&current).last), (Follows::Change, 2));
+        assert_eq!((line(&current).follows, line(&current).last), (Follows::Change, Some(2)));
         current.changes.insert(Setting::Template(1), Changed { value: None, revision: 3 }).unwrap();
         assert_eq!(
             line(&current),
-            SettingLine { setting: Setting::Template(1), name: None, follows: Follows::Change, last: 3 }
+            SettingLine {
+                setting: Setting::Template(1),
+                name: None,
+                follows: Follows::Change,
+                last: Some(3),
+                application: None
+            }
         );
         let writes = crate::settings::apply(
             &mut current,
@@ -171,7 +192,7 @@ mod tests {
             4,
         );
         assert_eq!(writes.len(), 2);
-        assert_eq!((line(&current).follows, line(&current).last), (Follows::Default, 4));
+        assert_eq!((line(&current).follows, line(&current).last), (Follows::Default, Some(4)));
     }
     #[test]
     fn inventory_keeps_disjoint_removed_names_in_setting_order() {
@@ -186,5 +207,34 @@ mod tests {
         }
         assert_eq!(document.held.get(0).unwrap().holders, 0);
         assert!(document.pending.is_empty());
+    }
+    #[test]
+    fn application_inventory_keeps_changed_default_and_removed_states_without_values() {
+        use crate::settings::application::{Follows as AppFollows, State};
+        let (mut core, _) = crate::tests::core();
+        core.current.applications = Map::with_capacity(3);
+        let states = [
+            State { follows: AppFollows::Default, size: 7, charters: Box::new([1]) },
+            State { follows: AppFollows::Changed { revision: 2 }, size: 9, charters: Box::new([1]) },
+            State { follows: AppFollows::Removed { revision: 3 }, size: 0, charters: Box::new([]) },
+        ];
+        for (number, state) in (1..).zip(&states) {
+            core.current
+                .applications
+                .insert(Setting::Application { kind: 4, scope: 0, number }, state.clone())
+                .unwrap();
+        }
+        let inventory = build(&core);
+        for (number, state) in (1..).zip(&states) {
+            let mut found = false;
+            for line in &inventory.settings {
+                if line.setting == (Setting::Application { kind: 4, scope: 0, number }) {
+                    assert_eq!(line.application.as_ref(), Some(state));
+                    assert!(line.name.is_none());
+                    found = true;
+                }
+            }
+            assert!(found);
+        }
     }
 }

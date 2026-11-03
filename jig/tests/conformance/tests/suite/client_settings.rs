@@ -107,7 +107,13 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         Ok(c::Delivery::Settings(Box::new(values::settings_document())))
     );
     let mut value = values::settings_values().into_boxed().into_vec();
-    let document = c::SettingDocument { setting: c::Setting::Rules, revision: 6, value: value.pop().expect("rules") };
+    let document = c::SettingDocument {
+        setting: c::Setting::Rules,
+        revision: 6,
+        value: Some(value.pop().expect("rules")),
+        application: None,
+        proposed: None,
+    };
     let bytes =
         encoded!(&w::ReadValue::Setting(translate::settings::wire_setting_document(&document, t).expect("setting")));
     assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Setting(Box::new(document))));
@@ -148,7 +154,13 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     };
     let mut settings = List::with_capacity(1);
     settings
-        .push(d::SettingLine { setting: s::Setting::Rules, name: None, follows: d::Follows::Default, last: 6 })
+        .push(d::SettingLine {
+            setting: s::Setting::Rules,
+            name: None,
+            follows: d::Follows::Default,
+            last: Some(6),
+            application: None,
+        })
         .expect("rules line");
     let mut holding = List::with_capacity(1);
     holding.push(d::HeldRevision { head: head.clone(), holders: 2 }).expect("held newest");
@@ -160,7 +172,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     };
     assert_eq!(document.newest, 6);
     assert_eq!(document.held.get(0).expect("held revision").holders, 2);
-    assert_eq!(document.settings.get(0).expect("rules line").last, 6);
+    assert_eq!(document.settings.get(0).expect("rules line").last, Some(6));
     let bytes = encoded!(&w::DeliveryValue::Settings(wire));
     assert_eq!(translate::watches::delivery(&bytes, &limits), Ok(c::Delivery::Settings(document)));
 
@@ -170,7 +182,9 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     let source = reads::SettingDocument {
         setting: s::Setting::Rules,
         revision: 6,
-        value: s::Value::Rules(Box::new(config.core.defaults.rules)),
+        value: Some(s::Value::Rules(Box::new(config.core.defaults.rules))),
+        application: None,
+        proposed: None,
     };
     let wire = engine::setting_document(&source, &[], t).expect("engine whole setting");
     let bytes = encoded!(&w::ReadValue::Setting(wire));
@@ -178,7 +192,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     else {
         panic!("setting")
     };
-    let c::SettingValue::Rules(rules) = document.value else { panic!("rules") };
+    let Some(c::SettingValue::Rules(rules)) = document.value else { panic!("rules") };
     assert_eq!(rules.period_spend, spend);
 
     for (source, expected) in [

@@ -63,6 +63,19 @@ pub(super) fn encode_recipient(value: &jig_client::contract::Recipient, out: &mu
 #[expect(clippy::too_many_lines, reason = "one exhaustive encoding of jig's refusal vocabulary")]
 pub(super) fn encode_refusal(value: &jig_client::contract::Refusal, out: &mut Encoder, budget: &mut super::Cut) {
     match value {
+        jig_client::contract::Refusal::Judged { at, setting, why } => {
+            out.object_start();
+            out.key(b"judged");
+            out.object_start();
+            out.key(b"at");
+            out.unsigned(u64::from(*at));
+            out.key(b"setting");
+            settings_form::render::encode_setting(crate::jig::settings_adapter::form_setting(*setting), out);
+            out.key(b"why");
+            out.string(why.bytes());
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Refusal::Stale(value) => {
             out.object_start();
             out.key(b"stale");

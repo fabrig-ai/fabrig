@@ -913,8 +913,21 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // Application settings enlarge SettingLine by 8 bytes for each of the 11
     // defaults and 11 changes, ReviewItem by 24 bytes for 128 items (Setting
     // and its two optional Values), and RevisionItemHead by 8 bytes for 128 heads.
-    const SETTINGS_DOCUMENT: u64 =
-        120_528 + 4 * 72 + 16 * 8 + 2 * 8 * 16 + 16 * 8 + 2 * 56 + 2 * 2 * 440 + 2 * 11 * 8 + 128 * 24 + 128 * 8;
+    // Optional application states add 40 bytes per inventory and review row;
+    // each of the 128 review rows also prices 255 charter numbers at four bytes.
+    const SETTINGS_DOCUMENT: u64 = 120_528
+        + 4 * 72
+        + 16 * 8
+        + 2 * 8 * 16
+        + 16 * 8
+        + 2 * 56
+        + 2 * 2 * 440
+        + 2 * 11 * 8
+        + 128 * 24
+        + 128 * 8
+        + 2 * 11 * 40
+        + 128 * 40
+        + 128 * 255 * 4;
 
     let (mut core, limits) = fixture();
     waiting(
