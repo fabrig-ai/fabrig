@@ -162,8 +162,8 @@ pub fn demo_chat(task: u64, cue: &[u8], text: &[u8]) -> Script {
     Script {
         begin: Begin::RunningPlayground,
         steps: Box::new([
-            Step::See { find: Find::exactly_named(Role::Button, b"Playground"), within: START_WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Button, b"Playground") },
+            Step::See { find: Find::exactly_named(Role::Button, b"Demo"), within: START_WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Demo") },
             Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
             Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: START_WITHIN },
             Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },

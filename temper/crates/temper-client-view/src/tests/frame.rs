@@ -35,7 +35,7 @@ fn the_project_chosen_is_the_first_of_me_at_start() {
     assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
 }
 #[test]
-fn the_running_playground_project_button_is_named_playground() {
+fn the_running_playground_project_button_is_named_by_its_record() {
     let root = fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
@@ -44,12 +44,12 @@ fn the_running_playground_project_button_is_named_playground() {
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
-        let button = fixtures::find(view.tree(), Role::Button, b"Playground").expect("playground project");
+        let button = fixtures::find(view.tree(), Role::Button, b"Shop").expect("stored project name");
         assert_eq!(
             crate::act(&mut view, button, Act::Press),
             Some(Action::Pages(pages::Act::Project { project: fixtures::PROJECT }))
         );
-        assert!(fixtures::find(view.tree(), Role::Button, b"Shop").is_none());
+        assert!(fixtures::find(view.tree(), Role::Button, b"Playground").is_none());
         assert!(fixtures::find(view.tree(), Role::Paragraph, b"No project yet").is_none());
     }
 }

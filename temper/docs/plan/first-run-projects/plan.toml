@@ -30,3 +30,16 @@ id = 1
 story = "a fresh temper box lists no project (ctl me); ctl playground start makes Demo, listed and shown by its stored name in the banner, the chats and a task's page; ctl playground end leaves no project"
 parts = ["no-seed", "demo"]
 walk = true
+
+[[part]]
+id = "form-escape"
+title = "skein: Escape inside a form, so that a field edited in place is cancelled by it"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 6.1"
+
+[[slice]]
+id = 4
+story = "in skein-ui, a node inside a form names Escape and the web page part presses it on the Escape key while the focus is in the form"
+parts = ["form-escape"]
+walk = false

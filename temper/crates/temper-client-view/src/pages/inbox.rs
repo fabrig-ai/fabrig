@@ -212,7 +212,7 @@ fn project_filter(b: &mut Builder, root: &Domain, filter: Filter, words: &Words,
         b.open(Role::Disclosure);
         b.style(look::KIND_MENU);
         let chosen = match filter.project {
-            Some(project) => super::project_name(Some(me), root.forge().playground(), project, words)
+            Some(project) => super::project_name(Some(me), project)
                 .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))])),
             None => words.say(Word::AllProjects, &[]),
         };
@@ -274,7 +274,7 @@ fn entry(
         b.open(Role::Slot);
         b.style(look::META);
         if let Some(project) = card.project {
-            let name = super::project_name(root.pages().me(root.client()), root.forge().playground(), project, words)
+            let name = super::project_name(root.pages().me(root.client()), project)
                 .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
             b.open(Role::Text);
             b.run(Run::Plain, &name);

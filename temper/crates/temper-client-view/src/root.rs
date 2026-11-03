@@ -78,12 +78,7 @@ impl View {
     }
     fn adoption_main(&mut self, b: &mut Builder, root: &Domain) {
         let Some(form) = root.forge().form() else { return };
-        let project = crate::pages::project_name(
-            root.pages().me(root.client()),
-            root.forge().playground(),
-            form.project,
-            &self.forge_words,
-        );
+        let project = crate::pages::project_name(root.pages().me(root.client()), form.project);
         b.open(Role::Main);
         b.style(crate::look::MAIN);
         b.style(crate::look::PAGE);

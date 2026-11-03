@@ -125,8 +125,7 @@ fn project_buttons(builder: &mut Builder, root: &Domain, words: &crate::words::W
         for selected in [true, false] {
             for row in &me.projects {
                 if (Some(row.project) == root.pages().project()) == selected {
-                    let name = crate::pages::project_name(Some(me), root.forge().playground(), row.project, words)
-                        .expect("project from me has a name");
+                    let name = crate::pages::project_name(Some(me), row.project).expect("project from me has a name");
                     builder.open(Role::Button);
                     builder.name(&name);
                     if selected {
