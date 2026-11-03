@@ -42,13 +42,13 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // Admit stock policy 1's fourteen grants and six executor kinds.
+    // Admit stock policy 1's fourteen grants and seven executor kinds.
     for (name, count) in [
         ("core.policy_bytes", 4096),
         ("authority.grants", 16),
-        ("authority.executors", 6),
+        ("authority.executors", 8),
         ("tasks.authority_grants", 16),
-        ("tasks.executor_kinds", 6),
+        ("tasks.executor_kinds", 8),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
         ("tasks.charters", 4),
