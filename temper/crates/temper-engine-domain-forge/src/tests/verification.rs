@@ -220,7 +220,6 @@ fn opening_row() -> ChangeRow {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step fixtures use explicit options, as the foundation requires")]
 fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     let mut d = domain();
     d.repositories.insert(REPO, adopted()).expect("adoption");
@@ -233,10 +232,11 @@ fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
                 ignored: Box::new([]),
                 artifact: Box::from(b"report".as_slice()),
                 format: policy::Format::Lines,
-                branch: match branch {
-                    Some(branch) => Some(Box::from(*branch)),
-                    None => None,
+                follows: match branch {
+                    Some(branch) => Follows::Branch(Box::from(*branch)),
+                    None => Follows::Landing,
                 },
+                span: None,
             })
             .expect("fixture tiers");
     }
@@ -661,4 +661,37 @@ fn contains(out: &Queue<Request>, expected: &Request) -> bool {
         }
     }
     false
+}
+
+#[test]
+fn goal_tiers_leave_goal_landings_unfollowed_and_main_verified() {
+    let mut d = configured_domain(&[(TIER, None), (b"g", None)]);
+    d.landing.projects.get_mut(&PROJECT).expect("configured project").1[0].tiers[1].follows = Follows::Goals;
+    add_change(&mut d, CHANGE, b"temper/1/g1");
+    merged(&mut d, CHANGE, FIRST);
+    assert!(d.verifications.is_empty());
+    assert_eq!(d.change_verification(CHANGE), change::Verification::Unfollowed);
+    let out = advance(&mut d, CHANGE, env().wall, false);
+    assert!(contains(
+        &out,
+        &Request::ChangeDecision {
+            task: CHANGE,
+            decision: change::Decision::Finish { merge: FIRST },
+            entry: None,
+            evidence: None,
+        }
+    ));
+    assert_eq!(
+        d.change(CHANGE).expect("goal landing").change.state,
+        change::State::Landed { merge: FIRST, since: env().wall }
+    );
+    add_change(&mut d, SECOND, b"main");
+    merged(&mut d, SECOND, LAST);
+    assert_eq!(d.change_verification(SECOND), change::Verification::Verifying);
+    let verification = d.verifications.get(&(REPO, LAST)).expect("main verification");
+    assert_eq!(verification.tiers.as_ref(), &[TierVerification { tier: TIER.into(), verdict: None, repaired: None }]);
+    green(&mut d, 1, &[LAST]);
+    advance(&mut d, SECOND, env().wall, false);
+    assert_eq!(d.change_verification(SECOND), change::Verification::Cleared);
+    assert_eq!(d.change(SECOND).expect("main landing").change.state, change::State::Cleared { merge: LAST });
 }
