@@ -198,3 +198,38 @@ Acceptance:
 The schemas changed and whether a version moved; the goldens written and removed, by name; the
 arms replaced, by file, and whether restore-surface's `Ask::Restore` arm here named another
 task; any test expectation corrected and why; whether `jig/tests/store` goldens moved.
+
+## Answers
+
+2026-11-03. **Q: the prescribed `Revision` (128 `RevisionItem`s, each an edit and a replaced
+value whole) exceeds the generator's `u32` encoded worst case: revise the representation or
+lower ceilings?** Revise the representation; lower no ceiling. A revision's items are bounded
+by their bytes in all (`core::settings::revision_bound`, engine.md 17.10, **Bounded**), not by
+their count times their largest item, which is the case skein's codec gives one form for
+(`skein/docs/design/codec.md`, 3, "A sum crosses as one piece"), the form `people-v14` already
+uses (`Pattern.segments`, `Authority.grants`, `PolicyValue.permissions`). This replaces step
+1's `Revision` line:
+
+```
+versioned record Revision { models: list 64 ModelName head: Head items: bytes 3221225472 pieces RevisionItem applications: list 128 RevisionRecorded }
+```
+
+- `RevisionItem`, `Replaced`, `SizedReplaced`, `RevisionRecorded` stay as step 1 has them,
+  declared before `Revision`. `Item`, `Recorded` and `Proposal` stay unchanged (its worst
+  case fits).
+- `codec/settings.rs`: the items are written and split with the piece helpers, each item
+  after its `u32` length, as `codec/people/pieces.rs` does; widen that module's helpers'
+  visibility (`pub(in crate::codec)`) so the settings codec shares them rather than copying
+  them. A piece that does not end exactly at its end is malformed; more items than
+  `settings::capacity(domain) * 2` is `Bound`, as the list was.
+- `derived_limits`: the items' field limit (whatever the generator names it) is the byte sum
+  derived from `core::settings::revision_bound(domain)` with `piece_bound` (owned size
+  `size_of::<settings::RevisionItem>()`, item `wire::RevisionItem::encoded_bound(..)`), as
+  `derive_shared` does; `None` past the ceiling, as the other derivations. `proposal_items`
+  becomes `settings::capacity(domain)?.checked_mul(2)?` itself, no longer copied from the
+  revision's limit.
+- Tests: `revision_items_round_trip_every_replaced_state` also covers a revision at the
+  derived sum and one byte past it (`Bound`), and one item past the count (`Bound`).
+- The step's stop rule stands: if `revision_bound` (restore-surface's price) is below what a
+  revision with replaced values encodes to, stop and ask; do not raise it here.
+- No skein change, no ceiling of another record moves, no version moves.

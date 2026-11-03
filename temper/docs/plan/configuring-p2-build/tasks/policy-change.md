@@ -3,7 +3,7 @@ id = "policy-change"
 part = "policy-item"
 kind = "feature"
 needs = ["restore-surface"]
-files = ["jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/**", "jig/crates/jig-domain-core/src/routing/settings/**", "jig/crates/jig-domain-core/src/admission/policy.rs", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/documents/settings.rs", "jig/crates/jig-domain-core/src/reads/settings.rs", "jig/crates/jig-domain-core/src/tests/settings/project_policy.rs", "jig/crates/jig-domain-people/src/domain/applications.rs"]
+files = ["jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/**", "jig/crates/jig-domain-core/src/routing/settings/**", "jig/crates/jig-domain-core/src/admission/policy.rs", "jig/crates/jig-domain-core/src/admission/deletion.rs", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/documents/settings.rs", "jig/crates/jig-domain-core/src/reads/settings.rs", "jig/crates/jig-domain-core/src/tests/settings/project_policy.rs", "jig/crates/jig-domain-people/src/domain/applications.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -133,3 +133,19 @@ Acceptance:
 
 How the replacement runs (the option taken); how a proposal's entrance and acceptance decide
 *owns both*; what the review carries; the tests and their counts.
+
+## Answers
+
+2026-11-03. **Q: may this task edit `jig/crates/jig-domain-core/src/admission/deletion.rs` to
+withdraw pending proposals naming the deleted project's policy in the deletion's decision?**
+Yes: the acceptance and `jig/docs/design/domain/people.md`, 5.2 ("withdrawn in that
+decision") cannot hold from `drop_project`'s later cleanup. Allowed in `deletion.rs`: one
+call from `begin`, after the deletion is admitted and before it answers `ProjectRemoved`, to a
+withdrawal helper this task writes in `src/routing/settings/**`, which withdraws each pending
+proposal naming `Setting::ProjectPolicy { project }` through the core's existing proposal
+withdrawal path (its rows erased, its proposer told it no longer applies). Nothing else in
+`deletion.rs` changes. The helper's work is checked within the deletion's admission bound
+before `begin` mutates anything; where that bound does not already cover the withdrawals,
+add them to it (a fixed price in a test that moves only for that is corrected and listed in
+the report); if covering them would need a `Limits` field or a configuration envelope to move,
+stop and ask. Add a `deletion.rs` line to the report's changed files.
