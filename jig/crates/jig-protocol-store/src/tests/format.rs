@@ -204,7 +204,7 @@ fn a_journal_whose_operation_count_overflows_is_refused() {
 
 #[test]
 fn a_map_budget_past_the_commit_envelope_is_refused() {
-    // The value includes the revision's replaced values; the commit envelope is unchanged.
+    // The value includes the revision's replaced values and charter tools; the commit envelope is unchanged.
     for (label, budget, expected) in [
         ("exact_u32_commit", 4_294_965_938, Ok(sizes::Sizes { key: 112, value: 398_708, ops: 11, commit: u32::MAX })),
         ("one_byte_past_u32", 4_294_965_939, Err(sizes::SizeRefusal::Ceiling)),
