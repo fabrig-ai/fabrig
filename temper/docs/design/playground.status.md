@@ -6,8 +6,7 @@
   (`tests/playground`) and `temper-client-shell-web`'s feature
   `playground`. 4: the
   reset without the box: its fake forge's removal waits for the box
-  (`domain/forge.md`, 4.1, and its status). 5: stories
-  as data, with the fakes' latencies as their pace. 6: the page, its starter
+  (`domain/forge.md`, 4.1, and its status). 6: the page, its starter
   and its frame. 7: the served files and their `headers`,
   `scripts/bundle.sh --playground` and the `playground` profile. 8: the
   documents' bounds, measured. 9: the native walk, the wasm32 builds in the

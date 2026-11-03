@@ -25,16 +25,7 @@ impl Fakes {
     /// Build the composition's default Forgejo peer beside its git transport.
     #[must_use]
     pub fn new(llm: skein_fake_peers::llm::Peer, forge: temper_fake_git::Typed, seed: u64) -> Self {
-        let mut peer = skein_fake_peers::forge::Peer::new(
-            documents::FORGE,
-            fakes::peer_limits(),
-            fakes::forge_table(),
-            fakes::forge_limits(),
-            forge.forge.clone(),
-            seed,
-        )
-        .expect("forge peer");
-        fakes::setup_peer(&mut peer);
+        let peer = fakes::forge_peer(&forge, seed);
         Self { llm, forge, peer }
     }
 }
