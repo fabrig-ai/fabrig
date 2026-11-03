@@ -179,3 +179,40 @@ fn bearer_reads_only_the_bounded_rfc6750_spelling() {
     }
     assert_eq!(issuer.bearer(Some(b"bEaReR a-._~+/==")).expect("Bearer").expose(), b"a-._~+/==");
 }
+
+#[test]
+fn debug_of_a_token_request_shows_the_verifiers_length_never_its_bytes() {
+    const CANARY: &str = "canary-issuer-debug-7f3a9c-A1_b2.C3~d4-E5_f";
+    let body = replace(BODY, core::str::from_utf8(VERIFIER).expect("ASCII verifier"), CANARY);
+    let request = issuer().token_request(None, TYPE, &body).expect("request with canary verifier");
+    let debug = alloc::fmt::format(format_args!("{request:?}"));
+    let canary_bytes = alloc::fmt::format(format_args!("{:?}", CANARY.as_bytes()));
+    assert!(!debug.contains(CANARY));
+    assert!(!debug.contains(&canary_bytes));
+    assert_eq!(
+        debug,
+        alloc::fmt::format(format_args!(
+            "TokenRequest {{ client: {:?}, code: Secret {{ len: 4 }}, redirect_uri: {REDIRECT:?}, verifier_len: 43 }}",
+            b"client".as_slice(),
+        )),
+    );
+}
+
+#[test]
+fn debug_of_a_parsed_form_shows_value_lengths_never_values() {
+    const CANARY: &str = "canary-form-debug-8c2d4e";
+    let body = alloc::fmt::format(format_args!("client_secret={CANARY}&code={CANARY}"));
+    let form = form::Form::read(body.as_bytes(), None).expect("form with canary values");
+    let debug = alloc::fmt::format(format_args!("{form:?}"));
+    let canary_bytes = alloc::fmt::format(format_args!("{:?}", CANARY.as_bytes()));
+    assert!(!debug.contains(CANARY));
+    assert!(!debug.contains(&canary_bytes));
+    assert_eq!(
+        debug,
+        alloc::fmt::format(format_args!(
+            "Form {{ fields: List {{ items: [Field {{ name: {:?}, value_len: 24, past: false }}, Field {{ name: {:?}, value_len: 24, past: false }}], capacity: 2 }}, duplicate_binding: false, duplicate: false }}",
+            b"client_secret".as_slice(),
+            b"code".as_slice(),
+        )),
+    );
+}

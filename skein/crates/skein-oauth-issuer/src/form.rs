@@ -2,11 +2,20 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
-#[derive(Debug)]
 pub(crate) struct Field {
     name: Box<[u8]>,
     value: Box<[u8]>,
     past: bool,
+}
+// skein/docs/design/oauth.md, 4: a form value's secret bytes stay out of Debug.
+impl core::fmt::Debug for Field {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Field")
+            .field("name", &self.name)
+            .field("value_len", &self.value.len())
+            .field("past", &self.past)
+            .finish()
+    }
 }
 #[derive(Debug)]
 pub(crate) struct Form {
