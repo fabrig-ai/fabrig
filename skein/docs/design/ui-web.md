@@ -750,6 +750,14 @@ component instead (6.1).
   the exchange failed. Which headers an exchange sends, what its body
   holds and what its server answers are the application's (a header
   naming its client, a cookie its server set).
+- **An exchange's cache and an answer's headers:** an exchange names its
+  cache, the browser's own by default, or none (fetch's `no-store`, so
+  the browser's cache neither answers it nor keeps its answer), and the
+  answer's headers the application keeps, by name; the platform reports
+  those, each value within the exchange's bound, with the status and
+  the body, and no other header. An application that reads an answer's
+  freshness (its `Cache-Control`, its `Age`) or when to ask again
+  (`Retry-After`) asks for none of the browser's cache and keeps those.
 - **The stream** by fetch, a GET of a path with the headers the
   application gives, with same-origin credentials, its body read a piece
   at a time: each piece, at most the bound the application gives (a

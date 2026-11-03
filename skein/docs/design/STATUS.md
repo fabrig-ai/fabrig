@@ -10,7 +10,7 @@ no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); the fake GitHub refuses no push as `GH013`
 (`fake-forge.md`). `skein-playground` still lacks the gate's wasm32 clippy
-(fab's gate list; `playground.md`, 8); `ui-web.md` has no gap. json, tls and http's collector
+(fab's gate list; `playground.md`, 8); `ui-web.md` lacks an exchange's cache and its kept headers (10). json, tls and http's collector
 have no fuzz target (`json.md`, `tls.md`, `http.md`). A few items lag
 in `lib.md`, `examples.md` and `ui.md`. The code departs in three
 crates' `tests/` directories (`testing.md`), and five of the LLM live
