@@ -12,9 +12,6 @@
   or in `temper-service`'s routing.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
-  4.6, 8: `SetUp`, `FirstAsk` and the row's `first` carry a project,
-  `SetUpProject`, and `SetUpRefusal` keeps `new_project`
-  (`temper-client-protocol-wire/schema/client-wire-v1.schema`).
   3.5, The first chat: the offer "Tell temper how you work" on a chats
   page with no chat; no such act in `temper-client-domain`'s `pages.rs`
   and no offer in `temper-client-view`'s `pages/chats.rs`.
