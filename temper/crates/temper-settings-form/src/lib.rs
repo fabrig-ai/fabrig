@@ -133,7 +133,7 @@ impl Limits {
             result_bytes: 6_292_480,
             text: 32_768,
             rows: 32,
-            authority: 12,
+            authority: 14, // Holds the stock's fourteen forge grants.
             fields: 16,
         }
     }

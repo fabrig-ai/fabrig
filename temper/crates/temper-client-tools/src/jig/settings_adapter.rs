@@ -1198,7 +1198,7 @@ pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
         result_bytes: v.result_bytes,
         text: v.text,
         rows: 32,
-        authority: 12,
+        authority: 14, // Holds the stock's fourteen forge grants.
         fields: 16,
     }
 }
