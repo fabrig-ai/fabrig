@@ -64,18 +64,13 @@ fn status(result: i32) -> Result<(), i32> {
     if result < 0 { Err(last_errno()) } else { Ok(()) }
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn socket(family: Family) -> Result<Fd, i32> {
-    retry(|| {
-        // SAFETY: socket takes integer arguments and returns a new descriptor.
-        let fd = unsafe {
-            libc::socket(
-                domain(family),
-                libc::SOCK_STREAM | libc::SOCK_NONBLOCK | libc::SOCK_CLOEXEC,
-                libc::IPPROTO_TCP,
-            )
-        };
-        if fd < 0 { Err(last_errno()) } else { Ok(Fd::new(fd)) }
-    })
+    // SAFETY: socket takes integer arguments and returns a new descriptor.
+    let fd = unsafe {
+        libc::socket(domain(family), libc::SOCK_STREAM | libc::SOCK_NONBLOCK | libc::SOCK_CLOEXEC, libc::IPPROTO_TCP)
+    };
+    if fd < 0 { Err(last_errno()) } else { Ok(Fd::new(fd)) }
 }
 
 pub(crate) fn bind(fd: Fd, addr: &Addr) -> Result<(), i32> {
@@ -133,34 +128,32 @@ pub(crate) fn listen(fd: Fd, backlog: u32) -> Result<(), i32> {
     })
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn accept(fd: Fd) -> Result<(Fd, Addr), i32> {
     let mut storage = zeroed_storage();
-    retry(|| {
-        let mut len = socklen_of::<libc::sockaddr_storage>();
-        // SAFETY: storage and len are exclusive locals, of the stated capacity.
-        let accepted = unsafe {
-            libc::accept4(
-                fd.raw(),
-                ptr::from_mut(&mut storage).cast(),
-                ptr::from_mut(&mut len),
-                libc::SOCK_NONBLOCK | libc::SOCK_CLOEXEC,
-            )
-        };
-        if accepted < 0 {
-            return Err(last_errno());
-        }
-        let peer = decode_addr(&storage, len).expect("an accepted TCP socket's peer is IPv4 or IPv6");
-        Ok((Fd::new(accepted), peer))
-    })
+    let mut len = socklen_of::<libc::sockaddr_storage>();
+    // SAFETY: storage and len are exclusive locals, of the stated capacity.
+    let accepted = unsafe {
+        libc::accept4(
+            fd.raw(),
+            ptr::from_mut(&mut storage).cast(),
+            ptr::from_mut(&mut len),
+            libc::SOCK_NONBLOCK | libc::SOCK_CLOEXEC,
+        )
+    };
+    if accepted < 0 {
+        return Err(last_errno());
+    }
+    let peer = decode_addr(&storage, len).expect("an accepted TCP socket's peer is IPv4 or IPv6");
+    Ok((Fd::new(accepted), peer))
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn connect(fd: Fd, addr: &Addr) -> Result<(), i32> {
     let mut storage = zeroed_storage();
     let len = encode(addr, &mut storage);
-    retry(|| {
-        // SAFETY: storage is initialized for len bytes and lives across the call.
-        status(unsafe { libc::connect(fd.raw(), ptr::from_ref(&storage).cast(), len) })
-    })
+    // SAFETY: storage is initialized for len bytes and lives across the call.
+    status(unsafe { libc::connect(fd.raw(), ptr::from_ref(&storage).cast(), len) })
 }
 
 pub(crate) fn recv(fd: Fd, buf: &mut [u8]) -> Result<u32, i32> {
