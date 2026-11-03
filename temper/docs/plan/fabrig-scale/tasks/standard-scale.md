@@ -2,7 +2,7 @@
 id = "standard-scale"
 part = "jig-standard"
 kind = "feature"
-needs = ["store-ceilings", "override-relations"]
+needs = ["store-ceilings", "override-relations", "smith-calls"]
 files = ["jig/crates/jig-protocol-config/src/profile/standard.rs", "jig/crates/jig-protocol-config/src/tests/profile.rs", "jig/crates/jig-protocol-config/src/tests/domain.rs", "jig/crates/jig-protocol-config/src/tests/overrides.rs", "jig/crates/jig-protocol-config/src/tests/provider.rs", "jig/testing/jig-test-service/src/**", "jig/tests/core/tests/suite/settings_memory.rs", "jig/tests/core/tests/suite/settings_proposal_edges.rs", "jig/tests/store-codecs/tests/suite/profiles.rs", "jig/docs/design/protocol/configuration.status.md"]
 effort = "high"
 minutes = 120
@@ -42,7 +42,7 @@ Acceptance:
   - `HUB`: `inbox` 82, with the run's inbox (the most a run's start carries).
   - `STORE_KV`: `value` the largest value `sizes::check_commits` computes for standard
     (exact, as each growth before set it); `page.bytes` the larger of key plus value and
-    `jig_protocol_store::sizes::frame(&CORE, 16_777_216)` (smith's largest turn, K3);
+    `jig_protocol_store::sizes::frame(&CORE, 33_554_432)` (smith's largest turn, K3);
     `chunk` `skein_kv::chunk_bytes(key, value)`; each written as a literal, as today, the
     tests below holding them to their rules. `ops`, `commit`, `queued_bytes`, `segment` and
     `snapshot_after` stay: the journal's writes, the key and the map's budget do not move.
@@ -96,7 +96,7 @@ Acceptance:
    - `standard_holds_fabrig_scale`: asserts each K2 figure and each coupled figure above on
      `profile(Profile::Standard)` (so the contract is pinned in one place);
    - `standard_page_holds_smiths_largest_turn`: standard's `store.store.page.bytes` is at
-     least `jig_protocol_store::sizes::frame(&limits.core, 16_777_216)`, and that frame is
+     least `jig_protocol_store::sizes::frame(&limits.core, 33_554_432)`, and that frame is
      `Some`;
    - `small_is_unchanged`: small's `tasks.tasks`, `tasks.batch`, `tasks.spec_bytes`,
      `tasks.result_bytes` and `STORE_KV.value` are 8, 2, 4,096, 512 and 2,166,708.
@@ -111,6 +111,6 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, with: standard's `STORE_KV` before and after (key, value,
-page, chunk, ops, commit), the TurnRecord frame at 16 MiB, every limit set beyond this spec's
+page, chunk, ops, commit), the TurnRecord frame at 32 MiB, every limit set beyond this spec's
 list and the check that asked for it, and every fixture raised. The figures are the resource
 gate's inputs: a value, page or chunk past 100 MB is said so in the report's first lines.

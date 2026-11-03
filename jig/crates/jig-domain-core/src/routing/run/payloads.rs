@@ -7,6 +7,7 @@ use skein_lib::{Queue, ReplyTo, Token};
 #[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]
 pub(crate) fn route_answer_payload(
     core: &mut Core,
+    limits: &tasks::Limits,
     work: &mut Queue<Work>,
     run: Token,
     attempt: Token,
@@ -35,7 +36,7 @@ pub(crate) fn route_answer_payload(
             for number in refused {
                 invalid |= *number == 0 || Some(*number) > proof.offered;
             }
-            if invalid_saved || invalid {
+            if invalid_saved || invalid || past_batch_bytes(limits, &end) {
                 (cumulative, tasks::End::Failed(tasks::Class::Invalid), None)
             } else {
                 if !refused.is_empty() {
@@ -83,6 +84,37 @@ pub(crate) fn route_answer_payload(
         saved,
     })));
     Queue::uncapped()
+}
+
+fn past_batch_bytes(limits: &tasks::Limits, end: &tasks::End) -> bool {
+    let batch = match end {
+        tasks::End::FinishedWithFollowups { followups, .. } => match followups {
+            tasks::ResultFollowups::Delegates(batch) => Some(batch),
+            tasks::ResultFollowups::Proposal(proposal) => match &proposal.action {
+                tasks::ProposalAction::Batch(batch) => Some(batch),
+                tasks::ProposalAction::Settings { .. }
+                | tasks::ProposalAction::Effect { .. }
+                | tasks::ProposalAction::ProcedureEffect { .. }
+                | tasks::ProposalAction::Amend { .. }
+                | tasks::ProposalAction::Widen { .. }
+                | tasks::ProposalAction::Release { .. }
+                | tasks::ProposalAction::ReleasePlaced { .. } => None,
+            },
+        },
+        tasks::End::Finished { .. }
+        | tasks::End::Exceeded(_)
+        | tasks::End::Parked
+        | tasks::End::Failed(_)
+        | tasks::End::Refused
+        | tasks::End::Recheck => None,
+    };
+    match batch {
+        Some(batch) => match tasks::batch_bytes(batch) {
+            Some(bytes) => bytes > u64::from(limits.batch_bytes),
+            None => true,
+        },
+        None => false,
+    }
 }
 
 #[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]

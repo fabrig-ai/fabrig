@@ -31,6 +31,9 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     references: 8,
     subscriptions: 4,
     batch: 2,
+    // A batch's bytes: two of small's largest tasks, one of them recurring with a template of two,
+    // hold under 90 KiB; 128 KiB.
+    batch_bytes: 131_072,
     circle: 8,
     dependencies: 8,
     holdings: 4,
