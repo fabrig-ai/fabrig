@@ -94,7 +94,10 @@ impl Domain {
                     (Start::Branch(row.branch.clone()), Some(row.branch.clone()), Some(self.change_branch_holder(row)))
                 }
                 change::Delegate::Resolve { base } => (
-                    Start::Merge { branch: row.branch.clone(), base },
+                    Start::Merge {
+                        branch: if row.change.last_head.is_some() { row.branch.clone() } else { row.base.clone() },
+                        base,
+                    },
                     Some(row.branch.clone()),
                     Some(self.change_branch_holder(row)),
                 ),
