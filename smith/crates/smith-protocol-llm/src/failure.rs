@@ -228,8 +228,7 @@ pub(crate) const fn cap(which: skein_llm::Cap) -> llm::Cap {
         skein_llm::Cap::Output => llm::Cap::Output,
         skein_llm::Cap::Answer => llm::Cap::Answer,
         skein_llm::Cap::ErrorBody => llm::Cap::ErrorBody,
-        skein_llm::Cap::Value => llm::Cap::AccessToken,
-        skein_llm::Cap::AccountId => llm::Cap::AccountId,
+        skein_llm::Cap::Value | skein_llm::Cap::AccountId => llm::Cap::AccessToken,
     }
 }
 

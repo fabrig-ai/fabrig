@@ -224,7 +224,7 @@ fn a_product_settings_metadata_refusal_reaches_stderr() {
 fn agent_document(address: &str) -> serde_json::Value {
     serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":1_099_511_627_776_u64,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},
-        "endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":address,"transport":"plaintext","connect":1000,"handshake":1000,
+        "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai","address":address,"transport":"plaintext","connect":1000,"handshake":1000,
             "models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],
         "environment":[]
     })
@@ -392,7 +392,7 @@ fn smith_check_json_shows_each_value_with_its_layer() {
     assert!(!String::from_utf8_lossy(&ran.stdout).contains("repository-value"));
     assert_eq!(
         report["formats"],
-        serde_json::json!({"channel":5,"charter":4,"transcript":6,"events":4,"chat_store":1,"check":2})
+        serde_json::json!({"channel":6,"charter":4,"transcript":6,"events":4,"chat_store":1,"check":2})
     );
     for tool in ["sh", "rg", "git"] {
         assert!(report["tools"][tool].as_str().expect("tool path").starts_with('/'));

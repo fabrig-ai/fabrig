@@ -281,8 +281,5 @@ pub(super) fn build_models(endpoint: &Endpoint) -> Result<service::profile::Endp
 }
 
 fn credential_limits(limits: &llm::ComponentLimits) -> shared::client::CredentialLimits {
-    shared::client::CredentialLimits {
-        value: limits.grant_value_bytes,
-        account_id: limits.grant_value_bytes.min(smith_channel::CEILINGS.withdrawn_value_id),
-    }
+    shared::client::CredentialLimits { value: limits.grant_value_bytes, account_id: 0 }
 }
