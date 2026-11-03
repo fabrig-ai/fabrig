@@ -202,3 +202,145 @@ fn the_reference_sets_main_and_goal_branch_landing_rules() {
         assert!(rule.approvals.is_empty());
     }
 }
+
+fn reference_engine(limits: &serde_json::Value) -> jig_protocol_config::Engine {
+    let owned: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned JSON");
+    let mut engine = owned["engine"].clone();
+    engine["limits"] = limits.clone();
+    engine["llm"]["models"][0]["prices"]["unit"] = 1000.into();
+    let mut designer = engine["llm"]["models"][0].clone();
+    designer["name"] = "claude-opus-5-5".into();
+    engine["llm"]["models"].as_array_mut().expect("models").push(designer);
+    engine["llm"]["providers"][0]["models"] = serde_json::json!(["gpt-6-luna", "claude-opus-5-5"]);
+    let bytes = serde_json::to_vec(&engine).expect("engine JSON");
+    let document = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
+    )
+    .expect("engine document");
+    jig_protocol_config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Passed,
+    )
+    .expect("reference engine")
+}
+
+fn core_item(item: &jig_client::contract::SettingItem) -> jig_domain_core::settings::Item {
+    let preset = temper_client_tools::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("ctl limits");
+    let wire = jig_client_protocol_link::translate::settings::wire_setting_item(item, link.wire())
+        .expect("reference item fits ctl");
+    let size = wire.measure();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(size).expect("item size") + 4);
+    bytes.put(&size.to_be_bytes()).expect("length prefix");
+    wire.encode(&mut bytes).expect("reference item encoding");
+    jig_protocol_engine_clients::translate::settings::items(bytes.finish(), &[], link.wire())
+        .expect("reference item translation")
+        .into_iter()
+        .next()
+        .expect("one item")
+}
+
+fn reference_rules(current: &jig_domain_core::settings::Current) -> jig_client::contract::Rules {
+    let preset = temper_client_tools::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("ctl limits");
+    let value = jig_domain_core::settings::Value::Rules(Box::new(current.rules().clone()));
+    let wire =
+        jig_protocol_engine_clients::translate::settings::value(&value, &[], link.wire()).expect("stock rules fit ctl");
+    let jig_client_protocol_wire::v19::SettingValue::Rules(wire) = wire else { panic!("rules") };
+    jig_client_protocol_link::translate::settings::restore_rules(&wire, &link).expect("stock rules")
+}
+
+fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
+    use jig_client::contract::{Setting, SettingNumber};
+    use jig_domain_core::settings::{Edit, Value};
+    let reference = temper_client_tools::jig::settings_file::decode(
+        include_bytes!("../../../../docs/examples/reference/settings.json"),
+        &temper_client_tools::limits::tools(),
+    )
+    .expect("reference settings");
+    let mut charters: Vec<_> = reference
+        .iter()
+        .filter(|item| matches!(item.setting, Setting::Charter(SettingNumber { number: COORDINATOR | DESIGNER })))
+        .map(core_item)
+        .collect();
+    // Ctl resolves the reference's forge document names to connector 1 before sending.
+    for item in &mut charters {
+        if let Edit::Set(Value::Charter(charter)) = &mut item.edit {
+            for document in &mut charter.documents {
+                document.connector = 1;
+            }
+        }
+    }
+    charters
+}
+
+fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] {
+    use jig_client::contract::AuthorityExecutor as Executor;
+    let nine = vec![
+        Executor::Charter(1),
+        Executor::Charter(2),
+        Executor::Charter(4),
+        Executor::Charter(COORDINATOR),
+        Executor::Charter(FOREMAN),
+        Executor::Charter(DESIGNER),
+        Executor::Procedure(2),
+        Executor::Procedure(3),
+        Executor::Procedure(4),
+    ];
+    let eight = nine.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
+    let mut eleven = nine.clone();
+    eleven.extend([Executor::Job(3), Executor::Role(0)]);
+    [nine.clone(), eight, nine, eleven]
+}
+
+fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
+    use jig_client::contract::{Setting, SettingEdit, SettingItem, SettingSet, SettingValue};
+    use jig_domain_core::settings;
+    let stock = temper_service::stock::defaults(&engine.llm);
+    jig_protocol_config::pass(&mut engine, stock).expect("stock settings");
+    let config = jig_protocol_config::core(&engine, [0; 16], 1);
+    let limits = &engine.limits.core;
+    let current = settings::Current::new(config.defaults, limits, &[]);
+    let charters = reference_charters();
+    assert_eq!(charters.len(), 2);
+    assert_eq!(settings::check_change(&current, &charters, &config.settings, &config.connectors, limits), Ok(()));
+    let mut rules = reference_rules(&current);
+    for kinds in reference_delegations() {
+        let count = u32::try_from(kinds.len()).expect("reference kind count");
+        rules.ceiling.delegation.kinds = List::with_capacity(count);
+        for kind in kinds {
+            rules.ceiling.delegation.kinds.push(kind).expect("delegation count");
+        }
+        let mut items = charters.clone();
+        items.push(core_item(&SettingItem {
+            setting: Setting::Rules,
+            edit: SettingEdit::Set(SettingSet { value: SettingValue::Rules(Box::new(rules.clone())) }),
+        }));
+        let change = settings::Change {
+            against: current.newest(),
+            items: items.into_boxed_slice(),
+            running: settings::Running::Stays,
+        };
+        assert_eq!(
+            settings::check_change(&current, &change.items, &config.settings, &config.connectors, limits),
+            Ok(()),
+            "{count} reference executors against NEWEST"
+        );
+        assert!(count <= limits.tasks.executor_kinds);
+    }
+}
+
+#[test]
+fn init_limits_hold_reference_delegation() {
+    for bytes in [
+        include_bytes!("../../../temper-init/template/temper.json").as_slice(),
+        include_bytes!("../../../../docs/examples/owned.json").as_slice(),
+    ] {
+        let document: serde_json::Value = serde_json::from_slice(bytes).expect("shipped configuration JSON");
+        check_reference_delegation(reference_engine(&document["engine"]["limits"]));
+    }
+}
