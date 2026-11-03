@@ -10,6 +10,7 @@ mod admission;
 mod agent_reads;
 mod applications;
 mod budget;
+mod configuring;
 mod document_limits;
 mod escalation;
 mod forge_routes;
