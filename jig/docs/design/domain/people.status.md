@@ -4,12 +4,10 @@
 
 - **Not yet:** 3: a service's credential reissued or removed. 5.1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
-  release; a widening funded from the amender's pool. 5.2: a project's
-  policy changed whole by a change of settings, and a pending proposal
-  of settings naming it withdrawn by its deletion.
-  6: retention; a delegate's question to a conversation kept with the
-  conversation. 7: a chat answering its delegates' questions and asking
-  its person by a person task.
+  release; a widening funded from the amender's pool. 6: retention; a
+  delegate's question to a conversation kept with the conversation. 7:
+  a chat answering its delegates' questions and asking its person by a
+  person task.
 - **Departs:** 6, 8: the person's own answer is off by default, behind
   `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because
   each application opts in before the first step, as temper does. With

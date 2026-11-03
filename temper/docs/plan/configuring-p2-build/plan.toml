@@ -5,6 +5,7 @@ sources = ["temper/docs/plan/configuring-p2-build/inputs/request.md", "temper/do
 # P2 of temper/docs/design/draft/configuring.execution.md (settings through ctl), built from
 # the design configuring-p2 released, on M3's landed settings (plan.md).
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
