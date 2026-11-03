@@ -11,10 +11,13 @@ mod credential;
 pub use credential::{cleared, cookie};
 mod dispatch;
 mod guards;
+mod public;
 mod stream;
+pub use public::public_path;
 #[derive(Debug)]
 pub struct Settings {
     pub prefix: Box<[u8]>,
+    pub max_age: u32,
     /// The public name a TLS proxy serves the application at, as `Host` names it (protocol/client.md, 17.3).
     pub public: Option<Box<[u8]>>,
 }
@@ -62,25 +65,89 @@ pub struct Mount {
     settings: Settings,
     hosts: List<Box<[u8]>>,
     calls: Map<Token, call::Call>,
+    ordinary_limit: u32,
+    public_limit: u32,
 }
 impl Mount {
     #[must_use]
     pub fn new(settings: Settings, limits: &Limits) -> Self {
-        Self { settings, hosts: List::with_capacity(0), calls: Map::with_capacity(limits.calls) }
+        Self {
+            settings,
+            hosts: List::with_capacity(0),
+            calls: Map::with_capacity(limits.calls.checked_add(limits.public_calls).expect("mounted calls bound")),
+            ordinary_limit: limits.calls,
+            public_limit: limits.public_calls,
+        }
     }
     /// Calls the application may hand over, including no call whose end is still queued.
     #[must_use]
     pub fn room(&self) -> u32 {
-        self.calls.capacity().checked_sub(self.calls.len()).expect("bounded mounted calls")
+        self.ordinary_limit.checked_sub(self.count(false)).expect("bounded mounted calls")
+    }
+    fn count(&self, public: bool) -> u32 {
+        let mut count = 0_u32;
+        for (_, call) in &self.calls {
+            if call.public == public {
+                count = count.saturating_add(1);
+            }
+        }
+        count
+    }
+    /// Remaining calls in the head's room (jig/docs/design/protocol/client.md, 17.5).
+    #[must_use]
+    pub fn room_for(&self, head: &http::Call) -> u32 {
+        if public::under(&self.settings.prefix, head) {
+            self.public_limit.checked_sub(self.count(true)).expect("bounded public calls")
+        } else {
+            self.room()
+        }
+    }
+    /// A service's refusal without reserving a mounted call (jig/docs/design/protocol/client.md, 17.5).
+    #[must_use]
+    pub fn refusal(&self, head: &http::Call) -> http::Response {
+        let mut response = if public::under(&self.settings.prefix, head) {
+            let status = if guards::host(&self.settings, &self.hosts, head) { 503 } else { 421 };
+            public::response(status, None, None)
+        } else {
+            http::Response { status: 503, headers: Box::new([]), body: http::Body::None, close: true }
+        };
+        response.close = true;
+        response
     }
     pub fn down(&mut self, env: &Env<Limits>, event: Event) {
         match event {
             Event::Listening { hosts } => self.hosts = hosts,
             Event::Call { call, head } => {
+                assert!(self.room_for(&head) > 0, "application hands calls only within their room");
                 let mut value = call::Call::new(call, &env.limits);
-                value.via = via(&self.settings, &head);
-                value.route = dispatch::route(&self.settings.prefix, &head);
+                value.public = public::under(&self.settings.prefix, &head);
                 value.body_kind = head.body;
+                if !guards::host(&self.settings, &self.hosts, &head) {
+                    if value.public {
+                        value.respond_with(public::response(421, None, None), Box::new([]), &env.limits);
+                    } else {
+                        value.respond(421, Box::new([]), &env.limits);
+                    }
+                    self.calls.insert(call, value).expect("server bounds mounted calls");
+                    return;
+                }
+                value.route = dispatch::route(&self.settings.prefix, &head);
+                if value.public {
+                    let body = match head.body {
+                        http::Body::None => false,
+                        http::Body::Length(length) => length != 0,
+                        http::Body::Chunked => true,
+                    };
+                    if value.route == dispatch::Route::Missing || body {
+                        value.route = dispatch::Route::Missing;
+                        value.respond_with(public::response(404, None, None), Box::new([]), &env.limits);
+                    } else {
+                        value.read(&env.limits);
+                    }
+                    self.calls.insert(call, value).expect("server bounds public calls");
+                    return;
+                }
+                value.via = via(&self.settings, &head);
                 value.browser = head.header(b"jig-client") == Some(b"browser");
                 let mut forbidden = false;
                 value.credential = match credential::read(&head) {
@@ -109,7 +176,7 @@ impl Mount {
                     value.route = dispatch::Route::Missing;
                     value.respond(415, Box::new([]), &env.limits);
                 } else if let skein_http::server::Body::Length(length) = head.body
-                    && length > u64::from(dispatch::body_bound(value.route, env.limits.body))
+                    && length > u64::from(dispatch::body_bound(&value.route, env.limits.body))
                 {
                     value.route = dispatch::Route::Missing;
                     value.respond(413, Box::new([]), &env.limits);
@@ -181,7 +248,10 @@ impl Mount {
             }
             kit::ToTransport::Streamed { message, .. } => call.stream(env, message),
             kit::ToTransport::StreamEnded { why, .. } => call.end(env, why),
-            kit::ToTransport::Public { .. } => unreachable!("public reads have no HTTP route in this mount"),
+            kit::ToTransport::Public { reply, .. } => {
+                let (response, body) = public::answered(reply, self.settings.max_age, env.now);
+                call.respond_with(response, body, &env.limits);
+            }
         }
     }
     #[must_use]

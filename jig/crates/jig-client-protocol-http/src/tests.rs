@@ -85,3 +85,5 @@ fn a_printed_link_under_another_prefix_is_refused() {
         Err(Unlinked::NoSecret)
     );
 }
+
+mod public;

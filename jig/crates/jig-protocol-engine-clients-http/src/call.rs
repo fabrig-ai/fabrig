@@ -7,8 +7,10 @@ use skein_lib::{
     stream::{Down, Read},
 };
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "the public room is independent of browser and call lifecycle state")]
 pub(crate) struct Call {
     pub name: Token,
+    pub public: bool,
     pub stream: Option<crate::stream::Stream>,
     pub events: Queue<http::Event>,
     pub requests: Queue<http::Request>,
@@ -27,6 +29,7 @@ impl Call {
     pub fn new(name: Token, limits: &Limits) -> Self {
         Self {
             name,
+            public: false,
             stream: None,
             events: Queue::with_capacity(8),
             requests: Queue::with_capacity(8),
@@ -66,9 +69,6 @@ impl Call {
         cookie: Option<skein_http::Header>,
         limits: &Limits,
     ) {
-        self.response = body;
-        self.offset = 0;
-        self.requests.push(http::Request::Discard);
         let content = skein_http::Header {
             name: bytes::copy_of(b"content-type"),
             value: bytes::copy_of(b"application/octet-stream"),
@@ -80,12 +80,19 @@ impl Call {
             Some(cookie) => Box::from([content, cache, nosniff, cookie]),
             None => Box::from([content, cache, nosniff]),
         };
-        self.requests.push(http::Request::Respond(http::Response {
+        let response = http::Response {
             status,
             headers,
-            body: http::Body::Length(u64::try_from(self.response.len()).expect("bounded response")),
+            body: http::Body::Length(u64::try_from(body.len()).expect("bounded response")),
             close: false,
-        }));
+        };
+        self.respond_with(response, body, limits);
+    }
+    pub fn respond_with(&mut self, response: http::Response, body: Box<[u8]>, limits: &Limits) {
+        self.response = body;
+        self.offset = 0;
+        self.requests.push(http::Request::Discard);
+        self.requests.push(http::Request::Respond(response));
         if self.response.is_empty() {
             self.requests.push(http::Request::Reply(Down::Finish));
         } else {
@@ -123,7 +130,7 @@ impl Call {
         match event {
             http::Event::Body(Up::Bytes(bytes)) => {
                 if u64::from(self.body.len()).saturating_add(u64::try_from(bytes.len()).expect("body bytes"))
-                    > u64::from(crate::dispatch::body_bound(self.route, env.limits.body))
+                    > u64::from(crate::dispatch::body_bound(&self.route, env.limits.body))
                     || self.body.append(&bytes).is_err()
                 {
                     self.route = Route::Missing;
@@ -134,9 +141,20 @@ impl Call {
             }
             http::Event::Body(Up::End) => {
                 if self.route != Route::Missing {
+                    if self.public {
+                        let Route::Public(read) = core::mem::replace(&mut self.route, Route::Missing) else {
+                            unreachable!("public route")
+                        };
+                        out.push(Request::Component(jig_protocol_engine_clients::FromTransport::PublicRead {
+                            exchange: self.name,
+                            read,
+                        }));
+                        return;
+                    }
+
                     let body = self.body.meet(Read::Fill(self.body.len())).unwrap_or_default();
                     let credential = self.credential.take();
-                    let message = match crate::dispatch::message(self.route, body) {
+                    let message = match crate::dispatch::message(&self.route, body) {
                         Some(message) => jig_protocol_engine_clients::FromTransport::Exchange {
                             exchange: self.name,
                             credential,
