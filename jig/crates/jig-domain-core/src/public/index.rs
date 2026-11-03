@@ -31,7 +31,6 @@ pub(crate) struct Index {
 
 /// One lookup treats excluded and absent projects alike.
 #[derive(Debug)]
-#[cfg_attr(not(test), expect(dead_code, reason = "public reads consume the index in the public-reads-core task"))]
 pub(crate) enum Entry<'a> {
     Busy,
     Ready(&'a Project),
@@ -163,6 +162,10 @@ impl Index {
         project.rebuild(core, *limits, row.project, self.depth);
     }
 
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the approved enumeration returns an iterator over ready entries without allocating a list"
+    )]
     pub(crate) fn projects(&self) -> impl Iterator<Item = (u32, &Project)> {
         self.projects.iter().filter_map(|(&number, project)| match project {
             Some(project) => Some((number, project)),
@@ -170,7 +173,6 @@ impl Index {
         })
     }
 
-    #[cfg_attr(not(test), expect(dead_code, reason = "public reads consume the index in the public-reads-core task"))]
     pub(crate) fn project(&self, project: u32) -> Option<Entry<'_>> {
         match self.projects.get(&project) {
             Some(Some(project)) => Some(Entry::Ready(project)),

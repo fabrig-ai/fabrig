@@ -11,3 +11,5 @@ mod requests;
 mod settings;
 mod sign_in;
 mod stream;
+
+mod public;

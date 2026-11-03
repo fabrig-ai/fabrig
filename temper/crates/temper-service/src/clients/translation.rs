@@ -64,6 +64,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
+        | core::Event::PublicDurable { .. }
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
         | core::Event::ApplicationFinished { .. }
@@ -194,6 +195,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Assigned { .. }
         | root::Delivery::ForgeRead { .. }
         | root::Delivery::ReadLoad { .. }
+        | root::Delivery::PublicWait { .. }
         | root::Delivery::Drained
         | root::Delivery::Refuse { .. }
         | root::Delivery::TurnBusy { .. }

@@ -9,6 +9,7 @@ use skein_lib::Token;
 pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
     match held {
         core::Held::PeopleReply { to, reply } => Some(kit::Event::Reply { to, reply }),
+        core::Held::PublicRead { reply, answer } => Some(kit::Event::Public { reply, answer }),
         core::Held::Read { reply, answer } => Some(kit::Event::Read { reply, answer }),
         core::Held::Delivery { watcher, document } => Some(kit::Event::Delivery { watcher, document }),
         core::Held::WatchEnded { watcher, why } => Some(kit::Event::WatchEnded { watcher, why }),
@@ -18,7 +19,6 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
         | core::Held::ReadLoad { .. }
-        | core::Held::PublicRead { .. }
         | core::Held::PublicWait { .. }
         | core::Held::Applied { .. }
         | core::Held::MakeEffect { .. }
@@ -211,7 +211,8 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. }) => {
             Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
         }
-        core::Event::Read { reply, .. } | core::Event::PublicRead { reply, .. } => {
+        core::Event::PublicRead { reply, .. } => Some(kit::Event::Public { reply, answer: core::PublicAnswer::Busy }),
+        core::Event::Read { reply, .. } => {
             Some(kit::Event::Read { reply, answer: core::reads::Answer::None(core::reads::Why::Busy) })
         }
         core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => {

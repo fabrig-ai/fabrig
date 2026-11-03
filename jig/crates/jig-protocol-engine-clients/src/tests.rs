@@ -118,3 +118,6 @@ fn valid_refuses_each_unrepresentable_limit() {
 
 #[path = "tests/jobs.rs"]
 mod jobs;
+
+#[path = "tests/public.rs"]
+mod public;

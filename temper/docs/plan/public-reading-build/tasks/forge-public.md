@@ -32,7 +32,8 @@ Acceptance:
   pub struct PublicTask { pub task: u64, pub goal: Option<u64> }
   /// What the core asks the forge for (jig's `Ask::Public`), its tasks ascending.
   pub struct PublicAsk<'a> { pub kind: u16, pub version: u16, pub project: u32,
-                             pub task: Option<u64>, pub public: &'a [PublicTask] }
+                             pub task: Option<u64>, pub public: &'a [PublicTask],
+                             pub now: skein_lib::Wall }
   /// The forge's answer: the tasks it names, by place, and its encoded record.
   pub struct PublicMade { pub tasks: Box<[u64]>, pub record: Box<[u8]> }
   impl Domain { pub fn public(&self, ask: &PublicAsk<'_>, limits: &Limits) -> Option<PublicMade> }
@@ -211,3 +212,15 @@ Acceptance:
 As the implementer's text says, and also: each kind's record filled field by field from
 which source, how the queue's goal is found, the three declared bounds at the default
 limits, and the path a public read takes through temper's root and service.
+
+## Answers
+
+2026-11-03. *Q: may `PublicAsk` gain `now: skein_lib::Wall`, or should `Domain::public`
+take it as an argument, since the queue's order depends on the read's time?*
+`PublicAsk` gains `pub now: skein_lib::Wall` (the Goal's block above is amended);
+`Domain::public`'s signature stays as given. `route/public.rs` sets it from the root's
+`env.wall`, as `route/panels.rs` hands `env.wall` to `document`. The public queue is
+ordered by the existing comparator (`panel::queue_before`, at `limits.queue_window` and
+`now`) over the public candidates alone, after the filter; still no place and no tasks
+ahead. The step tests set `now` explicitly, and one of them may read the same state at two
+times across the window to show the order follows the comparator.

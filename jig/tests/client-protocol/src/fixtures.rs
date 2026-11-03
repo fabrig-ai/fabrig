@@ -67,6 +67,14 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         key_bytes: 7934,
         redirect_bytes: 4096,
         moved_bytes: 70000,
+        public: skein_lib::List::with_capacity(0),
+        public_bounds: jig_client_protocol_wire::PublicIndexBounds {
+            goals: 0,
+            ended: 0,
+            lines: 0,
+            depth: 0,
+            projects: 0,
+        },
     }
 }
 /// The core world's configured models as the client side names them.

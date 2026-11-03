@@ -5,6 +5,8 @@
 )]
 #[path = "public/index.rs"]
 mod index;
+#[path = "public/reads.rs"]
+mod reads;
 
 use crate::{Event, Held, PublicAnswer, PublicApplication, PublicRead, Request, step};
 use skein_lib::{Env, ReplyTo, Time, Token, Wall};
@@ -16,9 +18,7 @@ fn a_public_read_is_answered_unknown_and_commits_nothing() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     core.start_input();
     let before = format!("{core:?}");
-    for (owner, kind, project, task) in
-        [(0, 1, None, None), (0, 2, Some(1), None), (0, 3, Some(1), Some(1)), (1, 1, Some(1), Some(1))]
-    {
+    for (owner, kind, project, task) in [(0, 2, Some(1), None), (0, 3, Some(1), Some(1)), (1, 1, Some(1), Some(1))] {
         let token = Token::new(90);
         let read = PublicRead { owner, version: 1, kind, project, task };
         let event = Event::PublicRead { reply: ReplyTo::new(token), read };
