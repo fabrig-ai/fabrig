@@ -66,6 +66,7 @@ fn domain() -> Domain {
 fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         Config {
+            settings: None,
             prefix: prefix(),
             resources: Box::from([
                 ResourceSpec {
@@ -356,6 +357,7 @@ fn adoption_and_names_report_roles_and_holds_from_the_connector() {
 #[test]
 fn context_resources_cannot_be_upgraded_to_a_write_role() {
     let mut config = Config {
+        settings: None,
         prefix: prefix(),
         resources: Box::from([ResourceSpec { credential: None, path: service(), hold: Hold::None, writable: false }]),
         pools: Box::from([]),
@@ -434,7 +436,11 @@ fn restored_records_rebuild_adoptions_names_topics_and_pool_slots() {
         for request in run(&mut original, event) {
             match request {
                 Request::Save { record } => records.push(record).expect("four changes made four records"),
-                Request::Resource { .. }
+                Request::SettingsJudged { .. }
+                | Request::SettingsDefaults { .. }
+                | Request::SettingValue { .. }
+                | Request::RestoreRefused { .. }
+                | Request::Resource { .. }
                 | Request::Named { .. }
                 | Request::Described { .. }
                 | Request::EffectBusy { .. }
@@ -923,3 +929,5 @@ fn a_procedure_job_waits_for_delegate_done_before_finishing() {
         })
     );
 }
+
+mod settings;
