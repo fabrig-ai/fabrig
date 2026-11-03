@@ -414,3 +414,34 @@ answers' one: decided by `application.demo`.
 - Then the acceptance as written: the full walk, its kept `tests/fixtures/story-a.log` recorded under
   `SKEIN_CODEGEN_WRITE`, its replay, and the one-process `story_a.rs` once alone with
   `--run-ignored all` (its `#[ignore]` lifted only if it passes).
+
+2026-11-03. **The delegate is refused for authority (spend 21,140 over stock's 768, tasks 4 over
+`tasks.tree_tasks` 1): align story A's model prices with the box template, or have the script's
+owner revise its request?** Align the prices, here; the script stays as it is. Story A is the box's
+playground with one source for its scripts, `temper-init`'s template (`temper/docs/design/playground.md`,
+5.2), and only the composition's documents differ (1, 3). The template's 21,140 is funded by the
+stock budgets `temper-service`'s `stock::checked` derives from the template's own prices
+(`unit` 1000; its comment's C = 1057, K = 4228); story A's deployment prices its model at `unit`
+1000000, which shrinks K to 32 and the chat to 768. The script is right; the deployment's prices
+are the value that disagrees with the box. This is no test budget or timeout of the user's
+(`AGENTS.md`, 7): it is a value of the composition's documents, and no authority check is relaxed.
+
+- `temper/crates/temper-playground/stories/a/deployment.json`: the `fake` model's `prices` become
+  the template's `demo` model's (`input`, `cached`, `output` 1, `unit` 1000). Its `window`, its
+  `output` and every other value stay as they are.
+- `tasks.tree_tasks` becomes 4 in story A's engine overrides, in `stories/a/deployment.json` and in
+  `src/documents.rs` where story A's document is made, together: the earlier document-bound
+  allowance's class (the composition's `ENGINE_OVERRIDES` already holds 4; the script asks
+  `delegation.tasks` 4).
+- A regression in `temper-playground`'s `src/tests/`: from story A's deployment's `llm`,
+  `temper_service::stock::defaults` gives a chat role whose `budget.spend` and the policy's and the
+  rules' ceilings hold the script's delegate `budget.spend` (read from `stories/a/llm.json`, not
+  written as a number), and the deployment's `tasks.tree_tasks` is at least its
+  `delegation.tasks`.
+- If the authority refusal remains after both (another `authority ceiling` part: a depth, a kind, a
+  pattern), it falls under the earlier allowance only where a limit of these documents is compared
+  (file and line, the limit's name); a ceiling of stock's own construction, or anything else, is a
+  question with the refusal and its evidence, asked after committing and pushing what is repaired.
+- Then the acceptance as written: the full walk, its kept `tests/fixtures/story-a.log` recorded under
+  `SKEIN_CODEGEN_WRITE`, its replay, and the one-process `story_a.rs` once alone with
+  `--run-ignored all` (its `#[ignore]` lifted only if it passes).
