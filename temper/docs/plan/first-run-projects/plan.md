@@ -22,6 +22,20 @@ Ready making "Default", a project with no repository highlighted (4 and 5); the 
   banner's rename in place is cancelled by it. Statuses: skein `ui`, `ui-web` (Not yet), skein's
   `STATUS.md`.
 
+- Step 2 (a designer of this cut, `notes/contracts.md` K1 to K4):
+  `temper/docs/design/protocol/setup.md`, 6.5, 6.7, 8.1, 8.3, 15, 16 (asked with no project, made
+  unadopted, ctl's call alone adopts); `protocol/forge.md`, 2.1; `protocol/store.md`, 2
+  (`FirstIntent`); `client/README.md`, 3.5 (the welcome whole per K2, Ready making "Default" per
+  K1, With no project yet, A project with no repository per K4), 4.4 (the form filled from a
+  project with no repository), 4.6 and 8's table (K3's wire), 5.6, 10; `client/forge.md`, 5.4;
+  `client/tools.md`, 5.5 (ctl keeps `--project`); `help/forge.md`. Statuses: setup, forge,
+  store, client README, forge, tools; the draft's status loses its 4 and 5 entries.
+- Step 4: `client/README.md`, 3.5, "The first chat" (template 3 while `me` offers it, else the
+  stock chat, so the offer moves to the configuring agent with nothing else changed).
+- Step 3: `client/README.md`, 5.3, "Projects in the banner" (Rename for owners, its form with
+  Save, Cancel and Escape; the new project's form; opening the made project); `help/project.md`.
+  The switcher's look stays 5.1's and the look plan's.
+
 ## Parts and tasks so far
 
 | Part | Task | Needs | Tree |
@@ -29,12 +43,47 @@ Ready making "Default", a project with no repository highlighted (4 and 5); the 
 | no-seed | no-seeded-project | | temper (init's template; service and process tests counting projects) |
 | demo | demo-project | | temper (engine's playground route, client view's project names) |
 | form-escape | skein-form-escape | | skein (skein-ui's outline, skein-ui-web's page model) |
+| wizard | welcome-ready | demo-project, no-seeded-project | temper (client domain and view: the welcome, ConnectForge, client world) |
+| no-repository | no-repository | welcome-ready | temper (client view's chats page, domain's adoption form) |
+| wizard | setup-project-goes | welcome-ready, no-repository, no-seeded-project | temper (client wire, store, engine forge, service, ctl, client domain encode) |
+| first-chat | first-chat | no-repository | temper (client domain's pages, view's chats page) |
+| switcher | switcher-acts | first-chat | temper (client domain: the switcher's state and acts) |
+| switcher | switcher-view | switcher-acts, skein-form-escape | temper (client view's banner, terminal goldens) |
 
 ## Critical path
 
-no-seeded-project, demo-project and skein-form-escape, side by side; the rest follows as its batches release.
+no-seeded-project and demo-project (step 1, landed or done), then welcome-ready (the longest,
+about 120 minutes), no-repository, first-chat, switcher-acts and switcher-view, one after another
+in temper's client crates, which one task at a time owns; setup-project-goes runs beside
+first-chat in other files of the client domain (its `forge/` encoding) and its own crates.
+skein-form-escape has landed. The switcher's tasks come last, as `inputs/request.md` asks.
+
+## Decisions
+
+- **Section 9's questions,** the interim readings `inputs/request.md` gives: a taken "Default"
+  at Ready opens the existing one (K1); a second playground run makes "Demo" again. Both stand as
+  **Open** in the draft's status.
+- **The request's project goes** (the draft's 4, K3): from the client wire and from the store's
+  `FirstIntent`, both schemas changed in place at their current versions; ctl keeps `--project`
+  in its own run. Until the first release the store changes in place
+  (`temper/docs/design/protocol/store.md`, section 4), so a store written before with a first
+  repository's intent is not migrated.
+- **The `welcome-set-up` journey** goes stale with the project field: welcome-ready deletes it, and
+  `journeys.status.md` records it as walked anew later (`journeys.md`, 8), a person's walk.
+- **Escape in a form** is skein's generic mechanism (`skein-form-escape`), before its temper use.
 
 ## Overlaps with the plans beside this one
 
-- `frame.rs` (`temper-client-view`): demo-project edits one call's arguments in
-  `project_buttons`, which the look plan `look-welcome-chats` redraws as its switcher.
+- **look-welcome-chats** (the look of the welcome-playground journey's pages): its request also
+  names the switcher's Rename and new project and the banner's "Set up temper →". This plan
+  keeps to the behaviour the user gave it (`inputs/request.md`): the switcher's acts and their
+  binding, released last (`switcher-acts`, `switcher-view`), its view binding to the look's
+  switcher if the trunk holds it and to today's buttons otherwise. "Set up temper →" is that
+  plan's (an existing act, `EndPlayground`, and its look): the draft's status keeps its 3 lag
+  until it lands. Files both plans change: `temper-client-view`'s `frame.rs` (demo-project's
+  one call; switcher-view's banner), `words.rs`, `pages/chats.rs` (the no-repository highlight,
+  first-chat's offer), the terminal goldens; the client README's 3.5 and 5.x pages' sections.
+- **withdrawn-forms** (`withdrawn-forms/temper-configs`, merged in its trunk) and
+  **reference-m3** (`reference-m3/subagents-profile`, merged): both change
+  `temper/crates/temper-init/src/tests/`, where no-seeded-project changes the template's projects
+  test (other functions).

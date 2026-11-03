@@ -420,7 +420,7 @@ and `connect-forge.html`.
   summary: its name, "forge N · KIND · WEB" (its number, its kind and
   its `web` address), its connection's words (below) and its line:
   connected, its repositories, "OWNER/NAME · project PROJECT" each;
-  setting up, its set up's first repository, "ORG/NAME, into PROJECT";
+  setting up, its set up's first repository, "ORG/NAME";
   set up failed or stopped, why. Opened, it holds the rest of the row's
   parts below and its actions. Every row starts folded.
 - **"Open Forgejo ↗"** on a connected Forgejo that signs its people in
@@ -584,18 +584,17 @@ and `connect-forge.html`.
   - *Forgejo on this machine,* under the box: "temper box downloads
     Forgejo and its runner, starts them, and makes your first
     repository, with a README and a CI workflow. No restart."; the set
-    up's fields, its organization (default `work`), its repository
-    (default `hello`) and its project, a new one named as the
-    repository; "Its CI jobs run on this machine, as you, with no
+    up's fields, its organization (default `work`) and its repository
+    (default `hello`); "Its CI jobs run on this machine, as you, with no
     isolation." and "Forgejo stops when temper box stops. Its
     repositories are kept in temper’s data directory."; and "Set up a
     Forgejo here", which sends `SetUp` of a new owned Forgejo
     (`README.md`, 4.6, `Making`), or of the kept one, and, once
-    accepted, shows Setting up. The fields: "Organization", `work` until changed;
-    "Repository", `hello`; and "Into a new project, named", the
-    repository's name until changed: the first run offers no existing
-    project (`../draft/archive/first-run.md`, 2.4). An organization, repository
-    or project's name left empty is the page's refusal,
+    accepted, shows Setting up. The fields: "Organization", `work` until changed,
+    and "Repository", `hello`; no project's: the set up adopts nothing,
+    its repository made unadopted (`../protocol/setup.md`, 6.7;
+    `../draft/first-run-projects.md`, 4). An organization or repository
+    left empty is the page's refusal,
     "Required.". The set up's refusals show under the button in its
     words (`README.md`, 4.6): `invalid`, which also marks the organization and
     repository fields invalid, the fields kept for the person to fix.
@@ -643,13 +642,12 @@ and `connect-forge.html`.
     access to it. To stop temper using it, delete the token on Forgejo."
     "The site admin’s token" is a password field, passed straight to a
     `Secret`, outside text actions. "Your first repository" has
-    "Organization" (`work`), "Repository" (`hello`), "Into a new project,
-    named" (following Repository until edited), and "Runner label"
-    (`docker`). Its hint is "Its CI runs on your forge’s runners with this
+    "Organization" (`work`), "Repository" (`hello`) and "Runner label"
+    (`docker`), and no project's field. Its hint is "Its CI runs on your forge’s runners with this
     label. Forgejo’s runner registers as docker unless told otherwise."
     The button "Connect as its admin" sends `Connect { forge, how:
     ForgejoAdmin { first: Some(FirstAsk) } }`, `forge` the kept forge's
-    number or the new one's addresses, with the four fields and
+    number or the new one's addresses, with the three fields and
     the token carried as a bundle of one `AdminToken` item, at most 4
     KiB in all. No RSA armour restoration applies. Sending
     empties the token field; a stop empties it again and keeps the other
@@ -691,26 +689,23 @@ and `connect-forge.html`.
   share names: name another organization.", and the organization's field
   is marked invalid.
 - **Ready, on that Forgejo,** says "Connected as LOGIN (id ID), managed."
-  and "Made ORG/NAME, and its project PROJECT. Its CI runs on your forge’s
+  and "Made ORG/NAME. Its CI runs on your forge’s
   runners labelled LABEL; with none, a change’s checks wait." LABEL is
-  `first.label`, including after reload. "Open PROJECT" waits for the
-  existing keyed project creation and adoption, once; a repeated row
-  starts neither twice. With `row.web`, "Open ORG/NAME on Forgejo ↗"
-  links to the repository. After reload, the durable adoption supplies
-  the project for Open.
+  `first.label`, including after reload. Nothing is adopted: "Adopt a
+  repository", as on Ready below, and, with `row.web`, "Open ORG/NAME on Forgejo ↗"
+  links to the repository.
 - **Setting up** shows the set up as its row says it: the level-2
   heading "Setting up Forgejo on this machine", its first repository's
-  line, "ORG/NAME, into PROJECT", then its steps as a list, each with
+  line, "ORG/NAME", then its steps as a list, each with
   its state in words, "done", "under way" or none for one to come:
   "Fetching Forgejo and its runner" ("Fetched Forgejo and its runner"
   once done), "Preparing: its database, temper’s admin, your account",
   "Starting Forgejo and its runner", "Connecting as temper", and
-  "Making ORG/NAME, and adopting it into PROJECT". The box's step
+  "Making ORG/NAME". The box's step
   names the one under way (fetch, prepare or run); none named yet, no
-  individual step is marked. Connecting is the fourth, making and
-  adopting the fifth, done only once the first repository is adopted
-  into its project. Before the target is known, the fifth reads
-  "Making the first repository, and adopting it into its project".
+  individual step is marked. Connecting is the fourth, making the
+  fifth, done once the first repository is made, unadopted. Before the
+  target is known, the fifth reads "Making the first repository".
   GitHub rows never list Forgejo's steps. The first and the Details
   name the versions the row's `owned` pins, "Fetching Forgejo 17.0.0
   and its runner 13.2.0"; the person's login stays off until the row
@@ -752,41 +747,25 @@ and `connect-forge.html`.
   not made yet shows nowhere: its tab is GitHub's, no run holds the
   forge, and Connect GitHub again draws a fresh state, the first
   ending unused (9.1).
-- **Ready** ends on the work: "ORG/NAME is ready", the level-2 heading,
-  then "In PROJECT, on FORGE.", FORGE its name, the steps all done,
-  "Open PROJECT", a link to the chats page in that project, and "FORGE
-  is on the Forges page, with its details.", "Forges" a link to it. Its repository is
-  adopted by the client that asked the set up: once the row says the
-  first repository made, the forge's side, which keeps the `SetUp` it
-  sent, sends `Adopt` of it into its project, once, on whatever page
-  the person is (`../protocol/setup.md`, 6.7), as `temper ctl
-  forge setup` does (`tools.md`, 5.5): keyed `first-repository-F`, F
-  the forge's number, as the project's home unless it has one, so that
-  the two never adopt it twice; and "Open PROJECT"
-  waits for its outcome; refused, the adoption's outcome shows in its
-  words (`README.md`, 4.7). A client that did not send it (another
-  tab, or after a reload) shows Ready on the row's made alone. With
-  no first repository on the row (one a restart has dropped): "FORGE is
-  connected", "Connected as LOGIN.", "Adopt a repository", a link to
-  `Adopt { project }`, and the Forges line.
-- **Ready, on GitHub,** starts with the repository to start in, while
-  none of the forge's is adopted: "Choose a repository to start in",
-  "SLUG is installed on ACCOUNT, with all its repositories, N." or
-  "…, with N repositories you chose.", then the repositories of its
-  accepted installations as one choice, each "OWNER/NAME", marked
-  "private" where it is, the first chosen (`Reachable`, each
-  installation's, as the picker reads them, 4.3); "Into a new project,
-  named", a field, the chosen repository's name until changed;
-  "Adopt OWNER/NAME", which sends jig's `MakeProject` of that name,
-  then `Adopt` of it into that new project, as its home (`README.md`, 4.7); and "Not listed?
-  Choose its repositories on GitHub, and GitHub sends you back here.",
-  whose link sends `Install` and takes the tab to GitHub's install
-  page, where an account installed already offers Configure. Once one
-  is adopted: "OWNER/NAME is ready", "In the new project PROJECT, on
-  GitHub.", what its adoption found of its CI and its branch's rules
-  (`../domain/forge.md`, section 4), "Open PROJECT", "Open on GitHub
-  ↗", the repository's page in a tab of its own, and the Forges
-  line.
+- **Ready** ends on the forge connected, and adopts nothing
+  (`../protocol/setup.md`, 6.7; `../draft/first-run-projects.md`, 4):
+  "FORGE is connected", the level-2 heading, "Connected as LOGIN.",
+  then, with a first repository made on the row, "Made ORG/NAME." and
+  the steps all done; "Adopt a repository", a link to
+  `Adopt { project }` for the project the person is in, which the form
+  fills for that repository (`README.md`, 4.4), none while the person
+  is in no project; and "FORGE is on the Forges page, with its
+  details.", "Forges" a link to it. The made repository waits,
+  unadopted, until the person adopts it; `temper ctl forge setup`
+  adopts it in its own run (`tools.md`, 5.5). The same shows with no
+  first repository on the row, without its line.
+- **Ready, on GitHub,** is the same, once an installation is
+  accepted: "GitHub is connected", "Connected as LOGIN.", the App's
+  line, each accepted installation by its account's login (the row's
+  table, below), "Adopt a repository" and the Forges line. It offers
+  no repository of its own and makes no project: the repositories its
+  installations reach are the adoption form's picker's (`README.md`,
+  4.4).
 - **Elsewhere:** the navigation's
   "Forges" carries a dot, amber while a forge sets up or connects, red
   while one needs the person: set up failed, stopped, or not connected
