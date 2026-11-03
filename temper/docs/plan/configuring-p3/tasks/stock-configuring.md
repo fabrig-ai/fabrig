@@ -227,3 +227,12 @@ this spec's survey.
   `tests::reference_settings::init_limits_hold_reference_delegation` alone first (`--lib`),
   then `temper`'s focused tests and every package the acceptance names, one command per
   package group, excluding the live and proof binaries, and give each run's counts.
+
+2026-11-03. **Q** (fab, after `stock-configuring-4`): four runs without landing; run it again?
+**A:** yes, once more, under the answer above; nothing else changes. Each stop was a reader of
+the same change, the survey's or the merged trunk's, and the answer above widens the readers
+by the kind of change, so the next run should not stop on another one. That answer's lists fit
+the shipped limits: ten, nine and twelve delegation kinds against `tasks.executor_kinds` 12 in
+`temper-init/template/temper.json` and `docs/examples/owned.json`, and the stock's five
+charters plus the reference's two against `tasks.charters` 8. A failure of another kind still
+stops the run with its log.
