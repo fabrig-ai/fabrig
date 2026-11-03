@@ -11,7 +11,7 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); the fake GitHub refuses no push as `GH013`
 (`fake-forge.md`). Of the portable crates, `skein-tls`,
 `skein-fake-forge-github` and `skein-fake-peers` are not in the gate's
-wasm32 clippy, their build there unmeasured (`testing.md`). json, tls
+wasm32 clippy, though they pass it (`testing.md`). json, tls
 and http's collector have no fuzz target (`json.md`, `tls.md`,
 `http.md`). `ui-web.md` lacks an exchange's cache and its kept
 headers (10). A few items lag in `lib.md`, `examples.md` and `ui.md`. The
