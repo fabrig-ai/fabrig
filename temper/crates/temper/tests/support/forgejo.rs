@@ -388,7 +388,9 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
         }
     }
     let limits = value["application"]["limits"].take();
+    let charter = value["application"]["charter"].take();
     value["application"] = owned::application(&owned);
+    value["application"]["charter"] = charter;
     owned::old_form(&mut value["application"]);
     value["application"]["limits"] = limits;
     value["application"]["limits"]["overrides"]["root.brief.gather_ms"] = BRIEF_GATHER_MS.into();
@@ -412,7 +414,16 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
 #[must_use]
 pub fn landing_scripts(answer: &[u8], forgejo: &Throwaway) -> Box<[skein_fake_llm_domain::api::Script]> {
     let Forge::Throwaway { api, .. } = forgejo.forge() else { panic!("throwaway forge") };
-    let mut scripts = landing::scripts(api, forgejo.repository(), &forgejo.main_readme()).into_vec();
+    let repository = u32::try_from(forgejo.repository()).expect("forge-local repository fits u32");
+    let mut scripts = landing::change_scripts(
+        landing::ChangeAuthority { coding_kind: 2, scope: Some((api, "acme")) },
+        temper_engine_domain_forge::tag(1, repository),
+        &forgejo.main_readme(),
+        landing::EDIT,
+        b"@forge_chat",
+        "@coding Fix",
+    )
+    .into_vec();
     let mut initial = super::chat_script(answer);
     initial.cue = b"Hello".as_slice().into();
     scripts.push(initial);

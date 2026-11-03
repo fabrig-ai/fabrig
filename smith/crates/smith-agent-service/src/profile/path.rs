@@ -55,8 +55,8 @@ pub(super) fn path(profile: &Profile, configuration: &Configuration) -> Result<P
     }
     let limits = shared::Limits::derive(&largest)
         .or(Err(Refusal::Derived { limit: LimitName::deployment(Layer::Llm, "receiving_maxima") }))?;
-    let mut client = limits.codex;
-    // Codex has the larger fixed response head, event records and metadata;
+    let mut client = limits.openai;
+    // OpenAI has the larger fixed event records and metadata;
     // Anthropic's smaller tool spelling permits more represented tools.
     client.tools = client.tools.max(limits.anthropic.tools);
     Ok(Path { client, framing })

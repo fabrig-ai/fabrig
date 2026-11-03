@@ -68,7 +68,7 @@ mod tests {
     fn the_generated_child_uses_its_hosts_exit_grace_and_trace_suffix() {
         let source = crate::settings::Source {
             layer: crate::settings::Layer::User, path: "fixture.toml".into(),
-            text: "model='codex/gpt-6-luna'\n[accounts.codex]\nsource='env'\n[endpoints.codex]\naddress='127.0.0.1:443'\n[trace]\npath='product.jsonl'\ncapture='calls'\n".into(),
+            text: "model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='env'\n[endpoints.openai]\naddress='127.0.0.1:443'\n[trace]\npath='product.jsonl'\ncapture='calls'\n".into(),
         };
         let settings =
             crate::settings::from_sources(&crate::command::Shared::default(), "/synthetic".into(), &[source]).unwrap();

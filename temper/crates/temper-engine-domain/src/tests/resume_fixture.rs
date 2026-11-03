@@ -739,6 +739,7 @@ impl StartStore {
                     | engine::Request::Return { .. }
                     | engine::Request::SetUp { .. }
                     | engine::Request::Connect { .. }
+                    | engine::Request::Replace { .. }
                     | engine::Request::Manifest { .. }
                     | engine::Request::Reachable { .. }
                     | engine::Request::Accept { .. }

@@ -2,6 +2,7 @@ draft = "collector-starved"
 repo = "fabrig"
 sources = ["temper/docs/plan/collector-starved/inputs/request.md", "tools/tiers/design.md", "AGENTS.md"]
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

@@ -107,8 +107,11 @@ impl OneShot {
                         &call,
                         if call.tool == temper_client_tools::jig::rows::IMPORT_AT {
                             b"record file must contain 1 to 131072 bytes"
-                        } else if arguments::key_bytes(&call) == 4089 {
-                            b"key file must contain 1 to 4089 bytes after one final newline"
+                        } else if arguments::key_bytes(&call)
+                            == u32::try_from(temper_client_domain::forge::forges::PASTED_PAYLOAD)
+                                .expect("carried bundle bound")
+                        {
+                            b"key file must contain 1 to 4085 bytes after one final newline"
                         } else {
                             b"key file must contain 1 to 4096 bytes after one final newline"
                         },

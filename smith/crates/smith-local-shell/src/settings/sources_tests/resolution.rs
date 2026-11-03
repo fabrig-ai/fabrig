@@ -6,7 +6,7 @@ pub(super) fn configured(files: &Files, source_name: &str, program: bool) -> sup
     let certificate = crate::fixture::trust();
     let program = if program { "program='claude_code'" } else { "" };
     settings(&[source(Layer::User, &format!(
-        "model='codex/gpt-6-luna'\ncredentials='{}'\n[programs]\nclaude_code='/bin/true'\n[accounts.codex]\nsource='{source_name}'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n{program}\n",
+        "model='openai/gpt-6-luna'\ncredentials='{}'\n[programs]\nclaude_code='/bin/true'\n[accounts.openai]\nprovider='openai'\nsource='{source_name}'\n[endpoints.openai]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n{program}\n",
         files.path().display(), certificate.display()
     ))]).expect("settings")
 }
@@ -21,15 +21,15 @@ fn a_none_accounts_models_name_no_account_in_the_charter() {
     let resolved = resolved(&configured(&files, "none", false));
     assert!(resolved.local.models.iter().all(|model| model.account.is_none()), "no charter account");
     assert!(resolved.local.accounts.is_empty(), "no configured grant account");
-    assert_eq!(resolved.accounts[0].number, 1_474_186_484, "none retains its number");
+    assert_eq!(resolved.accounts[0].number, 2_100_401_399, "none retains its number");
 }
 
 #[test]
 fn a_key_accounts_models_name_its_number() {
     let files = Files::new("smith-credentials");
     let resolved = resolved(&configured(&files, "key", false));
-    assert!(resolved.local.models.iter().all(|model| model.account == Some(1_474_186_484)), "stable charter account");
-    assert_eq!(resolved.local.accounts.as_ref(), [1_474_186_484], "configured grant account");
+    assert!(resolved.local.models.iter().all(|model| model.account == Some(2_100_401_399)), "stable charter account");
+    assert_eq!(resolved.local.accounts.as_ref(), [2_100_401_399], "configured grant account");
 }
 
 #[test]
