@@ -350,6 +350,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Forges { .. }
             | root::Delivery::ForgeDocument { .. }
             | root::Delivery::Panel { .. }
+            | root::Delivery::Public { .. }
             | root::Delivery::WebReply { .. }
             | root::Delivery::CarriedUnused { .. }
             | root::Delivery::ForgeRead { .. }

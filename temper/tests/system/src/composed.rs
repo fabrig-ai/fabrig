@@ -903,6 +903,7 @@ impl World {
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
             | Delivery::ReadLoad { .. }
+            | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Drained
             | Delivery::Start(_)
