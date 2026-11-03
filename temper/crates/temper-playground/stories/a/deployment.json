@@ -1,0 +1,254 @@
+{
+  "application": {
+    "clients": {
+      "bundle": null,
+      "listener": {
+        "socket": "127.0.0.1:7102"
+      },
+      "public": null
+    },
+    "demo": {
+      "llm": {
+        "asked": [],
+        "cued": [],
+        "key": "/setup/llm.key",
+        "listen": {
+          "socket": "127.0.0.1:443"
+        },
+        "otherwise": [
+          "The story's scripts are in its LLM document."
+        ],
+        "provider": 1
+      }
+    },
+    "limits": {
+      "overrides": {
+        "checkout.message_bytes": 4096,
+        "checkout.name_bytes": 256,
+        "checkout.repositories": 2,
+        "forge.name_bytes": 64,
+        "forge.resources_per_task": 2,
+        "git_component.stdout_bytes": 2048,
+        "root.journal.transcript_bytes": 998048,
+        "root.loads.bytes": 998292,
+        "root.loads.read_bytes": 1996088,
+        "root.loads.reply_bytes": 998292,
+        "root.loads.transcript_bytes": 998044
+      },
+      "profile": "small"
+    },
+    "machine": {
+      "fake": {
+        "git": "/usr/bin/git",
+        "listen": {
+          "socket": "127.0.0.1:3000"
+        },
+        "remote": "http://127.0.0.1:3000"
+      }
+    },
+    "sign_in": null,
+    "webhooks": {
+      "listener": {
+        "socket": "127.0.0.1:0"
+      }
+    },
+    "workers": [
+      {
+        "git": "/usr/bin/git",
+        "root": "worker"
+      }
+    ]
+  },
+  "engine": {
+    "clients": {
+      "heartbeat_ms": 10000,
+      "link": true
+    },
+    "connectors": [
+      1
+    ],
+    "deployment": {
+      "directory": "state",
+      "seed": 7
+    },
+    "hosts": {
+      "listener": [
+        {
+          "in_process": "workers"
+        }
+      ],
+      "workers": [
+        {
+          "digest": "secrets/worker-a.digest",
+          "name": "worker-a"
+        }
+      ]
+    },
+    "limits": {
+      "overrides": {
+        "authority.executors": 8,
+        "authority.grants": 16,
+        "authority.projects": 2,
+        "brief.briefs": 1,
+        "brief.sections": 6,
+        "core.call_answer_bytes": 2048,
+        "core.load_bytes": 8192,
+        "core.load_slots": 8,
+        "core.policy_bytes": 4096,
+        "core.resume_bytes": 998048,
+        "core.run_bytes": 4096,
+        "core.templates": 2,
+        "documents.chips": 1,
+        "documents.lines": 2,
+        "documents.rows": 2,
+        "documents.text_bytes": 128,
+        "fleet.attempts": 1,
+        "fleet.calls": 1,
+        "fleet.turns": 8,
+        "hub.transcript_bytes": 3992192,
+        "hub.turn_bytes": 998044,
+        "hub.turn_queue_bytes": 7984352,
+        "notes.entries_per_scope": 2,
+        "notes.recalled": 2,
+        "notes.scopes": 32,
+        "people.amendment_bytes": 512,
+        "people.holdings": 2,
+        "people.inbox_tasks": 4,
+        "people.operations": 2,
+        "people.pending": 2,
+        "people.people": 1,
+        "people.projects": 2,
+        "people.sign_ins": 2,
+        "people.waiters": 2,
+        "people.words": 512,
+        "tasks.authority_bytes": 64,
+        "tasks.batch": 1,
+        "tasks.charter_documents": 0,
+        "tasks.charters": 4,
+        "tasks.delegates": 1,
+        "tasks.dependencies": 2,
+        "tasks.executor_kinds": 8,
+        "tasks.exemptions": 2,
+        "tasks.funders": 4,
+        "tasks.hold_bytes": 256,
+        "tasks.message_bytes": 512,
+        "tasks.project_goals": 1,
+        "tasks.project_tasks": 1,
+        "tasks.result_bytes": 32,
+        "tasks.spec_bytes": 128,
+        "tasks.tasks": 2,
+        "tasks.tree_tasks": 1,
+        "views.runs": 1,
+        "views.text_bytes": 1024,
+        "views.watchers": 16,
+        "views.watchers_per_party": 16
+      },
+      "profile": "small"
+    },
+    "llm": {
+      "endpoints": [
+        {
+          "address": {
+            "socket": "127.0.0.1:443"
+          },
+          "connect_ms": 10000,
+          "dialect": 3,
+          "handshake_ms": 10000,
+          "headers": [],
+          "name": "fake",
+          "number": 1,
+          "provider": "fake-provider",
+          "transport": "plaintext"
+        }
+      ],
+      "models": [
+        {
+          "endpoint": "fake",
+          "name": "fake",
+          "output": 512,
+          "prices": {
+            "cached": 1,
+            "input": 1,
+            "output": 1,
+            "unit": 1000000
+          },
+          "window": 1048576
+        }
+      ],
+      "providers": [
+        {
+          "models": [
+            "fake"
+          ],
+          "name": "fake-provider",
+          "number": 1,
+          "sources": {
+            "keys": true
+          }
+        }
+      ]
+    },
+    "memory_bytes": 1152921504606846976,
+    "owners": [
+      {
+        "provider": 1,
+        "subject": "owner-a"
+      }
+    ],
+    "projects": [],
+    "providers": [
+      {
+        "kind": "link",
+        "number": 1
+      },
+      {
+        "kind": "deployment",
+        "number": 2
+      }
+    ]
+  },
+  "workers": [
+    {
+      "agent": {
+        "arguments": [
+          "internal",
+          "agent",
+          "/opt/temper/agent.json"
+        ],
+        "configuration": "/opt/temper/agent.json",
+        "program": "/opt/temper/bin/temper"
+      },
+      "engine": {
+        "in_process": "workers"
+      },
+      "graces": {
+        "agent_stop_ms": 5000,
+        "delivery_ms": 1000,
+        "grace_ms": 10000,
+        "save_ms": 1000
+      },
+      "limits": {
+        "overrides": {
+          "core.call_answer_bytes": 2048,
+          "hub.accounts": 4,
+          "hub.event_bytes": 1024,
+          "hub.run_calls": 1,
+          "hub.slots": 1,
+          "hub.transcript_bytes": 3992192,
+          "hub.turn_bytes": 998044,
+          "hub.turn_queue_bytes": 7984352,
+          "people.words": 512,
+          "tasks.message_bytes": 512
+        },
+        "profile": "small"
+      },
+      "memory_bytes": 1152921504606846976,
+      "name": "worker-a",
+      "programs": {
+        "check_interval_ms": 60000
+      },
+      "secret": "worker.secret",
+      "slots": 1
+    }
+  ]
+}
