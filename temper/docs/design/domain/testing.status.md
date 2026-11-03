@@ -3,9 +3,7 @@
 2026-11-03. Where temper's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
-  run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4, 2.5,
-  7: the twins' documents and the one-process world's composition in
-  `temper-playground`, which does not exist; `tests/playground`. 2.6:
+  run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4, 7: the twins' documents in `temper-playground`; `tests/playground`. 2.6:
   `a_default_box_with_a_sign_in_registration_starts_without_dns` is ignored:
   a start without DNS fails while the sign-in's endpoints resolve at start.
   2.6, 5.3: the cluster's 4.6 process story is ignored: a retry placed on a

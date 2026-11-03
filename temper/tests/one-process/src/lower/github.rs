@@ -2,10 +2,9 @@
 use crate::{
     ctl::{Caller, Command},
     fixtures,
-    machine::{Machine, SignalHost},
     referee::{self, Store},
     stories,
-    world::{self, Proc, Story},
+    world::{self, HarnessProcess, OneProcess, Proc, Story},
 };
 use serde_json::{Value, json};
 use skein_fake_forge_domain::{self as domain, api};
@@ -19,6 +18,10 @@ use std::{
     rc::Rc,
 };
 use temper_github_app::APP;
+use temper_playground::{
+    machine::{Machine, SignalHost},
+    programs,
+};
 const ACME: u64 = 10;
 const UMBRA: u64 = 20;
 const REPOSITORY: u32 = 2;
@@ -288,7 +291,7 @@ impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
         let (first, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Calls(caller) = &mut other[0] else { panic!("caller second") };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { panic!("caller second") };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -305,7 +308,7 @@ impl skein_world::Referee<Proc> for Judge {
             "authenticated git calls: {git:?}"
         );
         let installed = peer.github_layer().expect("GitHub").installations();
-        let Proc::Calls(caller) = &other[0] else { unreachable!() };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { unreachable!() };
         for index in self.answers..caller.answers.len() {
             let answer = &caller.answers[index];
             let refused = index == 3 || index == 8;
@@ -360,7 +363,7 @@ impl skein_world::Referee<Proc> for Judge {
                     assert!(git.iter().any(|request| request.writes));
                 }
             }
-            let Proc::Calls(caller) = &mut other[0] else { unreachable!() };
+            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
             caller.closed = true;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             for proc in other {
@@ -435,7 +438,8 @@ pub fn run(scenario: Scenario) {
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
     let (forge, peer) = peer();
-    let mut disk = crate::machine::fresh();
+    let transport = stories::forge(Story::Adopt);
+    let mut disk = temper_playground::machine::fresh();
     let pem = layer::keys::pem(layer::keys::KEYS[APP.key]).expect("fake App PEM");
     let setup = disk.lay(&[
         skein_fake_machine::Item::file(b"app.pem", &pem).mode(0o600),
@@ -443,53 +447,75 @@ pub fn run(scenario: Scenario) {
     ]);
     disk.close(setup);
     let client = disk.reopen_root(2);
-    let mut world = skein_world::World::new_controlled(
-        fixtures::SEED,
-        skein_sim::Config::calm(),
-        skein_world::Memory::Unchecked,
-        |controls| Judge {
-            controls,
-            scenario,
-            store,
-            forge,
-            answers: 0,
-            calls: 0,
-            stopping: false,
-            handed: false,
-            changed: Vec::new(),
-            read: false,
-            moves: 0,
-        },
-    )
-    .with_machine(Machine(disk));
-    world::host_programs(&mut world);
-    world.spawn_restartable(world::service_roots(), world::service);
-    world.spawn_root(skein_sim::Handle::new(client.raw()), |root| Proc::Calls(Box::new(Caller::scripted(root))));
-    world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer, None))));
-    world.spawn(|| {
-        Proc::Peer(Box::new(SignalHost::new(
-            if matches!(scenario, Scenario::ReadOnly) {
-                fixtures::read_then_wait_provider()
-            } else {
-                stories::provider(Story::Adopt)
+    let machine = Machine::new(disk);
+    let parameters = world::parameters(&machine, transport.clone());
+    let outcome = programs::with(parameters, || {
+        let mut world = skein_world::World::new_controlled(
+            fixtures::SEED,
+            skein_sim::Config::calm(),
+            skein_world::Memory::Unchecked,
+            |controls| Judge {
+                controls,
+                scenario,
+                store,
+                forge,
+                answers: 0,
+                calls: 0,
+                stopping: false,
+                handed: false,
+                changed: Vec::new(),
+                read: false,
+                moves: 0,
             },
-            None,
-        )))
+        )
+        .with_machine(machine);
+        for (program, roots) in programs::programs::<OneProcess>() {
+            world.host_roots(program, roots);
+        }
+        let limits = temper_client_shell_cli::limits::native();
+        world.host_roots(
+            skein_world::HostedProgram {
+                program: crate::ctl::PROGRAM.into(),
+                make: |spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited)))),
+                instances: 1,
+                operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
+            },
+            crate::ctl::roots,
+        );
+        world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
+        world.spawn_root(skein_sim::Handle::new(client.raw()), |root| {
+            Proc::Other(HarnessProcess::Calls(Box::new(Caller::scripted(root))))
+        });
+        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer, None))));
+        world.spawn(|| {
+            Proc::Peer(Box::new(SignalHost::new(
+                if matches!(scenario, Scenario::ReadOnly) {
+                    fixtures::read_then_wait_provider()
+                } else {
+                    stories::provider(Story::Adopt)
+                },
+                None,
+            )))
+        });
+        world.run()
     });
-    let mut outcome = world.run();
     assert!(outcome.procs.iter().all(Host::is_empty), "GitHub processes drain");
     if matches!(scenario, Scenario::Uninstalled) {
-        let worker = outcome.machine.0.reopen_root(1);
+        let worker = outcome.machine.0.borrow_mut().reopen_root(1);
         for directory in [b"workspaces".as_slice(), b"trash", b"home"] {
-            let dir =
-                outcome.machine.0.open(worker, directory, skein_fake_machine::How::Directory).expect("worker scaffold");
+            let dir = outcome
+                .machine
+                .0
+                .borrow_mut()
+                .open(worker, directory, skein_fake_machine::How::Directory)
+                .expect("worker scaffold");
             assert!(
-                outcome.machine.0.list(dir, 16, 4096).expect("worker entries").is_empty(),
+                outcome.machine.0.borrow_mut().list(dir, 16, 4096).expect("worker entries").is_empty(),
                 "refusal leaves no checkout files"
             );
-            outcome.machine.0.close(dir);
+            outcome.machine.0.borrow_mut().close(dir);
         }
-        outcome.machine.0.close(worker);
+        outcome.machine.0.borrow_mut().close(worker);
     }
     world::lower_store(None);
     ACTIVE.with(|active| active.set(false));
