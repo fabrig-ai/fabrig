@@ -386,6 +386,7 @@ fn a_later_batch_runs_within_what_is_left_of_the_history_then_compacts() {
             text: vec![b'r'; 16_384].into_boxed_slice(),
             error: false,
             spent: 0,
+            after: session::After::Complete,
         });
     }
     assert!(is_summary(&world));
