@@ -79,11 +79,20 @@ struct AgentStart {
     agent: service::Agent,
     sources: Option<SourceSettings>,
 }
-#[derive(Debug)]
 struct SourceSettings {
     directory: Box<[u8]>,
     executable: Box<[u8]>,
     environment: Box<[Box<[u8]>]>,
+}
+// Command entries may contain credentials; Debug shows their count (jig/docs/design/domain/hosts.md, 5.1).
+impl core::fmt::Debug for SourceSettings {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SourceSettings")
+            .field("directory", &self.directory)
+            .field("executable", &self.executable)
+            .field("environment_entries", &self.environment.len())
+            .finish()
+    }
 }
 fn agent(configuration: &Path) -> Result<AgentStart, String> {
     let configuration = smith_agent_shell::config::read(configuration)?;

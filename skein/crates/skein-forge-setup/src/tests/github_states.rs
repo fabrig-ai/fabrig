@@ -300,7 +300,8 @@ fn a_manifest_uses_the_normal_write_slot_and_admission_precedes_issuance() {
     assert!(run.writes);
     assert_eq!(run.pending, Some(reconcile::Need::Draw(3)));
     let first = run.issued_state.clone().expect("issued state").1;
-    let mut expected_rng = w.host.crypto.clone();
+    let mut expected_rng = fixtures::crypto();
+    expected_rng.fill(&mut [0_u8; 16]);
     run.pending = None; // Pause the first run between admission and its name draw.
     let previous = w.host.runs.insert(Token::new(2), run).expect("one live write");
     assert!(previous.is_none());

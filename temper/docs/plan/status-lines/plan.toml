@@ -7,6 +7,7 @@ sources = ["temper/docs/plan/status-lines/inputs/request.md", "DESIGN.md", "AGEN
 # file, the second owning STATUS.md), none needing another, all released at once. plan.md says
 # what was checked and dropped, and the overlaps with other drafts.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

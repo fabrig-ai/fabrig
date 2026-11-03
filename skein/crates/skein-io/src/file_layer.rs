@@ -27,6 +27,15 @@ mod opens;
 mod private;
 mod store;
 
+// io.md, 5: a file's contents print as their length, never their bytes.
+struct Contents(Vec<u8>);
+
+impl core::fmt::Debug for Contents {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Contents").field("len", &self.0.len()).finish()
+    }
+}
+
 #[derive(Debug)]
 enum Pending {
     Lock {
@@ -60,7 +69,7 @@ enum Pending {
         fd: Fd,
         offset: u64,
         max: u32,
-        bytes: Vec<u8>,
+        bytes: Contents,
     },
     Cut {
         owner: Token,
@@ -112,11 +121,11 @@ enum Pending {
         owner: Token,
         fd: Fd,
         max: u32,
-        bytes: Vec<u8>,
+        bytes: Contents,
     },
     LoadClosing {
         owner: Token,
-        bytes: Vec<u8>,
+        bytes: Contents,
     },
     LoadTooLargeClosing {
         owner: Token,
@@ -516,7 +525,7 @@ fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs
                 events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
                 return;
             };
-            io.pending = Some(Pending::Read { owner, fd, offset, max, bytes: Vec::new() });
+            io.pending = Some(Pending::Read { owner, fd, offset, max, bytes: Contents(Vec::new()) });
             io.issue(op, subs);
         }
         Request::Sync { owner, file } => {
@@ -588,8 +597,8 @@ fn create(
     io.issue(Op::Open { root, path: name, how }, subs);
 }
 
-fn read_whole(io: &mut FileIo, owner: Token, fd: Fd, max: u32, bytes: Vec<u8>, subs: &mut Queue<Submit>) {
-    let used = u32::try_from(bytes.len()).expect("whole load stays within its u32 bound");
+fn read_whole(io: &mut FileIo, owner: Token, fd: Fd, max: u32, bytes: Contents, subs: &mut Queue<Submit>) {
+    let used = u32::try_from(bytes.0.len()).expect("whole load stays within its u32 bound");
     let left = max.checked_sub(used).expect("whole load stays within its bound");
     let asked = io.max_read.min(left.saturating_add(1));
     let buffer = vec![0_u8; usize::try_from(asked).expect("u32 fits usize")].into_boxed_slice();
@@ -718,7 +727,7 @@ fn cancelled(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, sub
         | Pending::ScanOpening { .. }
         | Pending::ScanListing { .. } => true,
         Pending::Write { .. } => !write_finished(&complete),
-        Pending::Read { max, bytes, .. } => !read_finished(&complete, *max, bytes.len()),
+        Pending::Read { max, bytes, .. } => !read_finished(&complete, *max, bytes.0.len()),
         Pending::Create { .. }
         | Pending::OpenDirectory { .. }
         | Pending::Stating { .. }
@@ -1118,14 +1127,14 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
             } else {
                 let capacity =
                     usize::try_from(max).expect("u32 fits usize").checked_add(1).expect("one more byte fits");
-                read_whole(io, owner, fd, max, Vec::with_capacity(capacity), subs);
+                read_whole(io, owner, fd, max, Contents(Vec::with_capacity(capacity)), subs);
             }
         }
         (Pending::LoadReading { owner, fd, max, mut bytes }, Op::Read { buf, .. }, Done::Count(count)) => {
             let n = usize::try_from(count).expect("u32 fits usize");
-            bytes.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
-            if bytes.len() > usize::try_from(max).expect("u32 fits usize") {
-                let size = skein_lib::len_u64(bytes.len());
+            bytes.0.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
+            if bytes.0.len() > usize::try_from(max).expect("u32 fits usize") {
+                let size = skein_lib::len_u64(bytes.0.len());
                 io.pending = Some(Pending::LoadTooLargeClosing { owner, size });
                 io.issue(Op::Close { fd }, subs);
             } else if count == 0 {
@@ -1136,7 +1145,7 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
             }
         }
         (Pending::LoadClosing { owner, bytes }, Op::Close { .. }, Done::Nothing) => {
-            events.push(Event::Loaded { owner, bytes: bytes.into_boxed_slice() });
+            events.push(Event::Loaded { owner, bytes: bytes.0.into_boxed_slice() });
         }
         (Pending::LoadTooLargeClosing { owner, size }, Op::Close { .. }, Done::Nothing) => {
             events.push(Event::TooLarge { owner, size });
@@ -1207,13 +1216,13 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
         }
         (Pending::Read { owner, fd, offset, max, mut bytes }, Op::Read { buf, .. }, Done::Count(count)) => {
             let n = usize::try_from(count).expect("u32 fits usize");
-            bytes.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
-            let done = count == 0 || u32::try_from(bytes.len()).expect("read no more than max") == max;
+            bytes.0.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
+            let done = count == 0 || u32::try_from(bytes.0.len()).expect("read no more than max") == max;
             if done {
-                events.push(Event::Read { owner, bytes: bytes.into_boxed_slice() });
+                events.push(Event::Read { owner, bytes: bytes.0.into_boxed_slice() });
             } else {
-                let at = offset.checked_add(skein_lib::len_u64(bytes.len())).expect("offset fits");
-                let left = max.checked_sub(u32::try_from(bytes.len()).expect("length fits u32")).expect("within max");
+                let at = offset.checked_add(skein_lib::len_u64(bytes.0.len())).expect("offset fits");
+                let left = max.checked_sub(u32::try_from(bytes.0.len()).expect("length fits u32")).expect("within max");
                 io.pending = Some(Pending::Read { owner, fd, offset, max, bytes });
                 let buffer = vec![0_u8; usize::try_from(left).expect("u32 fits usize")].into_boxed_slice();
                 let Ok(op) = Op::read(fd, buffer, at) else {

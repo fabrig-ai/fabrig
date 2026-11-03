@@ -8,13 +8,46 @@ use skein_lib::{
     base64::{self, Alphabet},
     bytes,
 };
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct Call {
     pub method: Method,
     pub path: Box<[u8]>,
     pub headers: List<Header>,
     pub body: Box<[u8]>,
 }
+
+// Header values and bodies hide secret bytes (skein/docs/design/oauth.md, 4).
+impl core::fmt::Debug for Call {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Call")
+            .field("method", &self.method)
+            .field("path", &self.path)
+            .field("headers", &Headers(self.headers.as_slice()))
+            .field("body_len", &self.body.len())
+            .finish()
+    }
+}
+
+struct Headers<'a>(&'a [Header]);
+
+impl core::fmt::Debug for Headers<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut list = f.debug_list();
+        for header in self.0 {
+            list.entry(&HeaderLength(header));
+        }
+        list.finish()
+    }
+}
+
+struct HeaderLength<'a>(&'a Header);
+
+impl core::fmt::Debug for HeaderLength<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Header").field("name", &self.0.name).field("value_len", &self.0.value.len()).finish()
+    }
+}
+
 #[must_use]
 pub fn exchange(mapping: &Mapping, credential: Option<&Secret>, message: Message) -> Call {
     let (route, body): (&[u8], Box<[u8]>) = match message {

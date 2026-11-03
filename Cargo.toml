@@ -242,6 +242,7 @@ members = [
     "temper/crates/temper-box",
     "temper/tools/gallery",
     "temper/tools/journeys",
+    "temper/tools/stage-one",
     "temper/tools/fake-claude",
     "temper/tests/one-process",
     "temper/crates/temper-fake-git",
