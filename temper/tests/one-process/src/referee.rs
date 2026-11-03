@@ -63,6 +63,13 @@ pub(crate) struct Referee {
     story: crate::world::Story,
 }
 impl Referee {
+    fn story_deadline(&self) -> Time {
+        Time::from_nanos(if matches!(self.story, crate::world::Story::PlaygroundA) {
+            30_000_000_000
+        } else {
+            10_000_000_000
+        })
+    }
     pub(crate) fn new(
         controls: skein_world::Controls,
         store: Rc<RefCell<Store>>,
@@ -258,7 +265,7 @@ impl Referee {
                     let forge = self.forge.borrow();
                     forge.complete() && forge::Forge::hooks_complete(other, crate::stories::ADOPT_HOOKS)
                 }
-                crate::world::Story::Merge => self.forge.borrow().complete(),
+                crate::world::Story::Merge | crate::world::Story::PlaygroundA => self.forge.borrow().complete(),
                 crate::world::Story::HeldChange => crate::stories::change_held(&self.store.borrow().rows),
             },
         }
@@ -457,10 +464,10 @@ impl skein_world::Referee<Proc> for Referee {
         if matches!(self.story, crate::world::Story::HeldChange) && matches!(self.phase, crate::world::Phase::SignIn) {
             return None;
         }
-        self.done.is_none().then_some(Time::from_nanos(10_000_000_000))
+        self.done.is_none().then_some(self.story_deadline())
     }
     fn overdue(&self, now: Time) -> Option<String> {
-        (self.done.is_none() && now >= Time::from_nanos(10_000_000_000)).then(|| {
+        (self.done.is_none() && now >= self.story_deadline()).then(|| {
             format!(
                 "story not complete: link {}, signed in {}, terminals {}, tasks {:?}, agents {:?}, forge {:?}",
                 self.handed,
