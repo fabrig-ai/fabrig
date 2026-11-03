@@ -23,6 +23,11 @@ pub(crate) struct Wait {
     name: &'static [u8],
 }
 #[derive(Debug)]
+enum Completion {
+    Delivery(Digest),
+    Watch,
+}
+#[derive(Debug)]
 enum Stage {
     Watching,
     Finishing { read: Handle },
@@ -198,7 +203,7 @@ fn changed(runner: &mut Runner, client: &Client, env: &Env<Limits>, number: u32,
         if wait.until == Some(Condition::Ended) && wait.name == b"task" {
             finishing(runner, number, out);
         } else {
-            complete(runner, client, env, number, Ok(Some(digest)), out);
+            complete(runner, client, env, number, Ok(Completion::Delivery(digest)), out);
         }
     } else if wait.first.is_none() {
         wait.first = Some(digest);
@@ -209,7 +214,7 @@ fn complete(
     client: &Client,
     env: &Env<Limits>,
     number: u32,
-    result: Result<Option<Digest>, &[u8]>,
+    result: Result<Completion, &[u8]>,
     out: &mut Queue<Out>,
 ) {
     let Some(wait) = runner.waits.remove(&number) else { return };
@@ -223,23 +228,13 @@ fn complete(
         Some(Latest::Jig(delivery)) => Some(delivery),
         _ => None,
     };
-    let (met, why, digest) = match result {
-        Ok(digest) => (true, b"".as_slice(), digest),
-        Err(why) => (false, why, None),
+    let (met, why, digest, watch_ended) = match result {
+        Ok(Completion::Delivery(digest)) => (true, b"".as_slice(), Some(digest), false),
+        Ok(Completion::Watch) => (true, b"".as_slice(), None, true),
+        Err(why) => (false, why, None, false),
     };
     let printed = if wait.name == b"accounts" {
-        let mut value = accounts(&wait, client);
-        value.outcome = Some((met, why));
-        let mut printed = render::document::print(
-            render::document::Document::Accounts(value),
-            wait.called.json,
-            &env.limits,
-            runner.parts.expect("host vocabulary"),
-        );
-        if printed.status == 0 && !met {
-            printed.status = 3;
-        }
-        printed
+        completed_accounts(&wait, client, env, runner, (met, why))
     } else {
         render::waiting(
             render::document::waiting::Waiting {
@@ -248,6 +243,7 @@ fn complete(
                 me: live_me(client, runner.me()),
                 name: wait.name,
                 met,
+                watch_ended,
                 why,
                 digest,
             },
@@ -266,6 +262,26 @@ fn complete(
     } else {
         runner::finish(wait.called, printed, out);
     }
+}
+fn completed_accounts(
+    wait: &Wait,
+    client: &Client,
+    env: &Env<Limits>,
+    runner: &Runner,
+    outcome: (bool, &[u8]),
+) -> crate::jig::Printed {
+    let mut value = accounts(wait, client);
+    value.outcome = Some(outcome);
+    let mut printed = render::document::print(
+        render::document::Document::Accounts(value),
+        wait.called.json,
+        &env.limits,
+        runner.parts.expect("host vocabulary"),
+    );
+    if printed.status == 0 && !outcome.0 {
+        printed.status = 3;
+    }
+    printed
 }
 pub(crate) fn fire(runner: &mut Runner, client: &Client, env: &Env<Limits>, out: &mut Queue<Out>) {
     let count = match &runner.wait_timers {
@@ -334,8 +350,8 @@ fn ended(
             finishing(runner, number, out);
         } else if why == Why::SubjectEnded && (wait.until != Some(Condition::Ended) || has_document) {
             if wait.until == Some(Condition::Ended) {
-                // The renderer digests the last document, including current run text.
-                complete(runner, client, env, number, Ok(None), out);
+                // Completion evidence is separate from the last delivered snapshot.
+                complete(runner, client, env, number, Ok(Completion::Watch), out);
             } else {
                 complete(runner, client, env, number, Err(b"ended"), out);
             }
@@ -376,25 +392,7 @@ fn page(
     let printed = match page {
         Readout::Jig(c::ReadResult::Value(value)) if final_task(expected, value).is_some() => {
             let (task, result) = final_task(expected, value).expect("matching terminal task read");
-            let latest = Latest::Jig(c::Delivery::Task(Box::new(task.clone())));
-            let me = live_me(client, runner.me());
-            let met = conditions::holds(&wait.until.expect("finishing condition"), &Facts { subject: &latest, me })
-                == Some(true);
-            let Latest::Jig(delivery) = latest else { unreachable!("jig task read") };
-            render::waiting(
-                render::document::waiting::Waiting {
-                    result,
-                    delivery: Some(&delivery),
-                    me,
-                    name: wait.name,
-                    met,
-                    why: if met { b"" } else { b"ended" },
-                    digest: None,
-                },
-                wait.called.json,
-                &env.limits,
-                runner.parts.expect("host vocabulary"),
-            )
+            completed_task(&wait, task, result, client, env, runner)
         }
         Readout::Jig(c::ReadResult::Value(_)) => {
             render::failure(b"tools' bug; unexpected final task; report it as a finding", wait.called.json, 1)
@@ -412,6 +410,36 @@ fn page(
     };
     runner::finish(wait.called, printed, out);
     true
+}
+
+fn completed_task(
+    wait: &Wait,
+    task: &c::Task,
+    result: Option<&c::Result>,
+    client: &Client,
+    env: &Env<Limits>,
+    runner: &Runner,
+) -> crate::jig::Printed {
+    let latest = Latest::Jig(c::Delivery::Task(Box::new(task.clone())));
+    let me = live_me(client, runner.me());
+    let met =
+        conditions::holds(&wait.until.expect("finishing condition"), &Facts { subject: &latest, me }) == Some(true);
+    let Latest::Jig(delivery) = latest else { unreachable!("jig task read") };
+    render::waiting(
+        render::document::waiting::Waiting {
+            result,
+            delivery: Some(&delivery),
+            me,
+            name: wait.name,
+            met,
+            watch_ended: false,
+            why: if met { b"" } else { b"ended" },
+            digest: None,
+        },
+        wait.called.json,
+        &env.limits,
+        runner.parts.expect("host vocabulary"),
+    )
 }
 
 // A closed watch alone proves neither the requested identity nor completion.

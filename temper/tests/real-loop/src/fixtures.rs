@@ -395,6 +395,7 @@ pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
     };
     let stock = crate::settings::stock(&value);
     let mut charter = stock["charter"].clone();
+    charter["modify"] = true.into();
     charter["waiting"] = 1_000_000.into();
     let mut template = stock["template"].clone();
     template["grace"] = 1_000_000.into();
@@ -480,6 +481,8 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     let engine = crate::settings::configuration(&values);
     let mut defaults = temper_service::stock::defaults(&engine.llm);
     let stock_period_spend = defaults.rules.period_spend;
+    // Charter 1 also produces finite changes in this world; the Smith boundary keeps Open chats inspecting.
+    defaults.charters[0].policy.modify = true;
     defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(1);
     defaults.templates[0].grace = Some(skein_lib::Duration::from_millis(1));
     // A 32-unit stock run and the stories' 20-unit delegate need at least 52.

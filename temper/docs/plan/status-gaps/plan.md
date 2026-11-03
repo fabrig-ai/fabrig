@@ -94,9 +94,12 @@ options and prefer what can be undone):
   and Open `Other(EINTR)` as the ring does. Its own plan, `readiness-eintr`.
 - `forgejo-connect`: (a), temper's designer settles the five open points first (the suggested
   settlement as a start), then a later cut builds it. Its own plan, `forgejo-connect`.
-- `withdrawn-forms`: deferred, option (c), not the recommended (a). (a) deletes skein-llm's Codex
-  recordings, which cannot be captured again, moves smith's channel to v6 and ends stored
-  dialect-1 charters and transcripts: hard to undo, so the user's when awake. Nothing waits on it.
+- `withdrawn-forms`: (a), removed as the designs say, in five ordered tasks (temper's configs
+  and literals; jig's fixtures and its refusal of any dialect but 2 and 3; smith's product, after
+  sign-in-wait lands; smith's agent, protocol and channel at v6; skein's routes), smith's
+  shell.status.md first recording the product's presets as a gap. The director's decision
+  (central log, 11-03): undone by revert until it lands; the Codex recordings stay in history.
+  Its own plan, `withdrawn-forms`.
 
 A direct plan's part left undesigned by a question never gets a design call once answered, so
 the answered items start afresh as their own plans rather than here.
