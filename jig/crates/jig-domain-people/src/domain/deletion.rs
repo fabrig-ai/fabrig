@@ -94,6 +94,7 @@ pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
 
 pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
     match outcome {
+        Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         Outcome::ProjectMade { project } => Some(*project),
         Outcome::Again(_)
         | Outcome::SignedOut
@@ -149,6 +150,7 @@ pub(super) fn act_project(act: &Act) -> Option<u32> {
 
 pub(super) fn ask_project(ask: &Ask) -> Option<u32> {
     match ask {
+        Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         Ask::Application { scope, .. } => match scope {
             crate::ApplicationScope::Project(project) => Some(*project),
             crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => None,

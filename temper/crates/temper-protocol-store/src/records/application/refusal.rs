@@ -364,6 +364,7 @@ pub(super) fn decode_limit_kind(value: w::LimitKind) -> p::LimitKind {
 )]
 pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-store"),
         // Only ChangeSettings emits Stale; forge applications never carry that ask.
         p::Refusal::Stale { .. }
         // Only settings admission emits Full; a forge application carries no settings value.

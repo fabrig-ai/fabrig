@@ -213,6 +213,7 @@ pub(super) fn load(domain: &mut Domain, key: ActKey, act: Act, outcome: Outcome,
 
 fn permanent(outcome: &Outcome) -> bool {
     match outcome {
+        Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         Outcome::Again(_) | Outcome::SignedOut => false,
         Outcome::Compound { .. }
         | Outcome::CompoundRefused { .. }

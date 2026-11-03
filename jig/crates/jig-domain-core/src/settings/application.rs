@@ -65,6 +65,38 @@ pub struct Recorded {
     pub number: u32,
     pub edit: SizedEdit,
 }
+/// The state and size an application item replaced (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Replaced {
+    Changed { size: u32 },
+    Default,
+    Removed,
+    NotOffered,
+}
+/// A revision's application item (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RevisionRecorded {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub edit: SizedEdit,
+    pub replaced: Replaced,
+}
+/// An application item a restore proposes (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Restored {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub edit: RestoredEdit,
+}
+/// Where a restore takes an application's value (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RestoredEdit {
+    Set { revision: u64 },
+    Remove,
+    Reset,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SizedEdit {
     Set { size: u32 },
@@ -458,7 +490,7 @@ pub(crate) fn keep(
     kept: Box<[Kept]>,
     revision: u32,
     proposal: Option<u64>,
-) -> Box<[Recorded]> {
+) -> Box<[RevisionRecorded]> {
     let bound = u32::try_from(kept.len()).expect("bounded accepted items");
     let mut records = List::with_capacity(bound);
     let proposed: &[Recorded] = match core.current.head.proposal {
@@ -503,8 +535,20 @@ pub(crate) fn keep(
             Edit::Remove => SizedEdit::Remove,
             Edit::Reset => SizedEdit::Reset,
         };
+        let replaced = match core.current.applications.get(&setting) {
+            Some(State { follows: Follows::Default, .. }) => Replaced::Default,
+            Some(State { follows: Follows::Changed { .. }, size, .. }) => Replaced::Changed { size: *size },
+            Some(State { follows: Follows::Removed { .. }, .. }) => Replaced::Removed,
+            None => Replaced::NotOffered,
+        };
         records
-            .push(Recorded { kind: accepted.item.kind, scope: accepted.item.scope, number: accepted.item.number, edit })
+            .push(RevisionRecorded {
+                kind: accepted.item.kind,
+                scope: accepted.item.scope,
+                number: accepted.item.number,
+                edit,
+                replaced,
+            })
             .expect("sized edits");
         drop(
             core.current
@@ -941,7 +985,7 @@ pub(crate) fn defaults_changed(core: &Core) -> bool {
         Starting::Saved => false,
     }
 }
-pub(crate) fn save_start(core: &mut Core, revision: Option<u32>, out: &mut Queue<Request>) -> Box<[Recorded]> {
+pub(crate) fn save_start(core: &mut Core, revision: Option<u32>, out: &mut Queue<Request>) -> Box<[RevisionRecorded]> {
     match core::mem::replace(&mut core.settings_restore.applications, Starting::Saved) {
         Starting::Prepared { connectors, edits, writes } => {
             for write in writes {
@@ -958,7 +1002,19 @@ pub(crate) fn save_start(core: &mut Core, revision: Option<u32>, out: &mut Queue
                     }),
                 });
             }
-            edits
+            let mut records = List::with_capacity(u32::try_from(edits.len()).expect("bounded release items"));
+            for item in edits {
+                records
+                    .push(RevisionRecorded {
+                        kind: item.kind,
+                        scope: item.scope,
+                        number: item.number,
+                        edit: item.edit,
+                        replaced: Replaced::Default,
+                    })
+                    .expect("release application items");
+            }
+            records.into_boxed()
         }
         Starting::Saved => Box::default(),
         Starting::Waiting { .. } => unreachable!("defaults prepared before saving"),

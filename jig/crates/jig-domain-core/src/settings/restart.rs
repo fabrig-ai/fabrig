@@ -406,6 +406,7 @@ impl Core {
         true
     }
 
+    #[expect(clippy::too_many_lines, reason = "the startup decision records each release item and its replaced state")]
     pub(crate) fn write_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Queue<Request> {
         let mut out = Queue::uncapped();
         if !self.prepare_application_release(&mut out) {
@@ -479,7 +480,17 @@ impl Core {
         let saved_revision = if release { Some(newest) } else { None };
         let applications = super::application::save_start(self, saved_revision, &mut out);
         let revision = if release {
-            Some(Revision { head: self.current.head.clone(), items: items.into_boxed(), applications })
+            let mut recorded = List::with_capacity(items.len());
+            for item in items.into_boxed() {
+                recorded
+                    .push(super::RevisionItem {
+                        setting: item.setting,
+                        edit: item.edit,
+                        replaced: super::Replaced::Default,
+                    })
+                    .expect("release revision items");
+            }
+            Some(Revision { head: self.current.head.clone(), items: recorded.into_boxed(), applications })
         } else {
             None
         };
