@@ -1991,7 +1991,6 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             playground: true,
             org: b"kept-org".as_slice().into(),
             repository: b"kept-repository".as_slice().into(),
-            project: domain::SetUpProject::Existing(1),
             label: b"kept-label".as_slice().into(),
         });
         for _restart in 0_u32..2 {

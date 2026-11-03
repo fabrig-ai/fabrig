@@ -19,12 +19,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   `temper/tier/NAME.N`, made at the commit it runs, and deletes the
   branch when the run ends.
 - **A tier of goal branches,** `"branch": "goal"`, checks each goal's
-  own branch along the way: at most one run per its span on each
-  branch, one at a time across them, at the branch's newest tip. It
-  judges no landing. Its red runs the failed tests once more, alone,
-  and what fails again is news to the goal holding the branch, each
-  test marked new or still failing; it wakes the goal when a test is
-  new. A green run says nothing.
+  branch at its newest tip: at most one run per span per branch, one
+  at a time across branches. It judges no landing. On red, it reruns
+  failed tests alone. Failures that repeat go to the goal holding the
+  branch, marked new or still failing; new failures wake it. Green
+  says nothing.
 - **The baseline:** A newly configured tier first runs at its followed
   branch's current tip as a baseline, without any landing. Baseline
   failures are blamed on no landing and inherited by the next run.
@@ -147,13 +146,14 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   directories. This updates a prepared runner's configuration, keeping
   its registration and secrets.
 - **ctl:** `change show TASK --until cleared` waits for a landed
-  change's verdict, its step `verifying`, `red` or `cleared` naming the
-  tiers and their runs; `task show` reads a tier's run task, and `task
-  release` releases a held one. In `task show TASK`, `asked:` names the
-  repository, full tested commit, owned branch and, once observed, forge
-  run number and URL, each for the judged run, failed-test reruns and
-  bisection probes. These words remain after completion, branch deletion
-  and restart.
+  change's verdict; `verifying`, `red` or `cleared` names tiers and runs.
+  `task release` releases a held run. In `task show TASK`, `asked:` names
+  the repository, full tested commit, owned branch and, once observed,
+  forge run number and URL for each judged run, failed-test rerun and
+  bisection probe. These remain after completion, branch deletion and
+  restart. ctl reads beyond the overview within its output bounds;
+  when exceeded, it prints `task text TASK --field specification --from
+  OFFSET` to continue.
 
 ## Limits
 

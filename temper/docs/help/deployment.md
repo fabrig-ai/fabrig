@@ -44,7 +44,8 @@ members:
 
 - `engine`: its limits; the LLM providers and their models; the
   workers it admits and its listener; the owners; the ways to sign in;
-  the first project, naming its policy (`"policy": 1`);
+  the projects its first start seeds, none in `temper init`'s, each
+  naming its policy (`"policy": 1`);
 - `workers`: each worker's engine address, name, secret file, slots
   and agent program;
 - `application`: the machine's places for a Forgejo temper runs, the
