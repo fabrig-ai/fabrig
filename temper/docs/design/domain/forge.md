@@ -1343,7 +1343,9 @@ delegate's terminal wakes it to offer the landed result.
   is never held just for waiting, yet tells the person of a check that
   never reports within the same sitting. A wait for access is not one:
   while its forge is not connected, or its repository not reachable
-  (4.1, 4.3), the stall does not count.
+  (4.1, 4.3), the stall does not count. Nor is a wait for its agent
+  while a question of that agent's is open (8.11): the stall counts
+  again from the step that relays its last answer down.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it, its stall is counted from it, and the change
   decides afresh. A producer that fails for good holds the change at
@@ -1612,8 +1614,9 @@ section 9): the foreman and the requester decide, and the change relays
   its options and its recommendation, after pushing what it has. An
   agent that asked is kept by its own question (jig's
   `domain/tasks.md`, 5.7): its run parks, no try spent, until the
-  change answers. Its reviews and its
-  foremen are delegated without the Message family, as under `none`.
+  change answers, and the change's wait for it is no stall (8.4). Its
+  reviews and its foremen are delegated without the Message family, as
+  under `none`.
 - **Taken at its step.** Each step takes the questions its own agents
   asked (its producing task, and the repair or the resolution it has
   live), oldest first, as its open questions, kept on its record, and
@@ -1635,7 +1638,8 @@ section 9): the foreman and the requester decide, and the change relays
   forge's foreman charter (kind 3's number 3:
   `../protocol/configuration.md`, 13.2), made under the change's own
   authority as its other delegates are (8.4), each one of the change's
-  tasks. Its brief
+  tasks; a foreman that authority no longer covers is not made, and the
+  question is passed up, its reasons saying what the authority lacks. Its brief
   carries the change's words whole, the question's words whole with its
   asker and number, and the change's branch and pushed head, where it
   has one; its workspace is a checkout of the landing branch's tip,

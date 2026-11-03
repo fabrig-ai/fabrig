@@ -226,3 +226,10 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, roo
   record, and that they are read from the question positions, no longer holds; the
   question positions stay the history (`domain/forge.md`, 8.11, "Its history"). Task
   `relay-surface` builds C2 as first written; `relay-up` adds the field and its fallout.
+- **C5, an option (task `relay-foreman`).** If the worker makes no workspace for a delegate
+  without parameter 3, the foreman's spec carries parameter 3, the change's branch, as a
+  review's does, its charter keeping it read-only; the report says so.
+- **C2 and C7, a reader (task `relay-stall`).** The pure step's `Facts.asking` is true while
+  `row.questions.open` holds a question whose asker is the task of `row.delegate`; a phase
+  waiting on that delegate then waits with no deadline and no stall (`domain/forge.md`,
+  8.4).

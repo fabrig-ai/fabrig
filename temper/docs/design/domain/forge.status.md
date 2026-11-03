@@ -49,6 +49,9 @@
     (`temper-engine-domain/src/route/forge_route.rs`, `change_replies`);
     no relay, foreman, bound, held answer or open questions on its
     record and panel.
+  - 8.4, 8.11: a change waiting on an agent whose question is open
+    stalls as any wait on its delegate does (`temper-engine-domain-forge-change/src/domain.rs`,
+    `waiting`).
   - 9: a branch a tier follows still pauses its queue on its own CI's
     red and makes a repair, where its tiers judge it instead
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
