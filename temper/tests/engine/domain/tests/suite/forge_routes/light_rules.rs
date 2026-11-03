@@ -5,7 +5,7 @@ use temper_engine_domain_forge_change as change_step;
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 200;
 
-fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
+pub(super) fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
         panic!("durable change")
     };
@@ -14,7 +14,7 @@ fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
 }
 
 fn pushed_change(conflict: bool) -> (World, u64, u64, u64) {
-    let mut world = World::configured_ci(true, true, true).with_landing_deployment(Box::new([engine::LandingRule {
+    let world = World::configured_ci(true, true, true).with_landing_deployment(Box::new([engine::LandingRule {
         connector: 0,
         kind: 4,
         enforce: true,
@@ -27,11 +27,30 @@ fn pushed_change(conflict: bool) -> (World, u64, u64, u64) {
         gates: Box::new([]),
         approvals: Box::new([]),
     }]));
+    pushed_change_in(world, conflict, b"main")
+}
+
+pub(super) fn pushed_change_in(mut world: World, conflict: bool, landing: &[u8]) -> (World, u64, u64, u64) {
     world.adopt();
+    if landing != b"main" {
+        assert_eq!(
+            world.external(2, raw::Op::Git(raw::Git::Create { branch: landing.into(), commit: 1 })),
+            raw::Answer::Branch(raw::Created::Created)
+        );
+    }
     world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
-    let ask = adoption_chat(&world);
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
+    batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
+    let ask = people::Ask::Create { project, batch };
     let chat = assigned_chat(&mut world, 92, ask);
-    let engine::CallAnswer::Delegated(made) = change_tool::change(&mut world, &chat, 93, None, b"Small fix") else {
+    let engine::CallAnswer::Delegated(made) = change_tool::change_landing(
+        &mut world,
+        &chat,
+        93,
+        None,
+        b"Small fix",
+        Some(engine::ChangeLanding::Branch(landing.into())),
+    ) else {
         panic!("change delegated")
     };
     let task = made[0].task;
@@ -45,7 +64,7 @@ fn pushed_change(conflict: bool) -> (World, u64, u64, u64) {
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"producer", 2)
         .expect("producer pushed");
     let path: &[u8] = if conflict { b"file" } else { b"other" };
-    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", path, b"base moved", 1)
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", landing, path, b"base moved", 1)
         .expect("main advanced after the producer pushed");
     assert_eq!(
         world.external(
@@ -134,9 +153,11 @@ fn a_change_under_rules_asking_neither_merges_at_its_head() {
     world.close();
 }
 
+/// temper/docs/design/domain/forge.md, 8.4: a conflict past the resolution bound holds under every rule.
 #[test]
 fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
     let (mut world, task, head, base) = pushed_change(true);
+    world.env.limits.forge.change_policy.resolutions = 0;
     // A persistent conflict is decided after the shipped mergeability window,
     // with the world's twenty-second durable round trip left for the hold.
     let deadline =
@@ -157,15 +178,8 @@ fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
         change_row(&world, task).change.state,
         change_step::State::Held { why: change_step::Hold::Resolutions, .. }
     ));
-    let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase else { panic!("worded hold") };
-    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
-    let row = change_row(&world, task);
-    let expected = format!(
-        "The merge into {} conflicts, and its landing rule asks no update: settle the conflict on {} and release the change, or cancel it.",
-        core::str::from_utf8(&row.base).expect("base branch"),
-        core::str::from_utf8(&row.branch).expect("change branch")
-    );
-    assert_eq!(words.as_ref(), expected.as_bytes());
+    let tasks::Phase::Held { source, .. } = &live_task(&world, task).phase else { panic!("resolution hold") };
+    assert!(source.is_none(), "the usual resolutions hold carries no landing-rule exception");
     assert_eq!(world.merges, 0);
     assert_no_update_or_delegate(&world, task);
     let pull = assert_pending_and_stale(&mut world, head, base);

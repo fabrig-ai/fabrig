@@ -180,6 +180,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
     outputs(
         d,
         Event::StepChange {
+            merge_job: false,
             task,
             entry,
             heard: change::Heard {
