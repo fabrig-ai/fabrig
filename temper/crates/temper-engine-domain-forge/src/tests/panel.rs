@@ -621,3 +621,103 @@ fn running_tier(d: &mut Domain, merge: skein_forge::api::Commit) {
         )
         .expect("tier room");
 }
+
+#[test]
+fn a_panel_shows_its_questions() {
+    let mut row = fixtures::opening_row();
+    row.questions = change::Questions {
+        route: change::Route::Foreman,
+        taken: 2,
+        open: Box::new([
+            change::Open {
+                asker: 71,
+                number: 1,
+                line: Box::from(b"Which branch?".as_slice()),
+                stands: change::Stands::Foreman { task: Some(15) },
+            },
+            change::Open {
+                asker: 72,
+                number: 2,
+                line: Box::from(b"Which check?".as_slice()),
+                stands: change::Stands::Taken,
+            },
+            change::Open {
+                asker: 73,
+                number: 3,
+                line: Box::from(b"Which dependency?".as_slice()),
+                stands: change::Stands::Held { answer: Box::from(b"answer words stay private".as_slice()) },
+            },
+        ]),
+    };
+    let got = panel(&with_row(row));
+    assert_eq!(
+        got.questions,
+        PanelQuestions {
+            route: change::Route::Foreman,
+            taken: PanelUsed { used: 2, limit: LIMITS.change_policy.questions },
+            open: Box::new([
+                PanelQuestion {
+                    asker: 71,
+                    number: 1,
+                    line: Box::from(b"Which branch?".as_slice()),
+                    stands: PanelStands::Foreman(Some(15))
+                },
+                PanelQuestion {
+                    asker: 72,
+                    number: 2,
+                    line: Box::from(b"Which check?".as_slice()),
+                    stands: PanelStands::Taken
+                },
+                PanelQuestion {
+                    asker: 73,
+                    number: 3,
+                    line: Box::from(b"Which dependency?".as_slice()),
+                    stands: PanelStands::Held
+                },
+            ]),
+        }
+    );
+    assert!(got.within());
+}
+
+#[test]
+fn a_panel_shows_at_most_eight_questions() {
+    let mut row = fixtures::opening_row();
+    let mut open = skein_lib::List::with_capacity(9);
+    for number in 1..=9 {
+        open.push(change::Open {
+            asker: 71,
+            number,
+            line: Box::from(b"Question".as_slice()),
+            stands: change::Stands::Taken,
+        })
+        .expect("nine questions fit the record");
+    }
+    row.questions.open = open.into_boxed();
+    let got = panel(&with_row(row));
+    assert_eq!(got.questions.open.len(), 8);
+    for (index, question) in got.questions.open.iter().enumerate() {
+        assert_eq!(
+            question.number,
+            u64::try_from(index.checked_add(1).expect("question index fits")).expect("question number")
+        );
+    }
+}
+
+#[test]
+fn a_panel_bounds_question_lines_in_bytes_and_open_questions() {
+    let mut got = panel(&with_row(fixtures::opening_row()));
+    // Two-byte UTF-8 words make the bound a byte count rather than a character count.
+    let line = "é".repeat(change::QUESTION_LINE / 2).into_bytes().into_boxed_slice();
+    got.questions.open = Box::new([PanelQuestion { asker: 71, number: 1, line, stands: PanelStands::Asked }]);
+    assert!(got.within());
+    got.questions.open[0].line = Box::from("é".repeat(change::QUESTION_LINE / 2 + 1).as_bytes());
+    assert!(!got.within());
+    let mut open = skein_lib::List::with_capacity(9);
+    for number in 1..=9 {
+        open.push(PanelQuestion { asker: 71, number, line: Box::new([]), stands: PanelStands::Taken })
+            .expect("fixture room");
+    }
+    got.questions.open = open.into_boxed();
+    assert!(!got.within());
+}
