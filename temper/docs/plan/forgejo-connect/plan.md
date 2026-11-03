@@ -36,29 +36,55 @@ Check's end, C5 its stops in words); every task names `notes/common.md`.
      one-item bound's new number.
 2. **engine** (`protocol/forge.md, 2.2`), slice 1.
    - `tasks/forge-surface.md`, interface, medium, ~60 minutes, needs nothing: C3's types in the
-     forge domain and the root, refused `NotTaken` until the next task; the routing's forced
-     arms.
-   - `forge-connect` (to come, needs `forge-surface`): the domain's admission of a tokens connect
-     (a new connected Forgejo's record, or a kept one not connected or stopped) and of a Replace
-     (GitHub, or a connected Forgejo, connected or stopped), `Request::Replace`, `BotLogin` kept
-     in the record's bot.
-3. **wire** (to come): `wire-connected`, needs `forge-surface`: C2 in place, the generated code
-   and goldens, the service's mapping to C3, the client's forced arms.
-4. **service** (to come): `check-connect`, the meeting point, needs `pasted-list`,
-   `wire-connected` and `forge-connect`: the routing stages `Check`, keeps the tokens, the secret
-   and `Origin`, tells `BotLogin`, connects with the record's login; then `replace-run`: Check
-   with partial tokens, Paste with the kept `AppId`, connecting again a connected forge.
-5. **ctl** (to come): `ctl-connected`, needs `pasted-list` and `wire-connected`: `forge connect
-   forgejo` and `forge replace`, the tokens file, the help.
-6. **web** (to come): `web-connected`, needs `pasted-list` and `wire-connected`: the Details'
-   tokens form, the row's Replace, their words, the client world's bridge and stories.
+     forge domain and the root, refused `NotTaken`; the routing's forced arms.
+   - `tasks/forge-connect.md`, high, ~150 minutes, needs `forge-surface`: the domain's admission
+     of a tokens connect (a new connected Forgejo's record, or a kept one not connected or
+     stopped) and of a Replace (GitHub, or a connected Forgejo, connected or stopped),
+     `Request::Replace`, `BotLogin` kept in the record's bot; the routing answers both `not
+     taken` meanwhile.
+3. **wire** (`client/README.md, 4.6`), slice 1.
+   - `tasks/wire-connected.md`, interface, high, ~90 minutes, needs `pasted-list` and
+     `forge-surface`: C2 in place at 11, regenerated; the service's mapping to C3; the client
+     domain's `pasted_tokens` and the refusal words a Replace needs; the client's forced arms.
+4. **service** (`protocol/forge.md, 2.6`), slice 1: the meeting point.
+   - `tasks/check-connect.md`, high, ~150 minutes, needs `pasted-list`, `wire-connected` and
+     `forge-connect`: `tokens_connect` stages `Check`; on `Done` the tokens, the secret and
+     `Origin` kept, `BotLogin`, the erase, the connect from records as the record's login; the
+     stops in C5's words; `forges::record` takes a login-only change in place; one story from the
+     wire's bytes to `Connected` against skein's fake Forgejo.
+5. **ctl** (`client/tools.md, 5.5`), slice 1.
+   - `tasks/ctl-connected.md`, high, ~120 minutes, needs `pasted-list` and `wire-connected`:
+     `forge connect [FORGE] forgejo FILE` with a tokens file, `forge replace FORGE FILE` by key
+     or tokens, the CLI shell's reads, the help (the lead's words given in the spec) and the
+     regenerated reference.
+6. **replace** (`protocol/forge.md, 2.2`), slice 2.
+   - `tasks/replace-run.md`, high, ~120 minutes, needs `check-connect`: the routing's
+     `Replace`, `Check` with the kept token beside the pasted one, `Paste` with the kept `AppId`,
+     a second connect of a connected forge.
+7. **web** (`client/forge.md, 5.4`), slice 3.
+   - `tasks/web-tokens.md`, high, ~150 minutes, needs `pasted-list` and `wire-connected`: the
+     tokens draft, Your Forgejo's two forms, a kept connected Forgejo's Details, Connecting, the
+     row's "Connect ›"; the client world's bridge and story.
+   - `tasks/web-replace.md`, high, ~150 minutes, needs `web-tokens` and `ctl-connected`: the
+     row's Replace on GitHub and a connected Forgejo; the client world's bridge, and the joined
+     stories of the page's and ctl's connect and replace.
 
 ## Critical path
 
-`forge-surface` (~60) → `forge-connect` (~150) → `check-connect` (~150) → `replace-run` (~120):
-about eight hours of implementer time on the longest chain, up to sixteen with the buffer.
-`pasted-list` and `wire-connected` run beside the domain; ctl and the web view beside the
-service.
+`forge-surface` (~60) → `forge-connect` (~150) → `check-connect` (~150) → `replace-run`
+(~120): about eight hours of implementer time, up to sixteen with the buffer. Beside it,
+`pasted-list` (~90) → `wire-connected` (~90) → `web-tokens` (~150) → `web-replace` (~150),
+about eight hours; `ctl-connected` (~120) runs beside `web-tokens`. Nine tasks, about 18 hours
+in all.
+
+## What stays open
+
+- `client/tools.md`, 11.3: the real loop's connected Forgejo stays **Not yet** in
+  `client/tools.status.md`: a slow tier's story, outside the gate, for a later cut.
+- Forget (`forge forget`, the row's "Forget the admin's token") and the connected-to-managed
+  change stay as the design and their status entries have them: not this request's.
+- The mockups (`client/mockups/pages.js`) draw a connected Forgejo's row with Replace but no
+  tokens form in Your Forgejo's Details; no test reads them, and they are left as they are.
 
 ## Overlaps
 
@@ -71,5 +97,10 @@ service.
 - `pasted-list` regenerates `temper/docs/help/reference/ctl-forge.md` and the
   `help_forge_connect` golden, which `configuring-p1/ctl-chat-template` (merged) touched among
   `temper-client-tools`' goldens: regenerated, never merged by hand.
-- The mockups (`client/mockups/pages.js`) draw a connected Forgejo's row with Replace but no
-  tokens form in Your Forgejo's Details; they are left as they are (no test reads them).
+- `web-tokens` and `web-replace` add words to `temper-client-view/src/words.rs`, raising
+  `PHRASES` and `SEGMENTS`, whose line other drafts' branches (`reference-m8`) also move:
+  regenerated where they meet, never merged by hand.
+- `check-connect` and `replace-run` follow each other in `temper-service`'s `setup/public.rs`
+  and `lifecycle.rs`; `pasted-list` and `forge-connect` touch `public.rs`' `pasted` and
+  `route.rs` before them, in other hunks.
+- `ctl-connected` regenerates `ctl-forge.md` and the help goldens after `pasted-list` did.
