@@ -1757,8 +1757,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, raise `authority.executors` and
   `tasks.executor_kinds` to 12 (small's 4), holding the stock and the
-  reference's whole delegation (13.9) within ctl's twelve-kind list
-  capacity;
+  reference's whole delegation (13.9) within the fourteen entries
+  ctl's settings form takes in an authority's list;
   `tasks.charters` to 8 (small's 4), since the stock holds five
   charters and a deployment's settings add their own (13.9);
   `tasks.contract_choices` to 4, since a foreman's verdict has three
