@@ -2,8 +2,10 @@ use super::fixtures;
 use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
-// ChangeRow dominates Row with the producer report bounded by the fixture's 512 operation bytes.
-const APPLICATION_ROW_BYTES: u32 = 119_192;
+// ChangeRow includes its 512-byte report, a four-byte foreman charter and 12,697 question bytes:
+// route (1), taken (4), count (4), and sixteen entries of asker (8), number (8),
+// line (4 + 256), stands (1) and held answer (4 + 512).
+const APPLICATION_ROW_BYTES: u32 = 131_893;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {

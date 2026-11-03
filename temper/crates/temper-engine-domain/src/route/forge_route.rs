@@ -12,6 +12,7 @@ use jig_domain_brief as brief;
 use temper_engine_domain_forge_landing as landing;
 pub(crate) const GOAL_BRANCH_SYMBOL: u16 = 1;
 pub(crate) const CHANGE_CODE: u32 = 2;
+const FOREMAN_CHARTER: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
@@ -1833,6 +1834,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut body = None;
     let mut priority = 0_i32;
     let mut base_repair = false;
+    let mut route = forge_change::Route::None;
     for parameter in &context.spec.parameters {
         match parameter {
             tasks::Parameter::Resource { name: 1, connector, resource } => {
@@ -1850,6 +1852,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority = number;
             }
             tasks::Parameter::Number { name: 9, value: 1 } => base_repair = true,
+            tasks::Parameter::Number { name: 14, value: 1 } => route = forge_change::Route::Foreman,
+            tasks::Parameter::Number { name: 14, value: 2 } => route = forge_change::Route::Up,
             tasks::Parameter::Bytes { name: 6 | 10, .. } => {}
             tasks::Parameter::Number { .. } | tasks::Parameter::Bytes { .. } | tasks::Parameter::Resource { .. } => {
                 return false;
@@ -1932,6 +1936,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 queue_repairs: 0,
                 producing_charter: domain.config.forge_charter,
                 review_charter: 4,
+                foreman_charter: FOREMAN_CHARTER,
+                questions: forge_change::Questions { route, taken: 0, open: Box::new([]) },
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -3097,7 +3103,25 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     {
         return holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words.clone());
     }
-    let account = if let forge_change::Hold::Authority(cause) = why {
+    let account = if why == forge_change::Hold::Questions {
+        let bound = skein_lib::Decimal::of(u64::from(env.limits.forge.change_policy.questions));
+        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+        append(&mut words, b"its questions are spent: ");
+        append(&mut words, bound.as_bytes());
+        append(&mut words, b" of ");
+        append(&mut words, bound.as_bytes());
+        append(&mut words, b" taken");
+        if let Some(row) = domain.forge.change(task)
+            && let Some(question) = row.questions.open.first()
+        {
+            append(&mut words, b"; question ");
+            append(&mut words, skein_lib::Decimal::of(question.number).as_bytes());
+            append(&mut words, b" of task ");
+            append(&mut words, skein_lib::Decimal::of(question.asker).as_bytes());
+            append(&mut words, b" waits; release it to pass the question up");
+        }
+        Some(words.into_boxed())
+    } else if let forge_change::Hold::Authority(cause) = why {
         Some(forge_change::authority_words(cause))
     } else if why == forge_change::Hold::Resolutions
         && let Some(row) = domain.forge.change(task)
@@ -3131,9 +3155,10 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
             forge_change::AuthorityLack::Spend => tasks::Hold::Budget,
         },
         forge_change::Hold::Stalled => tasks::Hold::Stalled,
-        forge_change::Hold::Repairs | forge_change::Hold::Resolutions | forge_change::Hold::Updates => {
-            tasks::Hold::Procedure
-        }
+        forge_change::Hold::Repairs
+        | forge_change::Hold::Resolutions
+        | forge_change::Hold::Updates
+        | forge_change::Hold::Questions => tasks::Hold::Procedure,
         forge_change::Hold::Failed | forge_change::Hold::Rejected => tasks::Hold::EffectFailed,
     };
     let end = if let Some(words) = account {
