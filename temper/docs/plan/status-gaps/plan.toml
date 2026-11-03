@@ -9,6 +9,7 @@ sources = ["temper/docs/plan/status-gaps/inputs/request.md", "AGENTS.md"]
 # by agents/loop at the director's word: the first two are their own plans (readiness-eintr,
 # forgejo-connect), withdrawn-forms is deferred until the user decides (plan.md).
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
