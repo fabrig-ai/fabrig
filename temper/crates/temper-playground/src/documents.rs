@@ -200,6 +200,7 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         ("tasks.authority_grants", 14),
         ("tasks.authority_bytes", 70),
         ("tasks.executor_kinds", 8),
+        ("tasks.result_bytes", 128),
         ("notes.scopes", 32),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();

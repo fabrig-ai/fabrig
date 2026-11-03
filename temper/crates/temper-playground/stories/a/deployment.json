@@ -146,7 +146,7 @@
         "tasks.message_bytes": 512,
         "tasks.project_goals": 1,
         "tasks.project_tasks": 1,
-        "tasks.result_bytes": 32,
+        "tasks.result_bytes": 128,
         "tasks.spec_bytes": 128,
         "tasks.tasks": 2,
         "tasks.tree_tasks": 1,

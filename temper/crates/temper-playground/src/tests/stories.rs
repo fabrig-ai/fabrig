@@ -76,6 +76,22 @@ fn harness_chats_keep_the_result_ending() {
 }
 
 #[test]
+fn story_as_delegates_fit_the_result_contract_bound() {
+    let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
+    let contract = &llm["asked"][0]["turns"][0]["lines"][1]["arguments"]["batch"][0]["contract"];
+    for (engine, _) in configured_deployments() {
+        assert!(jig_domain_tasks::valid_contract(
+            &engine.limits.core.tasks,
+            &jig_domain_tasks::Contract::Change {
+                connector: contract["connector"].as_u64().expect("connector").try_into().expect("connector fits"),
+                kind: contract["change_kind"].as_u64().expect("change kind").try_into().expect("kind fits"),
+                words: contract["words"].as_u64().expect("words").try_into().expect("words fit"),
+            }
+        ));
+    }
+}
+
+#[test]
 fn story_as_deployment_offers_its_llm_cues_in_order() {
     let deployment: Value = serde_json::from_slice(A.deployment).expect("story deployment");
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
