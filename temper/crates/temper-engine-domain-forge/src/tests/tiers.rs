@@ -291,7 +291,7 @@ fn ignored_documentation_is_judged_by_receipt_without_dispatch() {
     );
     assert_eq!(
         choice(&out),
-        Some(&TierDecision::Done { words: b"Tier browser run 2: green, cleared 1 landings".as_slice().into() })
+        Some(&TierDecision::Done { words: b"Tier browser run 2: green, cleared 1 landing".as_slice().into() })
     );
     assert!(d.entries.is_empty());
     assert_eq!(row(&d).record.judged.unwrap().tip, HEAD);
@@ -478,7 +478,7 @@ fn a_green_whole_run_clears_its_nonempty_range() {
     let out = finish(&mut d);
     assert_eq!(
         choice(&out),
-        Some(&TierDecision::Done { words: b"Tier browser run 2: green, cleared 1 landings".as_slice().into() })
+        Some(&TierDecision::Done { words: b"Tier browser run 2: green, cleared 1 landing".as_slice().into() })
     );
     assert!(row(&d).pending.is_empty());
     assert!(row(&d).record.run.is_none());

@@ -132,28 +132,27 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   `actions/upload-artifact@v3` need compatible Node.js installed there
   as `node`, on `application.machine.owned.runner.path` (default
   `/usr/local/bin:/usr/bin:/bin`). After changing that configuration,
-  restart the box. An installation only in an interactive shell is
-  insufficient: the runner uses this PATH.
-- **Runner capacity:** CI and tiers using `temper-host` share the box's
-  runner. `application.machine.owned.runner.capacity` defaults to 1, the
-  minimum: one job at a time, so a slow tier can keep CI waiting and
-  prevent landings. Set it to 2 for one single-job tier plus CI, or 3
-  for two such tiers plus CI. Count concurrent jobs in multi-job
-  workflows and from other repositories sharing the runner; each needs a
-  slot. On a real-backend box, stop with Ctrl-C or SIGTERM and wait for
-  `Stopped`. Edit that setting in `CONFIG/temper.json`, then restart
+  restart the box. Node.js only in an interactive shell is insufficient.
+- **Runner capacity:** CI and tiers using `temper-host` share a runner.
+  `application.machine.owned.runner.capacity` defaults to 1:
+  one job at a time, delaying CI and landings. Use
+  2 for one single-job tier plus CI, or 3 for two such tiers plus CI.
+  Count jobs in multi-job workflows and other repositories too.
+  Stop the real-backend box with Ctrl-C or SIGTERM; wait for `Stopped`.
+  Edit only that setting in `CONFIG/temper.json`, then restart
   `temper box --config CONFIG --data DATA --cache CACHE` with the same
-  directories. This updates a prepared runner's configuration, keeping
-  its registration and secrets.
+  directories. Prepared runners keep their registration and secrets.
 - **ctl:** `change show TASK --until cleared` waits for a landed
-  change's verdict; `verifying`, `red` or `cleared` names tiers and runs.
-  `task release` releases a held run. In `task show TASK`, `asked:` names
-  the repository, full tested commit, owned branch and, once observed,
-  forge run number and URL for each judged run, failed-test rerun and
-  bisection probe. These remain after completion, branch deletion and
-  restart. ctl reads beyond the overview within its output bounds;
-  when exceeded, it prints `task text TASK --field specification --from
-  OFFSET` to continue.
+  verdict: `verifying`, `red` or `cleared`, naming tiers and runs.
+  `task release` releases a held run. `task show TASK`'s `asked:` names
+  the repository, full tested commit and owned branch. Each judged run,
+  failed-test rerun and bisection probe keeps its commit, branch, forge run
+  number and URL after completion, branch deletion and restart.
+  Red results pair blamed commits with owned or suspected full IDs;
+  inherited failures blame no new landing. IDs are never cut: omissions
+  end with `and N more failing tests; change show TASK`. The panel keeps
+  all IDs; overflow stays `many tests`. Past ctl's output bound, continue
+  with `task text TASK --field specification --from OFFSET`.
 
 ## Limits
 
