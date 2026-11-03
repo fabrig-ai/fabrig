@@ -19,12 +19,7 @@ impl World {
     pub(super) fn grant_value(&self) -> smith_channel::GrantValue {
         self.grant.clone().unwrap_or_else(|| {
             let value = if self.private_grant { crate::PRIVATE_GRANT } else { b"token".as_slice() };
-            if self.anthropic {
-                crate::bearer(value)
-            } else {
-                let id = if self.private_grant { b"native-private-account-02.6".as_slice() } else { b"acc".as_slice() };
-                crate::withdrawn(id, value)
-            }
+            if self.anthropic { crate::key(value) } else { crate::bearer(value) }
         })
     }
 

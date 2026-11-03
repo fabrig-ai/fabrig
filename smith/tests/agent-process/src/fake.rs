@@ -99,11 +99,8 @@ fn one_turn() -> Box<[api::Script]> {
 /// The shared scenario credential for the selected provider dialect.
 #[must_use]
 pub fn credential(anthropic: bool) -> skein_llm::Credential {
-    skein_llm::Credential {
-        value: b"token".as_slice().into(),
-        account_id: if anthropic { Box::new([]) } else { b"acc".as_slice().into() },
-        scheme: skein_llm::Scheme::Bearer,
-    }
+    let value = b"token".as_slice().into();
+    if anthropic { skein_llm::Credential::key(value) } else { skein_llm::Credential::bearer(value) }
 }
 
 /// Script a reply with the shared scenario's standard credential.
@@ -220,7 +217,7 @@ impl Options {
                 } else if openai {
                     skein_llm::Endpoint::openai().target
                 } else {
-                    skein_llm_world::call(1).endpoint.target
+                    skein_llm_world::public_call(1).endpoint.target
                 },
                 headers: Box::new([]),
                 without_credential: false,

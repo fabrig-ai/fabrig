@@ -1,4 +1,4 @@
-use smith_agent_process_world::{World, bearer, charter, key, program, withdrawn};
+use smith_agent_process_world::{World, bearer, charter, program, withdrawn};
 use smith_channel::{InvalidStart, RunResult, StartRefusal};
 
 fn refusal(world: &World) -> Option<InvalidStart> {
@@ -17,15 +17,15 @@ fn an_uninstallable_grant_refuses_the_start_as_grants() {
     let expected = (true, false, Some(InvalidStart::Grants), Some(skein_io::kernel::Exit::Code(0)));
     let rows = [
         (bearer(b""), false, expected.clone()),
-        (key(b"not-for-codex"), false, expected.clone()),
-        (withdrawn(b"account", b"value"), true, expected.clone()),
+        (bearer(b"not-for-anthropic"), true, expected.clone()),
+        (withdrawn(b"account", b"value"), false, expected.clone()),
         (program(b"source"), false, expected),
     ];
-    for (index, (value, openai, expected)) in rows.into_iter().enumerate() {
+    for (index, (value, anthropic, expected)) in rows.into_iter().enumerate() {
         let mut world = World::new(31, &charter);
         world.granting(value);
-        if openai {
-            world.openai();
+        if anthropic {
+            world.anthropic();
         }
         let settled = world.settle();
         let admitted = world.observed().iter().any(|frame| frame.kind == 0x0106);
@@ -36,11 +36,10 @@ fn an_uninstallable_grant_refuses_the_start_as_grants() {
 
 #[test]
 fn a_later_uninstallable_grant_fails_the_run_as_credential() {
-    for (value, openai) in [(key(b"not-for-codex"), false), (withdrawn(b"account", b"value"), true)] {
+    for (value, anthropic) in [(bearer(b"not-for-anthropic"), true), (withdrawn(b"account", b"value"), false)] {
         let mut world = World::new(32, &charter());
-        if openai {
-            world.openai();
-            world.granting(bearer(b"initial"));
+        if anthropic {
+            world.anthropic();
         }
         world.refreshing(value);
         assert!(world.settle());

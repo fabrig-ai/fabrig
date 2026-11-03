@@ -208,27 +208,27 @@ fn run_story(
     pressure: Pressure,
     seed: u64,
 ) -> Story {
-    let mut call = skein_llm_world::call(7);
+    let mut call = skein_llm_world::public_call(7);
     match dialect {
-        skein_llm::Provider::OpenAi => panic!("fixture exercises the withdrawn routes"),
-        Provider::OpenAiCodex => {}
+        skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
+        Provider::OpenAi => {}
         Provider::Anthropic => {
             call.endpoint = skein_llm::Endpoint::anthropic();
-            call.credential = Some(Credential::anthropic(b"fake-token".as_slice().into()));
+            call.credential = Some(Credential::key(b"fake-token".as_slice().into()));
             call.prompt.affinity = None;
         }
     }
     call.prompt.output_ceiling(dialect, 4096).expect("provider output ceiling");
     call.prompt.instructions = b"connection-world".as_slice().into();
-    let peer_credential = Credential {
-        value: call.credential.as_ref().expect("fixture credential").value.clone(),
-        account_id: call.credential.as_ref().expect("fixture credential").account_id.clone(),
-        scheme: skein_llm::Scheme::Bearer,
+    let credential = call.credential.as_ref().expect("fixture credential");
+    let peer_credential = match credential.scheme {
+        skein_llm::Scheme::Bearer => Credential::bearer(credential.value.clone()),
+        skein_llm::Scheme::Key => Credential::key(credential.value.clone()),
     };
     let peer_limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
     let provider_kind = match dialect {
-        skein_llm::Provider::OpenAi => panic!("fixture exercises the withdrawn routes"),
-        Provider::OpenAiCodex => documents::Provider::OpenAi,
+        skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
+        Provider::OpenAi => documents::Provider::OpenAi,
         Provider::Anthropic => documents::Provider::Anthropic,
     };
     let mut service = provider::Service::new(
@@ -280,7 +280,6 @@ fn run_story(
                 },
                 llm: call.endpoint,
             },
-            identity: smith_protocol_llm::IdentityProfile::Plain,
             models: Box::new([]),
         }]),
         1,
@@ -611,10 +610,10 @@ fn run_story(
                         assert!(completion.blocks.iter().any(|block| matches!(block, smith_events::Block::Call { tool, input, .. } if tool.as_ref() == b"read" && input.as_ref() == br#"{"path":"README.md"}"#)));
                     } else {
                         match dialect {
-                            skein_llm::Provider::OpenAi => panic!("fixture exercises the withdrawn routes"),
-                            Provider::OpenAiCodex => assert!(
+                            skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
+                            Provider::OpenAi => assert!(
                                 deltas.is_empty(),
-                                "the shared fake Codex renderer emits Added/Done, without text deltas"
+                                "the shared synthetic OpenAI renderer emits Added/Done, without text deltas"
                             ),
                             Provider::Anthropic => assert_eq!(deltas, b"scripted answer"),
                         }
@@ -641,8 +640,8 @@ fn run_story(
 }
 
 #[test]
-fn codex_fake_peer_over_tls() {
-    run(Provider::OpenAiCodex, false, false, false);
+fn openai_fake_peer_over_tls() {
+    run(Provider::OpenAi, false, false, false);
 }
 
 #[test]
@@ -651,8 +650,8 @@ fn anthropic_fake_peer_over_tls() {
 }
 
 #[test]
-fn codex_tool_input_is_typed_through_the_owned_connection() {
-    run(Provider::OpenAiCodex, true, false, false);
+fn openai_tool_input_is_typed_through_the_owned_connection() {
+    run(Provider::OpenAi, true, false, false);
 }
 
 #[test]
@@ -661,9 +660,9 @@ fn anthropic_tool_input_is_typed_through_the_owned_connection() {
 }
 
 #[test]
-fn captured_native_codex_text_and_calls_keep_observed_prompt_and_deltas() {
-    run(Provider::OpenAiCodex, false, true, false);
-    run(Provider::OpenAiCodex, true, true, false);
+fn captured_native_openai_text_and_calls_keep_observed_prompt_and_deltas() {
+    run(Provider::OpenAi, false, true, false);
+    run(Provider::OpenAi, true, true, false);
 }
 
 #[test]
@@ -674,14 +673,14 @@ fn captured_native_anthropic_text_and_calls_keep_observed_prompt_and_deltas() {
 
 #[test]
 fn an_owner_close_reports_closed_once_every_socket_settled() {
-    run(Provider::OpenAiCodex, false, false, true);
+    run(Provider::OpenAi, false, false, true);
     run(Provider::Anthropic, false, false, true);
 }
 
 /// Order: `measures_drained` (phase C).
 #[test]
 fn measures_drain_before_terminals_and_later_entrances_under_pressure() {
-    for dialect in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for dialect in [Provider::OpenAi, Provider::Anthropic] {
         let story = run_story(dialect, false, true, false, Pressure::Complete, ORDER_SEED);
         let mut held = false;
         let mut content = false;
@@ -710,7 +709,7 @@ fn measures_drain_before_terminals_and_later_entrances_under_pressure() {
 /// Order: `prompt_recorded(owner)` (phase C).
 #[test]
 fn prompt_recording_releases_one_original_request_before_later_entrances() {
-    for dialect in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for dialect in [Provider::OpenAi, Provider::Anthropic] {
         let original = run_story(dialect, false, true, false, Pressure::None, ORDER_SEED);
         let delayed = run_story(dialect, false, true, false, Pressure::Complete, ORDER_SEED);
         assert_eq!(

@@ -23,7 +23,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
         environment_bytes: 835,
         endpoints: Box::new([Endpoint {
             number: 1,
-            provider: skein_llm::Provider::OpenAiCodex,
+            provider: skein_llm::Provider::OpenAi,
             option_bytes: 3,
             connect: Duration::from_secs(30),
             handshake: Duration::from_secs(30),
