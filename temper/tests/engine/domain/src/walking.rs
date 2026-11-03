@@ -241,7 +241,7 @@ fn authority_limits() -> authority::Limits {
     authority::Limits {
         projects: 1,
         roles: 1,
-        requirements: 1,
+        requirements: 2,
         facts: 2,
         grants: 1,
         executors: 1,
