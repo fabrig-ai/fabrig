@@ -116,7 +116,10 @@ fn adopt(
             prompt: prompt(messages),
             endpoint_name: llm::Endpoint(1),
             endpoint: configuration.endpoint.clone(),
-            credential: match configuration.credential.scheme { skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()), skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()) },
+            credential: match configuration.credential.scheme {
+                skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()),
+                skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()),
+            },
 
             receiving: receiving(&bounds),
         },
@@ -241,7 +244,7 @@ fn history(completion: llm::Completion) -> Box<[llm::Message]> {
     Box::new([llm::Message { role: llm::Role::Assistant, content: blocks.into() }, user(b"Continue.")])
 }
 
-/// The first request's body as it reads without its coding (gzip on the OpenAI route).
+/// The first request's body with its endpoint's content coding decoded.
 fn native_body(peer: &RawWorld) -> Vec<u8> {
     let sent = skein_llm_world::identity(&peer.sent);
     let at = sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("observed HTTP request") + 4;
@@ -651,7 +654,10 @@ fn block_peer(configuration: &Configuration, bounds: &Limits, source: Vec<u8>) -
             prompt: requested,
             endpoint_name: llm::Endpoint(1),
             endpoint: configuration.endpoint.clone(),
-            credential: match configuration.credential.scheme { skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()), skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()) },
+            credential: match configuration.credential.scheme {
+                skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()),
+                skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()),
+            },
 
             receiving: receiving(bounds),
         },

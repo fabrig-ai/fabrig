@@ -55,7 +55,7 @@ pub fn configurations() -> Box<[Configuration]> {
 /// The named wire dialects exercised by protocol stories.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Dialect {
-    /// Synthetic public OpenAI Responses grammar and replay envelopes.
+    /// Synthetic public `OpenAI` Responses grammar and replay envelopes.
     OpenAi,
     /// Anthropic's Messages grammar and signed thinking.
     Anthropic,

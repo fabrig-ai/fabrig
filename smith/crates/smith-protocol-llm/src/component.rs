@@ -256,13 +256,14 @@ impl Component {
         if credential.value.is_empty() {
             return Err(GrantError::Scheme);
         }
-        let bounds = skein_llm::client::CredentialLimits { value: self.limits.grant_value_bytes, account_id: 0 };
-        if skein_llm::client::check_credential(&credential, &bounds).is_err() {
-            return Err(GrantError::Bounds);
-        }
         for ((account, endpoint), ()) in &self.bindings {
             if *account == name.account {
                 let options = self.options.get(endpoint).ok_or(GrantError::Scheme)?;
+                let bounds =
+                    skein_llm::client::CredentialLimits { value: self.limits.grant_value_bytes, account_id: 0 };
+                if skein_llm::client::check_credential(&credential, &bounds).is_err() {
+                    return Err(GrantError::Bounds);
+                }
                 let accepted = match options.provider {
                     skein_llm::Provider::OpenAiCodex => false,
                     skein_llm::Provider::OpenAi => true,
@@ -720,8 +721,8 @@ mod tests {
 
     #[test]
     fn grants_install_only_the_schemes_the_bound_dialect_takes() {
-        use skein_llm::{Endpoint, Provider, Scheme};
         use skein_lib::Duration;
+        use skein_llm::{Endpoint, Provider, Scheme};
         for (provider, scheme, expected) in [
             (Provider::OpenAi, Scheme::Bearer, Ok(())),
             (Provider::OpenAi, Scheme::Key, Ok(())),
@@ -737,19 +738,23 @@ mod tests {
                 Provider::Anthropic => Endpoint::anthropic(),
                 Provider::OpenAiCodex => unreachable!("public fixture dialects"),
             };
-            let endpoints = Endpoints::new(Box::new([crate::ConfiguredEndpoint {
-                name: llm::Endpoint(0),
-                connect: Duration::from_secs(1),
-                handshake: Duration::from_secs(1),
-                destination: connection::Endpoint {
-                    limits: client,
-                    credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
-                    address: "127.0.0.1:443".parse().expect("fixture address"),
-                    transport: connection::Transport::Plaintext,
-                    llm: endpoint,
-                },
-                models: Box::new([]),
-            }]), 1).expect("one endpoint");
+            let endpoints = Endpoints::new(
+                Box::new([crate::ConfiguredEndpoint {
+                    name: llm::Endpoint(0),
+                    connect: Duration::from_secs(1),
+                    handshake: Duration::from_secs(1),
+                    destination: connection::Endpoint {
+                        limits: client,
+                        credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
+                        address: core::net::SocketAddr::from(([127, 0, 0, 1], 443)),
+                        transport: connection::Transport::Plaintext,
+                        llm: endpoint,
+                    },
+                    models: Box::new([]),
+                }]),
+                1,
+            )
+            .expect("one endpoint");
             let mut component = Component::new(&limits, endpoints).expect("component");
             component.bindings.insert((7, 0), ()).expect("bound account");
             let name = GrantName { account: 7, generation: 1 };
@@ -763,10 +768,13 @@ mod tests {
                     let installed = component.grants.read(name, Time::ZERO).expect("installed grant");
                     assert_eq!(installed.scheme, scheme);
                     assert_eq!(installed.value.as_ref(), b"fixture");
-                    assert!(skein_llm::client::check_credential(&installed,
-                        &skein_llm::client::CredentialLimits { value: 128, account_id: 0 }).is_ok());
+                    skein_llm::client::check_credential(
+                        &installed,
+                        &skein_llm::client::CredentialLimits { value: 128, account_id: 0 },
+                    )
+                    .expect("installed credential has no account id");
                 }
-                Err(_) => assert!(matches!(component.grants.read(name, Time::ZERO), Err(GrantError::Missing))),
+                Err(_) => assert_eq!(component.grants.read(name, Time::ZERO).err(), Some(GrantError::Missing)),
             }
         }
     }

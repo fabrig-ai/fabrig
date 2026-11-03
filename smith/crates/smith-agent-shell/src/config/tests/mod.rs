@@ -46,8 +46,8 @@ fn withdrawn_endpoint_fields_are_refused_by_name() {
     for (field, value) in [("account", serde_json::json!(0)), ("identity", serde_json::json!("claude-code"))] {
         let mut document = shaped_document();
         document["endpoints"][0][field] = value;
-        let refusal = decode(&serde_json::to_vec(&document).expect("configuration JSON"))
-            .err().expect("unknown endpoint field");
+        let refusal =
+            decode(&serde_json::to_vec(&document).expect("configuration JSON")).err().expect("unknown endpoint field");
         assert!(refusal.contains(&format!("unknown field `{field}`")), "{refusal}");
     }
 }

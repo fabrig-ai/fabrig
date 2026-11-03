@@ -222,9 +222,9 @@ fn run_story(
     call.prompt.instructions = b"connection-world".as_slice().into();
     let credential = call.credential.as_ref().expect("fixture credential");
     let peer_credential = match credential.scheme {
-            skein_llm::Scheme::Bearer => Credential::bearer(credential.value.clone()),
-            skein_llm::Scheme::Key => Credential::key(credential.value.clone()),
-        };
+        skein_llm::Scheme::Bearer => Credential::bearer(credential.value.clone()),
+        skein_llm::Scheme::Key => Credential::key(credential.value.clone()),
+    };
     let peer_limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
     let provider_kind = match dialect {
         skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),

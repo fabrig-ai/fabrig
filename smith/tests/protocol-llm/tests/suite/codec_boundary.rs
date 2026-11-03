@@ -59,7 +59,10 @@ fn input(configuration: &Configuration) -> Input {
         prompt: prompt(),
         endpoint_name: llm::Endpoint(1),
         endpoint: configuration.endpoint.clone(),
-        credential: match configuration.credential.scheme { skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()), skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()) },
+        credential: match configuration.credential.scheme {
+            skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()),
+            skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()),
+        },
         receiving: smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes)
             .expect("fixture receiving bound"),
     }

@@ -92,7 +92,6 @@ fn a_refresh_preserves_the_first_call_then_evicts_the_oldest_generation() {
     assert!(!format!("{grants:?}").contains("third"), "debug hides bearer values");
 }
 
-
 #[test]
 fn reasoning_drop_is_selected_per_declared_model() {
     use smith_protocol_llm::{ConfiguredModel, OversizedReasoning};
@@ -121,8 +120,11 @@ fn a_sparse_account_number_is_granted_and_used() {
     grants.grant(name, Credential::key(b"key".as_slice().into()), Time::from_nanos(100)).expect("sparse grant");
     let installed = grants.read(name, Time::ZERO).expect("sparse name resolves");
     assert_eq!(installed.scheme, shared::Scheme::Key);
-    assert!(shared::client::check_credential(&installed,
-        &shared::client::CredentialLimits { value: GRANT_BYTES, account_id: 0 }).is_ok());
+    shared::client::check_credential(
+        &installed,
+        &shared::client::CredentialLimits { value: GRANT_BYTES, account_id: 0 },
+    )
+    .expect("installed credential has no account id");
 }
 
 #[test]
@@ -134,11 +136,7 @@ fn a_fifth_distinct_account_is_refused() {
             .expect("four accounts fit");
     }
     assert_eq!(
-        grants.grant(
-            GrantName { account: SPARSE_ACCOUNT, generation: 1 },
-            credential(b"value"),
-            Time::from_nanos(100)
-        ),
+        grants.grant(GrantName { account: SPARSE_ACCOUNT, generation: 1 }, credential(b"value"), Time::from_nanos(100)),
         Err(GrantError::Full)
     );
 }

@@ -401,14 +401,20 @@ fn two_calls(
     let mut input = prompt();
     input.served = Box::new([input.served[0].clone(), llm::Served::Finish]);
     let endpoint = configuration.endpoint.clone();
-    let credential = match configuration.credential.scheme { skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()), skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()) };
+    let credential = match configuration.credential.scheme {
+        skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()),
+        skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()),
+    };
     let codec::Prepared { client, context } = codec::prepare(
         codec::Input {
             owner: Token::new(31),
             endpoint_name: input.endpoint,
             prompt: input,
             endpoint: endpoint.clone(),
-            credential: match credential.scheme { skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()), skein_llm::Scheme::Key => skein_llm::Credential::key(credential.value.clone()) },
+            credential: match credential.scheme {
+                skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()),
+                skein_llm::Scheme::Key => skein_llm::Credential::key(credential.value.clone()),
+            },
             receiving,
         },
         bounds,
@@ -576,10 +582,7 @@ fn observed_requests_render_the_run_key_only_for_openai() {
             match configuration.endpoint.provider {
                 skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                 skein_llm::Provider::OpenAi => {
-                    assert_eq!(
-                        request.affinity,
-                        Some("\"42424242-4242-4242-4242-424242424242\"".into())
-                    );
+                    assert_eq!(request.affinity, Some("\"42424242-4242-4242-4242-424242424242\"".into()));
                     assert_eq!(wire.peer.queries[0].caching, skein_fake_llm_domain::api::Caching::Scope([0x42; 16]));
                 }
                 skein_llm::Provider::Anthropic => {
