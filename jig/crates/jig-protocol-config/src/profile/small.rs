@@ -399,8 +399,10 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     segment: 710_617_620,
     snapshot_after: 355_308_810,
     chunk: 1_606_883,
-    // The largest task row, including job specs, fits with its key.
-    page: skein_kv::Page { rows: 2, bytes: 1_606_863 },
+    // The largest shipped ordinary transcript is 2,184,673 bytes; its full
+    // frame adds 64 bytes (protocol/configuration.md, 6; protocol/store.md, 5.4).
+    // This page ceiling also holds the largest task row with its key.
+    page: skein_kv::Page { rows: 2, bytes: 2_184_737 },
     deadline: Duration::from_secs(30),
 };
 pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
