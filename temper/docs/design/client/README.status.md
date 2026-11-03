@@ -13,7 +13,8 @@
   `temper-client-protocol-wire`'s schema or in `temper-service`'s routing.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
-  `RemoveProject`: no project's settings and no such act in
+  `RemoveProject` by `shapes::remove_project`, with the chat
+  template's grace: no project's settings and no such act in
   `temper-client-domain`. 3.5, The welcome: for a person whose role
   does not hold the deployment's forges, the model alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a

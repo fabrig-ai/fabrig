@@ -1,0 +1,37 @@
+draft = "readiness-eintr"
+repo = "fabrig"
+sources = ["temper/docs/plan/readiness-eintr/inputs/request.md", "skein/docs/design/shell.md", "AGENTS.md"]
+
+# The answer to status-gaps' question readiness-eintr (inputs/request.md): (a). Under the
+# readiness backend an interrupted Socket, Accept, Connect or Open completes Other(EINTR), as the
+# ring's does (skein/docs/design/shell.md, 7.4, written by this cut). One skein task. The retry
+# lives in each system's call as well as in attempt, so the task removes both, for these four
+# alone. Every other interrupted operation stays as it is: its rule is the question below
+# (shell.md, 10), which no task waits for. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "interrupted-calls"
+title = "skein: the readiness backend completes an interrupted Socket, Accept, Connect or Open Other(EINTR), made once"
+mode = "direct"
+needs = []
+design = "skein/docs/design/shell.md, 7.4"
+
+[[slice]]
+id = 1
+story = "under the readiness backend, an interrupted Socket, Accept, Connect or Open completes Other(EINTR) after one call, as on the ring, a Connect never calling connect twice, while an interrupted transfer is still reissued"
+parts = ["interrupted-calls"]
+walk = false
+
+[[question]]
+id = "other-interrupted"
+parts = ["interrupted-calls"]
+text = """
+skein's shell.md 7.4 now has the readiness backend complete an interrupted Socket, Accept, Connect or Open Other(EINTR), as the ring does (your answer to readiness-eintr), and reissue the eight transfers. Every other operation it still makes again on EINTR: Bind, Listen, Shutdown, Truncate, Sync, Stat, Rename, Remove, MakeDirectory, List, Lock, Wait, Spawn, Signal, Usage and Window (attempt makes each again, and each system's call wraps its syscall in retry), where the ring completes those it makes as ring entries (Bind, Listen, Shutdown, Truncate, Sync, Stat, Rename, Remove, MakeDirectory, Wait) Other(EINTR). shell.md 10 now leaves this open. Which rule does 7.4 state?
+(a) Recommended: the same rule: each completes Other(EINTR), as the ring's do, so one error number means one thing on both backends. With the signals the shell watches blocked (Linux) or ignored (Darwin), these calls are seldom interrupted. The change: the retry goes from attempt and from each system's call on both systems, the callers outside the readiness backend that share those calls (open_listener's bind and listen among them) keeping theirs. One skein task, wider than this one: about sixteen calls on each system.
+(b) The readiness backend absorbs them: each is made again, as now, a difference 7.4 then states beside the four. A design-only change.
+No task waits for it: this plan's task changes the four alone.
+"""

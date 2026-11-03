@@ -183,7 +183,7 @@ Read a task's live tree: the task and each delegate its window holds, a line eac
 Prints: `tree:`, the task, then a line per delegate; `cut:` and the call that reads the rest when it folds some; and `digest: tree`
 --json: the record tree.
 Key: none.
-With `--until ended`, it returns when a read shows the tree ended; a watch that ends with no read of it delivered is refused: `gone`, status 2.
+With `--until ended`, it returns when a delivery shows the tree ended or its watch reports completion. Watch completion prints `tree ended (watch)` and labels the retained rows `last observed snapshot`; their phases and digest describe that snapshot. JSON keeps the tree unchanged and adds `completion: {source: "watch", ended: true}` and `snapshot: "last_observed"` outside it. A watch that ends with no delivery is refused: `gone`, status 2.
 A large tree folds what does not fit: read the rest with task list
 --parent TASK, a page at a time.
 ```

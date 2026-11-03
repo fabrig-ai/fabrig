@@ -253,7 +253,7 @@ and [`unix.rs`, 77–232](https://github.com/nextest-rs/nextest/blob/cargo-nexte
 
 `tools/tiers/cpu-summary DIR [--budgets tools/tiers/budgets.toml --pair PAIR]
 [--json]` reports per-test CPU totals across attempts and per-pair totals,
-user/system CPU, wall time, attempts, starved, leaked and incomplete counts.
+user/system CPU, wall time, attempts, starved, unobserved, leaked and incomplete counts.
 Suite CPU excludes compilation, listing, prerequisites and the supervisor.
 Suite wall spans the first test start through the final wrapper settlement;
 individual wall times and their sum are also available. A cancelled suite's
@@ -272,9 +272,18 @@ remain failures unless a later completed attempt beyond its inventory passes.
 Known timeout terminations remain starvation outcomes. JUnit represents
 `on-timeout="pass"` as success; a matching successful attempt whose process
 ended by SIGTERM/SIGKILL is recognized as a timeout termination. Unstarted
-tests are never claimed as executed. `run.json` identifies
-the profile and completion; `heavy-output.txt` retains the public command
-output. A nonempty DIR is refused to prevent mixing separate runs. CPU mode
+tests are never claimed as executed. In a starved run (`run.json` `starved`
+true), a JUnit attempt with no record whose outcome is an abort by SIGTERM or
+SIGKILL, the signals of cancellation (nextest's `test abort` type with
+`process aborted with signal 15` or `9` in its message or text), is
+unobserved: cancellation stopped its wrapper before the pre-exec record. It is
+neither a coverage error, a failure nor an executed attempt. The summary lists
+it in `unobserved` by `binary_id`, `test_name` and `attempt`, counts it in the
+suite's `unobserved` and warns of it, a green warning beside `starved`. Any
+other missing record, and any missing record in a run that is not starved,
+fails coverage (exit 2). `run.json` identifies the profile and completion;
+`heavy-output.txt` retains the public command output. A nonempty DIR is
+refused to prevent mixing separate runs. CPU mode
 reserves profile and configuration selection, and rejects stress mode, `--no-run` and `--debugger`.
 Pending tests and checkpointed tests still settling descendants both count as
 active for hard-wall supervision.
@@ -295,9 +304,10 @@ and invokes the owned command's public `heavy --cancel TOKEN`, using the token
 printed by heavy. It never edits heavy state or stops its units directly.
 Nextest slow-timeout terminations are also counted as starved using the JUnit
 attempt outcomes, without changing configured timeout periods. Starvation
-alone returns 0; observed assertion, exit or protocol failures and exceeded
-CPU budgets keep their failure verdicts. Incomplete CPU on cancelled attempts
-is reported explicitly alongside the green warning.
+alone, unobserved attempts included, returns 0; observed assertion, exit or
+protocol failures and exceeded CPU budgets keep their failure verdicts.
+Incomplete CPU on cancelled attempts is reported explicitly alongside the
+green warning.
 
 #### Budgets and completeness
 
@@ -344,6 +354,7 @@ record coverage and validation, retries and skipped tests, CPU budgets and
 verdict exit codes, hard-wall heavy cancellation, standard streams, exit codes,
 single and repeated group signals, exit checkpoints, explicit auto-reap
 accounting scope, cancellation with extra records or pending retries,
+cancellation aborts without records, starved or not,
 settlement deadlines under continuous reaping, waited-child CPU,
 double-forked daemon cleanup, and 100 trivial
 attempts' overhead. `test_run.py` also checks budget validation during
