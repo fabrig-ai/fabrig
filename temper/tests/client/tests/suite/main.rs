@@ -36,6 +36,7 @@ mod change_panel_edges;
 mod connect_model_edges;
 mod first_repository;
 mod first_run_hooks;
+mod forgejo_tokens;
 mod forges_edges;
 mod github_connect;
 mod live_text;

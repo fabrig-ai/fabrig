@@ -113,8 +113,8 @@ Acceptance:
   and the Replace; a `replace` beside them), `src/table.rs` (the tool after `CONNECT`), and the
   tests: `tests/forge_connection.rs`
   (`unoffered_ways_exit_two_without_reading_or_sending_a_value` keeps the ways still not offered
-  and loses form 2; new tests: a kept and a new tokens connect, their bundles decoded with
-  `decode_pasted` to the file's items; each broken file, exit 1, naming its line, nothing sent; a
+  and loses form 2; new tests: a kept and a new tokens connect, their bundles equal, byte for byte,
+  to `pasted_tokens` of the file's items; each broken file, exit 1, naming its line, nothing sent; a
   replace by key and by tokens, their bundles; a replace refused `not connected`, exit 2; the
   `--json` of each), `tests/fixtures.rs` (argv), `tests/help.rs`, `tests/golden/**`.
 - `temper-client-shell-cli/src/arguments.rs` (`key_file`, `key_bytes`) and `src/tests/keys.rs`
@@ -166,3 +166,13 @@ reads "`credential file must contain 1 to 4085 bytes`", the bound ctl now prints
 sentence in `temper/docs/help/forgejo.md` (*If not:*) and the forge's bound in
 `temper/docs/help/party.md` ("a forge's 1 to 4089") also become 4085, both files already this
 task's. No change to the codec, the wire or the contract.
+
+2026-11-03. May the task add `temper-protocol-records` to `temper-client-tools`' dev-dependencies,
+to decode the carried bundles with `decode_pasted`? No: the manifest stays as it is, and the
+acceptance changes instead. A test compares the bundle sent with the domain's own, byte for byte:
+`pasted_tokens(api, git, webhook_secret)` of the file's items for a tokens connect or replace,
+`pasted_app_key(pem)` of the file for a replace by key, as `temper-client-domain`'s
+`tests/github_app.rs` does for `github-app`. `encode_pasted` is deterministic, and
+`temper-client-domain`'s `tests/connect.rs` already decodes `pasted_tokens` with `decode_pasted`
+item by item, so the comparison checks the same thing without the client tools naming the records
+codec. Each test still asserts no value reaches the output. "Owns and may change" now says so.
