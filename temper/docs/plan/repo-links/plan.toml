@@ -6,6 +6,7 @@ sources = ["temper/docs/plan/repo-links/inputs/request.md", "AGENTS.md"]
 # link into the old temper repository, the deployment's help, moves to the same page in fabrig.
 # One direct part of one task. plan.md says what was decided and why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
