@@ -75,15 +75,7 @@ impl Domain {
         let (mut start, mut push, holder) = match inherited {
             Some((row, kind)) => match kind {
                 change::Delegate::Produce => {
-                    let mut existing = false;
-                    for (name, _) in &self.heads {
-                        if name.forge == seed.repository.forge
-                            && name.repository == seed.repository.repository
-                            && branch_matches(name, &row.branch)
-                        {
-                            existing = true;
-                        }
-                    }
+                    let existing = self.has_branch(seed.repository, &row.branch);
                     (
                         if existing { Start::Branch(row.branch.clone()) } else { Start::Base(row.base.clone()) },
                         Some(row.branch.clone()),
@@ -164,6 +156,18 @@ impl Domain {
             },
             bytes,
         })
+    }
+
+    fn has_branch(&self, repository: api::Repository, branch: &[u8]) -> bool {
+        for (name, _) in &self.heads {
+            if name.forge == repository.forge
+                && name.repository == repository.repository
+                && branch_matches(name, branch)
+            {
+                return true;
+            }
+        }
+        false
     }
 
     /// Repairs and resolutions write under the branch's hold (temper/docs/design/domain/forge.md, 8.1).
