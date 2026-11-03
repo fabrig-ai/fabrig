@@ -59,7 +59,14 @@ impl Walk {
         }))
     }
 
+    #[expect(dead_code, reason = "the walk retains its no-check entry point beside run_then")]
     fn run(&self, acts: Vec<Act>) -> Seen {
+        self.run_then(acts, |_, _| ())
+    }
+
+    /// `run`, then `check` while the box still serves, given the configuration
+    /// directory and the client root that ctl signed in under.
+    fn run_then(&self, acts: Vec<Act>, check: impl FnOnce(&Path, &Path)) -> Seen {
         let count = acts.iter().filter(|act| !matches!(act, Act::Mark(_))).count();
         let mut steps = vec![Step::Run(Call::sign_in())];
         steps.extend(acts.into_iter().map(|act| match act {
@@ -77,7 +84,7 @@ impl Walk {
             self.scratch.path(),
             steps,
             crate::BOX_DEADLINE,
-            |_binary| (),
+            |_binary| check(&self.sandbox().join("config"), self.scratch.path()),
         );
         let diagnostic = String::from_utf8_lossy(&outcome.stderr);
         // A refused restart must fail on the box's terminal, before missing
@@ -147,6 +154,7 @@ struct Seen {
 }
 
 mod here_key;
+mod open_default;
 mod program_here;
 
 fn assert_reply(seen: &Seen) {
