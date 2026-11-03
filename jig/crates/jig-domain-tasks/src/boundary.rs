@@ -349,6 +349,8 @@ pub struct RecurringState {
 /// (domain/tasks.md, section 5.3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ProcedureDecision {
+    /// Replace this procedure task's specification words, within the specification byte bound.
+    pub words: Option<Box<[u8]>>,
     pub batch: Box<[New]>,
     pub amendments: Box<[ProcedureAmendment]>,
     pub cancels: Box<[ProcedureCancel]>,
@@ -391,6 +393,7 @@ impl ProcedureDecision {
     #[must_use]
     pub fn new(end: ProcedureEnd) -> Self {
         Self {
+            words: None,
             batch: Box::new([]),
             amendments: Box::new([]),
             cancels: Box::new([]),
