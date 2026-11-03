@@ -339,7 +339,7 @@ pub const TREE: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"With `--until ended`, it returns when a read shows the tree ended; a watch that ends with no read of it delivered is refused: `gone`, status 2.\nA large tree folds what does not fit: read the rest with task list\n--parent TASK, a page at a time.\n",
+    notes: b"With `--until ended`, it returns when a delivery shows the tree ended or its watch reports completion. Watch completion prints `tree ended (watch)` and labels the retained rows `last observed snapshot`; their phases and digest describe that snapshot. JSON keeps the tree unchanged and adds `completion: {source: \"watch\", ended: true}` and `snapshot: \"last_observed\"` outside it. A watch that ends with no delivery is refused: `gone`, status 2.\nA large tree folds what does not fit: read the rest with task list\n--parent TASK, a page at a time.\n",
 };
 
 /// Area 5 reads append to preserve earlier tool and keyed-call identities.
