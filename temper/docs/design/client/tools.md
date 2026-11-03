@@ -349,8 +349,9 @@ agent must name.
   for project P's, or `{"kind": "forge-charter", "number": N}`, N 1
   the change's charter and 2 its reviews'; VALUE is exactly the
   `value` member `settings show … --json` prints: for a landing rule, section
-  3's rule member as `temper.json` wrote it (`../protocol/configuration.md`,
-  13.2), for the forge's charter a charter's number. Decoded bounded (6.4): the file's size, the item count and every
+  3's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
+  `landing-pattern` form, its segments as hex
+  (`../protocol/configuration.md`, 13.2), for the forge's charter a charter's number. Decoded bounded (6.4): the file's size, the item count and every
   value's bounds are jig's (`ChangeSettings`' own, and the limits the engine's
   `me` gives where it gives them). Past a bound it is refused before anything
   is sent, naming the item and the bound. Unknown members are refused,

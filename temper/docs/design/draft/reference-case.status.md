@@ -7,13 +7,8 @@ The case walks the mechanisms of `reference-code-production.md` and
 where, document by document. By step (sections 3 to 7):
 
 - **Design lags:**
-  - **every step:** the goal's changes made by `change` with all their
-    fields (N22) and their agents' LLM choices (N19).
-  - **2, 5:** surveys as sub-agents reaching temper's runs (N10).
   - **11:** C4's producer going on once C5 lands, g's tip merged in first
     (N2): `../domain/forge.md`, 8.11 merges the landing tip first only
     for a change that started early.
-  - **3, 4, 6, 15, 22:** a designer as a change's producer (N13), and the
-    plan's text as design in g (N12, step 4).
   - **22:** G's close-out waiting for g's tier's last run to be green
     (N5).
