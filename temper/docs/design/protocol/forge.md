@@ -223,7 +223,7 @@ skein-io socket
     at each `Check` done (2.2); a GitHub forge commits as its App's bot,
     from its `AppSlug` and `User` records (2.5);
   - for a first set up, the first repository's intent: its
-    organization, name, project and runner label (setup.md, 6.7), kept
+    organization, name and runner label, and no project (setup.md, 6.7), kept
     so that a restart before the repository is made makes it at the next
     connect;
   - its state: kept, or ended, with whether its secrets are erased and

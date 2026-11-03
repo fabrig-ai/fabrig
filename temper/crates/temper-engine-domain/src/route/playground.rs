@@ -113,7 +113,7 @@ fn project(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
         fail(domain, forge::StartFailure::Adoption);
         return;
     };
-    ask(domain, Reply::Project, b"project", people::Ask::MakeProject { name: "Playground".into(), policy });
+    ask(domain, Reply::Project, b"project", people::Ask::MakeProject { name: "Demo".into(), policy });
 }
 fn fail(domain: &mut Domain, why: forge::StartFailure) {
     domain.playground_start = None;

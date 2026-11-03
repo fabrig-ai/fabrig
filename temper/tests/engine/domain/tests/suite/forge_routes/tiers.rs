@@ -1,5 +1,7 @@
 //! Root stories for temper/docs/design/domain/after-landing.md, 3–6 and 12.
 use super::*;
+#[path = "tier_task_show.rs"]
+mod task_show;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_tiers as policy;
 use temper_engine_domain_world::tier_runs::{
@@ -7,7 +9,10 @@ use temper_engine_domain_world::tier_runs::{
 };
 
 fn chat_world(turn: bool, options: Tier) -> (World, engine::Assignment) {
-    let mut world = tier_runs::world(turn, options);
+    start_chat(tier_runs::world(turn, options))
+}
+
+fn start_chat(mut world: World) -> (World, engine::Assignment) {
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { unreachable!() };
@@ -425,7 +430,7 @@ fn execution_words(world: &World, number: u64) -> &str {
 
 #[test]
 fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
-    let (mut world, _) = chat_world(false, Tier::default());
+    let (mut world, _) = start_chat(task_show::world());
     until(&mut world, LANDING_TICKS, "forge link projected while running", |world| {
         tier(world).task.is_some_and(|number| execution_words(world, number).contains("forge run "))
             && restart_cut(world)
@@ -434,6 +439,7 @@ fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
     let run = dispatched_runs(&world).into_iter().next().expect("baseline dispatch");
     assert_eq!(run.state, raw::RunState::Running);
     let before = execution_words(&world, number).to_owned();
+    task_show::assert_words(&mut world, number, &before);
     assert!(before.contains(&format!("forge run {} http://forge/org/repo/actions/runs/{}", run.number, run.number)));
     world.restart_same();
     until(&mut world, RUN_TICKS, "baseline completed after restart", |world| {
@@ -450,6 +456,7 @@ fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
         tier_runs::tick(&mut world);
     }
     assert_eq!(task(&world, number).spec, completed.spec);
+    task_show::assert_words(&mut world, number, &before);
 }
 
 fn assert_part_words(
@@ -481,6 +488,8 @@ fn observe_range(world: &mut World, task: u64) -> Vec<raw::Run> {
             }
         }
         if tier(world).record.sequence == 2 {
+            let words = execution_words(world, task).to_owned();
+            task_show::assert_words(world, task, &words);
             return runs;
         }
         tier_runs::tick(world);

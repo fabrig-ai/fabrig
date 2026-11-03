@@ -410,14 +410,17 @@ impl Task {
             | Act::DiscardAmendment
             | Act::SendAmendment
             | Act::AmendAgain
+            | Act::MakeDefault
             | Act::OpenProject { .. }
             | Act::Project { .. }
+            | Act::Switcher(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::FirstChat
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
@@ -506,14 +509,17 @@ impl Task {
                 }
             }
             Act::SendAmendment => self.send(env, client, Sending::Amend, serial, out),
-            Act::OpenProject { .. }
+            Act::MakeDefault
+            | Act::OpenProject { .. }
             | Act::Project { .. }
+            | Act::Switcher(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::FirstChat
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }

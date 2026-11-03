@@ -94,14 +94,14 @@ pub fn run() {
     let within = Duration::from_secs(30);
     let steps = Box::new([
         Step::Go { address: Address::ConnectForge { forge: Some(Choice::Forge(1)) } },
-        Step::See { find: Find::named(Role::Choice, b"freeekanayaka/temper-probe-2"), within },
-        Step::Type {
-            find: Find::named(Role::TextField, b"Into a new project, named"),
-            words: b"Managed sitting".as_slice().into(),
-        },
-        Step::Press { find: Find::named(Role::Button, b"Adopt freeekanayaka/temper-probe-2") },
-        Step::See { find: Find::text(b"freeekanayaka/temper-probe-2 is ready"), within },
-        Step::See { find: Find::text(b"Managed sitting"), within },
+        Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within },
+        Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
+        Step::See { find: Find::named(Role::TextField, b"Owner"), within },
+        Step::Type { find: Find::named(Role::TextField, b"Owner"), words: b"freeekanayaka".as_slice().into() },
+        Step::Type { find: Find::named(Role::TextField, b"Name"), words: b"temper-probe-2".as_slice().into() },
+        Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
+        Step::Press { find: Find::named(Role::Button, b"Adopt") },
+        Step::See { find: Find::text(b"Adopted freeekanayaka/temper-probe-2 on forge 1 as owned."), within },
     ]);
     let root = skein_shell::open_root(std::path::Path::new(".")).expect("sitting scratch root");
     let clock = Clock::new();

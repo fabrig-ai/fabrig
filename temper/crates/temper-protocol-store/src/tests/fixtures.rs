@@ -909,7 +909,6 @@ pub fn forge_record() -> top::ForgeRecord {
             playground: true,
             org: b"playground".as_slice().into(),
             repository: b"widget".as_slice().into(),
-            project: top::SetUpProject::New(b"project".as_slice().into()),
             label: b"playground".as_slice().into(),
         }),
     }

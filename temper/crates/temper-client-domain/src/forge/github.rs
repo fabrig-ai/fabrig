@@ -247,7 +247,7 @@ pub(crate) fn told(
     {
         new.accepted = true;
     }
-    forges::maybe_adopt(side, limits, out);
+    forges::bind_new(side, out);
     side.changed();
     true
 }

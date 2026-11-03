@@ -1299,11 +1299,7 @@ fn forge_record_round_trips_every_mode_and_state() {
                 forge::ForgeState::Ended { secrets_erased: true, box_removed: false },
                 forge::ForgeState::Ended { secrets_erased: true, box_removed: true },
             ] {
-                for first in [
-                    None,
-                    Some(forge::SetUpProject::Existing(u32::MAX)),
-                    Some(forge::SetUpProject::New(Box::new([0, 255]))),
-                ] {
+                for first in [false, true] {
                     for optional in [false, true] {
                         let mut record = fixtures::forge_record();
                         record.kind = kind;
@@ -1311,13 +1307,13 @@ fn forge_record_round_trips_every_mode_and_state() {
                         record.state = state;
                         record.read_only = optional;
                         record.asked = optional;
-                        record.first = match first.clone() {
-                            None => None,
-                            Some(project) => Some(forge::FirstIntent {
+                        record.first = if first {
+                            Some(forge::FirstIntent {
                                 playground: optional,
-                                project,
                                 ..record.first.take().expect("fixture first intent")
-                            }),
+                            })
+                        } else {
+                            None
                         };
                         if !optional {
                             record.git_program = None;
@@ -1364,7 +1360,7 @@ fn playground_round_trips_every_state() {
 #[test]
 fn forge_names_decode_at_the_deployment_bound_and_refuse_one_past() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    for field in ["org", "repository", "project"] {
+    for field in ["org", "repository"] {
         for extra in [0, 1] {
             let mut row = fixtures::forge_record();
             let first = row.first.as_mut().expect("fixture first intent");
@@ -1373,7 +1369,6 @@ fn forge_names_decode_at_the_deployment_bound_and_refuse_one_past() {
             match field {
                 "org" => first.org = name,
                 "repository" => first.repository = name,
-                "project" => first.project = forge::SetUpProject::New(name),
                 _ => panic!("named field"),
             }
             let row = forge::Stored::Forge(row);

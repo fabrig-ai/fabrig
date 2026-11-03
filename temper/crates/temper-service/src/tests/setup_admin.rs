@@ -65,12 +65,7 @@ fn bundle(item: u16, bytes: &[u8]) -> Secret {
     }
 }
 fn first(label: &[u8]) -> domain::FirstAsk {
-    domain::FirstAsk {
-        org: b"work".as_slice().into(),
-        repository: b"hello".as_slice().into(),
-        project: domain::SetUpProject::Existing(1),
-        label: label.into(),
-    }
+    domain::FirstAsk { org: b"work".as_slice().into(), repository: b"hello".as_slice().into(), label: label.into() }
 }
 fn ask(service: &mut crate::Service, value: Secret, first: Option<domain::FirstAsk>) {
     let engine = service.engine.as_mut().unwrap();
