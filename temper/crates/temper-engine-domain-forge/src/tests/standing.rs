@@ -345,3 +345,17 @@ fn requirement_5_is_guarded_and_6_observed() {
         }
     }
 }
+
+#[test]
+fn owner_attached_requirements_1_to_4_wait_without_a_criteria_table() {
+    let (domain, evidence) = fixture();
+    for requirement in 1..=4 {
+        for parameters in [0, u32::MAX] {
+            assert_eq!(
+                domain.judge_landing(5, requirement, parameters, CHANGE, HEAD, &evidence, &reviewers()),
+                Some(JudgeVerdict::Wait)
+            );
+            assert!(!domain.guards_landing(5, requirement, parameters));
+        }
+    }
+}

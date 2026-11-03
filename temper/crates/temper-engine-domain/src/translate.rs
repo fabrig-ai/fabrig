@@ -21,8 +21,10 @@ pub struct Config {
     /// configuration too, set by an in-process hosts' listener: standalone,
     /// they do (domain/root.md, 2).
     pub core: jig_domain_core::Config,
-    /// Forge landing requirements and their connector-owned judge parameters.
-    pub landing: LandingPolicy,
+    /// Each project's landing way and repository checks.
+    pub landings: Map<u32, ProjectLanding>,
+    /// Document rules used only to bridge typed configuration to forge defaults.
+    pub landing_rules: LandingRules,
     /// The forge's kind defaults at this start (temper/docs/design/domain/root.md, 5.6).
     pub kinds_stock: Box<[forge::settings::Stock]>,
     /// Forge writer identities and this deployment's branch namespace.
@@ -48,12 +50,11 @@ pub(crate) struct RootConfig {
     pub(crate) landings: Map<u32, ProjectLanding>,
 }
 
-/// Typed forge landing policy retained by the application for policy snapshots.
+/// Document landing rules translated to forge defaults (domain/root.md, 6).
 #[derive(Debug)]
-pub struct LandingPolicy {
+pub struct LandingRules {
     pub deployment: Box<[LandingRule]>,
     pub projects: Map<u32, Box<[LandingRule]>>,
-    pub landings: Map<u32, ProjectLanding>,
 }
 
 /// A project's landing way and repository checks (protocol/configuration.md, 3).

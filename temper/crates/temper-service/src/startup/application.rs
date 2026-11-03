@@ -21,7 +21,8 @@ pub struct Members {
     pub webhooks: Option<Webhooks>,
     pub machine: temper_forge_setup::machine::Machine,
     pub demo: Option<settings::Demo>,
-    pub landing: temper_engine_domain::LandingPolicy,
+    pub landing_rules: temper_engine_domain::LandingRules,
+    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     /// The landing's projects in the document's order, which names a refused one's path.
     pub landing_projects: Box<[u32]>,
     pub charter: u32,
@@ -365,7 +366,7 @@ pub fn parse(
     if !problems.is_empty() {
         return None;
     }
-    let (landing, landing_projects) = landing?;
+    let (landing_rules, landings, landing_projects) = landing?;
     Some(Members {
         clients: clients?,
         sign_in,
@@ -376,7 +377,8 @@ pub fn parse(
         charter: charter?,
         limits: limits?,
         overrides: overrides.into_boxed(),
-        landing,
+        landing_rules,
+        landings,
         landing_projects,
     })
 }

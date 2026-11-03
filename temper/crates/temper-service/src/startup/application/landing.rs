@@ -173,13 +173,14 @@ fn rules(
     }
     rules.into_boxed()
 }
+#[expect(clippy::type_complexity, reason = "the document yields landing rules, project ways and their order together")]
 pub(super) fn parse(
     document: &Document,
     at: u32,
     jig: &config::Engine,
     limits: &limits::Limits,
     problems: &mut Problems,
-) -> Option<(engine::LandingPolicy, Box<[u32]>)> {
+) -> Option<(engine::LandingRules, Map<u32, engine::ProjectLanding>, Box<[u32]>)> {
     let path = Path::root().member(b"application").member(b"landing");
     let mut object = read::object(document, at, &path, problems)?;
     let deployment_ats =
@@ -232,7 +233,7 @@ pub(super) fn parse(
             }
         }
     }
-    Some((engine::LandingPolicy { deployment, projects, landings }, order.into_boxed()))
+    Some((engine::LandingRules { deployment, projects }, landings, order.into_boxed()))
 }
 
 fn optional_list(

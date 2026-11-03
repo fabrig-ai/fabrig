@@ -626,16 +626,16 @@ fn index_of(numbers: &[u32], number: u32) -> usize {
     }
     index
 }
-fn landing_config(engine: &settings::Engine) -> domain::LandingPolicy {
-    let mut projects = Map::with_capacity(engine.landing.projects.capacity());
-    for (&project, rules) in &engine.landing.projects {
+fn landing_config(engine: &settings::Engine) -> (domain::LandingRules, Map<u32, domain::ProjectLanding>) {
+    let mut projects = Map::with_capacity(engine.landing_rules.projects.capacity());
+    for (&project, rules) in &engine.landing_rules.projects {
         projects.insert(project, rules.clone()).expect("the same capacity");
     }
-    let mut landings = Map::with_capacity(engine.landing.landings.capacity());
-    for (&project, landing) in &engine.landing.landings {
+    let mut landings = Map::with_capacity(engine.landings.capacity());
+    for (&project, landing) in &engine.landings {
         landings.insert(project, landing.clone()).expect("the same capacity");
     }
-    domain::LandingPolicy { deployment: engine.landing.deployment.clone(), projects, landings }
+    (domain::LandingRules { deployment: engine.landing_rules.deployment.clone(), projects }, landings)
 }
 
 /// What the root's construction asserts, refused before it is made, each
@@ -648,17 +648,18 @@ pub fn root(
     limits: &domain::Limits,
     problems: &mut Problems,
 ) {
-    let landing = landing_config(engine);
+    let (landing_rules, landings) = landing_config(engine);
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
     if let Some(&connector) = core.connectors.first() {
         core.kinds = crate::stock::kinds(limits, connector);
     }
     let config = domain::Config {
-        kinds_stock: crate::stock::forge_defaults(&landing, engine.charter),
+        kinds_stock: crate::stock::forge_defaults(&landing_rules, engine.charter),
         period_span: crate::stock::PERIOD_SPAN,
         playground: crate::system::playground_config(engine.demo.as_ref(), engine.limits.setup.deadline),
         core,
-        landing,
+        landing_rules,
+        landings,
         forge,
         identities,
         forge_charter: engine.charter,

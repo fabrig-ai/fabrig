@@ -173,10 +173,10 @@ impl Application for Temper {
     fn build(config: &Config) -> Domain {
         let (mut configuration, limits) = config::root(config.seed, config.scenario, config.story);
         if config.scenario == Some(jig_conformance::scenarios::Scenario::ChangedJudge) {
-            for rule in &mut configuration.landing.deployment {
+            for rule in &mut configuration.landing_rules.deployment {
                 rule.enforce = false;
             }
-            if let Some(rules) = configuration.landing.projects.get_mut(&1) {
+            if let Some(rules) = configuration.landing_rules.projects.get_mut(&1) {
                 for rule in rules {
                     rule.enforce = false;
                 }

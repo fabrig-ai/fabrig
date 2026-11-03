@@ -32,7 +32,7 @@ fn the_reference_landing_member_parses() {
     let mut problems = Problems::empty();
     let members = application::parse(&document, at, &jig, &config::Directories::working(), &mut problems);
     assert_eq!(lines(&problems).as_ref(), b"", "reference landing accepted");
-    let policy = members.expect("application members").landing;
+    let policy = members.expect("application members").landing_rules;
     assert!(policy.deployment.is_empty());
     assert_eq!(policy.projects.len(), PROJECTS);
     let rules = policy.projects.get(&PROJECT).expect("reference project");

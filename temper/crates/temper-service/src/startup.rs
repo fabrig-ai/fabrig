@@ -737,7 +737,8 @@ fn checked_start_with(
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,
-        landing: parsed.application.landing,
+        landing_rules: parsed.application.landing_rules,
+        landings: parsed.application.landings,
         charter: parsed.application.charter,
         limits: parsed.application.limits,
     };
