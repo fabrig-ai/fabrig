@@ -14,7 +14,7 @@ change show TASK [--project PROJECT] [--since DIGEST] [--until CONDITION] [--tim
   --until CONDITION: one of pull, ci:pending, ci:passed, ci:failed, held, landed, changed or cleared; optional. Wait until it holds: pull, ci:pending, ci:passed, ci:failed, held, landed, cleared, or changed
   --timeout DURATION: a duration: seconds, or a number with s, m or h, at most 3600 seconds; optional. How long a wait lasts; 300 seconds when absent, at most 3600
 Read a change's way to landing: its pull request, CI and step
-Prints: `change N`, its repository, branch and landing branch, its pull request, step and CI at its head, and a digest
+Prints: `change N`, its repository, branch and landing branch, its pull request, step and CI at its head; its questions: the route, those taken of its bound, and each open question with where it stands; and a digest
 --json: the record change.
 Key: none.
 Until it lands, it prints `next: temper ctl DIR change show TASK

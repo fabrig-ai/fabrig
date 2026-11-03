@@ -1364,6 +1364,47 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DelegateResult { task, child, status, no_change, failed, cancelled, words } => {
             delegate_result(d, env, task, child, status, no_change, failed, cancelled, &words, out);
         }
+        Event::RelayRefused { task, questions, words } => {
+            if let Some(row) = d.changes.get_mut(&task) {
+                let before = crate::panel::ready(row);
+                row.questions = questions;
+                row.change.state = change::State::Held {
+                    was: Box::new(before_relay_hold(&row.change.state)),
+                    why: change::Hold::Failed,
+                };
+                row.change.owns_turn = false;
+                row.producer_failure = Some(words);
+                let saved = row.clone();
+                save_queue_change(d, env, before, saved, out);
+            }
+        }
+        Event::Relayed { task, questions } => {
+            if let Some(row) = d.changes.get_mut(&task) {
+                let before = crate::panel::ready(row);
+                let was_asking = agent_asking(row);
+                let hold = match questions.open.first() {
+                    Some(question) => {
+                        question.stands == change::Stands::Taken
+                            && questions.taken >= env.limits.change_policy.questions
+                    }
+                    None => false,
+                };
+                row.questions = questions;
+                let answered = was_asking && !agent_asking(row);
+                if hold {
+                    row.change.state = change::State::Held {
+                        was: Box::new(before_relay_hold(&row.change.state)),
+                        why: change::Hold::Questions,
+                    };
+                    row.change.owns_turn = false;
+                }
+                let saved = row.clone();
+                save_queue_change(d, env, before, saved, out);
+                if answered {
+                    emit(out, Request::WakeProcedure { task });
+                }
+            }
+        }
         Event::StartConflicted { child, tag, head } => {
             for (task, row) in &d.changes {
                 if row.delegate == Some((child, change::Delegate::Produce))
@@ -2404,6 +2445,33 @@ fn effect_permitted(kinds: Kinds, write: &skein_forge::api::Write) -> bool {
     }
 }
 
+fn before_relay_hold(state: &change::State) -> change::State {
+    match state {
+        change::State::Held { was, .. } => was.as_ref().clone(),
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended => state.clone(),
+    }
+}
+
 fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &mut Queue<Request>) {
     let task = row.task;
     if !d.repositories.contains_key(&row.repository)
@@ -3214,6 +3282,21 @@ fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<R
         && (producing || row.delegate_status == change::Status::Passed)
         && row.change.state == (change::State::Producing { requested: true })
     {
+        if agent_asking(&row) {
+            row.change.since = env.wall;
+            d.changes.insert(task, row.clone()).expect("replaces change");
+            save_change(d, out, row);
+            emit(
+                out,
+                Request::ChangeDecision {
+                    task,
+                    decision: change::Decision::Wait { until: None },
+                    entry: None,
+                    evidence: None,
+                },
+            );
+            return None;
+        }
         let until = skein_lib::Wall::from_nanos(
             row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
         );
@@ -3387,7 +3470,7 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
 }
 
 #[expect(clippy::manual_map, reason = "step code uses concrete matches, without callbacks")]
-#[expect(clippy::too_many_lines, reason = "the change snapshot keeps branch ownership and merge-job facts together")]
+#[expect(clippy::too_many_lines, reason = "the coherent change snapshot includes question and early-start facts")]
 fn change_facts(
     d: &Domain,
     env: &Env<Limits>,
@@ -3500,11 +3583,22 @@ fn change_facts(
         may_merge,
         queue_repair_active: pending.queue_repair_active,
         kept: pending.kept,
+        asking: agent_asking(row),
         settling: match window {
             Some((_, end)) => Some(end),
             None => None,
         },
     }
+}
+
+fn agent_asking(row: &ChangeRow) -> bool {
+    let Some((task, _)) = row.delegate else { return false };
+    for question in &row.questions.open {
+        if question.asker == task {
+            return true;
+        }
+    }
+    false
 }
 
 fn emit_change_effect(

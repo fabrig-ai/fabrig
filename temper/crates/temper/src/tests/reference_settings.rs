@@ -6,11 +6,12 @@ use settings_form::view::{
 use skein_lib::{Duration, List, bytes};
 
 const COORDINATOR: u32 = 5;
-const DESIGNER: u32 = 6;
+const DESIGNER: u32 = 7;
 const CODER: u32 = 2;
+const FOREMAN: u32 = 6;
 const GOAL: u32 = 4;
-// The reference supplies three charters, one template and two landing rules.
-const ITEMS: u32 = 6;
+// The reference supplies four charters, one template and two landing rules.
+const ITEMS: u32 = 7;
 // temper-init/template/agent.json's profile.policy.max_turns.
 const TURNS: u32 = 16;
 
@@ -50,6 +51,7 @@ fn the_reference_settings_file_decodes() {
         (COORDINATOR, b"claude-opus-5-5".as_slice()),
         (DESIGNER, b"claude-opus-5-5".as_slice()),
         (CODER, b"gpt-6.1-sol".as_slice()),
+        (FOREMAN, b"gpt-6.1-sol".as_slice()),
     ] {
         let SettingValue::Charter(charter) = value(&items, Setting::Charter(SettingNumber { number })) else {
             panic!("reference charter")
@@ -60,7 +62,7 @@ fn the_reference_settings_file_decodes() {
         assert_eq!(charter.hosts, settings_form::view::SettingHosts::Workers);
         assert_eq!(charter.turns, TURNS);
         assert_eq!(charter.time, Duration::from_secs(1800));
-        if number != CODER {
+        if number != CODER && number != FOREMAN {
             assert!(!charter.resume());
             assert_eq!(charter.waiting, Duration::ZERO);
         }
@@ -75,7 +77,7 @@ fn the_reference_settings_file_decodes() {
         Some(b"1. In one page"),
         b"skein/docs/foundation/programming-model.md",
     );
-    assert!(bytes::find(coordinator.instructions.bytes(), b"\"producer\": 6").is_some());
+    assert!(bytes::find(coordinator.instructions.bytes(), b"\"producer\": 7").is_some());
     assert!(bytes::find(coordinator.instructions.bytes(), b"close-out").is_some());
     assert!(
         std::str::from_utf8(coordinator.instructions.bytes())
@@ -84,6 +86,9 @@ fn the_reference_settings_file_decodes() {
     );
     let instructions =
         std::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions are UTF-8");
+    assert!(instructions.contains(r#""branch": "mine""#));
+    assert!(instructions.contains(r#""questions": "foreman""#));
+    assert!(instructions.contains("decide"));
     assert!(instructions.contains(r#""repairs""#));
     assert!(instructions.contains("a red of your goal branch's tier"));
     assert!(instructions.contains("with `note`"));
@@ -134,6 +139,19 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(coder.wake, WakePolicy::DEFAULT);
     assert!(coder.documents.is_empty());
     assert!(coder.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/coding.txt")));
+    assert!(
+        std::str::from_utf8(coder.instructions.bytes())
+            .expect("coding instructions are UTF-8")
+            .contains("in the question form")
+    );
+    let SettingValue::Charter(foreman) = value(&items, Setting::Charter(SettingNumber { number: FOREMAN })) else {
+        panic!("foreman charter")
+    };
+    assert!(foreman.inspect());
+    assert!(!foreman.modify());
+    assert!(!foreman.shell());
+    assert!(!foreman.agents());
+    assert!(foreman.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/foreman.txt")));
     assert!(
         core::str::from_utf8(coder.instructions.bytes())
             .expect("coding instructions")

@@ -1062,7 +1062,11 @@ branch. Its parameters:
   with “Land ”, fitted to its task bound without sentence extraction.
   A change is never refused or held for the length of its words;
 - **its bounds:** repairs, resolutions, updates, and the stall of each
-  wait.
+  wait;
+- **its questions:** how it takes its agents' questions (8.11): `none`,
+  the default, asking no one; `foreman`, each settled first by a foreman
+  of its own; `up`, each passed straight to its requester; and how many
+  it takes, a bound beside the others.
 
 A run asks for one with `change`, giving the words, and the root fills
 in the rest from the project (`agent.md`, 4.3.1). A run whose authority
@@ -1070,7 +1074,7 @@ holds jig's control family names, too, what a plan decides: the landing
 branch, its own goal branch or a branch of the repository; its
 dependencies, task numbers or changes of the same call; several
 changes in one call, made as one batch; its producer's charter; and its
-agents' LLM choices. The landing branch is parameter 2, the
+agents' LLM choices; and its questions. The landing branch is parameter 2, the
 dependencies are the task's own (jig's `domain/tasks.md`, section 4),
 and a change made with neither is as a chat's. The producer's charter
 and the LLM choices are one text parameter, 11, so that a change stays
@@ -1091,10 +1095,12 @@ repository, beside the kinds it makes (`agent.md`, 4.3.1): a reviewer
 reads its own pull request and its files, and a repair a failed job's
 log, through the reads an agent may call, past what its brief carries.
 
-A change asks no one. What to change is agreed before it is asked for,
-by a goal that asks first where its person wants to agree a plan
-(`agent.md`, 8.2), and the procedure delegates its agents without the
-Message family. It takes no questions, answers or words either, and says
+A change made with questions `none` asks no one. What to change is
+agreed before it is asked for, by a goal that asks first where its
+person wants to agree a plan (`agent.md`, 8.2), and the procedure
+delegates its agents without the Message family. One made with
+`foreman` or `up` relays its own agents' questions instead (8.11); what
+follows holds for it but for those. It takes no questions, answers or words either, and says
 so rather than drop one: at its next step, a question in its inbox is
 answered, in the answer form to the question's number, that a change
 takes no questions and that its requester is task R; a task's words are
@@ -1453,7 +1459,9 @@ delegate's terminal wakes it to offer the landed result.
   is never held just for waiting, yet tells the person of a check that
   never reports within the same sitting. A wait for access is not one:
   while its forge is not connected, or its repository not reachable
-  (4.1, 4.3), the stall does not count.
+  (4.1, 4.3), the stall does not count. Nor is a wait for its agent
+  while a question of that agent's is open (8.11): the stall counts
+  again from the step that relays its last answer down.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it, its stall is counted from it, and the change
   decides afresh. A producer that fails for good holds the change at
@@ -1647,8 +1655,10 @@ What the connector makes of a change for the client's panel
   request's number; its state, with the step it was held at; the task
   its one delegate runs; its gates and their verdicts, each judged at
   the current head with its freshness (8.3), a gate whose review runs at
-  that head pending until it reports; and its repairs, resolutions and
-  updates used, with their limits from `change_policy`.
+  that head pending until it reports; its repairs, resolutions and
+  updates used, with their limits from `change_policy`; and its
+  questions, its route, those taken of its bound and its open ones
+  (8.11).
 - **CI at its head** is what its last step read (5.3), kept in memory
   beside its record, one verdict per change, while the change is live: a
   restart forgets it, and the panel says unknown until the change's next
@@ -1725,7 +1735,113 @@ under the turn, while its landing has begun its proof and not yet landed
 (`landing.md`, 4.2). Its producing, repair or resolution run finishes
 its turn and parks, as every run under a drain does.
 
-### 8.11 Early starts
+### 8.11 Its questions and early starts
+
+#### Its questions
+
+A change made with questions `foreman` or `up` (8.1) relays its agents'
+questions: its producing, its repairs and its resolutions ask it, it
+has each settled by a foreman or passes it to its requester, and it
+answers the asker. It decides nothing itself (jig's `domain/tasks.md`,
+section 9): the foreman and the requester decide, and the change relays
+(`../draft/notes.md`, N1).
+
+- **Its agents may ask.** It delegates its producing, its repairs and
+  its resolutions with the Message family kept, so that each may ask
+  its requester, the change, in the question form, its words carrying
+  its options and its recommendation, after pushing what it has. An
+  agent that asked is kept by its own question (jig's
+  `domain/tasks.md`, 5.7): its run parks, no try spent, until the
+  change answers, and the change's wait for it is no stall (8.4). Its
+  reviews and its foremen are delegated without the Message family, as
+  under `none`.
+- **Taken at its step.** Each step takes the questions its own agents
+  asked (its producing task, and the repair or the resolution it has
+  live), oldest first, as its open questions, kept on its record, and
+  works them one at a time in that order: the next gets its foreman, or
+  is passed up, once the one before is answered. A question from any
+  other task, and every task's words, are answered as 8.1 says for a
+  change that takes none.
+- **Bounded.** It counts the questions it takes, each as its turn comes,
+  from its making or its last release, against its bound,
+  `forge.change_policy.questions` (4 on the stock:
+  `../protocol/configuration.md`, section 7). The one past the bound,
+  when its turn comes, is given no foreman and passed nowhere: the
+  change holds itself, its words naming the bound and the question's
+  asker and number, and the hold escalates to its requester (jig's
+  `domain/tasks.md`, section 9). Released, it passes that question up
+  (below) with no foreman, the first it counts since the release, as
+  its repairs count again from one (8.4).
+- **A foreman per question,** under `foreman`: a delegate under the
+  forge's foreman charter (kind 3's number 3:
+  `../protocol/configuration.md`, 13.2), made under the change's own
+  authority as its other delegates are (8.4), each one of the change's
+  tasks; a foreman that authority no longer covers is not made, and the
+  question is passed up, its reasons saying what the authority lacks. Its brief
+  carries the change's words whole, the question's words whole with its
+  asker and number, and the change's branch and pushed head, where it
+  has one; its workspace is a checkout of the landing branch's tip,
+  inspect only, with the forge's reads on the change's repository, so
+  that it reads the design there and the pushed work through
+  `read_branch` and `read_file`. Its contract is a verdict whose label
+  is one of:
+  - `answer`: the change's words, the design or the draft settle it; its
+    text is the answer;
+  - `finish`: the work done holds, and the rest belongs to the asker's
+    Left list; its text says what to finish with;
+  - `escalate`: neither settles it; its text says why, for the
+    requester.
+
+  On `answer` or `finish` the change answers the asker's question, in
+  the answer form to its number, with the foreman's text, opened for
+  `finish` by the line `Finish: the work done holds; list the rest under
+  Left.` On `escalate`, or a foreman that fails or is cancelled, the
+  change passes the question up, the foreman's text or its failure's
+  words among the reasons.
+- **Passed up,** under `up`, on `escalate`, or released past the bound,
+  one at a time in the order taken: the change asks its requester in
+  the question form, its words the asker's question whole, as its
+  record kept them when it was taken, then,
+  under a line `Foreman:`, the foreman's reasons where one ran, the
+  whole cut from its end to the message bound and marked. The change is
+  kept by its own question while it waits (jig's `domain/tasks.md`,
+  5.7): it steps as ever, and merges nothing, its merge waiting as for
+  a pending dependency (8.2, step 7). A repair's or a resolution's
+  question passed up takes it out of its queue until answered, as a
+  kept change's place is (section 9).
+- **The answer relayed down.** The requester's answer, in the answer
+  form to the change's question, is relayed at the step that takes it:
+  the change answers its asker's question with the answer's words
+  whole, and the asker's next run goes on from where it parked with the
+  answer to read. The requester may first amend the change (its words
+  widened, a Left item accepted: section 7 of jig's `domain/tasks.md`)
+  or make a new change and add it as the change's dependency; its
+  answer then says so.
+- **Held until its dependencies land.** An answer the change takes
+  while its task is kept by a pending dependency is held on its record
+  and relayed at the first step at which none is pending, the
+  dependency having ended done or been amended away; a requester that
+  adds a dependency as it answers so makes the work wait for it.
+- **An asker that ends first** ends its questions: a foreman still
+  running for one is cancelled, and an answer to a question passed up
+  for it is taken and dropped, the change's history naming it. The
+  change's own question stays until its requester answers it or it
+  ends with the change.
+- **On its record and its panel.** Its open questions, in the order
+  taken, each with its asker and number, its words whole and their
+  first line, and where it stands (taken; with foreman task F; asked of the
+  requester; its answer held for dependencies), and the questions
+  taken against its bound, are kept on its record, so that a restart
+  resumes each where it stood (section 16), and shown on its panel
+  (8.8; `../client/forge.md`, 9.2) and by `ctl`'s `change show`
+  (`../client/tools.md`, 5.5, area 6).
+- **Its history** keeps every question and answer: the asked tasks'
+  question positions and the change's own (jig's `domain/tasks.md`,
+  8.2). A ruling that concerns many changes is design: a designer's
+  change into the landing branch, and amendments of the live changes it
+  concerns.
+
+#### Early starts
 
 The change procedure starts kept (jig's `domain/connectors.md`, 6.1): a
 change made with a pending dependency is active and kept rather than

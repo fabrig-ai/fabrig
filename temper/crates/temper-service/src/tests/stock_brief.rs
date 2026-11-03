@@ -30,18 +30,18 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     assignment.run.sources = Box::new([None, None]);
     assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
     assignment.run.authority.tools = jig_domain_tasks::Tools(crate::stock::defaults(&engine.llm).rules.ceiling.tools.0);
-    if number == 4 {
+    if number == 4 || number == 6 {
         assignment.run.authority.tools = jig_domain_tasks::Tools(jig_domain_core::ToolFamilies::JIG.read.0);
     }
     assignment.run.ended_by =
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
     assignment.run.contract = if open {
         jig_domain_tasks::Contract::Report { words: 32 }
-    } else if number == 4 {
+    } else if number == 4 || number == 6 {
         jig_domain_tasks::Contract::Verdict {
-            choices: [1, 2]
+            choices: (1..=if number == 6 { 3 } else { 2 })
                 .map(|code| jig_domain_tasks::Verdict { code, words: 1024, followups: 0, fields: Box::default() })
-                .into(),
+                .collect(),
         }
     } else {
         jig_domain_tasks::Contract::Change { connector: 0, kind: 1, words: 1024 }
@@ -79,12 +79,12 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(limits.room, 125_634);
     assert_eq!(limits.offer_bytes, 25_858);
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 1_066_989);
-    for (number, open) in [(1, false), (1, true), (2, false), (4, false)] {
+    for (number, open) in [(1, false), (1, true), (2, false), (4, false), (6, false)] {
         let assignment = assignment(number, open, 14_592);
         let charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
-        let workspace = workspace(number != 4 && !open);
+        let workspace = workspace(number != 4 && number != 6 && !open);
         let room = run::brief_room(&charter, Some(&workspace), &limits).expect("stock declarations fit");
         eprintln!(
             "stock charter {number} open={open}: non-brief={} rendered brief={} remaining={}",
@@ -132,7 +132,7 @@ fn stock_small_heap_through_construction_admission_and_first_turn() {
     eprintln!("heap agent Service::new held={} peak={}", measured.held(), measured.peak());
     drop(service);
     measure_worker();
-    for number in [1, 2, 4] {
+    for number in [1, 2, 4, 6] {
         measure_turn(number);
     }
 }
@@ -277,7 +277,7 @@ fn measure_turn(number: u32) {
         },
         messages: Box::default(),
         charter,
-        workspace: Some(workspace(number != 4)),
+        workspace: Some(workspace(number != 4 && number != 6)),
         transcript: None,
         answered: Box::default(),
         grants: Box::default(),

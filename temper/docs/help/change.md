@@ -6,25 +6,27 @@ A change is a task that writes one repository's branch and lands it: its pull re
 
 ## What it is
 
-- **A change task** is a run's delegate, requested with `change`: words,
-  and which repository when it may write several. Its coder reads
-  those words alone (temper help task).
-  With the control family it also names `landing` (`goal`, a
-  branch, or the default), `branch` (`mine`: its goal branch, landed
-  whole), `after` (what it waits for: task numbers, or names from the
-  same call), `merge` (a catch-up), `repairs` (the red landing
-  commit named by the news: temper help tier), `changes` (several at
-  once, all or none), `producer` (the charter number for its coder,
+- **A change task** is delegated with `change`: words,
+  and a repository when several may be written. Its coder reads only
+  those words (temper help task).
+  With control it also names `landing` (`goal`, a
+  branch, or the default), `branch` (`mine`: its whole goal branch),
+  `after` (task numbers or names from the same call it waits for), `merge` (a catch-up), `repairs` (the red landing
+  commit from news: temper help tier), `changes` (one batch), `producer` (the charter number for its coder,
   repairs and resolutions; default: the forge's change charter) and
   `llm` (its `producer` and `review` choices, by configured model and
-  effort names; each defaults to its charter's).
+  effort names, defaulting to its charter's), and `questions`
+  (`foreman`, `up`, or `none`, the default: how its producer's questions go).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·
   OWNER/NAME on forge FORGE · BRANCH into BASE`, its pull request and
   its address, `step:` and the step, `way: turn · landing task N`
-  where its project lands by turn, the CI at its head, its gates, and
-  how many repairs, resolutions and updates it has used of its limits.
+  for landing by turn, its CI, gates, and
+  its repairs, resolutions and updates used against their limits.
+  Next is `questions: ROUTE · TAKEN of LIMIT taken`, then each open
+  question with its asker, number, first line and where it stands;
+  with route `none` and nothing taken, `questions: none`.
 - **Its result** is the change landed: its merge commit, its pull
   request with its address, a line `Landed: pull request #N merged into
   BASE as SHORT.`, then `Report:` and its coder's last report, then
@@ -37,16 +39,17 @@ A change is a task that writes one repository's branch and lands it: its pull re
   landing once red, `Cleared by TIER run N, which passed the failures
   blamed on it; repaired by COMMIT.` where a change naming it repaired
   it, or `Not cleared: no verdict within the verification bound.` It may
-  fail or be cancelled as any task. A coder finding the request does
-  not apply ends successfully, saying why, with no pull request or
-  claimed landing; failure for good holds it at `producing` (below).
+  fail or be cancelled. A coder finding no change applies ends
+  successfully, saying why, with no pull request or claimed landing;
+  failure for good holds it at `producing` (below).
 
 ## How it changes
 
 Its steps, as `step:` prints them:
 
-- `producing`: the coder writes the change, and temper
-  pushes its work as the change's branch once it finishes;
+- `producing`: the coder writes the change; temper pushes its branch
+  once it finishes. Failure holds it here with the coder's words;
+  an explicit conclusion that no change applies ends it successfully;
 - `opening`: temper opens its pull request;
 - `checking`: the forge's CI runs at its head, where its landing
   branch's rules ask it;
@@ -61,12 +64,11 @@ Its steps, as `step:` prints them:
   the base and pushes the merge commit;
 - `repairing`: an agent repairs it, after CI failed at its head (a
   review still running there is cancelled first), a gate asked for
-  changes, or the base broke it, its brief naming its pull request
-  (number, branch, base, head and address) and holding the failed
-  check and the end of its log, or the gate's remarks whole (cut only
-  from their end, marked), and telling it to finish with the change,
-  which becomes the pull request's new head; the repair task's words
-  open with what it repairs (`Repair CI at HEAD: CONTEXT`,
+  changes, or the base broke it. Its brief names the pull request
+  (number, branch, base, head and address), the failed check and log end,
+  or the gate's remarks (cut from their end, marked). It finishes with
+  the change's new head; its words open with what it repairs
+  (`Repair CI at HEAD: CONTEXT`,
   `Repair gate N (KIND) at HEAD: changes requested`,
   `Repair the base's break at HEAD: BASE`),
   so `task show` names it; the change is checked again;
@@ -78,8 +80,8 @@ Its steps, as `step:` prints them:
 - `cleared`: all its tiers cleared it, and its result comes; with no
   verdict by the verification bound, it ends `landed, uncleared`.
 
-Where its project lands by turn (temper help landing), no CI runs at
-its head and it waits in no queue: `gating` follows `opening`, then:
+With landing by turn (temper help landing), it has no CI at its head or queue:
+`gating` follows `opening`, then:
 
 - `ready`: its gates hold at its head, and its landing, `way: turn ·
   landing task N`, proves its candidate and waits for the turn;
@@ -89,8 +91,8 @@ its head and it waits in no queue: `gating` follows `opening`, then:
   output, and its new head makes it ready again;
 - `landed`: main was fast-forwarded to its candidate.
 
-After a release, `reopening` reopens its closed pull request and
-`recreating` pushes its missing branch again.
+After release, `reopening` reopens its pull request; `recreating`
+pushes its missing branch again.
 
 **Held,** `held: REASON at STEP`, it makes no progress: `its wait
 stalled`, `its repairs are spent`, `its resolutions are spent`, `its
@@ -98,16 +100,15 @@ updates are spent`, `its branch was moved on the forge`, `its branch
 is missing on the forge`, `its pull request was closed on the forge`,
 `its pull request was retargeted on the forge`, `a delegate or a write
 failed for good`, or `a person rejected a gate`. Release resets its
-counts and resumes the held step. Coders failing for good before
-pushing and failed repairs get fresh delegates for the same reason,
-spending a task; repairs count against the reset repair limit. It holds again if authority cannot cover one.
-Held at `producing`, the hold and chat carry the coder's words, why
-it made no change, whole within 512 bytes: cancel it if they hold,
-or release it if the coder was wrong. Its
-panel also names a held task, the change's own or its writer's or
-reviewer's, `held: task N (REASON)`, with that task's way out: an
-effect vetoed or a step refused, and why (what it lacks, or the
-forge's answer).
+counts and resumes the held step. Failed coders and repairs get fresh
+delegates for the same reason,
+spending a task; repairs count against the reset repair limit.
+It holds again if authority cannot cover one.
+Held at `producing`, the hold and chat carry the coder's words whole
+within 512 bytes: cancel if they hold, or release if the coder was wrong. Its
+panel names any held task (the change, writer or reviewer),
+`held: task N (REASON)`, and its way out: an effect vetoed or step
+refused, naming what it lacks or the forge's answer.
 
 ## What temper guarantees
 

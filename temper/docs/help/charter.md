@@ -22,12 +22,14 @@ the task reads its charter, whole:
   how long it waits idle, and the timeout of its calls to temper's
   tools.
 
-The forge's procedures run a change's agent work under two charters,
+The forge's procedures run a change's agent work under three charters,
 which the change keeps from its making to its end: its producing and
 repairs under the forge's change charter, kind 3 number 1, whose stock
 value is charter 2; its reviews under kind 3 number 2, whose stock value
 is charter 4, which reads the
-change and gives its verdict, and edits, pushes and runs nothing.
+change and gives its verdict, and edits, pushes and runs nothing;
+its foremen run under `charter 6`, reading the change and design to settle
+its producer's question, and edit, push and run nothing.
 
 Each member, with its type and bound, is in
 `temper help settings-fields`.

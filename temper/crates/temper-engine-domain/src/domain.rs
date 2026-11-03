@@ -16,7 +16,6 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
 use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_forge_change as forge_change;
 
 /// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 9.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -102,7 +101,7 @@ pub struct Domain {
     pub(crate) forge_effecting: Map<u64, (ReplyTo, CallKey)>,
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
     pub(crate) next_effect_owner: u64,
-    pub(crate) forge_delegating: Map<(u64, u64), forge_change::Delegate>,
+    pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
     pub(crate) assignment_parts: Map<u64, crate::boundary::AssignmentParts>,

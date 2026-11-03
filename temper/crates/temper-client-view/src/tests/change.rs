@@ -294,6 +294,7 @@ fn each_hold_draws_its_step_and_exact_reason_as_a_notice() {
     for (hold, reason) in [
         (w::Hold::Stalled, "its wait stalled"),
         (w::Hold::Repairs, "its repairs are spent"),
+        (w::Hold::Questions, "its questions are spent"),
         (w::Hold::Resolutions, "its resolutions are spent"),
         (w::Hold::Updates, "its updates are spent"),
         (w::Hold::Moved, "its branch was moved on the forge"),

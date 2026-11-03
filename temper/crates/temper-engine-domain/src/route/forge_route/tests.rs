@@ -1039,6 +1039,8 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
+        foreman_charter: 6,
+        questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
@@ -2229,6 +2231,98 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
     assert!(domain.work.is_empty());
 }
 
+#[test]
+#[expect(clippy::manual_map, reason = "test expectations use explicit matches without closures")]
+fn a_change_made_with_parameter_14_keeps_its_route() {
+    use super::{Work, forge, forge_change, tasks};
+    // forge, host, owner, repository, branch, main.
+    const BASE_AUTHORITY_SEGMENTS: u32 = 6;
+    for (parameter, requester, expected) in [
+        (None, tasks::Party::Task(91), Some(forge_change::Route::None)),
+        (
+            Some(tasks::Parameter::Number { name: 14, value: 1 }),
+            tasks::Party::Task(91),
+            Some(forge_change::Route::Foreman),
+        ),
+        (Some(tasks::Parameter::Number { name: 14, value: 2 }), tasks::Party::Task(91), Some(forge_change::Route::Up)),
+        (Some(tasks::Parameter::Number { name: 14, value: 3 }), tasks::Party::Task(91), None),
+        (Some(tasks::Parameter::Number { name: 14, value: 0 }), tasks::Party::Task(91), None),
+        (Some(tasks::Parameter::Bytes { name: 14, value: b"foreman".as_slice().into() }), tasks::Party::Task(91), None),
+        (Some(tasks::Parameter::Resource { name: 14, connector: 0, resource: 1 }), tasks::Party::Task(91), None),
+        (
+            Some(tasks::Parameter::Number { name: 14, value: 2 }),
+            tasks::Party::Person(1),
+            Some(forge_change::Route::None),
+        ),
+        (
+            Some(tasks::Parameter::Number { name: 14, value: 1 }),
+            tasks::Party::Deployment { project: 1 },
+            Some(forge_change::Route::None),
+        ),
+    ] {
+        let (mut domain, mut env) = procedure_root();
+        env.limits.authority.segments = BASE_AUTHORITY_SEGMENTS;
+        let task = make_tier(&mut domain, &env);
+        let mut context = domain.core.tasks.run_context(task).unwrap();
+        let mut parameters = skein_lib::List::uncapped();
+        for parameter in [
+            tasks::Parameter::Resource { name: 1, connector: 0, resource: forge::tag(1, 1) },
+            tasks::Parameter::Bytes { name: 3, value: b"temper/change".as_slice().into() },
+        ] {
+            parameters.push(parameter).unwrap();
+        }
+        if let Some(parameter) = parameter {
+            parameters.push(parameter).unwrap();
+        }
+        context.requester = requester;
+        context.spec.parameters = parameters.into_boxed();
+        assert_eq!(super::start_change(&mut domain, &env, &context), expected.is_some());
+        let mut made = None;
+        while let Some(work) = domain.work.pop() {
+            if let Work::Forge(forge::Event::Change { row }) = work {
+                made = Some((row.questions, row.foreman_charter));
+            }
+        }
+        let expected = match expected {
+            Some(route) => Some((forge_change::Questions { route, taken: 0, open: Box::new([]) }, 6)),
+            None => None,
+        };
+        assert_eq!(made, expected);
+    }
+}
+
+#[test]
+fn a_hold_past_questions_names_its_bound() {
+    use super::{forge_change, tasks};
+    for (open, words) in [
+        (&[][..], b"its questions are spent: 4 of 4 taken".as_slice()),
+        (
+            &[forge_change::Open {
+                asker: 9,
+                number: 12,
+                line: b"Which behavior?".as_slice().into(),
+                words: Box::new([]),
+                stands: forge_change::Stands::Taken,
+            }][..],
+            b"its questions are spent: 4 of 4 taken; question 12 of task 9 waits; release it to pass the question up"
+                .as_slice(),
+        ),
+    ] {
+        let mut row = change_row(None);
+        row.questions.taken = 4;
+        row.questions.open = open.into();
+        let (domain, env, _) = restored_change([super::forge::Stored::Change(row)]);
+        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Questions);
+        assert_eq!(
+            decision.end,
+            super::StepEnd::HoldFrom {
+                why: tasks::Hold::Procedure,
+                source: Box::new(tasks::HoldSource::Account { connector: 0, entry: None, words: words.into() }),
+            }
+        );
+    }
+}
+
 fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, task: u64) {
     use super::{Work, forge, tasks};
     let release = jig_domain_core::step(
@@ -2281,7 +2375,7 @@ fn repairs_without_control_is_refused_as_a_plan_member() {
     let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 7, &context, &[change]) else {
         panic!("repairs refused")
     };
-    assert_eq!(words.as_ref(), b"change's landing, branch, name, after, repairs, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(words.as_ref(), b"change's landing, branch, name, after, questions, repairs, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
 }
 
 #[test]
@@ -2577,6 +2671,7 @@ fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super
     config.core.seed_projects[0].policy.policy.ceiling = config.core.defaults.rules.ceiling.clone();
     let mut limits = crate::tests::resume_fixture::limits();
     limits.tasks.charters = 6;
+    limits.tasks.parameters = 3;
     limits.tasks.executor_kinds = 4;
     limits.authority.executors = 4;
     limits.authority.segments = 8;
@@ -2831,11 +2926,13 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
 #[test]
 fn a_requesters_branch_and_role_choices_reach_start_together() {
     use super::{Work, forge, tasks};
-    let (domain, env, delegation) = change_choice_world();
+    let (domain, mut env, delegation) = change_choice_world();
+    env.limits.tasks.parameters = 7; // Branch, title, role choices and question route beside repository/base.
     let llm = crate::ChangeLlm { producer: Some(choice(1, None)), review: Some(choice(2, None)) };
     let change = crate::ChangeCall {
         branch: Some(crate::ChangeBranch::Mine),
         producer: Some(6),
+        questions: Some(crate::ChangeQuestions::Up),
         llm: llm.clone(),
         ..crate::ChangeCall::words(b"Land the goal\r\nWhole branch".as_slice().into(), None)
     };
@@ -2864,14 +2961,17 @@ fn a_requesters_branch_and_role_choices_reach_start_together() {
             tasks::Parameter::Number { name: 11, value: 1 },
             tasks::Parameter::Bytes { name: 10, value: b"Land the goal".as_slice().into() },
             tasks::Parameter::Bytes { name: 11, value: b"6;1;2".as_slice().into() },
+            tasks::Parameter::Number { name: 14, value: 2 },
         ]
     );
     let (mut domain, env, mut context) = change_start_fixture();
+    context.requester = tasks::Party::Task(1);
     context.spec = delegate.spec;
     assert!(super::start_change(&mut domain, &env, &context));
     let Some(Work::Forge(forge::Event::Change { row })) = domain.work.pop() else { panic!("new change row") };
     assert_eq!(row.branch.as_ref(), branch);
     assert_eq!(row.title.as_ref(), b"Land the goal");
+    assert_eq!(row.questions.route, temper_engine_domain_forge_change::Route::Up);
     assert_eq!(row.producing_charter, 6);
     assert_eq!(row.review_charter, 4);
     assert_eq!(row.producing_llm, llm.producer);
@@ -2979,7 +3079,19 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
             &mut skein_lib::Queue::uncapped(),
         );
         let (connector, _, step) = domain.core.tasks.procedure_due(task).expect("due change");
-        domain.forge_delegating.insert((task, step), kind).unwrap();
+        domain
+            .forge_delegating
+            .insert(
+                (task, step),
+                super::ChangeStep {
+                    delegate: Some(kind),
+                    foreman: false,
+                    relayed: None,
+                    refusal: None,
+                    released: false,
+                },
+            )
+            .unwrap();
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
         super::super::asks::ask(
             &mut domain,
@@ -3172,5 +3284,38 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         }
         let pending = super::landing_route::pending(&domain, &env, 7, change_row(None).repository, b"main");
         assert_eq!(pending.as_ref(), &[change::Pending { task: 8, kind: expected }]);
+    }
+}
+
+#[test]
+fn a_held_branch_change_refuses_each_parameter_past_capacity() {
+    use super::tasks;
+    const PARAMETERS: u32 = 7; // Repository, base, branch, requester marker, title, role choices and question route.
+    const SPEND: u64 = 1000; // Within the fixture's run budget and above its minimum.
+    let (domain, mut env, mut context) = change_choice_world();
+    context.tasks_left = 8;
+    context.authority.delegation.depth = 4;
+    env.limits.authority.segments = 6; // forge, host, owner, repository, branch and base.
+    let mut change = crate::ChangeCall::words(b"Land the goal\r\nIts report".as_slice().into(), None);
+    change.questions = Some(crate::ChangeQuestions::Up);
+    change.producer = Some(6);
+    change.llm = crate::ChangeLlm { producer: Some(choice(1, None)), review: Some(choice(2, None)) };
+    for capacity in 0..=PARAMETERS {
+        env.limits.tasks.parameters = capacity;
+        let result = super::chat_change(
+            &domain,
+            &env,
+            &context,
+            &change,
+            &adopted(1),
+            b"main".as_slice().into(),
+            Some(b"temper/goal".as_slice().into()),
+            SPEND,
+        );
+        if capacity < PARAMETERS {
+            assert_eq!(result.unwrap_err(), tasks::Refusal::Spec, "capacity {capacity}");
+        } else {
+            assert_eq!(result.unwrap().spec.parameters.len(), usize::try_from(PARAMETERS).unwrap());
+        }
     }
 }

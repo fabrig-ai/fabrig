@@ -31,7 +31,16 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StepRefused { task, step, why } => {
-            let delegation = domain.forge_delegating.remove(&(task, step));
+            let pending = domain.forge_delegating.remove(&(task, step));
+            let delegation = match &pending {
+                Some(pending) => pending.delegate,
+                None => None,
+            };
+            if let Some(pending) = pending
+                && forge_route::relay_refused(domain, env, task, step, pending, &why)
+            {
+                return;
+            }
             let held = connector == domain.config.forge_connector
                 && hold_changed_charter(domain, task, step, delegation, &why);
             if let core::StepRefusal::Denied { findings, .. } = &why {
@@ -54,18 +63,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     && owner == connector
                     && current == step
                 {
-                    domain.work.push(Work::Core(core::Event::ProcedureStep {
+                    let decision = forge_route::append_change_replies(
+                        domain,
+                        env,
                         task,
-                        step,
-                        connector,
-                        code,
-                        decision: forge_route::append_change_replies(
-                            domain,
-                            env,
-                            task,
-                            core::ProcedureStep::new(core::StepEnd::Wait),
-                        ),
-                    }));
+                        core::ProcedureStep::new(core::StepEnd::Wait),
+                    );
+                    domain.work.push(Work::Core(core::Event::ProcedureStep { task, step, connector, code, decision }));
                 }
                 if domain.facts.try_push(crate::Fact::StepRefused { task, step, problem }).is_err() {
                     domain.facts_lost = domain.facts_lost.saturating_add(1);
@@ -564,13 +568,27 @@ fn step_made(
     {
         domain.work.push(Work::Forge(forge::Event::TierWords { task, words: row.spec.words.clone() }));
     }
-
-    if let Some(kind) = domain.forge_delegating.remove(&(task, step))
-        && let Some(child) = child
-    {
-        // Jobs prepare at activation, so their parent row must name them before
-        // the queued activation builds the workspace (temper/docs/design/domain/worker.md, 4.4).
-        super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind });
+    if let Some(pending) = domain.forge_delegating.remove(&(task, step)) {
+        if let Some(kind) = pending.delegate
+            && let Some(child) = child
+        {
+            // Jobs prepare at activation, after their parent row names them.
+            super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind });
+        }
+        if let Some(mut relayed) = pending.relayed {
+            if pending.foreman {
+                let question = relayed.questions.open.first_mut().expect("the made foreman has a head question");
+                question.stands = super::forge_change::Stands::Foreman { task: child };
+            }
+            let event = match pending.refusal {
+                Some(words) => forge::Event::RelayRefused { task, questions: relayed.questions, words },
+                None => forge::Event::Relayed { task, questions: relayed.questions },
+            };
+            domain.work.push(Work::Forge(event));
+            if relayed.more {
+                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+            }
+        }
     }
 }
 
