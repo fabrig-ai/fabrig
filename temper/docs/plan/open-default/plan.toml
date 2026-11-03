@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/open-default/inputs/request.md", "AGENTS.md", "DESI
 # on every connect. Not the policy or store-size commits, and nothing wasm32-specific. plan.md
 # says what was decided and why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
