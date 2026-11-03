@@ -81,6 +81,7 @@ pub struct Domain {
     pub(crate) brief_document_titles: Map<u64, Box<[Box<[u8]>]>>,
     pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, PreparedWorkspace>,
+    pub(crate) job_workspaces: Map<u64, crate::ForgeWorkspace>,
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
@@ -400,8 +401,21 @@ impl Domain {
                 "project landing configuration bounded and supported"
             );
         }
-        let root_config =
-            RootConfig { forge_connector, forge_charter: config.forge_charter, landings: config.landing.landings };
+        let mut merge_kind = None;
+        for bound in &config.core.jobs {
+            if bound.kind.0 == forge::MERGE_KIND {
+                merge_kind = Some(*bound);
+            }
+        }
+        if let Some(bound) = merge_kind {
+            forge.merge_kind(bound.spec, bound.result);
+        }
+        let root_config = RootConfig {
+            merge_kind,
+            forge_connector,
+            forge_charter: config.forge_charter,
+            landings: config.landing.landings,
+        };
         let link_rng = skein_lib::Rng::new(config.core.seed);
         config.core.kept_starts =
             Box::new([tasks::KeptStart { connector: forge_connector, code: forge_route::CHANGE_CODE }]);
@@ -472,6 +486,7 @@ impl Domain {
             brief_document_titles: Map::with_capacity(limits.brief.briefs),
             forge_briefs: Map::uncapped(),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
+            job_workspaces: Map::with_capacity(limits.tasks.tasks),
             forge,
             application: None,
             application_carried: None,
@@ -575,6 +590,7 @@ impl Domain {
             && self.loads.quiescent()
             && self.work.is_empty()
             && self.assignment_parts.is_empty()
+            && self.job_workspaces.is_empty()
             && self.hub_link.payload_count() == 0
             && self.answer_parts.is_empty()
             && self.refused_calls.is_empty()

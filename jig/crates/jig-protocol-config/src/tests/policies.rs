@@ -120,6 +120,52 @@ fn configured_policies_reach_the_core_configuration() {
     assert_eq!(policy.templates[0].priority, Some(5));
 }
 
+/// A role's delegation preserves job kinds through core configuration
+/// (jig/docs/design/protocol/configuration.md, 3).
+#[test]
+fn a_roles_delegation_may_name_a_job_kind() {
+    let mut document = configured();
+    let from = br#""kinds": [{"kind": "charter", "number": 1}]"#;
+    let to = br#""kinds": [{"kind": "charter", "number": 1}, {"kind": "job", "number": 3}]"#;
+    let delegations = skein_lib::bytes::count(&document, from, u32::MAX);
+    for _ in 0..delegations {
+        document = fixtures::with(&document, from, to);
+    }
+    let config = domain::core_config(&document);
+    let policy = config.defaults.policies.get(&FIRST).expect("configured policy");
+    let kinds = [jig_domain_authority::Executor::Charter(1), jig_domain_authority::Executor::Job(3)];
+    assert_eq!(policy.policy.roles[0].authority.delegation.kinds.as_ref(), &kinds);
+    assert_eq!(policy.policy.ceiling.delegation.kinds.as_ref(), &kinds);
+    assert_eq!(config.defaults.rules.ceiling.delegation.kinds.as_ref(), &kinds);
+    assert!(config.jobs.is_empty(), "job numbers need no declaration while parsing configuration");
+}
+
+/// Unknown delegation kinds are refused at the entry's kind
+/// (jig/docs/design/protocol/configuration.md, 3).
+#[test]
+fn an_unknown_delegation_kind_is_refused_at_its_kind() {
+    let document = fixtures::with(
+        &configured(),
+        br#""authority": {"tools": 1023, "grants": [],
+"delegation": {"kinds": [{"kind": "charter", "number": 1}]"#,
+        br#""authority": {"tools": 1023, "grants": [],
+"delegation": {"kinds": [{"kind": "charter", "number": 1}, {"kind": "jobs", "number": 3}]"#,
+    );
+    refuses(
+        &document,
+        path(0)
+            .member(b"policy")
+            .member(b"roles")
+            .child(Segment::Index(0))
+            .member(b"authority")
+            .member(b"delegation")
+            .member(b"kinds")
+            .child(Segment::Index(1))
+            .member(b"kind"),
+        What::Form,
+    );
+}
+
 #[test]
 fn configured_permissions_must_name_the_policys_roles() {
     let document = fixtures::with(&configured(), br#""permission": 1, "role": 1"#, br#""permission": 1, "role": 9"#);

@@ -154,6 +154,16 @@ fn encode_delegate(value: d::Delegate) -> w::Delegate {
         d::Delegate::Resolve { base } => {
             w::Delegate::Resolve(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: base }).expect(FITS))
         }
+        d::Delegate::Merge { base, from } => w::Delegate::Merge(
+            w::MergeDelegate::new(
+                &w::CEILINGS,
+                w::MergeDelegateParts {
+                    base: w::Commit::new(&w::CEILINGS, w::CommitParts { commit: base }).expect(FITS),
+                    from,
+                },
+            )
+            .expect(FITS),
+        ),
         d::Delegate::Gate { number, head } => {
             w::Delegate::Gate(w::DelegateGate::new(&w::CEILINGS, w::DelegateGateParts { number, head }).expect(FITS))
         }
@@ -164,6 +174,10 @@ fn decode_delegate(value: w::Delegate) -> d::Delegate {
         w::Delegate::Produce => d::Delegate::Produce,
         w::Delegate::Repair(value) => d::Delegate::Repair(decode_repair(value.into_parts().why)),
         w::Delegate::Resolve(value) => d::Delegate::Resolve { base: value.into_parts().commit },
+        w::Delegate::Merge(value) => {
+            let w::MergeDelegateParts { base, from } = value.into_parts();
+            d::Delegate::Merge { base: base.into_parts().commit, from }
+        }
         w::Delegate::Gate(value) => {
             let w::DelegateGateParts { number, head } = value.into_parts();
             d::Delegate::Gate { number, head }
@@ -607,6 +621,8 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         producer_failure,
         report,
         repairs,
+        catch_up,
+        merge_result,
     } = value;
     w::ChangeRow::new(
         &w::CEILINGS,
@@ -658,6 +674,8 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             producer_failure: producer_failure.clone(),
             report: report.clone(),
             repairs: *repairs,
+            catch_up: *catch_up,
+            merge_result: merge_result.clone(),
             effect_account: match effect_account {
                 Some(account) => Some(
                     w::EffectAccount::new(
@@ -702,6 +720,8 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         producer_failure,
         report,
         repairs,
+        catch_up,
+        merge_result,
     } = value.into_parts();
     top::ChangeRow {
         result: decode_result(result),
@@ -745,6 +765,8 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         producer_failure,
         report,
         repairs,
+        catch_up,
+        merge_result,
         effect_account: match effect_account {
             Some(account) => {
                 let w::EffectAccountParts { entry, words } = account.into_parts();

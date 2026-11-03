@@ -28,12 +28,22 @@ pub fn items(
     tokens: &crate::forge::tokens::Tokens,
     limits: &v1::Limits,
 ) -> Result<Option<v1::Items>, v1::Problem> {
-    if assignment.workspace.repositories.is_empty() {
+    workspace_items(&assignment.workspace, assignment.run.policy.resume, forges, tokens, limits)
+}
+
+pub(crate) fn workspace_items(
+    workspace: &engine::ForgeWorkspace,
+    save: bool,
+    forges: &crate::forges::Forges,
+    tokens: &crate::forge::tokens::Tokens,
+    limits: &v1::Limits,
+) -> Result<Option<v1::Items>, v1::Problem> {
+    if workspace.repositories.is_empty() {
         return Ok(None);
     }
     let mut repositories = List::with_capacity(limits.items_repositories);
-    for repository in &assignment.workspace.repositories {
-        let value = repository_item(repository, assignment.run.policy.resume, forges, tokens, limits)?;
+    for repository in &workspace.repositories {
+        let value = repository_item(repository, save, forges, tokens, limits)?;
         repositories.push(value).or(Err(problem(v1::Path::ItemsRepositories)))?;
     }
     Ok(Some(v1::Items::new(limits, v1::ItemsParts { repositories })?))

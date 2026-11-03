@@ -5,8 +5,8 @@ use jig_conformance::scenarios::Scenario;
 // Measured peak: 237,036 bytes; 25% headroom, rounded up to two significant digits.
 const STARTUP_HEAP_CEILING: u64 = 300_000;
 
-// Measured peak: 510,125 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_GOAL_ISSUE_HEAP_CEILING: u64 = 640_000;
+// Measured peak: 642,209 bytes; 25% headroom, rounded up to two significant digits.
+const STORY_GOAL_ISSUE_HEAP_CEILING: u64 = 810_000;
 
 // Measured peak: 273,898 bytes; 25% headroom, rounded up to two significant digits.
 const STORY_ISSUE_CREATION_HEAP_CEILING: u64 = 350_000;

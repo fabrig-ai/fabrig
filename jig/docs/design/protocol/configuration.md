@@ -125,6 +125,16 @@ is false; account classification is recomputed from its remaining sources
 on removal and from current configuration on restore. No separate plan
 display name is configured.
 
+- **A delegation's kinds,** in an authority the rules, a policy or a
+  role gives (`../domain/authority.md`, section 3): a list of
+  `{"kind", "number"}`, at most `authority.executors`, `kind` one of
+  `charter`, `procedure`, `role` and `job`. A charter's number names one
+  of `charters` and a role's one of its policy's roles, or the start is
+  refused at the number; a procedure's number is its connector's and a
+  job's its application's kind, neither checked here, since the core
+  refuses a batch naming a job of a kind the application does not
+  declare (`../domain/engine.md`, 7.5). Any other `kind` refuses the
+  start at its path.
 - **Each connector's own configuration** (its system's address, its
   credentials' files, the address of its webhooks' listener, its
   procedures' settings and texts) is the application's, in its own

@@ -51,7 +51,7 @@ struct Walk {
 
 pub(crate) fn configured_all(d: &Domain, repository: Repository) -> &[Tier] {
     let Some(adopted) = d.repositories.get(&repository) else { return &[] };
-    if let Some((_, repositories, _)) = d.landing.projects.get(&adopted.project) {
+    if let Some((_, repositories, _, _)) = d.landing.projects.get(&adopted.project) {
         for row in repositories {
             if row.repository == repository {
                 return &row.tiers;

@@ -259,6 +259,8 @@ fn repair() -> forge::ChangeRow {
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        catch_up: None,
+        merge_result: None,
     }
 }
 

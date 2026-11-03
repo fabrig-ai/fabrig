@@ -41,6 +41,7 @@ pub struct Config {
 /// What the root keeps of its configuration once its children hold theirs.
 #[derive(Debug)]
 pub(crate) struct RootConfig {
+    pub(crate) merge_kind: Option<jig_domain_host::JobBound>,
     pub(crate) forge_connector: u16,
     pub(crate) forge_charter: u32,
     pub(crate) landings: Map<u32, ProjectLanding>,
@@ -58,6 +59,7 @@ pub struct LandingPolicy {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ProjectLanding {
     pub by: Way,
+    pub merge_job: Option<Box<[u8]>>,
     pub repositories: Box<[RepositoryChecks]>,
     pub after: AfterLandingCheck,
 }
@@ -136,7 +138,7 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
             })
             .expect("counted repositories");
     }
-    forge.project_landing(
+    if !forge.project_landing(
         project,
         match landing.by {
             Way::Queue => temper_engine_domain_forge_change::Way::Queue,
@@ -150,7 +152,13 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
             },
             bound: skein_lib::Duration::from_millis(landing.after.verification_bound_ms),
         },
-    )
+    ) {
+        return false;
+    }
+    match &landing.merge_job {
+        Some(command) => forge.project_merge_job(project, command.clone()),
+        None => true,
+    }
 }
 
 pub(crate) fn environment_forge(env: &Env<Limits>) -> Env<forge::Limits> {

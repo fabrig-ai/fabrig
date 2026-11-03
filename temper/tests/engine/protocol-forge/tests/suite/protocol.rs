@@ -53,6 +53,8 @@ fn change_row() -> top::ChangeRow {
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        catch_up: None,
+        merge_result: None,
     }
 }
 
@@ -85,6 +87,7 @@ fn change_step_task(
 ) -> change::Decision {
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task,
         entry,
         heard: change::Heard {
@@ -475,6 +478,7 @@ fn main_name() -> top::Name {
 
 fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, released: bool) {
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry,
         heard: change::Heard {
@@ -891,6 +895,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
         if due {
             due = false;
             world.event(top::Event::StepChange {
+                merge_job: false,
                 task: 51,
                 entry,
                 heard: change::Heard {
