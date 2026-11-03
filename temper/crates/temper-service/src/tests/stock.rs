@@ -53,11 +53,7 @@ fn engine(document: &[u8]) -> config::Engine {
 }
 fn without_projects() -> Box<[u8]> {
     let mut document = generated();
-    for (path, value) in [
-        (b"engine.projects".as_slice(), b"[]".as_slice()),
-        (b"application.demo", b"null"),
-        (b"application.landing", br#"{"deployment":[],"projects":[]}"#),
-    ] {
+    for (path, value) in [(b"engine.projects".as_slice(), b"[]".as_slice()), (b"application.demo", b"null")] {
         document = fixtures::with(&document, path, value);
     }
     document
@@ -247,8 +243,12 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     let document = limited(&document, b"core.run_bytes", needed);
     let refused = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert!(core::str::from_utf8(&crate::startup::lines(&refused)).unwrap().contains("the stock's charter"));
-    crate::startup::named_with(&document, &config::Directories::working(), &crate::stock::Given::Own(Box::new(own)))
-        .expect("a world sizes its own runs");
+    crate::startup::named_with(
+        &document,
+        &config::Directories::working(),
+        &crate::stock::Given::Own { jig: own, forge: Box::default() },
+    )
+    .expect("a world sizes its own runs");
 }
 
 #[test]
@@ -429,7 +429,7 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
     let stock = engine(&init);
     let mut own = crate::stock::defaults(&stock.llm);
     own.charters[0].policy.turns = 9;
-    let given = crate::stock::Given::Own(Box::new(own));
+    let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     for member in ["charters", "templates", "policies", "rules"] {
         let original = fixtures::value(&init, b"engine");
         let mut engine = format!("{{\"{member}\":null,").into_bytes();
@@ -483,7 +483,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     // The test's project copies this policy, whose role allowance must fit its period.
     policy.roles[0].period_spend = 41;
     own.rules.maximum_run_spend = 2;
-    let given = crate::stock::Given::Own(Box::new(own));
+    let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     let engine = crate::startup::engine_with(&document, at, &config::Directories::working(), &given).unwrap();
     assert_eq!(stock.charters[0].policy.waiting, skein_lib::Duration::from_secs(10));
     assert_eq!(engine.charters[0].policy.waiting, skein_lib::Duration::from_millis(1));
@@ -717,67 +717,38 @@ fn kinds_are_declared_with_their_bounds() {
 }
 
 #[test]
-fn the_documents_rules_and_charter_are_the_forges_defaults() {
-    use temper_engine_domain::{Approval, Freshness, Gate};
+fn the_binary_gives_the_forges_stock_at_every_start() {
+    // configuration.md, 13.4: one deployment rule and both forge charters.
+    const ITEMS: usize = 3;
     use temper_engine_domain_forge::{self as forge, settings};
-    let mut engine = fixtures::engine();
-    let mut first = temper_engine_domain::LandingRule {
-        connector: 1,
-        kind: 4,
-        pattern: jig_domain_authority::Pattern {
-            segments: Box::new([b"forge".as_slice().into()]),
-            last: jig_domain_authority::Last::Open(Box::default()),
-        },
-        enforce: true,
-        ci: false,
-        up_to_date: true,
-        gates: Box::default(),
-        approvals: Box::default(),
-    };
-    first.connector = 7;
-    first.kind = 9;
-    first.enforce = false;
-    first.ci = true;
-    first.up_to_date = false;
-    first.gates = Box::new([Gate { number: 2, blocking: false, freshness: Freshness::Clean }]);
-    first.approvals = Box::new([Approval { role: 1, people: 2, freshness: Freshness::Exact }]);
-    let mut second = first.clone();
-    second.enforce = true;
-    second.ci = false;
-    second.pattern.last = jig_domain_authority::Last::Exact(b"main".as_slice().into());
-    engine.landing_rules.deployment = Box::new([first.clone(), second.clone()]);
-    engine.landing_rules.projects = skein_lib::Map::with_capacity(1);
-    engine.landing_rules.projects.insert(3, Box::new([second.clone(), first.clone()])).unwrap();
-    let stock = crate::stock::forge_defaults(&engine.landing_rules, 6);
-    assert_eq!(stock.len(), 6);
-    for (item, kind, scope, number, source) in [
-        (&stock[0], 1, 0, 1, &first),
-        (&stock[1], 1, 0, 2, &second),
-        (&stock[2], 2, 3, 1, &second),
-        (&stock[3], 2, 3, 2, &first),
-    ] {
-        assert_eq!((item.kind, item.scope, item.number), (kind, scope, number));
-        let settings::Value::Rule(rule) = &item.value.value else { panic!("rule default") };
-        assert_eq!(rule.pattern.segments, source.pattern.segments);
-        let expected_last = match &source.pattern.last {
-            jig_domain_authority::Last::Exact(last) => forge::GateLast::Exact(last.clone()),
-            jig_domain_authority::Last::Open(last) => forge::GateLast::Open(last.clone()),
-        };
-        assert_eq!(rule.pattern.last, expected_last);
-        assert_eq!((rule.enforce, rule.ci, rule.up_to_date), (source.enforce, source.ci, source.up_to_date));
-        assert_eq!(
-            rule.gates.as_ref(),
-            &[settings::RuleGate { number: 2, blocking: false, freshness: forge::JudgeFreshness::Clean }]
-        );
-        assert_eq!(
-            rule.approvals.as_ref(),
-            &[settings::RuleApproval { role: 1, people: 2, freshness: forge::JudgeFreshness::Exact }]
-        );
-        assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
-    }
-    for (item, number, charter) in [(&stock[4], 1, 6), (&stock[5], 2, 4)] {
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let stock = crate::stock::forge(&limits);
+    assert_eq!(stock.len(), ITEMS);
+    assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (1, 0, 1));
+    assert_eq!(
+        stock[0].value.value,
+        settings::Value::Rule(settings::LandingRule {
+            pattern: forge::GatePattern {
+                segments: Box::new([b"forge".as_slice().into()]),
+                last: forge::GateLast::Open(Box::default()),
+            },
+            enforce: true,
+            ci: true,
+            up_to_date: true,
+            gates: Box::new([settings::RuleGate {
+                number: 1,
+                blocking: true,
+                freshness: forge::JudgeFreshness::Clean
+            }]),
+            approvals: Box::default(),
+        })
+    );
+    for (item, number, charter) in [(&stock[1], 1, 2), (&stock[2], 2, 4)] {
         assert_eq!((item.kind, item.scope, item.number), (3, 0, number));
         assert_eq!(item.value.value, settings::Value::Charter(charter));
+    }
+    for item in &stock {
         assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
     }
 }

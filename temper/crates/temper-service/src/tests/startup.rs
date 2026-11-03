@@ -386,7 +386,6 @@ fn the_standalone_example_reads_into_its_members() {
     assert_eq!(&*lines(&problems), b"", "example accepted");
     let members = members.unwrap();
     assert_eq!(members.workers[0].git.as_deref(), Some(b"/usr/bin/git".as_slice()));
-    assert_eq!(members.charter, 1);
     assert_eq!(application::files(&members).len(), 0, "all private files");
     let resolved = application::resolve(&members, &fixtures::files(), &mut Problems::empty()).unwrap();
     assert!(resolved.webhooks.is_none());
@@ -467,26 +466,31 @@ fn an_override_by_dotted_name_is_set_or_refused() {
         );
     }
 }
-fn application_with_landing_requirements() -> Box<[u8]> {
-    let input = fixtures::with(
-        fixtures::APPLICATION,
-        b"landing.projects[0].rules[0].gates",
-        br#"[{"number":3,"blocking":true,"freshness":"exact"}]"#,
-    );
-    fixtures::with(&input, b"landing.projects[0].rules[0].approvals", br#"[{"role":0,"people":1,"freshness":"clean"}]"#)
-}
 #[test]
-fn a_landing_rule_reads_jigs_pattern_form() {
+fn stored_application_members_are_refused_with_their_paths_and_reads() {
     let jig = fixtures::engine().jig;
-    let (members, problems) = application(&application_with_landing_requirements(), &jig);
-    assert_eq!(&*lines(&problems), b"", "landing accepted");
-    let members = members.unwrap();
-    let rule = &members.landing_rules.projects.get(&1).unwrap()[0];
-    assert_eq!(rule.pattern.segments[0].as_ref(), b"forge");
-    assert_eq!(rule.pattern.last, jig_domain_authority::Last::Open(b"main".as_slice().into()));
-    assert_eq!(rule.gates[0].number, 3);
-    assert_eq!(rule.approvals[0].role, 0);
-    assert_eq!(rule.approvals[0].freshness, temper_engine_domain::Freshness::Clean);
+    for (path, value, expected) in [
+        (
+            b"landing".as_slice(),
+            br#"{"deployment":null,"projects":[]}"#.as_slice(),
+            "application.landing.deployment: landing rules live in the store; read them with temper ctl settings show landing-rule\n",
+        ),
+        (
+            b"landing".as_slice(),
+            br#"{"projects":[{"project":1,"rules":null}]}"#.as_slice(),
+            "application.landing.projects[0].rules: landing rules live in the store; read them with temper ctl settings show landing-rule --project\n",
+        ),
+    ] {
+        let input = fixtures::with(fixtures::APPLICATION, path, value);
+        let (members, problems) = application(&input, &jig);
+        assert!(members.is_none());
+        assert_eq!(lines(&problems).as_ref(), expected.as_bytes());
+    }
+    let mut input = br#"{"charter":null,"#.to_vec();
+    input.extend_from_slice(&fixtures::APPLICATION[1..]);
+    let (members, problems) = application(&input, &jig);
+    assert!(members.is_none());
+    assert_eq!(lines(&problems).as_ref(), b"application.charter: the forge's charters live in the store; read them with temper ctl settings show forge-charter 1\n");
 }
 #[test]
 fn problems_print_one_line_each_with_their_path() {
@@ -540,11 +544,8 @@ fn jig_refusals_print_words() {
 #[test]
 fn members_and_references_are_checked() {
     let jig = fixtures::engine().jig;
-    let input = application_with_landing_requirements();
-    let input = core::str::from_utf8(&input).unwrap();
+    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap();
     for (from, to, expected) in [
-        ("\"charter\":1", "\"charter\":3", "application.charter: unknown reference\n"),
-        ("\"role\":0", "\"role\":1", "application.landing.projects[0].rules[0].approvals[0].role: unknown reference\n"),
         ("\"project\":1", "\"project\":2", "application.landing.projects[0].project: unknown reference\n"),
         ("\"git\":\"/usr/bin/git\"", "\"git\":\"git\"", "application.workers[0].git: must be an absolute path\n"),
         ("\"git\":\"/usr/bin/git\"", "\"git\":null", ""),
@@ -1135,7 +1136,7 @@ fn clients_public_bounds_dns_labels_and_the_host() {
 
 fn turn_projects(project: u32) -> Box<[u8]> {
     format!(
-        r#"[{{"project":{project},"rules":[],"by":"turn","gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true}}]}}]}}]"#
+        r#"[{{"project":{project},"by":"turn","gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true}}]}}]}}]"#
     )
     .into_bytes()
     .into_boxed_slice()
@@ -1155,7 +1156,6 @@ fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
     let landing = members.landings.get(&ADOPTED).unwrap();
     assert_eq!(landing.by, temper_engine_domain::Way::Turn);
     assert_eq!(landing.repositories[0].gates[0].workflow.as_ref(), b"gate.yml");
-    assert!(!members.landing_rules.projects.contains_key(&ADOPTED));
     let document = fixtures::with(&fixtures::document(), b"application.landing.projects", &turn_projects(ADOPTED));
     let started = crate::startup(
         &document,
@@ -1207,7 +1207,7 @@ const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs"
 
 fn tier_projects(tiers: &str, settings: &str) -> Box<[u8]> {
     format!(
-        r#"[{{"project":1,"rules":[],{settings}"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true}}],"tiers":{tiers}}}]}}]"#
+        r#"[{{"project":1,{settings}"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true}}],"tiers":{tiers}}}]}}]"#
     )
     .into_bytes()
     .into_boxed_slice()

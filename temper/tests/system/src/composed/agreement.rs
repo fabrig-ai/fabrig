@@ -26,7 +26,7 @@ pub(super) fn config(seed: u64) -> engine::Config {
     }
     policy.policy.roles = roles.into_boxed_slice();
     config.core.seed_projects[0].policy = policy;
-    config.kinds_stock = temper_service::stock::forge_defaults(&config.landing_rules, 2);
+    config.kinds_stock = temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 2, 4);
     config
 }
 

@@ -879,9 +879,8 @@ fn seed_with_landing() -> crate::Config {
         deadline: None,
         priority: Some(2),
     }]);
-    configured
-        .landing_rules
-        .projects
+    let mut projects: skein_lib::Map<u32, Box<[crate::LandingRule]>> = skein_lib::Map::with_capacity(1);
+    projects
         .insert(
             1,
             Box::new([crate::LandingRule {
@@ -899,6 +898,7 @@ fn seed_with_landing() -> crate::Config {
             }]),
         )
         .unwrap();
+    configured.kinds_stock = crate::landing_stock(&[], &projects, 1, 4);
     configured
 }
 

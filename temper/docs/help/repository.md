@@ -22,7 +22,8 @@ A repository is a forge's repository adopted into a project: owned, a fork or co
   repository's default branch, as the forge had it at the adoption.
 - **CI or checks:** a change waits for the forge's CI at its head,
   or, adopted without CI, for its checks: gates by their numbers, each
-  run by an agent under the forge's charter (temper help landing-rule).
+  run by an agent under the forge's change charter, kind 3 number 1
+  (temper help landing-rule).
 - **The home** is the one repository where the project's goals show as
   issues (temper help project).
 - **A run names it** by `owner/name`, and may leave it out where only

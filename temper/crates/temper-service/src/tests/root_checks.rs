@@ -231,16 +231,6 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
         fixtures::with(&fixtures::document(), b"engine.limits.overrides", format!("{{{ENGINE_OVERRIDES}}}").as_bytes());
     let document = fixtures::with(&document, b"engine.projects[0].number", b"7");
     let document = fixtures::with(&document, b"application.landing.projects[0].project", b"7");
-    let document = fixtures::with(
-        &document,
-        b"application.landing.projects[0].rules[0].gates",
-        br#"[{"number":3,"blocking":true,"freshness":"exact"}]"#,
-    );
-    let document = fixtures::with(
-        &document,
-        b"application.landing.projects[0].rules[0].approvals",
-        br#"[{"role":0,"people":1,"freshness":"clean"}]"#,
-    );
     // The old small inline form is jig's input only; this guard takes typed values.
     let mut engine = fixtures::guard_engine();
     engine.jig = fixtures::parse_engine(&fixtures::with(fixtures::ENGINE, b"projects", fixtures::INLINE_PROJECTS));
@@ -261,7 +251,6 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
         &mut found,
     )
     .unwrap();
-    engine.landing_rules = application.landing_rules;
     engine.landings = application.landings;
     let seeds = fixtures::seeds();
     let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);

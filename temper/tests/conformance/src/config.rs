@@ -225,7 +225,8 @@ pub fn root(
             Box::new([])
         },
     }]);
-    config.landing_rules.deployment.clone_from(&landing);
-    assert!(config.landing_rules.projects.insert(1, landing).is_ok());
+    let mut projects = skein_lib::Map::with_capacity(1);
+    projects.insert(1, landing.clone()).expect("one project landing rule");
+    config.kinds_stock = engine::landing_stock(&landing, &projects, 1, 4);
     (config, limits)
 }

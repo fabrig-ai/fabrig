@@ -93,5 +93,5 @@ Each member, with its type and bound, is in
 - temper does not check, when settings change, that a grant's kind, a
   requirement's criterion or a procedure's number is one the forge
   defines.
-- The landing rules become requirements of the rules at each start, from
-  the configuration: `temper help landing-rule`.
+- Landing rules are settings of kinds 1 and 2, enforced by the rules'
+  standing requirements 5 and 6: `temper help landing-rule`.

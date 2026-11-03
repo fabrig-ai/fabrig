@@ -434,10 +434,10 @@ fn the_rules_default_carries_the_standing_requirements() {
 }
 
 #[test]
-fn a_document_rule_reaches_the_forge_as_a_default() {
+fn a_worlds_rule_reaches_the_forge_as_a_default() {
     let limits = resume_fixture::limits();
     let mut config = resume_fixture::config(7);
-    config.landing_rules.deployment = Box::new([crate::LandingRule {
+    let deployment = Box::new([crate::LandingRule {
         connector: 0,
         kind: 4,
         pattern: authority::Pattern {
@@ -450,11 +450,15 @@ fn a_document_rule_reaches_the_forge_as_a_default() {
         gates: Box::new([crate::Gate { number: 1, blocking: true, freshness: crate::Freshness::Clean }]),
         approvals: Box::new([crate::Approval { role: 0, people: 1, freshness: crate::Freshness::Exact }]),
     }]);
-    config.landing_rules.projects.insert(PROJECT, config.landing_rules.deployment.clone()).unwrap();
+    let mut projects = skein_lib::Map::with_capacity(1);
+    projects.insert(PROJECT, deployment.as_slice().into()).unwrap();
+    config.kinds_stock = crate::landing_stock(deployment.as_slice(), &projects, 1, 4);
     for item in &mut config.kinds_stock {
-        item.value.size = CHARTER_BYTES;
+        if item.kind == 3 {
+            item.value.size = CHARTER_BYTES;
+        }
     }
-    // Restored defaults must not replace this start's document defaults.
+    // Restored defaults must not replace this start's world defaults.
     let records = [Record::Forge {
         row: Box::new(forge::Stored::Setting(settings::SettingRow {
             key: settings::SettingKey { kind: 1, scope: 0, number: 1, slot: settings::SettingSlot::Default },

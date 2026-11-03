@@ -299,10 +299,7 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        kinds_stock: temper_service::stock::forge_defaults(
-            &engine::LandingRules { deployment: Box::default(), projects: skein_lib::Map::with_capacity(1) },
-            1,
-        ),
+        kinds_stock: engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -356,7 +353,6 @@ pub fn config(seed: u64) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landing_rules: engine::LandingRules { deployment: Box::new([]), projects: skein_lib::Map::with_capacity(1) },
         landings: skein_lib::Map::with_capacity(1),
         forge: skein_forge_client::Config {
             namespace: Box::from(&b"root"[..]),

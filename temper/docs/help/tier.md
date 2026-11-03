@@ -73,10 +73,8 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   {
     "application": {
       "landing": {
-        "deployment": [],
         "projects": [{
           "project": 1,
-          "rules": [],
           "by": "queue",
           "tier_retries": 2,
           "verification_bound_ms": 7200000,
@@ -103,10 +101,9 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   `forge repositories FORGE` through ctl (temper help ctl).
   Preserve the existing configuration: add the tier to the matching
   repository entry in the matching project, creating missing entries
-  with the shape above. Keep other members, deployment and project
-  rules, repositories, workflow gates and tiers, and the project's
-  existing `by` (`queue` or `turn`). The empty arrays here illustrate
-  the shape; they do not replace existing rules or gates.
+  with the shape above. Keep other members, repositories, workflow gates
+  and tiers, and the project's existing `by` (`queue` or `turn`). The
+  empty arrays here illustrate the shape; they do not replace existing gates.
   Set `tier_retries` and `verification_bound_ms` beside the project's
   `by`; the example shows their defaults. Stop and restart the deployment
   afterward with the same directories (temper help deployment).

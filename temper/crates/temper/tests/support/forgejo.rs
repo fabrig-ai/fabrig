@@ -378,6 +378,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     let Forge::Throwaway { api, forgejo, .. } = forge else { return };
     let mut owned = owned::Owned::beside(*api);
     owned.forgejo_binary = forgejo.into();
+    owned::native_landing_settings(directory);
     let path = directory.join("temper.json");
     if let Ok(bytes) = fs::read(&path) {
         let previous: Value = serde_json::from_slice(&bytes).expect("previous configuration");
@@ -388,9 +389,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
         }
     }
     let limits = value["application"]["limits"].take();
-    let charter = value["application"]["charter"].take();
     value["application"] = owned::application(&owned);
-    value["application"]["charter"] = charter;
     owned::old_form(&mut value["application"]);
     value["application"]["limits"] = limits;
     value["application"]["limits"]["overrides"]["root.brief.gather_ms"] = BRIEF_GATHER_MS.into();
