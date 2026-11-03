@@ -533,7 +533,10 @@ impl Joint {
     #[must_use]
     pub(crate) fn with_procedures(seed: u64, limits: &client::Limits) -> Self {
         const SLOTS: u32 = 1;
-        let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| Self::procedure_config(seed));
+        // The unknown-panel fixture names its repository and a malformed role choice.
+        const PARAMETERS: u32 = 2;
+        let [(bootstrap, mut engine_limits), (config, _)] = std::array::from_fn(|_| Self::procedure_config(seed));
+        engine_limits.tasks.parameters = PARAMETERS;
         Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, SLOTS)
     }
     fn procedure_config(seed: u64) -> (engine::Config, engine::Limits) {

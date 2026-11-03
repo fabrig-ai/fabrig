@@ -139,15 +139,18 @@ pub(super) fn step(pages: &mut Pages, _env: &Env<Limits>, act: Act, out: &mut Qu
         | Act::Older
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::FirstChat
         | Act::RetryPlayground
         | Act::Playground
         | Act::Suggest { .. }
         | Act::ChatFilter { .. }
         | Act::PlanFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),
-        Act::Choice(_)
+        Act::Switcher(_)
+        | Act::Choice(_)
         | Act::Accounts(_)
         | Act::ConnectModel(_)
+        | Act::MakeDefault
         | Act::OpenProject { .. }
         | Act::Project { .. }
         | Act::SignOut

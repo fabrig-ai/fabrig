@@ -108,11 +108,7 @@ fn pasted_app(call: &jig::call::Call) -> Option<(u64, bool)> {
 fn admin_token(token: &[u8]) -> Option<skein_lib::Secret> {
     temper_client_domain::forge::forges::pasted_admin_token(token)
 }
-fn admin_how(
-    call: &jig::call::Call,
-    client: &jig_client::Client,
-    limits: &Limits,
-) -> Result<w::ForgejoAdmin, &'static [u8]> {
+fn admin_how(call: &jig::call::Call, limits: &Limits) -> Result<w::ForgejoAdmin, &'static [u8]> {
     let invalid = b"invalid first repository, project or runner label".as_slice();
     let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge).ok_or(invalid)?;
     let first = match value(call, 3) {
@@ -148,43 +144,10 @@ fn admin_how(
                     return Err(invalid);
                 }
             }
-            let project = match value(call, 4) {
-                Some(Value::Project(Project::Number(project))) => w::SetUpProject::Existing(
-                    w::ExistingProject::new(&bounds, w::ExistingProjectParts { project: *project })
-                        .ok()
-                        .ok_or(invalid)?,
-                ),
-                Some(Value::Project(Project::Name(name))) => {
-                    let mut found = None;
-                    if let Some(me) = crate::forge::me(client) {
-                        for project in &me.projects {
-                            if project.name.bytes() == name.as_ref() {
-                                found = Some(project.project);
-                                break;
-                            }
-                        }
-                    }
-                    match found {
-                        Some(project) => w::SetUpProject::Existing(
-                            w::ExistingProject::new(&bounds, w::ExistingProjectParts { project })
-                                .ok()
-                                .ok_or(invalid)?,
-                        ),
-                        None => w::SetUpProject::New(
-                            w::NewProject::new(&bounds, w::NewProjectParts { name: name.clone() })
-                                .ok()
-                                .ok_or(invalid)?,
-                        ),
-                    }
-                }
-                _ => w::SetUpProject::New(
-                    w::NewProject::new(&bounds, w::NewProjectParts { name: repository.into() }).ok().ok_or(invalid)?,
-                ),
-            };
             Some(
                 w::FirstAsk::new(
                     &bounds,
-                    w::FirstAskParts { org: org.into(), repository: repository.into(), project, label: label.into() },
+                    w::FirstAskParts { org: org.into(), repository: repository.into(), label: label.into() },
                 )
                 .ok()
                 .ok_or(invalid)?,
@@ -223,7 +186,7 @@ pub(super) fn send(
     let admin = !install && (called.call.form == 3 || called.call.form == 6);
     let first = admin && value(&called.call, 3).is_some();
     let admin_how = if admin {
-        match admin_how(&called.call, client, &env.limits) {
+        match admin_how(&called.call, &env.limits) {
             Ok(how) => Some(how),
             Err(why) => {
                 let printed = render::failure(why, called.json, 1);
@@ -236,10 +199,15 @@ pub(super) fn send(
     };
     let first = if first {
         let first = admin_how.as_ref().expect("admin request").first().as_ref().expect("first repository");
-        let project = match first.project() {
-            w::SetUpProject::Existing(project) => domain::SetUpProject::Existing(project.project()),
-            w::SetUpProject::New(project) => domain::SetUpProject::New(project.name().into()),
-        };
+        let project = super::selected_project(value(&called.call, 4), first.repository(), client);
+        if let Project::Name(name) = &project
+            && (name.is_empty()
+                || name.len() > usize::try_from(env.limits.domain.forge.field_bytes).expect("field bound fits"))
+        {
+            let printed = render::failure(b"invalid first repository, project or runner label", called.json, 1);
+            finish(called, printed, out);
+            return;
+        }
         Some(super::Intent {
             playground: false,
             forge,

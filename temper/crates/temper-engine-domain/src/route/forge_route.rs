@@ -1448,20 +1448,14 @@ pub(crate) fn run_workspace(
         let run_branch = tree_branch(repository, root, b'r', context.task, None, env.limits.forge.name_bytes)?;
         let save = tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?;
         let saved_branch = if saved { Some(save.clone()) } else { None };
-        let item = domain.forge.workspace_item(forge::items::Seed {
+        let mut item = domain.forge.workspace_item(forge::items::Seed {
             task: context.task,
             parent,
             repository: repository.provider,
             run_branch,
             saved_branch,
         })?;
-        let start = match item.start {
-            forge::items::Start::Base(branch) => ForgeStart::Base(branch),
-            forge::items::Start::Branch(branch) => ForgeStart::Branch(branch),
-            forge::items::Start::Saved(branch) => ForgeStart::Saved(branch),
-            forge::items::Start::Merge { branch, base } => ForgeStart::Merge { branch, base },
-        };
-        let mut push = item.push;
+        let mut push = item.push.take();
         let holder = item.holder;
         if let Some((row, _)) = inherited {
             key = row.task;
@@ -1537,31 +1531,7 @@ pub(crate) fn run_workspace(
                 names.push(name).ok()?;
             }
         }
-        let provider = item.provider;
-        repositories
-            .push(ForgeRepository {
-                save: match start {
-                    ForgeStart::Merge { .. } => None,
-                    ForgeStart::Base(_) | ForgeStart::Branch(_) | ForgeStart::Saved(_) => {
-                        if push.is_some() {
-                            Some(save)
-                        } else {
-                            None
-                        }
-                    }
-                },
-                tag: forge::tag(provider.forge, provider.repository),
-                provider,
-                name: item.name,
-                host: item.host,
-                owner: item.owner,
-                start,
-                landing: if push.is_some() { item.landing } else { None },
-                push,
-                // The repository's git identity, from configuration (D10).
-                identity: item.credential?,
-            })
-            .ok()?;
+        repositories.push(workspace_repository(item, push, save)?).ok()?;
     }
     Some(RunWorkspace {
         workspace: ForgeWorkspace { repositories: repositories.into_boxed() },
@@ -1569,6 +1539,40 @@ pub(crate) fn run_workspace(
         writes: writes.into_boxed(),
         names: names.into_boxed(),
         own_holds: own_holds.into_boxed(),
+    })
+}
+
+/// Translate a connector item after its write destination is checked
+/// (temper/docs/design/protocol/channel.md, 4).
+pub(crate) fn workspace_repository(
+    item: forge::items::Item,
+    push: Option<Box<[u8]>>,
+    save: Box<[u8]>,
+) -> Option<ForgeRepository> {
+    let start = match item.start {
+        forge::items::Start::Base(branch) => ForgeStart::Base(branch),
+        forge::items::Start::Branch(branch) => ForgeStart::Branch(branch),
+        forge::items::Start::Saved(branch) => ForgeStart::Saved(branch),
+        forge::items::Start::Merge { branch, base } => ForgeStart::Merge { branch, base },
+        forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
+    };
+    Some(ForgeRepository {
+        save: match start {
+            ForgeStart::Merge { .. } => None,
+            ForgeStart::Base(_) | ForgeStart::Branch(_) | ForgeStart::Saved(_) | ForgeStart::Merged { .. } => {
+                if push.is_some() { Some(save) } else { None }
+            }
+        },
+        tag: forge::tag(item.provider.forge, item.provider.repository),
+        provider: item.provider,
+        name: item.name,
+        host: item.host,
+        owner: item.owner,
+        start,
+        landing: if push.is_some() { item.landing } else { None },
+        push,
+        // The repository's git identity, from configuration (D10).
+        identity: item.credential?,
     })
 }
 
@@ -1903,6 +1907,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority,
                 ci: None,
                 change: forge_change::Change {
+                    early: forge_change::Early::None,
                     way: forge_change::Way::Queue,
                     landing: None,
                     task,
@@ -1976,13 +1981,16 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             }
         }
     }
+    step_dependents(domain, env, task);
     landing_route::join_landing(domain, env, task);
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
     domain.work.push(Work::Forge(forge::Event::StepChange {
         task,
         entry,
         kept: landing_route::kept(domain, env, task),
+        pending: landing_route::pending(domain, env, task, provider, &base),
         heard: forge_change::Heard {
+            start_conflict: None,
             lacking: change_authority_lack(domain, task),
             spend: change_spend(domain, task),
             delegate: forge_change::Status::Unknown,
@@ -3378,9 +3386,61 @@ fn delegate_change_step(
             domain,
             env,
             task,
-            ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
+            ProcedureStep {
+                batch: Box::new([delegate]),
+                started_from: producer_started_from(domain, env, task, kind),
+                ..ProcedureStep::new(StepEnd::Wait)
+            },
         ),
     }));
+}
+
+fn producer_started_from(domain: &Domain, env: &Env<Limits>, task: u64, kind: forge_change::Delegate) -> Box<[u64]> {
+    if kind != forge_change::Delegate::Produce {
+        return Box::new([]);
+    }
+    let Some(row) = domain.forge.change(task) else { return Box::new([]) };
+    let forge_change::Early::Started(heads) = &row.change.early else { return Box::new([]) };
+    let mut marks = List::with_capacity(env.limits.tasks.dependencies);
+    for head in heads {
+        marks.push(head.task).expect("bounded dependency heads");
+    }
+    marks.into_boxed()
+}
+
+fn cancel_change_producer(domain: &Domain, task: u64) -> ProcedureStep {
+    let Some(row) = domain.forge.change(task) else { return ProcedureStep::new(StepEnd::Wait) };
+    let Some((child, forge_change::Delegate::Produce)) = row.delegate else { return ProcedureStep::new(StepEnd::Wait) };
+    let Some(head) = domain.forge.start_conflict(task) else { return ProcedureStep::new(StepEnd::Wait) };
+    let mut reason = List::with_capacity(64);
+    append(&mut reason, b"its early start conflicts with ");
+    for byte in &head[..4] {
+        append(&mut reason, &forge::hex(*byte));
+    }
+    ProcedureStep {
+        cancels: Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }]),
+        ..ProcedureStep::new(StepEnd::Wait)
+    }
+}
+
+/// A pushed dependency or one going on from kept can enable a waiting producer
+/// (domain/forge.md, 8.11). Jig owns the live pending dependency list.
+fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
+    let Some(upstream) = domain.forge.change(dependency) else { return };
+    let Some(repository) = domain.forge.repository(upstream.repository) else { return };
+    for repository in domain.forge.writable_repositories(repository.project) {
+        for task in domain.forge.changes_for(repository.provider, env.limits.forge.changes) {
+            let Some(change) = domain.forge.change(task) else { continue };
+            if change.delegate.is_none()
+                && change.change.state == (forge_change::State::Producing { requested: false })
+                && let Some(row) = domain.core.tasks.task(task)
+                && row.waiting_on.contains(&dependency)
+                && let tasks::Phase::Active(_) = row.phase
+            {
+                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+            }
+        }
+    }
 }
 
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
@@ -3424,6 +3484,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
         }
         forge_change::Decision::Wait { until } => wait_change_decision(domain, env, task, until),
         forge_change::Decision::Cancel => unreachable!("cancel is routed before procedure admission"),
+        forge_change::Decision::CancelProducer => cancel_change_producer(domain, task),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
             delegate_change_step(domain, env, task, step, connector, code, kind);
@@ -3513,7 +3574,9 @@ pub(crate) fn outputs(
                 super::playground::done(domain, env, decision, request, false);
                 super::applications::finished(domain, request, Err(why));
             }
+            forge::Request::StepDependents { task } => step_dependents(domain, env, task),
             forge::Request::WakeProcedure { task } => {
+                step_dependents(domain, env, task);
                 // A restored change also repairs names saved before its pull was known.
                 if let Some(row) = domain.forge.change(task).cloned() {
                     watch_change_pull(domain, env, &row);
@@ -4010,6 +4073,7 @@ pub(crate) fn outputs(
                     }
                 }
                 forge_change::Decision::None
+                | forge_change::Decision::CancelProducer
                 | forge_change::Decision::Wait { .. }
                 | forge_change::Decision::Delegate(_)
                 | forge_change::Decision::CancelGates { .. }

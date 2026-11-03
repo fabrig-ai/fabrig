@@ -204,6 +204,7 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
 pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
     use jig_domain_tasks as tasks;
     Box::new(tasks::TaskRecord {
+        started_from: Box::new([]),
         asked_requester: false,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },

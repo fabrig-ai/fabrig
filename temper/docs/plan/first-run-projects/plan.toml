@@ -1,0 +1,91 @@
+draft = "first-run-projects"
+repo = "fabrig"
+sources = ["temper/docs/plan/first-run-projects/inputs/request.md", "temper/docs/design/draft/first-run-projects.md", "temper/docs/design/draft/first-run-projects.status.md", "temper/docs/design/draft/reference-case.execution.md", "AGENTS.md", "DESIGN.md"]
+
+# temper/docs/design/draft/first-run-projects.md, in its section 8's order: 1, no seeded project
+# and the playground's Demo shown by its name; 2, the wizard without adoption, Ready making
+# "Default", a project with no repository highlighted; 3, the banner's switcher; 4, the first
+# chat. The design is written by this cut (inputs/request.md) and released with its specs.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "demo"
+title = "temper: the playground's project is Demo, an ordinary project the client names by its stored name"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.4"
+
+[[part]]
+id = "no-seed"
+title = "temper: temper init and the fake box seed no project; the first made is project 1"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.3"
+
+[[slice]]
+id = 1
+story = "a fresh temper box lists no project (ctl me); ctl playground start makes Demo, listed and shown by its stored name in the banner, the chats and a task's page; ctl playground end leaves no project"
+parts = ["no-seed", "demo"]
+walk = true
+
+[[part]]
+id = "form-escape"
+title = "skein: Escape inside a form, so that a field edited in place is cancelled by it"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 6.1"
+
+[[slice]]
+id = 4
+story = "in skein-ui, a node inside a form names Escape and the web page part presses it on the Escape key while the focus is in the form"
+parts = ["form-escape"]
+walk = false
+
+[[part]]
+id = "wizard"
+title = "temper: one wizard for every forge, adopting nothing; Ready makes Default and opens it; the set up's request names no project"
+mode = "direct"
+needs = ["no-seed", "demo"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "no-repository"
+title = "temper: a project with no repository says so on its chats page, with Adopt a repository to a form filled for the set up's first repository"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "on Forgejo here or GitHub the welcome connects a forge and adopts nothing; Ready makes Default and opens its chats page, which says it has no repository and links Adopt a repository, one press from work/hello adopted; ctl forge setup still adopts into its --project, its request naming none"
+parts = ["wizard", "no-repository"]
+walk = false
+
+[[part]]
+id = "first-chat"
+title = "temper: the chats page of a project with no chat offers Tell temper how you work, the first chat, naming no repository"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "after Ready, Default's chats page offers Tell temper how you work, which starts the stock chat (the configuring template once the settings offer it) with no repository"
+parts = ["first-chat"]
+walk = false
+
+[[part]]
+id = "switcher"
+title = "temper: the banner's switcher renames the open project in place for its owners and makes a new project, opening it"
+mode = "direct"
+needs = ["form-escape"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[slice]]
+id = 5
+story = "an owner renames Default from the banner's switcher, Enter or Save sending Rename and Escape cancelling, and makes a new project there, which opens with no repository"
+parts = ["switcher"]
+walk = false

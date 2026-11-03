@@ -135,12 +135,12 @@ temper ctl DIR sign-in -
 temper ctl DIR me
 ```
 
-Expect: `party 1 · owner · Owner`; `me` lists `1 · Project 1 · owner`.
+Expect: `party 1 · owner · Owner`; `me` lists no project yet.
 
-First start made project 1 and its owner. When `settings apply` raises
-limits, fund its period and role 0's pool with distinct keys: temper help
-weekly-budget. Settings do not resize budgets; policy 1 sizes future
-projects. Read balances with `project show PROJECT`.
+The playground makes `Demo`; setup makes yours (temper help playground).
+Policy 1 sizes each. After `settings apply`, fund the project's period,
+then role 0's pool, with distinct keys (temper help weekly-budget).
+Settings never resize budgets. Check with `project show PROJECT`.
 
 If not: `temper ctl: the sign-in link was refused` (exit 1): spent or
 expired. Use the new link after `A fresh sign-in link:`.

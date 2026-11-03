@@ -169,7 +169,6 @@ pub enum Ask {
         forge: Making,
         org: Box<[u8]>,
         repository: Box<[u8]>,
-        project: SetUpProject,
         playground: bool,
     },
     RemoveForge {
@@ -204,7 +203,6 @@ pub enum Ask {
 pub struct FirstAsk {
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
-    pub project: SetUpProject,
     pub label: Box<[u8]>,
 }
 /// The public connect's input; credentials remain carried handles.
@@ -403,7 +401,6 @@ pub struct FirstIntent {
     pub playground: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
-    pub project: SetUpProject,
     pub label: Box<[u8]>,
 }
 /// A forge kept in the connector's store (temper/docs/design/protocol/forge.md, 2.1).
@@ -496,12 +493,6 @@ pub enum Offer {
     NotUnderTheBox,
     Offered,
 }
-/// The project selected for the first repository (protocol/setup.md, 6.7).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SetUpProject {
-    Existing(u32),
-    New(Box<[u8]>),
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CreateStep {
     Admin,
@@ -539,7 +530,6 @@ pub struct First {
     pub playground: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
-    pub project: SetUpProject,
     pub state: FirstState,
     pub label: Box<[u8]>,
 }
@@ -1174,7 +1164,6 @@ pub enum SetUpRefusal {
     NotOffered,
     NotUnderTheBox,
     Busy,
-    NewProject,
     Invalid,
 }
 /// Installation information for the deployment's page (protocol/forge.md, 2.4).
@@ -1525,6 +1514,12 @@ pub enum Event {
         cancelled: bool,
         words: Box<[u8]>,
     },
+    /// The live producer's preparation could not merge a dependency head (domain/forge.md, 8.11).
+    StartConflicted {
+        child: u64,
+        tag: u64,
+        head: skein_forge::api::Commit,
+    },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
         task: u64,
@@ -1533,6 +1528,7 @@ pub enum Event {
         gates: Box<[change::GateReport]>,
         queue_repair_active: bool,
         kept: bool,
+        pending: Box<[change::Pending]>,
     },
     /// A requester or person released a held change.
     ReleaseChange {
@@ -1740,6 +1736,10 @@ pub enum Request {
     ApplicationAgain {
         request: Token,
         why: jig_domain_people::Again,
+    },
+    /// A pushed or first-read change head can enable its dependents (domain/forge.md, 8.11).
+    StepDependents {
+        task: u64,
     },
     /// The connector has fresh news or a retry deadline for its procedure.
     WakeProcedure {

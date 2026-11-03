@@ -53,7 +53,6 @@ fn setup(driver: &mut Driver, serial: u8, org: &[u8], repository: &[u8]) -> Opti
             forge: forge::Making::Kept(1),
             org: org.into(),
             repository: repository.into(),
-            project: forge::SetUpProject::Existing(1),
         }),
     }));
     driver.settle();

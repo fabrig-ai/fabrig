@@ -1,23 +1,26 @@
 == T1 · Add CSV export to widget == Live
 [1] temper
 Menu:
-  Playground:
-    [2] Playground (pressed)
+  demo:
+    [2] demo (pressed)
+    New project:
+      [3] New project: (empty) (enter sends)
+      [4] Create
   Main navigation:
-    [3] Inbox
-    [4] Chats (current)
-    [5] Adopt a repository
-    [6] Forges
-    [7] Accounts
-  [8] Set up temper
+    [5] Inbox
+    [6] Chats (current)
+    [7] Adopt a repository
+    [8] Forges
+    [9] Accounts
+  [10] Set up temper
   * Pat
-  [9] Sign out
+  [11] Sign out
 Playground:
   This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
 T1 · Add CSV export to widget:
   * waiting on your words
   0 spent · of 1
-Playground · playground/widget on Playground forge
+demo · playground/widget on Playground forge
 Signed in as the deployment’s owner
 Conversation:
   Today · Thursday 1 January
@@ -37,7 +40,7 @@ Conversation:
       - Pull request opened (completed)
       - CI passed (completed)
       - Landed (completed)
-    [10] Task 2 ↗
+    [12] Task 2 ↗
   1 tool call: wait
     wait
   Temper
@@ -46,6 +49,6 @@ Conversation:
   1 tool call: wait
     wait
 Using Scripted model · Default
-[11] Message: (empty) (enter sends)
+[13] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[12] Send
+[14] Send

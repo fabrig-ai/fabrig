@@ -93,7 +93,6 @@ fn connection(row: &Row, root: &Domain, w: &Words) -> Box<[u8]> {
         | Connection::Stopped { .. } => forge::words::forge_connection(row),
     }
 }
-#[expect(clippy::too_many_lines, reason = "the row keeps its actions together (client/forge.md, 5.4)")]
 fn personal(
     b: &mut Builder,
     root: &Domain,
@@ -152,13 +151,7 @@ fn personal(
         crate::cards::text(
             b,
             Role::Description,
-            &w.say(
-                Word::SetupMade,
-                &[
-                    Hole::Name(forge::words::full_name(&first.org, &first.repository)),
-                    Hole::Name(connect::project_name(root, w, &first.project)),
-                ],
-            ),
+            &w.say(Word::SetupMade, &[Hole::Name(forge::words::full_name(&first.org, &first.repository))]),
         );
         b.close();
     }
@@ -255,7 +248,7 @@ fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
         | Connection::Connecting => {}
     }
 }
-fn repository_line(root: &Domain, w: &Words, row: &Row) -> Option<Box<[u8]>> {
+fn repository_line(_root: &Domain, w: &Words, row: &Row) -> Option<Box<[u8]>> {
     if forge::connect::failed(row) {
         return None;
     }
@@ -273,13 +266,7 @@ fn repository_line(root: &Domain, w: &Words, row: &Row) -> Option<Box<[u8]>> {
             | Connection::Stopped { .. } => Word::SetupInto,
         },
     };
-    Some(w.say(
-        word,
-        &[
-            Hole::Name(forge::words::full_name(&first.org, &first.repository)),
-            Hole::Name(connect::project_name(root, w, &first.project)),
-        ],
-    ))
+    Some(w.say(word, &[Hole::Name(forge::words::full_name(&first.org, &first.repository))]))
 }
 fn account(b: &mut Builder, w: &Words, row: &Row) {
     if let Connection::Connected { id, login } = &row.connection {

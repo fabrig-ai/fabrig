@@ -58,7 +58,7 @@ pub(crate) fn valid(limits: &Limits) -> bool {
 pub(crate) fn refresh(domain: &mut Domain, number: u64) {
     let row = record(domain, number).expect("published live row");
     let phase = WaitPhase::for_phase(&row.phase);
-    let queued = crate::holds::queued(row);
+    let queued = crate::holds::queued(domain, row);
     if let Some(old) = domain.waits.rows.get(&number)
         && old.holdings == row.holdings
         && old.pending == row.waiting_on
@@ -909,7 +909,7 @@ pub(crate) fn lift(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         match check_waits(domain, &Staged::new(0), &env.limits, number, &resume, &row.waiting_on) {
             Ok(()) => {
                 task_mut(domain, number).expect("circle held task").record.phase = resume;
-                if crate::holds::queued(record(domain, number).expect("lifted task")) {
+                if crate::holds::queued(domain, record(domain, number).expect("lifted task")) {
                     crate::holds::back(domain, env, number, out);
                 } else {
                     publish(domain, env, number, out);
@@ -950,7 +950,7 @@ pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
         let mut earliest = None;
         for (number, _) in &remaining {
             let row = record(domain, *number).expect("remaining restored task");
-            if !crate::holds::queued(row) {
+            if !crate::holds::queued(domain, row) {
                 continue;
             }
             if let Err(problem) = check_queue(domain, &Staged::new(0), &env.limits, *number) {

@@ -790,11 +790,15 @@ fn make_goal_named(
     }
     if procedure {
         batch[0].authority.tools = NO_TOOLS;
-        batch[0].parameters = Box::new([jig_domain_people::Parameter::Resource {
-            name: REPOSITORY_PARAMETER,
-            connector: FORGE_CONNECTOR,
-            resource: GOAL_REPOSITORY,
-        }]);
+        // A malformed role choice keeps this panel fixture without a connector change.
+        batch[0].parameters = Box::new([
+            jig_domain_people::Parameter::Resource {
+                name: REPOSITORY_PARAMETER,
+                connector: FORGE_CONNECTOR,
+                resource: GOAL_REPOSITORY,
+            },
+            jig_domain_people::Parameter::Bytes { name: 11, value: b"invalid".as_slice().into() },
+        ]);
         batch[0].executor =
             jig_domain_people::TaskExecutor::Procedure { connector: FORGE_CONNECTOR, code: FORGE_PROCEDURE };
         batch[0].contract =

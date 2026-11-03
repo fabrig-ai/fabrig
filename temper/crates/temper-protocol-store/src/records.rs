@@ -214,7 +214,6 @@ mod holds;
 
 fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
-        new_first_name: forge.name_bytes,
         first_intent_org: forge.name_bytes,
         first_intent_repository: forge.name_bytes,
         landing_state_members: forge.landing_members,
