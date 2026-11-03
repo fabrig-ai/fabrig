@@ -15,6 +15,8 @@ import xml.etree.ElementTree as ET
 
 
 KEYS = {"cpu_suite_s", "cpu_test_s", "wall_hard_s"}
+# nextest's abort message for the signals of cancellation (tools/tiers/design.md, 7.3).
+CANCELLED = re.compile(r'\baborted with signal (?:9|15)\b')
 
 
 def budgets(path, pairs=None):
@@ -150,7 +152,7 @@ def records(directory, *, tools=False):
 
 def junit(directory, profile):
     root = ET.parse(directory / "junit.xml").getroot()
-    expected, timeouts, failures, passed = set(), set(), [], set()
+    expected, timeouts, failed, passed, aborts = set(), set(), {}, set(), set()
     for suite in root.findall("testsuite"):
         # Setup scripts have no wrapper and are not test attempts.
         if suite.attrib["name"].startswith("@setup-script:"):
@@ -184,11 +186,16 @@ def junit(directory, profile):
                 expected.add(key)
                 if outcome is None:
                     passed.add(key)
-                if outcome is not None and "timeout" in outcome.get("type", "").lower():
-                    timeouts.add(key)
-            if primary and any(outcome is not None and "timeout" not in outcome.get("type", "").lower() for outcome in outcomes):
-                failures.append(f"{binary} {name}")
-    return expected, timeouts, failures, passed
+                else:
+                    kind = outcome.get("type", "").lower()
+                    if "timeout" in kind:
+                        timeouts.add(key)
+                    elif primary:
+                        failed.setdefault(f"{binary} {name}", set()).add(key)
+                    if "abort" in kind and (CANCELLED.search(outcome.get("message", ""))
+                                             or CANCELLED.search("".join(outcome.itertext()))):
+                        aborts.add(key)
+    return expected, timeouts, failed, passed, aborts
 
 
 def summary(directory, limits=None, pair=None, expected=None):
@@ -212,12 +219,18 @@ def summary(directory, limits=None, pair=None, expected=None):
     if any(key[0] != profile for key in actual):
         raise ValueError("record profile does not match run")
     expected, passed = set(), set()
+    unobserved = set()
     if (directory / "junit.xml").exists():
-        expected, timeouts, failures, passed = junit(directory, profile)
+        expected, timeouts, failed, passed, aborts = junit(directory, profile)
         missing = expected - actual
+        if run["starved"]:
+            # Cancellation can stop a wrapper before its pre-exec record.
+            unobserved = missing & aborts
+            missing -= unobserved
         extra = actual - expected
         if missing or (extra and not run["starved"]):
             raise ValueError(f"record coverage: missing {sorted(missing)}; unexpected {sorted(extra)}")
+        failures = [name for name, keys in failed.items() if keys - unobserved]
     elif run.get('returncode') == 4 and not items:
         timeouts, failures = set(), []
     elif run["starved"]:
@@ -250,7 +263,14 @@ def summary(directory, limits=None, pair=None, expected=None):
         elif item['signal'] not in (signal.SIGTERM, signal.SIGKILL) or key not in timeouts:
             unresolved[test] = f"{test[0]} {test[1]}"
     failures = sorted((set(failures) - superseded_junit) | set(unresolved.values()))
-    return summarize_records(items, pair, limits, run, timeouts, failures)
+    result = summarize_records(items, pair, limits, run, timeouts, failures)
+    result['unobserved'] = [dict(binary_id=binary, test_name=name, attempt=attempt)
+                            for _, binary, name, attempt in sorted(unobserved)]
+    result['suite']['unobserved'] = len(unobserved)
+    result['warnings'].extend(
+        f"{pair} {binary} {name}: attempt {attempt} unobserved, cancelled before its record"
+        for _, binary, name, attempt in sorted(unobserved))
+    return result
 
 
 def tools_summary(directory, limits, expected):
@@ -318,7 +338,7 @@ def summarize_records(items, pair, limits, run, timeouts, failures):
     warnings = [f"{pair} {name}: auto-reaped descendant CPU may be absent from complete_scope"
                 for name in limits.get('auto_reap', [])] if pair != 'tools' else []
     return dict(pair=pair, tests=tests, warnings=warnings, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
-                starved_run=wall_starved), failures=failures, over_budget=over,
+                starved_run=wall_starved, unobserved=0), failures=failures, unobserved=[], over_budget=over,
                 verdict="over budget" if over else "starved" if wall_starved or timeouts else "within budget" if limits else "no budget set")
 
 
@@ -334,7 +354,8 @@ def print_summary(result, as_json=False):
     print(f"{result['pair']}: {suite['tests']} tests, {suite['attempts']} attempts; "
           f"CPU {suite['cpu_s']:.6f}s (user {suite['user_s']:.6f}s system {suite['system_s']:.6f}s), "
           f"wall {suite['wall_s']:.6f}s; starved {suite['starved']} "
-          f"starved_run {suite['starved_run']} leaked {suite['leaked']} incomplete {suite['incomplete']}; {result['verdict']}")
+          f"starved_run {suite['starved_run']} unobserved {suite['unobserved']} "
+          f"leaked {suite['leaked']} incomplete {suite['incomplete']}; {result['verdict']}")
     for message in result['warnings']:
         print(f'warning: {message}')
     for message in result['over_budget']:

@@ -561,6 +561,16 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `SubjectEnded` answers not met with the last document and its digest,
   and an opening `Unknown` keeps status 2. Run/tree waits retain their
   watch-based completion; there is no additional retry or timer policy.
+  A tree completing from `SubjectEnded` prints `tree ended (watch)`
+  and labels its retained rows `last observed snapshot` before the tree.
+  Their chip phases remain as delivered, even when live: the watch
+  establishes tree completion, not terminal chip facts or a task result.
+  JSON retains the tree and its snapshot digest unchanged and adds
+  `"completion":{"source":"watch","ended":true}` and
+  `"snapshot":"last_observed"` outside it. The digest describes the
+  last observed snapshot, never a reconstructed final tree. A terminal
+  delivery uses the ordinary tree form. Without any delivery, a
+  run/tree watch end refuses `gone`, status 2.
 - **`--timeout`:** 300 seconds by default, at most 3600; answered with
   the current document, its digest, and that the condition is not met
   (6.3).
@@ -1655,6 +1665,12 @@ is reset, the store empty again.
   hidden history, Busy, sign-out and read failure. Only matching
   terminal records meet `ended`; each path emits exactly one result
   and releases its handles and timer. No new harness (5.4).
+- **Tree waits,** in the same tools step fixture: an Idle-root delivery
+  remains pending until `SubjectEnded`; text and JSON then report
+  watch completion and label the unchanged rows as the last observed
+  snapshot, with its digest. Terminal deliveries, no-delivery `gone`,
+  timeout, `--since`, and a single answer with watch/timer cleanup
+  are covered here: no forge, workflow, model or kernel is needed (5.4).
 - **The boundary:** `src/jig/` names no temper item (section 4).
 - **The bounds:** each of the tools' ceilings within the client's limit
   it reads from, and a picker's page within a result's text (section

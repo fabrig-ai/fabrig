@@ -89,15 +89,14 @@ fn configure(raw: i32) -> Result<Fd, i32> {
     }
     Ok(fd)
 }
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn socket(family: Family) -> Result<Fd, i32> {
     let domain = match family {
         Family::Ipv4 => libc::AF_INET,
         Family::Ipv6 => libc::AF_INET6,
     };
-    retry(|| {
-        // SAFETY: socket takes integers, returning a new descriptor.
-        configure(unsafe { libc::socket(domain, libc::SOCK_STREAM, libc::IPPROTO_TCP) })
-    })
+    // SAFETY: socket takes integers, returning a new descriptor.
+    configure(unsafe { libc::socket(domain, libc::SOCK_STREAM, libc::IPPROTO_TCP) })
 }
 fn socklen<T>() -> libc::socklen_t {
     libc::socklen_t::try_from(size_of::<T>()).expect("socket size fits socklen_t")
@@ -166,13 +165,12 @@ pub(crate) fn bind(fd: Fd, addr: &Addr) -> Result<(), i32> {
         status(unsafe { libc::bind(fd.raw(), ptr::from_ref(&storage).cast(), len) })
     })
 }
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn connect(fd: Fd, addr: &Addr) -> Result<(), i32> {
     let mut storage = storage();
     let len = encode(addr, &mut storage);
-    retry(|| {
-        // SAFETY: the initialized encoded address lives across connect.
-        status(unsafe { libc::connect(fd.raw(), ptr::from_ref(&storage).cast(), len) })
-    })
+    // SAFETY: the initialized encoded address lives across connect.
+    status(unsafe { libc::connect(fd.raw(), ptr::from_ref(&storage).cast(), len) })
 }
 pub(crate) fn bound_addr(fd: Fd) -> Result<Addr, i32> {
     let mut storage = storage();
@@ -183,21 +181,20 @@ pub(crate) fn bound_addr(fd: Fd) -> Result<Addr, i32> {
     })?;
     decode(&storage, len)
 }
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn accept(fd: Fd) -> Result<(Fd, Addr), i32> {
     let mut storage = storage();
-    retry(|| {
-        let mut len = socklen::<libc::sockaddr_storage>();
-        // SAFETY: storage and len are exclusive, live output buffers of the stated capacity.
-        let raw = unsafe { libc::accept(fd.raw(), ptr::from_mut(&mut storage).cast(), ptr::from_mut(&mut len)) };
-        let accepted = configure(raw)?;
-        match decode(&storage, len) {
-            Ok(addr) => Ok((accepted, addr)),
-            Err(errno) => {
-                let _closed = close(accepted);
-                Err(errno)
-            }
+    let mut len = socklen::<libc::sockaddr_storage>();
+    // SAFETY: storage and len are exclusive, live output buffers of the stated capacity.
+    let raw = unsafe { libc::accept(fd.raw(), ptr::from_mut(&mut storage).cast(), ptr::from_mut(&mut len)) };
+    let accepted = configure(raw)?;
+    match decode(&storage, len) {
+        Ok(addr) => Ok((accepted, addr)),
+        Err(errno) => {
+            let _closed = close(accepted);
+            Err(errno)
         }
-    })
+    }
 }
 /// Waits up to `bound` for `POLLIN`, without consuming input or driving a
 /// `Kernel`. Returns false on timeout and an errno on descriptor or poll
