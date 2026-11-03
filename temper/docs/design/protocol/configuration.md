@@ -1464,16 +1464,17 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 
 ### 13.2 temper's kinds
 
-temper declares five kinds of its own beside jig's, each owned by the
+temper declares six kinds of its own beside jig's, each owned by the
 forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 
 | Kind | Scope | Numbers | Value | Decided by |
 |---|---|---|---|---|
 | 1, the deployment's landing rules | the deployment | a rule's, from 1; at most `forge.landing_rules` | a landing rule (below) | the deployment's owners |
 | 2, a project's landing rules | each project | a rule's, from 1; at most `forge.landing_rules` per project | a landing rule | that project's owners |
-| 3, the forge's charters | the deployment | 1, the change's; 2, its reviews' | a charter's number, a u32 | the deployment's owners |
+| 3, the forge's charters | the deployment | 1, the change's; 2, its reviews'; 3, its foremen's | a charter's number, a u32 | the deployment's owners |
 | 4, a project's landing | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../domain/landing.md`, 13.1) | that project's owners |
 | 5, a repository's gates | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
+| 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none, foreman or up (`../domain/forge.md`, 8.11) | that project's owners |
 
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, section 3's rule member for member but `connector` and `kind`,
@@ -1494,7 +1495,8 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
     `forge.change_policy.gates`, or a gate's number twice; with an
     approval of no people, or a role twice, or one past
     `authority.roles`;
-  - *the forge's charter* outside 1 to jig's `tasks.charters`.
+  - *the forge's charter* outside 1 to jig's `tasks.charters`;
+  - *a project's questions* that is not one of the three routes.
   Whether a project's policy has an approval's role is not the forge's
   to know: a rule naming a role nobody holds is accepted, and the
   review page says so (`../client/README.md`, 5.13); a change it covers
@@ -1519,7 +1521,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 - **Erased with their project.** A project deleted (jig's
   `RemoveProject`, jig's `domain/people.md`, 5.2) has its settings
   erased by the connector owning each kind: the forge erases its kinds
-  2, 4 and 5 of that project's scope, their current changes and the
+  2, 4, 5 and 6 of that project's scope, their current changes and the
   items of pending proposals among them, in the deletion's steps, and
   the deployment's kinds 1 and 3 stay. A project made later, its number
   never the deleted one's, starts from the stock defaults.
@@ -1532,14 +1534,21 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   always current (`../draft/configuring.md`, section 4).
 - **The forge's charters are read when a change is made.** The forge
   reads its own kind 3, as it holds it, and the root grants the
-  change's procedure delegation to both of its charters. The change
+  change's procedure delegation to each of its charters. The change
   keeps their numbers on its row: its producing, its repairs, its
   resolutions and its checks' gates run under the change's charter it
   was made with (number 1), its agents' gates, the reviews, under the
   review charter it was made with (number 2; the stock's charter 4,
-  fixed by the binary, until 13.6's step 2), and a newer charter of
-  either reaches the changes made after it (`../domain/root.md`,
-  section 6).
+  fixed by the binary, until 13.6's step 2), its foremen under the
+  foreman's charter it was made with (number 3; the stock's charter 6,
+  fixed by the binary likewise), and a newer charter of any reaches the
+  changes made after it (`../domain/root.md`, section 6). A change whose
+  questions take no foreman is granted no delegation to the foreman's.
+- **A project's questions are read when a change is made,** as its
+  charters are: a `change` that names no route takes its project's
+  kind 6 (`none` on the stock), kept on the change's row as its
+  questions parameter (`../domain/forge.md`, 8.1), and a later change
+  of the setting reaches only the changes made after it.
 
 ### 13.3 How the landing rules are enforced
 
@@ -1587,14 +1596,16 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | charter 1, a chat's | the instructions in the `stock` module's `chat.txt`; this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
 | charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt` and the modify family, but a run of 16 turns and 120 s, a reserve of 1 turn and 60 s: the shipped model, `gpt-6-luna` at effort medium, reads before it writes, and 8 turns leave the smallest change unwritten; K is unmoved, its floor of 4 units a run turn counting the chat's 8, so a coding agent at a cheap model's coarse prices is held to its spend before its 16 turns; a run that meets its 120 s before its turns is the figure to raise next |
 | charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 16 turns; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
+| charter 6, a foreman's | as charter 4, with the `stock` module's `foreman.txt`: settle the question its brief carries from the change's words, the design in its checkout and the change's pushed head, read through the forge's reads; `answer` only what they settle, `finish` where the work done holds and the rest is the asker's Left list, `escalate` with its reasons otherwise, never guessing past them; a foreman's verdict as its contract (`../domain/forge.md`, 8.11) |
 | template 1, a chat | jig's chat, run by charter 1 |
 | charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
 | template 2, a goal | jig's goal, its executor chosen |
 | template 3, the configuring chat | a chat, flagged conversation and labelled as jig's chat is, run by charter 3 |
 | policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,539, delegation, messages, reads and settings (jig's `ToolFamilies` Delegate, Message, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 18 tasks 4 deep (the chat counted among them), so that a chat's advisor and two dependent delegates, each with its change's procedure and the procedure's six (a producer, a review, and two repairs each followed by its review), fit: 1 + 1 + 2 × 8 |
-| the rules | today's: tools 1,539, delegation, messages, reads and settings, the forge's grants under `forge`, delegation to charters 1, 2, 3 and 4 and the change procedure, 18 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
+| the rules | today's: tools 1,539, delegation, messages, reads and settings, the forge's grants under `forge`, delegation to charters 1, 2, 3, 4 and 6 and the change procedure, 18 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
-| kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4 |
+| kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
+| kind 6 | none for every project: a change asks no one unless its maker names a route |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 48K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
 - **Each charter's host families** (its `tools`, jig's
@@ -1604,7 +1615,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   implementers a coordinator delegates), names the read and message
   families alone, since it reads the change and CI, asks its requester,
   and delivers through smith's own `deliver`, never delegating or
-  effecting; charter 4, the reviewer's, names the read family alone, as
+  effecting; charter 4, the reviewer's, and charter 6, the foreman's,
+  name the read family alone, as
   its row says; charter 3 names those its row lists (settings, reads
   and propose, for `withdraw`), not charter 1's with settings added.
   smith's host part counts a run's brief beside its tools, so a brief
@@ -1665,7 +1677,12 @@ init`'s document carries none of them (`setup.md`, 8.3).
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, raise `authority.executors` and
   `tasks.executor_kinds` to 8 (small's 4), since the stock delegates to
-  five executors, charters 1 to 4 and the change procedure;
+  six executors, charters 1 to 4 and 6 and the change procedure;
+  `tasks.charters` to 8 (small's 4), since the stock holds five
+  charters and a deployment's settings add their own (13.9);
+  `tasks.contract_choices` to 4, since a foreman's verdict has three
+  choices (`../domain/forge.md`, 8.11) and a coordinator's person task
+  offers its person up to four options;
   `clients.streams` and `clients_http.streams` to 8 (small's 2), since
   every `temper ctl` call holds a stream and a wait holds it for the
   wait, so a person and a walk hold three to five at once, with what carries each stream raised
@@ -1909,9 +1926,17 @@ that changes the stock changes nothing of them.
   - *charter 5, the coordinator's:* instructions for the cut (a plan of
     changes it specifies itself, each made by `change` into its own
     goal branch with its dependencies, one batch per family:
-    `../domain/agent.md`, 4.3.1), for each result and its Left list (a
-    new change for what is left, an amendment of a live change, or
-    nothing), and for the goal's end (its report once the plan's
+    `../domain/agent.md`, 4.3.1, each with questions `foreman`), for
+    each result and its Left list (a new change for what is left, an
+    amendment of a live change, or nothing), for each question a change
+    relays (`../domain/forge.md`, 8.11: answer it from the draft and the
+    design; amend the change and answer what changed; make a new change,
+    add it to the change's `after` by amendment and answer that the work
+    waits for it; or ask its person through a person task, the options
+    as its choices, and answer once the person has chosen), for each
+    hold that reaches it (release it, amend then release it, cancel it,
+    or pass it up to its person with its reasons, by `decide`), and for
+    the goal's end (its report once the plan's
     changes have landed, its branch kept); the document's models, the
     workers, its runs starting fresh, waiting 0, a run sized for a
     plan's turns; its default wake policy the coordinator's (jig's
@@ -1923,7 +1948,16 @@ that changes the stock changes nothing of them.
     finish with a Left list of what it found and does not own; mark a
     story that fails for code it does not own as ignored, the fault its
     reason, and never fix that code, the change that fixes the fault
-    removing the mark; its run sized for a change's work;
+    removing the mark; where its change's words, the design and the
+    code leave it a choice it cannot make, push what it has and ask its
+    change in the question form, its options and its recommendation in
+    its words, then end its run (`../domain/forge.md`, 8.11); its run
+    sized for a change's work;
+  - *charter 6, the foreman's:* the stock's, at gpt-6.1-sol, its
+    instructions adding the reference's rules: the change's words and
+    the design in its checkout settle scope, a file outside the change's
+    own is `finish` with a Left item, never permission to edit it, and a
+    choice the draft leaves open is `escalate`;
   - *template 4, the goal template for drafts:* charter 5;
     `../draft/reference-code-production.md`, section 4's LLM choice;
     tracked at priority 1; a report; the creator's budget; *its own
@@ -1934,10 +1968,12 @@ that changes the stock changes nothing of them.
   `temper ctl settings show --json`, charter 5 added to the rules' and
   policy 1's delegation and jig's control family to their tools and
   role 0's, so the coordinator may name `change`'s plan members
-  (`../domain/agent.md`, 4.3.1), then applied whole. Charter 5 is the
-  deployment's fourth charter, within small's `tasks.charters` of 4, and
-  one more executor in the delegation, within the 8 `authority.executors`
-  and `tasks.executor_kinds` 13.4 gives the box.
+  (`../domain/agent.md`, 4.3.1), and role 0 to their delegation, so the
+  coordinator may ask its person through a person task (jig's
+  `domain/people.md`, section 8), then applied whole. Charter 5 is the
+  deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives
+  the box, and one more executor in the delegation with role 0, within
+  its 8 `authority.executors` and `tasks.executor_kinds`.
 - **The landing rules,** until 13.6's second step, are the document's
   `application.landing` (section 3): `docs/examples/reference/landing.json`
   is that member's value, which the walk's document carries, with its
