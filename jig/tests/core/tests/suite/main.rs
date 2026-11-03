@@ -65,6 +65,7 @@ mod settings_project_policy;
 mod settings_proposal_edges;
 mod settings_proposals;
 mod settings_reads;
+mod settings_restore;
 mod simulation;
 mod start;
 mod start_connectors;

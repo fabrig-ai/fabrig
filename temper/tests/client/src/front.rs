@@ -361,6 +361,28 @@ impl Joint {
             1,
         )
     }
+    /// Temper's stock kinds through the joined client and engine roots.
+    #[must_use]
+    pub fn with_kinds(seed: u64, limits: client::Limits) -> Self {
+        let mut engine_limits = engine_limits();
+        let kinds_limits = temper_engine_domain_world::kinds::limits();
+        engine_limits.tasks.charters = kinds_limits.tasks.charters;
+        engine_limits.people.amendment_bytes = kinds_limits.people.amendment_bytes;
+        let [bootstrap, config, restart] = std::array::from_fn(|_| {
+            let mut config = walking::config(seed);
+            let kinds = temper_engine_domain_world::kinds::configuration(&engine_limits);
+            config.core.kinds = kinds.core.kinds;
+            config.core.defaults.charters = kinds.core.defaults.charters;
+            config.kinds_stock = kinds.kinds_stock;
+            config
+        });
+        // Stock kinds add their defaults during cold start. Transfer the real
+        // store without the generic fixture's fixed first-start commit count.
+        let mut driver = Driver::cold(Store::with_limits(&engine_limits), bootstrap, &engine_limits);
+        driver.settle();
+        let store = driver.take_store();
+        Self::with_engine(seed, &limits, store, [config, restart], &engine_limits, 1)
+    }
     /// Chats end only when their requester closes them.
     #[must_use]
     pub fn open_chats(seed: u64, limits: client::Limits) -> Joint {
