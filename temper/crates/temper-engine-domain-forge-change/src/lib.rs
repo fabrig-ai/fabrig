@@ -15,6 +15,7 @@ extern crate alloc;
 mod boundary;
 mod domain;
 mod queue;
+mod relay;
 #[cfg(test)]
 mod tests;
 
@@ -25,3 +26,4 @@ pub use boundary::{
 };
 pub use domain::{authority_words, released, review_failed, step};
 pub use queue::first;
+pub use relay::{Asked, RelayAct, RelayHeard, Relayed, Settled, relay};
