@@ -951,6 +951,7 @@ fn a_conflicting_early_start_cancels_its_producer_and_waits() {
         pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } }]));
     let started = decide(&c, &f, &heard());
     let mut h = Heard { start_conflict: Some(HEAD), ..heard() };
+    f.writer_taken = true;
     let cancelled = decide(&started.change, &f, &h);
     assert_eq!(cancelled.decision, Decision::CancelProducer);
     assert_eq!(cancelled.change.early, Early::Spent(Box::new([StartedFrom { task: 11, head: HEAD }])));
@@ -960,6 +961,7 @@ fn a_conflicting_early_start_cancels_its_producer_and_waits() {
     f.pending = Box::new([]);
     assert_eq!(step(&waiting.change, &f, &h, at(61), &LIMITS).decision, Decision::Wait { until: None });
     f.pending = Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(NEW), kept: false } }]);
+    f.writer_taken = false;
     h.start_conflict = None;
     h.delegate = Status::Failed;
     let ended = step(&waiting.change, &f, &h, at(62), &LIMITS);
@@ -978,6 +980,7 @@ fn a_failed_early_producer_holds_nothing_and_the_next_waits_for_the_dependencies
     let mut f =
         pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } }]));
     let started = decide(&c, &f, &heard());
+    f.branch = Some(NEW);
     let h = Heard { delegate: Status::Failed, ..heard() };
     let failed = decide(&started.change, &f, &h);
     assert_eq!(failed.decision, Decision::Wait { until: None });

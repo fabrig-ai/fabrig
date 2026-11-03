@@ -64,7 +64,13 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let State::Held { .. } = change.state {
         return Stepped { change: next, decision: Decision::None };
     }
-    if facts.writer_taken {
+    // A conflicting preparation cancels its producer before waiting for that
+    // producer's writer slot (domain/forge.md, 8.11).
+    let start_conflicted = match next.early {
+        Early::None => false,
+        Early::Started(_) | Early::Spent(_) => standing.start_conflict.is_some(),
+    };
+    if facts.writer_taken && !start_conflicted {
         return if let State::Ready { .. } = change.state {
             Stepped { change: next, decision: Decision::Wait { until: None } }
         } else {
@@ -392,17 +398,30 @@ fn producing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    if let Early::Started(heads) = &change.early {
-        if standing.start_conflict.is_some() {
-            change.early = Early::Spent(heads.clone());
-            change.state = State::Producing { requested: false };
-            return Stepped { change, decision: Decision::CancelProducer };
+    match &change.early {
+        Early::Started(heads) => {
+            if standing.start_conflict.is_some() {
+                change.early = Early::Spent(heads.clone());
+                change.state = State::Producing { requested: false };
+                return Stepped { change, decision: Decision::CancelProducer };
+            }
+            if requested && standing.delegate == Status::Failed {
+                change.early = Early::Spent(heads.clone());
+                change.state = State::Producing { requested: false };
+                return Stepped { change, decision: Decision::Wait { until: None } };
+            }
         }
-        if requested && standing.delegate == Status::Failed {
-            change.early = Early::Spent(heads.clone());
-            change.state = State::Producing { requested: false };
-            return Stepped { change, decision: Decision::Wait { until: None } };
+        Early::Spent(_) => {
+            if !requested {
+                return request_producer(change, facts, standing, now);
+            }
+            match standing.delegate {
+                Status::Failed => return hold(change, Hold::Failed),
+                Status::Unknown | Status::Pending => return waiting(change, now, limits),
+                Status::Passed => {}
+            }
         }
+        Early::None => {}
     }
     match facts.branch {
         Some(head) => {
@@ -411,19 +430,21 @@ fn producing(
             change.since = now;
             Stepped { change, decision: Decision::None }
         }
-        None if !requested => {
-            if !producer_start(&mut change, facts, standing) {
-                return Stepped { change, decision: Decision::Wait { until: None } };
-            }
-            change.state = State::Producing { requested: true };
-            change.since = now;
-            Stepped { change, decision: Decision::Delegate(Delegate::Produce) }
-        }
+        None if !requested => request_producer(change, facts, standing, now),
         None => match standing.delegate {
             Status::Failed => hold(change, Hold::Failed),
             Status::Unknown | Status::Pending | Status::Passed => waiting(change, now, limits),
         },
     }
+}
+
+fn request_producer(mut change: Change, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
+    if !producer_start(&mut change, facts, standing) {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
+    change.state = State::Producing { requested: true };
+    change.since = now;
+    Stepped { change, decision: Decision::Delegate(Delegate::Produce) }
 }
 
 // Dependency waits arm no stall; producing starts its clock when the wait ends
