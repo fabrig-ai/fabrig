@@ -274,21 +274,17 @@ from here (forge.md, 2.2). Each:
   `records.value_bytes`, or a GitHub forge's list at
   `forges.installations` entries, each at its largest (section 7).
 
-**`landing`:** the deployment's and the projects' landing rules, the
-root's `LandingPolicy`. Leaving the document: section 13 makes them
-settings in the store, temper's kinds 1 and 2; until its second step
-(13.6), they are configured here. From that step until kinds 4 and 5
-are built, `landing` keeps `projects` alone, each entry its `project`,
-`by`, `gates` and the turn's and the tiers' project settings below, and
-no `rules`: a `deployment` member, or a project's `rules`, is refused
-as section 13.5 says, naming kind 1 or 2. That rest feeds the root's
-projects' landings (`Config.landings`), the ways and checks
-`../domain/landing.md`, 13.1 moves to kinds 4 and 5.
+**`landing`:** the projects' ways of landing, `projects` alone, each
+entry its `project`, `by`, `gates` and the turn's and the tiers' project
+settings below. The landing rules are settings in the store, temper's
+kinds 1 and 2 (section 13): a `deployment` member, or a project's
+`rules`, is refused as 13.5 says. What `landing` keeps leaves the
+document with kinds 4 and 5, the ways and checks `../domain/landing.md`,
+13.1 moves there (13.6, step 2).
 
 ```
 "landing": {
-  "deployment": [ rule ],
-  "projects": [ {"project": u32, "rules": [ rule ], "by": "queue" | "turn", "gates": [ gates ]} ]
+  "projects": [ {"project": u32, "by": "queue" | "turn", "gates": [ gates ]} ]
 }
 ```
 
@@ -327,7 +323,8 @@ projects' landings (`Config.landings`), the ways and checks
   `pins_follow_main`, false when absent; `dependencies_join`, true when
   absent (`../domain/landing.md`, 4.1 and 5.3).
 
-A rule is a `LandingRule`, member for member:
+A landing rule, the value of kinds 1 and 2 (13.2), is a `LandingRule`,
+member for member:
 
 | Member | Type | Meaning, and bounds |
 |---|---|---|
@@ -347,18 +344,11 @@ A rule is a `LandingRule`, member for member:
   requirement, the age within which its facts must have been read: CI,
   gates and approvals are guarded, and up to date is observed with a
   freshness of 0 (`../domain/forge.md`, 8.7).
-- **Bounds:** each list of rules holds at most jig's authority limit on
-  requirements; a project appears in `projects` at most once, and must
-  be one of `engine.projects`; each approval's `role` must be a role of
-  its project's policy, and, for a deployment rule, of every configured
-  project's policy and every configured policy a project is made from
-  (jig's `engine.policies`).
-- **Feeds** `Config.landing`: `deployment` and `projects` as they are.
-
-**`charter`:** u32, the charter the forge's procedures start agent work
-under; it must be the `number` of one of `engine.charters`. Feeds
-`Config.forge_charter`. Leaving the document: temper's kind 3 (section
-13).
+- **Bounds:** a project appears in `projects` at most once, and must be
+  one of `engine.projects`; a rule's bounds are those the forge judges
+  it by (13.2).
+- **Feeds** `Config.landings`: each project's way, gates, tiers, merge
+  job and turn's settings.
 
 **`clients`:** the clients' listener, which `temper-service` owns
 (`../client/README.md`, section 8), and the browser's bundle it serves
@@ -442,14 +432,14 @@ the playground is not offered.
 | Field | From |
 |---|---|
 | `core` | `engine`, by `jig-protocol-config`, with the deployment's id and seed |
-| `landing` | `application.landing` |
+| `landings` | `application.landing`'s `projects` |
+| `kinds_stock` | not configured: the stock defaults of temper's kinds 1 to 3 (13.4), which the root gives the forge at each start (13.2) |
 | `forge.writers` | not configured: each forge's writer comes from its connect, its user as the routing tells the root (credentials.md, section 5) |
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (forge.md, 2.1) |
 | `machine` | `application.machine`'s places, from which the forge connector makes a new forge's record (forge.md, 2.2) |
 | `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (setup.md, 8.4) |
 | `under_box` | whether `temper internal serve` was given `--box` (setup.md, 7.1) |
-| `forge_charter` | `application.charter` |
 
 Beside the root: the forge component takes each kept forge's number,
 kind, address and transport from its record, and its kind's log
@@ -1185,18 +1175,6 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   frame passes small's page ceiling (13.8): a page decision of jig's or
   skein's profile, or the standard profile for such a box. Default:
   keep the demo endpoint configured, which sizes the room to fit.
-- **A made project's own landing rules.** `landing.projects` names
-  seeded projects, so a project made after the first start has the
-  deployment's rules alone. Default: the deployment's. Section 13
-  designs otherwise: a project's rules are a setting its owners
-  change, kind 2, for any project, made or seeded.
-- **A project's landing rules changed after its first start.** They
-  reach the forge's judges at the next start, but the project's policy
-  keeps the requirements seeded at its first start. Default: a change
-  reaches the policy only through a policy change by a person. Section
-  13 designs otherwise: the rules leave the policies for two
-  standing requirements the forge judges over the rules it holds, so a
-  change reaches the next merge.
 - **Requirements an application fixes** (13.3). The landing rules'
   two requirements are in jig's rules, which the deployment's owners may
   change, so landing can be left unenforced by a change of rules.
@@ -1577,10 +1555,9 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   its row: its producing, its repairs, its resolutions and its checks'
   gates run under the producer's charter it was made with, its agents'
   gates, the reviews, under the
-  review charter it was made with (number 2; the stock's charter 4,
-  fixed by the binary, until 13.6's step 2), its foremen under the
-  foreman's charter it was made with (number 3; the stock's charter 6,
-  fixed by the binary likewise), and a newer charter of any reaches the
+  review charter it was made with (number 2; the stock's charter 4), its
+  foremen under the foreman's charter it was made with (number 3; the
+  stock's charter 6), and a newer charter of any reaches the
   changes made after it (`../domain/root.md`, section 6). A change whose
   questions take no foreman is granted no delegation to the foreman's.
 - **A project's questions are read when a change is made,** as its
@@ -2034,9 +2011,11 @@ that changes the stock changes nothing of them.
   `domain/people.md`, section 8), and jig's notes family beside it, so
   that it notes what it learns, then applied whole. Charter 5 is the
   deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives the box;
-  it and the merge kind are two more executors in the delegation, eight
-  with the stock's six, within the 8 `authority.executors` and
-  `tasks.executor_kinds` 13.4 gives the box.
+  it, the merge kind and role 0 are three more executors in the
+  delegation, nine with the stock's six, past the 8 `authority.executors`
+  and `tasks.executor_kinds` 13.4 gives the box, so the walk's document
+  raises both to hold the delegation whole, charter 7's included
+  (below).
 - **Designers and the cut** (`../draft/reference-code-production.md`,
   sections 3, 5 and 12): the same file's later edition adds
   - *charter 7, the designer's:* instructions to write one family's
@@ -2065,7 +2044,9 @@ that changes the stock changes nothing of them.
     concerns, and the close-out, X, a designer's change, before its
     report; each change's `producer` and `llm` (`../domain/agent.md`,
     4.3.1): a designer's change `"producer": 7` at the template's LLM
-    choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high; a
+    choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, with
+    questions `up`, its designer's questions going straight to the
+    coordinator with no foreman (`../domain/forge.md`, 8.11); a
     coding change the coding agent's charter, its default, at
     gpt-6.1-sol and the spec's effort, high or medium, on smith's direct
     backend with an OpenAI account's key (N20); its documents:
@@ -2073,23 +2054,24 @@ that changes the stock changes nothing of them.
     `docs/foundation/programming-model.md`'s "1. In one page", on the
     home repository's `main`.
   Charter 7 joins the rules' and policy 1's delegation as charter 5 did;
-  it is the deployment's seventh charter, so the walk's document sets
-  jig's `tasks.charters` to 8, its executors within the 8 13.4 gives.
+  it is the deployment's seventh charter, within the 8 `tasks.charters`
+  13.4 gives the box, and the delegation's tenth executor, within what
+  the walk's document gives `authority.executors` and
+  `tasks.executor_kinds` (above).
   Each document names the forge's host, owner and repository the walk's
-  document fills in, as `landing.json`'s rules do.
-- **The landing rules,** until 13.6's second step, are the document's
-  `application.landing` (section 3): `docs/examples/reference/landing.json`
-  is that member's value, which the walk's document carries, with its
-  forge's host, owner and repository filled in: main's rule (`forge`,
-  the host, the owner, the name, `branch`, exactly `main`: enforced, CI
-  passed, up to date, no gate beyond CI, which runs the project's full
-  gate at a goal's landing's head) and the rule for goal branches (the same
-  path to `branch`, open on `temper`: enforced, asking no CI, no update
-  and no gate), and no rule on every branch, since rules add
-  (`../domain/forge.md`, 8.7) and such a rule's CI would hold every merge
-  into a goal's branch; and the project's `merge_job`, `.temper/merge`.
-  From the second step they are kind 1's rules 1
-  and 2, items of the settings file.
+  document fills in, as the landing rules do.
+- **The landing rules** are kind 1's rules 1 and 2, items of the
+  settings file, with its forge's host, owner and repository, which the
+  walk fills in: main's rule (`forge`, the host, the owner, the name,
+  `branch`, exactly `main`: enforced, CI passed, up to date, no gate
+  beyond CI, which runs the project's full gate at a goal's landing's
+  head) and the rule for goal branches (the same path to `branch`, open
+  on `temper`: enforced, asking no CI, no update and no gate), and no
+  rule on every branch, since rules add (`../domain/forge.md`, 8.7) and
+  such a rule's CI would hold every merge into a goal's branch.
+  `docs/examples/reference/landing.json` is the document's
+  `application.landing` (section 3), which the walk's document carries:
+  project 1's `merge_job`, `.temper/merge`, and its tiers (below).
 - **The tiers,** in the same member, project 1's `gates` entry for its
   repository (`forge` and `repository` filled in as the rules' host and
   name are), with no gate and two tiers (`../domain/after-landing.md`,

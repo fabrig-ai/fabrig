@@ -77,6 +77,32 @@ fn tier_help_explains_that_clearance_waits_through_verifying_and_red() {
 }
 
 #[test]
+fn budget_help_sizes_a_hundred_change_goal() {
+    let text = find(b"budget").expect("budget page").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "For a goal of up to a hundred changes",
+        "100 change procedures, 100 producers, 200 reviews and 100 repairs",
+        "12 coordinator/foreman tasks including the goal",
+        "512 tasks in the tree, 511 delegated tasks",
+        "412K units",
+        "five delegation levels below the goal",
+        "executor kinds",
+        "deployment's rules, the project's policy ceiling and your role authority",
+        "policy 1 changes affect projects created afterward",
+        "Before forge setup",
+        "Raising policy authority alone does not raise deployment limits",
+        "min(role tasks, deployment tree tasks) - 1",
+        "role depth - 1",
+        "1024/6 and a tree limit of 32 yield 31/5",
+        "estimate, not guaranteed capacity",
+        "hundred-change profile remains a documented gap (N21)",
+    ] {
+        assert!(text.contains(instruction), "budget help must explain: {instruction}\n{text}");
+    }
+}
+
+#[test]
 fn each_guide_is_one_of_the_six_names() {
     let guides = PAGES.iter().filter(|page| page.kind == Kind::Guide).map(|page| page.name).collect::<Vec<_>>();
     assert!(guides.iter().all(|name| GUIDES.contains(name)), "guides among the six transitional names");
