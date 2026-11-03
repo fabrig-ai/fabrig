@@ -127,6 +127,9 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
     let slot = match slot {
         d::SettingSlot::Default => w::SettingSlot::Default,
         d::SettingSlot::Change => w::SettingSlot::Change,
+        d::SettingSlot::Replaced(number) => {
+            w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number: *number }).expect(FITS))
+        }
         d::SettingSlot::Proposal(number) => {
             w::SettingSlot::Proposal(w::Number::new(&w::CEILINGS, w::NumberParts { number: *number }).expect(FITS))
         }
@@ -155,6 +158,7 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
     let slot = match slot {
         w::SettingSlot::Default => d::SettingSlot::Default,
         w::SettingSlot::Change => d::SettingSlot::Change,
+        w::SettingSlot::Replaced(number) => d::SettingSlot::Replaced(number.into_parts().number),
         w::SettingSlot::Proposal(number) => d::SettingSlot::Proposal(number.into_parts().number),
     };
     let edit = match edit {

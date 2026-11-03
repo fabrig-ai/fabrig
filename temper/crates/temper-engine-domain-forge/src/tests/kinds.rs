@@ -77,7 +77,7 @@ fn a_change_of_rules_is_judged_kept_and_held() {
     let asked = item(2, 1, 1, Edit::Set(rule(false)));
     assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Accept { size: 32, charter: None }]);
     let mut out = Queue::uncapped();
-    d.keep_settings(&env(), None, from_ref(&asked), &mut out);
+    d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
     assert_eq!(out.pop(), Some(save(&asked, SettingSlot::Change)));
     assert!(out.is_empty());
     let Value::Rule(expected) = rule(false).value else { panic!("rule fixture") };
@@ -90,6 +90,7 @@ fn a_change_of_rules_is_judged_kept_and_held() {
     // Number order follows the keys even when the write order differs.
     d.keep_settings(
         &env(),
+        2,
         None,
         &[item(2, 1, 3, Edit::Set(rule(true))), item(2, 1, 2, Edit::Set(rule(false)))],
         &mut out,
@@ -105,7 +106,7 @@ fn items_that_leave_a_setting_as_it_is_are_the_same() {
     let set = item(2, 1, 1, Edit::Set(rule(false)));
     let removed = item(2, 1, 2, Edit::Remove);
     let mut out = Queue::uncapped();
-    d.keep_settings(&env(), None, &[set.clone(), removed.clone()], &mut out);
+    d.keep_settings(&env(), 2, None, &[set.clone(), removed.clone()], &mut out);
     let reset = item(1, 0, 1, Edit::Reset);
     assert_eq!(d.judge_settings(&BOUNDS, &[set, removed, reset]).as_ref(), &[Judged::Same; 3]);
     let mut sized = rule(false);
@@ -123,6 +124,7 @@ fn a_reset_is_judged_as_its_default() {
     let mut out = Queue::uncapped();
     d.keep_settings(
         &env(),
+        2,
         None,
         &[item(3, 0, 1, Edit::Set(charter(6))), item(1, 0, 2, Edit::Set(rule(false)))],
         &mut out,
@@ -133,8 +135,12 @@ fn a_reset_is_judged_as_its_default() {
         &[Judged::Accept { size: 4, charter: Some(2) }, Judged::Accept { size: 0, charter: None }]
     );
     let mut erased = Queue::uncapped();
-    d.keep_settings(&env(), None, &items, &mut erased);
-    for item in &items {
+    d.keep_settings(&env(), 3, None, &items, &mut erased);
+    for (item, previous) in items.iter().zip([charter(6), rule(false)]) {
+        assert_eq!(
+            erased.pop(),
+            Some(save(&Asked { edit: Edit::Set(previous), ..item.clone() }, SettingSlot::Replaced(3)))
+        );
         assert_eq!(erased.pop(), Some(Request::Erase { key: Key::Setting(key(item, SettingSlot::Change)) }));
     }
     assert!(erased.is_empty());
@@ -173,7 +179,7 @@ fn an_accepted_proposal_keeps_its_kept_values() {
         item(3, 0, 1, Edit::Set(charter(6))),
         item(2, 1, 2, Edit::Set(rule(true))),
     ];
-    d.keep_settings(&env(), Some(7), &supplied, &mut out);
+    d.keep_settings(&env(), 2, Some(7), &supplied, &mut out);
     assert_eq!(out.pop(), Some(save(&items[0], SettingSlot::Change)));
     assert_eq!(out.pop(), Some(save(&items[1], SettingSlot::Change)));
     assert_eq!(out.pop(), Some(save(&supplied[3], SettingSlot::Change)), "missing proposal item uses supplied edit");
@@ -257,19 +263,20 @@ fn a_change_of_rules_wakes_the_live_changes_it_covers() {
     d.offered_change(CHANGE);
     assert_eq!(d.next_wall_deadline(), None);
     let mut out = Queue::uncapped();
-    d.keep_settings(&env(), None, &[item(2, 1, 1, Edit::Set(rule(false)))], &mut out);
+    d.keep_settings(&env(), 2, None, &[item(2, 1, 1, Edit::Set(rule(false)))], &mut out);
     assert_eq!(d.next_wall_deadline(), Some(env().wall));
     d.offered_change(CHANGE);
     d.keep_settings(
         &env(),
+        2,
         None,
         &[item(2, 2, 1, Edit::Set(rule(false))), item(3, 0, 1, Edit::Set(charter(6)))],
         &mut out,
     );
     assert_eq!(d.next_wall_deadline(), None);
-    d.keep_settings(&env(), None, &[item(2, 1, 1, Edit::Set(rule(false)))], &mut out);
+    d.keep_settings(&env(), 2, None, &[item(2, 1, 1, Edit::Set(rule(false)))], &mut out);
     assert_eq!(d.next_wall_deadline(), None, "unchanged rules do not wake");
-    d.keep_settings(&env(), None, &[item(1, 0, 1, Edit::Remove)], &mut out);
+    d.keep_settings(&env(), 2, None, &[item(1, 0, 1, Edit::Remove)], &mut out);
     assert_eq!(d.next_wall_deadline(), Some(env().wall), "deployment rules cover the change");
 }
 
@@ -321,4 +328,127 @@ fn restored_rows_are_held_at_the_end_of_the_restore() {
     assert_eq!(d.charters(), ForgeCharters { change: 6, review: 4 });
     d.give_settings_defaults(stock());
     assert_eq!(d.charters().change, 6, "stored changes override current stock");
+}
+
+#[test]
+fn a_kept_change_keeps_the_rule_it_replaced_by_its_revision() {
+    let mut d = stocked();
+    let first = item(1, 0, 1, Edit::Set(rule(true)));
+    let second = item(1, 0, 1, Edit::Set(rule(false)));
+    let mut out = Queue::uncapped();
+    d.keep_settings(&env(), 2, None, from_ref(&first), &mut out);
+    assert_eq!(out.pop(), Some(save(&first, SettingSlot::Change)));
+    assert!(out.is_empty());
+    d.keep_settings(&env(), 3, None, from_ref(&second), &mut out);
+    assert_eq!(out.pop(), Some(save(&first, SettingSlot::Replaced(3))));
+    assert_eq!(out.pop(), Some(save(&second, SettingSlot::Change)));
+    assert!(out.is_empty());
+    assert_eq!(d.setting_rows.get(&key(&first, SettingSlot::Replaced(2))), None);
+    assert_eq!(d.setting_rows.get(&key(&first, SettingSlot::Replaced(3))), Some(&first.edit));
+    assert_eq!(d.setting(1, 0, 1), Some(&rule(false)));
+}
+
+#[test]
+fn a_change_over_the_stock_default_keeps_nothing_replaced() {
+    let mut d = stocked();
+    let changed = item(3, 0, 1, Edit::Set(charter(6)));
+    let reset = item(3, 0, 1, Edit::Reset);
+    let mut out = Queue::uncapped();
+    d.keep_settings(&env(), 2, None, from_ref(&changed), &mut out);
+    assert_eq!(out.pop(), Some(save(&changed, SettingSlot::Change)));
+    assert!(out.is_empty());
+    d.keep_settings(&env(), 3, None, from_ref(&reset), &mut out);
+    assert_eq!(out.pop(), Some(save(&changed, SettingSlot::Replaced(3))));
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Setting(key(&reset, SettingSlot::Change)) }));
+    assert!(out.is_empty());
+    d.keep_settings(&env(), 4, None, from_ref(&changed), &mut out);
+    assert_eq!(out.pop(), Some(save(&changed, SettingSlot::Change)));
+    assert!(out.is_empty(), "a set after reset replaces no changed value");
+    for revision in [2, 4] {
+        assert_eq!(d.setting_rows.get(&key(&changed, SettingSlot::Replaced(revision))), None);
+    }
+}
+
+#[test]
+fn a_change_over_a_removed_rule_keeps_nothing_replaced() {
+    let mut d = stocked();
+    let removed = item(1, 0, 1, Edit::Remove);
+    let changed = item(1, 0, 1, Edit::Set(rule(false)));
+    let mut out = Queue::uncapped();
+    d.keep_settings(&env(), 2, None, from_ref(&removed), &mut out);
+    assert_eq!(out.pop(), Some(save(&removed, SettingSlot::Change)));
+    assert!(out.is_empty());
+    d.keep_settings(&env(), 3, None, from_ref(&changed), &mut out);
+    assert_eq!(out.pop(), Some(save(&changed, SettingSlot::Change)));
+    assert!(out.is_empty());
+}
+
+#[test]
+fn an_accepted_proposal_keeps_the_current_value_it_replaced() {
+    let mut d = stocked();
+    let previous = item(1, 0, 1, Edit::Set(rule(true)));
+    let proposed = item(1, 0, 1, Edit::Remove);
+    restore(&mut d, &previous, SettingSlot::Change);
+    restore(&mut d, &proposed, SettingSlot::Proposal(7));
+    let mut out = Queue::uncapped();
+    d.keep_settings(&env(), 3, Some(7), from_ref(&previous), &mut out);
+    assert_eq!(out.pop(), Some(save(&previous, SettingSlot::Replaced(3))));
+    assert_eq!(out.pop(), Some(save(&proposed, SettingSlot::Change)));
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Setting(key(&proposed, SettingSlot::Proposal(7))) }));
+    assert!(out.is_empty());
+    assert_eq!(d.setting(1, 0, 1), None);
+}
+
+#[test]
+fn replaced_rows_are_restored_and_change_nothing_held() {
+    let mut with = domain();
+    let mut without = domain();
+    let rows = [
+        (item(1, 0, 1, Edit::Set(rule(true))), SettingSlot::Default),
+        (item(1, 0, 1, Edit::Set(rule(false))), SettingSlot::Change),
+        (item(2, 1, 1, Edit::Set(rule(false))), SettingSlot::Change),
+        (item(3, 0, 1, Edit::Set(charter(6))), SettingSlot::Change),
+        (item(3, 0, 2, Edit::Set(charter(4))), SettingSlot::Default),
+    ];
+    for (item, slot) in &rows {
+        restore(&mut with, item, *slot);
+        restore(&mut without, item, *slot);
+    }
+    let replaced = [
+        item(1, 0, 1, Edit::Set(rule(true))),
+        item(2, 1, 1, Edit::Set(rule(true))),
+        item(2, 2, 2, Edit::Set(rule(true))),
+        item(3, 0, 1, Edit::Set(charter(2))),
+        item(3, 0, 2, Edit::Set(charter(8))),
+    ];
+    for item in &replaced {
+        restore(&mut with, item, SettingSlot::Replaced(3));
+        assert_eq!(with.setting_rows.get(&key(item, SettingSlot::Replaced(3))), Some(&item.edit));
+    }
+    for d in [&mut with, &mut without] {
+        outputs(d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    }
+    for project in [1, 2] {
+        assert_eq!(with.landing_rules(project), without.landing_rules(project));
+    }
+    assert_eq!(with.charters(), without.charters());
+    for item in &replaced {
+        assert_eq!(
+            with.setting(item.kind, item.scope, item.number),
+            without.setting(item.kind, item.scope, item.number)
+        );
+    }
+    assert!(with.proposal_settings(3).is_empty());
+    for d in [&mut with, &mut without] {
+        d.give_settings_defaults(stock());
+        d.save_settings_defaults(&mut Queue::uncapped());
+    }
+    assert_eq!(with.charters(), without.charters());
+    assert_eq!(with.landing_rules(1), without.landing_rules(1));
+    for (key, _) in &without.setting_rows {
+        match key.slot {
+            SettingSlot::Default | SettingSlot::Change | SettingSlot::Proposal(_) => {}
+            SettingSlot::Replaced(_) => panic!("saving defaults keeps nothing replaced"),
+        }
+    }
 }

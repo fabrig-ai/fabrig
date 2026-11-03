@@ -199,6 +199,7 @@ const FORGE: forge::Limits = forge::Limits {
     landing_rules: 4,
     roles: 4,
     setting_proposals: 4,
+    setting_history: 4,
     // Forge brief sections gathering at once, from the engine forge world fixture.
     brief_sections: 32,
     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
@@ -405,6 +406,7 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
             authority_segments: jig.core.authority.segments,
             roles: jig.core.authority.roles,
             setting_proposals: jig.core.settings.proposals,
+            setting_history: jig.core.settings.history,
             ..limits.forge
         },
     }

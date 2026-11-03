@@ -579,6 +579,7 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
         let mut out = Queue::uncapped();
         domain.forge.keep_settings(
             &crate::translate::environment_forge(&env),
+            2,
             None,
             &[settings::Asked { kind: 1, scope: 0, number: RULE, edit: edit.clone() }],
             &mut out,

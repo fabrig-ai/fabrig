@@ -168,6 +168,7 @@ fn the_root_limits_take_jigs_children_and_temper_own() {
             authority_segments: jig.authority.segments,
             roles: jig.authority.roles,
             setting_proposals: jig.settings.proposals,
+            setting_history: jig.settings.history,
             ..settings.limits.forge
         }
     );
