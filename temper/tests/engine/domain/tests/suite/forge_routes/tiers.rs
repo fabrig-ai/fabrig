@@ -80,7 +80,10 @@ fn until(world: &mut World, ticks: u32, description: &str, met: impl Fn(&World) 
 }
 
 fn chat_world(turn: bool, options: Tier) -> (World, engine::Assignment) {
-    let mut world = tier_runs::world(turn, options);
+    start_chat(tier_runs::world(turn, options))
+}
+
+fn start_chat(mut world: World) -> (World, engine::Assignment) {
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { unreachable!() };
@@ -525,7 +528,7 @@ fn execution_words(world: &World, number: u64) -> &str {
 
 #[test]
 fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
-    let (mut world, _) = chat_world(false, Tier::default());
+    let (mut world, _) = start_chat(task_show::world());
     until(&mut world, LANDING_TICKS, "forge link projected while running", |world| {
         tier(world).task.is_some_and(|number| execution_words(world, number).contains("forge run "))
             && restart_cut(world)

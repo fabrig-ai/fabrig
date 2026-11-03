@@ -4,10 +4,23 @@ use jig_client::{self as client, contract as c};
 use jig_domain_core::reads;
 use skein_lib::{Env, List, Queue, Writer};
 use temper_client_tools::{jig::call::Parsed, root};
+use temper_engine_domain_world::forge_routes::{Gate, StoryLimits};
+
+/// Keep the baseline's projection at 128 bytes without changing other tier stories.
+pub(super) fn world() -> World {
+    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    documents.text_bytes = 128;
+    let options = StoryLimits {
+        tier: Some(super::Tier::default()),
+        tasks: Some(12),
+        spec_bytes: Some(4096),
+        ..StoryLimits::default()
+    };
+    World::configured_limits(true, true, false, 1000, Gate::default(), Some(documents), options)
+}
 
 /// Read a tier task through ctl and require its complete execution words in asked.
 pub(super) fn assert_words(world: &mut World, task: u64, expected: &str) {
-    assert_eq!(world.env.limits.documents.text_bytes, 128);
     world.signed_in = None;
     world.sign_in();
     let printed = show(world, task);
@@ -69,7 +82,7 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
             from: page.from,
             total: page.total,
             next: page.next,
-            text: c::Text::new(page.bytes, 128).expect("bounded chunk"),
+            text: c::Text::new(page.bytes, world.env.limits.documents.text_bytes).expect("bounded chunk"),
         }));
     }
     let wire =

@@ -64,15 +64,13 @@ pub(crate) fn workflows(tier: Option<Tier>, gates: Box<[raw::Workflow]>) -> Box<
 
 #[must_use]
 pub fn world(turn: bool, tier: Tier) -> World {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
-    documents.text_bytes = 128;
     World::configured_limits(
         true,
         true,
         false,
         1000,
         Gate::default(),
-        Some(documents),
+        None,
         StoryLimits { turn, tier: Some(tier), tasks: Some(12), spec_bytes: Some(4096), ..StoryLimits::default() },
     )
 }
