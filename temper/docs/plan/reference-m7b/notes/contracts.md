@@ -198,4 +198,8 @@ Binding from batch 5 on; each item names the task it concerns.
   world's story that decodes C2's command and the forge's item test named for `home`, and runs
   `heavy cargo nextest run -p temper-engine-domain-world -E 'test(/merge_job/)'`;
   `catch-up-call`'s stories pin neither the merge job's item's name nor its command's form.
+- **The merge command's result within 512 bytes** (`merge-r1-paths`, after `merge-reference`):
+  where `tools/merge/merge.py` writes `settled` and `left` uncut, `merge-r1-paths` makes it list
+  the paths that fit, in index order, then `"more": N` (`tooling.md, 4.1`), with a test of a
+  merge leaving more paths than fit.
 
