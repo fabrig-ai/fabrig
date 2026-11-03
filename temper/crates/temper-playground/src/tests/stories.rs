@@ -57,6 +57,25 @@ fn story_a_decodes_within_the_fakes_bounds() {
 }
 
 #[test]
+fn story_as_chats_keep_the_stock_requester_ending() {
+    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let temper_service::stock::Given::Own { jig, .. } = documents::given(&document) else {
+        panic!("the composition supplies its settings")
+    };
+    let stock = temper_service::stock::defaults(&documents::settings::configuration(&document).llm);
+    assert_eq!(jig.templates[0].flags.ended_by, stock.templates[0].flags.ended_by);
+    assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
+}
+
+#[test]
+fn harness_chats_keep_the_result_ending() {
+    let temper_service::stock::Given::Own { jig, .. } = documents::given(&documents::world_document()) else {
+        panic!("the composition supplies its settings")
+    };
+    assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Result);
+}
+
+#[test]
 fn story_as_deployment_offers_its_llm_cues_in_order() {
     let deployment: Value = serde_json::from_slice(A.deployment).expect("story deployment");
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");

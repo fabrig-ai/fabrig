@@ -409,7 +409,7 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
     let mut defaults = temper_service::stock::defaults(&engine.llm);
     if read_wait {
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(CHAT_WAIT_MS));
-    } else {
+    } else if document["application"]["demo"].is_null() {
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Result;
     }
     let seed = engine.projects.first().expect("world policy");
