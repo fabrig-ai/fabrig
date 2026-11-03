@@ -88,6 +88,7 @@ fn only_a_relevant_hint_restarts_an_unfinished_fresh_read_chain() {
             },
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept: true,
         };
         world.event(step(150));
@@ -121,6 +122,7 @@ fn both_fresh_base_facts_remain_dependencies_when_the_pull_and_branch_disagree()
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: true,
     });
     // The base branch's read has been sent and snapshots the old tip, but
