@@ -147,6 +147,94 @@ fn the_small_profile_passes_each_domains_validity() {
 }
 
 #[test]
+fn the_standard_profile_holds_fabrig_scale_work() {
+    let small = limits::profile(limits::Profile::Small);
+    let standard = limits::profile(limits::Profile::Standard);
+    let expected = limits::Limits {
+        forge: temper_engine_domain_forge::Limits {
+            tasks: 128,
+            holds: 128,
+            changes: 128,
+            named_calls: 128,
+            landings: 32,
+            client: skein_forge_client::Limits { resources: 128, ..small.forge.client },
+            change_policy: temper_engine_domain_forge_change::Limits {
+                questions: 80,
+                tasks: 80,
+                repairs: 80,
+                resolutions: 80,
+                updates: 80,
+                ..small.forge.change_policy
+            },
+            issue_policy: temper_engine_domain_forge_issues::Limits { plan_items: 384, ..small.forge.issue_policy },
+            ..small.forge
+        },
+        ..small
+    };
+    assert_eq!(standard, expected);
+}
+
+#[test]
+fn the_standard_profile_passes_each_domains_validity() {
+    let own = limits::profile(limits::Profile::Standard);
+    assert!(temper_engine_domain_forge::valid(&own.forge));
+    assert!(temper_worker_domain_checkout::valid(&own.checkout));
+    assert_eq!(temper_worker_protocol_git::check(&own.git_component, &own.checkout), Ok(()));
+    for profile in [jig_protocol_config::Profile::Standard, jig_protocol_config::Profile::Small] {
+        let jig = jig_protocol_config::profile(profile);
+        let root = limits::engine(&jig, &own).expect("coherent root profile");
+        assert!(temper_engine_domain::valid(&root));
+    }
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
+    let root = limits::engine(&jig, &own).unwrap();
+    crate::store::admit(&root, &root.forge, &jig.store, None).expect("coherent standard store profile");
+    let mut short = own;
+    short.forge.named_calls -= 1;
+    assert!(limits::engine(&jig, &short).is_none());
+}
+
+#[test]
+fn the_standard_profile_is_read_by_name() {
+    use crate::startup::{Problems, What, application};
+    use jig_protocol_config::{self as config, Path};
+    let jig = fixtures::engine().jig;
+    let directories = config::Directories::working();
+    for (member, expected) in [
+        (br#"{"profile":"standard","overrides":{}}"#.as_slice(), Some(limits::profile(limits::Profile::Standard))),
+        (br#"{"profile":"large","overrides":{}}"#, None),
+    ] {
+        let input = fixtures::with(fixtures::APPLICATION, b"limits", member);
+        let document =
+            config::document(&input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+        let mut problems = Problems::empty();
+        let members = application::parse(&document, 0, &jig, &directories, &mut problems);
+        if let Some(expected) = expected {
+            assert!(problems.is_empty());
+            assert_eq!(members.unwrap().limits, expected);
+        } else {
+            assert!(members.is_none());
+            assert_eq!(problems.problems.len(), 1);
+            let problem = problems.problems.get(0).unwrap();
+            assert_eq!(problem.path, Path::root().member(b"application").member(b"limits").member(b"profile"));
+            assert_eq!(problem.what, What::Profile);
+        }
+    }
+    let input = fixtures::with(
+        fixtures::APPLICATION,
+        b"limits",
+        br#"{"profile":"standard","overrides":{"forge.change_policy.tasks":79}}"#,
+    );
+    let document =
+        config::document(&input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+    let mut problems = Problems::empty();
+    let members = application::parse(&document, 0, &jig, &directories, &mut problems).unwrap();
+    assert!(problems.is_empty());
+    let mut expected = limits::profile(limits::Profile::Standard);
+    expected.forge.change_policy.tasks = 79;
+    assert_eq!(members.limits, expected);
+}
+
+#[test]
 fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
     let settings = fixtures::engine();
     let moved = jig_protocol_accounts::moved::bound(&settings.jig.limits.driver.client.document);
