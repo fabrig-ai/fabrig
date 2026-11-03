@@ -24,16 +24,9 @@ fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
     let script = stories::a();
     let steps = u32::try_from(script.len()).expect("a finite story");
     let mut person = Person::new(script.into_boxed_slice());
-    assert_eq!(page.walk(&mut person, BOUND), Walked::Done);
-    assert_eq!(person.at(), steps, "every reply line and the landed status were seen");
-    assert_main(page.world());
-
+    let walked = page.walk(&mut person, BOUND);
     let bytes = page.log();
     let read = log::read(&bytes).expect("the page's session log");
-    assert_eq!(read.seed, SEED);
-    assert_eq!(read.start, Wall::EPOCH);
-    assert_eq!(read.build, None, "the native build is -");
-    assert!(matches!(read.end, log::End::At { .. }), "the whole walk fits the log bound");
     eprintln!(
         "story A: world {} ns, {} world steps, {} person steps, log {} bytes, {} inputs, pace 1x",
         page.world().now().as_nanos(),
@@ -42,6 +35,13 @@ fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
         bytes.len(),
         read.entries.len()
     );
+    assert_eq!(walked, Walked::Done);
+    assert_eq!(person.at(), steps, "every reply line and the landed status were seen");
+    assert_main(page.world());
+    assert_eq!(read.seed, SEED);
+    assert_eq!(read.start, Wall::EPOCH);
+    assert_eq!(read.build, None, "the native build is -");
+    assert!(matches!(read.end, log::End::At { .. }), "the whole walk fits the log bound");
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
         std::fs::create_dir_all(kept_log().parent().expect("fixtures directory")).expect("create fixtures directory");
         std::fs::write(kept_log(), &bytes).expect("write story A's kept log");

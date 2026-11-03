@@ -5,7 +5,8 @@ use skein_lib::Duration;
 use skein_ui::Role;
 use temper_client_domain::{Address, ChatsFilter};
 
-const WAIT: Duration = Duration::from_secs(30);
+// The scripted CSV reply follows the change's CI, review and landing.
+const WAIT: Duration = Duration::from_secs(60);
 
 /// The three suggested requests, each reply read, then the CSV change seen landed.
 #[must_use]
