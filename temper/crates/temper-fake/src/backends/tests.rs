@@ -436,7 +436,6 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
             login: b"temper".as_slice().into(),
             email: b"temper@localhost".as_slice().into(),
         },
-        orgs: Box::new([]),
         mode: temper_forge_setup::setup::Mode::Managed { admin_token: None },
         asked: false,
     };
