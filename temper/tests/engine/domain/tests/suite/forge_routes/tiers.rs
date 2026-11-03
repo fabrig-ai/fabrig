@@ -399,14 +399,42 @@ fn a_change_landed_by_turn_waits_for_main_to_clear_it() {
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs tier_landing_run loses the completed tier task; cleared results omit run N"]
 fn a_cleared_chat_result_names_its_tier_run() {
     let (world, number) = green(false);
     cleared_result(&world, number, 2, false);
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs tier_landing_run loses completed ranges; both cleared results must name run N"]
+fn a_cleared_result_reaches_its_requester_and_the_ctl_document_after_restart() {
+    use jig_domain_core::{documents, reads};
+    let (mut world, number) = green(false);
+    let tasks::Party::Task(requester) = task(&world, number).requester else { panic!("chat requester") };
+    until(&mut world, LANDING_TICKS, "result delivered", |world| {
+        task(world, requester).inbox.iter().any(|word| word.from == tasks::Party::Task(number))
+    });
+    let delivered = task(&world, requester)
+        .inbox
+        .iter()
+        .find(|word| word.from == tasks::Party::Task(number))
+        .expect("delivered result");
+    assert!(std::str::from_utf8(&delivered.words).expect("result text").contains("Cleared by slow run 2."));
+    until(&mut world, LANDING_TICKS, "restart cut", restart_cut);
+    world.restart_same();
+    until(&mut world, LANDING_TICKS, "restarted", |world| world.root.ready());
+    sign_in(&mut world);
+    let Some(reads::Answer::Document(document)) = super::paths::read(&mut world, reads::Read::Result { task: number })
+    else {
+        panic!("ctl result read")
+    };
+    let documents::Document::Result(result) = *document else { panic!("result document") };
+    let documents::Ending::Done(documents::ResultValue::Change { words, .. }) = result.ending else {
+        panic!("landed result")
+    };
+    assert!(!words.cut);
+    assert!(std::str::from_utf8(&words.bytes).expect("document text").contains("Cleared by slow run 2."));
+}
+
+#[test]
 fn both_landing_results_name_the_run_that_cleared_them() {
     let (world, numbers) = two_landings();
     for number in numbers {
@@ -415,7 +443,6 @@ fn both_landing_results_name_the_run_that_cleared_them() {
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs tier_landing_run loses completed ranges; unblamed changes must name run N"]
 fn unblamed_results_name_the_red_run_that_cleared_them() {
     let (world, _, [a, _, c]) = red_range();
     for number in [a, c] {
@@ -424,7 +451,6 @@ fn unblamed_results_name_the_red_run_that_cleared_them() {
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs change_verification_words omits the repairing run and passed-failures wording"]
 fn a_repaired_result_names_the_run_that_passed_its_failures() {
     let (world, [red, repair]) = repaired();
     cleared_result(&world, red, 3, true);
@@ -432,7 +458,6 @@ fn a_repaired_result_names_the_run_that_passed_its_failures() {
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs tier_landing_run loses the completed tier task for a by-turn change"]
 fn a_cleared_by_turn_result_names_its_tier_run() {
     let (world, number) = green(true);
     cleared_result(&world, number, 2, false);
@@ -670,4 +695,68 @@ fn assert_dispatch_words(world: &World, task: u64, writes: &[skein_forge::api::W
 
 fn restart_cut(world: &World) -> bool {
     world.store.pending.is_empty() && world.pending.is_empty()
+}
+
+#[test]
+fn closing_a_chat_with_a_red_landing_leaves_the_merged_pull_untouched() {
+    let (mut world, chat) = chat_world(false, Tier::default());
+    baseline(&mut world);
+    let number = produce(&mut world, &chat, 93, b"failures", tier_runs::FAILURES);
+    verifying(&mut world, number);
+    until(&mut world, RUN_TICKS * 3, "landed change red", |world| {
+        matches!(change(world, number).change.state, State::Red { .. })
+    });
+    let row = change(&world, number);
+    let pull = row.pull.expect("landed pull");
+    let commit = merge(&world, number);
+    let branch = row.branch.clone();
+    let before = world
+        .fake
+        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Pull { number: pull })
+        .expect("merged pull");
+    let raw::Answer::Pull(snapshot) = &before else { panic!("pull snapshot") };
+    assert_eq!(snapshot.state, raw::State::Closed);
+    assert_eq!(snapshot.merged.map(translate::commit), Some(commit));
+    assert!(world.fake.branch(b"org/repo", &branch).is_some());
+    let writes = world.writes.len();
+    close_red_chat(&mut world, chat.task, number);
+    let event =
+        world.protocol.answer(Token::new(7), chat.task, chat.attempt, 1, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    until(&mut world, LANDING_TICKS, "chat closed after landed cancellation", |world| {
+        matches!(task(world, chat.task).phase, tasks::Phase::Ended(_))
+    });
+    assert!(matches!(task(&world, number).phase, tasks::Phase::Ended(_)));
+    assert_eq!(change(&world, number).change.state, State::Uncleared { merge: commit });
+    assert!(
+        matches!(panel(&mut world, number), forge_top::PanelStep::Cleared { merge, uncleared: true, .. } if merge == commit)
+    );
+    assert_eq!(world.fake.branch(b"org/repo", &branch), None);
+    assert_eq!(world.fake.inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Pull { number: pull }), Ok(before));
+    for write in &world.writes[writes..] {
+        assert!(
+            !matches!(write, skein_forge::api::Write::Post { number, .. }
+            | skein_forge::api::Write::Close { number } if *number == pull),
+            "{write:?}"
+        );
+    }
+    assert!(matches!(&task(&world, chat.task).phase,
+        tasks::Phase::Ended(tasks::Ending::Cancelled { reason, .. }) if reason.as_ref() == b"walk done"));
+}
+
+fn close_red_chat(world: &mut World, chat: u64, change: u64) {
+    sign_in(world);
+    let mut operations = skein_lib::List::uncapped();
+    for task in [change, chat] {
+        operations
+            .push(people::Operation::Cancel { task, reason: b"walk done".as_slice().into(), grace: None })
+            .expect("chat close operations");
+    }
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(99)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [99; 16],
+        ask: people::Ask::Compound { project: 1, operations },
+    }));
 }

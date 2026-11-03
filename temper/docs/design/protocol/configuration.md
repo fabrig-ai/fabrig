@@ -1942,8 +1942,20 @@ that changes the stock changes nothing of them.
     goal branch with its dependencies, one batch per family:
     `../domain/agent.md`, 4.3.1), for each result and its Left list (a
     new change for what is left, an amendment of a live change, or
-    nothing), and for the goal's end (its report once the plan's
-    changes have landed, its branch kept); the document's models, the
+    nothing), for the goal's landing once the plan's changes have
+    landed (one change on its own goal branch, `"branch": "mine"`, its
+    words the goal's title in one line, then what the goal built, by
+    design section: `../domain/forge.md`, 8.1), for that landing's life
+    (a change into the goal branch only for the landing's needs, each
+    one landed there its new head: `../domain/forge.md`, 8.5; on its
+    hold past its bounds, a release with an amendment, changes into the
+    goal branch first and then a release, a cancel that drops the
+    landing and keeps the branch, or a question to its person; never a
+    write of the goal branch of its own, nor a second landing while one
+    lives), and for the goal's end (its report on the landing's result,
+    naming the changes landed into its goal branch, their Left lists and
+    the landing's pull request and merge commit; without a landing, why,
+    its branch kept); the document's models, the
     workers, its runs starting fresh, waiting 0, a run sized for a
     plan's turns; its default wake policy the coordinator's (jig's
     `domain/tasks.md`, 8.3): questions, failures, each delegate's
@@ -2014,7 +2026,8 @@ that changes the stock changes nothing of them.
   is that member's value, which the walk's document carries, with its
   forge's host, owner and repository filled in: main's rule (`forge`,
   the host, the owner, the name, `branch`, exactly `main`: enforced, CI
-  passed, up to date, gate 1) and the rule for goal branches (the same
+  passed, up to date, no gate beyond CI, which runs the project's full
+  gate at a goal's landing's head) and the rule for goal branches (the same
   path to `branch`, open on `temper`: enforced, asking no CI, no update
   and no gate), and no rule on every branch, since rules add
   (`../domain/forge.md`, 8.7) and such a rule's CI would hold every merge
