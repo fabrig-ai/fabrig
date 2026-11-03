@@ -198,7 +198,13 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
                 ask(&mut world, signed, 1, people::Ask::MakeProject { name: "Random project".into(), policy: 1 }),
                 people::Reply::Outcome(people::Outcome::ProjectMade { .. })
             ));
-            assert!(world.store.rows.values().any(|value| *value == record(settings::Record::Extent { oldest: 0 })));
+            assert!(
+                world
+                    .store
+                    .rows
+                    .values()
+                    .any(|value| *value == record(settings::Record::Extent { oldest: 0, keys: 1 }))
+            );
             live_work(&mut world, signed);
             agree(&world);
             for step in 0..16_u8 {

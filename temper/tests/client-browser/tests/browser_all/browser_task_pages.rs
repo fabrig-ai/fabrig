@@ -27,7 +27,7 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(tier.states().live),
-        see(heading(1, b"What shall we change?")),
+        see(heading(1, b"Chats")),
         see(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         press(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         // The card settles at its call once the turn's words show (client/README.md, 5.7).

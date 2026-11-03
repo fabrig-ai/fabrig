@@ -312,6 +312,7 @@ impl Core {
         }
         out.push(Request::Write(Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
             oldest: self.current.oldest,
+            keys: self.current.keys,
         })))));
     }
 }

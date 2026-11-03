@@ -341,6 +341,7 @@ pub struct ReviewItem {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingsReview {
+    pub key: Option<u64>,
     pub newest: u32,
     pub items: List<ReviewItem>,
     pub cut: bool,

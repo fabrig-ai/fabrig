@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-02. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-03. Where temper's code lags or departs from [browser.md](browser.md).
 
 - **Not yet:** 2.1: the shell's `playground` feature
   (`../playground.md`, 6); `temper-client-shell-web` has the features

@@ -1,4 +1,4 @@
-//! temper's banner, with navigation after the projects (client/README.md, 5).
+//! temper's banner and project switcher (temper/docs/design/client/README.md, 5.1 and 5.6).
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
 use temper_client_domain::ChatsFilter;
@@ -119,14 +119,34 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
         words.text(builder, Word::OutOfDateMain, &[]);
     }
 }
-fn project_buttons(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
+pub(crate) fn switcher(
+    builder: &mut Builder,
+    root: &Domain,
+    words: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: Option<u32>,
+) {
     if let Some(me) = root.pages().me(root.client()) {
-        let mut projects = false;
+        if me.projects.is_empty() {
+            text(
+                builder,
+                Role::Paragraph,
+                &words.say(crate::words::Word::NoProjectYet, &[]),
+                Some(crate::look::PROJECT_EMPTY),
+            );
+            return;
+        }
+        builder.open(Role::Disclosure);
+        builder.style(crate::look::PROJECTS);
+        builder.name(&words.say(crate::words::Word::Projects, &[]));
         for selected in [true, false] {
             for row in &me.projects {
-                if (Some(row.project) == root.pages().project()) == selected {
+                if (Some(row.project) == project) == selected {
                     let name = crate::pages::project_name(Some(me), root.forge().playground(), row.project, words)
                         .expect("project from me has a name");
+                    if selected {
+                        builder.name(&name);
+                    }
                     builder.open(Role::Button);
                     builder.name(&name);
                     if selected {
@@ -134,21 +154,19 @@ fn project_buttons(builder: &mut Builder, root: &Domain, words: &crate::words::W
                     }
                     builder.bind(bindings.insert(Act::Project { project: row.project }));
                     builder.close();
-                    projects = true;
                 }
             }
         }
-        if !projects {
-            text(
-                builder,
-                Role::Paragraph,
-                &words.say(crate::words::Word::NoProjectYet, &[]),
-                Some(crate::look::PROJECT_EMPTY),
-            );
-        }
+        builder.close();
     }
 }
-pub(crate) fn banner(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
+pub(crate) fn banner(
+    builder: &mut Builder,
+    root: &Domain,
+    words: &crate::words::Words,
+    bindings: &mut Bindings,
+    forge: &mut crate::forge::bindings::Bindings,
+) {
     let pages = root.pages();
     let me = pages.me(root.client());
     builder.open(Role::Banner);
@@ -189,10 +207,17 @@ pub(crate) fn banner(builder: &mut Builder, root: &Domain, words: &crate::words:
         builder.close();
         return;
     }
-    project_buttons(builder, root, words, bindings);
+    switcher(builder, root, words, bindings, pages.project());
     navigation(builder, root, words, bindings);
     builder.open(Role::Slot);
     builder.style(crate::look::CORNER);
+    if root.forge().playground_running() && !root.forge().leaving() {
+        let name = words.say(crate::words::Word::BannerSetUp, &[]);
+        crate::link(builder, &name, forge.insert(crate::forge::bindings::Meaning::EndPlayground));
+        builder.style(crate::look::LEAVE_PLAYGROUND);
+        builder.text(Run::Plain, &name);
+        builder.close();
+    }
     builder.open(Role::Region);
     builder.region(link_region());
     let (status, style) = match root.client().link().state {

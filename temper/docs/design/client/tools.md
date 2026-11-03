@@ -1115,7 +1115,10 @@ digest: task 7c1e09a2b44f0d13
   second, the same pull request with its address (`../domain/root.md`,
   section 6), prints as `pull request: ADDRESS` when the task's document
   carries it whole: a line the document's text window cut prints
-  nothing, and `change show TASK` has the address; a change's words that
+  nothing, and `change show TASK` has the address. Verification words
+  after the landing line remain readable: `Cleared by TIER run N.`,
+  or why it is uncleared. Within ctl's text budget, their evidence takes
+  room before the optional pull address. A change's words that
   are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
   as they are; a connector's its summary and its part in the forge's
   words; a failed or cancelled task's its reason, if it gave one. Words

@@ -506,6 +506,7 @@ fn openai_streamed_text_and_history() {
     text_and_history(Provider::OpenAi);
 }
 #[test]
+#[ignore = "live: needs an Anthropic API key; run by the owner, how is decided later (skein/docs/design/llm.status.md, 5)"]
 fn anthropic_streamed_text_and_history() {
     text_and_history(Provider::Anthropic);
 }
@@ -514,6 +515,7 @@ fn openai_tool_round_trip() {
     tool_round_trip(Provider::OpenAi);
 }
 #[test]
+#[ignore = "live: needs an Anthropic API key; run by the owner, how is decided later (skein/docs/design/llm.status.md, 5)"]
 fn anthropic_tool_round_trip() {
     tool_round_trip(Provider::Anthropic);
 }
@@ -522,6 +524,7 @@ fn openai_unauthorized() {
     unauthorized(Provider::OpenAi);
 }
 #[test]
+#[ignore = "live: needs an Anthropic API key; run by the owner, how is decided later (skein/docs/design/llm.status.md, 5)"]
 fn anthropic_unauthorized() {
     unauthorized(Provider::Anthropic);
 }

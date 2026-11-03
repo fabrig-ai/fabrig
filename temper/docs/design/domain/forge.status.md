@@ -23,7 +23,7 @@
   - 7.1, 12: the findings topic and findings (`findings.md`).
   - 7.3: a hold parked until a landing.
   - 8.1: a change's own bounds, gates and charters: `change` takes
-    parameters 1 to 6, 9 and 10, its bounds are the deployment's
+    parameters 1 to 6 and 9 to 11, its bounds are the deployment's
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
@@ -37,6 +37,16 @@
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
     charter, kind 3's number 2, is fixed at charter 4.
+  - 8.4: widening exhausted authority with ctl before release: `task
+    amend`'s `--tasks` and `--budget` are not implemented
+    (`../client/tools.md`, 5.5). The hold offers cancellation or asking
+    afresh instead.
+  - 8.4, 8.5: a goal's landing held past its repairs, then released after
+    a change into its goal branch (`../draft/reference-landing.md`,
+    section 9's second story), is built, but its story is ignored: after
+    the released landing, the restart oracle finds the deployment's
+    `messages` number changed across a restart, its cause not yet found
+    (`tests/engine/domain/tests/suite/forge_routes/goal_landing_held.rs`).
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
   - 8.7: the explicit choice to adopt a GitHub repository without CI.

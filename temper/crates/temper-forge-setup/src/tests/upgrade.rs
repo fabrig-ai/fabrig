@@ -21,9 +21,11 @@ fn the_upgrade_dumps_an_older_forgejo_before_it_migrates() {
     );
     let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings after dump") };
     assert_eq!(drive.send(Event::Done), fixtures::run_command(Command::Migrate));
-    let Request::Write { file: File::State, contents } = drive.send(fixtures::ran_ok()) else {
-        panic!("recorded last")
+    assert_eq!(drive.send(fixtures::ran_ok()), fixtures::run_command(Command::Register));
+    let Request::Write { file: File::RunnerConfiguration, .. } = drive.send(fixtures::ran_ok()) else {
+        panic!("connection")
     };
+    let Request::Write { file: File::State, contents } = drive.send(Event::Done) else { panic!("recorded last") };
     assert_eq!(&*state::decode(contents.expose()).unwrap().forgejo, VERSION.as_bytes());
     assert_eq!(drive.send(Event::Done), Request::End(Ok(())));
 }

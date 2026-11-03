@@ -5,8 +5,8 @@ use temper_client_shell_web::host;
 
 #[test]
 fn a_turn_reserves_no_patch_queue() {
-    // Scenario peak 28,230 bytes plus 25%, rounded up to two significant digits.
-    const PATCH_HEAP_CEILING: u64 = 36_000;
+    // Scenario peak 47,174 bytes plus 25%, rounded up to two significant digits.
+    const PATCH_HEAP_CEILING: u64 = 59_000;
     let mut host = host::Host::new(11, Time::ZERO, Wall::EPOCH, temper_client_view::sign_in::Ways::NONE);
     host.start(b"/chats", Vec::new(), None);
     let meter = Meter::new();

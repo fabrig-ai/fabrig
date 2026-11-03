@@ -141,6 +141,7 @@ pub struct CharterVersion {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Proposal {
+    pub key: Option<u64>,
     pub against: u32,
     pub items: Box<[Item]>,
     pub applications: Box<[application::Recorded]>,
@@ -154,6 +155,7 @@ pub struct Current {
     pub(crate) applications: Map<Setting, application::State>,
     pub(crate) head: Head,
     pub(crate) oldest: u32,
+    pub(crate) keys: u64,
 }
 impl Current {
     #[must_use]
@@ -200,6 +202,7 @@ impl Current {
                 moved: false,
             },
             oldest: 0,
+            keys: 1,
         }
     }
     #[must_use]
@@ -318,7 +321,7 @@ pub enum Record {
     Changed { setting: Setting, changed: Changed },
     Application { setting: Setting, state: application::State },
     Revision { history: bool, revision: Revision },
-    Extent { oldest: u32 },
+    Extent { oldest: u32, keys: u64 },
     Charter { charter: u32, revision: u32, value: CharterVersion },
     Proposal { proposer: people::Proposer, proposal: u32, value: Proposal },
 }

@@ -78,7 +78,7 @@ impl Core {
                 self.current.changes.insert(setting, changed).is_ok()
             }
             Record::Revision { history, revision } => self.restore_head(history, revision, limits),
-            Record::Extent { oldest } => {
+            Record::Extent { oldest, keys } => {
                 {
                     assert!(
                         !self.settings_restore.extent,
@@ -87,6 +87,7 @@ impl Core {
                     );
                 }
                 self.current.oldest = oldest;
+                self.current.keys = keys;
                 self.settings_restore.extent = true;
                 true
             }
@@ -231,6 +232,15 @@ impl Core {
         }
         if self.counters.deployment().commits == 0 && !self.settings_restore.held {
             return true;
+        }
+        for (&(proposer, proposal), value) in &self.settings_proposals {
+            if let Some(key) = value.key {
+                assert!(
+                    key < self.current.keys,
+                    "proposal {:?} has a key at or past the restored counter",
+                    crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal }))
+                );
+            }
         }
         for (&setting, _) in &self.current.defaults {
             if !self.settings_restore.defaults.contains_key(&setting) {
@@ -477,6 +487,7 @@ impl Core {
             revision,
             defaults,
             self.current.oldest,
+            self.current.keys,
             newest,
             env.limits.settings.history,
             room.saturating_sub(reserve).saturating_sub(out.len()),
@@ -509,17 +520,20 @@ pub fn revision_writes(
     revision: Option<Revision>,
     defaults: List<Write>,
     oldest: u32,
+    keys: u64,
     newest: u32,
     history: u32,
     room: u32,
 ) -> (List<Write>, u32) {
-    revision_writes_with_hold(revision, defaults, oldest, newest, history, room, false)
+    revision_writes_with_hold(revision, defaults, oldest, keys, newest, history, room, false)
 }
 
+#[expect(clippy::too_many_arguments, reason = "history extent and proposal counter are saved in the same settings row")]
 pub(crate) fn revision_writes_with_hold(
     revision: Option<Revision>,
     defaults: List<Write>,
     mut oldest: u32,
+    keys: u64,
     newest: u32,
     history: u32,
     room: u32,
@@ -558,7 +572,7 @@ pub(crate) fn revision_writes_with_hold(
                 .expect("prune room reserved");
             oldest = oldest.checked_add(1).expect("bounded old revision");
         }
-        writes.push(save(Record::Extent { oldest })).expect("extent room reserved");
+        writes.push(save(Record::Extent { oldest, keys })).expect("extent room reserved");
     }
     (writes, oldest)
 }
@@ -586,6 +600,6 @@ pub(crate) fn first_start(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Re
         history: false,
         revision: Revision { head: core.current.head.clone(), items: Box::new([]), applications },
     })));
-    out.push(Request::Write(save(Record::Extent { oldest: 0 })));
+    out.push(Request::Write(save(Record::Extent { oldest: 0, keys: core.current.keys })));
     true
 }

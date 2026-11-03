@@ -87,7 +87,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
                         assert!(!history);
                         revision = Some(value);
                     }
-                    settings::Record::Extent { oldest } => {
+                    settings::Record::Extent { oldest, .. } => {
                         assert_eq!(oldest, 1);
                         extent = true;
                     }
@@ -187,6 +187,7 @@ fn stored_proposals_require_their_links_at_link() {
                 proposer: jig_domain_people::Proposer::Party(1),
                 proposal: 1,
                 value: settings::Proposal {
+                    key: None,
                     applications: Box::default(),
                     against: 1,
                     items: Box::new([settings::Item {
