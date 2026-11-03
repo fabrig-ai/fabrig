@@ -1,0 +1,24 @@
+draft = "bugs-security"
+repo = "fabrig"
+sources = ["temper/docs/plan/bugs-security/inputs/request.md", "skein/docs/design/lib.md", "AGENTS.md"]
+
+# Bugs that leak a secret (inputs/request.md), each fixed with a test that fails on the old code:
+# one direct part per tree for the Debug fixes, and one for CryptoRng losing Clone, its users in
+# jig and temper first, then skein-lib. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "jig-debug"
+title = "jig: jig-test-service's program resources, and jig's other credential holders, print counts or lengths in Debug, never the bytes"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 5.1"
+
+[[slice]]
+id = 1
+story = "a debug print of jig-test-service's program resources, alone or inside its source component, shows the environment's count and none of its entries"
+parts = ["jig-debug"]
+walk = false
