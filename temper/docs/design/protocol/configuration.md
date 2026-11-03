@@ -2091,8 +2091,8 @@ that changes the stock changes nothing of them.
     `docs/foundation/programming-model.md`'s "1. In one page", on the
     home repository's `main`.
   Charter 7 joins the rules' and policy 1's delegation as charter 5 did.
-  Each document names the forge's host, owner and repository the walk's
-  document fills in, as `landing.json`'s rules do.
+  Each document names the forge's host, owner and repository the box
+  fills in, as the landing rules do.
 - **The landing rules** are kind 1's rules 1 and 2, items of the
   settings file, with its forge's host, owner and repository filled in:
   main's rule (`forge`,
