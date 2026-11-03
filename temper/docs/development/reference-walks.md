@@ -140,7 +140,7 @@ the restart in the middle of a run came from finding-135's workaround, not from 
 - Commit: 677e405ca112365653d5d504de259b00fd11a0d4
 - Area: chat / charter 1
 - Severity: medium
-- Sightings: finding-156
+- Sightings: finding-156, finding-162
 
 ### Reproduction
 
@@ -287,3 +287,55 @@ git takes no header file (pushed with GIT_CONFIG_* env from a script); 'git push
 ### Triage reason
 
 pushing an existing history as the person is the person's own git and login, not temper's tool, and the walk got through; forge setup's starter commit making that push forced and help box steps 3 and 4 disagreeing on me's project list are words to settle in the backlog
+
+## finding-158: A change cleared by a red run's bisection reads 'step: cleared' naming no run, while one cleared by a green run reads 'cleared · slow run 2'
+
+- Rung: rm8
+- Walk: walk-59
+- Backend: chatgpt-forgejo
+- Commit: 599f62cb9d3e5acb689afc5e8176b06f8660c9f7
+- Area: change panel words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+As the walk: change 3 cleared by green run 2; change 12 cleared by red run 3 (blame on change 8); change show 3; change show 12.
+
+### Expected
+
+Both panels name the run that cleared them, e.g. 'cleared · slow run 3' (backlog; off the happy path).
+
+### Seen
+
+change 3: 'step: cleared · slow run 2'; change 12: 'step: cleared' (its result does say 'Cleared by slow run 3.').
+
+### Triage reason
+
+panel wording only; the change reads cleared and its result names the clearing run ('Cleared by slow run 3.'), so the walk read the verdict and rm8 passed; not blocking, off the happy path
+
+## finding-159: With qa.md's budget figures each chat reserves 207552 of the owner's 415104 pool, so M8's third concurrent chat is refused 'pool in project 1 had 0 left'
+
+- Rung: rm8
+- Walk: walk-59
+- Backend: chatgpt-forgejo
+- Commit: 599f62cb9d3e5acb689afc5e8176b06f8660c9f7
+- Area: QA budget recipe / chat reservation
+- Severity: low
+- Sightings: finding-161
+
+### Reproduction
+
+Fresh box per kit; settings apply the kit's budget; forge setup; project fund 1 449696, --role 0 415104; two chats live (2 and 7); chat start a third.
+
+### Expected
+
+The kit's budget holds M8's three chats, or the recipe sizes the pool for them (backlog; refusal named its remedy).
+
+### Seen
+
+12:03:35Z chat start: refused: your pool in project 1 had 0 left, 1 needed; project show: pool reserved 415104. Raised rules period to 657248 (settings apply), project fund 657248 and --role 0 622656; the chat then started at 12:04:11Z.
+
+### Triage reason
+
+the refusal named the shortfall, the walker raised the period and pool through settings apply and project fund and the third chat started within a minute; rm8 passed; sizing qa.md's budget recipe for three concurrent chats is a QA-recipe improvement, not a step the story could not do

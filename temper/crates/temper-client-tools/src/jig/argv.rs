@@ -301,10 +301,7 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
     if tool.name == super::rows::HELP.name && !help_valid(table, call) {
         return Err(Usage::Tool);
     }
-    // The creation row owns this rule; reading a chat has no keyed choice form.
-    if tool.name == super::rows::CHAT_CREATE.name && tool.keyed == Keyed::Required {
-        check_choice(call, 3, 4, limits)?;
-    }
+    check_creation(tool, call, limits)?;
     if tool.name == b"task amend" {
         check_amend(call, limits)?;
     }
@@ -736,4 +733,25 @@ fn help_valid(table: &[&Tool], call: &Call) -> bool {
         None => true,
         Some(_) => false,
     }
+}
+
+fn check_goal(call: &Call, limits: &Limits) -> Result<(), Usage> {
+    check_choice(call, 8, 9, limits)?;
+    if present(call, 5) && present(call, 6) {
+        return Err(Usage::Twice { tool: 0, form: 0, argument: 6 });
+    }
+    if let Some(Value::Text(text)) = super::call::value(call, 7) {
+        deadline(text).ok_or(Usage::Kind { tool: 0, form: 0, argument: 7 })?;
+    }
+    Ok(())
+}
+
+fn check_creation(tool: &Tool, call: &Call, limits: &Limits) -> Result<(), Usage> {
+    if tool.name == super::rows::CHAT_CREATE.name && tool.keyed == Keyed::Required {
+        check_choice(call, 3, 4, limits)?;
+    }
+    if tool.name == super::rows::GOAL_START.name {
+        check_goal(call, limits)?;
+    }
+    Ok(())
 }

@@ -141,22 +141,9 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     worker["endpoints"][0]["models"][0]["name"] = "gpt-6.1-sol".into();
     worker["endpoints"][0]["models"][0]["output"] = 32_000.into();
     worker["endpoints"][0]["models"][0]["reasoning_item"] = 32_768.into();
-    value["engine"]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
-    value["engine"]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
-    value["workers"][0]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_queue_bytes"] = 12_060_312.into();
-    value["engine"]["limits"]["overrides"]["core.resume_bytes"] = 1_507_543.into();
-    value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
-    for (name, count) in [
-        ("root.loads.loads", 32),
-        ("root.journal.transcript_bytes", 1_507_543),
-        ("root.loads.transcript_bytes", 1_507_539),
-        ("root.loads.bytes", 1_507_787),
-        ("root.loads.reply_bytes", 1_507_787),
-    ] {
-        value["application"]["limits"]["overrides"][name] = count.into();
-    }
+    // B0's fixed carriers describe its one-call recipe.
+    worker["profile"]["declared"]["calls_per_response"] = 1.into();
+    turn_limits(&mut value);
     // Walk 1's admitted declarations, not a phase-bound increase.
     value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
     value["workers"][0]["memory_bytes"] = 3_700_000_000_000_u64.into();
@@ -176,6 +163,25 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     directories.cache = paths[2].as_os_str().as_bytes().into();
     temper::boxed_operations_in(&directories, &fs::read(&config).expect("configuration"))
         .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
+}
+
+fn turn_limits(value: &mut Value) {
+    value["engine"]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
+    value["engine"]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
+    value["workers"][0]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
+    value["workers"][0]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
+    value["workers"][0]["limits"]["overrides"]["hub.turn_queue_bytes"] = 12_060_312.into();
+    value["engine"]["limits"]["overrides"]["core.resume_bytes"] = 1_507_543.into();
+    value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
+    for (name, count) in [
+        ("root.loads.loads", 32),
+        ("root.journal.transcript_bytes", 1_507_543),
+        ("root.loads.transcript_bytes", 1_507_539),
+        ("root.loads.bytes", 1_507_787),
+        ("root.loads.reply_bytes", 1_507_787),
+    ] {
+        value["application"]["limits"]["overrides"][name] = count.into();
+    }
 }
 
 /// A private command transcript, with a hard wall bound and no pipe backpressure.
