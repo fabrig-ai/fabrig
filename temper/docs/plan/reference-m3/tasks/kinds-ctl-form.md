@@ -91,3 +91,32 @@ Acceptance:
 
 The implementer's text's report, plus: the refusal an out-of-shape value gives at each
 entrance.
+
+## Answers
+
+2026-11-03. **Q:** the entrances have no root limits to decode under: plumb the root's bounds
+through their callers (A), or decode at the schema's ceilings and leave the deployment's
+bounds to the forge (B)?
+
+**A:** B; the skeleton and the header's files are unchanged. Decoding at the entrance only
+types the value and refuses what is out of shape (`root.md`, 5.6); whether a rule is within
+the deployment's bounds is the forge's judgement (5.6, **The root routes, never judges**),
+and `forge::settings::judge` already checks segments, segment bytes, gates and approvals
+against the `Bounds` `kinds-route` gives it, refusing with the forge's words. This replaces
+the acceptance's "under the bounds `kinds-route` judges by":
+
+- At both entrances, `temper_engine_smith::kinds::decode` is given `kinds::Bounds` built from
+  the client wire's schema ceilings, `temper_client_protocol_wire::v1::CEILINGS`
+  (`landing_pattern_segments`, `landing_pattern_segments_item`, `landing_rule_gates`,
+  `landing_rule_approvals`), as `family::to_root` already decodes at `v1::CEILINGS` and
+  `settings::proposal` at `settings_form::Limits::standard()`. One private helper per crate
+  is enough; no new parameter on `translation::to_root`, `settings::proposal` or
+  `call_configured`, and no edit to `clients.rs`, `calls.rs` or `tools.rs`.
+- A value that does not decode whole at those ceilings is refused as the spec says (jig's
+  `SettingFault::Shape` at its index; `Problem::Range(b"items")` to the run). A value within
+  the ceilings but past the deployment's limits reaches the root and is refused by the forge
+  (`Refusal::Pattern`, `Gates`, `Approvals`), as a judged refusal naming the item. The
+  tests' "gate past the limit" case is the settings form's (6.4); the entrance tests keep
+  their two cases (a landing rule carried, one cut short).
+- apps-wire: this task already needs it; resume on the trunk once apps-wire has merged and
+  build to its `Setting::Application` and value arms as merged. Invent no wire types before.
