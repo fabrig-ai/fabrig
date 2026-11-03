@@ -115,10 +115,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **temper's runs** act on their delegates with the host tools
   `delegate`, `change`, `goal`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
-  `read_task` (read family) gives related tasks' words, state, dependencies,
-  revisions and hold reason, including connector words. It also reads retained
-  ended direct delegates. Continue with `from=next`; restart at zero if the spec
-  revision changes.
+  `read_task` (read family): related tasks and ended direct delegates' words,
+  state, dependencies, revisions and hold reasons with connector words. Continue
+  at `from=next`; restart at zero on spec changes.
   `message` is offered only to a run whose authority holds the message
   family: a change's coder, repairer and resolver are offered it where
   the change relays their questions; its reviewer is not offered it.
