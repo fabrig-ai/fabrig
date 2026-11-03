@@ -219,3 +219,25 @@ fn an_amendment_proposal_whose_task_ends_is_withdrawn() {
     assert!(!world.records.contains_key(&jig_domain_tasks::Key::PersonProposal(100)));
     world.restart();
 }
+
+#[test]
+fn a_proposed_batch_past_its_bytes_is_refused() {
+    let batch = vec![task(1, &[]), task(2, &[1])];
+    let held = u32::try_from(jig_domain_tasks::batch_bytes(&batch).expect("fixture batch bytes"))
+        .expect("fixture batch fits u32");
+    for (limit, accepted) in [(held - 1, false), (held, true)] {
+        let mut world = World::new(344, jig_domain_tasks::Limits { batch_bytes: limit, ..LIMITS });
+        propose_batch(&mut world, 9, 100, batch.clone());
+        assert_eq!(world.records.contains_key(&jig_domain_tasks::Key::PersonProposal(100)), accepted);
+        if accepted {
+            assert_eq!(world.replies.last_key_value().expect("proposal reply").1, &Reply::Done);
+            world.restart();
+            assert!(world.records.contains_key(&jig_domain_tasks::Key::PersonProposal(100)));
+        } else {
+            assert!(matches!(
+                world.replies.last_key_value().expect("proposal reply").1,
+                Reply::Refused(jig_domain_tasks::Problem { why: jig_domain_tasks::Refusal::Read, .. })
+            ));
+        }
+    }
+}

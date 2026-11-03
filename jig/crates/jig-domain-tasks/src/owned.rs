@@ -109,7 +109,10 @@ pub fn terminal_bytes(end: &End) -> Option<u64> {
     }
 }
 
-fn batch_bytes(batch: &[crate::New]) -> Option<u64> {
+/// Bytes one batch's task records and owned fields hold in all, including recurring templates
+/// (domain/tasks.md, sections 4 and 11). Returns `None` on overflow.
+#[must_use]
+pub fn batch_bytes(batch: &[crate::New]) -> Option<u64> {
     let mut total = bytes(size_of_val(batch))?;
     for member in batch {
         total = total
@@ -119,6 +122,11 @@ fn batch_bytes(batch: &[crate::New]) -> Option<u64> {
             .checked_add(bytes(size_of_val(&*member.dependencies))?)?
             .checked_add(holdings_bytes(&member.holdings)?)?
             .checked_add(llm_bytes(member.llm.as_ref())?)?;
+        if let Some(template) = &member.recurring {
+            total = total
+                .checked_add(bytes(size_of::<crate::RecurringTemplate>())?)?
+                .checked_add(batch_bytes(&template.batch)?)?;
+        }
     }
     Some(total)
 }
@@ -373,15 +381,7 @@ fn proposal_bytes(proposal: &Proposal) -> Option<u64> {
             total = total.checked_add(bytes(size_of_val(items.as_ref()))?)?;
         }
         ProposalAction::Batch(batch) => {
-            total = total.checked_add(bytes(size_of_val(&**batch))?)?;
-            for member in batch {
-                total = total
-                    .checked_add(spec_bytes(&member.spec)?)?
-                    .checked_add(authority_bytes(&member.authority)?)?
-                    .checked_add(contract_bytes(&member.contract)?)?
-                    .checked_add(bytes(size_of_val(&*member.dependencies))?)?
-                    .checked_add(holdings_bytes(&member.holdings)?)?;
-            }
+            total = total.checked_add(batch_bytes(batch)?)?;
         }
         ProposalAction::Amend { amendment, .. } => {
             total = total.checked_add(amendment_bytes(amendment)?)?;

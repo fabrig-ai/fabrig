@@ -255,8 +255,12 @@ fn a_plan_of_reports_a_choice_and_procedure_tasks_runs_in_dependency_order() {
 
 #[test]
 fn batch_is_atomic_and_cycles_and_limits_refuse_at_entrance() {
+    let batch_bytes =
+        u32::try_from(jig_domain_tasks::batch_bytes(&[task(1, &[]), task(2, &[])]).expect("fixture batch bytes"))
+            .expect("fixture batch fits u32");
     for (limits, why) in [
         (jig_domain_tasks::Limits { batch: 1, ..LIMITS }, Refusal::Batch),
+        (jig_domain_tasks::Limits { batch_bytes: batch_bytes - 1, ..LIMITS }, Refusal::Batch),
         (jig_domain_tasks::Limits { tasks: 1, ..LIMITS }, Refusal::Live),
         (jig_domain_tasks::Limits { project_tasks: 1, ..LIMITS }, Refusal::Project),
     ] {

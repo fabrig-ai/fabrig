@@ -703,8 +703,12 @@ pub(crate) fn admission_problem_staged(
                 return Some(proposal_problem(proposal.proposer, Refusal::HoldRevision { revision: placed.revision }));
             }
         }
-        ProposalAction::Batch(_)
-        | ProposalAction::Effect { .. }
+        ProposalAction::Batch(batch) => {
+            if !crate::batch::within(limits, batch) {
+                return Some(proposal_problem(proposal.proposer, Refusal::Batch));
+            }
+        }
+        ProposalAction::Effect { .. }
         | ProposalAction::ProcedureEffect { .. }
         | ProposalAction::Amend { .. }
         | ProposalAction::Widen { .. }
@@ -741,7 +745,7 @@ pub(crate) fn check_result(domain: &Domain, env: &Env<Limits>, task: u64, propos
                 ProposalHolder::Person(number) => *number != 0,
                 ProposalHolder::Policy { project, kind } => *project == row.project && *kind == ProposalKind::Batch,
             };
-            if !holder_valid || batch.is_empty() || batch.len() > skein_lib::length::usize_of(env.limits.batch) {
+            if !holder_valid || batch.is_empty() || !crate::batch::within(&env.limits, batch) {
                 return false;
             }
             for (at, member) in batch.iter().enumerate() {
