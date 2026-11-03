@@ -82,7 +82,7 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
         let entry = temper_forge_setup::machine::entry(&named.machine, number, BoxKind::Fake, &directories)
             .expect("playground's fake machine");
         let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
-        machine::lay_handover(&mut disk, &path, fakes::ADMIN_TOKEN);
+        machine::lay_handover(&mut disk, &path, &crate::stories::admin_token(seed));
     }
     let machine = Machine::new(disk);
     let parameters = programs::Parameters { deployment, seed, links, forge: fakes.forge, disk: machine.0.clone() };

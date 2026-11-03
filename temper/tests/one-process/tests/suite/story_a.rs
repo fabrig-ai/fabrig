@@ -3,7 +3,7 @@ use skein_world::domain::Verdict;
 use temper_one_process_world::{fixtures, world};
 
 #[test]
-#[ignore = "Story A stalls at Starting after reading playground-1/admin_token; no project or account appears"]
+#[ignore = "Story A stalls at Starting with forge 1 Kept; no project or account appears"]
 fn story_a_is_walked_from_the_welcome_to_the_csv_change_landed() {
     let outcome = world::run(fixtures::calm(fixtures::SEED), world::Story::PlaygroundA);
     assert_eq!(outcome.verdict, Verdict::Passed);
