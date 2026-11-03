@@ -1068,11 +1068,11 @@ what outlives it (5.2).
   a project's ended goals, newest first, that the public index loads
   once at start and at publication (13.9). Default: none; the board's
   ended goals are those ended since.
-- **A human publication capability:** a way for a person to publish a
-  goal's title, or a name they wrote, that an agent holding their
+- **A human publication capability:** a way for a person to publish
+  another configured name they wrote, that an agent holding their
   credential could not use, since a credential proves who sent a
   request and not who wrote it (13.3). Default: none; public documents
-  carry no text and no configured name.
+  carry only task titles and the project's name as text.
 
 
 ## 13. Public reading
@@ -1156,13 +1156,14 @@ beside jig's (13.3). How a public read travels is
 Each public document is a type of its own, made by a projection from
 the public index (13.9); a field reaches it only when it is added
 there. jig's hold structure and mechanics alone: public identifiers,
-states, times, the shape of a tree, kinds, spend. Their records, and
-each field's source, are `../client/domain/contract.md`, section 12.
+states, times, the shape of a tree, kinds, spend, task titles and the
+project's name. Their records, and each field's source, are
+`../client/domain/contract.md`, section 12.
 
 - **The deployment's public projects:** each public project's public
-  identifier (13.8), and the `max-age` the public answers carry, so a
-  page knows how often to read again.
-- **A project's board:** its public identifier; its public goals
+  identifier (13.8) and name, and the `max-age` the public answers
+  carry, so a page knows how often to read again.
+- **A project's board:** its public identifier and name; its public goals
   (13.7), live first by priority, then the most recently ended the
   index holds; each goal's line and its tree's lines below it, within
   the board's bounds, the lines past them folded into a count of
@@ -1170,23 +1171,25 @@ each field's source, are `../client/domain/contract.md`, section 12.
 - **A task's card:** the line of one public task, its lineage up to
   its public goal as public identifiers, and its delegates' lines,
   folded past the bound.
-- **A public line:** the task's public identifier; its parent's, or
-  none for a public goal, whose ancestry is never shown; whether it is
+- **A public line:** the task's public identifier; its title, the spec's
+  first line cut at 256 bytes on a character boundary, saying whether
+  cut; its parent's identifier, or none for a public goal, whose
+  ancestry is never shown; whether it is
   a goal, and its priority; its executor's kind alone, never who
   or which; its phase, and if held, the hold's kind without
   its reason; when it was made, last changed, last active and ended,
   each to the second; its spend and its budget; its public delegates'
   counts by phase.
-- **No text at all.** Nothing a person or an agent could have written
-  crosses: no title, spec, instructions, inputs, results, words,
-  questions and answers, turns and transcripts, notes, reason, label's
-  meaning, proposal or escalation; and no configured name, a project's,
-  a charter's, a procedure's or a role's, since a party's credential
-  proves who sent a request, not that a person wrote it (agents act
-  with people's credentials). No party's name, login or number, no
-  account, no resource's name beyond the links the application's
-  projection adds. A human publication capability, which could show a
-  goal's title or a name a person wrote, is Later (section 12).
+- **No text but titles and the project's name.** The task's title and
+  the project's name cross without an author flag or a human
+  publication capability. Nothing else a person or an agent could
+  have written crosses: no spec beyond its first line, instructions,
+  inputs, results, words, questions and answers, turns and transcripts,
+  notes, reason, label's meaning, proposal or escalation; no charter's,
+  procedure's or role's name. No person's or party's name, login or
+  number, no account, no resource's name beyond the links the
+  application's projection adds. A human publication capability for
+  the other configured names is Later (section 12).
 - **No internal number:** a project or a task is named by its public
   identifier alone (13.8), in every field and every route.
 - **An application's own public documents** are its connectors' (the

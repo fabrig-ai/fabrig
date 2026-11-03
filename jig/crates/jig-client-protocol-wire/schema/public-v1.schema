@@ -1,0 +1,32 @@
+family jig-public-wire 1
+# Public documents: jig/docs/design/client/domain/contract.md, section 12.
+# Identifiers are public u64 values; times are u64 seconds since the epoch.
+# Unit variants carry kinds alone, never identities or reasons.
+enum PublicExecutor { agent, procedure, person, job }
+enum PublicPhase { waiting, idle, due, preparing, claimed, running, backing_off, active, closing, held, ended, done, failed, cancelled }
+enum PublicHold { failures, stalled, dependency, stopped, placed, drift, effects, effect_failed, uncertain, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost, procedure, circle, exceeded }
+record PublicCounts { working: u32 waiting: u32 held: u32 closing: u32 ended: u32 }
+record PublicLine {
+    task: u64
+    title: text 256
+    title_cut: bool
+    parent: option u64
+    goal: bool
+    priority: option u32
+    executor: PublicExecutor
+    phase: PublicPhase
+    hold: option PublicHold
+    made: u64
+    changed: u64
+    active: option u64
+    ended: option u64
+    spent: u64
+    budget: u64
+    delegates: PublicCounts
+}
+record PublicProject { project: u64 name: text 64 }
+record PublicProjects { projects: list 4096 PublicProject max_age: u32 }
+record PublicGoal { line: PublicLine tree: list 256 PublicLine folded: u32 }
+record PublicBoard { project: u64 name: text 64 live: list 256 PublicGoal live_folded: u32 ended: list 256 PublicGoal }
+record PublicCard { line: PublicLine lineage: list 64 u64 delegates: list 256 PublicLine folded: u32 }
+record PublicApplication { tasks: list 1024 u64 record: bytes 16777216 }

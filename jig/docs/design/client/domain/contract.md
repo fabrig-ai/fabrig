@@ -1541,18 +1541,21 @@ What the public party reads (`../../domain/people.md`, section 13),
 each a record of its own in jig's wire, never a cut of another
 document: a field is in it only once added there, and the wire's golden
 shows every addition in review. Read by `PublicRead`
-(`../../protocol/client.md`, section 19); no watch, no stream. No
-record holds text, and none an internal number: a project and a task
-are named by their public identifiers (`../../domain/people.md`, 13.8),
+(`../../protocol/client.md`, section 19); no watch, no stream. Text is
+limited to a task title and a project name; no record holds an internal
+number: a project and a task are named by their public identifiers
+(`../../domain/people.md`, 13.8),
 `PublicId`, 64 bits.
 
 | Kind | Names | Answered with |
 |---|---|---|
-| *projects* | nothing | `PublicProjects`: each public project's `PublicId`, within the deployment's projects, and the `max-age` public answers carry |
-| *board* | a project | `PublicBoard`: the project's `PublicId`; its live public goals by priority within the board's bound, and the count of live public goals past it; then its ended public goals the index holds, most recent first; each a `PublicGoal`: its `PublicLine`, its tree's public lines below it in tree order within the bound per goal, and the count of public lines past it |
+| *projects* | nothing | `PublicProjects`: each public project's `PublicProject { project: PublicId, name }`, within the deployment's projects, and the `max-age` public answers carry |
+| *board* | a project | `PublicBoard`: the project's `PublicId` and name; its live public goals by priority within the board's bound, and the count of live public goals past it; then its ended public goals the index holds, most recent first; each a `PublicGoal`: its `PublicLine`, its tree's public lines below it in tree order within the bound per goal, and the count of public lines past it |
 | *card* | a project, a public task of it | `PublicCard`: the task's `PublicLine`, its lineage up to its public goal as `PublicId`s, nearest first, within the tree's depth; its public delegates' lines within the bound, and the count past it |
 
-- **`PublicLine`:** `task`; `parent: Option<PublicId>`, none for a
+- **`PublicLine`:** `task`; `title: text 256`, the spec's first line cut
+  at 256 bytes on a character boundary, and `title_cut: bool`, true
+  when cut; `parent: Option<PublicId>`, none for a
   public goal; `goal: bool` and `priority: Option<u32>`, a goal's;
   `executor: PublicExecutor`, its kind alone: agent, procedure,
   person or job (5.7); `phase: PublicPhase`, jig's phases (5.1) as unit variants, and
@@ -1561,6 +1564,13 @@ are named by their public identifiers (`../../domain/people.md`, 13.8),
   time to the second; `spent` and `budget` in the deployment's unit;
   `delegates: PublicCounts`, its public delegates counted by phase
   class.
+- **Schema ceilings:** projects 4,096; live and ended goals 256 each;
+  tree lines and delegates 256 each; lineage 64; application tasks
+  1,024 and record bytes 16,777,216; project and board names 64 bytes.
+  `PublicIndexBounds` supplies the projects, goals, ended, lines and
+  depth limits. `public_limits` refuses a bound past its ceiling;
+  `public_bounds` returns the generated largest encodings for projects,
+  board and card, or `u32::MAX` for each when bounds are invalid.
 - **`PublicApplication { tasks, record }`:** an application's public
   document in jig's envelope (`../../protocol/client.md`, section 19):
   the `PublicId`s of the tasks it names, then its record in its own
@@ -1570,6 +1580,8 @@ are named by their public identifiers (`../../domain/people.md`, 13.8),
   | Field | Source | Made by |
   |---|---|---|
   | a project's `PublicId` | the project's number | the component's permutation (13.8) |
+  | `PublicProject.name`, `PublicBoard.name` | the project's record | as is, within 64 bytes |
+  | `title`, `title_cut` | the task's spec's first line | cut at 256 bytes on a character boundary, saying whether cut |
   | a task's `PublicId`, `parent`, `lineage` | the task's and its ancestors' numbers, up to its public goal | the same; `parent` none at the public goal |
   | `goal`, `priority` | whether the task is tracked, and its priority | as is |
   | `executor` | the executor's kind | the kind alone, never who or which |
@@ -1580,9 +1592,9 @@ are named by their public identifiers (`../../domain/people.md`, 13.8),
   | `max-age` | `clients.public.max_age` | as is |
   | `PublicApplication`'s `tasks` | the numbers the connector listed | the component's permutation |
 
-- **Nothing else crosses:** no title, spec, instructions, inputs,
-  result, words, question or answer, turn, note, reason, label,
-  proposal, escalation, name of a project, charter, procedure, role or
+- **Nothing else crosses:** no spec beyond its first line, instructions,
+  inputs, result, words, question or answer, turn, note, reason, label's
+  meaning, proposal, escalation, name of a charter, procedure, role or
   party, account or resource.
 - **A schema of their own:** jig's public records are a schema apart
   in `jig-client-protocol-wire`, `public-v1.schema`, versioned apart
@@ -1598,9 +1610,9 @@ are named by their public identifiers (`../../domain/people.md`, 13.8),
   shows in review.
 - **Its tests check meaning, not shape alone:** each projection is
   compared with an expected record built independently from the
-  source table above, from a state whose forbidden sources (a title, a
-  spec, a name, a reason, words, an internal number past the
-  identifiers' range) hold distinct markers that no answer's bytes may
+  source table above, from a state whose forbidden sources (the spec
+  beyond its first line, another name, a reason, words, an internal
+  number past the identifiers' range) hold distinct markers that no answer's bytes may
   contain; and mutation tests show the golden failing on a nested field
   added to a copy of the schema, the closure test failing on a name
   from elsewhere, and the projection test failing on a field filled
