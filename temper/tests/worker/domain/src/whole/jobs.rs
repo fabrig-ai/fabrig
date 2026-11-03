@@ -188,7 +188,7 @@ impl World {
             })
             .collect();
         let spec = if decoded {
-            Ok(wire::JobSpec { command: b"tools/check".as_slice().into(), request: b"request".as_slice().into() })
+            Ok(wire::JobSpec { command: b"home/tools/check".as_slice().into(), request: b"request".as_slice().into() })
         } else {
             Err(wire::Undecodable)
         };
@@ -207,7 +207,7 @@ impl World {
         });
     }
 
-    pub(super) fn start(&mut self) -> Token {
+    pub(super) fn start(&mut self, command: &[u8]) -> Token {
         let (owner, op) = self.operations.pop_front().expect("write request");
         let tooling::Request::Write { owner: inner, path, bytes } = op else { panic!("write before spawn") };
         assert_eq!(owner, inner);
@@ -222,7 +222,7 @@ impl World {
         let tooling::Request::Spawn { owner: inner, program, args, env, dir, deadline } = op else { panic!("spawn") };
         assert_eq!(inner, owner);
         assert_eq!(dir.as_ref(), directory);
-        assert_eq!(program.as_ref(), [directory.as_slice(), b"/home/tools/", self.kind.verb.as_ref()].concat());
+        assert_eq!(program.as_ref(), [directory.as_slice(), b"/", command].concat());
         assert_eq!(args.as_ref(), [program.clone(), self.kind.verb.clone(), path]);
         assert_eq!(
             env.as_ref(),
@@ -234,10 +234,7 @@ impl World {
             ]
         );
         assert_eq!(deadline, self.env.now.saturating_add(Duration::from_secs(5)));
-        assert!(
-            self.disk
-                .exists(&[translate::dir(workspace).as_slice(), b"/home/tools/", self.kind.verb.as_ref()].concat())
-        );
+        assert!(self.disk.exists(&[translate::dir(workspace).as_slice(), b"/", command].concat()));
         self.event(Event::Job { owner, event: tooling::Event::Spawned { owner } });
         owner
     }
@@ -284,7 +281,7 @@ pub fn run(seed: u64, case: Case) -> Report {
     if case != Case::Hello {
         world.assign(case != Case::Undecodable, delivers);
         if case != Case::Undecodable {
-            let owner = world.start();
+            let owner = world.start(b"home/tools/check");
             if case == Case::Cancelled {
                 world.event(Event::Link(host::LinkDown::Cancel { run: RUN, attempt: ATTEMPT }));
                 let (kill_owner, op) = world.operations.pop_front().expect("kill on cancel");

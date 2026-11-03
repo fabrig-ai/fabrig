@@ -60,10 +60,6 @@ impl Domain {
     }
     /// Select one checkout item from the task's saved and procedure state.
     #[must_use]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "workspace selection keeps each delegate's start, destination and name together"
-    )]
     pub fn workspace_item(&self, seed: Seed) -> Option<Item> {
         let repository = self.repository(seed.repository)?;
         let inherited = match seed.parent {
@@ -132,17 +128,7 @@ impl Domain {
             ))
             | None => None,
         };
-        let name = match inherited {
-            Some((_, change::Delegate::Merge { .. })) => Box::from(b"home".as_slice()),
-            Some((
-                _,
-                change::Delegate::Produce
-                | change::Delegate::Repair(_)
-                | change::Delegate::Resolve { .. }
-                | change::Delegate::Gate { .. },
-            ))
-            | None => repository.name.clone(),
-        };
+        let name = repository.name.clone();
         let mut bytes = u64::try_from(size_of::<Item>())
             .ok()?
             .checked_add(u64::try_from(name.len()).ok()?)?

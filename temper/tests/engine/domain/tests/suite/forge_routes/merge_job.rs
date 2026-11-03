@@ -74,7 +74,7 @@ fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, bas
     assert!(row.spec.words.is_empty() && row.spec.parameters.is_empty() && row.spec.inputs.is_empty());
     let mut reader = skein_lib::Reader::new(&job.spec);
     let command_length = reader.u32().expect("command length");
-    assert_eq!(reader.bytes(command_length), Some(COMMAND));
+    assert_eq!(reader.bytes(command_length), Some(b"repo/.temper/merge".as_slice()));
     let request_length = reader.u32().expect("request length");
     let request = reader.bytes(request_length).expect("request");
     let expected = format!(

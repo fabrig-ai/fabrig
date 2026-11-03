@@ -2483,7 +2483,7 @@ fn change_delegate(
             executor: tasks::Executor::Job { kind: forge::MERGE_KIND },
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
-                    bytes: merge::spec(command, &head, &base, bound.spec)?,
+                    bytes: merge::spec(&repository.name, command, &head, &base, bound.spec)?,
                     deadline: bound.deadline,
                 })),
                 asks: false,
