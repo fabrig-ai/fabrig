@@ -47,7 +47,7 @@ const ENGINE: &[u8] = br#"{
 "endpoints": [{
 "name": "fake",
 "number": 1,
-"dialect": 1,
+"dialect": 3,
 "provider": "fake-provider",
 "address": {"socket": "127.0.0.1:7101"},
 "transport": "plaintext",
@@ -157,7 +157,7 @@ pub fn seeds() -> Seeds {
 pub(crate) fn endpoints() -> smith_protocol_channel::Endpoints {
     let mut entries = List::with_capacity(1);
     entries
-        .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 0, dialect: 1 })
+        .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 0, dialect: 3 })
         .expect("one endpoint");
     smith_protocol_channel::Endpoints::new(entries)
 }
@@ -257,7 +257,6 @@ fn agent_configuration_for(llm: skein_llm::Endpoint) -> smith_agent_service::Con
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            identity: smith_protocol_llm::IdentityProfile::Plain,
             models: Box::default(),
         }]),
         1,

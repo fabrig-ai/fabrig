@@ -97,8 +97,6 @@ fn start_cells(limits: &smith_channel::Limits) -> Option<u64> {
         directory_conflicts_item: 0,
         credential_value_bytes: 0,
         program_value_name: 0,
-        withdrawn_value_id: 0,
-        withdrawn_value_bearer: 0,
         account_refused_code: 0,
         account_refused_reason: 0,
         completion_fault_code: 0,

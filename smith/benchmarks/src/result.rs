@@ -317,7 +317,7 @@ pub struct Spend {
 
 pub(crate) fn priced_spend(result: &AttemptResult, responses: &[crate::ResponseTokens]) -> Measure<f64> {
     let endpoint = match result.identity.provider {
-        Provider::Codex => "codex",
+        Provider::Codex => "openai",
         Provider::Anthropic => "anthropic",
     };
     let Some(total) = result.tokens.iter().find(|record| record.role == crate::ScopeKind::Total) else {

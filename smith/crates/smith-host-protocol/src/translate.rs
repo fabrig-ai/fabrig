@@ -301,7 +301,6 @@ pub fn grant_form(value: &smith_protocol_translate::GrantValue) -> Result<host::
             let name = host::SourceName::new(name).ok_or(Error::Grants)?;
             Ok(host::Form::Program(name))
         }
-        GrantValue::Withdrawn { .. } => Ok(host::Form::Withdrawn),
     }
 }
 
@@ -317,14 +316,6 @@ pub(crate) fn grant_value(
             smith_protocol_translate::program_name(&name).or(Err(Error::Grants))?;
             let value = wire::ProgramValue::new(limits, wire::ProgramValueParts { name }).or(Err(Error::Grants))?;
             Ok(wire::GrantValue::Program(value))
-        }
-        GrantValue::Withdrawn { account_id, bearer } => {
-            let value = wire::WithdrawnValue::new(
-                limits,
-                wire::WithdrawnValueParts { id: account_id, bearer: skein_lib::Secret::new(bearer) },
-            )
-            .or(Err(Error::Grants))?;
-            Ok(wire::GrantValue::Withdrawn(value))
         }
     }
 }

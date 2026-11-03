@@ -16,16 +16,16 @@ pub struct Registered {
 }
 
 /// Read and validate an explicitly configured public client before driving it.
-pub fn registration(account: &Account, codex: bool, workspace: &std::path::Path) -> Result<Registered, Refusal> {
+pub fn registration(account: &Account, workspace: &std::path::Path) -> Result<Registered, Refusal> {
     if account.provider() == Some(crate::settings::resolve::Provider::OpenAi) {
         return super::registration::configured(account, "", workspace);
     }
-    let registration = configured(account, codex)?;
+    let registration = configured(account)?;
     let endpoint = destination(account, text(account, "token_url")?, workspace)?;
     Ok(Registered { registration, endpoint })
 }
 
-fn configured(account: &Account, codex: bool) -> Result<oauth::Registration, Refusal> {
+fn configured(account: &Account) -> Result<oauth::Registration, Refusal> {
     let registration = oauth::Registration {
         terms: None,
         client_id: text(account, "client_id")?.as_bytes().into(),
@@ -40,7 +40,7 @@ fn configured(account: &Account, codex: bool) -> Result<oauth::Registration, Ref
         },
         client_secret: None,
         pkce_for_confidential: false,
-        metadata_claim: codex.then(super::codex_selector),
+        metadata_claim: None,
     };
     issuer(text(account, "authorization_url")?).map_err(|why| refuse(account, "authorization_url", why))?;
     issuer(text(account, "token_url")?).map_err(|why| refuse(account, "token_url", why))?;
@@ -260,7 +260,6 @@ pub(super) fn private_source(
         file: file.file_name().ok_or("private record has no name")?.as_encoded_bytes().into(),
         registration: registered.registration,
         endpoint: registered.endpoint,
-        account_id: Box::new([]),
         interactive,
     })
 }
@@ -281,7 +280,7 @@ mod tests {
         let earliest = Wall::from_nanos(30_000_000_000);
         for refreshable in [true, false] {
             let mut saved =
-                super::super::env_record(b"synthetic-access", false, Wall::EPOCH).expect("synthetic record").record;
+                super::super::env_record(b"synthetic-access", Wall::EPOCH).expect("synthetic record").record;
             saved.generation = 7;
             saved.expires_at = expires_at;
             saved.refresh_token = refreshable.then(|| b"synthetic-refresh".as_slice().into());
@@ -351,14 +350,14 @@ mod tests {
         for key in ["client_id", "authorization_url", "token_url", "redirect_uri", "scope", "token_format"] {
             let mut account = account();
             account.fields.remove(key);
-            let refusal = registration(&account, false, std::path::Path::new("/unused")).err().expect("missing key");
+            let refusal = registration(&account, std::path::Path::new("/unused")).err().expect("missing key");
             assert_eq!(refusal.key, format!("accounts.fixture.{key}"));
             assert!(refusal.line().contains("fixture.toml:8"));
         }
     }
     #[test]
     fn a_public_registration_retains_the_exact_localhost_redirect_and_has_no_secret() {
-        let registered = registration(&account(), false, std::path::Path::new("/unused")).expect("public fixture");
+        let registered = registration(&account(), std::path::Path::new("/unused")).expect("public fixture");
         assert_eq!(registered.registration.redirect_uri.as_ref(), b"http://localhost:2345/callback");
         assert!(registered.registration.client_secret.is_none());
         assert!(matches!(registered.endpoint.transport, accounts::Transport::Plaintext));
@@ -369,7 +368,7 @@ mod tests {
         account.fields.get_mut("authorization_url").expect("fixture").value =
             toml::Value::String("http://203.0.113.1/authorize".into());
         assert_eq!(
-            registration(&account, false, std::path::Path::new("/unused")).err().expect("remote http").key,
+            registration(&account, std::path::Path::new("/unused")).err().expect("remote http").key,
             "accounts.fixture.authorization_url"
         );
     }

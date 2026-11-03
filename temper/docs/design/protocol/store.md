@@ -108,7 +108,8 @@ section 7).
 - **Beside them,** after the forges (`../domain/after-landing.md`,
   section 10; `../domain/findings.md`, section 9): 28 `Tier`, keyed by
   repository and tier, its run in flight, last judged tip, failures
-  and flakes; 29 `Verification`, keyed by repository and landing
+  and flakes, and up to 8192 bytes of execution observations until their
+  task words are saved; 29 `Verification`, keyed by repository and landing
   commit, a landing's tier verdicts, the failures blamed on it and what
   repaired it; 30 `LandingLog`, keyed by repository, its last landings
   with their times, changes, trailers and verdicts; 31 `Finding`, 32
