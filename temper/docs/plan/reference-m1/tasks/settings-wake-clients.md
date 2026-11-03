@@ -3,7 +3,7 @@ id = "settings-wake-clients"
 part = "settings-wake"
 kind = "feature"
 needs = ["settings-wake-charter"]
-files = ["jig/crates/jig-client-protocol-wire/schema/client-v19-part1.schema", "jig/crates/jig-client-protocol-wire/src/generated/**", "jig/crates/jig-client-protocol-wire/src/tests/**", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-client-protocol-link/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/settings/change.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings.rs", "jig/testing/jig-client-scripted-engine/src/codec/values/settings.rs", "temper/crates/temper-settings-form/src/**", "temper/crates/temper-client-tools/src/jig/settings_adapter.rs", "temper/docs/help/reference/settings-fields.md"]
+files = ["jig/crates/jig-client-protocol-wire/schema/client-v19-part1.schema", "jig/crates/jig-client-protocol-wire/src/generated/**", "jig/crates/jig-client-protocol-wire/src/tests/**", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-client-protocol-link/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/settings/change.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings.rs", "jig/testing/jig-client-scripted-engine/src/codec/values/settings.rs", "temper/crates/temper-settings-form/src/**", "temper/crates/temper-client-tools/src/jig/settings_adapter.rs", "temper/docs/help/reference/settings-fields.md", "temper/crates/temper-client-tools/src/tests/golden/settings_value_0.txt", "temper/crates/temper-client-tools/src/tests/golden/settings_value_0_json.txt", "temper/crates/temper-client-tools/src/tests/golden/settings_revision_value_0_text.txt", "temper/crates/temper-client-tools/src/tests/golden/settings_revision_value_0_json.txt", "temper/crates/temper-client-tools/src/tests/golden/settings_review_0_text.txt", "temper/crates/temper-client-tools/src/tests/golden/settings_review_0_json.txt"]
 effort = "high"
 minutes = 100
 +++
@@ -168,3 +168,19 @@ Owns the files in the header. The edits there:
 
 The implementer's text's report, plus: the rows added to `FIELDS`, and each compiler-forced
 field by file.
+
+## Answers
+
+2026-11-03. **May this task regenerate the six client-tools charter settings goldens?**
+Yes: they render a charter value, and the charter's new `wake` member is this task's change,
+so its focused `temper-client-tools` tests cannot pass without them. The header now owns
+`settings_value_0.txt`, `settings_value_0_json.txt`, `settings_revision_value_0_text.txt`,
+`settings_revision_value_0_json.txt`, `settings_review_0_text.txt` and
+`settings_review_0_json.txt` under `temper/crates/temper-client-tools/src/tests/golden/`.
+Regenerate them with the existing writer (`SKEIN_CODEGEN_WRITE=1` on the three failing
+tests, then each rerun without it), check that each diff adds only the charter's `wake`
+member, jig's default policy, and nothing else, and name the six in the report. Any other
+golden that changes is a question. The two `## Left` items stay left: the engine-clients
+world's `jig-domain-tasks` dependency is on the trunk already (`416e1d8823`, merge it in),
+and the create test's omitted-wake `None` against `Some(DEFAULT)` is
+`settings-wake-charter`'s, reported again under `## Left` if it still fails.

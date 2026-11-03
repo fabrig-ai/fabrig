@@ -611,6 +611,18 @@ fn the_chats_words_report_only_the_landed_results_or_pull_requests_change() {
 }
 
 #[test]
+fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() {
+    let words = include_str!("../stock/chat.txt");
+    assert!(
+        words.contains(
+            "Repository changes must go through change; never implement them by writing your chat workspace."
+        )
+    );
+    assert!(words.contains("After calling change, say only that the work started; never say added, fixed or equivalent until the delegate's Landed result names its pull request and merge commit."));
+    assert!(words.contains("Explain each result by what it says: never say a check or test ran that it doesn't name."));
+}
+
+#[test]
 fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
     let words = include_str!("../stock/coding.txt");
     assert!(words.contains("Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with the no_change verdict saying what the code has instead; never add a feature in a fix's place."));

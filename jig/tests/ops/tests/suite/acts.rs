@@ -36,7 +36,7 @@ fn provisioning(granted: bool) -> Harness<Ops> {
                 panic!("chat creation fixture");
             };
             for member in &mut batch {
-                member.wake.results = people::ResultsWake::Each;
+                member.wake.as_mut().expect("chat fixture names its wake policy").results = people::ResultsWake::Each;
             }
             people::Ask::Create { project, batch }
         },
