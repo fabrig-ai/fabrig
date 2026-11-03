@@ -1622,6 +1622,7 @@ fn producer_for(world: &mut World, change: u64) -> engine::Assignment {
             if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
                 world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task))))
                 && row.requester == tasks::Party::Task(change)
+                && change_row(world, change).delegate.is_some_and(|(child, _)| child == run.task)
             {
                 return run.clone();
             }
@@ -1696,7 +1697,7 @@ fn independent_alpha_and_beta_start_while_a_large_change_is_pending() {
 }
 
 #[test]
-fn beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal() {
+fn beta_at_the_stock_task_limit_waits_for_room_then_starts_its_producer() {
     let cap = temper_engine_domain_world::forge_routes::box_limits().tasks.tasks;
     assert_eq!(cap, 8, "the reproduction uses the shipped box's task limit");
     let (mut world, large, alpha, beta) = pending_large_with_alpha_and_beta(cap);
@@ -1712,7 +1713,8 @@ fn beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal() {
         .expect("beta's refused producer admission reaches the root");
     assert_eq!(problem.why, tasks::Refusal::Live);
     let row = live_task(&world, beta);
-    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(row.room_wait.map(|wait| wait.room), Some(tasks::LiveRoom::Deployment));
     assert!(row.delegates.is_empty());
     assert_eq!(row.numbers.spent + row.numbers.spent_below + row.numbers.reserved, 0);
     assert!(row.authority.budget.spend > 0, "beta has untouched spend authority");
@@ -1724,18 +1726,12 @@ fn beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal() {
         &review,
         tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
     );
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
-    let live = world
-        .store
-        .rows
-        .values()
-        .filter(|record| matches!(record, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_)))))
-        .count();
-    assert!(live < cap as usize, "capacity is available: {live}/{cap}");
-    assert_eq!(live_task(&world, beta).phase, tasks::Phase::Active(tasks::Active::Due));
-    assert!(live_task(&world, beta).delegates.is_empty());
+    let producer = producer_for(&mut world, beta);
+    assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(beta));
+    let row = live_task(&world, beta);
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(row.room_wait, None);
+    assert_eq!(row.delegates.as_ref(), &[producer.task]);
 }
 
 #[test]

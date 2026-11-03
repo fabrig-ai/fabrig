@@ -2202,6 +2202,97 @@ fn revision_show_prints_what_each_item_replaced() {
 }
 
 #[test]
+fn a_settings_file_template_sends_its_resources_to_jig() {
+    let file = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"resources":[{"connector":1,"symbol":1}]}}]}"#;
+    let (root, call) = changed(file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let c::SettingEdit::Set(set) = &change.items.get(0).unwrap().edit else { panic!("set") };
+    let c::SettingValue::Template(value) = &set.value else { panic!("template") };
+    assert_eq!(value.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
+
+    let bounds = crate::limits::form();
+    let neutral = settings_form::view::ChangeSettings {
+        against: 5,
+        items: settings_form::file::decode(file, &bounds).expect("neutral items"),
+        running: settings_form::view::Running::Moves,
+    };
+    let wire = settings_form::wire::wire_change_settings(&neutral, &bounds.settings).expect("neutral wire");
+    let preset = crate::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+    assert_eq!(
+        jig_client_protocol_link::translate::settings::restore_change_settings(&wire, &link).expect("client ask"),
+        *change
+    );
+}
+#[test]
+fn settings_show_template_resources_apply_again_unchanged() {
+    let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+    template.resources = list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 1, symbol: 2 }]);
+    let value = c::SettingValue::Template(template);
+    let json = setting_json(setting, value.clone());
+    let text = core::str::from_utf8(&json).unwrap();
+    assert!(text.contains(r#""resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":2}]"#), "{text}");
+    let file = file_from_setting(&json);
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(
+        change.items.as_slice(),
+        &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() }) }]
+    );
+
+    let bounds = crate::limits::form();
+    let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+        .expect("wire template");
+    let wire = jig_client_protocol_wire::SettingDocument::new(
+        &bounds.settings,
+        jig_client_protocol_wire::SettingDocumentParts {
+            setting: jig_client_protocol_wire::Setting::Template(
+                jig_client_protocol_wire::SettingNumber::new(
+                    &bounds.settings,
+                    jig_client_protocol_wire::SettingNumberParts { number: 4 },
+                )
+                .unwrap(),
+            ),
+            revision: 5,
+            value: Some(wire),
+            application: None,
+            proposed: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        settings_form::wire::restore_setting_document(&wire, &bounds).unwrap().value,
+        Some(jig::form_setting_value(&value))
+    );
+}
+#[test]
+fn settings_show_template_resources_are_readable_when_present() {
+    for resources in [list([]), list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 2, symbol: 3 }])] {
+        let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+        template.resources = resources.clone();
+        let printed = read(
+            &["settings", "show", "template", "4"],
+            c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(c::SettingValue::Template(template)),
+                application: None,
+                proposed: None,
+            })),
+        );
+        assert_eq!(printed.status, 0);
+        let text = core::str::from_utf8(&printed.stdout).unwrap();
+        if resources.is_empty() {
+            assert!(!text.contains("connector "), "{text}");
+        } else {
+            assert!(text.contains("connector 1 symbol 1\nconnector 2 symbol 3\n"), "{text}");
+        }
+    }
+}
+
+#[test]
 fn reference_goal_template_resources_survive_apply_and_show() {
     let file = include_bytes!("../../../../../docs/examples/reference/settings.json");
     let items = settings_file::decode(file, &crate::limits::tools()).expect("reference settings");
@@ -2213,7 +2304,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
     let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) = &item.edit else {
         panic!("template value")
     };
-    assert_eq!(template.resources.as_slice(), &[c::Symbol { connector: 0, symbol: 1 }]);
+    assert_eq!(template.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
     assert_eq!(template.tracked, Some(1));
     goal_template_wire_round_trip(file, change, template);
     for json in [false, true] {
@@ -2233,7 +2324,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
         let answer = root.answer(call).expect("settings show");
         assert_eq!(answer.status, 0);
         let text = core::str::from_utf8(&answer.stdout).expect("text or JSON");
-        assert!(text.contains(r#""resources":[{"connector":0,"symbol":1}]"#), "{text}");
+        assert!(text.contains(r#""resources":[{"connector":1,"symbol":1}]"#), "{text}");
         if json {
             let decoded = settings_file::decode(&file_from_setting(&answer.stdout), &crate::limits::tools())
                 .expect("show JSON applies");

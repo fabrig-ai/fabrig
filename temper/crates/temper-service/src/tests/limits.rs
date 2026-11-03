@@ -78,6 +78,33 @@ fn an_override_sets_the_field_its_dotted_name_names() {
 }
 
 #[test]
+fn the_change_tasks_override_sets_its_field_and_refuses_values_outside_its_bound() {
+    let mut limits = limits::profile(limits::Profile::Small);
+    assert_eq!(limits.forge.change_policy.tasks, 6);
+    let name = b"forge.change_policy.tasks";
+    for tasks in [8, u32::MAX] {
+        assert_eq!(limits::apply(&mut limits, name, u64::from(tasks)), Ok(()));
+        assert_eq!(limits.forge.change_policy.tasks, tasks);
+    }
+    let before = limits;
+    for tasks in [0, u64::from(u32::MAX) + 1] {
+        assert_eq!(limits::apply(&mut limits, name, tasks), Err(limits::Refused::Range));
+        assert_eq!(limits, before);
+    }
+}
+
+#[test]
+fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
+    let document =
+        fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"forge.change_policy.tasks":0}"#);
+    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    assert_eq!(
+        crate::startup::lines(&problems).as_ref(),
+        b"application.limits.overrides.forge.change_policy.tasks: outside its type\n",
+    );
+}
+
+#[test]
 fn an_unknown_name_or_a_value_past_its_type_is_refused() {
     let mut limits = limits::profile(limits::Profile::Small);
     let before = limits;
@@ -480,7 +507,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 2_075_587);
+    assert_eq!(profile.store.page.bytes, 2_168_787);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 

@@ -1529,6 +1529,17 @@ fn the_live_github_configuration_passes_startup_admission_for_both_owners() {
 }
 
 #[test]
+fn the_reference_profile_passes_startup_admission() {
+    let scratch = support::Scratch::startup("reference-profile-admission");
+    let profile = support::owned::bounded_reference(scratch.path());
+    let admission = profile.admission();
+    scratch.remove();
+    if let Err(why) = admission {
+        panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why)));
+    }
+}
+
+#[test]
 fn checked_in_deployment_profiles_pass_startup_admission() {
     let profiles = [
         "docs/examples/owned.json",

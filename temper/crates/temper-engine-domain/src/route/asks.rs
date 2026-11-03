@@ -54,6 +54,12 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 }
             }
             if let core::StepRefusal::Refused(problem) = why {
+                if connector == domain.config.forge_connector
+                    && problem.freeing_count().is_some()
+                    && let Some(kind) = delegation
+                {
+                    domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
+                }
                 // Jig's domain/connectors.md, 6.2: step again on refusal. A kept change waits
                 // without a deadline; its dependency's Met wakes it (jig's domain/tasks.md, 5.7).
                 if !held

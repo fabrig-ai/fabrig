@@ -363,7 +363,12 @@ agent must name.
   naming them. A member `FIELDS` marks optional may be left out and
   takes the default its row names: a template's model choice is
   `{"main": {"model": M, "effort": E}}` alone, its `account` none and
-  its `subagents` empty; a required
+  its `subagents` empty; a template's `resources`, the symbols a task
+  filled from it holds, is a list of `{"connector": C, "symbol": S}` as
+  jig's format has it (jig's `protocol/configuration.md`, 3.3), left
+  out `[]`, so the reference's goal template names the forge's *its own
+  goal branch* as `{"connector": F, "symbol": 1}`, F the forge's
+  connector (`../domain/forge.md`, section 2); a required
   member left out is refused naming its path, `llm.main`. Every refusal a person reads numbers items from 1, the
   decoder's and the engine's alike (jig's index plus one), and names a
   member by its path in the file, `charter.alternatives`, never by the

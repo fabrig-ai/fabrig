@@ -1,5 +1,6 @@
 //! The top's early producer facts and checkout starts (domain/forge.md, 8.11).
 use super::*;
+use crate::settings;
 use skein_forge::api;
 use temper_engine_domain_forge_change as change;
 
@@ -53,6 +54,41 @@ fn head(d: &mut Domain, branch: &[u8], commit: api::Commit) {
     );
 }
 
+fn producing_under_rule(base: &[u8], last: GateLast, up_to_date: bool) -> Domain {
+    let mut d = producing();
+    let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+    row.base = base.into();
+    row.change.early = change::Early::None;
+    let repository = adopted();
+    d.give_settings_defaults(Box::new([settings::Stock {
+        kind: 1,
+        scope: 0,
+        number: 1,
+        value: settings::SizedValue {
+            size: 0,
+            value: settings::Value::Rule(settings::LandingRule {
+                pattern: GatePattern {
+                    segments: Box::new([
+                        b"forge".as_slice().into(),
+                        repository.host,
+                        repository.owner,
+                        repository.name,
+                        b"branch".as_slice().into(),
+                    ]),
+                    last,
+                },
+                enforce: true,
+                ci: false,
+                up_to_date,
+                gates: Box::new([]),
+                approvals: Box::new([]),
+            }),
+        },
+    }]));
+    head(&mut d, base, fixtures::BASE);
+    d
+}
+
 #[test]
 fn the_first_early_producer_merges_dependency_heads_in_order() {
     let d = producing();
@@ -89,6 +125,41 @@ fn an_early_changes_next_producer_merges_the_landing_tip_into_branch_or_saved_wo
             assert_eq!(item.landing, None);
         }
     }
+}
+
+#[test]
+fn a_goal_branch_changes_next_producer_merges_the_landing_tip_into_branch_or_saved_work() {
+    for saved in [false, true] {
+        let mut d = producing_under_rule(b"temper/7/g7", GateLast::Open(b"temper".as_slice().into()), false);
+        head(&mut d, b"temper/51", fixtures::HEAD);
+        let item = d.workspace_item(seed(saved)).unwrap();
+        assert_eq!(
+            item.start,
+            items::Start::Merge {
+                branch: if saved { b"temper/s71".as_slice().into() } else { b"temper/51".as_slice().into() },
+                base: fixtures::BASE,
+            }
+        );
+        assert_eq!(item.landing, None);
+    }
+}
+
+#[test]
+fn a_main_changes_next_producer_starts_from_its_branch() {
+    for (saved, expected) in [
+        (false, items::Start::Branch(b"temper/51".as_slice().into())),
+        (true, items::Start::Saved(b"temper/s71".as_slice().into())),
+    ] {
+        let mut d = producing_under_rule(b"main", GateLast::Exact(b"main".as_slice().into()), true);
+        head(&mut d, b"temper/51", fixtures::HEAD);
+        assert_eq!(d.workspace_item(seed(saved)).unwrap().start, expected);
+    }
+}
+
+#[test]
+fn a_goal_branch_change_with_no_branch_or_saved_work_uses_the_landing_branch() {
+    let d = producing_under_rule(b"temper/7/g7", GateLast::Open(b"temper".as_slice().into()), false);
+    assert_eq!(d.workspace_item(seed(false)).unwrap().start, items::Start::Base(b"temper/7/g7".as_slice().into()));
 }
 
 #[test]
