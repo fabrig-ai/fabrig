@@ -1,6 +1,8 @@
 //! Fixed attempt admission and receiving bounds (protocol/client.md, 13).
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::Duration;
+/// Retained connector accounts have their own bound (client/domain/contract.md, 5.3).
+pub(crate) const HOLD_ACCOUNT_BYTES: u32 = 512;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     client: jig_client_domain::Limits,
@@ -96,7 +98,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     let document_bytes = u32::try_from(client.document_bytes).ok()?;
     let ask_bytes = u32::try_from(client.ask_bytes).ok()?;
     wire.owned_record = document_bytes;
-    wire.document_text_bytes = client.text;
+    wire.document_text_bytes = client.text.max(HOLD_ACCOUNT_BYTES);
     wire.task_text_words = client.text;
     wire.placed_line_reason = client.text;
     wire.me_providers = wire.owned_record;

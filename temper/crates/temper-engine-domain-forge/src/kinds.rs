@@ -2,6 +2,7 @@
 //! (temper/docs/design/protocol/configuration.md, 13.2;
 //! temper/docs/design/domain/forge.md, 8.9 and section 16).
 use alloc::boxed::Box;
+use jig_domain_core::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};
 
 use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, Value};
@@ -112,6 +113,83 @@ impl Domain {
             self.save_setting(key, item.edit.clone(), out);
         }
         self.rebuild_settings();
+    }
+
+    #[must_use]
+    #[expect(clippy::manual_map, reason = "the step subset uses exhaustive matches rather than closures")]
+    pub fn restore_settings(
+        &mut self,
+        bounds: &settings::Bounds,
+        proposal: u64,
+        items: &[Restored],
+        out: &mut Queue<Request>,
+    ) -> Box<[settings::Judged]> {
+        let mut judged = List::uncapped();
+        let mut asked = List::uncapped();
+        for item in items {
+            let edit = match item.edit {
+                RestoredEdit::Set { revision } => {
+                    let key = SettingKey {
+                        kind: item.kind,
+                        scope: item.scope,
+                        number: item.number,
+                        slot: SettingSlot::Replaced(revision),
+                    };
+                    match self.setting_rows.get(&key) {
+                        Some(Edit::Set(value)) => Edit::Set(value.clone()),
+                        Some(Edit::Remove | Edit::Reset) | None => {
+                            judged
+                                .push(settings::Judged::Refuse(settings::Refusal::Replaced))
+                                .expect("one judgement per item");
+                            continue;
+                        }
+                    }
+                }
+                RestoredEdit::Remove => Edit::Remove,
+                RestoredEdit::Reset => Edit::Reset,
+            };
+            let value = match &edit {
+                Edit::Set(value) => Some(value),
+                Edit::Remove => None,
+                Edit::Reset => self.setting_default(item.kind, item.scope, item.number),
+            };
+            let check = settings::Item {
+                kind: item.kind,
+                scope: item.scope,
+                number: item.number,
+                value: match value {
+                    Some(value) => Some(value.value.clone()),
+                    None => None,
+                },
+            };
+            let answer = match settings::judge(&check, bounds) {
+                Err(why) => settings::Judged::Refuse(why),
+                Ok(()) => {
+                    let (size, charter) = value_state(value);
+                    asked
+                        .push(settings::Asked { kind: item.kind, scope: item.scope, number: item.number, edit })
+                        .expect("one kept edit per accepted item");
+                    settings::Judged::Accept { size, charter }
+                }
+            };
+            judged.push(answer).expect("one judgement per item");
+        }
+        self.keep_proposal_settings(proposal, &asked.into_boxed(), out);
+        judged.into_boxed()
+    }
+
+    pub fn forget_replaced(&mut self, before: u64, out: &mut Queue<Request>) {
+        let mut erases = List::with_capacity(self.setting_rows.capacity());
+        for (key, _) in &self.setting_rows {
+            if let SettingSlot::Replaced(revision) = key.slot
+                && revision < before
+            {
+                erases.push(*key).expect("bounded replaced rows");
+            }
+        }
+        for key in &erases {
+            self.erase_setting(*key, out);
+        }
     }
 
     pub fn drop_proposal_settings(&mut self, proposal: u64, out: &mut Queue<Request>) {

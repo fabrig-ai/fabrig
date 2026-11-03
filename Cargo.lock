@@ -4457,6 +4457,7 @@ dependencies = [
  "smith-domain-run",
  "smith-domain-session",
  "smith-domain-tools",
+ "temper-client-protocol-wire",
  "temper-client-tools",
  "temper-engine-domain",
  "temper-engine-domain-forge",

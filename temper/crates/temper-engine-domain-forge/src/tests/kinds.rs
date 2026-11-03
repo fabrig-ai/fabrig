@@ -7,6 +7,7 @@ use crate::settings::{
     SizedValue, Stock, Value,
 };
 use core::slice::from_ref;
+use jig_domain_core::settings::application::{Restored, RestoredEdit};
 
 const BOUNDS: Bounds = Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 8, segments: 8, segment_bytes: 32 };
 
@@ -451,4 +452,173 @@ fn replaced_rows_are_restored_and_change_nothing_held() {
             SettingSlot::Replaced(_) => panic!("saving defaults keeps nothing replaced"),
         }
     }
+}
+
+#[test]
+fn a_restore_keeps_the_replaced_rule_as_the_proposals_item_and_answers_its_size() {
+    let mut d = stocked();
+    let previous = item(2, 1, 1, Edit::Set(rule(true)));
+    let current = item(2, 1, 1, Edit::Set(rule(false)));
+    d.keep_settings(&env(), 2, None, from_ref(&previous), &mut Queue::uncapped());
+    d.keep_settings(&env(), 3, None, from_ref(&current), &mut Queue::uncapped());
+    let mut out = Queue::uncapped();
+    let restored = Restored { kind: 2, scope: 1, number: 1, edit: RestoredEdit::Set { revision: 3 } };
+    assert_eq!(
+        d.restore_settings(&BOUNDS, 7, from_ref(&restored), &mut out).as_ref(),
+        &[Judged::Accept { size: 32, charter: None }]
+    );
+    assert_eq!(out.pop(), Some(save(&previous, SettingSlot::Proposal(7))));
+    assert!(out.is_empty());
+    assert_eq!(d.proposal_settings(7).as_ref(), &[(key(&previous, SettingSlot::Proposal(7)), previous.edit.clone())]);
+    assert_eq!(d.setting(2, 1, 1), Some(&rule(false)));
+    assert_eq!(d.setting_rows.get(&key(&previous, SettingSlot::Replaced(3))), Some(&previous.edit));
+}
+
+#[test]
+fn a_restore_of_the_forges_charter_names_the_charter() {
+    let mut d = stocked();
+    let previous = item(3, 0, 1, Edit::Set(charter(BOUNDS.charters)));
+    restore(&mut d, &previous, SettingSlot::Replaced(3));
+    restore(&mut d, &previous, SettingSlot::Change);
+    let mut out = Queue::uncapped();
+    assert_eq!(
+        d.restore_settings(
+            &BOUNDS,
+            7,
+            &[Restored { kind: 3, scope: 0, number: 1, edit: RestoredEdit::Set { revision: 3 } }],
+            &mut out,
+        )
+        .as_ref(),
+        &[Judged::Accept { size: 4, charter: Some(BOUNDS.charters) }],
+        "an equal current value is accepted rather than judged the same"
+    );
+    assert_eq!(out.pop(), Some(save(&previous, SettingSlot::Proposal(7))));
+    assert!(out.is_empty());
+    assert_eq!(d.proposal_settings(7).as_ref(), &[(key(&previous, SettingSlot::Proposal(7)), previous.edit)]);
+}
+
+#[test]
+fn a_restore_item_with_no_replaced_row_is_refused() {
+    let mut d = stocked();
+    let previous = item(2, 1, 1, Edit::Set(rule(true)));
+    for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(3), SettingSlot::Replaced(4)] {
+        restore(&mut d, &previous, slot);
+    }
+    let mut out = Queue::uncapped();
+    let items = [
+        Restored { kind: 2, scope: 1, number: 1, edit: RestoredEdit::Set { revision: 3 } },
+        Restored { kind: 1, scope: 1, number: 1, edit: RestoredEdit::Set { revision: 4 } },
+        Restored { kind: 2, scope: 2, number: 1, edit: RestoredEdit::Set { revision: 4 } },
+        Restored { kind: 2, scope: 1, number: 2, edit: RestoredEdit::Set { revision: 4 } },
+    ];
+    assert_eq!(d.restore_settings(&BOUNDS, 7, &items, &mut out).as_ref(), &[Judged::Refuse(Refusal::Replaced); 4]);
+    assert_eq!(Refusal::Replaced.words(), b"the replaced value is no longer kept");
+    assert!(out.is_empty());
+    assert!(d.proposal_settings(7).is_empty());
+}
+
+#[test]
+fn a_restore_keeps_removals_and_resets_and_answers_the_defaults_sizes() {
+    let mut d = stocked();
+    let items = [
+        Restored { kind: 2, scope: 1, number: 1, edit: RestoredEdit::Remove },
+        Restored { kind: 1, scope: 0, number: 1, edit: RestoredEdit::Reset },
+        Restored { kind: 3, scope: 0, number: 1, edit: RestoredEdit::Reset },
+        Restored { kind: 2, scope: 1, number: 2, edit: RestoredEdit::Reset },
+    ];
+    let mut out = Queue::uncapped();
+    assert_eq!(
+        d.restore_settings(&BOUNDS, 7, &items, &mut out).as_ref(),
+        &[
+            Judged::Accept { size: 0, charter: None },
+            Judged::Accept { size: 32, charter: None },
+            Judged::Accept { size: 4, charter: Some(2) },
+            Judged::Accept { size: 0, charter: None },
+        ]
+    );
+    let asked = [
+        item(2, 1, 1, Edit::Remove),
+        item(1, 0, 1, Edit::Reset),
+        item(3, 0, 1, Edit::Reset),
+        item(2, 1, 2, Edit::Reset),
+    ];
+    for item in &asked {
+        assert_eq!(out.pop(), Some(save(item, SettingSlot::Proposal(7))));
+        assert_eq!(d.setting_rows.get(&key(item, SettingSlot::Proposal(7))), Some(&item.edit));
+    }
+    assert!(out.is_empty());
+    assert_eq!(d.charters(), ForgeCharters { change: 2, review: 4 });
+    assert_eq!(d.setting(1, 0, 1), Some(&rule(true)));
+}
+
+#[test]
+fn a_restore_checks_the_kinds_bounds_and_keeps_only_accepted_items_in_order() {
+    let mut d = stocked();
+    let previous = item(2, 1, 1, Edit::Set(rule(false)));
+    let invalid = item(3, 0, 1, Edit::Set(charter(BOUNDS.charters + 1)));
+    restore(&mut d, &previous, SettingSlot::Replaced(3));
+    restore(&mut d, &invalid, SettingSlot::Replaced(3));
+    let items = [
+        Restored { kind: 3, scope: 0, number: 1, edit: RestoredEdit::Set { revision: 3 } },
+        Restored { kind: 2, scope: 1, number: 1, edit: RestoredEdit::Set { revision: 3 } },
+        Restored { kind: 3, scope: 0, number: 2, edit: RestoredEdit::Remove },
+        Restored { kind: 2, scope: 1, number: BOUNDS.landing_rules + 1, edit: RestoredEdit::Reset },
+    ];
+    let mut out = Queue::uncapped();
+    assert_eq!(
+        d.restore_settings(&BOUNDS, 7, &items, &mut out).as_ref(),
+        &[
+            Judged::Refuse(Refusal::Charter),
+            Judged::Accept { size: 32, charter: None },
+            Judged::Refuse(Refusal::Charter),
+            Judged::Refuse(Refusal::Number),
+        ]
+    );
+    assert_eq!(out.pop(), Some(save(&previous, SettingSlot::Proposal(7))));
+    assert!(out.is_empty());
+    assert_eq!(d.proposal_settings(7).len(), 1);
+    d.drop_proposal_settings(7, &mut out);
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Setting(key(&previous, SettingSlot::Proposal(7))) }));
+    assert!(out.is_empty());
+    assert!(d.proposal_settings(7).is_empty());
+}
+
+#[test]
+fn forgetting_erases_replaced_rows_of_older_revisions_only() {
+    let mut d = stocked();
+    let items = [
+        item(1, 0, 1, Edit::Set(rule(false))),
+        item(2, 1, 1, Edit::Set(rule(true))),
+        item(3, 0, 1, Edit::Set(charter(6))),
+    ];
+    let slots = [
+        SettingSlot::Default,
+        SettingSlot::Change,
+        SettingSlot::Proposal(2),
+        SettingSlot::Replaced(2),
+        SettingSlot::Replaced(3),
+        SettingSlot::Replaced(4),
+    ];
+    for item in &items {
+        for slot in slots {
+            restore(&mut d, item, slot);
+        }
+    }
+    let mut out = Queue::uncapped();
+    d.forget_replaced(0, &mut out);
+    assert!(out.is_empty());
+    d.forget_replaced(3, &mut out);
+    for item in &items {
+        assert_eq!(out.pop(), Some(Request::Erase { key: Key::Setting(key(item, SettingSlot::Replaced(2))) }));
+        for slot in slots {
+            let expected = if slot == SettingSlot::Replaced(2) { None } else { Some(&item.edit) };
+            assert_eq!(d.setting_rows.get(&key(item, slot)), expected);
+        }
+    }
+    assert!(out.is_empty());
+    d.forget_replaced(3, &mut out);
+    assert!(out.is_empty(), "forgetting twice emits no duplicate erases");
+    assert_eq!(d.setting(1, 0, 1), Some(&rule(false)));
+    assert_eq!(d.setting(2, 1, 1), Some(&rule(true)));
+    assert_eq!(d.proposal_settings(2).len(), 3);
 }
