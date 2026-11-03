@@ -56,9 +56,6 @@
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.
-  - 8.4, 8.11: a change waiting on an agent whose question is open
-    stalls as any wait on its delegate does (`temper-engine-domain-forge-change/src/domain.rs`,
-    `waiting`).
   - 9: a branch a tier follows still pauses its queue on its own CI's
     red and makes a repair, where its tiers judge it instead
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).

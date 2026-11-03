@@ -3,7 +3,13 @@ use super::*;
 use crate::Verification;
 
 fn merged(verification: Verification) -> Facts {
-    Facts { pull: Pull::Merged { commit: MERGE }, verification, verification_bound: Duration::from_secs(10), ..facts() }
+    Facts {
+        pull: Pull::Merged { commit: MERGE },
+        verification,
+        verification_bound: Duration::from_secs(10),
+        asking: false,
+        ..facts()
+    }
 }
 
 #[test]

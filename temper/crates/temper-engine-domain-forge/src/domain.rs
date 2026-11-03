@@ -1434,6 +1434,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Relayed { task, questions } => {
             if let Some(row) = d.changes.get_mut(&task) {
                 let before = crate::panel::ready(row);
+                let was_asking = agent_asking(row);
                 let hold = match questions.open.first() {
                     Some(question) => {
                         question.stands == change::Stands::Taken
@@ -1442,6 +1443,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     None => false,
                 };
                 row.questions = questions;
+                let answered = was_asking && !agent_asking(row);
                 if hold {
                     row.change.state = change::State::Held {
                         was: Box::new(before_relay_hold(&row.change.state)),
@@ -1451,6 +1453,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 }
                 let saved = row.clone();
                 save_queue_change(d, env, before, saved, out);
+                if answered {
+                    emit(out, Request::WakeProcedure { task });
+                }
             }
         }
         Event::StepChange { task, entry, heard, gates, queue_repair_active, kept } => {
@@ -3322,6 +3327,21 @@ fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<R
         && (producing || row.delegate_status == change::Status::Passed)
         && row.change.state == (change::State::Producing { requested: true })
     {
+        if agent_asking(&row) {
+            row.change.since = env.wall;
+            d.changes.insert(task, row.clone()).expect("replaces change");
+            save_change(d, out, row);
+            emit(
+                out,
+                Request::ChangeDecision {
+                    task,
+                    decision: change::Decision::Wait { until: None },
+                    entry: None,
+                    evidence: None,
+                },
+            );
+            return None;
+        }
         let until = skein_lib::Wall::from_nanos(
             row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
         );
@@ -3594,11 +3614,22 @@ fn change_facts(
         may_merge,
         queue_repair_active: pending.queue_repair_active,
         kept: pending.kept,
+        asking: agent_asking(row),
         settling: match window {
             Some((_, end)) => Some(end),
             None => None,
         },
     }
+}
+
+fn agent_asking(row: &ChangeRow) -> bool {
+    let Some((task, _)) = row.delegate else { return false };
+    for question in &row.questions.open {
+        if question.asker == task {
+            return true;
+        }
+    }
+    false
 }
 
 fn emit_change_effect(
