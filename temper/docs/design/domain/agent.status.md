@@ -4,8 +4,4 @@
 The remaining gaps concern charters, settings, brief admission and result delivery.
 
 - **Not yet:** 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`).
-- **Not yet:** 4.3: the
-  check that each charter leaves its brief 2,048 bytes, at start and at
-  the three entrances of a change of settings;
-  only fitting exists (`temper-engine-smith/src/start.rs`).
-  4.4: a verdict's follow-up tasks.
+- **Not yet:** 4.4: a verdict's follow-up tasks.

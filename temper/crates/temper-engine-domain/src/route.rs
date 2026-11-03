@@ -375,6 +375,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         let Some(work) = domain.work.pop() else { break };
         match work {
             Work::StartDone(phase) => {
+                if phase == core::start::Phase::LoadCore
+                    && let Err(short) = domain.check_room()
+                {
+                    domain.stop_start(crate::StartStop::Room(short));
+                    return;
+                }
                 let mut output = Queue::uncapped();
                 let action = domain.core.start_done(&environment_core(env), phase, &mut output);
                 route_core_requests(domain, env, decision, output);
