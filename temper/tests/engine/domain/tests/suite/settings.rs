@@ -1,4 +1,7 @@
 //! Settings cross the root's journal and real store, including cold restoration.
+#[path = "settings/kinds.rs"]
+mod kinds;
+
 use crate::stock;
 use temper_engine_domain_world::journal_limits as journal;
 
