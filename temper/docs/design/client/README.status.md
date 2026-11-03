@@ -15,10 +15,9 @@
   4.6, 8: `SetUp`, `FirstAsk` and the row's `first` carry a project,
   `SetUpProject`, and `SetUpRefusal` keeps `new_project`
   (`temper-client-protocol-wire/schema/client-wire-v1.schema`).
-  5.3, Projects in the banner: the switcher's Rename and new project:
-  no such acts in `temper-client-domain`'s `pages.rs`, and the banner
-  draws one button per project (`temper-client-view`'s `frame.rs`,
-  `project_buttons`).
+  5.3, Projects in the banner: the banner draws one button per project
+  (`temper-client-view`'s `frame.rs`, `project_buttons`), not the open one alone with its
+  switcher.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat
