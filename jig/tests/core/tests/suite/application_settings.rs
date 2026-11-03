@@ -183,7 +183,13 @@ fn changes_proposals_and_changed_defaults_keep_both_owners_in_step() {
     assert_eq!(release.head.proposal, None);
     assert_eq!(
         release.applications.as_ref(),
-        &[application::Recorded { kind: 1, scope: 1, number: 1, edit: application::SizedEdit::Set { size: 3 } }]
+        &[application::RevisionRecorded {
+            kind: 1,
+            scope: 1,
+            number: 1,
+            edit: application::SizedEdit::Set { size: 3 },
+            replaced: application::Replaced::Default
+        }]
     );
     assert_eq!(value(&mut world).as_deref(), Some(b"new".as_slice()));
     assert_eq!(

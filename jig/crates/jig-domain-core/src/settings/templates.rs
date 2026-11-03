@@ -117,7 +117,10 @@ pub(crate) fn valid(
     for setting in &current.offered() {
         let number = match setting {
             super::Setting::Template(number) => *number,
-            super::Setting::Charter(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
+            super::Setting::Charter(_)
+            | super::Setting::Policy(_)
+            | super::Setting::Rules
+            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
             jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let template = current.template(number).expect("offered template");
@@ -194,7 +197,10 @@ pub fn current_merged(current: &super::Current, overrides: &[jig_domain_people::
     for setting in &names {
         let number = match setting {
             super::Setting::Template(number) => *number,
-            super::Setting::Charter(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
+            super::Setting::Charter(_)
+            | super::Setting::Policy(_)
+            | super::Setting::Rules
+            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
             jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let template = current.template(number).expect("offered template");

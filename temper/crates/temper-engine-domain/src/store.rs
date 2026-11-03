@@ -705,7 +705,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Batch(batch), reason, ..
                     } => people_bytes::batch(batch)?.checked_add(u64::try_from(reason.len()).ok()?),
-                    jig_domain_people::Ask::Propose {
+                    jig_domain_people::Ask::Restore { reason, .. }
+                    | jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Settings { .. },
                         reason,
                         ..
@@ -975,6 +976,9 @@ fn model_context_bytes(models: &[Box<[u8]>]) -> Option<u64> {
 pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64> {
     use jig_domain_people::Outcome;
     match outcome {
+        Outcome::Restored { left_out, .. } => u64::try_from(left_out.len())
+            .ok()?
+            .checked_mul(u64::try_from(size_of::<jig_domain_people::Setting>()).ok()?),
         Outcome::Refused(jig_domain_people::Refusal::Full { tasks, .. }) => {
             u64::try_from(tasks.len()).ok()?.checked_mul(u64::try_from(size_of::<u64>()).ok()?)
         }

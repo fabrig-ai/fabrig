@@ -73,7 +73,7 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         | Ask::Rename { .. }
         | Ask::MakeProject { .. } => CapacityAction::Policy,
         Ask::SetPool { person, .. } => CapacityAction::Pool { person: *person },
-        Ask::Create { .. } | Ask::Propose { .. } => CapacityAction::Create,
+        Ask::Restore { .. } | Ask::Create { .. } | Ask::Propose { .. } => CapacityAction::Create,
         Ask::Withdraw { proposal, .. } => {
             CapacityAction::Proposal { proposer: crate::Proposer::Party(person), number: *proposal }
         }
@@ -125,7 +125,9 @@ pub(crate) fn project(ask: &Ask) -> Option<u32> {
         | Ask::Create { project, .. }
         | Ask::Propose { project, .. }
         | Ask::Withdraw { project, .. } => Some(*project),
-        Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => Some(crate::DEPLOYMENT),
+        Ask::Restore { .. } | Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
+            Some(crate::DEPLOYMENT)
+        }
         Ask::Application { scope, .. } => match scope {
             crate::ApplicationScope::Own => None,
             crate::ApplicationScope::Project(project) => Some(*project),
@@ -150,6 +152,7 @@ pub(crate) fn permanent(outcome: &Outcome) -> Option<CapacityCause> {
         | Outcome::ServiceMade { .. }
         | Outcome::Adopted { .. }
         | Outcome::Created { .. }
+        | Outcome::Restored { .. }
         | Outcome::Proposed { .. }
         | Outcome::Withdrawn { .. }
         | Outcome::Stopped { .. }
@@ -239,6 +242,7 @@ fn room(refusal: &Refusal) -> Option<CapacityCause> {
             | LimitKind::Service => None,
         },
         Refusal::Judged { .. }
+        | Refusal::Forgotten { .. }
         | Refusal::Stale { .. }
         | Refusal::Full { .. }
         | Refusal::Circle { .. }
