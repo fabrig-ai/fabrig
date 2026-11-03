@@ -32,6 +32,7 @@ Much of a change's own bounds and gates, the forge's merge queue and a
 goal's issue lag (`domain/forge.md`); so do the client's Board, Changes
 and How work runs pages and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`),
+the client's crates in the gate's wasm32 clippy (`client/browser.md`),
 `temper-playground` (`playground.md`, `domain/testing.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
