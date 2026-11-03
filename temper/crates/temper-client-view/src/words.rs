@@ -406,6 +406,7 @@ pub enum Word {
     TakeDelegate,
     Older,
     StartChat,
+    FirstChat,
     Start,
     YourChats,
     AllChats,
@@ -687,9 +688,9 @@ pub enum Word {
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
 // The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
-const PHRASES: u32 = 1208;
-const SEGMENTS: u32 = 2089;
-const ALL: [Word; 616] = [
+const PHRASES: u32 = 1209;
+const SEGMENTS: u32 = 2090;
+const ALL: [Word; 617] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -1073,6 +1074,7 @@ const ALL: [Word; 616] = [
     Word::TakeDelegate,
     Word::Older,
     Word::StartChat,
+    Word::FirstChat,
     Word::Start,
     Word::YourChats,
     Word::AllChats,
@@ -1725,6 +1727,7 @@ impl Word {
             Self::Stop => 148,
             Self::Older => 149,
             Self::StartChat => 138,
+            Self::FirstChat => 2183,
             Self::Start => 139,
             Self::YourChats => 347,
             Self::AllChats => 348,
@@ -2618,6 +2621,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
         Word::StartChat => (&[b"Start a chat"], &[]),
+        Word::FirstChat => (&[b"Tell temper how you work"], &[]),
         Word::Start => (&[b"Start chat"], &[]),
         Word::YourChats => (&[b"Your chats"], &[]),
         Word::NoChats => (&[b"No chats yet."], &[]),

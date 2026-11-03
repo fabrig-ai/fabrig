@@ -80,6 +80,15 @@ pub(crate) fn main(
             if playground.is_none() {
                 text(b, Role::Heading { level: 2 }, &words.say(Word::StartChat, &[]));
             }
+            if offers_first_chat(root) {
+                b.open(Role::Button);
+                b.name(&words.say(Word::FirstChat, &[]));
+                if !ready_to_start(root) {
+                    b.state(State::Disabled);
+                }
+                b.bind(bindings.insert(Act::FirstChat));
+                b.close();
+            }
             crate::choice::composer(b, root, None, words, bindings, times);
             let ready = ready_to_start(root);
             if !ready {
@@ -128,6 +137,36 @@ pub(crate) fn main(
     }
     b.close();
 }
+/// The first-chat offer follows the unfiltered chats document (temper/docs/design/client/README.md, 3.5).
+fn offers_first_chat(root: &Domain) -> bool {
+    let Some(project) = root.pages().project() else { return false };
+    if let Some(playground) = root.forge().playground()
+        && playground.project == Some(project)
+    {
+        return false;
+    }
+    let Some(chats) = root.pages().chats() else { return false };
+    if chats.filter != ChatsFilter::All {
+        return false;
+    }
+    if let Some(live) = chats.live(root.client())
+        && (!live.rows.is_empty() || live.more)
+    {
+        return false;
+    }
+    if let Some(page) = &chats.page {
+        if !page.live.is_empty() || page.live_after.is_some() {
+            return false;
+        }
+        if let EndedGroup::Rows { rows, after, .. } = &page.ended
+            && (!rows.is_empty() || after.is_some())
+        {
+            return false;
+        }
+    }
+    true
+}
+
 fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times) {
     let Some(chats) = root.pages().chats() else { return };
     b.open(Role::Slot);
