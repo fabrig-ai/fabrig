@@ -25,7 +25,7 @@ pub(crate) enum Output {
 impl Decoder {
     pub(crate) fn new(provider: Provider, limits: &openai::Limits, drop_reasoning: bool) -> Decoder {
         match provider {
-            Provider::OpenAiCodex | Provider::OpenAi => Decoder::Responses(
+            Provider::OpenAi => Decoder::Responses(
                 provider,
                 openai::StreamDecoder::with_reasoning_drop(provider, limits, drop_reasoning),
             ),
@@ -43,7 +43,7 @@ impl Decoder {
             Decoder::Responses(provider, decoder) => {
                 let mut raw = Queue::uncapped();
                 decoder.ready(&mut raw);
-                codex_outputs(*provider, &mut raw, limits, out);
+                responses_outputs(*provider, &mut raw, limits, out);
             }
             Decoder::Anthropic(decoder) => {
                 let mut raw = Queue::uncapped();
@@ -70,14 +70,6 @@ impl Decoder {
         let long = receive_long(&json, self, limits)?;
         match self {
             Decoder::Responses(provider, decoder) => {
-                // llm.md 4.8: response.done terminates only the Codex route.
-                if *provider == Provider::OpenAi {
-                    let tokens = json.view();
-                    let kind = openai::json::value_at(tokens, openai::json::required(tokens, b"type")?)?;
-                    if openai::json::text_ref(kind)? == b"response.done" {
-                        return Err(openai::DecodeError::Malformed);
-                    }
-                }
                 let event = openai::decode_event(&json, limits)?;
                 let mut raw = Queue::uncapped();
                 match event {
@@ -96,7 +88,7 @@ impl Decoder {
                     | openai::Event::Progress
                     | openai::Event::Unknown) => {
                         decoder.received(event, long, limits, wall, &mut raw);
-                        codex_outputs(*provider, &mut raw, limits, out);
+                        responses_outputs(*provider, &mut raw, limits, out);
                     }
                 }
             }
@@ -134,7 +126,7 @@ impl Decoder {
             Decoder::Responses(provider, decoder) => {
                 let mut raw = Queue::uncapped();
                 decoder.end(&mut raw);
-                codex_outputs(*provider, &mut raw, limits, out);
+                responses_outputs(*provider, &mut raw, limits, out);
             }
             Decoder::Anthropic(decoder) => {
                 let mut raw = Queue::uncapped();
@@ -160,7 +152,7 @@ fn provider_error(
 }
 pub(crate) fn error_report(provider: Provider, error: &openai::ProviderError) -> Report {
     let field = match provider {
-        Provider::OpenAi | Provider::OpenAiCodex => report_value(&error.param),
+        Provider::OpenAi => report_value(&error.param),
         Provider::Anthropic => Box::new([]),
     };
     Report { code: report_value(&error.kind), request: Box::new([]), field }
@@ -173,7 +165,7 @@ pub(crate) fn report_value(value: &[u8]) -> Box<[u8]> {
     bytes::copy_of(value)
 }
 
-fn codex_outputs(
+fn responses_outputs(
     provider: Provider,
     raw: &mut Queue<openai::Output>,
     limits: &openai::Limits,
@@ -255,7 +247,7 @@ fn anthropic_part(part: anthropic::Part, limits: &openai::Limits) -> Result<Bloc
 /// The collector is built once for the call's configured dialect.
 pub(crate) fn event_filter(provider: Provider) -> collector::Filter {
     match provider {
-        Provider::OpenAiCodex | Provider::OpenAi => openai::filter::EVENT,
+        Provider::OpenAi => openai::filter::EVENT,
         Provider::Anthropic => anthropic::filter::EVENT,
     }
 }
@@ -301,7 +293,7 @@ pub(crate) fn failure(error: collector::Error, limits: &client::Limits) -> Failu
     }
 }
 
-/// Long values are meaningful only at argument or Codex reasoning paths.
+/// Long values are meaningful only at argument or Responses reasoning paths.
 /// Every other Long retains the configured string or reasoning refusal.
 fn receive_long(
     value: &openai::Json,

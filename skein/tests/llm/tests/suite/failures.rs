@@ -8,34 +8,27 @@ type ResetCase = (Call, &'static str, &'static str, Option<Duration>, &'static [
 fn anthropic_input() -> Call {
     let mut input = call(1);
     input.endpoint = Endpoint::anthropic();
-    input.credential.as_mut().expect("fixture credential").account_id = Box::new([]);
+    input.credential = Some(skein_llm::Credential::key(b"fixture-key".as_slice().into()));
     input
 }
 
-fn reset_cases() -> [ResetCase; 4] {
+fn reset_cases() -> [ResetCase; 3] {
     [
-        (call(1), r#"{"error":{"code":"usage_limit_reached","message":"spent"}}"#, "", None, b"usage_limit_reached"),
         (
             call(1),
-            r#"{"error":{"code":"usage_limit_reached","message":"spent","resets_in_seconds":90}}"#,
+            r#"{"error":{"code":"subscription_sharing_usage_limit_exceeded","message":"spent"}}"#,
+            "",
+            None,
+            b"subscription_sharing_usage_limit_exceeded",
+        ),
+        (
+            call(1),
+            r#"{"error":{"code":"subscription_sharing_usage_limit_exceeded","message":"spent","resets_in_seconds":90}}"#,
             "",
             Some(Duration::from_secs(90)),
-            b"usage_limit_reached",
+            b"subscription_sharing_usage_limit_exceeded",
         ),
-        (
-            anthropic_input(),
-            r#"{"error":{"type":"rate_limit_error","message":"spent"}}"#,
-            "anthropic-ratelimit-unified-status: rejected\r\n",
-            None,
-            b"rate_limit_error",
-        ),
-        (
-            anthropic_input(),
-            r#"{"error":{"type":"rate_limit_error","message":"spent"}}"#,
-            "anthropic-ratelimit-unified-status: rejected\r\nanthropic-ratelimit-unified-reset: 90\r\n",
-            Some(Duration::from_secs(90)),
-            b"rate_limit_error",
-        ),
+        (anthropic_input(), r#"{"error":{"type":"billing_error","message":"spent"}}"#, "", None, b"billing_error"),
     ]
 }
 
@@ -88,13 +81,13 @@ fn route_report_cases() -> [RouteReportCase; 6] {
     [
         (
             call(1),
-            "x-oai-request-id",
+            "x-request-id",
             429,
             br#"{"error":{"code":"fixture-code","message":"spent","param":"model"}}"#.as_slice(),
             b"fixture-code".as_slice(),
             b"model".as_slice(),
         ),
-        (call(1), "x-oai-request-id", 429, b"undecodable", b"".as_slice(), b"".as_slice()),
+        (call(1), "x-request-id", 429, b"undecodable", b"".as_slice(), b"".as_slice()),
         (
             anthropic_input(),
             "request-id",
@@ -106,7 +99,7 @@ fn route_report_cases() -> [RouteReportCase; 6] {
         (anthropic_input(), "request-id", 429, b"undecodable", b"".as_slice(), b"".as_slice()),
         (
             call(1),
-            "x-oai-request-id",
+            "x-request-id",
             200,
             b"data: {\"type\":\"error\",\"code\":\"fixture-code\",\"message\":\"spent\",\"param\":\"model\"}\n\n",
             b"fixture-code",
@@ -170,7 +163,7 @@ fn a_report_value_past_its_bound_is_empty() {
             "c".repeat(code),
             "f".repeat(field)
         );
-        let headers = format!("x-oai-request-id: {}\r\n", "r".repeat(request));
+        let headers = format!("x-request-id: {}\r\n", "r".repeat(request));
         let world = failed(call(1), &headers, body.as_bytes());
         assert_eq!(report(&world), expected, "code {code}, request {request}, field {field}");
     }
@@ -191,8 +184,7 @@ fn a_local_failure_after_a_head_keeps_the_request_id() {
         Failure::Protocol,
         Failure::Cancelled,
     ] {
-        let source =
-            response(200, "x-oai-request-id: fixture-request\r\nContent-Type: text/event-stream\r\n", b"", false);
+        let source = response(200, "x-request-id: fixture-request\r\nContent-Type: text/event-stream\r\n", b"", false);
         let mut world = World::new(call(1), limits(), source, 1);
         world.request(client::Request::Start);
         while !world.machine.response_received() && world.tick(false) {}

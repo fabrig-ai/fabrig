@@ -85,7 +85,7 @@ fn reconstruct(anthropic: bool) {
                     .expect("the rebuilt ordered content equals an independently decoded native request");
                 let query = queries.remove(found);
                 assert_eq!(query.tools.iter().map(|tool| tool.name.to_vec()).collect::<Vec<_>>(), state.2);
-                // Codex sends no output cap. The independent OpenAI peer
+                // OpenAI sends no output cap. The independent OpenAI peer
                 // supplies its configured model ceiling for that absent field;
                 // this content reconstruction does not equate the two sources.
                 assert_eq!(query.max_tokens, if anthropic { 512 } else { 4096 });
@@ -104,7 +104,7 @@ fn reconstruct(anthropic: bool) {
                     if let Block::Text { text } | Block::Refusal { text } = block {
                         let key =
                             (completed.conversation, completed.response, u64::try_from(index).expect("finite blocks"));
-                        // This independent Codex peer emits Added/Done with
+                        // This independent OpenAI peer emits Added/Done with
                         // complete text, and no TextDelta SSE event. The native
                         // Anthropic component story separately joins live pieces.
                         if anthropic {
@@ -295,11 +295,11 @@ fn native_provider_failure_keeps_status_and_capture_selected_detail_in_every_ter
 
 #[test]
 fn no_grant_value_reaches_a_turn_fact_or_trace() {
-    use smith_agent_process_world::{PRIVATE_GRANT, bearer, key, withdrawn};
+    use smith_agent_process_world::{PRIVATE_GRANT, bearer, key};
     let charter = charter();
     let secret = PRIVATE_GRANT;
     let account = b"native-private-account-02.6";
-    let rows = [(bearer(secret), true), (key(secret), true), (withdrawn(account, secret), false)];
+    let rows = [(bearer(secret), false), (key(secret), false), (key(secret), true)];
     for (index, (value, anthropic)) in rows.into_iter().enumerate() {
         let mut world = World::new(39, &charter);
         world.private_grant();

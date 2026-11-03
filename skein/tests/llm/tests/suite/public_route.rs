@@ -204,7 +204,7 @@ fn the_public_request_id_reaches_the_report() {
     let world = run_call(
         public_call(1),
         limits(),
-        response(401, "x-request-id: public-fixture\r\nx-oai-request-id: codex-fixture\r\n", b"{}", false),
+        response(401, "x-request-id: public-fixture\r\nx-unrelated-request-id: other-fixture\r\n", b"{}", false),
         1,
     );
     let requests: Vec<_> =

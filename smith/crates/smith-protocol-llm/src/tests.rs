@@ -18,7 +18,7 @@ fn replay_admits_an_ordered_run_beyond_one_reasoning_item() {
         br#"[{"type":"reasoning","encrypted_content":"first"},{"type":"reasoning","encrypted_content":"second"}]"#;
     assert!(raw.len() > usize::try_from(client.reasoning).expect("item fits"));
     let value = skein_llm::Json::from_bytes(raw, &limits).expect("ordered run");
-    let replay = skein_llm::Replay { provider: skein_llm::Provider::OpenAiCodex, value };
+    let replay = skein_llm::Replay { provider: skein_llm::Provider::OpenAi, value };
     let bytes = replay.to_bytes(&limits).expect("whole durable run");
     let restored = skein_llm::Replay::from_bytes(&bytes, &limits).expect("whole replay");
     assert_eq!(restored.value.to_bytes(&limits).expect("raw replay").as_ref(), raw);
@@ -38,7 +38,7 @@ fn completion_prices_one_reasoning_share_and_refuses_its_overflow() {
     assert_eq!(crate::completion_bound(&client, 4096), None);
 }
 
-fn tools() -> tools::Limits {
+pub(crate) fn tools() -> tools::Limits {
     tools::Limits {
         shell_output: 128,
         kits: 1,
@@ -926,7 +926,7 @@ fn each_providers_prompt_allowance_counts_its_tool_inventory() {
     use skein_llm::Provider;
 
     let client = skein_llm_world::limits();
-    for provider in [Provider::OpenAi, Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let empty = crate::prompt_allowance(provider, &client, 0).expect("empty tool inventory");
         let one = crate::prompt_allowance(provider, &client, 1).expect("one tool");
         let three = crate::prompt_allowance(provider, &client, 3).expect("three tools");

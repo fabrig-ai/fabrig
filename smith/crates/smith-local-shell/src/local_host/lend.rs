@@ -39,7 +39,7 @@ impl Lent {
                 valid: Duration::from_nanos(u64::MAX),
                 renewable: match value {
                     GrantValue::Key(_) => false,
-                    GrantValue::Bearer(_) | GrantValue::Program(_) | GrantValue::Withdrawn { .. } => true,
+                    GrantValue::Bearer(_) | GrantValue::Program(_) => true,
                 },
             },
             value.clone(),
