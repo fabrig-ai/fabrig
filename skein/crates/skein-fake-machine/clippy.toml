@@ -21,7 +21,7 @@ disallowed-types = [
     { path = "std::sync::Mutex", reason = "one thread" },
     { path = "std::sync::RwLock", reason = "one thread" },
     { path = "std::fs::File", reason = "the machine is a fake: no file of the host's" },
-    { path = "std::os::fd::OwnedFd", reason = "closes on drop (programming-model.md, 2.1)" },
+    { path = "std::os::fd::OwnedFd", reason = "closes on drop (programming-model.md, 2.1)", allow-invalid = true },
     { path = "std::process::Child", reason = "std::process is not used (io.md, 6)" },
 ]
 

@@ -17,7 +17,7 @@ disallowed-types = [
     { path = "std::net::TcpStream", reason = "the simulator plays the network" },
     { path = "std::net::TcpListener", reason = "the simulator plays the network" },
     { path = "std::net::UdpSocket", reason = "the simulator plays the network" },
-    { path = "std::os::fd::OwnedFd", reason = "closes on drop (programming-model.md, 2.1)" },
+    { path = "std::os::fd::OwnedFd", reason = "closes on drop (programming-model.md, 2.1)", allow-invalid = true },
     { path = "std::process::Child", reason = "std::process is not used (io.md, 6)" },
 ]
 
