@@ -1,0 +1,3 @@
+draft = "forgejo-connect"
+repo = "fabrig"
+sources = ["temper/docs/plan/forgejo-connect/inputs/request.md", "temper/docs/design/protocol/forge.md", "AGENTS.md"]
