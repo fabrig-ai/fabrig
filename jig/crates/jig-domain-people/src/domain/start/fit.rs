@@ -211,6 +211,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         },
         Ask::AccountChange { change, .. } => account_change(key, limits, change),
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::ChangeSettings { .. }

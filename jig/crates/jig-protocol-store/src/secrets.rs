@@ -67,6 +67,7 @@ fn prefix(owner: SecretOwner) -> [u8; 2] {
         SecretOwner::Service => [1, 1],
         SecretOwner::Application => [2, 0],
         SecretOwner::Source => [3, 0],
+        SecretOwner::PublicNames => [4, 0],
     }
 }
 pub(super) fn key(owner: SecretOwner, number: u64, limit: u32) -> Option<Box<[u8]>> {
@@ -629,7 +630,7 @@ pub(crate) fn sweep(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Even
         let people = match kind {
             SecretOwner::SignIn => jig_domain_people::Key::SignIn(number),
             SecretOwner::Service => jig_domain_people::Key::Person(number),
-            SecretOwner::Application | SecretOwner::Source => {
+            SecretOwner::Application | SecretOwner::Source | SecretOwner::PublicNames => {
                 store.phase = Phase::Stopped;
                 return;
             }

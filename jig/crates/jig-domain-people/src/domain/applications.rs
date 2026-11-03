@@ -23,6 +23,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -65,6 +66,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -132,12 +134,8 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
             }
             if projects.is_empty() && role != Some(Role::Owner) { Some(Refusal::Role { held: role }) } else { None }
         }
-        Ask::RemoveProject { .. } | Ask::MoveToNewest { .. } => {
-            if role == Some(Role::Owner) {
-                None
-            } else {
-                Some(Refusal::Role { held: role })
-            }
+        Ask::RemoveProject { .. } | Ask::SetVisibility { .. } | Ask::MoveToNewest { .. } => {
+            if role == Some(Role::Owner) { None } else { Some(Refusal::Role { held: role }) }
         }
         Ask::Application { scope, .. } => {
             if *scope == crate::ApplicationScope::Own || role.is_some() {

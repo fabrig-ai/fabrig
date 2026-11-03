@@ -136,6 +136,7 @@ impl Core {
                     // The sweep erases only expired rows (jig/docs/design/domain/engine.md, 6).
                     people::Stored::Policy { .. }
                     | people::Stored::EndedRead { .. }
+                    | people::Stored::Public { .. }
                     | people::Stored::Deletion { .. } => return Action::Idle,
                     people::Stored::Acted { .. }
                     | people::Stored::Person { .. }
