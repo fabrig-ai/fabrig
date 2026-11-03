@@ -84,3 +84,19 @@ questions hold only their own parts.
 - **Item 2's reach:** besides the crate, the look's reads and the mapping back serve only the
   lab (their status entries say they await removal with it), and `Pages::verbatim` in
   `skein-fake-person-browser` is called only by the lab: all go in one skein task.
+
+## 11-03: the three asked items leave this plan
+
+Answered unattended by agents/loop (the user asleep; the director's word to take the recommended
+options and prefer what can be undone):
+
+- `readiness-eintr`: (a), the readiness backend completes an interrupted Socket, Accept, Connect
+  and Open `Other(EINTR)` as the ring does. Its own plan, `readiness-eintr`.
+- `forgejo-connect`: (a), temper's designer settles the five open points first (the suggested
+  settlement as a start), then a later cut builds it. Its own plan, `forgejo-connect`.
+- `withdrawn-forms`: deferred, option (c), not the recommended (a). (a) deletes skein-llm's Codex
+  recordings, which cannot be captured again, moves smith's channel to v6 and ends stored
+  dialect-1 charters and transcripts: hard to undo, so the user's when awake. Nothing waits on it.
+
+A direct plan's part left undesigned by a question never gets a design call once answered, so
+the answered items start afresh as their own plans rather than here.
