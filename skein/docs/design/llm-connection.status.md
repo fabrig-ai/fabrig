@@ -1,5 +1,12 @@
 # llm-connection: status
 
-2026-11-02. Where skein's code lags or departs from [llm-connection.md](llm-connection.md).
+2026-11-03. Where skein's code lags or departs from [llm-connection.md](llm-connection.md).
 
-No gap.
+- **Departs:** 5: `skein/docs/foundation/programming-model.md`, 5.4 asks
+  for one explicit state enum per lifecycle, each state holding exactly
+  its data, no lifecycle in flags or `Option`s beside it, exhaustive
+  matches and one handler per cell; `skein-llm-connection/src/call.rs`
+  keeps `Connection`'s data-less `Phase` beside `call`, `socket`, `tls`,
+  `idle_at`, `tls_closed` and `socket_close_sent` rather than in its
+  states; no reason is recorded (the code's side is
+  `skein/docs/development/debt/D023-llm-client-states.md`).

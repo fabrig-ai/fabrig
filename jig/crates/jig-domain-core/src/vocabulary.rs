@@ -279,6 +279,8 @@ pub enum WatchRefusal {
 /// Core output that follows no mutation.
 #[derive(Debug)]
 pub enum Now {
+    /// A bounded task read has no durable call record (engine.md, 7.3).
+    TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
     /// A settings document leaves without a durable call record (engine.md, 7.3).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
     /// The root answers this host call with its own busy payload.
@@ -769,6 +771,11 @@ pub enum PayloadRefusal {
 /// Connector-free work a named host call asks the core to route.
 #[derive(Debug)]
 pub enum NamedAction {
+    /// Read a related live task or a retained direct delegate without deciding a call.
+    ReadTask {
+        task: u64,
+        from: u64,
+    },
     /// A settings read decides nothing and keeps no call record (engine.md, 7.3).
     Settings(crate::reads::SettingsRead),
     /// A run proposes settings against the revision it read (engine.md, 17.6).

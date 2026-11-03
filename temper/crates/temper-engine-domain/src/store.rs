@@ -52,6 +52,8 @@ impl Changed {
 /// Typed call feedback; amendment details are joined from the decoded tool.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallAnswer {
+    /// A fresh task read; it never becomes a durable call part.
+    TaskRead(Box<Result<jig_domain_core::reads::run_task::TaskRead, jig_domain_tasks::Refusal>>),
     /// Settings proposal admission failed before mutation.
     SettingsRefused(jig_domain_people::Refusal),
     /// The placed hold owner refused this release, with the facts needed to propose it.
@@ -165,9 +167,10 @@ impl CallAnswer {
                 };
                 jig_domain_core::CallPart::Effect { connector, entry: *entry, deadline: *deadline, outcome }
             }
-            CallAnswer::ForgeEffectRefused(_) | CallAnswer::ForgeRead(_) | CallAnswer::ReadRepositoryRefused { .. } => {
-                jig_domain_core::CallPart::Connector { connector }
-            }
+            CallAnswer::TaskRead(_)
+            | CallAnswer::ForgeEffectRefused(_)
+            | CallAnswer::ForgeRead(_)
+            | CallAnswer::ReadRepositoryRefused { .. } => jig_domain_core::CallPart::Connector { connector },
             CallAnswer::ForgeEffectDenied { answer, findings } => {
                 jig_domain_core::CallPart::EffectDenied { answer: *answer, findings: findings.clone() }
             }
@@ -897,6 +900,13 @@ fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> Option<u6
 
 pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
+        CallAnswer::TaskRead(result) => {
+            let carrier = u64::try_from(size_of_val(result.as_ref())).ok()?;
+            carrier.checked_add(match result.as_ref() {
+                Ok(read) => jig_domain_core::reads::run_task::owned_bytes(read),
+                Err(_) => 0,
+            })
+        }
         CallAnswer::ForgeRead(result) => match result.as_ref() {
             Ok(answer) => skein_forge::measure::answer(answer),
             Err(_) => Some(0),

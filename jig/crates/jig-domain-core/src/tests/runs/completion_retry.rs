@@ -22,6 +22,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 Now::RunText { .. } => return request,
                 Now::Relayed { .. }
                 | Now::EffectAnswer { .. }
+                | Now::TaskRead { .. }
                 | Now::SettingsAnswer { .. }
                 | Now::SettledCallRefused { .. }
                 | Now::Call { .. }

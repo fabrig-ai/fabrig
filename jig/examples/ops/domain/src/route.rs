@@ -1419,6 +1419,7 @@ fn core_now(
         }
         other @ (core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
+        | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::NoteBusy { .. }
         | core::Now::SettledCallRefused { .. }

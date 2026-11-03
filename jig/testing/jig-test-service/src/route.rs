@@ -252,7 +252,9 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         core::Now::DropCall { call } => {
             engine.tools.forget_name(&call.name);
         }
-        core::Now::NoteBusy { key, .. } | core::Now::SettledCallRefused { key, .. } => engine.tools.forget(key),
+        core::Now::TaskRead { key, .. }
+        | core::Now::NoteBusy { key, .. }
+        | core::Now::SettledCallRefused { key, .. } => engine.tools.forget(key),
         core::Now::CallBusy { .. }
         | core::Now::Relayed { .. }
         | core::Now::Undelivered { .. }

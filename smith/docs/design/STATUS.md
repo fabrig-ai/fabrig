@@ -15,8 +15,10 @@ three live stories red at their last run pass now and the live refresh
 story's expectation on a fresh record (`testing.md`), the `--account`
 flag (`shell.md`, `testing.md`) and `smith-agent-shell` in the gate's
 wasm32 clippy, which it fails (`shell.md`), and the benchmarks'
-calibrations and arms, with three departures (`benchmarks.md`).
-`domain/session.md`,
+calibrations and arms, with four departures (`benchmarks.md`).
+The session knows the run's `wait` (`domain/session.md`), two domain
+worlds call protocol crates (`testing.md`), and the local domain composes
+person-facing text, which the designer is to decide on (`domain/host.md`).
 `protocol/charter.md`, `protocol/limits.md` and `protocol/transcript.md`
 have no gap. smith has no drafts.
 

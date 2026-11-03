@@ -66,13 +66,23 @@ pub enum Refusal {
     UnknownRedirect,
     Back { location: Box<[u8]> },
 }
-#[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "oauth-issuer.md 5 exposes the authenticated client and code alone")]
 pub struct TokenRequest {
     pub client: Box<[u8]>,
     pub code: Secret,
     redirect_uri: Box<[u8]>,
     verifier: Box<[u8]>,
+}
+// skein/docs/design/oauth.md, 4: a verifier's bytes stay out of Debug.
+impl core::fmt::Debug for TokenRequest {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TokenRequest")
+            .field("client", &self.client)
+            .field("code", &self.code)
+            .field("redirect_uri", &self.redirect_uri)
+            .field("verifier_len", &self.verifier.len())
+            .finish()
+    }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TokenError {

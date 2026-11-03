@@ -65,6 +65,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::CallBusy { .. }
         | core::Now::Relayed { .. }
         | core::Now::EffectAnswer { .. }
+        | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
