@@ -8,6 +8,7 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
+mod early;
 mod fixtures;
 mod flight;
 mod goal_branch;
@@ -347,6 +348,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -426,6 +428,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -502,6 +505,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }

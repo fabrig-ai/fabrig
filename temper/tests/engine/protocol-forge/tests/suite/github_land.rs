@@ -25,6 +25,7 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -193,6 +194,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                 },
                 gates: Box::new([]),
                 queue_repair_active: false,
+                pending: Box::new([]),
                 kept: false,
             });
             entry += 1;
@@ -320,6 +322,7 @@ fn pushed_change_requests_its_pull_once() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);

@@ -63,6 +63,10 @@ impl Domain {
     }
     /// Select one checkout item from the task's saved and procedure state.
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one workspace item selects its start, destination and byte size together"
+    )]
     pub fn workspace_item(&self, seed: Seed) -> Option<Item> {
         let repository = self.repository(seed.repository)?;
         let inherited = match seed.parent {
@@ -78,21 +82,25 @@ impl Domain {
         let (mut start, mut push, holder) = match inherited {
             Some((row, kind)) => match kind {
                 change::Delegate::Produce => {
-                    let mut existing = false;
-                    for (name, _) in &self.heads {
-                        if name.forge == seed.repository.forge
-                            && name.repository == seed.repository.repository
-                            && branch_matches(name, &row.branch)
-                        {
-                            existing = true;
+                    let existing = branch_head(self, seed.repository, &row.branch).is_some();
+                    let start = if existing {
+                        Start::Branch(row.branch.clone())
+                    } else if let change::Early::Started(heads) = &row.change.early {
+                        if heads.is_empty() {
+                            Start::Base(row.base.clone())
+                        } else {
+                            let mut commits = List::with_capacity(u32::try_from(heads.len()).ok()?);
+                            for head in heads {
+                                commits.push(head.head).ok()?;
+                            }
+                            Start::Merged { branch: row.base.clone(), heads: commits.into_boxed() }
                         }
-                    }
-                    (
-                        if existing { Start::Branch(row.branch.clone()) } else { Start::Base(row.base.clone()) },
-                        Some(row.branch.clone()),
-                        Some(row.task),
-                    )
+                    } else {
+                        Start::Base(row.base.clone())
+                    };
+                    (start, Some(row.branch.clone()), Some(row.task))
                 }
+
                 change::Delegate::Repair(_) => {
                     (Start::Branch(row.branch.clone()), Some(row.branch.clone()), Some(row.task))
                 }
@@ -105,6 +113,19 @@ impl Domain {
         };
         if let Some(saved) = seed.saved_branch {
             start = Start::Saved(saved);
+        }
+        if let Some((row, change::Delegate::Produce)) = inherited {
+            match &row.change.early {
+                change::Early::Started(_) | change::Early::Spent(_) => {
+                    if let Start::Branch(branch) | Start::Saved(branch) = &start {
+                        start = Start::Merge {
+                            branch: branch.clone(),
+                            base: branch_head(self, seed.repository, &row.base)?,
+                        };
+                    }
+                }
+                change::Early::None => {}
+            }
         }
         if repository.role == Role::Context || !repository.kinds.push {
             push = None;
@@ -136,6 +157,11 @@ impl Domain {
             | Start::Merged { branch, .. } => branch,
         };
         bytes = bytes.checked_add(u64::try_from(branch.len()).ok()?)?;
+        if let Start::Merged { heads, .. } = &start {
+            bytes = bytes.checked_add(
+                u64::try_from(heads.len()).ok()?.checked_mul(u64::try_from(size_of::<api::Commit>()).ok()?)?,
+            )?;
+        }
         if let Some(push) = &push {
             bytes = bytes.checked_add(u64::try_from(push.len()).ok()?)?;
         }
@@ -158,6 +184,15 @@ impl Domain {
             bytes,
         })
     }
+}
+
+fn branch_head(domain: &Domain, repository: api::Repository, branch: &[u8]) -> Option<api::Commit> {
+    for (name, head) in &domain.heads {
+        if name.forge == repository.forge && name.repository == repository.repository && branch_matches(name, branch) {
+            return Some(head.commit);
+        }
+    }
+    None
 }
 
 pub(crate) fn branch_matches(name: &crate::Name, branch: &[u8]) -> bool {

@@ -404,8 +404,8 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
     use skein_forge::api::{Answer, State};
     use skein_forge_client::RecoveryClock;
 
-    // Repository, initial change, observed contexts, landed change, and settlement.
-    const RESTART_RECORDS: u32 = 5;
+    // Repository, initial change, branch and base heads, contexts, landed change, and settlement.
+    const RESTART_RECORDS: u32 = 7;
     let repository = Stored::Repository(adopted());
     let mut records = skein_lib::List::with_capacity(RESTART_RECORDS);
     records.push(repository.clone()).expect("repository fits");
