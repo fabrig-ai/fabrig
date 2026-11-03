@@ -4,6 +4,7 @@
 //! outlives the test on interruption so proof-live's final return hook can still
 //! export the held account before terminating the box. Credentials go to ctl
 //! and curl by path alone. No bot credential or store is read by the driver.
+use super::super::configuration::turn_bounds;
 use super::super::patience::Patience;
 use serde_json::{Value, json};
 use skein_lib::{Duration, Time};
@@ -141,16 +142,17 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     worker["endpoints"][0]["models"][0]["name"] = "gpt-6.1-sol".into();
     worker["endpoints"][0]["models"][0]["output"] = 32_000.into();
     worker["endpoints"][0]["models"][0]["reasoning_item"] = 32_768.into();
-    // B0's fixed carriers describe its one-call recipe.
+    // B0's carriers follow its one-call recipe.
     worker["profile"]["declared"]["calls_per_response"] = 1.into();
-    turn_limits(&mut value);
+    let turn = turn_bounds::turn_body(&worker);
+    turn_limits(&mut value, turn);
     // Walk 1's admitted declarations, not a phase-bound increase.
     value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
     value["workers"][0]["memory_bytes"] = 3_700_000_000_000_u64.into();
     assert_eq!(value["engine"]["llm"]["models"][0]["efforts"][0], "high");
     assert_eq!(value["engine"]["llm"]["models"][0]["output"], 32_000);
     assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
-    assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], 1_507_539);
+    assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], turn);
     assert_eq!(value["application"]["limits"]["overrides"]["root.loads.loads"], 32);
     assert_eq!(worker["endpoints"][0]["models"][0]["name"], "gpt-6.1-sol");
     assert_eq!(worker["endpoints"][0]["models"][0]["output"], 32_000);
@@ -165,23 +167,10 @@ pub fn deployment(paths: &[PathBuf; 3]) {
         .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
 }
 
-fn turn_limits(value: &mut Value) {
-    value["engine"]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
-    value["engine"]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
-    value["workers"][0]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_queue_bytes"] = 12_060_312.into();
-    value["engine"]["limits"]["overrides"]["core.resume_bytes"] = 1_507_543.into();
+fn turn_limits(value: &mut Value, turn: u32) {
+    turn_bounds::apply(value, turn);
     value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
-    for (name, count) in [
-        ("root.loads.loads", 32),
-        ("root.journal.transcript_bytes", 1_507_543),
-        ("root.loads.transcript_bytes", 1_507_539),
-        ("root.loads.bytes", 1_507_787),
-        ("root.loads.reply_bytes", 1_507_787),
-    ] {
-        value["application"]["limits"]["overrides"][name] = count.into();
-    }
+    value["application"]["limits"]["overrides"]["root.loads.loads"] = 32.into();
 }
 
 /// A private command transcript, with a hard wall bound and no pipe backpressure.

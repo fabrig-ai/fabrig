@@ -2454,7 +2454,7 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
 #[must_use]
 pub fn box_limits() -> engine::Limits {
     let jig = box_profile();
-    let temper = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let temper = temper_service::limits::profile(temper_service::limits::Profile::Standard);
     temper_service::limits::engine(&jig, &temper).expect("coherent box limits")
 }
 

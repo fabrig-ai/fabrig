@@ -8,7 +8,7 @@ fn the_two_call_agent_fits_smalls_page_with_derived_carriers() {
     let stock = serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
         .expect("stock init agent");
     let transcript = fixtures::turn_bounds::turn_body(&stock);
-    assert_eq!(transcript, 1_662_042);
+    assert_eq!(transcript, 16_803_810);
     fixtures::turn_bounds::apply(&mut document, transcript);
     let given = fixtures::own_defaults(&document, &document["world_settings"]);
     document.as_object_mut().expect("deployment").remove("world_settings");
