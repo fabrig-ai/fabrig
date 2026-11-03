@@ -86,5 +86,8 @@ An account is how a deployment pays an LLM provider for its runs, through its so
   host that runs it.
 - `account verify` checks a program source alone; a sign-in or key
   source fails (exit 1).
-- The providers and models are the configuration's: a new one needs a
-  change of it and a restart (temper help deployment).
+- The providers and models are the configuration's. For another model,
+  such as `gpt-6.1-sol`, follow **Offering another model** under
+  **Acting on it** in `temper help deployment`: edit both
+  `CONFIG/temper.json` and `CONFIG/agent.json` before starting, or stop
+  and restart after editing them.
