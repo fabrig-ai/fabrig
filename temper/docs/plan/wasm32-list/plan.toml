@@ -6,6 +6,7 @@ sources = ["temper/docs/plan/wasm32-list/inputs/request.md", "AGENTS.md"]
 # `.config/gate/wasm32.txt`. One part, one task: the six packages measured green, and skein's
 # playground status closed with it. plan.md says what was decided and why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
