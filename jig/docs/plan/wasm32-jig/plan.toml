@@ -1,0 +1,3 @@
+draft = "wasm32-jig"
+repo = "fabrig"
+sources = ["jig/docs/plan/wasm32-jig/inputs/request.md", "AGENTS.md", "AGENTS.md", "DESIGN.md"]
