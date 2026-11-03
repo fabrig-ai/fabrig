@@ -9,7 +9,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_domain_people as people;
-use skein_lib::{Env, Map, Queue, ReplyTo};
+use skein_lib::{Env, Map, Queue, ReplyTo, Token};
 
 #[expect(clippy::too_many_arguments, reason = "the keyed envelope and its value cross admission together")]
 pub(crate) fn start(
@@ -63,7 +63,7 @@ pub(crate) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, 
                 if let Err(why) = preflight(core, env, &change, None) {
                     people::Outcome::Refused(why)
                 } else {
-                    s::application::start(core, routed, request, person, *change, room);
+                    s::application::start(core, routed, request, person, *change, room, None);
                     return;
                 }
             } else {
@@ -119,6 +119,7 @@ fn preflight(
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "the keyed change retains its proposal identity through judging")]
 pub(crate) fn decide_judged(
     core: &mut Core,
     env: &Env<Limits>,
@@ -127,8 +128,9 @@ pub(crate) fn decide_judged(
     change: s::Change,
     room: u32,
     kept: Box<[s::application::Kept]>,
+    proposal: Option<(people::Proposer, u32)>,
 ) -> Result<u32, people::Refusal> {
-    decide_with(core, env, routed, s::Decider::Party(person), None, change, room, kept)
+    decide_with(core, env, routed, s::Decider::Party(person), proposal, change, room, kept)
 }
 
 pub(crate) fn decide(
@@ -231,7 +233,11 @@ fn decide_with(
     core.current.head =
         s::Head { number, against: previous, at: env.wall, by, proposal, moved: change.running == s::Running::Moves };
     let application_writes = u32::try_from(kept.len()).expect("bounded application writes");
-    let applications = s::application::keep(core, &mut routed.out, kept, number);
+    let proposal_number = match proposal {
+        Some((_, number)) => Some(u64::from(number)),
+        None => None,
+    };
+    let applications = s::application::keep(core, &mut routed.out, kept, number, proposal_number);
     let revision = s::Revision { head: core.current.head.clone(), items: change.items, applications };
     let (writes, oldest) = s::restart::revision_writes_with_hold(
         Some(revision),
@@ -343,7 +349,7 @@ pub(crate) fn propose_admitted(
         request,
         by: person,
         number,
-        value: s::Proposal { against, items: change.items },
+        value: s::Proposal { applications: Box::default(), against, items: change.items },
     });
     let request = core.fly_goal(
         request,
@@ -372,6 +378,9 @@ fn proposal_check(core: &mut Core, env: &Env<Limits>, against: u32) -> Result<Bo
     };
     if change.against != against {
         return Err(people::Refusal::NotOffered);
+    }
+    if let Err(failure) = s::application::check(core, &change.items) {
+        return Err(malformed_refusal(failure));
     }
     if let Err(failure) = s::check_change(&core.current, &change.items, &core.settings, &core.connectors, &env.limits) {
         return Err(malformed_refusal(failure));
@@ -487,17 +496,22 @@ fn keep_set(core: &mut Core, proposer: people::Proposer, number: u64, pending: b
         if core.settings_proposals.contains_key(&key) {
             return;
         }
-        let (offered_by, offered, value) = core.take_settings_offering(None).expect("admitted held set");
+        let (offered_by, offered, mut value) = core.take_settings_offering(None).expect("admitted held set");
         let who = match proposer {
             people::Proposer::Party(n) | people::Proposer::Task(n) => n,
         };
         assert!(offered_by == who && offered == number, "same proposal set");
+        s::application::keep_proposal(core, &mut value, number, out);
         out.push(Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::Settings(
             s::Record::Proposal { proposer, proposal: number, value: value.clone() },
         )))));
         assert!(core.settings_proposals.insert(key, value).expect("settings proposal bound").is_none(), "fresh set");
     } else {
-        core.settings_proposals.remove(&key).expect("decided settings set");
+        let value = core.settings_proposals.remove(&key).expect("decided settings set");
+        // An accepted set has already become connector changes in this revision.
+        if core.current.head.proposal != Some(key) {
+            s::application::drop_proposal(core, &value.applications, number, out);
+        }
         out.push(Request::Write(crate::Write::Erase(crate::Key::Core(crate::CoreKey::Settings(s::Key::Proposal {
             proposer,
             proposal: number,
@@ -550,7 +564,7 @@ fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from
 }
 
 fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32, items: Box<[s::Item]>) {
-    core.proposed_input = Some(if !s::changes_current(&core.current, &items) {
+    core.proposed_input = Some(if !has_application(&items) && !s::changes_current(&core.current, &items) {
         Err(people::Malformed::SettingsUnchanged)
     } else if items.len() > skein_lib::length::usize_of(jig_domain_tasks::SETTINGS_ITEMS) {
         Err(people::Malformed::Settings {
@@ -559,7 +573,7 @@ fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32, items: Box
         })
     } else {
         match s::change_shape(&items, &env.limits) {
-            Ok(()) => Ok(Box::new(s::Proposal { against, items })),
+            Ok(()) => Ok(Box::new(s::Proposal { applications: Box::default(), against, items })),
             Err(failure) => Err(people::Malformed::Settings { setting: failure.setting, fault: failure.fault }),
         }
     });
@@ -641,23 +655,23 @@ pub(crate) fn accept(
     env: &Env<Limits>,
     routed: &mut Routed,
     person: u64,
+    request: Token,
     key: (people::Proposer, u32),
     running: people::Running,
-) -> Result<u32, people::Refusal> {
+) -> Result<Option<u32>, people::Refusal> {
     let set = core.settings_proposals.get(&key).expect("pending settings set").clone();
     let room = route_writes(&env.limits)
         .expect("settings decision room")
         .saturating_sub(1)
         .saturating_sub(people::outputs_bound(&env.limits.people));
-    decide(
-        core,
-        env,
-        routed,
-        s::Decider::Party(person),
-        Some(key),
-        s::Change { against: set.against, items: set.items, running },
-        room,
-    )
+    let change = s::application::proposal_change(core, set, running)?;
+    if has_application(&change.items) {
+        preflight(core, env, &change, Some(key))?;
+        s::application::start(core, routed, request, person, change, room, Some(key));
+        return Ok(None);
+    }
+    let revision = decide(core, env, routed, s::Decider::Party(person), Some(key), change, room)?;
+    Ok(Some(revision))
 }
 
 /// Check every new task notification's number before changing a revision or its defaults.
