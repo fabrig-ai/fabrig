@@ -51,6 +51,11 @@ The addenda the request names, after M3, in their sections and no other:
    needs: temper's forge and jig's test connector keep the values their changes replaced, on
    the `KeepSettings` ask that already carries the revision.
 
+3. `policy-change` (150; needs `restore-surface`): the core's check, commit, proposal and
+   review of a project's policy; `restore-connector` (120; needs `restore-surface`,
+   `connector-replaced`) and `restore-forge` (120; needs `restore-surface`, `forge-replaced`):
+   the restore's asks answered and routed, in jig's test domain and temper's root.
+
 ## Critical path, as it stands
 
 `policy-surface` (60) -> `restore-surface` (90) -> `policy-change` (150) -> `restore-request`
@@ -60,5 +65,16 @@ beside `policy-change`.
 
 ## Overlaps with other plans
 
-- None of this batch's files is changed by a draft beside this one, as far as their trunks
-  showed at the cut.
+Checked at the cut against `reference-m10/integration` and the queue's `ready/` branches of
+v0.1.0-ladder, sign-in-wait and reference-walks:
+
+- `temper/docs/design/client/tools.status.md`: reference-m10 edits the same 5.2/5.3 line this
+  cut's 5.2 `revision show` entry extends (a template's `resources`); and
+  `jig/docs/design/domain/connectors.status.md`, its 6.2 entry, beside this cut's 17 entry. A
+  catch-up conflict there is a status merge, both entries kept.
+- v0.1.0-ladder's `finding-4` (ready) changes `client-v19-part1.schema`,
+  `temper-client-tools/src/jig/rows.rs` and `render/document/proposal.rs`, which
+  `settings-wire`, `policy-ctl` and `restore-ctl` change later; those tasks start after it
+  lands or meet it at a catch-up. Not avoidable: they are the only homes of the wire and ctl.
+- No other file of this plan's tasks is changed by a draft beside it, as far as their trunks
+  showed.
