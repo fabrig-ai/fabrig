@@ -8,11 +8,11 @@ type ResetCase = (Call, &'static str, &'static str, Option<Duration>, &'static [
 fn anthropic_input() -> Call {
     let mut input = call(1);
     input.endpoint = Endpoint::anthropic();
-    input.credential.as_mut().expect("fixture credential").account_id = Box::new([]);
+    input.credential = Some(skein_llm::Credential::key(b"fixture-key".as_slice().into()));
     input
 }
 
-fn reset_cases() -> [ResetCase; 4] {
+fn reset_cases() -> [ResetCase; 3] {
     [
         (call(1), r#"{"error":{"code":"usage_limit_reached","message":"spent"}}"#, "", None, b"usage_limit_reached"),
         (
@@ -22,20 +22,7 @@ fn reset_cases() -> [ResetCase; 4] {
             Some(Duration::from_secs(90)),
             b"usage_limit_reached",
         ),
-        (
-            anthropic_input(),
-            r#"{"error":{"type":"rate_limit_error","message":"spent"}}"#,
-            "anthropic-ratelimit-unified-status: rejected\r\n",
-            None,
-            b"rate_limit_error",
-        ),
-        (
-            anthropic_input(),
-            r#"{"error":{"type":"rate_limit_error","message":"spent"}}"#,
-            "anthropic-ratelimit-unified-status: rejected\r\nanthropic-ratelimit-unified-reset: 90\r\n",
-            Some(Duration::from_secs(90)),
-            b"rate_limit_error",
-        ),
+        (anthropic_input(), r#"{"error":{"type":"billing_error","message":"spent"}}"#, "", None, b"billing_error"),
     ]
 }
 

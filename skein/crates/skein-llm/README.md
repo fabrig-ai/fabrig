@@ -57,12 +57,12 @@ the exact `Cap` and its configured `bound`. Failure detail is derived from
 that evidence; `Evidence::Response { status }` preserves the HTTP status
 on every failure after a response head, including non-JSON error bodies.
 
-For Anthropic, use `Endpoint::anthropic()` and
-`Credential::anthropic(value)`. Sign-in, refresh and secure token storage
-remain with the caller. The default route is `api.anthropic.com/v1/messages`;
-requests send `Authorization: Bearer`, `anthropic-version: 2023-06-01` and
-`anthropic-beta: oauth-2025-04-20`. Version/beta headers can be overridden
-through `Endpoint::headers`. Credential and framing headers cannot be overridden.
+For Anthropic, use `Endpoint::anthropic()` and `Credential::key(value)`.
+Key acquisition and secure storage remain with the caller. The default route is
+`api.anthropic.com/v1/messages`; requests send `x-api-key` and
+`anthropic-version: 2023-06-01`, with neither `Authorization` nor a beta flag.
+A bearer is refused at admission as `Invalid`. Version and beta headers can be
+set through `Endpoint::headers`. Credential and framing headers cannot be overridden.
 
 Anthropic uses native ordered message blocks, tool schemas and tool-result
 error flags. `Prompt::max_output_tokens` sets its required `max_tokens`, defaulting
@@ -80,13 +80,6 @@ last four bytes; thread zero equals the key. Without affinity all three are
 absent. Both header names are reserved, and request head limits price their
 fixed width alongside credentials and endpoint headers.
 
-The optional `anthropic::identity` module archives Tongs' Claude Code identity
-constants and static headers. A caller choosing that compatibility profile
-explicitly uses `claude_code_headers()` and `identity::instructions()` to
-place the identity in a separate first system block, and supplies its own
-session/request IDs. Skein sends the
-caller's tool names unchanged. The archived values may be out of date.
-
 The low-level `openai` and `anthropic` modules expose bounded document codecs
 for fakes and specialized protocol stacks. Both share `Json` and dialect limits.
 The Anthropic event vocabulary follows the
@@ -98,32 +91,32 @@ stack; the world crate's fuzzy profile varies fragmentation, flow control and
 close races. The archived response fixtures say where they came from.
 
 The opt-in live suite exercises `client::Client` against the real Codex and
-Anthropic OAuth endpoints over certificate-verified TLS. It checks streamed
+Anthropic Messages endpoints over certificate-verified TLS. It checks streamed
 text and token usage, multi-turn replay, tool-argument streaming and tool-result
 replay, HTTP connection reuse, and invalid-token failures for each provider.
-There are no retries or credential refreshes. Positive tests use subscription
-quota and require valid, unexpired OAuth access tokens, rather than API keys.
+There are no retries or credential refreshes. Codex tests use subscription
+quota and require a valid, unexpired OAuth access token. Anthropic tests use an API key.
 
-Name a Codex login and a Claude Code login, each by its file or by the
-directory holding it, then run:
+Name a Codex login and a private plaintext Anthropic key file, then run:
 
 ```sh
 export SKEIN_TEST_LIVE_OPENAI_AUTH="$HOME/.codex/auth.json"
-export SKEIN_TEST_LIVE_ANTHROPIC_CREDENTIALS="$HOME/.claude/.credentials.json"
-cargo nextest run --workspace --profile live-skein
+export SKEIN_TEST_LIVE_ANTHROPIC_KEY="/path/to/private/anthropic-key"
+heavy cargo nextest run -p skein-llm-world --profile live-skein
 ```
 
 `SKEIN_TEST_LIVE_OPENAI_AUTH` names a Codex `auth.json`, or a directory
 holding one (a `CODEX_HOME`); the tests read its `.tokens.access_token` and
-`.tokens.account_id`. `SKEIN_TEST_LIVE_ANTHROPIC_CREDENTIALS` names a Claude
-Code `.credentials.json`, or a directory holding one (`~/.claude`, or a
-`CLAUDE_CONFIG_DIR`); the tests read its `.claudeAiOauth.accessToken`. They
-read nothing else from those files and never write them. A missing
-variable, file or field fails the live run, naming the variable, the file
-and the field, never a token. The default and fuzzy profiles exclude the
-`live` binary, and its provider tests perform no network I/O outside
-`NEXTEST_PROFILE=live-skein`, including under `cargo test`; its offline tests
-of the login reading use fixture files in a scratch directory.
+`.tokens.account_id`. `SKEIN_TEST_LIVE_ANTHROPIC_KEY` names a mode-0600
+plaintext file containing the API key. Each Anthropic call reads it once, trims
+surrounding ASCII whitespace, and sends it as `Credential::key` on
+`Endpoint::anthropic()`. An empty, oversized or non-private key file is refused.
+The tests never print credential values or write credential files. A missing
+variable, file or login field fails the live run, naming the variable, file
+or field. The default and fuzzy profiles exclude the `live` binary, and its
+provider tests perform no network I/O outside `NEXTEST_PROFILE=live-skein`,
+including under `cargo test`; its offline tests use synthetic credential files
+in a scratch directory.
 The `live-skein` profile selects only this binary, runs its tests serially,
 and allows twenty minutes (ten minutes before the user's doubling of 10-22,
 provisional) overall with a six-minute (three-minute before the user's
@@ -133,9 +126,6 @@ before the user's doubling of 10-22, provisional) socket timeouts.
 Optional `SKEIN_TEST_LIVE_OPENAI_MODEL` and `SKEIN_TEST_LIVE_ANTHROPIC_MODEL`
 override `gpt-5.5` and `claude-haiku-4-5`. `SKEIN_TEST_LIVE_CA_FILE` overrides
 the default Linux CA bundle at `/etc/ssl/certs/ca-certificates.crt`.
-The Anthropic tests explicitly opt in to the archived Claude Code identity
-with only the `claude-code-20250219,oauth-2025-04-20` betas; the full archived
-set includes long-context access that some subscriptions reject.
 Codex's successful subscription responses can omit `Content-Type`; the client
 accepts that omission for Codex while validating any explicitly supplied type.
 

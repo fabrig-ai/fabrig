@@ -886,21 +886,16 @@ fn a_value_past_its_bound_is_refused_by_name() {
 }
 
 #[test]
-fn either_scheme_at_its_bound_fits_the_measured_head() {
+fn a_key_at_its_bound_fits_the_anthropic_measured_head() {
     const VALUE_BYTES: usize = 2048; // endpoint()'s credential value bound.
     let config = limits();
-    for scheme in [skein_llm::Scheme::Bearer, skein_llm::Scheme::Key] {
-        let mut destination = endpoint();
-        destination.llm = skein_llm::Endpoint::anthropic();
-        let mut endpoints = List::with_capacity(config.endpoints);
-        endpoints.push(destination).expect("one endpoint fits");
-        let component = Component::new(endpoints, &config).expect("measured endpoint");
-        let mut value = credential();
-        value.value = Box::new([b'x'; VALUE_BYTES]);
-        value.account_id = Box::new([]);
-        value.scheme = scheme;
-        assert_eq!(component.admit(Token::new(7), 0, prompt(), Some(value)).err(), None, "{scheme:?}");
-    }
+    let mut destination = endpoint();
+    destination.llm = skein_llm::Endpoint::anthropic();
+    let mut endpoints = List::with_capacity(config.endpoints);
+    endpoints.push(destination).expect("one endpoint fits");
+    let component = Component::new(endpoints, &config).expect("measured endpoint");
+    let value = Credential::key(Box::new([b'x'; VALUE_BYTES]));
+    assert_eq!(component.admit(Token::new(7), 0, prompt(), Some(value)).err(), None);
 }
 
 #[test]

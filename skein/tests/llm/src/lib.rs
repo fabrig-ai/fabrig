@@ -71,12 +71,12 @@ pub fn public_call(owner: u64) -> Call {
     input
 }
 
-/// Anthropic Messages call with the fixture bearer and explicit output cap.
+/// Anthropic Messages call with the fixture key and explicit output cap.
 #[must_use]
 pub fn anthropic_call(owner: u64) -> skein_llm::Call {
     let mut input = call(owner);
     input.endpoint = Endpoint::anthropic();
-    input.credential = Some(Credential::anthropic(b"synthetic-oauth-token".to_vec().into()));
+    input.credential = Some(Credential::key(b"synthetic-key".to_vec().into()));
     input.prompt.affinity = None;
     input.prompt.max_output_tokens = Some(1024);
     input

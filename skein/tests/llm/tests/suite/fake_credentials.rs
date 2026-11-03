@@ -8,22 +8,28 @@ use skein_llm_world::{anthropic_call, fake::Exchange, limits, public_call};
 const CUE: &[u8] = b"accounts-script";
 const ANSWER: &[u8] = b"answered";
 
-fn credential(index: u32) -> Credential {
+fn credential(provider: Provider, index: u32) -> Credential {
     match index {
         0 => Credential::key(b"account-key".as_slice().into()),
-        1 => Credential::bearer(b"account-bearer".as_slice().into()),
+        1 => match provider {
+            Provider::Anthropic => Credential::key(b"account-second-key".as_slice().into()),
+            Provider::OpenAi | Provider::OpenAiCodex => Credential::bearer(b"account-bearer".as_slice().into()),
+        },
         _ => panic!("the fixture has two credentials"),
     }
 }
 
-fn issued(index: u32) -> Credential {
+fn issued(provider: Provider, index: u32) -> Credential {
     let value: &[u8] = match index {
         0 => b"issued-first",
         1 => b"issued-second",
         2 => b"issued-third",
         _ => panic!("the fixture has three issued tokens"),
     };
-    Credential::bearer(value.into())
+    match provider {
+        Provider::Anthropic => Credential::key(value.into()),
+        Provider::OpenAi | Provider::OpenAiCodex => Credential::bearer(value.into()),
+    }
 }
 
 fn scripts(lines: Vec<Line>) -> Box<[Script]> {
@@ -52,8 +58,8 @@ fn exchange(provider: Provider, sent: Option<Credential>, first: Option<Credenti
 }
 
 fn world(provider: Provider, sent: u32, lines: Vec<Line>) -> Exchange {
-    let mut world = exchange(provider, Some(credential(sent)), Some(credential(0)), lines);
-    assert_eq!(world.accept(credential(1)), Ok(1));
+    let mut world = exchange(provider, Some(credential(provider, sent)), Some(credential(provider, 0)), lines);
+    assert_eq!(world.accept(credential(provider, 1)), Ok(1));
     world
 }
 
@@ -100,9 +106,10 @@ fn failing(error: api::Error, indices: &[u32], field: &[u8]) -> Line {
 }
 
 #[test]
-fn both_schemes_on_one_endpoint_are_answered_by_index() {
+fn each_routes_credentials_are_answered_by_index() {
     for provider in [Provider::Anthropic, Provider::OpenAi] {
-        for (sent, scheme) in [(0, Scheme::Key), (1, Scheme::Bearer)] {
+        for sent in [0, 1] {
+            let scheme = credential(provider, sent).scheme;
             let mut world = world(provider, sent, vec![answered()]);
             world.start();
             world.run();
@@ -134,7 +141,7 @@ fn a_call_with_no_credential_is_observed_as_the_scheme_none() {
     {
         for (first, expected) in [
             (None, Terminal::Answer(ANSWER.to_vec())),
-            (Some(credential(0)), failed(Failure::Unauthorized, code, b"req_1", b"")),
+            (Some(credential(provider, 0)), failed(Failure::Unauthorized, code, b"req_1", b"")),
         ] {
             let mut world = exchange(provider, None, first, vec![answered()]);
             world.start();
@@ -155,7 +162,7 @@ struct UnknownRow {
 fn unknown_rows() -> [UnknownRow; 4] {
     [
         UnknownRow { provider: Provider::Anthropic, sent: 0, scheme: Scheme::Key, code: b"authentication_error" },
-        UnknownRow { provider: Provider::Anthropic, sent: 1, scheme: Scheme::Bearer, code: b"authentication_error" },
+        UnknownRow { provider: Provider::Anthropic, sent: 1, scheme: Scheme::Key, code: b"authentication_error" },
         UnknownRow { provider: Provider::OpenAi, sent: 0, scheme: Scheme::Bearer, code: b"invalid_api_key" },
         UnknownRow { provider: Provider::OpenAi, sent: 1, scheme: Scheme::Bearer, code: b"invalid_api_key" },
     ]
@@ -164,7 +171,8 @@ fn unknown_rows() -> [UnknownRow; 4] {
 #[test]
 fn a_credential_the_peer_does_not_hold_is_unauthorized() {
     for UnknownRow { provider, sent, scheme, code } in unknown_rows() {
-        let mut world = exchange(provider, Some(credential(sent)), Some(issued(0)), vec![answered()]);
+        let mut world =
+            exchange(provider, Some(credential(provider, sent)), Some(issued(provider, 0)), vec![answered()]);
         world.start();
         world.run();
         assert_eq!(world.presented, [Presented { route: provider, scheme: Some(scheme), index: None }]);
@@ -178,21 +186,29 @@ struct ObservationRow {
     queries: Vec<Option<u32>>,
 }
 
-fn observation_rows() -> [ObservationRow; 6] {
+fn observation_rows(provider: Provider) -> [ObservationRow; 6] {
     [
-        ObservationRow { sent: Some(credential(0)), first: Some(credential(0)), queries: vec![Some(0)] },
-        ObservationRow { sent: Some(credential(1)), first: Some(credential(1)), queries: vec![Some(0)] },
-        ObservationRow { sent: Some(credential(0)), first: Some(issued(0)), queries: vec![] },
-        ObservationRow { sent: Some(credential(1)), first: Some(issued(0)), queries: vec![] },
+        ObservationRow {
+            sent: Some(credential(provider, 0)),
+            first: Some(credential(provider, 0)),
+            queries: vec![Some(0)],
+        },
+        ObservationRow {
+            sent: Some(credential(provider, 1)),
+            first: Some(credential(provider, 1)),
+            queries: vec![Some(0)],
+        },
+        ObservationRow { sent: Some(credential(provider, 0)), first: Some(issued(provider, 0)), queries: vec![] },
+        ObservationRow { sent: Some(credential(provider, 1)), first: Some(issued(provider, 0)), queries: vec![] },
         ObservationRow { sent: None, first: None, queries: vec![None] },
-        ObservationRow { sent: None, first: Some(credential(0)), queries: vec![] },
+        ObservationRow { sent: None, first: Some(credential(provider, 0)), queries: vec![] },
     ]
 }
 
 #[test]
 fn no_observation_holds_a_credentials_value() {
     for provider in [Provider::Anthropic, Provider::OpenAi] {
-        for ObservationRow { sent, first, queries } in observation_rows() {
+        for ObservationRow { sent, first, queries } in observation_rows(provider) {
             let mut world = exchange(provider, sent, first, vec![answered()]);
             world.start();
             world.run();
@@ -212,15 +228,15 @@ fn no_observation_holds_a_credentials_value() {
 }
 
 fn issued_world(provider: Provider, sent: u32, lines: Vec<Line>) -> Exchange {
-    let mut world = exchange(provider, Some(issued(sent)), Some(issued(0)), lines);
+    let mut world = exchange(provider, Some(issued(provider, sent)), Some(issued(provider, 0)), lines);
     for index in 1..3 {
-        assert_eq!(world.accept(issued(index)), Ok(index));
+        assert_eq!(world.accept(issued(provider, index)), Ok(index));
     }
     world
 }
 
 #[test]
-fn an_issuers_tokens_are_accepted_as_bearers_before_serving() {
+fn issued_credentials_are_accepted_before_serving() {
     for provider in [Provider::Anthropic, Provider::OpenAi] {
         for sent in 0..3 {
             let mut world = issued_world(provider, sent, vec![answered()]);
@@ -228,10 +244,10 @@ fn an_issuers_tokens_are_accepted_as_bearers_before_serving() {
             world.run();
             assert_eq!(
                 world.presented,
-                [Presented { route: provider, scheme: Some(Scheme::Bearer), index: Some(sent) }]
+                [Presented { route: provider, scheme: Some(issued(provider, sent).scheme), index: Some(sent) }]
             );
             assert_eq!(terminal(&world), Terminal::Answer(ANSWER.to_vec()));
-            assert_eq!(world.accept(issued(0)), Err(provider::Error::Limits));
+            assert_eq!(world.accept(issued(provider, 0)), Err(provider::Error::Limits));
         }
     }
 }
@@ -255,7 +271,7 @@ fn a_revoked_token_stays_accepted_until_a_line_names_it() {
             world.run();
             assert_eq!(
                 world.presented,
-                [Presented { route: provider, scheme: Some(Scheme::Bearer), index: Some(sent) }]
+                [Presented { route: provider, scheme: Some(issued(provider, sent).scheme), index: Some(sent) }]
             );
             assert_eq!(terminal(&world), expected, "{provider:?} index {sent}");
         }

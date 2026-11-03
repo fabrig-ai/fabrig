@@ -26,7 +26,7 @@ fn head_fields(sent: &[u8]) -> Vec<(&str, &str)> {
         .collect()
 }
 type RouteCase = (Provider, Scheme, Option<&'static str>, Vec<&'static str>, Vec<(&'static str, &'static str)>);
-fn route_cases() -> [RouteCase; 4] {
+fn route_cases() -> [RouteCase; 3] {
     [
         (Provider::Anthropic, Scheme::Key, None, vec!["x-api-key"], vec![("anthropic-version", "2023-06-01")]),
         (
@@ -35,13 +35,6 @@ fn route_cases() -> [RouteCase; 4] {
             Some("fixture-beta"),
             vec!["x-api-key"],
             vec![("anthropic-version", "2023-06-01"), ("anthropic-beta", "fixture-beta")],
-        ),
-        (
-            Provider::Anthropic,
-            Scheme::Bearer,
-            None,
-            vec!["Authorization"],
-            vec![("anthropic-version", "2023-06-01"), ("anthropic-beta", "oauth-2025-04-20")],
         ),
         (
             Provider::OpenAiCodex,
@@ -71,6 +64,7 @@ fn a_credential_its_route_refuses_is_invalid() {
         (Provider::OpenAiCodex, Some(Credential::key(call(1).credential.expect("fixture credential").value))),
         (Provider::OpenAiCodex, Some(Credential::bearer(call(1).credential.expect("fixture credential").value))),
         (Provider::Anthropic, call(1).credential),
+        (Provider::Anthropic, Some(Credential::bearer(b"fixture-bearer".as_slice().into()))),
         (Provider::OpenAi, call(1).credential),
     ] {
         let mut input = input(provider, Scheme::Bearer);
@@ -82,7 +76,7 @@ fn a_credential_its_route_refuses_is_invalid() {
 fn an_endpoint_header_naming_a_credential_field_is_refused() {
     for provider in [Provider::OpenAiCodex, Provider::Anthropic, Provider::OpenAi] {
         for name in [b"Authorization".as_slice(), b"x-api-key", b"chatgpt-account-id", b"session-id", b"thread-id"] {
-            let mut input = input(provider, Scheme::Bearer);
+            let mut input = input(provider, if provider == Provider::Anthropic { Scheme::Key } else { Scheme::Bearer });
             input.endpoint.headers = Box::new([header(name, b"override")]);
             assert_eq!(rejection(input, &limits()), Some(Error::Invalid), "{provider:?} {name:?}");
         }

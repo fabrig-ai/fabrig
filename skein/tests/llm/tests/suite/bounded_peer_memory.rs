@@ -56,7 +56,7 @@ fn input(owner: u64, provider: Provider) -> Call {
     let mut input = skein_llm_world::call(owner);
     if provider == Provider::Anthropic {
         input.endpoint = Endpoint::anthropic();
-        input.credential = Some(Credential::anthropic(b"fixture-token".as_slice().into()));
+        input.credential = Some(Credential::key(b"fixture-token".as_slice().into()));
         input.prompt.affinity = None;
     }
     input.prompt.output_ceiling(provider, 4096).expect("caller output configuration");
