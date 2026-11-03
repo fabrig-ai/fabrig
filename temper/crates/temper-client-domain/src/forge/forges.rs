@@ -50,12 +50,6 @@ pub enum Connection {
     Connected { id: u64, login: Box<[u8]> },
     Stopped { reason: Box<[u8]> },
 }
-/// The project selected for the first repository (protocol/setup.md, 6.7).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SetUpProject {
-    Existing(u32),
-    New(Box<[u8]>),
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CreateStep {
     Admin,
@@ -93,7 +87,6 @@ pub struct First {
     pub playground: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
-    pub project: SetUpProject,
     pub state: FirstState,
     pub label: Box<[u8]>,
 }
@@ -157,7 +150,6 @@ pub enum SetUpRefusal {
     NotOffered,
     NotUnderTheBox,
     Busy,
-    NewProject,
     Invalid,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -176,33 +168,19 @@ pub fn watch(limits: &super::Limits) -> Option<Watchable> {
     })
 }
 #[must_use]
-pub fn ask(
-    forge: u16,
-    org: Box<[u8]>,
-    repository: Box<[u8]>,
-    project: SetUpProject,
-    playground: bool,
-    limits: &super::Limits,
-) -> Option<Ask> {
+pub fn ask(forge: u16, org: Box<[u8]>, repository: Box<[u8]>, playground: bool, limits: &super::Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
     let forge = w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).ok()?);
-    ask_target(forge, org, repository, project, playground, &bounds)
+    ask_target(forge, org, repository, playground, &bounds)
 }
 fn ask_target(
     forge: w::Making,
     org: Box<[u8]>,
     repository: Box<[u8]>,
-    project: SetUpProject,
     playground: bool,
     bounds: &w::Limits,
 ) -> Option<Ask> {
-    let project = match project {
-        SetUpProject::Existing(project) => {
-            w::SetUpProject::Existing(w::ExistingProject::new(bounds, w::ExistingProjectParts { project }).ok()?)
-        }
-        SetUpProject::New(name) => w::SetUpProject::New(w::NewProject::new(bounds, w::NewProjectParts { name }).ok()?),
-    };
-    let value = w::SetUp::new(bounds, w::SetUpParts { forge, org, repository, project, playground }).ok()?;
+    let value = w::SetUp::new(bounds, w::SetUpParts { forge, org, repository, playground }).ok()?;
     request(w::Request::SetUp(value), bounds)
 }
 #[must_use]
@@ -634,7 +612,6 @@ pub struct SetUp {
     pub forge: Option<u16>,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
-    pub project: SetUpProject,
     pub request: skein_lib::Token,
     pub progress: Option<skein_lib::RequestProgress>,
     pub answer: Option<SetUpAnswer>,
@@ -744,10 +721,9 @@ fn send_setup(
 ) {
     let Some(_party) = side.party else { return };
     let SetupValues { playground, org, repository } = values;
-    let project = SetUpProject::New(repository.clone());
     let Some(bounds) = wire_limits(&limits) else { return };
     let Some(target) = making(side, forge, &bounds, None) else { return };
-    let Some(ask) = ask_target(target, org.clone(), repository.clone(), project.clone(), playground, &bounds) else {
+    let Some(ask) = ask_target(target, org.clone(), repository.clone(), playground, &bounds) else {
         return;
     };
     side.serial = side.serial.checked_add(1).expect("forge request serial fits");
@@ -757,7 +733,6 @@ fn send_setup(
         forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
         org,
         repository,
-        project,
         request,
         progress: Some(skein_lib::RequestProgress::Parked),
         answer: None,
