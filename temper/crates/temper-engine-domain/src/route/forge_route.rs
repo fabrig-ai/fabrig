@@ -1143,7 +1143,8 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::EndedLoaded { .. }
             | Work::TaskProposalLoaded { .. }
             | Work::EndedFailed { .. }
-            | Work::ForgeSettings(_) => {}
+            | Work::ForgeSettings(_)
+            | Work::ForgeRead { .. } => {}
         }
     }
     let Some(members) = goal_members(domain, env, goal, &topic, previous.as_ref()) else { return };

@@ -2125,3 +2125,71 @@ fn connect_and_replace_answers_share_the_connect_outcomes() {
         assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
     }
 }
+
+#[test]
+fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
+    for (read, query) in [
+        (
+            w::Read::Setting(
+                w::SettingRead::new(&w::CEILINGS, w::SettingReadParts { kind: 2, scope: 7, number: 3 }).unwrap(),
+            ),
+            root::ForgeRead::Setting { kind: 2, scope: 7, number: 3 },
+        ),
+        (
+            w::Read::ProposalItems(
+                w::ProposalItemsRead::new(&w::CEILINGS, w::ProposalItemsReadParts { key: u64::MAX }).unwrap(),
+            ),
+            root::ForgeRead::ProposalItems { key: u64::MAX },
+        ),
+    ] {
+        let record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).unwrap());
+        let exchange = kit::ToApplication::Read {
+            reply: REPLY,
+            sign_in: 3,
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            record,
+            scope: people::ApplicationScope::Deployment,
+            window: jig_domain_core::documents::Window { rows: 1, after: None },
+        };
+        let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query: actual }) = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange,
+            &fixtures::forge_table(&[]),
+            None,
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap() else {
+            panic!("typed forge read")
+        };
+        assert_eq!((reply, sign_in, scope, actual), (REPLY, 3, people::ApplicationScope::Deployment, query));
+    }
+}
+#[test]
+fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
+    use forge::settings::{Edit, SettingKey, SettingSlot, SizedValue, Value};
+    let value = SizedValue { size: 4, value: Value::Charter(6) };
+    let record = family::forge_read(root::ForgeReadAnswer::Setting(Some(value.clone())), &w::CEILINGS).unwrap();
+    assert_eq!(
+        wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().value().as_deref(),
+        Some(temper_engine_smith::kinds::encode(&value.value).as_ref())
+    );
+    let empty = family::forge_read(root::ForgeReadAnswer::Setting(None), &w::CEILINGS).unwrap();
+    assert!(wire::decode_setting_answer(&empty, &w::CEILINGS).unwrap().value().is_none());
+    let items = Box::new([
+        (SettingKey { kind: 3, scope: 0, number: 1, slot: SettingSlot::Proposal(7) }, Edit::Set(value.clone())),
+        (SettingKey { kind: 2, scope: 9, number: 2, slot: SettingSlot::Proposal(7) }, Edit::Remove),
+        (SettingKey { kind: 1, scope: 0, number: 3, slot: SettingSlot::Proposal(7) }, Edit::Reset),
+    ]);
+    let record = family::forge_read(root::ForgeReadAnswer::ProposalItems(items), &w::CEILINGS).unwrap();
+    let decoded = wire::decode_proposal_items_answer(&record, &w::CEILINGS).unwrap();
+    assert_eq!(decoded.items().len(), 3);
+    for (item, (kind, scope, number)) in decoded.items().iter().zip([(3, 0, 1), (2, 9, 2), (1, 0, 3)]) {
+        assert_eq!((item.kind(), item.scope(), item.number()), (kind, scope, number));
+    }
+    let w::SettingEdit::Set(set) = decoded.items().as_slice()[0].edit() else { panic!("set value") };
+    assert_eq!(set.value(), temper_engine_smith::kinds::encode(&value.value).as_ref());
+    assert_eq!(*decoded.items().as_slice()[1].edit(), w::SettingEdit::Removed);
+    assert_eq!(*decoded.items().as_slice()[2].edit(), w::SettingEdit::Reset);
+}

@@ -11,6 +11,24 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
     if call.form == 1 {
         return c::Setting::Rules;
     }
+    if call.form == 2 || call.form == 3 {
+        let scope = match value(call, 2) {
+            Some(Value::Project(super::call::Project::Number(project))) => *project,
+            Some(_) => unreachable!("resolved project"),
+            None => 0,
+        };
+        return c::Setting::Application {
+            kind: if call.form == 3 {
+                3
+            } else if scope == 0 {
+                1
+            } else {
+                2
+            },
+            scope,
+            number: u32::try_from(number(call, 1).expect("setting number")).expect("parsed u32"),
+        };
+    }
     let number =
         c::SettingNumber { number: u32::try_from(number(call, 1).expect("setting number")).expect("parsed u32") };
     match value(call, 0) {
