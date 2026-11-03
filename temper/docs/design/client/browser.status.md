@@ -4,10 +4,7 @@
 
 - **Not yet:** 2.1: the shell's `playground` feature
   (`../playground.md`, 6); `temper-client-shell-web` has the features
-  `record` and `loopback-navigation` alone. 2.5: the banner as one
-  quiet line, its switcher and "Set up temper →", and the chats page's
-  pane and prompt: `temper.css` draws the banner filled, the projects
-  as buttons and the chats page as one column. 4.6: item 12, the
+  `record` and `loopback-navigation` alone. 4.6: item 12, the
   playground's story A on the built playground and its log replayed
   natively (`../playground.status.md`).
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
