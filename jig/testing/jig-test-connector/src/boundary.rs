@@ -563,6 +563,16 @@ pub enum SystemEvent {
 pub enum Event {
     /// Compare this start's defaults with the saved defaults.
     SettingsDefaults,
+    /// Keep restored items as a proposal, checking their kinds' bounds.
+    RestoreSettings {
+        token: Token,
+        proposal: u64,
+        items: Box<[crate::RestoredItem]>,
+    },
+    /// Erase values replaced by revisions below the retained history.
+    ForgetReplaced {
+        before: u64,
+    },
     /// Judge in the decision that would make this revision.
     JudgeSettings {
         token: Token,
@@ -935,6 +945,8 @@ impl Record {
 pub enum Request {
     /// One judgment per item, in the ask's order.
     SettingsJudged { token: Token, judged: Box<[crate::SettingJudged]> },
+    /// Restored items' sizes and charters, or their refusals, in item order.
+    SettingsRestored { token: Token, judged: Box<[crate::SettingJudged]> },
     /// Current defaults, and removed defaults with size zero and no charters.
     SettingsDefaults { defaults: Box<[crate::SettingDefault]> },
     /// The newest setting value, or its absence.
