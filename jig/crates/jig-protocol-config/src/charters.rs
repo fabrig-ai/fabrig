@@ -119,6 +119,8 @@ fn charter(
             shell: shell?,
             agents: agents?,
             call_timeout: call_timeout?,
+            // Its format carries no mask yet (configuring-p3, contracts C1).
+            tools: RunPolicy::EVERY_FAMILY,
         },
     };
     validate(&charter, path, problems);
