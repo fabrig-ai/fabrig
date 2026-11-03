@@ -69,6 +69,10 @@ pub const TASKS_AHEAD: u32 = 64;
 /// A side's bounds on the forge family's fields (client/README.md, 4.4 and 4.6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bounds {
+    pub segments: u32,
+    pub segment_bytes: u32,
+    pub gates: u32,
+    pub approvals: u32,
     pub field_bytes: u32,
     pub checks: u32,
     pub contexts: u32,
@@ -79,6 +83,12 @@ pub struct Bounds {
 #[must_use]
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
+        landing_exact_value: bounds.segment_bytes,
+        landing_open_value: bounds.segment_bytes,
+        landing_pattern_segments: bounds.segments,
+        landing_pattern_segments_item: bounds.segment_bytes,
+        landing_rule_gates: bounds.gates,
+        landing_rule_approvals: bounds.approvals,
         verifying_tiers: 32,
         verifying_tiers_item: 128,
         red_tiers: 32,

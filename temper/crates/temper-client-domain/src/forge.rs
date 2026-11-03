@@ -374,6 +374,10 @@ fn served(side: &mut Side, served: Served) {
 #[must_use]
 pub fn wire_limits(limits: &Limits) -> Option<temper_client_protocol_wire::v1::Limits> {
     temper_client_protocol_wire::limits(&temper_client_protocol_wire::Bounds {
+        segments: temper_client_protocol_wire::v1::CEILINGS.landing_pattern_segments,
+        segment_bytes: temper_client_protocol_wire::v1::CEILINGS.landing_pattern_segments_item,
+        gates: temper_client_protocol_wire::v1::CEILINGS.landing_rule_gates,
+        approvals: temper_client_protocol_wire::v1::CEILINGS.landing_rule_approvals,
         field_bytes: limits.field_bytes,
         checks: limits.checks,
         contexts: limits.checks,

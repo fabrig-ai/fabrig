@@ -59,6 +59,12 @@ fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(
         fixtures::limits(),
         v1::Limits {
+            landing_exact_value: 8,
+            landing_open_value: 8,
+            landing_pattern_segments: 3,
+            landing_pattern_segments_item: 8,
+            landing_rule_gates: 2,
+            landing_rule_approvals: 1,
             verifying_tiers: 32,
             verifying_tiers_item: 128,
             red_tiers: 32,
