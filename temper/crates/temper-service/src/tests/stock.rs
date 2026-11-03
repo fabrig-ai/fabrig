@@ -745,10 +745,10 @@ fn the_documents_rules_and_charter_are_the_forges_defaults() {
     second.enforce = true;
     second.ci = false;
     second.pattern.last = jig_domain_authority::Last::Exact(b"main".as_slice().into());
-    engine.landing.deployment = Box::new([first.clone(), second.clone()]);
-    engine.landing.projects = skein_lib::Map::with_capacity(1);
-    engine.landing.projects.insert(3, Box::new([second.clone(), first.clone()])).unwrap();
-    let stock = crate::stock::forge_defaults(&engine.landing, 6);
+    engine.landing_rules.deployment = Box::new([first.clone(), second.clone()]);
+    engine.landing_rules.projects = skein_lib::Map::with_capacity(1);
+    engine.landing_rules.projects.insert(3, Box::new([second.clone(), first.clone()])).unwrap();
+    let stock = crate::stock::forge_defaults(&engine.landing_rules, 6);
     assert_eq!(stock.len(), 6);
     for (item, kind, scope, number, source) in [
         (&stock[0], 1, 0, 1, &first),

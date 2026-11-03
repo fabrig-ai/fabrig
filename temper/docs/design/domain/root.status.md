@@ -3,13 +3,10 @@
 2026-11-02. Where temper's code lags or departs from [root.md](root.md).
 
 - **Not yet:** 5.5, 5.6, 6, 9.1: settings of temper's kinds: the forge's
-  family `Setting`, the two standing requirements, temper's stock defaults
+  family `Setting`, temper's stock defaults
   given at start, and the landing rules and the forge's charter out of
   `Config`. They are `Config`'s `landing` and `forge_charter`, read at
-  start, and the landing rules are compiled as `LandingPolicy`, each
-  criterion a requirement on the merge and the forge's own criterion, a
-  rule's gates the forge's gate templates
-  (`temper-engine-domain/src/translate.rs`, `domain.rs`). 6: a change's delegates under the
+  start. 6: a change's delegates under the
   charters it was made with; the producing charter is the configured
   forge charter and the review charter is fixed at 4
   (`temper-engine-domain/src/route/forge_route.rs`). 7.2: a section for each

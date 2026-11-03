@@ -1,10 +1,8 @@
 //! Forge judgements over a change's own facts (domain/forge.md, 8.7).
 //!
-//! The connector keeps each criterion's parameters. The root supplies verified
+//! The connector judges the criteria of its held rules. The root supplies verified
 //! project roles for authenticated reviewers; it does not interpret the forge's
 //! CI, containment, gate or review facts. Judgements are for one named head.
-
-use alloc::boxed::Box;
 
 use temper_engine_domain_forge_change as change;
 
@@ -50,30 +48,6 @@ pub struct Reviewer {
     pub role: u32,
     pub head: skein_forge::api::Commit,
     pub verdict: skein_forge::api::Verdict,
-}
-
-/// Connector-owned configuration for requirements named by authority policy.
-#[derive(Debug)]
-pub struct Judges {
-    pub deployment: Box<[Criterion]>,
-    pub projects: skein_lib::Map<u32, Box<[Criterion]>>,
-}
-
-impl Judges {
-    /// An empty configuration for a connector with no landing requirements.
-    #[must_use]
-    pub fn empty(projects: u32) -> Judges {
-        Judges { deployment: Box::new([]), projects: skein_lib::Map::with_capacity(projects) }
-    }
-}
-
-pub(crate) fn criterion(judges: &Judges, project: u32, parameters: u32) -> Option<Criterion> {
-    let index = usize::try_from(parameters & 0x7fff_ffff).ok()?;
-    if parameters & 0x8000_0000 == 0 {
-        judges.deployment.get(index).copied()
-    } else {
-        judges.projects.get(&project)?.get(index).copied()
-    }
 }
 
 fn status(value: change::Status) -> Verdict {

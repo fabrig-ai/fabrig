@@ -611,8 +611,8 @@ impl Joint {
                 gates: Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }]),
                 approvals: Box::new([]),
             }]);
-            config.landing.deployment.clone_from(&landing);
-            assert!(config.landing.projects.insert(1, landing).is_ok());
+            config.landing_rules.deployment.clone_from(&landing);
+            assert!(config.landing_rules.projects.insert(1, landing).is_ok());
             let mut rules = config.core.defaults.rules.clone();
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
             rules.ceiling.delegation.kinds =

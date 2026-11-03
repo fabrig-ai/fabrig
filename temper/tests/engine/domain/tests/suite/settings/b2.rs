@@ -29,7 +29,7 @@ fn configuration() -> engine::Config {
         config.core.defaults.policies.get(&POLICY_NUMBER).expect("stock policy 1").clone();
     config.core.owners[0].project = 1;
     config.forge_charter = 2;
-    config.landing.deployment = Box::new([engine::LandingRule {
+    config.landing_rules.deployment = Box::new([engine::LandingRule {
         connector: 1,
         kind: 4,
         enforce: true,
