@@ -111,6 +111,7 @@ pub enum Event {
         judged: Box<[Judged]>,
     },
     SettingsDefaults {
+        connector: u16,
         defaults: Box<[DefaultState]>,
     },
     Resource {

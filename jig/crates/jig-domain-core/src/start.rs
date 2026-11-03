@@ -38,12 +38,22 @@ pub enum Phase {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Failure {
     Settings { failure: core_settings::Failure, changed: bool },
+    Application { kind: u32, scope: u32, number: u32, why: ApplicationWhy },
     ProjectPolicy { project: u32 },
     HeldPastLimit { which: HeldLimit, held: u32, limit: u32 },
     AccountsPastLimit { failure: accounts::RestoreLimit },
     LiveSet { set: LiveSet, key: Key, held: u64, limit: u64 },
     Accounting { key: Key },
     LlmChoice { key: Key },
+}
+
+/// A setting cannot be held under its application's declared kind (engine.md, 17.5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ApplicationWhy {
+    Undeclared,
+    Scope,
+    Count,
+    Shape,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
