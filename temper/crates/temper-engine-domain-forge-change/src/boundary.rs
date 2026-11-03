@@ -287,6 +287,8 @@ pub struct Facts {
     pub queue_repair_active: bool,
     /// The task has a pending dependency (jig's `domain/tasks.md`, 5.7), so it is not ready.
     pub kept: bool,
+    /// An open question of the change's current agent stands (domain/forge.md, 8.4 and 8.11).
+    pub asking: bool,
     /// The end of the window Forgejo is still settling in, when open.
     pub settling: Option<Wall>,
     pub verification: Verification,

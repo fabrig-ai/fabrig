@@ -588,8 +588,9 @@ private, never edited by hand:
 
 `temper forge prepare [DIRECTORIES] FORGE`, before Forgejo runs. It takes
 Forgejo's lock (6.4), and the runner's too when it writes the runner's
-files: at a first preparation, and for a runner older than its pin
-(item 3) or added (item 4); checks the binaries; and decides by
+files: at a first preparation, for changed settings (item 2), and for
+a runner older than its pin (item 3) or added (item 4); checks the
+binaries; and decides by
 `state`:
 
 1. **The first preparation:** the layout of section 3; `app.ini`;
@@ -638,9 +639,16 @@ files: at a first preparation, and for a runner older than its pin
    an admin a person deleted fails the preparation, naming it; the
    person's two header files made again, each alone, when missing, as
    on a forge prepared before they were (a person who revokes a token
-   deletes its file, and the next start mints a new one); nothing
-   else. It takes Forgejo's lock alone, so a box restarts a Forgejo,
-   after its preparation, while the runner runs.
+   deletes its file, and the next start mints a new one). A configured
+   runner is registered again with its existing secret, keeping the same
+   registration, and its configuration is rendered from the current setup.
+   If the configuration is identical, its file is left untouched and no
+   runner lock is needed, so a box can restart Forgejo while the runner
+   runs. A changed or missing configuration is written whole under the
+   runner's lock; a running runner refuses that preparation. The prepared
+   versions and Forgejo's secrets are recorded unchanged. Stop the box,
+   edit `CONFIG/temper.json` and restart with the same directories to
+   apply changed capacity, labels or `PATH` without replacing secrets.
 3. **An upgrade:** a recorded Forgejo older than the pin is dumped
    (`forgejo dump`) into `backups/forgejo-<old>-to-<new>.zip`, written as
    `backups/dump.partial.zip` (Forgejo adds `.zip` to a name without it)
@@ -1665,6 +1673,15 @@ document.
   | `fake.git` | a data path | the playground's git, a link to `temper fake git` (8.2, 8.4): the program the engine names in each of the fake forge's repositories' records, for the worker to spawn in place of `workers[].git` (channel.md, section 4) |
   | `github` | GitHub's place, `{"api", "transport", "remote", "web", "git"}`, or null | null for github.com's (17.1); a place only to point at a fake (7.5) |
 
+- **Runner slots:** change CI and tiers whose workflows use `temper-host`
+  share the owned runner's capacity, including other repositories' jobs.
+  `application.machine.owned.runner.capacity` has minimum and default 1
+  (8.3). To run CI beside one single-job tier takes 2 slots; beside two
+  such tiers takes 3. Multi-job workflows need a slot for each concurrent
+  job. With only one slot a slow tier can keep CI waiting and prevent
+  landings during its run. A capacity edit reaches an existing runner
+  through re-preparation (6.3); stop the box, edit `CONFIG/temper.json`,
+  then restart on the same configuration, data and cache directories.
 - **A forge's setup entry,** what the setup host and the box's commands
   set an owned, fake or managed forge up with, is made from its record
   and, for an owned or fake forge, the machine's part of its kind: its
@@ -2961,7 +2978,11 @@ relies on.
   binary refused; a missing `admin_token` made again, under a fresh name;
   a preparation cut short made again from an empty layout; Forgejo's
   files with no `state` refused; a later preparation taking Forgejo's
-  lock alone.
+  lock alone when the runner configuration is unchanged; a changed
+  capacity at the same versions rewrites the runner's YAML while keeping
+  its registration and secrets. The shell checks that a live runner's
+  lock permits identical YAML to remain and refuses changed YAML until
+  the runner stops.
 - **The specs:** each command's arguments and environment, and no secret
   of the preparation's in any argument.
 - **The plans' decisions** from answers are skein's (skein's

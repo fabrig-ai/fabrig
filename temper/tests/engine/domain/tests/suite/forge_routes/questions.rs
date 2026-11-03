@@ -9,8 +9,7 @@ const ANSWER: &[u8] = b"Keep the documented behavior.\nLeave the wider work for 
 const CALL: u64 = 93;
 // A requester run reserves 60; the change and its producer share the remainder.
 const BUDGET: u64 = 200;
-// This story does not test stalls: keep that product timeout beyond its horizon
-// (skein/docs/foundation/testing-strategy.md, 6); relay-stall owns the question wait.
+// Keep ordinary relay stories within the stall; the stall story advances the clock.
 
 pub(super) fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
@@ -192,6 +191,50 @@ fn a_change_with_questions_up_keeps_its_agents_message_family() {
     let (world, _, change, producer) = up_world(None);
     assert_eq!(row(&world, change).questions.route, Route::Up);
     assert_ne!(live_task(&world, producer.task).authority.tools.0 & jig_domain_core::ToolFamilies::JIG.message.0, 0);
+}
+
+#[test]
+fn a_question_open_past_the_stall_holds_nothing() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    let (mut world, requester, change, producer) = up_world(None);
+    // An indefinite wait's polling must not supply the missing answer wake.
+    let stall = world.env.limits.forge.change_policy.stall;
+    world.env.limits.forge.queue_window = stall.saturating_add(stall);
+    ask(&mut world, &producer, change);
+    park_after_turn(&mut world, &producer, None, 0);
+    let before_question = row(&world, change).change.since;
+    world.env.now = world.env.now.saturating_add(stall.saturating_add(stall));
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
+    assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+    assert!(!row(&world, change).questions.open.is_empty());
+    let answering_at = world.env.wall;
+    answer(&mut world, &requester, change, CALL + 1);
+    wait_answer(&mut world, producer.task, change);
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    let since = row(&world, change).change.since;
+    assert!(since >= answering_at);
+    assert!(since > before_question);
+    let deadline = since.as_nanos().saturating_add(stall.as_nanos());
+    // Leave a minute before the deadline, beyond these ticks' twenty seconds.
+    world.env.now = Time::from_nanos(deadline - Duration::from_secs(60).as_nanos());
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
+    assert_eq!(row(&world, change).change.since, since);
+    world.env.now = Time::from_nanos(deadline);
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert_eq!(
+        row(&world, change).change.state,
+        State::Held { was: Box::new(State::Producing { requested: true }), why: Hold::Stalled }
+    );
 }
 
 #[test]

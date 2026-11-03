@@ -1363,8 +1363,10 @@ delegate's terminal wakes it to offer the landed result.
   run. Released, it asks again: a release after an amendment that gives
   what it lacks (more tasks or budget, a widening its giver funds:
   `../client/tools.md`, area 2's `task amend`) lets it go on, a bare one
-  holds it again, saying so; the hold's way out names that amendment,
-  then the release, and the cancel beside them.
+  holds it again, saying so. The requester and panel's recovery words
+  offer `task cancel TASK REASON`, or asking for the change afresh, and
+  explain that bare release holds again. They advertise only commands
+  the client takes.
 - **Stalls:** each wait on the forge (CI that never reports, a
   mergeability never known, a forge's merge queue that neither lands
   nor ejects it, a gate's task stuck) is bounded by a stall counted from
