@@ -187,43 +187,6 @@
     "machine": {{}},
     "demo": null,
     "sign_in": null,
-    "landing": {{
-      "deployment": [],
-      "projects": [
-        {{
-          "project": 1,
-          "rules": [
-            {{
-              "connector": 1,
-              "kind": 4,
-              "pattern": {{
-                "segments": [
-                  "forge",
-                  "{proc.forge.ready.address}",
-                  "fake",
-                  "widget",
-                  "branch"
-                ],
-                "last": "exact",
-                "value": "main"
-              }},
-              "enforce": true,
-              "ci": true,
-              "up_to_date": true,
-              "gates": [
-                {{
-                  "number": 1,
-                  "blocking": true,
-                  "freshness": "exact"
-                }}
-              ],
-              "approvals": []
-            }}
-          ]
-        }}
-      ]
-    }},
-    "charter": 2,
     "limits": {{
       "profile": "small",
       "overrides": {{

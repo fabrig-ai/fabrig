@@ -11,10 +11,6 @@ pub fn copy(config: &engine::Config) -> engine::Config {
     for (key, value) in &c.defaults.policies {
         policies.insert(*key, value.clone()).expect("copied policy");
     }
-    let mut projects = skein_lib::Map::with_capacity(config.landing_rules.projects.capacity());
-    for (key, value) in &config.landing_rules.projects {
-        projects.insert(*key, value.clone()).expect("copied project");
-    }
     let mut landings = skein_lib::Map::with_capacity(config.landings.capacity());
     for (key, value) in &config.landings {
         landings.insert(*key, value.clone()).expect("copied landing");
@@ -55,7 +51,6 @@ pub fn copy(config: &engine::Config) -> engine::Config {
                 .collect(),
             connectors: c.connectors.clone(),
         },
-        landing_rules: engine::LandingRules { deployment: config.landing_rules.deployment.clone(), projects },
         landings,
         forge: config.forge.clone(),
         identities: config.identities.clone(),

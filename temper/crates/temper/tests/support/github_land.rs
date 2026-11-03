@@ -645,7 +645,12 @@ impl Referee<cluster::Root> for Judge {
             // as the clients' endpoint is reserved for the App's setup URL.
             document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
             let address = self.members.capture("forge", "address").expect("forge address").parse().expect("socket");
-            configure_engine(&mut document, address);
+            configure_engine(&mut document);
+            fs::create_dir_all(&self.client).expect("client directory");
+            super::write_private(
+                &self.client.join("landing-settings.json"),
+                &serde_json::to_vec(&landing_settings(address, "acme", "app")).expect("landing settings"),
+            );
             fs::write(&self.engine, serde_json::to_vec(&document).expect("engine JSON"))
                 .expect("fixed workers listener");
             let directory = self.members.dir("engine");
@@ -807,8 +812,7 @@ pub(crate) fn configure_llm(path: &Path) {
     value["cued"].as_array_mut().expect("scripts").push(json!({"cue":"Review this change at the named head","turns":[{"lines":[{"call":"finish","arguments":{"form":"verdict","label":"1","text":"Checked","fields":{},"items":[]}}],"finish":"tool_calls","tokens":20}]}));
     super::write_private(path, &serde_json::to_vec(&value).expect("LLM JSON"));
 }
-fn configure_engine(value: &mut Value, forge: SocketAddr) {
-    configure_landing(value, forge, "acme", "app");
+fn configure_engine(value: &mut Value) {
     // Use the stock defaults and init's seed policy reference, with no story-specific
     // tool grants. Init's placeholders do not occur in the seed projects.
     let init: Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
@@ -848,7 +852,11 @@ pub(crate) fn landing_reads() -> Vec<ctl::Call> {
     .collect()
 }
 
-pub(crate) fn configure_landing(value: &mut Value, forge: SocketAddr, owner: &str, repository: &str) {
+pub(crate) fn landing_settings(forge: SocketAddr, owner: &str, repository: &str) -> Vec<Value> {
     use serde_json::json;
-    value["application"]["landing"]["projects"] = json!([{"project":1,"rules":[{"connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),owner,repository,"branch"],"last":"exact","value":"main"},"enforce":true,"ci":true,"up_to_date":true,"gates":[{"number":1,"blocking":true,"freshness":"exact"}],"approvals":[]}]}]);
+    let value = json!({"world_settings":{"landing":{"deployment":[{"connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),owner,repository,"branch"],"last":"exact","value":"main"},"enforce":true,"ci":true,"up_to_date":true,"gates":[{"number":1,"blocking":true,"freshness":"exact"}],"approvals":[]}]}}});
+    temper_real_loop_world::settings_items::forge_items(&temper_real_loop_world::settings::forge(&value))
+        .into_iter()
+        .filter(|item| item["setting"]["kind"] == "landing-rule")
+        .collect()
 }

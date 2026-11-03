@@ -222,10 +222,9 @@ impl Service {
         let mut core = jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed);
         core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
         let config = temper_engine_domain::Config {
-            kinds_stock: crate::stock::forge_defaults(&settings.landing_rules, settings.charter),
+            kinds_stock: settings.kinds_stock,
             period_span: crate::stock::PERIOD_SPAN,
             core,
-            landing_rules: settings.landing_rules,
             landings: settings.landings,
             forge: forge_config,
             identities,

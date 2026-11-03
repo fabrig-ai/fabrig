@@ -354,13 +354,7 @@ impl Domain {
         for kind in &config.core.kinds {
             declares_forge_kinds |= kind.connector == forge_connector;
         }
-        let stock =
-            match policy_translate::bridge_stock(&config.landing_rules, &config.kinds_stock, forge_connector, limits)
-                .expect("document landing rules fit the forge defaults")
-            {
-                Some(stock) => stock,
-                None => config.kinds_stock,
-            };
+        let stock = config.kinds_stock;
         let kinds_stock = if declares_forge_kinds {
             Some(stock)
         } else {
@@ -1243,10 +1237,6 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         &limits.authority,
     ) {
         refused.push(Refused::Landing { project: None }).expect("counted refusals");
-    }
-    if let Err(project) = policy_translate::bridge_stock(&config.landing_rules, &config.kinds_stock, connector, limits)
-    {
-        refused.push(Refused::Landing { project }).expect("counted refusals");
     }
     if config.landings.capacity() > limits.authority.projects {
         refused.push(Refused::Landing { project: None }).expect("counted refusals");

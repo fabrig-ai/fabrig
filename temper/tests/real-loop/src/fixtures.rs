@@ -60,7 +60,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "machine":{},"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{},"demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
@@ -153,7 +153,8 @@ fn bind_documents(agent: &mut serde_json::Value, config: &mut serde_json::Value,
     let http = format!("http://{address}");
     // These records carry forge destinations and authority patterns. Listeners
     // and the independent LLM destination never participate in this rebinding.
-    for path in ["/world_settings/forge", "/application/machine", "/application/landing", "/world_settings/policies"] {
+    for path in ["/world_settings/forge", "/application/machine", "/world_settings/landing", "/world_settings/policies"]
+    {
         if let Some(value) = config.pointer_mut(path) {
             bind_forge(value, [(&previous, &address), (&previous_http, &http)]);
         }
@@ -445,7 +446,7 @@ pub fn given(directory: &Path) -> temper_service::stock::Given {
     };
     let mut given = own_defaults(&deployment, &flags);
     if crate::claude::configured(directory) {
-        let temper_service::stock::Given::Own(defaults) = &mut given else {
+        let temper_service::stock::Given::Own { jig: defaults, .. } = &mut given else {
             panic!("the real loop supplies its own defaults")
         };
         let engine = crate::settings::configuration(&deployment);
@@ -523,7 +524,7 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     if flags["case"] == true {
         crate::case::defaults::apply(&mut defaults, flags, stock_period_spend);
     }
-    temper_service::stock::Given::Own(Box::new(defaults))
+    temper_service::stock::Given::Own { jig: defaults, forge: crate::settings::forge(&values) }
 }
 
 /// Keep the fixture's other settings while making its chats standing.

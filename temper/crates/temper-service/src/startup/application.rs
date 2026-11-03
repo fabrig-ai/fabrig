@@ -21,11 +21,9 @@ pub struct Members {
     pub webhooks: Option<Webhooks>,
     pub machine: temper_forge_setup::machine::Machine,
     pub demo: Option<settings::Demo>,
-    pub landing_rules: temper_engine_domain::LandingRules,
     pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     /// The landing's projects in the document's order, which names a refused one's path.
     pub landing_projects: Box<[u32]>,
-    pub charter: u32,
     pub limits: limits::Limits,
     pub overrides: Box<[(Box<[u8]>, u64)]>,
     pub workers: Box<[Worker]>,
@@ -319,7 +317,9 @@ pub fn parse(
     };
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
     let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
-    let charter = read::number(&mut object, document, b"charter", &path, problems);
+    if object.member(document, b"charter").is_some() {
+        problems.push(path.member(b"charter"), What::CharterStored);
+    }
     let clients_at = read::required(&mut object, document, b"clients", &path, problems);
     let clients = match clients_at {
         Some(at) => clients(document, at, &path.member(b"clients"), true, problems),
@@ -327,7 +327,7 @@ pub fn parse(
     };
     let sign_in_at = read::nullable(&mut object, document, b"sign_in", &path, problems);
     let sign_in = sign_in::parse(document, sign_in_at, jig, bounds.sign_in, directories, problems);
-    let landing_at = read::required(&mut object, document, b"landing", &path, problems);
+    let landing_at = object.member(document, b"landing");
     let at = read::required(&mut object, document, b"webhooks", &path, problems);
     let webhooks = webhooks(document, at, &path, problems);
     read::finish(object, document, &path, problems);
@@ -348,25 +348,14 @@ pub fn parse(
     }
     let demo = demo::parse(document, demo_at, directories, problems);
     let workers = workers(document, workers_ats, jig.limits.core.fleet.workers, directories, &path, problems);
-    if let Some(charter) = charter {
-        let mut found = false;
-        for entry in &jig.charters {
-            if entry.number == charter {
-                found = true;
-            }
-        }
-        if !found {
-            problems.push(path.member(b"charter"), What::Jig(config::What::Refers));
-        }
-    }
     let landing = match landing_at {
         Some(at) => landing::parse(document, at, jig, &bounds, problems),
-        None => None,
+        None => Some((skein_lib::Map::with_capacity(0), Box::default())),
     };
     if !problems.is_empty() {
         return None;
     }
-    let (landing_rules, landings, landing_projects) = landing?;
+    let (landings, landing_projects) = landing?;
     Some(Members {
         clients: clients?,
         sign_in,
@@ -374,10 +363,8 @@ pub fn parse(
         machine: machine?,
         demo,
         workers: workers.into_boxed(),
-        charter: charter?,
         limits: limits?,
         overrides: overrides.into_boxed(),
-        landing_rules,
         landings,
         landing_projects,
     })

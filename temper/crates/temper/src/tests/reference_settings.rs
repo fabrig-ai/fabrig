@@ -9,8 +9,8 @@ const COORDINATOR: u32 = 5;
 const DESIGNER: u32 = 6;
 const CODER: u32 = 2;
 const GOAL: u32 = 4;
-// The reference supplies three charters and one template.
-const ITEMS: u32 = 4;
+// The reference supplies three charters, one template and two landing rules.
+const ITEMS: u32 = 6;
 // temper-init/template/agent.json's profile.policy.max_turns.
 const TURNS: u32 = 16;
 
@@ -127,4 +127,37 @@ fn the_reference_settings_file_decodes() {
     let llm = goal.llm.as_ref().expect("goal model choice");
     assert_eq!(llm.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(llm.main.effort.as_ref().expect("coordinator effort").bytes(), b"xhigh");
+}
+
+#[test]
+fn the_reference_sets_main_and_goal_branch_landing_rules() {
+    use temper_engine_domain_forge::{GateLast, settings};
+    let items = settings_form::file::decode(
+        include_bytes!("../../../../docs/examples/reference/settings.json"),
+        &temper_client_tools::limits::form(),
+    )
+    .expect("reference settings");
+    for (number, last, checks) in
+        [(1, GateLast::Exact(b"main".as_slice().into()), true), (2, GateLast::Open(b"temper".as_slice().into()), false)]
+    {
+        let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 1, scope: 0, number }) else {
+            panic!("reference landing rule")
+        };
+        let value = temper_engine_smith::kinds::decode(
+            1,
+            bytes,
+            &temper_engine_smith::kinds::Bounds { segments: 8, segment_bytes: 64, gates: 4, approvals: 4 },
+        )
+        .expect("reference rule codec");
+        let settings::Value::Rule(rule) = value.value else { panic!("rule value") };
+        assert_eq!(
+            rule.pattern.segments.as_ref(),
+            [b"forge".as_slice(), b"127.0.0.1:3000", b"acme", b"widget", b"branch"].map(Box::from)
+        );
+        assert_eq!(rule.pattern.last, last);
+        assert!(rule.enforce);
+        assert_eq!((rule.ci, rule.up_to_date), (checks, checks));
+        assert!(rule.gates.is_empty());
+        assert!(rule.approvals.is_empty());
+    }
 }

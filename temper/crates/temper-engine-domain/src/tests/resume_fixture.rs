@@ -287,14 +287,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        kinds_stock: crate::route::policy_translate::forge_stock(
-            &engine::LandingRules { deployment: Box::default(), projects: skein_lib::Map::with_capacity(1) },
-            1,
-            4,
-            0,
-            &limits(),
-        )
-        .unwrap(),
+        kinds_stock: crate::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -347,7 +340,6 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landing_rules: engine::LandingRules { deployment: Box::new([]), projects: skein_lib::Map::with_capacity(1) },
         landings: skein_lib::Map::with_capacity(1),
         forge: skein_forge_client::Config {
             namespace: Box::from(&b"root"[..]),

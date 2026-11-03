@@ -45,60 +45,16 @@ fn standing(connector: u16, requirement: u16, guarded: bool) -> authority::Requi
     }
 }
 
-/// Worlds may give kind 3 beside document landing rules; complete that stock together.
-pub(crate) fn bridge_stock(
-    landing: &crate::LandingRules,
-    given: &[settings::Stock],
-    connector: u16,
-    limits: &crate::Limits,
-) -> Result<Option<Box<[settings::Stock]>>, Option<u32>> {
-    let mut change = 0;
-    let mut review = 0;
-    for item in given {
-        if item.kind != 3 || item.scope != 0 {
-            return Ok(None);
-        }
-        let charter = match &item.value.value {
-            settings::Value::Charter(charter) => *charter,
-            settings::Value::Rule(_) => return Ok(None),
-        };
-        match item.number {
-            1 => change = charter,
-            2 => review = charter,
-            _ => return Ok(None),
-        }
-    }
-    let mut stock = forge_stock(landing, change, review, connector, limits)?;
-    for item in &mut stock {
-        for original in given {
-            if (original.kind, original.scope, original.number) == (item.kind, item.scope, item.number) {
-                item.clone_from(original);
-            }
-        }
-    }
-    Ok(Some(stock))
-}
-
-/// Bridge for worlds constructing Config without encoded kind defaults.
-pub(crate) fn forge_stock(
-    landing: &crate::LandingRules,
+/// Stock supplied explicitly by a test world's builder.
+pub(crate) fn landing_stock(
+    deployment: &[LandingRule],
+    projects: &skein_lib::Map<u32, Box<[LandingRule]>>,
     change: u32,
     review: u32,
-    connector: u16,
-    limits: &crate::Limits,
-) -> Result<Box<[settings::Stock]>, Option<u32>> {
-    if landing.projects.capacity() > limits.authority.projects || !rules_within(&landing.deployment, connector, limits)
-    {
-        return Err(None);
-    }
-    for (&project, rules) in &landing.projects {
-        if !rules_within(rules, connector, limits) {
-            return Err(Some(project));
-        }
-    }
+) -> Box<[settings::Stock]> {
     let mut stock = List::uncapped();
-    rules(&mut stock, 1, 0, &landing.deployment);
-    for (&project, landing) in &landing.projects {
+    rules(&mut stock, 1, 0, deployment);
+    for (&project, landing) in projects {
         rules(&mut stock, 2, project, landing);
     }
     for (number, charter) in [(1, change), (2, review)] {
@@ -111,7 +67,7 @@ pub(crate) fn forge_stock(
             })
             .expect("uncapped stock");
     }
-    Ok(stock.into_boxed())
+    stock.into_boxed()
 }
 
 fn rules(stock: &mut List<settings::Stock>, kind: u32, scope: u32, rules: &[LandingRule]) {
@@ -164,23 +120,4 @@ fn freshness(value: Freshness) -> forge::JudgeFreshness {
         Freshness::Exact => forge::JudgeFreshness::Exact,
         Freshness::Clean => forge::JudgeFreshness::Clean,
     }
-}
-
-fn rules_within(rules: &[LandingRule], connector: u16, limits: &crate::Limits) -> bool {
-    if rules.len() > usize::try_from(limits.forge.landing_rules).expect("bounded rules") {
-        return false;
-    }
-    match super::landing::landing_rules_bytes(rules) {
-        Some(bytes) if bytes <= u64::from(limits.journal.transcript_bytes) => {}
-        Some(_) | None => return false,
-    }
-    for rule in rules {
-        if rule.connector != connector
-            || rule.kind != 4
-            || rule.gates.len() > usize::try_from(limits.forge.change_policy.gates).expect("bounded gates")
-        {
-            return false;
-        }
-    }
-    true
 }

@@ -81,7 +81,9 @@ pub fn fixture() -> forge::Fixture {
                     grant["pattern"]["value"] = "playground".into();
                 }
             }
-            for rule in value["application"]["landing"]["projects"][0]["rules"].as_array_mut().expect("landing rules") {
+            for rule in
+                value["world_settings"]["landing"]["projects"][0]["rules"].as_array_mut().expect("landing rules")
+            {
                 rule["pattern"]["segments"][2] = "playground".into();
                 rule["pattern"]["segments"][3] = "widget".into();
             }

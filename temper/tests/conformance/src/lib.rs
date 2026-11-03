@@ -173,11 +173,8 @@ impl Application for Temper {
     fn build(config: &Config) -> Domain {
         let (mut configuration, limits) = config::root(config.seed, config.scenario, config.story);
         if config.scenario == Some(jig_conformance::scenarios::Scenario::ChangedJudge) {
-            for rule in &mut configuration.landing_rules.deployment {
-                rule.enforce = false;
-            }
-            if let Some(rules) = configuration.landing_rules.projects.get_mut(&1) {
-                for rule in rules {
+            for stock in &mut configuration.kinds_stock {
+                if let temper_engine_domain_forge::settings::Value::Rule(rule) = &mut stock.value.value {
                     rule.enforce = false;
                 }
             }

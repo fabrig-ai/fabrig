@@ -443,7 +443,7 @@ fn load_document(
     if check_start && let Some(engine) = &engine {
         match given {
             crate::stock::Given::Stock => checks::stock(engine, &mut problems),
-            crate::stock::Given::Own(_) => {}
+            crate::stock::Given::Own { .. } => {}
         }
     }
     let application = match &engine {
@@ -737,12 +737,15 @@ fn checked_start_with(
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,
-        landing_rules: parsed.application.landing_rules,
+        kinds_stock: Box::default(),
         landings: parsed.application.landings,
-        charter: parsed.application.charter,
         limits: parsed.application.limits,
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
+    engine.kinds_stock = match given {
+        crate::stock::Given::Stock => crate::stock::forge(&root),
+        crate::stock::Given::Own { forge, .. } => forge.clone(),
+    };
     checks::root(core, &engine, seeds, &parsed.application.landing_projects, &root, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
