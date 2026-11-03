@@ -187,3 +187,20 @@ in the acceptance, cannot pass without it.
 - Another reader the merged trunk brings that fails only on the count of four charters or two
   templates is fixed the same way and listed; any other failure, stop and report it with its
   log.
+
+2026-11-03. **Q** (`stock-configuring-3`): widen the readers to
+`temper/crates/temper/tests/suite/startup.rs`, its expected policy bytes 3,266 to 3,282? **A:**
+yes (option A); temper's focused tests, in the acceptance, cannot pass without it, and the
+figure is the one this task re-measured and pinned.
+
+- `startup.rs`, in `a_stock_policy_past_its_limit_refuses_before_listening`, the message's
+  "needs 3266 bytes" becomes "needs 3282 bytes"; every other assertion stays. List it in the
+  report. `temper-service/src/tests/fixtures.rs`' comment naming 3266 says 3282 too.
+- Readers widened once more, so that the rest of the acceptance runs through: a test or
+  fixture that fails only on the stock's re-measured policy bytes (3,266 now 3,282), or only
+  on the count of four charters or two templates, is fixed for that figure alone and listed.
+  Any other failure, stop and report it with its log.
+- Start from the pushed branch (`d385dea91e`); run `startup.rs`' test alone first, then the
+  rest of `temper`'s focused tests and every package the acceptance names that has not yet
+  run in this branch's last state, one command per package group, excluding the live and
+  proof binaries, and give each run's counts.
