@@ -4837,6 +4837,7 @@ dependencies = [
  "temper-service",
  "temper-worker-checkout-world",
  "temper-worker-protocol-git",
+ "wasm-bindgen",
 ]
 
 [[package]]
