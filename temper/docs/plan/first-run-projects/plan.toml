@@ -1,3 +1,32 @@
 draft = "first-run-projects"
 repo = "fabrig"
 sources = ["temper/docs/plan/first-run-projects/inputs/request.md", "temper/docs/design/draft/first-run-projects.md", "temper/docs/design/draft/first-run-projects.status.md", "temper/docs/design/draft/reference-case.execution.md", "AGENTS.md", "DESIGN.md"]
+
+# temper/docs/design/draft/first-run-projects.md, in its section 8's order: 1, no seeded project
+# and the playground's Demo shown by its name; 2, the wizard without adoption, Ready making
+# "Default", a project with no repository highlighted; 3, the banner's switcher; 4, the first
+# chat. The design is written by this cut (inputs/request.md) and released with its specs.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "demo"
+title = "temper: the playground's project is Demo, an ordinary project the client names by its stored name"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.4"
+
+[[part]]
+id = "no-seed"
+title = "temper: temper init and the fake box seed no project; the first made is project 1"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.3"
+
+[[slice]]
+id = 1
+story = "a fresh temper box lists no project (ctl me); ctl playground start makes Demo, listed and shown by its stored name in the banner, the chats and a task's page; ctl playground end leaves no project"
+parts = ["no-seed", "demo"]
+walk = true

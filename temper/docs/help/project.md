@@ -26,10 +26,10 @@ A project is where work happens: the repositories adopted into it, one of them i
 
 ## How it changes
 
-- **Made:** `temper init` makes project 1, `Project 1`. Setting up the
-  box's Forgejo, or connecting a Forgejo with a first repository, makes
-  a new project, named after the repository, unless you name one that
-  exists; the playground's start makes `Playground`. A new project's
+- **Made:** `temper init` makes none. Setting up the box's Forgejo,
+  or connecting a Forgejo with a first repository, makes a new
+  project, named after the repository, unless you name one that
+  exists; the playground's start makes `Demo`. A new project's
   policy is a copy of policy 1 as it is then.
 - **Given repositories:** `repository adopt` adopts one into a project
   that exists; the first one adopted becomes its home unless the

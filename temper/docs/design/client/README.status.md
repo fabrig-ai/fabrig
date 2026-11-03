@@ -28,4 +28,6 @@
   "Start over" alone. The Model step showing an account added before
   as ready, where it shows `ConnectModel`'s Choose. 3.5, With no project
   yet: its heading, words and acts; `pages/chats.rs` draws the list
-  alone.
+  alone. 5.6: the playground's project named "Playground" by the
+  phrasebook, not by the name its record holds (`temper-client-view`'s
+  `pages.rs`, `project_name`).

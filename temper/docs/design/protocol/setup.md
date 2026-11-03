@@ -2065,9 +2065,14 @@ defaults for a person's real work are open (section 16).
   4,098 bytes, and a request at the threshold
   stays within the fake's request bound; its source a key. The agent's
   configuration declares it too (8.2).
-- **Its projects** (`../draft/archive/first-run.md`, 2.4): project 1,
-  seeded; the playground's start makes the playground's (8.4), and the
-  person's first repository theirs (6.7). One policy, `engine.policies` 1 (jig's
+- **Its projects:** none. Its `engine.projects` is `[]`: jig makes
+  each first owner a deployment owner with no project configured
+  (jig's `domain/people.md`, 3), and the engine, the playground and the
+  client run a deployment with no project. Projects are made at
+  runtime: the playground's start makes the playground's, "Demo"
+  (8.4), and the welcome the person's first (6.7). A deployment whose
+  first start seeded a project, project 1 as the document seeded it
+  before, keeps it: no start removes or renames it. One policy, `engine.policies` 1 (jig's
   `protocol/configuration.md`, section 3), which each project made
   starts from: its owner's grants, the rules' ceiling and its
   projections the owned example's, on the pattern below in place of
@@ -2076,9 +2081,8 @@ defaults for a person's real work are open (section 16).
   ["forge"], "last": "open", "value": ""}`, `enforce`d, with `ci` and
   `up_to_date`, and no gate or approval: a change lands on green CI
   with no person in between, in every project, seeded or made
-  (configuration.md, section 8). The document seeds project 1 with that
-  policy; the playground's project and the first repository's are made
-  at runtime by jig's `MakeProject` (8.4, 6.7). The policy and the landing rule are
+  (configuration.md, section 8). Each project is made on that policy
+  by jig's `MakeProject` (8.4, 6.7). The policy and the landing rule are
   the binary's stock settings, policy 1 and the deployment's rule 1, and
   the document names neither (configuration.md, 13.4); `temper init`
   writes no `engine.policies`, `engine.rules` or `application.landing`.
@@ -2198,9 +2202,10 @@ them as it does any Forgejo.
      bytes as a pasted value's (`../client/README.md`, section 8); a
      start that adds no account leaves the value unused, erased before
      the answer;
-  2. the playground's project: jig's `MakeProject`, named
-     `Playground`, on the stock policy 1 (configuration.md, 13.4), the
-     person its owner;
+  2. the playground's project: jig's `MakeProject`, named `Demo`, on
+     the stock policy 1 (configuration.md, 13.4), the person its owner:
+     an ordinary project, which the client shows by the name its record
+     holds (`../client/README.md`, 5.6);
   3. the scripted account's uses, naming the playground's project
      alone (jig's `domain/accounts.md`, 4.2);
   4. `playground/widget` adopted into the project by `Adopt`, from its
@@ -3206,11 +3211,11 @@ it checks of this document:
   which signs the owner in, with no forge kept and every group dormant.
   The owner starts the playground with `temper ctl playground start`
   (`../client/tools.md`, 5.5), answered running once its fake forge is
-  connected and `playground/widget` adopted into Playground, the project
-  its start made (8.4); then resets it with `temper ctl playground end`,
+  connected and `playground/widget` adopted into Demo, the project its
+  start made (8.4); then resets it with `temper ctl playground end`,
   answered reset. The store then reads empty, as a first run's: no
-  forge listed, no account of the deployment's, no project named
-  Playground, and no `playground-N`, `box/groups/N` or `box/started/N`
+  forge listed, no account of the deployment's, no project, and no
+  `playground-N`, `box/groups/N` or `box/started/N`
   left; and a native client reloaded opens the welcome at its Forge
   step (`../client/README.md`, 3.5).
 - **A reset the box's death cut,** a test of its own: a first run's box,
@@ -3258,7 +3263,7 @@ it checks of this document:
   made, followed by `forge list --until settled`, goes through "Setting
   up" and "Connecting" to "Connected as temper", with no restart, and
   its first repository made, `work/hello`; the call adopts it into the
-  new project `hello`, project 2, after the seeded project 1 (6.7). The
+  new project `hello`, project 1, the first made (6.7). The
   workflow's push has run on the owned runner: before the owner's first
   task, the runner's output, which the box, run with `--echo steps`,
   gives on its stderr as `runner-1: ` lines, says it took a task on `work/hello`, main's
@@ -3269,7 +3274,7 @@ it checks of this document:
   it, its pull's run of the starter workflow passes, and it lands; the
   test reads it all through temper's own reads, with no credential:
   the set up's answer names `work/hello` adopted, owned, on forge 1;
-  the task, given in project 2, runs on and lands into `work/hello`;
+  the task, given in project 1, runs on and lands into `work/hello`;
   the change's checks at its pull's head are the starter workflow's
   run, passed; and the task ends landed. The
   handover file is gone, and
@@ -3297,12 +3302,11 @@ Each is intended; what it needs is named with it.
   a follow-up act on `SetUp`'s admission, the first repository's
   adoption is the client's, while the playground's start makes its acts
   itself (8.4). Projects are
-  seeded at the first start, and made at runtime by jig's
-  `MakeProject` (jig's `domain/core.md`, 6.1): the first repository's
-  set up makes its project, named after the repository unless the
-  person names one, so the first run's `work/hello` is project 2's,
-  after the seeded project 1 (`../client/tools.md`, 5.5;
-  `../draft/archive/first-run.md`, 2.4).
+  made at runtime by jig's `MakeProject` (jig's `domain/core.md`,
+  6.1), none seeded (8.3): the first repository's set up makes its
+  project, named after the repository unless the person names one, so
+  the first run's `work/hello` is project 1's, the first made
+  (`../client/tools.md`, 5.5).
 - **An owned forge made managed** (section 2): an act that makes an
   owned forge's record managed, after which temper stops running
   Forgejo, its directory's `forgejo/` is a stock work path a person

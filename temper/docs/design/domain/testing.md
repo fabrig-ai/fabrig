@@ -1028,10 +1028,10 @@ terminal client, the captures and the faults.
     directories, the sign-in's and the LLM endpoint's addresses swapped
     for the fakes', then `temper box` on them, which reads that
     document; the owned forge set up from the client and `work/hello` made and
-    adopted into project 2, by that story's steps;
+    adopted into project 1, by that story's steps;
   - *the change:* the owner connects ChatGPT (`account connect 1`,
     `account list --until settled`) and opens a chat on gpt-6-luna in
-    project 2 asking for one README line, unique to the run. The
+    project 1 asking for one README line, unique to the run. The
     chat's agent calls `change`, naming `work/hello`, and the root
     delegates the change procedure on it (agent.md, 4.3.1; forge.md,
     section 8); the coder edits on the plan's grant, its

@@ -2286,9 +2286,13 @@ repository, and the cues the playground's, copied in from its read:
   chat the scripted model ran keeps its line after it, since jig
   records the model at Create (`../protocol/setup.md`, 8.3).
 - **Its names:** the phrasebook names the playground's provider and
-  model "Scripted model", its forge "Playground forge" and its project
-  "Playground", from the read's numbers, whatever names the records
-  hold (`../protocol/setup.md`, 8.4).
+  model "Scripted model" and its forge "Playground forge", from the
+  read's numbers, whatever names the records hold
+  (`../protocol/setup.md`, 8.4). Its project is an ordinary project,
+  named by the name its record holds wherever a project's name shows,
+  in the banner, the context line, the chats, a task's page and the
+  inbox: "Demo" as its start makes it, its new name once renamed. No
+  fixed word names it.
 - **The welcome** (`welcome.html`; `../draft/archive/first-run.md`, 2.3): its
   steps' words, their order and their acts are its mockup's
   (`mockups/welcome.html`, at the states its worlds list), the set up
