@@ -1,0 +1,3 @@
+draft = "configuring-p3"
+repo = "fabrig"
+sources = ["temper/docs/plan/configuring-p3/inputs/request.md", "temper/docs/design/draft/configuring.execution.md", "temper/docs/design/draft/configuring.md", "AGENTS.md", "DESIGN.md"]
