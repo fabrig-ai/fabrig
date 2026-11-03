@@ -570,7 +570,6 @@ pub(crate) fn named_action(
                 Ok(message) => message,
                 Err(why) => {
                     let part = match why {
-                        jig_domain_people::Refusal::Forgotten { .. } => unreachable!("a restore: restore-request"),
                         jig_domain_people::Refusal::Moved { now } => CallPart::Moved { task: target, now },
                         jig_domain_people::Refusal::Authority {
                             lacking: jig_domain_people::Lack::Again { required },
@@ -588,7 +587,8 @@ pub(crate) fn named_action(
                                 capacity: None,
                             })
                         }
-                        jig_domain_people::Refusal::Judged { .. }
+                        jig_domain_people::Refusal::Forgotten { .. }
+                        | jig_domain_people::Refusal::Judged { .. }
                         | jig_domain_people::Refusal::Stale { .. }
                         | jig_domain_people::Refusal::Full { .. }
                         | jig_domain_people::Refusal::Circle { .. }

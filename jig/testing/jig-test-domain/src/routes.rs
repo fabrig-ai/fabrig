@@ -1110,13 +1110,13 @@ fn resource_reports(
 
 fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAnswer {
     match outcome {
-        people::Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         people::Outcome::Released { .. } => connector::ApplicationCoreAnswer::Released,
         people::Outcome::Refused(why) => {
             connector::ApplicationCoreAnswer::Refused(crate::application_facts::refusal(why))
         }
         people::Outcome::Again(why) => connector::ApplicationCoreAnswer::Again(crate::application_facts::again(why)),
-        people::Outcome::Compound { .. }
+        people::Outcome::Restored { .. }
+        | people::Outcome::Compound { .. }
         | people::Outcome::CompoundRefused { .. }
         | people::Outcome::Applied { .. }
         | people::Outcome::SignedOut

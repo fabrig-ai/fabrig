@@ -74,14 +74,14 @@ impl Domain {
             let source = Key::Answer(*key);
             link(self, source, key.person);
             match &answer.outcome {
-                Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
                 Outcome::ServiceMade { person } => link(self, source, *person),
                 Outcome::RolesSet { project } => {
                     assert!(self.roles.contains_key(project), "{source:?} links missing roster {project}");
                     // Only successful roster asks retain their members as required references.
                     link_roster(self, source, &answer.ask);
                 }
-                Outcome::Again(_)
+                Outcome::Restored { .. }
+                | Outcome::Again(_)
                 | Outcome::SignedOut
                 | Outcome::Compound { .. }
                 | Outcome::CompoundRefused { .. }
@@ -262,13 +262,13 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
 
 fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
     match ask {
-        crate::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         crate::Ask::SetRoles { holdings, .. } => {
             for holding in holdings {
                 link(domain, source, holding.person);
             }
         }
-        crate::Ask::Compound { .. }
+        crate::Ask::Restore { .. }
+        | crate::Ask::Compound { .. }
         | crate::Ask::MarkSeen { .. }
         | crate::Ask::Application { .. }
         | crate::Ask::EditNote { .. }

@@ -132,6 +132,7 @@ enum Destination {
     Read(ReplyTo),
     Watch(Token),
     Erase,
+    Restore,
     Settings { to: ReplyTo, key: crate::CallKey },
     Done,
 }
@@ -140,7 +141,11 @@ impl Pending {
     fn take_reply(&mut self) -> ReplyTo {
         match core::mem::replace(&mut self.destination, Destination::Done) {
             Destination::Read(reply) => reply,
-            Destination::Erase | Destination::Watch(_) | Destination::Settings { .. } | Destination::Done => {
+            Destination::Restore
+            | Destination::Erase
+            | Destination::Watch(_)
+            | Destination::Settings { .. }
+            | Destination::Done => {
                 unreachable!("a pending read owns its reply")
             }
         }
@@ -561,7 +566,13 @@ fn start_jig(
     out
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Loaded) -> Queue<Request> {
+pub(crate) fn loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<crate::routing::Work>,
+    load: Token,
+    result: Loaded,
+) -> Queue<Request> {
     let name = Id::<Pending>::from_token(load);
     let Some(pending) = core.reads.get(name) else {
         return Queue::uncapped();
@@ -569,6 +580,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
+        Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
         Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
         Destination::Read(_) => {}
         Destination::Done => return Queue::uncapped(),

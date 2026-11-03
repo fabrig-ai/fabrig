@@ -308,7 +308,6 @@ fn scope_names(scope: &notes::Scope, project: u32) -> bool {
 
 fn ask_names(ask: &people::Ask, project: u32) -> bool {
     match ask {
-        people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         people::Ask::RemoveProject { project: owner, .. }
         | people::Ask::Compound { project: owner, .. }
         | people::Ask::Create { project: owner, .. }
@@ -334,7 +333,8 @@ fn ask_names(ask: &people::Ask, project: u32) -> bool {
         | people::Ask::SetPool { project: owner, .. }
         | people::Ask::DecideEscalation { project: owner, .. }
         | people::Ask::Application { scope: people::ApplicationScope::Project(owner), .. } => *owner == project,
-        people::Ask::Application {
+        people::Ask::Restore { .. }
+        | people::Ask::Application {
             scope: people::ApplicationScope::Own | people::ApplicationScope::Deployment,
             ..
         }

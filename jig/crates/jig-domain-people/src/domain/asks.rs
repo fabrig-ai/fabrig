@@ -4,7 +4,6 @@ use alloc::boxed::Box;
 
 pub(super) fn project(ask: &Ask) -> u32 {
     match ask {
-        Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         Ask::Application { scope, .. } => match scope {
             crate::ApplicationScope::Project(project) => *project,
             crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => 0,
@@ -15,7 +14,9 @@ pub(super) fn project(ask: &Ask) -> u32 {
         | Ask::AccountSignIn { .. }
         | Ask::AccountSignOut { .. }
         | Ask::AccountChange { .. } => 0,
-        Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
+        Ask::Restore { .. } | Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
+            crate::DEPLOYMENT
+        }
         Ask::RemoveProject { project, .. }
         | Ask::Rename { project, .. }
         | Ask::Compound { project, .. }
@@ -136,7 +137,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         return false;
     }
     match ask {
-        Ask::Restore { .. } => false,
+        Ask::Restore { reason, .. } => reason.len() <= skein_lib::length::usize_of(limits.words),
         Ask::Compound { operations, .. } => crate::compound::refusal(limits, operations).is_none(),
         Ask::MarkSeen { seen } => match seen {
             Seen::Results { .. } => true,
@@ -235,7 +236,6 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
 // Admission identifies the bounded payload before any keyed flight is made.
 pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
     let which = match ask {
-        Ask::Restore { .. } => return Refusal::NotOffered,
         Ask::Compound { operations, .. } => {
             return crate::compound::refusal(limits, operations).expect("invalid compound");
         }
@@ -275,7 +275,8 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         Ask::Create { batch, .. } | Ask::Propose { action: crate::Action::Batch(batch), .. } => {
             crate::batch::invalid(limits, batch)
         }
-        Ask::RemoveProject { .. }
+        Ask::Restore { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }

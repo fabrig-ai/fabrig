@@ -91,7 +91,6 @@ fn members(values: &mut [Member], moved: &[u64; 64]) {
 /// fresh-request admission. Stored asks keep their original context and are never remapped.
 pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
     match ask {
-        Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         Ask::Create { batch, .. } => members(batch, moved),
         Ask::Amend { amendment: value, .. } => amendment(value, moved),
         Ask::Propose { action, .. } => match action {
@@ -120,7 +119,8 @@ pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
             | PolicyChange::Permissions { .. }
             | PolicyChange::Templates { .. } => {}
         },
-        Ask::RemoveProject { .. }
+        Ask::Restore { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -177,7 +177,6 @@ pub fn valid_model_context(ask: &Ask, names: &[Box<[u8]>]) -> bool {
         return false;
     }
     let bits = match ask {
-        Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         Ask::Create { batch, .. } => members_bits(batch),
         Ask::Amend { amendment, .. } => amendment_bits(amendment),
         Ask::Propose { action, .. } => match action {
@@ -208,7 +207,8 @@ pub fn valid_model_context(ask: &Ask, names: &[Box<[u8]>]) -> bool {
             | PolicyChange::Permissions { .. }
             | PolicyChange::Templates { .. } => 0,
         },
-        Ask::RemoveProject { .. }
+        Ask::Restore { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -246,7 +246,6 @@ pub fn valid_model_context(ask: &Ask, names: &[Box<[u8]>]) -> bool {
 /// Application parts have no model-name carrier; explicit selectors need that capability.
 pub(crate) fn has_model_selector(ask: &Ask) -> bool {
     match ask {
-        Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         Ask::Create { batch, .. } => members_have_selector(batch),
         Ask::Amend { amendment, .. } => amendment_has_selector(amendment),
         Ask::Propose { action, .. } => match action {
@@ -280,7 +279,8 @@ pub(crate) fn has_model_selector(ask: &Ask) -> bool {
             | PolicyChange::Permissions { .. }
             | PolicyChange::Templates { .. } => false,
         },
-        Ask::RemoveProject { .. }
+        Ask::Restore { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }

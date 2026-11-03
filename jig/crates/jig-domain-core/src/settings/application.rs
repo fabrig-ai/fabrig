@@ -438,7 +438,7 @@ fn accepted(
     clippy::disallowed_methods,
     reason = "the core checks and cuts connector refusal words at its internal byte boundary"
 )]
-fn words(bytes: &[u8], bound: u32) -> Box<[u8]> {
+pub(crate) fn words(bytes: &[u8], bound: u32) -> Box<[u8]> {
     if core::str::from_utf8(bytes).is_err() {
         return Box::default();
     }

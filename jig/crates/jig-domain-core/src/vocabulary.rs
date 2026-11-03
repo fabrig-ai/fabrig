@@ -1157,7 +1157,7 @@ fn notes_new_work(event: &notes::Event) -> bool {
 #[expect(clippy::match_same_arms, reason = "application settings placeholders have their own arm")]
 fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
     match event {
-        crate::effects::connector::Event::SettingsRestored { .. } => unreachable!("a restore: restore-request"),
+        crate::effects::connector::Event::SettingsRestored { .. } => false,
         crate::effects::connector::Event::Resource { .. }
         | crate::effects::connector::Event::PoolSlots { .. }
         | crate::effects::connector::Event::News { .. }

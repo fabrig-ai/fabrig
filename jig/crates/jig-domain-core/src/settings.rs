@@ -515,3 +515,39 @@ pub(crate) fn is_project_policy(setting: Setting) -> bool {
         | Setting::Application { .. } => false,
     }
 }
+
+/// One paged restore and its connector continuations (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Debug)]
+pub(crate) struct Restoring {
+    pub(crate) pending: Option<Restoration>,
+    pub(crate) groups: skein_lib::Slab<Option<RestoreGroup>>,
+}
+impl Restoring {
+    pub(crate) fn new(kinds: &[Kind]) -> Self {
+        Self {
+            pending: None,
+            groups: skein_lib::Slab::with_capacity(u32::try_from(kinds.len()).expect("declared kinds")),
+        }
+    }
+}
+#[derive(Debug)]
+pub(crate) struct Restoration {
+    pub(crate) party: crate::routing::party::dispatch::Party,
+    pub(crate) revision: u32,
+    pub(crate) newest: u32,
+    pub(crate) reason: Box<[u8]>,
+    pub(crate) items: Map<Setting, RestoreEdit>,
+    pub(crate) left_out: Box<[Setting]>,
+    pub(crate) proposal: Option<u64>,
+}
+#[derive(Debug)]
+pub(crate) enum RestoreEdit {
+    Core(Edit),
+    Application(application::RestoredEdit),
+}
+#[derive(Debug)]
+pub(crate) struct RestoreGroup {
+    pub(crate) connector: u16,
+    pub(crate) items: Box<[application::Restored]>,
+    pub(crate) judged: Option<Box<[crate::effects::connector::Judged]>>,
+}

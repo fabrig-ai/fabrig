@@ -283,6 +283,10 @@ fn decide_with(
         keep_previous,
     );
     core.current.oldest = oldest;
+    let before = oldest.max(core.current.newest().saturating_sub(env.limits.settings.history)).max(1);
+    if s::restart::erased_revision(&writes, before) {
+        s::restart::forget_replaced(core, before, &mut routed.out);
+    }
     for write in writes.into_boxed() {
         routed.out.push(Request::Write(write));
     }
@@ -349,7 +353,7 @@ pub(crate) fn propose_admitted(
     let Party { request, person, .. } = party;
 
     let result = proposal_check(core, env, against);
-    let change = match result {
+    let mut change = match result {
         Ok(change) => change,
         Err(why) => {
             routed.work.push(Work::Event(Event::People(people::Event::Decided {
@@ -375,14 +379,10 @@ pub(crate) fn propose_admitted(
     };
     let fresh = crate::fresh(&mut core.counters, crate::Family::Message).expect("proposal number preflighted");
     assert!(fresh == u64::from(number), "same proposal sequence");
+    super::restore::proposal_value(core, request, &mut change);
     let heads = s::proposal_heads(&change.items);
     assert!(core.settings_offering_flights() == 0, "one settings offering");
-    core.fly(crate::routing::flight::Flight::SettingsOffering {
-        request,
-        by: person,
-        number,
-        value: s::Proposal { key: None, applications: Box::default(), against, items: change.items },
-    });
+    core.fly(crate::routing::flight::Flight::SettingsOffering { request, by: person, number, value: *change });
     let request = core.fly_goal(
         request,
         crate::GoalRoute::Offering { proposal: fresh, to: people::Role::Owner.number(), stubs: Box::new([]) },
@@ -399,7 +399,11 @@ pub(crate) fn propose_admitted(
         },
     })));
 }
-fn proposal_check(core: &mut Core, env: &Env<Limits>, against: u32) -> Result<Box<s::Proposal>, people::Refusal> {
+pub(super) fn proposal_check(
+    core: &mut Core,
+    env: &Env<Limits>,
+    against: u32,
+) -> Result<Box<s::Proposal>, people::Refusal> {
     let input = core.proposed_input.take().ok_or(people::Refusal::NotOffered)?;
     if against != core.current.newest() {
         return Err(people::Refusal::Stale { newest: core.current.newest() });
@@ -572,7 +576,7 @@ fn keep_set(core: &mut Core, proposer: people::Proposer, number: u64, pending: b
             people::Proposer::Party(n) | people::Proposer::Task(n) => n,
         };
         assert!(offered_by == who && offered == number, "same proposal set");
-        if has_application(&value.items) {
+        if value.key.is_none() && has_application(&value.items) {
             let key = core.current.keys;
             core.current.keys = key.checked_add(1).expect("proposal key preflighted");
             value.key = Some(key);
@@ -644,10 +648,16 @@ fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from
     counts.expect("move answers counts")
 }
 
-fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32, items: Box<[s::Item]>) {
+pub(super) fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32, items: Box<[s::Item]>) {
+    let mut extra = 0_usize;
+    for item in &items {
+        if s::is_project_policy(item.setting) {
+            extra = 1;
+        }
+    }
     core.proposed_input = Some(if !has_application(&items) && !project_policy::changes(core, &items) {
         Err(people::Malformed::SettingsUnchanged)
-    } else if items.len() > skein_lib::length::usize_of(jig_domain_tasks::SETTINGS_ITEMS) {
+    } else if items.len() > skein_lib::length::usize_of(jig_domain_tasks::SETTINGS_ITEMS).saturating_add(extra) {
         Err(people::Malformed::Settings {
             setting: items.first().expect("past item bound").setting,
             fault: s::Fault::Count,
