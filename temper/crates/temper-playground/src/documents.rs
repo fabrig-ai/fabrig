@@ -73,8 +73,12 @@ pub fn visitor(document: &serde_json::Value) -> skein_playground::visitor::Confi
     let clients = &document["application"]["clients"];
     let socket = clients["listener"]["socket"].as_str().expect("clients socket");
     let host = clients["public"].as_str().map_or(socket.as_bytes().into(), |public| {
-        public.strip_prefix("https://").or_else(|| public.strip_prefix("http://"))
-            .expect("public origin").as_bytes().into()
+        public
+            .strip_prefix("https://")
+            .or_else(|| public.strip_prefix("http://"))
+            .expect("public origin")
+            .as_bytes()
+            .into()
     });
     skein_playground::visitor::Config {
         listener: socket.parse().expect("clients address"),

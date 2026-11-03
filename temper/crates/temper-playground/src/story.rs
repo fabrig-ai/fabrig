@@ -4,8 +4,11 @@ use crate::{
     machine::{self, Machine},
     programs::{self, Harness, Process},
 };
-use skein_lib::Wall;
-use skein_playground::{slices::Reach, visitor::Visitor};
+use skein_lib::{Time, Wall};
+use skein_playground::{
+    slices::{Reach, Slices},
+    visitor::Visitor,
+};
 use skein_sim_world::{Bare, Inherited, Meter, Stream, World};
 
 /// Inputs read as a deployment, with one seed and a supplied wall clock.
@@ -110,7 +113,13 @@ pub fn reach<H: Harness>() -> Reach<Process<H>> {
 /// Step with this world's factory parameters installed.
 /// The scope ends before returning to the caller or another world's loop.
 pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> skein_sim_world::Step {
-    let parameters = world
+    programs::with(parameters(world), || world.step())
+}
+
+/// The world's factory parameters, read by its hosted programs while it steps.
+#[must_use]
+pub fn parameters<H: Harness, N: Meter>(world: &World<Process<H>, Machine, N>) -> programs::Parameters {
+    world
         .processes()
         .iter()
         .find_map(
@@ -118,8 +127,16 @@ pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> 
                 if let Process::Service(service) = process { Some(service.parameters.clone()) } else { None }
             },
         )
-        .expect("a composition has its service");
-    programs::with(parameters, || world.step())
+        .expect("a composition has its service")
+}
+
+/// A slice's budget in steps (skein/docs/design/playground.md, 3).
+pub const SLICE_STEPS: u32 = 256;
+
+/// A story's world in skein's slices, its visitor reached, at 1× from `browser`.
+#[must_use]
+pub fn slices(start: Start, budget: u32, browser: Time) -> Slices<Process<()>, Machine> {
+    Slices::new(world(start), reach(), budget, browser)
 }
 
 #[cfg(test)]
