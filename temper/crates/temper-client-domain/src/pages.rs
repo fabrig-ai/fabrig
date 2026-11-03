@@ -15,6 +15,7 @@ pub mod choice;
 pub mod connect_model;
 pub mod delegation;
 pub mod inbox;
+pub mod switcher;
 pub mod task;
 pub mod welcome;
 /// The chosen playground waits for its project membership (temper/docs/design/client/README.md, 4.8).
@@ -34,6 +35,7 @@ pub struct Pages {
     chat: Option<chat::Chat>,
     task: Option<task::Task>,
     accounts: accounts::Accounts,
+    switcher: switcher::Switcher,
     connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_choice: PlaygroundChoice,
@@ -60,6 +62,7 @@ pub enum Act {
         project: u32,
     },
     Choice(choice::Act),
+    Switcher(switcher::Act),
     SignOut,
     Playground,
     RetryPlayground,
@@ -170,6 +173,7 @@ impl Pages {
             chat: None,
             task: None,
             accounts: accounts::Accounts::default(),
+            switcher: switcher::Switcher::default(),
             connect_model: None,
             playground_provider: None,
             playground_choice: PlaygroundChoice::Idle,
@@ -186,6 +190,10 @@ impl Pages {
             seeing: None,
             confirm: None,
         }
+    }
+    #[must_use]
+    pub const fn switcher(&self) -> &switcher::Switcher {
+        &self.switcher
     }
     #[must_use]
     pub fn choice(&self) -> &choice::Draft {
@@ -363,6 +371,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            pages.switcher.close();
             leave_conversations(pages, out);
             pages.accounts.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
@@ -370,6 +379,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
             pages.welcome = None;
             pages.accounts_open = false;
+        }
+        Event::Act { act: Act::Switcher(act) } => {
+            let me = pages.me(client);
+            pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
         }
         Event::Act { act: Act::Choice(act) } => choice::act(pages, client, act, out),
         Event::Act { act: Act::ChatWords { words } } => {
@@ -453,6 +466,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
     }
     default_chosen(pages, client);
+    switcher_chosen(pages, client, out);
     returned(pages, client, out);
     let owner = pages.accounts_open
         && match accounts::current_me(client) {
@@ -483,6 +497,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.seeing = None;
         return false;
     }
+    if pages.switcher.told(&told) {
+        switcher_chosen(pages, client, out);
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
+        return false;
+    }
     if pages.choice.told(&told) || crate::acts::told(pages, &told) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
@@ -499,6 +518,7 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     pages.welcome = None;
     pages.address = Address::Inbox { filter: crate::address::Filter::ALL };
     pages.project = None;
+    pages.switcher = switcher::Switcher::default();
     if !pages.watching {
         pages.watching = true;
         out.push(Request::Client(jig_client::Event::Watch {
@@ -563,6 +583,7 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 }
 
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
+    pages.switcher.went(&address);
     if let (Address::Chats { .. }, Address::Chats { filter, .. }, Some(page)) =
         (&pages.address, &address, &mut pages.chats)
     {
@@ -834,6 +855,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::DiscardAmendment
         | Act::SendAmendment
         | Act::AmendAgain
+        | Act::Switcher(_)
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::OpenProject { .. }
@@ -877,6 +899,9 @@ fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
     if let Some(me) = pages.me(client) {
         for row in &me.projects {
             if row.project == project {
+                if pages.project != Some(project) {
+                    pages.switcher.close();
+                }
                 pages.project = Some(project);
                 break;
             }
@@ -892,6 +917,16 @@ pub(crate) fn playground_project(pages: &mut Pages, client: &Client, project: Op
         choose_project(pages, client, project);
         if pages.project == Some(project) {
             pages.playground_choice = PlaygroundChoice::Idle;
+        }
+    }
+}
+
+fn switcher_chosen(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
+    if let Some(project) = pages.switcher.opening {
+        choose_project(pages, client, project);
+        if pages.project == Some(project) {
+            pages.switcher.opening = None;
+            out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
         }
     }
 }
@@ -929,6 +964,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             pages.seen = 0;
             pages.seeing = None;
             pages.choice = choice::Draft::default();
+            pages.switcher = switcher::Switcher::default();
         }
         pages.party = Some(me.party.number);
         if connect_model::open(&pages.address) {
@@ -953,6 +989,7 @@ pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
     if let Some(me) = pages.me(client)
         && !contains(me, pages.project)
     {
+        pages.switcher.close();
         pages.project = match me.projects.get(0) {
             Some(row) => Some(row.project),
             None => None,
@@ -985,6 +1022,7 @@ fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
             }
             pages.accounts = accounts::Accounts::default();
             pages.choice = choice::Draft::default();
+            pages.switcher = switcher::Switcher::default();
             pages.party = None;
             pages.project = None;
             pages.seen = 0;

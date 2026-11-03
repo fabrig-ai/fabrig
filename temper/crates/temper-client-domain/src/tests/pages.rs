@@ -7,6 +7,7 @@ mod connect_model;
 mod delegation;
 mod inbox;
 mod paste;
+mod switcher;
 mod task;
 mod welcome;
 use super::fixtures;
