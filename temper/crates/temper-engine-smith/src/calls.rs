@@ -508,6 +508,7 @@ fn optional_bool(value: &Value, field: &'static [u8], default: bool) -> Result<b
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one change validates its plan members together before delegation")]
 fn change(value: &Value) -> Result<engine::ChangeCall, Problem> {
     if value.field(b"changes")?.is_some() {
         return Err(Problem::Range(b"changes"));
