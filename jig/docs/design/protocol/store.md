@@ -1038,7 +1038,7 @@ first by time is keyed reversed. skein-kv's load runs forwards only
   smith's turn, versioned on its own (smith's `protocol/transcript.md`,
   section 6), so its first two bytes are smith-transcript's version, and
   the core's schema says so (skein's `codec.md`, section 3):
-  `transcript: bytes 16777216 holds smith-transcript Turn`, its ceiling
+  `transcript: bytes 33554432 holds smith-transcript Turn`, its ceiling
   smith's largest turn (smith's `protocol/limits.md`, 4). No frame is
   rewritten: one behind the binary's versions is patched each time it is
   read (8.6). The word is core-v6's: it is part of the family's layout
@@ -1240,9 +1240,9 @@ nothing is written.
   (`transcripts/patches.rs`, `node_bound`), so every frame the kept
   texts allow is read and none is refused for its nodes. A turn's bytes
   do not bound its nodes (a list of empty records takes none), so
-  smith's real turn, 16 messages of 64 blocks, takes 2,109,520 nodes,
+  smith's real turn, 4 messages of 128 blocks, takes 1,054,764 nodes,
   and its machine is priced at that capacity from the baseline on, about
-  298 MB with what its tables hold while they grow (skein's `codec.md`,
+  249 MB with what its tables hold while they grow (skein's `codec.md`,
   11.7); a machine holds only what the largest record it has met needed
   (section 16).
 - **Windows across a mark.** A patched turn is the same conversation in
@@ -2419,8 +2419,8 @@ intervals, and its indexes, by the rules of section 12.
     map holds a turn; a frames' root kept out of `Row`'s `Value` would
     spare that walk;
   - smith's machine is priced for the most nodes its kept turn allows
-    (8.6): from the baseline on, about 298 MB per serving store
-    (`Patcher::workspace_bound` at 2,109,520 nodes), though a typical
+    (8.6): from the baseline on, about 249 MB per serving store
+    (`Patcher::workspace_bound` at 1,054,764 nodes), though a typical
     turn takes a few hundred nodes. Its tables grow in bounded steps
     (skein's `codec.md`, 11.7), so a store holds what its largest turn
     needed, not the price; but it keeps that room until the machine

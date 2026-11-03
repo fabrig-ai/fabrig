@@ -67,7 +67,7 @@ fn sizes_past_a_ceiling_give_no_codec_limits() {
         ("charter", Sizes { charter: 67_108_865, ..SIZES_ONE_SLOT }),
         ("transcript", Sizes { transcript: 134_217_729, ..SIZES_ONE_SLOT }),
         ("piece", Sizes { piece: 4097, ..SIZES_ONE_SLOT }),
-        ("turn", Sizes { turn: 16_777_217, ..SIZES_ONE_SLOT }),
+        ("turn", Sizes { turn: 33_554_433, ..SIZES_ONE_SLOT }),
         ("message", Sizes { message: 1_048_577, ..SIZES_ONE_SLOT }),
         ("sender", Sizes { sender: 1025, ..SIZES_ONE_SLOT }),
         ("call name", Sizes { call_name: 65, ..SIZES_ONE_SLOT }),

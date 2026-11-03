@@ -91,7 +91,7 @@ fn a_proposal_without_created_tasks_reads_back() {
 
 #[test]
 fn turn_limits_use_the_worker_channels_body_ceiling() {
-    assert_eq!(call_limits().core.turn_record_transcript, 16_777_216);
+    assert_eq!(call_limits().core.turn_record_transcript, 33_554_432);
 }
 
 #[test]

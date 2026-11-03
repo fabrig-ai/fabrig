@@ -71,11 +71,11 @@ fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
 
 #[test]
 fn startup_names_a_transcript_past_the_codec_ceiling() {
-    let document = transcript_document(16_777_217);
+    let document = transcript_document(33_554_433);
     let found = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         lines(&found).as_ref(),
-        b"application.limits.overrides.root.loads.transcript_bytes: 16777217 bytes, past the transcript codec's ceiling of 16777216\n"
+        b"application.limits.overrides.root.loads.transcript_bytes: 33554433 bytes, past the transcript codec's ceiling of 33554432\n"
     );
 }
 

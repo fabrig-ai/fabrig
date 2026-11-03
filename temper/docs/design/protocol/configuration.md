@@ -2000,7 +2000,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   `temper init`'s agent takes 48 calls per response and 26
   conversations (13.4's table), its models an output of 8,192 and a
   `reasoning_item` of at most 65,536; T is what smith measures for it,
-  within smith's own ceiling of 16,777,216 bytes (smith's
+  within smith's own ceiling of 33,554,432 bytes (smith's
   `protocol/limits.md`, 4, `turn-in-channel`), and init's document
   holds it, written by the test's writer (`setup.md`, 8.1). A box
   without the demo is measured from its own models and must declare
@@ -2010,7 +2010,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   Init keeps the demo, its window `gpt-6-luna`'s, so the host part is
   that window's (13.4; `setup.md`, 8.3).
 - **The store's ceiling:** jig's `standard` page holds a turn's frame of
-  a transcript of up to 16,777,216 bytes, any turn smith admits, and the
+  a transcript of up to 33,554,432 bytes, any turn smith admits, and the
   store's frame and the worker wire carry it (jig's
   `protocol/store.md`, 8.1); small's page holds a loaded transcript of
   at most 1,662,042 bytes (its 1,662,106 less the frame's 64), so a

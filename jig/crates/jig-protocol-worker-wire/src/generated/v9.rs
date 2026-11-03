@@ -77,7 +77,7 @@ pub const CEILINGS: Limits = Limits {
     hello_hosting: 65_536,
     hello_jobs: 256,
     turn_refused: 1_024,
-    turn_body: 16_777_216,
+    turn_body: 33_554_432,
     call_name: 64,
     call_tool: 64,
     call_input: 1_048_576,
