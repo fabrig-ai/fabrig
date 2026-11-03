@@ -490,7 +490,10 @@ cannot manufacture independent room.
   OAuth states and PKCE verifiers, sign-ins' secrets. Each generator is
   made from the seed and a stream number its owner gives (ChaCha20's
   nonce), distinct for every generator of a process, so several drawn from
-  one seed never yield the same bytes.
+  one seed never yield the same bytes. It is neither `Copy` nor `Clone`,
+  since a copy would yield its bytes again: its owner lends it by `&mut`,
+  and a component that keeps a generator of its own is made one, from the
+  seed, on a stream of its own.
 
 ## 9. The environment
 

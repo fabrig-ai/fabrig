@@ -13,7 +13,6 @@ mod translation;
 pub(super) use translation::{application, immediate, to_component};
 const HOST_BYTES: u32 = 64;
 
-#[derive(Debug)]
 pub(super) struct Clients {
     component: Option<kit::Component>,
     settings: Option<kit::Settings>,
@@ -39,6 +38,38 @@ pub(super) struct Clients {
     secret_owners: Map<Token, Asked>,
     next_secret: u64,
 }
+
+// Hide printed sign-in links because they carry secrets (skein/docs/design/lib.md, 6).
+impl ::core::fmt::Debug for Clients {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        f.debug_struct("Clients")
+            .field("component", &self.component)
+            .field("settings", &self.settings)
+            .field("server", &self.server)
+            .field("mount", &self.mount)
+            .field("refused", &self.refused)
+            .field("mount_env", &self.mount_env)
+            .field("mount_out", &self.mount_out)
+            .field("server_out", &self.server_out)
+            .field("component_closed", &self.component_closed)
+            .field("secret", &self.secret)
+            .field("env", &self.env)
+            .field("out", &self.out)
+            .field("io", &self.io)
+            .field("links_entries", &self.links.len())
+            .field("secrets", &self.secrets)
+            .field("closed", &self.closed)
+            .field("pending", &self.pending)
+            .field("starting", &self.starting)
+            .field("early", &self.early)
+            .field("endings", &self.endings)
+            .field("durable", &self.durable)
+            .field("secret_owners", &self.secret_owners)
+            .field("next_secret", &self.next_secret)
+            .finish()
+    }
+}
+
 /// What a secrets request in flight was for: a kept value's owner, or the
 /// exchange whose carried value the store numbers itself.
 #[derive(Clone, Copy, Debug)]

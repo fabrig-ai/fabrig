@@ -3,6 +3,7 @@ mod engine;
 mod family;
 mod first_period;
 pub(crate) mod fixtures;
+mod program_sources;
 mod server;
 mod startup;
 mod stop;

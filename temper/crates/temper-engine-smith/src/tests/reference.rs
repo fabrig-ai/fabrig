@@ -60,8 +60,8 @@ fn a_tool_with_no_members_says_its_input_is_empty() {
 
 #[test]
 fn the_page_holds_every_declared_tool_in_the_tables_order() {
-    // Main's 37 host tools plus the run's two settings tools.
-    const TOOLS: usize = 39;
+    // The declared task, connector and settings tools.
+    const TOOLS: usize = 40;
     let mut out = Writer::new(temper_docs::PAGE_BYTES);
     reference(&mut out).expect("page fits PAGE_BYTES");
     let mut exact = Writer::new(out.written());

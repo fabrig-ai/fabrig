@@ -5049,6 +5049,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-stage-one"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "skein-scratch",
+ "temper-settings-form",
+]
+
+[[package]]
 name = "temper-system-world"
 version = "0.0.0"
 dependencies = [

@@ -1,6 +1,6 @@
 # benchmarks: status
 
-2026-11-02. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
+2026-11-03. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
 
 - **Not yet:**
   - 3.1, 5.2, 11.5: calibrations. The probes `budget`, `cache-reuse`,
@@ -25,6 +25,14 @@
     (`benchmarks/src/agent/mod.rs`, `Provider::Codex`, and every suite's
     `provider = "codex"`), where the design names smith's preset,
     `openai`; the code keeps the earlier name.
+  - 6: agents are adapters, but `benchmarks/src/run.rs`,
+    `collect_observation`, branches on `agent::Observing::Codex` and
+    `agent::Observing::Smith`, and the runner chooses archives by agent
+    and smith's program source; `benchmarks/src/process.rs`,
+    `ProcessResult::observer` and `Capture::Codex`, keep a Codex observer
+    outside the adapters in `benchmarks/src/agent/`. No reason is
+    recorded (the code's side is
+    `smith/docs/development/debt/D010-bench-runner-knows-agents.md`).
   - 7, 10: smith's `anthropic` endpoint runs on the `claude` program
     account (`agents/smith/accounts.toml`), not on a key; no reason is
     recorded.
