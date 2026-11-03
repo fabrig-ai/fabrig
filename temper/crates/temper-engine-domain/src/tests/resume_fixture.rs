@@ -419,6 +419,7 @@ pub fn charter() -> engine::Charter {
             shell: true,
             agents: true,
             call_timeout: Duration::from_secs(10),
+            tools: engine::RunPolicy::EVERY_FAMILY,
         },
         hosts: fleet::Kinds::Workers,
         spend: 100,

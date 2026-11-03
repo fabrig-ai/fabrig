@@ -663,6 +663,8 @@ fn decode_run_policy(value: wire::RunPolicy) -> core::RunPolicy {
         shell: field_shell,
         agents: field_agents,
         call_timeout: field_call_timeout,
+        // Its format carries no mask yet (configuring-p3, contracts C1).
+        tools: core::RunPolicy::EVERY_FAMILY,
     }
 }
 fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::Charter, wire::Problem> {

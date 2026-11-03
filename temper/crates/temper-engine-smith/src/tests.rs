@@ -70,6 +70,7 @@ fn assignment() -> engine::Assignment {
                 shell: false,
                 agents: false,
                 call_timeout: Duration::from_secs(10),
+                tools: engine::RunPolicy::EVERY_FAMILY,
             },
             contract: tasks::Contract::Report { words: 128 },
             authority: tasks::Authority {

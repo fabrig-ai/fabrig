@@ -167,6 +167,8 @@ fn charter(value: w::Charter) -> c::Charter {
             shell,
             agents,
             call_timeout: v.call_timeout,
+            // Its format carries no mask yet (configuring-p3, contracts C1).
+            tools: c::RunPolicy::EVERY_FAMILY,
         },
     }
 }

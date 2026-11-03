@@ -14,6 +14,7 @@ mod jobs;
 mod limits;
 mod reads;
 mod routing;
+mod run_policy_tools;
 mod runs;
 mod settings;
 mod start;
@@ -487,6 +488,7 @@ pub(crate) fn config(seed: u64) -> Config {
                     shell: true,
                     agents: true,
                     call_timeout: Duration::from_secs(10),
+                    tools: RunPolicy::EVERY_FAMILY,
                 },
             }]),
             templates: Box::new([]),

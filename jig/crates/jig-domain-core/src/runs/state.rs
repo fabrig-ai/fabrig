@@ -365,6 +365,16 @@ pub struct RunPolicy {
     pub shell: bool,
     pub agents: bool,
     pub call_timeout: skein_lib::Duration,
+    /// The host families its runs are offered, a mask of the configured `ToolFamilies` as a
+    /// task's authority's tools are; a family it or the task's authority leaves out is not
+    /// offered (domain/engine.md, 7.1).
+    pub tools: jig_domain_tasks::Tools,
+}
+
+impl RunPolicy {
+    /// Every family: the identity under a task's authority, and what a decoder whose
+    /// record carries no mask fills in.
+    pub const EVERY_FAMILY: jig_domain_tasks::Tools = jig_domain_tasks::Tools(u64::MAX);
 }
 
 /// The root's complete task-specific charter, kept behind one bounded
