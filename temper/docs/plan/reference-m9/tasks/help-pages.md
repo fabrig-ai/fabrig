@@ -107,3 +107,27 @@ the `producing` step's `a coder that explicitly concludes no change applies ends
 successfully` (said under `Its result`); the two `Held at producing / repairing ... or holds
 again if its authority can't cover one` sentences, which can share one ending. Name each cut
 in the report. tier.md needs nothing more.
+
+2026-11-03. **tier.md is over its concept bound too (9,066 of 8,192 bytes) with the given
+text: shorten its prose, or change the wording or the bound?** Shorten
+`temper/docs/help/tier.md`'s existing prose as well, under the same rules as change.md: the
+bound stays, the seven supplied additions stay word for word, every sentence and phrase
+`temper/crates/temper/src/tests/help.rs` asserts on the tier page stays (the baseline
+sentences, the runner and capacity phrases, the configuration phrases), and no fact is lost;
+no test changes. "tier.md needs nothing more" above is withdrawn. Cut what the page already
+says first:
+- `## Acting on it`, the report format's `For a line report, change the example's ... named
+  by `artifact`.` (`Its report` and the bullet's first sentence say it);
+- the configuration's `The empty arrays here illustrate the shape; they do not replace
+  existing rules or gates.` (`Keep other members, ... workflow gates and tiers` says it) and
+  `Without `branch`, the tier follows the repository's landing branch;` (`What it is` says it);
+- the workflow's `It uploads its report as the named artifact.` (`Its report` says it);
+- the capacity bullet's `, preserving the other settings` and `Capacity changes require the
+  runner to be stopped.` (the stop-then-restart sentences say both);
+- `A green tip never hides a red landing behind it.` (`A landing's verdict is its own` says it).
+If the page is still over, tighten wording where it stays plain, for instance
+`This example shows the nesting for project 1, forge 1, repository 7:` to `For project 1,
+forge 1, repository 7:`, and the ctl bullet's three `asked:` sentences into one that keeps
+the repository, full tested commit, owned branch, forge run number and URL, and the judged
+run, reruns and probes each naming their own. Keep `task show`'s `asked:` facts: no other
+page says them. Name each cut in the report with the page's final size.
