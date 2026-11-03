@@ -12,6 +12,10 @@
   or in `temper-service`'s routing.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
+  3.5, The welcome: the Forgejo card's refusal and its disabled
+  button while a set up is pending; `forge/connect.rs`
+  `welcome_choices` draws neither, the domain sending no second
+  `SetUp` while one is pending.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat

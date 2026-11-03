@@ -28,18 +28,16 @@ fn the_forge_step_shows_choices_after_reset() {
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert_eq!(choice_cards(view.tree()), [b"GitHub".as_slice(), b"Forgejo"]);
         node(view.tree(), Role::Button, "Connect GitHub");
-        node(view.tree(), Role::Link, "Run on this machine");
+        node(view.tree(), Role::Button, "Run on this machine");
         let help = node(view.tree(), Role::Link, "Or connect your deployment");
         let help = view.tree().nodes().iter().find(|n| n.id == help).expect("the help link");
         assert!(help.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
     }
     let mut view = f::browser_page_view(&root);
-    let run = node(view.tree(), Role::Link, "Run on this machine");
+    let run = node(view.tree(), Role::Button, "Run on this machine");
     assert_eq!(
         crate::act(&mut view, run, Act::Press),
-        Some(d::Action::Pages(pages::Act::Go {
-            address: Address::Welcome { step: Step::Forge { forge: Some(d::Choice::Owned) } }
-        }))
+        Some(d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::SetUpOwnedAtOnce)))
     );
 }
 

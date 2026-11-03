@@ -33,7 +33,7 @@ impl Referee<NativeClient> for Judge {
             }
             Page::Forge
                 if named(client, Role::Heading { level: 1 }, b"Connect a forge")
-                    && named(client, Role::Link, b"Run on this machine") =>
+                    && named(client, Role::Button, b"Run on this machine") =>
             {
                 assert!(!named(client, Role::Button, b"Try the playground"));
                 client.close();

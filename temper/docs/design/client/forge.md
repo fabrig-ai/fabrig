@@ -515,7 +515,8 @@ and `connect-forge.html`.
   it and manage it, or you can connect your own deployment.", with
   Forgejo on this machine's muted line while it is offered and Your
   Forgejo's otherwise; its button "Run on this machine", while
-  Forgejo on this machine is offered, opens that choice's Details, and
+  Forgejo on this machine is offered, sends its `SetUp` at once, its
+  first repository `work/hello` asked of no one (`README.md`, 3.5), and
   its quiet link "Or connect your deployment" opens the help's server
   page (`../../help/server.md`) on GitHub, in place of Your Forgejo's
   Details for now. Choose's cards:

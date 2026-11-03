@@ -82,12 +82,8 @@ fn run_owned(front: &mut Joint, root: &mut Root, now: &mut Time) {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: None } }) },
     );
     let mut choose = view(root);
-    let button = node(&choose, Role::Link, b"Run on this machine");
-    let action = temper_client_view::act(&mut choose, button, skein_ui::Act::Press).expect("bound choice");
-    pump(front, root, now, d::Event::Act { action });
-    let mut details = view(root);
-    let button = node(&details, Role::Button, b"Set up a Forgejo here");
-    let action = temper_client_view::act(&mut details, button, skein_ui::Act::Press).expect("setup new forge");
+    let button = node(&choose, Role::Button, b"Run on this machine");
+    let action = temper_client_view::act(&mut choose, button, skein_ui::Act::Press).expect("setup new forge");
     pump(front, root, now, d::Event::Act { action });
 }
 pub(super) fn owned_welcome() -> (Joint, Root, Time) {
@@ -116,7 +112,7 @@ pub(super) fn accept_owned(front: &mut Joint, root: &mut Root, now: &mut Time) -
 #[test]
 fn setting_up_forgejo_here_from_the_welcome() {
     let (mut front, mut root, mut now) = owned_welcome();
-    assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Forge { forge: Some(Choice::Owned) } });
+    assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Forge { forge: None } });
     let setup = root.person().forge().set_up().expect("welcome sent setup");
     assert_eq!((&*setup.org, &*setup.repository, setup.playground), (b"work".as_slice(), b"hello".as_slice(), false));
     assert_eq!(front.set_ups().iter().map(|(forge, _)| *forge).collect::<Vec<_>>(), [OWNED]);

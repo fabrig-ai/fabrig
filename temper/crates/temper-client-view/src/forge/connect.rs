@@ -253,7 +253,7 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
     b.style(look::FLOW_CHOICES);
     let kinds = connect::choices(connect::records(root.forges()), connect::playground(root.forge()), true);
     if let Place::Welcome = place {
-        welcome_choices(b, root, w, bindings, forge, &kinds);
+        welcome_choices(b, root, w, forge, &kinds);
         b.close();
         return;
     }
@@ -292,16 +292,10 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
     b.close();
 }
 /// The welcome's Forge step: GitHub's card, then one Forgejo card, whose
-/// button runs one on this machine and whose link shows how to connect a
+/// button sets one up on this machine at once, its first repository
+/// `work/hello` asked of no one, and whose link shows how to connect a
 /// deployment (`temper/docs/design/client/forge.md`, 5.4).
-fn welcome_choices(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    bindings: &mut Bindings,
-    forge: &mut ForgeBindings,
-    kinds: &[connect::Choice],
-) {
+fn welcome_choices(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBindings, kinds: &[connect::Choice]) {
     if kinds.contains(&connect::Choice::GitHub) {
         flow::choice_card(b, &w.say(Word::ConnectGitHub, &[]));
         text(b, w, Role::Paragraph, Word::ForgeGitHubDescription);
@@ -327,10 +321,7 @@ fn welcome_choices(
         let run = w.say(Word::WelcomeForgejoRun, &[]);
         flow::control(
             b,
-            Control::SecondaryLink {
-                name: &run,
-                to: bindings.insert(Act::Go { address: Place::Welcome.address(Some(Choice::Owned)) }),
-            },
+            Control::Button { name: &run, to: forge.insert(Meaning::Forges(forge::forges::Act::SetUpOwnedAtOnce)) },
         );
     }
     flow::control(b, Control::External { name: &w.say(Word::WelcomeForgejoDeployment, &[]), address: DEPLOYMENT });

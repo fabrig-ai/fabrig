@@ -838,20 +838,20 @@ keeps (`../protocol/configuration.md`, section 2).
     the offered `me.providers` ways.
   - *Forge* is `ConnectForge`'s Choose and Details (`forge.md`, 5.4),
     its Choose two cards, GitHub's and one Forgejo card whose "Run on
-    this machine" opens Forgejo on this machine's Details (`forge.md`,
+    this machine" sets Forgejo on this machine up at once (`forge.md`,
     5.4), its choice in the welcome's address (`browser.md`, 2.3);
     inside a choice, the foot's one "‹
     Back" returns to Forge's Choose. The welcome has no "‹ All
     forges"; `ConnectForge` keeps it. The step connects a forge and
     nothing more, on every kind: it adopts no repository and asks no
     project's name (`../draft/first-run-projects.md`, 4). "Run on this
-    machine" opens Forgejo on this machine's Details, its set up's fields, `work` and `hello`, as
-    `ConnectForge`'s, and "Set up
-    a Forgejo here" sends the `SetUp` that makes the forge
-    (`forge.md`, 5.4), its repository made unadopted
-    (`../protocol/setup.md`, 6.7). Refused, the refusal shows under the button, in
-    the set up's words (4.6); while a set up is pending, or the page is
-    out of date, the button is disabled. Once the `SetUp` is accepted,
+    machine" sends, with no Details, the `SetUp` that makes the forge
+    (`forge.md`, 5.4), its first repository `work/hello`, asked of no
+    one (the user, 2026-11-03: a repository is made later, from the
+    project), made unadopted (`../protocol/setup.md`, 6.7). Refused,
+    the refusal shows under the button, in the set up's words (4.6);
+    while a set up is pending, or the page is out of date, the button
+    is disabled. Once the `SetUp` is accepted,
     the welcome moves on to Model, the set up running on.
     *A forge cut short:* a forge of the person's kept and not finished,
     not connected, or on GitHub connected with no accepted
