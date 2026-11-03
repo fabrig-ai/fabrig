@@ -48,6 +48,7 @@ pub mod resources;
 pub mod settings;
 pub use settings::ForgeCharters;
 mod settle;
+mod standing;
 #[cfg(test)]
 mod tests;
 pub mod text;
