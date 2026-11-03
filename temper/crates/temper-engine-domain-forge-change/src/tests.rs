@@ -44,6 +44,8 @@ fn facts() -> Facts {
         base_ci: Ci { head: BASE, status: Status::Passed },
         base_tip: BASE,
         contains_base: Status::Passed,
+        merge_job: false,
+        contains_catch_up: Status::Pending,
         updates: true,
         mergeable: Status::Passed,
         gates: Box::new([]),

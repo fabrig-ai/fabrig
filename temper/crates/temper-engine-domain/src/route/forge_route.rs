@@ -1935,6 +1935,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
+                catch_up: None,
+                merge_result: None,
             },
         }));
         let branch_name =
@@ -2477,6 +2479,8 @@ fn change_delegate(
         words: env.limits.tasks.result_bytes,
     };
     let (executor, words, contract) = match kind {
+        // change-merge-route supplies the merge job delegate.
+        forge_change::Delegate::Merge { .. } => return None,
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: row.producing_charter },
             production_words(domain, env, task, row)?,

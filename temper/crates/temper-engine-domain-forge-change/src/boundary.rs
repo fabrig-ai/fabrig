@@ -269,6 +269,10 @@ pub struct Facts {
     pub base_ci: Ci,
     pub base_tip: Commit,
     pub contains_base: Status,
+    /// Whether a merge job is configured, declared and authorized (temper/docs/design/domain/forge.md, 8.4).
+    pub merge_job: bool,
+    /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge.md, 8.2).
+    pub contains_catch_up: Status,
     /// Whether its landing branch's rules ask up to date (domain/forge.md, 8.7).
     pub updates: bool,
     pub mergeable: Status,
@@ -336,6 +340,8 @@ pub enum Delegate {
     Resolve { base: Commit },
     /// Obtain a gate's verdict at the current head.
     Gate { number: u64, head: Commit },
+    /// Merge `base` into the head `from`, absent for a catch-up (temper/docs/design/domain/forge.md, 8.4).
+    Merge { base: Commit, from: Option<Commit> },
 }
 
 /// The effect the top should commit after checking authority.

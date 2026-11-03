@@ -862,7 +862,7 @@ fn delegated(
     if !requested {
         change.state = match delegate {
             Delegate::Repair(why) => State::Repairing { requested: true, why },
-            Delegate::Resolve { base } => State::Resolving { requested: true, base },
+            Delegate::Resolve { base } | Delegate::Merge { base, .. } => State::Resolving { requested: true, base },
             Delegate::Produce | Delegate::Gate { .. } => unreachable!("delegated phase has one kind"),
         };
         return Stepped { change, decision: Decision::Delegate(delegate) };
@@ -974,7 +974,7 @@ fn missing(standing: &Heard, delegate: Delegate) -> Option<AuthorityHold> {
     let spend = standing.spend?;
     let reserve = match delegate {
         Delegate::Gate { .. } => spend.review,
-        Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } => spend.coding,
+        Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } | Delegate::Merge { .. } => spend.coding,
     };
     (spend.left < reserve).then_some(AuthorityHold {
         recovery: spend.recovery,
