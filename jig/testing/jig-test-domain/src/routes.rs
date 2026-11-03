@@ -615,7 +615,10 @@ pub(super) fn route_connector(
                         .expect("one state per default");
                 }
                 work.push(Work::Core(core::Event::EffectConnector(
-                    core::effects::connector::Event::SettingsDefaults { defaults: states.into_boxed() },
+                    core::effects::connector::Event::SettingsDefaults {
+                        connector: number,
+                        defaults: states.into_boxed(),
+                    },
                 )));
             }
             connector::Request::SettingValue { .. } => unreachable!("a setting read returns to its synchronous caller"),

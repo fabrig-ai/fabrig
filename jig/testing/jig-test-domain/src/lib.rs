@@ -331,6 +331,7 @@ pub struct Domain {
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
     effects: Map<Token, connector::Effect>,
     settings_judges: Map<Token, Token>,
+    settings_connectors: Box<[u16]>,
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
@@ -365,6 +366,31 @@ impl Domain {
     #[must_use]
     pub fn settings(&self) -> &core::settings::Current {
         &self.core.current
+    }
+
+    /// Read the newest value through its owning connector (connectors.md, 17).
+    pub fn setting(
+        &mut self,
+        env: &Env<Limits>,
+        connector: u16,
+        kind: u32,
+        scope: u32,
+        number: u32,
+    ) -> Option<Box<[u8]>> {
+        let token = Token::new(0);
+        let mut out = Queue::uncapped();
+        connector::step(
+            numbered(self, connector),
+            &env.with(env.limits.connector),
+            connector::Event::ReadSetting { token, kind, scope, number },
+            &mut out,
+        );
+        let Some(connector::Request::SettingValue { token: answered, value }) = out.pop() else {
+            unreachable!("a setting read returns its value synchronously")
+        };
+        assert_eq!(answered, token, "the connector answers this read");
+        assert!(out.is_empty(), "a setting read has one answer");
+        value
     }
 
     /// The fixture's journal, for numbered writes made outside a root decision.
@@ -433,6 +459,11 @@ impl Domain {
     #[must_use]
     pub fn new(config: Config, limits: &Limits) -> Domain {
         assert!(limits.routes > 0, "synchronous route bound is positive");
+        let mut settings_connectors =
+            List::with_capacity(u32::try_from(config.core.kinds.len()).expect("configured kinds"));
+        for kind in &config.core.kinds {
+            settings_connectors.push(kind.connector).expect("one owner per kind");
+        }
         Domain {
             scripted_project_releases: None,
             hub_link: jig_domain_hub_link::Link::new(
@@ -443,6 +474,7 @@ impl Domain {
                 },
                 skein_lib::Rng::new(config.core.seed ^ 0x5455_524e_4255_5359),
             ),
+            settings_connectors: settings_connectors.into_boxed(),
             core: core::Core::new(config.core, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
             second: connector::Domain::new(config.second, &limits.connector),
@@ -612,7 +644,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 Some(_) | None => unreachable!("connector completion belongs to SettleOutbox"),
             },
             Work::Start(input) => {
-                if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input {
+                if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input
+                    && domain.settings_connectors.contains(&number)
+                {
                     let mut out = Queue::uncapped();
                     connector::step(
                         numbered(domain, number),
