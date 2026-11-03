@@ -12,6 +12,7 @@ skein-lib.workspace = true
 skein-json.workspace = true
 skein-codec.workspace = true
 jig-client-protocol-wire.workspace = true
+temper-client-protocol-wire.workspace = true
 
 [lints]
 workspace = true

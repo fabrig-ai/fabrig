@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 45] = [
+pub static FORMS: [Form; 51] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and, but for the rules, its number." },
@@ -70,8 +70,14 @@ pub static FORMS: [Form; 45] = [
         line: b"When a requirement is judged: a word, or an object with one member.",
     },
     Form { shape: Shape::Observed, name: b"observed", choice: Choice::Every, line: b"A requirement judged from facts read before the effect." },
+    Form { shape: Shape::LandingRule, name: b"landing-rule", choice: Choice::Every, line: b"A landing rule for the deployment or one project. Its criteria apply to every landing it covers." },
+    Form { shape: Shape::LandingGate, name: b"landing-gate", choice: Choice::Every, line: b"A gate every change covered by the rule asks for: an agent's review, or a repository's check when it has no CI." },
+    Form { shape: Shape::LandingApproval, name: b"landing-approval", choice: Choice::Every, line: b"Distinct people holding a project role approve the change, each by a review on the forge." },
+    Form { shape: Shape::LandingPattern, name: b"landing-pattern", choice: Choice::Every, line: b"The resources the rule covers: the exact base segments, then an exact last segment or an open prefix and all below it." },
+    Form { shape: Shape::LandingLast, name: b"landing-last", choice: Choice::One { words: &[] }, line: b"The final resource segment, in the same hex form as a pattern's last segment." },
+    Form { shape: Shape::ForgeCharter, name: b"forge-charter", choice: Choice::Number, line: b"An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'." },
 ];
-pub static FIELDS: [Field; 170] = [
+pub static FIELDS: [Field; 187] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -105,6 +111,8 @@ pub static FIELDS: [Field; 170] = [
             Word { word: b"template", line: b"" },
             Word { word: b"policy", line: b"" },
             Word { word: b"rules", line: b"" },
+            Word { word: b"landing-rule", line: b"" },
+            Word { word: b"forge-charter", line: b"" },
         ]),
         list: None,
         null: false,
@@ -118,6 +126,7 @@ pub static FIELDS: [Field; 170] = [
         null: false,
         line: b"The setting's number, from 1; left out for the rules.",
     },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"For a landing rule alone, a project's number, from 1. Left out, the rule is the deployment's." },
     Field {
         shape: Shape::Charter,
         name: b"number",
@@ -1176,4 +1185,24 @@ pub static FIELDS: [Field; 170] = [
         line: b"Before the effect is made, from facts read recently enough.",
     },
     Field { shape: Shape::Observed, name: b"freshness", value: Value::Nanoseconds, list: None, null: false, line: b"How old those facts may be." },
+    Field { shape: Shape::LandingRule, name: b"pattern", value: Value::Shape(Shape::LandingPattern), list: None, null: false, line: b"The resources the rule covers: a forge's host, repository owner and name, then branch and its segments." },
+    Field { shape: Shape::LandingRule, name: b"enforce", value: Value::Boolean, list: None, null: false, line: b"True makes each criterion a requirement every landing it covers must meet; false leaves them to the change procedure alone." },
+    Field { shape: Shape::LandingRule, name: b"ci", value: Value::Boolean, list: None, null: false, line: b"CI must have passed at the change's head." },
+    Field { shape: Shape::LandingRule, name: b"up_to_date", value: Value::Boolean, list: None, null: false, line: b"The change's head must contain its base's tip." },
+    Field { shape: Shape::LandingRule, name: b"gates", value: Value::Shape(Shape::LandingGate), list: Some(Bound::Limit(Limit::LandingGates)), null: false, line: b"The gates every change it covers asks for." },
+    Field { shape: Shape::LandingRule, name: b"approvals", value: Value::Shape(Shape::LandingApproval), list: Some(Bound::Limit(Limit::LandingApprovals)), null: false, line: b"The distinct people holding each role who must approve the change by a forge review." },
+    Field { shape: Shape::LandingGate, name: b"number", value: Value::Integer(Width::U32), list: None, null: false, line: b"The agent review's or repository check's gate number." },
+    Field { shape: Shape::LandingGate, name: b"blocking", value: Value::Boolean, list: None, null: false, line: b"Whether this gate must pass before the change lands." },
+    Field { shape: Shape::LandingGate, name: b"freshness", value: Value::Words(FRESHNESS), list: None, null: false, line: b"At which later heads a verdict still counts." },
+    Field { shape: Shape::LandingApproval, name: b"role", value: Value::Integer(Width::U32), list: None, null: false, line: b"A role in the project's policy whose people approve the change." },
+    Field { shape: Shape::LandingApproval, name: b"people", value: Value::Integer(Width::U32), list: None, null: false, line: b"How many distinct people holding the role must approve the change." },
+    Field { shape: Shape::LandingApproval, name: b"freshness", value: Value::Words(FRESHNESS), list: None, null: false, line: b"At which later heads an approval still counts." },
+    Field { shape: Shape::LandingPattern, name: b"segments", value: Value::Hex(Bound::Limit(Limit::LandingSegmentBytes)), list: Some(Bound::Limit(Limit::LandingSegments)), null: false, line: b"The exact base segments of the resources the rule covers." },
+    Field { shape: Shape::LandingPattern, name: b"last", value: Value::Shape(Shape::LandingLast), list: None, null: false, line: b"One more segment, equal to an exact value or beginning with an open value, with all below it." },
+    Field { shape: Shape::LandingLast, name: b"exact", value: Value::Hex(Bound::Limit(Limit::LandingExact)), list: None, null: false, line: b"One last segment equal to these bytes." },
+    Field { shape: Shape::LandingLast, name: b"open", value: Value::Hex(Bound::Limit(Limit::LandingOpen)), list: None, null: false, line: b"A final segment beginning with these bytes, with all below it." },
+];
+const FRESHNESS: &[Word] = &[
+    Word { word: b"exact", line: b"The verdict counts at the head it was given at." },
+    Word { word: b"clean", line: b"The verdict also counts at later heads reached by updates that merged cleanly." },
 ];

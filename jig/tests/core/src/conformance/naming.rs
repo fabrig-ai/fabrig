@@ -15,9 +15,9 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
     };
     let mut name = r::Naming { row, project: None, task: None, outlives: None };
     match key {
-        connector::RecordKey::SettingDefault { .. }
-        | connector::RecordKey::SettingChange { .. }
-        | connector::RecordKey::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
+        connector::RecordKey::SettingDefault { scope, .. }
+        | connector::RecordKey::SettingChange { scope, .. }
+        | connector::RecordKey::SettingProposal { scope, .. } => name.project = (*scope != 0).then_some(*scope),
         connector::RecordKey::Adoption { project, .. } => name.project = Some(*project),
         connector::RecordKey::Procedure(task)
         | connector::RecordKey::ProcedureDelegateOutcome(task)
@@ -32,9 +32,9 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
     }
     if let root::Record::Connector { record, .. } = record {
         match record {
-            connector::Record::SettingDefault { .. }
-            | connector::Record::SettingChange { .. }
-            | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
+            connector::Record::SettingDefault { scope, .. }
+            | connector::Record::SettingChange { scope, .. }
+            | connector::Record::SettingProposal { scope, .. } => name.project = (*scope != 0).then_some(*scope),
             connector::Record::Proposal { project, task, .. } | connector::Record::Task { project, task, .. } => {
                 name.project = Some(*project);
                 name.task = Some(*task);
@@ -186,6 +186,16 @@ mod tests {
         }
         for (key, owner, task) in [
             (connector::RecordKey::ApplicationObject(1), None, None),
+            (connector::RecordKey::SettingDefault { kind: 1, scope: 0, number: 1 }, None, None),
+            (connector::RecordKey::SettingChange { kind: 1, scope: 0, number: 1 }, None, None),
+            (connector::RecordKey::SettingProposal { proposal: 1, kind: 1, scope: 0, number: 1 }, None, None),
+            (connector::RecordKey::SettingDefault { kind: 1, scope: project, number: 1 }, Some(project), None),
+            (connector::RecordKey::SettingChange { kind: 1, scope: project, number: 1 }, Some(project), None),
+            (
+                connector::RecordKey::SettingProposal { proposal: 1, kind: 1, scope: project, number: 1 },
+                Some(project),
+                None,
+            ),
             (connector::RecordKey::ApplicationAnswer(Token::new(1)), None, None),
             (connector::RecordKey::Procedure(task), None, Some(task)),
             (connector::RecordKey::ProcedureDelegateOutcome(task), None, Some(task)),
@@ -204,7 +214,7 @@ mod tests {
         ] {
             cases.push((root::Key::Connector { number: 1, key }, owner, task, None));
         }
-        assert_eq!(cases.len(), 65, "all store key kinds");
+        assert_eq!(cases.len(), 71, "all store key kinds, including both application scopes");
         for (key, project, task, outlives) in cases {
             let expected = (project.is_some() || task.is_some()).then(|| r::Naming {
                 row: format!("{key:?}"),

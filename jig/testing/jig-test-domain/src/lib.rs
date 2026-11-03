@@ -330,6 +330,8 @@ pub struct Domain {
     busy: Queue<Box<Event>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
     effects: Map<Token, connector::Effect>,
+    settings_judges: Map<Token, Token>,
+    settings_connectors: Box<[u16]>,
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
@@ -364,6 +366,31 @@ impl Domain {
     #[must_use]
     pub fn settings(&self) -> &core::settings::Current {
         &self.core.current
+    }
+
+    /// Read the newest value through its owning connector (connectors.md, 17).
+    pub fn setting(
+        &mut self,
+        env: &Env<Limits>,
+        connector: u16,
+        kind: u32,
+        scope: u32,
+        number: u32,
+    ) -> Option<Box<[u8]>> {
+        let token = Token::new(0);
+        let mut out = Queue::uncapped();
+        connector::step(
+            numbered(self, connector),
+            &env.with(env.limits.connector),
+            connector::Event::ReadSetting { token, kind, scope, number },
+            &mut out,
+        );
+        let Some(connector::Request::SettingValue { token: answered, value }) = out.pop() else {
+            unreachable!("a setting read returns its value synchronously")
+        };
+        assert_eq!(answered, token, "the connector answers this read");
+        assert!(out.is_empty(), "a setting read has one answer");
+        value
     }
 
     /// The fixture's journal, for numbered writes made outside a root decision.
@@ -432,6 +459,11 @@ impl Domain {
     #[must_use]
     pub fn new(config: Config, limits: &Limits) -> Domain {
         assert!(limits.routes > 0, "synchronous route bound is positive");
+        let mut settings_connectors =
+            List::with_capacity(u32::try_from(config.core.kinds.len()).expect("configured kinds"));
+        for kind in &config.core.kinds {
+            settings_connectors.push(kind.connector).expect("one owner per kind");
+        }
         Domain {
             scripted_project_releases: None,
             hub_link: jig_domain_hub_link::Link::new(
@@ -442,6 +474,7 @@ impl Domain {
                 },
                 skein_lib::Rng::new(config.core.seed ^ 0x5455_524e_4255_5359),
             ),
+            settings_connectors: settings_connectors.into_boxed(),
             core: core::Core::new(config.core, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
             second: connector::Domain::new(config.second, &limits.connector),
@@ -453,6 +486,7 @@ impl Domain {
             effects: Map::with_capacity(
                 limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect room"),
             ),
+            settings_judges: Map::with_capacity(2),
             decision_wrote: false,
             stopped_reported: false,
             start_opened: false,
@@ -610,6 +644,20 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 Some(_) | None => unreachable!("connector completion belongs to SettleOutbox"),
             },
             Work::Start(input) => {
+                if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input
+                    && domain.settings_connectors.contains(&number)
+                {
+                    let mut out = Queue::uncapped();
+                    connector::step(
+                        numbered(domain, number),
+                        &env.with(env.limits.connector),
+                        connector::Event::SettingsDefaults,
+                        &mut out,
+                    );
+                    route_connector(domain, env, &mut decision, number, &mut out, &mut work);
+                    work.push(Work::Start(StartInput::DefaultsReported(phase)));
+                    continue;
+                }
                 let mut out = Queue::uncapped();
                 let core_env = env.with(env.limits.core);
                 let action = match input {
@@ -617,7 +665,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     StartInput::Done(core::start::Phase::Sweep) => {
                         domain.core.start_sweep(&core_env, core::start::SweepInput::Finished, &mut out)
                     }
-                    StartInput::Done(phase) => domain.core.start_done(&core_env, phase, &mut out),
+                    StartInput::Done(phase) | StartInput::DefaultsReported(phase) => {
+                        domain.core.start_done(&core_env, phase, &mut out)
+                    }
                     StartInput::Resume(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
                     StartInput::Sweep => domain.core.start_sweep(&core_env, core::start::SweepInput::Next, &mut out),
                 };
@@ -760,6 +810,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 enum StartInput {
     Begin { pending: bool },
     Done(core::start::Phase),
+    DefaultsReported(core::start::Phase),
     Resume(core::start::Continuation),
     Sweep,
 }
@@ -1109,15 +1160,15 @@ fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word
 /// Restore connector-owned rows and replay their current adoption reports.
 fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record: connector::Record) -> bool {
     match &record {
-        connector::Record::SettingDefault { .. }
-        | connector::Record::SettingChange { .. }
-        | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
         connector::Record::Outbox(row) => {
             if !remember_outbox(domain, number, row) {
                 return false;
             }
         }
-        connector::Record::ApplicationObject { .. }
+        connector::Record::SettingDefault { .. }
+        | connector::Record::SettingChange { .. }
+        | connector::Record::SettingProposal { .. }
+        | connector::Record::ApplicationObject { .. }
         | connector::Record::ApplicationAnswer { .. }
         | connector::Record::Proposal { .. }
         | connector::Record::Procedure(_)
@@ -1138,10 +1189,14 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     );
     for _ in 0..out.len() {
         match out.pop().expect("restored connector output count") {
+            connector::Request::RestoreRefused { kind, scope, number } => {
+                refuse_settings_restore(kind, scope, number);
+            }
             connector::Request::SettingsJudged { .. }
             | connector::Request::SettingsDefaults { .. }
-            | connector::Request::SettingValue { .. }
-            | connector::Request::RestoreRefused { .. } => unreachable!("settings routing: apps-world"),
+            | connector::Request::SettingValue { .. } => {
+                unreachable!("restoring a row only reports resources or a refusal")
+            }
             connector::Request::Resource { project, resource } => {
                 let role = match resource.role {
                     connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
@@ -1292,4 +1347,10 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0, keys: 1 })))
         .expect("fixture settings count");
     rows.into_boxed()
+}
+
+/// The testing root has no connector-owned start failure (connectors.md, 17).
+#[expect(clippy::panic, reason = "a connector restore refusal stops the test start and names the setting")]
+fn refuse_settings_restore(kind: u32, scope: u32, number: u32) -> ! {
+    panic!("connector settings restore refused: kind {kind}, scope {scope}, number {number}");
 }

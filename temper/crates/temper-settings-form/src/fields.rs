@@ -1,5 +1,6 @@
 //! The settings file's form, a row per shape and member (client/tools.md, 5.3).
 mod jig;
+use temper_client_protocol_wire::v1 as kinds;
 pub mod render;
 #[cfg(test)]
 mod tests;
@@ -52,6 +53,12 @@ pub enum Shape {
     Judge,
     Guard,
     Observed,
+    LandingRule,
+    LandingGate,
+    LandingApproval,
+    LandingPattern,
+    LandingLast,
+    ForgeCharter,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -64,6 +71,7 @@ pub struct Form {
 #[derive(Debug)]
 pub enum Choice {
     Every,
+    Number,
     One { words: &'static [Word] },
 }
 #[derive(Debug)]
@@ -146,6 +154,12 @@ pub enum Limit {
     PatternEndExactValue,
     PatternEndOpenValue,
     DelegationKinds,
+    LandingSegments,
+    LandingSegmentBytes,
+    LandingExact,
+    LandingOpen,
+    LandingGates,
+    LandingApprovals,
 }
 
 pub use jig::{FIELDS, FORMS};
@@ -199,6 +213,28 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             Limit::PatternEndExactValue => limits.settings.pattern_end_exact_value,
             Limit::PatternEndOpenValue => limits.settings.pattern_end_open_value,
             Limit::DelegationKinds => limits.settings.delegation_kinds,
+            Limit::LandingSegments => limits
+                .settings
+                .pattern_segments
+                .min(limits.kinds.landing_pattern_segments)
+                .min(kinds::CEILINGS.landing_pattern_segments),
+            Limit::LandingSegmentBytes => limits
+                .settings
+                .pattern_segments_item
+                .min(limits.kinds.landing_pattern_segments_item)
+                .min(kinds::CEILINGS.landing_pattern_segments_item),
+            Limit::LandingExact => limits
+                .settings
+                .pattern_end_exact_value
+                .min(limits.kinds.landing_exact_value)
+                .min(kinds::CEILINGS.landing_exact_value),
+            Limit::LandingOpen => limits
+                .settings
+                .pattern_end_open_value
+                .min(limits.kinds.landing_open_value)
+                .min(kinds::CEILINGS.landing_open_value),
+            Limit::LandingGates => limits.kinds.landing_rule_gates.min(kinds::CEILINGS.landing_rule_gates),
+            Limit::LandingApprovals => limits.kinds.landing_rule_approvals.min(kinds::CEILINGS.landing_rule_approvals),
         },
     })
 }
@@ -210,6 +246,8 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"template" => Some(Shape::Template),
         b"policy" => Some(Shape::Policy),
         b"rules" => Some(Shape::Rules),
+        b"landing-rule" => Some(Shape::LandingRule),
+        b"forge-charter" => Some(Shape::ForgeCharter),
         _ => None,
     }
 }
@@ -224,7 +262,7 @@ pub fn form(shape: Shape) -> &'static Form {
 }
 #[must_use]
 pub fn members(shape: Shape) -> &'static [Field] {
-    let mut start = 0;
+    let mut start = FIELDS.len();
     let mut end = FIELDS.len();
     for (index, row) in FIELDS.iter().enumerate() {
         if row.shape == shape {
