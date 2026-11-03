@@ -1,0 +1,26 @@
+draft = "reference-m10"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m10/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "temper/docs/design/draft/notes.md", "AGENTS.md", "DESIGN.md"]
+
+# M10 of temper/docs/design/draft/reference-case.execution.md: the case. The reference's
+# configuration (temper/docs/design/draft/reference-code-production.md, section 14) whole, as
+# one reference profile a box is set up with, its limits sized for a goal of a hundred changes
+# (N21), and `.temper/pre-pr` revisited with numbers. Released in batches: first the
+# coordinator's charter's last gaps; then the rest as the surveys settle it.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "charter"
+title = "temper: the reference coordinator's charter ends the plan with its goal branch's tier settled, and its landing's words name the draft"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 1
+story = "the reference coordinator closes out only once its goal branch's tier is settled, and its landing's pull request names the draft"
+parts = ["charter"]
+walk = false

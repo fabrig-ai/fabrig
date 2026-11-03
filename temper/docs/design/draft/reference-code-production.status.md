@@ -20,11 +20,6 @@
     run after a revision of
     the design or an answer that added a dependency merges g's tip first
     (sections 5 and 8).
-  - **12: the plan done with g's tier settled (N5).**
-    `../protocol/configuration.md`, 13.9: charter 5 lands the goal once
-    every change of the plan has landed and nothing is left, whatever
-    g's tier's last run said; the draft also asks that run green, or its
-    red owned by a live repair.
 - **Design departs:**
   - **10, 13: a red of g's tier waking G.** `../domain/after-landing.md`,
     5.4 and 7 wake the goal on a red with a test the branch's previous
