@@ -132,7 +132,11 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
 }
 
 fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
-    let mut expected = crate::calls::tools_for(timeout, tasks::Tools(!jig_domain_core::ToolFamilies::JIG.control.0));
+    let mut expected = crate::calls::tools_for(
+        timeout,
+        engine::RunPolicy::EVERY_FAMILY,
+        tasks::Tools(!jig_domain_core::ToolFamilies::JIG.control.0),
+    );
     for tool in &mut expected {
         tool.reserve = tool.name.as_ref() == b"message";
     }
@@ -141,14 +145,22 @@ fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
 
 #[test]
 fn settings_tools_are_offered_only_with_the_runs_settings_family() {
-    for allowed in [false, true] {
+    // The registry offers 37 declarations with message and without settings; settings adds two.
+    const WITHOUT_SETTINGS: usize = 37;
+    const WITH_SETTINGS: usize = 39;
+    let settings = jig_domain_core::ToolFamilies::JIG.settings;
+    let authority = 1 | jig_domain_core::ToolFamilies::JIG.message.0;
+    for (charter, authority, allowed, count) in [
+        (0, authority, false, WITHOUT_SETTINGS),
+        (0, authority | settings, false, WITHOUT_SETTINGS),
+        (settings, authority, false, WITHOUT_SETTINGS),
+        (settings, authority | settings, true, WITH_SETTINGS),
+    ] {
         let mut assignment = assignment();
-        assignment.run.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.message.0;
-        if allowed {
-            assignment.run.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
-        }
+        assignment.run.policy.tools = tasks::Tools(charter);
+        assignment.run.authority.tools = tasks::Tools(authority);
         let charter = crate::charter(&assignment);
-        assert_eq!(charter.grants.host_tools.len(), if allowed { 39 } else { 37 });
+        assert_eq!(charter.grants.host_tools.len(), count);
         for name in [b"settings".as_slice(), b"propose_settings"] {
             let mut found = false;
             for tool in &charter.grants.host_tools {
@@ -164,6 +176,22 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
             }
         }
     }
+}
+
+#[test]
+fn settings_tools_need_the_charters_family_too() {
+    let stock = 1_539;
+    let mut assignment = assignment();
+    assignment.run.policy.tools = tasks::Tools(512);
+    assignment.run.authority.tools = tasks::Tools(stock | 1024);
+    let charter = crate::charter(&assignment);
+    let mut offered = charter.grants.host_tools.iter();
+    for tool in goal_tools(Duration::from_secs(10)) {
+        if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
+            assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
+        }
+    }
+    assert_eq!(offered.next(), None, "no settings or additional tools");
 }
 
 #[test]
@@ -1774,7 +1802,9 @@ fn change_offers_its_plan_members_only_with_control() {
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;
-        for tool in crate::calls::tools_for(Duration::from_secs(10), tasks::Tools(authority)) {
+        for tool in
+            crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority))
+        {
             if tool.name.as_ref() == b"change" {
                 found = true;
                 assert_eq!(tool.schema.as_ref(), schema);
