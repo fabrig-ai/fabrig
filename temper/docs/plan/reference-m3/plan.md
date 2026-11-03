@@ -41,7 +41,7 @@ Released (needs in brackets):
   `kinds-route` [kinds-held, kinds-codec, apps-surface, change-call-llm] (the root routes C2's
   asks to the forge, typed); `kinds-start` [kinds-route, apps-start] (the stock declares kinds
   1 to 3 and gives the forge its defaults at a start); `kinds-switch-rules` [kinds-start,
-  kinds-requirements, change-root] (the stock rules' requirements 5 and 6 read the held
+  kinds-requirements, change-root, change-story] (the stock rules' requirements 5 and 6 read the held
   rules, nothing compiled); `kinds-switch-charters` [kinds-switch-rules, change-root,
   change-story] (`Config.forge_charter` gone, the change start reads `charters()`, a change
   held when a role's charter or choice is no longer offered: the change family's
@@ -77,14 +77,13 @@ on this trunk.
 
 ## Critical path, as it stands
 
-jig's side: `apps-surface` (90) -> `apps-change` (150) -> `apps-proposals` (100) ->
-`apps-start` (110) -> `kinds-start` (120) -> `kinds-switch-rules` (150) ->
-`kinds-switch-charters` (120) -> `kinds-ctl-reads` (150) -> `kinds-document` (150) ->
-`kinds-story` (120): about 1,300 implementer-minutes, the plan's longest line, since `kinds-start`
-also waits for `kinds-route` (480 minutes in). The forge's
-side (`kinds-values` 90 -> `kinds-store` 150 -> `kinds-held` 120 -> `kinds-route` 120, 480)
-and the change family (`change-call-llm` 80 -> `change-row-llm` 90 after `kinds-route` ->
-`change-root` 110 -> `change-story` 90) join it at `kinds-start` and `kinds-switch-rules`.
+`kinds-values` (90) -> `kinds-store` (150) -> `kinds-held` (120) -> `kinds-route` (120) ->
+`change-row-llm` (90) -> `change-root` (110) -> `change-story` (90) -> `kinds-switch-rules`
+(150) -> `kinds-switch-charters` (120) -> `kinds-ctl-reads` (150) -> `kinds-document` (150) ->
+`kinds-story` (120): about 1,460 implementer-minutes. jig's side (`apps-surface` 90 ->
+`apps-change` 150 -> `apps-proposals` 100 -> `apps-start` 110 / `apps-wire` 140, about 480)
+reaches it at `kinds-start` and `kinds-ctl-form`, well before they are needed. The walk waits
+for the whole.
 
 ## For the walk's document
 
@@ -117,6 +116,9 @@ and the change family (`change-call-llm` 80 -> `change-row-llm` 90 after `kinds-
   plans beside this one, which no longer holds: its files are on this trunk.
 - `kinds-store` and the change family's `change-row-llm` both change temper's store-v11 in
   place and the forge's `boundary.rs`: `change-row-llm` follows `kinds-store`.
+- `kinds-switch-rules` renames `Config.landing` in the domain world's builders, two of which
+  `change-story` owns: it follows `change-story` (a `needs` line added before it started),
+  about 90 minutes on the critical path.
 - `kinds-route` and `change-root` both change `temper-engine-domain`'s `route/forge_route.rs`
   and may run at once: `kinds-route` one ask arm, `change-root` `change_batch`,
   `chat_change` and `start_change`; accepted as disjoint hunks.
