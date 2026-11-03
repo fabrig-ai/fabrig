@@ -75,6 +75,9 @@ mod goal_changes;
 #[path = "forge_routes/goal_landing.rs"]
 mod goal_landing;
 
+#[path = "forge_routes/goal_landing_held.rs"]
+mod goal_landing_held;
+
 #[path = "forge_routes/hints.rs"]
 mod hints;
 
