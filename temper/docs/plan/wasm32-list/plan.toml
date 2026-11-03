@@ -1,0 +1,45 @@
+draft = "wasm32-list"
+repo = "fabrig"
+sources = ["temper/docs/plan/wasm32-list/inputs/request.md", "AGENTS.md"]
+
+# fabrig's wasm32 gate list (inputs/request.md): fab's clippy-wasm32 step reads
+# `.config/gate/wasm32.txt`. One part, one task: the six packages measured green, and skein's
+# playground status closed with it. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "gate-list"
+title = "fabrig: .config/gate/wasm32.txt lists the six packages fab's gate clippies for wasm32; skein-playground's status closes"
+mode = "direct"
+needs = []
+design = "skein/docs/design/testing.md, 6"
+
+[[slice]]
+id = 1
+story = "fab's clippy-wasm32 step reads fabrig's list and clippies skein-playground, the UI kit, its example and jig's browser shell for wasm32-unknown-unknown, warnings denied"
+parts = ["gate-list"]
+walk = false
+
+# The design names more crates for the gate's wasm32 clippy than the request's six, in every
+# tree, and their status files record no gap: the lead's addition records them (plan.md).
+
+[[part]]
+id = "wasm32-status"
+title = "every tree: the status files record the crates the design names for the gate's wasm32 clippy that fab's list does not hold"
+mode = "direct"
+needs = ["gate-list"]
+design = "skein/docs/design/testing.md, 10"
+
+[[slice]]
+id = 2
+story = "a reader of skein's, jig's, temper's and smith's status learns which crates the gate checks for wasm32 and which the design names that it does not"
+parts = ["wasm32-status"]
+walk = false
+
+[[question]]
+id = "wasm32-more"
+text = """The design names crates for the gate's wasm32 clippy that fab's list (.config/gate/wasm32.txt, task gate-list) does not hold: skein's other portable crates (lib, io, the simulator, the shell, skein-sim-world, the fake machine, the fakes, kv, http, json, channel, codec, tls; skein's testing.md 6 and 10, lib.md 2, shell.md 14, world.md 8), jig-client-test-shell-web, jig's client crates and jig-protocol-transcript (jig's protocol/browser.md 15 and 18, protocol/README.md 11), temper-client-domain, -view, -protocol-wire and -shell-web (temper's client/browser.md 4.3), and smith-agent-shell with its smith dependencies (smith's shell.md 2.5). Only temper-client-shell-web is measured (red: too_many_lines at turn); the rest are unmeasured. Each added package lengthens the gate's clippy-wasm32 step. Default taken: the list stays at the request's six and task wasm32-status records the rest as Not yet. Options: a follow-up draft measures each named crate for wasm32 clippy at main, adds the green ones to the list and gives each red one to its tree as a repair (recommended); or keep six and let the Not yet entries stand; or narrow the design to the six."""
+parts = ["wasm32-status"]
