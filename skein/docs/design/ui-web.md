@@ -633,9 +633,12 @@ the host tests (section 14).
   bound, enabled node in the dialog naming Escape; with none, it does
   nothing. The page part prevents the dialog's own closing: a dialog
   closes when the tree removes it, and one the browser closes on its own
-  while it is in the tree is shown again. An open menu takes Escape
-  first, to close itself; a component that takes Escape for itself
-  keeps it.
+  while it is in the tree is shown again. Outside every open dialog,
+  the Escape key's `keydown` while the focus is in a `<form>` presses
+  the first bound, enabled node naming Escape in the innermost form
+  holding the focus (`ui.md`, 6.1), its default prevented; with none,
+  it does nothing. An open menu takes Escape first, to close itself; a
+  component that takes Escape for itself keeps it.
 - **Menus and disclosures are the page part's to fold,** with no step. A
   disclosure is `<details>` and `<summary>`. A menu is a button of the
   page part's, named by the menu's name, that opens its items with the
