@@ -1983,11 +1983,10 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
             &mut out,
         );
         let words = super::change_landing_words(&domain, 7, &SHA1, 7, 512);
-        let expected = b"\nLanded: pull request #7 merged into main as abcdef012345.\n";
-        let at = skein_lib::bytes::find(&words, expected).expect("landing identity");
-        assert_eq!(&words[at + expected.len()..at + expected.len() + line.len()], line);
-        assert_eq!(words[at + expected.len() + line.len()], b'\n', "evidence follows verification");
-        let bound = u32::try_from(at + expected.len() + line.len()).unwrap();
+        let digits = commit_text(&SHA1);
+        assert_eq!(&words[digits.len() + 1..digits.len() + 1 + line.len()], line);
+        assert!(words[digits.len() + 1 + line.len()..].starts_with(b"\npull request #"));
+        let bound = u32::try_from(digits.len() + 1 + line.len()).unwrap();
         let exact = super::change_landing_words(&domain, 7, &SHA1, 7, bound);
         assert!(exact.ends_with(line));
         let short = super::change_landing_words(&domain, 7, &SHA1, 7, bound - 1);
@@ -2031,9 +2030,11 @@ fn cleared_repair_result(by: Option<skein_forge::api::Commit>) -> (super::Domain
 fn a_cleared_changes_result_names_its_repairing_landing() {
     let (domain, _) = cleared_repair_result(Some(SHA256));
     assert!(
-        super::change_landing_words(&domain, 7, &SHA1, 7, 512).ends_with(
-            b"\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab."
+        skein_lib::bytes::find(
+            &super::change_landing_words(&domain, 7, &SHA1, 7, 512),
+            b"\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.\n"
         )
+        .is_some()
     );
 }
 
@@ -2690,4 +2691,65 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         let pending = super::landing_route::pending(&domain, &env, 7, change_row(None).repository, b"main");
         assert_eq!(pending.as_ref(), &[change::Pending { task: 8, kind: expected }]);
     }
+}
+
+#[test]
+fn clearing_precedes_a_long_pull_address_inside_the_task_window() {
+    let (mut domain, env) = cleared_repair_result(None);
+    result_pull_address(&mut domain, &env);
+    let verification = super::forge::Verification {
+        repository: change_row(Some(7)).repository,
+        commit: SHA1,
+        changes: Box::new([7]),
+        tiers: Box::new([super::forge::TierVerification {
+            tier: Box::from(b"slow".as_slice()),
+            verdict: Some(super::forge::TierVerdict {
+                run: 2,
+                blame: temper_engine_domain_forge_tiers::Blame::Cleared,
+            }),
+            repaired: None,
+        }]),
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    super::forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        super::forge::Event::Restore { record: super::forge::Stored::Verification(verification) },
+        &mut out,
+    );
+    let words = super::change_landing_words(&domain, 7, &SHA1, 7, 512);
+    assert!(words.starts_with(b"abcdef0123456789abcdef0123456789abcdef01\nCleared by slow run 2.\n"));
+    assert!(skein_lib::bytes::find(&words, &[b'x'; 180]).is_some(), "long address fits the stored result");
+    assert!(skein_lib::bytes::find(&words[..128], b"Cleared by slow run 2.").is_some());
+}
+
+fn result_pull_address(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+    use super::forge;
+    let base = b"https://forge.example/";
+    let mut web = skein_lib::Writer::new(base.len().checked_add(180).unwrap());
+    web.put(base).unwrap();
+    web.put(&[b'x'; 180]).unwrap();
+    let web = web.finish();
+    let row = forge::ForgeRecord {
+        number: change_row(Some(7)).repository.forge,
+        kind: forge::Kind::Forgejo,
+        mode: forge::Mode::Connected,
+        state: forge::ForgeState::Kept,
+        place: forge::Place {
+            api: forge::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
+            git: web.clone(),
+            web: Some(web),
+        },
+        git_program: None,
+        read_only: false,
+        bot: forge::Bot { login: b"bot".as_slice().into(), name: Box::new([]), email: Box::new([]) },
+        asked: false,
+        first: None,
+    };
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(env),
+        forge::Event::Restore { record: forge::Stored::Forge(row) },
+        &mut skein_lib::Queue::uncapped(),
+    );
 }

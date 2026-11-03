@@ -3413,11 +3413,7 @@ fn change_landing_words(
     bound: u32,
 ) -> Box<[u8]> {
     let row = domain.forge.change(task).expect("landed change");
-    let repository = domain.forge.repository(row.repository);
-    let configured = domain.forge.configured(row.repository.forge);
-    let identity = landing_words(merge, bound, repository, pull, configured);
-    let mut out = List::with_capacity(bound);
-    append(&mut out, &identity);
+    let mut out = change_landing_identity(domain, task, merge, pull, bound);
     let digits = commit_text(merge);
     let number = skein_lib::Decimal::of(pull);
     let parts: [&[u8]; 7] = [
@@ -3434,15 +3430,12 @@ fn change_landing_words(
         bytes = bytes.checked_add(part.len()).expect("bounded landing line");
     }
     // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root.md, 6).
-    if identity.contains(&b'\n') && bytes <= usize::try_from(out.room()).expect("u32 fits usize") {
+    if skein_lib::bytes::find(out.as_slice(), b"\npull request #").is_some()
+        && bytes <= usize::try_from(out.room()).expect("u32 fits usize")
+    {
         append(&mut out, b"\n");
         for part in parts {
             append(&mut out, part);
-        }
-        let verification = change_verification_words(domain, task, merge, bound);
-        if !verification.is_empty() && verification.len() < usize::try_from(out.room()).expect("u32 fits usize") {
-            append(&mut out, b"\n");
-            append(&mut out, &verification);
         }
     }
     let Some(head) = row.change.last_head else { return out.into_boxed() };
@@ -3451,6 +3444,39 @@ fn change_landing_words(
     append(&mut out, b"\n");
     append(&mut out, &evidence);
     out.into_boxed()
+}
+
+/// Put verification inside the task document's window before spending room on the pull.
+fn change_landing_identity(
+    domain: &Domain,
+    task: u64,
+    merge: &skein_forge::api::Commit,
+    pull: u64,
+    bound: u32,
+) -> List<u8> {
+    let row = domain.forge.change(task).expect("landed change");
+    let repository = domain.forge.repository(row.repository);
+    let configured = domain.forge.configured(row.repository.forge);
+    let verification = change_verification_words(domain, task, merge, bound);
+    let reserve = verification.len().saturating_add(1);
+    let digits = commit_text(merge);
+    let keep_verification = !verification.is_empty()
+        && digits.len().saturating_add(reserve) <= usize::try_from(bound).expect("u32 fits usize");
+    let identity_bound = if keep_verification {
+        bound.saturating_sub(u32::try_from(reserve).expect("verification within bound"))
+    } else {
+        bound
+    };
+    let identity = landing_words(merge, identity_bound, repository, pull, configured);
+    let mut out = List::with_capacity(bound);
+    let id_end = skein_lib::bytes::find(&identity, b"\n").unwrap_or(identity.len());
+    append(&mut out, identity.get(..id_end).expect("id within landing words"));
+    if keep_verification {
+        append(&mut out, b"\n");
+        append(&mut out, &verification);
+    }
+    append(&mut out, identity.get(id_end..).expect("pull within landing words"));
+    out
 }
 
 /// Name each landing's retained clearing run before its verification row is released

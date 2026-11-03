@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-02. Where temper's code lags or departs from [root.md](root.md).
+2026-11-03. Remaining gaps between temper's code and [root.md](root.md).
 
 - **Not yet:** 5.5, 5.6, 6, 9.1: settings of temper's kinds: the forge's
   family `Setting`, the two standing requirements, temper's stock defaults
