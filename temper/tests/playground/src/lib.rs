@@ -1,5 +1,7 @@
 //! The playground's native world (temper/docs/design/playground.md, 9).
 
+pub mod page;
+
 use skein_lib::Wall;
 use skein_sim_world::{Host, Printed, StateDigests, Stream, World};
 use temper_playground::{machine::Machine, programs::Process, stories::Story};
