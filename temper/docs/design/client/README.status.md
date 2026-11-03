@@ -10,11 +10,6 @@
   with their tests. 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing.
-  3.5, A project with no repository: the chats page says nothing of it
-  (`temper-client-view`'s `pages/chats.rs`). 4.4: the form opened
-  filled for a set up's first repository adopted nowhere
-  (`temper-client-domain`'s `forge/form.rs`, `form`, starts at forge 1
-  with owner, name and landing empty).
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
   4.6, 8: `SetUp`, `FirstAsk` and the row's `first` carry a project,
