@@ -460,6 +460,9 @@ impl<P: Host, M: Machine, R> Memory<P, M, R> {
 impl<P: Host, M: Machine, R> Platform for Memory<P, M, R> { .. }
 ```
 
+`new` makes its `Page` at browser instant 0 and calls `Page::ready` at once: a native test's
+browser time counts from 0, as the `Slices` it is given were made with.
+
 `platform::worker::Heard` is section 6's enum; `playground-memory` needs it portable, so
 `ui-web-worker-page` defines `Heard` in `platform/worker.rs` (portable) and
 `ui-web-worker-web` re-uses it.
