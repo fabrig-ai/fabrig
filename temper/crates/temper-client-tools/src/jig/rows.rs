@@ -880,3 +880,19 @@ pub const TASK_TEXT: Tool = Tool {
     area: 1,
     notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision.\n",
 };
+
+/// The restore's position in the tools table; positions are durable (tests/help.rs).
+pub const RESTORE_AT: u8 = 62;
+pub const RESTORE: Tool = Tool {
+    name: b"revision restore",
+    line: b"Propose the settings as REVISION left them, to the owners of its items",
+    prints: b"`proposed restoring revision R as proposal P to role K`, then each item left out",
+    result: b"restore",
+    forms: &[&[
+        positional(b"revision", b"REVISION", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Required, b"The revision to restore"),
+        positional(b"reason", b"REASON", Kind::Text, Optional, b"Why; restores revision R when absent"),
+    ]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"A forgotten revision exits 2, naming the oldest kept. A revision\ntoo large to restore exits 2; restore a later revision instead.\nRead the proposal with proposal show PROPOSAL, then decide it\nwith proposal decide PROPOSAL accept --key KEY.\n",
+};

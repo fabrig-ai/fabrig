@@ -24,6 +24,10 @@ Every accepted change makes the next revision, and so does a start with
 a new default for a setting that follows its default. A revision never
 changes once made.
 
+Restoring proposes the settings as an earlier revision left them, against
+the newest revision. Read the proposal, then an owner of its items decides
+it. Acceptance makes a new revision; the history stays.
+
 An agent task records the revision it was made in, and each of its runs
 reads its charter from that revision. A delegate records the newest
 revision, whatever its parent's. A revision a live task reads from is
@@ -54,18 +58,20 @@ when its last task ends or moves.
 - `temper ctl`: `revision list` reads the history, a page at a time;
   `revision show` reads one revision's record; `settings show` reads a
   charter as a held revision has it; `revision advance` moves a held
-  revision's tasks.
+  revision's tasks; `revision restore REVISION [REASON] --key KEY` proposes
+  the settings as REVISION left them.
 - `task show` prints an agent task's `settings:` line: its revision,
   its live run's when that differs, and the newest when that differs.
 - A run reads revisions with the host tool `settings`.
 
 ## Limits
 
-- A revision records what it changed, not every setting's value:
-  `revision show` prints a set item's whole value, and `settings show`
-  reads a past value of a held revision's charter alone.
+- A revision records what it changed and what each item replaced:
+  `revision show` prints `was:` with the past value, its size, or its
+  state: default, removed or not offered. `settings show` reads a past
+  value of a held revision's charter alone.
 - temper keeps a bounded number of held revisions and of charter
   versions. A change that would hold more is refused as full, naming the
   oldest held revision's tasks: move them to go on.
-- A forgotten revision cannot be read. The refusal names the oldest
-  revision kept.
+- A forgotten revision cannot be read or restored. The refusal names
+  the oldest revision kept.
