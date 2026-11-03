@@ -3,7 +3,7 @@ id = "delegates-document"
 part = "clients"
 kind = "feature"
 needs = []
-files = ["jig/crates/jig-domain-core/src/documents/live_delegates.rs", "jig/crates/jig-domain-core/src/documents.rs", "jig/crates/jig-domain-core/src/tests/documents/live_delegates.rs", "jig/docs/design/client/domain/objects.status.md"]
+files = ["jig/crates/jig-domain-core/src/documents/live_delegates.rs", "jig/crates/jig-domain-core/src/documents.rs", "jig/crates/jig-domain-core/src/documents/task_tree.rs", "jig/crates/jig-domain-core/src/documents/objects.rs", "jig/crates/jig-domain-core/src/documents/project_note.rs", "jig/crates/jig-domain-core/src/documents/deployment.rs", "jig/crates/jig-domain-core/src/tests/inbox/inbox_selection.rs", "jig/crates/jig-domain-core/src/tests/documents/frame_deployment_role.rs", "jig/crates/jig-domain-core/src/tests/documents/live_delegates.rs", "jig/docs/design/client/domain/objects.status.md"]
 effort = "high"
 minutes = 90
 +++
@@ -69,3 +69,18 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+- 2026-11-03. Q: the live-delegate list is priced by `documents.lines` in
+  `documents/task_tree.rs`'s `overview_bound` (which takes only `DocumentLimits`, and is called by
+  the private `document_bound`s of `task_tree.rs`, `objects.rs`, `project_note.rs` and
+  `deployment.rs`), outside the header: extend ownership, or another task first? A: extend
+  ownership; those four helpers and the two tests that pin the bounds' relation
+  (`tests/inbox/inbox_selection.rs`, `tests/documents/frame_deployment_role.rs`) join the files
+  (header amended), for this pricing only. Keep every public signature: `overview_bound` stops
+  pricing `List<LiveDelegate>` and its chip heaps by `documents.lines`, and
+  `documents::document_with_context_bound`, which has the full `Limits`, adds them priced by
+  `tasks.delegates` (the inbox's allocation goes through it, `reads.rs` and `limits.rs`); the
+  doc comments of both public bounds say which holds the delegates. A test whose figure derives
+  from the moved price changes only that figure, listed in the report.
