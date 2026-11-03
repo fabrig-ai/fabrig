@@ -30,8 +30,7 @@ fn story_a_starts_with_no_box_calm_and_prints_its_link() {
     for process in started.world.processes() {
         let exit = process.exit();
         assert!(
-            exit.is_none()
-                || (matches!(process, Process::Git(_) | Process::Visitor(_)) && exit == Some(Exit::Code(0))),
+            exit.is_none() || (matches!(process, Process::Git(_) | Process::Visitor(_)) && exit == Some(Exit::Code(0))),
             "only hosted git and the idle visitor may report Code(0); got {exit:?}"
         );
     }
