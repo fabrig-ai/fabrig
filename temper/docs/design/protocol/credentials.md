@@ -349,7 +349,7 @@ sources in its holder's order. temper configures the LLM providers
   hub and the link, to the accounts child, fenced by attempt (jig's
   `domain/accounts.md`, 3.5). Unknown limit resets stay absent; an explicit
   zero remains supplied. A notice does not replace the run's terminal answer.
-  At the current jig/smith pins, Bearer, Key and Withdrawn forms are checked
+  At the current jig/smith pins, Bearer and Key forms are checked
   against the lent value at start and renewal. A program source's grant
   is jig's Program grant, its name and generation with no credential
   table's value (jig's `domain/accounts.md`, 3.4), installed by smith's

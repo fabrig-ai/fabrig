@@ -139,9 +139,7 @@ fn a_grant_value_past_its_bounds_is_refused() {
 #[test]
 fn grant_values_at_their_bounds_are_admitted() {
     let program_bound = usize::try_from(CEILINGS.program_value_name).expect("program ceiling");
-    for (name, result) in [("program", program_value(&vec![b'a'; program_bound]))] {
-        assert!(result.is_ok(), "{name}");
-    }
+    assert!(program_value(&vec![b'a'; program_bound]).is_ok(), "program");
 }
 
 #[test]
