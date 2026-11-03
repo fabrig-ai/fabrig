@@ -1,7 +1,6 @@
 # engine: status
 
 2026-11-03. Where jig's code lags or departs from [engine.md](engine.md).
-The remaining host-tool gaps in 7.3 concern task movement and placed holds.
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
