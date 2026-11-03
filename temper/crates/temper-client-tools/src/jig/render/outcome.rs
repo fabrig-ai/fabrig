@@ -97,7 +97,7 @@ impl Operation {
                 c::Ask::ChangePolicy { .. } => (b"change-policy", None),
                 c::Ask::SetRoles { .. } => (b"set-roles", None),
                 c::Ask::MakeProject { .. } => (b"make-project", None),
-                c::Ask::SetVisibility { .. } => (b"set-visibility", None),
+                c::Ask::SetVisibility { .. } => (b"project amend", None),
                 c::Ask::RemoveProject { .. } => (b"remove-project", None),
                 c::Ask::Rename { .. } => (b"rename", None),
                 c::Ask::MakeService { .. } => (b"make-service", None),
@@ -526,6 +526,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::PROPOSE_SETTINGS_AT => &rows::PROPOSE_SETTINGS,
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
+        rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
         _ => unreachable!("act tool"),
     }
 }

@@ -38,6 +38,12 @@ A project is where work happens: the repositories adopted into it, one of them i
 - **Given repositories:** `repository adopt` adopts one into a project
   that exists; the first one adopted becomes its home unless the
   adoption says otherwise.
+- **Made public or private:** an owner uses `project amend PROJECT
+  --visibility public --key KEY` to open its public pages, and
+  `--visibility private` to make it private again. Anyone may read a
+  public project's name and its tasks' structure and titles without
+  signing in. The rest of their specifications and their words stay
+  private.
 - **Deleted:** its owners delete it with Delete on its settings in the
   client, confirmed by its name; the playground's reset deletes
   `Demo`. It takes no new work at once and leaves every list;
@@ -62,9 +68,13 @@ A project is where work happens: the repositories adopted into it, one of them i
   can make one with its first repository (temper help forge);
   `repository adopt` adds a repository; `task list`, `inbox` and
   `model list` read one project's, and `chat start` starts a chat in
-  one; `project show` reads a project: its homes, its roles with their
+  one; `project show` reads a project: whether it is public and its
+  public page's path, its homes, its roles with their
   parties, its spends, its open period and each party's pool in it;
-  `project fund` raises its period spend or a role's.
+  `project fund` raises its period spend or a role's;
+  `project amend PROJECT --visibility public|private --key KEY`
+  changes its visibility. The public page is a path under the
+  deployment's address.
 - **The client:** Delete on a project's settings deletes it, for its
   owners.
 - **temper's runs** work in their task's project: `change` writes to
@@ -73,7 +83,11 @@ A project is where work happens: the repositories adopted into it, one of them i
 
 ## Limits
 
-- ctl's group `project` reads a project and changes its spends alone:
+- Only an owner changes visibility; a member and project 0 are
+  refused. A public project's pages show its name and task titles,
+  never the rest of a specification, instructions, inputs, results,
+  conversations, or people's names.
+- ctl's group `project` reads a project and changes its spends and visibility:
   no call renames a project or changes its roles.
 - temper does not make a project from ctl but with its first
   repository, or the playground's.

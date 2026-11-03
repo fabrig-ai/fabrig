@@ -827,8 +827,8 @@ pub const PROJECT_SHOW_AT: u8 = 54;
 pub const PROJECT_FUND_AT: u8 = 55;
 pub const PROJECT_SHOW: Tool = Tool {
     name: b"project show",
-    line: b"Read a project, its roles and spends, its open period and each party's pool",
-    prints: b"The project, its homes and spend per period, each role, its open period and each pool",
+    line: b"Read a project, its public page, roles and spends, its open period and each party's pool",
+    prints: b"The project, whether it is public and its public page's path, its homes and spend per period, each role, its open period and each pool",
     result: b"project",
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
@@ -952,4 +952,20 @@ set from a client: within bounds, created; past them but proposable,
 proposed (exit 0); not offered or past ceilings, nothing sent (exit 1).
 Then task show TASK --until replied.
 ",
+};
+
+/// Visibility's position in the tools table (client/tools.md, 5.3).
+pub const PROJECT_AMEND_AT: u8 = 63;
+pub const PROJECT_AMEND: Tool = Tool {
+    name: b"project amend",
+    line: b"Make a project readable by anyone without signing in, or private again",
+    prints: b"`project 1: public` and, made public, `page: /public/projects/3f2a9c01d4e5b6a7`; made private, `project 1: private`",
+    result: b"project_amend",
+    forms: &[&[
+        positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"visibility", b"public|private", Kind::Word { set: &[b"public", b"private"] }, Required, b"Public reading, or private again"),
+    ]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };

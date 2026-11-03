@@ -37,3 +37,5 @@ mod replays;
 mod specification;
 
 mod goal_template;
+
+mod visibility;

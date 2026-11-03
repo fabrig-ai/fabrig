@@ -25,6 +25,14 @@ pub(super) struct Sent {
     pub(super) dispatched: bool,
     alternate: Option<c::Ask>,
 }
+/// A durable visibility answer waits within its call for me to carry its page
+/// (client/tools.md, 5.3).
+#[derive(Debug)]
+pub(super) struct Visibility {
+    called: Called,
+    project: u32,
+    public: bool,
+}
 pub(crate) fn me<'a>(runner: &Runner, client: &'a Client) -> Option<&'a c::Me> {
     match client.document(runner.me())?.latest? {
         Latest::Jig(c::Delivery::Me(me)) => Some(me),
@@ -32,9 +40,13 @@ pub(crate) fn me<'a>(runner: &Runner, client: &'a Client) -> Option<&'a c::Me> {
     }
 }
 pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
-    if called.call.tool == rows::PROJECT_FUND_AT {
+    if called.call.tool == rows::PROJECT_FUND_AT || called.call.tool == rows::PROJECT_AMEND_AT {
         let Some(me) = me(runner, client) else { return };
-        let request = project_fund(&called.call, me);
+        let request = if called.call.tool == rows::PROJECT_AMEND_AT {
+            project_amend(&called.call, me)
+        } else {
+            project_fund(&called.call, me)
+        };
         prepared(runner, client, env, called, request, out);
         return;
     }
@@ -121,6 +133,12 @@ pub(crate) enum Failed {
     Detail(Box<[u8]>),
 }
 pub(crate) type Prepared = Result<(Request, Option<c::Recipient>), Failed>;
+fn project_amend(call: &Call, me: &c::Me) -> Prepared {
+    let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
+    let Some(Value::Word(visibility)) = value(call, 1) else { unreachable!("visibility argument") };
+    let public = *visibility == 0;
+    Ok((Request::Ask(c::Ask::SetVisibility { project, public }), None))
+}
 fn project_fund(call: &Call, me: &c::Me) -> Prepared {
     match super::reads::project(call, me) {
         Some(project) => {
@@ -748,6 +766,19 @@ pub(super) fn answered(
             super::reads::start(runner, client, env, sent.called, out);
             return;
         }
+        if sent.called.call.tool == rows::PROJECT_AMEND_AT
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::VisibilitySet { project, public },
+            )))) = outcome
+        {
+            visibility_complete(
+                runner,
+                client,
+                Visibility { called: sent.called, project: *project, public: *public },
+                out,
+            );
+            return;
+        }
         let mut printed = render::outcome::print(
             &sent.operation,
             outcome,
@@ -853,5 +884,25 @@ fn operation_word(tool: u8, word: &'static [u8]) -> &'static [u8] {
         rows::GOAL_START_AT => b"goal",
         rows::CLOSE_AT => b"close",
         _ => word,
+    }
+}
+
+fn visibility_complete(runner: &mut Runner, client: &Client, waiting: Visibility, out: &mut Queue<Out>) {
+    if let Some(me) = me(runner, client) {
+        for project in &me.projects {
+            if project.project == waiting.project && project.public.is_some() == waiting.public {
+                let printed = render::visibility::print(waiting.project, project.public, waiting.called.json);
+                finish(waiting.called, printed, out);
+                return;
+            }
+        }
+    }
+    runner.visibility.insert(waiting.called.call_number, waiting);
+}
+pub(super) fn visibility_changed(runner: &mut Runner, client: &Client, out: &mut Queue<Out>) {
+    // Visit each waiting call once, including those still awaiting agreement.
+    let waiting = runner.visibility.split_off(&0);
+    for (_, waiting) in waiting {
+        visibility_complete(runner, client, waiting, out);
     }
 }

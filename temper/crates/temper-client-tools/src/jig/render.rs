@@ -8,6 +8,7 @@ pub(crate) mod outcome;
 pub mod pending;
 pub(super) mod task_source;
 mod turn;
+pub(super) mod visibility;
 use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
 use jig_client::{
