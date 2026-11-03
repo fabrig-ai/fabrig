@@ -199,3 +199,38 @@ fn removed_family_bytes_are_reserved() {
         assert_eq!(keys::decode(&key.finish().unwrap(), &fixtures::LIMITS), None);
     }
 }
+
+#[test]
+fn setting_keys_use_family_twenty_and_refuse_unknown_tags_widths_and_trailing_bytes() {
+    use temper_engine_domain_forge::settings::{SettingKey, SettingSlot};
+    for kind in 1..=3 {
+        for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(u64::MAX)] {
+            let key = Key::Setting(SettingKey { kind, scope: u32::MAX, number: u32::MAX, slot });
+            let bytes = keys::encode(&key, u32::MAX).unwrap();
+            assert_eq!(bytes[0], keys::SETTING);
+            let length = if slot == SettingSlot::Proposal(u64::MAX) { 34 } else { 26 };
+            assert_eq!(bytes.len(), length);
+            assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
+            assert_eq!(keys::encode(&key, u32::try_from(length - 1).unwrap()), None);
+            for end in 0..length {
+                assert_eq!(keys::decode(&bytes[..end], &fixtures::LIMITS), None);
+            }
+            let mut trailing = skein_lib::Writer::new(length + 1);
+            trailing.put(&bytes).unwrap();
+            trailing.put(&[0]).unwrap();
+            assert_eq!(keys::decode(&trailing.finish(), &fixtures::LIMITS), None);
+        }
+    }
+    for (kind, scope, number, slot) in [
+        (0, 0, 1, 0),
+        (4, 0, 1, 0),
+        (1_u64 << 32_u8, 0, 1, 0),
+        (1, 1_u64 << 32_u8, 1, 0),
+        (1, 0, 1_u64 << 32_u8, 0),
+        (1, 0, 1, 3),
+    ] {
+        let mut writer = skein_kv::KeyWriter::new(u32::MAX);
+        writer.tag(keys::SETTING).u64(kind).u64(scope).u64(number).tag(slot);
+        assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
+    }
+}

@@ -184,6 +184,7 @@ pub struct Domain {
     pub(crate) landing: crate::landing::State,
     pub(crate) tier_ops: crate::tiers::State,
     pub(crate) tiers: Map<(skein_forge::api::Repository, Box<[u8]>), crate::TierRow>,
+    pub(crate) setting_rows: Map<crate::settings::SettingKey, crate::settings::Edit>,
     pub(crate) verifications: Map<(skein_forge::api::Repository, skein_forge::api::Commit), crate::Verification>,
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 9.1).
     restore_phase: RestorePhase,
@@ -626,6 +627,7 @@ impl Domain {
             landing: crate::landing::State::new(l),
             tier_ops: crate::tiers::State::new(l),
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
+            setting_rows: Map::with_capacity(crate::settings::rows(l).ok_or(skein_forge::api::Error::TooLarge)?),
             verifications: Map::with_capacity(l.changes),
             restore_phase: RestorePhase::Cold,
             reconciliation: crate::reconcile::Reconciliation::new(l),
@@ -5382,6 +5384,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                 )
                 .expect("restored entry within limits");
         }
+        Stored::Setting(row) => {
+            d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");
+        }
         Stored::Binding { address, subject } => {
             d.bindings.insert(address, subject).expect("restored binding within limits");
         }
@@ -6059,7 +6064,9 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Forge | RecordKind::Landed | RecordKind::Binding => unreachable!("row has no links"),
+            RecordKind::Forge | RecordKind::Landed | RecordKind::Binding | RecordKind::Setting => {
+                unreachable!("row has no links")
+            }
         }
         unreachable!("unmade link has a referencing retained row")
     }

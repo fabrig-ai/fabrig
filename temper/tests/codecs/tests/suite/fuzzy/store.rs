@@ -137,6 +137,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
 }
 
 fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
+    setting_row(rng, bounds);
     let number = u16::try_from(rng.below(65_536)).expect("u16");
     let kind = if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub };
     let mode = match rng.below(4) {
@@ -315,4 +316,40 @@ fn optional_field(rng: &mut Rng) -> Option<Box<[u8]>> {
 
 fn optional_number(rng: &mut Rng) -> Option<u32> {
     if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(4_294_967_296)).expect("u32")) }
+}
+
+fn setting_row(rng: &mut Rng, bounds: &Bounds) {
+    use forge::settings as s;
+    let slot = match rng.below(3) {
+        0 => s::SettingSlot::Default,
+        1 => s::SettingSlot::Change,
+        _ => s::SettingSlot::Proposal(rng.next_u64()),
+    };
+    let last = if rng.below(2) == 0 {
+        forge::GateLast::Exact(drawn_field(rng))
+    } else {
+        forge::GateLast::Open(drawn_field(rng))
+    };
+    let value = if rng.below(2) == 0 {
+        s::Value::Charter(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
+    } else {
+        s::Value::Rule(s::LandingRule {
+            pattern: forge::GatePattern { segments: Box::new([drawn_field(rng)]), last },
+            enforce: rng.below(2) == 0,
+            ci: rng.below(2) == 0,
+            up_to_date: rng.below(2) == 0,
+            gates: Box::new([s::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Exact }]),
+            approvals: Box::new([s::RuleApproval { role: 1, people: 2, freshness: forge::JudgeFreshness::Clean }]),
+        })
+    };
+    let edit = match rng.below(3) {
+        0 => s::Edit::Set(s::SizedValue { value, size: u32::try_from(rng.below(4_294_967_296)).expect("u32") }),
+        1 => s::Edit::Remove,
+        _ => s::Edit::Reset,
+    };
+    let row = forge::Stored::Setting(s::SettingRow {
+        key: s::SettingKey { kind: u32::try_from(rng.below(3) + 1).expect("kind"), scope: 0, number: 1, slot },
+        edit,
+    });
+    row_and_key(&row, rng, bounds);
 }

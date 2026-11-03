@@ -6,6 +6,8 @@ use temper_engine_domain_forge as forge;
 
 /// The `Binding` family's byte, taken at landing as a version is (protocol/store.md, 2).
 pub const BINDING: u8 = 18;
+/// The forge's settings of kinds 1 to 3 (temper/docs/design/protocol/store.md, 2).
+pub const SETTING: u8 = 20;
 // Family bytes 17 and 19 are reserved and are not reused.
 /// A write with a committed attempt (protocol/store.md, 2).
 pub const FLIGHT: u8 = 21;
@@ -91,6 +93,20 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {
+        forge::Key::Setting(key) => {
+            writer.tag(SETTING).u64(u64::from(key.kind)).u64(u64::from(key.scope)).u64(u64::from(key.number));
+            match key.slot {
+                forge::settings::SettingSlot::Default => {
+                    writer.tag(0);
+                }
+                forge::settings::SettingSlot::Change => {
+                    writer.tag(1);
+                }
+                forge::settings::SettingSlot::Proposal(proposal) => {
+                    writer.tag(2).u64(proposal);
+                }
+            }
+        }
         forge::Key::Tier { repository, tier } => {
             writer.tag(TIER);
             write_repository(&mut writer, *repository);
@@ -248,6 +264,19 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         }
         VERIFICATION => {
             forge::Key::Verification { repository: read_repository(&mut reader)?, commit: read_commit(&mut reader)? }
+        }
+        SETTING => {
+            let kind = u32::try_from(reader.u64()?).ok()?;
+            forge::settings::Kind::of(kind)?;
+            let scope = u32::try_from(reader.u64()?).ok()?;
+            let number = u32::try_from(reader.u64()?).ok()?;
+            let slot = match reader.tag()? {
+                0 => forge::settings::SettingSlot::Default,
+                1 => forge::settings::SettingSlot::Change,
+                2 => forge::settings::SettingSlot::Proposal(reader.u64()?),
+                _ => return None,
+            };
+            forge::Key::Setting(forge::settings::SettingKey { kind, scope, number, slot })
         }
         FLIGHT => forge::Key::Flight { task: reader.u64()?, entry: reader.u64()? },
         BINDING => {
