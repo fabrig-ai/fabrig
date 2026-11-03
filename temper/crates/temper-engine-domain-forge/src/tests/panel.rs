@@ -538,7 +538,7 @@ fn tier_lines_show_runs_in_flight_failed_ids_and_outright_clearance() {
     let mut row = fixtures::opening_row();
     row.change.state = change::State::Landed { merge, since: env().wall };
     let mut d = with_row(row);
-    running_tier(&mut d, merge);
+    running_tier(&mut d, 7, merge, &[merge]);
     d.verifications
         .insert(
             (REPO, merge),
@@ -547,7 +547,7 @@ fn tier_lines_show_runs_in_flight_failed_ids_and_outright_clearance() {
                 commit: merge,
                 changes: Box::new([fixtures::CHANGE]),
                 tiers: Box::new([
-                    TierVerification { tier: Box::from(b"running".as_slice()), verdict: None, repaired: None },
+                    TierVerification { tier: Box::from(b"slow".as_slice()), verdict: None, repaired: None },
                     TierVerification {
                         tier: Box::from(b"red".as_slice()),
                         verdict: Some(TierVerdict {
@@ -573,7 +573,7 @@ fn tier_lines_show_runs_in_flight_failed_ids_and_outright_clearance() {
         PanelStep::Verifying {
             merge,
             tiers: Box::new([
-                Box::from(b"running run 7 running".as_slice()),
+                Box::from(b"slow run 7 running".as_slice()),
                 Box::from(b"red run 4 \xc2\xb7 owns 2 tests: one, two".as_slice()),
                 Box::from(b"green run 5".as_slice()),
             ])
@@ -581,9 +581,73 @@ fn tier_lines_show_runs_in_flight_failed_ids_and_outright_clearance() {
     );
 }
 
-fn running_tier(d: &mut Domain, merge: skein_forge::api::Commit) {
+#[test]
+fn a_landing_during_the_baseline_waits_for_the_next_run() {
+    let mut d = waiting_changes(&[(fixtures::CHANGE, fixtures::HEAD)]);
+    running_tier(&mut d, 1, fixtures::BASE, &[]);
+    assert_tier_panel(&d, fixtures::CHANGE, fixtures::HEAD, b"slow waiting");
+    running_tier(&mut d, 2, fixtures::HEAD, &[fixtures::HEAD]);
+    assert_tier_panel(&d, fixtures::CHANGE, fixtures::HEAD, b"slow run 2 running");
+}
+
+#[test]
+fn later_landings_wait_until_the_next_run_covers_them() {
+    const NEXT_CHANGE: u64 = 52;
+    const LAST_CHANGE: u64 = 53;
+    const LAST_TIP: skein_forge::api::Commit = [6; 32];
+    let later = [(NEXT_CHANGE, fixtures::HEAD), (LAST_CHANGE, LAST_TIP)];
+    let mut d = waiting_changes(&[(fixtures::CHANGE, fixtures::BASE), later[0], later[1]]);
+    running_tier(&mut d, 2, fixtures::BASE, &[fixtures::BASE]);
+    assert_tier_panel(&d, fixtures::CHANGE, fixtures::BASE, b"slow run 2 running");
+    for (task, merge) in later {
+        assert_tier_panel(&d, task, merge, b"slow waiting");
+    }
+    running_tier(&mut d, 3, LAST_TIP, &[fixtures::HEAD, LAST_TIP]);
+    for (task, merge) in later {
+        assert_tier_panel(&d, task, merge, b"slow run 3 running");
+    }
+}
+
+fn waiting_changes(changes: &[(u64, skein_forge::api::Commit)]) -> Domain {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    for (task, merge) in changes {
+        let mut row = fixtures::opening_row();
+        row.task = *task;
+        row.change.task = *task;
+        row.change.state = change::State::Landed { merge: *merge, since: env().wall };
+        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        d.verifications
+            .insert(
+                (REPO, *merge),
+                Verification {
+                    repository: REPO,
+                    commit: *merge,
+                    changes: Box::new([*task]),
+                    tiers: Box::new([TierVerification {
+                        tier: Box::from(b"slow".as_slice()),
+                        verdict: None,
+                        repaired: None,
+                    }]),
+                },
+            )
+            .expect("verification room");
+    }
+    d
+}
+
+fn assert_tier_panel(d: &Domain, task: u64, merge: skein_forge::api::Commit, line: &[u8]) {
+    let shown = d.panel(task, ApplicationScope::Project(5), env().wall, &LIMITS).expect("known change");
+    assert_eq!(shown.step, PanelStep::Verifying { merge, tiers: Box::new([Box::from(line)]) });
+}
+
+fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, commits: &[skein_forge::api::Commit]) {
     use temper_engine_domain_forge_tiers as p;
-    let tier: Box<[u8]> = Box::from(b"running".as_slice());
+    let tier: Box<[u8]> = Box::from(b"slow".as_slice());
+    let mut landings = skein_lib::List::uncapped();
+    for commit in commits {
+        landings.push(p::Landing { commit: *commit, key: *commit }).expect("landing room");
+    }
     d.tiers
         .insert(
             (REPO, tier.clone()),
@@ -607,15 +671,15 @@ fn running_tier(d: &mut Domain, merge: skein_forge::api::Commit) {
                 goal: None,
                 started: None,
                 record: p::Record {
-                    sequence: 7,
+                    sequence: number,
                     judged: None,
                     failing: p::Failures::Tests(Box::new([])),
                     flakes: Box::new([]),
                     run: Some(p::Run {
-                        number: 7,
-                        tip: merge,
-                        key: merge,
-                        landings: Box::new([]),
+                        number,
+                        tip,
+                        key: tip,
+                        landings: landings.into_boxed(),
                         part: p::Part::Whole,
                         faults: 0,
                     }),
