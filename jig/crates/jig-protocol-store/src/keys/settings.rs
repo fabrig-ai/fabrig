@@ -52,7 +52,11 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
 }
 fn setting_write(writer: &mut KeyWriter, setting: Setting) {
     let (kind, number) = match setting {
-        Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
+        Setting::ProjectPolicy { project } => {
+            writer.tag(5);
+            writer.u64(u64::from(project));
+            return;
+        }
         Setting::Charter(n) => (0, n),
         Setting::Template(n) => (1, n),
         Setting::Policy(n) => (2, n),
@@ -92,6 +96,9 @@ pub(super) fn read(reader: &mut KeyReader<'_>, history: bool) -> Option<Key> {
 }
 fn setting_read(reader: &mut KeyReader<'_>) -> Option<Setting> {
     let kind = reader.tag()?;
+    if kind == 5 {
+        return Some(Setting::ProjectPolicy { project: u32::try_from(reader.u64()?).ok()? });
+    }
     if kind == 4 {
         return Some(Setting::Application {
             kind: u32::try_from(reader.u64()?).ok()?,

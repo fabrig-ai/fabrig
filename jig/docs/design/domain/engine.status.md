@@ -5,10 +5,7 @@
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
-  7.1, 9: the brief's lineage, calls and waiting sections. 17.2, 17.6:
-  a project's own policy as an item of a change or a proposal: jig's
-  `Setting` names none (`jig-domain-people/src/settings.rs`), and no
-  change replaces a project's policy. 17.10: restoring a version: no
+  7.1, 9: the brief's lineage, calls and waiting sections. 17.10: restoring a version: no
   `Restore` request, and a revision's record keeps no item's replaced
   value (settings-v1's `Revision` and `Item`). 17.5, 17.10: a connector
   keeps no value its items replaced, beside its changes
@@ -22,7 +19,9 @@
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle. 17.6: a
-  proposal naming a project's items waits for the deployment's owners alone.
+  proposal naming a project's items waits for the deployment's owners
+  alone, not that project's: a settings proposal's holder is always the
+  deployment's policy (`jig-domain-core/src/admission/proposals.rs`).
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a

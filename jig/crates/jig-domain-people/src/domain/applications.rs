@@ -128,6 +128,9 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
         }
         Ask::ChangeSettings { projects, .. } => {
             for &project in projects {
+                if !domain.has_project(project) || domain.deletions.contains_key(&project) {
+                    return Some(Refusal::Unknown);
+                }
                 let held = super::role(domain, person, project);
                 if held != Some(Role::Owner) {
                     return Some(Refusal::Role { held });

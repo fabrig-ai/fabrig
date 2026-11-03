@@ -1,9 +1,9 @@
 //! The engine world is the lowest tier joining retained tier facts to ctl's reads.
-use super::{World, paths};
 use jig_client::{self as client, contract as c};
 use jig_domain_core::reads;
 use skein_lib::{Env, List, Queue, Writer};
 use temper_client_tools::{jig::call::Parsed, root};
+use temper_engine_domain_world::forge_routes::World;
 use temper_engine_domain_world::forge_routes::{Gate, StoryLimits};
 
 /// Keep the baseline's projection at 128 bytes without changing other tier stories.
@@ -11,7 +11,7 @@ pub(super) fn world() -> World {
     let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
     documents.text_bytes = 128;
     let options = StoryLimits {
-        tier: Some(super::Tier::default()),
+        tier: Some(temper_engine_domain_world::tier_runs::Tier::default()),
         tasks: Some(12),
         spec_bytes: Some(4096),
         ..StoryLimits::default()
@@ -23,19 +23,29 @@ pub(super) fn world() -> World {
 pub(super) fn assert_words(world: &mut World, task: u64, expected: &str) {
     world.signed_in = None;
     world.sign_in();
-    let printed = show(world, task, false, false);
+    let printed = show(world, task);
     assert_eq!(printed.status, 0);
     let text = std::str::from_utf8(&printed.stdout).expect("ctl text");
     assert!(text.contains(&format!("asked: {expected}")), "missing full execution identity: {text}");
 }
 
-fn show(world: &mut World, task: u64, json_output: bool, change: bool) -> temper_client_tools::jig::Printed {
+/// Submit ordinary task show through the tools root and real task document read.
+pub(super) fn show(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
+    show_format(world, task, false, false)
+}
+
+/// Read the same bounded task document as JSON through the tools root.
+pub(super) fn show_json(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
+    show_format(world, task, true, false)
+}
+
+fn show_format(world: &mut World, task: u64, json_output: bool, change: bool) -> temper_client_tools::jig::Printed {
     let env = Env {
         limits: root::Limits::new(temper_client_tools::limits::client(), temper_client_tools::limits::tools()),
         now: world.env.now,
         wall: world.env.wall,
     };
-    let mut root = root::Root::unlinked(&env.limits, super::SEED).expect("ctl limits");
+    let mut root = root::Root::unlinked(&env.limits, temper_engine_domain_world::tier_runs::SEED).expect("ctl limits");
     let mut out = Queue::uncapped();
     for event in [
         client::Event::StartUnlinked { kept: List::with_capacity(0) },
@@ -75,12 +85,32 @@ fn source_read(what: &c::Read) -> reads::Read {
         c::Read::TaskText { task, field: c::TaskTextField::Specification, from } => {
             reads::Read::TaskText { task: *task, field: reads::TaskTextField::Specification, from: *from }
         }
-        _ => panic!("unexpected supplemental read: {what:?}"),
+        c::Read::Settings
+        | c::Read::Setting(_)
+        | c::Read::Revision(_)
+        | c::Read::Revisions(_)
+        | c::Read::Tasks { .. }
+        | c::Read::Me
+        | c::Read::Turn { .. }
+        | c::Read::TaskText { .. }
+        | c::Read::Proposal { .. }
+        | c::Read::Escalation { .. }
+        | c::Read::Question { .. }
+        | c::Read::PersonTask { .. }
+        | c::Read::Result { .. }
+        | c::Read::Ended { .. }
+        | c::Read::History { .. }
+        | c::Read::Activity { .. }
+        | c::Read::Inbox { .. }
+        | c::Read::Spend { .. }
+        | c::Read::Project { .. }
+        | c::Read::Notes { .. }
+        | c::Read::Deployment => panic!("unexpected supplemental read: {what:?}"),
     }
 }
 
 fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
-    let answer = paths::read(world, read).expect("engine read answered");
+    let answer = world.party_read(read);
     if let reads::Answer::TaskText(page) = answer {
         return c::ReadValue::TaskText(Box::new(c::TaskText {
             task: page.task,
@@ -126,14 +156,20 @@ fn response(world: &mut World, request: root::Request) -> Option<client::Event> 
             },
         },
 
-        _ => return None,
+        root::Request::Client { .. }
+        | root::Request::Ready
+        | root::Request::Record { .. }
+        | root::Request::Kept { .. }
+        | root::Request::Progress { .. }
+        | root::Request::Printed { .. }
+        | root::Request::Fact { .. } => return None,
     })
 }
 
 /// Exercise ctl's wire decoding and both renderers with the retained hold account.
 pub(in super::super) fn assert_hold_words(world: &mut World, task: u64, expected: &str) {
     for (json, change) in [(false, false), (true, false), (false, true), (true, true)] {
-        let printed = show(world, task, json, change);
+        let printed = show_format(world, task, json, change);
         let registered = world
             .store
             .rows

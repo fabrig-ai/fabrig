@@ -501,6 +501,7 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
     match value {
         // Forge application records cannot contain a settings decision's stale revision.
         w::Refusal::Stale(_) => unreachable!("forge applications cannot store a stale settings refusal"),
+        w::Refusal::Forgotten(_) => unreachable!("forge applications cannot store a forgotten settings refusal"),
         // Forge application requests never enter settings' held-revision admission.
         w::Refusal::Full(_) => unreachable!("forge applications cannot store a full settings refusal"),
         w::Refusal::Judged(_) => unreachable!("forge applications cannot store a judged settings refusal"),

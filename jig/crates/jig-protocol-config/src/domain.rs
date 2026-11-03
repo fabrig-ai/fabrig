@@ -636,6 +636,8 @@ fn people_bound(
         P::AskCreateBatch => b!(b"people.batch", b"AskCreate.batch", ask_create_batch),
         P::AskMakeServiceName => b!(b"people.words", b"AskMakeService.name", ask_make_service_name),
         P::ActionBatchMembers => b!(b"people.batch", b"ActionBatch.members", action_batch_members),
+        P::AskRestoreReason => b!(b"people.words", b"AskRestore.reason", ask_restore_reason),
+        P::OutcomeRestoredLeftOut => b!(b"tasks.SETTINGS_ITEMS + 1", b"OutcomeRestored.left_out", outcome_restored_left_out),
         P::AskProposeReason => b!(b"people.words", b"AskPropose.reason", ask_propose_reason),
         P::AskCancelReason => b!(b"people.words", b"AskCancel.reason", ask_cancel_reason),
         P::AskMoveReason => b!(b"people.words", b"AskMove.reason", ask_move_reason),

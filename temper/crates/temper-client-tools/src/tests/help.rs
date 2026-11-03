@@ -53,6 +53,28 @@ fn the_help_prints_as_its_golden_files() {
         assert_eq!(fixtures::help(*tool), fixtures::golden(name), "{name}");
     }
 }
+
+#[test]
+fn chat_start_explains_subagent_choices() {
+    let help = fixtures::help(Some(jig::rows::CHAT_CREATE_AT));
+    for explanation in [
+        "each model named once, with one effort",
+        "effort is required when the model declares efforts",
+        "--sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B",
+        "distinct model names offered by `models`",
+        "Available choices only: this list neither starts children nor assigns",
+        "choices by child order",
+        "The parent's `sub_agent` call selects a model with",
+        "optional `llm`; omitted, it uses main's model and effort",
+        "One model cannot be offered at two child efforts",
+        "multiple children may use the same choice",
+    ] {
+        assert!(
+            skein_lib::bytes::find(&help, explanation.as_bytes()).is_some(),
+            "chat start help must explain: {explanation}"
+        );
+    }
+}
 // client/tools.md 5.2--5.6, with the plan's typed proposals and close reason.
 const USAGES: &[&[u8]] = &[
     b"me [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",

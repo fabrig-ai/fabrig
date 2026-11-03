@@ -72,6 +72,15 @@
   - 13: participating objects beyond their news; a landing waiting for
     someone else's merge where temper may not merge (also 4.4 and 9).
   - 14: upstream contributions.
+  - 18: the rules as settings (8.9) in the forge's world: `tests/engine/forge`
+    tells none of them. The engine's domain world tells a rule changed
+    between two merges, a rule refused in its change's decision, a
+    change kept on the charters it was made with and one held when its
+    charter is no longer offered, and a restart
+    (`tests/engine/domain/tests/suite/settings/kinds.rs`,
+    `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
+    asked for on a queued change, a gate a rule drops no longer waited
+    on, or a project's rule adding an approval.
 - **Departs:** 8.11: a change taking `foreman` gives its producing, each
   repair and each resolution half the spend the change may give it,
   keeping the rest for the foremen of that agent's questions, since a

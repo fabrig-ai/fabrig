@@ -197,11 +197,8 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
         }
         Value::Policy(_) => match setting {
             Setting::Policy(number) => number != 0,
-            Setting::Charter(_)
-            | Setting::Template(_)
-            | Setting::Rules
-            | Setting::Application { .. }
-            | Setting::ProjectPolicy { .. } => false,
+            Setting::ProjectPolicy { project } => project != 0,
+            Setting::Charter(_) | Setting::Template(_) | Setting::Rules | Setting::Application { .. } => false,
         },
         Value::Rules(value) => setting == Setting::Rules && authority::valid_rules(value, &limits.authority),
         Value::Application(_) => super::application::is_application(setting),
@@ -629,11 +626,10 @@ fn requirement_refs(requirements: &[authority::Requirement], connectors: &[u16])
 
 pub(super) fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) -> Result<(), Failure> {
     let (slot, bound) = match setting {
-        Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Rules | Setting::Application { .. } => return Ok(()),
+        Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => return Ok(()),
     };
     let count = counts.get_mut(slot).expect("three numbered kinds");
     *count = count.saturating_add(1);
@@ -693,9 +689,8 @@ pub(crate) fn changed_charters(
     for &setting in &offered(current, defaults, items) {
         match setting {
             Setting::Charter(_) => {}
-            Setting::Template(_) | Setting::Policy(_) | Setting::Rules => continue,
+            Setting::Template(_) | Setting::Policy(_) | Setting::Rules | Setting::ProjectPolicy { .. } => continue,
             Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-            Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
         }
         let value = match edit(items, setting) {
             Some(Edit::Set(value)) => Some(value),
