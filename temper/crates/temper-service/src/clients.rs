@@ -329,14 +329,19 @@ impl Clients {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
+        self.work_pending_with_secrets(now, true)
+    }
+    // The service holds secret work until its startup mark is durable;
+    // listener and transport work can run before that mark.
+    pub(crate) fn work_pending_with_secrets(&self, now: Time, secrets_ready: bool) -> bool {
         !self.closed
             && ((match &self.google {
                 Some(google) => google.work_pending(),
                 None => false,
             }) || self.pending
-                || !self.secrets.is_empty()
+                || secrets_ready && !self.secrets.is_empty()
                 || self.endings_ready()
-                || !self.playground_carries.is_empty()
+                || secrets_ready && !self.playground_carries.is_empty()
                 || !self.playground_ready.is_empty()
                 || !self.out.is_empty()
                 || !self.early.is_empty()

@@ -8,6 +8,7 @@ impl Engine {
     pub(crate) fn pending(&self, now: Time) -> diagnostics::Engine {
         let active = self.store.opened || self.end.is_some();
         let effects = self.store.component.mark_durable() || self.end.is_some();
+        let secrets_ready = self.end.is_none() && self.store.component.mark_durable();
         let next_deadline = self.next_deadline();
         let mut events = List::with_capacity(self.events.len());
         for event in &self.events {
@@ -16,7 +17,7 @@ impl Engine {
         diagnostics::Engine {
             work_pending: self.work_pending(now),
             effects,
-            clients: active && self.clients.work_pending(now),
+            clients: active && self.clients.work_pending_with_secrets(now, secrets_ready),
             setup: effects && self.setup.work_pending(now),
             setup_lifecycle: effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4,
             store: self.store.work_pending(now),
