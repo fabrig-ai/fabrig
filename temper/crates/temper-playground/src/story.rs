@@ -72,10 +72,9 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
         world.spawn_restartable(programs::service_roots(), programs::service::<()>);
     });
     let printer = world.printer(b"temper serve", Stream::Output);
-    let (sim, pids, processes) = world.parts();
-    let stdout = sim.open_inherited_write(pids[0]);
+    let (_, _, processes) = world.parts();
     if let Process::Service(service) = &mut processes[0] {
-        service.capture_output(stdout, printer);
+        service.print_to(printer);
     }
     world.spawn_signals(|signal| {
         programs::llm_peer(fakes.llm, &Inherited { signal, pipes: vec![], roots: vec![], appends: vec![] })
@@ -86,22 +85,7 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     world
 }
 
-/// Drain the service's simulated standard output into the world's whole-line capture.
-/// A loop calls this between steps, just as it takes `World::printed`.
-pub fn capture<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) {
-    let (sim, pids, processes) = world.parts();
-    for (pid, process) in pids.iter().zip(processes) {
-        if let Process::Service(service) = process
-            && let Some((fd, printer)) = service.output_capture()
-        {
-            use std::io::Write;
-            let bytes = sim.peer_drain(*pid, fd, skein_sim_world::PRINTED_BYTES);
-            printer.write_all(&bytes).expect("bounded world output");
-        }
-    }
-}
-
-/// Step with this world's factory parameters installed, then capture its output.
+/// Step with this world's factory parameters installed.
 /// The scope ends before returning to the caller or another world's loop.
 pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> skein_sim_world::Step {
     let parameters = world
@@ -113,9 +97,7 @@ pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> 
             },
         )
         .expect("a composition has its service");
-    let stepped = programs::with(parameters, || world.step());
-    capture(world);
-    stepped
+    programs::with(parameters, || world.step())
 }
 
 #[cfg(test)]
