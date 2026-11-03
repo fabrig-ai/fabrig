@@ -1050,14 +1050,17 @@ changes in one call, made as one batch; its producer's charter; and its
 agents' LLM choices. The landing branch is parameter 2, the
 dependencies are the task's own (jig's `domain/tasks.md`, section 4),
 and a change made with neither is as a chat's. The producer's charter
-is number parameter 11, and the producer's and the reviews' LLM choices
-are text parameters 12 and 13, each spelled as jig keeps a choice, by
-configured index (jig's `domain/tasks.md`, section 3): its main, then
-each sub-agent, separated by one space, each `M` or `M.E`, the model's
-index and its effort's, in decimal (`3.1 0.0 2`). A change without
-parameter 11 runs its producer under the forge's change charter, and
-one without parameter 12 or 13 leaves that role to its charter's
-default; a parameter that does not spell a choice refuses the change's
+and the LLM choices are one text parameter, 11, so that a change stays
+within the deployment's parameters per spec (jig's `tasks.parameters`,
+4 in small): `C;P;R`, `C` the producer's charter's number in decimal,
+`P` and `R` the producer's and the reviews' LLM choices, each part
+empty where the change names none. A choice is spelled as jig keeps
+it, by configured index (jig's `domain/tasks.md`, section 3): its main,
+then each sub-agent, separated by one space, each `M` or `M.E`, the
+model's index and its effort's, in decimal (`6;3.1 0.0 2;3.0`). A
+change without parameter 11, or with an empty part, runs its producer
+under the forge's change charter, or leaves that role to its charter's
+default; a parameter 11 that does not spell them refuses the change's
 start.
 
 Its agents hold the forge's reads (kind 1, section 2) on its

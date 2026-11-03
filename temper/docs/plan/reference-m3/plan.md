@@ -35,8 +35,14 @@ Released (needs in brackets):
   (requirements 5 and 6 over the held rules).
 - change-jig: `change-jig-check` [] (a batch's LLM choice against its charter's models, every
   creator).
+- kinds-root: `kinds-codec` [kinds-values, change-call-llm] (a kind's value in temper's codec);
+  `kinds-route` [kinds-held, kinds-codec, apps-surface, change-call-llm] (the root routes C2's
+  asks to the forge, typed).
 - change-temper: `change-call-llm` [] (`ChangeCall.producer` and `llm` decoded, refused until
-  the root checks them).
+  the root checks them); `change-row-llm` [kinds-store, change-call-llm] (the row's
+  `producing_llm` and `review_llm`, store-v11 in place); `change-root` [change-jig-check,
+  change-call-llm, change-row-llm] (the root checks `producer` and `llm`, the procedure's
+  authority, parameter 11); `change-story` [change-root] (the engine world's story).
 
 Written, held for the change family's batch: `reference-charters` (charter 6, the designer's;
 charter 5's second edition; their documents). configuring-p1, whose charter documents it
@@ -48,6 +54,7 @@ names, landed on main at 01:39Z and is on this trunk.
 2. appsettings.
 3. kinds-forge.
 4. change-jig and change-temper.
+5. kinds-root.
 
 ## Critical path, as it stands
 
@@ -56,6 +63,16 @@ names, landed on main at 01:39Z and is on this trunk.
 kinds' routing through the root (to come) follows `apps-start`. The forge's side
 (`kinds-values` 90 -> `kinds-store` 150 -> `kinds-held` 120 -> `kinds-requirements` 100, 460)
 runs beside it.
+
+## Left for later in this cut
+
+- **A settings proposal's identity** (C2's `proposal`): jig keeps settings proposals by
+  proposer and number, so the u64 C2 sends the connector is not unique across proposers.
+  `apps-proposal-key` (to come) gives each a deployment-unique key; until it lands,
+  `apps-proposals` sends the tasks child's number and reports whether two proposers can share
+  one.
+- **`change-held`** (forge.md, 8.9's hold when a role's charter or LLM choice is no longer
+  offered or allowed) folds into the kinds family's switch of the forge's charters.
 
 ## Overlaps with other plans
 
@@ -66,6 +83,11 @@ runs beside it.
   plans beside this one, which no longer holds: its files are on this trunk.
 - `kinds-store` and the change family's `change-row-llm` both change temper's store-v11 in
   place and the forge's `boundary.rs`: `change-row-llm` follows `kinds-store`.
+- `kinds-route` and `change-root` both change `temper-engine-domain`'s `route/forge_route.rs`
+  and may run at once: `kinds-route` one ask arm, `change-root` `change_batch`,
+  `chat_change` and `start_change`; accepted as disjoint hunks.
+- `apps-surface` (one arm) and `change-call-llm` (`change_batch`) both change `forge_route.rs`
+  and run at once: disjoint hunks, accepted.
 - `apps-surface` puts compiler-forced arms in temper's `temper-engine-domain`
   (`route/forge_route.rs`, `store/settings_bytes.rs`) and `temper-engine-smith`: arm-only hunks,
   beside the change family's `forge_route.rs` work and reference-m2's.
