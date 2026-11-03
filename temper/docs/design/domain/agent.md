@@ -382,6 +382,16 @@ delegate from what it knows:
   `domain/tasks.md`, section 4): all of them or none, the call's answer
   naming each change's task in the call's order. A call names either
   `words` or `changes`, never both; `changes` holds at least one.
+- **`repairs`:** the red landing the change repairs
+  (`after-landing.md`, section 7), by its merge commit's full
+  hexadecimal digits, as the red's news names it: a landing of temper's
+  in the change's repository, on the branch the change lands into, red
+  in some tier as the root decides the delegate. A value that is not a
+  commit's digits is refused, naming it; a commit no live landing of
+  temper's there has, or one red in no tier, refused, naming the commit
+  and why. The change keeps it, and its own landing clears the red one
+  when a later tier run passes the failures blamed on it
+  (`after-landing.md`, 5.3); left out, the change repairs nothing.
 - **Who may set them:** the members past `words` and `repository` are a
   plan's, and only a run whose task's authority holds jig's control
   family (amend and cancel, with `release`: jig's `domain/authority.md`,
@@ -395,8 +405,8 @@ delegate from what it knows:
   grants on the repository, its dependencies by jig's batch.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
-  these as they are: its questions; its agents' LLM choices; its producer's
-  charter; the landing it repairs.
+  these as they are: its questions; its agents' LLM choices; its producer, a
+  charter or a job; the landing it repairs.
 
 #### 4.3.2 A goal, in the run's words
 

@@ -109,15 +109,19 @@ section 7).
   section 10; `../domain/findings.md`, section 9): 28 `Tier`, keyed by
   repository and tier, its run in flight, last judged tip, failures
   and flakes, and up to 8192 bytes of execution observations until their
-  task words are saved; 29 `Verification`, keyed by repository and landing
+  task words are saved, and, for a tier following goal branches, each
+  goal branch it follows with its last run's tip, failures and start;
+  29 `Verification`, keyed by repository and landing
   commit, a landing's tier verdicts, the failures blamed on it and what
-  repaired it; 30 `LandingLog`, keyed by repository, its last landings
+  repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, its last landings
   with their times, changes, trailers and verdicts; 31 `Finding`, 32
   `Mark` and 33 `QaPass`. A
   receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
   section 2), and the `Change` family's `Landed` state means verifying,
   `Red`, `Cleared` and `Uncleared` joining it after its last state
-  (`../domain/after-landing.md`, section 6).
+  (`../domain/after-landing.md`, section 6); its row keeps the red
+  landing it repairs (`repairs`, `../domain/after-landing.md`, section
+  7).
 
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads them: the engine serves none of the forge's

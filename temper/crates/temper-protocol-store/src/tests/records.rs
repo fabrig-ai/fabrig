@@ -260,9 +260,19 @@ fn a_cached_summary_key_uses_the_answer_byte_bound() {
 fn a_change_in_each_state_round_trips_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for state in &fixtures::change_states() {
-        let row = forge::Stored::Change(fixtures::change_row(state.clone()));
-        let bytes = records::encode(&row);
-        assert_eq!(records::decode(&bytes, &bounds), Ok(row), "{state:?}");
+        for repairs in [None, Some([28; 32])] {
+            let mut row = fixtures::change_row(state.clone());
+            row.repairs = repairs;
+            let row = forge::Stored::Change(row);
+            let meter = skein_world::domain::heap::Meter::new();
+            meter.start();
+            let cloned = row.clone();
+            let held = meter.end().held();
+            assert_eq!(forge::stored_bytes(&cloned), Some(held));
+            drop(cloned);
+            let bytes = records::encode(&row);
+            assert_eq!(records::decode(&bytes, &bounds), Ok(row), "{state:?}");
+        }
     }
 }
 #[test]

@@ -63,6 +63,12 @@ mod result;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
 
+#[path = "forge_routes/repairs.rs"]
+mod repairs;
+
+#[path = "forge_routes/goal_tier.rs"]
+mod goal_tier;
+
 #[path = "forge_routes/reviews.rs"]
 mod reviews;
 

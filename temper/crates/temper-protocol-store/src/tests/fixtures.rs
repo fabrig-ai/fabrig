@@ -795,6 +795,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        repairs: Some([28; 32]),
         catch_up: None,
         merge_result: None,
     }
@@ -967,6 +968,9 @@ pub fn tier_row() -> top::TierRow {
             run: top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) },
         }),
         received: true,
+        goals: Box::new([]),
+        goal: None,
+        started: None,
         repository: REPO,
         tier: Box::new([b'a'; 32]),
         task: Some(51),
@@ -1015,4 +1019,22 @@ fn tier_flight() -> top::TierFlight {
         fault: Some(temper_engine_domain_forge_landing::Fault::Lost),
         report: Some(top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) }),
     }
+}
+
+pub fn tier_goals() -> Box<[top::TierGoal]> {
+    let mut goals = List::with_capacity(LIMITS.holds);
+    let failures = tier_row().record.failing;
+    for goal in 0..LIMITS.holds {
+        goals
+            .push(top::TierGoal {
+                goal: u64::from(goal),
+                branch: Box::new([b'g'; 4096]),
+                tip: Some([6; 32]),
+                ran: Some([7; 32]),
+                failing: failures.clone(),
+                started: Some(skein_lib::Time::from_nanos(u64::MAX)),
+            })
+            .unwrap();
+    }
+    goals.into_boxed()
 }

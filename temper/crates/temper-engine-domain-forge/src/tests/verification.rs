@@ -7,6 +7,8 @@ const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge:
 const PROJECT: u32 = 5;
 const CHANGE: u64 = 51;
 const SECOND: u64 = 52;
+const OLDER_REPAIR: u64 = 53;
+const NEWER_REPAIR: u64 = 54;
 const TIER_TASK: u64 = 61;
 const OPEN: u64 = 11;
 const HEAD: skein_forge::api::Commit = [3; 32];
@@ -218,12 +220,12 @@ fn opening_row() -> ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        repairs: None,
         catch_up: None,
         merge_result: None,
     }
 }
 
-#[expect(clippy::manual_map, reason = "step fixtures use explicit options, as the foundation requires")]
 fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     let mut d = domain();
     d.repositories.insert(REPO, adopted()).expect("adoption");
@@ -236,10 +238,11 @@ fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
                 ignored: Box::new([]),
                 artifact: Box::from(b"report".as_slice()),
                 format: policy::Format::Lines,
-                branch: match branch {
-                    Some(branch) => Some(Box::from(*branch)),
-                    None => None,
+                follows: match branch {
+                    Some(branch) => Follows::Branch(Box::from(*branch)),
+                    None => Follows::Landing,
                 },
+                span: None,
             })
             .expect("fixture tiers");
     }
@@ -345,6 +348,9 @@ fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::ap
                 held: None,
                 result: None,
                 received: false,
+                goals: Box::new([]),
+                goal: None,
+                started: None,
                 record: policy::Record {
                     sequence: number,
                     judged: None,
@@ -475,14 +481,65 @@ fn later_green_repairs_red_without_replacing_its_verdict() {
     green(&mut d, 2, &[REPAIR]);
     advance(&mut d, SECOND, env().wall, false);
     let tier = &d.verifications.get(&(REPO, LAST)).expect("row").tiers[0];
-    assert_eq!(tier.repaired, Some(TierRepair { run: 2, tip: REPAIR }));
+    assert_eq!(tier.repaired, Some(TierRepair { run: 2, tip: REPAIR, by: None }));
     assert_eq!(tier.verdict, Some(TierVerdict { run: 1, blame: policy::Blame::Owns(policy::Failures::Many) }));
     assert_eq!(d.change(SECOND).expect("change").change.state, change::State::Cleared { merge: LAST });
     green(&mut d, 3, &[HEAD]);
     assert_eq!(
         d.verifications.get(&(REPO, LAST)).expect("row").tiers[0].repaired,
-        Some(TierRepair { run: 2, tip: REPAIR })
+        Some(TierRepair { run: 2, tip: REPAIR, by: None })
     );
+}
+
+fn repairing_range(older: Option<skein_forge::api::Commit>, newer: Option<skein_forge::api::Commit>) -> Domain {
+    let mut d = verifying();
+    red(&mut d);
+    for (task, commit, repairs) in [(OLDER_REPAIR, REPAIR, older), (NEWER_REPAIR, HEAD, newer)] {
+        add_change(&mut d, task, b"main");
+        d.changes.get_mut(&task).expect("repair change").repairs = repairs;
+        merged(&mut d, task, commit);
+    }
+    green(&mut d, 2, &[REPAIR, HEAD]);
+    d
+}
+
+#[test]
+fn later_run_attributes_repair_to_the_landing_naming_red() {
+    let d = repairing_range(None, Some(LAST));
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: Some(HEAD) })
+    );
+}
+
+#[test]
+fn later_run_alone_repairs_when_no_change_names_red() {
+    let d = repairing_range(None, None);
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: None })
+    );
+}
+
+#[test]
+fn newest_landing_naming_red_is_its_repairer() {
+    let d = repairing_range(Some(LAST), Some(LAST));
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: Some(HEAD) })
+    );
+}
+
+#[test]
+fn repairer_precedes_newer_landings_that_do_not_name_red() {
+    for newer in [None, Some(FIRST)] {
+        let d = repairing_range(Some(LAST), newer);
+        assert_eq!(
+            d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+            Some(TierRepair { run: 2, tip: HEAD, by: Some(REPAIR) }),
+            "newer landing repairs {newer:?}"
+        );
+    }
 }
 
 #[test]
@@ -875,6 +932,91 @@ fn merging_entry() -> skein_forge_client::Entry {
         failures: 0,
         queued: false,
     }
+}
+
+#[test]
+fn goal_tiers_leave_goal_landings_unfollowed_and_main_verified() {
+    let mut d = configured_domain(&[(TIER, None), (b"g", None)]);
+    d.landing.projects.get_mut(&PROJECT).expect("configured project").1[0].tiers[1].follows = Follows::Goals;
+    add_change(&mut d, CHANGE, b"temper/1/g1");
+    merged(&mut d, CHANGE, FIRST);
+    assert!(d.verifications.is_empty());
+    assert_eq!(d.change_verification(CHANGE), change::Verification::Unfollowed);
+    let out = advance(&mut d, CHANGE, env().wall, false);
+    assert!(contains(
+        &out,
+        &Request::ChangeDecision {
+            task: CHANGE,
+            decision: change::Decision::Finish { merge: FIRST },
+            entry: None,
+            evidence: None,
+        }
+    ));
+    assert_eq!(
+        d.change(CHANGE).expect("goal landing").change.state,
+        change::State::Landed { merge: FIRST, since: env().wall }
+    );
+    add_change(&mut d, SECOND, b"main");
+    merged(&mut d, SECOND, LAST);
+    assert_eq!(d.change_verification(SECOND), change::Verification::Verifying);
+    let verification = d.verifications.get(&(REPO, LAST)).expect("main verification");
+    assert_eq!(verification.tiers.as_ref(), &[TierVerification { tier: TIER.into(), verdict: None, repaired: None }]);
+    green(&mut d, 1, &[LAST]);
+    advance(&mut d, SECOND, env().wall, false);
+    assert_eq!(d.change_verification(SECOND), change::Verification::Cleared);
+    assert_eq!(d.change(SECOND).expect("main landing").change.state, change::State::Cleared { merge: LAST });
+}
+
+#[test]
+fn landing_red_is_unknown_without_a_live_landing_in_the_repository() {
+    let d = verifying();
+    assert_eq!(d.landing_red(REPO, &REPAIR, b"main"), LandingRed::Unknown);
+    assert_eq!(
+        d.landing_red(
+            skein_forge::api::Repository { forge: REPO.forge, repository: REPO.repository + 1 },
+            &FIRST,
+            b"main"
+        ),
+        LandingRed::Unknown
+    );
+}
+
+#[test]
+fn landing_red_names_the_first_live_changes_other_branch() {
+    let mut d = verifying();
+    red(&mut d);
+    d.verifications.get_mut(&(REPO, LAST)).unwrap().changes = Box::new([99, SECOND]);
+    assert_eq!(d.landing_red(REPO, &LAST, b"release"), LandingRed::Elsewhere { branch: Box::from(b"main".as_slice()) });
+}
+
+#[test]
+fn landing_red_is_not_red_after_green_and_after_repair() {
+    let mut d = verifying();
+    assert_eq!(d.landing_red(REPO, &LAST, b"main"), LandingRed::NotRed);
+    green(&mut d, 1, &[FIRST, LAST]);
+    assert_eq!(d.landing_red(REPO, &LAST, b"main"), LandingRed::NotRed);
+    let mut d = verifying();
+    red(&mut d);
+    green(&mut d, 2, &[REPAIR]);
+    assert_eq!(d.landing_red(REPO, &LAST, b"main"), LandingRed::NotRed);
+}
+
+#[test]
+fn landing_red_is_red_for_unrepaired_owns_and_suspect_verdicts() {
+    let mut d = verifying();
+    red(&mut d);
+    assert_eq!(d.landing_red(REPO, &FIRST, b"main"), LandingRed::NotRed);
+    assert_eq!(d.landing_red(REPO, &LAST, b"main"), LandingRed::Red);
+    let mut d = verifying();
+    judge(
+        &mut d,
+        TIER,
+        1,
+        &[FIRST],
+        Box::new([policy::Blame::Suspect(policy::Failures::Many)]),
+        policy::Failures::Many,
+    );
+    assert_eq!(d.landing_red(REPO, &FIRST, b"main"), LandingRed::Red);
 }
 
 #[test]

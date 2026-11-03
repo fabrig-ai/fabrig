@@ -89,7 +89,8 @@ pub struct TierCheck {
     pub ignored: Box<[Box<[u8]>]>,
     pub artifact: Box<[u8]>,
     pub format: temper_engine_domain_forge_tiers::Format,
-    pub branch: Option<Box<[u8]>>,
+    pub follows: forge::Follows,
+    pub span_ms: u64,
 }
 /// A project's verification settings (protocol/configuration.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -121,7 +122,11 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
                     ignored: tier.ignored.clone(),
                     artifact: tier.artifact.clone(),
                     format: tier.format,
-                    branch: tier.branch.clone(),
+                    follows: tier.follows.clone(),
+                    span: match tier.span_ms {
+                        0 => None,
+                        millis => Some(skein_lib::Duration::from_millis(millis)),
+                    },
                 })
                 .expect("counted tiers");
         }

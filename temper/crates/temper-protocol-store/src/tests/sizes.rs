@@ -2,22 +2,12 @@ use super::fixtures;
 use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
-// ChangeRow dominates Row with the producer report bounded by the fixture's 512 operation bytes.
-const APPLICATION_ROW_BYTES: u32 = 122_332;
+// TierRow dominates Row with eight goal branches, each holding sixteen 256-byte test ids.
+const APPLICATION_ROW_BYTES: u32 = 178_063;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
-    // Change's eight remarks hold 4096 bytes each; eight failure counts add 100 bytes.
-    // Authority causes add 42 bytes to each of eight holds, drift and released.
-    // Way and landing add ten bytes.
-    // Early adds one tag, a four-byte count and 64 task/head pairs of 40 bytes.
-    // Terminal CI adds a presence byte, a 32-byte head and a one-byte status.
-    // The effect account adds 1 presence + 8 entry + 4 length + 512 words = 525 bytes.
-    // A producer failure adds 1 presence + 4 length + 512 words = 517 bytes.
-    // The producer report adds a four-byte length and the client's 512-byte operation bound.
-    // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
-    // Catch-up adds 33 bytes, merge result adds 517 bytes, and the merge delegate adds 25 bytes.
-    // NoChange has a 65,540-byte bounded payload; Gating has a 100-byte payload.
+    // The full tier row reaches its encoded bound, including all goals (tests/tiers.rs).
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
         Some(jig_protocol_store::sizes::Application { version: 11, key: 511, value: APPLICATION_ROW_BYTES })
@@ -75,7 +65,7 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     let old_view = crate::v11::GoalView::encoded_bound(&before).expect("old view size");
     let new_view = crate::v11::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
-    // The schema's fixed framing plus the measured view; ChangeRow still dominates Row.
+    // The schema's fixed framing plus the measured view; TierRow dominates Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
     assert_eq!(crate::v11::IssueRow::encoded_bound(&before), Some(5657));

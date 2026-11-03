@@ -49,6 +49,18 @@ impl Domain {
         tip: skein_forge::api::Commit,
     ) -> Option<Box<[u8]>> {
         let adopted = self.repository(repository)?;
+        let mut goal_branch = Box::from(b"".as_slice());
+        if let Some(row) = self.tiers.get(&(repository, Box::from(tier)))
+            && let Some(goal) = row.goal
+            && let Some(run) = &row.record.run
+            && run.number == number
+        {
+            for entry in &row.goals {
+                if entry.goal == goal {
+                    goal_branch = joined(&[b"Goal branch: ", &entry.branch, b"\n"]);
+                }
+            }
+        }
         Some(joined(&[
             b"Tier ",
             tier,
@@ -59,6 +71,7 @@ impl Domain {
             b"/",
             &adopted.name,
             b"\n",
+            &goal_branch,
             &part_identity(b"Judged run", tip, &super::branch(tier, number), None),
         ]))
     }

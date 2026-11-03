@@ -122,10 +122,9 @@ fn valid_tier(tier: &crate::Tier, limits: &Limits) -> bool {
     {
         return false;
     }
-    if let Some(branch) = &tier.branch
-        && branch.is_empty()
-    {
-        return false;
+    match &tier.follows {
+        crate::Follows::Branch(branch) if branch.is_empty() => return false,
+        crate::Follows::Branch(_) | crate::Follows::Landing | crate::Follows::Goals => {}
     }
     for byte in &tier.name {
         if !byte.is_ascii_alphanumeric() && *byte != b'_' && *byte != b'-' {

@@ -430,19 +430,24 @@ fn tier(
         problems,
     );
     let format = read::text(&mut object, document, b"format", path, problems);
-    let branch = match object.member(document, b"branch") {
+    let follows = match object.member(document, b"branch") {
         Some(at) => match config::read::text(document, at, 1_048_576) {
             Ok(value) => {
                 read::form(!value.is_empty(), path.member(b"branch"), problems);
-                Some(value)
+                Some(if value.as_ref() == b"goal" {
+                    temper_engine_domain_forge::Follows::Goals
+                } else {
+                    temper_engine_domain_forge::Follows::Branch(value)
+                })
             }
             Err(what) => {
                 problems.push(path.member(b"branch"), What::Jig(what));
                 None
             }
         },
-        None => None,
+        None => Some(temper_engine_domain_forge::Follows::Landing),
     };
+    let span_ms = optional_integer(&mut object, document, b"span_ms", 0, u64::MAX, path, problems);
     read::finish(object, document, path, problems);
     if let Some(artifact) = &artifact {
         read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
@@ -463,7 +468,8 @@ fn tier(
         ignored: check.ignored,
         artifact: artifact?,
         format: format?,
-        branch,
+        follows: follows?,
+        span_ms: span_ms?,
     })
 }
 fn repository_checks(

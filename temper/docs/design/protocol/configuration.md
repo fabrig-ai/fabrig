@@ -293,11 +293,15 @@ settings in the store, temper's kinds 1 and 2; until its second step
   `{"forge": u16, "repository": u64, "gates": [{"name": string,
   "workflow": string, "ignored": [string], "blocking": boolean}],
   "tiers": [{"name": string, "workflow": string, "ignored": [string],
-  "artifact": string, "format": "junit" | "lines", "branch": string}]}`,
+  "artifact": string, "format": "junit" | "lines", "branch": string,
+  "span_ms": u64}]}`,
   a repository at most once (`../domain/landing.md`, 13.1;
   `../domain/after-landing.md`, section 11). A tier's `branch` is the
   branch it follows, by its name on the forge, the repository's landing
-  branch when absent (`../domain/after-landing.md`, section 2).
+  branch when absent, or `goal`, the goals' own branches, a tier that
+  judges no landing (`../domain/after-landing.md`, section 2). Its
+  `span_ms` is the least time between the starts of two of its runs on
+  one branch, none when absent or 0.
 - **The tiers' project settings,** beside `by`, by either way:
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
@@ -1968,7 +1972,8 @@ that changes the stock changes nothing of them.
   3) added to the rules' and policy 1's delegation and jig's control
   family to their tools and role 0's, so the coordinator may name
   `change`'s plan members and its changes may make the merge job
-  (`../domain/agent.md`, 4.3.1), then applied whole. Charter 5 is the
+  (`../domain/agent.md`, 4.3.1), and jig's notes family beside it, so
+  that it notes what it learns, then applied whole. Charter 5 is the
   deployment's fourth charter, within small's `tasks.charters` of 4;
   it and the merge kind are two more executors in the delegation, eight
   with the stock's six, within the 8 `authority.executors` and
@@ -1986,12 +1991,44 @@ that changes the stock changes nothing of them.
   into a goal's branch; and the project's `merge_job`, `.temper/merge`.
   From the second step they are kind 1's rules 1
   and 2, items of the settings file.
+- **The tiers,** in the same member, project 1's `gates` entry for its
+  repository (`forge` and `repository` filled in as the rules' host and
+  name are), with no gate and two tiers (`../domain/after-landing.md`,
+  section 2): main's, `slow`, the slow suites, workflow
+  `tier-slow.yml`, following main; and g's tier, `goal`, the gate
+  without its slowest suites, workflow `tier-goal.yml`, `branch`
+  `goal`, `span_ms` 1,200,000 (20 minutes); each uploading its failing
+  tests as `failing`, one id per line (`lines`). The project's
+  `tier_retries` and `verification_bound_ms` are left to their
+  defaults.
+- **Charter 5's triage** (`../draft/reference-code-production.md`,
+  sections 10 and 13; `../draft/reference-landing.md`, section 6), in
+  its instructions beside the rest: on a red of g's tier, as news, it
+  reads the failing tests, the log's end, the tree and the design, and
+  finds the change that owns the failing files; a live change's failure
+  is that change's, and it amends its words to say so; the rest makes a
+  repair change into its goal branch, its words the failures, the log's
+  end and the live changes with what they own, to leave alone, while
+  other changes keep merging; a red marked still failing that a live
+  repair owns needs nothing. On a red after landing, as news, it
+  triages the same way, reading the goal's history now on main, then
+  makes a repair change into main, small, with `repairs` naming the
+  red landing's commit, its words the failing tests and what the triage
+  found; a failure it finds a flake or inherited gets no repair, but a
+  note on the tier's tests. It notes what it learns (a slow check, a
+  dead end, a trap in the code) with jig's `note`, in the goal's or the
+  repository's scope, and reads the notes before it triages. Its
+  goal's end waits for the landing's result at cleared, repaired or
+  not.
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../domain/forge.md`, section 4), set where the repository is made;
   the project's checks are its `.temper/pre-pr` (smith's
   `domain/run.md`, 8.1): format, lints, the changed packages' focused
-  tests and the counted baselines; its merge command is its
+  tests and the counted baselines; its tiers' workflows are
+  `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
+  ids in its `temper_tests` input alone when given them
+  (`../domain/after-landing.md`, section 2). Its merge command is its
   `.temper/merge` (`tooling.md`, 4.1), which recounts a counted
   baseline left in conflict (each tree's `scripts/old-forms.txt`, by
   its `scripts/old_forms.py --write`) and leaves every other conflict.
