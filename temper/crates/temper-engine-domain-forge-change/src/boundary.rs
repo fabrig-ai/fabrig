@@ -132,6 +132,8 @@ pub enum Hold {
     Rejected,
     /// The next delegate is beyond the change's remaining authority.
     Authority(AuthorityHold),
+    /// Another question would exceed the change's bound.
+    Questions,
 }
 
 /// A change's committed place through verification (temper/docs/design/domain/after-landing.md, 6).

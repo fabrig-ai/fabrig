@@ -452,6 +452,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
     Some(match value? {
         change::Hold::Stalled => w::Hold::Stalled,
         change::Hold::Repairs => w::Hold::Repairs,
+        change::Hold::Questions => w::Hold::Questions,
         change::Hold::Resolutions => w::Hold::Resolutions,
         change::Hold::Updates => w::Hold::Updates,
         change::Hold::BranchMoved => w::Hold::Moved,

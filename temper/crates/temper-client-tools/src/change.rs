@@ -863,6 +863,7 @@ fn hold(hold: &w::Hold) -> &[u8] {
     match hold {
         w::Hold::Stalled => b"stalled",
         w::Hold::Repairs => b"repairs",
+        w::Hold::Questions => b"questions",
         w::Hold::Resolutions => b"resolutions",
         w::Hold::Updates => b"updates",
         w::Hold::Moved => b"moved",

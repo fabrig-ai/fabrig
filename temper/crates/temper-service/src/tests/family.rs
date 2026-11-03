@@ -665,6 +665,7 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
         (None, None),
         (Some(change::Hold::Stalled), Some(w::Hold::Stalled)),
         (Some(change::Hold::Repairs), Some(w::Hold::Repairs)),
+        (Some(change::Hold::Questions), Some(w::Hold::Questions)),
         (Some(change::Hold::Resolutions), Some(w::Hold::Resolutions)),
         (Some(change::Hold::Updates), Some(w::Hold::Updates)),
         (Some(change::Hold::BranchMoved), Some(w::Hold::Moved)),

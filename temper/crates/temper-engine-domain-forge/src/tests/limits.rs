@@ -81,3 +81,16 @@ fn internal_output_envelopes_do_not_constrain_admission() {
         );
     }
 }
+
+#[test]
+fn the_questions_bound_leaves_room_for_one_waiting_question() {
+    use temper_engine_domain_forge_change::QUESTIONS_OPEN;
+    let open = u32::try_from(QUESTIONS_OPEN).expect("question capacity fits u32");
+    for (questions, accepted) in [(open - 1, true), (open, false)] {
+        let limits = Limits {
+            change_policy: temper_engine_domain_forge_change::Limits { questions, ..LIMITS.change_policy },
+            ..LIMITS
+        };
+        assert_eq!(valid(&limits), accepted, "questions: {questions}");
+    }
+}
