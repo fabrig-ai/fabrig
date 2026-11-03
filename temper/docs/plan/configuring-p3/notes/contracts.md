@@ -103,3 +103,98 @@ entrances when it leaves its brief less than 2,048 bytes of smith's host part.
   `SettledAnswer::Host { error: true, body: short.words() }`, the run going on. A stored
   proposal's acceptance, a restore and a reset are not checked. An engine given no
   `HostPart` (no agent configured) checks nothing.
+
+## C3. The limits' names (pages)
+
+temper's `protocol/documentation.md`, 8: `limits` (temper's names) and `limits-engine`
+(jig's), each row a named limit, each parser of overrides looking a name up in its table first.
+
+- One row type per tree, the same shape. jig's, in `jig/crates/jig-protocol-config/src/names.rs`
+  (`pub mod names;` in its `lib.rs`):
+  ```rust
+  /// What a named limit counts (protocol/configuration.md, 6).
+  #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+  pub enum Unit { Count, Bytes, Milliseconds }
+
+  /// One limit an override may name (temper/docs/design/protocol/documentation.md, 8).
+  #[derive(Clone, Copy, Debug)]
+  pub struct Name {
+      /// Its dotted name, as `limits.overrides` names it: `tasks.charters`.
+      pub name: &'static str,
+      pub unit: Unit,
+      /// What it bounds, one sentence of at most 120 bytes.
+      pub line: &'static str,
+      /// Its value in the limits the parser fills (for the page, the small profile's).
+      pub value: fn(&crate::Limits) -> u64,
+  }
+
+  /// Every name `overrides::apply` takes, engine's and a worker's, in the parser's order.
+  pub static NAMES: [Name; N];
+  pub fn find(name: &[u8]) -> Option<&'static Name>;
+  ```
+  `overrides::apply` begins `if names::find(name).is_none() { return Err(What::Override); }`
+  (the refusal it gives an unknown name today), its match unchanged. Where a worker's limits
+  are another type than the engine's, `value` reads the engine's, and a second table
+  `WORKER_NAMES` of the same `Name` over the worker's type holds the worker's.
+- temper's, in `temper/crates/temper-service/src/limits/names.rs` beside its `apply`:
+  `pub static NAMES: [Name; N]` with temper's own `Name` (the same members, `value` over
+  `temper_service::limits::Limits`) and `pub fn find`; the setup's and the box's as their
+  crates' `NAMES` beside their parsers (`temper-forge-setup/src/limits.rs`,
+  `temper-box/src/limits.rs`), each `apply` (and `apply_host`) looking its name up first.
+- The pages render from them, in `temper-service`'s `limits` module:
+  `pub fn reference(out: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>` for
+  `limits` (temper's, the setup's and the box's) and
+  `pub fn engine_reference(out: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>` for
+  `limits-engine` (jig's), each value the small profile's. A section per owner prefix (`##
+  root`, `## tasks`), a row a bullet: `` - `NAME`: UNIT, VALUE. LINE `` (unit `count`, `bytes`
+  or `milliseconds`, the value with thousands' commas).
+
+## C4. The document's members (pages)
+
+temper's `protocol/documentation.md`, 8: `configuration` (temper's shapes) and
+`configuration-engine` (jig's), each row a member of a shape, each decoder taking its members
+from its table.
+
+- jig's, in `jig/crates/jig-protocol-config/src/members.rs` (`pub mod members;`):
+  ```rust
+  /// A shape of the configuration document, and every path it is read at.
+  #[derive(Clone, Copy, Debug)]
+  pub struct Shape { pub name: &'static str, pub paths: &'static [&'static str], pub line: &'static str }
+
+  /// One member of a shape (temper/docs/design/protocol/documentation.md, 8).
+  #[derive(Clone, Copy, Debug)]
+  pub struct Member {
+      pub shape: &'static str,
+      pub name: &'static str,
+      /// Its type as the page prints it: `integer`, `text`, `true or false`, `list of SHAPE`.
+      pub kind: &'static str,
+      /// Its bound as the page prints it, empty for none.
+      pub bound: &'static str,
+      pub required: bool,
+      /// What it sets, one sentence of at most 160 bytes.
+      pub line: &'static str,
+      /// A member gone to the store: where it went, as its refusal says it.
+      pub gone: Option<&'static str>,
+  }
+
+  pub static SHAPES: [Shape; N];
+  pub static MEMBERS: [Member; M];
+  /// The names a shape's decoder takes, gone members included (which it refuses).
+  pub fn names(shape: &str) -> impl Iterator<Item = &'static str>;
+  ```
+  Each of jig's decoders reads its members through its table: `read.rs`' object reader is
+  given its shape's name where it is made, and its `member` and `required` look a name up in
+  `MEMBERS` under that shape, a name the table lacks panicking under `debug_assertions` (so a
+  member a decoder takes that the table lacks fails every test that decodes it).
+- temper's, the same types and functions in `temper/crates/temper-service/src/startup/members.rs`,
+  for the document's top level and `application`'s shapes (`temper-forge-setup`'s `machine`
+  among them, which `temper-service` names; its decoder takes `machine`'s names from the
+  table through an argument or a re-export, never a copy).
+- The pages render from them, in `temper-service`:
+  `pub fn configuration_reference(init: &[u8], out: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>`
+  and `pub fn engine_configuration_reference(init: &[u8], out: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>`,
+  `init` being `temper init`'s document (`temper-init`'s template with its placeholders filled
+  as `temper init` fills them), from which each row's "init writes" is read, never typed. A
+  section per shape (`## engine.llm`), its paths and line, then a row a bullet: `` - `NAME`:
+  TYPE, BOUND; required or optional; init writes VALUE | init leaves it out. LINE ``; a gone
+  member: `` - `NAME`: refused: GONE ``.
