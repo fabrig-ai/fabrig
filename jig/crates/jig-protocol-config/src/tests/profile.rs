@@ -8,6 +8,14 @@ fn supplied_profiles_have_valid_domain_limits() {
         assert_eq!(limits.core.brief.sections, 8);
         assert!(jig_domain_core::valid(&limits.core), "{selected:?} core");
         assert!(jig_domain_host::valid_hub(&limits.hub), "{selected:?} hub");
+        assert_eq!(crate::domain::capacity(&limits.core), None, "{selected:?} capacity");
+        assert_eq!(crate::domain::check_message(&limits.core), Ok(()), "{selected:?} messages");
+        assert_eq!(crate::check_effective_limits(&limits.core), Ok(()), "{selected:?} codecs");
+        let writes = jig_domain_core::settings::writes_bound(&limits.core).expect("profile settings writes");
+        assert!(writes <= limits.journal.writes, "{selected:?} journal");
+        let mut problems = crate::Problems::empty();
+        crate::clients::check_settings(&limits, &mut problems);
+        assert!(problems.problems.is_empty(), "{selected:?} client wire: {problems:?}");
     }
 }
 
@@ -78,7 +86,7 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     const MAX_FRAME: u64 = 33_554_496;
     // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 2_168_979), (Profile::Standard, 262_144, 10_769_629)] {
+    for (kind, request, page) in [(Profile::Small, 65_536, 2_168_979), (Profile::Standard, 262_144, 59_570_499)] {
         let configured = profile(kind);
         let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);
@@ -86,4 +94,71 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
         assert_eq!(jig_protocol_store::core_v6::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
         assert!(request.min(u64::from(page)) < MAX_FRAME);
     }
+}
+
+// jig/docs/design/protocol/configuration.md, 6: development figures and their coupled limits.
+#[test]
+fn standard_holds_fabrig_scale() {
+    let limits = profile(Profile::Standard);
+    let tasks = limits.core.tasks;
+    assert_eq!(tasks.tasks, 128);
+    assert_eq!(tasks.project_tasks, 128);
+    assert_eq!(tasks.project_goals, 80);
+    assert_eq!(tasks.tree_tasks, 384);
+    assert_eq!(tasks.depth, 32);
+    assert_eq!(tasks.delegates, 80);
+    assert_eq!(tasks.batch, 160);
+    assert_eq!(tasks.inbox_messages, 82);
+    assert_eq!(tasks.run_inbox, 82);
+    assert_eq!(tasks.spec_bytes, 131_072);
+    assert_eq!(tasks.result_bytes, 262_144);
+    assert_eq!(tasks.message_bytes, 262_144);
+    assert_eq!(tasks.charters, 12);
+    assert_eq!(tasks.executor_kinds, 16);
+    assert_eq!(tasks.authority_grants, 16);
+    assert_eq!(tasks.authority_segments, 8);
+    assert_eq!(tasks.hold_segments, 8);
+    assert_eq!(tasks.contract_choices, 4);
+    assert_eq!(tasks.inbox_bytes, 21_495_808);
+    assert_eq!(tasks.batch_bytes, 4_194_304);
+    assert_eq!(tasks.funders, 128);
+    assert_eq!(tasks.pools, 128);
+    assert_eq!(tasks.hold_waiters, 128);
+    assert_eq!(tasks.exemptions, 128);
+    assert_eq!(limits.core.people.operations, 81);
+    assert_eq!(limits.core.people.inbox_tasks, 256);
+    assert_eq!(limits.core.people.inbox_recipients, 176);
+    assert_eq!(limits.core.people.words, 8_192);
+    assert_eq!(limits.core.authority.grants, 16);
+    assert_eq!(limits.core.authority.executors, 16);
+    assert_eq!(limits.core.authority.segments, 8);
+    assert_eq!(limits.core.authority.batch, 4);
+    assert_eq!(limits.core.notes.scopes, 19);
+    assert_eq!(limits.core.documents.lines, 16);
+    assert_eq!(limits.core.documents.segments, profile::name_segments(&tasks, &limits.core.authority));
+    assert_eq!(limits.hub.inbox, 82);
+    let store = limits.store.store;
+    assert_eq!(store.value, 59_568_420);
+    let frame = jig_protocol_store::sizes::frame(&limits.core, 33_554_432).expect("smith's largest turn frame");
+    assert_eq!(store.page.bytes, store.key.checked_add(store.value).unwrap().max(frame));
+    assert_eq!(Some(store.chunk), skein_kv::chunk_bytes(store.key, store.value));
+}
+
+#[test]
+fn standard_page_holds_smiths_largest_turn() {
+    let limits = profile(Profile::Standard);
+    let frame = jig_protocol_store::sizes::frame(&limits.core, 33_554_432).expect("smith's largest turn frame");
+    assert_eq!(frame, 33_554_496);
+    assert!(limits.store.store.page.bytes >= frame);
+}
+
+#[test]
+fn small_is_unchanged() {
+    let limits = profile(Profile::Small);
+    let tasks = limits.core.tasks;
+    assert_eq!(tasks.tasks, 8);
+    assert_eq!(tasks.batch, 2);
+    assert_eq!(tasks.spec_bytes, 4_096);
+    assert_eq!(tasks.result_bytes, 512);
+    assert_eq!(limits.store.store.value, 2_166_900);
 }
