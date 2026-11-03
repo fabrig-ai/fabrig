@@ -204,3 +204,26 @@ figure is the one this task re-measured and pinned.
   rest of `temper`'s focused tests and every package the acceptance names that has not yet
   run in this branch's last state, one command per package group, excluding the live and
   proof binaries, and give each run's counts.
+
+2026-11-03. **Q** (`stock-configuring-4`): in `temper/crates/temper/src/tests/reference_settings.rs`,
+let `reference_delegations()` keep the stock's `Executor::Charter(3)`? **A:** yes (option A);
+temper's focused tests, in the acceptance, cannot pass without it, and the reader is already in
+this spec's survey.
+
+- `reference_delegations()`: `Executor::Charter(3)` after `Executor::Charter(2)` in the base
+  list, which the derived cases keep; rename the bindings for their new lengths (ten, nine,
+  twelve) and nothing else. The assertion stays `Ok(())`; its `count <= executor_kinds` check
+  stays. List it in the report.
+- Readers widened once more, by the kind of change rather than one figure at a time: a test or
+  fixture that fails only because the stock now holds charter 3 and template 3 (the counts
+  of five charters and three templates, the policy bytes 3,282, the rules' and policy 1's
+  delegation to charter 3, the settings tools offered under charter 3 and no longer under
+  a chat's charter 1) is fixed in that reader for that alone and listed. Weaken no
+  assertion, and change no stock, design or engine code for it. Any other failure, stop and
+  report it with its log.
+- The flake `fake_backends::tests::source_adapter_is_a_bounded_fact_without_path_discovery`
+  stays under `## Left` with both logs, as reported.
+- Start from the pushed branch (`588d49e697`); run
+  `tests::reference_settings::init_limits_hold_reference_delegation` alone first (`--lib`),
+  then `temper`'s focused tests and every package the acceptance names, one command per
+  package group, excluding the live and proof binaries, and give each run's counts.
