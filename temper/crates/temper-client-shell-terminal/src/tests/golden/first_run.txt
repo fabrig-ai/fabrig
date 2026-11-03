@@ -1,33 +1,35 @@
 == Chats == Live
 [1] temper
 Menu:
-  [2] Playground (pressed)
+  Playground:
+    [2] Playground (pressed)
   Main navigation:
     [3] Inbox
     [4] Chats (current)
     [5] Adopt a repository
     [6] Forges
     [7] Accounts
+  [8] Set up temper
   * Pat
-  [8] Sign out
+  [9] Sign out
 Project:
   New chat
   * Ready
   playground/widget
-  [9] All (pressed)
-  [10] Live
-  [11] Closed
+  [10] All (pressed)
+  [11] Live
+  [12] Closed
   No chats yet.
   Playground:
     This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
-[12] Start a chat: (empty) (enter sends)
+[13] Start a chat: (empty) (enter sends)
 enter to start · shift+enter for newline
-[13] Start chat
+[14] Start chat
 Using Scripted model · Default
 Change model:
-  - [14] Scripted model
-  [15] Reset choice
+  - [15] Scripted model
+  [16] Reset choice
 Suggested requests:
-  - [16] Add CSV export to widget
-  - [17] Add a dark theme to widget
-  - [18] Fix widget’s empty search state
+  - [17] Add CSV export to widget
+  - [18] Add a dark theme to widget
+  - [19] Fix widget’s empty search state
