@@ -24,3 +24,16 @@ id = 1
 story = "on temper box, once the playground's project is made, the browser's banner stays Live and never Behind, and a reload still delivers the Chats page and its chat; the browser's client bounds equal the terminal's"
 parts = ["web-rows"]
 walk = false
+
+[[part]]
+id = "open-default-box"
+title = "temper: on box --fake-backends, the welcome's Open Default by the browser's client bounds, and a reload that still receives its watches"
+mode = "direct"
+needs = ["web-rows"]
+design = "temper/docs/design/domain/testing.md, 2"
+
+[[slice]]
+id = 2
+story = "on a fresh box --fake-backends walked to Ready, a native client with the browser's client bounds presses Open Default and reaches the Chats page; a reloaded client is Live, never Behind, and shows the forge and the key; with the old rows 3 the story fails"
+parts = ["open-default-box"]
+walk = false
