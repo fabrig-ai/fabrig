@@ -317,6 +317,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     let placed = task.placed;
     let mut ended = task.clone();
     ended.placed = None;
+    ended.room_wait = None;
     crate::placed::ended(domain, env, number, out);
     crate::settings::release(domain, &ended);
     ended.settings.run = None;
@@ -371,6 +372,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
             }),
         });
     }
+    let ended_project = ended.project;
     out.push(Request::Save { record: Stored::Ended(Box::new(ended)) });
     let dependents = snapshot(domain, env.limits.tasks);
     for dependent in dependents.into_boxed() {
@@ -443,6 +445,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
         out.push(Request::Save { record: Stored::Stub(stub) });
     }
     prune_stubs(domain, env, out);
+    crate::room::freed(domain, env, ended_project, out);
     let state = match status {
         Status::Done => crate::NoticeState::Done,
         Status::Failed => crate::NoticeState::Failed,

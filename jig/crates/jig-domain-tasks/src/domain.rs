@@ -1120,6 +1120,7 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
 pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     crate::questions::published(domain, number);
     crate::placed::enforce(&mut task_mut(domain, number).expect("published task live").record);
+    crate::room::refresh(domain, number);
     crate::settings::publish(domain, number);
     crate::waits::refresh(domain, number);
     crate::proposals::withdraw_on_close(domain, env, number, out);
@@ -1480,6 +1481,7 @@ pub(crate) fn make_admitted(
                 tries: Tries::NONE,
                 invalid_result: None,
                 refusals: 0,
+                room_wait: None,
                 phase: Phase::Waiting,
             },
             alarm: None,

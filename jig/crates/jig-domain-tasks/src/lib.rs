@@ -109,6 +109,8 @@ mod proposals;
 mod recurring;
 mod refs;
 mod retire;
+mod room;
+pub use room::{LiveRoom, RoomWait};
 mod run;
 mod runtime;
 mod settings;
