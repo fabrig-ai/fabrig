@@ -43,9 +43,9 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
                 judged: judged.into_boxed(),
             })));
         }
-        connector::Ask::KeepSettings { revision: _, proposal, items } => {
+        connector::Ask::KeepSettings { revision, proposal, items } => {
             let asked = typed_items(domain, proposal, &items);
-            domain.forge.keep_settings(&super::environment_forge(env), proposal, &asked, &mut out);
+            domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
         }
         connector::Ask::KeepProposalSettings { proposal, items } => {
             let asked = typed_items(domain, None, &items);
