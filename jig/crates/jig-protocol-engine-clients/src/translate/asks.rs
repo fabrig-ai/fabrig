@@ -50,6 +50,7 @@ fn decode(
             let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut bytes).expect("measured ask");
             p::Ask::ChangeSettings {
+                projects: Box::default(),
                 against,
                 digest: crate::sign_in::digest(&bytes.finish()).expose().try_into().expect("32-byte digest"),
             }

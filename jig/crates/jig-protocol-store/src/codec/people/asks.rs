@@ -304,7 +304,7 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
             limits,
             wire::AskMoveToNewestParts { revision: *revision },
         )?),
-        domain::Ask::ChangeSettings { against, digest } => wire::Ask::ChangeSettings(wire::AskChangeSettings::new(
+        domain::Ask::ChangeSettings { against, digest, .. } => wire::Ask::ChangeSettings(wire::AskChangeSettings::new(
             limits,
             wire::AskChangeSettingsParts { against: *against, digest: *digest },
         )?),
@@ -521,7 +521,7 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
         },
         wire::Ask::MoveToNewest(value) => domain::Ask::MoveToNewest { revision: value.revision() },
         wire::Ask::ChangeSettings(value) => {
-            domain::Ask::ChangeSettings { against: value.against(), digest: *value.digest() }
+            domain::Ask::ChangeSettings { against: value.against(), digest: *value.digest(), projects: Box::default() }
         }
         wire::Ask::Compound(value) => {
             let wire::AskCompoundParts { project, operations } = value.into_parts();

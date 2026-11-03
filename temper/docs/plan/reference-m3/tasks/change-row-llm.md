@@ -3,7 +3,7 @@ id = "change-row-llm"
 part = "change-temper"
 kind = "migration"
 needs = ["kinds-store", "kinds-route", "change-call-llm"]
-files = ["temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/v11.rs", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/change.rs", "temper/crates/temper-protocol-store/src/tests/fixtures.rs", "temper/crates/temper-protocol-store/src/tests/**"]
+files = ["temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/v11.rs", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/change.rs", "temper/crates/temper-protocol-store/src/tests/fixtures.rs", "temper/crates/temper-protocol-store/src/tests/**", "temper/crates/temper-protocol-store/Cargo.toml"]
 effort = "high"
 minutes = 90
 +++
@@ -98,3 +98,13 @@ Owns the files in the header.
 
 As the implementer's text says, naming the schema version written (11, in place) and each
 neighbour file edited.
+
+## Answers
+
+2026-11-03. May `jig-domain-tasks` move from `[dev-dependencies]` to `[dependencies]` in
+`temper/crates/temper-protocol-store/Cargo.toml`? Yes: the translations in `records/change.rs`
+name `jig_domain_tasks::LlmChoice` and `ModelEffort`, so the dependency is the spec's. Move the
+existing `jig-domain-tasks.workspace = true` line from `[dev-dependencies]` to `[dependencies]`
+and change nothing else in the manifest; the header's `files` now names it. No new crate or
+version: `temper-engine-domain-forge` already depends on it, and `Cargo.lock` stays as it is
+(if it would change, ask).

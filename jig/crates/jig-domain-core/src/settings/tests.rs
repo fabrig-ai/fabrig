@@ -32,7 +32,7 @@ fn charter(current: &mut Current) -> &mut Charter {
 }
 #[test]
 fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
-    let mut current = Current::new(config(1).defaults, &limits());
+    let mut current = Current::new(config(1).defaults, &limits(), &[]);
     let original = current.charter(1).unwrap().clone();
     let mut changed = original.clone();
     changed.spend += 1;
@@ -59,7 +59,7 @@ fn fault_case(fault: Fault) {
     let limits = limits();
     let mut policy = config.seed_projects[0].policy.clone();
     config.defaults.templates = Box::new([template()]);
-    let mut current = Current::new(config.defaults, &limits);
+    let mut current = Current::new(config.defaults, &limits, &[]);
     let setting = match fault {
         Fault::Shape => {
             let count = limits.run_bytes.checked_add(1).expect("one past the run bound");
@@ -183,7 +183,7 @@ fn pruning_a_lowered_history_limit_uses_only_the_commits_remaining_room() {
 #[test]
 fn the_whole_check_refuses_unconfigured_model_bits() {
     let config = config(1);
-    let mut current = Current::new(config.defaults, &limits());
+    let mut current = Current::new(config.defaults, &limits(), &[]);
     let mut rules = current.rules().clone();
     rules.ceiling.models = authority::Models::Named(2);
     current
@@ -198,7 +198,7 @@ fn the_whole_check_refuses_unconfigured_model_bits() {
 #[test]
 fn the_whole_check_refuses_unconfigured_contract_connectors() {
     let config = config(1);
-    let mut current = Current::new(config.defaults, &limits());
+    let mut current = Current::new(config.defaults, &limits(), &[]);
     let mut value = template();
     value.contract = tasks::Contract::Change { connector: u16::MAX, kind: 1, words: 1 };
     current
@@ -219,7 +219,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
     let policy = config.seed_projects[0].policy.clone();
     config.defaults.policies = Map::with_capacity(1);
     config.defaults.policies.insert(1, policy).unwrap();
-    let mut current = Current::new(config.defaults, &limits);
+    let mut current = Current::new(config.defaults, &limits, &[]);
     for setting in [Setting::Charter(1), Setting::Template(1), Setting::Policy(1), Setting::Rules] {
         let original = current.value(setting).unwrap().clone();
         let items = [Item { setting, edit: Edit::Set(original.clone()) }];
@@ -303,7 +303,7 @@ fn current_lookup_keeps_each_kinds_default_change_and_removal_origin() {
     config.defaults.templates = Box::new([template()]);
     config.defaults.policies = Map::with_capacity(1);
     config.defaults.policies.insert(1, config.seed_projects[0].policy.clone()).unwrap();
-    let mut current = Current::new(config.defaults, &limits());
+    let mut current = Current::new(config.defaults, &limits(), &[]);
     for setting in [Setting::Charter(1), Setting::Template(1), Setting::Policy(1), Setting::Rules] {
         let default = current.value(setting).unwrap().clone();
         assert_eq!(current.lookup(setting), (Some(&default), Some((false, 1))));
@@ -329,7 +329,7 @@ fn stored_policy_change(bytes: u64) -> (Core, Limits, Record) {
     for record in [
         Record::Revision {
             history: false,
-            revision: Revision { head: core.current.head.clone(), items: Box::new([]) },
+            revision: Revision { head: core.current.head.clone(), items: Box::new([]), applications: Box::default() },
         },
         Record::Extent { oldest: 0 },
     ] {
@@ -615,7 +615,13 @@ fn restore_settings_fixture() -> (Core, Limits) {
 
 fn restore_head(core: &mut Core, limits: &Limits, number: u32) -> bool {
     let head = version_head(core, number);
-    core.restore_setting(Record::Revision { history: false, revision: Revision { head, items: Box::new([]) } }, limits)
+    core.restore_setting(
+        Record::Revision {
+            history: false,
+            revision: Revision { head, items: Box::new([]), applications: Box::default() },
+        },
+        limits,
+    )
 }
 
 #[test]
@@ -726,7 +732,7 @@ fn a_settings_commit_before_the_first_start_seed_keeps_the_supplied_defaults() {
 fn a_charter_with_a_zero_paced_span_is_refused_as_shape() {
     let config = config(1);
     let limits = limits();
-    let mut current = Current::new(config.defaults, &limits);
+    let mut current = Current::new(config.defaults, &limits, &[]);
     let mut invalid = current.charter(1).unwrap().clone();
     invalid.wake.news = tasks::WakeRule::Paced { span: Duration::ZERO };
     let setting = Setting::Charter(1);

@@ -197,6 +197,7 @@ fn filled(why: Refusal) -> bool {
         | Refusal::Unknown
         | Refusal::Provider
         | Refusal::NotOffered
+        | Refusal::Judged { .. }
         | Refusal::NotWellFormed { .. }
         | Refusal::NoEscalationHolder
         | Refusal::Llm { .. }

@@ -406,7 +406,8 @@ pub fn record_revision(value: &Record) -> Option<&settings::Revision> {
         Record::Core(CoreRecord::Settings(settings::Record::Revision { revision, .. })) => Some(revision),
         Record::Core(
             CoreRecord::Settings(
-                settings::Record::Default { .. }
+                settings::Record::Application { .. }
+                | settings::Record::Default { .. }
                 | settings::Record::Changed { .. }
                 | settings::Record::Charter { .. }
                 | settings::Record::Proposal { .. }
@@ -494,7 +495,8 @@ pub(super) fn from_store(
             Record::Core(CoreRecord::Settings(settings::Record::Revision { revision, .. })) => revision,
             Record::Core(
                 CoreRecord::Settings(
-                    settings::Record::Default { .. }
+                    settings::Record::Application { .. }
+                    | settings::Record::Default { .. }
                     | settings::Record::Changed { .. }
                     | settings::Record::Charter { .. }
                     | settings::Record::Proposal { .. }

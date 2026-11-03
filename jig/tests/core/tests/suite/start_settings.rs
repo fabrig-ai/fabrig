@@ -78,6 +78,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
             let core::Request::Write(write) = h.out.pop().expect("release write") else { panic!("release writes") };
             match write {
                 core::Write::Save(core::Record::Core(core::CoreRecord::Settings(row))) => match row {
+                    settings::Record::Application { .. } => unreachable!("an application's record: apps-store"),
                     settings::Record::Default { setting, default: value } => {
                         assert_eq!(setting, settings::Setting::Template(1));
                         default = Some(value);
