@@ -1413,6 +1413,7 @@ fn project_asks_answers_and_name_refusals_round_trip() {
 
 mod holds;
 mod settings_proposals;
+mod settings_scale;
 
 #[test]
 fn an_owing_spec_and_its_asked_latch_survive_storage() {

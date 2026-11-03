@@ -34,7 +34,7 @@ fn a_store_opens_with_result_bytes_above_the_verdict_field_ceiling() {
 
 #[test]
 fn settings_size_verdict_fields_apart_from_result_byte_bounds() {
-    for (result_bytes, verdict_fields) in [(32, 32), (LARGE_RESULT_BYTES, 512)] {
+    for (result_bytes, verdict_fields) in [(32, 416), (LARGE_RESULT_BYTES, 8192)] {
         let mut domain = fixtures::CORE_LIMITS;
         domain.tasks.result_bytes = result_bytes;
         let settings = codec::limits(&domain).expect("domain fits store families").settings;
@@ -45,8 +45,8 @@ fn settings_size_verdict_fields_apart_from_result_byte_bounds() {
 }
 
 #[test]
-fn the_verdict_field_limit_equals_the_settings_schema_ceiling() {
-    assert_eq!(jig_domain_tasks::VERDICT_FIELDS, crate::settings_v1::CEILINGS.verdict_fields);
+fn the_settings_verdict_piece_ceiling_is_one_mebibyte() {
+    assert_eq!(crate::settings_v1::CEILINGS.verdict_fields, 1_048_576);
 }
 
 fn opened_rows() -> [skein_kv::Op; OPENED_ROWS] {

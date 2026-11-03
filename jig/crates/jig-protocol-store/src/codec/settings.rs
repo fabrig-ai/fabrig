@@ -347,8 +347,8 @@ fn encode_contract(value: &tasks::Contract, limits: &wire::Limits) -> Result<wir
         )?),
     })
 }
-fn decode_contract(value: wire::Contract) -> tasks::Contract {
-    match value {
+fn decode_contract(value: wire::Contract, limits: &wire::Limits) -> Result<tasks::Contract, wire::Problem> {
+    Ok(match value {
         wire::Contract::Approval(entry) => {
             let wire::ApprovalParts { state, part } = entry.into_parts();
             tasks::Contract::Approval { state, part: decode_part(part) }
@@ -361,7 +361,7 @@ fn decode_contract(value: wire::Contract) -> tasks::Contract {
             let wire::VerdictChoicesParts { choices } = entry.into_parts();
             let mut list_4 = List::with_capacity((choices).len());
             for entry in (choices).into_boxed() {
-                let element = decode_verdict(entry);
+                let element = decode_verdict(entry, limits)?;
                 list_4.push(element).expect("decoded list bound");
             }
             tasks::Contract::Verdict { choices: list_4.into_boxed() }
@@ -370,7 +370,7 @@ fn decode_contract(value: wire::Contract) -> tasks::Contract {
             let wire::ChangeParts { connector, kind, words } = entry.into_parts();
             tasks::Contract::Change { connector, kind, words }
         }
-    }
+    })
 }
 fn encode_retention(value: &tasks::Retention) -> wire::Retention {
     match value {
@@ -408,7 +408,7 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
 fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::Value, wire::Problem> {
     Ok(match value {
         wire::Value::Charter(entry) => settings::Value::Charter(Box::new(decode_charter(*entry, limits)?)),
-        wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry))),
+        wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry, limits)?)),
         wire::Value::Policy(entry) => settings::Value::Policy(Box::new(decode_configured_policy(*entry))),
         wire::Value::Rules(entry) => settings::Value::Rules(Box::new(decode_rules(*entry, limits)?)),
     })
@@ -1272,46 +1272,61 @@ fn decode_configured_policy(value: wire::ConfiguredPolicy) -> core::ConfiguredPo
     let field_templates = list_30.into_boxed();
     core::ConfiguredPolicy { policy: field_policy, permissions: field_permissions, templates: field_templates }
 }
-fn encode_field_rule(value: &tasks::FieldRule, limits: &wire::Limits) -> Result<wire::FieldRule, wire::Problem> {
-    let field_name = value.name.clone();
-    let field_max = value.max;
-    wire::FieldRule::new(limits, wire::FieldRuleParts { name: field_name, max: field_max })
+fn verdict_problem() -> wire::Problem {
+    wire::Problem { path: wire::Path::VerdictFields, reason: skein_codec::Reason::Bound }
 }
-fn decode_field_rule(value: wire::FieldRule) -> tasks::FieldRule {
-    let wire::FieldRuleParts { name, max } = value.into_parts();
-    let field_name = name;
-    let field_max = max;
-    tasks::FieldRule { name: field_name, max: field_max }
+fn admit_rule(used: &mut usize, name: &[u8], max: u32, limits: &wire::Limits) -> Result<(), wire::Problem> {
+    *used = used.saturating_add(name.len()).saturating_add(skein_lib::length::usize_of(max));
+    if name.is_empty() || *used > skein_lib::length::usize_of(limits.field_rule_name) {
+        return Err(verdict_problem());
+    }
+    Ok(())
 }
 fn encode_verdict(value: &tasks::Verdict, limits: &wire::Limits) -> Result<wire::Verdict, wire::Problem> {
-    let field_code = value.code;
-    let field_words = value.words;
-    let field_followups = value.followups;
-    let mut list_31 = List::with_capacity(limits.verdict_fields);
-    for entry in &value.fields {
-        let element = encode_field_rule(entry, limits)?;
-        if list_31.push(element).is_err() {
-            return Err(bound());
-        }
+    let Ok(count) = u32::try_from(value.fields.len()) else {
+        return Err(verdict_problem());
+    };
+    if count > tasks::VERDICT_FIELDS {
+        return Err(verdict_problem());
     }
-    let field_fields = list_31;
+    let mut items = List::with_capacity(count);
+    let mut used = 0;
+    for field in &value.fields {
+        let tasks::FieldRule { name, max } = field;
+        admit_rule(&mut used, name, *max, limits)?;
+        let field = wire::FieldRule::new(limits, wire::FieldRuleParts { name: name.clone(), max: *max })?;
+        let mut item = Writer::new(skein_lib::length::usize_of(field.measure()));
+        field.encode(&mut item).expect("measured field");
+        items.push(item.finish()).expect("same field count");
+    }
+    let fields = match super::pieces::join(items, limits.verdict_fields) {
+        Ok(bytes) => bytes,
+        Err(reason) => return Err(wire::Problem { path: wire::Path::VerdictFields, reason }),
+    };
     wire::Verdict::new(
         limits,
-        wire::VerdictParts { code: field_code, words: field_words, followups: field_followups, fields: field_fields },
+        wire::VerdictParts { code: value.code, words: value.words, followups: value.followups, fields },
     )
 }
-fn decode_verdict(value: wire::Verdict) -> tasks::Verdict {
+fn decode_verdict(value: wire::Verdict, limits: &wire::Limits) -> Result<tasks::Verdict, wire::Problem> {
     let wire::VerdictParts { code, words, followups, fields } = value.into_parts();
-    let field_code = code;
-    let field_words = words;
-    let field_followups = followups;
-    let mut list_32 = List::with_capacity((fields).len());
-    for entry in (fields).into_boxed() {
-        let element = decode_field_rule(entry);
-        list_32.push(element).expect("decoded list bound");
+    let mut reader = Reader::new(&fields);
+    let mut values = List::with_capacity(tasks::VERDICT_FIELDS.min(limits.field_rule_name));
+    let mut used = 0;
+    for _ in 0..=tasks::VERDICT_FIELDS {
+        let bytes = match skein_codec::piece::split(&mut reader) {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => return Ok(tasks::Verdict { code, words, followups, fields: values.into_boxed() }),
+            Err(reason) => return Err(wire::Problem { path: wire::Path::VerdictFields, reason }),
+        };
+        let wire::FieldRuleParts { name, max } =
+            wire::FieldRule::decode(limits, &mut Reader::new(&bytes))?.into_parts();
+        admit_rule(&mut used, &name, max, limits)?;
+        if values.push(tasks::FieldRule { name, max }).is_err() {
+            return Err(verdict_problem());
+        }
     }
-    let field_fields = list_32.into_boxed();
-    tasks::Verdict { code: field_code, words: field_words, followups: field_followups, fields: field_fields }
+    Err(verdict_problem())
 }
 fn encode_part(value: &tasks::Part, limits: &wire::Limits) -> Result<wire::Part, wire::Problem> {
     let field_connector = value.connector;
@@ -1436,7 +1451,7 @@ fn encode_template(value: &core::Template, limits: &wire::Limits) -> Result<wire
         },
     )
 }
-fn decode_template(value: wire::Template) -> core::Template {
+fn decode_template(value: wire::Template, limits: &wire::Limits) -> Result<core::Template, wire::Problem> {
     let wire::TemplateParts {
         number,
         name,
@@ -1455,7 +1470,7 @@ fn decode_template(value: wire::Template) -> core::Template {
     let field_number = number;
     let field_name = name;
     let field_executor = decode_template_executor(executor);
-    let field_contract = decode_contract(contract);
+    let field_contract = decode_contract(contract, limits)?;
     let field_shallower = shallower;
     let field_budget = decode_template_budget(budget);
     let field_deadline = decode_template_deadline(deadline);
@@ -1472,7 +1487,7 @@ fn decode_template(value: wire::Template) -> core::Template {
         let wire::SymbolParts { connector, symbol } = resource.into_parts();
         symbols.push(people::Symbol { connector, symbol }).expect("decoded resources bound");
     }
-    core::Template {
+    Ok(core::Template {
         resources: symbols.into_boxed(),
         number: field_number,
         name: field_name,
@@ -1486,7 +1501,7 @@ fn decode_template(value: wire::Template) -> core::Template {
         label: field_label,
         grace: field_grace,
         llm: field_llm,
-    }
+    })
 }
 fn encode_proposal_id(
     value: &(people::Proposer, u32),
@@ -1945,7 +1960,12 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
             .ok()?;
     limits.configured_policy_templates = domain.templates;
     limits.field_rule_name = domain.tasks.result_bytes;
-    limits.verdict_fields = tasks::VERDICT_FIELDS.min(domain.tasks.result_bytes);
+    limits.verdict_fields = u32::try_from(
+        u64::from(tasks::VERDICT_FIELDS.min(domain.tasks.result_bytes))
+            .checked_mul(wire::FieldRule::encoded_bound(&EMPTY)?.checked_add(4)?)?
+            .checked_add(u64::from(domain.tasks.result_bytes))?,
+    )
+    .ok()?;
     limits.part_path_segments = domain.tasks.hold_segments;
     limits.approval_state = domain.tasks.result_bytes;
     limits.verdict_choices_choices = domain.tasks.contract_choices;
