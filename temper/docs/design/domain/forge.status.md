@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
   - 11, 11.1: a goal's own branch deleted as its goal closes once a change
@@ -29,6 +29,12 @@
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
+  - 8.1, 8.2 step 1, 10: a catch-up, the merge job its producer
+    (parameter 16): the change procedure has no producer but an agent.
+  - 8.2 step 6, 8.4, 10: the merge job before a resolution: a conflict
+    goes to a resolution at once under rules asking an update, and holds
+    the change under rules asking none
+    (`temper-engine-domain-forge-change/src/domain.rs`, `first`).
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review

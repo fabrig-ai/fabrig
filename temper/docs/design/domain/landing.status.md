@@ -1,12 +1,14 @@
 # landing: status
 
-2026-11-02. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-03. Where temper's code lags or departs from [landing.md](landing.md).
 
 - **Not yet:** 4.1: `with`; a dependent made with its dependency, started
   kept (jig's `domain/connectors.md`, 6.1); pin-only members; a stack of
   members in one repository, whose second member a later landing takes
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
-  prepare and key commands, as jobs (`worker.md`, 4.4). 6.2: the baseline
+  prepare and key commands, as jobs (`worker.md`, 4.4). 13.1: kind 4's
+  `merge_job` (configured in the document's `landing` member until then,
+  `../protocol/configuration.md`, section 3). 6.2: the baseline
   at main's tip; a failed receipt rerun first when its tests match open
   flake findings (`findings.md`, section 5). 8, 11, 16: GitHub's turn, main's
   ref fast-forwarded (kind 19), and its stories on the fake GitHub. 9: the

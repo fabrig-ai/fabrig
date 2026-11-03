@@ -1,38 +1,44 @@
 # The project's tooling
 
-Provisional, 2026-10-27. The contract between temper
+Provisional, 2026-11-03. The contract between temper
 and a project's own tooling: the `prepare` and `key` commands a project
-that lands by turn may name (`../domain/landing.md`, 5.3 and 6.1), what
-temper gives them, what they write, and how they end. temper runs them
-as jobs on a worker (`../domain/worker.md`, 4.4). What is open is
-section 7.
+that lands by turn may name (`../domain/landing.md`, 5.3 and 6.1), and
+the `merge` command any project may name for the merge job
+(`../domain/forge.md`, 8.4); what temper gives them, what they write,
+and how they end. temper runs them as jobs on a worker
+(`../domain/worker.md`, 4.4). What is open is section 7.
 
 ## 1. In one page
 
-- **Two commands, both optional,** paths in the project's home, run at
-  the home's pinned revision: `prepare` makes one repository's
-  candidate; `key` says what one gate's result depends on.
+- **Three commands, each optional.** `prepare` makes one repository's
+  candidate and `key` says what one gate's result depends on, both
+  paths in the project's home, run at the home's pinned revision;
+  `merge` settles the conflicts it knows in a merge in progress, a path
+  in the repository it merges, run from that merge (4.1).
 - **A directory, not a forge.** temper fetches every repository the
   command needs into a directory it gives the command, and pushes what
   the command made. The command holds no credential, reaches no forge,
   and needs no model.
 - **Files in, files out:** a request file in JSON, the repositories as
   git directories, and a result file in JSON, each bounded.
-- **The exit code says which:** 0, a candidate; 3, a conflict it could
-  not settle; anything else, the command's own failure.
+- **The exit code says which:** 0, a candidate, or a merge settled; 3,
+  a conflict it could not settle; anything else, the command's own
+  failure.
 - **Deterministic by contract:** the same request gives the same
   candidate's tree, so that a candidate prepared again keeps its keys.
 
 ## 2. How a command is run
 
-- **Its argument list:** the command's path, then `prepare` or `key`,
-  then the request file's path. Its directory is the job's directory.
+- **Its argument list:** the command's path, then `prepare`, `key` or
+  `merge`, then the request file's path. Its directory is the job's
+  directory.
 - **Its environment** is `PATH` from the worker's configuration,
   `HOME` the job's directory, `LANG=C.UTF-8`, `TEMPER_JOB` the job's
   directory, and nothing else: no credential, no token, no variable of
   the worker's.
-- **Its time** is the project's `prepare_timeout`, after which it and
-  its children are killed and the job fails.
+- **Its time** is the project's `prepare_timeout`, or for `merge` its
+  kind's deadline (4.1), after which it and its children are killed and
+  the job fails.
 - **Its network** is the worker's containment's (`../domain/worker.md`,
   section 9): a command that fetches what the directory lacks does so
   without temper's credentials.
@@ -75,6 +81,42 @@ section 7.
   failure, the stderr's last `tooling_log_bytes` kept for the landing's
   goals.
 
+### 4.1 `merge`
+
+The merge job's command (`../domain/forge.md`, 8.4; `../domain/worker.md`,
+4.4): it settles the conflicts the project's rules know (a counted
+baseline recounted, a generated file made again), with no model.
+
+- **Named by the project's `merge_job`** (`configuration.md`, section
+  3), a path in the repository being merged, run from the merge in
+  progress, not from the home: the files it settles and the scripts
+  that settle them are that repository's. A command file left in
+  conflict, or absent from the merge, is the command's failure.
+- **Its directory** holds one repository, `home/`, the one the job
+  writes: checked out at the head being merged into, with the base
+  merged in by temper and not committed, git's merge in progress, the
+  conflicting files marked and unmerged in the index.
+- **`request.json`:** `{"version": 1, "head": COMMIT, "base": COMMIT}`:
+  the head merged into, and the commit merged in. The conflicting files
+  are the index's (`git diff --name-only --diff-filter=U`), which the
+  command reads itself.
+- **What it does:** it edits the conflicting files it knows and stages
+  each it settles (`git add`); it never commits, aborts the merge or
+  writes another branch. temper commits the tree as the merge, with
+  both parents, and pushes it.
+- **`result.json`, exit 0:** `{"settled": [PATH]}`, no file left
+  unmerged: temper commits and delivers the merge (`../domain/worker.md`,
+  4.4). A file left unmerged or still marked fails the delivery, and
+  the job with it.
+- **`result.json`, exit 3:** `{"settled": [PATH], "left": [PATH]}`:
+  nothing is committed or pushed, and the change makes a resolution in
+  a merge in progress of the same base, its words carrying this result
+  (`../domain/forge.md`, 8.4); nothing of the job's directory is kept.
+- **Any other exit,** or a result missing or past its bound: the
+  command's failure, as `prepare`'s.
+- **Deterministic by contract,** as `prepare`: the same head and base
+  give the same tree.
+
 ## 5. `key`
 
 - **Run** inside a prepare job, after `prepare`, when the project names
@@ -89,9 +131,10 @@ section 7.
 
 ## 6. Bounds
 
-`request.json` and `result.json` at most `tooling_file_bytes` each;
-`files` at most `conflict_files`, each a path within a branch name's
-bounds; members and upstreams within the landing's limits. Each is a
+`request.json` and `result.json` at most `tooling_file_bytes` each, a
+merge job's within its kind's bounds (`../domain/worker.md`, 4.4);
+`files`, `settled` and `left` at most `conflict_files`, each a path
+within a branch name's bounds; members and upstreams within the landing's limits. Each is a
 limit of the worker's jobs (`../domain/worker.md`, 4.4).
 
 ## 7. Open questions
@@ -99,6 +142,13 @@ limit of the worker's jobs (`../domain/worker.md`, 4.4).
 - **The worker's `PATH` and its jobs' limits as configuration:** section
   2's `PATH` and section 6's limits have no member of the worker's
   (`configuration.md`, section 4) and no override (section 7 of
-  `configuration.md`); which they become is the first kind's.
+  `configuration.md`). The first kind built, `merge`, keeps them the
+  profile's constants, so they stay open until a deployment needs
+  another.
 - **A command's own network:** whether a worker gives it none, so that
   a pin bump needs nothing fetched, or the project's.
+- **A resolution from the merge job's tree:** a resolution starts from a
+  merge in progress made afresh (4.1), so its agent settles again what
+  the command settled, its checks recounting a baseline. Handing it the
+  job's tree would need the job's directory kept, or its unfinished
+  merge saved, which no workspace does yet.

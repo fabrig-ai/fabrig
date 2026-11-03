@@ -1008,7 +1008,9 @@ branch. Its parameters:
   `domain/tasks.md`, 6.4), or its own, named after its tree
   (section 11), which a producing task pushes;
 - **what to produce,** when nothing is pushed yet: the spec and charter
-  of its producing task;
+  of its producing task; or, for a catch-up, the commit the merge job
+  merges into a branch made at its landing branch's tip (section 10),
+  parameter 16, its producer that job and no agent;
 - **its gates** (8.3);
 - **`with`,** under its project's turn: the changes it must land with,
   in any repository and of any goal its requester may name
@@ -1106,6 +1108,12 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    worker fetches the landing tip per hold and verifies an existing
    unlanded head through a guarded push (worker.md, section 5). This does
    not substitute a historical receipt for current ownership or drift checks.
+   A catch-up's producer is the merge job (8.4): its landing branch's
+   tip with the catch-up's commit merged in, pushed as the change's
+   branch; what the job leaves goes to a resolution in a merge in
+   progress of that commit at that tip, which pushes the branch. A
+   catch-up whose commit the landing branch's tip already contains ends
+   at once with no change, its words saying so.
 2. **Opening:** its pull request into its landing branch, keyed by its
    branches, its body naming its goal's issue ("Part of
    `ai/temper#12`").
@@ -1127,13 +1135,14 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    **updated** (section 10): cleanly, and its new head is checked again,
    its gates carried over where they count clean updates (8.3); or in
    conflict, and it leaves the queue to be
-   **resolved**, its new head checked again and its gates asked again.
+   **resolved** (8.4: the merge job, then a resolution for what it
+   leaves), its new head checked again and its gates asked again.
    Where they ask no update, it is merged as its head is, once the forge
    finds it mergeable; one the forge finds in conflict, or whose merge it
-   refuses for a conflict, is held as one past its resolutions (it makes
-   none), its hold's words saying that its merge into its landing branch
-   conflicts and that its landing rule asks no update. What settles such
-   a conflict is not the change's.
+   refuses for a conflict, leaves the queue to be resolved the same way,
+   the base merged in being its landing branch's tip as last read; its
+   new head goes on as any head does under those rules, to its gates and
+   its turn, with no check and no update.
    A pull request whose mergeability has not settled (5.2) is neither:
    the change waits for it, until the window's end at most, and the
    stall does not count that wait.
@@ -1302,6 +1311,24 @@ delegate's terminal wakes it to offer the landed result.
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered
   sizes decide the fit, with the repair reason before the pull section.
+- **The merge job** comes before a resolution where the change's
+  project names a `merge_job` and the change's authority delegates to
+  the merge kind (`../protocol/configuration.md`, section 3): a job of
+  kind 3 (`worker.md`, 4.4), delegated by the change, which holds the
+  branch it writes. Its workspace is a resolution's, the base merged
+  into the branch's head;
+  the project's merge command settles the conflicts it knows
+  (`../protocol/tooling.md`, 4.1); if none is left, the worker commits
+  the merge and pushes it. On the job's result the change reads its
+  branch afresh: a head that moved is the merge's, and the change goes
+  on from it as from a resolution's push; a head that did not move
+  means the command left conflicts, and the change makes a resolution
+  of the same base, its words carrying the job's result, cut to the
+  resolution's words' room and marked. A job that fails for good holds
+  the change as a resolution that fails does. Without a `merge_job`, or
+  without the kind in its authority, a conflict goes to a resolution at
+  once. A merge job counts as one of the change's resolutions, and the
+  resolution after it as none, so the bound counts each conflict once.
 - **A resolution** is a task for an agent whose workspace starts from a
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
@@ -1713,7 +1740,15 @@ instead (`landing.md`, section 5).
   its recovery finds it (section 6), and the new head is heard as any
   push.
 - **A conflict** makes the forge refuse the update, and the change is
-  resolved (8.4).
+  resolved (8.4): by the merge job, where its project names one, then
+  a resolution for what the job leaves.
+- **A catch-up** takes a base's commit into a branch that no update
+  reaches, a goal's own (11.1): a change into that branch, made by the
+  goal's coordinator naming the commit (`agent.md`, 4.3.1), its producer
+  the merge job, which merges the commit into a branch made at the
+  landing branch's tip (8.2, step 1); its project must name a
+  `merge_job`. It lands as any change into the branch does, and nothing
+  makes one but its requester's call.
 - **A semantic conflict,** a clean update whose CI fails while CI passes
   on the base's tip, is a repair, whose brief names the base merged in
   and what landed in it. While CI fails on the base's tip, the failure is
@@ -1813,8 +1848,9 @@ own, never a change's:
 - **Landed whole** by a change into the base whose branch is the goal's
   own, and deleted as the goal closes once that change has landed it
   (section 11); otherwise kept as the goal closes. It takes the base's
-  landings that touch its area as they come, by an update. A project's
-  rule may require or forbid it.
+  landings that touch its area as they come, by catch-ups (section 10),
+  which its goal makes as it hears them (7.3). A project's rule may
+  require or forbid it.
 
 ## 12. Issues
 
@@ -2088,6 +2124,10 @@ review carried over; an approval carried over a clean update and asked
 again after a repair; a change that leaves the queue for a conflict and
 comes back at its place; a low-priority change aging past the window
 ahead of later ones; a conflict resolved from a merge in progress; a
+conflict settled by the merge job alone, and one it leaves to a
+resolution, under rules asking an update and under rules asking none; a
+catch-up into a goal's branch, merged by the merge job, and one already
+contained, ended with no change; a
 semantic conflict repaired; the branch's own CI broken by a landing
 temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
