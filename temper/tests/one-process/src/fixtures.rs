@@ -372,7 +372,7 @@ pub(crate) fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script
             headers: Box::new([]),
             without_credential: false,
         },
-        skein_llm::Credential { value: channel::KEY.into(), scheme: skein_llm::Scheme::Key, account_id: Box::new([]) },
+        skein_llm::Credential::key(channel::KEY.into()),
         protocol,
         skein_fake_llm_domain::Domain::try_scripted(&config, 17, scripts).expect("bounded provider scripts"),
         config,
