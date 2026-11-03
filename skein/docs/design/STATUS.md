@@ -13,8 +13,8 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 (`playground.md`, and `ui-web.md` for the worker's platform). json, tls
 and http's collector have no fuzz target (`json.md`, `tls.md`,
 `http.md`), and the withdrawn LLM routes still stand while smith uses
-them (`llm.md`). Single items lag in `lib.md`, `examples.md` and
-`ui.md`. The code departs in three crates' `tests/` directories
+them (`llm.md`). A few items lag in `lib.md`, `examples.md`, `ui.md`
+and `ui-web.md` (Escape in a form). The code departs in three crates' `tests/` directories
 (`testing.md`). `README.md`, `channel.md`,
 `codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
 `forge-client.md`, `forge-connection.md`, `forge-setup.md`,

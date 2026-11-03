@@ -17,16 +17,22 @@ Ready making "Default", a project with no repository highlighted (4 and 5); the 
   status loses its 2 and 3 entries for them and records section 9's two questions as Open, with
   the interim readings `inputs/request.md` gives.
 
+- Step 3's skein part: `skein/docs/design/ui.md`, 6.1, section 14 and 16's mapping, and
+  `skein/docs/design/ui-web.md`, section 7: Escape inside a form, as inside a dialog, so the
+  banner's rename in place is cancelled by it. Statuses: skein `ui`, `ui-web` (Not yet), skein's
+  `STATUS.md`.
+
 ## Parts and tasks so far
 
 | Part | Task | Needs | Tree |
 |---|---|---|---|
 | no-seed | no-seeded-project | | temper (init's template; service and process tests counting projects) |
 | demo | demo-project | | temper (engine's playground route, client view's project names) |
+| form-escape | skein-form-escape | | skein (skein-ui's outline, skein-ui-web's page model) |
 
 ## Critical path
 
-no-seeded-project and demo-project, side by side; the rest follows as its batches release.
+no-seeded-project, demo-project and skein-form-escape, side by side; the rest follows as its batches release.
 
 ## Overlaps with the plans beside this one
 
