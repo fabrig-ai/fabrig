@@ -89,7 +89,6 @@ pub(crate) fn configuration() -> smith_agent_service::Config {
     let mut destination = destinations.into_boxed().into_vec().pop().expect("one destination");
     destination.limits = service.limits.llm.adapter.client;
     destination.credential.value = service.limits.llm.grant_value_bytes;
-    destination.credential.account_id = service.limits.llm.grant_value_bytes;
     service.llm_endpoints = smith_protocol_llm::Endpoints::new(
         Box::new([smith_protocol_llm::ConfiguredEndpoint {
             name: smith_domain::llm::Endpoint(0),

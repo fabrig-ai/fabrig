@@ -15,12 +15,10 @@ use crate::Error;
 pub fn prompt_allowance(provider: skein_llm::Provider, client: &client::Limits, tools: u32) -> Result<u64, Error> {
     let endpoint = match provider {
         skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
-        skein_llm::Provider::OpenAiCodex => return Err(Error::Invalid),
         skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
     };
     let reasoning_effort: Option<Box<[u8]>> = match provider {
         skein_llm::Provider::OpenAi => Some(Box::new([0; 32])),
-        skein_llm::Provider::OpenAiCodex => return Err(Error::Invalid),
         skein_llm::Provider::Anthropic => Some(Box::from(b"medium".as_slice())),
     };
     let mut prompt = skein_llm::Prompt {
@@ -40,7 +38,6 @@ pub fn prompt_allowance(provider: skein_llm::Provider, client: &client::Limits, 
     let credential = match provider {
         skein_llm::Provider::OpenAi => skein_llm::Credential::bearer(Box::from(b"a".as_slice())),
         skein_llm::Provider::Anthropic => skein_llm::Credential::key(Box::from(b"a".as_slice())),
-        skein_llm::Provider::OpenAiCodex => return Err(Error::Invalid),
     };
     let mut limits = *client;
     // Only these observed fixed records participate in this measurement.

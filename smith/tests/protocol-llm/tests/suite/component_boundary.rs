@@ -35,10 +35,7 @@ fn endpoints_with_client(connect: Duration, client: skein_llm::client::Limits) -
             name: llm::Endpoint(42),
             destination: skein_llm_connection::Endpoint {
                 limits: client,
-                credential: skein_llm::client::CredentialLimits {
-                    value: limits().grant_value_bytes,
-                    account_id: limits().grant_value_bytes,
-                },
+                credential: skein_llm::client::CredentialLimits { value: limits().grant_value_bytes },
                 address: SocketAddr::from(([127, 0, 0, 1], 443)),
                 transport: skein_llm_connection::Transport::Tls {
                     server_name: skein_tls::Name::new("example.test").expect("server name"),

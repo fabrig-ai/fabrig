@@ -580,7 +580,6 @@ fn observed_requests_render_the_run_key_only_for_openai() {
             assert!(matches!(terminal, Event::Below(smith_domain::Below::Completed { .. })));
             let request = smith_protocol_llm_world::referee::NativeRequest::from_http(&wire.peer.requests);
             match configuration.endpoint.provider {
-                skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                 skein_llm::Provider::OpenAi => {
                     assert_eq!(request.affinity, Some("\"42424242-4242-4242-4242-424242424242\"".into()));
                     assert_eq!(wire.peer.queries[0].caching, skein_fake_llm_domain::api::Caching::Scope([0x42; 16]));

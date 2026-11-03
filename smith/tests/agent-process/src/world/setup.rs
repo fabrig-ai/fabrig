@@ -17,7 +17,6 @@ pub(crate) enum Mode {
 #[serde(remote = "skein_llm::Provider")]
 enum ProviderWire {
     OpenAi,
-    OpenAiCodex,
     Anthropic,
 }
 

@@ -259,13 +259,11 @@ impl Component {
         for ((account, endpoint), ()) in &self.bindings {
             if *account == name.account {
                 let options = self.options.get(endpoint).ok_or(GrantError::Scheme)?;
-                let bounds =
-                    skein_llm::client::CredentialLimits { value: self.limits.grant_value_bytes, account_id: 0 };
+                let bounds = skein_llm::client::CredentialLimits { value: self.limits.grant_value_bytes };
                 if skein_llm::client::check_credential(&credential, &bounds).is_err() {
                     return Err(GrantError::Bounds);
                 }
                 let accepted = match options.provider {
-                    skein_llm::Provider::OpenAiCodex => false,
                     skein_llm::Provider::OpenAi => true,
                     skein_llm::Provider::Anthropic => match credential.scheme {
                         skein_llm::Scheme::Key => true,
@@ -736,7 +734,6 @@ mod tests {
             let endpoint = match provider {
                 Provider::OpenAi => Endpoint::openai(),
                 Provider::Anthropic => Endpoint::anthropic(),
-                Provider::OpenAiCodex => unreachable!("public fixture dialects"),
             };
             let endpoints = Endpoints::new(
                 Box::new([crate::ConfiguredEndpoint {
@@ -745,7 +742,7 @@ mod tests {
                     handshake: Duration::from_secs(1),
                     destination: connection::Endpoint {
                         limits: client,
-                        credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
+                        credential: skein_llm::client::CredentialLimits { value: 128 },
                         address: core::net::SocketAddr::from(([127, 0, 0, 1], 443)),
                         transport: connection::Transport::Plaintext,
                         llm: endpoint,
@@ -770,9 +767,9 @@ mod tests {
                     assert_eq!(installed.value.as_ref(), b"fixture");
                     skein_llm::client::check_credential(
                         &installed,
-                        &skein_llm::client::CredentialLimits { value: 128, account_id: 0 },
+                        &skein_llm::client::CredentialLimits { value: 128 },
                     )
-                    .expect("installed credential has no account id");
+                    .expect("installed credential fits its value bound");
                 }
                 Err(_) => assert_eq!(component.grants.read(name, Time::ZERO).err(), Some(GrantError::Missing)),
             }

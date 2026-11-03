@@ -112,7 +112,6 @@ impl Protocol {
                 usage_fields: configuration.usage_fields,
                 provider: match configuration.endpoint.provider {
                     skein_llm::Provider::OpenAi => documents::Provider::OpenAi,
-                    skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                     skein_llm::Provider::Anthropic => documents::Provider::Anthropic,
                 },
                 path: configuration.endpoint.target.clone(),
@@ -129,7 +128,7 @@ impl Protocol {
                 handshake: Duration::from_secs(2),
                 destination: skein_llm_connection::Endpoint {
                     limits: translation.client,
-                    credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
+                    credential: skein_llm::client::CredentialLimits { value: 128 },
                     address: "127.0.0.1:443".parse().expect("fixture address"),
                     transport: skein_llm_connection::Transport::Plaintext,
                     llm: configuration.endpoint,
