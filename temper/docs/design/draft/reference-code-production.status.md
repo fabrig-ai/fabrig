@@ -30,19 +30,6 @@
     box's agent `conversations` 1, so every `sub_agent` is refused as too
     many, and `../client/tools.md`, 5.5 has `chat start` and `goal start`
     take a main model and effort alone, naming no sub-agents.
-  - **6, 14: the light rules (N4).** `../domain/forge.md`, 8.2 (steps 3 and
-    6), 8.7 and 10: every change is checked by CI at its head and updated
-    when first if it lacks its base's tip, whatever its landing branch's
-    rule.
-  - **6: a change's result (N15).** `../domain/forge.md`, 8.2, step 7: a
-    change's result words are its landing's facts, without its producer's
-    report.
-  - **7: early starts (N2).** `../domain/worker.md`, 4.1 and section 5: no
-    checkout start merges dependencies' pushed heads onto the landing
-    branch's tip. `../domain/forge.md`, section 8 says nothing of a
-    producer's early start, its once rule, its refusal on a conflict, or
-    an amendment refused for dropping a dependency a producer started
-    from.
   - **10, 14: g's tier (N5).** `../domain/after-landing.md`, sections 1 to
     3: a tier follows the one branch it names and judges the landings on
     it; none follows the goals' own branches as they come and go, judges

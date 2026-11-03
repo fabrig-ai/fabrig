@@ -126,6 +126,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         task_history_refused: domain.inbox_messages,
         task_run_replies: domain.inbox_messages,
         task_definition_dependencies: domain.dependencies,
+        task_record_started_from: domain.dependencies,
         task_definition_waiting_on: domain.dependencies,
         task_definition_added: domain.dependencies,
         circle_tasks: domain.circle,

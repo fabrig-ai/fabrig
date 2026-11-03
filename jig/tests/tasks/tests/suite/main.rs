@@ -11,6 +11,7 @@ mod holds;
 mod inbox;
 mod jobs;
 mod kept;
+mod kept_start;
 mod lifecycle;
 mod llm;
 mod memory;
@@ -28,6 +29,7 @@ mod repin_order;
 mod replay;
 mod restart;
 mod restore_open;
+mod started_from;
 mod verdict_fields;
 
 mod fuzzy {

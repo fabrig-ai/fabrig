@@ -272,6 +272,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         task: 51,
         entry: 990,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Unknown,
@@ -281,6 +282,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     })));
     driver.settle();
@@ -306,6 +308,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         task: 51,
         entry: 991,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Unknown,
@@ -315,6 +318,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     })));
     restored.settle();

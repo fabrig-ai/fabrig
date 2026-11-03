@@ -417,6 +417,8 @@ impl Domain {
             landings: config.landing.landings,
         };
         let link_rng = skein_lib::Rng::new(config.core.seed);
+        config.core.kept_starts =
+            Box::new([tasks::KeptStart { connector: forge_connector, code: forge_route::CHANGE_CODE }]);
         let mut core = Core::new(config.core, &core_limits(limits))?;
         // temper/docs/design/domain/agent.md, 8.2: the person answers in their inbox.
         core.person_answers();
