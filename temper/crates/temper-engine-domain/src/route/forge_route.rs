@@ -16,6 +16,7 @@ pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
+mod change_llm;
 mod tier_route;
 pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
@@ -2180,11 +2181,6 @@ pub(crate) fn change_batch(
             b"change's landing, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).".as_slice(),
         )));
     }
-    for change in changes {
-        if change.producer.is_some() || change.llm != crate::ChangeLlm::default() {
-            return Err(ChangeRefused::Refusal(tasks::Refusal::Spec));
-        }
-    }
     if let Some(words) = super::goal::change_refusal(domain, task) {
         return Err(ChangeRefused::Words(words));
     }
@@ -2331,6 +2327,17 @@ fn chat_change(
     base: Box<[u8]>,
     spend: u64,
 ) -> Result<super::Delegate, tasks::Refusal> {
+    let producer_charter = change.producer.unwrap_or(domain.config.forge_charter);
+    let review_charter = 4;
+    if change.producer.is_some() && domain.core.charter(producer_charter).is_none() {
+        return Err(tasks::Refusal::Executor);
+    }
+    if let Some(choice) = &change.llm.producer {
+        domain.core.tasks.check_llm(producer_charter, context.authority.models, choice)?;
+    }
+    if let Some(choice) = &change.llm.review {
+        domain.core.tasks.check_llm(review_charter, context.authority.models, choice)?;
+    }
     // The procedure takes a task and a level, and its producer another of each; with none at
     // all, the delegation's own admission names the missing authority.
     if context.tasks_left == 1 {
@@ -2345,9 +2352,9 @@ fn chat_change(
     let mut authority = context.authority.clone();
     authority.grants = change_grants(domain, env, repository, &authority.grants)?;
     let mut kinds = List::with_capacity(3);
-    kinds.push(tasks::AuthorityExecutor::Charter(domain.config.forge_charter)).expect("producer kind");
-    if domain.config.forge_charter != 4 {
-        kinds.push(tasks::AuthorityExecutor::Charter(4)).expect("review kind");
+    kinds.push(tasks::AuthorityExecutor::Charter(producer_charter)).expect("producer kind");
+    if producer_charter != review_charter {
+        kinds.push(tasks::AuthorityExecutor::Charter(review_charter)).expect("review kind");
     }
     let gates = configured_gates(domain, env, repository, &base).ok_or(tasks::Refusal::Spec)?;
     for gate in &gates {
@@ -2363,6 +2370,15 @@ fn chat_change(
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
     authority.note_resources = Box::new([]);
+    let mut parameters = List::with_capacity(3);
+    for parameter in change_parameters(domain.config.forge_connector, repository.provider, base) {
+        parameters.push(parameter).expect("repository and base");
+    }
+    if change.producer.is_some() || change.llm != crate::ChangeLlm::default() {
+        parameters
+            .push(tasks::Parameter::Bytes { name: 11, value: change_llm::spell(change.producer, &change.llm) })
+            .expect("producer and LLM choices");
+    }
     Ok(super::Delegate {
         deadline: tasks::Deadline::Named,
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: CHANGE_CODE },
@@ -2370,7 +2386,7 @@ fn chat_change(
             job: None,
             asks: false,
             words: change.words.clone(),
-            parameters: Box::new(change_parameters(domain.config.forge_connector, repository.provider, base)),
+            parameters: parameters.into_boxed(),
             inputs: Box::new([]),
         },
         // Leave room for the pull's words and address as well as the merge id.
@@ -2427,6 +2443,7 @@ fn change_recovery(domain: &Domain, task: u64) -> Option<forge_change::Authority
 
 fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpend> {
     let context = domain.core.tasks.delegation(task)?;
+    let row = domain.forge.change(task)?;
     let left = context
         .numbers
         .budget
@@ -2436,9 +2453,9 @@ fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpen
     Some(forge_change::DelegateSpend {
         recovery: change_recovery(domain, task)?,
         left,
-        coding: jig_domain_core::reserve_floor(&domain.core.charter(domain.config.forge_charter)?.policy)
+        coding: jig_domain_core::reserve_floor(&domain.core.charter(row.producing_charter)?.policy)
             .unwrap_or(u64::MAX),
-        review: jig_domain_core::reserve_floor(&domain.core.charter(domain.config.forge_charter)?.policy)
+        review: jig_domain_core::reserve_floor(&domain.core.charter(row.review_charter)?.policy)
             .unwrap_or(u64::MAX),
     })
 }
