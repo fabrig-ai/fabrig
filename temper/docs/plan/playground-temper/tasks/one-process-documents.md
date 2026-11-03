@@ -9,6 +9,7 @@ files = [
   "temper/tests/one-process/src/fixtures.rs",
   "temper/tests/one-process/src/stories.rs",
   "temper/tests/one-process/src/restart_control.rs",
+  "temper/crates/temper-playground/src/documents.rs",
   "Cargo.lock",
 ]
 effort = "medium"
@@ -66,3 +67,39 @@ Acceptance:
 
 As the implementer's text says, and: each item deleted and what replaces it; the dependencies
 dropped or kept.
+
+## Answers
+
+2026-11-03. **Q: the playground's `world_document` applies the chat stories' policy
+unconditionally; the one-process copy only under `stories::uses_stock()`, after
+`stories::configure`. A seam in the playground, or reconstruct the values here?**
+A seam in the playground, made on the answerer's branch (unbuilt: heavy was not reachable from
+the answer call; this run builds and checks it). `temper_playground::documents` now has:
+
+- `world_document_with(edit: impl FnOnce(&mut Value)) -> Value`: the same steps as before, with
+  `edit` applied after `stage_policies` and the engine's members' removal, before the shared
+  limits (`people.amendment_bytes` ...) and `turn_bounds::apply`;
+- `chat_policy(&mut Value)`: the block that was inline (seed projects on policy 2, delegation
+  depth 4, the five chat limits);
+- `world_document()` = `world_document_with(chat_policy)`, its value unchanged.
+
+The one-process world's `world_document` becomes
+`documents::world_document_with(|value| { stories::configure(value); if stories::uses_stock() {
+documents::chat_policy(value) } })`, then `lower::configure`, `lower::github::configure`,
+`m15::configure`. Moving `stories::configure` after the members' removal changes nothing (it
+touches no `engine.charters/templates/policies/rules`), and the harness's three configures after
+`turn_bounds::apply` change nothing (they set none of its keys): this is no reconstruction and
+every value stays as today. Do not undo any of the playground's edits. You may change
+`temper/crates/temper-playground/src/documents.rs` only to repair this seam if it fails to
+build or lint; add `heavy cargo nextest run -p temper-playground --lib` and
+`heavy cargo clippy -p temper-playground --all-targets -- -D warnings` to step 3.
+
+The same rule for any other item (`files`' held-change handover, an agent edit): a difference
+that is a story's or the harness's conditional edit stays here, applied over the playground's
+item; a value that differs unconditionally is still a question.
+
+**Q: `playground-documents`' report is absent.** Its list of public items is
+`temper/crates/temper-playground/src/documents.rs`, `documents/*.rs` and `fakes.rs`, `fakes/*.rs`
+as merged on the trunk: read the public items there, each named as the one-process item it
+copies (`playground-documents`' spec lists the sources). Name each one you replace in your
+report.

@@ -80,9 +80,15 @@ pub fn document() -> Vec<u8> {
     value.as_object_mut().expect("deployment").remove("world_settings");
     serde_json::to_vec(&value).expect("deployment JSON")
 }
-/// The deployment value before harness edits.
+/// The deployment value before harness edits: the chat stories' policy.
 #[must_use]
 pub fn world_document() -> serde_json::Value {
+    world_document_with(chat_policy)
+}
+/// The deployment value with `edit` applied after the staged policies and before the
+/// composition's shared limits, where a harness's own policy goes.
+#[must_use]
+pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_json::Value {
     let mut value: serde_json::Value = serde_json::from_slice(&channel::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("object").remove("service");
     let worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("worker JSON");
@@ -114,26 +120,7 @@ pub fn world_document() -> serde_json::Value {
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
-    {
-        for seed in value["engine"]["projects"].as_array_mut().expect("seed projects") {
-            seed["policy"] = 2.into();
-        }
-        for project in value["world_settings"]["policies"].as_array_mut().expect("world policies") {
-            project["policy"]["ceiling"]["delegation"]["depth"] = 4.into();
-            for role in project["policy"]["roles"].as_array_mut().expect("roles") {
-                role["authority"]["delegation"]["depth"] = 4.into();
-            }
-        }
-        for (name, count) in [
-            ("core.policy_bytes", 4096),
-            ("authority.grants", 16),
-            ("authority.executors", 8),
-            ("tasks.executor_kinds", 8),
-            ("notes.scopes", 32),
-        ] {
-            value["engine"]["limits"]["overrides"][name] = count.into();
-        }
-    }
+    edit(&mut value);
     for (name, count) in [
         ("people.amendment_bytes", 512),
         ("tasks.hold_bytes", 256),
@@ -153,6 +140,28 @@ pub fn world_document() -> serde_json::Value {
     value["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
     turn_bounds::apply(&mut value, agent().limits.bodies.turn_body);
     value
+}
+/// The chat stories' policy: seed projects on the world's policy 2, delegation depth 4, and the
+/// chat limits.
+pub fn chat_policy(value: &mut serde_json::Value) {
+    for seed in value["engine"]["projects"].as_array_mut().expect("seed projects") {
+        seed["policy"] = 2.into();
+    }
+    for project in value["world_settings"]["policies"].as_array_mut().expect("world policies") {
+        project["policy"]["ceiling"]["delegation"]["depth"] = 4.into();
+        for role in project["policy"]["roles"].as_array_mut().expect("roles") {
+            role["authority"]["delegation"]["depth"] = 4.into();
+        }
+    }
+    for (name, count) in [
+        ("core.policy_bytes", 4096),
+        ("authority.grants", 16),
+        ("authority.executors", 8),
+        ("tasks.executor_kinds", 8),
+        ("notes.scopes", 32),
+    ] {
+        value["engine"]["limits"]["overrides"][name] = count.into();
+    }
 }
 /// The composition's startup file contents.
 #[must_use]
