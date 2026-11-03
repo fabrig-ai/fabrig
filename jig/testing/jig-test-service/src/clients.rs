@@ -67,6 +67,7 @@ impl ::core::fmt::Debug for Clients {
             .field("durable", &self.durable)
             .field("secret_owners", &self.secret_owners)
             .field("next_secret", &self.next_secret)
+            .field("public_names", &self.public_names)
             .finish()
     }
 }
