@@ -169,7 +169,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         ("notes.entries_per_scope", 2),
         ("notes.recalled", 2),
         ("people.holdings", 2),
-        ("people.pending", 2),
+        ("people.pending", 5),
         ("people.waiters", 2),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();

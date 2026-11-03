@@ -159,3 +159,32 @@ fn handover_reads_its_path_and_bounds_the_file_before_reading() {
     assert_eq!(read_handover(&mut disk, &admin).expect("admin path").expect("present").expose(), fakes::ADMIN_TOKEN);
     assert_eq!(disk.open_handles(), before, "refusals retain no handle");
 }
+
+#[test]
+fn story_a_start_makes_its_project() {
+    // The native page's inputs through Try the playground, before its reply.
+    let log = skein_ui_web::log::read(include_bytes!("fixtures/story-a-start.log")).expect("start's session log");
+    let world = story::world(crate::stories::A.start(log.seed, log.start));
+    let parameters = story::parameters(&world);
+    let mut world =
+        crate::programs::with(parameters, || skein_playground::replay::replay(world, story::reach(), &log, &mut ()))
+            .unwrap_or_else(|differs| panic!("{differs:#?}"));
+    for _ in 0..10_000 {
+        story::step(&mut world);
+        let Process::Service(service) = &world.processes()[0] else { panic!("service first") };
+        let engine = service.service.engine_domain().expect("running engine");
+        if let Some(playground) = engine.playground()
+            && let Some(project) = playground.project
+        {
+            assert_eq!(project, 1, "the fresh story's project");
+            assert_eq!(playground.account, Some(1), "the scripted account precedes its project");
+            return;
+        }
+        if !world.busy()
+            && let Some(due) = world.next_due()
+        {
+            world.advance(due);
+        }
+    }
+    panic!("StartPlayground did not make its project");
+}
