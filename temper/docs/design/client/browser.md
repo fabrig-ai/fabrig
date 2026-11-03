@@ -466,9 +466,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   mockups. At phone width, 760 px and under as in the mockups, the
   banner keeps temper's name and the view's "Menu" alone (`README.md`,
   5.1): its summary a ☰, an image drawn over its word, and its
-  content the projects, the navigation and the corner (the link's
-  state, the person, "Sign out") in a panel that opens under the
-  banner's end, as `terminal-chat.css` draws the mockups' menu. Theirs
+  content the project's switcher, its first row, the navigation and
+  the corner (the link's state, the person, "Sign out") in a panel
+  that opens under the banner's end, as `terminal-chat.css` draws the
+  mockups' menu. Theirs
   holds the navigation alone, which leaves a phone no way to choose a
   project or sign out; temper's holds the corner and the projects too.
   Wider, `temper.css` draws the menu's content in the banner whether
@@ -477,6 +478,24 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   elsewhere the ☰ is drawn at every width. Choosing an entry folds the
   menu: skein's page folds its open disclosures when its address moves
   (skein's `ui-web.md`, section 7).
+- **The banner is one quiet line,** on the canvas with no fill of its
+  own: its words on the wordmark's baseline, the navigation plain
+  words, the inactive ones `--temper-faint`, the current one ink. The
+  switcher draws the open project's name with a chevron; wider than
+  phone width its list drops under it, the open one ticked. "Set up
+  temper →" is the banner's one coloured control, outlined in the
+  accent, its arrow drawn by the sheet (`README.md`, 5.1).
+- **The chats page reads as a terminal** (`README.md`, 3.5): a narrow
+  left pane under the banner, of the viewport's height and scrolling
+  alone, ruled from the rest; in it the new chat's bar and context as
+  lines, the heading "Chats" in small capitals over its filters as
+  plain words and a flat list, and the playground's banner over a
+  hairline, in the chats' size. The rest is the prompt, a bare box,
+  its hint under its left edge and the composer's line under its
+  right, the chooser's list dropping below it; under 1100 px the hint
+  gives way to that line. At phone width the pane follows the prompt,
+  as a section of its own. The sheet selects the pane's page by the
+  pane (`:has`), so a page without it is drawn as before.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
@@ -485,7 +504,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   (skein's `ui-web.md`, section 7), which the view allows in a
   composer's words, counted within its bound (`README.md`, 5.1). A
   chat's shows its placeholder, "Message T6…", while it is empty, as
-  `placeholder`, its name staying "Message" (`README.md`, 3.5). They
+  `placeholder`, its name staying "Message", and the chats' "Describe
+  a change", its name staying "Start a chat" (`README.md`, 3.5). They
   grow with their words and shrink after sending by `temper.css` alone
   (`field-sizing: content`, from one line to a bound), with no
   component and no script of temper's; a browser without it shows an

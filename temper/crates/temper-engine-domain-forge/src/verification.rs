@@ -50,15 +50,22 @@ impl Domain {
         LandingRed::NotRed
     }
 
+    /// Borrow the admitted tiers' retained verdicts until the change releases its landing.
+    #[must_use]
+    pub fn change_verdicts(&self, task: u64) -> &[TierVerification] {
+        for (_, row) in &self.verifications {
+            if row.changes.contains(&task) {
+                return &row.tiers;
+            }
+        }
+        &[]
+    }
+
     /// The landing's retained verdicts, including a merge observed before its change steps.
     #[must_use]
     pub fn change_verification(&self, task: u64) -> change::Verification {
-        for (_, row) in &self.verifications {
-            if row.changes.contains(&task) {
-                return fact(row);
-            }
-        }
-        change::Verification::Unfollowed
+        let tiers = self.change_verdicts(task);
+        if tiers.is_empty() { change::Verification::Unfollowed } else { fact(tiers) }
     }
 }
 
@@ -106,9 +113,9 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
     save(row, out);
 }
 
-fn fact(row: &Verification) -> change::Verification {
+fn fact(tiers: &[TierVerification]) -> change::Verification {
     let mut cleared = true;
-    for tier in &row.tiers {
+    for tier in tiers {
         if tier.repaired.is_some() {
             continue;
         }
