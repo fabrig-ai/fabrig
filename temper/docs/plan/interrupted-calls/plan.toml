@@ -1,0 +1,3 @@
+draft = "interrupted-calls"
+repo = "fabrig"
+sources = ["temper/docs/plan/interrupted-calls/inputs/request.md", "skein/docs/design/shell.md", "AGENTS.md"]
