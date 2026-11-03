@@ -736,3 +736,214 @@ fn a_transcript_read_as_unread_fails_the_run_and_the_next_starts_fresh() {
 fn park_chat(world: &mut World, spent: u64) {
     world.park_for_message(spent);
 }
+
+fn live_funding_work() -> World {
+    use jig_core_world::fixtures::{delegate, job_world, live_row, member};
+    let (mut world, procedure) = job_world(160, true);
+    let mut child = member(&world, tasks::Executor::Job { kind: 7 }, b"");
+    child.spec.job = Some(Box::new(tasks::JobSpec {
+        bytes: b"tier".as_slice().into(),
+        deadline: skein_lib::Duration::from_secs(60),
+    }));
+    child.contract = tasks::Contract::Job { bytes: 0 };
+    child.authority.budget.spend = 0;
+    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let (step, connector, code, _) = world.procedure_inputs.last().expect("tier procedure");
+    let event = core::Event::ProcedureStep {
+        task: procedure,
+        step: *step,
+        connector: *connector,
+        code: u32::from(*code),
+        decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+    };
+    world.send(root::Event::Core(event));
+    world.job_hello(
+        Token::new(8),
+        1,
+        Box::new([jig_domain_host::JobBound {
+            kind: jig_domain_host::JobKind(7),
+            spec: 64,
+            result: 32,
+            deadline: skein_lib::Duration::from_secs(60),
+        }]),
+    );
+    assert_eq!(world.jobs.len(), 1);
+    let run = world.assignments[0];
+    let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"second change");
+    let second = delegate(&mut world, run, 2, child);
+    assert!(matches!(live_row(&world, second).phase, tasks::Phase::Active(tasks::Active::Running { .. })));
+    world
+}
+
+fn funding_chat(world: &mut World, key: u8) -> Option<u64> {
+    let ask = jig_core_world::fixtures::chat(world, 1, b"third change".as_slice().into());
+    crate::read_support::request(world, key, ask);
+    match world.people_answers.last().expect("chat answer") {
+        jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Created { first, .. }) => Some(*first),
+        jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Refused(
+            jig_domain_people::Refusal::Authority {
+                lacking: jig_domain_people::Lack::Funding | jig_domain_people::Lack::Budget { left: 0, .. },
+                ..
+            },
+        )) => None,
+        answer @ (jig_domain_people::Reply::Signer(_)
+        | jig_domain_people::Reply::SignedIn { .. }
+        | jig_domain_people::Reply::SignedOut
+        | jig_domain_people::Reply::Outcome(_)
+        | jig_domain_people::Reply::Again(_)
+        | jig_domain_people::Reply::Full { .. }
+        | jig_domain_people::Reply::Refused(_)) => {
+            panic!("chat admission: {answer:?}")
+        }
+    }
+}
+
+fn raise_run_funding(world: &mut World) {
+    use jig_domain_core::settings;
+    let mut rules = world.domain.settings().rules().clone();
+    rules.period_spend *= 2;
+    world.send(root::Event::Core(core::Event::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(160)),
+        sign_in: world.session(),
+        key: [160; 16],
+        digest: [160; 32],
+        change: Box::new(settings::Change {
+            against: world.domain.settings().newest(),
+            running: settings::Running::Stays,
+            items: Box::new([settings::Item {
+                setting: settings::Setting::Rules,
+                edit: settings::Edit::Set(settings::Value::Rules(Box::new(rules))),
+            }]),
+        }),
+    }));
+    assert_eq!(world.domain.settings().newest(), 2);
+    crate::read_support::request(
+        world,
+        161,
+        jig_domain_people::Ask::ChangePolicy {
+            project: 1,
+            change: jig_domain_people::PolicyChange::ProjectSpend { period_spend: 2000 },
+        },
+    );
+    crate::read_support::request(world, 162, jig_domain_people::Ask::SetPool { project: 1, person: 1, budget: 500 });
+}
+
+fn funding_wait(world: &mut World, task: u64) -> Option<core::documents::TaskRunWait> {
+    use jig_core_world::reads;
+    world.reads = Some(reads::Parties::new(world.store.applied));
+    reads::ask(world, 160, core::reads::Read::Task { task });
+    let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("task document") };
+    let core::documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
+    document.run_wait
+}
+
+fn release_funding_task(world: &mut World, task: u64) {
+    use jig_domain_people::Ask;
+    crate::read_support::request(world, 165, Ask::Stop { project: 1, task });
+    let revision = jig_core_world::fixtures::live_row(world, task).revisions.hold;
+    crate::read_support::request(world, 166, Ask::Release { project: 1, task, revision, again: None });
+    assert!(matches!(
+        world.people_answers.last(),
+        Some(jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Released { .. }))
+    ));
+}
+
+fn funding_room(world: &mut World) {
+    let (task, attempt) = world.assignments[0];
+    world.send(root::Event::Answer {
+        channel: Token::new(7),
+        task,
+        attempt,
+        cumulative: 0,
+        end: tasks::End::Parked,
+        read: None,
+        refused: Box::new([]),
+    });
+}
+
+#[test]
+fn a_due_change_dispatches_after_funding_changes_with_live_work() {
+    use jig_core_world::fixtures::live_row;
+    for old_first in [false, true] {
+        replaced_funding_workspace(old_first);
+    }
+    for (grant_first, stop) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut world = live_funding_work();
+        crate::read_support::request(
+            &mut world,
+            159,
+            jig_domain_people::Ask::SetPool { project: 1, person: 1, budget: 300 },
+        );
+        assert!(matches!(
+            world.people_answers.last(),
+            Some(jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::PoolSet { .. }))
+        ));
+        assert_eq!(funding_chat(&mut world, 163), None, "the exhausted pool refuses the third chat");
+        raise_run_funding(&mut world);
+        account_failed(&mut world);
+        let task = funding_chat(&mut world, 164).expect("funded third chat");
+        assert_eq!(live_row(&world, task).phase, tasks::Phase::Active(tasks::Active::Due));
+        let wait = funding_wait(&mut world, task);
+        assert!(
+            matches!(
+                wait,
+                Some(core::documents::TaskRunWait::Account {
+                    why: core::documents::TaskWaitWhy::Source(core::documents::TaskSourceState::NeedsSignIn),
+                    ..
+                })
+            ),
+            "the blocked task names the sign-in needed to proceed: {wait:?}"
+        );
+        if stop {
+            release_funding_task(&mut world, task);
+        }
+        if grant_first {
+            account_granted(&mut world);
+        } else {
+            funding_room(&mut world);
+        }
+        if live_row(&world, task).phase == tasks::Phase::Active(tasks::Active::Due) {
+            assert!(funding_wait(&mut world, task).is_some());
+        }
+        if grant_first {
+            funding_room(&mut world);
+        } else {
+            account_granted(&mut world);
+        }
+        world.advance(skein_lib::Duration::from_secs(1));
+        assert_funded_assignment(&world, task);
+    }
+}
+
+fn replaced_funding_workspace(old_first: bool) {
+    let mut world = live_funding_work();
+    crate::read_support::request(
+        &mut world,
+        159,
+        jig_domain_people::Ask::SetPool { project: 1, person: 1, budget: 300 },
+    );
+    assert_eq!(funding_chat(&mut world, 163), None);
+    raise_run_funding(&mut world);
+    world.domain.script_workspaces();
+    let task = funding_chat(&mut world, 164).expect("funded third chat");
+    let old = world.domain.take_workspace().expect("first preparation in flight");
+    release_funding_task(&mut world, task);
+    let current = world.domain.take_workspace().expect("released preparation in flight");
+    if old_first {
+        world.send(root::Event::Core(old));
+        world.send(root::Event::Core(current));
+    } else {
+        world.send(root::Event::Core(current));
+        world.send(root::Event::Core(old));
+    }
+    world.advance(skein_lib::Duration::from_secs(1));
+    assert_funded_assignment(&world, task);
+}
+
+fn assert_funded_assignment(world: &World, task: u64) {
+    use jig_core_world::fixtures::live_row;
+    assert_eq!(world.assignments.iter().filter(|(assigned, _)| *assigned == task).count(), 1);
+    for other in [task, world.assignments[1].0, world.jobs[0].1.run.raw()] {
+        assert!(matches!(live_row(world, other).phase, tasks::Phase::Active(tasks::Active::Running { .. })));
+    }
+}
