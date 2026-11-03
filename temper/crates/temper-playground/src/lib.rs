@@ -10,3 +10,7 @@ pub use story::{Fakes, Links, Start, world};
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests/worker.rs"]
+mod worker_tests;
