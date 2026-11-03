@@ -51,18 +51,11 @@ pub(crate) fn workspace_prepared(
     workspace: Option<Box<[u8]>>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    let pending = core.workspace_flight(task);
-    if let Some((token, _)) = pending {
-        drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
-    }
-    let issued = match pending {
-        Some((_, issued)) => Some(issued),
-        None => None,
-    };
-    if issued != Some(attempt) {
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
+    let Some((token, issued)) = core.workspace_flight(task) else { return out };
+    if issued != attempt {
         return out;
     }
+    drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
     let Some(context) = core.contexts.get(&task).cloned() else {
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
@@ -512,10 +505,17 @@ pub(crate) fn route_prepared_agent(
     busy: bool,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
+    let Some(row) = core.tasks.task(context.task) else { return out };
+    if row.phase != tasks::Phase::Active(tasks::Active::Due) {
+        return out;
+    }
     if busy {
         remember_due(core, context);
     } else {
         let number = context.task;
+        if let Some((token, _)) = core.workspace_flight(number) {
+            drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
+        }
         let previous_attempt = context.previous_attempt;
         let fresh = context.tries.transient != 0;
         super::results::clear(core, number);
