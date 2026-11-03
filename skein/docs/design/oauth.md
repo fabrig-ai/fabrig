@@ -897,7 +897,10 @@ and a `locked` that comes later is answered by `unlock` at once, until
 
 The client's own limits are section 5's. `skein_oauth_accounts::valid`
 checks account, exchange and listener capacities, client limits and the
-HTTP, TLS and io edges. The redirects it refuses take no additional
+HTTP, TLS and io edges. `Component::check` checks a list of accounts
+against the limits as making the component does, refusing with the same
+`Unusable`, and makes nothing: it takes no generator, so an owner checks
+an account it will add later without making one (lib.md, section 8). The redirects it refuses take no additional
 connection slot. Trusted roots are shared configuration. Neither the
 accounts component nor its listener requires a sum of heap prices.
 

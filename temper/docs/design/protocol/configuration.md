@@ -532,8 +532,9 @@ have one, an engine alone none. Each:
 - **The worker must fit the configured charters.** After those name checks,
   startup builds jig's core configuration once, expands its instruction files,
   and projects its fleet needs with jig's `fleet_needs::configured`. The
-  worker's bounds pass through the same `hello_bounds` conversion as its
-  hello and jig's `shortfall` selects the first unmet requirement. Startup
+  worker's bounds are its agent configuration's `bounds`, which its
+  hello carries unchanged, and jig's `shortfall` selects the first unmet
+  requirement. Startup
   names that requirement's configuration path, required and offered amounts,
   with its dimension's units; the same core configuration then checks the
   root. Admission policy stays in jig, including checks fitting within a

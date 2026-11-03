@@ -182,6 +182,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::Undelivered { .. }
         | core::Now::SignInRefused { .. }
         | core::Now::WatchRefused { .. }
+        | core::Now::TaskRead { .. }
         | core::Now::Account(_)
         | core::Now::RunText { .. }
         | core::Now::NotesIndexed { .. }

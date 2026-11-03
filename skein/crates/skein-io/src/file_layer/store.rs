@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 use skein_lib::{Queue, Token};
 
-use super::{FileIo, Pending};
+use super::{Contents, FileIo, Pending};
 use crate::digest::{Digest, digest};
 use crate::file::{Event, Expect, Residue};
 use crate::kernel::{Complete, Done, Error, Fd, Kind, Op, OpenHow, Submit, is_name};
@@ -64,7 +64,7 @@ pub(super) struct Store {
     temp_exists: bool,
     committed: bool,
     residue: Option<Residue>,
-    bytes: Option<Box<[u8]>>,
+    bytes: Option<Contents>,
     expected: Expect,
     produced: Digest,
     no_follow: bool,
@@ -189,6 +189,8 @@ pub(super) fn start(
     let private = private_owner.is_some();
     let no_follow = no_follow || private;
     let produced = digest(&bytes);
+    #[expect(clippy::disallowed_methods, reason = "io.md, 5: retain the store's boxed allocation at its exact length")]
+    let bytes = Contents(bytes.into_vec());
     let store = Store {
         owner,
         phase: Phase::ParentOpening,
@@ -791,7 +793,7 @@ fn success(
             let fd = done_fd(done);
             store.temporary = Some(fd);
             store.temp_exists = true;
-            let bytes = store.bytes.take().expect("store bytes held until temporary opens");
+            let bytes = store.bytes.take().expect("store bytes held until temporary opens").0.into_boxed_slice();
             if bytes.is_empty() {
                 store.phase = Phase::TempSyncing;
                 issue(io, store, Op::Sync { fd }, subs);

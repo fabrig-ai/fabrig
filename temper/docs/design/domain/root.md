@@ -419,6 +419,12 @@ to the forge; a timer to the child that armed it. What temper adds:
   subscriptions to tasks and timers go to the core as named actions, and
   the forge's reads, effects and topics to the forge (5.5); a proposal of
   a forge effect goes to the forge, which keeps it, then to the core.
+- **Task reads decide nothing.** `read_task` goes to jig before durable-call
+  replay. jig checks the read family and task relationships, including the
+  immediate requester retained on an ended delegate's owner row. The root
+  translates its bounded answer through the fresh-read door; it makes no
+  visibility decision. Escalations name the held task and hold revision and
+  tell the recipient to use `read_task` for its source facts and hold account.
 - **Rendered by hand-out.** A decided call's answer goes out to be
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked

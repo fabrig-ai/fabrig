@@ -108,7 +108,6 @@ fn provider_templates(
     config: &config::Engine,
     runtime: Option<&mut AccountsRuntime>,
     limits: &driver::Limits,
-    crypto: &CryptoRng,
     installation_id: &[u8; 16],
 ) -> Result<Map<u32, driver::Account>, Problems> {
     let mut providers = Map::with_capacity(u32::try_from(config.llm.providers.len()).expect("provider count"));
@@ -138,7 +137,7 @@ fn provider_templates(
             check
                 .push(unkept(&account))
                 .or(Err(problem(Path::root().member(b"engine").member(b"llm").member(b"providers"), What::Bound)))?;
-            let _checked = driver::Component::new(check, limits, crypto.clone())
+            driver::Component::check(check, limits)
                 .or(Err(problem(Path::root().member(b"engine").member(b"llm").member(b"providers"), What::Form)))?;
             providers
                 .insert(number, account)
@@ -175,7 +174,7 @@ impl Accounts {
         }
         let crypto = CryptoRng::new(&seeds.crypto, 1)
             .ok_or(problem(Path::root().member(b"engine").member(b"llm").member(b"providers"), What::Bound))?;
-        let providers = provider_templates(config, runtime.as_mut(), &limits, &crypto, &seeds.installation)?;
+        let providers = provider_templates(config, runtime.as_mut(), &limits, &seeds.installation)?;
         Ok(Self {
             component: Component::new(application, providers, limits, crypto, secrets.page.rows),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },

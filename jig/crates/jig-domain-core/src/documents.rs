@@ -38,6 +38,7 @@ mod small;
 mod task_lines;
 pub mod task_query;
 pub(crate) mod task_tree;
+pub(crate) use task_tree::hold as task_hold;
 mod task_wait;
 
 use jig_domain_people::ApplicationScope;
