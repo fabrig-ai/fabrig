@@ -21,10 +21,10 @@ enum Parameter { number: NumericParameter, bytes: BytesParameter, resource: Reso
 record JobSpec { bytes: bytes 65536 deadline: duration }
 record JobContract { bytes: u32 }
 record JobResult { bytes: bytes 65536 }
-record Spec { words: bytes 65536 parameters: list 64 Parameter inputs: list 64 Number asks: bool job: option JobSpec }
+record Spec { words: bytes 65536 parameters: bytes 1048576 pieces Parameter inputs: list 64 Number asks: bool job: option JobSpec }
 enum PartKind { resource, pool, result, procedure, effect, outbox, hold }
 record PartSegment { bytes: bytes 4096 }
-record PartPath { segments: list 64 PartSegment }
+record PartPath { segments: bytes 65536 pieces PartSegment }
 enum PartKey { path: PartPath, number: Number }
 record Part { connector: u16 kind: PartKind key: PartKey }
 record FieldRule { name: bytes 4096 max: u32 }
@@ -53,11 +53,11 @@ record Budget { spend: u64 deadline: option u64 }
 record Authority {
     tools: Tools
     models: Models
-    grants: list 64 Grant
+    grants: bytes 65536 pieces Grant
     delegation: Delegation
     budget: Budget
     notes: Scopes
-    note_resources: list 64 ResourceScope
+    note_resources: bytes 65536 pieces ResourceScope
 }
 record Task { task: u64 }
 record Pool { project: u32 person: u64 period: u64 }
@@ -75,7 +75,7 @@ record FundingRecord {
     closed: bool
 }
 record Segment { bytes: bytes 4096 }
-record Name { connector: u16 path: list 64 Segment }
+record Name { connector: u16 path: bytes 65536 pieces Segment }
 record Run { task: u64 attempt: u64 }
 record Effect { entry: u64 }
 enum Writer { run: Run, effect: Effect }
@@ -101,7 +101,7 @@ record Member { deadline: Deadline
     authority: Authority numbers: Numbers funder: Funder
     dependencies: list 64 Number holdings: list 64 Holding wake: WakePolicy tracked: option u32
 }
-record RecurringTemplate { key: u32 batch: list 4 Member overlap: RecurringOverlap }
+record RecurringTemplate { key: u32 batch: bytes 67108864 pieces Member overlap: RecurringOverlap }
 record Creation { member: Member recurring: option RecurringTemplate }
 record ResultField { name: bytes 4096 value: bytes 65536 }
 record Approved { state: bytes 65536 words: option bytes 65536 }
@@ -145,7 +145,7 @@ record Amendment {
     spec: option Spec wake: option WakePolicy dependencies: option list 64 Number
     authority: option Authority llm: option LlmChoice reason: bytes 65536
 }
-record ProposedBatch { members: list 4 Creation }
+record ProposedBatch { members: bytes 67108864 pieces Creation }
 record ProposedEffect { connector: u16 authority: Authority attempt: u64 completion: u32 position: u32 purpose: u64 }
 record ProposedProcedureEffect { connector: u16 authority: Authority step: u64 purpose: u64 }
 record ProposedAmendment { task: u64 revision: u64 amendment: Amendment }
@@ -233,14 +233,14 @@ enum Escalation { unheld: UnheldEscalation, routing: RoutingEscalation, waiting:
 record PersonAnswer { by: u64 at: u64 }
 record PersonStallNotice { message: u64 at: u64 activity: u64 }
 record PersonWait { since: u64 stall: duration deadline: u64 notice: option PersonStallNotice }
-record RecurringState { template: RecurringTemplate last_batch: list 4 Number last_period: u64 pending_period: option u64 }
+record RecurringState { template: RecurringTemplate last_batch: list 1024 Number last_period: u64 pending_period: option u64 }
 record QuestionCredit { number: u64 answerer: Party asked: Party line: u64 }
 record TaskInterest { target: u64 held: bool result: bool }
 record TimerInterest { at: u64 period: option duration }
 record TopicInterest { connector: u16 topic: u64 }
 enum SubscriptionKind { task: TaskInterest, timer: TimerInterest, topic: TopicInterest }
 record Subscription { number: u64 kind: SubscriptionKind }
-record SavedResource { connector: u16 path: list 64 AuthoritySegment }
+record SavedResource { connector: u16 path: bytes 65536 pieces AuthoritySegment }
 record AnswerLine { task: u64 position: u64 }
 record QuestionLine { message: u64 line: u64 answer: option AnswerLine }
 record ProposalRow { proposal: u64 revision: u64 }
@@ -318,7 +318,7 @@ record TaskInterests {
     hold_wait_since: option u64
     hold_bound_since: option u64
     delegates: list 64 Number
-    result_followups: list 4 Number
+    result_followups: list 1024 Number
     references: list 64 Number
     subscriptions: list 64 Subscription
     wake: WakePolicy
@@ -395,7 +395,7 @@ record RefusalHoldOwner { hold: u64 }
 record RefusalHoldRevision { revision: u64 }
 enum Refusal { goals, grace, unproposable, person_revision: RefusalPersonRevision, resource_unavailable, not_ready, unknown, busy, duplicate, empty, batch, live, project, tree, depth, delegates, reference, subscription, dependencies, circle: RefusalCircle, executor, spec, contract, authority_shape, inputs, state, attempt, live_delegates, restore, read, turn, funding, hold_kind, hold_taken, holds, llm: RefusalLlm, account: RefusalAccount, dependency_ended: RefusalDependencyEnded, kept, placed: RefusalPlaced, hold_owner: RefusalHoldOwner, hold_revision: RefusalHoldRevision, kept_question: AnswerMessage, person_answers: AnswerMessage }
 versioned record TaskProblem { task: option u64 why: Refusal blocked_by: option list 8192 Number capacity: option Capacity }
-record ResultFollowupsDelegates { value: list 4 Creation }
+record ResultFollowupsDelegates { value: bytes 67108864 pieces Creation }
 record ResultFollowupsProposal { value: Proposal }
 enum ResultFollowups { delegates: ResultFollowupsDelegates, proposal: boxed ResultFollowupsProposal }
 record EndFinished { result: TaskResult cancel_delegates: bool }
