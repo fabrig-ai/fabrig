@@ -128,6 +128,7 @@ pub fn start() {
 }
 #[cfg(target_arch = "wasm32")]
 impl Shell {
+    /// One inbox turn: each report given to the host, its duties carried, then the page drawn.
     fn turn(&mut self, inbox: &Inbox<Report>) {
         let (now, wall) = platform::clocks();
         #[cfg(feature = "record")]
@@ -145,28 +146,8 @@ impl Shell {
                         | fetch::Report::StreamPiece { .. }
                 )
             );
-            let report = match report {
-                Report::Start => host::Report::Start,
-                #[cfg(feature = "record")]
-                Report::Mark => {
-                    if let Some(recorder) = &mut self.recorder {
-                        recorder.mark(&self.page.borrow());
-                    }
-                    continue;
-                }
-                #[cfg(feature = "record")]
-                Report::Save => {
-                    self.save_recording(false);
-                    continue;
-                }
-                Report::Due => {
-                    self.timer.fired();
-                    host::Report::Due
-                }
-                Report::Act(node, act) => host::Report::Act { node, act },
-                Report::Place(path) => host::Report::Place { path },
-                Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
-                Report::Carried(reports, writes) => host::Report::Carried { reports, writes },
+            let Some(report) = self.host_report(report) else {
+                continue;
             };
             #[cfg(feature = "record")]
             let duties = if let Some(recorder) = &mut self.recorder {
@@ -176,67 +157,80 @@ impl Shell {
             };
             #[cfg(not(feature = "record"))]
             let duties = self.host.report(report);
-            #[cfg(feature = "record")]
-            if duties.departs() {
-                self.save_recording(true);
-            }
-            let mut requests = adapter::requests(duties.asked);
-            requests.navigate = duties.navigate;
-            if requests.navigate.is_some() {
-                // This acknowledged departure erases its finished request before
-                // navigating. The previous turn's close warning is already stale.
-                web_sys::window().expect("window").set_onbeforeunload(None);
-            }
-            if let Some(to) = duties.replace {
-                let window = web_sys::window().expect("window");
-                window.set_onbeforeunload(None);
-                window
-                    .location()
-                    .replace(std::str::from_utf8(&to).expect("jig address is UTF-8"))
-                    .expect("replace authorization address");
-            }
-            let mut carried = Vec::new();
-            transport::carry(requests, &mut self.store, &mut self.platform, &mut carried);
-            if duties.writes != 0 || !carried.is_empty() {
-                inbox.raise(Report::Carried(carried, duties.writes));
-            }
-            if read_on {
-                self.platform.fetch.read_on();
-            }
-            if let Some((path, replace)) = duties.show {
-                self.history.show(&path, replace);
-                new_page = !replace;
+            let navigates = duties.show.is_some();
+            let shown = self.carry(inbox, duties, read_on);
+            if navigates {
+                new_page = shown;
             }
         }
         let mut ops = Vec::new();
         self.host.draw(&mut self.page.borrow_mut(), &mut ops);
         self.dom.apply(&ops);
         let document = web_sys::window().expect("window").document().expect("document");
-        // Nodes can be reused by a later page: remove this shell's previous
-        // tab policy before applying it to the current forge links.
-        for _ in 0..temper_client_view::forge_sign_in::FORGES {
-            let Some(link) =
-                document.query_selector("a[data-temper-forge-sign-in]").expect("previous forge link selector")
-            else {
-                break;
-            };
-            for name in ["target", "rel", "data-temper-forge-sign-in"] {
-                link.remove_attribute(name).expect("previous forge link policy");
-            }
-        }
-        // These are the page-owned Forgejo sign-in links. The semantic link
-        // supplies its checked href; the browser owns opening a new tab.
-        for _ in 0..temper_client_view::forge_sign_in::FORGES {
-            let Some(link) =
-                document.query_selector("a[href$='/user/oauth2/temper']:not([target])").expect("forge link selector")
-            else {
-                break;
-            };
-            link.set_attribute("data-temper-forge-sign-in", "").expect("forge link policy marker");
-            link.set_attribute("target", "_blank").expect("link target");
-            link.set_attribute("rel", "noopener noreferrer").expect("link relation");
-        }
+        forge_links(&document);
         self.finish(&ops, new_page, now);
+    }
+    /// The host's report, or none for the shell's recording marks and saves; the timer told it fired.
+    fn host_report(&mut self, report: Report) -> Option<host::Report> {
+        match report {
+            Report::Start => host::Report::Start,
+            #[cfg(feature = "record")]
+            Report::Mark => {
+                if let Some(recorder) = &mut self.recorder {
+                    recorder.mark(&self.page.borrow());
+                }
+                return None;
+            }
+            #[cfg(feature = "record")]
+            Report::Save => {
+                self.save_recording(false);
+                return None;
+            }
+            Report::Due => {
+                self.timer.fired();
+                host::Report::Due
+            }
+            Report::Act(node, act) => host::Report::Act { node, act },
+            Report::Place(path) => host::Report::Place { path },
+            Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
+            Report::Carried(reports, writes) => host::Report::Carried { reports, writes },
+        }
+        .into()
+    }
+    /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
+    fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
+        #[cfg(feature = "record")]
+        if duties.departs() {
+            self.save_recording(true);
+        }
+        let mut requests = adapter::requests(duties.asked);
+        requests.navigate = duties.navigate;
+        if requests.navigate.is_some() {
+            // This acknowledged departure erases its finished request before
+            // navigating. The previous turn's close warning is already stale.
+            web_sys::window().expect("window").set_onbeforeunload(None);
+        }
+        if let Some(to) = duties.replace {
+            let window = web_sys::window().expect("window");
+            window.set_onbeforeunload(None);
+            window
+                .location()
+                .replace(std::str::from_utf8(&to).expect("jig address is UTF-8"))
+                .expect("replace authorization address");
+        }
+        let mut carried = Vec::new();
+        transport::carry(requests, &mut self.store, &mut self.platform, &mut carried);
+        if duties.writes != 0 || !carried.is_empty() {
+            inbox.raise(Report::Carried(carried, duties.writes));
+        }
+        if read_on {
+            self.platform.fetch.read_on();
+        }
+        if let Some((path, replace)) = duties.show {
+            self.history.show(&path, replace);
+            return !replace;
+        }
+        false
     }
     fn finish(&mut self, ops: &[skein_ui_web::page::Op], new_page: bool, now: skein_lib::Time) {
         let window = web_sys::window().expect("window");
@@ -273,6 +267,34 @@ impl Shell {
         } else if let Some(recorder) = &self.recorder {
             save_recording(&recorder.save(&self.page.borrow()));
         }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Re-applies the tab policy to the page's forge sign-in links.
+fn forge_links(document: &web_sys::Document) {
+    // Nodes can be reused by a later page: remove this shell's previous
+    // tab policy before applying it to the current forge links.
+    for _ in 0..temper_client_view::forge_sign_in::FORGES {
+        let Some(link) = document.query_selector("a[data-temper-forge-sign-in]").expect("previous forge link selector")
+        else {
+            break;
+        };
+        for name in ["target", "rel", "data-temper-forge-sign-in"] {
+            link.remove_attribute(name).expect("previous forge link policy");
+        }
+    }
+    // These are the page-owned Forgejo sign-in links. The semantic link
+    // supplies its checked href; the browser owns opening a new tab.
+    for _ in 0..temper_client_view::forge_sign_in::FORGES {
+        let Some(link) =
+            document.query_selector("a[href$='/user/oauth2/temper']:not([target])").expect("forge link selector")
+        else {
+            break;
+        };
+        link.set_attribute("data-temper-forge-sign-in", "").expect("forge link policy marker");
+        link.set_attribute("target", "_blank").expect("link target");
+        link.set_attribute("rel", "noopener noreferrer").expect("link relation");
     }
 }
 
