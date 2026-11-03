@@ -10,6 +10,7 @@ use fixtures::{BASE, CHANGE, HEAD, OPEN};
 use skein_forge::api;
 use temper_engine_domain_forge_landing as keys;
 use temper_engine_domain_forge_tiers as p;
+mod red;
 
 const TIER: &[u8] = b"browser";
 const TIER_TASK: u64 = 61;
@@ -194,7 +195,16 @@ fn completed(d: &mut Domain, conclusion: api::Conclusion, failed_step: Option<u3
 fn finish(d: &mut Domain) -> Box<[Request]> {
     tier_step(d, RELEASE, false);
     made(d, RELEASE, skein_forge_client::Made::Set);
-    tier_step(d, RELEASE + 1, false)
+    let out = tier_step(d, RELEASE + 1, false);
+    // Stories without log fixtures finish the disposable read as unavailable.
+    if row(d).record.run.is_some() && row(d).result.is_some() {
+        let owner = *d.tier_ops.reads.iter().next().expect("red run read").0;
+        let mut reads = Queue::uncapped();
+        crate::tiers::answered(d, &env(), owner, Err(api::Error::Missing), &mut reads);
+        tier_step(d, RELEASE + 2, false)
+    } else {
+        out
+    }
 }
 fn requests(out: &[Request]) -> Vec<(u64, api::Commit)> {
     out.iter()

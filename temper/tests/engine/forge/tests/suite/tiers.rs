@@ -86,17 +86,33 @@ fn attach(world: &mut World, number: u64, task: u64) {
     world.event(top::Event::TierTask { repository: REPO, tier: b"browser".as_slice().into(), number, task });
 }
 fn step(world: &mut World, task: u64, entry: u64) -> top::TierDecision {
-    world.take_seen();
+    step_news(world, task, entry, &mut Vec::new())
+}
+fn keep_news(world: &mut World, news: &mut Vec<top::Request>) {
+    for request in world.take_seen() {
+        if matches!(request, top::Request::News { news: top::News::Red(_), .. }) {
+            news.push(request);
+        }
+    }
+}
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the story retains tier decisions and red news from the world's requests"
+)]
+fn step_news(world: &mut World, task: u64, entry: u64, news: &mut Vec<top::Request>) -> top::TierDecision {
+    keep_news(world, news);
     world.event(top::Event::StepTier { task, entry, heard: top::TierHeard { released: false, cancelled: false } });
     world.run_for(1);
     let mut decision = None;
     let mut committed = None;
     for request in world.take_seen() {
-        if let top::Request::TierDecision { task: decided, decision: choice, entry, .. } = request
-            && decided == task
-        {
-            decision = Some(choice);
-            committed = entry;
+        match request {
+            top::Request::TierDecision { task: decided, decision: choice, entry, .. } if decided == task => {
+                decision = Some(choice);
+                committed = entry;
+            }
+            request @ top::Request::News { news: top::News::Red(_), .. } => news.push(request),
+            _ => {}
         }
     }
     if let Some(entry) = committed {
@@ -136,12 +152,15 @@ fn verdict(world: &World) -> Option<p::Verdict> {
     if let p::Next::Judged(verdict) = next { Some(verdict) } else { None }
 }
 fn finish(world: &mut World, task: u64) -> p::Verdict {
+    finish_news(world, task, &mut Vec::new())
+}
+fn finish_news(world: &mut World, task: u64, news: &mut Vec<top::Request>) -> p::Verdict {
     let mut judged = None;
     for at in 0..STEPS {
         if let Some(verdict) = verdict(world) {
             judged = Some(verdict);
         }
-        let decision = step(world, task, task * 1000 + at);
+        let decision = step_news(world, task, task * 1000 + at, news);
         if let Some(verdict) = verdict(world) {
             judged = Some(verdict);
         }
@@ -391,4 +410,75 @@ fn baseline_failures_are_inherited_by_the_first_range() {
     let inherited = finish(&mut world, RANGE);
     assert_eq!(inherited.landings.as_ref(), &[p::Blame::Cleared]);
     assert_eq!(inherited.failing, failures());
+}
+
+#[test]
+fn a_confirmed_red_tells_its_goal_the_failed_jobs_end() {
+    const GOAL: u64 = 201;
+    const CHANGE: u64 = 202;
+    const SUBSCRIPTION: u64 = 203;
+    const TEST: &[u8] = b"suite.first";
+    // The fake's workflow step writes four numbered failure lines.
+    const LOG: &[u8] =
+        b"failing check browser 0\nfailing check browser 1\nfailing check browser 2\nfailing check browser 3\n";
+    let mut world = world(21, Box::new([]), true);
+    start_baseline(&mut world);
+    let commit = push(&mut world, b"failures", b"suite.first\n");
+    world.event(top::Event::Restore {
+        record: top::Stored::Verification(top::Verification {
+            repository: REPO,
+            commit,
+            changes: Box::new([CHANGE]),
+            tiers: Box::new([top::TierVerification {
+                tier: b"browser".as_slice().into(),
+                verdict: None,
+                repaired: None,
+            }]),
+        }),
+    });
+    world.event(top::Event::Subscribe {
+        subscription: top::Subscriber {
+            task: GOAL,
+            number: SUBSCRIPTION,
+            topic: top::Topic::Landings { repository: REPO, branch: b"main".as_slice().into() },
+            own_change: None,
+            goal_tasks: Some(Box::new([CHANGE])),
+            paths: Box::new([]),
+        },
+    });
+    finish(&mut world, BASELINE);
+    attach(&mut world, 2, RANGE);
+    world.take_calls();
+    let mut news = Vec::new();
+    let verdict = finish_news(&mut world, RANGE, &mut news);
+    keep_news(&mut world, &mut news);
+    let failing = p::Failures::Tests(Box::new([TEST.into()]));
+    assert_eq!(verdict.landings.as_ref(), &[p::Blame::Owns(failing.clone())]);
+    let calls = world.take_calls();
+    assert_eq!(selections(&calls), [None, Some(b"suite.first\n".as_slice().into())]);
+    let run = calls
+        .iter()
+        .filter_map(|op| match op {
+            api::Op::Read(api::Read::Job { attempt, .. }) => Some(attempt.run),
+            api::Op::Read(_) | api::Op::Write(_) => None,
+        })
+        .next_back()
+        .expect("failed job log read");
+    let url = format!("http://forge/org/repo/actions/runs/{run}").into_bytes().into_boxed_slice();
+    assert_eq!(
+        news,
+        [top::Request::News {
+            task: GOAL,
+            subscription: SUBSCRIPTION,
+            topic: top::Topic::Landings { repository: REPO, branch: b"main".as_slice().into() },
+            news: top::News::Red(top::RedNews {
+                tier: b"browser".as_slice().into(),
+                run: 2,
+                url: Some(url),
+                on: top::RedOn::Landing { commit, branch: b"main".as_slice().into(), failing },
+                logs: Box::new([top::JobLog { name: b"browser".as_slice().into(), end: Some(LOG.into()) }]),
+            }),
+            class: top::Class::Wakes,
+        }]
+    );
 }
