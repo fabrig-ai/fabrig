@@ -47,7 +47,7 @@ main (MAIN; PAGE where it is today)
 banner BANNER
   link BRAND "temper"
   disclosure "Menu" MENU
-    disclosure PROJECTS, named "Project: NAME", its summary NAME ("Projects" while none is open)
+    disclosure PROJECTS, named NAME, the open project's ("Projects" while none is open)
       button NAME (pressed: the open project), then a button for each other project
     | paragraph PROJECT_EMPTY "No project yet"                     with no project
     navigation "Main navigation" ...
@@ -56,6 +56,10 @@ banner BANNER
       region temper-link: the link's state ...
       status: the person's name; button "Sign out"
 ```
+
+The requests' summary carries `aria-label="Project: NAME"` apart from its words; skein-ui-web
+prints a disclosure's name as its summary's words alone, so the print has `<summary>NAME</summary>`
+(`temper/docs/design/client/README.md`, 11, "The switcher's name").
 
 ## The switcher's markup, for `first-run-projects`
 

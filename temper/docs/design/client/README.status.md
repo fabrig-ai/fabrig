@@ -35,6 +35,7 @@
   hint's words, and the context line there OWNER/NAME alone;
   `pages/chats.rs` draws one column, the playground's invitation and
   "Scripted model" in it, and `root.rs` the playground's banner above
-  every main. 5.1: the switcher, "Set up temper" in the banner's
-  corner, and no accounts' banner while the playground runs or is
-  leaving; `frame.rs` draws every project as a button of "Menu".
+  every main. 5.1: no accounts' banner in the playground's project
+  while the playground runs or is leaving; `choice.rs` draws it there.
+  5.1: the switcher and "Set up temper" in the banner's corner;
+  `frame.rs` draws every project as a button of "Menu".
