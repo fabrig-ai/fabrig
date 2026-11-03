@@ -146,7 +146,7 @@ fn the_log_kept_natively_reads_back() {
         let entries: Vec<_> = read.entries.iter().map(|entry| (entry.stamp, entry.input.clone())).collect();
         assert_eq!(
             entries,
-            vec![(first, Input::Exchange(exchange(1))), (second, Input::Abandon { exchange: 1 })],
+            vec![(first, Input::Exchange((&exchange(1)).into())), (second, Input::Abandon { exchange: 1 })],
             "seed {seed}: every duty in order, at its world's stamp"
         );
         let mut said = log::Saying::new();

@@ -123,6 +123,7 @@ fn waiting_for_return() -> (Host, Vec<Asked>, u32) {
         exchange: signing,
         status: 200,
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        headers: Vec::new(),
     });
     let (asked, writes) = host.duties();
     assert_eq!(writes, 2, "the sign-in erase and return save are separate batches");
@@ -162,6 +163,7 @@ fn the_linked_sign_in_answer_sends_a_return_before_leaving() {
         exchange: returning,
         status: 200,
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        headers: Vec::new(),
     });
     host.requests();
     assert_eq!(host.navigate.take().as_deref(), Some(ADDRESS));

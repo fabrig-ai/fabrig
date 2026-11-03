@@ -132,7 +132,7 @@ impl Shell {
                 }
                 Report::Place(path) => Some(ViewReport::Place(places::parse(&path))),
                 Report::Act(node, act) => self.view.act(node, act).map(ViewReport::Act),
-                Report::Fetch(fetch::Report::Answered { exchange, status, body }) => {
+                Report::Fetch(fetch::Report::Answered { exchange, status, body, headers: _ }) => {
                     Some(ViewReport::Answered { exchange, status, body })
                 }
                 Report::Fetch(fetch::Report::Failed { exchange }) | Report::Carried(Carried::Failed { exchange }) => {
@@ -180,6 +180,8 @@ impl Shell {
                     headers: vec![("Content-Type".into(), "application/octet-stream".into())],
                     body: exchange.body,
                     bound: exchange.bound,
+                    cache: skein_ui_web::fetch::Cache::Browser,
+                    keep: &[],
                 });
             }
             requests.stream = duties.stream.map(|duty| match duty {

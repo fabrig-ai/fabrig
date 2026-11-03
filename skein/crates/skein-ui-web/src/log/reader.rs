@@ -10,7 +10,7 @@ pub(super) fn read(text: &[u8]) -> Result<Read, Refused> {
         return Err(Refused::Format);
     }
     let version = first.word()?;
-    if version != "1" {
+    if version != "2" {
         return Err(Refused::Version { found: version.as_bytes().into() });
     }
     let build = first.field("build=")?;
@@ -137,13 +137,23 @@ impl<'a> Fields<'a> {
                 let path = self.bytes("path=")?;
                 let bound = self.number("bound=")?;
                 let body = self.bytes("body=")?;
+                let cache = match self.field("cache=")? {
+                    "browser" => fetch::Cache::Browser,
+                    "no-store" => fetch::Cache::NoStore,
+                    _ => return Err(self.error()),
+                };
+                let count: usize = self.number("keep=")?;
+                let mut keep = Vec::new();
+                for _ in 0..count {
+                    keep.push(self.text("name=")?);
+                }
                 let mut headers = Vec::new();
                 for (name, value) in self.headers()? {
                     let name = String::from_utf8(name.into_vec()).map_err(|_| self.error())?;
                     let value = String::from_utf8(value.into_vec()).map_err(|_| self.error())?;
                     headers.push((name, value));
                 }
-                bridge::Input::Exchange(fetch::Exchange { id, path, method, headers, body, bound })
+                bridge::Input::Exchange(bridge::Exchange { id, path, method, headers, body, bound, cache, keep })
             }
             "abandon" => bridge::Input::Abandon { exchange: self.number("id=")? },
             "open" => {

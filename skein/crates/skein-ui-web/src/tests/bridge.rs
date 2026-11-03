@@ -1,7 +1,7 @@
 //! The bridge's messages and malformed buffers (playground.md, 5).
 use crate::{
-    bridge::{Clock, Input, Malformed, Printed, READY, Speed, Stamp, Start, Stream, ToPage, ToWorld},
-    fetch::{Exchange, Report},
+    bridge::{Clock, Exchange, Input, Malformed, Printed, READY, Speed, Stamp, Start, Stream, ToPage, ToWorld},
+    fetch::{Cache, Report},
     transport::StreamDuty,
 };
 use skein_lib::{Duration, Time, Wall};
@@ -26,6 +26,8 @@ fn to_world() -> Vec<ToWorld> {
             headers: vec![("x-name".into(), "value".into()), ("empty".into(), String::new())],
             body: b"body\0\xff".as_slice().into(),
             bound: u32::MAX,
+            cache: Cache::Browser,
+            keep: vec!["age".into(), "cache-control".into()],
         })),
         ToWorld::Input(Input::Exchange(Exchange {
             id: 0,
@@ -34,6 +36,8 @@ fn to_world() -> Vec<ToWorld> {
             headers: Vec::new(),
             body: Box::from([]),
             bound: 0,
+            cache: Cache::NoStore,
+            keep: vec!["retry-after".into()],
         })),
         ToWorld::Input(Input::Exchange(Exchange {
             id: 1,
@@ -42,6 +46,8 @@ fn to_world() -> Vec<ToWorld> {
             headers: vec![(String::new(), String::new()); EMPTY_HEADERS],
             body: Box::from([]),
             bound: 1,
+            cache: crate::fetch::Cache::Browser,
+            keep: Vec::new(),
         })),
         ToWorld::Input(Input::Abandon { exchange: u32::MAX }),
         ToWorld::Input(Input::Stream(StreamDuty::Open {
@@ -79,8 +85,9 @@ fn to_page() -> Vec<ToPage> {
             exchange: u32::MAX,
             status: u16::MAX,
             body: b"answer\0\xff".as_slice().into(),
+            headers: vec![("age".into(), "123".into()), ("cache-control".into(), "max-age=60".into())],
         }),
-        ToPage::Report(Report::Answered { exchange: 0, status: 0, body: Box::from([]) }),
+        ToPage::Report(Report::Answered { exchange: 0, status: 0, body: Box::from([]), headers: Vec::new() }),
         ToPage::Report(Report::Failed { exchange: u32::MAX }),
         ToPage::Report(Report::StreamOpened),
         ToPage::Report(Report::StreamRefused { status: u16::MAX }),
@@ -192,4 +199,26 @@ fn integers_and_tags_have_their_fixed_wire_layout() {
     assert_eq!(ToPage::Stopped.encode().as_ref(), &[4]);
     assert_eq!(ToPage::Failed { words: Box::from([]) }.encode().as_ref(), &[5, 0, 0, 0, 0]);
     assert_eq!(ToWorld::Input(Input::ReadOn).encode().as_ref(), &[1, 3]);
+}
+
+#[test]
+fn a_fetch_exchange_keeps_its_names_across_the_worker_boundary() {
+    let mut exchange = super::fixtures::exchange(7);
+    exchange.cache = Cache::NoStore;
+    exchange.keep = &["Cache-Control", "age"];
+    let message = ToWorld::Input(Input::Exchange((&exchange).into()));
+    let decoded = ToWorld::decode(&message.encode()).expect("encoded exchange");
+    assert_eq!(
+        decoded,
+        ToWorld::Input(Input::Exchange(Exchange {
+            id: 7,
+            path: b"/api/notes".as_slice().into(),
+            method: "POST".into(),
+            headers: Vec::new(),
+            body: b"record".as_slice().into(),
+            bound: 1024,
+            cache: Cache::NoStore,
+            keep: vec!["Cache-Control".into(), "age".into()],
+        }))
+    );
 }
