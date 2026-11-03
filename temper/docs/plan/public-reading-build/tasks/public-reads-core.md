@@ -170,3 +170,18 @@ both edits are authorized, and nothing more in either file.
   no project is public included, goes in `projects_lists_the_public_projects_alone` in
   `src/tests/public/reads.rs`, compared whole after the durability wait. Leave
   `an_unasked_public_answer_changes_nothing` as it is.
+
+## Rebase (2026-11-03, step merge, foreman public-reading-build/public-reads-core/foreman-3)
+
+resolve both service conflicts by preserving public HTTP routing and the durability callback arms.
+The merge conflicts with integration commit `712066895a` (“Serve public reads with opaque identifiers and independent budgets”).
+In `jig/testing/jig-test-service/src/clients/translation.rs`:
+- Keep integration’s `to_component` translation from `Held::PublicRead { reply, answer }` to `kit::Event::Public { reply, answer }`.
+- Remove `Held::PublicRead` from the ignored alternatives; retain this branch’s `Held::PublicWait` alternative.
+- Preserve both `Event::PublicDurable` alternatives in `watcher` and `starting`.
+- Keep integration’s separate startup response for `Event::PublicRead`: `kit::Event::Public` with `PublicAnswer::Busy`.
+In `jig/testing/jig-test-service/src/route.rs`, function `core_held`:
+- Remove the empty `Held::PublicRead` arm and retain integration’s routing through `clients::to_component`.
+- Retain this branch’s `Held::PublicWait` unreachable arm: the root consumes its durability callbacks.
+These resolutions combine the incoming public answer routing with the task’s authorized forced durability arms; no broader service changes are needed.
+Validate with `heavy cargo check -p jig-test-domain -p jig-test-service --tests` and the spec’s focused tests.
