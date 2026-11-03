@@ -118,11 +118,36 @@ pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::
             return Err(Problem::Range(b"items"));
         }
     };
+    let kinds = kind_values(&items)?;
     Ok(Decoded::Call(engine::Call {
         completion: name.completion,
         position: name.position,
-        tool: engine::Tool::ProposeSettings { against, items, reason, kinds: Box::default() },
+        tool: engine::Tool::ProposeSettings { against, items, reason, kinds },
     }))
+}
+
+/// Type application values at the schema ceilings; the forge judges deployment bounds
+/// (temper/docs/design/domain/root.md, 5.6).
+pub(super) fn kind_values(items: &[s::Item]) -> Result<Box<[engine::KindValue]>, Problem> {
+    let ceilings = temper_client_protocol_wire::v1::CEILINGS;
+    let bounds = crate::kinds::Bounds {
+        segments: ceilings.landing_pattern_segments,
+        segment_bytes: ceilings.landing_pattern_segments_item,
+        gates: ceilings.landing_rule_gates,
+        approvals: ceilings.landing_rule_approvals,
+    };
+    let mut values = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
+    for item in items {
+        let s::Setting::Application { kind: kind @ 1..=3, scope, number } = item.setting else { continue };
+        let bytes = match &item.edit {
+            s::Edit::Set(s::Value::Application(bytes)) => bytes,
+            s::Edit::Set(_) => return Err(Problem::Range(b"items")),
+            s::Edit::Removed | s::Edit::Reset => continue,
+        };
+        let value = crate::kinds::decode(kind, bytes, &bounds).ok_or(Problem::Range(b"items"))?;
+        values.push(engine::KindValue { kind, scope, number, value }).expect("one value per set item");
+    }
+    Ok(values.into_boxed())
 }
 
 /// Render the same settings document through the same text layer as ctl.

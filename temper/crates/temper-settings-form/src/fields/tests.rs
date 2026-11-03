@@ -4,8 +4,8 @@ use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
-// T1 names all 45 decoder shapes, including the alternative-only objects.
-const SHAPES: [Shape; 45] = [
+// T1 names every decoder shape, including the alternative-only objects.
+const SHAPES: [Shape; 51] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -51,6 +51,12 @@ const SHAPES: [Shape; 45] = [
     Shape::Judge,
     Shape::Guard,
     Shape::Observed,
+    Shape::LandingRule,
+    Shape::LandingGate,
+    Shape::LandingApproval,
+    Shape::LandingPattern,
+    Shape::LandingLast,
+    Shape::ForgeCharter,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -206,6 +212,10 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                 let fields = members(shape);
                 let selected = match form(shape).choice {
                     Choice::Every => None,
+                    Choice::Number => {
+                        out.unsigned(1);
+                        continue;
+                    }
                     Choice::One { words } => {
                         let at = alternative(shape, edit, route);
                         if shape == target(edit) {
@@ -236,6 +246,9 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         if field.name == if edit_only { b"set".as_slice() } else { b"edit".as_slice() } {
                             continue;
                         }
+                    }
+                    if shape == Shape::Setting && field.name == b"project" && kind != b"landing-rule" {
+                        continue;
                     }
                     if shape == Shape::Setting && field.name == b"number" && kind == b"rules" {
                         continue;
@@ -362,6 +375,7 @@ fn every_generated_file_decodes() {
 fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
         if field.shape == Shape::Item
+            || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Charter && field.name == b"wake")
             || (field.shape == Shape::Document && field.name == b"heading")
         {
@@ -389,6 +403,9 @@ fn a_path_resolves_through_its_shapes() {
     for (path, shape, name) in [
         (b"charter.model.name".as_slice(), Shape::Model, b"name".as_slice()),
         (b"model.name", Shape::Model, b"name"),
+        (b"landing-rule.pattern.last.exact", Shape::LandingLast, b"exact"),
+        (b"landing-rule.gates[].freshness", Shape::LandingGate, b"freshness"),
+        (b"landing-rule.approvals[].people", Shape::LandingApproval, b"people"),
         (b"policy.roles.authority.spend", Shape::Authority, b"spend"),
         (b"policy.roles[].authority.spend", Shape::Authority, b"spend"),
     ] {
@@ -532,7 +549,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy` or `rules`, or null.
+- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule` or `forge-charter`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }
