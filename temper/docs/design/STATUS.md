@@ -49,7 +49,10 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
-`protocol/forge.md`, `protocol/README.md`), and lags in a
+`protocol/forge.md`, `protocol/README.md`), where the setup shell keeps
+a reconcile host no product calls (`protocol/README.md`,
+`protocol/setup.md`) and temper's service is an unrecorded copy of
+jig's reference service (`protocol/README.md`), and lags in a
 removal without the box (`domain/forge.md`) and a project's Delete
 (`client/README.md`); a connected Forgejo, its connect with its bot's
 tokens and a forge's Replace are built, but for the real loop's story
