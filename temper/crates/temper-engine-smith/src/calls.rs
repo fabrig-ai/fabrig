@@ -152,7 +152,7 @@ const PERMISSION_SPEC: Spec = Spec {
     effect: run::HostEffect::Read,
 };
 
-const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#, effect: run::HostEffect::Write };
+const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#, effect: run::HostEffect::Write };
 
 pub(crate) const SPECS: [Spec; 39] = [
     Spec { name: b"goal", description: b"Have one goal in your words tracked and reported; it may plan, ask you and call change. With advisor set, it reads and reports and changes nothing.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"words":{"type":"string"},"advisor":{"type":"boolean","description":"Set by a goal alone, for a survey that changes nothing."},"agree":{"type":"boolean","description":"Set by the person's chat when they want the work agreed first: the goal asks its plan before any change."}},"required":["words"]}"#, effect: run::HostEffect::Write },
@@ -570,6 +570,10 @@ fn change(value: &Value, models: &[engine::Model]) -> Result<engine::ChangeCall,
         }
         None => None,
     };
+    let merge = match value.field(b"merge")? {
+        Some(value) => Some(merge_commit(value)?),
+        None => None,
+    };
     let after = match value.field(b"after")? {
         Some(after) => {
             let items = after.array(b"after")?;
@@ -604,7 +608,7 @@ fn change(value: &Value, models: &[engine::Model]) -> Result<engine::ChangeCall,
     };
     let producer = change_producer(value.field(b"producer")?)?;
     let llm = change_llm(value.field(b"llm")?, models)?;
-    Ok(engine::ChangeCall { words, repository, name, landing, branch, after, producer, llm })
+    Ok(engine::ChangeCall { words, repository, name, landing, branch, merge, after, producer, llm })
 }
 
 fn change_producer(value: Option<&Value>) -> Result<Option<u32>, Problem> {
@@ -675,4 +679,26 @@ fn change_model_effort(value: &Value, models: &[engine::Model]) -> Result<tasks:
         return Ok(tasks::ModelEffort { model: u8::try_from(index).or(Err(Problem::Range(b"model")))?, effort });
     }
     Err(Problem::Range(b"model"))
+}
+
+// A catch-up accepts either hexadecimal case; procedure parameters use lowercase.
+fn merge_commit(value: &Value) -> Result<[u8; 32], Problem> {
+    let text = value.text(b"merge")?;
+    if text.len() != 40 && text.len() != 64 {
+        return Err(Problem::Range(b"merge"));
+    }
+    let mut commit = [0_u8; 32];
+    for (pair, cell) in text.chunks_exact(2).zip(&mut commit) {
+        let mut byte = 0_u8;
+        for digit in pair {
+            let digit = match digit.to_ascii_lowercase() {
+                digit @ b'0'..=b'9' => digit.saturating_sub(b'0'),
+                digit @ b'a'..=b'f' => digit.saturating_sub(b'a').saturating_add(10),
+                _ => return Err(Problem::Range(b"merge")),
+            };
+            byte = byte.saturating_mul(16).saturating_add(digit);
+        }
+        *cell = byte;
+    }
+    Ok(commit)
 }

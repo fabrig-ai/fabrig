@@ -24,7 +24,7 @@ fn kind(number: u32, delivers: bool) -> Kind {
 }
 
 fn spec() -> Spec {
-    Spec { command: copy_of(b"bin/tool"), request: copy_of(b"{request}") }
+    Spec { command: copy_of(b"home/bin/tool"), request: copy_of(b"{request}") }
 }
 
 fn run(owner: Token, kind: u32) -> Event {
@@ -123,6 +123,30 @@ fn a_job_runs_its_command_in_its_directory_and_finishes_with_its_result_file() {
         );
         h.gone(OWNER, b"stderr");
     }
+}
+
+/// temper/docs/design/protocol/tooling.md, 4.1: a merge command is under its repository's own name.
+#[test]
+fn a_merge_command_runs_under_its_repository_in_the_jobs_directory() {
+    let mut h = Harness::new();
+    assert_eq!(
+        h.one(Event::Run {
+            owner: OWNER,
+            kind: JobKind(2),
+            spec: Spec { command: copy_of(b"fabrig/.temper/merge"), ..spec() },
+            deadline: DEADLINE,
+            directory: copy_of(b"/job"),
+        }),
+        Request::Write { owner: OWNER, path: copy_of(b"/job/request.json"), bytes: copy_of(b"{request}") }
+    );
+    let Request::Spawn { program, args, dir, .. } = h.one(Event::Written { owner: OWNER, written: true }) else {
+        panic!("expected a spawn")
+    };
+    assert_eq!(program.as_ref(), b"/job/fabrig/.temper/merge");
+    assert_eq!(args[0].as_ref(), program.as_ref());
+    assert_eq!(dir.as_ref(), b"/job");
+    assert_eq!(h.one(Event::Stop { owner: OWNER }), Request::Kill { owner: OWNER });
+    h.gone(OWNER, b"");
 }
 
 /// temper/docs/design/domain/worker.md, 4.4: exit 3 finishes without delivery.
@@ -322,7 +346,7 @@ fn a_run_of_a_kind_not_entered_or_past_its_bounds_is_refused() {
     );
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: paths cannot escape the project's home.
+/// temper/docs/design/domain/worker.md, 4.4: paths cannot escape the job's directory.
 #[test]
 fn unsafe_or_oversized_command_paths_are_refused() {
     for command in [b"..".as_slice(), b"../tool", b"bin/../tool", b"bin/..", b"/tool", b"to\0ol", b""] {

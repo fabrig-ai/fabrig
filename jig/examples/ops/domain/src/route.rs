@@ -1315,6 +1315,7 @@ fn core_now(
             work.push(Work::Core(core::Event::WorkspacePrepared {
                 task,
                 attempt,
+                holds: Box::new([]),
                 workspace: None,
                 credentials: Box::new([]),
                 writes: Some(Box::new([])),

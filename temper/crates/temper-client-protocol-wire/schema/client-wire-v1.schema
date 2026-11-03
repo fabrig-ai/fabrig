@@ -105,9 +105,9 @@ enum Reason { ci, gate: GateReason, semantic }
 record Repairing { reason: Reason }
 record Landed { merge: fixed 32 }
 record InLanding { landing: option u64 }
-record Verifying { merge: fixed 32 tiers: list 32 bytes 128 }
-record Red { merge: fixed 32 tiers: list 32 bytes 128 }
-record Cleared { merge: fixed 32 tiers: list 32 bytes 128 uncleared: bool }
+record Verifying { merge: fixed 32 tiers: list 32 bytes 8192 }
+record Red { merge: fixed 32 tiers: list 32 bytes 8192 }
+record Cleared { merge: fixed 32 tiers: list 32 bytes 8192 uncleared: bool }
 enum Step { producing, opening, recreating, reopening, checking, gating, queued: Queued, first, updating, resolving, repairing: Repairing, landing, landed: Landed, ended, ready: InLanding, preparing: InLanding, verifying: Verifying, red: Red, cleared: Cleared }
 record AuthorityHold { reason: bytes 512 }
 enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold }

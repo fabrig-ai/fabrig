@@ -221,6 +221,7 @@ impl Service {
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let mut core = jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed);
         core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
+        core.jobs = limits::merge_jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
             kinds_stock: crate::stock::forge_defaults(&settings.landing_rules, settings.charter),
             period_span: crate::stock::PERIOD_SPAN,
