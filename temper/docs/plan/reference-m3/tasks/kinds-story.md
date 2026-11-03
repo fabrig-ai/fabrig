@@ -3,7 +3,7 @@ id = "kinds-story"
 part = "kinds-root"
 kind = "feature"
 needs = ["kinds-document", "change-story", "apps-proposals"]
-files = ["temper/tests/engine/domain/tests/suite/settings/kinds.rs", "temper/tests/engine/domain/tests/suite/settings.rs", "temper/tests/engine/domain/src/kinds.rs", "temper/tests/engine/domain/src/lib.rs", "temper/docs/design/domain/forge.status.md", "temper/docs/design/domain/root.status.md"]
+files = ["temper/tests/engine/domain/tests/suite/settings/kinds.rs", "temper/tests/engine/domain/tests/suite/settings.rs", "temper/tests/engine/domain/src/kinds.rs", "temper/tests/engine/domain/src/lib.rs", "temper/tests/engine/domain/Cargo.toml", "temper/docs/design/domain/forge.status.md", "temper/docs/design/domain/root.status.md"]
 effort = "high"
 minutes = 120
 +++
@@ -64,7 +64,7 @@ Acceptance:
 
 ## Owns and may change
 
-- Owns the files in the header. Uses the world's drivers and the forge routes' helpers
+- Owns the files in the header (the world's `Cargo.toml` only for the move in Answers). Uses the world's drivers and the forge routes' helpers
   (`src/forge_routes.rs`, `change-story`'s) without changing them; a helper they lack goes in
   `src/kinds.rs`.
 - Options: if a story finds the code departs from the design, keep the story as the design
@@ -83,3 +83,13 @@ Acceptance:
 ## Report
 
 The implementer's text's report, plus: any story ignored, and why.
+
+## Answers
+
+2026-11-03. May the task move `temper-engine-smith` from the world's `[dev-dependencies]`
+to `[dependencies]`, so `src/kinds.rs` can call `temper_engine_smith::kinds::decode`? Yes:
+the helper stays in `src/kinds.rs` as the Goal says. Move that one line,
+`temper-engine-smith.workspace = true`, from `[dev-dependencies]` to `[dependencies]` in
+`temper/tests/engine/domain/Cargo.toml` (now in the header's `files`), and change nothing
+else in that file. temper-engine-smith's normal dependencies do not name the world, so the
+move makes no cycle, and it adds no package or version.
