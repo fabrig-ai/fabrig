@@ -8,7 +8,10 @@ reference's M1 to M10 landed). Released in batches; this file is brought up to d
 
 | Part | Slice | Design | Tasks |
 |---|---|---|---|
-| `golden` | 1 | temper's `domain/testing.md` 6.5 | `stage-one-surface` (batch 1) |
+| `golden` | 1 | temper's `domain/testing.md` 6.5 | `stage-one-surface` (batch 1); `stage-one-check`, `stage-one-collect` (batch 2) |
+| `judge` | 2, **the walk** (`walk = true`; its brief `walk.md`) | temper's `domain/testing.md` 6.5.4 | `stage-one-judge` (batch 2) |
+
+4 tasks, all released in two batches, about 540 implementer-minutes.
 
 The cross-task shapes are `notes/contracts.md` (K1 the crate's layout, K2 the golden, K3 the
 evidence, K4 the check's report, K5 the commands, K6 the judge, K7 collect); the standing rules,
@@ -51,10 +54,37 @@ evidence, K4 the check's report, K5 the commands, K6 the judge, K7 collect); the
 
 1. `stage-one-surface` (interface, 150): the crate, the golden's types and decoder, the golden
    file whole, the settings file's and the evidence's readers, `obligations`; stubs for the rest.
+2. `stage-one-check` (150; needs `stage-one-surface`): the binding, each obligation's outcome,
+   the extras, `check`; `stage-one-collect` (120; needs `stage-one-surface`): the evidence through
+   ctl's reads, `collect`; `stage-one-judge` (120; needs `stage-one-surface`, `stage-one-check`):
+   the judge's brief, the verdict's decoder, `judge` and `verdict`. Batch 2 also adds 6.5.2's
+   detail that the walk's repository holds no recipe, and fixes three self-citations batch 1
+   left in 6.5.1 and 6.5.4 (the citation checker reads commits only).
 
-## Critical path (as it stands)
+**The walk's brief** is `walk.md` (slice 2), read after `temper/docs/plan/reference-walks/kit.md`:
+the box on the stock settings with the profile's document members, fabrig at the walk's commit
+without the recipe as its repository, the chat from the configuring template, the acceptance,
+the description, `collect`, the check, a judge session of its own at Opus 5.5, the verdict. It
+needs `W/bin/temper-stage-one` built beside `W/bin/temper`, and three logins lent (ChatGPT for
+the chat; Claude Code and an OpenAI API account, which the document names and stage 1 never
+runs): the user's, through whoever sets the walk up.
 
-`stage-one-surface` (150), then the check, collect and the judge (batch 2).
+## Critical path
+
+`stage-one-surface` (150) -> `stage-one-check` (150) -> `stage-one-judge` (120): about 420
+implementer-minutes; `stage-one-collect` (120) runs beside the check. The walk runs once all four
+land.
+
+## Decided in batch 2
+
+- **One writer per file, not per crate:** the surface writes `lib.rs`, `main.rs` and
+  `tests.rs` whole with every module declared and three stubs; each later task replaces one
+  module's file and its tests file, so check, collect and judge never touch a shared line.
+- **The pass, not the tool, reads the forge:** documents a charter names and the person's
+  documents are fetched by the pass through the forge's API (qa.md 5); the tool reads only ctl.
+- **The repository holds no recipe:** the walk's copy of fabrig deletes the profile, the crate
+  and the plans; an agent found reading another description of the settings is a finding
+  against the premise.
 
 ## Overlaps with other plans
 
