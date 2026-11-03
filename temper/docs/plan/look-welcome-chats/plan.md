@@ -18,6 +18,9 @@ markup's changes into `temper-client-view`, and the journeys reprinted, so that
   terminal, the switcher in the phone menu, the chats' placeholder. Status: Not yet 2.5.
 - `temper/docs/design/client/journeys.md`, 9, and `journeys/welcome-playground/README.md`:
   `02.html`'s banner line at the pane's foot. Status: Not yet 9.
+- `temper/docs/design/client/mockups/STATUS.md`, 2.5: the chats page's pane and the banner's
+  switcher as a recorded pick the drawings (`chats.html`, `first-run.html`) do not follow yet;
+  they are reconciled later (`mockups/README.md`, 1).
 
 ## Parts and tasks so far
 
