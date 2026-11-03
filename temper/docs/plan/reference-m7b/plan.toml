@@ -1,3 +1,26 @@
 draft = "reference-m7b"
 repo = "fabrig"
 sources = ["temper/docs/plan/reference-m7b/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M7b of reference-case.execution.md: the merge job (N7) as a kind of temper's jobs, its three
+# uses (a merge into a goal's branch refused for a conflict, a catch-up change into it, an
+# update the forge refused before a resolution, the goal's landing's among them), and a
+# delegation naming a job kind in jig's configuration (inputs/request.md). Built to
+# notes/contracts.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "config-jobs"
+title = "jig's configuration lets a delegation's kinds name a job kind"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/configuration.md, 3"
+
+[[slice]]
+id = 1
+story = "a policy whose role's delegation names {\"kind\": \"job\", \"number\": 3} starts, its role holding Executor::Job(3)"
+parts = ["config-jobs"]
+walk = false
