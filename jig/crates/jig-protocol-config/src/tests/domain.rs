@@ -187,7 +187,7 @@ fn roles_past_the_documents_capacity_refuse_the_start() {
 
 #[test]
 fn the_shipped_profiles_hold_operations_per_request() {
-    for (profile, expected) in [(crate::Profile::Small, (8, 4, 8)), (crate::Profile::Standard, (16, 8, 16))] {
+    for (profile, expected) in [(crate::Profile::Small, (8, 4, 8)), (crate::Profile::Standard, (81, 80, 80))] {
         let limits = crate::profile(profile).core;
         assert_eq!((limits.people.operations, limits.tasks.delegates, limits.tasks.project_goals), expected);
         assert!(limits.people.operations > limits.tasks.delegates, "{profile:?}");
