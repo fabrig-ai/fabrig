@@ -32,6 +32,7 @@ pub enum Story {
     Adopt,
     Merge,
     HeldChange,
+    PlaygroundA,
 }
 #[derive(Debug)]
 pub struct Outcome {
@@ -48,6 +49,7 @@ pub struct Outcome {
     pub claims_settled_at_restart: u32,
     pub adoptions_answered: u32,
     pub adoption_pending_at_restart: bool,
+    pub playground: Option<stories::playground::Outcome>,
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Phase {
@@ -68,6 +70,7 @@ struct Progress {
     answers: Vec<(u32, [u8; 16])>,
     press_had_frame: Vec<(u32, bool)>,
     cache: referee::client::cache::History,
+    playground_answers: u32,
 }
 #[derive(Debug)]
 pub struct Pushed {
@@ -84,6 +87,19 @@ thread_local! {
 }
 pub(crate) fn setup_signed(party: u64) {
     PROGRESS.with(|progress| progress.borrow_mut().setup_party = Some(party));
+}
+pub(crate) fn playground_answers() -> u32 {
+    PROGRESS.with(|progress| progress.borrow().playground_answers)
+}
+pub(crate) fn playground_records() {
+    STORE.with(|store| {
+        let store = store.borrow();
+        for row in store.as_ref().expect("world store").borrow().rows.values() {
+            if let temper_engine_domain::Record::Forge { row } = row {
+                eprintln!("story A durable forge: {row:?}");
+            }
+        }
+    });
 }
 /// The one-process world's harness (temper/docs/design/playground.md, 3).
 pub(crate) struct OneProcess;
@@ -149,7 +165,10 @@ impl Harness for OneProcess {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn given(_document: &serde_json::Value) -> temper_service::stock::Given {
+    fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+        if stories::playground() {
+            return temper_playground::documents::given(document);
+        }
         stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"))
     }
 }
@@ -198,7 +217,7 @@ impl Observe for ServiceObserver {
             before_iteration: 0,
             in_flight: std::collections::BTreeSet::new(),
             reserve: REFUSE_START.with(std::cell::Cell::get).then(crate::box_listener::Listener::new),
-            codec: fixtures::codec(),
+            codec: if stories::playground() { stories::playground::codec() } else { fixtures::codec() },
             families: temper_protocol_store::bounds(
                 &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
                 jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
@@ -222,7 +241,12 @@ impl Observe for ServiceObserver {
         self.wire.complete(&complete);
         Some(complete)
     }
-    fn before_iterate(&mut self, service: &mut temper_service::Service, _now: Time, _wall: Wall) -> bool {
+    fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
+        if stories::playground() {
+            while let Some(note) = service.notes().pop() {
+                eprintln!("story A at {} ns: service {note:?}", now.as_nanos());
+            }
+        }
         self.before_iteration = self.submitted;
         self.commits.extend(self.store.borrow_mut().observe(
             &mut self.capture.events,
@@ -250,8 +274,12 @@ impl Observe for ServiceObserver {
     }
     fn handover_read(
         &mut self,
-        _read: &temper_service::HandoverRead,
+        read: &temper_service::HandoverRead,
     ) -> Option<Result<Option<skein_lib::Secret>, temper_service::HandoverUnread>> {
+        if stories::playground() {
+            eprintln!("story A: handover read {}", String::from_utf8_lossy(&read.path));
+            return None;
+        }
         Some(Ok(stories::first_start().then(|| skein_lib::Secret::new(crate::restart_control::ADMIN_TOKEN.into()))))
     }
     fn drain(&mut self, service: &mut temper_service::Service, now: Time) {
@@ -352,6 +380,7 @@ pub(crate) struct Person {
     offset: usize,
     pub(crate) life: u32,
     cutting: bool,
+    playground_replies: Vec<u32>,
 }
 const CHAT_WITHIN: Duration = Duration::from_secs(5);
 impl Person {
@@ -380,6 +409,11 @@ impl Person {
         );
     }
     fn new(root: Fd, scenario: Story) -> Self {
+        let (playground_steps, playground_replies) = if matches!(scenario, Story::PlaygroundA) {
+            stories::playground::person()
+        } else {
+            (Vec::new(), Vec::new())
+        };
         let steps = match scenario {
             Story::Chat { words } | Story::ChatReadThenWait { words } => vec![
                 Step::Go {
@@ -397,6 +431,7 @@ impl Person {
             Story::Adopt | Story::Merge => stories::person(),
             Story::HeldChange if stories::first_start() => stories::person(),
             Story::HeldChange => Vec::new(),
+            Story::PlaygroundA => playground_steps,
         };
         let mut offset = PROGRESS.with(|progress| progress.borrow().at);
         if matches!(scenario, Story::Adoption) && offset < fixtures::ADOPTION_REPLY_STEP {
@@ -420,11 +455,12 @@ impl Person {
             client: None,
             root: Some(root),
             actor: skein_fake_person::Person::new(remaining.into_boxed_slice()),
-            provision: (offset == 0).then(|| skein_fake_person::Person::new(fixtures::account_steps())),
+            provision: (offset == 0 && !matches!(scenario, Story::PlaygroundA))
+                .then(|| skein_fake_person::Person::new(fixtures::account_steps())),
             wake: None,
             signed_in: 0,
             finished: false,
-            project_selected: false,
+            project_selected: matches!(scenario, Story::PlaygroundA),
             setup: None,
             printed_link: Box::new([]),
             completions: Queue::with_capacity(512),
@@ -432,6 +468,7 @@ impl Person {
             offset,
             life,
             cutting: matches!(scenario, Story::Adoption),
+            playground_replies,
         }
     }
     pub(crate) fn sign_in(&mut self, link: &[u8]) {
@@ -639,9 +676,13 @@ impl Host for Person {
                     self.finished = true;
                     client.close();
                 }
-                Next::Failed { step, why } => person_failed(step, &why, &self.wire, self.life),
+                Next::Failed { step, why } => {
+                    stories::playground::failed(now, step, &why, client.tree());
+                    person_failed(step, &why, &self.wire, self.life)
+                }
             }
             if self.actor.at() != before {
+                playground_progress(now, before, &self.playground_replies);
                 PROGRESS.with(|progress| {
                     progress.borrow_mut().at = self.offset + usize::try_from(self.actor.at()).expect("person step");
                 });
@@ -675,6 +716,14 @@ impl Host for Person {
     }
     fn operations(&self) -> u32 {
         512
+    }
+}
+fn playground_progress(now: Time, before: u32, replies: &[u32]) {
+    if stories::playground() {
+        eprintln!("story A at {} ns: person step {before} complete", now.as_nanos());
+        if replies.contains(&before) {
+            PROGRESS.with(|progress| progress.borrow_mut().playground_answers += 1);
+        }
     }
 }
 fn person_failed(step: u32, why: &skein_fake_person::Why, wire: &referee::client::Wire, life: u32) -> ! {
@@ -948,11 +997,24 @@ fn run_phase(
     STORE.with(|cell| {
         *cell.borrow_mut() = Some(store.clone());
     });
-    let transport = forge_for_run(&run, scenario, phase);
+    let start = matches!(scenario, Story::PlaygroundA).then(|| {
+        let mut start = temper_playground::stories::A.start(fixtures::SEED, settings.config.wall);
+        start.links = Links::Keep;
+        machine::setup(&mut disk);
+        start
+    });
+    let transport =
+        start.as_ref().map_or_else(|| forge_for_run(&run, scenario, phase), |start| start.fakes.forge.clone());
     let observed_forge = Rc::new(RefCell::new(referee::forge::Forge::new(transport.clone(), scenario)));
 
     let machine = Machine::new(disk);
-    let parameters = parameters(&machine, transport.clone());
+    let mut parameters = parameters(&machine, transport.clone());
+    let peers = start.map(|start| {
+        parameters.deployment = start.deployment;
+        parameters.seed = start.seed;
+        parameters.links = start.links;
+        (start.fakes.llm, start.fakes.peer)
+    });
     let outcome = programs::with(parameters, || {
         let mut world =
             skein_world::World::new_controlled(settings.seed, settings.config, Memory::Unchecked, |controls| {
@@ -1000,13 +1062,11 @@ fn run_phase(
                 world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
                     Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::new(root, scenario), None))))
                 });
-                world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
-                world.spawn(|| {
-                    Proc::Forge(Box::new(SignalHost::new(
-                        temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
-                        None,
-                    )))
+                let (llm, forge) = peers.unwrap_or_else(|| {
+                    (stories::provider(scenario), temper_playground::fakes::forge_peer(&transport, fixtures::SEED))
                 });
+                world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm, None))));
+                world.spawn(|| Proc::Forge(Box::new(SignalHost::new(forge, None))));
             }
         }
         world.run()
@@ -1060,6 +1120,7 @@ fn run_phase(
         claims_settled_at_restart: run.borrow().settled,
         adoptions_answered: u32::try_from(run.borrow().answers.len()).expect("adoption answers"),
         adoption_pending_at_restart: run.borrow().pending_adoption,
+        playground: matches!(scenario, Story::PlaygroundA).then(|| stories::playground::outcome(&transport)),
     };
     drop(run);
     (result, std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), records)
