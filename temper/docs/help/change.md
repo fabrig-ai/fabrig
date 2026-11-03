@@ -13,7 +13,9 @@ A change is a task that writes one repository's branch and lands it: its pull re
   With the control family, a run names, too, `landing` (`goal`, a
   branch, or the default), `branch` (`mine`: its goal branch, landed
   whole), `after` (what it waits for: task numbers, or names from the
-  same call) and `changes` (several at once, all or none).
+  same call), `repairs` (the red landing it repairs, by its merge
+  commit's digits as the red's news names them: temper help tier) and
+  `changes` (several at once, all or none).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·
@@ -30,9 +32,11 @@ A change is a task that writes one repository's branch and lands it: its pull re
   each verdict at the head it judged, cut from the end and marked when
   long. It names no check or test the change didn't see. Where tiers
   follow its landing branch (temper help tier), the result waits for
-  their verdicts and adds a line, `Cleared by TIER run N.`, or `Not
-  cleared: no verdict within the verification bound.` Or it fails,
-  or is cancelled, as any task. A coder that concludes the request does
+  their verdicts and adds a line, `Cleared by TIER run N.`, for a
+  landing once red, `Cleared by TIER run N, which passed the failures
+  blamed on it; repaired by COMMIT.` where a change naming it repaired
+  it, or `Not cleared: no verdict within the verification bound.` Or it
+  fails, or is cancelled, as any task. A coder that concludes the request does
   not apply ends it successfully, saying why, with no pull request and
   nothing claimed landed; one that fails for good holds it at
   `producing` (below).

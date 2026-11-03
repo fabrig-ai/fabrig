@@ -9,14 +9,22 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 - **A tier** is a workflow too slow for a change's CI, such as a
   browser suite or an exhaustive profile. A repository names its tiers
   beside its gates, and each tier names the branch it follows: the
-  repository's landing branch, its main, unless it names another. A
-  landing on a branch no tier follows, a goal's own branch for one, is
-  cleared as it lands.
+  repository's landing branch, its main, unless it names another, or
+  `goal`, the goals' own branches. A landing on a branch no tier
+  follows, or one only a tier of goal branches follows, is cleared as
+  it lands.
 - **A run** covers every landing since the tier's last judged run. One
   run per tier goes at a time, and the next starts at the newest tip
   once the last ends. temper dispatches it on a branch of its own,
   `temper/tier/NAME.N`, made at the commit it runs, and deletes the
   branch when the run ends.
+- **A tier of goal branches,** `"branch": "goal"`, checks each goal's
+  own branch along the way: at most one run per its span on each
+  branch, one at a time across them, at the branch's newest tip. It
+  judges no landing. Its red runs the failed tests once more, alone,
+  and what fails again is news to the goal holding the branch, each
+  test marked new or still failing; it wakes the goal when a test is
+  new. A green run says nothing.
 - **The baseline:** A newly configured tier first runs at its followed
   branch's current tip as a baseline, without any landing. Baseline
   failures are blamed on no landing and inherited by the next run.
@@ -44,6 +52,13 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   first; a landing that changes nothing the tier reads is skipped.
 - **A landing's verdict is its own:** red only by the failures blamed
   on it, until a later run passes them, which clears it.
+- **A red goes to its goal** as news: the tier, the run, the
+  landing's commit, the failing tests blamed on it and the end of
+  each failed job's log, waking the goal. The goal repairs it with a
+  change naming the red landing (`repairs`, temper help change);
+  when a later run passes the failures, the red landing is cleared,
+  repaired by that change's landing, and its change's result ends
+  `repaired by COMMIT.`
 - **A runner's fault,** a lost run or a failed setup, runs the part
   again, up to the project's `tier_retries`. Past them, the tier's run
   task is held, `Tier NAME run N held after K runner faults, last:
@@ -111,7 +126,10 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   `by`; the example shows their defaults. Stop and restart the deployment
   afterward with the same directories (temper help deployment).
   Without `branch`, the tier follows the repository's landing branch;
-  set `branch` to another branch's name to follow it instead.
+  set `branch` to another branch's name to follow it instead, or to
+  `goal` to follow the goals' own branches. Set `span_ms` to keep a
+  tier's runs on one branch at least that many milliseconds apart;
+  none when absent.
 - **The report format:** set `format` to `junit` for JUnit reports or
   `lines` for one failing test id per line. For a line report, change
   the example's `"format": "junit"` to `"format": "lines"` and upload
@@ -144,5 +162,5 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   at most 16 failing tests, each id at most 256 bytes; past them its
   failures are many, blamed by landing alone.
 - A tier follows one branch: following two takes two tiers.
-- temper neither tells a goal of a red after landing nor posts a
-  verdict to the forge.
+- temper posts no verdict to the forge, and a red whose goal has
+  ended, or of a landing temper did not make, reaches no one.
