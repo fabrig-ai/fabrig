@@ -30,6 +30,7 @@ mod task_tree;
 mod welcome;
 mod fuzzy {
     mod client;
+    mod public_address;
 }
 
 mod accounts_edges;
