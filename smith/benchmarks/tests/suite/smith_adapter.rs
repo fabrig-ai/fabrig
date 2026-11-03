@@ -446,7 +446,7 @@ fn resolved_product(context: &smith_bench::agent::Context<'_>) -> smith_local_sh
     let trust = Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/protocol-llm/fixtures/root.der");
     // These startup stories open no TLS connection. Keep every native quantity
     // and memory check, loading the bounded test root instead of the host bundle.
-    for endpoint in ["codex", "anthropic", "openai"] {
+    for endpoint in ["anthropic", "openai"] {
         for (field, value) in [
             ("system", toml::Value::Boolean(false)),
             ("der", toml::Value::Array(vec![toml::Value::String(trust.display().to_string())])),

@@ -49,59 +49,51 @@ pub(crate) fn write(fd: Fd, bytes: &[u8], at: u64) -> Result<u32, i32> {
     })
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn truncate(fd: Fd, length: u64) -> Result<(), i32> {
     let length = libc::off_t::try_from(length).expect("a valid Truncate's length fits off_t");
-    retry(|| {
-        // SAFETY: ftruncate takes only a descriptor and integer length.
-        status(unsafe { libc::ftruncate(fd.raw(), length) })
-    })
+    // SAFETY: ftruncate takes only a descriptor and integer length.
+    status(unsafe { libc::ftruncate(fd.raw(), length) })
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn sync(fd: Fd) -> Result<(), i32> {
-    retry(|| {
-        // SAFETY: fsync takes only a descriptor.
-        status(unsafe { libc::fsync(fd.raw()) })
-    })
+    // SAFETY: fsync takes only a descriptor.
+    status(unsafe { libc::fsync(fd.raw()) })
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn stat(fd: Fd) -> Result<skein_io::kernel::Stat, i32> {
     // SAFETY: statx is a plain integer C record, valid when zeroed.
     let mut raw: libc::statx = unsafe { mem::zeroed() };
-    retry(|| {
-        // SAFETY: the empty path is NUL-terminated, and raw is exclusively
-        // writable for one statx until the call returns.
-        status(unsafe {
-            libc::statx(fd.raw(), c"".as_ptr(), libc::AT_EMPTY_PATH, sync::STAT_MASK, ptr::from_mut(&mut raw))
-        })
+    // SAFETY: the empty path is NUL-terminated, and raw is exclusively
+    // writable for one statx until the call returns.
+    status(unsafe {
+        libc::statx(fd.raw(), c"".as_ptr(), libc::AT_EMPTY_PATH, sync::STAT_MASK, ptr::from_mut(&mut raw))
     })?;
     Ok(sync::stat(&raw))
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn rename(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8], no_replace: bool) -> Result<(), i32> {
     let from = sync::c_path(from);
     let to = sync::c_path(to);
     let flags = if no_replace { libc::RENAME_NOREPLACE } else { 0 };
-    retry(|| {
-        // SAFETY: both names are NUL-terminated locals borrowed only by renameat2.
-        status(unsafe {
-            libc::renameat2(from_dir.raw(), from.as_ptr().cast(), to_dir.raw(), to.as_ptr().cast(), flags)
-        })
-    })
+    // SAFETY: both names are NUL-terminated locals borrowed only by renameat2.
+    status(unsafe { libc::renameat2(from_dir.raw(), from.as_ptr().cast(), to_dir.raw(), to.as_ptr().cast(), flags) })
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn remove(dir: Fd, name: &[u8], directory: bool) -> Result<(), i32> {
     let name = sync::c_path(name);
     let flags = if directory { libc::AT_REMOVEDIR } else { 0 };
-    retry(|| {
-        // SAFETY: name is NUL-terminated and remains live throughout unlinkat.
-        status(unsafe { libc::unlinkat(dir.raw(), name.as_ptr().cast(), flags) })
-    })
+    // SAFETY: name is NUL-terminated and remains live throughout unlinkat.
+    status(unsafe { libc::unlinkat(dir.raw(), name.as_ptr().cast(), flags) })
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn mkdir(dir: Fd, name: &[u8], mode: u32) -> Result<(), i32> {
     let name = sync::c_path(name);
-    retry(|| {
-        // SAFETY: name is NUL-terminated and remains live throughout mkdirat.
-        status(unsafe { libc::mkdirat(dir.raw(), name.as_ptr().cast(), mode) })
-    })
+    // SAFETY: name is NUL-terminated and remains live throughout mkdirat.
+    status(unsafe { libc::mkdirat(dir.raw(), name.as_ptr().cast(), mode) })
 }

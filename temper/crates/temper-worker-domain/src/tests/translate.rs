@@ -32,7 +32,6 @@ fn every_smith_limit_names_a_hold_or_stays_a_model_failure() {
         ("number", Limit::Path(Cap::Number), None),
         ("error body", Limit::Path(Cap::ErrorBody), None),
         ("access token", Limit::Path(Cap::AccessToken), None),
-        ("account id", Limit::Path(Cap::AccountId), None),
     ];
     for (name, which, bound) in rows {
         let failure = agent::RunFailure::Model(agent::ModelFault::Completion {

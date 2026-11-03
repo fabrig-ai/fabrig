@@ -235,7 +235,7 @@ pub(super) fn terminal(server: &mut Server, env: &Env<Limits>) -> Result<Option<
     let Some(answer) = &server.answer else { return Ok(None) };
     let provider = match server.route {
         skein_llm::Provider::Anthropic => documents::Provider::Anthropic,
-        skein_llm::Provider::OpenAi | skein_llm::Provider::OpenAiCodex => documents::Provider::OpenAi,
+        skein_llm::Provider::OpenAi => documents::Provider::OpenAi,
     };
     let terminal = documents::terminal_sequence(provider, answer)?;
     if server.sequence < terminal {
@@ -248,7 +248,7 @@ pub(super) fn terminal(server: &mut Server, env: &Env<Limits>) -> Result<Option<
             b"error".as_slice(),
             anthropic::encode_event(&anthropic::Event::Failed { error }, &env.limits.documents.anthropic),
         ),
-        skein_llm::Provider::OpenAi | skein_llm::Provider::OpenAiCodex => {
+        skein_llm::Provider::OpenAi => {
             (b"response.failed".as_slice(), openai::encode_failed(&error, &env.limits.documents.openai))
         }
     };

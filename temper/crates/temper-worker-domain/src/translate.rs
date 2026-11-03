@@ -272,8 +272,7 @@ const fn exceeded(which: &agent::Limit) -> Option<host::Bound> {
             | agent::Cap::Strings
             | agent::Cap::Number
             | agent::Cap::ErrorBody
-            | agent::Cap::AccessToken
-            | agent::Cap::AccountId => None,
+            | agent::Cap::AccessToken => None,
         },
         agent::Limit::History => Some(host::Bound::History),
         agent::Limit::Window => Some(host::Bound::Window),

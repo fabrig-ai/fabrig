@@ -504,7 +504,7 @@ fn settings_calls_parse_and_write_back_with_existing_numbers_unchanged() {
         assert_eq!(fixtures::back(&call), fixtures::owned(&argv));
         assert_eq!(fixtures::printed(&call), jig::call::Parsed::Call { call, json: false });
     }
-    assert_eq!((rows::EXPORT_AT, rows::IMPORT_AT, rows::SETTINGS_AT, rows::CHANGE_SETTINGS_AT), (40, 41, 42, 46));
+    assert_eq!((rows::EXPORT_AT, rows::IMPORT_AT, rows::SETTINGS_AT, rows::CHANGE_SETTINGS_AT), (41, 42, 43, 47));
     for argv in [
         vec!["settings", "show", "rules", "--project", "1"],
         vec!["settings", "show", "charter", "3", "--project", "1"],
@@ -1042,7 +1042,7 @@ fn settings_proposals_and_decision_choices_parse_round_trip_and_preserve_identit
         }
         assert_eq!(fixtures::from_json(&jig::json::write_call(crate::table::TOOLS, &call).expect("JSON")), call);
     }
-    assert_eq!((rows::PROPOSE_SETTINGS_AT, rows::PROPOSAL_AT), (47, 48));
+    assert_eq!((rows::PROPOSE_SETTINGS_AT, rows::PROPOSAL_AT), (48, 49));
     for argv in [
         vec!["settings", "propose", "FILE", "--against", "5"],
         vec!["settings", "propose", "FILE", "--against", "5", "--running", "moves", "--key", "proposal-5"],

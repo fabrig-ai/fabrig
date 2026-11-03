@@ -379,8 +379,6 @@ pub enum Cap {
     ErrorBody,
     /// The configured bound on access token.
     AccessToken,
-    /// The configured bound on account identifier.
-    AccountId,
 }
 
 /// The owner of a bounded value, sent in a terminal limit failure.

@@ -188,6 +188,7 @@ pub(crate) fn body(
                     if let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge())) {
                         match row.kind {
                             Kind::GitHub => github(b, root, w, forge, row),
+                            Kind::Forgejo if row.mode == Mode::Connected => tokens_details(b, root, w, forge, row),
                             Kind::Forgejo if row.admin => admin_details(b, root, w, forge, row),
                             Kind::Forgejo => here(b, root, w, forge, row),
                         }
@@ -334,7 +335,10 @@ fn managed(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindin
         b.bind(bindings.insert(Meaning::PlaceField(field)));
         b.close();
     }
+    text(b, w, Role::Heading { level: 3 }, Word::AdminTitle);
+    text(b, w, Role::Paragraph, Word::AdminDescription);
     admin_form(b, root, w, bindings, None);
+    tokens_form(b, root, w, bindings, None);
     b.close();
 }
 fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
@@ -694,6 +698,12 @@ fn mark(current: usize, index: usize) -> Mark {
     }
 }
 pub(crate) fn setting_up(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
+    if row.kind == Kind::Forgejo && row.mode == Mode::Connected {
+        flow::card(b, &w.say(Word::TokensConnecting, &[Hole::Number(u64::from(row.number))]));
+        text(b, w, Role::Paragraph, Word::TokensChecking);
+        b.close();
+        return;
+    }
     if row.admin {
         flow::card(b, &w.say(Word::AdminConnecting, &[Hole::Number(u64::from(row.number))]));
         let repository = match &row.first {
@@ -1714,4 +1724,104 @@ fn managed_place(draft: &forge::admin::PlaceDraft) -> Option<forge::forges::Mana
         git: draft.fields.get(PlaceField::Git.index())?.clone(),
         web: if web.is_empty() { None } else { Some(web.clone()) },
     })
+}
+
+fn tokens_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
+    flow::details(b, &name(w, row, root));
+    tokens_form(b, root, w, bindings, Some(row));
+    b.close();
+}
+fn tokens_form(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: Option<&Row>) {
+    use forge::tokens::Field;
+    let draft = root.forge().tokens_form();
+    text(b, w, Role::Heading { level: 3 }, Word::TokensTitle);
+    text(b, w, Role::Paragraph, Word::TokensDescription);
+    for (field, word) in
+        [(Field::Api, Word::TokensApi), (Field::Git, Word::TokensGit), (Field::Webhook, Word::TokensWebhook)]
+    {
+        let required = field != Field::Webhook && !draft.has(field);
+        b.open(Role::TextField);
+        b.name(&w.say(word, &[]));
+        b.entry(skein_ui::EntryKind::Secret);
+        b.value(b"", *draft.written.get(field.index()).expect("three secret writes"));
+        b.bind(bindings.insert(Meaning::ForgejoToken(field)));
+        if draft.checked && (required || draft.too_long) {
+            b.state(State::Invalid);
+        }
+        b.close();
+        if draft.checked && required && !draft.too_long {
+            text(b, w, Role::Alert, Word::SetupRequired);
+        }
+    }
+    text(b, w, Role::Paragraph, Word::TokensWebhookHint);
+    if draft.checked && draft.too_long {
+        text(b, w, Role::Alert, Word::AdminTooLong);
+    }
+    let title = w.say(Word::TokensConnect, &[]);
+    let pending = root.forge().tokens();
+    let busy = match pending {
+        Some(pending) => pending.answer.is_none(),
+        None => false,
+    };
+    let control = if busy || root.forge().served() == forge::Served::OutOfDate {
+        Control::PrimaryDisabled { name: &title }
+    } else if let Some(row) = row {
+        Control::PrimaryButton { name: &title, to: bindings.insert(Meaning::ConnectTokens(row.number)) }
+    } else if let Some(place) = managed_place(&root.forge().admin_form().place) {
+        Control::PrimaryButton {
+            name: &title,
+            to: bindings.insert(Meaning::Forges(forge::forges::Act::Connected { place })),
+        }
+    } else {
+        Control::PrimaryDisabled { name: &title }
+    };
+    flow::control(b, control);
+    if let Some(pending) = pending
+        && pending_matches(row, pending.forge)
+        && let Some(answer) = &pending.answer
+    {
+        use forge::github::Answer;
+        use temper_client_protocol_wire::v1::ForgeRefusal as F;
+        match answer {
+            Answer::Refused(F::Connected) => crate::cards::text(
+                b,
+                Role::Alert,
+                &w.say(Word::TokensConnected, &[Hole::Number(u64::from(pending.forge))]),
+            ),
+            Answer::Refused(F::NotTaken) => crate::cards::text(
+                b,
+                Role::Alert,
+                &w.say(Word::TokensNotTaken, &[Hole::Number(u64::from(pending.forge))]),
+            ),
+            Answer::Refused(F::NoKey) => text(b, w, Role::Alert, Word::TokensMissing),
+            Answer::Unknown => text(b, w, Role::Alert, Word::TokensUnknown),
+            Answer::Entrance(refusal) => {
+                b.open(Role::Alert);
+                w.refusal(b, refusal.refusal(), w.name_bytes);
+                b.close();
+            }
+            Answer::Connecting
+            | Answer::Link(_)
+            | Answer::Page(_)
+            | Answer::NoAccess
+            | Answer::NotFound
+            | Answer::Refused(F::Role | F::NoSuchForge | F::Busy | F::FirstIsBot | F::NotConnected) => {
+                if let Some(line) = forge::words::app_refusal(answer.clone(), pending.forge) {
+                    crate::cards::text(b, Role::Alert, &line);
+                }
+            }
+        }
+    }
+    if let Some(row) = row
+        && let Some(line) = forge::words::last_connect(row)
+    {
+        crate::cards::text(b, Role::Alert, &line);
+    }
+}
+
+fn pending_matches(row: Option<&Row>, number: u16) -> bool {
+    match row {
+        Some(row) => row.number == number,
+        None => true,
+    }
 }

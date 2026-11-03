@@ -42,7 +42,7 @@ impl PrivateWorld {
         let mut config = crate::tests::config();
         let mut endpoints = List::with_capacity(1);
         endpoints
-            .push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 4, dialect: 1 })
+            .push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 4, dialect: 3 })
             .unwrap();
         config.endpoints = smith_protocol_translate::Endpoints::new(endpoints);
         let mut service = Service::new(config, seed).unwrap();
@@ -109,7 +109,9 @@ impl PrivateWorld {
 }
 
 fn turn() -> smith_domain::Turn {
-    smith_local_domain::fixture::turn()
+    let mut turn = smith_local_domain::fixture::turn();
+    turn.dialect = 3;
+    turn
 }
 
 fn assert_removed_after_exit(status: local::ExitStatus) {

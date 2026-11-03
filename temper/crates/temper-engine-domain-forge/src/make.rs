@@ -49,6 +49,7 @@ pub(crate) fn setup(
     let (forge, org, repository, project, playground) = match ask {
         Ask::SetUp { forge, org, repository, project, playground } => (forge, org, repository, project, playground),
         Ask::Connect { .. }
+        | Ask::Replace { .. }
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
         | Ask::EndPlayground
@@ -100,7 +101,9 @@ pub(crate) fn setup(
     };
     let admitted = match forge {
         Making::New(ForgeAsk::Owned) => owned(d, intent.clone(), out),
-        Making::New(ForgeAsk::GitHub | ForgeAsk::Managed { .. }) => Err(SetUpRefusal::NotOffered),
+        Making::New(ForgeAsk::GitHub | ForgeAsk::Managed { .. } | ForgeAsk::Connected { .. }) => {
+            Err(SetUpRefusal::NotOffered)
+        }
         Making::Kept(forge) => match d.offer(forge) {
             Offer::NotOffered => Err(SetUpRefusal::NotOffered),
             Offer::NotUnderTheBox => Err(SetUpRefusal::NotUnderTheBox),

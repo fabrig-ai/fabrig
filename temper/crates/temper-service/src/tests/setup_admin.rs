@@ -57,7 +57,7 @@ fn service(forge: &Forge) -> crate::Service {
 fn bundle(item: u16, bytes: &[u8]) -> Secret {
     let value = match item {
         1 => temper_client_domain::forge::forges::pasted_admin_token(bytes),
-        _ => records::encode_pasted(item, bytes).ok(),
+        _ => records::encode_pasted(&[(item, bytes)]).ok(),
     };
     match value {
         Some(value) => value,

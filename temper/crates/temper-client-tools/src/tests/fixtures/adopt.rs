@@ -87,6 +87,7 @@ impl Harness {
             | w::Request::EndPlayground
             | w::Request::Accept(_)
             | w::Request::Reachable(_)
+            | w::Request::Replace(_)
             | w::Request::Connect(_)
             | w::Request::Install(_) => {
                 panic!("expected adoption")

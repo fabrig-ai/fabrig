@@ -324,7 +324,7 @@ it a unit the tag does not identify.
   `ResponseFields`, `Skip`, `Field`, `Retained`, `Tokens`, `Depth`,
   `Strings`, `Number` and `ErrorBody` can describe framing or a transient
   error body, rather than the call's configured allowance.
-  `Cap::AccessToken` and `Cap::AccountId` depend on credentials.
+  `Cap::AccessToken` depends on credentials.
   `Limit::Pool` is a connection reservation, which can depend on
   credential-bearing request headers; `CompletionFailure::ApplicationLimit`
   also covers temporary call-slot refusal. None is classified as one of

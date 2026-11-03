@@ -7,7 +7,7 @@ use skein_lib::{Duration, Env, Map, Queue, ReplyTo, Time, Token, Wall};
 /// The one configured model, which the charter names.
 fn model() -> core::Model {
     core::Model {
-        dialect: 1,
+        dialect: 3,
         endpoint: 1,
         program: None,
         name: Box::from(b"scripted".as_slice()),

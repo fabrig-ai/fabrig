@@ -1,0 +1,78 @@
+draft = "forgejo-connect"
+repo = "fabrig"
+sources = ["temper/docs/plan/forgejo-connect/inputs/request.md", "temper/docs/design/protocol/forge.md", "AGENTS.md"]
+
+# A connected Forgejo, designed first (inputs/request.md, answered (a) on 2026-11-03): the five
+# open points are settled in temper's designs (this branch's first commit), then built. The
+# shapes that cross tasks are notes/contracts.md (C1 to C5); every task names notes/common.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "bundle"
+title = "temper: the carried bundle holds a list of items, in the codec's own form"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/credentials.md, 2.2"
+
+[[part]]
+id = "engine"
+title = "temper: the forge domain admits a connected Forgejo's tokens connect and a Replace, and keeps the checked login"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/forge.md, 2.2"
+
+[[part]]
+id = "wire"
+title = "temper: the client wire carries a connected Forgejo's tokens connect and a Replace, mapped to the forge domain"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[part]]
+id = "service"
+title = "temper: the routing runs a connected Forgejo's Check, keeps its tokens and connects as its user"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/forge.md, 2.6"
+
+[[part]]
+id = "ctl"
+title = "temper: ctl connects a Forgejo by its tokens file and replaces a forge's key or tokens"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.5"
+
+[[part]]
+id = "replace"
+title = "temper: the routing runs a Replace, Check on a connected Forgejo or Paste with the kept App id on GitHub"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/forge.md, 2.2"
+
+[[part]]
+id = "web"
+title = "temper: the web page connects a Forgejo with its bot's tokens and replaces a forge's key or tokens"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 5.4"
+
+[[slice]]
+id = 1
+story = "temper ctl forge connect forgejo FILE --api --git, with a tokens file of one Forgejo user: the setup host's Check finds both tokens answer as that user, the tokens are kept, and forge list says connected as its login"
+parts = ["bundle", "engine", "wire", "service", "ctl"]
+walk = false
+
+[[slice]]
+id = 2
+story = "temper ctl forge replace FORGE FILE with a new git token alone: checked with the kept API token as the same user, kept over the old, connected again; a GitHub App's new key pasted with the kept id; another user's tokens stopped, the forge as it was"
+parts = ["replace"]
+walk = false
+
+[[slice]]
+id = 3
+story = "on the web page, Your Forgejo connects with its bot's tokens and is Ready as its user; on the Forges row, Replace takes a connected Forgejo's new git token and a GitHub App's new key"
+parts = ["web"]
+walk = false

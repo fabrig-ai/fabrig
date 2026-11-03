@@ -79,6 +79,7 @@ pub const TOOLS: &[&Tool] = &[
     &crate::forges::SET_UP,
     &crate::forges::DEMO_START,
     &crate::forges::CONNECT,
+    &crate::forges::REPLACE,
     &crate::forges::INSTALL,
     &crate::forges::REPOSITORIES,
     &rows::EXPORT,
