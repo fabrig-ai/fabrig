@@ -60,22 +60,14 @@ fn story_a_decodes_within_the_fakes_bounds() {
 fn story_as_deployment_offers_its_llm_cues_in_order() {
     let deployment: Value = serde_json::from_slice(A.deployment).expect("story deployment");
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
-    let cues: Vec<_> = llm["asked"]
-        .as_array()
-        .expect("asked scripts")
-        .iter()
-        .map(|script| json!({"cue": script["cue"]}))
-        .collect();
+    let cues: Vec<_> =
+        llm["asked"].as_array().expect("asked scripts").iter().map(|script| json!({"cue": script["cue"]})).collect();
     assert_eq!(deployment["application"]["demo"]["llm"]["asked"], json!(cues));
 }
 
 #[test]
 fn story_as_documents_can_list_every_offered_charter() {
-    for deployment in [serde_json::from_slice(A.deployment).expect("story deployment"), documents::world_document()] {
-        let engine = documents::settings::configuration(&deployment);
-        let temper_service::stock::Given::Own { jig, .. } = documents::given(&deployment) else {
-            panic!("the composition supplies its settings")
-        };
+    for (engine, jig) in configured_deployments() {
         assert!(
             engine.limits.core.documents.lines >= u32::try_from(jig.charters.len()).expect("offered charter count"),
             "the creating document lists every eligible charter before offering a chat"
@@ -86,14 +78,8 @@ fn story_as_documents_can_list_every_offered_charter() {
 #[test]
 fn story_as_chat_requests_fit_the_peoples_payload_bound() {
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
-    for deployment in [serde_json::from_slice(A.deployment).expect("story deployment"), documents::world_document()] {
-        let engine = documents::settings::configuration(&deployment);
-        let temper_service::stock::Given::Own { jig, .. } = documents::given(&deployment) else {
-            panic!("the composition supplies its settings")
-        };
-        let policy = &jig.policies.get(&1).expect("playground policy").policy;
-        let role = policy.roles.iter().find(|role| role.number == 0).expect("owner role");
-        let authority = jig_domain_core::authority_to_people(&role.authority).expect("owner authority");
+    for (engine, jig) in configured_deployments() {
+        let authority = jig_domain_core::authority_to_people(playground_owner(&jig)).expect("owner authority");
         let authority_bytes = jig_domain_people::authority_bytes(&authority).expect("bounded authority");
         for script in llm["asked"].as_array().expect("asked scripts") {
             let cue = script["cue"].as_str().expect("suggestion");
@@ -109,17 +95,12 @@ fn story_as_chat_requests_fit_the_peoples_payload_bound() {
 
 #[test]
 fn story_as_task_bounds_hold_the_chat_owners_authority() {
-    for deployment in [serde_json::from_slice(A.deployment).expect("story deployment"), documents::world_document()] {
-        let engine = documents::settings::configuration(&deployment);
-        let temper_service::stock::Given::Own { jig, .. } = documents::given(&deployment) else {
-            panic!("the composition supplies its settings")
-        };
-        let policy = &jig.policies.get(&1).expect("playground policy").policy;
-        let role = policy.roles.iter().find(|role| role.number == 0).expect("owner role");
+    for (engine, jig) in configured_deployments() {
+        let authority = playground_owner(&jig);
         assert!(
-            jig_domain_tasks::valid_authority(&engine.limits.core.tasks, &jig_domain_core::task_authority(&role.authority)),
+            jig_domain_tasks::valid_authority(&engine.limits.core.tasks, &jig_domain_core::task_authority(authority)),
             "the chat inherits its owner's {} grants within task authority bounds",
-            role.authority.grants.len()
+            authority.grants.len()
         );
     }
 }
@@ -342,4 +323,19 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
     let Some(run::Request::Open { opening, .. }) = out.pop() else { panic!("main opening: {out:?}") };
     assert!(out.is_empty());
     opening
+}
+
+fn configured_deployments() -> [(jig_protocol_config::Engine, jig_domain_core::settings::Defaults); 2] {
+    [serde_json::from_slice(A.deployment).expect("story deployment"), documents::world_document()].map(|deployment| {
+        let engine = documents::settings::configuration(&deployment);
+        let temper_service::stock::Given::Own { jig, .. } = documents::given(&deployment) else {
+            panic!("the composition supplies its settings")
+        };
+        (engine, jig)
+    })
+}
+
+fn playground_owner(defaults: &jig_domain_core::settings::Defaults) -> &jig_domain_authority::Authority {
+    let policy = &defaults.policies.get(&1).expect("playground policy").policy;
+    &policy.roles.iter().find(|role| role.number == 0).expect("owner role").authority
 }
