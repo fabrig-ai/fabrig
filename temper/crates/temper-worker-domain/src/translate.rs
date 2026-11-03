@@ -69,6 +69,13 @@ fn start(start: wire::Start) -> checkout::Start {
         wire::Start::Branch { branch } => checkout::Start::Branch { branch },
         wire::Start::Commit { commit } => checkout::Start::Commit { commit: git::Commit::new(commit) },
         wire::Start::Saved { branch } => checkout::Start::Saved { branch },
+        wire::Start::Merged { branch, heads } => {
+            let mut commits = List::with_capacity(u32::try_from(heads.len()).expect("admitted head count"));
+            for head in heads {
+                commits.push(git::Commit::new(head)).expect("counted heads");
+            }
+            checkout::Start::Merged { branch, heads: commits.into_boxed() }
+        }
         wire::Start::Merge { branch, base } => checkout::Start::Merge { branch, base: git::Commit::new(base) },
     }
 }
@@ -77,6 +84,11 @@ fn start(start: wire::Start) -> checkout::Start {
 /// what the forge lacks or refused, for which repository.
 pub(crate) fn failure(failure: checkout::Failure, tags: &[u64]) -> wire::Preparation {
     match failure {
+        checkout::Failure::Conflicted { repository, head } => {
+            let place = usize::try_from(repository).expect("a u32 fits usize");
+            let tag = *tags.get(place).expect("every failed repository has a tag");
+            wire::Preparation::Conflicted { tag, head: head.raw() }
+        }
         checkout::Failure::Transient => wire::Preparation::Transient,
         checkout::Failure::Missing { repository, missing } => {
             let place = usize::try_from(repository).expect("u32 fits usize");
@@ -113,9 +125,9 @@ pub(crate) fn checkout_refusal(refusal: checkout::Refusal) -> wire::Preparation 
 pub(crate) const fn preparation(failure: wire::Preparation, resource: Token) -> host::Preparation {
     match failure {
         wire::Preparation::Transient => host::Preparation::Transient,
-        wire::Preparation::Missing { .. } | wire::Preparation::Refused { .. } => {
-            host::Preparation::Permanent { resource: Some(resource) }
-        }
+        wire::Preparation::Missing { .. }
+        | wire::Preparation::Refused { .. }
+        | wire::Preparation::Conflicted { .. } => host::Preparation::Permanent { resource: Some(resource) },
     }
 }
 

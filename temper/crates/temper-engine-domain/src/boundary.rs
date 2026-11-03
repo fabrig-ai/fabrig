@@ -90,7 +90,16 @@ pub enum ForgeStart {
     Base(Box<[u8]>),
     Branch(Box<[u8]>),
     Saved(Box<[u8]>),
-    Merge { branch: Box<[u8]>, base: skein_forge::api::Commit },
+    Merge {
+        branch: Box<[u8]>,
+        base: skein_forge::api::Commit,
+    },
+    /// The landing branch with each head merged into it in order
+    /// (temper/docs/design/domain/worker.md, 4.1).
+    Merged {
+        branch: Box<[u8]>,
+        heads: Box<[skein_forge::api::Commit]>,
+    },
 }
 
 /// One adopted repository translated for the worker's workspace.
@@ -393,6 +402,8 @@ impl Parts {
 /// Why a repository could not be prepared, permanently (protocol/channel.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Preparation {
+    /// The head that did not merge into this repository's base.
+    Conflicted { tag: u64, head: skein_forge::api::Commit },
     /// The forge lacks what the assignment names for this repository.
     Missing { tag: u64, missing: Missing },
     /// The forge refused this repository's identity.
@@ -429,7 +440,6 @@ pub enum Fact {
 }
 
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "decoded calls stay inline in the bounded input queue priced at startup")]
 pub enum WorkerInput {
     /// A worker channel's hello, record or loss.
     Link { channel: Token, link: Link },
