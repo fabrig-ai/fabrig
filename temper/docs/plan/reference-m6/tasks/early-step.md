@@ -92,3 +92,13 @@ Owns the files in the header.
 
 As the implementer's text says; say where the early rules sit in the step and how the wait
 keeps the stall from counting.
+
+## Answers
+
+2026-11-03. Q: may the store schema wrap the early heads in a record, since skein-codegen
+rejects a list as an enum variant's payload? A: yes. Use `record EarlyHeads { heads: list
+64 StartedFrom }` and `enum Early { none, started: EarlyHeads, spent: EarlyHeads }`, the
+schema's usual shape (as `Segments` wraps a branch's segments); `record Change` gains
+`early: Early`, store version 11 unchanged, the domain's C5 types unchanged. skein is not
+widened. Run the old-forms check from `temper/` (`python3 -I -B scripts/old_forms.py`),
+where its `scripts/old-forms.txt` is.
