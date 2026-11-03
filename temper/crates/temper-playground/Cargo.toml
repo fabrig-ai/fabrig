@@ -53,6 +53,7 @@ temper-service.workspace = true
 temper-worker-protocol-git.workspace = true
 
 [dev-dependencies]
+temper-worker-checkout-world.workspace = true
 jig-channel-world.workspace = true
 smith-agent-process-world.workspace = true
 skein-llm-world.workspace = true
