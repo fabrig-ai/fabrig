@@ -271,3 +271,64 @@ fn real_account_writer_pages_reject_duplicate_backward_and_before_cursor_copies_
         "cursor must agree with the last account row"
     );
 }
+
+#[test]
+fn restored_imported_account_answers_export_and_finishes_the_move() {
+    let mut driver = Driver::cold(kept_store(), config(), &limits());
+    driver.protocol.sign_in_sources.insert(2);
+    driver.settle();
+    assert!(driver.root.ready(), "store recovery reopens the engine");
+    driver.sign_in();
+    driver.settle();
+    let sign_in = driver.session();
+    driver.delivered.clear();
+    change_account(&mut driver, sign_in, 105, people::AccountChange::MoveOut { account: 3 });
+    assert!(
+        driver.protocol.accounts.iter().any(|request| matches!(
+            request,
+            accounts::Request::Signing(accounts::Signing::Withdraw { source: 2, .. })
+        ))
+    );
+    driver.send(engine::Event::Account(accounts::Event::Withdrawn { source: 2, readable: true }));
+    driver.settle();
+    let number = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            if let engine::Delivery::WebReply {
+                reply: people::Reply::Outcome(people::Outcome::AccountMovingOut { account: 3, source: 2, number }),
+                ..
+            } = delivery
+            {
+                Some(*number)
+            } else {
+                None
+            }
+        })
+        .expect("the restored engine answers the export request");
+    driver.delivered.clear();
+    change_account(&mut driver, sign_in, 106, people::AccountChange::Written { number });
+    assert!(driver.delivered.iter().any(|delivery| matches!(
+        delivery,
+        engine::Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::AccountChanged), .. }
+    )));
+    assert!(
+        driver
+            .protocol
+            .accounts
+            .iter()
+            .any(|request| matches!(request, accounts::Request::Signing(accounts::Signing::Forget { source: 2 })))
+    );
+    assert!(!driver.store.rows.contains_key(&account_key(accounts::Key::Account { number: 3 })));
+}
+
+fn change_account(driver: &mut Driver, sign_in: u64, request: u8, change: people::AccountChange) {
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(request))),
+        sign_in,
+        key: [request; 16],
+        ask: people::Ask::AccountChange { holder: people::AccountHolder::Own, change },
+    }));
+    driver.settle();
+}
