@@ -36,6 +36,12 @@ pub struct Platform {
     pub calls: Vec<&'static str>,
 }
 impl skein_ui_web::platform::Platform for Platform {
+    fn abandon(&mut self, _: u32) {
+        self.calls.push("abandon");
+    }
+    fn read_on(&mut self) {
+        self.calls.push("read_on");
+    }
     fn read_all(&self) -> Vec<skein_ui_web::store::Record> {
         Vec::new()
     }

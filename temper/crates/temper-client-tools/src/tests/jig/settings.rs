@@ -2024,3 +2024,145 @@ fn settings_show_template_resources_are_readable_when_present() {
         }
     }
 }
+
+#[test]
+fn reference_goal_template_resources_survive_apply_and_show() {
+    let file = include_bytes!("../../../../../docs/examples/reference/settings.json");
+    let items = settings_file::decode(file, &crate::limits::tools()).expect("reference settings");
+    let (root, call) = changed(file, false);
+    let c::Ask::ChangeSettings(change) = fixtures::act_ask(&root, call) else { panic!("settings apply") };
+    assert_eq!(change.items, items);
+    let setting = c::Setting::Template(c::SettingNumber { number: 4 });
+    let item = change.items.iter().find(|item| item.setting == setting).expect("goal template");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) = &item.edit else {
+        panic!("template value")
+    };
+    assert_eq!(template.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
+    assert_eq!(template.tracked, Some(1));
+    goal_template_wire_round_trip(file, change, template);
+    for json in [false, true] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit_prepared(fixtures::call(&["settings", "show", "template", "4"]), json, None);
+        newest_for_setting(&mut root, call);
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(c::SettingValue::Template(template.clone())),
+                application: None,
+                proposed: None,
+            }))),
+        );
+        let answer = root.answer(call).expect("settings show");
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).expect("text or JSON");
+        assert!(text.contains(r#""resources":[{"connector":1,"symbol":1}]"#), "{text}");
+        if json {
+            let decoded = settings_file::decode(&file_from_setting(&answer.stdout), &crate::limits::tools())
+                .expect("show JSON applies");
+            assert_eq!(decoded.as_slice(), core::slice::from_ref(item));
+        }
+    }
+}
+
+fn goal_template_wire_round_trip(file: &[u8], change: &c::ChangeSettings, template: &c::Template) {
+    use jig_client_protocol_wire as w;
+    let bounds = crate::limits::form();
+    let neutral = settings_form::view::ChangeSettings {
+        against: 5,
+        items: settings_form::file::decode(file, &bounds).expect("neutral items"),
+        running: settings_form::view::Running::Moves,
+    };
+    let wire = settings_form::wire::wire_change_settings(&neutral, &bounds.settings).expect("neutral wire");
+    let preset = crate::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+    assert_eq!(
+        jig_client_protocol_link::translate::settings::restore_change_settings(&wire, &link).expect("client request"),
+        *change
+    );
+    let value = c::SettingValue::Template(Box::new(template.clone()));
+    let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+        .expect("client wire");
+    let wire = w::SettingDocument::new(
+        &bounds.settings,
+        w::SettingDocumentParts {
+            setting: w::Setting::Template(
+                w::SettingNumber::new(&bounds.settings, w::SettingNumberParts { number: 4 }).expect("template number"),
+            ),
+            revision: 5,
+            value: Some(wire_value),
+            application: None,
+            proposed: None,
+        },
+    )
+    .expect("wire document");
+    assert_eq!(
+        settings_form::wire::restore_setting_document(&wire, &bounds).expect("neutral restore").value,
+        Some(jig::form_setting_value(&value))
+    );
+    let mut smaller = bounds.settings;
+    smaller.template_resources = 0;
+    settings_form::wire::wire_change_settings(&neutral, &smaller).expect_err("wire resource bound");
+}
+
+fn template_resource_file(resources: Option<&str>) -> Vec<u8> {
+    let (setting, value) = values().remove(1);
+    let file = String::from_utf8(file_from_setting(&setting_json(setting, value))).expect("template JSON");
+    match resources {
+        Some(resources) => file.replace(r#""resources":[]"#, &format!(r#""resources":{resources}"#)).into_bytes(),
+        None => file.replace(r#""resources":[],"#, "").into_bytes(),
+    }
+}
+
+#[test]
+fn template_resources_are_optional_and_bounded_connector_symbols() {
+    for resources in [None, Some("[]"), Some(r#"[{"connector":65535,"symbol":65535}]"#)] {
+        let file = template_resource_file(resources);
+        let items = settings_file::decode(&file, &crate::limits::tools()).expect("optional symbols");
+        let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) =
+            &items.as_slice()[0].edit
+        else {
+            panic!("template")
+        };
+        let expected = if resources.is_some_and(|value| value.contains("65535")) {
+            vec![c::Symbol { connector: u16::MAX, symbol: u16::MAX }]
+        } else {
+            vec![]
+        };
+        assert_eq!(template.resources.as_slice(), expected);
+    }
+    let resources = r#"[{"connector":0,"symbol":1},{"connector":7,"symbol":2}]"#;
+    let file = template_resource_file(Some(resources));
+    let mut limits = crate::limits::tools();
+    limits.settings.template_resources = 2;
+    settings_file::decode(&file, &limits).expect("resource count at bound");
+    limits.settings.template_resources = 1;
+    let why = settings_file::decode(&file, &limits).expect_err("resource count");
+    assert!(core::str::from_utf8(&why).unwrap().contains("template.resources: bound 1"));
+}
+
+#[test]
+fn malformed_template_resources_name_the_member_before_sending() {
+    for (resources, path) in [
+        ("null", "template.resources"),
+        ("{}", "template.resources"),
+        ("[1]", "template.resources"),
+        (r#"[{"symbol":1}]"#, "template.resources.connector"),
+        (r#"[{"connector":0}]"#, "template.resources.symbol"),
+        (r#"[{"connector":65536,"symbol":1}]"#, "template.resources.connector"),
+        (r#"[{"connector":0,"symbol":65536}]"#, "template.resources.symbol"),
+        (r#"[{"connector":-1,"symbol":1}]"#, "template.resources.connector"),
+        (r#"[{"connector":0,"symbol":null}]"#, "template.resources.symbol"),
+        (r#"[{"connector":0,"symbol":1,"extra":0}]"#, "template.resources.extra"),
+        (r#"[{"connector":0,"symbol":1,"symbol":2}]"#, "template.resources.symbol"),
+    ] {
+        let file = template_resource_file(Some(resources));
+        let why = settings_file::decode(&file, &crate::limits::tools()).expect_err("malformed symbols");
+        let why = core::str::from_utf8(&why).expect("refusal text");
+        assert!(why.contains("item 1") && why.contains(path), "{resources}: {why}");
+        let (mut root, call) = changed(&file, false);
+        assert!(root.sends.is_empty());
+        assert_eq!(root.answer(call).expect("local refusal").status, 1);
+    }
+}

@@ -18,7 +18,8 @@ pub enum Shape {
     WakeRule,
     WakeBatch,
     Template,
-    TemplateSymbol,
+    /// A connector and its resource symbol.
+    Symbol,
     Text,
     Executor,
     Contract,
@@ -136,6 +137,7 @@ pub enum Limit {
     TaskContractDocumentVerdictChoices,
     VerdictChoiceFields,
     FieldRuleName,
+    /// The number of resource symbols in a template.
     TemplateResources,
     LlmChoiceSubagents,
     ModelEffortModel,
@@ -216,30 +218,42 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             Limit::PatternEndExactValue => limits.settings.pattern_end_exact_value,
             Limit::PatternEndOpenValue => limits.settings.pattern_end_open_value,
             Limit::DelegationKinds => limits.settings.delegation_kinds,
-            Limit::LandingSegments => limits
-                .settings
-                .pattern_segments
-                .min(limits.kinds.landing_pattern_segments)
-                .min(kinds::CEILINGS.landing_pattern_segments),
-            Limit::LandingSegmentBytes => limits
-                .settings
-                .pattern_segments_item
-                .min(limits.kinds.landing_pattern_segments_item)
-                .min(kinds::CEILINGS.landing_pattern_segments_item),
-            Limit::LandingExact => limits
-                .settings
-                .pattern_end_exact_value
-                .min(limits.kinds.landing_exact_value)
-                .min(kinds::CEILINGS.landing_exact_value),
-            Limit::LandingOpen => limits
-                .settings
-                .pattern_end_open_value
-                .min(limits.kinds.landing_open_value)
-                .min(kinds::CEILINGS.landing_open_value),
-            Limit::LandingGates => limits.kinds.landing_rule_gates.min(kinds::CEILINGS.landing_rule_gates),
-            Limit::LandingApprovals => limits.kinds.landing_rule_approvals.min(kinds::CEILINGS.landing_rule_approvals),
+            Limit::LandingSegments
+            | Limit::LandingSegmentBytes
+            | Limit::LandingExact
+            | Limit::LandingOpen
+            | Limit::LandingGates
+            | Limit::LandingApprovals => landing_limit(limit, limits),
         },
     })
+}
+#[expect(clippy::wildcard_enum_match_arm, reason = "the caller selects only landing limits")]
+fn landing_limit(limit: Limit, limits: &crate::Limits) -> u32 {
+    match limit {
+        Limit::LandingSegments => limits
+            .settings
+            .pattern_segments
+            .min(limits.kinds.landing_pattern_segments)
+            .min(kinds::CEILINGS.landing_pattern_segments),
+        Limit::LandingSegmentBytes => limits
+            .settings
+            .pattern_segments_item
+            .min(limits.kinds.landing_pattern_segments_item)
+            .min(kinds::CEILINGS.landing_pattern_segments_item),
+        Limit::LandingExact => limits
+            .settings
+            .pattern_end_exact_value
+            .min(limits.kinds.landing_exact_value)
+            .min(kinds::CEILINGS.landing_exact_value),
+        Limit::LandingOpen => limits
+            .settings
+            .pattern_end_open_value
+            .min(limits.kinds.landing_open_value)
+            .min(kinds::CEILINGS.landing_open_value),
+        Limit::LandingGates => limits.kinds.landing_rule_gates.min(kinds::CEILINGS.landing_rule_gates),
+        Limit::LandingApprovals => limits.kinds.landing_rule_approvals.min(kinds::CEILINGS.landing_rule_approvals),
+        _ => unreachable!("landing limit"),
+    }
 }
 /// A setting's kind word (`charter`, `template`, `policy`, `rules`) to its value's shape.
 #[must_use]

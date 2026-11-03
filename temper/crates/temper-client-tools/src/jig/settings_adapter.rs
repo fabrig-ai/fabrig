@@ -950,9 +950,8 @@ pub fn form_template(v: &c::Template) -> n::Template {
     n::Template {
         resources: {
             let mut out = List::with_capacity(v.resources.len());
-            for resource in &v.resources {
-                out.push(n::TemplateSymbol { connector: resource.connector, symbol: resource.symbol })
-                    .expect("one value per input");
+            for item in &v.resources {
+                out.push(n::Symbol { connector: item.connector, symbol: item.symbol }).expect("one value per input");
             }
             out
         },
@@ -974,9 +973,8 @@ pub fn client_template(v: &n::Template) -> c::Template {
     c::Template {
         resources: {
             let mut out = List::with_capacity(v.resources.len());
-            for resource in &v.resources {
-                out.push(c::Symbol { connector: resource.connector, symbol: resource.symbol })
-                    .expect("one value per input");
+            for item in &v.resources {
+                out.push(c::Symbol { connector: item.connector, symbol: item.symbol }).expect("one value per input");
             }
             out
         },

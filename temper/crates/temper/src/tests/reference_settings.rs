@@ -1,7 +1,7 @@
 //! The reference's settings file (temper/docs/design/protocol/configuration.md, 13.9).
 use settings_form::view::{
-    CharterDocument, ResultsWake, Setting, SettingEdit, SettingItem, SettingNumber, SettingValue, TaskContractDocument,
-    TemplateExecutor, TemplateSymbol, WakePolicy, WakeRule,
+    CharterDocument, ResultsWake, Setting, SettingEdit, SettingItem, SettingNumber, SettingValue, Symbol,
+    TaskContractDocument, TemplateExecutor, WakePolicy, WakeRule,
 };
 use skein_lib::{Duration, List, bytes};
 
@@ -239,7 +239,7 @@ fn the_reference_settings_fit_the_reference_profile() {
     assert!(u64::from(words) <= result_bytes);
     assert!(result_bytes <= 4096, "small's tasks.message_bytes");
     assert_eq!(goal.resources.len(), 1);
-    assert_eq!(goal.resources.iter().next(), Some(&TemplateSymbol { connector: 1, symbol: 1 }));
+    assert_eq!(goal.resources.iter().next(), Some(&Symbol { connector: 1, symbol: 1 }));
     let SettingValue::Charter(coordinator) = value(&items, Setting::Charter(SettingNumber { number: COORDINATOR }))
     else {
         panic!("coordinator charter")

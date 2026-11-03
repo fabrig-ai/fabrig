@@ -10,7 +10,7 @@ pub static FORMS: [Form; 52] = [
     Form { shape: Shape::WakeRule, name: b"wake_rule", choice: Choice::One { words: &[Word { word: b"never", line: b"It waits for the task's next run." }, Word { word: b"immediate", line: b"It wakes the task at once." }] }, line: b"How a kind of message wakes a task: a word, or an object with one member." },
     Form { shape: Shape::WakeBatch, name: b"wake_batch", choice: Choice::Every, line: b"A batch of messages that wakes a task once." },
     Form { shape: Shape::Template, name: b"template", choice: Choice::Every, line: b"How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it." },
-    Form { shape: Shape::TemplateSymbol, name: b"template_symbol", choice: Choice::Every, line: b"A connector's resource named after the task." },
+    Form { shape: Shape::Symbol, name: b"symbol", choice: Choice::Every, line: b"A connector resource resolved when the task is created." },
     Form { shape: Shape::Text, name: b"text", choice: Choice::Every, line: b"A text, whole." },
     Form {
         shape: Shape::Executor,
@@ -343,6 +343,14 @@ pub static FIELDS: [Field; 190] = [
     Field { shape: Shape::WakeBatch, name: b"age", value: Value::Nanoseconds, list: None, null: false, line: b"Or once the oldest has waited this long; above zero, else refused as `shape`." },
     Field {
         shape: Shape::Template,
+        name: b"resources",
+        value: Value::Shape(Shape::Symbol),
+        list: Some(Bound::Limit(Limit::TemplateResources)),
+        null: false,
+        line: b"Optional; absent means an empty list. No pair twice. Resource symbols resolved for the new task; forge connector 1, symbol 1 is its own goal branch.",
+    },
+    Field {
+        shape: Shape::Template,
         name: b"number",
         value: Value::Integer(Width::U32),
         list: None,
@@ -423,9 +431,8 @@ pub static FIELDS: [Field; 190] = [
     },
     Field { shape: Shape::Template, name: b"grace", value: Value::Nanoseconds, list: None, null: true, line: b"How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, refused as `grace`." },
     Field { shape: Shape::Template, name: b"llm", value: Value::Shape(Shape::Llm), list: None, null: true, line: b"The models the task asks for, or null for its charter's default." },
-    Field { shape: Shape::Template, name: b"resources", value: Value::Shape(Shape::TemplateSymbol), list: Some(Bound::Limit(Limit::TemplateResources)), null: false, line: b"The connectors' resources a task made from it holds, such as the forge's own goal branch. Optional; left out, []. No pair twice." },
-    Field { shape: Shape::TemplateSymbol, name: b"connector", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector's number." },
-    Field { shape: Shape::TemplateSymbol, name: b"symbol", value: Value::Integer(Width::U16), list: None, null: false, line: b"The symbol's number, offered by the connector." },
+    Field { shape: Shape::Symbol, name: b"connector", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector that resolves the symbol; 1 is the forge." },
+    Field { shape: Shape::Symbol, name: b"symbol", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector's resource symbol; the forge's 1 is its own goal branch." },
     Field {
         shape: Shape::Text,
         name: b"bytes",
