@@ -93,6 +93,15 @@ Every task is released; the plan is whole.
   `tasks.batch`, the rest at the next step at once (contract C7's `room` and `more`).
 - **The record keeps a question's words** (C2, revision 2): jig offers a procedure no reader
   of a question's words by number.
+- **An independent review after release** (03:03 to 03:18) found the relay's edge cases
+  that the released specs did not settle: inputs lost on a step short of room, a refused
+  step's row change, a late foreman's result, foreman text past the message bound, the
+  foreman's step bookkeeping and the world's sizing, the change's kept for a held answer,
+  `taken` on any release. They are `notes/contracts.md`'s C2 and C7 revision 3 (binding
+  `relay-up`, which owns `relay.rs` and supersedes `relay-policy`'s rules where they differ)
+  and C5 and C6 revision 2 (binding `relay-foreman` and `relay-story`). It found the
+  queue's own `kept` needs nothing: an agent's question arises only while the change
+  produces, repairs or resolves, out of its queue.
 - **Holds passed up** need no mechanism: jig's escalation reaches the coordinator, whose
   `decide` passes it to its person; the coordinator's charter says when (13.9).
 

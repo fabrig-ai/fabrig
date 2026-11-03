@@ -233,3 +233,50 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, roo
   `row.questions.open` holds a question whose asker is the task of `row.delegate`; a phase
   waiting on that delegate then waits with no deadline and no stall (`domain/forge.md`,
   8.4).
+- **C2 and C7, revision 3 (task `relay-up`, which owns `relay.rs` and the store's
+  `Stands`; it supersedes `relay-policy`'s rules where they differ).** A step's inputs are
+  taken from jig's inbox whole whatever room it has (jig keeps nothing back of what a step
+  read), so every input lands on the record before any act is sent:
+  - `Stands` gains `Up { reasons: Box<[u8]> }`, a question to pass up with these reasons
+    (store: `up: bytes 65536`, in place at v11 with revision 2's `words`). A route-`Up` head,
+    a foreman's `Escalate` or `Failed` (reasons `Foreman:\n` and its text), and the head past
+    the bound (reasons empty) become `Up`; an `Up` head is asked of the requester as soon as
+    the step has room, the bound never checked again for it.
+  - Past the bound the head becomes `Up { reasons: [] }` and the step acts `Hold` once; after
+    the release, it goes up with no foreman.
+  - The requester's answer, and a foreman's `Answer` or `Finish` text, make the head `Held {
+    answer }` at once; a `Held` head goes down as soon as the step has room and the change
+    has no pending dependency. So `Held` is "answered, to go down", and a room-short step
+    loses nothing.
+  - `heard.foreman` settles the head only when its task is the head's `Foreman { task:
+    Some(f) }`; any other foreman's end is dropped.
+  - A question already open by (asker, number) is not taken again.
+  - `heard.released` goes: any release of the change sets `questions.taken` to 0, as a
+    release resets repairs (the pure crate's release, `domain.rs` near line 223).
+  - `heard.kept` is the change's task having a pending dependency (`waiting_on` not empty),
+    not `landing_route::kept`, whose landing joins would let an answer down early.
+  - Every `Answer` the root sends is cut from its end to `tasks.message_bytes` and marked
+    `…`, as an `Ask` is.
+  - The panel (C8) shows an `Up` head as `taken`: `relay-up` adds that arm where
+    `questions-panel` maps `Stands`.
+  - The relay's row change takes effect only with the step jig accepts: a refused step
+    leaves `row.questions` as it was (apply `Relayed` with the accepted step, or undo it on
+    the refusal as `DelegateAdmissionRefused` undoes a delegate); `route/asks.rs`'s refusal
+    arms may be edited for that alone.
+- **C5 and C6, revision 2 (task `relay-foreman`; `relay-story` for the world's sizing).**
+  - Each foreman verdict choice's words are bounded by `tasks.message_bytes` less 64 (the
+    `Finish` line's room), within `tasks.result_bytes`.
+  - The foreman's step bookkeeping sits beside `forge_delegating`
+    (`temper/crates/temper-engine-domain/src/domain.rs`, a map keyed by (task, step), which
+    this revision lets `relay-foreman` add), since `forge_route.rs` holds one delegate per
+    step in that map; a step whose foreman jig refuses settles the question `Failed` with
+    the refusal's words, never the change's "Delegate refused" hold
+    (`forge_route/holds.rs`'s `refused_step`).
+  - `chat_change`'s executor kinds take up to four (a person gate and `Charter(6)` beside
+    the change's two charters); its tasks are `(6 + questions bound).min(what the run has
+    left − 1)` for a foreman change, a foreman left uncovered passing its question up.
+  - The domain world (`temper/tests/engine/domain/src/forge_routes.rs`) gains a read-only
+    charter 6 and `Charter(6)` in its rules' and policy's delegation, its executor limits
+    raised to fit it, as `relay-foreman`'s stories need; `relay-story` sizes its own world's
+    tasks for a goal and three foreman changes (1 + 3 × (1 + 6 + 4)) in its own setup, as
+    `goal_changes.rs` sets its `tasks.batch`.
