@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home · hello · temper</title>
+<link rel="stylesheet" href="../journeys/skein-ui.css">
+<link rel="stylesheet" href="../../../../crates/temper-client-shell-web/temper.css">
+<link rel="stylesheet" href="ideas.css">
+</head>
+<body data-active="home" data-project="hello" data-note="Flexibility, by scale. The same home for a new one-repository project: chats only, no drafts, no goals, no away switch. Each part appears once the project uses it, and Settings can turn any of them on or off.">
+<div id="app">
+<div data-idea-banner></div>
+<main class="temper-main">
+<aside aria-label="Project" class="temper-sidebar" data-idea-pane></aside>
+<div class="idea-page">
+
+  <section aria-labelledby="since">
+    <h2 id="since">Since you last looked <span class="idea-muted" style="font-weight:400">· 1 h ago</span></h2>
+    <p class="idea-written">"Hello in Rust" landed on main. "Add a README" asked you which license to name, below.</p>
+    <span class="idea-by">T3's agent · 4 min ago</span>
+  </section>
+
+  <section aria-labelledby="waiting">
+    <h2 id="waiting">Waiting on you <span class="idea-count">1</span></h2>
+    <div class="idea-asks">
+      <div class="idea-ask">
+        <div class="idea-ask-head"><a href="#">Add a README</a><span>a question · 4 min ago</span></div>
+        <p>The repository has no license. Name one in the README?</p>
+        <div class="idea-choices">
+          <button type="button" class="idea-choice primary"><b>1</b>MIT</button>
+          <button type="button" class="idea-choice"><b>2</b>Apache-2.0</button>
+          <button type="button" class="idea-choice"><b>3</b>No license line</button>
+          <button type="button" class="idea-choice quiet">Reply…</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="bigger">
+    <h2 id="bigger">Bigger work</h2>
+    <p class="idea-facts" style="max-width:72ch">A chat suits one change. For more than one, write a draft with a chat and start a goal from it: it plans, runs the tasks and lands them, and keeps you posted. <a href="draft.html">New draft</a></p>
+  </section>
+
+  <section aria-labelledby="landing">
+    <h2 id="landing">Landing</h2>
+    <p class="idea-facts">work/hello on this machine's Forgejo · main last moved 1 h ago · nothing queued</p>
+  </section>
+
+</div>
+</main>
+</div>
+<script src="ideas.js"></script>
+</body>
+</html>

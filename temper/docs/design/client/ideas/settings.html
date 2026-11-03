@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How work runs · fabrig · temper</title>
+<link rel="stylesheet" href="../journeys/skein-ui.css">
+<link rel="stylesheet" href="../../../../crates/temper-client-shell-web/temper.css">
+<link rel="stylesheet" href="ideas.css">
+</head>
+<body data-active="settings" data-project="fabrig" data-waiting="3" data-note="Flexibility, by way of working. One page per project says how work runs there. Every choice the other pages make for fabrig comes from here, so another person or project can choose otherwise. Forges, Accounts and Builders sit beside it, out of the main navigation.">
+<div id="app">
+<div data-idea-banner></div>
+<main class="temper-main">
+<aside aria-label="Project" class="temper-sidebar" data-idea-pane></aside>
+<div class="idea-page">
+
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <div class="idea-crumbs">fabrig · Settings</div>
+    <h1>How work runs in fabrig</h1>
+    <nav class="idea-tabs" aria-label="Settings"><a href="#" aria-current="page">How work runs</a><a href="#">Repositories</a><a href="#">Forges</a><a href="#">Accounts</a><a href="#">Builders</a></nav>
+  </header>
+
+  <form class="idea-settings" onsubmit="return false">
+    <section aria-labelledby="parts">
+      <h2 id="parts">What the project shows</h2>
+      <div class="idea-setting"><div><span>Drafts</span><small>Documents you write with a chat, before any work starts.</small></div><div class="idea-checks"><label><input type="checkbox" checked> <span>Shown · they live in <code>docs/design/draft/</code></span></label></div></div>
+      <div class="idea-setting"><div><span>Goals</span><small>Bigger work from a draft: a plan, tasks, landing.</small></div><div class="idea-checks"><label><input type="checkbox" checked> Shown</label></div></div>
+      <div class="idea-setting"><div><span>Changes</span><small>The landing queue, as a page.</small></div><div class="idea-checks"><label><input type="checkbox" checked> Shown</label></div></div>
+      <div class="idea-setting"><div><span>Away switch</span><small>Lets agents decide within limits while you're away.</small></div><div class="idea-checks"><label><input type="checkbox" checked> Shown</label></div></div>
+    </section>
+
+    <section aria-labelledby="ways">
+      <h2 id="ways">Ways of working <a href="#">New way…</a></h2>
+      <div class="idea-setting"><div><span>Plan, tasks, land whole</span><small>Plan from the draft, tasks on a goal branch, one landing. Used by 11 goals.</small></div><div class="idea-checks"><label><input type="radio" name="default" checked> The default</label></div></div>
+      <div class="idea-setting"><div><span>Task by task</span><small>Each task lands once checked. Used by 2.</small></div><div class="idea-checks"><label><input type="radio" name="default"> The default</label></div></div>
+      <div class="idea-setting"><div><span>Plan, then wait for me</span><small>Nothing starts before you approve the plan. Used by 1.</small></div><div class="idea-checks"><label><input type="radio" name="default"> The default</label></div></div>
+      <div class="idea-setting"><div><span>One agent, one branch</span><small>No plan; one change. Used by none yet.</small></div><div class="idea-checks"><label><input type="radio" name="default"> The default</label></div></div>
+    </section>
+
+    <section aria-labelledby="status">
+      <h2 id="status">Status</h2>
+      <div class="idea-setting"><div><label for="writer">A goal's status line and report</label><small>Written words, beside the counts temper keeps itself.</small></div><select id="writer"><option>Written by the goal's agent</option><option>Written by one status agent for the project</option><option>None: counts only</option></select></div>
+      <div class="idea-setting"><div><label for="when">Rewritten</label></div><select id="when"><option>On each change</option><option>At most hourly</option><option>When someone opens it</option></select></div>
+      <div class="idea-setting"><div><label for="brief">"Since you last looked"</label><small>A brief at the top of Home, from your last visit.</small></div><select id="brief"><option>Written by the status agent</option><option>A list of what changed</option><option>Off</option></select></div>
+    </section>
+
+    <section aria-labelledby="asks">
+      <h2 id="asks">What waits on you</h2>
+      <div class="idea-setting"><div><span>Questions a goal can answer from its plan</span><small>Answered by the goal and kept in its decisions.</small></div><div class="idea-checks"><label><input type="checkbox" checked> Answered without me</label></div></div>
+      <div class="idea-setting"><div><label for="funds">Ask for funds</label></div><select id="funds"><option>When 80% of a budget is used</option><option>When a budget is used up</option></select></div>
+    </section>
+
+    <section aria-labelledby="away">
+      <h2 id="away">While I'm away, agents may decide</h2>
+      <div class="idea-setting"><div><span>Kinds of decision</span><small>Each is shown afterwards as decided for you, with Overturn.</small></div>
+        <div class="idea-checks">
+          <label><input type="checkbox" checked> Implementation choices within a task</label>
+          <label><input type="checkbox" checked> Retries and splitting a failing task</label>
+          <label><input type="checkbox" checked> A design document's wording</label>
+          <label><input type="checkbox"> Adding a dependency</label>
+          <label class="locked"><input type="checkbox" disabled> Budgets, sign-ins, machines, what is hard to reverse: always wait</label>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="tell">
+      <h2 id="tell">Telling me</h2>
+      <div class="idea-setting"><div><label for="push">Notifications</label><small>Only when something waits on you; never for status.</small></div><select id="push"><option>To this phone's browser</option><option>Off</option></select></div>
+      <div class="idea-setting"><div><label for="quiet">Quiet hours</label></div><input id="quiet" type="text" value="23:00 to 08:00"></div>
+    </section>
+  </form>
+
+</div>
+</main>
+</div>
+<script src="ideas.js"></script>
+</body>
+</html>

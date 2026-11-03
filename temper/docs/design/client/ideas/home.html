@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home · fabrig · temper</title>
+<link rel="stylesheet" href="../journeys/skein-ui.css">
+<link rel="stylesheet" href="../../../../crates/temper-client-shell-web/temper.css">
+<link rel="stylesheet" href="ideas.css">
+</head>
+<body data-active="home" data-project="fabrig" data-waiting="3" data-note="Ideas 2, 3 and 5. The project's home: what changed since you last looked, what waits on you, and each goal's status line. Inbox and Board merge here. Narrow the window to see the phone's check-in.">
+<div id="app">
+<div data-idea-banner></div>
+<main class="temper-main">
+<aside aria-label="Project" class="temper-sidebar" data-idea-pane></aside>
+<div class="idea-page">
+
+  <section aria-labelledby="since">
+    <h2 id="since">Since you last looked <span class="idea-muted" style="font-weight:400">· 9 h ago</span></h2>
+    <p class="idea-written">41 changes landed overnight. <a href="goal.html">first-run-projects</a> is 6 of 9 tasks in: its store task failed twice on the wasm size limit and is now split in two, both running. <a href="#">welcome-stall</a> found the fault in jig's store and waits on one answer from you. Nothing was decided for you.</p>
+    <span class="idea-by">status agent · 07:42 · <a href="#">earlier briefs</a></span>
+  </section>
+
+  <section aria-labelledby="waiting">
+    <h2 id="waiting">Waiting on you <span class="idea-count">3</span> <a href="waiting.html">Answer in a row</a></h2>
+    <div class="idea-asks">
+      <div class="idea-ask">
+        <div class="idea-ask-head"><a href="#">welcome-stall</a><span>a question · 40 min ago</span></div>
+        <p>MakeProject's answer comes after the client's watch drops. Fix it in jig's store, which changes a stored record, or keep the watch alive in temper serve?</p>
+        <div class="idea-choices">
+          <button type="button" class="idea-choice primary"><b>1</b>In jig's store (recommended)</button>
+          <button type="button" class="idea-choice"><b>2</b>In temper serve</button>
+          <button type="button" class="idea-choice quiet">Reply…</button>
+        </div>
+      </div>
+      <div class="idea-ask">
+        <div class="idea-ask-head"><a href="goal.html">first-run-projects</a><span>funds · 2 h ago</span></div>
+        <p>$31 of $40 used. The split store task needs about $8 more.</p>
+        <div class="idea-choices">
+          <button type="button" class="idea-choice primary">Add $10</button>
+          <button type="button" class="idea-choice">Add…</button>
+          <button type="button" class="idea-choice quiet">Stop the goal</button>
+        </div>
+      </div>
+      <div class="idea-ask">
+        <div class="idea-ask-head"><a href="#">forge-cards</a><span>a question · 3 h ago</span></div>
+        <p>The "connect your deployment" help page isn't written. Link the server help on GitHub for now, or hide the link until the page exists?</p>
+        <div class="idea-choices">
+          <button type="button" class="idea-choice primary"><b>1</b>Link the GitHub page (recommended)</button>
+          <button type="button" class="idea-choice"><b>2</b>Hide the link</button>
+          <button type="button" class="idea-choice quiet">Reply…</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="goals">
+    <h2 id="goals">Goals <a href="#">All 14</a></h2>
+    <div class="idea-goals">
+      <div class="idea-goal"><a href="goal.html">first-run-projects</a><p>Six of nine tasks landed. The store task is split after two size failures; both halves run.</p><span class="idea-state-needs">needs funds</span><span class="idea-progress">6/9 · $31 of $40 · since Mon 19:10</span></div>
+      <div class="idea-goal"><a href="#">welcome-stall</a><p>Reproduced in a box test; the fault is in jig's store. Waiting on where to fix it.</p><span class="idea-state-needs">needs you</span><span class="idea-progress">1/3 · $4 of $15 · since 18:20</span></div>
+      <div class="idea-goal"><a href="#">forge-cards</a><p>Planned four tasks from the draft; two run, one waits on a question.</p><span class="idea-state-running">running</span><span class="idea-progress">0/4 · $3 of $20 · since 04:05</span></div>
+      <div class="idea-goal"><a href="#">pane-chat-line</a><p>Landed whole at 01:12: two tasks, one journey print updated.</p><span class="idea-state-landed">landed</span><span class="idea-progress">2/2 · $5</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="landing">
+    <h2 id="landing">Landing</h2>
+    <p class="idea-facts">3 in the queue · last landed 6 min ago · main checked green at 07:36 · <a href="#">Changes</a></p>
+  </section>
+
+</div>
+</main>
+</div>
+<script src="ideas.js"></script>
+</body>
+</html>

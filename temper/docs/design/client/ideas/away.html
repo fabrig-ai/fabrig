@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home · fabrig · temper</title>
+<link rel="stylesheet" href="../journeys/skein-ui.css">
+<link rel="stylesheet" href="../../../../crates/temper-client-shell-web/temper.css">
+<link rel="stylesheet" href="ideas.css">
+</head>
+<body data-active="home" data-project="fabrig" data-waiting="1" data-away="Away until 08:00" data-note="Idea 4. Away mode, the morning after. The switch in the banner is still on. The home opens on what was decided for you, each with Overturn while overturning is cheap. What always waits for you, here funds, still waited.">
+<div id="app">
+<div data-idea-banner></div>
+<main class="temper-main">
+<aside aria-label="Project" class="temper-sidebar" data-idea-pane></aside>
+<div class="idea-page">
+
+  <section aria-labelledby="since">
+    <h2 id="since">While you were away <span class="idea-muted" style="font-weight:400">· 23:10 to now</span></h2>
+    <p class="idea-written">57 changes landed. 4 questions were decided for you, below; one of them has already landed. <a href="goal.html">first-run-projects</a> stopped at 05:50 for funds, which always wait for you. Turn away off, or leave it on until 08:00 as set.</p>
+    <span class="idea-by">status agent · 07:55</span>
+  </section>
+
+  <section aria-labelledby="decided">
+    <h2 id="decided">Decided for you <span class="idea-count">4</span></h2>
+    <div class="idea-decided">
+      <div class="idea-decision">
+        <div>
+          <span class="idea-small"><a href="#">welcome-stall</a> · 01:05</span>
+          <p>Fix in jig's store or in temper serve?</p>
+          <p class="idea-took">In temper serve</p>
+          <p class="idea-why">Jig's store change touches a stored record, which always waits for you; serve's fix doesn't. Reversible: the jig fix can follow.</p>
+        </div>
+        <span class="idea-late">landed 03:12 · a new goal can undo it</span>
+      </div>
+      <div class="idea-decision">
+        <div>
+          <span class="idea-small"><a href="#">forge-cards</a> · 02:40</span>
+          <p>Link the GitHub help page, or hide the link?</p>
+          <p class="idea-took">Link the GitHub page</p>
+          <p class="idea-why">The agent's own recommendation; the welcome's design names the link a placeholder.</p>
+        </div>
+        <button type="button" class="idea-choice">Overturn</button>
+      </div>
+      <div class="idea-decision">
+        <div>
+          <span class="idea-small"><a href="goal.html">first-run-projects</a> · 05:40</span>
+          <p>The store task failed twice on size. Retry, or split it?</p>
+          <p class="idea-took">Split it in two</p>
+          <p class="idea-why">Splitting is allowed while away; the halves are each under the size limit.</p>
+        </div>
+        <button type="button" class="idea-choice">Overturn</button>
+      </div>
+      <div class="idea-decision">
+        <div>
+          <span class="idea-small"><a href="#">dashboards</a> · 06:15</span>
+          <p>The draft's mockup names a "fleet" tile. Keep the word?</p>
+          <p class="idea-took">Rename it "Builders"</p>
+          <p class="idea-why">A design document's wording, not a decision in it.</p>
+        </div>
+        <button type="button" class="idea-choice">Overturn</button>
+      </div>
+    </div>
+    <p class="idea-facts" style="margin-top:8px">Allowed while away: implementation choices, retries and splits, document wording. <a href="settings.html">Change the limits</a></p>
+  </section>
+
+  <section aria-labelledby="waiting">
+    <h2 id="waiting">Still waiting on you <span class="idea-count">1</span></h2>
+    <div class="idea-asks">
+      <div class="idea-ask">
+        <div class="idea-ask-head"><a href="goal.html">first-run-projects</a><span>funds · stopped at 05:50</span></div>
+        <p>$40 of $40 used, with the store task's halves done and two small tasks left (about $6).</p>
+        <div class="idea-choices">
+          <button type="button" class="idea-choice primary">Add $10</button>
+          <button type="button" class="idea-choice">Add…</button>
+          <button type="button" class="idea-choice quiet">Land what's done</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</main>
+</div>
+<script src="ideas.js"></script>
+</body>
+</html>

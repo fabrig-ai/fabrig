@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>first-run-projects · fabrig · temper</title>
+<link rel="stylesheet" href="../journeys/skein-ui.css">
+<link rel="stylesheet" href="../../../../crates/temper-client-shell-web/temper.css">
+<link rel="stylesheet" href="ideas.css">
+</head>
+<body data-active="goals" data-project="fabrig" data-waiting="3" data-note="Idea 2. A goal opens on its status line and report, both kept by its agent on each change. What waits on you here comes first. Below the report: tasks, landing, decisions. Steering is a message to the goal, the way a chat is.">
+<div id="app">
+<div data-idea-banner></div>
+<main class="temper-main">
+<aside aria-label="Project" class="temper-sidebar" data-idea-pane></aside>
+<div class="idea-page" style="max-width:1080px;padding-bottom:0">
+
+  <div class="idea-crumbs"><a href="home.html">Goals</a> / first-run-projects</div>
+
+  <header class="idea-goal-head">
+    <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px">
+      <h1>first-run-projects</h1>
+      <span class="idea-state-needs idea-small">needs funds</span>
+      <div class="idea-acts" style="margin-left:auto">
+        <button type="button" class="idea-choice">Amend</button>
+        <button type="button" class="idea-choice">Pause</button>
+        <button type="button" class="idea-choice quiet">Stop</button>
+      </div>
+    </div>
+    <p class="idea-status-line">Six of nine tasks landed. The store task is split after two size failures; both halves run. It needs about $8 more to finish.</p>
+    <span class="idea-by" style="margin-top:-6px">its agent · 07:58, when the split task's second half started</span>
+    <div class="idea-meta"><span>from <a href="#">draft/first-run-projects.md</a></span><span>Plan, tasks, land whole</span><span>$31 of $40</span><span>since Mon 19:10</span><span>follows the away switch</span></div>
+  </header>
+
+  <section aria-label="Waiting on you">
+    <div class="idea-asks">
+      <div class="idea-ask">
+        <div class="idea-ask-head"><strong>Waiting on you</strong><span>funds · 2 h ago</span></div>
+        <p>$31 of $40 used. The split store task needs about $8 more to finish.</p>
+        <div class="idea-choices">
+          <button type="button" class="idea-choice primary">Add $10</button>
+          <button type="button" class="idea-choice">Add…</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="idea-tabs" aria-label="The goal"><a href="#" aria-current="page">Report</a><a href="#">Plan</a><a href="#">Decisions 7</a><a href="#">Activity</a><a href="#">Draft</a></nav>
+
+  <div class="idea-two">
+    <section class="idea-report" aria-label="Report">
+      <div class="idea-written">
+        <p>The project records, the project page's empty state and the welcome's Default project landed on the goal branch overnight, each checked. The Ready page waits on the store task.</p>
+        <p style="margin-top:10px">The store task added the project policy record to jig's store. It failed twice on the wasm client's size limit: the record set grew past what the client keeps in memory. I split it in two: the record and its migration first, the client's lazy loading second. Both run now, about $4 each.</p>
+        <h3>Left</h3>
+        <ul><li>The store task's two halves (running).</li><li>The Ready page's Open Default (waits on the store).</li><li>The welcome-set-up journey's print (last).</li></ul>
+        <h3>Risks</h3>
+        <ul><li>The lazy loading half touches every page that lists projects; its check runs the client's journeys.</li></ul>
+      </div>
+      <span class="idea-by">its agent · 07:58 · <a href="#">earlier reports</a></span>
+    </section>
+
+    <aside style="display:flex;flex-direction:column;gap:24px">
+      <section aria-labelledby="tasks">
+        <h2 id="tasks">Tasks <span class="idea-muted" style="font-weight:400">6 of 9</span></h2>
+        <ul class="idea-tasks">
+          <li class="done"><i>✓</i><span>Project records</span><span>landed Mon 21:40</span></li>
+          <li class="done"><i>✓</i><span>Project page, empty state</span><span>landed 00:15</span></li>
+          <li class="done"><i>✓</i><span>Welcome's Default project</span><span>landed 02:02</span></li>
+          <li class="done"><i>✓</i><span>Playground project</span><span>landed 03:30</span></li>
+          <li class="done"><i>✓</i><span>Banner's set-up link</span><span>landed 04:10</span></li>
+          <li class="done"><i>✓</i><span>Pane's playground line</span><span>landed 05:01</span></li>
+          <li class="run"><i>●</i><span>Store: policy record</span><span>running · 22 min</span></li>
+          <li class="run"><i>●</i><span>Client: lazy project loading</span><span>running · 12 min</span></li>
+          <li class="wait"><i>○</i><span>Ready page's Open Default</span><span>waits on the store</span></li>
+        </ul>
+      </section>
+      <section aria-labelledby="landing">
+        <h2 id="landing">Landing</h2>
+        <p class="idea-facts">The goal branch is 6 tasks ahead of main and lands whole once all 9 are checked. Main moved 41 changes since; the branch is updated hourly, last at 07:30, clean.</p>
+      </section>
+      <section aria-labelledby="decided">
+        <h2 id="decided">Decided within the plan <a href="#">all 7</a></h2>
+        <p class="idea-facts">Split the store task in two, 05:40 · Retried the store task once, 05:12 · Kept the Default project's name in English, 01:20</p>
+      </section>
+    </aside>
+  </div>
+
+  <div class="idea-steer">
+    <div class="idea-box"><span>Message first-run-projects: a steer, a question, an amendment</span></div>
+    <p class="idea-hint">its agent reads it at once · enter to send</p>
+  </div>
+
+</div>
+</main>
+</div>
+<script src="ideas.js"></script>
+</body>
+</html>

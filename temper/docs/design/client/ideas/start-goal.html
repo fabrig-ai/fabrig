@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Start a goal · fabrig · temper</title>
+<link rel="stylesheet" href="../journeys/skein-ui.css">
+<link rel="stylesheet" href="../../../../crates/temper-client-shell-web/temper.css">
+<link rel="stylesheet" href="ideas.css">
+</head>
+<body data-active="drafts" data-project="fabrig" data-waiting="3" data-note="Idea 1. Start goal on a draft: how the goal runs comes from the project's ways of working, preset to its default, with a budget and what happens while you are away. Nothing here is fabrig-specific: another project lists its own ways.">
+<div id="app">
+<div data-idea-banner></div>
+<main class="temper-main">
+<aside aria-label="Project" class="temper-sidebar" data-idea-pane></aside>
+<div class="idea-session">
+
+  <section class="idea-convo" aria-label="The conversation">
+    <header class="idea-convo-head"><strong>Away mode, draft</strong><span>T4 · Claude subscription · Opus</span><span>writes docs/design/draft/away-mode.md</span></header>
+    <div class="idea-thread">
+      <p class="idea-you">Let's draft away mode from the UX brainstorm: a setting, limits I set, and "decided for you" with an overturn.</p>
+      <p class="idea-agent">I read the brainstorm and the client's README. Outline: 1 In one page, 2 The setting, 3 What agents may decide, 4 Decided for you, 5 Coming back. Writing it now.</p>
+      <p class="idea-tool">Read <b>docs/design/client/README.md</b> (3 sections)</p>
+      <p class="idea-tool">Wrote <b>docs/design/draft/away-mode.md</b> (64 lines)</p>
+      <p class="idea-you">Budgets, sign-ins, machines and anything hard to reverse always wait for me. Make the limits a list of kinds, not levels.</p>
+      <p class="idea-agent">Done. Section 3 is now a list of decision kinds, each on or off per project, and the four that always wait are fixed and shown greyed. One question is left open: how long an overturn stays possible once the decision's change has landed.</p>
+      <p class="idea-tool">Edited <b>docs/design/draft/away-mode.md</b> (+18 −6)</p>
+      <p class="idea-agent">The draft reads as complete apart from that question. You can start a goal from it as it is; the question would come back to you as the goal's first.</p>
+    </div>
+    <div class="idea-steer">
+      <div class="idea-box"><span>Reply to T4</span></div>
+      <p class="idea-hint">enter to send · shift+enter for newline · @file to point at a file</p>
+    </div>
+  </section>
+
+  <aside class="idea-draft" aria-label="The draft">
+    <div class="idea-draft-head">
+      <div><strong>away-mode.md</strong><br><span>docs/design/draft · edited 1 min ago by T4 · 82 lines</span></div>
+      <div class="idea-acts">
+        <a class="idea-choice" href="#" style="display:inline-flex;align-items:center">Diff</a>
+        <a class="idea-choice primary" href="start-goal.html" style="display:inline-flex;align-items:center">Start goal…</a>
+      </div>
+    </div>
+    <h1>Away mode</h1>
+    <p class="idea-muted">Draft, 2026-11-03, with the user.</p>
+    <h2>1. In one page</h2>
+    <ul>
+      <li>A setting, per project or for all: "I'm away" until a time, or until turned off.</li>
+      <li>While away, agents decide what they would ask about, within the kinds the project allows (section 3).</li>
+      <li>Each such decision shows in Waiting on you as decided, with an Overturn while it is cheap (section 4).</li>
+      <li>Coming back opens on what was decided (section 5).</li>
+    </ul>
+    <h2>3. What agents may decide</h2>
+    <ul class="idea-changed">
+      <li>Implementation choices within a task's spec: on.</li>
+      <li>Retries and splitting a failing task: on.</li>
+      <li>A design document's wording, not its decisions: on.</li>
+      <li>Adding a dependency: off.</li>
+      <li>Always wait, fixed: budgets, sign-ins, machines, what is hard to reverse.</li>
+    </ul>
+    <h2>4. Decided for you</h2>
+    <p>Each decision keeps the question, the choice taken and why, in the goal's decisions and in Waiting on you, marked decided…</p>
+    <h2>Open questions</h2>
+    <ol><li>How long can a decision be overturned after its change landed?</li></ol>
+  </aside>
+
+</div>
+</main>
+<div class="idea-scrim">
+  <form class="idea-dialog" aria-labelledby="start" onsubmit="location.href='goal.html'; return false">
+    <header style="display:flex;flex-direction:column;gap:4px">
+      <h1 id="start">Start a goal from away-mode.md</h1>
+      <p class="idea-muted idea-small">The goal takes the draft as it is now (edited 1 min ago). Later edits reach it only through Amend.</p>
+    </header>
+    <div class="idea-field"><label for="name">Name</label><input id="name" type="text" value="away-mode"></div>
+    <fieldset>
+      <legend>How it runs</legend>
+      <label class="idea-option"><input type="radio" name="way" checked><span>Plan, tasks, land whole</span><small>A plan from the draft, its tasks on a goal branch, landed as one change once all are checked. fabrig's default.</small></label>
+      <label class="idea-option"><input type="radio" name="way"><span>Task by task</span><small>The same plan; each task lands on its own once checked.</small></label>
+      <label class="idea-option"><input type="radio" name="way"><span>Plan, then wait for me</span><small>Proposes the plan and its tasks, and starts nothing until you approve.</small></label>
+      <label class="idea-option"><input type="radio" name="way"><span>One agent, one branch</span><small>No plan: one agent works the draft through and opens one change.</small></label>
+      <small class="idea-muted">The project's ways of working · <a href="settings.html" style="color:var(--temper-accent-dark)">edit them</a></small>
+    </fieldset>
+    <div class="idea-field"><label for="budget">Budget</label><input id="budget" type="text" value="$40" style="width:7em"><span class="idea-muted idea-small">asks you before going over · no deadline</span></div>
+    <fieldset>
+      <legend>When it needs you</legend>
+      <label class="idea-option"><input type="radio" name="away" checked><span>Follow the away switch</span><small>Asks while you're here; while you're away, decides within the project's limits and tells you.</small></label>
+      <label class="idea-option"><input type="radio" name="away"><span>Always ask</span><small>Waits for you, however long, on every question it can't answer from the plan.</small></label>
+    </fieldset>
+    <p class="idea-muted idea-small">Its agent keeps the goal's status line and report, on each change. Its first question will be the draft's open one.</p>
+    <div class="idea-dialog-acts">
+      <a class="idea-choice quiet" href="draft.html" style="display:inline-flex;align-items:center">Cancel</a>
+      <button type="submit" class="idea-choice primary">Start goal</button>
+    </div>
+  </form>
+</div>
+</div>
+<script src="ideas.js"></script>
+</body>
+</html>

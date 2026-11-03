@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waiting on you · fabrig · temper</title>
+<link rel="stylesheet" href="../journeys/skein-ui.css">
+<link rel="stylesheet" href="../../../../crates/temper-client-shell-web/temper.css">
+<link rel="stylesheet" href="ideas.css">
+</head>
+<body data-active="waiting" data-project="fabrig" data-waiting="2" data-note="Idea 3. The inbox as Waiting on you, made for the phone: one tap per answer, several in a row. The first is answered and folds to a line, with an undo while nothing has acted on it yet.">
+<div id="app">
+<div data-idea-banner></div>
+<main class="temper-main">
+<aside aria-label="Project" class="temper-sidebar" data-idea-pane></aside>
+<div class="idea-page">
+
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <h1>Waiting on you</h1>
+    <p class="idea-muted">2 left of 3 · questions, funds and reviews from every goal and chat in fabrig. <a href="#">All projects</a></p>
+  </header>
+
+  <section aria-label="Answered">
+    <div class="idea-asks">
+      <div class="idea-ask idea-answered"><span>welcome-stall:</span><strong>In jig's store</strong><span>· 10 s ago</span><button type="button">Undo</button></div>
+    </div>
+  </section>
+
+  <section aria-label="Next">
+    <div class="idea-asks">
+      <div class="idea-ask">
+        <div class="idea-ask-head"><a href="goal.html">first-run-projects</a><span>funds · 2 h ago</span></div>
+        <p>$31 of $40 used. The split store task needs about $8 more to finish; the last two tasks are small.</p>
+        <details><summary>What the goal says</summary><p>The store task hit the wasm size limit twice, so it was split in two (a decision within the plan). Both halves run; each is about $4. Without funds the goal stops after the halves land, with the Ready page undone.</p></details>
+        <div class="idea-choices">
+          <button type="button" class="idea-choice primary">Add $10</button>
+          <button type="button" class="idea-choice">Add…</button>
+          <button type="button" class="idea-choice quiet">Stop the goal</button>
+          <button type="button" class="idea-choice quiet">Later</button>
+        </div>
+      </div>
+      <div class="idea-ask">
+        <div class="idea-ask-head"><a href="#">forge-cards</a><span>a question · 3 h ago · its task waits</span></div>
+        <p>The "connect your deployment" help page isn't written. Link the server help on GitHub for now, or hide the link until the page exists?</p>
+        <details><summary>What the agent recommends</summary><p>Link it: the README's server section says what is needed, and the welcome's design already names the link as a placeholder.</p></details>
+        <div class="idea-choices">
+          <button type="button" class="idea-choice primary"><b>1</b>Link the GitHub page (recommended)</button>
+          <button type="button" class="idea-choice"><b>2</b>Hide the link</button>
+          <button type="button" class="idea-choice quiet">Reply…</button>
+          <button type="button" class="idea-choice quiet">Later</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="notyours">
+    <h2 id="notyours">Answered without you <a href="#">12 today</a></h2>
+    <p class="idea-facts">Goals answer their own tasks' questions within their plans. Each one is in its goal's decisions, and none is waiting.</p>
+  </section>
+
+</div>
+</main>
+</div>
+<script src="ideas.js"></script>
+</body>
+</html>
