@@ -602,7 +602,7 @@ pub(super) fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<Ho
             placed: None,
             words: match source.as_deref() {
                 Some(tasks::HoldSource::Account { words, .. }) => {
-                    Some(super::small::text(words, limits.documents.text_bytes))
+                    Some(super::small::text(words, tasks::HOLD_ACCOUNT_BYTES))
                 }
                 None
                 | Some(
@@ -1099,6 +1099,7 @@ pub(super) fn overview_bound(limits: &super::DocumentLimits) -> Option<u64> {
         u64::try_from(size_of::<Task>())
             .ok()?
             .checked_add(specification)?
+            .checked_add(u64::from(tasks::HOLD_ACCOUNT_BYTES))?
             .checked_add(text.checked_mul(8)?)?
             .checked_add(path.checked_mul(2)?)?
             .checked_add(chip)?

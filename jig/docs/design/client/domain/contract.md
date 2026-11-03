@@ -946,7 +946,10 @@ usable and settled fields beside the rows.
   its bound is cut at a character's boundary, never inside a character,
   and says it was cut. So every text a document carries is UTF-8, as the
   wire's text fields check (`../../protocol/client.md`, section 3), and
-  the engine never makes a document its wire refuses.
+  the engine never makes a document its wire refuses. Connector hold accounts
+  carry their complete retained words, bounded by the tasks child's 512-byte
+  account bound independently of `documents.text_bytes`; their task and chip
+  document bounds include that room.
 
 ### 5.4 A decision's effect
 
