@@ -185,3 +185,15 @@ boundary, and `title_cut` true when the core's title was cut or is cut here.
 scope stands; `public-index` is added to `needs`, and the task runs again once `public-wire` and
 `public-index` have merged into the trunk. Merge the trunk first; neither the wire's API nor the
 core's types are this task's to write. If either is still missing then, stop and say which.
+
+2026-11-03. **`public_limits` needs the index bounds, which `Settings.public` loses**
+(`public-component-2`). Option A: `Settings` gains `pub public_bounds:
+jig_client_protocol_wire::PublicIndexBounds`, appended after `public`. The services fill it from
+the core's `Limits.public` (goals, ended, lines, depth) and `people.projects`, the same bounds
+they give `jig_kinds(..)`; test fixtures give it the zero bounds beside `public:
+List::with_capacity(0)` (the same literals this spec already lets you edit). With
+`limits.public.on()`, `Component::new` takes `public_limits(&settings.public_bounds)`, refusing
+(`Unusable::Limits`) on `None`, keeps the `public_v1::Limits` it returns, and translation
+encodes jig's records within those limits, never the schema's `CEILINGS`. An application's
+envelope is checked against its kind's `bound` and `answer_bytes` alone. `notes/contracts.md`,
+section 4, says the same.
