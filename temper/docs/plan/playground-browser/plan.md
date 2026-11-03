@@ -33,6 +33,23 @@ the shapes that cross tasks are `notes/contracts.md`. Every task names `notes/co
    - `tasks/page-policy.md`, feature, medium, ~45 min, needs nothing: temper-service's policy
      function for the service and the playground, the cache constants, the `headers` template
      held equal by a test (C6).
+   - `tasks/bundle-playground.md`, feature, high, ~75 min, needs `page-feature`,
+     `playground-worker` and `page-policy`: `temper/scripts/bundle.sh --playground OUT`, the
+     `playground` profile, `OUT/headers`, two builds alike (C6, C8); playground.status.md's 7.
+7. **replay** (`temper/docs/design/playground.md, 9`), slice 5.
+   - `tasks/one-process-replay.md`, feature, high, ~120 min, needs `native-walk-a`: the kept log
+     replayed over the playground's composition with the one-process world's forge referee as
+     skein's `Turns`, judging the CSV change landed and `main` green.
+8. **browser** (`temper/docs/design/client/browser.md, 4.6`), slice 6, **walked** (story A in the
+   browser tier, and by hand on Firefox and Safari on a desktop: `playground.md`, 10).
+   - `tasks/browser-walk.md`, feature, high, ~150 min, needs `bundle-playground` and
+     `native-walk-a`: the tier's runner builds the playground, its static host
+     `playground-serve` maps `headers`, the twelfth browser test walks story A at 10×, downloads
+     its log and replays it natively, and prints the figures; `playground-figures.md`; the tiers'
+     and browser.md's status.
+   - `tasks/status-nine.md`, docs, medium, ~20 min, needs `native-walk-a`, `one-process-replay`,
+     `bundle-playground` and `browser-walk`: playground.status.md's 9 edited once, from what the
+     trunk holds.
 
 ## Decisions
 
@@ -49,14 +66,36 @@ the shapes that cross tasks are `notes/contracts.md`. Every task names `notes/co
 - **The `headers` file is a template filled by the build** (C6), held equal to temper-service's
   policy function by a test, rather than a build tool linking the service.
 - **The kept log is the native walk's** (C7), re-recorded under `SKEIN_CODEGEN_WRITE` as temper's
-  goldens are.
+  goldens are; the browser's own log is replayed by the browser test itself.
+- **"Under the one-process world's referee" is its forge referee** (`one-process-replay`): the
+  parts of the referee that watch the terminal client's person or keep the links have no place
+  in a visit's replay, and the log's digests already prove the visitor's answers.
+- **The browser tier serves the built playground with a static host of its own** (C8), since the
+  tier's servers are all `temper serve` and skein's harness serves no directory; the tier builds
+  the playground in its real profiles, so its figures are a visitor's (design written:
+  `tools/tiers/design.md`, 2, and `temper/docs/design/client/browser.md`, 4.3, with the tiers'
+  status's **Not yet** 2).
+- **playground.status.md's 9 is edited once, last** (`status-nine`): four branches close its
+  words, and parallel edits of one line would not merge.
+- **The bars and the download's address are the user's** (`plan.toml`'s questions `bars` and
+  `download-address`); the defaults let every task finish.
 
-## Critical path (as it stands)
+## Critical path
 
-`playground-visitor` (90) → `native-walk-a` (150) → the log under the one-process referee; and
-`shell-turn-split` (45) → `page-feature` (150) → the bundle (with `playground-worker` and
-`page-policy` beside) → the browser walk. The page's chain is the longer: about 45 + 150 + 75 +
-150 implementer-minutes to the browser walk.
+`shell-turn-split` (45) → `page-feature` (150) → `bundle-playground` (75) → `browser-walk` (150)
+→ `status-nine` (20): about 440 implementer-minutes. Beside it: `playground-visitor` (90) →
+`native-walk-a` (150) → `one-process-replay` (120), which `browser-walk` meets (it needs the
+native walk's person) and `status-nine` waits for; `playground-worker` (60) and `page-policy` (45)
+before the bundle.
+
+## Not in this plan
+
+- **The playground forge's links shown as text** (`playground.md`, 6): not in the request's
+  scope; `page-feature` leaves it as playground.status.md's 6.
+- **The reset without the box** (`playground.status.md`, 4) and **the documents' bounds** (8):
+  other plans' (`domain/forge.md`, 4.1; playground-temper's measurement).
+- **Firefox and Safari by hand, the bars, publishing** (10): the walk of slice 6, the user's
+  questions, and the release.
 
 ## Overlaps with drafts beside this one
 
@@ -67,5 +106,8 @@ the shapes that cross tasks are `notes/contracts.md`. Every task names `notes/co
   plan's tasks remove words in place, never reflowing (`notes/common.md`).
 - `Cargo.lock`: `playground-visitor`, `playground-worker`, `native-walk-a` and `page-feature`
   change their packages' dependency lines, ordered by `needs` where they share a package.
+- `tools/tiers/` (`run`, `test_run.py`, `design.md`, `design.status.md`): this cut writes the
+  design; `browser-walk` changes the temper bundle step alone.
+- `temper/docs/design/client/browser.md`: this cut adds one bullet to 4.3.
 - `temper-service`: `page-policy` changes `src/clients/{policy.rs,bundle.rs}` and
   `src/tests/server.rs`, none of the files `configuring-p2-build` lists.

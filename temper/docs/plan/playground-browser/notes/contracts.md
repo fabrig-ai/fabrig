@@ -213,3 +213,16 @@ pub fn install(parameters: Parameters);
   goldens do (`temper/crates/temper-client-shell-terminal/src/tests/render.rs`, ~34).
 - A change that makes it differ is a new log, recorded again, or a finding (`playground.md`, 9):
   the branch that records it again says why in its commit.
+
+## C8. The built playground on disk and its static host (adds to C6)
+
+- **On disk:** skein's bundler writes `OUT/index.html` and `OUT/<digest>/...`; with `--prefix
+  /bundle/` the files' addresses are `/bundle/<digest>/...`. `bundle.sh --playground` adds
+  `OUT/headers` (C6). A host maps `/bundle/` to `OUT/`, answers any other path with
+  `OUT/index.html`, and applies `OUT/headers` (most specific path first for `Cache-Control`).
+- **The browser tier's host** is `temper-client-browser-world`'s binary `playground-serve`
+  (`temper/tests/client-browser/src/bin/playground-serve.rs`): `playground-serve OUT` binds
+  `127.0.0.1:0`, prints its address as the tier's servers do, and serves as above, GET and HEAD
+  only, one connection at a time.
+- **The tier's variable:** `TEMPER_TEST_PLAYGROUND`, the absolute `OUT` the tier's runner built
+  with `temper/scripts/bundle.sh --playground` (`tools/tiers/design.md`, 2).

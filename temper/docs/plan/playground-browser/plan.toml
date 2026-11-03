@@ -75,3 +75,39 @@ id = 4
 story = "temper/scripts/bundle.sh --playground builds the page with its frame and the world's worker module into static files with their headers, two builds at one commit alike"
 parts = ["worker", "page", "served"]
 walk = false
+
+[[part]]
+id = "replay"
+title = "temper: story A's kept log replayed natively under the one-process world's forge referee"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 9"
+
+[[slice]]
+id = 5
+story = "the kept session log of story A replays natively over the playground's composition under the one-process world's referee to the same end: the CSV change landed on main, every move of main green"
+parts = ["replay"]
+walk = false
+
+[[part]]
+id = "browser"
+title = "temper: the browser tier walks story A on the built playground, downloads its log and replays it natively, and reports the playground's figures"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 4.6"
+
+[[slice]]
+id = 6
+story = "story A walks in the browser on the built playground, from the welcome to the CSV change landed and the other two requests answered: in the browser tier's headless Chromium, and by hand on Firefox and Safari on a desktop; its log downloaded replays natively"
+parts = ["browser"]
+walk = true
+
+[[question]]
+id = "bars"
+parts = ["browser"]
+text = """The playground's bars for v0.1.0 are yours (temper's playground.md, 8, 10 and 11): the download's is 6 MB gzipped; the world's memory high water (the draft's 256 MiB was a phone's) and the longest slice (a page that answers while the world steps) have none for a desktop browser. Task browser-walk measures the three in the browser tier and writes them to temper/docs/development/playground-figures.md; no test enforces a bar. Default taken: figures reported, no bar enforced. Options: (a, recommended) once the figures are in, set the memory and slice bars at about 1.5 times what story A measures, and have the tier fail past them in a follow-up task; (b) keep them reported only until a second story exists."""
+
+[[question]]
+id = "download-address"
+parts = ["page"]
+text = """The frame offers "the way to the real thing (the download)" (temper's playground.md, 2), but no document names the download's address: release.md says the site links the release's files, and the site's design is not written. Default taken: the frame says where the download is in words, with no link (task page-feature). Options: (a, recommended) when the site's design names its download page, a one-line follow-up gives the frame that link; (b) link the release's page on the forge now, if you name its public address."""

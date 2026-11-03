@@ -801,6 +801,11 @@ real key in that restored form.
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (2.6).
+- **The playground's test** (4.6, 12) runs on the built playground
+  instead, `scripts/bundle.sh --playground` in its own profiles
+  (`../playground.md`, 7), served as static files with their `headers`
+  by the tier's own static server, which maps them as a site's host
+  would; the tier reads the world's figures from the page's frame.
 - **A cap: at most 12 tests, and 120 seconds** on the slowest of the
   machines that build temper (the user, 10-27, temper#15). Past it,
   stories that share a setup become one test of several steps before
