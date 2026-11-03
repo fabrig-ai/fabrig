@@ -90,3 +90,13 @@ Acceptance:
 
 As the implementer's text says, and also: the goldens and figures that moved, each forced temper
 site, and the tests' count.
+
+## Rebase (2026-11-03, step merge, foreman configuring-p1/jig-documents-wire/foreman-1)
+
+resolve engine.status.md by preserving both completed-gap deletions.
+The merge conflict is in `jig/docs/design/domain/engine.status.md`.
+Task commit `f8854a588d` deletes “17.9: the client wire's charter carries no documents.”
+Integration commit `3fb9bc592ab27b6ef87dcf1ef74ff6cca88939b1` deletes the adjacent “17.9: the settings store keeps no documents.”
+Resolve the conflict with both sentences absent, preserving every other status entry and the date.
+Keep the task's charter wire changes; `jig/crates/jig-client-protocol-wire/src/generated/v19.rs` auto-merged without a reported conflict.
+No additional feature changes are needed for this refusal.
