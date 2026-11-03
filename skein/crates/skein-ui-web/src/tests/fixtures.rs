@@ -8,6 +8,8 @@ pub enum Call {
     Write(Vec<u8>, Vec<u8>),
     Remove(Vec<u8>),
     Send(u32),
+    Abandon(u32),
+    ReadOn,
     Navigate(Vec<u8>),
     Stream(crate::transport::StreamDuty),
 }
@@ -18,6 +20,12 @@ pub struct FakePlatform {
     pub quota: Option<usize>,
 }
 impl crate::platform::Platform for FakePlatform {
+    fn abandon(&mut self, exchange: u32) {
+        self.calls.push(Call::Abandon(exchange));
+    }
+    fn read_on(&mut self) {
+        self.calls.push(Call::ReadOn);
+    }
     fn read_all(&self) -> Vec<crate::store::Record> {
         self.records.clone()
     }

@@ -1,8 +1,10 @@
 //! Browser parts, usable independently (ui-web.md, 5.1).
 #![forbid(unsafe_code)]
 
+pub mod bridge;
 pub mod dom;
 pub mod inbox;
+pub mod log;
 mod look;
 pub mod mapping;
 #[cfg(any(test, target_arch = "wasm32"))]
