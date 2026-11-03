@@ -1,0 +1,48 @@
+draft = "reference-m2"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m2/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M2 of temper/docs/design/draft/reference-case.execution.md: the goal lands. L, a change into
+# main whose branch is g, its requester's held branch (`change`'s `"branch": "mine"`), lands g
+# whole; a move of g by G's other delegates is L's new head; g is deleted as G closes once a
+# change landed it. Three parts: mine (the change on a held branch, root and forge), release
+# (g's deletion), reference (the coordinator's charter and main's rule). The cross-task
+# shapes are notes/contracts.md; the lead wrote the design itself (forge.md 8.1, 8.5, 11;
+# agent.md 4.3.1; after-landing.md 6).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "mine"
+title = "change's branch mine: a change into main on its requester's held branch, its moves by the requester's other delegates its new head"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.1"
+
+[[part]]
+id = "release"
+title = "a goal's own branch deleted as its goal closes once a change landed it, kept otherwise"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 11"
+
+[[part]]
+id = "reference"
+title = "the reference's second editions: the coordinator lands its goal and handles its landing's holds; main's rule asks CI alone"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 1
+story = "a goal closing after a change landed its branch deletes the branch; one closing otherwise keeps it"
+parts = ["release"]
+walk = false
+
+[[slice]]
+id = 2
+story = "G, its plan landed into g, makes L with branch mine: L lands g into main through CI, the queue and the merge, g held by G throughout; held past its three repairs, L lands after G's change into g and its release; G's close then deletes g"
+parts = ["mine", "reference"]
+walk = true

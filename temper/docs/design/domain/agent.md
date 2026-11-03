@@ -335,6 +335,7 @@ delegate from what it knows:
  "name": "parser", "landing": "goal", "after": [41, "lexer"]}
 {"changes": [{"name": "lexer", "words": "...", "landing": "goal"},
              {"name": "parser", "words": "...", "landing": "goal", "after": ["lexer"]}]}
+{"words": "...", "branch": "mine"}
 ```
 
 - **`landing`:** `"goal"`, the requester's own goal branch,
@@ -345,6 +346,15 @@ delegate from what it knows:
   name that is not a branch's (an empty segment) is refused, naming it;
   a branch the repository lacks holds the change at its opening, the
   forge refusing its pull request (forge.md, 8.2).
+- **`branch`:** `"mine"`, its requester's held branch: the goal branch
+  the run's task holds in the change's repository (forge.md, 11.1),
+  which the change lands whole as it stands, with no producer (forge.md,
+  8.1); left out, the change's own branch, which its producer pushes.
+  `"mine"` from a run whose task holds no goal branch in that repository
+  is refused, saying so; with `"landing": "goal"`, a branch into
+  itself, refused, saying so; while another live change of the task is
+  on that branch, refused, naming its task; any other value refused,
+  naming it.
 - **`name`:** a name for the change within the call, at most 64 bytes,
   unique in it, which another change of the same call names in its
   `after`; it names nothing once the call is decided.
@@ -381,9 +391,8 @@ delegate from what it knows:
   section 7), beside the six above, for its foremen.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
-  these as they are: the change's branch, `mine` for its requester's
-  held branch; its agents' LLM choices; its producer, a charter or a
-  job; the landing it repairs.
+  these as they are: its agents' LLM choices; its producer, a
+  charter or a job; the landing it repairs.
 
 #### 4.3.2 A goal, in the run's words
 
