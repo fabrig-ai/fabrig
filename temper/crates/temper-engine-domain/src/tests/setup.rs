@@ -737,6 +737,92 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
     }
 }
 #[test]
+fn tokens_connect_and_replace_route_the_carried_value_and_erase_at_both_ends() {
+    for (kind, ask) in [
+        (forge::Kind::Forgejo, forge::Ask::Connect { forge: forge::Making::Kept(1), how: forge::How::ForgejoTokens }),
+        (forge::Kind::Forgejo, forge::Ask::Replace { forge: 1 }),
+        (forge::Kind::GitHub, forge::Ask::Replace { forge: 1 }),
+    ] {
+        for connected in [false, true] {
+            let mut config = config(1);
+            config.forges = Box::new([forge::Configured {
+                admin_connect: false,
+                bot: Box::new([]),
+                owned: None,
+                git: Box::new([]),
+                web: None,
+                read_only: false,
+                number: 1,
+                kind,
+                mode: forge::Mode::Connected,
+                asked: false,
+            }]);
+            let (mut domain, env) = signed_in_root(root_with_config(config), Some(people::Role::Owner));
+            let previous = forge::Connection::Stopped { reason: b"previous end".as_slice().into() };
+            connection(&mut domain, &env, previous.clone());
+            let carried = jig_domain_core::Carried { number: 1_u64 << 63_u32, digest: [73; 32] };
+            crate::try_step(&mut domain, &env, public_request(ask.clone(), Some(carried))).unwrap();
+            let requests = settle(&mut domain, &env);
+            let request = match (&ask, requests.as_ref()) {
+                (
+                    forge::Ask::Connect { .. },
+                    [Request::Connect { forge: 1, request, how: forge::How::ForgejoTokens, carried: value }],
+                )
+                | (forge::Ask::Replace { .. }, [Request::Replace { forge: 1, request, carried: value }]) => {
+                    assert_eq!(*value, carried);
+                    *request
+                }
+                _ => panic!("tokens connect or Replace: {requests:?}"),
+            };
+            assert_eq!(domain.forge_connection(1), forge::Connection::Connecting);
+            crate::try_step(
+                &mut domain,
+                &env,
+                Event::Forge(Box::new(forge::Event::ConnectAnswered {
+                    forge: 1,
+                    request,
+                    answer: forge::ConnectAnswer::Connecting,
+                })),
+            )
+            .unwrap();
+            settle(&mut domain, &env);
+            let state = forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() };
+            if connected {
+                connection(&mut domain, &env, state.clone());
+            }
+            let why = if connected { None } else { Some(Box::from(b"check stopped".as_slice())) };
+            crate::try_step(
+                &mut domain,
+                &env,
+                Event::Forge(Box::new(forge::Event::ConnectEnded {
+                    forge: 1,
+                    request,
+                    connected,
+                    why: why.clone(),
+                    stop: None,
+                })),
+            )
+            .unwrap();
+            assert_eq!(settle(&mut domain, &env).as_ref(), [Request::EraseCarried { number: carried.number }]);
+            assert_eq!(domain.forge_connection(1), if connected { state } else { previous });
+            assert_eq!(domain.forges().rows[0].ended, why);
+            crate::try_step(
+                &mut domain,
+                &env,
+                Event::Forge(Box::new(forge::Event::ConnectEnded {
+                    forge: 1,
+                    request,
+                    connected,
+                    why: None,
+                    stop: None,
+                })),
+            )
+            .unwrap();
+            assert!(settle(&mut domain, &env).is_empty());
+        }
+    }
+}
+#[test]
 fn admin_connect_role_refusals_deliver_the_carried_value_unused() {
     for role in [Some(people::Role::Member), Some(people::Role::Maintainer), Some(people::Role::Observer)] {
         let (mut domain, env) = admin_root(role);

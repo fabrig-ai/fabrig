@@ -7,9 +7,11 @@ files = [
   "temper/crates/temper-client-tools/src/forges.rs",
   "temper/crates/temper-client-tools/src/forges/**",
   "temper/crates/temper-client-tools/src/table.rs",
+  "temper/crates/temper-client-tools/src/jig/rows.rs",
   "temper/crates/temper-client-tools/src/tests/forge_connection.rs",
   "temper/crates/temper-client-tools/src/tests/fixtures.rs",
   "temper/crates/temper-client-tools/src/tests/help.rs",
+  "temper/crates/temper-client-tools/src/tests/landing.rs",
   "temper/crates/temper-client-tools/src/tests/golden/**",
   "temper/crates/temper-client-shell-cli/src/arguments.rs",
   "temper/crates/temper-client-shell-cli/src/tests/keys.rs",
@@ -142,3 +144,14 @@ report. No change to `temper-client-domain`, the wire or the view.
 
 As the implementer's text says, with the regenerated files' `git diff --stat` and the table's
 moved indices.
+
+## Answers
+
+2026-11-03. May the task change `src/jig/rows.rs` and `src/tests/landing.rs` only to shift tool
+indices after `forge connect`? Yes: both are now in `files`. `REPLACE` stays right after
+`CONNECT` (37) in `table::TOOLS`, as the acceptance says. In `jig/rows.rs`, every `*_AT`
+constant past 37 (`EXPORT_AT` 40 becomes 41, and so on) goes up by one, with its comment, and
+nothing else changes; what names the constants (`root.rs`, the CLI shell's `host.rs`,
+`arguments.rs` and `host/input.rs`, the tests) follows without an edit. In `tests/landing.rs`,
+`help(Some(56))` and `help(Some(57))` become 57 and 58, or name `rows` constants if there are
+any. No other edit to either file. The report lists the moved indices.
