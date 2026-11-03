@@ -79,6 +79,8 @@ An account is how a deployment pays an LLM provider for its runs, through its so
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - ctl opens no browser: a provider's sign-in calls back to the engine's
   machine, and a browser elsewhere reaches it only through a tunnel
   (temper help box).

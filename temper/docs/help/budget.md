@@ -143,14 +143,16 @@ role depth - 1: the root consumes one task and one depth level. Thus
 
 ## Limits
 
-- temper gives no task an amount on demand: more comes from an
-  accepted proposal or an amendment within its funder's authority.
-- temper does not refill a task when settings change: a new run cap
-  applies to later runs.
-- A period lasts a week, from the project's first; the week is not a
-  setting. An unspent period is not carried over, and what an old one
-  reserved stays its own. A deployment stopped past a next start opens
-  one period when it starts, from then: `temper help weekly-budget`.
+`temper help configuration`: what needs a restart.
+
+- More task funds need an accepted proposal or an amendment within
+  its funder's authority; none are given on demand.
+- Settings changes never refill a task; a new run cap applies to
+  later runs.
+- Periods last a week from the project's first; this is not a setting.
+  An unspent period is not carried over, and what an old one
+  reserved stays its own. Restarting past the next start opens one
+  period from then: `temper help weekly-budget`.
 - ctl changes a project's own policy in its spends alone (`project
   fund`); `settings show` reads policy 1, which only new projects
   copy.

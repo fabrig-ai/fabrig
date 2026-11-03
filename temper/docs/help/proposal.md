@@ -79,6 +79,8 @@ change, or a start, makes a new revision.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - The person's client shows a proposal of settings in its inbox without
   its values, and can reject it but not accept it: accept it with
   `temper ctl`.

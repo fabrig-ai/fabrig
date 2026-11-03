@@ -109,6 +109,8 @@ A chat is a conversation between a party and an agent in a project: an untracked
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - `chat start` uses the project's chat template unless `--template`
   names another of its chat templates; a template that is no chat's
   starts none.

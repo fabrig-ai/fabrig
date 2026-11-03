@@ -90,7 +90,6 @@ fn open_without_two_arguments_prints_its_usage() {
     }
 }
 
-#[path = "../tests/support/configuration.rs"]
 pub(crate) mod configuration;
 
 #[test]

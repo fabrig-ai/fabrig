@@ -114,6 +114,8 @@ default that changed.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - temper does not patch a member: an item sets a whole value.
 - The person's client has no page to change settings.
 - A value's bound in `temper help settings-fields` is what ctl sends;
