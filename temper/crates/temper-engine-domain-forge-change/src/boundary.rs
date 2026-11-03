@@ -278,6 +278,9 @@ pub struct Facts {
     /// The head of the top's outstanding gate delegate, until its terminal result.
     pub live_gate: Option<Commit>,
     pub writer_taken: bool,
+    /// Its branch is its requester's held branch (domain/forge.md, 8.1): a move with no
+    /// drift and no writer in the slot is its new head, checked again (8.5).
+    pub requester_branch: bool,
     pub drift: Option<Hold>,
     pub first: bool,
     pub may_merge: bool,

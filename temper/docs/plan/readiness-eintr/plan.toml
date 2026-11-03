@@ -10,6 +10,7 @@ sources = ["temper/docs/plan/readiness-eintr/inputs/request.md", "skein/docs/des
 # other-interrupted; answered (a) on 11-03 by agents/loop, unattended, it is its own plan,
 # interrupted-calls. plan.md says what was decided and why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

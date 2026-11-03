@@ -1,4 +1,5 @@
-//! Charter wake settings in the file's forms (client/tools.md, 5.3).
+//! Charter settings in the file's forms (temper/docs/design/client/tools.md, 5.3).
+//! Retained charters follow temper/docs/design/protocol/configuration.md, 13.7.
 use crate::{Limits, file, values, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
@@ -8,6 +9,20 @@ use skein_lib::{Duration, Writer};
 const COORDINATOR: &[u8] = br#", "wake":{"words":"immediate","notices":"immediate","news":{"paced":1800000000000},"results":"each","questions":true,"answers":true,"timers":true}"#;
 const PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"charter","number":5},"set":{"number":5,"instructions":"coordinate","waiting":1,"resume":true,"turns":2,"time":2,"reserve_turns":1,"reserve_time":1,"model":{"dialect":1,"endpoint":1,"program":null,"name":"model","window":8192,"output":1024,"input_price":1,"cached_price":1,"cache_write_price":null,"output_price":1,"price_unit":1000,"efforts":[],"effort":null},"alternatives":[],"inspect":true,"modify":false,"shell":false,"agents":false,"call_timeout":1,"hosts":"both","spend":100,"documents":[]"#;
 const SUFFIX: &[u8] = b"}}]}";
+#[test]
+#[expect(clippy::disallowed_macros, reason = "decode the retained process fixture without filesystem access")]
+fn the_retained_cluster_settings_file_decodes_with_no_charter_documents() {
+    let bytes = include_bytes!("../../temper/tests/fixtures/cluster/settings.json");
+    let items = file::decode(bytes, &Limits::standard()).expect("retained cluster settings file");
+    assert_eq!(items.len(), 3);
+    for (index, number) in [(0, 1), (1, 2)] {
+        let item = items.get(index).expect("cluster charter item");
+        assert_eq!(item.setting, c::Setting::Charter(c::SettingNumber { number }));
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("whole charter value") };
+        let c::SettingValue::Charter(charter) = &set.value else { panic!("charter") };
+        assert!(charter.documents.is_empty());
+    }
+}
 fn charter_file(wake: &[u8]) -> Box<[u8]> {
     let length = PREFIX.len().checked_add(wake.len()).expect("fixture wake").checked_add(SUFFIX.len()).expect("suffix");
     let mut out = Writer::new(length);

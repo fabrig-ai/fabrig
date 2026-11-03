@@ -165,6 +165,36 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
     }
 }
 
+#[test]
+fn a_change_on_its_requesters_branch_asks_no_write_holding() {
+    use super::{forge, tasks};
+    let (mut domain, env) = two_forges();
+    let connector = domain.config.forge_connector;
+    let spec = tasks::Spec {
+        parameters: Box::new([
+            tasks::Parameter::Resource { name: 1, connector, resource: forge::tag(1, 1) },
+            tasks::Parameter::Bytes { name: 2, value: Box::from(b"main".as_slice()) },
+            tasks::Parameter::Bytes { name: 3, value: Box::from(b"temper/7/g8".as_slice()) },
+            tasks::Parameter::Number { name: 11, value: 1 },
+        ]),
+        ..goal_spec()
+    };
+    let holdings = super::task_holdings(
+        &mut domain,
+        &env,
+        GOAL_PROJECT,
+        GOAL_ROOT,
+        GOAL_CHANGE,
+        tasks::Executor::Procedure { connector, code: super::CHANGE_CODE },
+        &spec,
+        Some(GOAL_TASK),
+        false,
+        &[],
+    )
+    .expect("a change on its requester's branch admitted");
+    assert!(holdings.is_empty(), "the goal keeps its holding instead of handing it down");
+}
+
 const GOAL_PROJECT: u32 = 5;
 const GOAL_ROOT: u64 = 7;
 const GOAL_TASK: u64 = 8;
@@ -1979,4 +2009,37 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
     };
     assert_eq!(got, task);
     assert!(heard.released && !heard.cancelled);
+}
+
+#[test]
+fn a_held_branch_change_refuses_each_parameter_past_capacity() {
+    use super::tasks;
+    const PARAMETERS: u32 = 6; // Repository, base, branch, requester marker, title and question route.
+    const SPEND: u64 = 1000; // Within the fixture's run budget and above its minimum.
+    let (mut domain, mut env) = procedure_root();
+    let task = make_tier(&mut domain, &env);
+    let mut context = domain.core.tasks.delegation(task).unwrap();
+    context.tasks_left = 8;
+    context.authority.delegation.depth = 4;
+    env.limits.authority.segments = 6; // forge, host, owner, repository, branch and base.
+    let mut change = crate::ChangeCall::words(b"Land the goal\r\nIts report".as_slice().into(), None);
+    change.questions = Some(crate::ChangeQuestions::Up);
+    for capacity in 0..=PARAMETERS {
+        env.limits.tasks.parameters = capacity;
+        let result = super::chat_change(
+            &domain,
+            &env,
+            &context,
+            &change,
+            &adopted(1),
+            b"main".as_slice().into(),
+            Some(b"temper/goal".as_slice().into()),
+            SPEND,
+        );
+        if capacity < PARAMETERS {
+            assert_eq!(result.unwrap_err(), tasks::Refusal::Spec, "capacity {capacity}");
+        } else {
+            assert_eq!(result.unwrap().spec.parameters.len(), usize::try_from(PARAMETERS).unwrap());
+        }
+    }
 }
