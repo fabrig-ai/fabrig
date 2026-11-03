@@ -69,3 +69,16 @@ question its later run settled). The requirement stands. Check each for a depart
 playground.md or ui-web.md, 18 (bundle-worker-2 reports none); write a **Departs** entry only
 for one built otherwise than the design says, with its reason, and keep the edits already pushed
 otherwise.
+
+2026-11-03. The six reports are absent from the builder's slot: how is the departure review
+done? It is done here, from the reports on fab's host, so the run reads nothing more. None of
+the six reports a departure from playground.md or ui-web.md, 18: bundle-worker-2 says "no
+contract departures"; playground-crate-1 adds the empty skeleton only; ui-web-worker-web-1,
+playground-memory-1 and playground-worker-1 report choices inside their sketches (a transfer per
+post, weak callbacks, a manual `Debug`, the site's server source shared by `#[path]`), none
+built otherwise than the design; playground-visitor-2's private ticket-to-connection map and its
+tests' route type were pre-approved by its spec. Their `## Left` items (skein-shell's and
+skein-sim's wasm32 clippy.toml warnings, temper-client-shell-web's `too_many_lines`, the old
+visitor test name since renamed) are no gap of playground.md or ui-web.md, 18. So write no
+**Departs** entry: keep the three edits already pushed (`9f0f3d6e51`) as they stand, check the
+trunk's code against them once more, run the citations check, and report done.
