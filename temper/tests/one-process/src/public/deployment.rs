@@ -72,6 +72,21 @@ pub(super) fn relations() {
     }
     let problem = start(&past_index).err().expect("index memory exceeds its fit");
     assert!(problem.contains("core.public.lines"), "index memory names its path: {problem}");
+    let mut isolated_index = value.clone();
+    for (name, count) in [
+        ("core.public.goals", 256),
+        ("core.public.ended", 256),
+        ("core.public.lines", 256),
+        ("people.projects", 4096),
+        ("clients.public.answer_bytes", u64::from(u32::MAX)),
+        ("clients.public.bytes", u64::from(u32::MAX)),
+        ("clients.public.bytes_burst", u64::from(u32::MAX)),
+    ] {
+        isolated_index["engine"]["limits"]["overrides"][name] = count.into();
+    }
+    let problem = start(&isolated_index).err().expect("only the public index memory relation is broken");
+    assert!(problem.contains("core.public.lines"), "isolated index memory names its path: {problem}");
+    assert_eq!(problem.lines().count(), 1, "only one broken relation: {problem}");
     // A schema ceiling is a kind whose bound cannot fit the answer ceiling.
     let mut past_kind = value.clone();
     past_kind["engine"]["limits"]["overrides"]["core.public.lines"] = 257.into();
