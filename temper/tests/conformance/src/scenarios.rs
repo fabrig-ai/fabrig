@@ -724,7 +724,7 @@ pub(crate) fn change(world: &mut World, completion: u32) -> Result<(), Violation
                         },
                     }]),
                     dependencies: Box::new([]),
-                    wake: tasks::WakePolicy::DEFAULT,
+                    wake: Some(tasks::WakePolicy::DEFAULT),
                     ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
                 }]),
             },

@@ -1727,7 +1727,7 @@ pub fn change_world_funded(
                         },
                     }]),
                     dependencies: Box::new([]),
-                    wake: tasks::WakePolicy::DEFAULT,
+                    wake: Some(tasks::WakePolicy::DEFAULT),
                     ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
                 }]),
             },

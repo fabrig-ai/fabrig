@@ -2371,7 +2371,7 @@ fn chat_change(
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         tracked: None,
         label: 0,
         flags: tasks::Flags::PLAIN,
@@ -2540,7 +2540,7 @@ fn change_delegate(
         authority,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         llm: None,
     })
 }

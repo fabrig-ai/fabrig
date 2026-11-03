@@ -91,7 +91,7 @@ pub(crate) fn translate(
                         llm: None,
                         symbolic_grants: Box::new([]),
                         dependencies: Box::new([]),
-                        wake: tasks::WakePolicy::DEFAULT,
+                        wake: Some(tasks::WakePolicy::DEFAULT),
                     })
                     .expect("one delegate per program kind");
             }
@@ -231,7 +231,7 @@ fn job(domain: &Domain, task: u64, kind: u32, spec: Box<[u8]>, deadline: skein_l
             llm: None,
             symbolic_grants: Box::new([]),
             dependencies: Box::new([]),
-            wake: tasks::WakePolicy::DEFAULT,
+            wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
         ..core::ProcedureStep::new(core::StepEnd::Wait)
     }

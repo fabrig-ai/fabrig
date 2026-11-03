@@ -177,7 +177,9 @@ fn check_set(
 }
 pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
-        Value::Charter(value) => setting == Setting::Charter(value.number) && value.number != 0,
+        Value::Charter(value) => {
+            setting == Setting::Charter(value.number) && value.number != 0 && tasks::wake_valid(&value.wake)
+        }
         Value::Template(value) => {
             setting == Setting::Template(value.number)
                 && value.number != 0
@@ -318,9 +320,6 @@ fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
     }
 }
 fn charter_fault(charter: &crate::Charter, settings: &Settings, limits: &Limits) -> Option<Fault> {
-    if !tasks::wake_valid(&charter.wake) {
-        return Some(Fault::Shape);
-    }
     let policy = &charter.policy;
     if !model_valid(&policy.model, settings) {
         return Some(Fault::Reference);

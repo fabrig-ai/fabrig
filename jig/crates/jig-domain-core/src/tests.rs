@@ -464,6 +464,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         defaults: crate::settings::Defaults {
             charters: Box::new([Charter {
+                wake: jig_domain_tasks::WakePolicy::DEFAULT,
                 number: 1,
                 hosts: fleet::Kinds::Workers,
                 spend: 100,

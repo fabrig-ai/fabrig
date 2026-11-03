@@ -718,3 +718,45 @@ fn a_settings_commit_before_the_first_start_seed_keeps_the_supplied_defaults() {
     assert!(!writes.is_empty());
     assert_eq!(core.current.newest(), 1);
 }
+
+#[test]
+fn a_charter_with_a_zero_paced_span_is_refused_as_shape() {
+    let config = config(1);
+    let limits = limits();
+    let mut current = Current::new(config.defaults, &limits);
+    let mut invalid = current.charter(1).unwrap().clone();
+    invalid.wake.news = tasks::WakeRule::Paced { span: Duration::ZERO };
+    let setting = Setting::Charter(1);
+    let expected = Err(Failure { setting, fault: Fault::Shape });
+    let value = Value::Charter(Box::new(invalid));
+    assert_eq!(check::shape(setting, &value, &limits), expected);
+    let items = [Item { setting, edit: Edit::Set(value.clone()) }];
+    assert_eq!(check_change(&current, &items, &config.settings, &config.connectors, &limits), expected);
+    current.defaults.get_mut(&setting).unwrap().value = value;
+    assert_eq!(check(&current, &config.settings, &config.connectors, &limits), expected);
+}
+
+#[test]
+fn default_wake_reads_current_settings_and_falls_back_without_a_charter() {
+    let limits = limits();
+    let mut core = Core::new(config(1), &limits).unwrap();
+    let agent = tasks::Executor::Agent { charter: 1 };
+    let mut changed = core.charter(1).unwrap().clone();
+    changed.wake.results = tasks::ResultsWake::Each;
+    let expected = changed.wake;
+    core.current
+        .changes
+        .insert(Setting::Charter(1), Changed { value: Some(Value::Charter(Box::new(changed))), revision: 2 })
+        .unwrap();
+    assert_eq!(crate::admission::amendments::default_wake(&core, &agent), expected);
+    for executor in [
+        tasks::Executor::Agent { charter: 999 },
+        tasks::Executor::Procedure { connector: 1, code: 1 },
+        tasks::Executor::Job { kind: 1 },
+        tasks::Executor::Person(tasks::PersonAddress::Person(1)),
+    ] {
+        assert_eq!(crate::admission::amendments::default_wake(&core, &executor), tasks::WakePolicy::DEFAULT);
+    }
+    core.current.changes.insert(Setting::Charter(1), Changed { value: None, revision: 3 }).unwrap();
+    assert_eq!(crate::admission::amendments::default_wake(&core, &agent), tasks::WakePolicy::DEFAULT);
+}

@@ -151,7 +151,7 @@ fn delegate(world: &mut World, run: &engine::Assignment, words: &[u8], tracked: 
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
     };
     let answer = call(world, run, engine::Tool::Delegate { batch: Box::new([member]) });
     let engine::CallAnswer::Delegated(made) = answer else {

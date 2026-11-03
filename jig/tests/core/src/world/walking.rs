@@ -177,7 +177,7 @@ impl Walking {
                             llm: None,
                             symbolic_grants: Box::new([]),
                             dependencies: Box::new([]),
-                            wake: tasks::WakePolicy::DEFAULT,
+                            wake: Some(tasks::WakePolicy::DEFAULT),
                         };
                         let batch = match self.scenario {
                             Scenario::Goal => vec![delegate].into_boxed_slice(),

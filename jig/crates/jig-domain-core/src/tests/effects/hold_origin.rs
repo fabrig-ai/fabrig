@@ -356,7 +356,7 @@ fn a_refused_procedure_batch_sends_its_findings_to_its_connector() {
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: child.wake,
+        wake: Some(child.wake),
         tracked: None,
         label: 0,
         flags: tasks::Flags::PLAIN,

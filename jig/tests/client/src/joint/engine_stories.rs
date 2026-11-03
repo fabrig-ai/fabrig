@@ -193,7 +193,7 @@ fn a_delegate_held_past_its_tries_is_escalated_to_a_person_and_released() {
                 llm: None,
                 symbolic_grants: Box::new([]),
                 dependencies: Box::new([]),
-                wake: tasks::WakePolicy::DEFAULT,
+                wake: Some(tasks::WakePolicy::DEFAULT),
             }]),
             stubs: Box::new([]),
         }),
