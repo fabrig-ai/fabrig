@@ -1,3 +1,27 @@
 draft = "wasm32-rustls"
 repo = "fabrig"
 sources = ["temper/docs/plan/wasm32-rustls/inputs/request.md", "temper/docs/design/playground.md", "AGENTS.md", "DESIGN.md"]
+
+# temper-playground builds for wasm32 (inputs/request.md): rustls's std path, which needs a clock
+# wasm32-unknown-unknown lacks, reaches the build through the root Cargo.toml's rustls line, which
+# took temper's std when the trees became one workspace. skein-tls, the one crate of the wasm32
+# graph that names rustls, inherits it. One task drops std from that line, as
+# skein/docs/design/tls.md, 4 already says ("native only"), and gives it to the two temper crates
+# whose tests use rustls's std API. plan.md says why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "rustls-std"
+title = "fabrig: rustls's std native only (the root Cargo.toml's line without it), so temper-playground's wasm32 clippy passes"
+mode = "direct"
+needs = []
+design = "skein/docs/design/tls.md, 4"
+
+[[slice]]
+id = 1
+story = "cargo clippy --target wasm32-unknown-unknown -p temper-playground -- -D warnings builds rustls without std and passes; native builds keep std where a crate asks for it"
+parts = ["rustls-std"]
+walk = false
