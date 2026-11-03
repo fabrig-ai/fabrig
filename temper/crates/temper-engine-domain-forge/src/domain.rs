@@ -3424,6 +3424,19 @@ fn wake_queue(d: &mut Domain, row: &ChangeRow) {
     }
 }
 
+/// The change's branch hold, including its shared writer slot (temper/docs/design/domain/forge.md, 8.1).
+pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bool)> {
+    for (name, hold) in &d.holds {
+        if name.forge == row.repository.forge
+            && name.repository == row.repository.repository
+            && crate::items::branch_matches(name, &row.branch)
+        {
+            return Some((hold.task, hold.writer.is_some()));
+        }
+    }
+    None
+}
+
 #[expect(clippy::manual_map, reason = "step code uses concrete matches, without callbacks")]
 fn change_facts(
     d: &Domain,
@@ -3449,16 +3462,9 @@ fn change_facts(
         Some(pull) => pull.base != row.base,
         None => false,
     };
-    let branch_name = skein_forge_client::Resource {
-        repository: row.repository,
-        what: skein_forge_client::What::Branch(row.branch.clone()),
-    };
-    let writer_taken = match from_client(&branch_name, &env.limits) {
-        Some(name) => match d.holds.get(&name) {
-            Some(hold) => hold.writer.is_some(),
-            None => false,
-        },
-        None => false,
+    let (writer_taken, requester_branch) = match change_branch_hold(d, row) {
+        Some((holder, taken)) => (taken, holder != row.task),
+        None => (false, false),
     };
     let may_merge = match d.repositories.get(&row.repository) {
         Some(repository) => repository.kinds.land,
@@ -3503,7 +3509,7 @@ fn change_facts(
             Some(_) | None => None,
         },
         writer_taken,
-        requester_branch: false,
+        requester_branch,
         drift: if retargeted { Some(change::Hold::Retargeted) } else { row.drift },
         first: queue_first(d, row, env.wall, &env.limits),
         may_merge,
@@ -5222,6 +5228,24 @@ fn updating_entry(d: &Domain, task: u64) -> bool {
     }
 }
 
+// temper/docs/design/domain/forge.md, 8.1 and 8.5: the holder's delegates share its branch.
+fn change_on_held_branch(row: &ChangeRow, name: &Name, holder: u64) -> bool {
+    row.task != holder
+        && row.repository.forge == name.forge
+        && row.repository.repository == name.repository
+        && crate::items::branch_matches(name, &row.branch)
+        && row.change.state != change::State::Ended
+}
+
+fn held_branch_updating_entry(d: &Domain, name: &Name, holder: u64) -> bool {
+    for (_, row) in &d.changes {
+        if change_on_held_branch(row, name, holder) && updating_entry(d, row.task) {
+            return true;
+        }
+    }
+    false
+}
+
 fn drift(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -5232,6 +5256,9 @@ fn drift(
     let mut affected = List::with_capacity(env.limits.holds);
     for (name, row) in &d.holds {
         if to_client(name, &env.limits) == Some(resource.clone()) {
+            if held_branch_updating_entry(d, name, row.task) {
+                continue;
+            }
             if updating_entry(d, row.task) || deleting_entry(d, row.task, &resource, &change) {
                 continue;
             }
@@ -5253,6 +5280,28 @@ fn drift(
             let saved = row.clone();
             save_change(d, out, saved);
         }
+    }
+    let mut changes = List::with_capacity(env.limits.changes);
+    for (holder, name) in &affected {
+        for (_, row) in &d.changes {
+            if change_on_held_branch(row, name, *holder)
+                && !updating_entry(d, row.task)
+                && !deleting_entry(d, row.task, &resource, &change)
+            {
+                changes.push((row.task, name.clone())).expect("one affected row per change");
+            }
+        }
+    }
+    for (task, name) in changes.into_boxed() {
+        let Some(row) = d.changes.get_mut(&task) else { unreachable!("collected change") };
+        row.drift = Some(match change {
+            crate::DriftChange::Branch { .. } => change::Hold::BranchMoved,
+            crate::DriftChange::PullClosed { .. } => change::Hold::PullClosed,
+            crate::DriftChange::Retargeted { .. } => change::Hold::Retargeted,
+        });
+        let saved = row.clone();
+        save_change(d, out, saved);
+        emit(out, Request::Drift { task, resource: name });
     }
 }
 
