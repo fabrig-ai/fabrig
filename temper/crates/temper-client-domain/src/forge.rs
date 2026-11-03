@@ -15,6 +15,7 @@ pub mod panel;
 pub mod picker;
 pub mod playground;
 pub mod start;
+pub mod tokens;
 mod vocabulary;
 pub mod words;
 pub use form::{Act, Broken, Check, Field, Form, Marks, Text, Typed, adoption, broken, form, write};
@@ -29,6 +30,7 @@ pub struct Limits {
 pub enum Event {
     Act { act: Act },
     AdminToken { value: skein_lib::Secret },
+    ForgejoToken { field: tokens::Field, value: skein_lib::Secret },
     AppKey { value: skein_lib::Secret },
     Panel { subject: Option<panel::Subject> },
     RefreshPanel { subject: panel::Subject },
@@ -44,6 +46,7 @@ pub enum Request {
     PlaygroundReset,
     PanelEnded { subject: panel::Subject },
     Show { address: Address },
+    ConnectForge { forge: u16 },
     Leave { to: Box<[u8]> },
     Client { asked: jig_client::Event },
     Send { request: skein_lib::Token, name: Option<skein_lib::RequestKey>, ask: jig_client::Ask },
@@ -58,6 +61,8 @@ pub struct Side {
     pickers: skein_lib::List<picker::Picker>,
     admin_form: admin::Draft,
     admin: Option<admin::Pending>,
+    tokens_form: tokens::Draft,
+    tokens: Option<tokens::Pending>,
     app_form: github::Draft,
     app: Option<github::Pending>,
     panel: Option<panel::Panel>,
@@ -84,6 +89,8 @@ impl Side {
             pickers: skein_lib::List::with_capacity(forges::ROWS),
             admin_form: admin::Draft::new(),
             admin: None,
+            tokens_form: tokens::Draft::new(),
+            tokens: None,
             app_form: github::Draft::new(),
             app: None,
             panel: None,
@@ -178,6 +185,14 @@ impl Side {
         self.admin.as_ref()
     }
     #[must_use]
+    pub const fn tokens_form(&self) -> &tokens::Draft {
+        &self.tokens_form
+    }
+    #[must_use]
+    pub const fn tokens(&self) -> Option<&tokens::Pending> {
+        self.tokens.as_ref()
+    }
+    #[must_use]
     pub const fn app_form(&self) -> &github::Draft {
         &self.app_form
     }
@@ -196,6 +211,7 @@ impl Side {
 pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::AdminToken { value } => admin::token(side, value),
+        Event::ForgejoToken { field, value } => tokens::write(side, field, value),
         Event::AppKey { value } => github::key(side, value),
         Event::Panel { subject } => panel::subject(side, env.limits, subject, out),
         Event::RefreshPanel { subject } => panel::refresh(side, env.limits, subject, out),
@@ -274,6 +290,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::Go { address } => out.push(Request::Show { address }),
         Act::AdminWrite { field, text } => admin::write(side, limits, field, text),
         Act::ConnectAdmin { forge } => admin::send(side, limits, forge, out),
+        Act::ConnectTokens { forge } => tokens::send(side, limits, forge, out),
         Act::AppWrite { text } => github::write(side, text, limits),
         Act::ConnectManifest { forge, back } => github::manifest(side, limits, forge, back, out),
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),

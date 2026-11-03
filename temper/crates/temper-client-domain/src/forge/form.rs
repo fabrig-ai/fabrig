@@ -51,6 +51,7 @@ pub enum Act {
     EndPlayground,
     AdminWrite { field: super::admin::Field, text: Box<[u8]> },
     ConnectAdmin { forge: u16 },
+    ConnectTokens { forge: u16 },
     AppWrite { text: Box<[u8]> },
     ConnectApp { forge: u16 },
     ConnectManifest { forge: u16, back: Box<[u8]> },

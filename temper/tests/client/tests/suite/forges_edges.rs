@@ -503,7 +503,7 @@ fn github_details_offer_only_the_app_of_ones_own_with_a_masked_key() {
 }
 
 const ADMIN_TOKEN: &[u8] = b"admin-token-placeholder-0123";
-fn admin_world() -> Pages {
+pub(super) fn admin_world(mode: forge::Mode) -> Pages {
     // The original deployment's durable store is cold-restored with the new
     // configuration, as after changing temper.json and restarting.
     let mut world = configured_accounts(
@@ -512,14 +512,14 @@ fn admin_world() -> Pages {
         &[
             forge::Configured {
                 owned: None,
-                admin_connect: true,
+                admin_connect: mode == forge::Mode::Managed,
                 bot: Box::new([]),
                 git: Box::new([]),
                 web: Some(b"https://git.example.org".as_slice().into()),
                 read_only: false,
                 number: OWNED,
                 kind: forge::Kind::Forgejo,
-                mode: forge::Mode::Managed,
+                mode,
                 asked: false,
             },
             forge::Configured {
@@ -573,7 +573,7 @@ fn admin_private(world: &mut Pages, client: ClientId) {
 }
 #[test]
 fn elsewhere_welcome_after_restart_connects_retries_and_opens_its_new_project() {
-    let mut world = admin_world();
+    let mut world = admin_world(forge::Mode::Managed);
     let client = open(&mut world, Address::Welcome { step: Step::Forge { forge: None } });
     follow(&mut world, client, vec![see(Role::Button, b"Start over"), gone(Role::Region, b"GitHub")]);
     let names = world
