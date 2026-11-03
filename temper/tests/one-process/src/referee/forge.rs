@@ -128,9 +128,7 @@ impl Forge {
     pub(crate) fn forge_complete(&self) -> bool {
         if matches!(self.story, Story::PlaygroundA) {
             let outcome = crate::stories::playground::outcome(&self.transport);
-            return outcome.csv
-                && outcome.green
-                && self.pushed.iter().any(|push| push.commit == outcome.main);
+            return outcome.csv && outcome.green && self.pushed.iter().any(|push| push.commit == outcome.main);
         }
         self.pushed.iter().any(|push| {
             !matches!(self.story, Story::Merge) || push.parents == [fixtures::BRANCH_HEAD, fixtures::MOVED_BASE]

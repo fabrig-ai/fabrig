@@ -38,9 +38,7 @@ pub fn replay(story: &stories::Story, log: &[u8]) -> Replayed {
     let mut turns = Refereed { forge: Forge::new(start.fakes.forge.clone(), Story::PlaygroundA) };
     let world = temper_playground::world(start);
     let parameters = story::parameters(&world);
-    match programs::with(parameters, || {
-        skein_playground::replay::replay(world, story::reach(), &read, &mut turns)
-    }) {
+    match programs::with(parameters, || skein_playground::replay::replay(world, story::reach(), &read, &mut turns)) {
         Err(differs) => Replayed::Differs(differs),
         Ok(_world) => {
             if turns.forge.forge_complete() {
