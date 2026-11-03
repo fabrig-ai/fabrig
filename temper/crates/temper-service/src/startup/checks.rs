@@ -40,6 +40,13 @@ fn against(problems: &mut Problems, name: &[u8], other: &'static [u8]) {
 }
 /// Named compatibility checks on the envelope runtime and store actually use.
 pub fn engine_envelope(root: &domain::Limits, problems: &mut Problems) {
+    if !jig_domain_core::brief_holds_documents(root.brief.sections, root.tasks.charter_documents) {
+        against(
+            problems,
+            b"root.brief.sections",
+            b"engine.limits.overrides.tasks.charter_documents and the core sections",
+        );
+    }
     if let Err(found) = config::check_effective_limits(&domain::core_limits(root)) {
         let mut path = Path::root().member(b"engine");
         for segment in &found.path.segments {
