@@ -362,6 +362,16 @@ fn each_change_delegate_round_trips_unchanged() {
     }
 }
 
+/// The merge delegate and its retained fields survive storage (temper/docs/design/domain/forge.md, 8.4).
+#[test]
+fn a_change_row_with_a_merge_delegate_and_a_catch_up_round_trips() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for from in [Some([30; 32]), None] {
+        let row = forge::Stored::Change(fixtures::merge_change_row(from));
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row), "from {from:?}");
+    }
+}
+
 #[test]
 fn an_issue_row_with_its_desired_view_round_trips_unchanged() {
     use temper_engine_domain_forge_issues::{Phase, Projected};

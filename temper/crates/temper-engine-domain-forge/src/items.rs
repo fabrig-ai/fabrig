@@ -60,6 +60,10 @@ impl Domain {
     }
     /// Select one checkout item from the task's saved and procedure state.
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "workspace selection keeps each delegate's start, destination and name together"
+    )]
     pub fn workspace_item(&self, seed: Seed) -> Option<Item> {
         let repository = self.repository(seed.repository)?;
         let inherited = match seed.parent {
@@ -96,6 +100,11 @@ impl Domain {
                 change::Delegate::Resolve { base } => {
                     (Start::Merge { branch: row.branch.clone(), base }, Some(row.branch.clone()), Some(row.task))
                 }
+                change::Delegate::Merge { base, from } => (
+                    Start::Merge { branch: if from.is_some() { row.branch.clone() } else { row.base.clone() }, base },
+                    Some(row.branch.clone()),
+                    Some(row.task),
+                ),
                 change::Delegate::Gate { .. } => (Start::Branch(row.branch.clone()), None, None),
             },
             None => (Start::Base(repository.settings.default_branch.clone()), Some(seed.run_branch), None),
@@ -116,13 +125,27 @@ impl Domain {
             },
             Some((
                 _,
-                change::Delegate::Repair(_) | change::Delegate::Resolve { .. } | change::Delegate::Gate { .. },
+                change::Delegate::Repair(_)
+                | change::Delegate::Resolve { .. }
+                | change::Delegate::Merge { .. }
+                | change::Delegate::Gate { .. },
             ))
             | None => None,
         };
+        let name = match inherited {
+            Some((_, change::Delegate::Merge { .. })) => Box::from(b"home".as_slice()),
+            Some((
+                _,
+                change::Delegate::Produce
+                | change::Delegate::Repair(_)
+                | change::Delegate::Resolve { .. }
+                | change::Delegate::Gate { .. },
+            ))
+            | None => repository.name.clone(),
+        };
         let mut bytes = u64::try_from(size_of::<Item>())
             .ok()?
-            .checked_add(u64::try_from(repository.name.len()).ok()?)?
+            .checked_add(u64::try_from(name.len()).ok()?)?
             .checked_add(u64::try_from(repository.host.len()).ok()?)?
             .checked_add(u64::try_from(repository.owner.len()).ok()?)?;
         let branch = match &start {
@@ -137,7 +160,7 @@ impl Domain {
         }
         Some(Item {
             provider: repository.provider,
-            name: repository.name.clone(),
+            name,
             host: repository.host.clone(),
             owner: repository.owner.clone(),
             start,

@@ -2135,6 +2135,41 @@ fn setup_failures_name_the_held_step_until_state_changes() {
     }
 }
 
+/// A merge job uses the change's writable home (temper/docs/design/domain/forge.md, 8.4).
+#[test]
+fn a_merge_delegate_asks_for_a_merge_in_progress_named_home() {
+    use temper_engine_domain_forge_change as change;
+    const CHILD: u64 = 90;
+    // home (4), forge.example (13), org (3), and the push branch temper/51 (9).
+    const FIXED_ITEM_BYTES: usize = 29;
+    for (from, branch) in [(Some(fixtures::HEAD), b"temper/51".as_slice()), (None, b"main".as_slice())] {
+        let mut d = domain();
+        let mut repository = adopted();
+        repository.name = Box::from(b"project".as_slice());
+        outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+        let mut row = fixtures::opening_row();
+        row.delegate = Some((CHILD, change::Delegate::Merge { base: fixtures::BASE, from }));
+        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        let item = d
+            .workspace_item(items::Seed {
+                task: CHILD,
+                parent: Some(fixtures::CHANGE),
+                repository: REPO,
+                run_branch: Box::from(b"run".as_slice()),
+                saved_branch: None,
+            })
+            .expect("merge item");
+        assert_eq!(item.provider, REPO);
+        assert_eq!(item.name.as_ref(), b"home");
+        assert_eq!(item.start, items::Start::Merge { branch: Box::from(branch), base: fixtures::BASE });
+        assert_eq!(item.push.as_deref(), Some(b"temper/51".as_slice()));
+        assert_eq!(item.holder, Some(fixtures::CHANGE));
+        assert_eq!(item.landing, None);
+        let payload = FIXED_ITEM_BYTES + branch.len();
+        assert_eq!(item.bytes, u64::try_from(size_of::<items::Item>() + payload).expect("sized merge item"));
+    }
+}
+
 #[test]
 fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
     use temper_engine_domain_forge_change as change;
