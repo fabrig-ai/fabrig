@@ -252,6 +252,9 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
             format!("{source} setting {:?}: {:?}", failure.setting, failure.fault)
         }
         Failure::ProjectPolicy { project } => format!("project {project}: policy refused"),
+        Failure::Application { kind, scope, number, why } => {
+            format!("application setting {kind}/{scope}/{number}: {why:?}")
+        }
         Failure::HeldPastLimit { which, held, limit } => format!("{which:?}, held {held}, limit {limit}"),
         Failure::AccountsPastLimit { failure } => {
             format!("accounts {:?}, key {:?}, limit {}", failure.set, failure.key, failure.limit)
