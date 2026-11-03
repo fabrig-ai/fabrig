@@ -71,7 +71,9 @@ refused naming their path.
     "box"}`, the box's project); `"member"`: a dotted path in the value (`model.name`; `""` the
     value whole); `"test"`: `"equal"`, `"at-least"`, `"bits"`, `"contains"`, `"set"`, `"judged"`,
     `"unchanged"` or `"only"` (the subject a kind without a number: every current setting of it
-    binds to a role);
+    binds to a role). The tests that compare with an expected value are `equal`, `at-least`,
+    `bits` and `contains`; `set`, `judged`, `unchanged` and `only` take none. (`stage-one-surface`'s
+    step 2 lists the excepted tests wrongly; this list is the one its decoder holds to.)
     `"value"`: the expected value, left out where the profile's item for the role holds it. In
     a value, `{"role": NAME}` stands for that role's bound number.
   - `"box"`: `"prerequisite"`: its words; `"confirm"`: `"ctl"`, `"forge"` or `"document"`.
