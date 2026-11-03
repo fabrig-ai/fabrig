@@ -1242,10 +1242,23 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   changed packages' focused tests are builds in the box's worker at
   every delivery. Default: the reference's first edition of
   `.temper/pre-pr` runs the format check and the counted baselines
-  alone, and the coding agent's charter asks for the rest; whether the
-  script runs them too is decided from the reds that reach a goal's
-  branch, their repairs' cost and the check's time at each push (the
-  user, 2026-11-02).
+  alone, and the coding agent's charter, with the shell, runs the rest
+  (13.9); whether the script runs them too is decided from the reds that
+  reach a goal's branch, their repairs' cost and the check's time at
+  each push (the user, 2026-11-02). The record so far
+  (`../../development/pre-pr-numbers.md`) does not decide it: of 39 reds
+  that reached a plan's shared branch before the reference, where every
+  implementer ran its own lints and focused tests, 4 would have been
+  stopped by the changed packages' lints and focused tests at push, and
+  2 in part, each repaired in 5 to 18 minutes; the rest came from a
+  dependent package, a merge of main, the docs' vocabulary, or timing.
+  A producer that runs its checks itself leaves the same residue; one
+  that does not, a different one. The case's walk measures what
+  decides it: the reds of g's tier per change, by cause; each repair's
+  tasks and minutes; and the time of the changed packages' lints and
+  focused tests at a push in the box's worker, warm and cold, beside
+  the checks' deadline (the agent's `policy.check_timeout`, 60 s on the
+  box, a timeout the user sets).
 
 ## 12. The three directories
 
@@ -2003,8 +2016,16 @@ that changes the stock changes nothing of them.
     `domain/tasks.md`, 8.3): questions, failures, each delegate's
     result, its delegates' and its person's words at once, waking news
     at most once in 30 minutes;
-  - *charter 2, the coding agent's:* the stock's, its instructions
-    adding: push early; run the project's checks before delivering;
+  - *charter 2, the coding agent's:* the stock's with smith's shell
+    family (`shell` and `job`: smith's `domain/tools.md`), its
+    instructions the stock's but for its line that it can run nothing,
+    which says instead that before each delivery it runs the lints and
+    the focused tests of each package it changed, in this project
+    `cargo clippy -p PKG --all-targets -- -D warnings` and `cargo nextest
+    run -p PKG`, and fixes what they find in its own files, a failure
+    outside them going on its Left list (`.temper/pre-pr` runs neither:
+    section 11); and adding: push early; run the project's checks before
+    delivering;
     finish with a Left list of what it found and does not own; mark a
     story that fails for code it does not own as ignored, the fault its
     reason, and never fix that code, the change that fixes the fault
@@ -2022,7 +2043,7 @@ that changes the stock changes nothing of them.
     `../draft/reference-code-production.md`, section 4's LLM choice;
     tracked at priority 1; a report; the creator's budget; *its own
     goal branch* among its resources (jig's `protocol/configuration.md`,
-    3.1).
+    3.3; `../client/tools.md`, 5.3).
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (13.4): read with
   `temper ctl settings show --json`, charter 5 added to the rules' and

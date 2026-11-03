@@ -57,6 +57,10 @@
   - 8.11: a dependent's landing holding its dependency's pushed head in
     g's ancestry is unobserved in stories, the fake forge squashing
     merges (skein's `fake-forge.md`, 2.2).
+  - 8.11: the next producer of a change into a goal's own branch,
+    started from its pushed branch or saved work, merges the landing
+    branch's tip first only where the change started early
+    (`temper-engine-domain-forge/src/items.rs`, `workspace_item`).
   - 9: a branch a tier follows still pauses its queue on its own CI's
     red and makes a repair, where its tiers judge it instead
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
