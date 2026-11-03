@@ -812,6 +812,8 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         queue_repairs: 0,
         producing_charter: 2,
         review_charter: 4,
+        producing_llm: None,
+        review_llm: None,
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
@@ -2055,4 +2057,61 @@ fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
         panic!("the procedure's producer exceeds its creator's delegation kinds");
     };
     assert!(lacks.executors);
+}
+
+#[test]
+fn change_delegates_take_their_roles_saved_llm_choice() {
+    use super::{forge, forge_change, tasks};
+    use forge_change::{Delegate, Freshness, Gate, GateKind, Repair};
+    const AGENT_GATE: u64 = 1;
+    const CHECK_GATE: u64 = 2;
+    const PERSON_GATE: u64 = 3;
+    // Repository, base, branch, gate number and head are the gate's five parameters.
+    const GATE_PARAMETERS: u32 = 5;
+    // Room for the fixture's review identity (8.3) and repair opening (8.4).
+    const SPEC_BYTES: u32 = 512;
+    let (mut domain, mut env, task) =
+        crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+    env.limits.tasks.parameters = GATE_PARAMETERS;
+    env.limits.tasks.spec_bytes = SPEC_BYTES;
+    let producing = tasks::LlmChoice {
+        main: tasks::ModelEffort { model: 3, effort: Some(1) },
+        subagents: Box::new([]),
+        account: None,
+    };
+    let review = tasks::LlmChoice {
+        main: tasks::ModelEffort { model: 2, effort: Some(0) },
+        subagents: Box::new([]),
+        account: None,
+    };
+    let mut row = change_row(Some(7));
+    row.task = task;
+    row.change.task = task;
+    row.change.last_head = Some(SHA1);
+    row.producing_llm = Some(producing.clone());
+    row.review_llm = Some(review.clone());
+    row.change.gates = Box::new([
+        Gate { number: AGENT_GATE, kind: GateKind::Agent, blocking: true, freshness: Freshness::Clean, eager: true },
+        Gate { number: CHECK_GATE, kind: GateKind::Check, blocking: true, freshness: Freshness::Clean, eager: true },
+        Gate { number: PERSON_GATE, kind: GateKind::Person, blocking: true, freshness: Freshness::Clean, eager: true },
+    ]);
+    domain.forge.restore_begin(env.wall);
+    let mut out = skein_lib::Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Change(row) },
+        &mut out,
+    );
+    for (kind, expected) in [
+        (Delegate::Produce, Some(producing.clone())),
+        (Delegate::Repair(Repair::Ci), Some(producing.clone())),
+        (Delegate::Resolve { base: SHA1 }, Some(producing.clone())),
+        (Delegate::Gate { number: AGENT_GATE, head: SHA1 }, Some(review)),
+        (Delegate::Gate { number: CHECK_GATE, head: SHA1 }, Some(producing)),
+        (Delegate::Gate { number: PERSON_GATE, head: SHA1 }, None),
+    ] {
+        let Some(delegate) = super::change_delegate(&domain, &env, task, kind) else { panic!("delegate {kind:?}") };
+        assert_eq!(delegate.llm, expected, "{kind:?}");
+    }
 }
