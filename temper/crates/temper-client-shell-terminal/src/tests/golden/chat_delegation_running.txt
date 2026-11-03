@@ -1,7 +1,8 @@
 == T1 · Add CSV export to widget == Live
 [1] temper
 Menu:
-  [2] demo (pressed)
+  demo:
+    [2] demo (pressed)
   Main navigation:
     [3] Inbox
     [4] Chats (current)

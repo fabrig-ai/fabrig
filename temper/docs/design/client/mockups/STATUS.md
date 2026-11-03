@@ -147,6 +147,14 @@ unmarked in their main drawing.
 
 Where the client's recorded picks stand against the drawing:
 
+- **The chats page's pane** (the person's look requests, 11-03;
+  `../README.md`, 3.5 and 5.1; `../journeys.md`, 7): a left pane holds
+  the new chat's bar, "Chats" with its filters and list, and the
+  playground's banner; the prompt stands alone beside it, the
+  composer's line under it. The banner names the open project alone,
+  with its switcher, and leads its corner with "Set up temper →" while
+  the playground runs. `chats.html` and `first-run.html` still draw one
+  column under a banner of every project.
 - **Accept**, not “Accept goal”. The chatbar carries status and own
   spend, “N spent · of B”, and no model, template, charter, host or
   budget mode; the composer's line names the next run. Its chooser

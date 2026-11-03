@@ -3,9 +3,6 @@
 2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 11, 11.1: a goal's own branch deleted as its goal closes once a change
-    has landed it: the release keeps it whatever way the goal ended
-    (`temper-engine-domain-forge/src/goal_branch.rs`).
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
@@ -34,6 +31,10 @@
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
     charter, kind 3's number 2, is fixed at charter 4.
+  - 8.4: widening exhausted authority with ctl before release: `task
+    amend`'s `--tasks` and `--budget` are not implemented
+    (`../client/tools.md`, 5.5). The hold offers cancellation or asking
+    afresh instead.
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
   - 8.7: the explicit choice to adopt a GitHub repository without CI;

@@ -368,7 +368,7 @@ fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Op
 fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallAnswer, tool: &[u8]) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
-    engine.events.push(crate::tools::render(to, answer, bytes));
+    engine.events.push(crate::tools::render(to, answer, tool, bytes));
 }
 
 #[cfg(test)]
