@@ -3,7 +3,7 @@ id = "init-standard"
 part = "box"
 kind = "feature"
 needs = ["standard-scale", "forge-profile", "smith-calls", "client-capacities"]
-files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs"]
+files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs"]
 effort = "high"
 minutes = 240
 +++
@@ -187,3 +187,26 @@ above; list each with the check's words:
 Then rerun `startup::checked_in_deployment_profiles_pass_startup_admission`, both documents in
 lockstep, and carry on with the acceptance. Another refusal from `limits.rs` beyond `SOCKETS`,
 jig's profile or a codec ceiling: stop and ask as before.
+
+2026-11-03. **B0's fixed carriers in `temper/crates/temper/tests/support/forge_land/rung.rs` no
+longer hold its agent under `standard`: may this task repair them?** Yes; the task is widened to
+that file's carriers. `startup::rung_b0s_live_configuration_is_admitted_without_an_account_or_backend`
+is in this task's required suite and fails only because init's agent (800 turns, 26
+conversations) now gives a larger T (2,000,788 at B0's model and one call), so the acceptance
+cannot hold without it. `stock-scale` owns the file's funding step (near 560-576), not this.
+
+- In `deployment` and `turn_limits`: after B0's edits to the agent (the model, its output and
+  reasoning item, `calls_per_response` 1), derive the carriers from that agent with the shared
+  helper, `support::configuration::turn_bounds::apply(&mut value, turn_bounds::turn_body(&worker))`
+  (the writer's own arithmetic, `temper/tests/real-loop/src/turn_bounds.rs`), in place of the
+  hand figures (`hub.turn_bytes`, `hub.transcript_bytes`, `hub.turn_queue_bytes`,
+  `core.resume_bytes`, the `root.journal` and `root.loads` byte carriers). Keep what is not T's:
+  `people.requests` 256, `root.loads.loads` 32, the memory declarations, the model recipe.
+- The assertion on `hub.turn_bytes` (near 153) compares with the derived T, not 1,507,539.
+- If B0's start then refuses on another figure (a memory declaration, a store bound), the least
+  that passes in this fixture, listed in the report with the check's words; a refusal from
+  `limits.rs`, jig's profile or a codec ceiling is a question as before. Nothing else in the file.
+
+Then the two moved figures the run listed (`serve_refuses_an_explicit_call_bound_below_the_agents_call_input`
+at 10,662, `serve_checks_the_owned_agents_admission_at_each_bound` at 10,660) and the rest of the
+acceptance as written.
