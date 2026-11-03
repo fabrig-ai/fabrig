@@ -25,6 +25,15 @@ fn process_engine() -> jig_protocol_config::Engine {
 }
 
 #[test]
+fn the_browsers_client_bounds_are_the_terminals() {
+    assert_eq!(
+        temper_client_shell_web::limits::client(),
+        temper_client_shell_terminal::limits::native().client,
+        "the browser receives what the terminal does (client/README.md, 2)"
+    );
+}
+
+#[test]
 fn the_process_and_client_world_documents_fit_their_clients() {
     let engine = process_engine();
     let client = temper_client_shell_terminal::limits::native().client;
