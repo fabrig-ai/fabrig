@@ -10,6 +10,10 @@ files = [
   "temper/crates/temper-playground/src/tests/**",
   "temper/crates/temper-playground/Cargo.toml",
   "temper/tests/one-process/tests/suite/story_a.rs",
+  "temper/crates/temper-playground/src/documents.rs",
+  "temper/crates/temper-playground/src/documents/**",
+  "temper/crates/temper-engine-domain/src/route/playground.rs",
+  "temper/crates/temper-engine-domain/src/tests/setup.rs",
   "Cargo.lock",
 ]
 effort = "high"
@@ -211,3 +215,43 @@ entries, whose peer `Fakes::new` builds with it.
 Then the walk goes on as the acceptance says, with the earlier answers' diagnosis and stop rules
 past the takeover.
 
+2026-11-03. **Project creation fails after the account (`StartFailure::Adoption`, account 1, no
+project): widen this task, or leave it to an owner?** Widen this task, narrowly, diagnosis first. No
+task of this plan owns the engine or the composition's documents, and the native walk, the replay
+(`one-process-replay`) and the browser walk all wait on story A starting: the acceptance cannot hold
+without it. This task's files gain `temper-playground`'s `src/documents.rs` and `src/documents/**`,
+and the engine's `src/route/playground.rs` and `src/tests/setup.rs`, for this repair alone.
+
+1. **Which branch fired.** With throwaway diagnostics only, find whether `project`
+   (`temper/crates/temper-engine-domain/src/route/playground.rs`, ~112) found no
+   `playground_policy` (the first of `config.core.defaults.policies`, `domain.rs` ~334), or
+   `Reply::Project` (~170) got a reply other than `ProjectMade`; print that reply whole (a
+   `Refused`'s reason, a `Full`'s capacity). The report names it.
+2. **Then repair where the cause is:**
+   - **The composition's documents** (no default policy, a project or name capacity, the policy's
+     number or its authority as the playground's documents set them, `documents.rs` ~120-200 and
+     ~341-400): fix the documents, so they stay just big enough for the stories
+     (`temper/docs/design/playground.md`, 8). A test in `temper-playground`'s `src/tests/` that a
+     fresh world of story A, after `StartPlayground`, holds the project; or, if a document check is
+     the narrower proof, that.
+   - **The engine's start** (it asks with the wrong policy, sign-in, key or holder for what
+     `protocol/setup.md`, 8.4 says the start makes): fix `route/playground.rs`, with a test in
+     `src/tests/setup.rs` beside its playground tests that the start's project ask is answered
+     `ProjectMade`. No stored format, record or protocol changes; one that seems needed is a
+     question.
+   - **jig's people or core refuse a well-formed ask** (`jig-domain-core`, `jig-domain-people`):
+     stop and ask with the reply, file and line; jig is not this task's.
+3. **Past the project** (the uses, the adoption): the same rule again, once; a second new failure
+   past this repair is a question with the same evidence, not chased.
+4. **The read loop** (the host asking `/jig/v1/read` at once after the failure, world and browser
+   held at 0): not this repair. If it is the driver's (a read answered at once that should wait on
+   the world), fix it here; if it is `temper-client-shell-web`'s host, leave it, report it under
+   `## Left` with its file and line, and make the driver's walk bound also count turns at one
+   instant, so a stall fails the walk with the person's failure and the page's nodes instead of
+   reaching nextest's wall limit.
+5. **The one-process story A** (`story_a.rs`): after the repair, run it once alone with
+   `--run-ignored all`; passing, remove the `#[ignore]`; failing, keep it with a one-line reason and
+   report it under `## Left`, not chased (its account is absent there, a different stall).
+
+Add `heavy cargo nextest run -p temper-engine-domain --lib -E 'test(/playground/)'` to the checks
+if the engine changed; then the walk goes on as the acceptance says.
