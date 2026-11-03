@@ -36,11 +36,12 @@ tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
 (`protocol/setup.md`); with `application.machine.github` null, GitHub's
 remotes come out malformed (`protocol/configuration.md`). The case library's
-purpose is retired (`domain/testing.md`). Of the drafts, the reference
+purpose is retired (`domain/testing.md`), and the `welcome-set-up`
+journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
 drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
 their three statuses); the others record what the design carries of
-them and where it lags or departs. `README.md`, `domain/README.md`,
-`protocol/llm.md` and `client/journeys.md` have no gap.
+them and where it lags or departs. `README.md`, `domain/README.md` and
+`protocol/llm.md` have no gap.
 
 Design documents:
 - [`README.md`](README.status.md)
