@@ -177,7 +177,9 @@ fn check_set(
 }
 pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
-        Value::Charter(value) => setting == Setting::Charter(value.number) && value.number != 0,
+        Value::Charter(value) => {
+            setting == Setting::Charter(value.number) && value.number != 0 && tasks::wake_valid(&value.wake)
+        }
         Value::Template(value) => {
             setting == Setting::Template(value.number)
                 && value.number != 0

@@ -91,7 +91,7 @@ fn a_chat_s_activity_holds_the_person_s_words_its_turns_and_its_delegate_s_resul
             llm: None,
             symbolic_grants: Box::new([]),
             dependencies: Box::new([]),
-            wake: tasks::WakePolicy::DEFAULT,
+            wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
         stubs: Box::new([]),
     }));

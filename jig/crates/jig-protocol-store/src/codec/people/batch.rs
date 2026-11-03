@@ -55,7 +55,10 @@ pub(super) fn encode(batch: &[domain::Member], limits: &wire::Limits) -> Result<
                     symbols,
                     contract: encode_contract(&member.contract, limits)?,
                     authority: encode_authority(&member.authority, limits)?,
-                    wake: encode_wake_policy(&member.wake, limits)?,
+                    wake: match &member.wake {
+                        Some(wake) => Some(encode_wake_policy(wake, limits)?),
+                        None => None,
+                    },
                     dependencies: parts::encode_dependencies(&member.dependencies, limits)?,
                     tracked: member.tracked,
                     label: member.label,
@@ -120,7 +123,10 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
                 parameters: decode_spec_parameters(parameters, limits, shared_sum(limits))?,
                 contract: decode_contract(contract, limits)?,
                 authority: decode_authority(authority, limits)?,
-                wake: decode_wake_policy(wake),
+                wake: match wake {
+                    Some(wake) => Some(decode_wake_policy(wake)),
+                    None => None,
+                },
                 dependencies: parts::decode_dependencies(dependencies, limits)?,
                 inputs: super::pieces::decode_numbers(inputs, limits, shared_sum(limits))?,
                 budget: match budget {

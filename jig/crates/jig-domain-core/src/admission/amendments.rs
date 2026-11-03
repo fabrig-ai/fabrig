@@ -190,6 +190,18 @@ fn wake_rule(value: people::WakeRule) -> tasks::WakeRule {
     }
 }
 
+pub(crate) fn default_wake(core: &Core, executor: &tasks::Executor) -> tasks::WakePolicy {
+    match executor {
+        tasks::Executor::Agent { charter } => match core.charter(*charter) {
+            Some(charter) => charter.wake,
+            None => tasks::WakePolicy::DEFAULT,
+        },
+        tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => {
+            tasks::WakePolicy::DEFAULT
+        }
+    }
+}
+
 pub(crate) fn wake(value: people::WakePolicy) -> tasks::WakePolicy {
     tasks::WakePolicy {
         words: wake_rule(value.words),

@@ -61,7 +61,7 @@ pub fn report_delegate(words: &[u8], dependencies: Box<[engine::Dependency]>) ->
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies,
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
     }
 }
 

@@ -414,6 +414,7 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
         number: 1,
         policy: engine::RunPolicy {
             instructions: b"Complete the task within its authority.".as_slice().into(),

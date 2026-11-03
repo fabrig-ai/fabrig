@@ -133,7 +133,7 @@ pub(crate) fn delegate_validated(
                 funder: tasks::Funder::Task(key.task),
                 dependencies: dependencies.into_boxed(),
                 holdings: Box::new([]),
-                wake: member.wake,
+                wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, &member.executor)),
                 recurring: None,
                 tracked: member.tracked,
             })
@@ -327,7 +327,7 @@ pub(crate) fn propose_batch(
                 funder: tasks::Funder::Task(key.task),
                 dependencies: dependencies.into_boxed(),
                 holdings: Box::new([]),
-                wake: member.wake,
+                wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, &member.executor)),
                 recurring: None,
                 tracked: tracked.or(member.tracked),
             })
@@ -503,7 +503,7 @@ pub(crate) fn procedure_step(
                         funder: tasks::Funder::Task(task),
                         dependencies: dependencies.into_boxed(),
                         holdings: Box::new([]),
-                        wake: member.wake,
+                        wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, &member.executor)),
                         recurring: None,
                         tracked: member.tracked,
                     })
