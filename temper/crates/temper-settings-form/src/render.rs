@@ -18,6 +18,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(number));
             return;
         }
+        c::Setting::ProjectPolicy { project } => (b"project-policy".as_slice(), Some(project)),
         c::Setting::Rules => (b"rules".as_slice(), None),
     };
     out.put(kind);
@@ -51,13 +52,18 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             out.object_end();
             return;
         }
+        c::Setting::ProjectPolicy { project } => (b"project-policy".as_slice(), Some(project)),
         c::Setting::Rules => (b"rules".as_slice(), None),
     };
     out.object_start();
     out.key(b"kind");
     out.string(kind);
     if let Some(n) = number {
-        out.key(b"number");
+        if let c::Setting::ProjectPolicy { .. } = setting {
+            out.key(b"project");
+        } else {
+            out.key(b"number");
+        }
         out.unsigned(u64::from(n));
     }
     out.object_end();
@@ -376,6 +382,10 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
                         out.put(b"too large, ");
                         out.number(size.bytes);
                         match item.setting {
+                            c::Setting::ProjectPolicy { .. } => {
+                                out.put(b" bytes\n");
+                                continue;
+                            }
                             c::Setting::Charter(_) => out.put(b" bytes; read with settings show "),
                             c::Setting::Application { .. }
                             | c::Setting::Template(_)

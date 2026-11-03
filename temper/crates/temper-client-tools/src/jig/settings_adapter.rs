@@ -598,7 +598,7 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
     match v {
         c::Setting::Charter(x) => n::Setting::Charter(form_setting_number(x)),
         c::Setting::Template(x) => n::Setting::Template(form_setting_number(x)),
-        c::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-ctl"),
+        c::Setting::ProjectPolicy { project } => n::Setting::ProjectPolicy { project },
         c::Setting::Policy(x) => n::Setting::Policy(form_setting_number(x)),
         c::Setting::Application { kind, scope, number } => n::Setting::Application { kind, scope, number },
         c::Setting::Rules => n::Setting::Rules,
@@ -611,6 +611,7 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::Policy(x) => c::Setting::Policy(client_setting_number(x)),
         n::Setting::Application { kind, scope, number } => c::Setting::Application { kind, scope, number },
         n::Setting::Rules => c::Setting::Rules,
+        n::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project },
     }
 }
 #[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]

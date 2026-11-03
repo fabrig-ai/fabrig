@@ -22,7 +22,7 @@ pub(crate) fn slot(index: usize, proposed: bool) -> u32 {
 pub(super) fn next(reading: &Reading) -> Option<(u32, c::Read)> {
     let (key, review) = review(reading.pages.get(&1)?)?;
     for (index, item) in review.items.iter().enumerate() {
-        if let c::Setting::Application { .. } = item.setting {
+        if let c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } = item.setting {
             continue;
         }
         for (proposed, value) in [(false, &item.now), (true, &item.would_be)] {

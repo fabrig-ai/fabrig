@@ -683,7 +683,7 @@ pub const CHANGE_SETTINGS: Tool = Tool {
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `settings apply: stale; newest revision R; read settings show\nagain` (exit 2): read the settings, then decide again.\n",
+    notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `settings apply: stale; newest revision R; read settings show\nagain` (exit 2): read the settings, then decide again.\n`{\"kind\": \"project-policy\", \"project\": P}` sets project P's own\npolicy, set alone, once a file; it needs an owner of P, and with\nthe deployment's items one owner of both.\n",
 };
 
 /// The row's position in the tools table.
