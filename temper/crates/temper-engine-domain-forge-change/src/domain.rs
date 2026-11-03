@@ -1126,8 +1126,25 @@ pub fn authority_words(why: AuthorityHold) -> Box<[u8]> {
     }
     put(&mut words, b"; cancel: task cancel ");
     put(&mut words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
-    put(&mut words, b" REASON; or ask afresh; bare release holds again");
+    put(&mut words, b" REASON");
+    if why.lack == AuthorityLack::Tasks {
+        task_recovery_words(&mut words, why);
+    }
+    put(&mut words, b"; or ask afresh; bare release holds again");
     words.into_boxed()
+}
+
+fn task_recovery_words(words: &mut List<u8>, why: AuthorityHold) {
+    put(words, b"; grant more tasks: task amend ");
+    put(words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
+    put(words, b" --rev ");
+    put(words, skein_lib::Decimal::of(why.recovery.spec).as_bytes());
+    put(words, b" --tasks ");
+    put(words, skein_lib::Decimal::of(why.recovery.tasks.saturating_add(2)).as_bytes());
+    put(words, b" REASON; then release it: task release ");
+    put(words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
+    put(words, b" --hold ");
+    put(words, skein_lib::Decimal::of(why.recovery.hold).as_bytes());
 }
 
 fn put(words: &mut List<u8>, bytes: &[u8]) {

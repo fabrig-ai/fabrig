@@ -29,7 +29,10 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   A change whose authority no longer covers its next step (its tasks all
   made, its depth used, too little left to spend) holds, saying what it
   lacks; released with nothing more, it holds again, and its way out is
-  to cancel it, or ask for the change afresh.
+  for exhausted tasks to grant more with `task amend TASK --rev REV --tasks N REASON`,
+  then `task release TASK --hold REV`, or cancel it. `N` replaces the
+  lifetime allowance; a release keeps the tasks already made. Widening
+  stays within the giver's authority and funding.
   A change runs nothing of its own, so `task release --again` on it is
   refused: release its hold, and it decides afresh.
 - **Its parts,** each read on its own: its tree (its live

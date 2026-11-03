@@ -2761,11 +2761,7 @@ fn change_delegate(
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
             (
                 tasks::Executor::Agent { charter: row.producing_charter },
-                merge::resolution_words(
-                    row.merge_result.as_deref(),
-                    parameters.as_slice(),
-                    env.limits.tasks.spec_bytes,
-                ),
+                resolution_words(row.merge_result.as_deref(), parameters.as_slice(), env.limits.tasks.spec_bytes)?,
                 change_contract,
             )
         }
@@ -2940,6 +2936,54 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
     Some(writer.finish())
 }
 
+/// domain/forge.md, 8.4: both sides keep their intended content.
+fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], bound: u32) -> Option<Box<[u8]>> {
+    let words = concat!(
+        "Resolve the merge conflict. Preserve the requested change and unrelated content ",
+        "already landed on the base, including both independent appended lines and existing blank lines. ",
+        "Do not remove content to make a check pass. The worker commits and pushes the resolved merge."
+    )
+    .as_bytes();
+    let room = usize::try_from(parameter_word_room(parameters, bound)).ok()?;
+    // The coding charter carries the full preservation rule when the spec is small.
+    let compact = b"Resolve the merge conflict. Keep both sides and blank lines.";
+    let opening = if words.len() <= room {
+        words
+    } else if compact.len() <= room {
+        compact.as_slice()
+    } else {
+        return None;
+    };
+    let mut out = List::with_capacity(u32::try_from(room).ok()?);
+    append(&mut out, opening);
+    if let Some(result) = result {
+        let prefix = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
+        let remaining = usize::try_from(out.room()).ok()?;
+        if prefix.len().checked_add(result.len().min(3))? <= remaining {
+            append(&mut out, prefix);
+            let result = forge::text::fit(result, usize::try_from(out.room()).ok()?, b"...");
+            append(&mut out, &result);
+        }
+    }
+    Some(out.into_boxed())
+}
+
+fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
+    let mut room = bound;
+    for parameter in parameters {
+        if let tasks::Parameter::Bytes { value, .. } = parameter {
+            room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
+        }
+    }
+    room
+}
+
+const REPAIR_PRESERVATION: &[u8] = concat!(
+    " Preserve the requested change and unrelated base content, including both ",
+    "independent appended lines and existing blank lines; do not remove content to make a check pass."
+)
+.as_bytes();
+
 /// domain/forge.md, 8.4: a cut task read still names what the repair repairs.
 fn repair_words(
     row: &forge::ChangeRow,
@@ -2948,20 +2992,15 @@ fn repair_words(
     bound: u32,
 ) -> Option<Box<[u8]>> {
     let previous: &[u8] = match why {
-        forge_change::Repair::Ci => b"Repair the failed CI on the change branch",
-        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict",
-        forge_change::Repair::Gate(_) => b"Repair the requested gate changes",
+        forge_change::Repair::Ci => b"Repair the failed CI on the change branch.",
+        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict.",
+        forge_change::Repair::Gate(_) => b"Repair the requested gate changes.",
         forge_change::Repair::Landing { .. } => return None,
     };
     let head = row.change.last_head?;
     let digits = commit_text(&head);
-    let mut room = bound;
-    for parameter in parameters {
-        if let tasks::Parameter::Bytes { value, .. } = parameter {
-            room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
-        }
-    }
-    let tail = u32::try_from(previous.len().checked_add(1)?).ok()?;
+    let room = parameter_word_room(parameters, bound);
+    let tail = u32::try_from(previous.len().checked_add(REPAIR_PRESERVATION.len())?.checked_add(1)?).ok()?;
     let mut identity = List::with_capacity(room.checked_sub(tail)?);
     let opening = repair_opening(row, why)?;
     // Keep the opening and head whole even under a small task spec bound.
@@ -2985,6 +3024,7 @@ fn repair_words(
     append(&mut words, identity.as_slice());
     append(&mut words, b"\n");
     append(&mut words, previous);
+    append(&mut words, REPAIR_PRESERVATION);
     Some(words.into_boxed())
 }
 

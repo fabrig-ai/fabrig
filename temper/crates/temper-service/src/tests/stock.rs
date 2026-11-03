@@ -674,11 +674,19 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
 #[test]
 fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with the no_change verdict saying what the code has instead; never add a feature in a fix's place."));
+    assert!(words.contains("Change only what was asked. If a requested fix is absent from the code, write nothing and finish with no_change, explaining what the code has; never add a feature in its place."));
 }
 
 #[test]
 fn the_coders_words_build_additions_in_the_code_there_is() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with the no_change verdict only when it cannot be built there."));
+    assert!(words.contains("If the description differs from the code, build the requested addition using the code's names; use no_change only if it cannot be built there."));
+}
+
+#[test]
+fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("In repairs and resolutions, preserve the requested change and unrelated base content, including independent appended lines and existing blank lines."));
+    assert!(words.contains("Restore losses named in review; never remove content to pass checks."));
+    assert!(words.contains("Initial production has no pull request yet:"));
 }
