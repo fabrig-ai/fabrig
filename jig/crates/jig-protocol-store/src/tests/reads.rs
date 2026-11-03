@@ -539,6 +539,38 @@ fn task_owner() -> tasks::TaskRecord {
     *row
 }
 
+fn keep_delegated_goal(store: &mut Store, number: u64) -> Box<tasks::TaskRecord> {
+    // Five delegates exceed the small profile's four joins per read.
+    const DELEGATES: [u64; 5] = [41, 42, 43, 44, 45];
+    // The five complete delegate records also occupy the memory store.
+    const DELEGATED_RECORD_BYTES: u64 = 65_536;
+    store.limits.store.budget = DELEGATED_RECORD_BYTES;
+    store.limits.core.tasks.delegates = u32::try_from(DELEGATES.len()).unwrap();
+    store.codec_limits = crate::codec::limits(&store.limits.core).expect("five delegate records fit");
+    let core::Record::Tasks(tasks::Stored::Ended(mut goal)) = fixtures::ended_of(number, tasks::Party::Person(ALICE))
+    else {
+        panic!("goal fixture")
+    };
+    goal.delegates = Box::new(DELEGATES);
+    for delegate in DELEGATES {
+        let commit = store.stores.store.last().checked_add(1).unwrap();
+        fixtures::committed(
+            store,
+            Box::new([
+                fixtures::header(commit),
+                fixtures::save(fixtures::ended_of(delegate, tasks::Party::Task(number))),
+                fixtures::save(fixtures::delegate(number, delegate)),
+            ]),
+        );
+    }
+    let commit = store.stores.store.last().checked_add(1).unwrap();
+    fixtures::committed(
+        store,
+        Box::new([fixtures::header(commit), fixtures::save(core::Record::Tasks(tasks::Stored::Ended(goal.clone())))]),
+    );
+    goal
+}
+
 #[test]
 fn a_reply_that_was_a_turn_joins_that_turn() {
     let (mut store, disk) = party_store();
