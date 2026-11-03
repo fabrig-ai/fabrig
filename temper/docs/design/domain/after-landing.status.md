@@ -10,7 +10,7 @@
   before it is held (section 9's). 5.2, 11: the suspects' rule and a
   red's pause, kind 4's alone (`landing.md`, 13.1, and its status):
   every red range is bisected (`temper-engine-domain/src/translate.rs`),
-  and no red pauses its repository. 5.3, 6: a red landing is cleared by
+  and no red pauses its repository. 5.3, 6: repair attribution: a red landing is cleared by
   a later run that passes its failures, never repaired by a landing
   that names it, since no change names its red (7), so its result names
   no landing that repaired it. 6: a verdict is news to no goal; and a

@@ -70,11 +70,11 @@ Its steps, as `step:` prints them:
   `Repair gate N (KIND) at HEAD: changes requested`,
   `Repair the base's break at HEAD: BASE`),
   so `task show` names it; the change is checked again;
-- `landing`, then `landed`: temper merges it, and `change show` names
-  the merge commit; a change no tier follows ends there;
-- `verifying`: awaiting a tier's verdict;
-- `red`: blamed by a tier, naming the run and failing tests, until a
-  later run passes them;
+- `landing`, then `landed`: merged; `change show` names the commit;
+  a change no tier follows ends there;
+- `verifying`: awaiting tier verdicts;
+- `red`: merge, tier run and full owned or suspected failing IDs
+  (or `many tests`), until a later run passes them;
 - `cleared`: all its tiers cleared it, and its result comes; with no
   verdict by the verification bound, it ends `landed, uncleared`.
 
