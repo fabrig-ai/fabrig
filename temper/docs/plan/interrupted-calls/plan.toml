@@ -9,6 +9,7 @@ sources = ["temper/docs/plan/interrupted-calls/inputs/request.md", "skein/docs/d
 # for the sixteen; open_listener and the public poll_child keep theirs. plan.md says what was
 # decided and why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
