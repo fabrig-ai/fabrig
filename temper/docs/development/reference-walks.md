@@ -140,7 +140,7 @@ the restart in the middle of a run came from finding-135's workaround, not from 
 - Commit: 677e405ca112365653d5d504de259b00fd11a0d4
 - Area: chat / charter 1
 - Severity: medium
-- Sightings: finding-156
+- Sightings: finding-156, finding-162
 
 ### Reproduction
 
@@ -322,7 +322,7 @@ panel wording only; the change reads cleared and its result names the clearing r
 - Commit: 599f62cb9d3e5acb689afc5e8176b06f8660c9f7
 - Area: QA budget recipe / chat reservation
 - Severity: low
-- Sightings: (none)
+- Sightings: finding-161
 
 ### Reproduction
 

@@ -367,3 +367,36 @@ fn a_filled_template_carries_its_resources_as_symbols() {
     let Ask::Propose { action: ProposeAction::Batch { tasks }, .. } = ask else { panic!("batch") };
     assert_eq!(tasks.get(0).unwrap().symbols, resources);
 }
+
+#[test]
+fn set_goal_from_keeps_named_template_defaults_and_judges_its_executor() {
+    let mut me = me();
+    let project = shape_project(&mut me);
+    let mut named = project.templates.get(1).unwrap().clone();
+    named.number = 4;
+    named.executor = TemplateExecutor::Charter(1);
+    named.label = 9;
+    named.resources = List::with_capacity(1);
+    named.resources.push(Symbol { connector: 7, symbol: 1 }).unwrap();
+    let mut templates = List::with_capacity(3);
+    for template in &project.templates {
+        templates.push(template.clone()).unwrap();
+    }
+    templates.push(named).unwrap();
+    project.templates = templates;
+    let Judged::Propose { ask: Ask::Propose { action: ProposeAction::Batch { tasks }, .. }, .. } =
+        set_goal_from(&me, PROJECT, 4, draft(), words())
+    else {
+        panic!("proposed goal")
+    };
+    let task = tasks.get(0).unwrap();
+    assert_eq!(task.label, 9);
+    assert_eq!(task.symbols.as_slice(), &[Symbol { connector: 7, symbol: 1 }]);
+    assert_eq!(task.executor, Executor::Agent { charter: 1 });
+    let mut wrong = draft();
+    wrong.executor = Executor::Agent { charter: 3 };
+    let Judged::NotOffered(why) = set_goal_from(&me, PROJECT, 4, wrong, words()) else { panic!("executor refused") };
+    assert_eq!(why, NotOffered::ChipExecutor);
+    let Judged::NotOffered(why) = set_goal_from(&me, PROJECT, 9, draft(), words()) else { panic!("template refused") };
+    assert_eq!(why, NotOffered::Template);
+}

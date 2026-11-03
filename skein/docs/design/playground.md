@@ -133,6 +133,25 @@ on the timer, or after a message:
 - **Bounded:** the exchanges in flight, the page's fetch bound; one
   stream; the jar; bodies by their bounds. Its worst case is its own
   (programming-model.md, 6).
+- **Fetch's reports by construction:** the visitor keeps its exchanges
+  and its stream in `skein-ui-web`'s fetch bookkeeping, the pure half
+  the browser's fetch keeps (ui-web.md, 10), so a refusal past the
+  bound in flight, a body past its bound, an abandon and the stream's
+  pieces are reported as a browser's are: the first piece as it comes,
+  each further one after a read-on.
+- **The headers, as a browser's same-origin fetch sends them:** the
+  application's own, then `Host`, then `Origin: http://<host>` on every
+  method but GET and HEAD, then one `Cookie` joining the jar's cookies
+  whose path the request's is under (RFC 6265, 5.1.4's path-match), in
+  the order they were set.
+- **What the jar reads of a `Set-Cookie`:** its name and value, its
+  `Path` (absent, the request path's directory, RFC 6265, 5.1.4) and
+  its `Max-Age`, counted from the answer's wall. `Expires` is not read,
+  so a cookie set with it alone lasts the visit; `HttpOnly`, `Secure`,
+  `SameSite` and `Domain` are not read: every request is the origin's
+  own and the page sees no cookie. A cookie of one name replaces the
+  one it holds; one past the jar's bound of cookies or of a cookie's
+  bytes is refused, and its answer is reported as any other.
 
 ## 5. The bridge
 
@@ -169,6 +188,17 @@ on the timer, or after a message:
   client's host, built natively, against its world, through the
   visitor, as its page does in a browser, with no worker and no
   browser.
+- **A speed in thousandths:** the world's nanoseconds per browser
+  nanosecond, times 1000, a whole number: 1000 is 1×, 0 is paused. The
+  world's arithmetic has no floating point, and the frame's speeds
+  (½×, 1×, 10×) are all whole thousandths. A world starts at 1×.
+- **A slice's posts, in order:** the stamps of the inputs it entered,
+  as they entered; then the fetch reports and the lines it took after
+  its steps, each stream in its order; then the world stopped, when it
+  settled; and the world's clock last. The worker runs a slice at once
+  after each message, and the clock closes each slice's posts, so
+  what the page heard before a clock is all the world said up to that
+  clock's step (6.1).
 
 ## 6. The session log
 
@@ -202,8 +232,9 @@ on the timer, or after a message:
   version is refused, naming it. The build it names is the bundle's,
   which a native replay has not: a replay of another build goes on, the
   digests deciding, and a failure names the build the log came from.
-- **Replayed natively,** a test: the harness's run (world.md, 3) over
-  the application's composition built from the same documents, the
+- **Replayed natively,** a test: the harness's run's steps (world.md,
+  3), in skein-playground's loop (6.2), over the application's
+  composition built from the same documents, the
   log's seed and start, each input entering at its stamp, and each
   digest checked against what the replayed world posted. The first
   that differs fails the replay at that input. The application's
@@ -212,6 +243,71 @@ on the timer, or after a message:
 - **What changes a log:** a change that makes a kept log's replay
   differ is a new log, recorded again, or a finding (temper's
   `docs/design/playground.md`, testing).
+
+### 6.1 The log's text, version 1
+
+Lines of printable ASCII, each ending in a newline; fields apart by one
+space, in the order given, `name=value`; numbers in decimal with no
+leading zero; bytes in base64 (lib.md, 6.1), the standard alphabet with
+padding, the empty bytes as nothing; a digest as 64 lowercase hex
+digits. Anything else refuses the log, naming its line.
+
+```
+skein-playground-log 1 build=<build> seed=<u64> start=<wall ns>
+input step=<u64> instant=<ns> said=<digest> <input>
+...
+end step=<u64> instant=<ns> said=<digest>       or: cut
+```
+
+- **The first line:** the format's name and its version; the build,
+  the bundle's digest directory's name, or `-` for a log kept natively;
+  the seed; the start, the wall at the visit's start in nanoseconds.
+  A version other than 1 is refused, naming it.
+- **An input's line:** its stamp, the digest of what the world said
+  since the input before (since the start, for the first), and the
+  input:
+  - `exchange id=<u32> method=<bytes> path=<bytes> bound=<u32>
+    body=<bytes>`, then ` header=<name bytes>:<value bytes>` for each
+    header, in order;
+  - `abandon id=<u32>`;
+  - `open path=<bytes> bound=<u32>`, then its headers as an
+    exchange's;
+  - `close`; `read-on`.
+- **The last line:** `end`, the moment of the last clock the page
+  heard and the digest of what the world said from the last input up
+  to that clock, so a replay runs to that moment and checks it; or
+  `cut`, when the log reached its bound: the inputs past it were not
+  kept, and a replay runs to the last input kept.
+- **What the world said, as a digest:** SHA-256 over 65 bytes, the
+  SHA-256 of its fetch reports' lines, the SHA-256 of its printed
+  lines' lines, and a byte, 1 when the world stopped and 0 otherwise.
+  Each line ends in a newline; a report's: `answered id=<u32>
+  status=<u16> body=<bytes>`, `failed id=<u32>`, `opened`,
+  `refused status=<u16>`, `piece bytes=<bytes>`, `ended`; a printed
+  line's: `output` or `error`, then `process=<bytes> line=<bytes>`.
+  The texts are the log's own, under its version, never the bridge's
+  encoding, so a kept log's digests stand while the bridge changes.
+
+### 6.2 The replay's loop
+
+- **skein-playground's, the harness's run's steps without its
+  verdicts:** a product crate names no harness (world.md, 2), and the
+  harness's run ends only on a settled world, which a visit's never
+  is. The replay steps the world as the slices do, stepping while it
+  is busy and once at each due instant the clock is moved to, so its
+  step count at each moment is the browser's; idle, it moves the
+  clock to the next due instant, or short of it to the next stamp's
+  instant or the end's. Each input enters when the world's step count
+  reaches its stamp's, at its instant; what the world said since the
+  input before, its visitor's reports, its lines and its stop, is
+  folded as the page folds it and checked against the entry's digest.
+- **The application's referee** observes each turn through the world's
+  `Turns`, as in the harness's run, and the harness's heap meter may
+  measure it; at the log's end the world is handed back unsettled, as
+  it was, with no teardown to check.
+- **A difference** fails the replay at its line: a stamp's step reached
+  at another instant, or its instant passed before its step, or a
+  digest that differs; the failure names the build the log came from.
 
 ## 7. The page, the worker and the bundle
 
@@ -226,6 +322,17 @@ on the timer, or after a message:
   (`new Worker(…, {type: "module"})`). The page's policy adds
   `worker-src 'self'`, and nothing is fetched after the load: the
   documents the world needs are in its module.
+- **The worker's files,** beside the page's (ui-web.md, 4.2): its
+  starter `boot-worker.js`, two statements, `import init from
+  "./<worker>.js"; init();`, as the page's starter is; its glue
+  `<worker>.js` and its module `<worker>_bg.wasm`, `<worker>` the name
+  the application gives it; and the modules its glue imports, in
+  `snippets/` with the page's, one the page's glue holds at the same
+  path with the same bytes kept once. A worker named as the page's
+  module, or a snippet at a path the page's holds with other bytes,
+  refuses the bundle, naming it. The page finds the worker's starter in
+  the digest directory, as the parts find the directory (ui-web.md,
+  4.3).
 - **A panic is fail-stop:** the worker's hook posts its words before the
   module traps; the page's hook stops both. The page then says the
   playground failed, offers the log and a start over, and never reloads

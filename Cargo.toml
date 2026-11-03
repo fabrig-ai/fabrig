@@ -36,6 +36,7 @@ members = [
     "skein/crates/skein-oauth",
     "skein/crates/skein-oauth-accounts",
     "skein/crates/skein-oauth-issuer",
+    "skein/crates/skein-playground",
     "skein/crates/skein-shell",
     "skein/crates/skein-sim",
     "skein/crates/skein-sim-world",
@@ -93,6 +94,7 @@ members = [
     "skein/tests/oauth",
     "skein/tests/oauth-issuer",
     "skein/tests/oauth-accounts",
+    "skein/tests/playground",
     "skein/tests/protocol",
     "skein/tests/ring",
     "skein/tests/readiness",
@@ -354,6 +356,7 @@ skein-fake-machine = { path = "skein/crates/skein-fake-machine" }
 skein-fake-channel = { path = "skein/testing/skein-fake-channel" }
 skein-fake-checkout = { path = "skein/crates/skein-fake-checkout" }
 skein-sim-world = { path = "skein/crates/skein-sim-world" }
+skein-playground = { path = "skein/crates/skein-playground" }
 skein-world = { path = "skein/testing/skein-world" }
 wasm-bindgen-cli-support = { version = "=0.2.126" }
 io-uring = { version = "0.7.15" }

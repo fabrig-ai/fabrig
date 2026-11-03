@@ -13,6 +13,28 @@ use skein_lib::{List, Writer};
 /// At most 256 UTF-8 bytes of a supplied name enter an error; controls end it.
 pub(crate) const NAME_ECHO_BYTES: usize = 256;
 
+/// Override the main and, when explicit, the sub-agents using offered model names.
+pub(crate) fn selection(
+    call: &Call,
+    model: u8,
+    effort: u8,
+    subagent: u8,
+    me: &c::Me,
+    project: u32,
+    before: Option<&c::LlmChoice>,
+) -> Result<Option<c::LlmChoice>, Failed> {
+    let mut choice = llm(call, model, effort, me, project, before)?;
+    if let Some(Some(_)) = call.values.get(usize::from(subagent))
+        && value(call, usize::from(model)).is_none()
+    {
+        return Err(Failed::Fixed(b"--sub-agent needs --model"));
+    }
+    if let Some(subagents) = sub_agents(call, subagent, me, project)? {
+        choice.as_mut().expect("sub-agents require a main model").subagents = subagents;
+    }
+    Ok(choice)
+}
+
 pub(crate) fn llm(
     call: &Call,
     model_argument: u8,
