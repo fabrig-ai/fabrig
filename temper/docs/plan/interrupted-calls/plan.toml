@@ -1,3 +1,27 @@
 draft = "interrupted-calls"
 repo = "fabrig"
 sources = ["temper/docs/plan/interrupted-calls/inputs/request.md", "skein/docs/design/shell.md", "AGENTS.md"]
+
+# The answer to readiness-eintr's question other-interrupted (inputs/request.md): (a). Under the
+# readiness backend every interrupted operation but the eight transfers completes Other(EINTR),
+# made once, as the ring's does (skein/docs/design/shell.md, 7.4, written by this cut; section
+# 10's question goes). One skein task: the retry goes from attempt and from each system's call
+# for the sixteen; open_listener and the public poll_child keep theirs. plan.md says what was
+# decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "interrupted-calls"
+title = "skein: the readiness backend completes every interrupted operation but a transfer Other(EINTR), made once"
+mode = "direct"
+needs = []
+design = "skein/docs/design/shell.md, 7.4"
+
+[[slice]]
+id = 1
+story = "under the readiness backend, an interrupted Bind, Listen, Shutdown, Truncate, Sync, Stat, Rename, Remove, MakeDirectory, List, Lock, Wait, Spawn, Signal, Usage or Window completes Other(EINTR) after one call, as on the ring, while an interrupted transfer is still reissued"
+parts = ["interrupted-calls"]
+walk = false
