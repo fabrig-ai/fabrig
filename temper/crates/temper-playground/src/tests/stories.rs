@@ -108,6 +108,23 @@ fn story_as_chat_requests_fit_the_peoples_payload_bound() {
 }
 
 #[test]
+fn story_as_task_bounds_hold_the_chat_owners_authority() {
+    for deployment in [serde_json::from_slice(A.deployment).expect("story deployment"), documents::world_document()] {
+        let engine = documents::settings::configuration(&deployment);
+        let temper_service::stock::Given::Own { jig, .. } = documents::given(&deployment) else {
+            panic!("the composition supplies its settings")
+        };
+        let policy = &jig.policies.get(&1).expect("playground policy").policy;
+        let role = policy.roles.iter().find(|role| role.number == 0).expect("owner role");
+        assert!(
+            jig_domain_tasks::valid_authority(&engine.limits.core.tasks, &jig_domain_core::task_authority(&role.authority)),
+            "the chat inherits its owner's {} grants within task authority bounds",
+            role.authority.grants.len()
+        );
+    }
+}
+
+#[test]
 fn story_as_scripts_are_the_templates() {
     let story: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let template: Value =

@@ -197,6 +197,8 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         ("authority.grants", 16),
         ("authority.executors", 8),
         ("authority.segments", 8),
+        ("tasks.authority_grants", 14),
+        ("tasks.authority_bytes", 70),
         ("tasks.executor_kinds", 8),
         ("notes.scopes", 32),
     ] {
