@@ -94,3 +94,16 @@ their sentence, keeping theirs, and say so.
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+2026-11-03. **change.md is over its concept bound (8,463 of 8,192 bytes) with the
+given text: shorten other prose, or change the wording or the bound?** Shorten
+`temper/docs/help/change.md`'s existing prose until the page is within 8,192 bytes; the
+bound (`temper-docs`, `Kind::bound`) stays as it is and the supplied additions stay word for
+word. Cut only what the same page already says elsewhere, so no fact is lost, and keep the
+sentences `temper/crates/temper/src/tests/help.rs` asserts. Places that repeat themselves:
+the `producing` step's `a coder that explicitly concludes no change applies ends the change
+successfully` (said under `Its result`); the two `Held at producing / repairing ... or holds
+again if its authority can't cover one` sentences, which can share one ending. Name each cut
+in the report. tier.md needs nothing more.
