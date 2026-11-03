@@ -507,6 +507,7 @@ fn route_now(
         | core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
+        | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SignInRefused { .. }
         | core::Now::WatchRefused { .. }
