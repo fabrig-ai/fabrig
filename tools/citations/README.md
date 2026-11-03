@@ -1,6 +1,6 @@
 # Citations
 
-`citations.py` checks the citations the design relies on (AGENTS.md, 9): Markdown links and
+`citations.py` checks the citations the design relies on (AGENTS.md, 6): Markdown links and
 `x.md` paths, sections ("`x.md`, 5.3", "section 5.3") against the cited document's numbered
 headings, and a status file's labels ("**Not yet:** 3.2:") against its document.
 

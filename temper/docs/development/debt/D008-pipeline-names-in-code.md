@@ -46,7 +46,7 @@ The comments' emphasis words ("actual", 65; "genuine", 9) are counted by
 
 ## Why it matters
 
-The pipeline that numbered those tasks is gone (AGENTS.md, section 8):
+The pipeline that numbered those tasks is gone:
 nobody can look a promise up, and some promise what no plan will do.
 They mark real gaps, which belong in status files, where they are kept.
 
