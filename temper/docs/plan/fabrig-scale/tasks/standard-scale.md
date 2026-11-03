@@ -123,3 +123,17 @@ The merge conflicts with integration commit `46bf4d5a76cad03a3022edfc3f6186e4a17
 - Preserve the branch’s added validity and scale tests. Update `small_is_unchanged`’s store value assertion from `2_166_708` to upstream’s `2_166_900`; retain its other assertions. Do not revert upstream’s Small constants.
 - In `jig/testing/jig-test-service/src/tests.rs`, resolve `both_jig_profiles_have_usable_store_edges` with Small value `1_156_772` and Standard value `59_568_420`. Keep both profiles’ existing commit and ops figures.
 Run the focused profile tests and `both_jig_profiles_have_usable_store_edges` through heavy, then complete the spec’s checks.
+
+## Answers
+
+- 2026-11-03. Q: may standard's store figures follow the current codec (value 59,568,612) rather than
+  the rebase note's literals (value 59,568,420, page 59,570,499)? A: yes; the codec governs. The
+  acceptance sets `value` to what `sizes::check_commits` computes, exactly, and page and chunk from
+  it; the rebase note's literals predate main's `56aadce2d5`, which priced `RunPolicy.tools` and
+  raised small's value by the same 192 bytes. Set standard's `STORE_KV` to value `59_568_612`, page
+  bytes `59_570_691` (key 2,079 plus value, above the 33,554,496-byte frame), chunk
+  `skein_kv::chunk_bytes(2079, 59_568_612)` (59,570,711 if it adds 20 as before; use what it
+  computes); move `configured_read_room_is_smaller_than_the_maximum_frame`'s standard page and
+  `both_jig_profiles_have_usable_store_edges`'s standard value with them, and the comment above
+  `STORE_KV` to say `RunPolicy.tools` is priced. The rest of the rebase note stands. Then run the
+  spec's remaining checks.
