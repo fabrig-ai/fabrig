@@ -6,8 +6,9 @@
   (`../playground.md`, 6); `temper-client-shell-web` has the features
   `record` and `loopback-navigation` alone. 4.6: item 12, the
   playground's story A on the built playground and its log replayed
-  natively (`../playground.status.md`). 8: reading without signing in: the public pages and their addresses, the
-  public mode's reads and timer, and the signed-out page's link to `/public`.
+  natively (`../playground.status.md`). 8: reading without signing in: the public pages and their addresses by
+  public identifier, the public mode's reads, its timer from each answer's freshness, content dropped
+  when its freshness ends, the address codec's fuzzy test, and the signed-out page's link to `/public`.
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,

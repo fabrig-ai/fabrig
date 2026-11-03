@@ -140,9 +140,12 @@ iterate, after the step:
 - **Public reads come behind.** A public read, the public party's
   (people.md, section 13), is new work admitted only while the backlog
   is under the public watermark, below the one every other new work
-  meets (section 10); handed back, it is answered busy by the clients'
+  meets, and while the core holds fewer public reads than their limit
+  (section 10); handed back, it is answered busy by the clients'
   component and never offered again, so load from signed-in parties
-  refuses public reads first.
+  refuses public reads first. A public read loads nothing and its work
+  is bounded (people.md, 13.9), so engine completions and signed-in
+  reads never wait on one.
 - **One decision per event.** Hand-offs complete within the step;
   nothing of a decision is left for a later step but what a child holds
   in its own state, saying so (a brief gathering, a load awaited).
@@ -412,10 +415,12 @@ stops taking them.
   the backlog. It limits pacing, not memory
   (programming-model.md, 7.1); where a person's reads wait behind it, it
   rises.
-- **The public watermark,** a second field of the root's `Limits`, at
-  most half the watermark, never above it: public reads are admitted
-  under it (section 3), so they never fill the backlog signed-in work
-  is admitted to.
+- **The public watermark,** a second field of the root's `Limits`,
+  half the watermark: public reads are admitted under it (section 3),
+  so they never fill the backlog signed-in work is admitted to; and
+  **the public reads in the core,** a third, the clients' component's
+  public reads in flight (`../protocol/configuration.md`, section 6).
+  Both follow from the other figures, and neither is configured apart.
 - **No sum along routes,** and no worst case of the root's: the
   per-process estimate goes with the startup fit check
   (programming-model.md, 6.3).

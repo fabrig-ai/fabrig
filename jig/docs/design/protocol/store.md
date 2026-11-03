@@ -348,7 +348,7 @@ child puts live first.
 | core | settings' history: the records of revisions no longer held, each with its number, the revision it was made against, when, who decided it, the proposal it came from, whether it moved running work, and its items with the values they set and what each replaced (`../domain/engine.md`, 17.10), an application's with their sizes alone (`../domain/engine.md`, 17.5); within the history limit, the oldest erased by the decision that makes a newer one | under the core's family tag 9: revision | on demand |
 | core | goals' projections (feed, plan rows, pending milestones), run proofs, calls committed since a live task's last turn, live agent tasks' conversations (their first attempt, their current window's start) | a goal's, then its own; task; task, attempt, completion, position; task | at start |
 | core | turns (in transcripts' files, section 8), terminals, decisions on proposals and escalations | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
-| tasks | live tasks, each with its revision and its claim's (`../domain/engine.md`, 17.3), a goal's title shown or not (`../domain/people.md`, 13.3), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
+| tasks | live tasks, each with its revision and its claim's (`../domain/engine.md`, 17.3), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
 | tasks | placed holds (`../domain/tasks.md`, 5.9): each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
 | tasks | ended tasks, past periods, decided proposals, history, milestones, activity | task, then a position or revision; funder, period; proposal | on demand |
 | people | parties, sign-ins (no secret), roles, projects' names, whether each is public (`../domain/people.md`, 13.2), and whole policies (their ceilings, escalation roles and overrides of templates among them), seeded and made alike, read positions over results and over live conversations, answered keys within the retention, a party's or, for the deployment's acts, a connector's (`../domain/people.md`, 5.3), including typed policy-ceiling refusals (holder, dimension and optional scalar bound and requested values), program declarations and checks, their declared names, and sign-out/removal answers naming unconfirmed configured workers with their original failure reasons; each project being deleted, with the step its deletion has reached and the grace it gives its conversations (`../domain/people.md`, 5.2), at most one per project the deployment has room for, erased with the deletion's last step | as the people child keys them; a live conversation's position by party, then task; a deletion by its project | at start |
@@ -1243,7 +1243,11 @@ nothing is written.
     number is a row of its own beside the values (key `[2, 1]`), written
     in the commit that keeps the value, so a number is never drawn
     twice, an erased one included, and a number already holding a value
-    is never written over: the carry is refused and nothing is kept.
+    is never written over: the carry is refused and nothing is kept;
+  - the public identifiers' key (`../domain/people.md`, 13.8), one row
+    under a tag of its own: 32 bytes the clients' component draws from
+    its random source at its first start and never changes, so a public
+    address stays the same across restarts.
 
   A program source's login is not here: it is the program's own, on
   each host (`llm.md`, 5.5).

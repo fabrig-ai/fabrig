@@ -5,8 +5,8 @@
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
-  `qa passes` and `hold list`; `project show`'s visibility. 5.3:
-  `project amend --visibility` and `goal amend --title`; `task move
+  `qa passes` and `hold list`; `project show`'s visibility and public page. 5.3:
+  `project amend --visibility`; `task move
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
   `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
   restore`. 5.5: area 2's procedure executor choice for `goal start`,
