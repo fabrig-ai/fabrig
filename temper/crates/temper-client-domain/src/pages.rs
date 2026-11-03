@@ -69,6 +69,7 @@ pub enum Act {
         words: Box<[u8]>,
     },
     StartChat,
+    FirstChat,
     Suggest {
         cue: u8,
     },
@@ -377,6 +378,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
+        Event::Act { act: Act::FirstChat } => {
+            let me = pages.me(client);
+            if let Some(chats) = &mut pages.chats {
+                chats.first_chat(env, me, pages.project, &pages.choice, &mut pages.serial, out);
+            }
+        }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
             unreachable!("suggestions are resolved by the root")
         }
@@ -836,6 +843,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SignOut
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::FirstChat
         | Act::Playground
         | Act::RetryPlayground
         | Act::Suggest { .. }

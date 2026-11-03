@@ -139,6 +139,7 @@ pub(super) fn step(pages: &mut Pages, _env: &Env<Limits>, act: Act, out: &mut Qu
         | Act::Older
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::FirstChat
         | Act::RetryPlayground
         | Act::Playground
         | Act::Suggest { .. }
