@@ -46,7 +46,7 @@ pub(crate) const ADOPTION_FORM_STEPS: usize = 7;
 pub(crate) const ADOPTION_REPLY_STEP: usize = 7;
 #[must_use]
 pub fn calm(seed: u64) -> Settings {
-    Settings { seed, config: skein_sim::Config::calm() }
+    Settings { seed, config: skein_sim::Config::calm(), memory: skein_world::Memory::Unchecked }
 }
 pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
     let mut limits = temper_client_shell_terminal::limits::native();

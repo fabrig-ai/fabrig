@@ -4725,6 +4725,7 @@ dependencies = [
  "skein-fake-peers",
  "skein-fake-person",
  "skein-forge",
+ "skein-heap",
  "skein-io",
  "skein-kv",
  "skein-lib",
@@ -4808,6 +4809,7 @@ name = "temper-playground-world"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "skein-heap",
  "skein-io",
  "skein-lib",
  "skein-sim",

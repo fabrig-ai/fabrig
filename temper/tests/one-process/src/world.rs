@@ -23,6 +23,7 @@ use temper_playground::{
 pub struct Settings {
     pub seed: u64,
     pub config: skein_sim::Config,
+    pub memory: Memory,
 }
 #[derive(Clone, Copy, Debug)]
 pub enum Story {
@@ -37,6 +38,7 @@ pub enum Story {
 #[derive(Debug)]
 pub struct Outcome {
     pub verdict: skein_world::domain::Verdict,
+    pub peaks: Option<Vec<u64>>,
     pub signed_in: u32,
     pub settings_revision: u32,
     pub chats_answered: u32,
@@ -1017,7 +1019,7 @@ fn run_phase(
     });
     let outcome = programs::with(parameters, || {
         let mut world =
-            skein_world::World::new_controlled(settings.seed, settings.config, Memory::Unchecked, |controls| {
+            skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {
                 referee::Referee::new(controls, store.clone(), scenario, observed_forge.clone(), run.clone(), phase)
             })
             .with_machine(machine);
@@ -1107,6 +1109,7 @@ fn run_phase(
     });
     let records = std::mem::take(&mut *store.borrow_mut());
     let result = Outcome {
+        peaks: outcome.peaks(),
         verdict: skein_world::domain::Verdict::Passed,
         signed_in,
         settings_revision: settings_revision(&records),
