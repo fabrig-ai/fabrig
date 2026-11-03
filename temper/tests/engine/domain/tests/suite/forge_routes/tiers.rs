@@ -671,3 +671,67 @@ fn assert_dispatch_words(world: &World, task: u64, writes: &[skein_forge::api::W
 fn restart_cut(world: &World) -> bool {
     world.store.pending.is_empty() && world.pending.is_empty()
 }
+
+#[test]
+fn closing_a_chat_with_a_red_landing_leaves_the_merged_pull_untouched() {
+    let (mut world, chat) = chat_world(false, Tier::default());
+    baseline(&mut world);
+    let number = produce(&mut world, &chat, 93, b"failures", tier_runs::FAILURES);
+    verifying(&mut world, number);
+    until(&mut world, RUN_TICKS * 3, "landed change red", |world| {
+        matches!(change(world, number).change.state, State::Red { .. })
+    });
+    let row = change(&world, number);
+    let pull = row.pull.expect("landed pull");
+    let commit = merge(&world, number);
+    let branch = row.branch.clone();
+    let before = world
+        .fake
+        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Pull { number: pull })
+        .expect("merged pull");
+    let raw::Answer::Pull(snapshot) = &before else { panic!("pull snapshot") };
+    assert_eq!(snapshot.state, raw::State::Closed);
+    assert_eq!(snapshot.merged.map(translate::commit), Some(commit));
+    assert!(world.fake.branch(b"org/repo", &branch).is_some());
+    let writes = world.writes.len();
+    close_red_chat(&mut world, chat.task, number);
+    let event =
+        world.protocol.answer(Token::new(7), chat.task, chat.attempt, 1, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    until(&mut world, LANDING_TICKS, "chat closed after landed cancellation", |world| {
+        matches!(task(world, chat.task).phase, tasks::Phase::Ended(_))
+    });
+    assert!(matches!(task(&world, number).phase, tasks::Phase::Ended(_)));
+    assert_eq!(change(&world, number).change.state, State::Uncleared { merge: commit });
+    assert!(
+        matches!(panel(&mut world, number), forge_top::PanelStep::Cleared { merge, uncleared: true, .. } if merge == commit)
+    );
+    assert_eq!(world.fake.branch(b"org/repo", &branch), None);
+    assert_eq!(world.fake.inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Pull { number: pull }), Ok(before));
+    for write in &world.writes[writes..] {
+        assert!(
+            !matches!(write, skein_forge::api::Write::Post { number, .. }
+            | skein_forge::api::Write::Close { number } if *number == pull),
+            "{write:?}"
+        );
+    }
+    assert!(matches!(&task(&world, chat.task).phase,
+        tasks::Phase::Ended(tasks::Ending::Cancelled { reason, .. }) if reason.as_ref() == b"walk done"));
+}
+
+fn close_red_chat(world: &mut World, chat: u64, change: u64) {
+    sign_in(world);
+    let mut operations = skein_lib::List::uncapped();
+    for task in [change, chat] {
+        operations
+            .push(people::Operation::Cancel { task, reason: b"walk done".as_slice().into(), grace: None })
+            .expect("chat close operations");
+    }
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(99)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [99; 16],
+        ask: people::Ask::Compound { project: 1, operations },
+    }));
+}
