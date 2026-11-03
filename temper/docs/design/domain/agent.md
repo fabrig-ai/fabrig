@@ -138,7 +138,8 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   has read, write, edit and remove: a file the change drops is removed
   once read.
 - **Every host tool below,** declared in every charter, each with the
-  charter's call timeout, but those of the `settings` family, declared
+  charter's call timeout, but `read_task`, offered only with the task's read
+  family, and those of the `settings` family, declared
   only where the run's charter names that family in its `tools` (jig's
   `domain/engine.md`, 7.1) and its task's authority has it: charter 3
   alone in the stock
@@ -148,15 +149,24 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lacked, and the run may `propose` it instead. A refused tool family
   is named from the call's tool, and repeated findings for that family
   print once; the refusal grants no additional authority.
+- **A coordinator's task reads.** `read_task {task, from?}` returns a related
+  task's current specification, state, dependencies and spec revision, and its
+  hold revision, reason and connector-supplied account. It also reads retained
+  ended direct delegates. A cut specification prints `next: OFFSET`; pass that
+  byte offset as `from`, and restart at zero if the spec revision changes.
+  Task reads decide nothing and keep no named-call record. Escalations name
+  their task and hold revision and give this recovery call. Read access does
+  not grant messages or amendments to ended tasks, or the subscribe family.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, 51,717 bytes in the small profile, before any turn. The largest stock
   charter's non-brief host part, charter 1 with a Change contract, is
-  34,524 bytes; with the authorised brief's 14,592 body bytes and
+  35,612 bytes; with the authorised brief's 14,592 body bytes and
   1,472 bytes for 64 stock sections' titles and framing (16 title bytes
-  and 7 framing bytes each), the sum is 50,588, leaving 1,129 bytes.
-  Charter 1 Open has 32,919 non-brief bytes and leaves 2,734; charter 2
-  has 32,119 and leaves 3,534; charter 4 has 30,640 and leaves 5,013.
+  and 7 framing bytes each), the sum is 51,676, leaving 41 bytes.
+  Charter 1 Open has 33,522 non-brief bytes and leaves 2,131; charter 2
+  has 33,200 and leaves 2,453; charter 4 has 30,980 and leaves 4,673;
+  charter 6 has 31,811 and leaves 3,842.
   A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
   never to every run, and a charter's room is measured before a tool
