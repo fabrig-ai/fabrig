@@ -1510,7 +1510,8 @@ merge, kind 4, on a pattern of landing branches (jig's
   kept on it, so a rule changed reaches a live change at its next step.
   A rule asking neither lets a change merge at its head once the forge
   finds it mergeable, unchecked by CI and never updated (8.2 steps 3
-  and 6; section 10): the rule a goal's own branch lands under (11.1).
+  and 6; section 10), a conflict going to the merge job and a
+  resolution (8.4): the rule a goal's own branch lands under (11.1).
 - **Force-pushing does not exist.** No kind forces a push or moves a
   branch backwards: a run's push is a fast-forward
   (`../protocol/git.md`, 4.8), an update merges the base in
@@ -2194,10 +2195,6 @@ whole.
 
 ## 20. Open questions
 
-- **A conflict under rules asking no update** holds its change (8.2,
-  step 6): what merges the base into such a change's branch and settles
-  what it can, so that the change lands without a person, is later
-  work; until then a person settles it on the branch and releases.
 - **A queue's throughput:** landings into one branch wait on CI one after
   another. If that binds, landings are batched: tested together, and
   bisected when they fail.

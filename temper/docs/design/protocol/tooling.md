@@ -31,7 +31,9 @@ and how they end. temper runs them as jobs on a worker
 
 - **Its argument list:** the command's path, then `prepare`, `key` or
   `merge`, then the request file's path. Its directory is the job's
-  directory.
+  directory, and the command's path is relative to it: under `home/`
+  for `prepare` and `key`, under the merged repository's name for
+  `merge`.
 - **Its environment** is `PATH` from the worker's configuration,
   `HOME` the job's directory, `LANG=C.UTF-8`, `TEMPER_JOB` the job's
   directory, and nothing else: no credential, no token, no variable of
@@ -92,8 +94,8 @@ baseline recounted, a generated file made again), with no model.
   progress, not from the home: the files it settles and the scripts
   that settle them are that repository's. A command file left in
   conflict, or absent from the merge, is the command's failure.
-- **Its directory** holds one repository, `home/`, the one the job
-  writes: checked out at the head being merged into, with the base
+- **Its directory** holds one repository, the one the job writes, under
+  its own name (`<name>/`): checked out at the head being merged into, with the base
   merged in by temper and not committed, git's merge in progress, the
   conflicting files marked and unmerged in the index.
 - **`request.json`:** `{"version": 1, "head": COMMIT, "base": COMMIT}`:
@@ -113,7 +115,10 @@ baseline recounted, a generated file made again), with no model.
   a merge in progress of the same base, its words carrying this result
   (`../domain/forge.md`, 8.4); nothing of the job's directory is kept.
 - **Any other exit,** or a result missing or past its bound: the
-  command's failure, as `prepare`'s.
+  command's failure, as `prepare`'s. The bound is the merge kind's
+  result bound, 512 bytes in the small profile (`../domain/worker.md`,
+  4.4): a command lists the paths that fit, in index order, and adds
+  `"more": N`, the count of those it left out.
 - **Deterministic by contract,** as `prepare`: the same head and base
   give the same tree.
 
