@@ -6,6 +6,7 @@ sources = ["temper/docs/plan/look-welcome-chats/inputs/request.md", "AGENTS.md",
 # and view: temper.css first, beside it the chats page's pane, then the banner's switcher. The
 # design is this cut's, released with its specs.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
