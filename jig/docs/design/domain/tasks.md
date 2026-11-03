@@ -293,7 +293,15 @@ dependencies among them.
     produce, its spec within its limits, its words and text parameters
     UTF-8 (section 3), the conversation flag on an agent's task only,
     and an LLM choice on an agent's task only, its models configured
-    and its efforts among those its models declare;
+    and its efforts among those its models declare, and each of its
+    models, main and sub-agent, one its charter allows at the newest
+    revision (section 3), as a template's and a move's are checked
+    (`../protocol/configuration.md`, 3.1; engine.md, 17.4). Whoever
+    makes the batch, a party, a run's delegation, a procedure's step,
+    an accepted proposal or a recurrence, the check is the same. The
+    tasks child answers it alone too, for a charter and an authority's
+    models, to a root that checks a choice before the batch that will
+    carry it is asked for (a procedure's parameters naming one);
   - at most one task giving `AsAllowed`;
   - no circle of waits, with the live ones (6.7);
   - within the limits: live tasks in the deployment, tasks in the tree,

@@ -6,6 +6,167 @@ use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
+fn two_charter_world(seed: u64) -> World {
+    let (configuration, mut limits) = jig_test_profile::two_charters(seed);
+    limits.core.tasks.tasks = 3;
+    limits.core.tasks.project_tasks = 3;
+    World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() })
+}
+
+fn task_records(world: &World) -> Vec<tasks::Stored> {
+    world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            root::Record::Core(core::Record::Tasks(record)) => Some(record.clone()),
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .collect()
+}
+
+fn research_choice() -> tasks::LlmChoice {
+    tasks::LlmChoice { account: None, main: tasks::ModelEffort { model: 1, effort: Some(0) }, subagents: Box::new([]) }
+}
+
+fn research_on_first_charter(world: &World) -> core::Delegate {
+    let mut member = jig_core_world::fixtures::member(world, tasks::Executor::Agent { charter: 1 }, b"research");
+    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    member.llm = Some(research_choice());
+    member
+}
+
+fn research_step(world: &World, task: u64) -> core::ProcedureStep {
+    let mut member = research_on_first_charter(world);
+    member.authority = jig_core_world::fixtures::live_row(world, task).authority.clone();
+    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    core::ProcedureStep { batch: Box::new([member]), ..core::ProcedureStep::new(core::StepEnd::Wait) }
+}
+
+#[test]
+fn a_runs_delegate_is_refused_a_model_outside_its_charter() {
+    let mut world = two_charter_world(158);
+    let before = task_records(&world);
+    let member = research_on_first_charter(&world);
+    world.send(root::Event::Core(core::Event::DelegateValidated {
+        to: ReplyTo::new(Token::new(9001)),
+        key: world.call_key(1),
+        batch: Box::new([member]),
+        stubs: Box::new([]),
+    }));
+    assert!(matches!(
+        &world.answers.last().expect("delegation answered").2,
+        core::CallPart::DelegationRefused(tasks::Problem {
+            why: tasks::Refusal::Llm { model: 1, why: tasks::LlmFault::Charter },
+            ..
+        })
+    ));
+    assert_eq!(task_records(&world), before, "the refused delegate writes no task records");
+}
+
+#[test]
+fn a_partys_create_is_refused_a_model_outside_its_charter() {
+    let mut world = two_charter_world(159);
+    let before = task_records(&world);
+    let mut member = jig_test_profile::fixtures::people_member(b"research", 10);
+    member.llm = Some(people::LlmChoice {
+        account: None,
+        main: people::ModelEffort { model: 1, effort: Some(0) },
+        subagents: Box::new([]),
+    });
+    let sign_in = world.sign_in.expect("owner signed in");
+    jig_core_world::fixtures::ask_as(
+        &mut world,
+        sign_in,
+        92,
+        people::Ask::Create { project: 1, batch: Box::new([member]) },
+    );
+    jig_core_world::fixtures::refusal(&world, people::Refusal::Llm { model: 1, why: people::LlmWhy::Charter });
+    assert_eq!(task_records(&world), before, "the refused Create writes no task records");
+}
+
+#[test]
+fn a_procedure_hears_its_step_refused_for_a_model_outside_its_charter() {
+    const SEED: u64 = 160;
+    let mut world = two_charter_world(SEED);
+    world.hold_procedures = true;
+    let mut procedure = jig_test_profile::fixtures::people_member(b"procedure", 20);
+    procedure.executor = people::TaskExecutor::Procedure { connector: 1, code: 1 };
+    procedure.authority.delegation =
+        people::Delegation { kinds: Box::new([people::Executor::Charter(1)]), tasks: 1, depth: 1 };
+    let sign_in = world.sign_in.expect("owner signed in");
+    jig_core_world::fixtures::ask_as(
+        &mut world,
+        sign_in,
+        93,
+        people::Ask::Create { project: 1, batch: Box::new([procedure]) },
+    );
+    let (step, connector, code, context) = world.procedure_inputs.last().expect("procedure started");
+    let (task, step, connector, code) = (context.task, *step, *connector, u32::from(*code));
+    let decision = research_step(&world, task);
+
+    // Inspect the core's refusal before the root translates it to the connector's vocabulary.
+    let (configuration, _) = jig_test_profile::two_charters(SEED);
+    let env = world.env().with(world.env().limits.core);
+    let mut recovered = super::start_links::recovered(&world, configuration.core, &env);
+    let mut requests =
+        core::step(&mut recovered, &env, core::Event::ProcedureStep { task, step, connector, code, decision });
+    let mut refusal = None;
+    while let Some(request) = requests.pop() {
+        match request {
+            core::Request::Ask { connector, ask: core::Ask::ProcedureHoldings { .. } } => {
+                let mut answered = core::step(
+                    &mut recovered,
+                    &env,
+                    core::Event::ProcedureHoldings {
+                        task,
+                        step,
+                        connector,
+                        holdings: Some(Box::new([Box::new([])])),
+                        refused: None,
+                    },
+                );
+                while let Some(request) = answered.pop() {
+                    requests.push(request);
+                }
+            }
+            core::Request::Ask {
+                ask: core::Ask::StepRefused { task: refused_task, step: refused_step, why }, ..
+            } => {
+                assert_eq!((refused_task, refused_step), (task, step));
+                refusal = Some(why);
+            }
+            core::Request::ProjectMade { .. }
+            | core::Request::Write(_)
+            | core::Request::Ask { .. }
+            | core::Request::Held(_)
+            | core::Request::Now(_) => {}
+        }
+    }
+    assert!(
+        matches!(
+            refusal,
+            Some(core::StepRefusal::Refused(tasks::Problem {
+                why: tasks::Refusal::Llm { model: 1, why: tasks::LlmFault::Charter },
+                ..
+            }))
+        ),
+        "expected model 1 refused by its charter, got {refusal:?}"
+    );
+
+    let before = task_records(&world);
+    let decision = research_step(&world, task);
+    world.send(root::Event::Core(core::Event::ProcedureStep { task, step, connector, code, decision }));
+    assert_eq!(task_records(&world), before, "the refused step writes no task records");
+    let record =
+        jig_test_connector::Record::ProcedureDelegateOutcome { task, step, child: None, revisions: Box::new([]) };
+    assert_eq!(
+        world.store.rows.get(&root::Key::Connector { number: connector, key: record.key() }),
+        Some(&root::Record::Connector { number: connector, record }),
+        "the procedure receives its refused-step outcome"
+    );
+}
+
 #[test]
 fn a_delegate_on_another_charter_runs_its_instructions_and_account() {
     let (config, limits) = jig_test_profile::two_charters(141);

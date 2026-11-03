@@ -3,7 +3,7 @@ id = "subagents-ctl"
 part = "subagents"
 kind = "feature"
 needs = []
-files = ["temper/crates/temper-client-tools/src/jig/runner/acts/choice.rs", "temper/crates/temper-client-tools/src/jig/runner/acts.rs", "temper/crates/temper-client-tools/src/jig/rows.rs", "temper/crates/temper-client-tools/src/jig/help.rs", "temper/crates/temper-client-tools/src/tests/help.rs", "temper/crates/temper-client-tools/src/tests/jig/choices.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/docs/help/reference/ctl-chat.md", "temper/docs/design/client/tools.status.md"]
+files = ["temper/crates/temper-client-tools/src/jig/runner/acts/choice.rs", "temper/crates/temper-client-tools/src/jig/runner/acts.rs", "temper/crates/temper-client-tools/src/jig/rows.rs", "temper/crates/temper-client-tools/src/jig/help.rs", "temper/crates/temper-client-tools/src/tests/help.rs", "temper/crates/temper-client-tools/src/tests/jig/choices.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/crates/temper-client-tools/src/tests/limits.rs", "temper/docs/help/reference/ctl-chat.md", "temper/docs/design/client/tools.status.md"]
 effort = "high"
 minutes = 75
 +++
@@ -79,3 +79,12 @@ Acceptance:
 ## Report
 
 As fab's implementer text says; name the golden files regenerated.
+
+## Answers
+
+2026-11-03. May this task edit `src/tests/limits.rs` so chat start's repeats are checked against
+`jig_domain_tasks::MODELS` (64)? Yes, that file only, now in the header: the task's own
+acceptance (the bound of 64, and step 5's package suite green) cannot hold without it. In
+`the_rows_repeats_are_within_the_client_limits`, add a branch before the delegates default:
+`row.name == crate::jig::rows::CHAT_CREATE.name` takes `jig_domain_tasks::MODELS` as its most.
+Leave `limits.rs`' delegate limit (8) and every other row's bound unchanged.

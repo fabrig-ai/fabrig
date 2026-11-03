@@ -146,3 +146,18 @@ Acceptance:
 
 The arms added, by file, with their bodies (a list); any match left as `## Owns and may
 change` says; whether `Setting`'s order moved anything; the `Config` literals edited.
+
+## Answers
+
+2026-11-03. May the run correct the fixed settings-document price in
+`jig/crates/jig-domain-core/src/tests/inbox/inbox_selection.rs` that the new variants
+enlarge? Yes: the focused `jig-domain-core` tests are this task's acceptance and the
+growth is this task's own type change, so the scope widens to that test's
+`SETTINGS_DOCUMENT` (and, if it is where the growth lands, `TEMPLATE_ENVELOPES`) and its
+comment, nothing else of the file. The comment names the carriers that grew and by how
+much each, so the 4,272 bytes are a sum of named terms (which type's size moved, times how
+many it prices), not a bare added number. Run that test alone, then the focused suites to
+the end. The same allowance covers any other `jig-domain-core` or `jig` test whose fixed
+byte price fails only because `Setting`, `Value`, `Ask` or `Event` grew: the expectation
+and its comment alone, each listed in the report. A production bound, limit, `valid`
+check or budget that fails is not covered: stop and ask.

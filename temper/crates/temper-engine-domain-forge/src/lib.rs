@@ -45,6 +45,7 @@ mod views;
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub mod resources;
 pub mod settings;
+pub use settings::ForgeCharters;
 mod settle;
 #[cfg(test)]
 mod tests;
