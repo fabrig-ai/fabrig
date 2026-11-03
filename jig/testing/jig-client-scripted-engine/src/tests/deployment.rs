@@ -47,8 +47,8 @@ fn run(task: TaskLink, state: AttemptState, location: RunLocation) -> HostRun {
 fn round_trip(value: Deployment) {
     let mut setup = script();
     setup.truth.deployment = Some(value.clone());
-    let mut engine = Engine::new(setup, 1).unwrap();
-    engine.read(Time::ZERO, 11, Token::new(1), Read::Deployment).unwrap();
+    let mut engine = Engine::new(setup, 1).expect("valid script");
+    engine.read(Time::ZERO, 11, Token::new(1), Read::Deployment).expect("typed read fits");
     assert_eq!(
         engine.poll(Time::ZERO),
         vec![Up::Read {
@@ -56,7 +56,7 @@ fn round_trip(value: Deployment) {
             terminal: ReadResult::Value(ReadValue::Deployment(Box::new(value.clone())))
         }]
     );
-    engine.open(Time::ZERO, 11, Token::new(2), Subject::Deployment).unwrap();
+    engine.open(Time::ZERO, 11, Token::new(2), Subject::Deployment).expect("typed watch fits");
     let events = engine.poll(Time::ZERO);
     let expected =
         Up::Watch { token: Token::new(2), event: WatchEvent::Delivered(Delivery::Deployment(Box::new(value))) };
@@ -102,7 +102,7 @@ fn deployment_hosts_ten_attempt_states_three_placements_task_links_and_absent_cl
     for (i, state) in states.into_iter().enumerate() {
         let mut value = empty();
         let attempt = run(TaskLink::Stored { number: u64::MAX, status: None }, state, places[i % places.len()]);
-        value.attempts.push(attempt.clone()).unwrap();
+        value.attempts.push(attempt.clone()).expect("fixture attempt fits");
         value
             .hosts
             .push(Host {
@@ -122,7 +122,7 @@ fn deployment_hosts_ten_attempt_states_three_placements_task_links_and_absent_cl
                 runs: list(vec![attempt]),
                 cut: false,
             })
-            .unwrap();
+            .expect("fixture host fits");
         round_trip(value);
     }
     for task in [
@@ -134,7 +134,7 @@ fn deployment_hosts_ten_attempt_states_three_placements_task_links_and_absent_cl
         let mut value = empty();
         let mut attempt = run(task, AttemptState::Closed, places[0]);
         attempt.grace_until = Some(Wall::EPOCH);
-        value.attempts.push(attempt).unwrap();
+        value.attempts.push(attempt).expect("fixture attempt fits");
         round_trip(value);
     }
 }
@@ -178,7 +178,7 @@ fn deployment_accounts_five_states_independent_flags_spend_overlay_and_generatio
                     waiting: list(vec![chip(u64::MAX)]),
                     cut: flags & 2 != 0,
                 })
-                .unwrap();
+                .expect("fixture account fits");
             round_trip(value);
         }
     }
@@ -201,7 +201,7 @@ fn deployment_three_hello_refusals_keep_advertised_stop_bound_allowed_grace_and_
                 stop_bound: Duration::from_nanos(19),
                 why,
             })
-            .unwrap();
+            .expect("fixture hello refusal fits");
         round_trip(value);
     }
 }
@@ -258,7 +258,10 @@ fn deployment_person_actions_four_causes_all_structural_limits_and_opaque_reques
     ];
     for action in actions {
         let mut value = empty();
-        value.person_room_refusals.push(person(action, PersonCapacityCause::Requests { limit: u32::MAX })).unwrap();
+        value
+            .person_room_refusals
+            .push(person(action, PersonCapacityCause::Requests { limit: u32::MAX }))
+            .expect("fixture person refusal fits");
         round_trip(value);
     }
     let limits = [
@@ -304,14 +307,14 @@ fn deployment_person_actions_four_causes_all_structural_limits_and_opaque_reques
         value
             .person_room_refusals
             .push(person(A::Application { connector: u16::MAX }, PersonCapacityCause::Limit { which }))
-            .unwrap();
+            .expect("fixture person refusal fits");
         round_trip(value);
     }
     for cause in [PersonCapacityCause::Pending { limit: u32::MAX }, PersonCapacityCause::Waiters { limit: u32::MAX }] {
         let mut value = empty();
         let mut refusal = person(A::Application { connector: u16::MAX }, cause);
         refusal.project = Some(0);
-        value.person_room_refusals.push(refusal).unwrap();
+        value.person_room_refusals.push(refusal).expect("fixture person refusal fits");
         round_trip(value);
     }
 }
@@ -338,7 +341,7 @@ fn deployment_task_actions_fourteen_causes_three_requesters_and_four_funders_kee
     ];
     for action in actions {
         let mut value = empty();
-        value.task_room_refusals.push(task(action, C::Tasks { limit: u32::MAX })).unwrap();
+        value.task_room_refusals.push(task(action, C::Tasks { limit: u32::MAX })).expect("fixture task refusal fits");
         round_trip(value);
     }
     let causes = [
@@ -360,7 +363,7 @@ fn deployment_task_actions_fourteen_causes_three_requesters_and_four_funders_kee
     assert_eq!(causes.len(), 14);
     for cause in causes {
         let mut value = empty();
-        value.task_room_refusals.push(task(A::Move, cause)).unwrap();
+        value.task_room_refusals.push(task(A::Move, cause)).expect("fixture task refusal fits");
         round_trip(value);
     }
     for by in [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }] {
@@ -368,7 +371,7 @@ fn deployment_task_actions_fourteen_causes_three_requesters_and_four_funders_kee
         let mut refusal = task(A::Release, C::Tasks { limit: 0 });
         refusal.request.by = by;
         refusal.request.project = None;
-        value.task_room_refusals.push(refusal).unwrap();
+        value.task_room_refusals.push(refusal).expect("fixture task refusal fits");
         round_trip(value);
     }
 }

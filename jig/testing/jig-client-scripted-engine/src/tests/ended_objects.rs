@@ -12,8 +12,9 @@ fn goal() -> PersonProposalGoal {
     let mut holdings = List::with_capacity(3);
     for write in [true, false] {
         let mut path = List::with_capacity(3);
-        path.push(Bytes::new(Box::from(b"a/b".as_slice()), 4096).unwrap()).expect("literal segment fits");
-        path.push(Bytes::new(Box::from([255, 0]), 4096).unwrap()).expect("opaque segment fits");
+        path.push(Bytes::new(Box::from(b"a/b".as_slice()), 4096).expect("literal path bytes fit"))
+            .expect("literal segment fits");
+        path.push(Bytes::new(Box::from([255, 0]), 4096).expect("opaque path bytes fit")).expect("opaque segment fits");
         let holding = if write {
             GoalHolding::Write { connector: u16::MAX, path, kind: u16::MAX }
         } else {

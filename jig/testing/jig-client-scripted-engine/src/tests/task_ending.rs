@@ -17,7 +17,7 @@ fn scripted_task_ending_refusals_keep_whole_facts_after_keyed_durability_and_rep
     setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
     let ask = Ask::Cancel { project: 1, task: 8, reason: text(b"cancel"), grace: None };
     let expected = Answer::Refused { refusal: Refusal::Ended { how: Ending::Task(Box::new(ending)) }, at: None };
-    let mut engine = Engine::new(setup, 1).unwrap();
+    let mut engine = Engine::new(setup, 1).expect("valid script");
     send(&mut engine, 0, 11, 1, 1, ask.clone());
     send(&mut engine, 1, 12, 1, 2, ask.clone());
     assert!(engine.poll(Time::from_nanos(9_999_999)).is_empty());
