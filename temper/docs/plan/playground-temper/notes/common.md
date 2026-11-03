@@ -12,7 +12,8 @@ Every task of this plan names this note.
   and no other. A status file's form is `DESIGN.md`, 2: its date line is today's (`date -u +%F`),
   it holds only the gaps as they stand after your change, never history. Where an entry names
   several gaps, remove only the words for those your change closes and leave the rest word for
-  word.
+  word. Remove them in place and never reflow the paragraph: several tasks of this plan edit one
+  entry of `temper/docs/design/playground.status.md`, and unreflowed edits merge.
 - **Drafts and `docs/help/`** stay untouched.
 - **No budget, timeout or limit of a test tier moves** (skein's
   `docs/foundation/testing-strategy.md`, 8.1). A world's story aims at 2 s
