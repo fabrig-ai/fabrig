@@ -1,0 +1,3 @@
+draft = "public-reading"
+repo = "fabrig"
+sources = ["temper/docs/plan/public-reading/inputs/request.md", "temper/docs/design/draft/first-release.md", "temper/docs/design/draft/first-release.status.md", "temper/docs/design/draft/v0.1.0.md", "AGENTS.md", "DESIGN.md"]
