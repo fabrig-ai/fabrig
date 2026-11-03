@@ -22,3 +22,16 @@ id = 1
 story = "a debug print of jig-test-service's program resources, alone or inside its source component, shows the environment's count and none of its entries"
 parts = ["jig-debug"]
 walk = false
+
+[[part]]
+id = "crypto-rng"
+title = "skein: CryptoRng neither Copy nor Clone, its owners' check-only copies replaced by a check that takes no generator"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 8"
+
+[[slice]]
+id = 2
+story = "jig-test-service and temper-service check their provider templates with Component::check, no generator copied, and a CryptoRng cannot be cloned, a trait check holding it"
+parts = ["crypto-rng"]
+walk = false
