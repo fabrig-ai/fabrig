@@ -510,7 +510,7 @@ over skein's harness.
 | Name | The walk | Its pages |
 |---|---|---|
 | `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo on this machine's card chosen on the Forge step, and its Details' "Set up a Forgejo here" pressed, which makes the forge and sets it up (`README.md`, 3.5) | `01.html`, the welcome as it was when "Set up temper" was pressed, which leads to `02.html`, the Forge step's choices as they were when Forgejo on this machine's card was chosen, which leads to `03.html`, its Details, the set up's fields filled, as they were when "Set up a Forgejo here" was pressed, which leads to `04.html`, the Model step, the set up running on, as it was when the recording ended; its `README.md` says so |
-| `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, the chats page in the Demo project, the playground started, its banner's one line above it, as it was when the recording ended; its `README.md` says so |
+| `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, the chats page in the Demo project, the playground started, its banner's one line at its pane's foot, as it was when the recording ended; its `README.md` says so |
 
 ## 10. Open questions
 

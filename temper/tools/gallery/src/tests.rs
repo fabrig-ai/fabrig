@@ -41,7 +41,7 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
                 let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
-                assert_eq!(reset.name.as_deref(), Some(b"set up temper".as_slice()));
+                assert!(matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")));
             } else {
                 panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
             }
@@ -77,8 +77,9 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "What shall we change?",
+        heading: "Chats",
         parts: &[
+            Part::Named { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Region, name: "Playground" },
             Part::Absent { role: Role::Link, name: "Manage usage" },
         ],
@@ -392,7 +393,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-1",
-        heading: "What shall we change?",
+        heading: "Chats",
         parts: &[
             Part::Named { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Button, name: "Add CSV export to widget" },
@@ -497,10 +498,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "chats-empty",
         heading: "Chats",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Your chats" },
-            Part::Chats { live: 0, closed: 0 },
-        ],
+        parts: &[Part::Named { role: Role::Heading { level: 1 }, name: "Chats" }, Part::Chats { live: 0, closed: 0 }],
     },
     Holds {
         name: "inbox-empty",

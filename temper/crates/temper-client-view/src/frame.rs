@@ -1,4 +1,4 @@
-//! temper's banner, with navigation after the projects (client/README.md, 5).
+//! temper's banner and project switcher (temper/docs/design/client/README.md, 5.1 and 5.6).
 use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
@@ -132,13 +132,34 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
         words.text(builder, Word::OutOfDateMain, &[]);
     }
 }
-fn project_buttons(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
+pub(crate) fn switcher(
+    builder: &mut Builder,
+    root: &Domain,
+    words: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: Option<u32>,
+) {
     if let Some(me) = root.pages().me(root.client()) {
-        let mut projects = false;
+        if me.projects.is_empty() {
+            text(
+                builder,
+                Role::Paragraph,
+                &words.say(crate::words::Word::NoProjectYet, &[]),
+                Some(crate::look::PROJECT_EMPTY),
+            );
+            new_project_form(builder, root, words, bindings);
+            return;
+        }
+        builder.open(Role::Disclosure);
+        builder.style(crate::look::PROJECTS);
+        builder.name(&words.say(crate::words::Word::Projects, &[]));
         for selected in [true, false] {
             for row in &me.projects {
-                if (Some(row.project) == root.pages().project()) == selected {
+                if (Some(row.project) == project) == selected {
                     let name = crate::pages::project_name(Some(me), row.project).expect("project from me has a name");
+                    if selected {
+                        builder.name(&name);
+                    }
                     builder.open(Role::Button);
                     builder.name(&name);
                     if selected {
@@ -160,22 +181,13 @@ fn project_buttons(builder: &mut Builder, root: &Domain, words: &crate::words::W
                             );
                         }
                     }
-                    projects = true;
                 }
             }
         }
-        if !projects {
-            text(
-                builder,
-                Role::Paragraph,
-                &words.say(crate::words::Word::NoProjectYet, &[]),
-                Some(crate::look::PROJECT_EMPTY),
-            );
-        }
         new_project_form(builder, root, words, bindings);
+        builder.close();
     }
 }
-
 // The banner's forms (temper/docs/design/client/README.md, 5.3).
 fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, project: &[u8], bindings: &mut Bindings) {
     use crate::words::Word;
@@ -248,7 +260,13 @@ fn switcher_refusal(b: &mut Builder, words: &crate::words::Words, switcher: &swi
         crate::pages::chats::outcome_text(b, words, outcome, words.name_bytes);
     }
 }
-pub(crate) fn banner(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
+pub(crate) fn banner(
+    builder: &mut Builder,
+    root: &Domain,
+    words: &crate::words::Words,
+    bindings: &mut Bindings,
+    forge: &mut crate::forge::bindings::Bindings,
+) {
     let pages = root.pages();
     let me = pages.me(root.client());
     builder.open(Role::Banner);
@@ -289,10 +307,17 @@ pub(crate) fn banner(builder: &mut Builder, root: &Domain, words: &crate::words:
         builder.close();
         return;
     }
-    project_buttons(builder, root, words, bindings);
+    switcher(builder, root, words, bindings, pages.project());
     navigation(builder, root, words, bindings);
     builder.open(Role::Slot);
     builder.style(crate::look::CORNER);
+    if root.forge().playground_running() && !root.forge().leaving() {
+        let name = words.say(crate::words::Word::BannerSetUp, &[]);
+        crate::link(builder, &name, forge.insert(crate::forge::bindings::Meaning::EndPlayground));
+        builder.style(crate::look::LEAVE_PLAYGROUND);
+        builder.text(Run::Plain, &name);
+        builder.close();
+    }
     builder.open(Role::Region);
     builder.region(link_region());
     let (status, style) = match root.client().link().state {

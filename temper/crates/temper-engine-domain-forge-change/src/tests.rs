@@ -285,8 +285,13 @@ fn a_released_failed_producers_replacement_needs_authority_and_a_bare_release_ho
         assert_eq!(blocked.decision, Decision::Hold(Hold::Authority(cause)));
         let again = decide(&released(&blocked.change, at(1)), &f, &h);
         assert_eq!(again.decision, Decision::Hold(Hold::Authority(AuthorityHold { released: true, ..cause })));
-        let words = crate::authority_words(cause);
-        assert!(words.ends_with(b"release it: task release 7 --hold 2 (it holds again unless it has more); or cancel it: task cancel 7 REASON"));
+        for released in [false, true] {
+            let words = crate::authority_words(AuthorityHold { released, ..cause });
+            assert!(words.ends_with(b"; cancel: task cancel 7 REASON; or ask afresh; bare release holds again"));
+            for part in words.windows(b"task release".len()) {
+                assert_ne!(part, b"task release");
+            }
+        }
     }
 }
 

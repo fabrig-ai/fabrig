@@ -13,6 +13,8 @@ use skein_ui::{
 pub enum Word {
     PlaygroundBanner,
     PlaygroundSetUp,
+    BannerSetUp,
+    Projects,
     PlaygroundLeaving,
     ForgeRemove,
     ForgeRemoveConfirm,
@@ -446,11 +448,12 @@ pub enum Word {
     SignedProjectOwner,
     SignedName,
     NewChat,
+    ProjectPane,
+    DescribeChange,
     NewChatLink,
     Ready,
     Playground,
     ConnectModel,
-    PlaygroundHeading,
     PlaygroundStarting,
     PlaygroundNotStarted,
     PlaygroundGroupFailed,
@@ -459,9 +462,7 @@ pub enum Word {
     PlaygroundNotConnected,
     PlaygroundTryAgain,
 
-    PlaygroundRequest,
     SuggestedRequests,
-    PlaygroundScript,
     DelegationChange,
     DelegationReport,
     DelegationVerdict,
@@ -694,11 +695,14 @@ pub enum Word {
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
 // The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
-const PHRASES: u32 = 1215;
-const SEGMENTS: u32 = 2098;
-const ALL: [Word; 623] = [
+// The banner's setup link and project switcher add two literal phrases (5.1 and 5.6).
+const PHRASES: u32 = 1216;
+const SEGMENTS: u32 = 2095;
+const ALL: [Word; 624] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
+    Word::BannerSetUp,
+    Word::Projects,
     Word::PlaygroundLeaving,
     Word::ForgeRemove,
     Word::ForgeRemoveConfirm,
@@ -1120,11 +1124,12 @@ const ALL: [Word; 623] = [
     Word::SignedProjectOwner,
     Word::SignedName,
     Word::NewChat,
+    Word::ProjectPane,
+    Word::DescribeChange,
     Word::NewChatLink,
     Word::Ready,
     Word::Playground,
     Word::ConnectModel,
-    Word::PlaygroundHeading,
     Word::PlaygroundStarting,
     Word::PlaygroundNotStarted,
     Word::PlaygroundGroupFailed,
@@ -1132,9 +1137,7 @@ const ALL: [Word; 623] = [
     Word::PlaygroundAdoptionFailed,
     Word::PlaygroundNotConnected,
     Word::PlaygroundTryAgain,
-    Word::PlaygroundRequest,
     Word::SuggestedRequests,
-    Word::PlaygroundScript,
     Word::DelegationChange,
     Word::DelegationReport,
     Word::DelegationVerdict,
@@ -1327,6 +1330,8 @@ impl Word {
         let number = match self {
             Self::PlaygroundBanner => 2136,
             Self::PlaygroundSetUp => 2137,
+            Self::BannerSetUp => 2178,
+            Self::Projects => 2179,
             Self::PlaygroundLeaving => 2138,
             Self::ForgeRemove => 2139,
             Self::ForgeRemoveConfirm => 2140,
@@ -1451,8 +1456,8 @@ impl Word {
             Self::SetupIn => 1829,
             Self::WelcomeDefaultProject => 2176,
             Self::WelcomeDefaultWait => 2177,
-            Self::WelcomeMakingDefault => 2178,
-            Self::WelcomeDefaultRefused => 2179,
+            Self::WelcomeMakingDefault => 2190,
+            Self::WelcomeDefaultRefused => 2191,
             Self::WelcomeDefaultUnknown => 2180,
             Self::ForgeMadeRepository => 2181,
             Self::NoRepositoryYet => 2182,
@@ -1779,11 +1784,12 @@ impl Word {
             Self::SignedProjectOwner => 284,
             Self::SignedName => 285,
             Self::NewChat => 286,
+            Self::ProjectPane => 2192,
+            Self::DescribeChange => 2193,
             Self::NewChatLink => 1258,
             Self::Ready => 287,
             Self::Playground => 187,
             Self::ConnectModel => 189,
-            Self::PlaygroundHeading => 190,
             Self::PlaygroundStarting => 1900,
             Self::PlaygroundNotStarted => 1901,
             Self::PlaygroundGroupFailed => 1902,
@@ -1792,9 +1798,7 @@ impl Word {
             Self::PlaygroundNotConnected => 1905,
             Self::PlaygroundTryAgain => 1906,
 
-            Self::PlaygroundRequest => 191,
             Self::SuggestedRequests => 192,
-            Self::PlaygroundScript => 193,
             // 194 is DeadlineMoment; 200..=267 and 280..=281 are card words.
             Self::DelegationChange => 195,
             Self::DelegationReport => 196,
@@ -2012,8 +2016,7 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     if kind == HoleKind::Name && (word == Word::RefusalSentences || word == Word::WaitRefused) {
         return Ok(REFUSAL_BYTES);
     }
-    if word == Word::PlaygroundRequest
-        || word == Word::PlaygroundRepository
+    if word == Word::PlaygroundRepository
         || word == Word::ForgePlaygroundSummary
         || word == Word::PlaygroundAdoptionFailed
     {
@@ -2212,8 +2215,6 @@ impl Words {
         Some(most.max(crate::forge::words::capacity(self)?).max(crate::accounts::words::capacity(self)?))
     }
 }
-const PLAYGROUND_REQUEST: &[&[u8]] =
-    &[b"Try a request in ", b"/", b". Follow the task from its branch to a landed change."];
 #[expect(clippy::too_many_lines, reason = "one exhaustive table of the client's English words")]
 #[expect(clippy::match_same_arms, reason = "welcome phrases stay independent of the other pages in translations")]
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
@@ -2221,6 +2222,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
     match word {
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
+        Word::BannerSetUp => (&[b"Set up temper"], &[]),
+        Word::Projects => (&[b"Projects"], &[]),
         Word::PlaygroundLeaving => (&[b"Leaving the playground\xe2\x80\xa6"], &[]),
         Word::ForgeRemove => (&[b"Remove"], &[]),
         Word::ForgeRemoveConfirm => (&[b"Remove this forge?"], &[]),
@@ -2679,6 +2682,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignedDeploymentOwner => (&[b"Signed in as the deployment\xe2\x80\x99s owner"], &[]),
         Word::SignedProjectOwner => (&[b"Signed in as the project\xe2\x80\x99s owner"], &[]),
         Word::SignedName => (&[b"Signed in as ", b""], &[Name]),
+        Word::ProjectPane => (&[b"Project"], &[]),
+        Word::DescribeChange => (&[b"Describe a change"], &[]),
         Word::NewChat => (&[b"New chat"], &[]),
         Word::NewChatLink => (&[b"+ New chat"], &[]),
         Word::Ready => (&[b"Ready"], &[]),
@@ -2691,11 +2696,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PlaygroundAdoptionFailed => (&[b"The playground did not start: ", b"/", b" was not adopted."], &[Name, Name]),
         Word::PlaygroundNotConnected => (&[b"The playground did not start: Playground forge did not connect."], &[]),
         Word::PlaygroundTryAgain => (&[b"Try again"], &[]),
-        Word::PlaygroundHeading => (&[b"What shall we change?"], &[]),
-        Word::PlaygroundRequest => (PLAYGROUND_REQUEST, &[Name, Name]),
         Word::SuggestedRequests => (&[b"Suggested requests"], &[]),
-        Word::PlaygroundScript => (&[b"The scripted model plays these requests from its script."], &[]),
-        Word::ChatHint => (&[b"temper \xc2\xb7 Enter to start \xc2\xb7 Shift+Enter for newline"], &[]),
+        Word::ChatHint => (&[b"enter to start \xc2\xb7 shift+enter for newline"], &[]),
         Word::Accept => (&[b"Accept"], &[]),
         Word::RejectProposal => (&[b"Reject"], &[]),
         Word::Reject => (&[b"Reject with reason"], &[]),

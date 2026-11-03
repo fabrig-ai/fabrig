@@ -296,6 +296,7 @@ fn the_entry_contains_the_composer_hint_and_start_in_order() {
     let children = &nodes[entry + 1..entry + usize::try_from(nodes[entry].size).expect("size")];
     assert_eq!(nodes[entry].role, Role::Slot);
     assert_eq!(children[0].role, Role::TextArea);
+    assert_eq!(children[0].placeholder.as_deref(), Some(b"Describe a change".as_slice()));
     assert!(children[0].states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
     let mut hint = None;
     let mut start = None;
@@ -310,7 +311,7 @@ fn the_entry_contains_the_composer_hint_and_start_in_order() {
     let hint = hint.expect("hint");
     let start = start.expect("start");
     assert!(hint < start);
-    assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"Enter to start").is_some());
+    assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"enter to start").is_some());
 }
 #[test]
 fn a_row_shows_the_real_activity_or_end_time() {
@@ -458,7 +459,7 @@ fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
 #[test]
 fn chats_have_one_list_or_the_empty_sentence() {
     let empty = fixtures::page_view(&fixtures::chats_root());
-    assert!(fixtures::find(empty.tree(), Role::Heading { level: 2 }, b"Your chats").is_some());
+    assert!(fixtures::find(empty.tree(), Role::Heading { level: 1 }, b"Chats").is_some());
     assert!(fixtures::styles(empty.tree(), Role::List).is_empty());
     assert!(fixtures::find(empty.tree(), Role::Paragraph, b"No chats yet.").is_some());
     let view = fixtures::page_view(&listed_root());
@@ -481,7 +482,7 @@ fn chats_have_one_list_or_the_empty_sentence() {
 }
 
 #[test]
-fn an_empty_playground_start_has_its_invitation_and_your_chats() {
+fn an_empty_playground_start_has_suggestions_and_chats() {
     let root = fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
@@ -490,7 +491,7 @@ fn an_empty_playground_start_has_its_invitation_and_your_chats() {
     let view = fixtures::page_view(&root);
     assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Live chats").is_none());
     assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Closed chats").is_none());
-    assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Your chats").is_some());
+    assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some());
     assert!(fixtures::find(view.tree(), Role::Paragraph, b"No chats yet.").is_some());
     let mut heading = None;
     for node in view.tree().nodes() {
@@ -499,7 +500,7 @@ fn an_empty_playground_start_has_its_invitation_and_your_chats() {
             heading = node.name.as_deref();
         }
     }
-    assert_eq!(heading, Some(b"What shall we change?".as_slice()));
+    assert_eq!(heading, Some(b"Chats".as_slice()));
 }
 
 #[test]
@@ -518,7 +519,7 @@ fn a_live_playground_chat_is_listed_under_your_chats() {
     rows.push(line()).expect("live row");
     deliver_live(&mut root, &env, &mut out, watch, rows);
     let view = fixtures::page_view(&root);
-    assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Your chats").is_some());
+    assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some());
     assert!(fixtures::find(view.tree(), Role::Link, b"T9").is_some());
     assert!(fixtures::find(view.tree(), Role::Paragraph, b"Hello").is_some());
     assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Closed chats").is_none());
@@ -724,7 +725,7 @@ fn delegate_counts_are_plural_and_absent_at_zero() {
 }
 
 #[test]
-fn start_a_chat_heads_the_composer_except_at_the_playgrounds_start() {
+fn the_composer_has_no_heading_and_precedes_the_choice() {
     for playground in [false, true] {
         let root = if playground {
             fixtures::playground_root(
@@ -750,14 +751,12 @@ fn start_a_chat_heads_the_composer_except_at_the_playgrounds_start() {
                 hint = Some(at);
             }
         }
-        assert_eq!(heading.is_some(), !playground);
-        if let Some(heading) = heading {
-            assert!(heading < slot.unwrap());
-        }
+        assert!(heading.is_none());
+        assert!(hint.unwrap() < slot.unwrap());
         let hint = hint.unwrap();
         assert_eq!(
             fixtures::node_text(view.tree(), hint).as_ref(),
-            "temper · Enter to start · Shift+Enter for newline".as_bytes()
+            "enter to start · shift+enter for newline".as_bytes()
         );
     }
 }
@@ -832,21 +831,16 @@ fn main_of(nodes: &[skein_ui::Node]) -> usize {
     main.expect("a main")
 }
 #[test]
-fn the_chats_page_opens_with_its_bar_and_draws_its_list_as_the_mockup() {
+fn the_chats_page_opens_with_its_pane_and_draws_its_list() {
     let chats = fixtures::page_view(&fixtures::chats_root());
     let nodes = chats.tree().nodes();
     let main = main_of(nodes);
-    assert!(nodes[main].styles.as_slice().contains(&crate::look::PAGE));
-    let bar = main + 1;
-    assert_eq!(nodes[bar].styles.as_slice(), [crate::look::PAGEBAR]);
-    assert_eq!(nodes[bar + 1].role, Role::Heading { level: 1 });
-    assert_eq!(nodes[bar + 1].name.as_deref(), Some(b"Chats".as_slice()));
-    let after = bar + usize::try_from(nodes[bar].size).unwrap();
-    assert_eq!(nodes[after].role, Role::Slot);
-    assert_eq!(nodes[after + 1].name.as_deref(), Some(b"No repository yet".as_slice()));
-    let composer_heading = after + usize::try_from(nodes[after].size).unwrap();
-    assert_eq!(nodes[composer_heading].role, Role::Heading { level: 2 });
-    assert_eq!(nodes[composer_heading].name.as_deref(), Some(b"Start a chat".as_slice()));
+    assert!(!nodes[main].styles.as_slice().contains(&crate::look::PAGE));
+    let pane = main + 1;
+    assert_eq!(nodes[pane].role, Role::Complementary);
+    assert_eq!(nodes[pane].name.as_deref(), Some(b"Project".as_slice()));
+    assert_eq!(nodes[pane].styles.as_slice(), [crate::look::SIDEBAR]);
+    assert_eq!(nodes[pane + 1].styles.as_slice(), [crate::look::CHATBAR]);
     let playground = fixtures::page_view(&fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
@@ -859,7 +853,7 @@ fn the_chats_page_opens_with_its_bar_and_draws_its_list_as_the_mockup() {
     }
     for (page, view) in [("chats", &chats), ("playground", &playground)] {
         let nodes = view.tree().nodes();
-        let heading = index_of(nodes, fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Your chats").unwrap());
+        let heading = index_of(nodes, fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Chats").unwrap());
         let row = heading - 1;
         assert_eq!(nodes[row].role, Role::Slot, "{page}");
         assert_eq!(nodes[row].styles.as_slice(), [crate::look::HEADING], "{page}");
