@@ -155,7 +155,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
     use v1::{Ci, Hold, Reason, Step};
     let limits = limits();
     let gate = Reason::Gate(v1::GateReason::new(&limits, v1::GateReasonParts { gate: 9 }).expect("gate reason"));
-    let mut panels = List::with_capacity(22);
+    let mut panels = List::uncapped();
     for (step, hold, ci, [head, pull, runs]) in [
         (
             Step::Ready(v1::InLanding::new(&limits, v1::InLandingParts { landing: None }).unwrap()),
@@ -178,6 +178,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         (Step::Producing, None, Ci::Unknown, [false, false, false]),
         (Step::Opening, Some(Hold::Stalled), Ci::Pending, [true, false, false]),
         (Step::Recreating, Some(Hold::Repairs), Ci::Passed, [false, true, false]),
+        (Step::Recreating, Some(Hold::Questions), Ci::Passed, [false, true, false]),
         (Step::Reopening, Some(Hold::Resolutions), Ci::Failed, [false, false, true]),
         (Step::Checking, Some(Hold::Updates), Ci::Unknown, [true, true, false]),
         (Step::Gating, Some(Hold::Moved), Ci::Pending, [true, false, true]),

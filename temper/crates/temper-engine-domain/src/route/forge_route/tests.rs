@@ -812,6 +812,8 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         queue_repairs: 0,
         producing_charter: 2,
         review_charter: 4,
+        foreman_charter: 6,
+        questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
@@ -1872,4 +1874,80 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
     assert_eq!(got, task);
     assert!(domain.forge_effects.is_empty());
     assert!(domain.work.is_empty());
+}
+
+#[test]
+#[expect(clippy::manual_map, reason = "test expectations use explicit matches without closures")]
+fn a_change_made_with_parameter_14_keeps_its_route() {
+    use super::{Work, forge, forge_change, tasks};
+    // forge, host, owner, repository, branch, main.
+    const BASE_AUTHORITY_SEGMENTS: u32 = 6;
+    for (parameter, expected) in [
+        (None, Some(forge_change::Route::None)),
+        (Some(tasks::Parameter::Number { name: 14, value: 1 }), Some(forge_change::Route::Foreman)),
+        (Some(tasks::Parameter::Number { name: 14, value: 2 }), Some(forge_change::Route::Up)),
+        (Some(tasks::Parameter::Number { name: 14, value: 3 }), None),
+        (Some(tasks::Parameter::Number { name: 14, value: 0 }), None),
+        (Some(tasks::Parameter::Bytes { name: 14, value: b"foreman".as_slice().into() }), None),
+        (Some(tasks::Parameter::Resource { name: 14, connector: 0, resource: 1 }), None),
+    ] {
+        let (mut domain, mut env) = procedure_root();
+        env.limits.authority.segments = BASE_AUTHORITY_SEGMENTS;
+        let task = make_tier(&mut domain, &env);
+        let mut context = domain.core.tasks.run_context(task).unwrap();
+        let mut parameters = skein_lib::List::uncapped();
+        for parameter in [
+            tasks::Parameter::Resource { name: 1, connector: 0, resource: forge::tag(1, 1) },
+            tasks::Parameter::Bytes { name: 3, value: b"temper/change".as_slice().into() },
+        ] {
+            parameters.push(parameter).unwrap();
+        }
+        if let Some(parameter) = parameter {
+            parameters.push(parameter).unwrap();
+        }
+        context.spec.parameters = parameters.into_boxed();
+        assert_eq!(super::start_change(&mut domain, &env, &context), expected.is_some());
+        let mut made = None;
+        while let Some(work) = domain.work.pop() {
+            if let Work::Forge(forge::Event::Change { row }) = work {
+                made = Some((row.questions, row.foreman_charter));
+            }
+        }
+        let expected = match expected {
+            Some(route) => Some((forge_change::Questions { route, taken: 0, open: Box::new([]) }, 6)),
+            None => None,
+        };
+        assert_eq!(made, expected);
+    }
+}
+
+#[test]
+fn a_hold_past_questions_names_its_bound() {
+    use super::{forge_change, tasks};
+    for (open, words) in [
+        (&[][..], b"its questions are spent: 4 of 4 taken".as_slice()),
+        (
+            &[forge_change::Open {
+                asker: 9,
+                number: 12,
+                line: b"Which behavior?".as_slice().into(),
+                stands: forge_change::Stands::Taken,
+            }][..],
+            b"its questions are spent: 4 of 4 taken; question 12 of task 9 waits; release it to pass the question up"
+                .as_slice(),
+        ),
+    ] {
+        let mut row = change_row(None);
+        row.questions.taken = 4;
+        row.questions.open = open.into();
+        let (domain, env, _) = restored_change([super::forge::Stored::Change(row)]);
+        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Questions);
+        assert_eq!(
+            decision.end,
+            super::StepEnd::HoldFrom {
+                why: tasks::Hold::Procedure,
+                source: Box::new(tasks::HoldSource::Account { connector: 0, entry: None, words: words.into() }),
+            }
+        );
+    }
 }

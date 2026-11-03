@@ -308,6 +308,7 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         }
         Hold::Stalled
         | Hold::Repairs
+        | Hold::Questions
         | Hold::Resolutions
         | Hold::Updates
         | Hold::Failed

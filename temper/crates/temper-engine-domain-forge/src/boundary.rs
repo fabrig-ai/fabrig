@@ -789,11 +789,15 @@ pub struct ChangeRow {
     /// Charter numbers captured when the change is made (protocol/configuration.md, 13.6).
     pub producing_charter: u32,
     pub review_charter: u32,
+    /// The foreman's charter captured when made (domain/forge.md, 8.11).
+    pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
     /// Producer failure words retained within the hold account bound (domain/forge.md, 8.4).
     pub producer_failure: Option<Box<[u8]>>,
     /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
     pub report: Box<[u8]>,
+    /// Its agents' questions and their relay (domain/forge.md, 8.11).
+    pub questions: change::Questions,
 }
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {

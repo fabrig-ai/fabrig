@@ -582,6 +582,7 @@ pub enum ChangeWord {
     HeldLanded,
     Stalled,
     RepairsSpent,
+    QuestionsSpent,
     ResolutionsSpent,
     UpdatesSpent,
     Moved,
@@ -630,7 +631,7 @@ pub enum ChangeWord {
     HeldUncleared,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 104] = [
+pub const CHANGES: [ChangeRow; 105] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -689,6 +690,7 @@ pub const CHANGES: [ChangeRow; 104] = [
     (ChangeWord::HeldLanded, &[b"landed"], &[]),
     (ChangeWord::Stalled, &[b"its wait stalled"], &[]),
     (ChangeWord::RepairsSpent, &[b"its repairs are spent"], &[]),
+    (ChangeWord::QuestionsSpent, &[b"its questions are spent"], &[]),
     (ChangeWord::ResolutionsSpent, &[b"its resolutions are spent"], &[]),
     (ChangeWord::UpdatesSpent, &[b"its updates are spent"], &[]),
     (ChangeWord::Moved, &[b"its branch was moved on the forge"], &[]),
@@ -839,6 +841,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::HeldUncleared
         | ChangeWord::Stalled
         | ChangeWord::RepairsSpent
+        | ChangeWord::QuestionsSpent
         | ChangeWord::ResolutionsSpent
         | ChangeWord::UpdatesSpent
         | ChangeWord::Moved
