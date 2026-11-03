@@ -268,7 +268,7 @@ pub const CEILINGS: Limits = Limits {
     held_answer: 65_536,
     open_line: 256,
     open_words: 65_536,
-    questions_open: 16,
+    questions_open: 128,
     change_row_branch: 4_096,
     change_row_base: 4_096,
     change_row_title: 1_048_576,
