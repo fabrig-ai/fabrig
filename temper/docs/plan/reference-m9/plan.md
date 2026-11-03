@@ -27,6 +27,9 @@ The binding shapes are `notes/contracts.md`; the standing rules `notes/common.md
 | surface | `red-news-surface`: `News::Red`, `RedNews`, the root's words | | released |
 | tier-config | `goal-tier-config`: `Follows`, `span`, `"branch": "goal"`, `"span_ms"`; goal tiers inert | | released |
 | charter | `charter-triage`: charter 5's triage and notes paragraphs | | released |
+| repairs | `repairs-call`: `PLAN_CHANGE`'s `repairs`, the root's check, parameter 12 kept | store-surface | released |
+| repairs | `repairs-verdict`: `TierRepair.by`, "repaired by" in the result | store-surface | released |
+| red-news | `red-news-tell`: the logs' ends read, each goal of a red landing told | store-surface, red-news-surface | released |
 
 ## Critical path, as it stands
 

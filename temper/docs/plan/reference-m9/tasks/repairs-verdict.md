@@ -1,0 +1,65 @@
++++
+id = "repairs-verdict"
+part = "repairs"
+kind = "feature"
+needs = ["store-surface"]
+files = ["temper/crates/temper-engine-domain-forge/src/verification.rs", "temper/crates/temper-engine-domain-forge/src/tests/verification.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs"]
+effort = "high"
+minutes = 90
++++
+
+# A red landing cleared by a run is repaired by the landing that names it
+
+## Goal
+
+When a later tier run passes the failures blamed on a red landing, the forge records the
+landing in that run's range whose change names the red one (`ChangeRow.repairs`) as its
+repairer, and the red landing's change's result says so.
+
+Acceptance (`notes/contracts.md`, section 3; `temper/docs/design/domain/after-landing.md`, 5.3,
+6 and 7):
+
+- `verification::judged`: where it sets a tier's `repaired`, `TierRepair.by` is the commit of
+  the newest landing of the run's range (the `landings` it is given, oldest first) whose
+  `Verification` row's changes include one with `ChangeRow.repairs` equal to the red landing's
+  commit; `None` when none does. Nothing else in `judged` changes meaning.
+- `change_verification_words` (`forge_route.rs`): a tier whose `repaired.by` is `Some` words
+  its line `Cleared by NAME run N, which passed the failures blamed on it; repaired by HEX12.`,
+  HEX12 the repairing commit's first twelve digits (the text `commit_text` gives); with `None`
+  the line is as today.
+- Tests:
+  - in `temper-engine-domain-forge/src/tests/verification.rs`: a red landing, then a run whose
+    range holds two landings, the newer one's change naming the red landing, passing its
+    failures: the red landing's tier is repaired `by` the newer one's commit; the same with no
+    change naming it: `by: None`; two naming it in one range: the newest;
+  - in `forge_route/tests.rs`: the result words of a cleared change repaired by a landing, and
+    of one cleared by the run alone (unchanged).
+
+## Inputs
+
+- `temper/docs/plan/reference-m9/notes/common.md`; `notes/contracts.md`, sections 1 and 3.
+- `temper/docs/design/domain/after-landing.md`, 5.3 (repaired by the landings that name it), 6
+  (the result names the landing that repaired it), 7 (`repairs`).
+
+## Owns and may change
+
+- Owns `judged` in `verification.rs` and its tests, and `change_verification_words` with its
+  tests; `repairs-call` edits other functions of `forge_route.rs` at the same time
+  (`change_batch`, `chat_change`, `start_change`): touch none of them.
+- `ChangeRow.repairs` is set by `repairs-call`; your tests set it in their fixtures directly.
+- The ignored stories of `temper/tests/engine/domain/tests/suite/forge_routes/tiers.rs` are
+  the stories task's, not yours.
+
+## Steps
+
+1. `judged`'s `by`, with its unit stories.
+2. The result words, with theirs.
+3. Tests: `heavy cargo nextest run -p temper-engine-domain-forge --lib -E 'test(/verification/)'`;
+   `-p temper-engine-domain --lib -E 'test(/forge_route/)'`;
+   `-p temper-engine-domain-world --test suite -E 'test(/forge_routes::tiers/)'`.
+4. `cargo fmt`; `heavy cargo clippy -p temper-engine-domain-forge -p temper-engine-domain
+   --all-targets -- -D warnings`; commit and push.
+
+## Report
+
+As the implementer's text asks.
