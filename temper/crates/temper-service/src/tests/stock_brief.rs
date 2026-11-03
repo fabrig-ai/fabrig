@@ -29,10 +29,9 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     assignment.run.policy = policy;
     assignment.run.sources = Box::new([None, None]);
     assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
-    assignment.run.authority.tools = jig_domain_tasks::Tools(crate::stock::defaults(&engine.llm).rules.ceiling.tools.0);
-    if number == 4 || number == 6 {
-        assignment.run.authority.tools = jig_domain_tasks::Tools(jig_domain_core::ToolFamilies::JIG.read.0);
-    }
+    assignment.run.authority.tools = jig_domain_tasks::Tools(
+        crate::stock::defaults(&engine.llm).rules.ceiling.tools.0 & assignment.run.policy.tools.0,
+    );
     assignment.run.ended_by =
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
     assignment.run.contract = if open {
@@ -79,9 +78,9 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(limits.room, 125_634);
     assert_eq!(limits.offer_bytes, 25_859);
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 1_662_042);
-    for (number, open) in [(1, false), (1, true), (2, false), (4, false), (6, false)] {
+    for (number, open) in [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false)] {
         let assignment = assignment(number, open, 14_592);
-        let charter = temper_engine_smith::charter(&assignment);
+        let mut charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
         let workspace = workspace(number != 4 && number != 6 && !open);
@@ -90,8 +89,12 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
             "stock charter {number} open={open}: non-brief={} rendered brief={} remaining={}",
             limits.host_part.checked_sub(u64::from(room)).unwrap(),
             run::brief_bytes(&charter.brief).unwrap(),
-            u64::from(room).checked_sub(run::brief_bytes(&charter.brief).unwrap()).unwrap()
+            i64::from(room).checked_sub(i64::try_from(run::brief_bytes(&charter.brief).unwrap()).unwrap()).unwrap()
         );
+        if number == 3 {
+            temper_engine_smith::fit_brief(&mut charter, Some(&workspace), &limits);
+        }
+        let fitted = run::brief_bytes(&charter.brief).unwrap();
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
         run::step(
@@ -118,7 +121,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
             }
         }
         assert!(admitted, "charter {number} open={open}: {out:?}");
-        eprintln!("stock fit: charter {number} open={open}: admitted whole");
+        eprintln!("stock fit: charter {number} open={open}: admitted brief={fitted}");
     }
 }
 
@@ -132,7 +135,7 @@ fn stock_small_heap_through_construction_admission_and_first_turn() {
     eprintln!("heap agent Service::new held={} peak={}", measured.held(), measured.peak());
     drop(service);
     measure_worker();
-    for number in [1, 2, 4, 6] {
+    for number in [1, 2, 3, 4, 6] {
         measure_turn(number);
     }
 }
@@ -263,7 +266,11 @@ fn measure_turn(number: u32) {
     let meter = Meter::new();
     meter.start();
     let mut domain = smith_domain::Domain::new(&limits, config.service.domain, 7);
-    let charter = temper_engine_smith::charter(&assignment);
+    let mut charter = temper_engine_smith::charter(&assignment);
+    let workspace = workspace(number != 4 && number != 6);
+    if number == 3 {
+        temper_engine_smith::fit_brief(&mut charter, Some(&workspace), &limits.run);
+    }
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
     events.push(smith_domain::Event::Start(smith_domain::Start {
@@ -277,7 +284,7 @@ fn measure_turn(number: u32) {
         },
         messages: Box::default(),
         charter,
-        workspace: Some(workspace(number != 4 && number != 6)),
+        workspace: Some(workspace),
         transcript: None,
         answered: Box::default(),
         grants: Box::default(),

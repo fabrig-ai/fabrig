@@ -548,7 +548,7 @@ pub const PAUSE_WORKERS: &[&str] = &["ws", "s1", "s2"];
 pub const PAUSE: u64 = 1;
 pub const OWNER: u64 = 2;
 pub const HELPER: u64 = 3;
-pub const HELPER_CHARTER: u64 = 3;
+pub const HELPER_CHARTER: u64 = 9;
 pub const BOWNER: u64 = 4;
 pub const IMPLEMENTER: u64 = 5;
 pub const H1: u64 = 6;
@@ -593,11 +593,11 @@ pub fn fixture_5_2() -> forge::Fixture {
                 value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
             }
             value["world_settings"]["helper"] = true.into();
-            // Creating offers charters 1, 2 and 4 plus the helper's charter 3.
+            // Creating offers charters 1, 2 and 4 plus the helper's charter 9.
             value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
-            // The four stock charters and the helper need five catalogue slots.
+            // The five stock charters and the helper need six catalogue slots.
             // The director, chat, helper, reviewer and change procedure need five delegation kinds.
-            for (name, size) in [("tasks.charters", 5), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
+            for (name, size) in [("tasks.charters", 6), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
                 value["engine"]["limits"]["overrides"][name] = size.into();
             }
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();

@@ -36,8 +36,9 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
-    // The stock carries four charters, fourteen grants and seven executor kinds.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 4.into();
+    // The stock carries five charters, fourteen grants and eight executor kinds.
+    value["engine"]["limits"]["overrides"]["tasks.charters"] = 5.into();
+    value["engine"]["limits"]["overrides"]["core.templates"] = 3.into();
     value["engine"]["limits"]["overrides"]["authority.executors"] = 8.into();
     value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 8.into();
     value["engine"]["limits"]["overrides"]["authority.grants"] = 16.into();
@@ -49,7 +50,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 4096.into();
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
-    // The creation offer carries four stock charters and three procedures.
+    // The creation offer carries five stock charters and three procedures.
     value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
