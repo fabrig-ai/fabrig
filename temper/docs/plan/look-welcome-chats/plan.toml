@@ -1,0 +1,3 @@
+draft = "look-welcome-chats"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-welcome-chats/inputs/request.md", "AGENTS.md", "DESIGN.md"]
