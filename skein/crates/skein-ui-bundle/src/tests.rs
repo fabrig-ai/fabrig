@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
+mod worker;
+
 fn inputs(scratch: &Scratch) -> Inputs {
     let path = scratch.path();
     fs::create_dir_all(path.join("pictures")).expect("pictures");
