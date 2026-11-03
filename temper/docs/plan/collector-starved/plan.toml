@@ -1,3 +1,20 @@
 draft = "collector-starved"
 repo = "fabrig"
 sources = ["temper/docs/plan/collector-starved/inputs/request.md", "tools/tiers/design.md", "AGENTS.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "unobserved"
+title = "a starved run's cancellation abort with no record is unobserved in the CPU summary, not a coverage error"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 7.3"
+
+[[slice]]
+id = 1
+story = "tools/tiers/cpu-summary on a starved run whose JUnit shows a test aborted by SIGTERM with no record exits 0, listing it unobserved; not starved, or any other missing record, it exits 2"
+parts = ["unobserved"]
+walk = false
