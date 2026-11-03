@@ -38,6 +38,9 @@ mod change_tool;
 #[path = "forge_routes/light_rules.rs"]
 mod light_rules;
 
+#[path = "forge_routes/merge_job.rs"]
+mod merge_job;
+
 #[path = "forge_routes/plain_change.rs"]
 mod plain_change;
 
