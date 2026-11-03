@@ -1597,7 +1597,7 @@ fn capacity_overrides_name_the_failed_dependency() {
         (b"tasks.tasks".as_slice(), 64, &["tasks.tasks", "64", "people.inbox_tasks", "128"][..]),
         (b"tasks.project_tasks", 64, &[][..]),
         (b"tasks.batch", 8, &["tasks.batch", "8", "ResultFollowupsDelegates.value", "4", "schema ceiling", "reduce"]),
-        (b"tasks.batch", 2, &["tasks.batch", "2", "TaskRecord", "2391079", "1604798", "profile ceiling", "reduce"]),
+        (b"tasks.batch", 2, &["tasks.batch", "2", "TaskRecord", "2391079", "2166708", "profile ceiling", "reduce"]),
         (b"tasks.delegates", 8, &["tasks.delegates", "8", "people.operations", "9"]),
         (b"tasks.delegates", 16, &["tasks.delegates", "16", "people.operations", "17"]),
         (b"documents.lines", 8, &[][..]),
