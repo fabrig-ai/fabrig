@@ -919,9 +919,9 @@ host:
   when to delegate a task rather than a sub-agent.
 - **The configuring agent woken by a landing** of a document a charter
   names, where the landing touches structure, to say what it means for
-  the settings ("process.md changed; here is what it means for your
-  setup": `../draft/configuring.md`, section 6). Default: a person
-  starts it (8.1); a landed document reaches the next runs of the
+  the settings ("the process document changed; here is what it means
+  for your setup": `../draft/configuring.md`, section 6). Default: a
+  person starts it (8.1); a landed document reaches the next runs of the
   charters that name it (`../protocol/configuration.md`, 13.7).
 - **Who may name a plan's members of `change`:** the control family
   says it (4.3.1), since a plan's maker amends, cancels and releases what
