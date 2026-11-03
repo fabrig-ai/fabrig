@@ -1,3 +1,53 @@
 draft = "playground-skein"
 repo = "fabrig"
 sources = ["skein/docs/plan/playground-skein/inputs/request.md", "skein/docs/design/playground.md", "temper/docs/design/playground.md", "AGENTS.md", "DESIGN.md"]
+
+# skein's playground kit (skein/docs/design/playground.md, 2 to 8): the bridge's messages, the
+# session log and the worker's platform in skein-ui-web (ui-web.md, 18); the worker module in
+# skein-ui-bundle; the crate skein-playground (the visitor, the slices, the bridge in memory,
+# the replay, the worker's parts) and its world. Released in batches: first the surfaces that
+# need no survey (the messages and the platform's duties, the bundle's worker, the crate laid
+# down), then the families built on them.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "ui-web"
+title = "skein-ui-web: the bridge's messages, the platform's duties, the session log and the worker's platform"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 18"
+
+[[part]]
+id = "bundle"
+title = "skein-ui-bundle: a bundle's worker module beside its page's"
+mode = "direct"
+needs = []
+design = "skein/docs/design/playground.md, 7"
+
+[[part]]
+id = "playground"
+title = "skein-playground: the crate, the slices' loop, the bridge in memory and the worker's parts"
+mode = "direct"
+needs = []
+design = "skein/docs/design/playground.md, 3"
+
+[[slice]]
+id = 1
+story = "a bundle holds a worker module, its starter, glue and snippets, beside its page's, under one digest directory"
+parts = ["bundle"]
+walk = false
+
+[[slice]]
+id = 2
+story = "the page and the worker encode and decode every bridge message, and both platforms take the transport's every duty, abandons and read-ons among them"
+parts = ["ui-web"]
+walk = false
+
+[[slice]]
+id = 3
+story = "skein-playground and its world build natively and for wasm32, laid down for the kit's tasks"
+parts = ["playground"]
+walk = false
