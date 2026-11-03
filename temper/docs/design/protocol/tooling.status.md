@@ -1,12 +1,13 @@
 # tooling: status
 
-2026-11-02. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-03. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract, since neither kind is built (`../domain/worker.md`, 4.4): no
   project names a command, and no worker declares a kind, though the
   job capability that would run them is built
-  (`temper-worker-domain-tooling`). 2: a command's time is the job's
+  (`temper-worker-domain-tooling`). 4.1: the `merge` command, its kind
+  and the project's `merge_job`. 2: a command's time is the job's
   deadline, never yet the project's `prepare_timeout`. 6:
   `conflict_files` is no limit.
 - **Departs:** 2: every command's `PATH` is `/usr/bin:/bin`, and 6:

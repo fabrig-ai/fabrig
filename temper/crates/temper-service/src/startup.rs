@@ -703,7 +703,8 @@ fn checked_start_with(
     if !problems.is_empty() {
         return Err(problems);
     }
-    let core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    core.jobs = crate::limits::merge_jobs(&parsed.engine.limits);
     if let Some(agent) = agent {
         checks::admission(&core, &parsed.engine, agent, &mut problems);
         checks::agent_answer(agent, &mut problems);

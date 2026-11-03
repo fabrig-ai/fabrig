@@ -1268,6 +1268,63 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
     }
 }
 
+/// A project's merge command is optional (temper/docs/design/protocol/configuration.md, 3).
+#[test]
+fn landing_configuration_reads_a_projects_merge_job() {
+    let longest = "a".repeat(4_096);
+    for by in ["queue", "turn"] {
+        for (command, expected) in [
+            ("", None),
+            (r#""merge_job":".temper/merge","#, Some(b".temper/merge".as_slice())),
+            (r#""merge_job":"x","#, Some(b"x".as_slice())),
+            (&format!(r#""merge_job":"{longest}","#), Some(longest.as_bytes())),
+        ] {
+            let projects = tier_projects("[]", &format!(r#""by":"{by}",{command}"#));
+            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+            let (members, problems) = application(&input, &fixtures::engine().jig);
+            assert!(problems.is_empty(), "{:?}", lines(&problems));
+            assert_eq!(members.unwrap().landings.get(&1).unwrap().merge_job.as_deref(), expected);
+        }
+    }
+}
+
+/// Invalid merge commands refuse their member (temper/docs/design/protocol/configuration.md, 3).
+#[test]
+fn a_merge_job_path_out_of_bounds_refuses_the_start_at_its_member() {
+    let longest = "a".repeat(4_097);
+    for (command, words) in [
+        (r#""""#, "invalid form"),
+        (r#""/x""#, "invalid form"),
+        (r#""a/../merge""#, "invalid form"),
+        (r#""../merge""#, "invalid form"),
+        (r#""a/..""#, "invalid form"),
+        (r#""..""#, "invalid form"),
+        (r#"".temper/\u0000merge""#, "invalid form"),
+        (&format!(r#""{longest}""#), "past its bound"),
+        ("null", "wrong value kind"),
+    ] {
+        let projects = tier_projects("[]", &format!(r#""merge_job":{command},"#));
+        let input = fixtures::with(&fixtures::document(), b"application.landing.projects", &projects);
+        let Err(problems) = crate::startup(
+            &input,
+            &config::Directories::working(),
+            &fixtures::files(),
+            &fixtures::startup_agent(),
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        ) else {
+            panic!("an invalid merge command refuses startup");
+        };
+        assert_eq!(
+            lines(&problems).as_ref(),
+            format!("application.landing.projects[0].merge_job: {words}\n").as_bytes(),
+            "{command}"
+        );
+    }
+}
+
 #[test]
 fn landing_configuration_defaults_tier_settings_when_tiers_are_present() {
     let projects = tier_projects(&format!("[{TIER}]"), "");

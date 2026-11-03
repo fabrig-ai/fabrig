@@ -252,7 +252,7 @@ fn green(turn: bool) -> (World, u64) {
     let number = produce(&mut world, &chat, 93, b"file", b"small fix");
     verifying(&mut world, number);
     until(&mut world, RUN_TICKS, "tier judged", |world| tier(world).record.sequence == 2);
-    tier_done(&world, 2, "Tier slow run 2: green, cleared 1 landings");
+    tier_done(&world, 2, "Tier slow run 2: green, cleared 1 landing");
     cleared(&mut world, number);
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
     (world, number)
@@ -333,7 +333,7 @@ fn red_range() -> (World, engine::Assignment, [u64; 3]) {
     });
     assert!(!matches!(task(&world, b).phase, tasks::Phase::Ended(_)));
     let forge_top::PanelStep::Red { tiers, .. } = panel(&mut world, b) else { panic!("red panel") };
-    assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · 2 tests".as_bytes())]);
+    assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · owns 2 tests: suite.alpha, suite.beta".as_bytes())]);
     assert_eq!(
         tier(&world).record.failing,
         policy::Failures::Tests(Box::new([b"suite.alpha".as_slice().into(), b"suite.beta".as_slice().into(),]))
@@ -365,7 +365,7 @@ fn repaired() -> (World, [u64; 2]) {
         "red survives until the repair run judges"
     );
     until(&mut world, RUN_TICKS, "repair judged", |world| tier(world).record.sequence == 3);
-    tier_done(&world, 3, "Tier slow run 3: green, cleared 1 landings");
+    tier_done(&world, 3, "Tier slow run 3: green, cleared 1 landing");
     cleared(&mut world, red);
     cleared(&mut world, repair);
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
@@ -677,7 +677,14 @@ fn red_task_words(
     ] {
         assert_part_words(world, run_task, label, branch, commit, run.number);
     }
-    tier_done(world, 2, "Tier slow run 2: red, 2 tests failing, blamed on 1 landings");
+    let expected = format!(
+        "Tier slow run 2: red, 2 tests failing, blamed on 1 landing\n{} owns: \"suite.alpha\"; change show {}\n{} owns: \"suite.beta\"; change show {}",
+        String::from_utf8(forge_top::commit_text(&probe).into_vec()).expect("commit text is UTF-8"),
+        change_for_merge(world, probe),
+        String::from_utf8(forge_top::commit_text(&probe).into_vec()).expect("commit text is UTF-8"),
+        change_for_merge(world, probe)
+    );
+    tier_done(world, 2, &expected);
 }
 
 fn assert_dispatch_words(world: &World, task: u64, writes: &[skein_forge::api::Write]) {
@@ -768,4 +775,87 @@ fn close_red_chat(world: &mut World, chat: u64, change: u64) {
         key: [99; 16],
         ask: people::Ask::Compound { project: 1, operations },
     }));
+}
+
+fn change_for_merge(world: &World, commit: skein_forge::api::Commit) -> u64 {
+    for row in world.store.rows.values() {
+        if let Record::Forge { row } = row
+            && let forge_top::Stored::Verification(row) = row.as_ref()
+            && row.commit == commit
+        {
+            return row.changes[0];
+        }
+    }
+    panic!("retained landing");
+}
+
+#[test]
+fn a_single_failed_landing_names_its_test_run_and_commit_after_restart() {
+    let (mut world, red) = failed_landing(b"no-break\n", false);
+    let merge = merge(&world, red);
+    let forge_top::PanelStep::Red { merge: shown, tiers } = panel(&mut world, red) else { panic!("red panel") };
+    assert_eq!(shown, merge);
+    assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · owns 1 test: no-break".as_bytes())]);
+    let expected = format!(
+        "Tier slow run 2: red, 1 test failing, blamed on 1 landing\n{} owns: \"no-break\"; change show {red}",
+        String::from_utf8(forge_top::commit_text(&merge).into_vec()).expect("commit text is UTF-8")
+    );
+    tier_done(&world, 2, &expected);
+    until(&mut world, LANDING_TICKS, "restart cut", restart_cut);
+    world.restart_same();
+    tier_done(&world, 2, &expected);
+}
+
+fn failed_landing(failures: &[u8], many: bool) -> (World, u64) {
+    let world = tier_runs::world(false, Tier::default());
+    let mut client = world.env.limits.forge.client;
+    // The selected full-length ID travels beside the commit and dispatch key.
+    client.op_bytes = 1024;
+    let (mut world, chat) = start_chat(world.with_forge_client(client));
+    baseline(&mut world);
+    // Admit the 257-byte selection input and a JUnit artifact with over sixteen cases.
+    world.fake_env.limits.limits.body_bytes = 512;
+    world.fake_env.limits.limits.content_bytes = 4096;
+    let red = produce(&mut world, &chat, 93, b"failures", failures);
+    verifying(&mut world, red);
+    if !many {
+        until(&mut world, RUN_TICKS, "whole run failed", |world| {
+            tier(world).record.run.as_ref().is_some_and(|run| matches!(run.part, policy::Part::Rerun { .. }))
+        });
+    }
+    until(&mut world, RUN_TICKS, "failed landing judged", |world| tier(world).record.sequence == 2);
+    until(&mut world, LANDING_TICKS, "red panel", |world| matches!(change(world, red).change.state, State::Red { .. }));
+    (world, red)
+}
+
+#[test]
+fn a_full_length_id_stays_in_the_panel_and_has_an_explicit_report_remainder() {
+    let mut failures = vec![b'x'; 256];
+    failures.push(b'\n');
+    let (mut world, red) = failed_landing(&failures, false);
+    let forge_top::PanelStep::Red { tiers, .. } = panel(&mut world, red) else { panic!("red panel") };
+    assert!(tiers[0].ends_with(&[b'x'; 256]));
+    let expected = format!(
+        "Tier slow run 2: red, 1 test failing, blamed on 1 landing\nand 1 more failing test; change show {red}"
+    );
+    tier_done(&world, 2, &expected);
+    until(&mut world, LANDING_TICKS, "restart cut", restart_cut);
+    world.restart_same();
+    tier_done(&world, 2, &expected);
+}
+
+#[test]
+fn a_many_verdict_keeps_its_explicit_word_and_blamed_commit() {
+    let mut failures = Vec::new();
+    for at in 0..17 {
+        failures.extend_from_slice(format!("test-{at}\n").as_bytes());
+    }
+    let (mut world, red) = failed_landing(&failures, true);
+    let forge_top::PanelStep::Red { tiers, .. } = panel(&mut world, red) else { panic!("red panel") };
+    assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · owns many tests".as_bytes())]);
+    let expected = format!(
+        "Tier slow run 2: red, many tests failing, blamed on 1 landing\n{} owns: many tests; change show {red}",
+        String::from_utf8(forge_top::commit_text(&merge(&world, red)).into_vec()).expect("commit text is UTF-8")
+    );
+    tier_done(&world, 2, &expected);
 }
