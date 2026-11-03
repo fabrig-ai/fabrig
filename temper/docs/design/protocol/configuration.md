@@ -1752,8 +1752,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   holds its news slot and an answer slot (two messages), four live
   delegates' 512 bytes each and one unread result (10,752 in all),
   priced before it lands. `tasks.result_bytes` stays small's 512, about 80 words,
-  which holds a goal's and an advisor's report: jig's settings schema
-  caps the record field it sizes, a tie for the format freeze. The
+  which holds a goal's and an advisor's report; a deployment may raise
+  it to `tasks.message_bytes`, as the reference's profile does (13.9). The
   box's live tasks stay small's unless a story shows them binding.
 - **The stock sets floors under the limits.** Its own values must fit
   the limits they are checked against: a configuration whose
@@ -2053,11 +2053,8 @@ that changes the stock changes nothing of them.
   (`../domain/agent.md`, 4.3.1), and role 0 to their delegation, so the
   coordinator may ask its person through a person task (jig's
   `domain/people.md`, section 8), and jig's notes family beside it, so
-  that it notes what it learns, then applied whole. Charter 5 is the
-  deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives the box;
-  it and the merge kind are two more executors in the delegation, eight
-  with the stock's six, within the 8 `authority.executors` and
-  `tasks.executor_kinds` 13.4 gives the box.
+  that it notes what it learns, then applied whole. The profile's
+  limits (below) hold the charters and executors this adds.
 - **Designers and the cut** (`../draft/reference-code-production.md`,
   sections 3, 5 and 12): the same file's later edition adds
   - *charter 7, the designer's:* instructions to write one family's
@@ -2093,25 +2090,23 @@ that changes the stock changes nothing of them.
     `AGENTS.md`'s "1. In one page" and the code's rules, skein's
     `docs/foundation/programming-model.md`'s "1. In one page", on the
     home repository's `main`.
-  Charter 7 joins the rules' and policy 1's delegation as charter 5 did;
-  it is the deployment's seventh charter, so the walk's document sets
-  jig's `tasks.charters` to 8, its executors within the 8 13.4 gives.
+  Charter 7 joins the rules' and policy 1's delegation as charter 5 did.
   Each document names the forge's host, owner and repository the walk's
   document fills in, as `landing.json`'s rules do.
-- **The landing rules,** until 13.6's second step, are the document's
-  `application.landing` (section 3): `docs/examples/reference/landing.json`
-  is that member's value, which the walk's document carries, with its
-  forge's host, owner and repository filled in: main's rule (`forge`,
+- **The landing rules** are kind 1's rules 1 and 2, items of the
+  settings file, with its forge's host, owner and repository filled in:
+  main's rule (`forge`,
   the host, the owner, the name, `branch`, exactly `main`: enforced, CI
   passed, up to date, no gate beyond CI, which runs the project's full
   gate at a goal's landing's head) and the rule for goal branches (the same
   path to `branch`, open on `temper`: enforced, asking no CI, no update
   and no gate), and no rule on every branch, since rules add
   (`../domain/forge.md`, 8.7) and such a rule's CI would hold every merge
-  into a goal's branch; and the project's `merge_job`, `.temper/merge`.
-  From the second step they are kind 1's rules 1
-  and 2, items of the settings file.
-- **The tiers,** in the same member, project 1's `gates` entry for its
+  into a goal's branch. `docs/examples/reference/landing.json` is the
+  document's `application.landing` member (section 3), which the box's
+  document carries: the project's `merge_job`, `.temper/merge`, and its
+  tiers.
+- **The tiers,** in that member, project 1's `gates` entry for its
   repository (`forge` and `repository` filled in as the rules' host and
   name are), with no gate and two tiers (`../domain/after-landing.md`,
   section 2): main's, `slow`, the slow suites, workflow
@@ -2157,6 +2152,78 @@ that changes the stock changes nothing of them.
   in one line; then the draft it was built from, by path; then what the
   goal built, by design section; the forge makes them the pull
   request's title and body (`../domain/forge.md`, 8.1).
+- **A triage delegate** (`../draft/reference-landing.md`, section 6):
+  *charter 8, the triage's*, in the settings file, read-only as charter
+  6 is (inspect and the forge's reads; no modify, no shell, no
+  sub-agents), at gpt-6.1-sol; its instructions: its words carry a
+  red's news (the tier, the failing tests, the run, the log's end); it
+  reads the tree, the design, the goal's history and the notes, and
+  reports, for each failing test, the change or landing whose files it
+  fails in, whether it is new, failing before (inherited) or a flake,
+  and the repair it would make, with the files that repair would own;
+  it never edits, pushes or runs anything. Charter 5's triage may
+  `delegate` a red's triage to charter 8, its words the news, where the
+  failures span files no one change owns, and acts on its report as on
+  its own triage. Charter 8 joins the rules' and policy 1's delegation
+  as charters 5 and 7 do. Charter 5 also gives each designer's change
+  `"questions": "up"`, so that a designer's question reaches it with no
+  foreman (`../domain/forge.md`, 8.11), the project's questions, kind 6,
+  being none on the stock.
+- **The profile, whole** (`../draft/reference-code-production.md`,
+  section 14; `../draft/notes.md`, N21): a box is set up for the
+  reference from `docs/examples/reference/` and the repository's own
+  files:
+  - `limits.json`, the members of the document the reference sets over
+    `temper init`'s (`setup.md`, 8.3): its engine's and its
+    application's limits' overrides (section 7), merged into the box's
+    document before its first start, member by member, an object's
+    members over the document's and any other value replacing it, as
+    `jq -s '.[0] * .[1]'` merges two files;
+  - `agent.json`, the same for the agent's configuration (section 5,
+    smith's `protocol/agent.md`, section 4): its policy's `max_turns`
+    and its declared `tool_payload`;
+  - `landing.json`, the document's `application.landing`, carried whole;
+  - `settings.json`, applied once after the first start; then the rules
+    and policy 1 changed as above, before the case's project is made,
+    since a project takes policy 1 as it is made (13.6, step 1);
+  - the repository's `.temper/pre-pr` and `.temper/merge`, and its
+    tiers' workflows (below).
+
+  Its limits are sizes for one goal of a hundred changes; no budget or
+  time moves: the spends, the periods, a run's time and the agent's
+  timeouts stay the box's (13.4), and a run held at its spend is its
+  person's to fund (`../domain/forge.md`, 8.4).
+
+  | Limit | The box (`temper init`) | The reference | For |
+  |---|---|---|---|
+  | `tasks.tree_tasks` | 32 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
+  | `tasks.tasks`, `tasks.project_tasks` | 8 | 64 | live at once: G, about sixteen live changes, each its procedure and one agent or job at a time, and the person's chats |
+  | `tasks.delegates`, `people.operations` | 4, 8 | 32, 33 | G's live delegates: a family's changes beside S's, the designers', a catch-up and repairs; operations one more |
+  | `tasks.inbox_messages`, `tasks.run_inbox` | 8 | 40 | a result's room for each live delegate (jig's `domain/tasks.md`, 8.2), a question's and an answer's |
+  | `tasks.inbox_bytes` | 12,288 | 163,840 | those 40 messages at 4,096 bytes |
+  | `tasks.result_bytes` | 512 | 4,096 | a designer's report listing up to eleven changes (N15), at most `tasks.message_bytes`, 4,096 |
+  | `tasks.batch`, `authority.batch`, `people.batch` | 1, 2, 2 | 4 | a family's changes four to a `change` call, jig's batch list holding four |
+  | `forge.change_policy.tasks` | 6 | 8 | a producer, two merge jobs, two resolutions and three repairs: twelve tasks with four foremen (`../domain/agent.md`, 4.3.1) |
+  | `forge.changes`, `forge.holds`, `forge.tasks` | 8 | 32, 32, 64 | the live changes, their branches' holds and the goal's, the tasks the forge follows |
+  | `authority.executors`, `tasks.executor_kinds` | 8 | 16 | the stock's seven executors (charters 1, 2, 4 and 6; procedures 2, 3 and 4) and the reference's five (charters 5, 7 and 8, the merge kind, role 0) |
+  | `tasks.charters` | 8 | 12 | the stock's four charters (five with charter 3) and the reference's three |
+  | the agent's `tool_payload`, `checkout.message_bytes`, `core.call_answer_bytes` | 4,098; 4,098; 32,768 | 16,386 for the first two, the third as it is | a `change` call carrying four changes' words |
+  | the agent's `max_turns` | 16 | 64 | a run of the cut, of a family's design, or of a change with its checks |
+
+  The settings file sizes its charters and template to them: charters
+  5, 7 and 2 take 64 turns, charter 6 and 8 the box's 16; template 4's
+  report takes 4,096 bytes; each charter names at most two documents,
+  `tasks.charter_documents`, small's 2, which jig's settings schema
+  holds; template 4 names the forge's *its own goal branch*
+  (`../client/tools.md`, 5.3). Charter 5 makes a family's changes in
+  `change` calls of at most four, a later call naming an earlier one's
+  changes in `after` by the task numbers its answer gave, and one change
+  to a call where a call is refused for its size. The rules and policy
+  1 take the delegation the plan needs: 1,024 tasks, as `tasks.tree_tasks`,
+  4 deep as the stock's (G at the root, a change 1 below, its agents 2).
+  A limit the start's checks ask to move with these (a store page, a
+  carrier of the agent's largest call) moves with them, sized, and
+  `limits.json` holds it.
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../domain/forge.md`, section 4), set where the repository is made;
@@ -2172,4 +2239,9 @@ that changes the stock changes nothing of them.
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before
-  a walk meets it.
+  a walk meets it; and a test merges `limits.json` and `agent.json` over
+  `temper init`'s document and agent configuration, runs the start's
+  checks on them, and holds the settings file to them: its charters
+  within `tasks.charters`, their documents within
+  `tasks.charter_documents`, their turns within `max_turns`, template
+  4's report within `tasks.result_bytes`.
