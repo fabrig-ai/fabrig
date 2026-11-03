@@ -35,6 +35,10 @@ fn the_reference_landing_member_parses() {
     let policy = members.expect("application members").landing;
     assert!(policy.deployment.is_empty());
     assert_eq!(policy.projects.len(), PROJECTS);
+    assert_eq!(
+        policy.landings.get(&PROJECT).expect("reference project landing").merge_job.as_deref(),
+        Some(b".temper/merge".as_slice())
+    );
     let rules = policy.projects.get(&PROJECT).expect("reference project");
     assert_eq!(rules.len(), RULES);
     let expected: [(Last, bool, &[Gate]); RULES] = [
