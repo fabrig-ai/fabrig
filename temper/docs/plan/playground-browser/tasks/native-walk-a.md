@@ -284,3 +284,31 @@ account request hold both pending slots when the project is asked.
   previous answer's step 3 says.
 - Then the previous answer's steps 4 and 5 (the read loop under `## Left` if it is the host's; the
   one-process `story_a.rs` run once alone with `--run-ignored all`) and the acceptance as written.
+
+2026-11-03. **Adoption is refused `ForgeRefused(TooLarge)` at the small profile's
+`authority.segments` 4: repair it here, or leave it to an owner?** Repair it here; it is the same
+class as the previous answer's allowance, a bound of the composition's documents, though its refusal
+names no limit. The code shows it: `invalid_fields`
+(`temper/crates/temper-engine-domain-forge/src/adoption.rs`, ~510-529) needs 7 segments plus one per
+slash of the prefix, the start asks with `temper/` (8), and the forge takes `authority.segments` from
+jig's core (`temper/crates/temper-service/src/limits.rs`, ~409), 4 in the small profile. The
+composition's own `ENGINE_OVERRIDES` (`src/documents.rs`, ~59) already sets it to 8; story A's
+document omits it.
+
+- `authority.segments` becomes 8 in story A's engine overrides, in
+  `temper/crates/temper-playground/stories/a/deployment.json` and in `src/documents.rs` where story
+  A's document is made, together; nothing else changes for it. Extend the existing project
+  regression (`story_a_start_makes_its_project`) or add one beside it so a fresh world of story A,
+  after `StartPlayground`, holds `playground/widget` adopted (the playground row `Ready`, or the
+  repository among the forge's adoptions, whichever the world reads first).
+- **Past the adoption, the allowance widens to this class:** a refusal or `Again(Busy)` whose cause
+  the code shows is an engine, jig or forge limit compared against a value of these documents (file
+  and line of the comparison, and the limit's name) is raised in both places to the value a
+  diagnostic run shows sufficient, named in the report with its evidence, and the walk goes on. A
+  refusal whose cause is not a document bound (a wrong ask, a fault in the engine, service, forge,
+  host or jig) stays a question with its evidence. Commit and push each repair with its test before
+  asking.
+- Then the previous answers' steps (the read loop under `## Left` if it is the host's; the
+  one-process `story_a.rs` once alone with `--run-ignored all`) and the acceptance as written: the
+  full walk, its kept `tests/fixtures/story-a.log` recorded under `SKEIN_CODEGEN_WRITE`, and its
+  replay.
