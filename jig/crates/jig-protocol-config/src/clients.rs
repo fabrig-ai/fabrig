@@ -121,6 +121,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         (b"authority.implications".as_slice(), core.authority.implications, wire.rules_implies),
         (b"core.templates".as_slice(), core.templates, wire.setting_policy_templates),
         (b"core.settings.permissions".as_slice(), core.settings.permissions, wire.setting_policy_permissions),
+        (b"tasks.charter_documents".as_slice(), core.tasks.charter_documents, wire.charter_documents),
         (b"core.settings.alternatives".as_slice(), core.settings.alternatives, wire.charter_alternatives),
         (b"core.run_bytes".as_slice(), core.run_bytes, wire.charter_instructions),
         (b"documents.text_bytes".as_slice(), core.documents.text_bytes, wire.document_text_bytes),

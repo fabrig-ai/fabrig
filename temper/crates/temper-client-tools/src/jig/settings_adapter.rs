@@ -53,6 +53,7 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
 }
 pub fn client_charter(v: &n::Charter) -> c::Charter {
     c::Charter {
+        documents: List::with_capacity(0),
         number: v.number,
         instructions: client_text(&v.instructions),
         waiting: v.waiting,

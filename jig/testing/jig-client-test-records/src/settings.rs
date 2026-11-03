@@ -1,12 +1,13 @@
 //! Independent whole settings fixtures (client/domain/contract.md, 3–7).
 use jig_client_domain::contract::{
-    Authority, AuthorityModels, ChangeSettings, Charter, Delegation, DocumentText, EndedBy, Grant, HeldRevision,
-    KindImplication, LlmChoice, ModelEffort, Pattern, PatternEnd, PolicyEditRole, PolicyGuard, PolicyJudge,
-    PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider, RevisionDocument,
-    RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead, RevisionParty, RevisionRow,
-    RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts, SettingItem, SettingLine,
-    SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument, Size, TaskContractDocument,
-    TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor, TemplateOverride, Text,
+    Authority, AuthorityModels, ChangeSettings, Charter, CharterDocument, Delegation, DocumentText, EndedBy, Grant,
+    HeldRevision, KindImplication, LlmChoice, ModelEffort, Pattern, PatternEnd, PolicyEditRole, PolicyGuard,
+    PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider,
+    RevisionDocument, RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead, RevisionParty,
+    RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts, SettingItem,
+    SettingLine, SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument, Size,
+    TaskContractDocument, TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor, TemplateOverride,
+    Text,
 };
 use skein_lib::{Duration, List, Wall};
 fn text(value: &[u8]) -> Text {
@@ -68,6 +69,18 @@ pub fn settings_values() -> List<SettingValue> {
     alternatives.push(other).expect("one alternative");
     values
         .push(SettingValue::Charter(Box::new(Charter {
+            documents: {
+                let mut documents = List::with_capacity(2);
+                for heading in [None, Some(Box::from(b"Rules".as_slice()))] {
+                    let mut name = List::with_capacity(2);
+                    name.push(Box::from(b"resource".as_slice())).expect("segment");
+                    name.push(Box::from(b"branch".as_slice())).expect("segment");
+                    documents
+                        .push(CharterDocument { connector: 2, name, path: Box::from(b"guide.md".as_slice()), heading })
+                        .expect("document");
+                }
+                documents
+            },
             number: 2,
             instructions: text("instructions λ".as_bytes()),
             waiting: Duration::from_secs(11),

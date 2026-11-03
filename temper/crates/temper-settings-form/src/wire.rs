@@ -1427,6 +1427,7 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
     w::Charter::new(
         limits,
         w::CharterParts {
+            documents: List::with_capacity(0),
             skein_bools: [value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
