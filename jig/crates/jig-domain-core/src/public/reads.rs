@@ -6,7 +6,8 @@
 //! | absent | jig document | waiting | held durability callback |
 //! | absent | application read | asking | connector ask |
 //! | asking | connector answer | waiting | held durability callback |
-//! | waiting | durable | absent | held rechecked answer |
+//! | waiting | earlier barrier, newer commit | waiting | held durability callback |
+//! | waiting | current barrier | absent | held rechecked answer |
 //! | absent or waiting | unasked connector answer | unchanged | none |
 use super::{
     PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicDocument, PublicGoal, PublicLine, PublicProject,
@@ -28,13 +29,13 @@ pub(crate) struct Pending {
 #[derive(Debug)]
 enum State {
     Asking { public: Box<[u64]> },
-    Waiting { document: Option<PublicDocument> },
+    Waiting { document: Option<PublicDocument>, after: u64 },
 }
 
 pub(crate) fn start(core: &mut Core, reply: ReplyTo, read: PublicRead) -> Queue<Request> {
     if read.owner == 0 && read.kind == 1 && read.project.is_none() && read.task.is_none() && read.version == 1 {
         let document = projects(core);
-        return keep(core, reply, read, State::Waiting { document: Some(document) });
+        return keep(core, reply, read, State::Waiting { document: Some(document), after: 0 });
     }
     let project = project_number(&read);
     // A failed conversion and an absent project share the index's missing key.
@@ -51,7 +52,7 @@ pub(crate) fn start(core: &mut Core, reply: ReplyTo, read: PublicRead) -> Queue<
     }
     if read.owner == 0 {
         let Some(document) = jig(project, read) else { return terminal(reply, PublicAnswer::Unknown) };
-        keep(core, reply, read, State::Waiting { document: Some(document) })
+        keep(core, reply, read, State::Waiting { document: Some(document), after: 0 })
     } else {
         let connector = read.owner.checked_sub(1).expect("application owner");
         if !core.connectors.contains(&connector) {
@@ -69,7 +70,11 @@ fn project_number(read: &PublicRead) -> Option<u32> {
     }
 }
 
-fn keep(core: &mut Core, reply: ReplyTo, read: PublicRead, state: State) -> Queue<Request> {
+fn keep(core: &mut Core, reply: ReplyTo, read: PublicRead, mut state: State) -> Queue<Request> {
+    match &mut state {
+        State::Waiting { after, .. } => *after = core.counters.deployment().commits,
+        State::Asking { .. } => {}
+    }
     let pending = Pending { reply, read, state };
     let id = match core.public_reads.insert(Some(pending)) {
         Ok(id) => id,
@@ -99,7 +104,10 @@ fn keep(core: &mut Core, reply: ReplyTo, read: PublicRead, state: State) -> Queu
 pub(crate) fn answered(core: &mut Core, reply: ReplyTo, answer: Option<PublicApplication>) -> Queue<Request> {
     let id = Id::from_token(reply.into_token());
     let Some(Some(pending)) = core.public_reads.get_mut(id) else { return Queue::uncapped() };
-    let State::Asking { public } = &pending.state else { return Queue::uncapped() };
+    let public = match &pending.state {
+        State::Asking { public } => public,
+        State::Waiting { .. } => return Queue::uncapped(),
+    };
     let document = match answer {
         Some(answer) => {
             let mut allowed = true;
@@ -110,7 +118,7 @@ pub(crate) fn answered(core: &mut Core, reply: ReplyTo, answer: Option<PublicApp
         }
         None => None,
     };
-    pending.state = State::Waiting { document };
+    pending.state = State::Waiting { document, after: core.counters.deployment().commits };
     let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::PublicWait { read: id.token() })));
     out
@@ -118,12 +126,28 @@ pub(crate) fn answered(core: &mut Core, reply: ReplyTo, answer: Option<PublicApp
 
 pub(crate) fn durable(core: &mut Core, env: &Env<Limits>, read: Token) -> Queue<Request> {
     let id = Id::from_token(read);
-    let Some(Some(pending)) = core.public_reads.get(id) else { return Queue::uncapped() };
-    let State::Waiting { .. } = &pending.state else { return Queue::uncapped() };
+    let Some(Some(pending)) = core.public_reads.get_mut(id) else { return Queue::uncapped() };
+    match &mut pending.state {
+        State::Asking { .. } => return Queue::uncapped(),
+        State::Waiting { after, .. } => {
+            let latest = core.counters.deployment().commits;
+            if *after != latest {
+                // The callback covered an older commit; ask the journal to cover
+                // every commit now preceding the completing step (people.md, 13.10).
+                *after = latest;
+                let mut out = Queue::uncapped();
+                out.push(Request::Held(Box::new(Held::PublicWait { read })));
+                return out;
+            }
+        }
+    }
     let pending = core.public_reads.get_mut(id).expect("pending read").take().expect("live read");
     core.public_reads.retire(id);
     core.public_reads.reclaim();
-    let State::Waiting { document } = pending.state else { unreachable!("durable read was waiting") };
+    let document = match pending.state {
+        State::Waiting { document, .. } => document,
+        State::Asking { .. } => unreachable!("durable read was waiting"),
+    };
     let answer = match document {
         Some(document) => match complete(core, pending.read, document) {
             Some(document) => PublicAnswer::Document { decided: env.now, document },
@@ -135,13 +159,16 @@ pub(crate) fn durable(core: &mut Core, env: &Env<Limits>, read: Token) -> Queue<
 }
 
 fn complete(core: &Core, read: PublicRead, document: PublicDocument) -> Option<PublicDocument> {
-    if let PublicDocument::Projects(projects) = &document {
-        for project in &projects.projects {
-            if !core.public_project(project.project) {
-                return None;
+    match &document {
+        PublicDocument::Projects(projects) => {
+            for project in &projects.projects {
+                if !core.public_project(project.project) {
+                    return None;
+                }
             }
+            return Some(self::projects(core));
         }
-        return Some(self::projects(core));
+        PublicDocument::Application(_) | PublicDocument::Board(_) | PublicDocument::Card(_) => {}
     }
     let number = project_number(&read)?;
     if !core.public_project(number) {
