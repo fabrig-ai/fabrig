@@ -3,7 +3,9 @@ use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
 // ChangeRow dominates Row with the producer report bounded by the fixture's 512 operation bytes.
-const APPLICATION_ROW_BYTES: u32 = 119_192;
+// Each role adds a presence byte, three main bytes, a four-byte list length,
+// 64 three-byte subagents and a five-byte optional account: 205 bytes per role.
+const APPLICATION_ROW_BYTES: u32 = 119_602;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {

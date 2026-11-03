@@ -46,6 +46,8 @@ pub fn change_row() -> top::ChangeRow {
         queue_repairs: 0,
         producing_charter: 2,
         review_charter: 4,
+        producing_llm: None,
+        review_llm: None,
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
