@@ -58,6 +58,7 @@ fn running_work_keeps_its_revision_a_chat_moves_and_an_advance_moves_the_rest() 
     let mut charter = world::charter();
     charter.policy.instructions = NEW_INSTRUCTIONS.into();
     root.send(Event::Party(PartyInput::ChangeSettings {
+        kinds: Box::default(),
         reply_to: ReplyTo::new(Token::new(80)),
         sign_in: root.session(),
         key: [80; 16],
