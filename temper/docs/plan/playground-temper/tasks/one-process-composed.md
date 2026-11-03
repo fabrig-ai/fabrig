@@ -84,3 +84,17 @@ Acceptance:
 
 As the implementer's text says, and: `OneProcess`'s shape; each world builder; the stories'
 counts and times before and after.
+
+## Answers
+
+2026-11-03. **GitHub selection is runtime, not a constant: one `OneProcess`, a runtime hook.**
+`Harness::GITHUB` is now `fn github() -> bool` (default `false`, the playground's `()` keeps it),
+read by `programs::git`, `programs::agent_root` and `machine::agent_roots` at each spawn; this
+answer made that change in `temper_playground`. `OneProcess` overrides it to return
+`lower::github::active()`, so its GitHub worlds and the others share one `Process<OneProcess>`;
+do not use distinct harness types and keep no local factories. The other hooks are the
+`Harness` trait's in `temper/crates/temper-playground/src/programs.rs` (`configure`, `spawned`,
+`complete`, `git_limits`, `seeds`, `agent_seed`, `files`, `given`): read them there in place of
+`playground-processes`' report. No root exports are added: the acceptance's paths mean
+`temper_playground::programs::{Process, Harness}` and `temper_playground::programs::programs::<OneProcess>()`.
+If another hook proves missing, stop and ask again, naming its call site.
