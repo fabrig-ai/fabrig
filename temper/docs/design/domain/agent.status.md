@@ -1,7 +1,7 @@
 # agent: status
 
 2026-11-03. Where temper's code lags or departs from [agent.md](agent.md).
-The remaining gaps concern charters, settings, brief admission and result delivery.
+The remaining gaps concern charter family declarations, settings, brief admission and result delivery.
 
 - **Not yet:** 4.3: the
   check that each charter leaves its brief 2,048 bytes, at start and at
