@@ -410,7 +410,6 @@ fn a_foreman_settles_a_question_and_the_change_lands() {
 }
 
 #[test]
-#[ignore = "a directly person-owned goal cannot answer: jig-domain-core/src/routing/run/calls.rs returns PersonAnswers"]
 fn an_escalated_question_reaches_the_goal_and_its_answer_the_producer() {
     let mut story = start(None);
     let base = settle_a(&mut story);
@@ -424,7 +423,6 @@ fn an_escalated_question_reaches_the_goal_and_its_answer_the_producer() {
 }
 
 #[test]
-#[ignore = "a directly person-owned goal cannot answer: jig-domain-core/src/routing/run/calls.rs returns PersonAnswers"]
 fn an_answer_that_adds_a_dependency_waits_for_it() {
     let mut story = start(None);
     let base = settle_a(&mut story);
@@ -474,7 +472,6 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
 }
 
 #[test]
-#[ignore = "a directly person-owned goal cannot answer: jig-domain-core/src/routing/run/calls.rs returns PersonAnswers"]
 fn a_change_past_its_questions_holds_and_the_goal_releases_it() {
     let mut story = start(Some(1));
     let (first, foreman) = ask_foreman(&mut story.world, &story.producer, story.a);
