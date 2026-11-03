@@ -68,6 +68,7 @@ pub(crate) fn begin(
         return Err(people::Refusal::Limit { which: people::LimitKind::Grace });
     }
     core.deletions.live.insert(project, Deleting::new(people::DeletionStep::Tasks, grace)).expect("bounded projects");
+    core.public_index.withdraw(project);
     core.touch_project_parties(project);
     keep(core, env, out, project, Some(people::DeletionStep::Tasks));
     crate::routing::deletion_event(core, env, Event::People(people::Event::CloseProject { project }), out);
@@ -125,6 +126,7 @@ pub(crate) fn restored(core: &mut Core) -> bool {
 
 /// Restore one kept step projected by people, without deciding before Open.
 pub(crate) fn restore_project(core: &mut Core, project: u32, step: people::DeletionStep, grace: Option<Duration>) {
+    core.public_index.withdraw(project);
     hide(core, project);
     core.deletions.live.insert(project, Deleting::new(step, grace)).expect("bounded restored projects");
     core.deletions.resume = true;
