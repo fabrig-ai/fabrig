@@ -1704,11 +1704,43 @@ fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierChec
     }
 }
 
+fn result_verdicts(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+    use super::forge;
+    let tiers = Box::new([
+        forge::TierVerification {
+            tier: b"fuzzy".as_slice().into(),
+            verdict: Some(forge::TierVerdict { run: 2, blame: temper_engine_domain_forge_tiers::Blame::Cleared }),
+            repaired: None,
+        },
+        forge::TierVerification {
+            tier: b"browser".as_slice().into(),
+            verdict: Some(forge::TierVerdict { run: 4, blame: temper_engine_domain_forge_tiers::Blame::Cleared }),
+            repaired: None,
+        },
+    ]);
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(env),
+        forge::Event::Restore {
+            record: forge::Stored::Verification(forge::Verification {
+                repository: change_row(Some(7)).repository,
+                commit: SHA1,
+                changes: Box::new([7]),
+                tiers,
+            }),
+        },
+        &mut skein_lib::Queue::uncapped(),
+    );
+}
+
 #[test]
 fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
     use super::{forge, forge_change};
     for (state, line) in [
-        (forge_change::State::Cleared { merge: SHA1 }, b"Cleared by fuzzy, browser.".as_slice()),
+        (
+            forge_change::State::Cleared { merge: SHA1 },
+            b"Cleared by fuzzy run 2.\nCleared by browser run 4.".as_slice(),
+        ),
         (
             forge_change::State::Uncleared { merge: SHA1 },
             b"Not cleared: no verdict within the verification bound.".as_slice(),
@@ -1739,6 +1771,7 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
                 },
             )
             .unwrap();
+        result_verdicts(&mut domain, &env);
         let mut out = skein_lib::Queue::uncapped();
         forge::step(
             &mut domain.forge,
@@ -1789,7 +1822,7 @@ fn an_uncleared_cancelled_change_names_cancellation() {
         }),
     ));
     assert_eq!(
-        super::change_verification_words(&domain, task, &SHA1, 128).as_ref(),
+        super::change_verification_words(&domain, task, 128).as_ref(),
         b"Not cleared: cancelled while verifying."
     );
 }

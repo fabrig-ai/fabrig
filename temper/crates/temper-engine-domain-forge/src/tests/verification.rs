@@ -665,3 +665,39 @@ fn contains(out: &Queue<Request>, expected: &Request) -> bool {
     }
     false
 }
+
+#[test]
+fn retained_tier_runs_survive_later_verdicts_restart_and_shared_change_release() {
+    const OTHER: &[u8] = b"fuzzy";
+    let mut d = configured_domain(&[(TIER, None), (OTHER, None)]);
+    add_change(&mut d, CHANGE, b"main");
+    merged(&mut d, CHANGE, FIRST);
+    green(&mut d, 2, &[FIRST, LAST]);
+    judge(
+        &mut d,
+        OTHER,
+        4,
+        &[FIRST, LAST],
+        Box::new([policy::Blame::Owns(policy::Failures::Many), policy::Blame::Cleared]),
+        policy::Failures::Many,
+    );
+    judge(&mut d, OTHER, 5, &[REPAIR], Box::new([policy::Blame::Cleared]), policy::Failures::Tests(Box::new([])));
+    green(&mut d, 6, &[HEAD]);
+    let expected = [d.change_verdicts(CHANGE)[0].clone(), d.change_verdicts(CHANGE)[1].clone()];
+    assert_eq!(expected[0].verdict.as_ref().unwrap().run, 2);
+    assert_eq!(expected[1].verdict.as_ref().unwrap().run, 4);
+    assert_eq!(expected[1].repaired.unwrap().run, 5);
+    let row = d.verifications.get(&(REPO, FIRST)).unwrap().clone();
+    let mut restored = configured_domain(&[(TIER, None), (OTHER, None)]);
+    restored.restore_begin(Wall::EPOCH);
+    restore(&mut restored, &env(), Stored::Verification(row));
+    assert_eq!(restored.change_verdicts(CHANGE), expected);
+    assert!(restored.change_verdicts(SECOND).is_empty());
+    add_change(&mut restored, SECOND, b"main");
+    merged(&mut restored, SECOND, FIRST);
+    verification::released(&mut restored, CHANGE, &mut Queue::uncapped());
+    assert!(restored.change_verdicts(CHANGE).is_empty());
+    assert_eq!(restored.change_verdicts(SECOND), expected);
+    verification::released(&mut restored, SECOND, &mut Queue::uncapped());
+    assert!(restored.change_verdicts(SECOND).is_empty());
+}
