@@ -861,6 +861,58 @@ fn procedure_goal_bounds_and_admission_keep_exact_executor_and_authority_facts()
 }
 
 #[test]
+fn charter_goal_bounds_refuse_an_incomplete_executor_list() {
+    let (mut core, mut limits) = core();
+    limits.tasks.charters = 8;
+    limits.authority.executors = 6;
+    limits.documents.executors = 6;
+    limits.documents.lines = 3;
+    let numbers = [1, 2, 4, 5, 6, 7];
+    let kinds = numbers.map(authority::Executor::Charter);
+    let mut defaults = config(1).defaults;
+    defaults.charters = numbers
+        .map(|number| {
+            let mut charter = core.current.charter(1).unwrap().clone();
+            charter.number = number;
+            charter
+        })
+        .into();
+    core.current = crate::settings::Current::new(defaults, &limits, &[]);
+    let mut rules = core.authority.rules().clone();
+    rules.ceiling.delegation.kinds = kinds.into();
+    let mut policy = core.authority.policy(1).unwrap().clone();
+    policy.ceiling.delegation.kinds = kinds.into();
+    policy.roles[0].authority.delegation.kinds = kinds.into();
+    core.authority = authority::Domain::new(rules, limits.authority).unwrap();
+    let mut out = Queue::uncapped();
+    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
+    assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
+    assert_eq!(
+        fixtures::creating(&core, &limits, 1, 1),
+        Admission::Refused(people::Refusal::Limit { which: people::LimitKind::Authority })
+    );
+    limits.documents.lines = 8;
+    let Admission::Bounded { within: Bounds::Create { charters, procedures, .. }, .. } =
+        fixtures::creating(&core, &limits, 1, 1)
+    else {
+        panic!("complete goal facts")
+    };
+    assert_eq!(charters.as_slice(), &numbers);
+    assert!(procedures.is_empty(), "charter overflow is independent of procedures");
+    crate::acts::bounds::create_start(
+        &core,
+        1,
+        1,
+        people::Role::Owner,
+        tasks::Executor::Agent { charter: 5 },
+        100,
+        None,
+        limits.tasks.tree_tasks,
+    )
+    .unwrap();
+}
+
+#[test]
 fn procedure_goal_bounds_refuse_an_incomplete_executor_list() {
     let (core, mut limits) = core();
     limits.documents.lines = 1;

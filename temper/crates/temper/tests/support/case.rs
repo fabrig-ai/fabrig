@@ -417,8 +417,8 @@ impl Judge {
             value["engine"]["limits"]["overrides"][key] = 3.into();
         }
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
-        // the fixture's 2 would cut s2 from the placement read.
-        value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+        // four lines also carry all stock charters in the creation offer.
+        value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
         value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
         value["engine"]["hosts"]["workers"].as_array_mut().expect("hosts").truncate(self.cast.len());
         let secret = b"s2-case-fixture-secret";

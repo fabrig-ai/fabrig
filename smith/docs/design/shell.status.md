@@ -4,7 +4,8 @@
 
 - **Not yet:**
   - 2.5: `smith-agent-shell` and what it depends on in smith are not in the gate's
-    wasm32 clippy (fab's gate list, `.config/gate/wasm32.txt`).
+    wasm32 clippy (fab's gate list, `.config/gate/wasm32.txt`), but for
+    `smith-transcript`, which `jig-client-shell-web` depends on.
   - 4, 5.2: the `--account` flag and the `account` setting.
     `smith-local-shell/src/command.rs` parses no `--account`, and
     `settings/schema.rs` has no `account` key, so 4.1's refusal that

@@ -330,6 +330,22 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
 }
 
 #[test]
+fn backend_rewrite_keeps_creating_list_capacity() {
+    for (receiving, expected) in [(Some(2), Some(3)), (Some(8), Some(8)), (None, Some(3))] {
+        let (mut temper, agent, paths, peers) = fixture();
+        let overrides = temper["engine"]["limits"]["overrides"].as_object_mut().unwrap();
+        match receiving {
+            Some(receiving) => overrides.insert("documents.lines".into(), json!(receiving)),
+            None => overrides.remove("documents.lines"),
+        };
+        let docs = write(&temper, &agent, &paths, &peers).expect("backend rewrite");
+        let effective = json(&docs.temper);
+        assert_eq!(effective["engine"]["limits"]["overrides"]["documents.lines"], json!(expected));
+        assert_eq!(effective["engine"]["limits"]["overrides"]["accounts.credentials"], json!(4));
+    }
+}
+
+#[test]
 fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let (temper, agent, paths, peers) = fixture();
     let docs = write(&temper, &agent, &paths, &peers).expect("program route rewrite");
@@ -342,7 +358,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         jig_protocol_config::Defaults::Passed,
     )
     .expect("the program provider passes ordinary engine admission");
-    assert_eq!(admitted.limits.core.documents.lines, 3, "all three provider offers fit the Model step");
+    assert_eq!(admitted.limits.core.documents.lines, 8, "init capacity also carries all three provider offers");
     let effective = json(&docs.temper);
     let effective_agent = json(&docs.agent);
     let llm = &effective["engine"]["llm"];
