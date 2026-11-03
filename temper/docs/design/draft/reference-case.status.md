@@ -10,8 +10,6 @@ where, document by document. By step (sections 3 to 7):
   - **every step:** the goal's changes made by `change` with all their
     fields (N22) and their agents' LLM choices (N19).
   - **2, 5:** surveys as sub-agents reaching temper's runs (N10).
-  - **5, 9, 11, 14, 15:** a change relaying its agents' questions, through
-    a foreman or straight up (N1).
   - **11:** C4's producer going on once C5 lands, g's tip merged in first
     (N2): `../domain/forge.md`, 8.11 merges the landing tip first only
     for a change that started early.
