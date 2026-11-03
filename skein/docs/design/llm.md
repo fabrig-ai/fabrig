@@ -926,6 +926,13 @@ unless marked:
   items after a previous response on the same connection, which would
   decouple a request's size from its history's. It is on skein's roadmap
   as a transport of its own, with a full resend when a connection is lost.
+- **How the owner runs the live stories.** A live provider story that no
+  credential lent to the automatic suite serves is run by the owner, one
+  at a time (section 5): Anthropic's, which need an API key, and the
+  public route's text and tool stories, which need a login whose access
+  token holds `api.responses.write`. How the owner runs them, and whether
+  a sign-in of the user's that holds the scope returns the public route's
+  stories to the automatic suite, are decided later.
 
 ## 7. Open questions
 
