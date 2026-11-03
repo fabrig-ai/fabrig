@@ -7,6 +7,9 @@
 use crate::settings::{self as s, Kind, KindScope};
 use crate::tests::*;
 
+// A proposal, its extent, and an acceptance's revision and application state.
+const SNAPSHOT_ROWS: u32 = 4;
+
 fn application_core() -> (Core, Limits) {
     let (owner, mut limits) = core();
     limits.people.projects = 2;
@@ -27,6 +30,7 @@ fn application_core() -> (Core, Limits) {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut Queue::uncapped());
     }
     finish_people(&mut core.people, &env);
+    let _message = fresh(&mut core.counters, Family::Message).unwrap();
     send_task(&mut core, &limits, tasks::Event::Check);
     send_task(&mut core, &limits, tasks::Event::Restored);
     (core, limits)
@@ -150,6 +154,8 @@ fn application_only_proposal_keeps_its_sized_set() {
         propose(&mut core, &limits, Box::new([set(1, 1), item(2, 2, s::Edit::Removed), item(3, 3, s::Edit::Reset)]));
     let proposal = proposed(&output);
     let set = core.settings_proposals.get(&(Proposer::Party(1), proposal)).unwrap();
+    let key = set.key.unwrap();
+    assert_ne!(key, u64::from(proposal));
     assert!(set.items.is_empty());
     assert_eq!(
         set.applications.as_ref(),
@@ -166,7 +172,7 @@ fn application_only_proposal_keeps_its_sized_set() {
             ask: Ask::Effect(connector::Ask::KeepProposalSettings { proposal: number, items }),
         } = request
         {
-            assert_eq!(*number, u64::from(proposal));
+            assert_eq!(*number, key);
             groups.push((*connector, items.clone())).unwrap();
         }
         if let Request::Write(Write::Save(Record::Core(CoreRecord::Settings(s::Record::Proposal { value, .. })))) =
@@ -211,6 +217,7 @@ fn application_only_proposal_keeps_its_sized_set() {
 fn application_proposal_withdrawn_by_a_revision_drops_each_connector_once() {
     let (mut core, limits) = application_core();
     let proposal = proposed(&propose(&mut core, &limits, Box::new([set(1, 1), set(2, 2), set(3, 3)])));
+    let key = core.settings_proposals.get(&(Proposer::Party(1), proposal)).unwrap().key.unwrap();
     let output = send(
         &mut core,
         &limits,
@@ -224,7 +231,7 @@ fn application_proposal_withdrawn_by_a_revision_drops_each_connector_once() {
         Box::new([Box::new([connector::Judged::Accept { size: 5, charters: Box::default() }])]),
     );
     assert_eq!(outcome(&output), people::Outcome::SettingsChanged { revision: 2 });
-    assert_eq!(drops(&output).as_ref(), &[(2, u64::from(proposal)), (3, u64::from(proposal))]);
+    assert_eq!(drops(&output).as_ref(), &[(2, key), (3, key)]);
     assert!(core.settings_proposals.is_empty());
 }
 
@@ -233,13 +240,14 @@ fn application_proposal_rejected_or_withdrawn_drops_each_connector_once() {
     for withdraw in [false, true] {
         let (mut core, limits) = application_core();
         let proposal = proposed(&propose(&mut core, &limits, Box::new([set(1, 1), set(2, 2), set(3, 3)])));
+        let key = core.settings_proposals.get(&(Proposer::Party(1), proposal)).unwrap().key.unwrap();
         let action = if withdraw {
             people::Ask::Withdraw { project: 0, proposal: u64::from(proposal) }
         } else {
             decision(proposal, people::ProposalDecision::Reject { reason: b"later".as_slice().into() })
         };
         let output = ask(&mut core, &limits, action, Box::default());
-        assert_eq!(drops(&output).as_ref(), &[(2, u64::from(proposal)), (3, u64::from(proposal))]);
+        assert_eq!(drops(&output).as_ref(), &[(2, key), (3, key)]);
         assert!(core.settings_proposals.is_empty());
         assert_no_application_writes(&output);
     }
@@ -249,6 +257,7 @@ fn application_proposal_rejected_or_withdrawn_drops_each_connector_once() {
 fn application_proposal_accepted_judges_and_keeps_the_connectors_values() {
     let (mut core, limits) = application_core();
     let proposal = proposed(&propose(&mut core, &limits, Box::new([set(1, 1)])));
+    let key = core.settings_proposals.get(&(Proposer::Party(1), proposal)).unwrap().key.unwrap();
     let output = ask(
         &mut core,
         &limits,
@@ -270,7 +279,7 @@ fn application_proposal_accepted_judges_and_keeps_the_connectors_values() {
                 ask: Ask::Effect(connector::Ask::JudgeSettings { revision, proposal: number, items, .. }),
             } => {
                 judges += 1;
-                assert_eq!((*revision, *number), (2, Some(u64::from(proposal))));
+                assert_eq!((*revision, *number), (2, Some(key)));
                 assert_eq!(items.as_ref(), &expected);
                 assert_eq!(keeps, 0);
             }
@@ -279,7 +288,7 @@ fn application_proposal_accepted_judges_and_keeps_the_connectors_values() {
                 ask: Ask::Effect(connector::Ask::KeepSettings { revision, proposal: number, items }),
             } => {
                 keeps += 1;
-                assert_eq!((*revision, *number), (2, Some(u64::from(proposal))));
+                assert_eq!((*revision, *number), (2, Some(key)));
                 assert_eq!(items.as_ref(), &expected);
                 assert_eq!(judges, 1);
             }
@@ -340,27 +349,11 @@ fn application_proposal_set_restores_its_sized_edits() {
     let output =
         propose(&mut core, &limits, Box::new([set(1, 1), item(2, 2, s::Edit::Removed), item(3, 3, s::Edit::Reset)]));
     let proposal = proposed(&output);
-    let mut configured = config(41);
-    configured.kinds = core.kinds.clone();
-    configured.connectors = Box::new([2, 3]);
-    let mut restarted = Core::new(configured, &limits).unwrap();
-    let _begin = restarted.start_begin(false, Wall::EPOCH);
-    for request in output {
-        if let Request::Write(Write::Save(Record::Core(CoreRecord::Settings(s::Record::Proposal {
-            proposer,
-            proposal: number,
-            value,
-        })))) = request
-        {
-            assert_eq!(
-                restarted.restore_core(
-                    CoreRecord::Settings(s::Record::Proposal { proposer, proposal: number, value }),
-                    &limits
-                ),
-                Restored::Live
-            );
-        }
-    }
+    let mut rows = Map::with_capacity(SNAPSHOT_ROWS);
+    remember(&mut rows, &output);
+    let mut restarted = restart(&core, &limits, &rows);
+    let next = offer(&mut restarted, Proposer::Task(2), 7);
+    assert_eq!(keeps(&next).as_ref(), &[(2, 2)]);
     assert_eq!(
         restarted.settings_proposals.get(&(Proposer::Party(1), proposal)),
         core.settings_proposals.get(&(Proposer::Party(1), proposal))
@@ -404,6 +397,7 @@ fn empty_or_malformed_application_proposals_keep_nothing() {
 fn accepted_proposal_finishes_connectors_whose_items_are_all_unchanged() {
     let (mut core, limits) = application_core();
     let proposal = proposed(&propose(&mut core, &limits, Box::new([set(1, 1), set(3, 1)])));
+    let key = core.settings_proposals.get(&(Proposer::Party(1), proposal)).unwrap().key.unwrap();
     let output = ask(
         &mut core,
         &limits,
@@ -423,7 +417,7 @@ fn accepted_proposal_finishes_connectors_whose_items_are_all_unchanged() {
             ask: Ask::Effect(connector::Ask::KeepSettings { proposal: number, items, .. }),
         } = request
         {
-            assert_eq!(*number, Some(u64::from(proposal)));
+            assert_eq!(*number, Some(key));
             if *connector == 2 {
                 assert!(items.is_empty(), "unchanged items make no changes");
             } else {
@@ -434,4 +428,240 @@ fn accepted_proposal_finishes_connectors_whose_items_are_all_unchanged() {
     }
     assert_eq!(connectors.as_slice(), &[2, 3], "every connector must finish its kept proposal");
     assert!(!core.current.applications.contains_key(&set(1, 1).setting));
+}
+
+// The tasks child saves a proposal under its proposer's number, which can coincide.
+fn offer(core: &mut Core, proposer: Proposer, number: u32) -> Box<[Request]> {
+    let by = match proposer {
+        Proposer::Party(by) | Proposer::Task(by) => by,
+    };
+    core.fly(flight::Flight::SettingsOffering {
+        request: Token::new(94),
+        by,
+        number,
+        value: s::Proposal {
+            key: None,
+            against: core.current.newest(),
+            items: Box::new([set(1, 1)]),
+            applications: Box::default(),
+        },
+    });
+    let mut out = Queue::uncapped();
+    let row = match proposer {
+        Proposer::Party(_) => tasks::Stored::PersonProposal(Box::new(tasks::PersonProposal {
+            number: u64::from(number),
+            proposer: by,
+            project: 0,
+            action: tasks::PersonAction::Settings { against: core.current.newest(), items: Box::default() },
+            reason: Box::default(),
+            state: tasks::PersonProposalState::Pending { since: Wall::EPOCH },
+        })),
+        Proposer::Task(_) => {
+            let mut history = tasks::History {
+                task: by,
+                revision: 1,
+                by: tasks::Party::Person(1),
+                change: tasks::Change::Proposed,
+                reason: Box::default(),
+                proposal: None,
+                at: Wall::EPOCH,
+                amendment: None,
+            };
+            history.proposal = Some(Box::new(tasks::Proposal {
+                number: u64::from(number),
+                proposer: by,
+                project: 0,
+                action: tasks::ProposalAction::Settings { against: core.current.newest(), items: Box::default() },
+                reason: Box::default(),
+                as_holder: false,
+                state: tasks::ProposalState::Pending {
+                    holder: tasks::ProposalHolder::Policy { project: 0, kind: tasks::ProposalKind::Settings },
+                    since: Wall::EPOCH,
+                },
+            }));
+            tasks::Stored::History(history)
+        }
+    };
+    crate::routing::settings::dispatch::proposal_saved(core, &row, &mut out);
+    let mut output = List::with_capacity(out.len());
+    while let Some(request) = out.pop() {
+        output.push(request).unwrap();
+    }
+    output.into_boxed()
+}
+fn keeps(output: &[Request]) -> Box<[(u16, u64)]> {
+    let mut keys = List::with_capacity(u32::try_from(output.len()).unwrap());
+    for request in output {
+        if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::KeepProposalSettings { proposal, .. }) } =
+            request
+        {
+            keys.push((*connector, *proposal)).unwrap();
+        }
+    }
+    keys.into_boxed()
+}
+fn remember(rows: &mut Map<s::Key, s::Record>, output: &[Request]) {
+    for request in output {
+        match request {
+            Request::Write(Write::Save(Record::Core(CoreRecord::Settings(row)))) => {
+                rows.insert(row.key(), row.clone()).unwrap();
+            }
+            Request::Write(Write::Erase(Key::Core(CoreKey::Settings(key)))) => {
+                rows.remove(key);
+            }
+            _ => {}
+        }
+    }
+}
+fn restart(core: &Core, limits: &Limits, rows: &Map<s::Key, s::Record>) -> Core {
+    let mut configured = config(41);
+    configured.kinds = core.kinds.clone();
+    configured.connectors = Box::new([2, 3]);
+    let mut restarted = Core::new(configured, limits).unwrap();
+    let _begin = restarted.start_begin(false, Wall::EPOCH);
+    for (&setting, default) in &core.current.defaults {
+        assert!(restarted.restore_setting(s::Record::Default { setting, default: default.clone() }, limits));
+    }
+    assert!(restarted.restore_setting(
+        s::Record::Revision {
+            history: false,
+            revision: s::Revision {
+                head: core.current.head.clone(),
+                items: Box::default(),
+                applications: Box::default()
+            },
+        },
+        limits
+    ));
+    for (_, row) in rows {
+        match row {
+            s::Record::Proposal { .. } | s::Record::Extent { .. } => {
+                assert!(restarted.restore_setting(row.clone(), limits));
+            }
+            _ => {}
+        }
+    }
+    assert!(restarted.finish_restored_settings(&Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }));
+    restarted
+}
+#[test]
+fn two_proposers_with_one_number_reach_distinct_connector_keys() {
+    let (mut core, limits) = application_core();
+    let first = offer(&mut core, Proposer::Party(1), 7);
+    let second = offer(&mut core, Proposer::Task(1), 7);
+    assert_eq!(keeps(&first).as_ref(), &[(2, 1)]);
+    assert_eq!(keeps(&second).as_ref(), &[(2, 2)]);
+    let mut rows = Map::with_capacity(SNAPSHOT_ROWS);
+    remember(&mut rows, &first);
+    remember(&mut rows, &second);
+    let mut restarted = restart(&core, &limits, &rows);
+    assert_eq!(restarted.settings_proposals.get(&(Proposer::Party(1), 7)).unwrap().key, Some(1));
+    assert_eq!(restarted.settings_proposals.get(&(Proposer::Task(1), 7)).unwrap().key, Some(2));
+    assert_eq!(keeps(&offer(&mut restarted, Proposer::Party(2), 7)).as_ref(), &[(2, 3)]);
+}
+fn pending_application() -> (Core, Limits, u32, Map<s::Key, s::Record>) {
+    let (mut core, limits) = application_core();
+    let output = propose(&mut core, &limits, Box::new([set(1, 1)]));
+    let proposal = proposed(&output);
+    let mut rows = Map::with_capacity(SNAPSHOT_ROWS);
+    remember(&mut rows, &output);
+    (core, limits, proposal, rows)
+}
+#[test]
+fn restart_keeps_the_counter_after_every_proposal_was_decided() {
+    let (mut core, limits, proposal, mut rows) = pending_application();
+    let output = ask(
+        &mut core,
+        &limits,
+        decision(proposal, people::ProposalDecision::Reject { reason: Box::default() }),
+        Box::default(),
+    );
+    remember(&mut rows, &output);
+    assert!(core.settings_proposals.is_empty());
+    let mut restarted = restart(&core, &limits, &rows);
+    assert!(restarted.settings_proposals.is_empty());
+    assert_eq!(keeps(&offer(&mut restarted, Proposer::Party(1), 7)).as_ref(), &[(2, 2)]);
+}
+#[test]
+fn jig_only_proposals_draw_no_key_and_send_no_connector_ask() {
+    for keys in [1, u64::MAX] {
+        let (mut core, limits) = application_core();
+        core.current.keys = keys;
+        let mut charter = core.current.charter(1).unwrap().clone();
+        charter.policy.instructions = b"changed".as_slice().into();
+        let output = propose(
+            &mut core,
+            &limits,
+            Box::new([s::Item {
+                setting: s::Setting::Charter(1),
+                edit: s::Edit::Set(s::Value::Charter(Box::new(charter))),
+            }]),
+        );
+        let proposal = proposed(&output);
+        assert_eq!(core.settings_proposals.get(&(Proposer::Party(1), proposal)).unwrap().key, None);
+        assert_eq!(core.current.keys, keys);
+        for request in output {
+            assert!(match request {
+                Request::Ask { ask: Ask::Effect(_), .. } => false,
+                _ => true,
+            });
+        }
+    }
+}
+#[test]
+fn proposal_key_overflow_is_refused_before_retaining_the_set() {
+    let (mut core, limits) = application_core();
+    core.current.keys = u64::MAX;
+    let output = propose(&mut core, &limits, Box::new([set(1, 1)]));
+    assert_eq!(
+        outcome(&output),
+        people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Arithmetic })
+    );
+    assert_eq!(core.current.keys, u64::MAX);
+    assert!(core.settings_proposals.is_empty());
+    assert!(keeps(&output).is_empty());
+}
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    reason = "the panic payload is a String whose text must name the broken proposal link"
+)]
+fn restart_refuses_a_proposal_key_at_or_past_the_counter() {
+    for key in [2, 3] {
+        let (mut core, limits) = application_core();
+        let output = propose(&mut core, &limits, Box::new([set(1, 1)]));
+        let mut rows = Map::with_capacity(SNAPSHOT_ROWS);
+        remember(&mut rows, &output);
+        let row = rows.get_mut(&s::Key::Proposal { proposer: Proposer::Party(1), proposal: 2 }).unwrap();
+        let s::Record::Proposal { value, .. } = row else { panic!("proposal row") };
+        value.key = Some(key);
+        let panic = std::panic::catch_unwind(|| restart(&core, &limits, &rows)).unwrap_err();
+        let message = panic.downcast_ref::<String>().unwrap();
+        assert!(message.contains("Proposal { proposer: Party(1), proposal: 2 }"), "{message}");
+    }
+}
+
+#[test]
+fn the_last_drawable_proposal_key_advances_without_wrapping() {
+    let (mut core, limits) = application_core();
+    core.current.keys = u64::MAX - 1;
+    let output = propose(&mut core, &limits, Box::new([set(1, 1)]));
+    let proposal = proposed(&output);
+    assert_eq!(core.settings_proposals.get(&(Proposer::Party(1), proposal)).unwrap().key, Some(u64::MAX - 1));
+    assert_eq!(core.current.keys, u64::MAX);
+    assert_eq!(keeps(&output).as_ref(), &[(2, u64::MAX - 1)]);
+}
+#[test]
+fn accepting_the_last_proposal_preserves_the_counter_in_its_revision() {
+    let (mut core, limits, proposal, mut rows) = pending_application();
+    let output = ask(
+        &mut core,
+        &limits,
+        decision(proposal, people::ProposalDecision::Accept),
+        Box::new([Box::new([connector::Judged::Accept { size: 7, charters: Box::default() }])]),
+    );
+    remember(&mut rows, &output);
+    assert!(core.settings_proposals.is_empty());
+    let mut restarted = restart(&core, &limits, &rows);
+    assert_eq!(keeps(&offer(&mut restarted, Proposer::Party(1), 7)).as_ref(), &[(2, 2)]);
 }

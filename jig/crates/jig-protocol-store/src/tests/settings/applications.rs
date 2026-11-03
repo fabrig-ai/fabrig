@@ -67,7 +67,7 @@ fn application_revisions_proposals_and_setting_names_round_trip_at_their_bounds(
             round_trip(s::Record::Proposal {
                 proposer: people::Proposer::Party(u64::MAX),
                 proposal: number,
-                value: s::Proposal { against: number, items, applications: applications(count, number) },
+                value: s::Proposal { key: None, against: number, items, applications: applications(count, number) },
             });
         }
     }
@@ -80,6 +80,7 @@ fn application_metadata_past_each_count_bound_is_refused() {
         proposer: people::Proposer::Party(1),
         proposal: 1,
         value: s::Proposal {
+            key: None,
             against: 0,
             items: Box::new([]),
             applications: applications(jig_domain_tasks::SETTINGS_ITEMS + 1, 0),

@@ -72,6 +72,7 @@ pub fn wire_settings_review(value: &c::SettingsReview, limits: &w::Limits) -> Re
     w::SettingsReview::new(
         limits,
         w::SettingsReviewParts {
+            key: value.key,
             newest: value.newest,
             items: encode_review_pieces(&value.items, limits)?,
             cut: value.cut,
@@ -80,6 +81,7 @@ pub fn wire_settings_review(value: &c::SettingsReview, limits: &w::Limits) -> Re
 }
 pub fn restore_settings_review(value: &w::SettingsReview, limits: &Limits) -> Result<c::SettingsReview, w::Problem> {
     Ok(c::SettingsReview {
+        key: *value.key(),
         newest: value.newest(),
         items: decode_review_pieces(value.items(), limits)?,
         cut: value.cut(),

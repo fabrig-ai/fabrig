@@ -84,6 +84,7 @@ mod tests {
         let record =
             root::Record::Core(core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Extent {
                 oldest: 1,
+                keys: 1,
             })));
         let mut cases = Vec::new();
         for (key, expected) in [
