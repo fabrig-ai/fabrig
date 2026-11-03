@@ -197,6 +197,38 @@ fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {
     ])
 }
 
+fn setup(root: &Path, restarted: bool) -> Vec<ctl::Step> {
+    let mut steps = vec![ctl::Step::Run(ctl::Call::sign_in())];
+    if !restarted {
+        steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "--json"])));
+        let file = root.join("config/native-landing-settings.json");
+        steps.push(ctl::Step::Then(Box::new(move |calls| {
+            ctl::settings_change(&calls[1], &file, "elsewhere-landing-settings")
+        })));
+        steps.push(ctl::Step::Run(ctl::Call::new(&[
+            "forge",
+            "connect",
+            "1",
+            "forgejo-admin",
+            root.join("admin-paste").to_str().expect("paste path"),
+            "--first",
+            "elsewhere/first",
+            "--label",
+            "temper-host",
+            "--key",
+            "elsewhere-connect",
+            "--json",
+        ])));
+        steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "made:1"])));
+    }
+    for kind in ["landing-rule", "forge-charter"] {
+        steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", kind, "1", "--json"])));
+    }
+    steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "connected:1"])));
+    steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])));
+    steps
+}
+
 fn life(root: &Path, restarted: bool) {
     let clock = Clock::new();
     let began = clock.now().now;
@@ -225,26 +257,7 @@ fn life(root: &Path, restarted: bool) {
     let fd = skein_shell::open_root(root).expect("story root");
     let mut fds = streams.descriptors();
     fds.push(fd);
-    let mut steps = vec![ctl::Step::Run(ctl::Call::sign_in())];
-    if !restarted {
-        steps.push(ctl::Step::Run(ctl::Call::new(&[
-            "forge",
-            "connect",
-            "1",
-            "forgejo-admin",
-            root.join("admin-paste").to_str().expect("paste path"),
-            "--first",
-            "elsewhere/first",
-            "--label",
-            "temper-host",
-            "--key",
-            "elsewhere-connect",
-            "--json",
-        ])));
-        steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "made:1"])));
-    }
-    steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "connected:1"])));
-    steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])));
+    let steps = setup(root, restarted);
     let mut world = real::World::new(Judge {
         root: root.into(),
         restarted,
@@ -292,6 +305,63 @@ fn life(root: &Path, restarted: bool) {
     eprintln!("elsewhere life restarted={restarted}: {:?}", clock.now().now.saturating_since(began));
 }
 
+fn assert_landing_settings(ends: &[super::Ended]) {
+    let rule = ctl::json(&ends[ends.len() - 4]);
+    let producer = ctl::json(&ends[ends.len() - 3]);
+    assert_eq!(rule["value"]["gates"], json!([]), "the story supplies no review exchange");
+    assert_eq!(producer["value"], 2, "the coding producer is kept across restart");
+}
+
+fn connected(calls: &mut ctl::Calls, root: &Path, restarted: bool) {
+    let ends = calls.ends();
+    assert_landing_settings(ends);
+    let forges = ctl::json(ends.last().expect("forges read"));
+    let row = &forges["forges"][0];
+    assert_eq!(row["state"], "connected");
+    assert_eq!(row["mode"], "managed");
+    if restarted {
+        // temper/docs/design/protocol/setup.md, 6.7: keep the first intent across restarts.
+        assert_eq!(row["first"]["state"], "made");
+        assert_eq!(row["first"]["org"], "elsewhere");
+        assert_eq!(row["first"]["repository"], "first");
+        calls.push(ctl::Step::Run(ctl::Call::new(&["task", "show", "2"])));
+    } else {
+        assert_eq!(row["first"]["state"], "made");
+        start_chat(calls, root);
+    }
+}
+
+fn start_chat(calls: &mut ctl::Calls, root: &Path) {
+    // Progress and the terminal answer are separate JSON lines, as for setup.
+    let answer =
+        calls.ends()[3].stdout.split(|byte| *byte == b'\n').rfind(|line| !line.is_empty()).expect("adoption answer");
+    let connected: Value = serde_json::from_slice(answer).expect("adoption JSON");
+    let project = connected["project"].as_u64().expect("adoption's project number");
+    assert_eq!(connected["outcome"]["adopted"]["owner"], "elsewhere");
+    assert_eq!(connected["outcome"]["adopted"]["name"], "first");
+    let key = root.join("llm-key");
+    write_private(&key, jig_channel_world::fixtures::KEY);
+    for call in [
+        ctl::Call::new(&["account", "add-key", "1", key.to_str().expect("key path"), "--key", "elsewhere-model"]),
+        ctl::Call::new(&["account", "list", "--until", "usable"]),
+        ctl::Call::new(&[
+            "chat",
+            "start",
+            "--project",
+            &project.to_string(),
+            "--key",
+            "elsewhere-chat",
+            "@elsewhere-chat Land a README change in elsewhere/first",
+            "--json",
+        ]),
+        ctl::Call::new(&["task", "show", "1", "--until", "replied", "--json"]),
+        ctl::Call::new(&["task", "show", "2", "--until", "ended", "--json"]),
+        ctl::Call::new(&["task", "show", "2"]),
+    ] {
+        calls.push(ctl::Step::Run(call));
+    }
+}
+
 struct Judge {
     root: PathBuf,
     restarted: bool,
@@ -333,58 +403,7 @@ impl Referee<Process> for Judge {
             return;
         }
         if self.stage == 0 {
-            let ends = calls.ends();
-            let forges = ctl::json(ends.last().expect("forges read"));
-            let row = &forges["forges"][0];
-            assert_eq!(row["state"], "connected");
-            assert_eq!(row["mode"], "managed");
-            if self.restarted {
-                // temper/docs/design/protocol/setup.md, 6.7: keep the first intent across restarts.
-                assert_eq!(row["first"]["state"], "made");
-                assert_eq!(row["first"]["org"], "elsewhere");
-                assert_eq!(row["first"]["repository"], "first");
-                calls.push(ctl::Step::Run(ctl::Call::new(&["task", "show", "2"])));
-            } else {
-                assert_eq!(row["first"]["state"], "made");
-                // Progress and the terminal answer are separate JSON lines, as for setup.
-                let answer = ends[1]
-                    .stdout
-                    .split(|byte| *byte == b'\n')
-                    .rfind(|line| !line.is_empty())
-                    .expect("adoption answer");
-                let connected: Value = serde_json::from_slice(answer).expect("adoption JSON");
-                let project = connected["project"].as_u64().expect("adoption's project number");
-                assert_eq!(connected["outcome"]["adopted"]["owner"], "elsewhere");
-                assert_eq!(connected["outcome"]["adopted"]["name"], "first");
-                let key = self.root.join("llm-key");
-                write_private(&key, jig_channel_world::fixtures::KEY);
-                for call in [
-                    ctl::Call::new(&[
-                        "account",
-                        "add-key",
-                        "1",
-                        key.to_str().expect("key path"),
-                        "--key",
-                        "elsewhere-model",
-                    ]),
-                    ctl::Call::new(&["account", "list", "--until", "usable"]),
-                    ctl::Call::new(&[
-                        "chat",
-                        "start",
-                        "--project",
-                        &project.to_string(),
-                        "--key",
-                        "elsewhere-chat",
-                        "@elsewhere-chat Land a README change in elsewhere/first",
-                        "--json",
-                    ]),
-                    ctl::Call::new(&["task", "show", "1", "--until", "replied", "--json"]),
-                    ctl::Call::new(&["task", "show", "2", "--until", "ended", "--json"]),
-                    ctl::Call::new(&["task", "show", "2"]),
-                ] {
-                    calls.push(ctl::Step::Run(call));
-                }
-            }
+            connected(calls, &self.root, self.restarted);
             self.stage = 1;
         } else if !self.stopped {
             calls.release();

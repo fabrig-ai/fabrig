@@ -22,7 +22,9 @@
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle. 17.6: a
-  proposal naming a project's items waits for the deployment's owners alone.
+  proposal naming a project's items waits for the deployment's owners
+  alone, not that project's: a settings proposal's holder is always the
+  deployment's policy (`jig-domain-core/src/admission/proposals.rs`).
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a
