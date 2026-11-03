@@ -94,6 +94,21 @@ fn baseline(world: &mut World) {
     sign_in(world);
 }
 
+#[test]
+fn a_tier_task_names_the_execution_it_dispatched() {
+    let (mut world, _) = chat_world(false, Tier::default());
+    until(&mut world, LANDING_TICKS, "baseline dispatched", |world| {
+        world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Dispatch { .. }))
+    });
+    let row = tier(&world);
+    let run = row.record.run.as_ref().expect("baseline running");
+    let words = std::str::from_utf8(&task(&world, row.task.expect("tier task")).spec.words).expect("task words");
+    assert!(words.contains("org/repo"), "repository missing from task words: {words}");
+    assert!(words.contains("temper/tier/slow.1"), "owned branch missing from task words: {words}");
+    let commit: String = run.tip.iter().map(|byte| format!("{byte:02x}")).collect();
+    assert!(words.contains(&commit), "tested commit missing from task words: {words}");
+}
+
 fn sign_in(world: &mut World) {
     let valid = world.store.rows.values().any(|row| {
         matches!(row,
