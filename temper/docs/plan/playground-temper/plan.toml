@@ -1,0 +1,25 @@
+draft = "playground-temper"
+repo = "fabrig"
+sources = ["temper/docs/plan/playground-temper/inputs/request.md", "temper/docs/design/playground.md", "temper/docs/design/playground.status.md", "AGENTS.md", "DESIGN.md"]
+
+# temper's playground world, natively (inputs/request.md): playground.md 3, 4, 5, 8 and 9's
+# native part. The hosted fake git moves first, alone; the composition, its stories and the
+# fakes' pace follow. The walk through the web client's host and a log replayed wait for
+# skein's kit (plan playground-skein).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "hosted-git"
+title = "temper: the hosted fake git in crates/, on product crates alone, its fixtures with the checkout world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 3"
+
+[[slice]]
+id = 1
+story = "the fake git program the world hosts ships from temper's crates/ on product crates alone, and every world that hosts it walks its stories as before"
+parts = ["hosted-git"]
+walk = false
