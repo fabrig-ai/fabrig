@@ -2256,7 +2256,7 @@ each behaviour in the lowest world that owns it, and one smoke above:
   would be capped at a few units (the fuzzy repair and case 6.4 keep 1
   unit, cases 4.1 and 4.3 a 10-unit cap). A world that copies init's
   seed onto a cheaper model prices the seed for its own model, and the
-  cluster fixture keeps four charter slots for the stock's three. Their
+  cluster fixture keeps five charter slots for the stock's five. Their
   times do not change.
 - **Its checks:** settings change the facts of the forge's world and the
   engine's domain world (how a merge is judged), so their focused and
