@@ -18,7 +18,7 @@ const RESUMED_RUNS: usize = 2;
 const ONE_MET: usize = 1;
 const REPORT: &[u8] = b"report before release";
 
-fn limits() -> engine::Limits {
+pub(super) fn limits() -> engine::Limits {
     let mut bounds = walking::limits();
     bounds.tasks.tasks = TASKS;
     bounds.tasks.project_tasks = TASKS;
@@ -44,7 +44,7 @@ fn limits() -> engine::Limits {
     bounds
 }
 
-fn configuration() -> engine::Config {
+pub(super) fn configuration() -> engine::Config {
     let mut config = walking::config(92);
     config.core.defaults.charters[0].policy.model.price_unit = 2000;
     config.core.settings.models[0] = config.core.defaults.charters[0].policy.model.clone();
@@ -106,7 +106,7 @@ fn siblings(driver: &mut Driver, parent: &engine::Assignment, names: &[&[u8]]) -
     tasks
 }
 
-fn assignment(driver: &Driver, task: u64) -> engine::Assignment {
+pub(super) fn assignment(driver: &Driver, task: u64) -> engine::Assignment {
     driver
         .delivered
         .iter()
