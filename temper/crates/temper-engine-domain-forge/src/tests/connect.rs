@@ -77,6 +77,7 @@ fn refused(d: &mut Domain, ask: Ask, role: Option<PartyRole>, carried: Option<Ca
     );
     assert!(!out.iter().any(|r| {
         if let Request::Reachable { .. }
+        | Request::Replace { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
         | Request::Install { .. }
@@ -1011,4 +1012,325 @@ fn a_new_github_is_refused_without_the_machines_place() {
         Some(VALUE),
         ForgeRefusal::NoSuchForge,
     );
+}
+
+fn hold_connect_tables(d: &mut Domain) {
+    d.connect = crate::connect::State::new(1);
+    let mut config = d.configured.get(&1).unwrap().clone();
+    config.number = 2;
+    d.configured.insert(2, config).unwrap();
+    application(d, 2, tokens(Making::Kept(2)), Some(PartyRole::Owner), Some(VALUE));
+}
+fn tokens(forge: Making) -> Ask {
+    Ask::Connect { forge, how: How::ForgejoTokens }
+}
+fn new_connected() -> ForgeAsk {
+    ForgeAsk::Connected { place: records::record(1).place, git_program: None }
+}
+#[test]
+fn new_tokens_connect_refuses_before_making_any_record() {
+    for role in [None, Some(PartyRole::Member), Some(PartyRole::Maintainer), Some(PartyRole::Observer)] {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        refused(&mut d, tokens(Making::New(new_connected())), role, None, ForgeRefusal::Role);
+        assert!(d.records.is_empty());
+    }
+    for how in [
+        How::ForgejoAdmin { first: None },
+        How::GitHubApp { app: NonZeroU64::new(7).unwrap(), read_only: false },
+        How::GitHubManifest { back: None },
+    ] {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        refused(
+            &mut d,
+            Ask::Connect { forge: Making::New(new_connected()), how },
+            Some(PartyRole::Owner),
+            Some(VALUE),
+            ForgeRefusal::NotTaken,
+        );
+        assert!(d.records.is_empty());
+    }
+    for forge in
+        [ForgeAsk::GitHub, ForgeAsk::Owned, ForgeAsk::Managed { place: records::record(1).place, git_program: None }]
+    {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        refused(&mut d, tokens(Making::New(forge)), Some(PartyRole::Owner), Some(VALUE), ForgeRefusal::NotTaken);
+        assert!(d.records.is_empty());
+    }
+    for carried in [None, Some(VALUE)] {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        hold_connect_tables(&mut d);
+        refused(
+            &mut d,
+            tokens(Making::New(new_connected())),
+            Some(PartyRole::Owner),
+            carried,
+            if carried.is_none() { ForgeRefusal::NoKey } else { ForgeRefusal::Busy },
+        );
+        assert!(d.records.is_empty());
+    }
+    let mut d = github(Kind::Forgejo, Mode::Connected);
+    refused(&mut d, tokens(Making::New(new_connected())), Some(PartyRole::Owner), None, ForgeRefusal::NoKey);
+    assert!(d.records.is_empty());
+}
+#[test]
+fn kept_tokens_connect_admits_not_connected_and_stopped() {
+    for previous in [Connection::NotConnected, Connection::Stopped { reason: Box::from(STOP_REASON) }] {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        outputs(&mut d, Event::Connection { forge: 1, state: previous });
+        let out = application(&mut d, 1, tokens(Making::Kept(1)), Some(PartyRole::Owner), Some(VALUE));
+        assert_eq!(d.connection(1), Connection::Connecting);
+        assert!(out.contains(&Request::Connect {
+            forge: 1,
+            request: Token::new(1),
+            how: How::ForgejoTokens,
+            carried: VALUE
+        }));
+    }
+}
+#[test]
+fn kept_tokens_connect_checks_role_forge_state_room_then_key() {
+    for role in [None, Some(PartyRole::Member), Some(PartyRole::Maintainer), Some(PartyRole::Observer)] {
+        refused(&mut github(Kind::GitHub, Mode::Fake), tokens(Making::Kept(2)), role, Some(VALUE), ForgeRefusal::Role);
+    }
+    refused(
+        &mut github(Kind::Forgejo, Mode::Connected),
+        tokens(Making::Kept(2)),
+        Some(PartyRole::Owner),
+        Some(VALUE),
+        ForgeRefusal::NoSuchForge,
+    );
+    for (kind, mode) in [
+        (Kind::Forgejo, Mode::Managed),
+        (Kind::Forgejo, Mode::Owned),
+        (Kind::Forgejo, Mode::Fake),
+        (Kind::GitHub, Mode::Connected),
+    ] {
+        refused(
+            &mut github(kind, mode),
+            tokens(Making::Kept(1)),
+            Some(PartyRole::Owner),
+            Some(VALUE),
+            ForgeRefusal::NotTaken,
+        );
+    }
+    for state in [
+        Connection::Connected { id: 9, login: b"bot".as_slice().into() },
+        Connection::Connecting,
+        Connection::SettingUp { step: None },
+    ] {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        outputs(&mut d, Event::Connection { forge: 1, state });
+        refused(&mut d, tokens(Making::Kept(1)), Some(PartyRole::Owner), None, ForgeRefusal::Connected);
+    }
+    let mut d = github(Kind::Forgejo, Mode::Connected);
+    hold_connect_tables(&mut d);
+    refused(&mut d, tokens(Making::Kept(1)), Some(PartyRole::Owner), Some(VALUE), ForgeRefusal::Busy);
+    refused(
+        &mut github(Kind::Forgejo, Mode::Connected),
+        tokens(Making::Kept(1)),
+        Some(PartyRole::Owner),
+        None,
+        ForgeRefusal::NoKey,
+    );
+}
+#[test]
+fn replace_admits_github_and_connected_forgejo_connected_or_stopped() {
+    for kind in [Kind::GitHub, Kind::Forgejo] {
+        for previous in [
+            Connection::Connected { id: 9, login: b"bot".as_slice().into() },
+            Connection::Stopped { reason: Box::from(STOP_REASON) },
+        ] {
+            let mut d = github(kind, Mode::Connected);
+            outputs(&mut d, Event::Connection { forge: 1, state: previous });
+            let out = application(&mut d, 1, Ask::Replace { forge: 1 }, Some(PartyRole::Owner), Some(VALUE));
+            assert_eq!(d.connection(1), Connection::Connecting);
+            assert!(out.contains(&Request::Replace { forge: 1, request: Token::new(1), carried: VALUE }));
+            outputs(
+                &mut d,
+                Event::ConnectAnswered { forge: 1, request: Token::new(1), answer: ConnectAnswer::Connecting },
+            );
+            assert_eq!(d.application_answer(Token::new(1)), Some(Answered::Connect(ConnectAnswer::Connecting)));
+        }
+    }
+}
+#[test]
+fn replace_checks_role_forge_room_connection_then_key() {
+    for role in [None, Some(PartyRole::Member), Some(PartyRole::Maintainer), Some(PartyRole::Observer)] {
+        refused(
+            &mut github(Kind::Forgejo, Mode::Fake),
+            Ask::Replace { forge: 2 },
+            role,
+            Some(VALUE),
+            ForgeRefusal::Role,
+        );
+    }
+    refused(
+        &mut github(Kind::Forgejo, Mode::Connected),
+        Ask::Replace { forge: 2 },
+        Some(PartyRole::Owner),
+        Some(VALUE),
+        ForgeRefusal::NoSuchForge,
+    );
+    for (kind, mode) in [
+        (Kind::Forgejo, Mode::Managed),
+        (Kind::Forgejo, Mode::Owned),
+        (Kind::Forgejo, Mode::Fake),
+        (Kind::GitHub, Mode::Fake),
+    ] {
+        refused(
+            &mut github(kind, mode),
+            Ask::Replace { forge: 1 },
+            Some(PartyRole::Owner),
+            Some(VALUE),
+            ForgeRefusal::NotTaken,
+        );
+    }
+    for state in [
+        Connection::NotConnected,
+        Connection::NotSetUp,
+        Connection::SettingUp { step: None },
+        Connection::SetUpFailed { why: Box::from(STOP_REASON) },
+        Connection::Connecting,
+        Connection::Connected { id: 9, login: b"bot".as_slice().into() },
+    ] {
+        let why = if state == Connection::Connecting {
+            ForgeRefusal::Busy
+        } else if let Connection::Connected { .. } = state {
+            ForgeRefusal::NoKey
+        } else {
+            ForgeRefusal::NotConnected
+        };
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        outputs(&mut d, Event::Connection { forge: 1, state });
+        refused(&mut d, Ask::Replace { forge: 1 }, Some(PartyRole::Owner), None, why);
+    }
+    let mut d = github(Kind::Forgejo, Mode::Connected);
+    hold_connect_tables(&mut d);
+    refused(&mut d, Ask::Replace { forge: 1 }, Some(PartyRole::Owner), Some(VALUE), ForgeRefusal::Busy);
+    let mut d = github(Kind::GitHub, Mode::Connected);
+    application(&mut d, 2, connect(1), Some(PartyRole::Owner), Some(VALUE));
+    refused(&mut d, Ask::Replace { forge: 1 }, Some(PartyRole::Owner), Some(VALUE), ForgeRefusal::Busy);
+}
+
+#[test]
+fn tokens_and_replace_ends_restore_previous_on_stop_and_erase_once() {
+    for (kind, ask, previous) in [
+        (Kind::Forgejo, tokens(Making::Kept(1)), Connection::NotConnected),
+        (Kind::Forgejo, tokens(Making::Kept(1)), Connection::Stopped { reason: Box::from(STOP_REASON) }),
+        (Kind::Forgejo, Ask::Replace { forge: 1 }, Connection::Connected { id: 9, login: b"bot".as_slice().into() }),
+        (Kind::Forgejo, Ask::Replace { forge: 1 }, Connection::Stopped { reason: Box::from(STOP_REASON) }),
+        (Kind::GitHub, Ask::Replace { forge: 1 }, Connection::Connected { id: 9, login: b"bot".as_slice().into() }),
+        (Kind::GitHub, Ask::Replace { forge: 1 }, Connection::Stopped { reason: Box::from(STOP_REASON) }),
+    ] {
+        for success in [false, true] {
+            let mut d = github(kind, Mode::Connected);
+            outputs(&mut d, Event::Connection { forge: 1, state: previous.clone() });
+            application(&mut d, 1, ask.clone(), Some(PartyRole::Owner), Some(VALUE));
+            outputs(
+                &mut d,
+                Event::ConnectAnswered { forge: 1, request: Token::new(1), answer: ConnectAnswer::Connecting },
+            );
+            let state = Connection::Connected { id: 9, login: b"bot".as_slice().into() };
+            if success {
+                outputs(&mut d, Event::Connection { forge: 1, state: state.clone() });
+            }
+            let why = if success { None } else { Some(Box::from(b"check stopped".as_slice())) };
+            let event = || Event::ConnectEnded {
+                forge: 1,
+                request: Token::new(1),
+                connected: success,
+                why: why.clone(),
+                stop: Some(AdminStop::NotAdmin),
+            };
+            let out = outputs(&mut d, event());
+            assert_eq!(out.iter().filter(|r| **r == Request::EraseCarried { number: VALUE.number }).count(), 1);
+            assert!(outputs(&mut d, event()).is_empty());
+            assert_eq!(d.connection(1), if success { state } else { previous.clone() });
+            assert_eq!(d.forges().rows[0].ended, why);
+            assert_eq!(d.forges().rows[0].ended_stop, None);
+            assert_eq!(d.apps.get(&1), if success && kind == Kind::GitHub { Some(&AppWay::Pasted) } else { None });
+        }
+    }
+}
+#[test]
+fn tokens_and_replace_service_refusals_restore_previous_and_release_once() {
+    for ask in [tokens(Making::Kept(1)), Ask::Replace { forge: 1 }] {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        let previous = Connection::Stopped { reason: Box::from(STOP_REASON) };
+        outputs(&mut d, Event::Connection { forge: 1, state: previous.clone() });
+        application(&mut d, 1, ask, Some(PartyRole::Owner), Some(VALUE));
+        let event = || Event::ConnectAnswered {
+            forge: 1,
+            request: Token::new(1),
+            answer: ConnectAnswer::Refused(ForgeRefusal::NotTaken),
+        };
+        let out = outputs(&mut d, event());
+        assert_eq!(out.iter().filter(|r| **r == Request::CarriedUnused { number: VALUE.number }).count(), 1);
+        assert_eq!(d.connection(1), previous);
+        assert!(outputs(&mut d, event()).is_empty());
+        assert!(
+            outputs(
+                &mut d,
+                Event::ConnectEnded { forge: 1, request: Token::new(1), connected: false, why: None, stop: None }
+            )
+            .is_empty()
+        );
+    }
+}
+#[test]
+fn tokens_and_replace_refuse_ended_forges() {
+    for ask in [tokens(Making::Kept(1)), Ask::Replace { forge: 1 }] {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        let mut record = records::record(1);
+        record.mode = Mode::Connected;
+        record.state = ForgeState::Ended { secrets_erased: false, box_removed: false };
+        outputs(&mut d, Event::Restore { record: Stored::Forge(record) });
+        refused(&mut d, ask, Some(PartyRole::Owner), Some(VALUE), ForgeRefusal::NoSuchForge);
+    }
+}
+#[test]
+fn bot_login_rewrites_and_saves_the_connected_record_once() {
+    for login in [Box::<[u8]>::from(b"renamed".as_slice()), Box::from([b'x'; 255])] {
+        let mut d = github(Kind::Forgejo, Mode::Connected);
+        let mut record = records::record(1);
+        record.mode = Mode::Connected;
+        outputs(&mut d, Event::Restore { record: Stored::Forge(record.clone()) });
+        record.bot.login = login.clone();
+        assert_eq!(
+            outputs(&mut d, Event::BotLogin { forge: 1, login: login.clone() }).as_ref(),
+            &[
+                Request::Save { record: Stored::Forge(record.clone()), release: None, read_afresh: None },
+                Request::ForgeKept(record.clone()),
+            ]
+        );
+        assert_eq!(d.record(1), Some(&record));
+        assert_eq!(d.configured(1).unwrap().bot, login);
+        assert!(outputs(&mut d, Event::BotLogin { forge: 1, login }).is_empty());
+    }
+}
+#[test]
+fn bot_login_ignores_other_forges_ended_records_and_invalid_lengths() {
+    for (kind, mode, state, login) in [
+        (Kind::Forgejo, Mode::Managed, ForgeState::Kept, Box::from(b"new".as_slice())),
+        (Kind::Forgejo, Mode::Owned, ForgeState::Kept, Box::from(b"new".as_slice())),
+        (Kind::Forgejo, Mode::Fake, ForgeState::Kept, Box::from(b"new".as_slice())),
+        (Kind::GitHub, Mode::Connected, ForgeState::Kept, Box::from(b"new".as_slice())),
+        (
+            Kind::Forgejo,
+            Mode::Connected,
+            ForgeState::Ended { secrets_erased: false, box_removed: false },
+            Box::from(b"new".as_slice()),
+        ),
+        (Kind::Forgejo, Mode::Connected, ForgeState::Kept, Box::from([])),
+        (Kind::Forgejo, Mode::Connected, ForgeState::Kept, Box::from([b'x'; 256])),
+    ] {
+        let mut d = github(kind, mode);
+        let record = ForgeRecord { kind, mode, state, ..records::record(1) };
+        outputs(&mut d, Event::Restore { record: Stored::Forge(record.clone()) });
+        assert!(outputs(&mut d, Event::BotLogin { forge: 1, login }).is_empty());
+        assert_eq!(d.record(1), Some(&record));
+    }
+    let mut d = github(Kind::Forgejo, Mode::Connected);
+    assert!(outputs(&mut d, Event::BotLogin { forge: 1, login: b"new".as_slice().into() }).is_empty());
+    assert!(outputs(&mut d, Event::BotLogin { forge: 2, login: b"new".as_slice().into() }).is_empty());
 }

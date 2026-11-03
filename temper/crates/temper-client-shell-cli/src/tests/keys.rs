@@ -1,5 +1,6 @@
 use super::fixtures;
 use skein_io::kernel::{Error, Exit, Kind, Stat};
+use temper_client_domain::forge::forges::PASTED_PAYLOAD;
 const ADD: &[&[u8]] = &[b"account", b"add-key", b"1", b"/linked-parent/link-file", b"--deployment", b"--key", b"key"];
 const AT_BOUND: &[u8] = &[b'k'; 4096];
 const OVER_BOUND: &[u8] = &[b'k'; 4097];
@@ -113,22 +114,25 @@ fn a_key_calls_directory_failure_prints_the_directorys_line_alone() {
         assert_eq!(str::from_utf8(f.stderr()).expect("diagnostic"), line);
     }
 }
-const APP_BOUND: &[u8] = &[b'p'; 4089];
-const APP_OVER: &[u8] = &[b'p'; 4090];
+const APP_BOUND: &[u8] = &[b'p'; PASTED_PAYLOAD];
+const APP_OVER: &[u8] = &[b'p'; PASTED_PAYLOAD + 1];
 const APP_NEWLINE: &[u8] = &{
-    let mut bytes = [b'p'; 4090];
-    bytes[4089] = b'\n';
+    let mut bytes = [b'p'; PASTED_PAYLOAD + 1];
+    bytes[PASTED_PAYLOAD] = b'\n';
     bytes
 };
 
-fn app_file_refused(f: &fixtures::Frame) {
+fn credential_file_refused(f: &fixtures::Frame) {
     assert_eq!(f.exit(), Some(Exit::Code(1)));
     assert!(!f.opened(b"directory"));
     assert_eq!(f.requests(), 0);
-    assert!(skein_lib::bytes::find(f.stderr(), b"/linked-parent/link-file").is_some());
     if !f.link.is_empty() && f.link != b"\n" {
         assert!(skein_lib::bytes::find(f.stderr(), f.link).is_none());
     }
+}
+fn app_file_refused(f: &fixtures::Frame) {
+    credential_file_refused(f);
+    assert!(skein_lib::bytes::find(f.stderr(), b"/linked-parent/link-file").is_some());
 }
 #[test]
 fn an_app_key_requires_a_private_owned_regular_file_and_refuses_symlinks() {
@@ -163,7 +167,7 @@ fn an_app_key_refuses_empty_and_oversized_files_before_opening_directory() {
     }
 }
 #[test]
-fn an_app_key_strips_one_final_lf_and_reserves_seven_bytes_for_the_bundle() {
+fn an_app_key_strips_one_final_lf_and_reserves_the_bundle_framing() {
     for (file, pem) in [
         (b"fake-pem\n".as_slice(), b"fake-pem".as_slice()),
         (b"fake-pem\n\n", b"fake-pem\n"),
@@ -174,7 +178,7 @@ fn an_app_key_strips_one_final_lf_and_reserves_seven_bytes_for_the_bundle() {
         f.link = file;
         f.sign_in_then_deliver_me();
         assert_eq!(f.carried_keys.len(), 1);
-        let mut expected = vec![0, 1, 10];
+        let mut expected = vec![0, 1, 0, 0, 0, 1, 10];
         expected.extend_from_slice(&u32::try_from(pem.len()).expect("bounded PEM").to_be_bytes());
         expected.extend_from_slice(pem);
         assert_eq!(f.carried_keys[0].expose(), expected);
@@ -218,7 +222,7 @@ fn an_admin_token_strips_one_final_lf_and_carries_item_one_without_printing_it()
         f.link = file;
         f.sign_in_then_deliver_me();
         let token = file.strip_suffix(b"\n").unwrap_or(file);
-        let mut expected = vec![0, 1, 0];
+        let mut expected = vec![0, 1, 0, 0, 0, 1, 0];
         expected.extend_from_slice(&u32::try_from(token.len()).expect("bounded token").to_be_bytes());
         expected.extend_from_slice(token);
         assert_eq!(f.carried_keys.len(), 1);
@@ -262,11 +266,138 @@ fn new_forge_connections_load_and_carry_their_credential_file() {
         f.link = ADMIN_TOKEN;
         f.sign_in_then_deliver_me();
         assert_eq!(f.carried_keys.len(), 1);
-        let mut expected = vec![0, 1, item];
+        let mut expected = vec![0, 1, 0, 0, 0, 1, item];
         expected.extend_from_slice(&u32::try_from(ADMIN_TOKEN.len()).expect("fixture token").to_be_bytes());
         expected.extend_from_slice(ADMIN_TOKEN);
         assert_eq!(f.carried_keys[0].expose(), expected);
         assert!(f.stdout().is_empty());
         assert!(f.stderr().is_empty());
     }
+}
+
+const TOKENS: &[&[u8]] = &[b"forge", b"connect", b"3", b"forgejo", b"/linked-parent/link-file", b"--key", b"tokens"];
+const NEW_TOKENS: &[&[u8]] = &[
+    b"forge",
+    b"connect",
+    b"forgejo",
+    b"/linked-parent/link-file",
+    b"--api",
+    b"127.0.0.1:3000",
+    b"--git",
+    b"http://127.0.0.1:3000",
+    b"--key",
+    b"tokens",
+];
+const REPLACE: &[&[u8]] = &[b"forge", b"replace", b"3", b"/linked-parent/link-file", b"--key", b"replace"];
+
+// Static random test bytes fit Frame's static file input.
+const TOKENS_FILE: &[u8] = b"api qnzjljfywwrvidah\ngit mxniqzkuvxmerbez\nwebhook_secret gewrrzvgkrdwucjn";
+const TOKENS_NEWLINE: &[u8] = b"api qnzjljfywwrvidah\ngit mxniqzkuvxmerbez\nwebhook_secret gewrrzvgkrdwucjn\n";
+#[test]
+fn tokens_connect_and_replace_read_one_private_file_and_carry_its_bundle() {
+    let file = TOKENS_FILE;
+    let api = &file[4..20];
+    let git = &file[25..41];
+    let secret = &file[57..];
+    let expected =
+        temper_client_domain::forge::forges::pasted_tokens(Some(api), Some(git), Some(secret)).expect("tokens bundle");
+    for words in [TOKENS, NEW_TOKENS, REPLACE] {
+        for contents in [TOKENS_FILE, TOKENS_NEWLINE] {
+            let mut f = fixtures::Frame::act(words);
+            f.link = contents;
+            f.sign_in_then_deliver_me();
+            assert_eq!(f.carried_keys.len(), 1);
+            assert!(f.carried_keys[0].expose() == expected.expose());
+            for value in [api, git, secret] {
+                assert!(skein_lib::bytes::find(f.stdout(), value).is_none());
+                assert!(skein_lib::bytes::find(f.stderr(), value).is_none());
+                if let Some(store) = f.stored(b"store") {
+                    assert!(skein_lib::bytes::find(store, value).is_none());
+                }
+            }
+        }
+    }
+}
+#[test]
+fn tokens_connect_and_replace_refuse_nonprivate_files_without_reading() {
+    let file = TOKENS_FILE;
+    for words in [TOKENS, NEW_TOKENS, REPLACE] {
+        for (kind, mode, owner) in [
+            (Kind::Directory, 0o600, 7),
+            (Kind::Other, 0o600, 7),
+            (Kind::File, 0o640, 7),
+            (Kind::File, 0o606, 7),
+            (Kind::File, 0o600, 8),
+        ] {
+            let mut f = fixtures::Frame::act(words);
+            f.link = file;
+            f.input_stat = Some(Stat { kind, mode, owner, size: file.len() as u64, links: 1 });
+            f.drain();
+            credential_file_refused(&f);
+            assert_eq!(f.input_reads, 0);
+        }
+        for error in [Error::TooManyLinks, Error::NotFound] {
+            let mut f = fixtures::Frame::act(words);
+            f.link = file;
+            f.linked_leaf = Some(error);
+            f.drain();
+            credential_file_refused(&f);
+            assert_eq!(f.input_reads, 0);
+        }
+    }
+}
+#[test]
+fn tokens_connect_and_replace_refuse_empty_and_oversized_files() {
+    for words in [TOKENS, NEW_TOKENS, REPLACE] {
+        for file in [b"".as_slice(), b"\n", APP_OVER] {
+            let mut f = fixtures::Frame::act(words);
+            f.link = file;
+            f.drain();
+            credential_file_refused(&f);
+        }
+    }
+}
+#[test]
+fn tokens_connect_and_replace_accept_files_at_the_payload_bound() {
+    // "api " + value + "\ngit g" puts the file at the raw credential bound.
+    const FILE: &[u8] = &{
+        let mut file = [b'a'; PASTED_PAYLOAD];
+        file[0] = b'a';
+        file[1] = b'p';
+        file[2] = b'i';
+        file[3] = b' ';
+        file[PASTED_PAYLOAD - 6] = b'\n';
+        file[PASTED_PAYLOAD - 5] = b'g';
+        file[PASTED_PAYLOAD - 4] = b'i';
+        file[PASTED_PAYLOAD - 3] = b't';
+        file[PASTED_PAYLOAD - 2] = b' ';
+        file[PASTED_PAYLOAD - 1] = b'g';
+        file
+    };
+    let file = FILE;
+    let api = &file[4..PASTED_PAYLOAD.checked_sub(b"\ngit g".len()).expect("payload holds the layout")];
+    let expected =
+        temper_client_domain::forge::forges::pasted_tokens(Some(api), Some(b"g"), None).expect("tokens bundle");
+    for words in [TOKENS, NEW_TOKENS, REPLACE] {
+        let mut f = fixtures::Frame::act(words);
+        f.link = file;
+        f.sign_in_then_deliver_me();
+        assert_eq!(f.carried_keys.len(), 1);
+        assert!(f.carried_keys[0].expose() == expected.expose());
+        assert!(f.stdout().is_empty());
+        assert!(f.stderr().is_empty());
+    }
+}
+#[test]
+fn replace_reads_an_rsa_key_as_one_carried_app_key() {
+    const PEM: &[u8] = b"-----BEGIN RSA PRIVATE KEY-----\nqnzjljfywwrvidah";
+    let pem = PEM;
+    let expected = temper_client_domain::forge::forges::pasted_app_key(pem).expect("App key bundle");
+    let mut f = fixtures::Frame::act(REPLACE);
+    f.link = pem;
+    f.sign_in_then_deliver_me();
+    assert_eq!(f.carried_keys.len(), 1);
+    assert!(f.carried_keys[0].expose() == expected.expose());
+    assert!(f.stdout().is_empty());
+    assert!(f.stderr().is_empty());
 }
