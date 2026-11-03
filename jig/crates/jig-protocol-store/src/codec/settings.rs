@@ -1589,7 +1589,7 @@ fn decode_revision(
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
     }
-    Ok(settings::Revision { head: field_head, items: field_items })
+    Ok(settings::Revision { head: field_head, items: field_items, applications: Box::default() })
 }
 fn encode_charter_version(
     value: &settings::CharterVersion,
@@ -1704,6 +1704,7 @@ pub fn encode(
     names: &[settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     match record {
+        settings::Record::Application { .. } => unreachable!("an application's record: apps-store"),
         settings::Record::Default { default, .. } => {
             let value = encode_default(default, limits, names)?;
             let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));

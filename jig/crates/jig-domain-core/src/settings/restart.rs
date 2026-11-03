@@ -42,6 +42,7 @@ impl Core {
         }
         match record {
             Record::Default { setting, default } => self.restore_default(setting, default, limits),
+            Record::Application { setting, state } => self.current.applications.insert(setting, state).is_ok(),
             Record::Changed { setting, changed } => {
                 {
                     assert!(
@@ -420,8 +421,11 @@ impl Core {
             };
             defaults.push(write).expect("default differences");
         }
-        let revision =
-            if release { Some(Revision { head: self.current.head.clone(), items: items.into_boxed() }) } else { None };
+        let revision = if release {
+            Some(Revision { head: self.current.head.clone(), items: items.into_boxed(), applications: Box::default() })
+        } else {
+            None
+        };
         let (writes, oldest) = revision_writes_with_hold(
             revision,
             defaults,
@@ -525,7 +529,7 @@ pub(crate) fn first_start(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Re
     }
     out.push(Request::Write(save(Record::Revision {
         history: false,
-        revision: Revision { head: core.current.head.clone(), items: Box::new([]) },
+        revision: Revision { head: core.current.head.clone(), items: Box::new([]), applications: Box::default() },
     })));
     out.push(Request::Write(save(Record::Extent { oldest: 0 })));
     true

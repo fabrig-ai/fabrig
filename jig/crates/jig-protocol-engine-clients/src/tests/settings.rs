@@ -283,6 +283,7 @@ fn revision_values_past_the_single_read_budget_name_their_encoded_size() {
     let source = s::Value::Charter(Box::new(charter()));
     let bytes = u64::from(translate::value(&source, &f::models(), &w::CEILINGS).unwrap().measure());
     let revision = s::Revision {
+        applications: Box::default(),
         head: head(),
         items: Box::new([
             s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) },

@@ -123,8 +123,21 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
             }
             Some(Refusal::Role { held: None })
         }
-        Ask::RemoveProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
-            if role == Some(Role::Owner) { None } else { Some(Refusal::Role { held: role }) }
+        Ask::ChangeSettings { projects, .. } => {
+            for &project in projects {
+                let held = super::role(domain, person, project);
+                if held != Some(Role::Owner) {
+                    return Some(Refusal::Role { held });
+                }
+            }
+            if projects.is_empty() && role != Some(Role::Owner) { Some(Refusal::Role { held: role }) } else { None }
+        }
+        Ask::RemoveProject { .. } | Ask::MoveToNewest { .. } => {
+            if role == Some(Role::Owner) {
+                None
+            } else {
+                Some(Refusal::Role { held: role })
+            }
         }
         Ask::Application { scope, .. } => {
             if *scope == crate::ApplicationScope::Own || role.is_some() {

@@ -432,7 +432,8 @@ pub(crate) fn connector(
         | connector::Event::WorkspaceReady { .. }
         // The root maps connector completion to start_done for the phase it is serving.
         | connector::Event::RestartDone { .. } => {}
-        connector::Event::SettingsJudged { .. } | connector::Event::SettingsDefaults { .. } => {},
+        connector::Event::SettingsJudged { owner, judged } => return crate::settings::application::judged(core, env, work, owner, judged),
+        connector::Event::SettingsDefaults { .. } => {},
     }
     out
 }

@@ -166,7 +166,11 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         s::Record::Extent { oldest: 1 },
         s::Record::Revision {
             history: false,
-            revision: s::Revision { head: s::Head { number: 1, against: 0, ..head.clone() }, items: Box::new([]) },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: s::Head { number: 1, against: 0, ..head.clone() },
+                items: Box::new([]),
+            },
         },
         s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter())) } },
         s::Record::Charter { charter: 1, revision: 3, value: s::CharterVersion { charter: None } },
@@ -192,12 +196,12 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         ]);
         rows.push(s::Record::Revision {
             history: false,
-            revision: s::Revision { head: head.clone(), items: items.clone() },
+            revision: s::Revision { applications: Box::default(), head: head.clone(), items: items.clone() },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Revision {
             history: true,
-            revision: s::Revision { head: head.clone(), items: items.clone() },
+            revision: s::Revision { applications: Box::default(), head: head.clone(), items: items.clone() },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Proposal {
@@ -295,6 +299,7 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
             let decoded = codec::decode(&original.key(), &bytes, &limits, names).unwrap();
             let core::Record::Core(core::CoreRecord::Settings(record)) = decoded else { panic!("settings") };
             let value = match record {
+                s::Record::Application { .. } => unreachable!("an application's record: apps-store"),
                 s::Record::Default { default, .. } => default.value,
                 s::Record::Changed { changed, .. } => changed.value.unwrap(),
                 s::Record::Proposal { value, .. } => match value.items[0].edit.clone() {
@@ -436,6 +441,7 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
     let value = s::Value::Charter(Box::new(charter.clone()));
     let items = Box::new([s::Item { setting, edit: s::Edit::Set(value.clone()) }]);
     let revision = s::Revision {
+        applications: Box::default(),
         head: s::Head {
             number: 2,
             against: 1,
