@@ -16,7 +16,6 @@
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle.
   17.9: the settings store keeps no documents.
-  17.9: the client wire's charter carries no documents.
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a
