@@ -12,7 +12,6 @@ pub mod listed;
 pub(crate) mod me;
 pub mod model;
 pub mod panel;
-pub mod picker;
 pub mod playground;
 pub mod replace;
 pub mod start;
@@ -60,7 +59,6 @@ pub struct Side {
     forges_open: bool,
     set_up: Option<Box<forges::SetUp>>,
     setup_form: forges::Draft,
-    pickers: skein_lib::List<picker::Picker>,
     admin_form: admin::Draft,
     admin: Option<admin::Pending>,
     tokens_form: tokens::Draft,
@@ -74,7 +72,6 @@ pub struct Side {
     served: Served,
     form: Option<Form>,
     serial: u64,
-    start_attempts: skein_lib::List<(u16, u64)>,
     party: Option<u64>,
     me: bool,
     link: jig_client::Link,
@@ -89,7 +86,6 @@ impl Side {
             forges_open: false,
             set_up: None,
             setup_form: forges::Draft::new(),
-            pickers: skein_lib::List::with_capacity(forges::ROWS),
             admin_form: admin::Draft::new(),
             admin: None,
             tokens_form: tokens::Draft::new(),
@@ -103,7 +99,6 @@ impl Side {
             served: Served::Unknown,
             form: None,
             serial: skein_lib::Rng::new(seed).next_u64(),
-            start_attempts: skein_lib::List::with_capacity(forges::ROWS),
             party: None,
             me: false,
             link: jig_client::Link::Starting,
@@ -205,10 +200,6 @@ impl Side {
         self.app.as_ref()
     }
     #[must_use]
-    pub fn picker(&self, forge: u16) -> Option<&picker::Picker> {
-        picker::get(self, forge)
-    }
-    #[must_use]
     #[expect(clippy::manual_find, reason = "step code uses loops rather than iterator callbacks")]
     pub fn replacement(&self, forge: u16) -> Option<&replace::Draft> {
         for draft in &self.replacements {
@@ -251,12 +242,6 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         Event::Served { served: value } => served(side, value),
         Event::Act { act } => act_on(side, env.limits, act, out),
         Event::Progress { request, progress } => {
-            if progress == skein_lib::RequestProgress::Unknown
-                && (picker::adopted(side, request, &Answer::Unknown)
-                    || forges::adopted(side, env.limits, request, &Answer::Unknown, out))
-            {
-                return;
-            }
             if let Some(draft) = &mut side.form
                 && let Some((pending, _)) = draft.pending
                 && pending == request
@@ -280,9 +265,6 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             }
         }
         Event::Answered { request, answer } => {
-            if picker::adopted(side, request, &answer) || forges::adopted(side, env.limits, request, &answer, out) {
-                return;
-            }
             if let Some(draft) = &mut side.form
                 && let Some((pending, _)) = draft.pending
                 && pending == request
@@ -298,12 +280,10 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             }
         }
     }
-    forges::maybe_adopt(side, env.limits, out);
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
         Act::Forges(act) => forges::act(side, limits, act, out),
-        Act::Picker { forge, act } => picker::act(side, limits, forge, act, out),
         Act::Go { address } => out.push(Request::Show { address }),
         Act::AdminWrite { field, text } => admin::write(side, limits, field, text),
         Act::ConnectAdmin { forge } => admin::send(side, limits, forge, out),
@@ -317,7 +297,6 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
         Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
         Act::SetupWrite { field, text } => forges::write(side, limits, field, text),
-        Act::StartIn { forge } => forges::retry_start(side, limits, forge, out),
         Act::Adopt => {
             let Some(_party) = side.party else {
                 return;
@@ -377,8 +356,8 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     }
 }
 #[must_use]
-pub fn next_deadline(side: &Side) -> Option<Time> {
-    picker::next_deadline(side)
+pub const fn next_deadline(_side: &Side) -> Option<Time> {
+    None
 }
 pub const fn reclaim(_side: &mut Side) {}
 #[must_use]
