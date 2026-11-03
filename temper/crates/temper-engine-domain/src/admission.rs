@@ -25,38 +25,13 @@ pub fn completes(event: &Event) -> bool {
         | Event::Account(_)
         | Event::Setup { .. }
         | Event::Stop
-        | Event::Worker(
-            WorkerInput::DecodedHostCall { .. }
-            | WorkerInput::RenderedHostCall { .. }
-            | WorkerInput::ResultRead { .. }
-            | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. }
-            | WorkerInput::Link {
-                link:
-                    Link::Up {
-                        up:
-                            LinkUp::Piece { .. }
-                            | LinkUp::Logins { .. }
-                            | LinkUp::SignedOut { .. }
-                            | LinkUp::Activity { .. }
-                            | LinkUp::Unauthorized { .. }
-                            | LinkUp::Limited { .. }
-                            | LinkUp::AccountRefused { .. }
-                            | LinkUp::Turn { .. }
-                            | LinkUp::JobAnswer { .. }
-                            | LinkUp::Answer { .. },
-                        ..
-                    },
-                ..
-            },
-        )
         | Event::Party(
             PartyInput::Unwatch { .. }
             | PartyInput::Delivered { .. }
             | PartyInput::StreamDelivered { .. }
             | PartyInput::ProcedureStep { .. },
         ) => true,
-        Event::Worker(WorkerInput::Link { link: Link::Up { up: LinkUp::Call { .. }, .. }, .. })
-        | Event::Party(
+        Event::Party(
             PartyInput::Whose { .. }
             | PartyInput::ProposeSettings { .. }
             | PartyInput::ChangeSettings { .. }
@@ -73,6 +48,7 @@ pub fn completes(event: &Event) -> bool {
         )
         | Event::Credential { .. }
         | Event::Restart { .. } => false,
+        Event::Worker(worker) => worker_completes(worker),
         Event::Forge(event) => match event.as_ref() {
             forge::Event::Bind { .. } | forge::Event::Installation { .. } | forge::Event::Hint { .. } => false,
             forge::Event::OrderLanding { .. }
@@ -80,6 +56,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Landing { .. }
             | forge::Event::VetoLanding { .. }
             | forge::Event::StepLanding { .. }
+            | forge::Event::TierWords { .. }
             | forge::Event::TierTask { .. }
             | forge::Event::TierRefused { .. }
             | forge::Event::StepTier { .. }
@@ -217,5 +194,33 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, event);
             Ok(())
         }
+    }
+}
+
+fn worker_completes(worker: &WorkerInput) -> bool {
+    match worker {
+        WorkerInput::DecodedHostCall { .. }
+        | WorkerInput::RenderedHostCall { .. }
+        | WorkerInput::ResultRead { .. }
+        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. }
+        | WorkerInput::Link {
+            link:
+                Link::Up {
+                    up:
+                        LinkUp::Piece { .. }
+                        | LinkUp::Logins { .. }
+                        | LinkUp::SignedOut { .. }
+                        | LinkUp::Activity { .. }
+                        | LinkUp::Unauthorized { .. }
+                        | LinkUp::Limited { .. }
+                        | LinkUp::AccountRefused { .. }
+                        | LinkUp::Turn { .. }
+                        | LinkUp::JobAnswer { .. }
+                        | LinkUp::Answer { .. },
+                    ..
+                },
+            ..
+        } => true,
+        WorkerInput::Link { link: Link::Up { up: LinkUp::Call { .. }, .. }, .. } => false,
     }
 }

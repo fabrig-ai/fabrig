@@ -3537,7 +3537,7 @@ pub(crate) fn outputs(
             forge::Request::TierRun { repository, tier, number, tip } => {
                 start_tier_run(domain, env, repository, tier, number, tip);
             }
-            forge::Request::TierDecision { task, decision: choice, entry } => {
+            forge::Request::TierDecision { task, decision: choice, entry, projection } => {
                 if let Some(entry) = entry {
                     let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
                     if let Some(description) = describe_tier_effect(domain, env, task, entry) {
@@ -3556,7 +3556,7 @@ pub(crate) fn outputs(
                         domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
                     }
                 } else {
-                    tier_decision(domain, env, task, choice);
+                    tier_decision(domain, env, task, choice, projection);
                 }
             }
             forge::Request::LandingDecision { task, decision: choice, entry, evidence } => {

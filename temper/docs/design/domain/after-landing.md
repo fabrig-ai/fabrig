@@ -268,6 +268,16 @@ red by earlier failures it does not run (5.3).
   grant of it is needed. A fault past `tier_retries` holds it. The
   tier's record names its task; at most one per tier and repository
   lives, so they are bounded by the repositories and `tiers`.
+- **The run task's words** start with `Tier NAME run N`, then name the
+  repository, the full tested commit and the owned `temper/tier/NAME.N`
+  branch at creation. Each part is identified separately: the judged
+  run, a failed-test rerun and each bisection probe, with its commit and
+  branch, and the forge run number and URL once observed. The procedure
+  projects these facts through its own task's specification words in a
+  due step (jig's `domain/tasks.md`, 5.3). The task keeps them after
+  completion, branch release and restart. Observations not yet projected
+  are kept on the tier row until a step acknowledges their task words,
+  including across follower replacement and restart.
 - **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's
   kinds 16 and 17, their branches' creation kind 9, released at the
   task's close; statuses and comments are kinds 6 and 7; each its run's

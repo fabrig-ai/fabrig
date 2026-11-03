@@ -408,6 +408,11 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
 }
 
 fn step_made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
+    if domain.forge.tier_task(task).is_some()
+        && let Some(row) = domain.core.tasks.task(task)
+    {
+        domain.work.push(Work::Forge(forge::Event::TierWords { task, words: row.spec.words.clone() }));
+    }
     if let Some(kind) = domain.forge_delegating.remove(&(task, step))
         && let Some(child) = child
     {
