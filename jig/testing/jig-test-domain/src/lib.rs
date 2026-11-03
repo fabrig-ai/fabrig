@@ -1109,6 +1109,9 @@ fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word
 /// Restore connector-owned rows and replay their current adoption reports.
 fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record: connector::Record) -> bool {
     match &record {
+        connector::Record::SettingDefault { .. }
+        | connector::Record::SettingChange { .. }
+        | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
         connector::Record::Outbox(row) => {
             if !remember_outbox(domain, number, row) {
                 return false;
@@ -1135,6 +1138,10 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     );
     for _ in 0..out.len() {
         match out.pop().expect("restored connector output count") {
+            connector::Request::SettingsJudged { .. }
+            | connector::Request::SettingsDefaults { .. }
+            | connector::Request::SettingValue { .. }
+            | connector::Request::RestoreRefused { .. } => unreachable!("settings routing: apps-world"),
             connector::Request::Resource { project, resource } => {
                 let role = match resource.role {
                     connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,

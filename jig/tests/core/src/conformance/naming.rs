@@ -15,6 +15,9 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
     };
     let mut name = r::Naming { row, project: None, task: None, outlives: None };
     match key {
+        connector::RecordKey::SettingDefault { .. }
+        | connector::RecordKey::SettingChange { .. }
+        | connector::RecordKey::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
         connector::RecordKey::Adoption { project, .. } => name.project = Some(*project),
         connector::RecordKey::Procedure(task)
         | connector::RecordKey::ProcedureDelegateOutcome(task)
@@ -29,6 +32,9 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
     }
     if let root::Record::Connector { record, .. } = record {
         match record {
+            connector::Record::SettingDefault { .. }
+            | connector::Record::SettingChange { .. }
+            | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
             connector::Record::Proposal { project, task, .. } | connector::Record::Task { project, task, .. } => {
                 name.project = Some(*project);
                 name.task = Some(*task);
