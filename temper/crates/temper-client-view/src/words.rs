@@ -42,6 +42,12 @@ pub enum Word {
     GitHubChooseRepositories,
     GitHubNotListedAfter,
 
+    Rename,
+    RenameProject,
+    Save,
+    NewProject,
+    NewProjectPlaceholder,
+    CreateProject,
     NoProjectYet,
     TokensTitle,
     TokensDescription,
@@ -688,9 +694,9 @@ pub enum Word {
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
 // The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
-const PHRASES: u32 = 1209;
-const SEGMENTS: u32 = 2090;
-const ALL: [Word; 617] = [
+const PHRASES: u32 = 1215;
+const SEGMENTS: u32 = 2098;
+const ALL: [Word; 623] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -721,6 +727,12 @@ const ALL: [Word; 617] = [
     Word::GitHubPrivateTag,
     Word::GitHubChooseRepositories,
     Word::GitHubNotListedAfter,
+    Word::Rename,
+    Word::RenameProject,
+    Word::Save,
+    Word::NewProject,
+    Word::NewProjectPlaceholder,
+    Word::CreateProject,
     Word::NoProjectYet,
     Word::TokensTitle,
     Word::TokensDescription,
@@ -1344,6 +1356,12 @@ impl Word {
             Self::GitHubChooseRepositories => 2120,
             Self::GitHubNotListedAfter => 2121,
 
+            Self::Rename => 2184,
+            Self::RenameProject => 2185,
+            Self::Save => 2186,
+            Self::NewProject => 2187,
+            Self::NewProjectPlaceholder => 2188,
+            Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
             Self::ModelKeyDescription => 2100,
             Self::ModelKeyField => 2101,
@@ -2219,6 +2237,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConnectManagedAddress => (&[b"Its address"], &[]),
         Word::ConnectManagedGit => (&[b"Its git base"], &[]),
         Word::ConnectManagedWeb => (&[b"Its web address"], &[]),
+        Word::Rename => (&[b"Rename"], &[]),
+        Word::RenameProject => (&[b"Rename ", b""], &[Name]),
+        Word::Save => (&[b"Save"], &[]),
+        Word::NewProject => (&[b"New project"], &[]),
+        Word::NewProjectPlaceholder => (&[b"+ New project"], &[]),
+        Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
         Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),

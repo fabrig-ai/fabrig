@@ -98,7 +98,9 @@ pub(crate) fn main(
             b.style(crate::look::ENTRY);
             b.open(Role::TextArea);
             b.name(&words.say(Word::StartChat, &[]));
-            if let Address::Chats { start: true, .. } = root.pages().address() {
+            if let Address::Chats { start: true, .. } = root.pages().address()
+                && root.pages().switcher().renaming().is_none()
+            {
                 b.focus(0);
             }
             if ready {
