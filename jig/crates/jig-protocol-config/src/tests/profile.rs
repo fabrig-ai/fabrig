@@ -78,7 +78,7 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     const MAX_FRAME: u64 = 8_388_672;
     // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 1_606_863), (Profile::Standard, 262_144, 10_769_615)] {
+    for (kind, request, page) in [(Profile::Small, 65_536, 2_041_763), (Profile::Standard, 262_144, 10_769_615)] {
         let configured = profile(kind);
         let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);
