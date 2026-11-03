@@ -48,13 +48,13 @@ pub const CEILINGS: Limits = Limits {
     phase_bytes_value: 134_217_728,
     change_bytes_value: 268_435_456,
     end_bytes_value: 1_073_741_824,
-    projection_goal_words: 65_536,
-    projection_task_words: 65_536,
-    projection_milestone_words: 65_536,
+    projection_goal_words: 262_144,
+    projection_task_words: 262_144,
+    projection_milestone_words: 524_288,
     projection_goal_row_pending: 1_024,
     run_proof_accounts: 64,
     run_proof_credentials: 1_024,
-    run_proof_outstanding: 64,
+    run_proof_outstanding: 128,
     turn_record_transcript: 33_554_432,
 };
 
