@@ -36,3 +36,16 @@ id = 2
 story = "an anonymous visitor reads a public project's board, a goal's tree and the landings in the web client, and sees nothing private"
 parts = ["temper-public"]
 walk = true
+
+[[part]]
+id = "skein-fetch"
+title = "skein's fetch: an exchange the browser's cache leaves alone, and the answer headers it keeps"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 10"
+
+[[slice]]
+id = 3
+story = "a web page's exchange with no browser cache reports the Cache-Control, Age and Retry-After of its answer, through skein's fetch and jig's web adapter"
+parts = ["skein-fetch"]
+walk = false

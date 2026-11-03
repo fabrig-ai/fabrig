@@ -55,8 +55,20 @@ How each finding is settled, and where:
     `public-fuzzy-temper`.
 
 Also settled on the way: `public` has no role number, so no policy can name it (no start
-check is needed); owner numbers on the route (0 jig, family + 1); a store written before
-public reading holds no public row and reads every project private.
+check is needed); owner numbers on the route (0 jig, family + 1), the root mapping a family to
+its connector; a store written before public reading holds no public row and reads every
+project private.
+
+## Revisions after batch 1
+
+Compatible detail, released with batch 2b; no released spec relied on what changed:
+
+- **people.md 13.9, engine.md 11:** the public index's ended goals are those ended since start
+  or publication; the store keeps no index of a project's ended goals to load from
+  (store.md 7.4), so nothing is loaded. A store index for them is open (people.md 12).
+- **skein's ui-web.md 10:** an exchange's cache (`no-store`) and an answer's kept headers, which
+  the web client's public mode needs for its freshness and `Retry-After`; built by
+  `fetch-headers` (part `skein-fetch`), found by the temper designer.
 
 ## Parts
 
@@ -64,6 +76,7 @@ public reading holds no public row and reads every project private.
 - `temper-public`: the forge's public documents, ctl's visibility, the web client's public
   mode and the walk.
 - `public-checks`: the negative walk, the fuzzy tests and the statuses.
+- `skein-fetch`: skein's fetch reporting an answer's kept headers, with no browser cache.
 
 ## Tasks
 
@@ -74,17 +87,18 @@ public reading holds no public row and reads every project private.
 | `public-wire` | jig-public | interface | | 120 | 1 |
 | `public-vocabulary` | jig-public | interface | | 100 | 1 |
 | `forge-public-wire` | temper-public | interface | | 90 | 1 |
-| `visibility-wire` | jig-public | interface | visibility-surface | 100 | 2 |
-| `visibility-core` | jig-public | feature | visibility-surface, visibility-wire | 120 | 2 |
-| `public-index` | jig-public | feature | public-limits, public-vocabulary, visibility-core | 150 | 2 |
-| `public-reads-core` | jig-public | feature | public-index | 150 | 2 |
-| `public-component` | jig-public | feature | public-limits, public-vocabulary, public-wire, visibility-wire | 150 | 2 |
+| `fetch-headers` | skein-fetch | interface | | 75 | 2b |
+| `visibility-wire` | jig-public | interface | visibility-surface | 130 | 2a |
+| `visibility-core` | jig-public | feature | visibility-surface, visibility-wire | 120 | 2a |
+| `public-index` | jig-public | feature | public-limits, public-vocabulary, visibility-core | 150 | 2b |
+| `public-reads-core` | jig-public | feature | public-index | 150 | 2b |
+| `public-component` | jig-public | feature | public-limits, public-vocabulary, public-wire, visibility-wire | 150 | 2b |
 | `public-http` | jig-public | feature | public-component | 120 | 2 |
 | `public-story` | jig-public | feature | public-reads-core, public-http | 120 | 2 |
 | `public-fuzzy-jig` | public-checks | feature | public-http, public-wire | 60 | 2 |
-| `forge-public` | temper-public | feature | forge-public-wire, public-reads-core, public-component | 150 | 3 |
-| `public-ctl` | temper-public | feature | visibility-wire | 90 | 3 |
-| `public-web` | temper-public | feature | forge-public-wire, public-wire, public-http | 180 | 3 |
+| `forge-public` | temper-public | feature | forge-public-wire, public-reads-core, public-component | 150 | 2b |
+| `public-ctl` | temper-public | feature | visibility-wire | 90 | 2a |
+| `public-web` | temper-public | feature | forge-public-wire, public-wire, public-http, fetch-headers | 180 | 3 |
 | `public-walk` | temper-public | feature | forge-public, public-web, public-ctl, visibility-core | 120 | 3 |
 | `public-fuzzy-temper` | public-checks | feature | forge-public-wire, public-web | 60 | 3 |
 | `public-negative` | public-checks | feature | forge-public, public-http, public-ctl | 150 | 3 |
@@ -92,9 +106,9 @@ public reading holds no public row and reads every project private.
 
 ## Critical path
 
-`visibility-surface` (150) -> `visibility-wire` (100) -> `visibility-core` (120) ->
+`visibility-surface` (150) -> `visibility-wire` (130) -> `visibility-core` (120) ->
 `public-index` (150) -> `public-reads-core` (150) -> `forge-public` (150) ->
-`public-negative` (150) -> `public-status` (30): about 1000 implementer-minutes. Beside it,
+`public-negative` (150) -> `public-status` (30): about 1030 implementer-minutes. Beside it,
 `public-wire`/`public-vocabulary`/`public-limits` -> `public-component` -> `public-http` ->
 `public-web` -> `public-walk`. Five tasks start at once.
 

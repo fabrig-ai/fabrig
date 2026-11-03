@@ -130,7 +130,10 @@ Numbers here are internal (project `u32`, task `u64`); times are whole seconds. 
 vocabulary gains:
 
 - `Event::PublicRead { reply: ReplyTo, read: PublicRead }`, from the clients' component
-  through the root, with no sign-in and no party;
+  through the root, with no sign-in and no party. The component's `owner` is 0 for jig or a
+  family's number plus one; the root maps a family to the connector that serves it, as it
+  maps an application read's, so the `owner` the core sees is 0 or that connector's number
+  plus one;
 - `Ask::Public { reply: ReplyTo, kind: u16, version: u16, project: u32, task: Option<u64>,
   public: Box<[u64]> }`, the core's ask of the connector that declared the kind, `public` the
   project's public tasks, ascending;
@@ -173,3 +176,20 @@ address bound; a commit is as the panels carry one. Kind numbers: *change* 1, *l
 *landing* 3; owner: one more than `number(Owner::Forge)`.
 `temper_client_protocol_wire::public_bounds(&Bounds) -> [u32; 3]` gives each kind's largest
 answer, which `temper-service` declares to jig's component.
+
+## 6. An exchange's cache and an answer's headers (`fetch-headers`)
+
+From `skein/docs/design/ui-web.md`, section 10:
+
+- `skein_ui_web::fetch::Exchange` gains `pub cache: Cache` and
+  `pub keep: &'static [&'static str]`, with `pub enum Cache { Browser, NoStore }`
+  (`NoStore` is fetch's `RequestCache::NoStore` on wasm32); `fetch::Report::Answered` gains
+  `headers: Vec<(String, String)>`, only the kept names, lower case, each value within the
+  exchange's `bound`, in the order `keep` names them. The bridge's and the session log's
+  encodings carry both.
+- `jig_client_shell_web::adapter::Asked::Exchange` gains `cache: fetch::Cache` and
+  `keep: &'static [&'static str]`; `Heard::Answered` gains `headers: Vec<(String, String)>`.
+  Every existing exchange passes `Cache::Browser` and `&[]`.
+- jig's public reads name the headers they keep in
+  `jig_client_protocol_http::PUBLIC_KEEP: &[&str] = &["cache-control", "age", "retry-after"]`
+  (`public-http`), and send with `Cache::NoStore` (`public-web`).
