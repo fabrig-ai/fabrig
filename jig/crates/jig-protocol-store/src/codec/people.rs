@@ -160,6 +160,9 @@ pub fn encode(
     names: &[core::settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
+        domain::Stored::Public { project } => {
+            wire::Value::Public(wire::StoredPublic::new(limits, wire::StoredPublicParts { project: *project })?)
+        }
         domain::Stored::Deletion { project, step, grace } => wire::Value::Deletion(wire::StoredDeletion::new(
             limits,
             wire::StoredDeletionParts {
@@ -238,6 +241,7 @@ pub fn decode(
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let row = match value {
+        wire::Value::Public(value) => domain::Stored::Public { project: value.project() },
         wire::Value::Deletion(value) => {
             let wire::StoredDeletionParts { project, step, grace } = value.into_parts();
             domain::Stored::Deletion { project, step: decode_deletion_step(step), grace: compound::decode_grace(grace) }

@@ -120,6 +120,7 @@ pub fn remap_models(ask: &mut Ask, moved: &[u64; 64]) {
             | PolicyChange::Templates { .. } => {}
         },
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -207,6 +208,7 @@ pub fn valid_model_context(ask: &Ask, names: &[Box<[u8]>]) -> bool {
             | PolicyChange::Templates { .. } => 0,
         },
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -278,6 +280,7 @@ pub(crate) fn has_model_selector(ask: &Ask) -> bool {
             | PolicyChange::Templates { .. } => false,
         },
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }

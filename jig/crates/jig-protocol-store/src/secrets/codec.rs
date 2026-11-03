@@ -14,7 +14,7 @@ pub(super) fn accepts(owner: SecretOwner, number: u64, value: &SecretValue) -> b
         SecretValue::Digest { expiry, .. } => match owner {
             SecretOwner::SignIn => true,
             SecretOwner::Service => *expiry == u64::MAX,
-            SecretOwner::Source | SecretOwner::Application => false,
+            SecretOwner::Source | SecretOwner::Application | SecretOwner::PublicNames => false,
         },
         SecretValue::Record(_) | SecretValue::Key(_) => owner == SecretOwner::Source,
         SecretValue::Application(_) => owner == SecretOwner::Application && number < CARRIED,
@@ -44,6 +44,7 @@ pub(super) fn digest(value: &SecretValue) -> [u8; 32] {
 /// kind, bound and malformed prefix by this module's tests.
 pub(super) fn durable_digest(owner: SecretOwner, number: u64, bytes: &[u8]) -> Option<[u8; 32]> {
     match owner {
+        SecretOwner::PublicNames => None,
         SecretOwner::SignIn | SecretOwner::Service => {
             let w::DigestParts { expiry, digest: hash } =
                 w::Digest::decode(&w::CEILINGS, &mut Reader::new(bytes)).ok()?.into_parts();
@@ -136,6 +137,7 @@ pub(super) fn decode(owner: SecretOwner, number: u64, bytes: Box<[u8]>) -> Optio
     let limits = &w::CEILINGS;
     let mut reader = Reader::new(&bytes);
     match owner {
+        SecretOwner::PublicNames => None,
         SecretOwner::SignIn | SecretOwner::Service => {
             let w::DigestParts { expiry, digest } = w::Digest::decode(limits, &mut reader).ok()?.into_parts();
             let value = SecretValue::Digest { expiry, digest };

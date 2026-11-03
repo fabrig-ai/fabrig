@@ -70,6 +70,7 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         | Ask::MoveToNewest { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. } => CapacityAction::Policy,
         Ask::SetPool { person, .. } => CapacityAction::Pool { person: *person },
@@ -107,6 +108,7 @@ pub(crate) fn project(ask: &Ask) -> Option<u32> {
         | Ask::Adopt { project, .. }
         | Ask::SetRoles { project, .. }
         | Ask::RemoveProject { project, .. }
+        | Ask::SetVisibility { project, .. }
         | Ask::Rename { project, .. }
         | Ask::ChangePolicy { project, .. }
         | Ask::SetPool { project, .. }

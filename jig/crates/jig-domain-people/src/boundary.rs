@@ -317,6 +317,8 @@ pub enum Ask {
     AccountSignOut { holder: AccountHolder, source: u32 },
     /// Change this holder's LLM accounts; carried keys and moved records retain only their digest.
     AccountChange { holder: AccountHolder, change: AccountChange },
+    /// Set an owned project's visibility (jig/docs/design/domain/people.md, 13.2).
+    SetVisibility { project: u32, public: bool },
 }
 
 /// A person's answer to a report, choice or failure contract; root translates it for tasks.
@@ -730,6 +732,8 @@ pub enum Key {
     Acted(ActKey),
     /// Live deletion, resumed at start (jig/docs/design/domain/people.md, 5.2).
     Deletion(u32),
+    /// Present while the project is public (jig/docs/design/domain/people.md, 13.2).
+    Public(u32),
 }
 
 impl Key {
@@ -746,7 +750,8 @@ impl Key {
             | Self::Policy(_)
             | Self::Answer(_)
             | Self::Acted(_)
-            | Self::Deletion(_) => true,
+            | Self::Deletion(_)
+            | Self::Public(_) => true,
         }
     }
 }
@@ -804,6 +809,8 @@ pub enum Stored {
         /** Wall time the answer was made; completed keys are retained for `Limits::request_retention`. */
         at: Wall,
     },
+    /// Present while the project is public (jig/docs/design/domain/people.md, 13.2).
+    Public { project: u32 },
 }
 
 impl Stored {
@@ -813,6 +820,7 @@ impl Stored {
     pub const fn key(&self) -> Key {
         match self {
             Stored::Deletion { project, .. } => Key::Deletion(*project),
+            Stored::Public { project } => Key::Public(*project),
             Stored::Person { number, .. } => Key::Person(*number),
             Stored::ReadResults { party, .. } => Key::ReadResults { party: *party },
             Stored::ReadConversation { party, task, .. } => Key::ReadConversation { party: *party, task: *task },

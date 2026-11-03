@@ -175,6 +175,7 @@ pub(crate) fn tag_people_part(
                     | people::Key::SignIn(_)
                     | people::Key::Roles(_)
                     | people::Key::Deletion(_)
+                    | people::Key::Public(_)
                     | people::Key::Policy(_) => {}
                 }
                 Request::Write(Write::Erase(Key::People(key)))
@@ -272,6 +273,12 @@ pub(crate) fn tag_people_part(
                 }
                 let party = super::dispatch::Party { request, person, project, role };
                 match *ask {
+                    people::Ask::SetVisibility { .. } => {
+                        routed.work.push(Work::Event(Event::People(people::Event::Decided {
+                            request,
+                            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
+                        })));
+                    }
                     people::Ask::RemoveProject { project, grace } => {
                         let result = if !core.open_project(project) {
                             Err(people::Refusal::Unknown)

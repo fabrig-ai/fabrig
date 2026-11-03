@@ -192,7 +192,8 @@ enum AccountChange { add_key: AccountChangeAddKey, replace_key: AccountChangeRep
 record AskAccountChange { holder: AccountHolder change: AccountChange }
 record AskMoveToNewest { revision: u32 }
 record AskRemoveProject { project: u32 grace: option u64 }
-enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift, remove_project: AskRemoveProject }
+record AskSetVisibility { project: u32 public: bool }
+enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift, remove_project: AskRemoveProject, set_visibility: AskSetVisibility }
 record StoredPerson { number: u64 identity: Identity }
 record StoredReadResults { party: u64 through: u64 }
 record StoredReadConversation { party: u64 task: u64 through: u64 }
@@ -321,5 +322,6 @@ record StoredActed { key: ActKey act: Act outcome: Outcome at: u64 }
 record StoredAnswer { key: RequestKey ask: Ask models: list 64 ModelName outcome: Outcome at: u64 }
 enum DeletionStep { tasks, rows, release }
 record StoredDeletion { project: u32 step: DeletionStep grace: option u64 }
-enum Value { person: StoredPerson, read_results: StoredReadResults, read_conversation: StoredReadConversation, sign_in: StoredSignIn, roles: StoredRoles, policy: StoredPolicy, answer: StoredAnswer, ended_read: EndedRead, acted: StoredActed, deletion: StoredDeletion }
+record StoredPublic { project: u32 }
+enum Value { person: StoredPerson, read_results: StoredReadResults, read_conversation: StoredReadConversation, sign_in: StoredSignIn, roles: StoredRoles, policy: StoredPolicy, answer: StoredAnswer, ended_read: EndedRead, acted: StoredActed, deletion: StoredDeletion, public: StoredPublic }
 versioned record Row { value: Value }

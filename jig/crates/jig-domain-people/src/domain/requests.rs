@@ -154,6 +154,9 @@ pub(super) fn admit_ask(
     models: Box<[Box<[u8]>]>,
     out: &mut Queue<Request>,
 ) {
+    if let Ask::SetVisibility { .. } = &ask {
+        return refused(to, Refusal::NotOffered, out);
+    }
     if !domain.ready() {
         return again(to, Again::NotReady, out);
     }
@@ -377,6 +380,7 @@ pub(super) fn reserves_answer(ask: &Ask) -> bool {
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
