@@ -428,6 +428,33 @@ follow from the limits that bound each kind (5.4).
   So a family's limits, made from the domain's (5.4), are never past
   its ceilings for a count the domain does not have, and a record's
   worst case is the sum, not a count times its largest item.
+- **The tasks family's pieces,** each bounded by the domain's sum and
+  its items' framing at the domain's count of them: an authority's
+  grants, and its note resources, by the authority's bytes
+  (`tasks.authority_bytes`, every grant's and scope's segments
+  together); a resource's name (a holding's, a writer's, a pool's, a
+  hold's source) and an approval's part, their path by the name's bytes
+  (`tasks.hold_bytes`); a saved resource's path by the authority's
+  bytes; a spec's parameters by the spec's bytes (`tasks.spec_bytes`,
+  its words and byte parameters together); a verdict's field rules, and
+  a verdict result's and a verdict message's fields, by the result's
+  bytes (`tasks.result_bytes`), framed for at most `VERDICT_FIELDS`
+  items (`../domain/tasks.md`, section 11), never for as many items as
+  the result has bytes; and a batch's creations, a proposal's and a
+  verdict's follow-ups, and a recurring template's tasks, by the batch's
+  bytes (`tasks.batch_bytes`; `../domain/tasks.md`, 4 and 11), framed
+  for as many tasks as those bytes hold. What the domain counts stays a
+  counted list at its count: a task's delegates, dependencies and
+  holdings, its inbox's items and its questions' lines, a contract's
+  choices.
+- **No batch inside a batch.** A proposed creation carries its recurring
+  template, if it has one, and that template's tasks count in the
+  batch's bytes, so the template is within its creation's piece, never
+  a batch of its own for each creation; a template's tasks cannot recur.
+  So the largest tasks row holds two batches at most, a recurring task's
+  template and its pending proposal's, each one piece by the batch's
+  bytes, and grows with those bytes, not with the square of the batch's
+  count.
 - **Account preferences are separate from claims.** People's retained asks
   keep a choice's optional account number, including through amendments and
   proposed batches. Tasks keep that preference and their last claimed account
@@ -679,6 +706,18 @@ admitted within that edge is never refused as too large.
   framing.
   A deployment's commit then fits skein-kv's `u32` whenever its map's
   budget does.
+- **The largest value is the largest tasks row,** for any limits that
+  make no larger settings revision or application value: a task's
+  definition, with its recurring template, its pending proposal, each a
+  batch by the batch's bytes (5.1), its inbox of the inbox's messages
+  and two, each item at the larger of a message's and a result's bytes
+  with a verdict message's fields, its questions' lines and replies, and
+  its ending's result and reason. Its bound is the sum of its fields'
+  bounds, so it grows with each limit, never with a product of two. A
+  profile's value is that bound, its page and chunk that value and the
+  largest key, and its page holds besides the largest TurnRecord frame
+  its transcript bound admits (8.1); `check_commits` names what the
+  value needs when a profile's is short.
 
 ## 6. Commits
 

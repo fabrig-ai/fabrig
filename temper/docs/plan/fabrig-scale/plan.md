@@ -47,8 +47,13 @@ The standing rules are `notes/common.md`; the names and figures that cross tasks
 - `temper/docs/design/domain/forge.md`: the resource capacity and 8.11's bound in `standard`.
   Status: **Not yet** 8.11.
 - jig's `protocol/configuration.md`, 6 (the relations); `protocol/store.md`, 8.1 and smith's
-  `protocol/transcript.md`, 12 (the frame's ceiling). jig's further sections are the jig
-  family's (a designer, in flight).
+  `protocol/transcript.md`, 12 (the frame's ceiling); `client/domain/objects.md`, 11 and
+  `pages.md`, 3 (what a client receives).
+- The jig family (a designer): `protocol/store.md`, 5.1 ("The tasks family's pieces", "No batch
+  inside a batch") and 5.4 ("The largest value is the largest tasks row"); `domain/tasks.md`, 4
+  and 11 (`tasks.batch_bytes` and its refusal); `protocol/configuration.md`, 6 ("Standard holds
+  fabrig's own development") and 9. Status: `store.status.md`, `tasks.status.md`,
+  `configuration.status.md`.
 
 ## Decisions
 
@@ -101,8 +106,11 @@ The standing rules are `notes/common.md`; the names and figures that cross tasks
 | clients | `client-capacities` (temper): the shells and the settings form receive 16 grants, kinds and entries, 80 delegates | | released |
 | clients | `delegates-document` (jig): a chat's document lists its live delegates up to `tasks.delegates` | | released |
 | clients | `inbox-depth` (jig): the wire's inbox selection holds 64 goals, every client receives them | | released |
+| jig-rows | `batch-bytes` (jig): `tasks.batch_bytes`, a batch's bytes, admitted and refused | override-relations, transcript-ceilings | released |
+| jig-rows | `tasks-pieces` (jig): tasks-v9 priced by pieces, no batch inside a batch | batch-bytes, forge-profile | released |
+| jig-rows | `store-ceilings` (jig): tasks-v9's and core-v6's ceilings for the draft's figures | tasks-pieces | released |
 
-Slices: 1 (refusal, ceilings), 2 (forge-scale), 3 (clients).
+Slices: 1 (refusal, ceilings), 2 (forge-scale), 3 (clients), 4 (jig-rows).
 
 ## Critical path, as it stands
 

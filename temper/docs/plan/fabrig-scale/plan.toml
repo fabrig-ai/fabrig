@@ -71,3 +71,16 @@ id = 3
 story = "temper ctl, the terminal and the configuring agent's settings form decode the stock's policy with sixteen grants and kinds; a chat with more live delegates than its document's lines is served and closed; an inbox entry 33 goals deep reaches every client"
 parts = ["clients"]
 walk = false
+
+[[part]]
+id = "jig-rows"
+title = "jig: tasks-v9 priced as store.md 5.1 says (pieces by the domain's byte limits, a batch's bytes, no batch inside a batch), its ceilings and core-v6's raised for the draft's figures"
+mode = "direct"
+needs = ["refusal", "ceilings"]
+design = "jig/docs/design/protocol/store.md, 5.1"
+
+[[slice]]
+id = 4
+story = "a batch past its bytes is refused naming them; the largest task row is a sum of byte bounds, linear in every limit; the store's ceilings take 80 delegates, 82 messages, a 128 KiB spec and a 256 KiB result"
+parts = ["jig-rows"]
+walk = false
