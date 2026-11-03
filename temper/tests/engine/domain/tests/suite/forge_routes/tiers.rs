@@ -733,3 +733,18 @@ fn a_many_verdict_keeps_its_explicit_word_and_blamed_commit() {
     );
     tier_done(&world, 2, &expected);
 }
+
+#[test]
+fn task_show_keeps_the_clearing_run() {
+    let (mut world, chat) = start_chat(task_show::world());
+    baseline(&mut world);
+    let number = produce(&mut world, &chat, 93, b"file", b"small fix");
+    cleared(&mut world, number);
+    assert_eq!(number, 3);
+    let kept = result(&world, number).to_owned();
+    assert!(kept.contains("Cleared by slow run 2."), "{kept}");
+    let printed = task_show::show(&mut world, number);
+    assert_eq!(printed.status, 0, "{printed:?}");
+    let text = std::str::from_utf8(&printed.stdout).expect("ctl UTF-8");
+    assert!(text.contains("Cleared by slow run 2."), "stored: {kept}\nstdout: {text}");
+}

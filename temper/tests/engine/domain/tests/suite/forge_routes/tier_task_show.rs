@@ -23,13 +23,23 @@ pub(super) fn world() -> World {
 pub(super) fn assert_words(world: &mut World, task: u64, expected: &str) {
     world.signed_in = None;
     world.sign_in();
-    let printed = show(world, task, false, false);
+    let printed = show(world, task);
     assert_eq!(printed.status, 0);
     let text = std::str::from_utf8(&printed.stdout).expect("ctl text");
     assert!(text.contains(&format!("asked: {expected}")), "missing full execution identity: {text}");
 }
 
-fn show(world: &mut World, task: u64, json_output: bool, change: bool) -> temper_client_tools::jig::Printed {
+/// Submit ordinary task show through the tools root and real task document read.
+pub(super) fn show(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
+    show_format(world, task, false, false)
+}
+
+/// Read the same bounded task document as JSON through the tools root.
+pub(super) fn show_json(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
+    show_format(world, task, true, false)
+}
+
+fn show_format(world: &mut World, task: u64, json_output: bool, change: bool) -> temper_client_tools::jig::Printed {
     let env = Env {
         limits: root::Limits::new(temper_client_tools::limits::client(), temper_client_tools::limits::tools()),
         now: world.env.now,
@@ -133,7 +143,7 @@ fn response(world: &mut World, request: root::Request) -> Option<client::Event> 
 /// Exercise ctl's wire decoding and both renderers with the retained hold account.
 pub(in super::super) fn assert_hold_words(world: &mut World, task: u64, expected: &str) {
     for (json, change) in [(false, false), (true, false), (false, true), (true, true)] {
-        let printed = show(world, task, json, change);
+        let printed = show_format(world, task, json, change);
         let registered = world
             .store
             .rows
