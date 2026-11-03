@@ -1508,7 +1508,8 @@ for its kind, its user's login and its installations. Its nodes:
   `connected`, a `Connect` on a forge connected or connecting already,
   whose key or tokens `Replace` replaces; `not connected`, an `Install`
   or an `Accept` on a forge with no App, or a `Replace` on a forge
-  neither connected nor stopped; `busy`, a run holding the forge, or
+  neither connected nor stopped, nor connecting; `busy`, a run holding
+  the forge (a `Replace` on a connecting forge among them), or
   `setup.runs` full; `no key`, a `Connect` or a `Replace` that takes a
   carried value and has none; `first is bot`, a `ForgejoAdmin` `Connect`
   whose `first` organization is the bot's login, case-folded
