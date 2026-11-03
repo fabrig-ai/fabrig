@@ -1,10 +1,10 @@
-//! The fake git program hosted by skein's world, with shared scenarios.
+//! The fake git program hosted by skein's simulated world (temper/docs/design/domain/testing.md, 4.3).
 #![forbid(unsafe_code)]
+pub use skein_fake_checkout::git::Remote;
 use skein_io::kernel::Spawn;
-use skein_world::Inherited;
+use skein_sim_world::Inherited;
 use std::collections::BTreeSet;
 pub use temper_fake_git::{Answer, Checked, Git, Refusal, Start, Typed, answer, check, id};
-pub mod fixtures;
 
 /// Take the worker root and every descriptor inherited by this program.
 #[must_use]

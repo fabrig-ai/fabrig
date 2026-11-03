@@ -6,7 +6,7 @@ use skein_lib::Duration;
 use skein_ui::Role;
 use std::collections::BTreeMap;
 use temper_engine_domain as root;
-use temper_fake_checkout::git::Remote;
+use temper_fake_git_hosted::Remote;
 
 // One hook per push: the setup's topic push and the agent's change.
 pub(crate) const ADOPT_HOOKS: usize = 2;
@@ -136,9 +136,9 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     let config = skein_fake_forge_domain::Config {
         limits: skein_fake_forge_domain::Limits {
             statuses: fixtures::FORGE_STATUSES,
-            ..temper_fake_git_hosted::fixtures::CONFIG.limits
+            ..temper_worker_checkout_world::hosted::CONFIG.limits
         },
-        ..temper_fake_git_hosted::fixtures::CONFIG
+        ..temper_worker_checkout_world::hosted::CONFIG
     };
     let mut domain = skein_fake_forge_domain::Domain::new(&config, fixtures::SEED);
     let base = skein_fake_forge_domain::repository(
@@ -176,7 +176,7 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     );
     let forge = std::rc::Rc::new(std::cell::RefCell::new(skein_fake_peers::forge::Forge::new(domain, config)));
     let mut transport = temper_fake_git_hosted::Typed::new(forge, &forge_table());
-    let mut identity = temper_fake_git_hosted::fixtures::identity();
+    let mut identity = temper_worker_checkout_world::hosted::identity();
     identity.login = b"temper".as_slice().into();
     transport.authenticate(Some(&(identity.login, identity.token)));
     assert_eq!(

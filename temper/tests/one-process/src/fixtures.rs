@@ -196,7 +196,9 @@ pub(crate) fn files() -> temper_service::settings::Files {
         }
     }
     for name in [b"secrets/forge.api-token".as_slice(), b"secrets/forge.git-token"] {
-        entries.push((name.into(), Secret::new(temper_fake_git_hosted::fixtures::TOKEN.into()))).expect("forge files");
+        entries
+            .push((name.into(), Secret::new(temper_worker_checkout_world::hosted::TOKEN.into())))
+            .expect("forge files");
     }
     entries
         .push((b"secrets/forge-1.user".as_slice().into(), Secret::new(b"1\n".as_slice().into())))

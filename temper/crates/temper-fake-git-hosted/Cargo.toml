@@ -13,21 +13,20 @@ doctest = false
 
 [dependencies]
 temper-fake-git.workspace = true
-skein-lib.workspace = true
 skein-io.workspace = true
-skein-shell.workspace = true
-skein-world.workspace = true
-temper-fake-checkout.workspace = true
-skein-fake-forge-domain.workspace = true
-skein-fake-forge-protocol.workspace = true
-skein-fake-peers.workspace = true
-temper-worker-protocol-git.workspace = true
-temper-worker-domain-checkout.workspace = true
-temper-worker-checkout-world.workspace = true
-temper-worker-protocol-git-world.workspace = true
+skein-sim-world.workspace = true
+skein-fake-checkout.workspace = true
 
 [dev-dependencies]
 skein-fake-machine = { path = "../../../skein/crates/skein-fake-machine" }
+skein-fake-forge-domain.workspace = true
+skein-fake-peers.workspace = true
+skein-lib.workspace = true
+skein-shell.workspace = true
+temper-worker-checkout-world.workspace = true
+temper-worker-domain-checkout.workspace = true
+temper-worker-protocol-git.workspace = true
+temper-worker-protocol-git-world.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"
