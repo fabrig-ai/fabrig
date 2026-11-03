@@ -175,19 +175,23 @@ pub(crate) fn items(document: &Document, at: u32, max: u32, path: &Path, problem
         }
     }
 }
-fn operations(limits: &jig_domain_core::Limits, problems: &mut Problems) {
-    if u64::from(limits.people.operations)
-        < (u64::from(limits.tasks.delegates) + 1).max(u64::from(limits.tasks.project_goals))
-    {
-        problems.push(
-            Path::root().member(b"limits"),
-            What::Operations {
-                operations: limits.people.operations,
-                delegates: limits.tasks.delegates,
-                goals: limits.tasks.project_goals,
-            },
-        );
-    }
+/// The first failed task capacity dependency, after all scalar overrides.
+pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<(&'static [u8], What)> {
+    let tasks = &limits.tasks;
+    let people = &limits.people;
+    let inbox = u64::from(tasks.tasks).checked_mul(2).expect("two u32 counts fit u64");
+    let operations = u64::from(tasks.delegates).checked_add(1).expect("u32 count plus one fits u64");
+    let (member, configured, dependency, minimum): (&'static [u8], u32, &'static [u8], u64) =
+        if u64::from(people.inbox_tasks) < inbox {
+            (b"tasks.tasks", tasks.tasks, b"people.inbox_tasks", inbox)
+        } else if u64::from(people.operations) < operations {
+            (b"tasks.delegates", tasks.delegates, b"people.operations", operations)
+        } else if people.operations < tasks.project_goals {
+            (b"tasks.project_goals", tasks.project_goals, b"people.operations", u64::from(tasks.project_goals))
+        } else {
+            return None;
+        };
+    Some((member, What::Capacity { member, configured, requires: dependency, required: minimum }))
 }
 pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     crate::clients::check_public(&engine.limits, problems);
@@ -222,7 +226,9 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if engine.projects.len() >= skein_lib::length::usize_of(limits.people.projects) {
         problems.push(Path::root().member(b"projects"), What::Bound);
     }
-    operations(limits, problems);
+    if let Some((member, what)) = capacity(limits) {
+        problems.push(codec_path(member), what);
+    }
     if let Err(what) = check_message(limits) {
         problems.push(Path::root().member(b"limits"), what);
     }
@@ -416,6 +422,9 @@ pub fn check_effective_limits(limits: &jig_domain_core::Limits) -> Result<(), Pr
     if codec_admits(limits) {
         return Ok(());
     }
+    if let Some(problem) = batch_ceiling(limits) {
+        return Err(problem);
+    }
     // Isolate independent ceilings before diagnosing either byte budget. These
     // are probe inputs only; the caller's effective limits are never changed.
     let mut baseline = *limits;
@@ -455,6 +464,22 @@ pub fn check_effective_limits(limits: &jig_domain_core::Limits) -> Result<(), Pr
         return Err(policy_envelope(&baseline, maximum));
     }
     Err(Problem { path: Path::root().member(b"limits"), what: What::StoreCodec })
+}
+
+fn batch_ceiling(limits: &jig_domain_core::Limits) -> Option<Problem> {
+    if limits.tasks.batch > jig_protocol_store::tasks_v9::CEILINGS.result_followups_delegates_value {
+        return Some(Problem {
+            path: codec_path(b"tasks.batch"),
+            what: What::CodecCeiling {
+                bound: CodecBound {
+                    field: b"tasks-v9.ResultFollowupsDelegates.value",
+                    needed: limits.tasks.batch,
+                    ceiling: jig_protocol_store::tasks_v9::CEILINGS.result_followups_delegates_value,
+                },
+            },
+        });
+    }
+    None
 }
 
 fn policy_envelope(limits: &jig_domain_core::Limits, maximum: u64) -> Problem {
@@ -637,6 +662,8 @@ fn people_bound(
         P::AskCreateBatch => b!(b"people.batch", b"AskCreate.batch", ask_create_batch),
         P::AskMakeServiceName => b!(b"people.words", b"AskMakeService.name", ask_make_service_name),
         P::ActionBatchMembers => b!(b"people.batch", b"ActionBatch.members", action_batch_members),
+        P::AskRestoreReason => b!(b"people.words", b"AskRestore.reason", ask_restore_reason),
+        P::OutcomeRestoredLeftOut => b!(b"tasks.SETTINGS_ITEMS + 1", b"OutcomeRestored.left_out", outcome_restored_left_out),
         P::AskProposeReason => b!(b"people.words", b"AskPropose.reason", ask_propose_reason),
         P::AskCancelReason => b!(b"people.words", b"AskCancel.reason", ask_cancel_reason),
         P::AskMoveReason => b!(b"people.words", b"AskMove.reason", ask_move_reason),

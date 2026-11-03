@@ -179,6 +179,7 @@ impl Component {
                     | w::Ask::Message(_)
                     | w::Ask::MoveTask(_)
                     | w::Ask::MoveToNewest(_)
+                    | w::Ask::Restore(_)
                     | w::Ask::Propose(_)
                     | w::Ask::Release(_)
                     | w::Ask::RemoveProject(_)
@@ -305,6 +306,7 @@ fn account_key_digest(ask: &w::Ask) -> Option<[u8; 32]> {
         w::Ask::AccountChange(row) => row.change(),
         w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
+        | w::Ask::Restore(_)
         | w::Ask::Message(_)
         | w::Ask::Answer(_)
         | w::Ask::Take(_)
@@ -358,6 +360,7 @@ fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes:
         w::Ask::AccountChange(row) => row.change(),
         w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
+        | w::Ask::Restore(_)
         | w::Ask::Message(_)
         | w::Ask::Answer(_)
         | w::Ask::Take(_)
@@ -427,6 +430,7 @@ fn carried_kind(ask: &people::Ask) -> Option<crate::CarriedKind> {
         },
         people::Ask::ChangeSettings { .. }
         | people::Ask::MoveToNewest { .. }
+        | people::Ask::Restore { .. }
         | people::Ask::Compound { .. }
         | people::Ask::Create { .. }
         | people::Ask::MarkSeen { .. }

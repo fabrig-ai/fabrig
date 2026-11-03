@@ -80,7 +80,8 @@ impl Domain {
                     // Only successful roster asks retain their members as required references.
                     link_roster(self, source, &answer.ask);
                 }
-                Outcome::Again(_)
+                Outcome::Restored { .. }
+                | Outcome::Again(_)
                 | Outcome::SignedOut
                 | Outcome::Compound { .. }
                 | Outcome::CompoundRefused { .. }
@@ -269,7 +270,8 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
                 link(domain, source, holding.person);
             }
         }
-        crate::Ask::Compound { .. }
+        crate::Ask::Restore { .. }
+        | crate::Ask::Compound { .. }
         | crate::Ask::MarkSeen { .. }
         | crate::Ask::Application { .. }
         | crate::Ask::EditNote { .. }

@@ -17,16 +17,16 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule` or `forge-charter`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter` or `project-policy`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
 
 Which setting: its kind and, but for the rules, its number.
 
-- `kind`: `"charter"`, `"template"`, `"policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind.
+- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind. `"project-policy"`: A project's own policy, set alone and at most once; its value is a policy.
 - `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for the rules.
-- `project`: integer, 0 to 4,294,967,295. For a landing rule alone, a project's number, from 1. Left out, the rule is the deployment's.
+- `project`: integer, 0 to 4,294,967,295. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
 ## charter
 
@@ -112,7 +112,7 @@ A batch of messages that wakes a task once.
 
 How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it.
 
-- `resources`: list of at most 32, each `symbol`. Optional; absent means an empty list. Resource symbols resolved for the new task; forge connector 0, symbol 1 is its own goal branch.
+- `resources`: list of at most 32, each `symbol`. Optional; absent means an empty list. No pair twice. Resource symbols resolved for the new task; forge connector 1, symbol 1 is its own goal branch.
 - `number`: integer, 0 to 4,294,967,295. The template's number, the same as `setting.number`; a chat is filled from template 1 and a goal from template 2.
 - `name`: `text`. Its name, as clients show it.
 - `executor`: `executor`. Who runs the task.
@@ -130,7 +130,7 @@ How a new task of one shape is filled: its executor, result, budget, deadline an
 
 A connector resource resolved when the task is created.
 
-- `connector`: integer, 0 to 65,535. The connector that resolves the symbol; 0 is the forge.
+- `connector`: integer, 0 to 65,535. The connector that resolves the symbol; 1 is the forge.
 - `symbol`: integer, 0 to 65,535. The connector's resource symbol; the forge's 1 is its own goal branch.
 
 ## text

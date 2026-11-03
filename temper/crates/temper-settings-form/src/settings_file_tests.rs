@@ -275,3 +275,180 @@ fn landing_rule_members_past_the_given_limits_name_their_paths() {
         );
     }
 }
+
+const PROJECT_POLICY: &[u8] = br#"{"kind":"project-policy","project":7}"#;
+const POLICY: &[u8] = br#"{"escalation_role":null,"ceiling":{"models":"all","tools":1,"grants":[],"delegation":{"kinds":[],"tasks":1,"depth":1},"spend":100,"deadline":null,"notes":0,"note_resources":[]},"projections":[],"period_spend":200,"roles":[],"requirements":[],"permissions":[],"templates":[]}"#;
+fn encode_policy_file(setting: c::Setting, value: &c::SettingValue, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"items");
+    out.array_start();
+    out.object_start();
+    out.key(b"setting");
+    crate::render::encode_setting(setting, out);
+    out.key(b"set");
+    crate::render::encode_value(value, out);
+    out.object_end();
+    out.array_end();
+    out.object_end();
+}
+#[test]
+fn a_project_policy_item_decodes_to_its_setting_and_a_policy_value() {
+    let limits = Limits::standard();
+    let items = file::decode(&kind_file(PROJECT_POLICY, POLICY), &limits).expect("project policy");
+    let item = items.get(0).expect("one project policy item");
+    assert_eq!(item.setting, c::Setting::ProjectPolicy { project: 7 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set policy") };
+    let numbered =
+        file::decode(&kind_file(br#"{"kind":"policy","number":1}"#, POLICY), &limits).expect("numbered policy");
+    assert_eq!(item.edit, numbered.get(0).expect("one numbered policy").edit);
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut measure = Encoder::measure(&bounds);
+    encode_policy_file(item.setting, &set.value, &mut measure);
+    let mut out = Encoder::write(measure.measured().expect("policy file fits"), &bounds);
+    encode_policy_file(item.setting, &set.value, &mut out);
+    assert_eq!(file::decode(&out.finish(), &limits).expect("encoded policy file"), items);
+    let wire = crate::wire::settings_wire_setting(item.setting, &limits.settings).expect("wire project policy");
+    assert_eq!(crate::wire::settings_restore_setting(&wire, &limits), item.setting);
+}
+#[test]
+fn a_project_policy_edit_a_second_one_or_a_bad_project_is_refused_naming_the_item() {
+    for (bytes, expected) in [
+        (
+            joined(&[br#"{"items":[{"setting":"#, PROJECT_POLICY, br#", "edit":"removed"}]}"#]),
+            b"settings file item 1: edit: a project's policy is set alone".as_slice(),
+        ),
+        (
+            joined(&[br#"{"items":[{"setting":"#, PROJECT_POLICY, br#", "edit":"reset"}]}"#]),
+            b"settings file item 1: edit: a project's policy is set alone",
+        ),
+        (
+            joined(&[
+                br#"{"items":[{"setting":"#,
+                PROJECT_POLICY,
+                br#", "set":"#,
+                POLICY,
+                br#"},{"setting":{"kind":"project-policy","project":8},"set":"#,
+                POLICY,
+                b"}]}",
+            ]),
+            b"settings file item 2: setting: one project's policy per file",
+        ),
+        (kind_file(br#"{"kind":"project-policy","project":0}"#, POLICY), b"settings file item 1: project: from 1"),
+        (kind_file(br#"{"kind":"project-policy"}"#, POLICY), b"settings file item 1: project: missing member"),
+        (
+            kind_file(br#"{"kind":"project-policy","project":7,"number":1}"#, POLICY),
+            b"settings file item 1: number: project-policy has no number",
+        ),
+    ] {
+        assert_eq!(file::decode(&bytes, &Limits::standard()).expect_err("refused policy item").as_ref(), expected);
+    }
+}
+
+#[test]
+fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
+    use jig_client_protocol_wire as w;
+    let limits = Limits::standard();
+    let set = c::SettingSet { value: c::SettingValue::Charter(Box::new(charter(&charter_file(COORDINATOR)))) };
+    let cases = [
+        (
+            w::RevisionReplaced::Value(crate::wire::settings_wire_setting_set(&set, &limits.settings).unwrap()),
+            c::RevisionReplaced::Value(set),
+        ),
+        (
+            w::RevisionReplaced::TooLarge(w::Size::new(&limits.settings, w::SizeParts { bytes: 1_000_000 }).unwrap()),
+            c::RevisionReplaced::TooLarge(c::Size { bytes: 1_000_000 }),
+        ),
+        (
+            w::RevisionReplaced::Application(
+                w::ApplicationSize::new(&limits.settings, w::ApplicationSizeParts { size: 12 }).unwrap(),
+            ),
+            c::RevisionReplaced::Application { size: 12 },
+        ),
+        (w::RevisionReplaced::Default, c::RevisionReplaced::Default),
+        (w::RevisionReplaced::Removed, c::RevisionReplaced::Removed),
+        (w::RevisionReplaced::NotOffered, c::RevisionReplaced::NotOffered),
+    ];
+    for (replaced, expected) in cases {
+        let item = w::RevisionItem::new(
+            &limits.settings,
+            w::RevisionItemParts { setting: w::Setting::Rules, edit: w::RevisionEdit::Reset, replaced },
+        )
+        .unwrap();
+        let restored = crate::wire::settings_restore_revision_item(&item, &limits).unwrap();
+        assert_eq!(restored.replaced, expected);
+    }
+}
+
+const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null"#;
+fn template_file(resources: &[u8]) -> Box<[u8]> {
+    let length = TEMPLATE_PREFIX
+        .len()
+        .checked_add(resources.len())
+        .expect("fixture resources")
+        .checked_add(SUFFIX.len())
+        .expect("suffix");
+    let mut out = Writer::new(length);
+    out.put(TEMPLATE_PREFIX).unwrap();
+    out.put(resources).unwrap();
+    out.put(SUFFIX).unwrap();
+    out.finish()
+}
+fn template(bytes: &[u8], limits: &Limits) -> c::Template {
+    let items = file::decode(bytes, limits).expect("template file");
+    let c::SettingEdit::Set(set) = &items.get(0).unwrap().edit else { panic!("set") };
+    let c::SettingValue::Template(value) = &set.value else { panic!("template") };
+    *value.clone()
+}
+#[test]
+fn a_settings_file_template_names_its_resources() {
+    let limits = Limits::standard();
+    let value = template(&template_file(br#", "resources":[{"connector":1,"symbol":1}]"#), &limits);
+    assert_eq!(value.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
+    let wire = crate::wire::settings_wire_template(&value, &limits.settings).unwrap();
+    assert_eq!(wire.resources().get(0).unwrap().connector(), 1);
+    assert_eq!(wire.resources().get(0).unwrap().symbol(), 1);
+    assert_eq!(crate::wire::documents_me_template(&wire, &limits).unwrap(), value);
+}
+#[test]
+fn a_settings_file_template_without_resources_names_none() {
+    for resources in [b"".as_slice(), br#", "resources":[]"#] {
+        assert!(template(&template_file(resources), &Limits::standard()).resources.is_empty());
+    }
+}
+#[test]
+fn a_settings_file_template_refuses_a_resource_pair_twice() {
+    let bytes = template_file(br#", "resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":1}]"#);
+    assert_eq!(
+        file::decode(&bytes, &Limits::standard()).unwrap_err().as_ref(),
+        b"settings file item 1: template.resources: duplicate pair"
+    );
+}
+#[test]
+fn a_settings_file_template_bounds_resources_before_decoding_members() {
+    let mut limits = Limits::standard();
+    limits.settings.template_resources = 2;
+    let bytes = template_file(br#", "resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":2}]"#);
+    assert_eq!(template(&bytes, &limits).resources.len(), 2);
+    let bytes = template_file(br#", "resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":2},null]"#);
+    assert_eq!(
+        file::decode(&bytes, &limits).unwrap_err().as_ref(),
+        b"settings file item 1: template.resources: bound 2"
+    );
+}
+#[test]
+fn a_settings_file_template_refuses_malformed_resources_naming_the_path() {
+    for (resources, member) in [
+        (br#", "resources":null"#.as_slice(), b"template.resources".as_slice()),
+        (br#", "resources":{}"#, b"template.resources"),
+        (br#", "resources":[false]"#, b"template.resources"),
+        (br#", "resources":[{"connector":"1","symbol":1}]"#, b"template.resources.connector"),
+        (br#", "resources":[{"connector":1,"symbol":false}]"#, b"template.resources.symbol"),
+        (br#", "resources":[{"connector":65536,"symbol":1}]"#, b"template.resources.connector"),
+        (br#", "resources":[{"connector":1,"symbol":65536}]"#, b"template.resources.symbol"),
+        (br#", "resources":[{"connector":1}]"#, b"template.resources.symbol"),
+        (br#", "resources":[{"connector":1,"symbol":1,"extra":1}]"#, b"template.resources.extra"),
+    ] {
+        let why = file::decode(&template_file(resources), &Limits::standard()).unwrap_err();
+        assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
+    }
+}

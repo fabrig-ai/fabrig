@@ -95,7 +95,8 @@ pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
 pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
     match outcome {
         Outcome::ProjectMade { project } => Some(*project),
-        Outcome::Again(_)
+        Outcome::Restored { .. }
+        | Outcome::Again(_)
         | Outcome::SignedOut
         | Outcome::Compound { .. }
         | Outcome::CompoundRefused { .. }
@@ -154,7 +155,8 @@ pub(super) fn ask_project(ask: &Ask) -> Option<u32> {
             crate::ApplicationScope::Project(project) => Some(*project),
             crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => None,
         },
-        Ask::Lift { .. }
+        Ask::Restore { .. }
+        | Ask::Lift { .. }
         | Ask::MarkSeen { .. }
         | Ask::AccountSignIn { .. }
         | Ask::AccountSignOut { .. }

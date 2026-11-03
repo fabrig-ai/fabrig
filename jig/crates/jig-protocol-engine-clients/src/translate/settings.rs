@@ -38,11 +38,15 @@ pub fn setting(value: &w::Setting) -> s::Setting {
         w::Setting::Template(v) => s::Setting::Template(v.number()),
         w::Setting::Policy(v) => s::Setting::Policy(v.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
 }
 pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
+        jig_domain_people::Setting::ProjectPolicy { project } => {
+            w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
+        }
         s::Setting::Charter(number) => {
             w::Setting::Charter(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
@@ -393,8 +397,14 @@ pub fn revision(
                     s::Edit::Removed => w::RevisionEdit::Removed,
                     s::Edit::Reset => w::RevisionEdit::Reset,
                 };
-                let item =
-                    w::RevisionItem::new(limits, w::RevisionItemParts { setting: name(item.setting, limits)?, edit })?;
+                let item = w::RevisionItem::new(
+                    limits,
+                    w::RevisionItemParts {
+                        setting: name(item.setting, limits)?,
+                        edit,
+                        replaced: replaced(&item.replaced, *value_bytes, models, limits)?,
+                    },
+                )?;
                 let mut out = Writer::new(skein_lib::length::usize_of(item.measure()));
                 item.encode(&mut out).expect("measured item");
                 pieces.push(out.finish()).expect("item count");
@@ -405,7 +415,14 @@ pub fn revision(
                     limits,
                     w::ApplicationEditParts { edit: sized_edit(&item.edit, limits)? },
                 )?);
-                let row = w::RevisionItem::new(limits, w::RevisionItemParts { setting: name(setting, limits)?, edit })?;
+                let row = w::RevisionItem::new(
+                    limits,
+                    w::RevisionItemParts {
+                        setting: name(setting, limits)?,
+                        edit,
+                        replaced: application_replaced(&item.replaced, limits)?,
+                    },
+                )?;
                 let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
                 row.encode(&mut out).expect("measured application item");
                 pieces.push(out.finish()).expect("application item count");
@@ -575,5 +592,37 @@ fn sized_edit(v: &s::application::SizedEdit, limits: &w::Limits) -> Result<w::Si
         }
         s::application::SizedEdit::Remove => w::SizedEdit::Remove,
         s::application::SizedEdit::Reset => w::SizedEdit::Reset,
+    })
+}
+
+fn replaced(
+    v: &s::Replaced,
+    value_bytes: u64,
+    models: &[crate::Model],
+    limits: &w::Limits,
+) -> Result<w::RevisionReplaced, w::Problem> {
+    Ok(match v {
+        s::Replaced::Value(v) => {
+            let value = value(v, models, limits)?;
+            let bytes = u64::from(value.measure());
+            if bytes > value_bytes.min(u64::from(limits.owned_record)) {
+                w::RevisionReplaced::TooLarge(w::Size::new(limits, w::SizeParts { bytes })?)
+            } else {
+                w::RevisionReplaced::Value(w::SettingSet::new(limits, w::SettingSetParts { value })?)
+            }
+        }
+        s::Replaced::Default => w::RevisionReplaced::Default,
+        s::Replaced::Removed => w::RevisionReplaced::Removed,
+        s::Replaced::NotOffered => w::RevisionReplaced::NotOffered,
+    })
+}
+fn application_replaced(v: &s::application::Replaced, limits: &w::Limits) -> Result<w::RevisionReplaced, w::Problem> {
+    Ok(match v {
+        s::application::Replaced::Changed { size } => {
+            w::RevisionReplaced::Application(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+        }
+        s::application::Replaced::Default => w::RevisionReplaced::Default,
+        s::application::Replaced::Removed => w::RevisionReplaced::Removed,
+        s::application::Replaced::NotOffered => w::RevisionReplaced::NotOffered,
     })
 }

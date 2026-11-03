@@ -148,6 +148,10 @@ fn settings_answers_and_each_fault_keep_their_facts() {
             assert_eq!(
                 facts.setting(),
                 &match setting {
+                    jig_domain_people::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(
+                        w::ProjectPolicySetting::new(&limits, w::ProjectPolicySettingParts { project })
+                            .expect("project policy")
+                    ),
                     p::Setting::Charter(number) => w::Setting::Charter(
                         w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
                     ),

@@ -51,7 +51,7 @@ pub(super) fn valid_identity(limits: &Limits, identity: &Identity) -> bool {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "role application checks each request kind exhaustively")]
+#[expect(clippy::too_many_lines, reason = "each request is classified explicitly at its owning entrance")]
 pub(super) fn apply_roles(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -63,6 +63,7 @@ pub(super) fn apply_roles(
     }
     let flight = domain.party_pending(Id::from_token(request)).ok_or(Outcome::Refused(Refusal::Unknown))?;
     let project = match flight.part.as_ref().unwrap_or(&flight.ask) {
+        Ask::Restore { .. } => return Err(Outcome::Refused(Refusal::Unknown)),
         Ask::SetRoles { project, .. } => *project,
         Ask::Compound { .. }
         | Ask::MarkSeen { .. }
@@ -107,6 +108,7 @@ pub(super) fn apply_roles(
         return Err(Outcome::Refused(Refusal::Role { held: role(domain, flight.key.person, project) }));
     }
     let holdings = match flight.part.as_ref().unwrap_or(&flight.ask) {
+        Ask::Restore { .. } => unreachable!("validated roster flight"),
         Ask::SetRoles { holdings, .. } => {
             valid_roles(domain, &env.limits, project, holdings)?;
             for holding in holdings {
@@ -246,7 +248,8 @@ pub(super) fn make_service(
     let flight = domain.party_pending(Id::from_token(request)).expect("service creation names a live keyed flight");
     let (project, name, service_role) = match flight.part.as_ref().unwrap_or(&flight.ask) {
         Ask::MakeService { project, name, role } => (*project, name.clone(), *role),
-        Ask::Compound { .. }
+        Ask::Restore { .. }
+        | Ask::Compound { .. }
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::EditNote { .. }

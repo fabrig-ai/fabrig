@@ -261,7 +261,7 @@ mod identity_tests {
 
     #[test]
     fn draft_identity_matches_the_seeded_repository() {
-        let config = temper_fake_git_hosted::fixtures::CONFIG;
+        let config = temper_worker_checkout_world::hosted::CONFIG;
         let mut domain = domain::Domain::new(&config, fixtures::SEED);
         let first = domain::repository(&mut domain, &config, (fixture().setup)());
         let object = skein_fake_forge_protocol::routes::object(first);
@@ -342,6 +342,8 @@ pub fn fixture_placed() -> forge::Fixture {
             // run keeps its one slot until a message resumes it, so give only
             // the director a charter whose wait exceeds PATIENCE (10 s).
             value["world_settings"]["second_wait_ms"] = 60000.into();
+            // Creating offers the landing charters 1 and 4 plus this director's charter 2.
+            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
             value["engine"]["limits"]["overrides"]["tasks.charters"] = 2.into();
             value["world_settings"]["executor"] = 2.into();
             // The person must also be offered the new executor for that chat.
@@ -522,6 +524,8 @@ pub fn fixture_5_3() -> forge::Fixture {
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
             value["world_settings"]["owner_brief"] = true.into();
+            // Creating offers the landing charters 1 and 4 plus the owner's charter 2.
+            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
             value["engine"]["limits"]["overrides"]["tasks.charters"] = 2.into();
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
             kinds.as_array_mut().expect("executor kinds").push(json!({"kind":"charter","number":2}));
@@ -589,6 +593,8 @@ pub fn fixture_5_2() -> forge::Fixture {
                 value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
             }
             value["world_settings"]["helper"] = true.into();
+            // Creating offers charters 1, 2 and 4 plus the helper's charter 3.
+            value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
             // The four stock charters and the helper need five catalogue slots.
             // The director, chat, helper, reviewer and change procedure need five delegation kinds.
             for (name, size) in [("tasks.charters", 5), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
@@ -644,6 +650,8 @@ pub fn fixture_5_5() -> forge::Fixture {
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
             value["world_settings"]["second_resume"] = false.into();
+            // Creating offers the landing charters 1 and 4 plus the planner's charter 2.
+            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
             value["engine"]["limits"]["overrides"]["tasks.charters"] = 2.into();
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
             kinds.as_array_mut().expect("kinds").push(json!({"kind":"charter","number":2}));
@@ -1108,7 +1116,7 @@ pub fn fixture_6_4() -> forge::Fixture {
             // calls_per_response 1 admits the aggregate turn; hub.run_calls
             // 1 serializes its paired calls. hub.accounts 2 carries LLM/git;
             // fleet.calls 1 services worker requests serially; documents.lines
-            // 1 still carries every field this oracle reads. Live tasks and
+            // 2 carries the complete creating offer for charters 1 and 4. Live tasks and
             // project tasks need 5 and 5; tree tasks 6 retains the root's descendants.
             // a4's allowance 6 funds its coder and two exact-head reviews;
             // A1's 16 adds its ten-unit run reservation, and the director's
@@ -1124,7 +1132,7 @@ pub fn fixture_6_4() -> forge::Fixture {
             value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 1.into();
             value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
             value["engine"]["limits"]["overrides"]["fleet.calls"] = 1.into();
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 1.into();
+            value["engine"]["limits"]["overrides"]["documents.lines"] = 2.into();
             value["world_settings"]["cap"] = 26.into();
             let tools = 0x0187 | 0x0020;
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {

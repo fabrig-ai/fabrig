@@ -76,6 +76,13 @@ pub enum What {
         delegates: u32,
         goals: u32,
     },
+    /// A configured capacity requires a larger dependent capacity (configuration.md, 6).
+    Capacity {
+        member: &'static [u8],
+        configured: u32,
+        requires: &'static [u8],
+        required: u64,
+    },
     Message,
     Silence,
     StopBound,
@@ -92,7 +99,7 @@ pub enum What {
         maximum: u32,
         bound: Option<CodecBound>,
     },
-    /// An independent people-v13 field exceeds its generated ceiling.
+    /// An independent codec field exceeds its generated ceiling.
     CodecCeiling {
         bound: CodecBound,
     },
@@ -128,33 +135,22 @@ impl Problems {
 }
 
 impl Problem {
-    /// Render the codec-envelope diagnostic, including this problem's document path.
+    /// Render capacity and codec-envelope diagnostics with their document path.
     /// Other configuration problems keep their existing structured vocabulary.
     #[must_use]
     pub fn codec_message(&self) -> Option<Box<[u8]>> {
-        let value;
-        let maximum;
-        let bound;
-        let detailed;
         match self.what {
-            What::PolicyEnvelope { value: configured, maximum: admitted, bound: required } => {
-                value = configured;
-                maximum = admitted;
-                bound = required;
-                detailed = true;
+            What::PolicyEnvelope { value, maximum, bound } => envelope_message(&self.path, value, maximum, bound, true),
+            What::AmendmentEnvelope { value, maximum, bound } => {
+                envelope_message(&self.path, u64::from(value), u64::from(maximum), bound, false)
             }
-            What::AmendmentEnvelope { value: configured, maximum: admitted, bound: required } => {
-                value = u64::from(configured);
-                maximum = u64::from(admitted);
-                bound = required;
-                detailed = false;
+            What::Capacity { member, configured, requires: dependency, required: minimum } => {
+                capacity_message(&self.path, member, configured, dependency, minimum)
             }
-            What::CodecCeiling { bound } => return codec_ceiling_message(&self.path, bound),
-            What::CodecArithmetic => {
-                return codec_text_message(&self.path, b"people-v13 codec bound arithmetic overflows.");
-            }
+            What::CodecCeiling { bound } => codec_ceiling_message(&self.path, bound),
+            What::CodecArithmetic => codec_text_message(&self.path, b"people-v13 codec bound arithmetic overflows."),
             What::StoreCodec => {
-                return codec_text_message(&self.path, b"effective limits exceed the combined store codec envelope.");
+                codec_text_message(&self.path, b"effective limits exceed the combined store codec envelope.")
             }
             What::Json
             | What::Unknown
@@ -180,43 +176,90 @@ impl Problem {
             | What::StopBound
             | What::Override
             | What::Unreadable
-            | What::Relative => return None,
+            | What::Relative => None,
         }
-        let value = Decimal::of(value);
-        let maximum = Decimal::of(maximum);
-        let (needed, ceiling) = match bound {
-            Some(bound) => (Decimal::of(u64::from(bound.needed)), Decimal::of(u64::from(bound.ceiling))),
-            None => (Decimal::of(0), Decimal::of(0)),
-        };
-        let mut parts = List::with_capacity(13);
-        parts.push(value.as_bytes()).expect("diagnostic parts");
-        parts.push(b" exceeds the people-v13 codec envelope of ").expect("diagnostic parts");
-        parts.push(maximum.as_bytes()).expect("diagnostic parts");
-        parts.push(b" bytes").expect("diagnostic parts");
-        if detailed {
-            match bound {
-                Some(bound) => {
-                    parts.push(b" (").expect("diagnostic parts");
-                    parts.push(bound.field).expect("diagnostic parts");
-                    parts.push(b" would need ").expect("diagnostic parts");
-                    parts.push(needed.as_bytes()).expect("diagnostic parts");
-                    parts.push(b" bytes; ceiling ").expect("diagnostic parts");
-                    parts.push(ceiling.as_bytes()).expect("diagnostic parts");
-                    parts.push(b")").expect("diagnostic parts");
-                }
-                None => {
-                    parts.push(b" (derived byte bounds overflow)").expect("diagnostic parts");
-                }
+    }
+}
+
+fn envelope_message(
+    path: &Path,
+    value: u64,
+    maximum: u64,
+    bound: Option<CodecBound>,
+    detailed: bool,
+) -> Option<Box<[u8]>> {
+    let value = Decimal::of(value);
+    let maximum = Decimal::of(maximum);
+    let (needed, ceiling) = match bound {
+        Some(bound) => (Decimal::of(u64::from(bound.needed)), Decimal::of(u64::from(bound.ceiling))),
+        None => (Decimal::of(0), Decimal::of(0)),
+    };
+    let mut parts = List::with_capacity(13);
+    parts.push(value.as_bytes()).expect("diagnostic parts");
+    parts.push(b" exceeds the people-v13 codec envelope of ").expect("diagnostic parts");
+    parts.push(maximum.as_bytes()).expect("diagnostic parts");
+    parts.push(b" bytes").expect("diagnostic parts");
+    if detailed {
+        match bound {
+            Some(bound) => {
+                parts.push(b" (").expect("diagnostic parts");
+                parts.push(bound.field).expect("diagnostic parts");
+                parts.push(b" would need ").expect("diagnostic parts");
+                parts.push(needed.as_bytes()).expect("diagnostic parts");
+                parts.push(b" bytes; ceiling ").expect("diagnostic parts");
+                parts.push(ceiling.as_bytes()).expect("diagnostic parts");
+                parts.push(b")").expect("diagnostic parts");
+            }
+            None => {
+                parts.push(b" (derived byte bounds overflow)").expect("diagnostic parts");
             }
         }
-        parts.push(b".").expect("diagnostic parts");
-        codec_parts_message(&self.path, parts.as_slice())
     }
+    parts.push(b".").expect("diagnostic parts");
+    codec_parts_message(path, parts.as_slice())
+}
+
+fn capacity_message(path: &Path, member: &[u8], configured: u32, dependency: &[u8], minimum: u64) -> Option<Box<[u8]>> {
+    let configured = Decimal::of(u64::from(configured));
+    let minimum = Decimal::of(minimum);
+    codec_parts_message(
+        path,
+        &[
+            member,
+            b" is ",
+            configured.as_bytes(),
+            b"; raise engine.limits.overrides.",
+            dependency,
+            b" to at least ",
+            minimum.as_bytes(),
+            b", or reduce ",
+            member,
+            b".",
+        ],
+    )
 }
 
 fn codec_ceiling_message(path: &Path, bound: CodecBound) -> Option<Box<[u8]>> {
     let needed = Decimal::of(u64::from(bound.needed));
     let ceiling = Decimal::of(u64::from(bound.ceiling));
+    if bound.field == b"tasks-v9.ResultFollowupsDelegates.value" {
+        return codec_parts_message(
+            path,
+            &[
+                b"tasks.batch is ",
+                needed.as_bytes(),
+                b"; ",
+                bound.field,
+                b" would need ",
+                needed.as_bytes(),
+                b"; fixed schema ceiling ",
+                ceiling.as_bytes(),
+                b"; reduce tasks.batch to at most ",
+                ceiling.as_bytes(),
+                b".",
+            ],
+        );
+    }
     codec_parts_message(
         path,
         &[bound.field, b" would need ", needed.as_bytes(), b"; people-v13 codec ceiling ", ceiling.as_bytes(), b"."],

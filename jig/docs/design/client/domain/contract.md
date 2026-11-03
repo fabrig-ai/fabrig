@@ -218,9 +218,9 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
 | `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a completed answer (3.1; `../../domain/people.md`, section 6) |
-| `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, or an application's kind, scope and number) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
+| `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, an application's kind, scope and number, or a project's own policy by its project) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default, a project's policy set alone and at most one, decided by that project's owners and, beside the deployment's items, by a party who owns both; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
 | `MoveToNewest` | the deployment, its scope (7.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../domain/engine.md`, 17.4); a revision not held refused as unknown; the newest answered with none moved, nothing written |
-| `Restore` | the deployment, its scope (7.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its number answered, with the settings of an application's kinds it leaves out (`../../domain/engine.md`, 17.10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
+| `Restore` | the deployment, its scope (7.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its items jig's kinds, an application's and each project's policy a later revision set, its number answered, with what it leaves out: the settings and the policy of each project deleted since, by kind, project and number (`../../domain/engine.md`, 17.10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
 | `MakeProject` | the deployment, its scope (7.5); the new project's name (`../../domain/core.md`, 6.1); the number of a policy among the settings, the newest's (`../../domain/engine.md`, 17.1) | a project, its policy a copy of that one, its maker its owner and only party (`../../domain/people.md`, 5.2), its number answered; the maker's `me` gains it. Not among a compound request's operations (3.4) |
 | `RemoveProject` | a project, by its owner; a grace, or none, within the tasks child's bound, as a `Cancel`'s: the chat template's, as `shapes::remove_project` gives it (client.md, section 19) | the project closed in the decision that admits it, answered removed with its number, and deleted whole in the steps that follow (`../../domain/people.md`, 5.2), each of its live conversations asked to finish within the grace as a close asks it: every `me` loses it, and every request and watch on it is refused unknown, as on a project that never was. Sent again under its key, it is answered removed until the deletion ends; a project already being deleted, under another key, is refused unknown; a grace past its bound is refused, a limit, and nothing deleted. Not among a compound request's operations (3.4) |
 | `SetVisibility` | a project, by its owner; public or private | the project public or private from that decision (`../../domain/people.md`, 13.2); every `me` of its parties marked. Project 0, and a project being deleted, refused |
@@ -684,7 +684,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     revision, or not offered) and what it would be, each value within
     the document's bound or with its size, as a revision's items are
     (section 6), an item of an application's kinds with its size alone,
-    the application serving its values;
+    the application serving its values, and an item of a project's own
+    policy with that project's policy now and as it would be, each whole
+    within the document's bound or with its size (`../../domain/engine.md`,
+    17.2);
   - *an activity line:* one of a task's words, run boundaries, turns,
     results heard, news heard, decisions, in commit order; a turn as its
     bytes, within the page's byte bound, which the client's link
@@ -880,6 +883,10 @@ usable and settled fields beside the rows.
   the refusal in place, sending nothing. That is the engine's word read,
   not authority computed: the engine judges again when the request
   comes, by the rule that made the offer. No read assesses a draft.
+  Creating's charter and procedure lists are complete facts, each received
+  within `documents.lines`. If either list does not fit, the creating
+  offer is refused at the authority limit; a shortened list never stands
+  for the executors the party may name.
 - **Reordering,** in a project's document: whether the party may change
   its tracked tasks' priorities, in one compound request of
   priority-only amendments (3.4). It is judged by the party's role in
@@ -1117,8 +1124,10 @@ party reads is therefore never lost by a crash.
     replaced (`../../domain/engine.md`, 17.10); an item's value
     past the single read's bound comes with its size instead, as too
     large, read whole by `setting{…}` while its revision is held; an
-    item of an application's kinds with its size alone, its value not
-    kept past its revision (`../../domain/engine.md`, 17.5);
+    item of an application's kinds with its size and the state it
+    replaced alone, its connector keeping the values, those it replaced
+    for a restore (`../../domain/engine.md`, 17.5 and 17.10); an item of a
+    project's own policy with the policy it set and the one it replaced;
   - *forgotten,* a revision made but erased past the history
     (`../../domain/engine.md`, 17.7), naming the oldest kept;
   - *unknown,* past the newest;

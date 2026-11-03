@@ -11,7 +11,7 @@ mod batch;
 mod compound;
 mod llm;
 mod outcomes;
-mod pieces;
+pub(in crate::codec) mod pieces;
 pub(crate) mod policy;
 pub use asks::{decode_ask, encode_ask};
 use pieces::{
@@ -42,6 +42,7 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
 /// Configuration uses this diagnostic seam to explain an envelope refusal
 /// (protocol/configuration.md, section 6).
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one table derives each people-family limit from domain limits")]
 pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
     let people = &domain.people;
     let authority = &domain.authority;
@@ -50,6 +51,10 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         act_close_reason: people.words,
         refusal_judged_why: people.words,
         ask_change_settings_projects: jig_domain_tasks::SETTINGS_ITEMS,
+        ask_restore_reason: people.words,
+        // A restore leaves out at most a proposal's application items and one project's policy
+        // (engine.md, 17.10, Bounded).
+        outcome_restored_left_out: jig_domain_tasks::SETTINGS_ITEMS.checked_add(1)?,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,

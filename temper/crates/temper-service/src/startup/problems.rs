@@ -42,6 +42,12 @@ pub enum What {
         ceiling: u32,
     },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
+    /// A task row drives the store's value past its fixed profile ceiling.
+    StoreTask {
+        needs: u32,
+        has: u32,
+        batch: u32,
+    },
     /// An explicit call bound below the local agent's call input
     /// (protocol/configuration.md, 7): `bytes` the configured bound, also
     /// the wire answer's; `input` the agent's `tool_payload`; `ask` its
@@ -149,7 +155,8 @@ fn words(what: What) -> &'static [u8] {
         | What::CallInput { .. }
         | What::Admission { .. }
         | What::StorePage { .. }
-        | What::StoreMap(_) => b"",
+        | What::StoreMap(_)
+        | What::StoreTask { .. } => b"",
         What::Redirect(_) => b"fixed port conflicts with ",
         What::Adapter => b"program adapter not declared in the agent's programs",
         What::Agent => b"not in the agent's configuration under the same name",
@@ -158,39 +165,44 @@ fn words(what: What) -> &'static [u8] {
         What::Escalation => b"an owner's project must name an escalation role from 0 to 3",
         What::Handover => b"admin_token must be exactly 40 lowercase hexadecimal digits",
         What::Provider => b"the deployment's provider must not be 0, the forge's sign-in provider",
-        What::Jig(what) => match what {
-            config::What::PolicyEnvelope { .. }
-            | config::What::AmendmentEnvelope { .. }
-            | config::What::CodecCeiling { .. }
-            | config::What::CodecArithmetic
-            | config::What::StoreCodec => b"",
-            config::What::Json => b"invalid JSON",
-            config::What::Stored => b"settings live in the store; read them with temper ctl DIR settings show",
-            config::What::Unknown => b"unknown member",
-            config::What::Missing => b"missing",
-            config::What::Duplicate => b"duplicate",
-            config::What::Kind => b"wrong value kind",
-            config::What::Bound => b"past its bound",
-            config::What::Form | config::What::ProviderKey { .. } => b"invalid form",
-            config::What::Unique => b"must be unique",
-            config::What::Refers => b"unknown reference",
-            config::What::Plaintext => b"plaintext requires loopback or in-process",
-            config::What::Confidential => b"a confidential registration is refused: only a public one signs in",
-            config::What::NoProvider => b"no provider offers this model",
-            config::What::Digest => b"invalid digest",
-            config::What::Reserve { .. } => b"reserve does not fit charter ",
-            config::What::Budget { .. } => b"budget does not fit charter ",
-            config::What::Grace { .. } => b"grace does not fit template ",
-            config::What::Operations { .. } => b"operations do not fit compound requests: operations ",
-            config::What::Message => b"message bounds do not agree",
-            config::What::Silence => b"heartbeat does not fit silence bound",
-            config::What::StopBound => b"stop bound does not fit grace",
-            config::What::Override => b"invalid override",
-            config::What::Unreadable => b"not read",
-            config::What::Relative => b"relative path must be non-empty with no .. component",
-        },
+        What::Jig(what) => jig_words(what),
     }
 }
+fn jig_words(what: config::What) -> &'static [u8] {
+    match what {
+        config::What::PolicyEnvelope { .. }
+        | config::What::AmendmentEnvelope { .. }
+        | config::What::CodecCeiling { .. }
+        | config::What::Capacity { .. }
+        | config::What::CodecArithmetic
+        | config::What::StoreCodec => b"",
+        config::What::Json => b"invalid JSON",
+        config::What::Stored => b"settings live in the store; read them with temper ctl DIR settings show",
+        config::What::Unknown => b"unknown member",
+        config::What::Missing => b"missing",
+        config::What::Duplicate => b"duplicate",
+        config::What::Kind => b"wrong value kind",
+        config::What::Bound => b"past its bound",
+        config::What::Form | config::What::ProviderKey { .. } => b"invalid form",
+        config::What::Unique => b"must be unique",
+        config::What::Refers => b"unknown reference",
+        config::What::Plaintext => b"plaintext requires loopback or in-process",
+        config::What::Confidential => b"a confidential registration is refused: only a public one signs in",
+        config::What::NoProvider => b"no provider offers this model",
+        config::What::Digest => b"invalid digest",
+        config::What::Reserve { .. } => b"reserve does not fit charter ",
+        config::What::Budget { .. } => b"budget does not fit charter ",
+        config::What::Grace { .. } => b"grace does not fit template ",
+        config::What::Operations { .. } => b"operations do not fit compound requests: operations ",
+        config::What::Message => b"message bounds do not agree",
+        config::What::Silence => b"heartbeat does not fit silence bound",
+        config::What::StopBound => b"stop bound does not fit grace",
+        config::What::Override => b"invalid override",
+        config::What::Unreadable => b"not read",
+        config::What::Relative => b"relative path must be non-empty with no .. component",
+    }
+}
+
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
     let name = match listener {
         super::Listener::Demo => b"application.demo.llm.listen".as_slice(),
@@ -312,6 +324,28 @@ fn store_map(why: jig_protocol_store::sizes::SizeRefusal, writer: &mut Writer, l
     put(writer, length, measuring, b" ");
     put(writer, length, measuring, unit);
 }
+fn operation_counts(
+    operations: u32,
+    delegates: u32,
+    goals: u32,
+    writer: &mut Writer,
+    length: &mut usize,
+    measuring: bool,
+) {
+    put(writer, length, measuring, Decimal::of(u64::from(operations)).as_bytes());
+    put(writer, length, measuring, b", delegates ");
+    put(writer, length, measuring, Decimal::of(u64::from(delegates)).as_bytes());
+    put(writer, length, measuring, b", goals ");
+    put(writer, length, measuring, Decimal::of(u64::from(goals)).as_bytes());
+}
+
+fn store_task(needs: u32, has: u32, batch: u32, writer: &mut Writer, length: &mut usize, measuring: bool) {
+    store_map(jig_protocol_store::sizes::SizeRefusal::Value { needs, has }, writer, length, measuring);
+    put(writer, length, measuring, b"; binding record tasks-v9.TaskRecord with tasks.batch ");
+    put(writer, length, measuring, Decimal::of(u64::from(batch)).as_bytes());
+    put(writer, length, measuring, b"; fixed profile ceiling engine.limits.store.value; reduce tasks.batch or the task record's spec/result/authority capacities; this ceiling has no scalar override");
+}
+
 fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, measuring: bool) {
     use jig_domain_core::settings::Setting;
     put(writer, length, measuring, floor.limit);
@@ -337,6 +371,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
     } else {
         put(writer, length, measuring, b"; the stock's ");
         let (kind, number): (&[u8], Option<u32>) = match floor.setting {
+            Setting::ProjectPolicy { project } => (b"project-policy ", Some(project)),
             Setting::Charter(number) => (b"charter ", Some(number)),
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
@@ -379,6 +414,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 what @ (config::What::PolicyEnvelope { .. }
                 | config::What::AmendmentEnvelope { .. }
                 | config::What::CodecCeiling { .. }
+                | config::What::Capacity { .. }
                 | config::What::CodecArithmetic
                 | config::What::StoreCodec),
             ) => codec_words(what, writer, &mut length, measuring),
@@ -410,6 +446,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 store_page(frame, ceiling, writer, &mut length, measuring);
             }
             What::StoreMap(why) => store_map(why, writer, &mut length, measuring),
+            What::StoreTask { needs, has, batch } => store_task(needs, has, batch, writer, &mut length, measuring),
             What::Redirect(listener) => redirect_listener(listener, writer, &mut length, measuring),
             What::Against { other } => put(writer, &mut length, measuring, other),
             What::Past { bytes, bound } => {
@@ -433,11 +470,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 put(writer, &mut length, measuring, Decimal::of(bound).as_bytes());
             }
             What::Jig(config::What::Operations { operations, delegates, goals }) => {
-                put(writer, &mut length, measuring, Decimal::of(u64::from(operations)).as_bytes());
-                put(writer, &mut length, measuring, b", delegates ");
-                put(writer, &mut length, measuring, Decimal::of(u64::from(delegates)).as_bytes());
-                put(writer, &mut length, measuring, b", goals ");
-                put(writer, &mut length, measuring, Decimal::of(u64::from(goals)).as_bytes());
+                operation_counts(operations, delegates, goals, writer, &mut length, measuring);
             }
             What::Jig(
                 config::What::Reserve { charter }

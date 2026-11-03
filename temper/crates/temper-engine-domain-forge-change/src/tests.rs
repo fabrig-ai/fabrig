@@ -16,6 +16,7 @@ const LIMITS: Limits = Limits {
     resolutions: 2,
     updates: 3,
     questions: 4,
+    tasks: 6,
     stall: Duration::from_secs(30),
     gates: 4,
     clean_heads: 4,

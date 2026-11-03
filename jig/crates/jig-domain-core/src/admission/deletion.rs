@@ -67,6 +67,7 @@ pub(crate) fn begin(
     {
         return Err(people::Refusal::Limit { which: people::LimitKind::Grace });
     }
+    crate::routing::settings::dispatch::withdraw_project(core, env, out, project)?;
     core.deletions.live.insert(project, Deleting::new(people::DeletionStep::Tasks, grace)).expect("bounded projects");
     core.touch_project_parties(project);
     keep(core, env, out, project, Some(people::DeletionStep::Tasks));

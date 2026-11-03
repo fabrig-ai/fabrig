@@ -699,7 +699,7 @@ fn every_row_of_b2s_tree_reads_whole_on_small() {
     assert_eq!(world.store.read_joins(), joins, "the real store uses the box allowance");
     let tasks::Party::Person(person) = record(&world, tree.chat).requester else { panic!("the person's chat") };
     let lines = box_limits().documents.lines;
-    assert_eq!(lines, 3, "the box's document-line bound");
+    assert_eq!(lines, 8, "the box's document-line bound");
     assert_eq!(world.env.limits.documents.lines, lines);
     let lines = usize::try_from(lines).expect("bounded document lines");
     for expected in read_rows(&tree) {
@@ -711,7 +711,7 @@ fn every_row_of_b2s_tree_reads_whole_on_small() {
         let mut lineage = document.lineage.iter().map(|chip| chip.number).collect::<Vec<_>>();
         lineage.reverse();
         let expected_lineage = expected.ancestors.iter().take(lines).copied().collect::<Vec<_>>();
-        // Reviewers have five parameters; their list can cut beside the lineage.
+        // Reviewers' five parameters share the lineage's receiving bound.
         let parameters = record(&world, expected.task).spec.parameters.len();
         assert_eq!(
             usize::try_from(document.spec.parameters.len()).expect("bounded parameters"),

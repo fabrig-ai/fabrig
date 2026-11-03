@@ -1,0 +1,7 @@
+# Packages the gate clippies for wasm32-unknown-unknown (fab's clippy-wasm32 step).
+skein-ui
+skein-ui-web
+skein-ui-example-view
+skein-ui-example-shell-web
+jig-client-shell-web
+skein-playground

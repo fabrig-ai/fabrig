@@ -292,7 +292,8 @@ impl Core {
                         self.link_allocated_task(&source, given.task);
                     }
                 }
-                people::Outcome::MarkedSeen { seen: people::Seen::Results { .. } }
+                people::Outcome::Restored { .. }
+                | people::Outcome::MarkedSeen { seen: people::Seen::Results { .. } }
                 | people::Outcome::Compound { .. }
                 | people::Outcome::CompoundRefused { .. }
                 | people::Outcome::Again(_)

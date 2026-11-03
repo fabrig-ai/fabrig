@@ -237,6 +237,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         holdings: Box::new([]),
         holds_taken: false,
         hold_wait_since: None,
+        room_wait: None,
         dependencies: Box::new([]),
         started_from: Box::new([]),
         delegates: Box::new([]),

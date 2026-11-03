@@ -1,14 +1,32 @@
 # playground: status
 
-2026-11-02. Where temper's code lags or departs from [playground.md](playground.md).
+2026-11-03. Where temper's code lags or departs from [playground.md](playground.md).
 
-- **Not yet:** 3: `temper-playground`, `temper-playground-world`
-  (`tests/playground`) and `temper-client-shell-web`'s feature
-  `playground`; `temper-fake-git-hosted` is still in `testing/`. 4: the
-  reset without the box: its fake forge's removal waits for the box
-  (`domain/forge.md`, 4.1, and its status). 5: stories
-  as data, with the fakes' latencies as their pace. 6: the page, its starter
-  and its frame. 7: the served files and their `headers`,
-  `scripts/bundle.sh --playground` and the `playground` profile. 8: the
-  documents' bounds, measured. 9: the native walk, the wasm32 builds in the
-  gate, a log replayed and the browser tier's walk. 10: the bar.
+- **Not yet:**
+  - 3: `temper-client-shell-web`'s feature `playground`; skein's visitor
+    in the composition (skein's `playground.md`, 4); and on wasm32,
+    `temper-playground`'s start, the worker's module's entry: the crate
+    holds no item of that target's.
+  - 4: the playground's setup entry's handover: the composition lays a
+    handover for each setup entry the deployment's document names, story
+    A's names none, and so the disk holds no `playground-1/admin_token`
+    and `StartPlayground` stalls at its forge's setup. Story A's walk is
+    ignored for it (`tests/one-process/tests/suite/story_a.rs`). The
+    reset without the box: its fake forge's removal waits for the box
+    (`domain/forge.md`, 4.1, and its status).
+  - 6: the page, its starter and its frame.
+  - 7: the served files and their `headers`, `scripts/bundle.sh
+    --playground` and the `playground` profile.
+  - 8: story A's high water, unmeasured while its walk stalls (4), and so
+    the documents' capacities sized to it:
+    `temper/docs/development/playground-memory.md` measures the world's
+    native heap, by process, at its first step and its start alone, and
+    sets no bound. The browser tier's figures; the first paint before the
+    world.
+  - 9: the native walk through the web client's host:
+    `tests/playground` checks story A's calm start alone. Story A's walk
+    in the one-process world, ignored (4). The wasm32 builds in the gate,
+    so no gate checks `temper-playground`'s build for wasm32, which
+    proves 3's product crates. A log replayed, and the browser tier's
+    walk.
+  - 10: the bar.

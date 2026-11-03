@@ -102,6 +102,7 @@ fn resource(domain: &Domain, subject: &Subject, owner: Option<u32>, path: &crate
                     | Record::Made { .. }
                     | Record::SettingDefault { .. }
                     | Record::SettingChange { .. }
+                    | Record::SettingReplaced { .. }
                     | Record::SettingProposal { .. },
                 )
                 | None => false,
@@ -131,6 +132,7 @@ fn saved(domain: &Domain, subject: &Subject, record: &Record) -> bool {
         | Record::Made { .. }
         | Record::SettingDefault { .. }
         | Record::SettingChange { .. }
+        | Record::SettingReplaced { .. }
         | Record::SettingProposal { .. } => false,
     }
 }
@@ -151,6 +153,7 @@ fn erased(domain: &Domain, subject: &Subject, key: &RecordKey) -> bool {
         | RecordKey::Made(_)
         | RecordKey::SettingDefault { .. }
         | RecordKey::SettingChange { .. }
+        | RecordKey::SettingReplaced { .. }
         | RecordKey::SettingProposal { .. } => false,
     }
 }
@@ -168,7 +171,8 @@ pub(crate) fn collect(domain: &Domain, env: &Env<Limits>, out: &mut Queue<Reques
                 Request::Save { record } => saved(domain, subject, record),
                 Request::Erase { key } => erased(domain, subject, key),
                 Request::Changed { resource: path } => resource(domain, subject, None, path),
-                Request::SettingsJudged { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
                 | Request::SettingsDefaults { .. }
                 | Request::SettingValue { .. }
                 | Request::RestoreRefused { .. }

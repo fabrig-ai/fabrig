@@ -46,6 +46,7 @@ impl Operation {
         let (word, task): (&[u8], Option<u64>) = match ask {
             Ask::Family { .. } => (b"adopt", None),
             Ask::Jig(ask) => match ask.as_ref() {
+                c::Ask::Restore { .. } => (b"restore", None),
                 c::Ask::Propose { action: c::ProposeAction::Settings(_), .. } => (b"propose_settings", None),
                 c::Ask::MoveToNewest(_) => (b"move-to-newest", None),
                 c::Ask::ChangeSettings(_) => (b"change-settings", None),
@@ -124,11 +125,7 @@ impl Operation {
         };
         Self {
             project: funding_project(ask),
-            revision: if let Ask::Jig(ask) = ask {
-                if let c::Ask::MoveToNewest(value) = ask.as_ref() { Some(value.revision) } else { None }
-            } else {
-                None
-            },
+            revision: settings_revision(ask),
             exported: None,
             file: None,
             word,
@@ -143,6 +140,17 @@ impl Operation {
             proposal_project: proposal_project(ask),
         }
     }
+}
+fn settings_revision(ask: &Ask) -> Option<u32> {
+    if let Ask::Jig(ask) = ask {
+        if let c::Ask::MoveToNewest(value) = ask.as_ref() {
+            return Some(value.revision);
+        }
+        if let c::Ask::Restore { revision, .. } = ask.as_ref() {
+            return Some(*revision);
+        }
+    }
+    None
 }
 fn funding_project(ask: &Ask) -> Option<u32> {
     if let Ask::Jig(ask) = ask
@@ -221,9 +229,9 @@ fn bytes(
         if kept { newline(&bytes) } else { bytes }
     } else {
         let mut measure = Text::measure();
-        text(operation, outcome, me, limits, kept, &mut measure);
+        text(operation, outcome, me, limits, kept, prefix, &mut measure);
         let mut write = Text::writing_exact(measure);
-        text(operation, outcome, me, limits, kept, &mut write);
+        text(operation, outcome, me, limits, kept, prefix, &mut write);
         write.finish()
     }
 }
@@ -246,7 +254,15 @@ fn client_reason<'a>(operation: &'a Operation, outcome: &Outcome) -> Option<[&'a
         None => [reason, b"", b"", b""],
     })
 }
-fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &Limits, kept: bool, out: &mut Text) {
+fn text(
+    operation: &Operation,
+    outcome: &Outcome,
+    me: Option<&c::Me>,
+    limits: &Limits,
+    kept: bool,
+    prefix: &[u8],
+    out: &mut Text,
+) {
     if kept {
         out.put(b"kept: ");
         out.put(operation.word);
@@ -312,6 +328,9 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
         )) => {
             sign_out(operation, *confirmed, failed_hosts, me, limits, out);
         }
+        c::Answer::Done(c::Outcome::Restored { proposal, to, left_out }) => {
+            restored_text(operation, *proposal, *to, left_out, out);
+        }
         c::Answer::Done(c::Outcome::MovedToNewest(value)) => moved_text(operation, value, out),
         c::Answer::Done(c::Outcome::SettingsChanged(changed)) => {
             out.put(b"revision ");
@@ -323,7 +342,7 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
         c::Answer::Done(done) => {
             out.put(b"done: ");
             let task = match done {
-                c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) => {
+                c::Outcome::Restored { .. } | c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) => {
                     unreachable!("settings answer handled above")
                 }
                 c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
@@ -337,10 +356,35 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             }
             out.put(operation.word);
         }
-        c::Answer::Refused { refusal, .. } => refused_text(operation, refusal, me, limits, out),
+        c::Answer::Refused { refusal, .. } => refused_text(operation, refusal, me, limits, prefix, out),
     }
     out.put(b"\n");
 }
+fn restored_text(
+    operation: &Operation,
+    proposal: u64,
+    to: u32,
+    left_out: &skein_lib::List<c::Setting>,
+    out: &mut Text,
+) {
+    out.put(b"proposed restoring revision ");
+    out.number(u64::from(operation.revision.expect("restore revision retained")));
+    out.put(b" as proposal ");
+    document::settings::proposal_text(
+        c::ProposalKey {
+            proposer: c::Proposer::Party(operation.party.expect("request party retained")),
+            number: proposal,
+        },
+        out,
+    );
+    out.put(b" to role ");
+    out.number(u64::from(to));
+    for setting in left_out {
+        out.put(b"\nleft out: ");
+        settings_form::render::setting_text(crate::jig::settings_adapter::form_setting(*setting), out);
+    }
+}
+
 fn lifted(hold: u64, released: u32, out: &mut Text) {
     out.put(b"done: hold ");
     out.number(hold);
@@ -525,6 +569,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::CHANGE_SETTINGS_AT => &rows::CHANGE_SETTINGS,
         rows::PROPOSE_SETTINGS_AT => &rows::PROPOSE_SETTINGS,
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
+        rows::RESTORE_AT => &rows::RESTORE,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
         _ => unreachable!("act tool"),
     }
@@ -672,7 +717,17 @@ fn moved_in(account: u32, renewed: bool, out: &mut Text) {
 
 mod ceiling;
 
-fn refused_text(operation: &Operation, refusal: &c::Refusal, me: Option<&c::Me>, limits: &Limits, out: &mut Text) {
+fn refused_text(
+    operation: &Operation,
+    refusal: &c::Refusal,
+    me: Option<&c::Me>,
+    limits: &Limits,
+    prefix: &[u8],
+    out: &mut Text,
+) {
+    if operation.word == b"restore" && restore_refusal(operation, refusal, prefix, out) {
+        return;
+    }
     if operation.word == b"close"
         && ended_refusal(refusal, operation.ended_task.is_some())
         && let Some(task) = operation.task
@@ -751,6 +806,42 @@ fn refused_text(operation: &Operation, refusal: &c::Refusal, me: Option<&c::Me>,
     }
 }
 
+fn restore_refusal(operation: &Operation, refusal: &c::Refusal, prefix: &[u8], out: &mut Text) -> bool {
+    let revision = operation.revision.expect("restore revision retained");
+    if let c::Refusal::Forgotten { oldest } = refusal {
+        out.put(prefix);
+        out.put(b": revision ");
+        out.number(u64::from(revision));
+        out.put(b" is forgotten; the oldest kept is revision ");
+        out.number(u64::from(*oldest));
+        return true;
+    }
+    if let c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } = refusal
+        && value.fault == c::SettingFault::Count
+    {
+        out.put(b"revision restore: too large; revision ");
+        out.number(u64::from(revision));
+        out.put(b"'s settings pass a proposal's bound; restore a later revision");
+        return true;
+    }
+    if let c::Refusal::Malformed { why: c::Malformed::SettingsUnchanged, .. } = refusal {
+        out.put(b"revision restore: nothing to restore; the settings are as revision ");
+        out.number(u64::from(revision));
+        out.put(b" left them");
+        return true;
+    }
+    if let c::Refusal::Stale(value) = refusal
+        && (revision == 0 || revision > value.newest)
+    {
+        out.put(b"revision restore: no revision ");
+        out.number(u64::from(revision));
+        out.put(b"; the newest is revision ");
+        out.number(u64::from(value.newest));
+        return true;
+    }
+    false
+}
+
 // Me carries the pool ledger, but no role policy spend: a cut can make
 // those different, so never call the pool budget the role's spend limit.
 fn spent_pool(operation: &Operation, project: u32, needed: u64, left: u64, me: Option<&c::Me>, out: &mut Text) {
@@ -811,7 +902,8 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
     match ask {
         Ask::Jig(ask) => match ask.as_ref() {
             c::Ask::Propose { project, .. } => Some(*project),
-            c::Ask::MoveToNewest(_)
+            c::Ask::Restore { .. }
+            | c::Ask::MoveToNewest(_)
             | c::Ask::ChangeSettings(_)
             | c::Ask::Create { .. }
             | c::Ask::Withdraw { .. }
@@ -896,7 +988,8 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
     match refusal {
         c::Refusal::Ended { .. } => true,
         c::Refusal::Unknown => archived,
-        c::Refusal::Judged { .. }
+        c::Refusal::Forgotten { .. }
+        | c::Refusal::Judged { .. }
         | c::Refusal::Stale(_)
         | c::Refusal::Full(_)
         | c::Refusal::AccountMove { .. }

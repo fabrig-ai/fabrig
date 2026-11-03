@@ -323,6 +323,7 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 #[derive(Debug)]
 pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
+    scripted_workspaces: Option<Queue<core::Event>>,
     hub_link: jig_domain_hub_link::Link,
     core: core::Core,
     first: connector::Domain,
@@ -342,6 +343,16 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Hold workspace completions for deterministic preparation interleavings.
+    pub fn script_workspaces(&mut self) {
+        self.scripted_workspaces = Some(Queue::uncapped());
+    }
+
+    /// Take one held completion; the world delivers it through the root's entrance.
+    pub fn take_workspace(&mut self) -> Option<core::Event> {
+        self.scripted_workspaces.as_mut()?.pop()
+    }
+
     /// The composed core, including its child timer queries.
     #[must_use]
     pub const fn core(&self) -> &core::Core {
@@ -469,6 +480,7 @@ impl Domain {
         }
         Domain {
             scripted_project_releases: None,
+            scripted_workspaces: None,
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {
                     assignments: limits.core.tasks.tasks,
@@ -1173,6 +1185,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
         }
         connector::Record::SettingDefault { .. }
         | connector::Record::SettingChange { .. }
+        | connector::Record::SettingReplaced { .. }
         | connector::Record::SettingProposal { .. }
         | connector::Record::ApplicationObject { .. }
         | connector::Record::ApplicationAnswer { .. }
@@ -1198,7 +1211,8 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             connector::Request::RestoreRefused { kind, scope, number } => {
                 refuse_settings_restore(kind, scope, number);
             }
-            connector::Request::SettingsJudged { .. }
+            connector::Request::SettingsRestored { .. }
+            | connector::Request::SettingsJudged { .. }
             | connector::Request::SettingsDefaults { .. }
             | connector::Request::SettingValue { .. } => {
                 unreachable!("restoring a row only reports resources or a refusal")

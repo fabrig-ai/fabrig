@@ -111,6 +111,7 @@ pub static FIELDS: [Field; 190] = [
             Word { word: b"charter", line: b"" },
             Word { word: b"template", line: b"" },
             Word { word: b"policy", line: b"" },
+            Word { word: b"project-policy", line: b"A project's own policy, set alone and at most once; its value is a policy." },
             Word { word: b"rules", line: b"" },
             Word { word: b"landing-rule", line: b"" },
             Word { word: b"forge-charter", line: b"" },
@@ -127,7 +128,7 @@ pub static FIELDS: [Field; 190] = [
         null: false,
         line: b"The setting's number, from 1; left out for the rules.",
     },
-    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"For a landing rule alone, a project's number, from 1. Left out, the rule is the deployment's." },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
     Field {
         shape: Shape::Charter,
         name: b"number",
@@ -347,7 +348,7 @@ pub static FIELDS: [Field; 190] = [
         value: Value::Shape(Shape::Symbol),
         list: Some(Bound::Limit(Limit::TemplateResources)),
         null: false,
-        line: b"Optional; absent means an empty list. Resource symbols resolved for the new task; forge connector 0, symbol 1 is its own goal branch.",
+        line: b"Optional; absent means an empty list. No pair twice. Resource symbols resolved for the new task; forge connector 1, symbol 1 is its own goal branch.",
     },
     Field {
         shape: Shape::Template,
@@ -431,7 +432,7 @@ pub static FIELDS: [Field; 190] = [
     },
     Field { shape: Shape::Template, name: b"grace", value: Value::Nanoseconds, list: None, null: true, line: b"How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, refused as `grace`." },
     Field { shape: Shape::Template, name: b"llm", value: Value::Shape(Shape::Llm), list: None, null: true, line: b"The models the task asks for, or null for its charter's default." },
-    Field { shape: Shape::Symbol, name: b"connector", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector that resolves the symbol; 0 is the forge." },
+    Field { shape: Shape::Symbol, name: b"connector", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector that resolves the symbol; 1 is the forge." },
     Field { shape: Shape::Symbol, name: b"symbol", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector's resource symbol; the forge's 1 is its own goal branch." },
     Field {
         shape: Shape::Text,

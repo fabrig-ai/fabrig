@@ -85,6 +85,7 @@ pub(crate) fn kind(p: &Path, what: What) -> Refusal {
         | What::Budget { .. }
         | What::Grace { .. }
         | What::Operations { .. }
+        | What::Capacity { .. }
         | What::Message
         | What::Silence
         | What::StopBound
@@ -138,6 +139,18 @@ pub fn integer(d: &Document, at: u32, max: u64, p: &Path) -> Result<u64, Refusal
         Ok(v) => Ok(v),
         Err(w) => Err(kind(p, w)),
     }
+}
+pub fn pace(o: &mut config::read::Object, d: &Document, name: &[u8], p: &Path) -> Result<u32, Refusal> {
+    let Some(at) = o.member(d, b"pace") else {
+        return Ok(0);
+    };
+    let p = p.member(b"pace");
+    let mut o = object(d, at, &p)?;
+    let at = o.member(d, name);
+    finish(o, d, &p)?;
+    let at = at.ok_or(why(&p.member(name), b"missing"))?;
+    let ms = integer(d, at, 60_000, &p.member(name))?;
+    Ok(u32::try_from(ms).expect("pace bounded to 60000 milliseconds"))
 }
 pub fn list(d: &Document, at: u32, min: u32, p: &Path) -> Result<List<u32>, Refusal> {
     match config::read::list(d, at, crate::ENTRIES) {
