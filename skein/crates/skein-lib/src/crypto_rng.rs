@@ -4,7 +4,6 @@ use core::hash::{Hash, Hasher};
 use crate::Secret;
 
 /// Secret randomness from a 32-byte key and a process-distinct stream.
-#[derive(Clone)]
 pub struct CryptoRng {
     words: [u32; 16],
     block: [u8; 64],
