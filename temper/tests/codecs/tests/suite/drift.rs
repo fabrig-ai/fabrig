@@ -7,8 +7,13 @@ fn schema_matches(crate_name: &str, family: &str, version: &str) {
     let source =
         fs::read_to_string(root.join("schema").join(format!("{family}-{version}.schema"))).expect("family schema");
     let output = generate(&parse(&source).expect("schema valid"));
-    let code = root.join("src/generated").join(format!("{version}.rs"));
-    let goldens = if family == "store" { root.join("golden").join(version) } else { root.join("golden") };
+    let code_name = if family == "public" { format!("public_{version}.rs") } else { format!("{version}.rs") };
+    let code = root.join("src/generated").join(code_name);
+    let goldens = match family {
+        "store" => root.join("golden").join(version),
+        "public" => root.join("golden/public"),
+        _ => root.join("golden"),
+    };
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let again =
         "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'";
@@ -46,4 +51,9 @@ fn store_schema_matches_generated_code_and_goldens() {
 #[test]
 fn secrets_schema_matches_generated_code_and_goldens() {
     schema_matches("temper-protocol-records", "secrets", "v1");
+}
+
+#[test]
+fn public_wire_schema_matches_generated_code_and_goldens() {
+    schema_matches("temper-client-protocol-wire", "public", "v1");
 }

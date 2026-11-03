@@ -8,6 +8,25 @@ extern crate alloc;
 #[path = "generated/v1.rs"]
 pub mod v1;
 
+/// The forge's visitor records (temper/docs/design/client/forge.md, 11.4).
+#[rustfmt::skip]
+pub mod public_v1 {
+    pub use crate::{PUBLIC_CHANGE, PUBLIC_LANDING, PUBLIC_LANDINGS, PUBLIC_VERSION};
+    include!("generated/public_v1.rs");
+}
+
+mod public;
+pub use public::{public_bounds, public_limits};
+
+/// The visitor records' version (temper/docs/design/client/forge.md, 11.4).
+pub const PUBLIC_VERSION: u16 = 1;
+/// A public change (temper/docs/design/client/forge.md, 11.1).
+pub const PUBLIC_CHANGE: u16 = 1;
+/// A project's public landings (temper/docs/design/client/forge.md, 11.1).
+pub const PUBLIC_LANDINGS: u16 = 2;
+/// A public landing through a member (temper/docs/design/client/forge.md, 11.1).
+pub const PUBLIC_LANDING: u16 = 3;
+
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 

@@ -1,0 +1,30 @@
+family temper-public-wire 1
+
+# The visitor's forge records, apart from the panels.
+# temper/docs/design/client/forge.md, 11.1, 11.3 and 11.4.
+# Tasks are places in PublicApplication.tasks; commits are the panels' fixed hashes.
+enum PublicStep { producing, opening, recreating, reopening, checking, gating, queued, first, updating, resolving, repairing, landing, landed, ended, ready, preparing, verifying, red, cleared }
+record PublicGateNumber { gate: u64 }
+enum PublicRepair { ci, gate: PublicGateNumber, semantic, landing: PublicGateNumber }
+enum PublicHold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority, questions }
+enum PublicCi { unknown, pending, passed, failed }
+enum PublicGateKind { review, approval, check }
+enum PublicVerdict { none, pending, approved, changes }
+record PublicGate { number: u64 kind: PublicGateKind blocks: bool verdict: PublicVerdict }
+record PublicUsed { used: u32 limit: u32 }
+enum PublicWay { queue, turn }
+# The step's permitted data is separate from its unit kind; tiers are a count alone.
+versioned record PublicChange { task: u16 repository: bytes 2048 pull: option bytes 2048 head: option fixed 32 step: PublicStep repair: option PublicRepair merge: option fixed 32 tiers: u32 hold: option PublicHold ci: PublicCi gates: list 64 PublicGate repairs: PublicUsed resolutions: PublicUsed updates: PublicUsed way: PublicWay in_landing: bool }
+
+enum PublicLandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
+record PublicLandingLine { members: list 8 u16 phase: PublicLandingPhase landed: list 8 fixed 32 }
+record PublicQueued { task: u16 goal: u16 ready_since: u64 }
+record PublicQueue { repository: bytes 2048 changes: list 64 PublicQueued }
+# The turn names a public landing through one of its member tasks, never its own task.
+versioned record PublicLandings { turn: option u16 landings: list 64 PublicLandingLine queues: list 64 PublicQueue }
+
+enum PublicLandingHold { faults }
+enum PublicProof { unkeyed, keyed, dispatched, waiting, passed, failed }
+record PublicGateProof { number: u64 kind: PublicGateKind blocks: bool proof: PublicProof run: option bytes 2048 }
+record PublicMember { task: u16 repository: bytes 2048 pull: option bytes 2048 base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 PublicGateProof }
+versioned record PublicLanding { phase: PublicLandingPhase hold: option PublicLandingHold preparation: u32 members: list 8 PublicMember stale_proofs: u32 holds_turn: bool }

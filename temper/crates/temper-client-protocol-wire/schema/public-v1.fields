@@ -1,0 +1,127 @@
+family temper-public-wire 1
+variant PublicStep producing tag=0 payload=-
+variant PublicStep opening tag=1 payload=-
+variant PublicStep recreating tag=2 payload=-
+variant PublicStep reopening tag=3 payload=-
+variant PublicStep checking tag=4 payload=-
+variant PublicStep gating tag=5 payload=-
+variant PublicStep queued tag=6 payload=-
+variant PublicStep first tag=7 payload=-
+variant PublicStep updating tag=8 payload=-
+variant PublicStep resolving tag=9 payload=-
+variant PublicStep repairing tag=10 payload=-
+variant PublicStep landing tag=11 payload=-
+variant PublicStep landed tag=12 payload=-
+variant PublicStep ended tag=13 payload=-
+variant PublicStep ready tag=14 payload=-
+variant PublicStep preparing tag=15 payload=-
+variant PublicStep verifying tag=16 payload=-
+variant PublicStep red tag=17 payload=-
+variant PublicStep cleared tag=18 payload=-
+record PublicGateNumber versioned=false
+field PublicGateNumber gate type=u64 tag=- default=-
+variant PublicRepair ci tag=0 payload=-
+variant PublicRepair gate tag=1 payload=PublicGateNumber
+variant PublicRepair semantic tag=2 payload=-
+variant PublicRepair landing tag=3 payload=PublicGateNumber
+variant PublicHold stalled tag=0 payload=-
+variant PublicHold repairs tag=1 payload=-
+variant PublicHold resolutions tag=2 payload=-
+variant PublicHold updates tag=3 payload=-
+variant PublicHold moved tag=4 payload=-
+variant PublicHold missing tag=5 payload=-
+variant PublicHold closed tag=6 payload=-
+variant PublicHold retargeted tag=7 payload=-
+variant PublicHold failed tag=8 payload=-
+variant PublicHold rejected tag=9 payload=-
+variant PublicHold authority tag=10 payload=-
+variant PublicHold questions tag=11 payload=-
+variant PublicCi unknown tag=0 payload=-
+variant PublicCi pending tag=1 payload=-
+variant PublicCi passed tag=2 payload=-
+variant PublicCi failed tag=3 payload=-
+variant PublicGateKind review tag=0 payload=-
+variant PublicGateKind approval tag=1 payload=-
+variant PublicGateKind check tag=2 payload=-
+variant PublicVerdict none tag=0 payload=-
+variant PublicVerdict pending tag=1 payload=-
+variant PublicVerdict approved tag=2 payload=-
+variant PublicVerdict changes tag=3 payload=-
+record PublicGate versioned=false
+field PublicGate number type=u64 tag=- default=-
+field PublicGate kind type=PublicGateKind tag=- default=-
+field PublicGate blocks type=bool tag=- default=-
+field PublicGate verdict type=PublicVerdict tag=- default=-
+record PublicUsed versioned=false
+field PublicUsed used type=u32 tag=- default=-
+field PublicUsed limit type=u32 tag=- default=-
+variant PublicWay queue tag=0 payload=-
+variant PublicWay turn tag=1 payload=-
+record PublicChange versioned=true
+field PublicChange task type=u16 tag=- default=-
+field PublicChange repository type=bytes 2048 tag=- default=-
+field PublicChange pull type=option bytes 2048 tag=- default=-
+field PublicChange head type=option fixed 32 tag=- default=-
+field PublicChange step type=PublicStep tag=- default=-
+field PublicChange repair type=option PublicRepair tag=- default=-
+field PublicChange merge type=option fixed 32 tag=- default=-
+field PublicChange tiers type=u32 tag=- default=-
+field PublicChange hold type=option PublicHold tag=- default=-
+field PublicChange ci type=PublicCi tag=- default=-
+field PublicChange gates type=list 64 PublicGate tag=- default=-
+field PublicChange repairs type=PublicUsed tag=- default=-
+field PublicChange resolutions type=PublicUsed tag=- default=-
+field PublicChange updates type=PublicUsed tag=- default=-
+field PublicChange way type=PublicWay tag=- default=-
+field PublicChange in_landing type=bool tag=- default=-
+variant PublicLandingPhase waiting tag=0 payload=-
+variant PublicLandingPhase preparing tag=1 payload=-
+variant PublicLandingPhase proving tag=2 payload=-
+variant PublicLandingPhase proved tag=3 payload=-
+variant PublicLandingPhase turn tag=4 payload=-
+variant PublicLandingPhase landed tag=5 payload=-
+variant PublicLandingPhase held tag=6 payload=-
+variant PublicLandingPhase cancelled tag=7 payload=-
+record PublicLandingLine versioned=false
+field PublicLandingLine members type=list 8 u16 tag=- default=-
+field PublicLandingLine phase type=PublicLandingPhase tag=- default=-
+field PublicLandingLine landed type=list 8 fixed 32 tag=- default=-
+record PublicQueued versioned=false
+field PublicQueued task type=u16 tag=- default=-
+field PublicQueued goal type=u16 tag=- default=-
+field PublicQueued ready_since type=u64 tag=- default=-
+record PublicQueue versioned=false
+field PublicQueue repository type=bytes 2048 tag=- default=-
+field PublicQueue changes type=list 64 PublicQueued tag=- default=-
+record PublicLandings versioned=true
+field PublicLandings turn type=option u16 tag=- default=-
+field PublicLandings landings type=list 64 PublicLandingLine tag=- default=-
+field PublicLandings queues type=list 64 PublicQueue tag=- default=-
+variant PublicLandingHold faults tag=0 payload=-
+variant PublicProof unkeyed tag=0 payload=-
+variant PublicProof keyed tag=1 payload=-
+variant PublicProof dispatched tag=2 payload=-
+variant PublicProof waiting tag=3 payload=-
+variant PublicProof passed tag=4 payload=-
+variant PublicProof failed tag=5 payload=-
+record PublicGateProof versioned=false
+field PublicGateProof number type=u64 tag=- default=-
+field PublicGateProof kind type=PublicGateKind tag=- default=-
+field PublicGateProof blocks type=bool tag=- default=-
+field PublicGateProof proof type=PublicProof tag=- default=-
+field PublicGateProof run type=option bytes 2048 tag=- default=-
+record PublicMember versioned=false
+field PublicMember task type=u16 tag=- default=-
+field PublicMember repository type=bytes 2048 tag=- default=-
+field PublicMember pull type=option bytes 2048 tag=- default=-
+field PublicMember base type=option fixed 32 tag=- default=-
+field PublicMember candidate type=option fixed 32 tag=- default=-
+field PublicMember landed type=option fixed 32 tag=- default=-
+field PublicMember gates type=list 8 PublicGateProof tag=- default=-
+record PublicLanding versioned=true
+field PublicLanding phase type=PublicLandingPhase tag=- default=-
+field PublicLanding hold type=option PublicLandingHold tag=- default=-
+field PublicLanding preparation type=u32 tag=- default=-
+field PublicLanding members type=list 8 PublicMember tag=- default=-
+field PublicLanding stale_proofs type=u32 tag=- default=-
+field PublicLanding holds_turn type=bool tag=- default=-
