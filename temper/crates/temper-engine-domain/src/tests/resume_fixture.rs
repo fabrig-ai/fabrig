@@ -301,6 +301,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
                 identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
             }]),
             grants: Box::new([]),
+            kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
                 rules,
                 charters: Box::new([charter()]),

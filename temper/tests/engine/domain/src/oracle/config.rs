@@ -30,6 +30,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
             hub_turns: c.hub_turns,
             owners: c.owners.clone(),
             grants: c.grants.clone(),
+            kinds: Box::default(),
             defaults: core::settings::Defaults {
                 charters: c.defaults.charters.clone(),
                 templates: c.defaults.templates.clone(),

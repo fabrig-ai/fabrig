@@ -84,6 +84,7 @@ fn value(value: &Value) -> Option<u64> {
             .checked_add(
                 u64::from(rules.implies.len()).checked_mul(u64::try_from(size_of::<authority::Implication>()).ok()?)?,
             ),
+        Value::Application(_) => unreachable!("an application's setting: apps-wire"),
     }
 }
 fn authority(value: &authority::Authority) -> Option<u64> {

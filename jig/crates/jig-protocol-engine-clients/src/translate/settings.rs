@@ -52,6 +52,7 @@ pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Prob
             w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
         s::Setting::Rules => w::Setting::Rules,
+        s::Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
     })
 }
 pub fn head(value: &s::Head, limits: &w::Limits) -> Result<w::RevisionHead, w::Problem> {
@@ -324,6 +325,7 @@ pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> R
         s::Value::Template(v) => w::SettingValue::Template(Box::new(me::template(v, models, limits)?)),
         s::Value::Policy(v) => w::SettingValue::Policy(Box::new(policy(v, models, limits)?)),
         s::Value::Rules(v) => w::SettingValue::Rules(Box::new(rules(v, models, limits)?)),
+        s::Value::Application(_) => unreachable!("an application's setting: apps-wire"),
     })
 }
 pub fn setting_document(

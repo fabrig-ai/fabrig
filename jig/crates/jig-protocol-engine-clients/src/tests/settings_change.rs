@@ -158,6 +158,7 @@ fn settings_answers_and_each_fault_keep_their_facts() {
                         w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
                     ),
                     p::Setting::Rules => w::Setting::Rules,
+                    p::Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
                 }
             );
         }
