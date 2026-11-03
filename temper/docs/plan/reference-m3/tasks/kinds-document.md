@@ -112,3 +112,22 @@ Acceptance:
 ## Report
 
 The implementer's text's report, plus: every writer moved, and any the header missed.
+
+## Rebase (2026-11-03, step merge, foreman reference-m3/kinds-document/foreman-1)
+
+rebase the document migration onto current integration, preserving newer setup, merge-job and settings-read behavior.
+Reapply `6d930264e3` onto `origin/reference-m3/integration`; do not replay its older dependency merges.
+The landing failed with content conflicts and a modify/delete conflict; no test result establishes a retry.
+
+Resolve the conflicts as follows:
+
+- Preserve integration’s versions of `temper/crates/temper-client-protocol-wire/src/{generated/v1.rs,tests.rs}` and `temper/crates/temper-client-tools/src/jig/{render/document/proposal.rs,render/document/settings.rs,rows.rs,runner.rs,runner/reads.rs}`. These dependency changes include `23eb57bdbb` and `6a4d123705`; retain their host-hook extraction and newer wire behavior.
+- In `temper/crates/temper-init/src/tests/documents.rs`, retain `5d0c252709`’s empty `engine.projects`, including the owned-example transformation, alongside this task’s assertions that landing rules and charter are absent.
+- In `temper/crates/temper-service/src/tests/welcome_policy.rs`, retain integration’s explicit first-project creation, stock-policy snapshot and two successful adoptions followed by third-project refusal. Apply this task’s `kinds_stock` construction and remove all `landing_rules`/document-charter accesses.
+- In `temper/crates/temper/tests/support/github_land.rs::configure_engine`, retain integration’s explicit `[{"number":1,"policy":1}]` project fixture. Keep this task’s settings-file migration; do not copy projects from init’s now-empty template.
+- Reconcile `temper/docs/examples/reference/landing.json` with `936cefb055`: remove its deployment/project rules, but preserve project 1’s `merge_job: ".temper/merge"` as a rule-free landing fixture. This narrowly supersedes the spec’s deletion instruction because the file now carries surviving project configuration.
+- In `temper/crates/temper-service/src/tests/reference_landing.rs`, retain the new settings-file rule decoder and preserve main’s merge-job parser assertion against that rule-free fixture. Keep rules 1 and 2 in `reference/settings.json`.
+- In `temper/tests/conformance/src/lib.rs::Application::build`, retain `9723a21a03`’s direct configuration construction. Delete the entire `ChangedJudge` rule-disabling block; do not translate it to mutate `kinds_stock`.
+
+Inspect the auto-merged landing parser to ensure `merge_job` parsing and validation survive alongside the new rule refusals.
+Run the spec’s focused checks for the reconciled behavior, then its required package/workspace checks through `heavy`; never run live fixtures.
