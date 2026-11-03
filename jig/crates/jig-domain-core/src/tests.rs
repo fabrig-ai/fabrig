@@ -166,6 +166,7 @@ pub(crate) fn limits() -> Limits {
         history: 2,
     };
     Limits {
+        public: PublicIndexLimits::OFF,
         routes: 20_783,
         settings: crate::settings::Limits {
             revisions: 4,
@@ -662,6 +663,7 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
     assert_eq!(
         frame.projects.as_slice(),
         &[FrameProjectRole {
+            public: false,
             project: 1,
             role: people::Role::Owner,
             name: Text { bytes: Box::from(&b"Project 1"[..]), cut: false },

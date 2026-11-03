@@ -248,6 +248,16 @@ impl Clients {
             Some(issuer) => Some(provider::Documents { discovery: issuer.discovery(), keys: issuer.key_set() }),
             None => None,
         };
+        if config.limits.clients.public.on() {
+            for kind in &initial.public {
+                if kind.bound > config.limits.clients.public.answer_bytes {
+                    let mut problems = Problems::empty();
+                    problems
+                        .push(Path::root().member(b"clients").member(b"public").member(b"answer_bytes"), What::Bound);
+                    return Err(problems);
+                }
+            }
+        }
         let component = kit::Component::new(initial, &env, &mut out).or(Err(invalid(What::Bound)))?;
         Ok(Self {
             listening: None,
@@ -260,7 +270,13 @@ impl Clients {
             provider_replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
             next_provider: 1,
             server: crate::server::Server::new(*listener, &crate::limits::server(&config.limits)),
-            mount: http::Mount::new(http_settings(clients.public.as_ref()), &config.limits.clients_http),
+            mount: http::Mount::new(
+                http::Settings {
+                    max_age: config.limits.clients.public.max_age,
+                    ..http_settings(clients.public.as_ref())
+                },
+                &config.limits.clients_http,
+            ),
             mount_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients_http },
             mount_out: Queue::uncapped(),
             server_out: Queue::uncapped(),
@@ -323,14 +339,19 @@ impl Clients {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
+        self.work_pending_with_secrets(now, true)
+    }
+    // The service holds secret work until its startup mark is durable;
+    // listener and transport work can run before that mark.
+    pub(crate) fn work_pending_with_secrets(&self, now: Time, secrets_ready: bool) -> bool {
         !self.closed
             && ((match &self.google {
                 Some(google) => google.work_pending(),
                 None => false,
             }) || self.pending
-                || !self.secrets.is_empty()
+                || secrets_ready && !self.secrets.is_empty()
                 || self.endings_ready()
-                || !self.playground_carries.is_empty()
+                || secrets_ready && !self.playground_carries.is_empty()
                 || !self.playground_ready.is_empty()
                 || !self.out.is_empty()
                 || !self.early.is_empty()
@@ -416,7 +437,7 @@ impl Clients {
                 crate::server::Routed::Call { call, head } => {
                     // Claims depend on the prefix alone; the mounted mapping checks the Host.
                     let claimed = http::claims(&http_settings(None), &head);
-                    if claimed && self.mount.room() > 0 {
+                    if claimed && self.mount.room_for(&head) > 0 {
                         self.mount.down(&self.mount_env, http::Event::Call { call, head });
                     } else if !claimed && provider::claims(&head.target) {
                         self.provider_call(call, head);
@@ -863,9 +884,13 @@ fn secret_request(request: kit::SecretsRequest) -> (Asked, jig_protocol_store::S
     match request {
         kit::SecretsRequest::Keep { owner, value } => {
             let (kind, number) = place(owner);
-            let value = jig_protocol_store::SecretValue::Digest {
-                expiry: value.expires.as_nanos(),
-                digest: value.digest.expose().try_into().expect("credential digest is 32 bytes"),
+            let value = if owner == kit::SecretOwner::PublicNames {
+                jig_protocol_store::SecretValue::Key(value.digest)
+            } else {
+                jig_protocol_store::SecretValue::Digest {
+                    expiry: value.expires.as_nanos(),
+                    digest: value.digest.expose().try_into().expect("credential digest is 32 bytes"),
+                }
             };
             (Asked::Owner(owner), Secrets::Keep { owner: kind, number, value })
         }
@@ -896,12 +921,16 @@ fn place(owner: kit::SecretOwner) -> (jig_protocol_store::SecretOwner, u64) {
         kit::SecretOwner::SignIn(number) => (SecretOwner::SignIn, number),
         kit::SecretOwner::Service(number) => (SecretOwner::Service, number),
         kit::SecretOwner::Carried(number) => (SecretOwner::Application, number),
+        kit::SecretOwner::PublicNames => (SecretOwner::PublicNames, 0),
     }
 }
 fn kept(value: jig_protocol_store::SecretValue) -> Option<kit::Kept> {
     match value {
         jig_protocol_store::SecretValue::Digest { expiry, digest } => {
             Some(kit::Kept { digest: skein_lib::Secret::new(Box::new(digest)), expires: Wall::from_nanos(expiry) })
+        }
+        jig_protocol_store::SecretValue::Key(key) if key.len() == 32 => {
+            Some(kit::Kept { digest: key, expires: Wall::from_nanos(u64::MAX) })
         }
         jig_protocol_store::SecretValue::Record(_)
         | jig_protocol_store::SecretValue::Key(_)
@@ -917,7 +946,7 @@ fn http_settings(public: Option<&crate::startup::application::Origin>) -> http::
         Some(origin) => Some(origin.name.clone()),
         None => None,
     };
-    http::Settings { prefix: Box::from(b"/jig".as_slice()), public }
+    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), public }
 }
 
 fn event_owner(event: &io::Event) -> Option<Token> {
@@ -947,6 +976,29 @@ fn client_settings(
     deployment_provider: u16,
 ) -> kit::Settings {
     kit::Settings {
+        public: {
+            let mut kinds = List::with_capacity(6);
+            for kind in kit::public::jig_kinds(&jig_client_protocol_wire::PublicIndexBounds {
+                goals: config.limits.core.public.goals,
+                ended: config.limits.core.public.ended,
+                lines: config.limits.core.public.lines,
+                depth: config.limits.core.public.depth,
+                projects: config.limits.core.people.projects,
+            }) {
+                kinds.push(kind).expect("three public kinds");
+            }
+            for kind in forge_public_kinds() {
+                kinds.push(kind).expect("six public kinds");
+            }
+            kinds
+        },
+        public_bounds: jig_client_protocol_wire::PublicIndexBounds {
+            goals: config.limits.core.public.goals,
+            ended: config.limits.core.public.ended,
+            lines: config.limits.core.public.lines,
+            depth: config.limits.core.public.depth,
+            projects: config.limits.core.people.projects,
+        },
         provider: None,
         addresses: Box::new([]),
         link,
@@ -967,3 +1019,50 @@ fn client_settings(
 pub(crate) fn moved_bytes(limits: &config::Limits) -> u64 {
     jig_protocol_accounts::moved::bound(&limits.driver.client.document)
 }
+
+/// The public kinds use the same ceilings as `family::panel`'s generated codec
+/// (temper/docs/design/client/forge.md, 11.4).
+fn forge_public_kinds() -> [kit::public::PublicKind; 3] {
+    use temper_client_protocol_wire::{self as wire, v1};
+    let bounds = wire::Bounds {
+        segments: v1::CEILINGS.landing_pattern_segments,
+        segment_bytes: v1::CEILINGS.landing_pattern_segments_item,
+        gates: v1::CEILINGS.landing_rule_gates,
+        approvals: v1::CEILINGS.landing_rule_approvals,
+        field_bytes: v1::CEILINGS.adoption_owner,
+        checks: v1::CEILINGS.adopt_checks,
+        contexts: v1::CEILINGS.rule_contexts,
+        refusal_bytes: v1::CEILINGS.core_refused_refusal,
+    };
+    let [change, landings, landing] = wire::public_bounds(&bounds);
+    let owner = wire::number(wire::Owner::Forge).checked_add(1).expect("family owner");
+    [
+        kit::public::PublicKind {
+            owner,
+            kind: wire::PUBLIC_CHANGE,
+            first: wire::PUBLIC_VERSION,
+            last: wire::PUBLIC_VERSION,
+            task: true,
+            bound: change,
+        },
+        kit::public::PublicKind {
+            owner,
+            kind: wire::PUBLIC_LANDINGS,
+            first: wire::PUBLIC_VERSION,
+            last: wire::PUBLIC_VERSION,
+            task: false,
+            bound: landings,
+        },
+        kit::public::PublicKind {
+            owner,
+            kind: wire::PUBLIC_LANDING,
+            first: wire::PUBLIC_VERSION,
+            last: wire::PUBLIC_VERSION,
+            task: true,
+            bound: landing,
+        },
+    ]
+}
+#[cfg(test)]
+#[path = "tests/public.rs"]
+mod public_tests;

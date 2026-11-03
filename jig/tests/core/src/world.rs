@@ -91,6 +91,7 @@ pub struct AssignedTranscript {
 pub struct World {
     /// Explicit admission tests retain outputs and control each store completion.
     pub manual: bool,
+    pub public_referee: crate::referee::public::Referee,
     pub returned: u64,
     pub released: Vec<root::Request>,
     serial: u64,
@@ -409,6 +410,7 @@ impl World {
                 if self.tracing {
                     self.trace.push(format!("input {event:?}"));
                 }
+                self.public_rule_input(&mut event);
                 if self.manual {
                     if let Err(event) = root::try_step(&mut self.domain, &env, event) {
                         self.returned += 1;
@@ -422,7 +424,8 @@ impl World {
             root::release(&mut self.domain, &env, &mut out);
             let empty = out.is_empty();
             for _ in 0..out.len() {
-                let request = out.pop().expect("root output count");
+                let mut request = out.pop().expect("root output count");
+                self.public_rule_output(&mut request);
                 if self.tracing {
                     self.trace.push(format!("output {request:?}"));
                 }
@@ -585,6 +588,7 @@ impl World {
                 walking.tick(self);
                 self.walking = Some(walking);
             }
+            crate::referee::public::check(self);
             self.domain.reclaim();
             self.observer.observe(self.wall, self.heap.observed());
             if steps == 1 {
@@ -921,3 +925,11 @@ impl World {
 }
 
 mod stopping;
+
+impl World {
+    /// Offer a public story's controlled input without releasing or applying commits.
+    pub fn public_offer(&mut self, mut event: root::Event) {
+        self.public_rule_input(&mut event);
+        self.offer(event);
+    }
+}

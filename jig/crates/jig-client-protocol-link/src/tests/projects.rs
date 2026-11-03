@@ -74,9 +74,11 @@ fn project_refusals_keep_each_name_rule_and_the_deployment_limit() {
 }
 
 #[test]
-fn neither_project_request_can_be_a_compound_operation() {
+fn project_requests_cannot_be_compound_operations() {
     let limits = fixtures::limits();
     for ask in [
+        c::Ask::SetVisibility { project: u32::MAX, public: false },
+        c::Ask::SetVisibility { project: u32::MAX, public: true },
         c::Ask::Rename { project: 1, name: fixtures::store_text() },
         c::Ask::MakeProject { name: fixtures::store_text(), policy: 1 },
     ] {
@@ -155,5 +157,53 @@ fn ceiling_refusals_keep_holders_dimensions_and_scalar_values() {
             let decoded = w::Lacking::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
             assert_eq!(answers::lacking(&decoded), c::Lacking::Ceiling { holder, dimension, value, asked });
         }
+    }
+}
+
+#[test]
+fn set_visibility_crosses_the_link_both_ways() {
+    let limits = fixtures::limits();
+    for public in [false, true] {
+        let ask = c::Ask::SetVisibility { project: u32::MAX, public };
+        let record = asks::ask(&ask, limits.wire()).expect("wire ask");
+        let w::Ask::SetVisibility(row) = &record else { panic!("visibility ask") };
+        assert_eq!((row.project(), row.public()), (u32::MAX, public));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
+        record.encode(&mut bytes).expect("ask bytes");
+        let decoded = w::Ask::decode(limits.wire(), &mut Reader::new(&bytes.finish())).expect("decoded ask");
+        assert_eq!(store::restore_ask(decoded, &limits), Ok(ask));
+        let outcome = w::DocumentOutcome::VisibilitySet(
+            w::OutcomeVisibilitySet::new(limits.wire(), w::OutcomeVisibilitySetParts { project: u32::MAX, public })
+                .expect("outcome"),
+        );
+        assert_eq!(
+            answers::document_outcome(&outcome, &limits),
+            Ok(c::DocumentOutcome::VisibilitySet { project: u32::MAX, public })
+        );
+    }
+}
+
+#[test]
+fn a_public_identifier_in_me_reaches_the_contract() {
+    let limits = fixtures::limits();
+    for public in [Some(u64::MAX), Some(0), None] {
+        let project = w::MeProject::new(
+            limits.wire(),
+            w::MeProjectParts {
+                project: u32::MAX,
+                name: w::DocumentText::new(limits.wire(), w::DocumentTextParts { bytes: Box::default(), cut: false })
+                    .expect("name"),
+                role: w::HeldRole::Owner,
+                pool: None,
+                templates: Box::default(),
+                creating: None,
+                models: skein_lib::List::with_capacity(0),
+                public,
+            },
+        )
+        .expect("project");
+        let contract = translate::documents::project_role_fields(&project, &limits).expect("contract project");
+        assert_eq!(contract.project, u32::MAX);
+        assert_eq!(contract.public, public);
     }
 }

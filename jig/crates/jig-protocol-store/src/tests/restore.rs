@@ -89,6 +89,72 @@ fn the_core_restore_hands_up_header_people_then_live_tasks() {
 }
 
 #[test]
+fn a_store_without_public_rows_reads_every_project_private() {
+    use jig_domain_people::{DeletionStep, Holding, Role, Stored};
+    let mut store = fixtures::opened();
+    let mut expected = skein_lib::Map::with_capacity(7);
+    let person = fixtures::person(ALICE);
+    fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(person.clone())]));
+    expected.insert(person.key(), person).expect("person");
+    for project in [1, u32::MAX] {
+        let rows = [
+            Record::People(Stored::Roles {
+                project,
+                holdings: Box::new([Holding { person: ALICE, role: Role::Owner }]),
+            }),
+            Record::People(Stored::Policy { project, name: Box::from("Private"), value: fixtures::people_policy() }),
+            Record::People(Stored::Deletion { project, step: DeletionStep::Rows, grace: None }),
+        ];
+        let number = store.stores.store.last().checked_add(1).expect("next commit");
+        let [roles, policy, deletion] = rows;
+        fixtures::committed(
+            &mut store,
+            Box::new([
+                fixtures::header(number),
+                fixtures::save(roles.clone()),
+                fixtures::save(policy.clone()),
+                fixtures::save(deletion.clone()),
+            ]),
+        );
+        for row in [roles, policy, deletion] {
+            expected.insert(row.key(), row).expect("project rows");
+        }
+    }
+    let mut store = fixtures::over(store.into_stores());
+    let events = fixtures::run(
+        &mut store,
+        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+    );
+    let [Event::Opened { last: 3, pending: false, .. }] = &*events else { panic!("private projects reopen") };
+    let (rows, next) = page(restore(&mut store, Restore::Jig(Box::new([RestoreRange::People])), None, 16, 65_536));
+    assert_eq!(next, None);
+    for row in jig_rows(rows) {
+        assert_eq!(expected.remove(&row.key()), Some(row), "only existing rows restore, with no public row");
+    }
+    assert!(expected.is_empty(), "every existing row restores");
+    for project in [0, 1, u32::MAX] {
+        let events = fixtures::run(
+            &mut store,
+            Request::Get {
+                owner: OWNER,
+                key: crate::Get::Jig(jig_domain_core::Key::People(Stored::Public { project }.key())),
+            },
+        );
+        let [Event::Got { owner: OWNER, row: None }] = &*events else { panic!("project stays private") };
+    }
+}
+
+#[test]
+fn a_written_public_row_is_restored_with_the_people_family() {
+    let mut store = fixtures::opened();
+    let public = Record::People(jig_domain_people::Stored::Public { project: u32::MAX });
+    fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(public.clone())]));
+    let (rows, next) = page(restore(&mut store, Restore::Jig(Box::new([RestoreRange::People])), None, 8, 65_536));
+    assert_eq!(next, None);
+    assert_eq!(jig_rows(rows).as_ref(), &[public]);
+}
+
+#[test]
 fn run_proofs_follow_live_tasks_and_calls_follow_run_proofs() {
     let mut store = live_store();
     fixtures::committed(

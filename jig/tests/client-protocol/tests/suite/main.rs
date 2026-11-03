@@ -14,4 +14,7 @@ mod turn_read;
 mod fuzzy {
     mod client;
     mod protocol;
+    mod public_path;
 }
+
+mod public;

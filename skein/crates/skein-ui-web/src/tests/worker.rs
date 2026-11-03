@@ -14,7 +14,7 @@ use skein_lib::{Duration, Time};
 fn nothing_leaves_before_the_worker_is_ready() {
     let mut page = page();
     let inputs = [
-        Input::Exchange(super::fixtures::exchange(1)),
+        Input::Exchange((&super::fixtures::exchange(1)).into()),
         Input::Abandon { exchange: 1 },
         Input::Stream(StreamDuty::Open { path: b"/events".as_slice().into(), headers: vec![], bound: 8 }),
         Input::ReadOn,

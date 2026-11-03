@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 219] = [
+pub static NAMES: [Name; 231] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -1211,6 +1211,30 @@ pub static NAMES: [Name; 219] = [
         value: |limits| u64::from(limits.core.brief_core_budgets.notes),
     },
     Name {
+        name: "core.public.goals",
+        unit: Unit::Count,
+        line: "Bounds live public goals per board.",
+        value: |limits| u64::from(limits.core.public.goals),
+    },
+    Name {
+        name: "core.public.ended",
+        unit: Unit::Count,
+        line: "Bounds ended public goals kept per project.",
+        value: |limits| u64::from(limits.core.public.ended),
+    },
+    Name {
+        name: "core.public.lines",
+        unit: Unit::Count,
+        line: "Bounds public lines per goal and delegates per card.",
+        value: |limits| u64::from(limits.core.public.lines),
+    },
+    Name {
+        name: "core.public.depth",
+        unit: Unit::Count,
+        line: "Bounds the lineage of a public card.",
+        value: |limits| u64::from(limits.core.public.depth),
+    },
+    Name {
         name: "link.chunk",
         unit: Unit::Bytes,
         line: "Bounds the channel bytes read at once.",
@@ -1325,6 +1349,48 @@ pub static NAMES: [Name; 219] = [
         value: |limits| u64::from(limits.clients.provider_tokens),
     },
     Name {
+        name: "clients.public.reads",
+        unit: Unit::Count,
+        line: "Bounds public reads admitted at once; zero turns public reading off.",
+        value: |limits| u64::from(limits.clients.public.reads),
+    },
+    Name {
+        name: "clients.public.rate",
+        unit: Unit::Count,
+        line: "Bounds public reads per second; zero turns public reading off.",
+        value: |limits| u64::from(limits.clients.public.rate),
+    },
+    Name {
+        name: "clients.public.rate_burst",
+        unit: Unit::Count,
+        line: "Bounds the public reads bucket at its fullest.",
+        value: |limits| u64::from(limits.clients.public.rate_burst),
+    },
+    Name {
+        name: "clients.public.bytes",
+        unit: Unit::Bytes,
+        line: "Bounds public answer bytes per second.",
+        value: |limits| limits.clients.public.bytes,
+    },
+    Name {
+        name: "clients.public.bytes_burst",
+        unit: Unit::Bytes,
+        line: "Bounds the public answer bytes bucket at its fullest.",
+        value: |limits| limits.clients.public.bytes_burst,
+    },
+    Name {
+        name: "clients.public.answer_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds one public answer and every declared public kind.",
+        value: |limits| u64::from(limits.clients.public.answer_bytes),
+    },
+    Name {
+        name: "clients.public.max_age",
+        unit: Unit::Count,
+        line: "Bounds public answer freshness in seconds, at most sixty.",
+        value: |limits| u64::from(limits.clients.public.max_age),
+    },
+    Name {
         name: "clients_http.streams",
         unit: Unit::Count,
         line: "Bounds HTTP client streams admitted at once.",
@@ -1335,6 +1401,12 @@ pub static NAMES: [Name; 219] = [
         unit: Unit::Count,
         line: "Bounds HTTP client calls admitted at once.",
         value: |limits| u64::from(limits.clients_http.calls),
+    },
+    Name {
+        name: "clients_http.public_calls",
+        unit: Unit::Count,
+        line: "Bounds public HTTP calls in flight apart from signed-in calls.",
+        value: |limits| u64::from(limits.clients_http.public_calls),
     },
 ];
 

@@ -58,7 +58,7 @@ pub fn restore(range: &RestoreRange) -> Box<[Range]> {
         RestoreRange::People => {
             return Box::new([
                 Range { start: Box::new([keys::JIG, 2, 0]), end: Some(Box::new([keys::JIG, 2, 7])) },
-                Range { start: Box::new([keys::JIG, 2, 8]), end: Some(Box::new([keys::JIG, 2, 10])) },
+                Range { start: Box::new([keys::JIG, 2, 8]), end: Some(Box::new([keys::JIG, 2, 11])) },
             ]);
         }
         RestoreRange::Tasks => {

@@ -123,6 +123,7 @@ pub(super) fn outcome_reply(outcome: Outcome) -> Reply {
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -379,6 +380,7 @@ pub(super) fn reserves_answer(ask: &Ask) -> bool {
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -462,6 +464,7 @@ pub(super) fn answer_decided(
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

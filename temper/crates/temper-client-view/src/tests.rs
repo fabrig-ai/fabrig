@@ -12,6 +12,7 @@ mod inbox;
 mod look;
 mod playground;
 mod playground_start;
+mod public;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;
 
