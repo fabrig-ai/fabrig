@@ -18,6 +18,7 @@
         "hub.transcript_bytes": 67215250,
         "hub.turn_bytes": 16803810,
         "hub.turn_queue_bytes": 134430480,
+        "tasks.inbox_bytes": 874120,
         "tasks.message_bytes": 10660,
         "tasks.result_bytes": 10660
       }
@@ -162,6 +163,7 @@
         "overrides": {
           "hub.accounts": 4,
           "hub.event_bytes": 10660,
+          "hub.run_calls": 48,
           "hub.slots": 2,
           "hub.transcript_bytes": 67215250,
           "hub.turn_bytes": 16803810,
@@ -210,9 +212,12 @@
       "profile": "standard",
       "overrides": {
         "checkout.message_bytes": 10662,
+        "forge.client.op_bytes": 10660,
         "forge.client.repositories": 3,
+        "forge.judge_projects": 8,
         "forge.output": 82,
         "forge.repositories": 3,
+        "forge_component.body_bytes": 21341,
         "root.journal.transcript_bytes": 16803814,
         "root.loads.bytes": 16804058,
         "root.loads.read_bytes": 33607620,
