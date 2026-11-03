@@ -114,3 +114,12 @@ As the implementer's text asks, with: standard's `STORE_KV` before and after (ke
 page, chunk, ops, commit), the TurnRecord frame at 32 MiB, every limit set beyond this spec's
 list and the check that asked for it, and every fixture raised. The figures are the resource
 gate's inputs: a value, page or chunk past 100 MB is said so in the report's first lines.
+
+## Rebase (2026-11-03, step merge, foreman fabrig-scale/standard-scale/foreman-1)
+
+resolve both test conflicts by retaining upstream Small sizing and this branch’s scaled Standard sizing.
+The merge conflicts with integration commit `46bf4d5a76cad03a3022edfc3f6186e4a17e16f9`, which incorporates main’s `56aadce2d5` RunPolicy.tools sizing fix.
+- In `jig/crates/jig-protocol-config/src/tests/profile.rs`, resolve `configured_read_room_is_smaller_than_the_maximum_frame` with Small page `2_168_979` and Standard page `59_570_499`; retain `MAX_FRAME = 33_554_496`.
+- Preserve the branch’s added validity and scale tests. Update `small_is_unchanged`’s store value assertion from `2_166_708` to upstream’s `2_166_900`; retain its other assertions. Do not revert upstream’s Small constants.
+- In `jig/testing/jig-test-service/src/tests.rs`, resolve `both_jig_profiles_have_usable_store_edges` with Small value `1_156_772` and Standard value `59_568_420`. Keep both profiles’ existing commit and ops figures.
+Run the focused profile tests and `both_jig_profiles_have_usable_store_edges` through heavy, then complete the spec’s checks.
