@@ -617,3 +617,163 @@ fn a_disconnected_connected_mode_forgejo_links_to_its_tokens_form() {
         }
     }
 }
+
+fn replace_root(kind: w::Kind, mode: w::Mode, connection: w::Connection) -> d::Domain {
+    let mut rows = List::with_capacity(1);
+    rows.push(cf::row(HERE, kind, mode, connection, w::Offer::NotOffered)).unwrap();
+    f::forge_root(Address::Forges, rows)
+}
+fn replace_act(root: &mut d::Domain, act: d::forge::forges::Act) {
+    f::root_event(root, d::Event::Forge(d::forge::Event::Act { act: d::forge::Act::Forges(act) }));
+}
+fn stopped() -> w::Connection {
+    w::Connection::Stopped(
+        w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+    )
+}
+#[test]
+fn replace_is_offered_only_on_connected_or_stopped_supported_forges() {
+    for (kind, mode, connection, offered) in [
+        (w::Kind::Github, w::Mode::Connected, cf::connected(), true),
+        (w::Kind::Github, w::Mode::Connected, stopped(), true),
+        (w::Kind::Forgejo, w::Mode::Connected, cf::connected(), true),
+        (w::Kind::Forgejo, w::Mode::Connected, stopped(), true),
+        (w::Kind::Forgejo, w::Mode::Managed, cf::connected(), false),
+        (w::Kind::Forgejo, w::Mode::Owned, cf::connected(), false),
+        (w::Kind::Forgejo, w::Mode::Connected, w::Connection::NotConnected, false),
+        (w::Kind::Github, w::Mode::Connected, w::Connection::NotConnected, false),
+    ] {
+        let root = replace_root(kind, mode, connection);
+        assert_eq!(f::find(f::page_view(&root).tree(), Role::Button, b"Replace").is_some(), offered);
+    }
+}
+#[test]
+fn replacement_fields_are_secret_and_local_refusals_keep_the_form() {
+    use d::forge::{forges::Act as A, replace::Field};
+    for (kind, names, button, refusal) in [
+        (w::Kind::Github, &[b"Private key".as_slice()][..], b"Replace the key".as_slice(), b"Required.".as_slice()),
+        (
+            w::Kind::Forgejo,
+            &[b"API token".as_slice(), b"Git token", b"Webhook secret"][..],
+            b"Replace the tokens",
+            b"Paste a new API token, git token or both.",
+        ),
+    ] {
+        let mut root = replace_root(kind.clone(), w::Mode::Connected, cf::connected());
+        replace_act(&mut root, A::OpenReplace { forge: HERE });
+        replace_act(&mut root, A::Replace { forge: HERE });
+        let view = f::browser_page_view(&root);
+        assert!(f::find(view.tree(), Role::Alert, refusal).is_some());
+        assert!(f::find(view.tree(), Role::Button, button).is_some());
+        let mut rng = skein_lib::Rng::new(f::SEED);
+        let value: Box<[u8]> =
+            (0_u32..32).map(|_| b'a'.checked_add(u8::try_from(rng.next_u64() % 26).unwrap()).unwrap()).collect();
+        for name in names {
+            let id = f::find(view.tree(), Role::TextField, name).unwrap();
+            let field = view.tree().nodes().iter().find(|node| node.id == id).unwrap();
+            assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
+            let event = crate::event(&view, id, Act::Input { value: value.clone() }).expect("secret event");
+            f::root_event(&mut root, event);
+        }
+        let view = f::browser_page_view(&root);
+        assert!(skein_lib::bytes::find(&f::text(view.tree()), &value).is_none());
+        for name in names {
+            let id = f::find(view.tree(), Role::TextField, name).unwrap();
+            assert!(
+                view.tree().nodes().iter().find(|node| node.id == id).unwrap().value.as_ref().unwrap().text.is_empty()
+            );
+        }
+        let field = if kind == w::Kind::Github { Field::Key } else { Field::Git };
+        f::root_event(
+            &mut root,
+            d::Event::Forge(d::forge::Event::ReplaceValue {
+                forge: HERE,
+                field,
+                value: skein_lib::Secret::new(skein_lib::bytes::zeroed(d::forge::forges::PASTED_PAYLOAD + 1)),
+            }),
+        );
+        replace_act(&mut root, A::Replace { forge: HERE });
+        assert!(
+            f::find(
+                f::browser_page_view(&root).tree(),
+                Role::Alert,
+                b"The pasted values are past 4 KiB, the most a request carries."
+            )
+            .is_some()
+        );
+    }
+}
+#[test]
+fn terminal_replacement_names_the_key_file_command() {
+    let mut root = replace_root(w::Kind::Github, w::Mode::Connected, cf::connected());
+    replace_act(&mut root, d::forge::forges::Act::OpenReplace { forge: HERE });
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::TextField, b"Private key").is_none());
+    assert!(f::find(view.tree(), Role::Paragraph, b"Paste the key on this page in a browser, or run temper ctl forge replace 3 FILE, FILE the key's file, readable by you alone.").is_some());
+}
+
+fn replacement_answer(outcome: w::Outcome) -> d::Domain {
+    let mut root = replace_root(w::Kind::Forgejo, w::Mode::Connected, cf::connected());
+    replace_act(&mut root, d::forge::forges::Act::OpenReplace { forge: HERE });
+    let mut rng = skein_lib::Rng::new(f::SEED);
+    let bytes: Box<[u8]> =
+        (0_u32..32).map(|_| b'a'.checked_add(u8::try_from(rng.next_u64() % 26).unwrap()).unwrap()).collect();
+    f::root_event(
+        &mut root,
+        d::Event::Forge(d::forge::Event::ReplaceValue {
+            forge: HERE,
+            field: d::forge::replace::Field::Git,
+            value: skein_lib::Secret::new(bytes),
+        }),
+    );
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        d::Event::Act {
+            action: d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::Replace { forge: HERE })),
+        },
+        &mut out,
+    );
+    let mut attempt = None;
+    while let Some(request) = out.pop() {
+        if let d::Request::Client {
+            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: token, .. } },
+        } = request
+        {
+            attempt = Some(token);
+        }
+    }
+    f::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt: attempt.unwrap(),
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Family(jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+                    })),
+                },
+            },
+        },
+    );
+    root
+}
+#[test]
+fn a_replacement_refusal_is_under_its_button_in_forge_words() {
+    let root = replacement_answer(w::Outcome::ConnectRefused(
+        w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::NotConnected }).unwrap(),
+    ));
+    cf::words_in_order(f::browser_page_view(&root).tree(), &["Replace the tokens", "Connect it first."]);
+}
+#[test]
+fn a_connecting_answer_updates_the_row_before_the_watch() {
+    let root = replacement_answer(w::Outcome::Connecting);
+    let view = f::browser_page_view(&root);
+    assert!(view.tree().nodes().iter().any(|node| node.role == Role::Disclosure
+        && node.description.as_ref().is_some_and(|text| skein_lib::bytes::find(text, b"Connecting").is_some())));
+}

@@ -11,7 +11,7 @@ use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, walking};
 type Pages = World<Temper, Joint>;
 const WITHIN_REQUEST: Duration = Duration::from_millis(100);
-fn new_world() -> Pages {
+pub(super) fn new_world() -> Pages {
     let mut world = super::forges_edges::admin_world(forge::Mode::Connected);
     let front = world.front();
     let mut store = front.engine.take_store();
@@ -27,6 +27,8 @@ fn new_world() -> Pages {
         let mut config = walking::config(f::SEED);
         config.core.connectors = Box::new([temper_client_protocol_wire::FORGE]);
         config.forges = Box::new([]);
+        // The shared world reports the bot as user 7 at its connection boundary.
+        config.forge.writers[0].author = 7;
         config.under_box = false;
         config
     });

@@ -1,3 +1,5 @@
+#[path = "forge_replace.rs"]
+mod forge_replace;
 #[path = "forgejo_tokens.rs"]
 mod forgejo_tokens;
 use super::fixtures;

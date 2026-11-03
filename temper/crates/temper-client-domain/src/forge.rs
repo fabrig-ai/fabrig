@@ -14,6 +14,7 @@ pub mod model;
 pub mod panel;
 pub mod picker;
 pub mod playground;
+pub mod replace;
 pub mod start;
 pub mod tokens;
 mod vocabulary;
@@ -31,6 +32,7 @@ pub enum Event {
     Act { act: Act },
     AdminToken { value: skein_lib::Secret },
     ForgejoToken { field: tokens::Field, value: skein_lib::Secret },
+    ReplaceValue { forge: u16, field: replace::Field, value: skein_lib::Secret },
     AppKey { value: skein_lib::Secret },
     Panel { subject: Option<panel::Subject> },
     RefreshPanel { subject: panel::Subject },
@@ -63,6 +65,7 @@ pub struct Side {
     admin: Option<admin::Pending>,
     tokens_form: tokens::Draft,
     tokens: Option<tokens::Pending>,
+    replacements: skein_lib::List<replace::Draft>,
     app_form: github::Draft,
     app: Option<github::Pending>,
     panel: Option<panel::Panel>,
@@ -91,6 +94,7 @@ impl Side {
             admin: None,
             tokens_form: tokens::Draft::new(),
             tokens: None,
+            replacements: skein_lib::List::with_capacity(forges::ROWS),
             app_form: github::Draft::new(),
             app: None,
             panel: None,
@@ -204,6 +208,16 @@ impl Side {
     pub fn picker(&self, forge: u16) -> Option<&picker::Picker> {
         picker::get(self, forge)
     }
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "step code uses loops rather than iterator callbacks")]
+    pub fn replacement(&self, forge: u16) -> Option<&replace::Draft> {
+        for draft in &self.replacements {
+            if draft.forge == forge {
+                return Some(draft);
+            }
+        }
+        None
+    }
     fn changed(&mut self) {
         self.shown = self.shown.checked_add(1).expect("forge shown count fits");
     }
@@ -212,11 +226,13 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
     match event {
         Event::AdminToken { value } => admin::token(side, value),
         Event::ForgejoToken { field, value } => tokens::write(side, field, value),
+        Event::ReplaceValue { forge, field, value } => replace::write(side, forge, field, value),
         Event::AppKey { value } => github::key(side, value),
         Event::Panel { subject } => panel::subject(side, env.limits, subject, out),
         Event::RefreshPanel { subject } => panel::refresh(side, env.limits, subject, out),
         Event::Watched { handle, watched } => panel::watched(side, handle, watched, out),
         Event::Went { address } => {
+            side.replacements.clear();
             side.address = Some(address);
             let Address::Adopt { project } = address;
             let mut draft = form(project);
@@ -226,6 +242,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             side.changed();
         }
         Event::Left => {
+            side.replacements.clear();
             side.form = None;
             if side.address.take().is_some() {
                 side.changed();

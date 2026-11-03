@@ -16,6 +16,7 @@ pub enum Meaning {
     AdminToken,
     ForgejoToken(forge::tokens::Field),
     ConnectTokens(u16),
+    ReplaceValue { forge: u16, field: forge::replace::Field },
     AdminField(forge::admin::Field),
     ConnectAdmin(u16),
     AppId,
@@ -113,6 +114,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 | Meaning::PickerName(_)
                 | Meaning::AdminField(_)
                 | Meaning::AdminToken
+                | Meaning::ReplaceValue { .. }
                 | Meaning::ForgejoToken(_)
                 | Meaning::AppId
                 | Meaning::AppKey
@@ -165,6 +167,14 @@ pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_clien
             continue;
         }
         match entry.meaning {
+            Meaning::ReplaceValue { forge, field } => {
+                let Act::Input { value } = act else { return None };
+                return Some(temper_client_domain::Event::Forge(forge::Event::ReplaceValue {
+                    forge,
+                    field,
+                    value: skein_lib::Secret::new(value),
+                }));
+            }
             Meaning::AdminToken | Meaning::AppKey | Meaning::ForgejoToken(_) => {
                 let Act::Input { value } = act else { return None };
                 let value = skein_lib::Secret::new(value);
