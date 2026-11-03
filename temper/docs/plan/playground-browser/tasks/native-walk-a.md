@@ -255,3 +255,11 @@ and the engine's `src/route/playground.rs` and `src/tests/setup.rs`, for this re
 
 Add `heavy cargo nextest run -p temper-engine-domain --lib -E 'test(/playground/)'` to the checks
 if the engine changed; then the walk goes on as the acceptance says.
+
+2026-11-03. **Four runs without landing: go on, or rethink the task?** Go on, with the previous
+answer (project creation) as the next run's work; no new decision. The runs are no loop: each
+reached a new stall its stop rule named, its answer repaired it, and the next got further (the
+handover, then the takeover, then the account). The branch's pushed commits stay; the next run starts
+from them, not afresh. The previous answer's step 3 still holds: a second new failure past the
+project repair is a question with its evidence, and the run commits and pushes its repairs, each with
+its own test passing, before it asks.
