@@ -75,3 +75,20 @@ fn story_a_has_its_own_description() {
     assert!(!description.trim().is_empty());
     assert!(description.contains("three suggested requests"));
 }
+
+#[test]
+fn the_page_supplies_every_element_the_frame_and_failure_hook_need() {
+    let page = include_str!("../../playground/index.html");
+    for id in [
+        APP, FRAME, LOADING, DESCRIPTION, STORY, PAUSE, HALF, ONE, TEN, RESET, LOG,
+        TIME, MEMORY, SLICE, PACE, VERSION, FAILURE, FAILURE_WORDS, FAILURE_LOG, START_OVER,
+    ] {
+        assert_eq!(page.matches(&format!("id=\"{id}\"")).count(), 1, "{id}");
+    }
+    for file in ["skein-ui.css", "temper.css", "task-pages.css", "playground.css", "boot.js"] {
+        assert!(page.contains(&format!("\"{{bundle}}{file}\"")), "{file}");
+    }
+    assert!(!page.contains("temper-sign-in"));
+    assert!(!page.contains("temper-forge-sign-in"));
+    assert!(page.contains("Download temper to use a real model and forge."));
+}

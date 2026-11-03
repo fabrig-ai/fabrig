@@ -11,7 +11,7 @@ use skein_ui_web::{
     page::{Page, web::Dom},
     platform,
     store::Store,
-    timer, title, transport, wasm_bindgen,
+    timer, title, transport,
 };
 #[cfg(target_arch = "wasm32")]
 use std::{cell::RefCell, rc::Rc};
@@ -33,9 +33,7 @@ enum Report {
     Fetch(fetch::Report),
     Carried(Vec<transport::Carried>, u32),
     Place(Box<[u8]>),
-    #[expect(dead_code, reason = "the playground frame supplies these reports")]
     Frame(playground::Control),
-    #[expect(dead_code, reason = "the playground worker supplies these reports")]
     World(platform::worker::Heard),
 }
 #[cfg(target_arch = "wasm32")]
@@ -48,7 +46,7 @@ struct Shell<P: ShellPlatform> {
     dom: Dom,
     platform: P,
     store: Store,
-    history: history::web::History,
+    history: Rc<history::web::History>,
     timer: P::Timer,
     title: title::web::Title,
 }
@@ -57,6 +55,7 @@ trait ShellPlatform: platform::Platform {
     type Timer;
     fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall);
     fn fired(timer: &mut Self::Timer);
+    fn end(&self, timer: &mut Self::Timer);
     fn timer(&self, timer: &mut Self::Timer, deadline: Option<skein_lib::Time>, now: skein_lib::Time);
 }
 #[cfg(target_arch = "wasm32")]
@@ -68,12 +67,15 @@ impl ShellPlatform for platform::Browser<Report> {
     fn fired(timer: &mut Self::Timer) {
         timer.fired();
     }
+    fn end(&self, timer: &mut Self::Timer) {
+        timer.set(None, platform::clocks().0);
+    }
     fn timer(&self, timer: &mut Self::Timer, deadline: Option<skein_lib::Time>, now: skein_lib::Time) {
         timer.set(deadline, now);
     }
 }
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(start)]
+#[cfg_attr(not(feature = "playground"), wasm_bindgen::prelude::wasm_bindgen(start))]
 pub fn start() {
     if !skein_ui_web::restart::Restart::new(
         3,
@@ -135,7 +137,7 @@ pub fn start() {
     host.start(path.as_bytes(), stored, secret);
     let page = Rc::new(RefCell::new(host::page(&host.bounds.tree, facts.primary)));
     let dom = Dom::new(mount, &page, &inbox, Report::Act, &[]);
-    let history = history::web::History::new(Rc::clone(&inbox), Report::Place);
+    let history = Rc::new(history::web::History::new(Rc::clone(&inbox), Report::Place));
     let timer = timer::web::Timer::new(Rc::clone(&inbox), || Report::Due);
     let mut shell = Shell {
         host,
@@ -156,39 +158,48 @@ pub fn start() {
 impl<P: ShellPlatform> Shell<P> {
     /// One inbox turn: each report given to the host, its duties carried, then the page drawn.
     fn turn(&mut self, inbox: &Inbox<Report>) {
+        let now = self.begin();
+        let mut new_page = false;
+        while let Some(report) = inbox.next() {
+            if let Some(shown) = self.report(inbox, report) {
+                new_page = shown;
+            }
+        }
+        self.draw(new_page, now);
+    }
+    fn begin(&mut self) -> skein_lib::Time {
         let (now, wall) = self.platform.clocks();
         #[cfg(feature = "record")]
         if let Some(recorder) = &mut self.recorder {
             recorder.turn(now, wall);
         }
         self.host.clocks(now, wall);
-        let mut new_page = false;
-        while let Some(report) = inbox.next() {
-            let read_on = matches!(
-                &report,
-                Report::Fetch(
-                    fetch::Report::StreamOpened
-                        | fetch::Report::StreamRefused { .. }
-                        | fetch::Report::StreamPiece { .. }
-                )
-            );
-            let Some(report) = self.host_report(report) else {
-                continue;
-            };
-            #[cfg(feature = "record")]
-            let duties = if let Some(recorder) = &mut self.recorder {
-                recorder.report(&mut self.host, &self.page.borrow(), report)
-            } else {
-                self.host.report(report)
-            };
-            #[cfg(not(feature = "record"))]
-            let duties = self.host.report(report);
-            let navigates = duties.show.is_some();
-            let shown = self.carry(inbox, duties, read_on);
-            if navigates {
-                new_page = shown;
-            }
-        }
+        now
+    }
+    /// Carries one host report in order; navigation says whether a new page shows.
+    fn report(&mut self, inbox: &Inbox<Report>, report: Report) -> Option<bool> {
+        let read_on = matches!(
+            &report,
+            Report::Fetch(
+                fetch::Report::StreamOpened
+                    | fetch::Report::StreamRefused { .. }
+                    | fetch::Report::StreamPiece { .. }
+            )
+        );
+        let report = self.host_report(report)?;
+        #[cfg(feature = "record")]
+        let duties = if let Some(recorder) = &mut self.recorder {
+            recorder.report(&mut self.host, &self.page.borrow(), report)
+        } else {
+            self.host.report(report)
+        };
+        #[cfg(not(feature = "record"))]
+        let duties = self.host.report(report);
+        let navigates = duties.show.is_some();
+        let shown = self.carry(inbox, duties, read_on);
+        navigates.then_some(shown)
+    }
+    fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
         let mut ops = Vec::new();
         self.host.draw(&mut self.page.borrow_mut(), &mut ops);
         self.dom.apply(&ops);

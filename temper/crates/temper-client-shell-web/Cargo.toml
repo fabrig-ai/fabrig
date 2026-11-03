@@ -10,8 +10,8 @@ publish.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [features]
+playground = []
 record = [
-    "dep:js-sys",
     "web-sys/KeyboardEvent",
     "web-sys/Blob",
     "web-sys/BlobPropertyBag",
@@ -33,9 +33,12 @@ temper-client-view.workspace = true
 temper-client-protocol-wire.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-js-sys = { workspace = true, optional = true }
+js-sys.workspace = true
 wasm-bindgen.workspace = true
-web-sys = { workspace = true, features = ["Window", "Document", "Element", "Location", "HtmlElement"] }
+web-sys = { workspace = true, features = [
+    "Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement",
+    "Event", "EventTarget", "History", "Node", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement",
+] }
 
 [lints.rust]
 unsafe_code = "forbid"
