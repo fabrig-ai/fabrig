@@ -46,7 +46,8 @@ pub struct Webhooks {
 /// Read a socket listener, and the clients' bundle and public origin when asked.
 #[must_use]
 pub fn clients(document: &Document, at: u32, path: &Path, bundle: bool, problems: &mut Problems) -> Option<Clients> {
-    let mut object = read::object(document, at, path, problems)?;
+    let mut object =
+        read::object(document, at, if bundle { "application-clients" } else { "webhooks" }, path, problems)?;
     let at = read::required(&mut object, document, b"listener", path, problems);
     let mut directory = None;
     if bundle
@@ -162,7 +163,7 @@ fn configured_limits(
     problems: &mut Problems,
     handed: &mut List<(Box<[u8]>, u64)>,
 ) -> Option<limits::Limits> {
-    let mut object = read::object(document, at, path, problems)?;
+    let mut object = read::object(document, at, "application-limits", path, problems)?;
     let profile = read::text(&mut object, document, b"profile", path, problems);
     let overrides = read::required(&mut object, document, b"overrides", path, problems);
     read::finish(object, document, path, problems);
@@ -177,7 +178,7 @@ fn configured_limits(
     let mut limits = limits::profile(profile);
     let path = path.member(b"overrides");
     if let Some(at) = overrides
-        && let Some(mut object) = read::object(document, at, &path, problems)
+        && let Some(mut object) = read::overrides(document, at, &path, problems)
     {
         let end = config::read::after(document, at).ok()?;
         for index in at..end {
@@ -202,7 +203,9 @@ fn configured_limits(
                 Err(what) => problems.push(path.member(name), What::Jig(what)),
             }
         }
-        read::finish(object, document, &path, problems);
+        let mut found = config::Problems::empty();
+        object.finish(document, &path, &mut found);
+        problems.append(found, &Path::root());
     }
     // Pass the resolved client capacity once, including the profile default.
     handed
@@ -222,7 +225,7 @@ fn workers(
     if let Some(ats) = ats {
         for (index, at) in ats.iter().enumerate() {
             let path = read::index(&path.member(b"workers"), index);
-            let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
+            let Some(mut object) = read::object(document, *at, "application-worker", &path, problems) else { continue };
             let root = read::text(&mut object, document, b"root", &path, problems);
             let at = read::required(&mut object, document, b"git", &path, problems);
             let mut git = None;
@@ -261,7 +264,7 @@ pub(super) fn worker_alone(
     problems: &mut Problems,
 ) -> Option<(Worker, limits::Limits)> {
     let path = Path::root().member(b"application");
-    let mut object = read::object(document, at, &path, problems)?;
+    let mut object = read::object(document, at, "application", &path, problems)?;
     let ats = read::list(&mut object, document, b"workers", document.len(), &path, problems);
     if match &ats {
         Some(ats) => ats.len() != 1,
@@ -309,7 +312,7 @@ pub fn parse(
     problems: &mut Problems,
 ) -> Option<Members> {
     let path = Path::root().member(b"application");
-    let mut object = read::object(document, at, &path, problems)?;
+    let mut object = read::object(document, at, "application", &path, problems)?;
     let mut overrides = List::with_capacity(document.len());
     let machine_at = read::required(&mut object, document, b"machine", &path, problems);
     let demo_at = read::required(&mut object, document, b"demo", &path, problems);
@@ -449,11 +452,11 @@ fn transport(document: &Document, at: u32, path: &Path, problems: &mut Problems)
         read::form(value.as_ref() == b"plaintext", path.clone(), problems);
         return Some(Transport::Plaintext);
     }
-    let mut outer = read::object(document, at, path, problems)?;
+    let mut outer = read::object(document, at, "application-transport", path, problems)?;
     let tls = read::required(&mut outer, document, b"tls", path, problems);
     read::finish(outer, document, path, problems);
     let path = path.member(b"tls");
-    let mut object = read::object(document, tls?, &path, problems)?;
+    let mut object = read::object(document, tls?, "application-tls", &path, problems)?;
     let server_name = read::text(&mut object, document, b"server_name", &path, problems);
     let at = read::required(&mut object, document, b"trust", &path, problems);
     let mut trust = None;

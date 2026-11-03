@@ -73,6 +73,8 @@ A project is where work happens: the repositories adopted into it, one of them i
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - ctl's group `project` reads a project and changes its spends alone:
   no call renames a project or changes its roles.
 - temper does not make a project from ctl but with its first

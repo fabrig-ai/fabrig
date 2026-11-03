@@ -20,7 +20,7 @@ pub(crate) fn parse(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Clients> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "clients")?;
     let heartbeat = check::duration(&mut object, document, b"heartbeat_ms", path, problems);
     let mut link = None;
     if let Some(at) = object.required(document, b"link", path, problems) {

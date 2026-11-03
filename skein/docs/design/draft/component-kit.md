@@ -1,7 +1,7 @@
 # A component kit, phase 1: lib's primitives and the io stage
 
 Draft, 2026-10-31. The first part of [the skein code-quality review of
-2026-10-31](../../development/skein-review-2026-10-31.md):
+2026-10-31](../../development/debt/reviews/2026-10-31-skein.md):
 the primitives each component writes again for itself, moved into lib
 and io, and the call sites moved onto them. It changes no rule of the
 programming model or the testing strategy; section 6 asks whether one

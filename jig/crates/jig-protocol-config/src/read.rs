@@ -29,6 +29,7 @@ struct Member {
 /// One object's member indices and which the caller consumed.
 #[derive(Debug)]
 pub struct Object {
+    shape: Option<&'static str>,
     members: List<Member>,
 }
 impl Object {
@@ -41,7 +42,7 @@ impl Object {
         let mut next = at.checked_add(1).ok_or(What::Bound)?;
         for _ in at..end {
             if next == end {
-                return Ok(Self { members });
+                return Ok(Self { shape: None, members });
             }
             if document.token(next).ok_or(What::Kind)?.kind != Kind::Key {
                 return Err(What::Kind);
@@ -52,8 +53,18 @@ impl Object {
         }
         Err(What::Kind)
     }
+    /// Read a configuration shape whose requested names are checked against its members table.
+    pub fn shaped(document: &Document, at: u32, shape: &'static str) -> Result<Self, What> {
+        let mut object = Self::new(document, at)?;
+        object.shape = Some(shape);
+        Ok(object)
+    }
     /// Read every occurrence of this name, retaining the first for value decoding.
     pub fn member(&mut self, document: &Document, name: &[u8]) -> Option<u32> {
+        #[cfg(debug_assertions)]
+        if let Some(shape) = self.shape {
+            assert!(crate::members::contains(shape, name), "configuration member missing from table: {shape} {name:?}");
+        }
         let mut first = None;
         for index in 0..self.members.len() {
             let member = self.members.get_mut(index)?;

@@ -101,6 +101,8 @@ makes the change ready again, and the landing prepares again.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - A project lands by turn on Forgejo alone: GitHub cannot merge fast
   forward only, and a start whose configuration asks for the turn for
   a project with a repository on GitHub is refused, naming it.
