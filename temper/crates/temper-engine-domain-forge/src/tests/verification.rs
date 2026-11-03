@@ -7,6 +7,8 @@ const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge:
 const PROJECT: u32 = 5;
 const CHANGE: u64 = 51;
 const SECOND: u64 = 52;
+const OLDER_REPAIR: u64 = 53;
+const NEWER_REPAIR: u64 = 54;
 const TIER_TASK: u64 = 61;
 const OPEN: u64 = 11;
 const HEAD: skein_forge::api::Commit = [3; 32];
@@ -481,6 +483,57 @@ fn later_green_repairs_red_without_replacing_its_verdict() {
         d.verifications.get(&(REPO, LAST)).expect("row").tiers[0].repaired,
         Some(TierRepair { run: 2, tip: REPAIR, by: None })
     );
+}
+
+fn repairing_range(older: Option<skein_forge::api::Commit>, newer: Option<skein_forge::api::Commit>) -> Domain {
+    let mut d = verifying();
+    red(&mut d);
+    for (task, commit, repairs) in [(OLDER_REPAIR, REPAIR, older), (NEWER_REPAIR, HEAD, newer)] {
+        add_change(&mut d, task, b"main");
+        d.changes.get_mut(&task).expect("repair change").repairs = repairs;
+        merged(&mut d, task, commit);
+    }
+    green(&mut d, 2, &[REPAIR, HEAD]);
+    d
+}
+
+#[test]
+fn later_run_attributes_repair_to_the_landing_naming_red() {
+    let d = repairing_range(None, Some(LAST));
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: Some(HEAD) })
+    );
+}
+
+#[test]
+fn later_run_alone_repairs_when_no_change_names_red() {
+    let d = repairing_range(None, None);
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: None })
+    );
+}
+
+#[test]
+fn newest_landing_naming_red_is_its_repairer() {
+    let d = repairing_range(Some(LAST), Some(LAST));
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: Some(HEAD) })
+    );
+}
+
+#[test]
+fn repairer_precedes_newer_landings_that_do_not_name_red() {
+    for newer in [None, Some(FIRST)] {
+        let d = repairing_range(Some(LAST), newer);
+        assert_eq!(
+            d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+            Some(TierRepair { run: 2, tip: HEAD, by: Some(REPAIR) }),
+            "newer landing repairs {newer:?}"
+        );
+    }
 }
 
 #[test]
