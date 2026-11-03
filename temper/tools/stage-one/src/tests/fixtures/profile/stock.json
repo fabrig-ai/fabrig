@@ -1,0 +1,18 @@
+{
+  "items": [
+    {"setting": {"kind": "template", "number": 2}, "set": {
+      "number": 2, "name": {"bytes": "goal", "cut": false}, "executor": {"charter": 1},
+      "contract": {"report": {"words": 461}}, "shallower": 1,
+      "budget": "given", "deadline": "given", "tracked": 1,
+      "flags": {"conversation": false, "listed": true, "retention": "kept", "ended_by": "result"},
+      "label": 2, "grace": null,
+      "llm": {"account": null, "main": {"model": "gpt-6.1-sol", "effort": "high"}, "subagents": []},
+      "resources": []
+    }},
+    {"setting": {"kind": "forge-charter", "number": 1}, "set": 2},
+    {"setting": {"kind": "forge-charter", "number": 2}, "set": 4},
+    {"setting": {"kind": "charter", "number": 1}, "set": {"number": 1, "instructions": "The stock coordinator."}},
+    {"setting": {"kind": "charter", "number": 3}, "set": {"number": 3, "instructions": "The configuring agent."}},
+    {"setting": {"kind": "charter", "number": 4}, "set": {"number": 4, "instructions": "The stock reviewer."}}
+  ]
+}
