@@ -20,9 +20,9 @@ use temper_client_domain::{
     pages::Act,
 };
 
-/// "Run temper on a server" (docs/help/server.md), on GitHub: the
+/// "Run temper on a server" (temper/docs/help/server.md), on GitHub: the
 /// browser serves no help pages (the look request welcome-forgejo-card).
-const DEPLOYMENT: &[u8] = b"https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md";
+const DEPLOYMENT: &[u8] = b"https://github.com/fabrig-ai/fabrig/blob/main/temper/docs/help/server.md";
 
 #[derive(Clone, Copy)]
 pub(crate) enum Place {
