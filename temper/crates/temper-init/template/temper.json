@@ -4,7 +4,7 @@
     "limits": {
       "profile": "small",
       "overrides": {
-        "authority.executors": 8,
+        "authority.executors": 12,
         "authority.grants": 14,
         "authority.segments": 8,
         "clients.exchanges": 12,
@@ -25,7 +25,7 @@
         "tasks.batch": 1,
         "tasks.charters": 8,
         "tasks.contract_choices": 4,
-        "tasks.executor_kinds": 8,
+        "tasks.executor_kinds": 12,
         "tasks.hold_segments": 8,
         "tasks.inbox_bytes": 12288,
         "tasks.parameters": 5,
