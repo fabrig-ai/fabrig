@@ -386,7 +386,7 @@ pub const SIZES_LARGE: crate::sizes::Sizes = crate::sizes::Sizes {
     piece: 4096,
     charter: 67_108_864,
     transcript: 134_217_728,
-    turn: 16_777_216,
+    turn: 33_554_432,
     message: 1_048_576,
     sender: 1024,
     call_name: 64,

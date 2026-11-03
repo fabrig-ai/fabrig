@@ -638,11 +638,11 @@ fn transcript_blocks_hold_the_largest_completion_or_name_the_ceiling() {
     let profile = profile();
     let limits = super::derive(&profile, &declarations()).expect("coherent declarations");
     assert!(limits.channel.transcript.message_blocks >= limits.domain.session.completion_blocks);
-    let refusal = validate::calls_in_transcript(65, 64).expect_err("one beyond the vocabulary");
+    let refusal = validate::calls_in_transcript(129, 128).expect_err("one beyond the vocabulary");
     assert_eq!(refusal.check(), Some(Check::CallsInTranscript));
     assert_eq!(
         words(&refusal).as_ref(),
-        b"calls-in-transcript: session.message_blocks=65 items; transcript.message_blocks=64 items"
+        b"calls-in-transcript: session.message_blocks=129 items; transcript.message_blocks=128 items"
     );
 }
 
