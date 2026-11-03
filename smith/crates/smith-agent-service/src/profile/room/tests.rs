@@ -15,7 +15,7 @@ fn declarations(window: u32, output: u32) -> Configuration {
         environment_bytes: 0,
         endpoints: Box::new([Endpoint {
             number: 7,
-            provider: skein_llm::Provider::OpenAiCodex,
+            provider: skein_llm::Provider::OpenAi,
             option_bytes: 0,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),

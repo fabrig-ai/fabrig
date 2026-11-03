@@ -71,7 +71,7 @@ pub fn world(turn: bool, tier: Tier) -> World {
         1000,
         Gate::default(),
         None,
-        StoryLimits { turn, tier: Some(tier), tasks: Some(12), ..StoryLimits::default() },
+        StoryLimits { turn, tier: Some(tier), tasks: Some(12), spec_bytes: Some(4096), ..StoryLimits::default() },
     )
 }
 

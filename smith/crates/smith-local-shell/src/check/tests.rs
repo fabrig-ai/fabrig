@@ -6,9 +6,9 @@ fn a_small_declared_memory_checks() {
     crate::credentials::tests::private_key(&files);
     let certificate = crate::fixture::trust();
     let text = format!(
-        "credentials='{}'\nmodel='codex/gpt-6-luna'\n\
+        "credentials='{}'\nmodel='openai/gpt-6-luna'\n\
          [deployment]\nmemory=1\n[environment]\ninherit=['PATH']\n\
-         [accounts.codex]\nsource='key'\n[endpoints.codex]\n\
+         [accounts.codex]\nprovider='openai'\nsource='key'\n[endpoints.openai]\n\
          trust.system=false\ntrust.der=['{}']\n[trace]\npath='unopened-events'\n",
         files.path().display(),
         certificate.display()
@@ -57,7 +57,7 @@ fn resolved(trace: bool) -> settings::resolve::Resolved {
     let certificate = crate::fixture::trust().display().to_string();
     let trace = if trace { "[trace]\npath='/unopened-events'\n" } else { "" };
     let text = format!(
-        "model='codex/gpt-6-luna'\n[deployment]\nmemory=8589934592\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n{trace}"
+        "model='openai/gpt-6-luna'\n[deployment]\nmemory=8589934592\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\ntrust.system=false\ntrust.der=['{certificate}']\n{trace}"
     );
     let settings = crate::fixture::settings(&text);
     crate::fixture::ready(settings::resolve::resolve(&settings))
@@ -139,14 +139,14 @@ fn check_derives_execs_event_destinations_through_its_stream_owner() {
 
 #[test]
 fn interactive_chat_checks_derive_accounts_endpoints_and_the_live_sink() {
-    // The smoke-tools Chat arm: standard profile, codex/gpt-6-luna
+    // The smoke-tools Chat arm: standard profile, openai/gpt-6-luna
     // selected at low effort, an env token and an everything trace.
     // Invocation derivation checks the selected sources without reading the variable.
     let certificate = crate::fixture::trust().display().to_string();
     let text = format!(
-        "model='codex/gpt-6-luna'\neffort='low'\n\
-         [accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n\
-         [endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n\
+        "model='openai/gpt-6-luna'\neffort='low'\n\
+         [accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n\
+         [endpoints.openai]\ntrust.system=false\ntrust.der=['{certificate}']\n\
          [trace]\npath='/unopened-events'\ncapture='everything'\n"
     );
     let settings = crate::fixture::ready(settings::merge(

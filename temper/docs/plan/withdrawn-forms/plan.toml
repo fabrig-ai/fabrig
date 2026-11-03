@@ -1,0 +1,95 @@
+draft = "withdrawn-forms"
+repo = "fabrig"
+sources = ["temper/docs/plan/withdrawn-forms/inputs/request.md", "skein/docs/design/llm.md", "AGENTS.md"]
+
+# The withdrawn compatibility forms leave every tree (inputs/request.md, option (a)), in five
+# parts that land in the decision's order where one reads another: temper's configurations,
+# jig's dialect rule and smith's product first (none reads another's code), then smith's agent,
+# protocol and channel at v6, then skein's routes. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "temper-configs"
+title = "temper: agent configurations without an endpoint identity, skein-llm credentials without an account id"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/agent.md, 4"
+
+[[slice]]
+id = 1
+story = "temper's shipped and test agent configurations name no identity profile, and its credentials no account id: smith and skein can drop both without touching temper"
+parts = ["temper-configs"]
+walk = false
+
+[[part]]
+id = "jig-dialects"
+title = "jig: an endpoint's dialect is 2 or 3, refused otherwise; jig's fixtures write 3"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/llm.md, 4"
+
+[[slice]]
+id = 2
+story = "a jig configuration naming dialect 0, 1 or 4 is refused at the endpoint's dialect, and no jig fixture or world writes the withdrawn Codex dialect"
+parts = ["jig-dialects"]
+walk = false
+
+[[part]]
+id = "smith-product"
+title = "smith: the product without the codex preset, the identity, the account-id claim or the withdrawn grant"
+mode = "direct"
+needs = []
+design = "smith/docs/design/shell.md, 5.3"
+
+[[slice]]
+id = 3
+story = "smith's product runs on the openai and anthropic presets alone: settings naming the codex preset or an identity are refused with use openai/<model>, and the local service lends a bearer or a key, never an account id"
+parts = ["smith-product"]
+walk = false
+
+[[part]]
+id = "smith-agent-channel"
+title = "smith: the agent refuses codex, account and identity; the channel at v6 without the withdrawn grant and Cap::AccountId"
+mode = "direct"
+needs = ["temper-configs", "jig-dialects", "smith-product"]
+design = "smith/docs/design/protocol/channel.md, 6"
+
+[[slice]]
+id = 4
+story = "smith's agent refuses an endpoint's account, identity and the codex dialect, its LLM component serves openai and anthropic alone, and its channel speaks v6, with no account id in any grant or failure"
+parts = ["smith-agent-channel"]
+walk = false
+
+[[part]]
+id = "skein-routes"
+title = "skein: Anthropic's bearer route and identity profile, then the Codex route, its account id and its recordings, removed"
+mode = "direct"
+needs = ["smith-agent-channel"]
+design = "skein/docs/design/llm.md, 4.7"
+
+[[slice]]
+id = 5
+story = "skein-llm serves OpenAI's public route and Anthropic with a key alone: a bearer on Anthropic and a tag-1 replay are refused, and no tree names the Codex route or an account id"
+parts = ["skein-routes"]
+walk = false
+
+[[part]]
+id = "skein-live"
+title = "skein: the live suite's logins on the routes that stay, as the user answers live-logins"
+mode = "direct"
+needs = ["skein-routes"]
+design = "skein/docs/design/llm.md, 5"
+
+[[slice]]
+id = 6
+story = "skein-llm's owner-run live suite calls the public route and Anthropic with the logins the user lends"
+parts = ["skein-live"]
+walk = false
+
+[[question]]
+id = "live-logins"
+text = """skein-llm's live suite (the live-skein tier, run by the owner) calls only the withdrawn routes: OpenAI's Codex route with Codex's ChatGPT login (auth.json, with its account id) and Anthropic's bearer route with Claude Code's login (.credentials.json). Once they go, which logins does it use? (a) recommended, what this plan's skein tasks build by default: OpenAI's tests call the public route (api.openai.com/v1/responses) with the same ChatGPT login's access token as a bearer, its account id no longer read; Anthropic's tests take an API key from a 0600 file the owner names in SKEIN_TEST_LIVE_ANTHROPIC_KEY, since Claude Code's login works only on the removed bearer route. (b) as (a), but OpenAI's tests take an API key file too, so no plan's token is used live. (c) the live provider tests go with the routes, and the suite keeps only its offline login tests until a later plan. Nothing waits on the answer; (b) or (c) is a small later change to skein/tests/llm/tests/live.rs."""
+parts = ["skein-live"]

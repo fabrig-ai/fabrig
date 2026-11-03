@@ -520,6 +520,12 @@ repositories is coded beside its dependency and merged after it.
 
 One decision, committed with its new state:
 
+- optional specification words for its own task: `ProcedureStep.words`
+  reaches `ProcedureDecision.words`, replaces only its specification
+  words, and saves in this decision (tasks.md, 5.3). Its connector and
+  code must match the task's due step; words and byte-valued parameters
+  share `Limits::spec_bytes`. Parameters, inputs and `asks` do not change;
+  this adds no revision, amendment, message, wake or amendment history;
 - effects, described and kept for the outbox (4.1);
 - batches of delegates: agents for what needs judgement (a triage, a
   diagnosis, a repair), people for what needs a decision, each task

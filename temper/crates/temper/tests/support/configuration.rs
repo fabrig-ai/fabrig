@@ -10,7 +10,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
             "policy":{"max_turns":16,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":"127.0.0.1:0","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
-            "identity":"plain","connect":1000,"handshake":1000,
+            "connect":1000,"handshake":1000,
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =

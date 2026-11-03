@@ -56,7 +56,7 @@ pub struct Limits {
 pub struct Config {
     /// Accepts requests with no credential field on public or Anthropic routes.
     pub without_credential: bool,
-    /// Codex metadata echoes; off unless the world explicitly selects them.
+    /// Responses metadata echoes; off unless the world explicitly selects them.
     pub echo: openai::Echo,
     /// Usage fields this dialect reports; absent selections are omitted.
     pub usage_fields: documents::UsageFields,
@@ -294,8 +294,6 @@ pub struct Server {
     refused: Option<api::Error>,
     credential: Option<u32>,
     route: skein_llm::Provider,
-    session: Option<[u8; 16]>,
-    thread: Option<[u8; 16]>,
     writer_closed: bool,
 }
 
@@ -330,8 +328,6 @@ impl Server {
             refused: None,
             credential: None,
             route: skein_llm::Provider::OpenAi,
-            session: None,
-            thread: None,
             writer_closed: false,
         })
     }
@@ -577,8 +573,6 @@ fn entrance(
         Some(api::Error::InvalidRequest)
     };
     let mut fields = credentials::Fields::new();
-    server.session = None;
-    server.thread = None;
     server.gzip = false;
     let mut content_type = 0_u32;
     for header in &call.headers {
@@ -591,24 +585,6 @@ fn entrance(
         }
         if server.route == skein_llm::Provider::OpenAi && public::reserved(&header.name) {
             server.refused = Some(api::Error::InvalidRequest);
-        }
-        if service.config.provider == documents::Provider::OpenAi && header.is(b"session-id") {
-            if server.session.is_some() {
-                server.refused = Some(api::Error::InvalidRequest);
-            }
-            server.session = documents::parse_uuid(&header.value);
-            if server.session.is_none() {
-                server.refused = Some(api::Error::InvalidRequest);
-            }
-        }
-        if service.config.provider == documents::Provider::OpenAi && header.is(b"thread-id") {
-            if server.thread.is_some() {
-                server.refused = Some(api::Error::InvalidRequest);
-            }
-            server.thread = documents::parse_uuid(&header.value);
-            if server.thread.is_none() {
-                server.refused = Some(api::Error::InvalidRequest);
-            }
         }
         fields.read(header);
         if header.is(b"content-type") {
@@ -808,17 +784,6 @@ fn requested(server: &mut Server, service: &mut Service, env: &Env<Limits>, abov
     match query {
         Ok(mut query) => {
             query.credential = server.credential;
-            let scope = match query.caching {
-                api::Caching::Scope(key) => Some(key),
-                api::Caching::Unscoped | api::Caching::Marks(_) => None,
-            };
-            if server.route == skein_llm::Provider::OpenAiCodex
-                && (scope != server.session || scope.is_some() != server.thread.is_some())
-            {
-                server.body.clear();
-                response_error(server, service, env, api::Error::InvalidRequest.into());
-                return;
-            }
             let Ok(id) = service.calls.insert(Call { server: server.owner, active: true }) else {
                 response_error(server, service, env, api::Error::Overloaded.into());
                 return;

@@ -399,9 +399,7 @@ pub(super) fn install(
             program.grant = Some(backend::Grant { name, source: source.clone(), lapses });
             Ok(())
         }
-        smith_protocol_translate::GrantValue::Bearer(_)
-        | smith_protocol_translate::GrantValue::Key(_)
-        | smith_protocol_translate::GrantValue::Withdrawn { .. } => {
+        smith_protocol_translate::GrantValue::Bearer(_) | smith_protocol_translate::GrantValue::Key(_) => {
             if let Some(program) = &service.program {
                 for model in core::iter::once(&start.charter.llm).chain(start.charter.models.iter()) {
                     if model.account == Some(name.account)
@@ -439,9 +437,7 @@ pub(super) fn renew(service: &mut Stages, grant: domain::Grant, value: &smith_pr
             }
             accepted
         }
-        smith_protocol_translate::GrantValue::Bearer(_)
-        | smith_protocol_translate::GrantValue::Key(_)
-        | smith_protocol_translate::GrantValue::Withdrawn { .. } => false,
+        smith_protocol_translate::GrantValue::Bearer(_) | smith_protocol_translate::GrantValue::Key(_) => false,
     };
     if accepted {
         service.domain_events.push(domain::Event::Grant { grant });

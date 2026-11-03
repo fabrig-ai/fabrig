@@ -1,4 +1,4 @@
-//! Bridge between the provider-neutral vocabulary and Codex documents.
+//! Bridge between the provider-neutral vocabulary and Responses documents.
 //! No state or owner references are retained. Measurement and encoding borrow
 //! schemas/replay into the reserved bytes (llm.md, sections 4.2, 4.5 and 4.7).
 use crate::{Block, Error, Failure, Prompt, Provider, Replay, Role, Stop, Usage, openai};
@@ -11,7 +11,7 @@ const TOOL_ERROR: &[u8] = b"Error: ";
 
 /// Measures the borrowed vocabulary without constructing a native request.
 pub(crate) fn measure_request(provider: Provider, prompt: &Prompt, limits: &openai::Limits) -> Result<u32, Error> {
-    validate_codex(provider, prompt, limits)?;
+    validate_responses(provider, prompt, limits)?;
     let bounded = writer::Limits { depth: limits.depth, length: limits.request };
     let mut out = writer::Encoder::measure(&bounded);
     write_request(&mut out, prompt, limits)?;
@@ -39,7 +39,7 @@ pub(crate) fn encode_measured_request(
     Ok(out.finish())
 }
 
-fn validate_codex(provider: Provider, prompt: &Prompt, limits: &openai::Limits) -> Result<(), Error> {
+fn validate_responses(provider: Provider, prompt: &Prompt, limits: &openai::Limits) -> Result<(), Error> {
     if prompt.max_output_tokens.is_some() {
         return Err(Error::Unsupported);
     }
@@ -106,7 +106,7 @@ fn write_request(out: &mut writer::Encoder, prompt: &Prompt, limits: &openai::Li
     out.key(b"text");
     out.object_start();
     out.key(b"verbosity");
-    out.string(openai::identity::VERBOSITY);
+    out.string(openai::VERBOSITY);
     out.object_end();
     out.object_end();
     Ok(())
@@ -249,7 +249,7 @@ fn replay_text_ref<'a>(replay: Option<&'a Replay>, name: &[u8]) -> Result<Option
 #[cfg(test)]
 #[expect(clippy::manual_map, reason = "the strict subset excludes closure-taking maps")]
 pub(crate) fn request(prompt: &Prompt, provider: Provider, limits: &openai::Limits) -> Result<openai::Request, Error> {
-    if provider != Provider::OpenAiCodex || prompt.max_output_tokens.is_some() {
+    if provider != Provider::OpenAi || prompt.max_output_tokens.is_some() {
         return Err(Error::Unsupported);
     }
     validate(prompt, provider, limits)?;
@@ -855,7 +855,7 @@ mod tests {
     fn request(prompt: &Prompt, provider: Provider, limits: &openai::Limits) -> Result<openai::Request, Error> {
         let raw = super::request(prompt, provider, limits)?;
         assert_eq!(
-            super::encode_request(Provider::OpenAiCodex, prompt, limits)?,
+            super::encode_request(Provider::OpenAi, prompt, limits)?,
             openai::encode_request(&raw, limits).unwrap()
         );
         Ok(raw)
@@ -895,11 +895,11 @@ mod tests {
                 description: bytes::copy_of(b""),
                 schema: owner,
             }]);
-            let old_codex = super::request(&input, Provider::OpenAiCodex, &LIMITS).unwrap();
+            let owned_responses = super::request(&input, Provider::OpenAi, &LIMITS).unwrap();
             assert_eq!(
-                super::encode_request(Provider::OpenAiCodex, &input, &LIMITS).unwrap(),
-                openai::encode_request(&old_codex, &LIMITS).unwrap(),
-                "Codex seed {seed}: schemas are borrowed, arguments remain text"
+                super::encode_request(Provider::OpenAi, &input, &LIMITS).unwrap(),
+                openai::encode_request(&owned_responses, &LIMITS).unwrap(),
+                "Responses seed {seed}: schemas are borrowed, arguments remain text"
             );
             let actual = crate::anthropic::encode_request(&input, 4096, &LIMITS).unwrap();
             input.messages = Box::new([Message {
@@ -922,85 +922,10 @@ mod tests {
     }
 
     #[test]
-    #[expect(
-        clippy::disallowed_types,
-        clippy::disallowed_methods,
-        reason = "ordinary fixture code converts archived native values to neutral prompts"
-    )]
-    fn borrowed_encoder_matches_every_archived_codex_request() {
-        for scenario in ["single-text", "tool-call", "tool-result-final"] {
-            let file = skein_scratch::paths::package().join("src/openai/fixtures").join(scenario).join("request.json");
-            let captured = std::fs::read(file).unwrap();
-            let wrapper = openai::Json::from_bytes(&captured, &LIMITS.document()).unwrap();
-            let body = openai::json::text_ref(
-                openai::json::value_at(wrapper.view(), openai::json::required(wrapper.view(), b"body").unwrap())
-                    .unwrap(),
-            )
-            .unwrap();
-            let native =
-                openai::decode_request(&openai::Json::from_bytes(body, &LIMITS.document()).unwrap(), &LIMITS).unwrap();
-            let expected = openai::encode_request(&native, &LIMITS).unwrap();
-            assert!(native.prompt_cache_key.is_none());
-            let tools = native
-                .tools
-                .into_vec()
-                .into_iter()
-                .map(|tool| crate::Tool { name: tool.name, description: tool.description, schema: tool.schema })
-                .collect::<Vec<_>>()
-                .into_boxed_slice();
-            let messages = native
-                .input
-                .into_vec()
-                .into_iter()
-                .map(|input| {
-                    let (role, block) = match input {
-                        openai::Input::Message { role, text, id, phase, refusal } => {
-                            assert!(id.is_none() && phase.is_none());
-                            let role = match role {
-                                openai::Role::User => Role::User,
-                                openai::Role::Assistant => Role::Assistant,
-                            };
-                            let block = if refusal {
-                                Block::Refusal { text, replay: None }
-                            } else {
-                                Block::Text { text, replay: None }
-                            };
-                            (role, block)
-                        }
-                        openai::Input::FunctionCall { call_id, item_id, name, arguments } => {
-                            assert!(item_id.is_none());
-                            (Role::Assistant, Block::ToolCall { id: call_id, name, arguments, replay: None })
-                        }
-                        openai::Input::FunctionOutput { call_id, output } => {
-                            (Role::User, Block::ToolResult { id: call_id, text: output, is_error: false })
-                        }
-                        openai::Input::Opaque { value } => (
-                            Role::Assistant,
-                            Block::Reasoning { replay: Replay { provider: Provider::OpenAiCodex, value } },
-                        ),
-                    };
-                    Message { role, content: Box::new([block]) }
-                })
-                .collect::<Vec<_>>()
-                .into_boxed_slice();
-            let input = Prompt {
-                model: native.model,
-                instructions: native.instructions,
-                tools,
-                messages,
-                reasoning_effort: native.effort,
-                affinity: None,
-                choice: native.choice,
-                max_output_tokens: None,
-            };
-            assert_eq!(super::encode_request(Provider::OpenAiCodex, &input, &LIMITS).unwrap(), expected, "{scenario}");
-        }
-    }
-    #[test]
     fn text_replays_message_identity_phase_and_refusal() {
         for refusal in [false, true] {
             let block = part(
-                Provider::OpenAiCodex,
+                Provider::OpenAi,
                 openai::Part::Text {
                     id: bytes::copy_of(b"message"),
                     phase: Some(bytes::copy_of(b"commentary")),
@@ -1010,8 +935,7 @@ mod tests {
                 &LIMITS,
             )
             .expect("bounded completed text");
-            let raw =
-                request(&prompt(Role::Assistant, block), Provider::OpenAiCodex, &LIMITS).expect("assistant replay");
+            let raw = request(&prompt(Role::Assistant, block), Provider::OpenAi, &LIMITS).expect("assistant replay");
             assert_eq!(
                 raw.input.as_ref(),
                 &[openai::Input::Message {
@@ -1030,7 +954,7 @@ mod tests {
     #[test]
     fn tool_replay_separates_call_and_item_identity() {
         let block = part(
-            Provider::OpenAiCodex,
+            Provider::OpenAi,
             openai::Part::ToolCall {
                 call_id: bytes::copy_of(b"call"),
                 item_id: bytes::copy_of(b"item"),
@@ -1043,7 +967,7 @@ mod tests {
             &LIMITS,
         )
         .expect("bounded tool");
-        let raw = request(&prompt(Role::Assistant, block), Provider::OpenAiCodex, &LIMITS).expect("tool replay");
+        let raw = request(&prompt(Role::Assistant, block), Provider::OpenAi, &LIMITS).expect("tool replay");
         assert_eq!(
             raw.input.as_ref(),
             &[openai::Input::FunctionCall {
@@ -1058,7 +982,7 @@ mod tests {
             text: bytes::copy_of(b"permission denied"),
             is_error: true,
         };
-        let raw = request(&prompt(Role::User, result), Provider::OpenAiCodex, &LIMITS).expect("tool output replay");
+        let raw = request(&prompt(Role::User, result), Provider::OpenAi, &LIMITS).expect("tool output replay");
         assert_eq!(
             raw.input.as_ref(),
             &[openai::Input::FunctionOutput {
@@ -1072,7 +996,7 @@ mod tests {
         for is_error in [false, true] {
             let block =
                 Block::ToolResult { id: bytes::copy_of(b"call"), text: bytes::copy_of(b"result\ntext"), is_error };
-            let raw = request(&prompt(Role::User, block), Provider::OpenAiCodex, &LIMITS).expect("tool result");
+            let raw = request(&prompt(Role::User, block), Provider::OpenAi, &LIMITS).expect("tool result");
             let wire = openai::encode_request(&raw, &LIMITS).expect("encoded result");
             let json = openai::Json::from_bytes(&wire, &LIMITS.document()).expect("request JSON");
             let decoded = openai::decode_request(&json, &LIMITS).expect("request replay");
@@ -1085,12 +1009,12 @@ mod tests {
         let mut limits = LIMITS;
         limits.strings = 8;
         let block = Block::ToolResult { id: bytes::copy_of(b"call"), text: bytes::copy_of(b"no"), is_error: true };
-        request(&prompt(Role::User, block), Provider::OpenAiCodex, &limits).unwrap();
+        request(&prompt(Role::User, block), Provider::OpenAi, &limits).unwrap();
     }
     #[test]
     fn malformed_tool_arguments_are_preserved_received_and_replayed_as_text() {
         let block = part(
-            Provider::OpenAiCodex,
+            Provider::OpenAi,
             openai::Part::ToolCall {
                 call_id: bytes::copy_of(b"call"),
                 item_id: bytes::copy_of(b"item"),
@@ -1103,7 +1027,7 @@ mod tests {
             &LIMITS,
         )
         .expect("received arguments need not be valid JSON");
-        let request = request(&prompt(Role::Assistant, block), Provider::OpenAiCodex, &LIMITS)
+        let request = request(&prompt(Role::Assistant, block), Provider::OpenAi, &LIMITS)
             .expect("native arguments are an exact string, including malformed JSON");
         match request.input.as_ref() {
             [openai::Input::FunctionCall { arguments, .. }] => assert_eq!(arguments.as_ref(), b"broken"),
@@ -1114,11 +1038,11 @@ mod tests {
     #[test]
     fn reasoning_runs_replay_each_native_item_in_order() {
         let run = br#"[{"id":"r0","type":"reasoning","encrypted_content":"a","summary":[]},{"id":"r1","type":"reasoning","encrypted_content":"b","summary":[]},{"id":"r2","type":"reasoning","encrypted_content":"c","summary":[]}]"#;
-        let block = part(Provider::OpenAiCodex, openai::Part::Opaque { bytes: bytes::copy_of(run) }, &LIMITS)
-            .expect("bounded run");
+        let block =
+            part(Provider::OpenAi, openai::Part::Opaque { bytes: bytes::copy_of(run) }, &LIMITS).expect("bounded run");
         let prompt = prompt(Role::Assistant, block);
-        let native = request(&prompt, Provider::OpenAiCodex, &LIMITS).expect("native replay");
-        let body = super::encode_request(Provider::OpenAiCodex, &prompt, &LIMITS).expect("borrowed replay");
+        let native = request(&prompt, Provider::OpenAi, &LIMITS).expect("native replay");
+        let body = super::encode_request(Provider::OpenAi, &prompt, &LIMITS).expect("borrowed replay");
         let offset = bytes::find(&body, run).expect("ordered input");
         assert_eq!(body.get(offset..offset + run.len()), Some(run.as_slice()));
         let native_body = openai::encode_request(&native, &LIMITS).expect("native encoder");
@@ -1128,11 +1052,11 @@ mod tests {
     #[test]
     fn a_reasoning_run_checks_each_items_reasoning_limit() {
         let run = br#"[{"id":"r0","type":"reasoning","encrypted_content":"a"},{"id":"r1","type":"reasoning","encrypted_content":"bc"}]"#;
-        let block = part(Provider::OpenAiCodex, openai::Part::Opaque { bytes: bytes::copy_of(run) }, &LIMITS)
-            .expect("bounded run");
+        let block =
+            part(Provider::OpenAi, openai::Part::Opaque { bytes: bytes::copy_of(run) }, &LIMITS).expect("bounded run");
         assert_eq!(
             super::encode_request(
-                Provider::OpenAiCodex,
+                Provider::OpenAi,
                 &prompt(Role::Assistant, block),
                 &openai::Limits { reasoning: 1, ..LIMITS }
             ),
@@ -1142,9 +1066,9 @@ mod tests {
     #[test]
     fn encrypted_reasoning_is_exactly_replayed() {
         let value = br#"{"type":"reasoning","id":"r","encrypted_content":"opaque","summary":[]}"#;
-        let block = part(Provider::OpenAiCodex, openai::Part::Opaque { bytes: bytes::copy_of(value) }, &LIMITS)
+        let block = part(Provider::OpenAi, openai::Part::Opaque { bytes: bytes::copy_of(value) }, &LIMITS)
             .expect("bounded reasoning");
-        let raw = request(&prompt(Role::Assistant, block), Provider::OpenAiCodex, &LIMITS).expect("reasoning replay");
+        let raw = request(&prompt(Role::Assistant, block), Provider::OpenAi, &LIMITS).expect("reasoning replay");
         assert_eq!(
             raw.input.as_ref(),
             &[openai::Input::Opaque {
@@ -1152,30 +1076,30 @@ mod tests {
             }]
         );
         let replay = Replay {
-            provider: Provider::OpenAiCodex,
+            provider: Provider::OpenAi,
             value: openai::Json::from_bytes(br#"{"type":"message"}"#, &LIMITS.document()).expect("JSON object"),
         };
         assert_eq!(
-            request(&prompt(Role::Assistant, Block::Reasoning { replay }), Provider::OpenAiCodex, &LIMITS),
+            request(&prompt(Role::Assistant, Block::Reasoning { replay }), Provider::OpenAi, &LIMITS),
             Err(Error::Invalid)
         );
     }
     #[test]
     fn invalid_text_roles_and_bounds_reject_admission() {
         let invalid = Block::Text { text: bytes::copy_of(&[0xff]), replay: None };
-        assert_eq!(request(&prompt(Role::User, invalid), Provider::OpenAiCodex, &LIMITS), Err(Error::Invalid));
+        assert_eq!(request(&prompt(Role::User, invalid), Provider::OpenAi, &LIMITS), Err(Error::Invalid));
         let refusal = Block::Refusal { text: bytes::copy_of(b"no"), replay: None };
-        assert_eq!(request(&prompt(Role::User, refusal), Provider::OpenAiCodex, &LIMITS), Err(Error::Invalid));
+        assert_eq!(request(&prompt(Role::User, refusal), Provider::OpenAi, &LIMITS), Err(Error::Invalid));
         let text = Block::Text { text: bytes::copy_of(b"long text"), replay: None };
         let mut limits = LIMITS;
         limits.strings = 4;
-        request(&prompt(Role::User, text), Provider::OpenAiCodex, &limits).unwrap();
+        request(&prompt(Role::User, text), Provider::OpenAi, &limits).unwrap();
         let mut limits = LIMITS;
         limits.history_items = 0;
         assert_eq!(
             request(
                 &prompt(Role::User, Block::Text { text: bytes::copy_of(b""), replay: None }),
-                Provider::OpenAiCodex,
+                Provider::OpenAi,
                 &limits
             ),
             Err(Error::limit(crate::Cap::HistoryItems, 0))
@@ -1189,11 +1113,11 @@ mod tests {
             br#"{"id":"a","id":"b"}"#.as_slice(),
         ] {
             let replay = Replay {
-                provider: Provider::OpenAiCodex,
+                provider: Provider::OpenAi,
                 value: openai::Json::from_bytes(value, &LIMITS.document()).expect("valid object"),
             };
             let block = Block::Text { text: bytes::copy_of(b"answer"), replay: Some(replay) };
-            assert_eq!(request(&prompt(Role::Assistant, block), Provider::OpenAiCodex, &LIMITS), Err(Error::Invalid));
+            assert_eq!(request(&prompt(Role::Assistant, block), Provider::OpenAi, &LIMITS), Err(Error::Invalid));
         }
     }
     #[test]
@@ -1232,11 +1156,11 @@ mod tests {
             [bytes::copy_of(b"read"), bytes::copy_of(b"read")].as_slice(),
         ] {
             prompt.choice = crate::ToolChoice::Only(names.into());
-            assert_eq!(request(&prompt, Provider::OpenAiCodex, &LIMITS), Err(Error::Invalid));
+            assert_eq!(request(&prompt, Provider::OpenAi, &LIMITS), Err(Error::Invalid));
             assert_eq!(crate::anthropic::encode_request(&prompt, 4096, &LIMITS), Err(Error::Invalid));
         }
         prompt.choice = crate::ToolChoice::Only(Box::new([bytes::copy_of(b"read")]));
-        request(&prompt, Provider::OpenAiCodex, &LIMITS).expect("offered name accepted");
+        request(&prompt, Provider::OpenAi, &LIMITS).expect("offered name accepted");
         crate::anthropic::encode_request(&prompt, 4096, &LIMITS).expect("offered name accepted");
     }
     #[test]
@@ -1246,7 +1170,7 @@ mod tests {
             Block::Cut { id: bytes::copy_of(b"c"), name: bytes::copy_of(b"read"), arguments: bytes::copy_of(b"{") },
         ] {
             let prompt = prompt(Role::Assistant, block);
-            assert_eq!(request(&prompt, Provider::OpenAiCodex, &LIMITS), Err(Error::Invalid));
+            assert_eq!(request(&prompt, Provider::OpenAi, &LIMITS), Err(Error::Invalid));
             assert_eq!(crate::anthropic::encode_request(&prompt, 4096, &LIMITS), Err(Error::Invalid));
         }
         for cut in [false, true] {
@@ -1259,7 +1183,7 @@ mod tests {
                 bytes: 1,
                 cut,
             };
-            let block = part(Provider::OpenAiCodex, native, &LIMITS).expect("refused call is a block");
+            let block = part(Provider::OpenAi, native, &LIMITS).expect("refused call is a block");
             if cut {
                 assert_eq!(
                     block,
@@ -1292,25 +1216,25 @@ mod tests {
             cut: false,
         };
         assert_eq!(
-            part(Provider::OpenAiCodex, native, &LIMITS),
+            part(Provider::OpenAi, native, &LIMITS),
             Ok(Block::Oversize { id: bytes::copy_of(b"c"), name: bytes::copy_of(b"read"), bytes: 99 })
         );
     }
     #[test]
-    fn dropped_history_is_admitted_and_emits_no_codex_item() {
+    fn dropped_history_is_admitted_and_emits_no_responses_item() {
         let mut history = prompt(Role::Assistant, Block::Dropped { bytes: u64::MAX });
         history.messages[0].content =
             Box::new([Block::Dropped { bytes: u64::MAX }, Block::Text { text: bytes::copy_of(b"kept"), replay: None }]);
-        let actual = request(&history, Provider::OpenAiCodex, &LIMITS).unwrap();
+        let actual = request(&history, Provider::OpenAi, &LIMITS).unwrap();
         let expected = request(
             &prompt(Role::Assistant, Block::Text { text: bytes::copy_of(b"kept"), replay: None }),
-            Provider::OpenAiCodex,
+            Provider::OpenAi,
             &LIMITS,
         )
         .unwrap();
         assert_eq!(actual, expected);
         assert_eq!(
-            part(Provider::OpenAiCodex, openai::Part::Dropped { bytes: 99 }, &LIMITS),
+            part(Provider::OpenAi, openai::Part::Dropped { bytes: 99 }, &LIMITS),
             Ok(Block::Dropped { bytes: 99 })
         );
     }

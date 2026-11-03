@@ -139,8 +139,8 @@ fn agent_endpoint_document(directory: &std::path::Path, program: bool, program_e
     let mut value = serde_json::json!({
         "profile":{"name":"standard","declared":{"tool_payload":512,"read_window":256},
             "policy":{"max_turns":5,"group_stop":10}},
-        "endpoints":[{"name":"fake","number":0,"dialect":3,"account":1,"provider":"openai",
-            "address":"127.0.0.1:34443","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"identity":"plain","connect":1000,"handshake":1000,
+        "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
+            "address":"127.0.0.1:34443","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"connect":1000,"handshake":1000,
             "models":[{"name":"fake","window":1_048_576,"output":1024,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1000},"head":60000,"idle":30000}]}],
         "environment":[{"name":"JIG_SOURCE_CHECK","value":"configured"}]
     });

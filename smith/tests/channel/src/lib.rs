@@ -496,7 +496,7 @@ pub fn test_endpoints() -> smith_protocol_translate::Endpoints {
 
 fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
     let schema = smith_channel::schema(&bodies).expect("bounded bodies");
-    let version = schema.version(5).expect("v5");
+    let version = schema.version(smith_channel::kind::VERSION).expect("v6");
     let largest = version.kinds.iter().map(|kind| kind.largest).max().expect("kinds");
     skein_channel::Limits {
         chunk: 4096,
