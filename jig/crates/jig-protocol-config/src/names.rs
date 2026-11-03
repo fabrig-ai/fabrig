@@ -1,5 +1,4 @@
-//! Named override limits (jig/docs/design/protocol/configuration.md, 6;
-//! temper/docs/design/protocol/documentation.md, 8).
+//! Named override limits (jig/docs/design/protocol/configuration.md, 6).
 
 /// What a named limit counts (protocol/configuration.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -9,7 +8,7 @@ pub enum Unit {
     Milliseconds,
 }
 
-/// One limit an override may name (temper/docs/design/protocol/documentation.md, 8).
+/// One limit an override may name.
 #[derive(Clone, Copy, Debug)]
 pub struct Name {
     /// Its dotted name, as `limits.overrides` names it.

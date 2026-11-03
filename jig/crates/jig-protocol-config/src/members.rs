@@ -1,5 +1,4 @@
-//! Configuration document members by shape (jig/docs/design/protocol/configuration.md, 3, 4 and 10;
-//! temper/docs/design/protocol/documentation.md, 8).
+//! Configuration document members by shape (jig/docs/design/protocol/configuration.md, 3, 4 and 10).
 use skein_lib::List;
 
 /// A shape of the configuration document, and every path it is read at.
@@ -10,7 +9,7 @@ pub struct Shape {
     pub line: &'static str,
 }
 
-/// One member of a shape (temper/docs/design/protocol/documentation.md, 8).
+/// One member of a configuration document shape.
 #[derive(Clone, Copy, Debug)]
 pub struct Member {
     pub shape: &'static str,
