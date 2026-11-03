@@ -1,3 +1,24 @@
 draft = "repo-links"
 repo = "fabrig"
 sources = ["temper/docs/plan/repo-links/inputs/request.md", "AGENTS.md"]
+
+# The director's request (inputs/request.md): the old GitHub repositories go, and temper's one
+# link into the old temper repository, the deployment's help, moves to the same page in fabrig.
+# One direct part of one task. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "repo-links"
+title = "The deployment's help link and its mockup point at temper/docs/help/server.md in the fabrig repository"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 5.4"
+
+[[slice]]
+id = 1
+story = "Forgejo on this machine's Details draw \"Show how\", a link to https://github.com/fabrig-ai/fabrig/blob/main/temper/docs/help/server.md, and no tracked file outside the plans names the old temper repository"
+parts = ["repo-links"]
+walk = false
