@@ -107,3 +107,18 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, with each test whose input or expectation you changed and why.
+
+## Answers
+
+- 2026-11-03. Q: the zero-side skip admits `{"people.operations": 0}`, which no family bound
+  refuses; add a configuration-level bound check, or accept it? A: neither. The skip applies
+  only to the relations after the first three; the first three (`tasks.tasks` within
+  `people.inbox_tasks`, `tasks.delegates` plus one and `tasks.project_goals` within
+  `people.operations`) are checked as today, whatever their figures, so a zero
+  `people.operations` stays refused as today: `What::Capacity { member: b"tasks.delegates",
+  configured: 4, requires: b"people.operations", required: 5 }` on the small profile. No new
+  bound check, no domain validator change. In `relation`, take the zero test as a flag (or check
+  the first three before the table walk), and change the people.operations row of
+  `zero_capacity_sides_keep_their_family_bound_problem` to that `Capacity`, single problem, no
+  `What::Override`. `jig/docs/design/protocol/configuration.md`, 6 now says so (amended on the
+  answer's branch). Then finish the unrun checks of Steps 3 and 4 and remove the status line.
