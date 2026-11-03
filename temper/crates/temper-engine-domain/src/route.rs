@@ -10,6 +10,7 @@ pub(crate) mod host_route;
 pub(crate) mod playground;
 pub use host_route::{HostDelivery, HostRequest};
 mod goal;
+mod kinds;
 pub(crate) mod landing;
 mod now;
 mod panels;
@@ -136,10 +137,12 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Party(crate::PartyInput::Whose { reply_to, sign_in }) => {
             domain.work.push(Work::People(people::Event::Whose { reply_to, sign_in }));
         }
-        Event::Party(crate::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change }) => {
+        Event::Party(crate::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
+            domain.kinds = kinds;
             domain.work.push(Work::Core(core::Event::ProposeSettings { reply_to, sign_in, key, digest, change }));
         }
-        Event::Party(crate::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change }) => {
+        Event::Party(crate::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
+            domain.kinds = kinds;
             domain.work.push(Work::Core(core::Event::ChangeSettings { reply_to, sign_in, key, digest, change }));
         }
         Event::Party(crate::PartyInput::SignOut { reply_to, sign_in }) => {
@@ -388,6 +391,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 );
             }
             Work::Forge(event) => forge_event(domain, env, decision, event),
+            Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),
             Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal),
             Work::GoalSubscribe(subscriber) => forge_route::goal_subscribed(domain, env, subscriber),
             Work::AgreedGoal(read) => goal::ready(domain, env, decision, *read),

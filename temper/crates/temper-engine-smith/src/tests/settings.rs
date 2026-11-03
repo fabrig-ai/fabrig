@@ -80,6 +80,7 @@ fn settings_proposal_items_use_the_file_decoder() {
     assert_eq!(
         body.tool,
         engine::Tool::ProposeSettings {
+            kinds: Box::default(),
             against: 1,
             reason: b"restore the default".as_slice().into(),
             items: Box::new([s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Reset }])

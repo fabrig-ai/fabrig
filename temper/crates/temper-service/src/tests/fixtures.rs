@@ -906,6 +906,7 @@ pub fn signed_worker() -> crate::Service {
     let mut rules = settings.jig.rules;
     rules.maximum_run_spend = 100;
     service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::ChangeSettings {
+        kinds: Box::default(),
         reply_to: skein_lib::ReplyTo::new(Token::new(31_052)),
         sign_in: 1,
         key: [52; 16],

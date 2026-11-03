@@ -10,10 +10,10 @@ use temper_engine_domain as root;
 pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> {
     let value = match event {
         core::Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
-            root::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change }
+            root::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change, kinds: Box::default() }
         }
         core::Event::ChangeSettings { reply_to, sign_in, key, digest, change } => {
-            root::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change }
+            root::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds: Box::default() }
         }
         core::Event::SignIn { reply_to, identity, held } => root::PartyInput::SignedIn { reply_to, identity, held },
         core::Event::People(people::Event::Ask { reply_to, sign_in, key, ask, models }) => {
