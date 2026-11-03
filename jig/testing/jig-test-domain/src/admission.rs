@@ -155,10 +155,10 @@ fn connector_class(event: &connector::Event) -> Class {
 pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<(), Event> {
     match event {
         Event::Core(core::Event::PublicRead { reply, read }) => {
-            if !public_admits(domain, &env.limits) {
-                crate::client_documents::public_busy(domain, reply);
-            } else {
+            if public_admits(domain, &env.limits) {
                 step(domain, env, Event::Core(core::Event::PublicRead { reply, read }));
+            } else {
+                crate::client_documents::public_busy(domain, reply);
             }
             Ok(())
         }
