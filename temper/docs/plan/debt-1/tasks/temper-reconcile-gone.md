@@ -219,3 +219,13 @@ The acceptance now says so. `refusals_name_the_command_and_its_forms` and the un
 refusal stay as they are. The run goes on from `bad11e9de8`: the outstanding checks in Steps
 (temper-docs, temper-box and temper-fake checks, clippy with `-p temper-fake` added since its
 test literal changed), then the status and debt text, the citations and the acceptance's `rg`.
+
+## Rebase (2026-11-03, step merge, foreman debt-1/temper-reconcile-gone/foreman-3)
+
+resolve configuration.status.md by preserving main’s charter update and removing the D006 setup.orgs gap.
+The merge conflicts in `temper/docs/design/protocol/configuration.status.md`.
+Main commit `4cec6f43895e827f9cfee1546c537f6fcff45a71` updates the adjacent **Not yet** paragraph’s 13.4 charter entry.
+Task commit `4e24c3cbf150a7441569d32742789f05a04144b7` removes the `setup.orgs` sentence from **Departs**.
+Resolve using main’s file, deleting only: “7: the `setup.orgs` limit stays, though no setup entry names orgs (`temper-forge-setup/src/limits.rs`); a code task removes it.”
+Preserve main’s wording that charter tools reach runs but gate only the settings family, all other status text, and the `2026-11-03` date.
+Run the spec’s citation checks after resolving.
