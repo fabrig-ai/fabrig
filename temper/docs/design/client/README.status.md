@@ -12,9 +12,6 @@
   or in `temper-service`'s routing.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
-  5.3, Projects in the banner: the banner draws one button per project
-  (`temper-client-view`'s `frame.rs`, `project_buttons`), not the open one alone with its
-  switcher.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat
@@ -34,3 +31,11 @@
   as ready, where it shows `ConnectModel`'s Choose. 3.5, With no project
   yet: its heading, words and acts; `pages/chats.rs` draws the pane
   alone, the new chat's bar with no status and the list under "Chats".
+- **Departs:** 3.5, With no project yet, and 5.3: with no project, the
+  banner's place for it reads "No project yet" followed by the new
+  project's form, "New project" and "Create" (`temper-client-view`'s
+  `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that
+  form and 3.5 leaves the first project to the playground's start or
+  the welcome's Ready. The code records no reason; it lets a person make
+  "Default" before Ready, the case of the draft's open question
+  (`../draft/first-run-projects.status.md`).
