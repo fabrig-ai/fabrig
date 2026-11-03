@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/reference-m7b/inputs/request.md", "temper/docs/desi
 # delegation naming a job kind in jig's configuration (inputs/request.md). Built to
 # notes/contracts.md.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

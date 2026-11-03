@@ -1364,10 +1364,12 @@ delegate's terminal wakes it to offer the landed result.
   means the command left conflicts, and the change makes a resolution
   of the same base, its words carrying the job's result, cut to the
   resolution's words' room and marked. A job that fails for good holds
-  the change as a resolution that fails does. Without a `merge_job`, or
-  without the kind in its authority, a conflict goes to a resolution at
-  once. A merge job counts as one of the change's resolutions, and the
-  resolution after it as none, so the bound counts each conflict once.
+  the change as a resolution that fails does. Without a `merge_job`,
+  without the kind declared (`worker.md`, 4.4) or in its authority, or
+  with the job's spec past the kind's bound, a conflict goes to a
+  resolution at once. A merge job counts as one of the change's
+  resolutions, and the resolution after it as none, so the bound counts
+  each conflict once.
 - **A resolution** is a task for an agent whose workspace starts from a
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
