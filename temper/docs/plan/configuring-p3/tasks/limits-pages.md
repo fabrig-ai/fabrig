@@ -3,7 +3,7 @@ id = "limits-pages"
 part = "pages"
 kind = "feature"
 needs = ["limits-jig"]
-files = ["temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-service/src/limits/reference.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/limits.rs", "temper/crates/temper-forge-setup/src/limits.rs", "temper/crates/temper-forge-setup/src/tests/limits.rs", "temper/crates/temper-box/src/limits.rs", "temper/crates/temper-box/src/tests/limits.rs", "temper/crates/temper/src/tests/limits.rs", "temper/crates/temper/src/tests.rs", "temper/crates/temper-docs/src/lib.rs", "temper/docs/help/reference/limits.md", "temper/docs/help/reference/limits-engine.md", "temper/docs/design/protocol/documentation.status.md"]
+files = ["temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-service/src/limits/reference.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/limits.rs", "temper/crates/temper-forge-setup/src/limits.rs", "temper/crates/temper-forge-setup/src/tests/limits.rs", "temper/crates/temper-box/src/limits.rs", "temper/crates/temper-box/src/tests/limits.rs", "temper/crates/temper/src/tests/limits.rs", "temper/crates/temper/src/tests.rs", "temper/crates/temper-docs/src/lib.rs", "temper/docs/help/reference/limits.md", "temper/docs/help/reference/limits-engine.md", "temper/docs/design/protocol/documentation.status.md", "temper/crates/temper-service/Cargo.toml", "Cargo.lock"]
 effort = "high"
 minutes = 150
 +++
@@ -76,3 +76,13 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and each page's bytes.
+
+## Answers
+
+2026-11-03. May temper-service depend on temper-box, so that `reference` renders the box's
+rows from `temper_box::limits::NAMES`? Yes (option A): add `temper-box.workspace = true` to
+`temper/crates/temper-service/Cargo.toml`'s `[dependencies]` and let Cargo.lock follow; both
+are now in `files`, and this is the one dependency the spec allows beyond `common.md`'s rule.
+temper-box needs only skein and temper-forge-setup, which temper-service already has, so the
+edge makes no cycle and C3 keeps its shape: both renderers stay in temper-service's `limits`
+module. No other dependency changes.
