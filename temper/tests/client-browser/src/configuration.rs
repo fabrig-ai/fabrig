@@ -191,7 +191,8 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         ("clients.public.rate_burst", 20),
         ("clients.public.bytes", 2_097_152),
         ("clients.public.bytes_burst", 2_097_152),
-        ("clients.public.answer_bytes", 262_144),
+        // The 20/20/50 board reserves 730,728 bytes; this tier's approved ceiling is 1 MiB.
+        ("clients.public.answer_bytes", 1_048_576),
         ("clients.public.reads", 8),
         ("clients.public.max_age", 2),
         ("clients_http.public_calls", 8),
@@ -211,7 +212,8 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
             for line in turn["lines"].as_array_mut().expect("CSV lines") {
                 if line["call"] == "delegate" {
                     for member in line["arguments"]["batch"].as_array_mut().expect("delegate batch") {
-                        member["tracked"] = 1.into();
+                        // delegate's host-tool spelling of tracked priority 1.
+                        member["tracked"] = serde_json::json!({"priority": 1});
                         delegates = delegates.checked_add(1).expect("bounded script");
                     }
                 }

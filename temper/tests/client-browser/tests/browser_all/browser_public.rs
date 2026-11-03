@@ -1,6 +1,6 @@
 //! The public walk in Chromium (temper/docs/design/client/browser.md, 8.4): the
 //! bundle, anonymous navigation, and an open page losing a project's public records.
-use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep};
+use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep, Target};
 use skein_fake_person_browser::harness::Output;
 use skein_fake_person_browser::{BrowserFace, Command, Harness, Opens, Outcome, Play, Script, Sent, Stdin, Step};
 use skein_lib::Time;
@@ -10,11 +10,10 @@ use temper_client_browser_world::{Tier, WITHIN, temper};
 
 const TITLE: &[u8] = b"Export widget's table as CSV";
 const CHAT: &[u8] = b"Add CSV export to widget";
-const REPLY: &[u8] = b"CSV export is available from widget";
 const UNKNOWN: &[u8] = b"Not public, or not here.";
+const PROJECT: &[u8] = b"Demo";
 // Public identifiers have sixteen hexadecimal digits (jig/docs/design/domain/people.md, 13.8).
 const ID_DIGITS: usize = 16;
-const SHORT_DIGITS: usize = 8;
 
 fn see(find: Find) -> Step {
     Step::Person(PersonStep::See { find, within: WITHIN })
@@ -38,6 +37,20 @@ fn sign_in(directory: &Path) -> Step {
         env: vec![],
         stdin: Stdin::Printed,
         opens: None,
+        within: WITHIN,
+    })
+}
+fn open_printed() -> Step {
+    Step::Run(Command {
+        program: "/bin/cat".into(),
+        args: vec![],
+        env: vec![],
+        stdin: Stdin::Printed,
+        opens: Some(Opens {
+            prefix: b"http://127.0.0.1:".as_slice().into(),
+            on: Output::Stdout,
+            keep: b"owner-link".as_slice().into(),
+        }),
         within: WITHIN,
     })
 }
@@ -94,18 +107,7 @@ impl Walk {
         let script = Script::new(Box::new([
             // The first profile signs ctl in with the initial printed link. This
             // profile opens the next link, so neither reuses a spent sign-in link.
-            Step::Run(Command {
-                program: "/bin/cat".into(),
-                args: vec![],
-                env: vec![],
-                stdin: Stdin::Printed,
-                opens: Some(Opens {
-                    prefix: b"http://127.0.0.1:".as_slice().into(),
-                    on: Output::Stdout,
-                    keep: b"owner-link".as_slice().into(),
-                }),
-                within: WITHIN,
-            }),
+            open_printed(),
             exited(),
             see(Find::exactly_named(Role::Button, b"Try the playground")),
             press(Find::exactly_named(Role::Button, b"Try the playground")),
@@ -115,7 +117,15 @@ impl Walk {
             see(heading(b"Chats")),
             see(Find::exactly_named(Role::Button, CHAT)),
             press(Find::exactly_named(Role::Button, CHAT)),
-            see(Find::text(REPLY)),
+            see(Find::exactly_named(Role::Region, b"Task 2")),
+            press(
+                Find::exactly_named(Role::Link, b"Task 2")
+                    .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }])),
+            ),
+            see(heading(TITLE)),
+            see(Find::text(b"Passed")),
+            see(Find::text(b"Approved")),
+            see(Find::text("Landed · merge commit ".as_bytes())),
             visibility(client.path(), true),
             exited(),
             press(Find::exactly_named(Role::Button, b"Sign out")),
@@ -143,10 +153,6 @@ impl Walk {
         self.text_at = 0;
         self.text.clear();
     }
-    fn project_label(&self) -> Vec<u8> {
-        let id = self.board.strip_prefix("/public/projects/").expect("public project path");
-        format!("Project {}", id.get(..SHORT_DIGITS).expect("short project identifier")).into_bytes()
-    }
     fn published(&mut self) {
         let answer = fs::read_to_string(self.client.path().join("public.txt")).expect("ctl public answer");
         let mut lines = answer.lines();
@@ -160,7 +166,7 @@ impl Walk {
             vec![
                 go(b"/public"),
                 see(heading(b"Public projects")),
-                see(Find::exactly_named(Role::Link, &self.project_label())),
+                see(Find::exactly_named(Role::Link, PROJECT)),
                 Step::Address(b"/public".as_slice().into()),
             ],
         );
@@ -185,8 +191,12 @@ impl Walk {
             "Offline",
             "Conversation",
             "Playground forge",
+            "Owner",
+            "owner",
+            "temper/",
             "main",
             "Review the change",
+            "Review this change at the named head",
             "Checked widget CSV export.",
         ] {
             assert!(!text.contains(forbidden), "{path} exposed {forbidden:?}: {text}");
@@ -201,6 +211,24 @@ impl Walk {
         }
         if matches!(self.page, Page::Task) {
             assert!(text.contains("Goal "), "card names its public goal");
+            assert!(
+                text.matches(std::str::from_utf8(TITLE).expect("title")).count() >= 2,
+                "card shows the goal and its delegate's titles: {text}"
+            );
+        }
+        if matches!(self.page, Page::Landings) {
+            // This demo lands directly, without a landing by turn: no turn, queues or recent landings.
+            assert_eq!(self.text, ["temper", "Landings"], "empty public landings page");
+        }
+        if matches!(self.page, Page::Private) {
+            assert_eq!(
+                self.text,
+                ["temper", "Not public, or not here.", "Read public projects"],
+                "unknown drops the goal and its change"
+            );
+        }
+        if matches!(self.page, Page::Empty | Page::Malformed) {
+            assert_eq!(self.text, ["temper", "Public projects"], "no public project remains");
         }
     }
     fn advance(&mut self) {
@@ -209,10 +237,11 @@ impl Walk {
             Page::Projects => self.open(
                 Page::Board,
                 vec![
-                    press(Find::exactly_named(Role::Link, &self.project_label())),
-                    see(heading(b"Demo")),
+                    press(Find::exactly_named(Role::Link, PROJECT)),
+                    see(heading(PROJECT)),
                     see(Find::named(Role::Link, b"Goal ")),
                     see(Find::text(TITLE)),
+                    see(Find::text(b"done")),
                     Step::Address(self.board.as_bytes().into()),
                 ],
             ),
@@ -221,10 +250,9 @@ impl Walk {
                 vec![
                     press(Find::named(Role::Link, b"Goal ")),
                     see(Find::text(TITLE)),
-                    see(Find::text(b"Landed")),
+                    see(Find::text(b"landed")),
                     see(Find::text(b"passed")),
-                    see(Find::text(b"review")),
-                    see(Find::text(b"1")),
+                    see(Find::text("Gate 1 · review · blocking".as_bytes())),
                     see(Find::text(b"its change on the forge")),
                 ],
             ),
@@ -244,7 +272,7 @@ impl Walk {
                     visibility(self.client.path(), false),
                     exited(),
                     see(Find::text(UNKNOWN)),
-                    see(Find::named(Role::Link, b"public")),
+                    see(Find::exactly_named(Role::Link, b"Read public projects")),
                     Step::Address(self.task.as_bytes().into()),
                 ],
             ),
@@ -254,10 +282,10 @@ impl Walk {
                 self.open(
                     Page::Empty,
                     vec![
-                        go(b"/public"),
+                        press(Find::exactly_named(Role::Link, b"Read public projects")),
                         see(heading(b"Public projects")),
                         Step::Person(PersonStep::Gone {
-                            find: Find::exactly_named(Role::Link, &self.project_label()),
+                            find: Find::exactly_named(Role::Link, PROJECT),
                             within: WITHIN,
                         }),
                         Step::Address(b"/public".as_slice().into()),
@@ -351,7 +379,8 @@ impl Play for Walk {
 fn a_visitor_reads_a_public_project_and_loses_it_when_made_private() {
     let tier = Tier::public_demo("public-visitor-project");
     let mut walk = Walk::new(&tier);
-    let mut ctl = Script::new(Box::new([sign_in(walk.client.path()), exited()]));
+    // Opening ctl's spent link makes serve print the owner's fresh link for the second tab.
+    let mut ctl = Script::new(Box::new([sign_in(walk.client.path()), exited(), open_printed(), exited()]));
     let mut setup = tier.setup();
     setup.printed.sent = Sent::Command;
     assert_eq!(Harness::new(setup).run(&mut [&mut ctl, &mut walk]), Outcome::Done);
