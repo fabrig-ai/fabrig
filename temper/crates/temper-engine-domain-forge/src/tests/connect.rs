@@ -1012,3 +1012,59 @@ fn a_new_github_is_refused_without_the_machines_place() {
         ForgeRefusal::NoSuchForge,
     );
 }
+
+fn assert_not_taken(d: &mut Domain, ask: Ask) {
+    let out = application(d, 1, ask, Some(PartyRole::Owner), Some(VALUE));
+    assert_eq!(
+        d.application_answer(Token::new(1)),
+        Some(Answered::Connect(ConnectAnswer::Refused(ForgeRefusal::NotTaken)))
+    );
+    assert_eq!(
+        out.as_ref(),
+        &[
+            Request::CarriedUnused { number: VALUE.number },
+            Request::ApplicationDone { request: Token::new(1), token: Token::new(1) },
+        ]
+    );
+    assert!(d.records.is_empty());
+}
+#[test]
+fn tokens_and_connected_forge_connects_are_not_taken() {
+    let place = Place {
+        api: Address { host: b"forge.example".as_slice().into(), port: 80, tls: None },
+        git: b"forge.example".as_slice().into(),
+        web: None,
+    };
+    for (kind, mode) in
+        [(Kind::Forgejo, Mode::Connected), (Kind::Forgejo, Mode::Managed), (Kind::GitHub, Mode::Connected)]
+    {
+        for forge in [
+            Making::Kept(1),
+            Making::New(ForgeAsk::GitHub),
+            Making::New(ForgeAsk::Owned),
+            Making::New(ForgeAsk::Managed { place: place.clone(), git_program: None }),
+            Making::New(ForgeAsk::Connected { place: place.clone(), git_program: None }),
+        ] {
+            assert_not_taken(&mut github(kind, mode), Ask::Connect { forge, how: How::ForgejoTokens });
+        }
+    }
+    for how in [
+        How::ForgejoAdmin { first: None },
+        How::GitHubApp { app: NonZeroU64::new(7).unwrap(), read_only: false },
+        How::GitHubManifest { back: None },
+        How::ForgejoTokens,
+    ] {
+        assert_not_taken(
+            &mut github(Kind::Forgejo, Mode::Connected),
+            Ask::Connect { forge: Making::New(ForgeAsk::Connected { place: place.clone(), git_program: None }), how },
+        );
+    }
+}
+#[test]
+fn replace_is_not_taken_and_names_its_carried_value_unused() {
+    for (kind, mode) in
+        [(Kind::GitHub, Mode::Connected), (Kind::Forgejo, Mode::Connected), (Kind::Forgejo, Mode::Managed)]
+    {
+        assert_not_taken(&mut github(kind, mode), Ask::Replace { forge: 1 });
+    }
+}

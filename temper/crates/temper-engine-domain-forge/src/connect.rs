@@ -32,6 +32,7 @@ impl State {
         out.push(Request::ApplicationDone { request, token });
     }
 }
+#[expect(clippy::too_many_lines, reason = "one admission dispatcher checks each public connect request")]
 pub(crate) fn start(
     d: &mut Domain,
     request: Token,
@@ -49,10 +50,16 @@ pub(crate) fn start(
         }
     };
     let answer = match &ask {
+        Ask::Replace { .. } | Ask::Connect { how: crate::How::ForgejoTokens, .. } => {
+            Some(Answered::Connect(ConnectAnswer::Refused(ForgeRefusal::NotTaken)))
+        }
         Ask::RemoveForge { .. } => Some(Answered::RemoveForge(crate::RemoveAnswer::Refused(ForgeRefusal::NoSuchForge))),
         Ask::StartPlayground => Some(Answered::StartPlayground(crate::StartAnswer::NotOffered)),
         Ask::EndPlayground => Some(Answered::EndPlayground(crate::EndAnswer::NotOffered)),
-        Ask::Connect { .. }
+        Ask::Connect {
+            how: crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } | crate::How::ForgejoAdmin { .. },
+            ..
+        }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::Install { .. }
@@ -72,6 +79,9 @@ pub(crate) fn start(
         return;
     }
     let (forge, install, manifest) = match &ask {
+        Ask::Replace { .. } | Ask::Connect { how: crate::How::ForgejoTokens, .. } => {
+            unreachable!("Replace and tokens connects are refused at admission")
+        }
         Ask::Connect { forge: crate::Making::Kept(forge), how: crate::How::GitHubApp { .. } } => (*forge, false, false),
         Ask::Connect { forge: crate::Making::Kept(forge), how: crate::How::GitHubManifest { .. } } => {
             (*forge, false, true)
@@ -170,7 +180,8 @@ fn resolve(
         | Ask::SetUp { .. }
         | Ask::Install { .. }
         | Ask::Accept { .. }
-        | Ask::Reachable { .. }) => Ok(ask),
+        | Ask::Reachable { .. }
+        | Ask::Replace { .. }) => Ok(ask),
     }
 }
 /// Admission precedes the first save (temper/docs/design/protocol/forge.md, 2.2; temper/docs/design/protocol/setup.md, 6.7).
@@ -182,6 +193,12 @@ fn make(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) -> Result<u16, ForgeRefusal> {
+    if let crate::ForgeAsk::Connected { .. } = forge {
+        return Err(ForgeRefusal::NotTaken);
+    }
+    if let crate::How::ForgejoTokens = how {
+        return Err(ForgeRefusal::NotTaken);
+    }
     if role != Some(Role::Owner) {
         return Err(ForgeRefusal::Role);
     }
@@ -190,20 +207,20 @@ fn make(
             let Some(machine) = &d.machine else { return Err(ForgeRefusal::NoSuchForge) };
             match how {
                 crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {}
-                crate::How::ForgejoAdmin { .. } => return Err(ForgeRefusal::NotTaken),
+                crate::How::ForgejoAdmin { .. } | crate::How::ForgejoTokens => return Err(ForgeRefusal::NotTaken),
             }
             (crate::Kind::GitHub, crate::Mode::Connected, machine.github.clone(), machine.github_git_program.clone())
         }
         crate::ForgeAsk::Managed { place, git_program } => {
             match how {
                 crate::How::ForgejoAdmin { .. } => {}
-                crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {
+                crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } | crate::How::ForgejoTokens => {
                     return Err(ForgeRefusal::NotTaken);
                 }
             }
             (crate::Kind::Forgejo, crate::Mode::Managed, place, git_program)
         }
-        crate::ForgeAsk::Owned => return Err(ForgeRefusal::NotTaken),
+        crate::ForgeAsk::Owned | crate::ForgeAsk::Connected { .. } => return Err(ForgeRefusal::NotTaken),
     };
     if d.connect.pending.len() == d.connect.pending.capacity()
         || d.connect.running.len() == d.connect.running.capacity()
@@ -211,6 +228,7 @@ fn make(
         return Err(ForgeRefusal::Busy);
     }
     let first = match how {
+        crate::How::ForgejoTokens => return Err(ForgeRefusal::NotTaken),
         crate::How::GitHubApp { .. } => {
             if carried.is_none() {
                 return Err(ForgeRefusal::NoKey);
@@ -242,6 +260,7 @@ fn make(
     let read_only = match how {
         crate::How::GitHubApp { read_only, .. } => *read_only,
         crate::How::GitHubManifest { .. } | crate::How::ForgejoAdmin { .. } => false,
+        crate::How::ForgejoTokens => return Err(ForgeRefusal::NotTaken),
     };
     match crate::forges::make(
         d,
@@ -262,6 +281,9 @@ fn make(
 
 fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Carried>, out: &mut Queue<Request>) {
     match ask {
+        Ask::Replace { .. } | Ask::Connect { how: crate::How::ForgejoTokens, .. } => {
+            unreachable!("Replace and tokens connects are refused at admission")
+        }
         Ask::Connect { how: how @ crate::How::GitHubApp { read_only, .. }, .. } => {
             if let Some(record) = d.record(forge)
                 && record.read_only != read_only
@@ -327,7 +349,8 @@ fn with_intent(d: &Domain, forge: u16, how: crate::How) -> crate::How {
         }
         how @ (crate::How::ForgejoAdmin { first: Some(_) }
         | crate::How::GitHubApp { .. }
-        | crate::How::GitHubManifest { .. }) => how,
+        | crate::How::GitHubManifest { .. }
+        | crate::How::ForgejoTokens) => how,
     }
 }
 /// Admission for the string-managed Forgejo form (client/README.md, 8).
@@ -342,6 +365,10 @@ fn admin(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) {
+    if let crate::How::ForgejoTokens = how {
+        refused(d, request, token, Answered::Connect(ConnectAnswer::Refused(ForgeRefusal::NotTaken)), carried, out);
+        return;
+    }
     let how = with_intent(d, forge, how);
     let previous = d.connection(forge);
     let config = d.configured.get(&forge);
