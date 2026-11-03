@@ -126,8 +126,9 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     lifetime: Duration::from_secs(10),
     // Allowance for clock movement, from the engine forge world fixture.
     clock_margin: Duration::from_secs(1),
-    // Live forge resources, from the engine forge world fixture.
-    resources: 8,
+    // Three chat branches, six change names, two followed tier branches and
+    // four departing reads fit sixteen slots (domain/forge.md, 5.1).
+    resources: 16,
     // Repositories retained, from the engine forge world fixture.
     repositories: 2,
     // Normal resource polling interval, from the engine forge world fixture.
@@ -228,6 +229,8 @@ const FORGE: forge::Limits = forge::Limits {
         updates: 3,
         // The reference's bound (draft/reference-code-production.md, section 8).
         questions: 4,
+        // Small's producer, a review, and two repairs each followed by its review.
+        tasks: 6,
         // Outlast ordinary CI; report a silent forge within the same sitting (domain/forge.md, 8.4).
         stall: Duration::from_secs(30 * 60),
         // Gates retained by a change, from the engine forge world fixture.

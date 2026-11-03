@@ -29,6 +29,9 @@ includes a departing watch whose read is still in flight; no release is
 needed. A resource hold names the failed operation and its branch or pull
 request. For a working-set limit it gives the exact configuration member
 (such as `forge.client.resources`), configured value and required usage.
+`task show` and `change show`, in text and JSON, include the full retained
+resource-hold explanation, including the action needed before release helps.
+Landed changes keep their watches while tier verification is pending.
 Reduce the named work, or change that member in the deployment configuration
 and restart, then release the task. Release checks admission again; a bound
 still exceeded holds the task again. A failed branch, base or pull read

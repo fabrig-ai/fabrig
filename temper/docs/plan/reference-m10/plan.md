@@ -23,12 +23,35 @@ date.
   branch merges the branch's tip first. Its status: Not yet.
 - `temper/docs/design/client/tools.md`, 5.3: a template's `resources` in a settings file. Its
   status: Not yet.
+- `temper/docs/design/protocol/configuration.md`, 13.9 (batch 3): "A triage delegate" (charter
+  8, read-only; charter 5 may delegate a red's triage to it; designers' changes `"questions":
+  "up"`); "The profile, whole": `docs/examples/reference/` as one profile (`limits.json`,
+  `agent.json`, `landing.json`, `settings.json` and the repository's files), its table of
+  limits sized for a hundred changes (N21), the settings sized to it, the rules' and policy
+  1's delegation 1,024 tasks 4 deep; "Checked as it is read" extended; the landing rules'
+  bullet brought current (kind 1's items since 13.6's second step); the charters' and
+  executors' count moved to the table. 13.4: the false claim that jig's settings schema caps
+  `tasks.result_bytes` at 512 removed. Its status: Not yet for the profile's files and charter
+  5's routes, batches and triage.
 - jig's `jig/docs/design/domain/connectors.status.md`: the Not yet for 6.2's room wait, which
   the design already had.
 - Closed in the drafts' statuses: `reference-code-production.status.md`'s "12: the plan done
   with g's tier settled", "3, 5, 14: `change` and its fields" and "5, 7, 8: a producer's next
-  run once its dependencies move"; `reference-landing.status.md`'s "3, step 2: L's body naming
-  the draft".
+  run once its dependencies move", "4, 14: the profile's limits"; `reference-landing.status.md`'s
+  "3, step 2: L's body naming the draft" and "6: a triage delegate" (it now has no gap);
+  `reference-case.status.md`'s "11" (g's tip merged first) and "22" (the close-out waiting
+  for g's tier).
+
+## What the drafts' statuses still hold
+
+- `reference-code-production.status.md`: the Departs on a red of g's tier waking G, decided
+  by reference-m9's cut; it goes with the drafts' close-out, which folds them into the design.
+- `reference-case.status.md`: N22's fields and N19, N10, N1 and N13: the design carries them
+  since reference-m3 and reference-m5 landed; their retires, not yet run, remove them, and
+  this plan's retire removes any left.
+- `.temper/pre-pr`'s decision is configuration's own (section 11 and its status's Departs),
+  not a draft's: the record so far does not decide it (`temper/docs/development/pre-pr-numbers.md`),
+  the first edition stays, and the case's walk measures what decides it.
 
 The standing rules are `notes/common.md`.
 
@@ -42,12 +65,19 @@ The standing rules are `notes/common.md`.
 | next-run | `next-run-tip`: a goal branch's change's next producer merges g's tip first | | released |
 | template | `template-resources`: a settings file's template carries `resources` | | released |
 | room | `room-wait` (jig): a procedure's batch refused for live room waits for it | | released |
+| triager | `charter-triage`: charter 8; charter 5 delegates a triage, designers ask up | charter-close | released |
+| profile | `profile-limits`: `limits.json`, `agent.json`, the settings sized, the admission and fit tests | charter-triage, charter-checks, change-tasks-limit, template-resources | released |
+
+Slices: 1 (charter), 2 (checks, change-tasks, next-run, template, room), 3 (triager, profile:
+the walk's, `walk = true`). One question, `case-workflows`: the case's repository's CI and tier
+workflows, which fabrig does not carry; nothing waits on it.
 
 ## Critical path, as it stands
 
-`room-wait` (240) is the longest; the profile's batch (the reference's limits as one profile,
-its turns and sizes, template 4's goal branch, the triage delegate) follows `charter-close`,
-`charter-checks`, `change-tasks-limit` and `template-resources`, and is the walk's slice.
+`template-resources` (90) or `change-tasks-limit` (75) → `profile-limits` (150): about four
+implementer-hours to the walk's slice, `charter-close` → `charter-triage` (40) beside it.
+`room-wait` (240) runs alongside and is the longest single task; the walk needs it only where
+live tasks bind.
 
 ## Overlaps with the plans beside this one
 

@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 51] = [
+const SHAPES: [Shape; 52] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -16,6 +16,7 @@ const SHAPES: [Shape; 51] = [
     Shape::WakeRule,
     Shape::WakeBatch,
     Shape::Template,
+    Shape::TemplateSymbol,
     Shape::Text,
     Shape::Executor,
     Shape::Contract,
@@ -376,6 +377,7 @@ fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
         if field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
+            || (field.shape == Shape::Template && field.name == b"resources")
             || (field.shape == Shape::Charter && field.name == b"wake")
             || (field.shape == Shape::Document && field.name == b"heading")
         {
