@@ -29,6 +29,7 @@ mod repin_order;
 mod replay;
 mod restart;
 mod restore_open;
+mod started_from;
 mod verdict_fields;
 
 mod fuzzy {

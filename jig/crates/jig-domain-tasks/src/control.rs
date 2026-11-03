@@ -287,6 +287,15 @@ pub(crate) fn check_amend(
         Some(dependencies) => &**dependencies,
         None => old.dependencies,
     };
+    let mut omitted = skein_lib::List::with_capacity(env.limits.dependencies);
+    for dependency in &old.started_from {
+        if !crate::batch::contains(dependencies, *dependency) {
+            omitted.push(*dependency).expect("marks bounded by dependencies");
+        }
+    }
+    if !omitted.is_empty() {
+        return Err(Box::new(crate::Problem::naming(Some(number), Refusal::Dependencies, omitted.as_slice())));
+    }
     let mut waiting = skein_lib::List::with_capacity(env.limits.dependencies);
     let mut added = skein_lib::List::with_capacity(env.limits.dependencies);
     let mut pending = skein_lib::List::with_capacity(env.limits.dependencies);

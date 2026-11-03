@@ -31,7 +31,9 @@ pub(crate) fn stepped(
         Err(problem) => return out.push(Request::ProcedureRefused { task: number, step, problem }),
     };
     crate::inbox::keep_refusals(domain, number, &[]);
+    let started_from = staged.record(domain, number).expect("staged procedure task").started_from.clone();
     let live = task_mut(domain, number).expect("procedure step preflighted");
+    live.record.started_from = started_from;
     live.record.attempt = step;
     crate::inbox::take(&mut live.record, read);
     live.procedure_offered = None;
@@ -135,6 +137,19 @@ fn check(
     let bound = env.limits.tasks.max(env.limits.batch.saturating_mul(3).saturating_add(1));
     let mut staged = crate::compound::Staged::new(bound);
     let mut parent = task.clone();
+    let mut started_from = skein_lib::List::with_capacity(env.limits.dependencies);
+    for dependency in &task.started_from {
+        started_from.push(*dependency).expect("marks bounded by dependencies");
+    }
+    for dependency in &decision.started_from {
+        if !task.dependencies.contains(dependency) {
+            return Err(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency]));
+        }
+        if !started_from.as_slice().contains(dependency) {
+            started_from.push(*dependency).expect("marks are a subset of dependencies");
+        }
+    }
+    parent.started_from = started_from.into_boxed();
     parent.attempt = step;
     parent.phase = Phase::Active(Active::Idle);
     crate::inbox::take(&mut parent, read);

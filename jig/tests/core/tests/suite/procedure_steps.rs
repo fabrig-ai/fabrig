@@ -562,3 +562,79 @@ fn a_procedure_delegate_naming_no_deadline_ends_with_its_procedures() {
     let child = make_delegate(&mut world, procedure);
     assert_eq!(live_row(&world, child).authority.budget.deadline, deadline);
 }
+
+#[test]
+fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
+    use jig_domain_people as people;
+    const SEED: u64 = 896;
+    let (mut world, procedure, dependency) = kept_procedure(SEED);
+    decide(
+        &mut world,
+        procedure,
+        core::ProcedureStep { started_from: Box::new([dependency]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+    );
+    assert_eq!(live_row(&world, procedure).started_from.as_ref(), [dependency]);
+    let before = live_row(&world, procedure).clone();
+    let (_, limits) = jig_core_world::faults::plan_fixture(SEED);
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: world.wall_time(), limits: limits.core };
+    let mut amendment = unchanged(b"remove prerequisite");
+    amendment.dependencies = Some(Box::new([]));
+    let mut outputs = core::step(
+        world.domain.core_mut(),
+        &env,
+        core::Event::Tasks(tasks::Event::Amend {
+            reply_to: ReplyTo::new(Token::new(9900)),
+            by: tasks::Party::Person(1),
+            task: procedure,
+            message: before.last_message + 1,
+            places: Box::new([]),
+            stop_run: false,
+            funder: None,
+            amendment: amendment.clone(),
+        }),
+    );
+    let problem = tasks::Problem::naming(Some(procedure), tasks::Refusal::Dependencies, &[dependency]);
+    let mut named = false;
+    while let Some(output) = outputs.pop() {
+        if let core::Request::Now(now) = output
+            && let core::Now::RefusedPayload { problem: refused, .. } = *now
+        {
+            assert_eq!(refused, problem);
+            named = true;
+        }
+    }
+    assert!(named, "the core preserves the party amendment's exact task problem");
+    assert_eq!(world.domain.core().tasks.task(procedure), Some(&before));
+
+    let mut party_amendment = jig_test_profile::fixtures::person_unchanged(b"remove prerequisite");
+    party_amendment.dependencies = Some(Box::new([]));
+    crate::read_support::request(
+        &mut world,
+        91,
+        people::Ask::Amend {
+            project: 1,
+            task: procedure,
+            revision: before.revisions.spec,
+            amendment: party_amendment,
+            release: None,
+        },
+    );
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Limit {
+            which: people::LimitKind::Dependencies
+        })))
+    );
+    assert_eq!(live_row(&world, procedure), &before);
+
+    let parent = world.assignments[0];
+    world.send(root::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(9901)),
+        key: core::CallKey { task: parent.0, attempt: parent.1, completion: 4, position: 0 },
+        action: core::NamedAction::Amend { target: procedure, revision: before.revisions.spec, amendment },
+    }));
+    assert!(matches!(&world.answers.last().expect("tool refusal").2,
+        core::CallPart::ControlRefused(refused) if *refused == problem
+    ));
+    assert_eq!(live_row(&world, procedure), &before);
+}
