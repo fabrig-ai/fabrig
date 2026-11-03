@@ -1,6 +1,6 @@
 # Status
 
-2026-11-02. Where jig's code lags or departs from its design, from the
+2026-11-03. Where jig's code lags or departs from its design, from the
 status files below. Agents in a host's own process are the widest gap:
 no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
@@ -20,11 +20,12 @@ drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). A deleted
 project's settings are not erased, nor is `RemoveProject` offered in
 the project's document (`domain/people.md`, `domain/connectors.md`,
-`client/domain/contract.md`). The code departs
-in a few single items (`README.md`, `client/domain/client.md`,
-`domain/engine.md`, `domain/root.md`, `examples.md`). `domain/core.md`,
-`domain/providers.md` and `client/domain/README.md` have no gap of their
-own. jig has no drafts.
+`client/domain/contract.md`). The code departs in a few single items
+(`README.md`, `client/domain/client.md`, `domain/engine.md`,
+`domain/people.md`, `domain/root.md`, `examples.md`,
+`protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
+`domain/providers.md`, `client/domain/README.md` and
+`protocol/browser.md` have no gap of their own. jig has no drafts.
 
 Design documents:
 - [`README.md`](README.status.md)
