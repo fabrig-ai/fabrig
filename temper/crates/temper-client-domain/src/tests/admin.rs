@@ -82,7 +82,7 @@ fn empty_tokens_and_names_and_invalid_labels_send_nothing() {
     let (mut root, _) = opened();
     assert!(send(&mut root).is_empty());
     assert!(root.forge().admin_form().checked);
-    for field in [Field::Organization, Field::Repository, Field::Project] {
+    for field in [Field::Organization, Field::Repository] {
         let (mut root, _) = opened();
         token(&mut root, TOKEN);
         write(&mut root, field, b"");
@@ -113,8 +113,7 @@ fn the_bundle_bound_includes_its_framing() {
 fn the_token_is_secret_and_carried_once_with_the_first_ask() {
     let (mut root, _) = opened();
     write(&mut root, Field::Repository, b"widget");
-    assert_eq!(root.forge().admin_form().fields[2].as_ref(), b"widget");
-    write(&mut root, Field::Project, b"Next");
+    assert_eq!(root.forge().admin_form().fields[1].as_ref(), b"widget");
     write(&mut root, Field::Repository, b"app");
     write(&mut root, Field::Organization, b"team");
     write(&mut root, Field::Label, b"linux.arm_64-1");
@@ -147,8 +146,6 @@ fn the_token_is_secret_and_carried_once_with_the_first_ask() {
                 (first.org(), first.repository(), first.label()),
                 (b"team".as_slice(), b"app".as_slice(), b"linux.arm_64-1".as_slice())
             );
-            let w::SetUpProject::New(project) = first.project() else { panic!("new") };
-            assert_eq!(project.name(), b"Next");
         }
     }
     assert_eq!(count, 1);
@@ -173,7 +170,6 @@ fn each_stop_returns_to_details_and_erases_only_the_token() {
         let (mut root, watch) = opened();
         write(&mut root, Field::Organization, b"team");
         write(&mut root, Field::Repository, b"widget");
-        write(&mut root, Field::Project, b"Next");
         write(&mut root, Field::Label, b"linux-arm");
         token(&mut root, TOKEN);
         deliver(&mut root, watch, row(true, w::Connection::NotConnected, Some(stop), None));
@@ -182,12 +178,9 @@ fn each_stop_returns_to_details_and_erases_only_the_token() {
             Shown::Details(Choice::Forge(FORGE))
         );
         assert!(!root.forge().admin_form().has_token());
-        for (field, expected) in [
-            (Field::Organization, b"team".as_slice()),
-            (Field::Repository, b"widget"),
-            (Field::Project, b"Next"),
-            (Field::Label, b"linux-arm"),
-        ] {
+        for (field, expected) in
+            [(Field::Organization, b"team".as_slice()), (Field::Repository, b"widget"), (Field::Label, b"linux-arm")]
+        {
             assert_eq!(root.forge().admin_form().fields[field.index()].as_ref(), expected);
         }
     }
@@ -204,9 +197,6 @@ fn first() -> w::FirstRepository {
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: w::SetUpProject::New(
-                w::NewProject::new(&w::CEILINGS, w::NewProjectParts { name: b"hello".as_slice().into() }).unwrap(),
-            ),
             state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap()),
             label: b"docker".as_slice().into(),
         },
@@ -214,7 +204,7 @@ fn first() -> w::FirstRepository {
     .unwrap()
 }
 #[test]
-fn connecting_then_ready_starts_the_project_only_once() {
+fn connecting_then_ready_makes_no_project_and_adopts_nothing() {
     let (mut root, watch) = opened();
     token(&mut root, TOKEN);
     send(&mut root);
@@ -233,7 +223,7 @@ fn connecting_then_ready_starts_the_project_only_once() {
             projects += 1;
         }
     }
-    assert_eq!(projects, 1);
+    assert_eq!(projects, 0);
     assert_eq!(forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None), Shown::Ready(FORGE));
     assert!(deliver(&mut root, watch, row(true, connected(), None, Some(first()))).is_empty());
 }
@@ -281,7 +271,7 @@ fn create_stops_keep_the_fields_and_empty_the_token() {
 }
 
 #[test]
-fn an_admin_first_adoption_advances_only_the_welcome() {
+fn an_admin_connection_advances_only_the_named_welcome_forge() {
     for welcome in [true, false] {
         let (mut root, watch) = opened();
         let address = if welcome {
@@ -293,73 +283,20 @@ fn an_admin_first_adoption_advances_only_the_welcome() {
         token(&mut root, TOKEN);
         send(&mut root);
         let out = deliver(&mut root, watch, row(true, connected(), None, Some(first())));
-        let mut project_attempt = None;
-        for request in &out {
-            if let Request::Client {
-                request:
-                    jig_client::Request::Down { down: Down::Send { attempt, request: jig_client::Ask::Jig(ask), .. } },
-            } = request
-                && let c::Ask::MakeProject { .. } = ask.as_ref()
-            {
-                project_attempt = Some(*attempt);
-            }
-        }
-        let out = event(
-            &mut root,
-            Event::Client {
-                event: jig_client::Event::Up {
-                    up: Up::Answer {
-                        attempt: project_attempt.expect("the admin's first repository needs its project"),
-                        envelope: skein_lib::RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
-                            c::DocumentOutcome::ProjectMade { project: 7 },
-                        )))),
-                        why: None,
-                    },
-                },
-            },
-        );
-        assert!(!out.is_empty(), "the project answer asks to adopt the first repository");
-        let pending = root.forge().set_up().unwrap().adoption.as_ref().expect("first adoption pending");
-        let request = pending.request;
-        let out = event(
-            &mut root,
-            Event::Forge(forge::Event::Answered {
-                request,
-                answer: forge::Answer::Adopted(forge::Adopted {
-                    forge: FORGE,
-                    repository: 42,
-                    owner: b"work".as_slice().into(),
-                    name: b"hello".as_slice().into(),
-                    role: forge::Role::Owned,
-                    home: true,
-                    kinds: forge::Kinds {
-                        read: true,
-                        push: true,
-                        open: true,
-                        land: true,
-                        review: true,
-                        status: true,
-                        comment: true,
-                        issue: true,
-                        branch: true,
-                    },
-                    protection: forge::Protection::Unknown,
-                }),
-            }),
-        );
         let mut moves = 0;
         for request in &out {
             if let Request::Show { address, replace } = request {
                 assert_eq!(address, &crate::Address::Welcome { step: crate::Step::Model { way: None } });
-                assert!(!replace);
+                assert!(*replace);
                 moves += 1;
+            }
+            if let Request::Client { request: jig_client::Request::Down { down: Down::Send { .. } } } = request {
+                panic!("connecting a forge sends no adoption or project request");
             }
         }
         assert_eq!(moves, u32::from(welcome));
     }
 }
-
 #[test]
 fn a_managed_forgejo_sends_connect_new_managed_with_its_place() {
     let (mut root, _, _) = connect::opened(true);

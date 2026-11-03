@@ -512,14 +512,14 @@ fn a_stopped_github_row_has_no_app_or_install_block() {
 fn the_owned_repository_body_names_its_project_without_a_numeric_made_line() {
     let root = f::forge_root(Address::Forges, cf::first_rows(cf::connected(), cf::made()));
     let view = f::page_view(&root);
-    assert!(slot_has(view.tree(), b"Repositories", "work/hello · project Shop".as_bytes()));
+    assert!(slot_has(view.tree(), b"Repositories", "work/hello".as_bytes()));
     let row = view
         .tree()
         .nodes()
         .iter()
         .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
         .unwrap();
-    assert!(row.description.as_deref().unwrap().ends_with("work/hello · project Shop".as_bytes()));
+    assert!(row.description.as_deref().unwrap().ends_with("work/hello".as_bytes()));
     assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("made, in 1"));
 }
 #[test]
