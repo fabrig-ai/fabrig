@@ -108,3 +108,15 @@ existing `jig-domain-tasks.workspace = true` line from `[dev-dependencies]` to `
 and change nothing else in the manifest; the header's `files` now names it. No new crate or
 version: `temper-engine-domain-forge` already depends on it, and `Cargo.lock` stays as it is
 (if it would change, ask).
+
+## Rebase (2026-11-03, step merge, foreman reference-m3/change-row-llm/foreman-2)
+
+preserve both additions in forge-route tests and regenerate store v11 from the combined schema.
+The merge conflicts with main’s `f012f783bf` (“Keep tier executions readable from their run tasks”), now incorporated into integration.
+In `temper/crates/temper-engine-domain/src/route/forge_route/tests.rs`, retain both `change_delegates_take_their_roles_saved_llm_choice` and `release_held_tier` as separate, complete functions.
+Keep integration’s call to `release_held_tier`, its `TierDecision { projection: None, ... }` additions, and its tier-words assertion.
+In `temper/crates/temper-protocol-store/schema/store-v11.schema`, preserve both this task’s LLM records and `ChangeRow` fields and integration’s `TierRow { observations: bytes 8192 ... }`.
+Resolve `temper/crates/temper-protocol-store/src/generated/v11.rs` by regenerating with skein-codegen from that combined schema; do not hand-edit generated code or choose either whole-file side.
+Regenerate any affected v11 goldens using the generator’s own step. Keep `STORE_VERSION` at 11.
+Verify with `heavy cargo nextest run -p temper-protocol-store`, then `heavy cargo nextest run -p temper-engine-domain --lib -E 'test(/forge_route/)'`, one command at a time.
+Complete the remaining checks required by the task spec before pushing the newly named rebased branch.
