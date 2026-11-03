@@ -101,14 +101,14 @@ Compatible detail, released with batch 2b; no released spec relied on what chang
 | `public-web` | temper-public | feature | forge-public-wire, public-wire, public-http, fetch-headers | 180 | 3 |
 | `public-walk` | temper-public | feature | forge-public, public-web, public-ctl, visibility-core | 120 | 3 |
 | `public-fuzzy-temper` | public-checks | feature | forge-public-wire, public-web | 60 | 3 |
-| `public-negative` | public-checks | feature | forge-public, public-http, public-ctl | 150 | 3 |
+| `public-negative` | public-checks | feature | forge-public, public-http, public-ctl | 210 | 3 |
 | `public-status` | public-checks | docs | every other task | 30 | 3 |
 
 ## Critical path
 
 `visibility-surface` (150) -> `visibility-wire` (130) -> `visibility-core` (120) ->
 `public-index` (150) -> `public-reads-core` (150) -> `forge-public` (150) ->
-`public-negative` (150) -> `public-status` (30): about 1030 implementer-minutes. Beside it,
+`public-negative` (210) -> `public-status` (30): about 1090 implementer-minutes. Beside it,
 `public-wire`/`public-vocabulary`/`public-limits` -> `public-component` -> `public-http` ->
 `public-web` -> `public-walk`. Five tasks start at once.
 
@@ -117,7 +117,7 @@ Compatible detail, released with batch 2b; no released spec relied on what chang
 - configuring-p2-build (on its trunk, not yet on main) edits files this plan's early tasks
   also edit, unavoidably, since visibility is a new request and `me` gains a field:
   `jig-client-protocol-wire`'s `client-v19.schema`, `src/generated/v19.rs` and `golden/**`
-  (`visibility-wire`); `jig-client-domain/src/contract/asks.rs` (`visibility-surface`);
+  (`visibility-wire`); `jig-client-domain/src/contract/asks.rs` (`visibility-wire`);
   the engine-clients' and link's `translate/asks.rs` (`visibility-wire`); the store's people
   family, `people-v14.schema` in place, its generated code, codec and goldens
   (`visibility-surface`); and jig's `domain/engine.status.md` and `client/domain/contract.status.md`

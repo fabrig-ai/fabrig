@@ -94,11 +94,12 @@ Acceptance:
 
 ## Steps
 
-1. The tier and its documents; build the server and the bundle as the browser tier says
-   (`heavy cargo build -p temper` and `temper/scripts/bundle.sh`, through heavy).
-2. The story, step by step; run it alone
-   (`heavy python3 -I -B tools/tiers/run temper browser -- -E 'test(=browser_public::a_visitor_reads_a_public_project_and_loses_it_when_made_private)'`,
-   or the form `temper/scripts/browser.sh` takes).
+1. The tier and its documents; `heavy cargo check -p temper-client-browser-world --tests`.
+2. The story, step by step; run it alone through the tier runner, which builds the server and
+   the bundle and calls heavy itself (`tools/tiers/design.md`):
+   `python3 -I -B tools/tiers/run temper browser -- -E 'test(=browser_public::a_visitor_reads_a_public_project_and_loses_it_when_made_private)'`;
+   then the browser tier's other stories once (`python3 -I -B tools/tiers/run temper browser`),
+   since the tier's shared helpers changed.
 3. `cargo fmt`; `python3 -I -B temper/scripts/old_forms.py`; `heavy cargo clippy -p
    temper-client-browser-world --all-targets -- -D warnings`; the citations check.
 4. Commit (why: the plan's walk, every part of public reading at once in a real browser);

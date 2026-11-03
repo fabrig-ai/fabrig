@@ -49,3 +49,16 @@ id = 3
 story = "a web page's exchange with no browser cache reports the Cache-Control, Age and Retry-After of its answer, through skein's fetch and jig's web adapter"
 parts = ["skein-fetch"]
 walk = false
+
+[[part]]
+id = "public-checks"
+title = "public reading's checks: the negative walk through temper's server and a caching proxy, fuzzy tests, the statuses"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/sign-in.md, 2.5"
+
+[[slice]]
+id = 4
+story = "every attack of the review's list, played through temper's real service and a caching proxy of the world, is answered as the design allows, and the public parsers and decoders survive seeded inputs"
+parts = ["public-checks"]
+walk = false

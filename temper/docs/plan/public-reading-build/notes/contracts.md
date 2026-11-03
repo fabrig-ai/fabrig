@@ -61,6 +61,9 @@ task's; every other task builds on it as written. Private helpers are each task'
 - `jig_client_domain::contract::MeProject` gains `pub public: Option<u64>`; the core's
   `FrameProjectRole` gains `pub public: bool`; the clients' component fills `MeProject.public`
   from it through its public names (section 4), `None` until `public-component`.
+- `SetVisibility` is answered done with `VisibilitySet { project: u32, public: bool }`,
+  appended last to the people child's `Outcome`, the store's people `Outcome`, and the
+  contract's and the client wire's `DocumentOutcome` (`visibility-wire`).
 - Until `visibility-core`, the people child refuses `SetVisibility` with the refusal it gives
   an act it does not take for that party (the implementer names it in the report).
 
@@ -141,6 +144,11 @@ vocabulary gains:
   connector's answer, back to the core (`None` is unknown);
 - `Held::PublicRead { reply: ReplyTo, answer: PublicAnswer }`, the core's answer once
   durable, which the root hands to the clients' component.
+
+Named by their tasks beyond the above: the component's `FromTransport::PublicRead`,
+`ToTransport::Public`, `Event::Public` and `jig_kinds` (`public-component`); the HTTP mount's
+`Settings.max_age` (`public-http`); and, if the core needs a step after a read is durable, an
+appended `Held::PublicWait`/`Event::PublicDurable` pair (`public-reads-core`).
 
 Every connector answers `Ask::Public` with `Event::PublicAnswered { answer: None }` until its
 application builds public kinds; the core answers every `Event::PublicRead` unknown until
