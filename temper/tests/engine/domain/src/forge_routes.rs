@@ -602,7 +602,10 @@ impl World {
                                 },
                                 by: if turn { engine::Way::Turn } else { engine::Way::Queue },
                                 repositories: Box::new([engine::RepositoryChecks {
-                                    tiers: if tier.is_some() { crate::tier_runs::checks() } else { Box::new([]) },
+                                    tiers: match tier {
+                                        Some(tier) => crate::tier_runs::checks(tier),
+                                        None => Box::new([]),
+                                    },
                                     repository: forge_world::REPO,
                                     gates: if turn {
                                         Box::new([engine::GateCheck {

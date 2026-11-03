@@ -15,6 +15,7 @@ use crate::{
 };
 use crate::{adoption, brief, held, topics};
 
+mod admission;
 #[path = "goal_branch.rs"]
 mod goal_branch;
 mod hints;
@@ -131,6 +132,7 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 #[derive(Debug)]
 pub struct Domain {
     retire_pending: bool,
+    watch_due: Option<skein_lib::Time>,
     pub(crate) machine: Option<crate::Machine>,
     pub(crate) records: Map<u16, crate::ForgeRecord>,
     pub(crate) forge_number: u16,
@@ -154,7 +156,7 @@ pub struct Domain {
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
     pub(crate) repositories: Map<skein_forge::api::Repository, Repository>,
     pub(crate) names: Map<u64, Box<[Name]>>,
-    holds: Map<Name, Hold>,
+    pub(crate) holds: Map<Name, Hold>,
     pub(crate) subscriptions: Map<(u64, Topic), Subscriber>,
     pub(crate) goal_files: Map<u64, topics::Files>,
     pub(crate) goal_file_reads: Map<Token, topics::Pending>,
@@ -585,6 +587,7 @@ impl Domain {
         Ok(Domain {
             machine: None,
             retire_pending: false,
+            watch_due: None,
             records: Map::with_capacity(l.forges),
             forge_number,
             configured,
@@ -746,6 +749,7 @@ impl Domain {
             (client, brief) => client.or(brief),
         }
         .into_iter()
+        .chain(self.watch_due)
         .chain(self.playground_due)
         .chain(crate::tiers::deadline(self))
         .min()
@@ -1167,6 +1171,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::StepLanding { task, entry, heard } => crate::landing::step(d, env, task, entry, heard, out),
         Event::Settle => {
             d.stopping = true;
+            d.watch_due = None;
             child(d, env, skein_forge_client::Event::Settle, out);
         }
         Event::Bind { request, address, subject } => bind(d, request, address, subject, out),
@@ -1601,6 +1606,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
+    admission::fire(d, env, out);
     crate::tiers::fire(d, env, out);
     let mut goals = List::with_capacity(env.limits.issues);
     for (goal, when) in &d.projection_due {
@@ -1753,9 +1759,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 emit(out, Request::Call { call, repository, op });
             }
             skein_forge_client::Request::Kept { owner, result } => {
-                if result.is_err() {
-                    emit(out, Request::Refused { task: owner.raw() });
-                }
+                admission::kept(d, env, owner, result, out);
             }
             skein_forge_client::Request::Read { owner, result } => {
                 if d.tier_ops.reads.contains_key(&owner) {
@@ -1997,84 +2001,7 @@ pub(crate) fn participating(d: &Domain, resource: &skein_forge_client::Resource)
 }
 
 fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, out: &mut Queue<Request>) {
-    if resources.len() > usize::try_from(env.limits.resources_per_task).expect("u32 fits usize")
-        || (!d.names.contains_key(&task) && d.names.len() == env.limits.tasks)
-    {
-        emit(out, Request::Refused { task });
-        return;
-    }
-    let mut watches = Map::with_capacity(env.limits.client.resources);
-    for (other_task, row) in &d.names {
-        if *other_task != task {
-            for name in row {
-                if d.forge_ended(name.forge) {
-                    continue;
-                }
-                let Some(resource) = to_client(name, &env.limits) else {
-                    emit(out, Request::Refused { task });
-                    return;
-                };
-                let participating = participating(d, &resource);
-                if watches.insert(resource.clone(), skein_forge_client::Watch { resource, participating }).is_err() {
-                    emit(out, Request::Refused { task });
-                    return;
-                }
-            }
-        }
-    }
-    for name in &resources {
-        if !valid_name(d, &env.limits, name) {
-            emit(out, Request::Refused { task });
-            return;
-        }
-        if d.forge_ended(name.forge) {
-            continue;
-        }
-        let Some(resource) = to_client(name, &env.limits) else {
-            emit(out, Request::Refused { task });
-            return;
-        };
-        let participating = participating(d, &resource);
-        if watches.insert(resource.clone(), skein_forge_client::Watch { resource, participating }).is_err() {
-            emit(out, Request::Refused { task });
-            return;
-        }
-    }
-    if !crate::tiers::add_watches(d, env, &mut watches) {
-        emit(out, Request::Refused { task });
-        return;
-    }
-    let mut list: List<skein_forge_client::Watch> = List::with_capacity(env.limits.client.resources);
-    for (_, watch) in &watches {
-        list.push(watch.clone()).expect("map capped to watch list");
-    }
-    skein_forge_client::step(
-        &mut d.client,
-        &child_env(env),
-        skein_forge_client::Event::Keep { owner: Token::new(task), watches: list.into_boxed() },
-        &mut d.client_out,
-    );
-    if kept(&d.client_out) {
-        d.names.insert(task, resources.clone()).expect("preflighted task capacity");
-        for name in &resources {
-            if let Some((role, hold)) = d.resource_facts(name) {
-                emit(
-                    out,
-                    Request::Resource {
-                        project: d
-                            .repository(skein_forge::api::Repository { forge: name.forge, repository: name.repository })
-                            .expect("named adopted resource")
-                            .project,
-                        name: name.clone(),
-                        role,
-                        hold,
-                    },
-                );
-            }
-        }
-        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Names { task, resources } });
-    }
-    drain(d, env, out);
+    admission::names(d, env, task, resources, out);
 }
 
 fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, keep: bool, out: &mut Queue<Request>) {
@@ -2121,7 +2048,7 @@ fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, keep: bool, out: &mut Q
         skein_forge_client::Event::Keep { owner: Token::new(task), watches: list.into_boxed() },
         &mut d.client_out,
     );
-    if kept(&d.client_out)
+    if admission::accepted(&d.client_out)
         && let Some(resources) = d.names.remove(&task)
     {
         if keep {
@@ -2190,26 +2117,6 @@ fn names_covered(d: &Domain, task: u64, resources: &[Name], released: u64, relea
         }
     }
     true
-}
-
-fn kept(out: &Queue<skein_forge_client::Request>) -> bool {
-    for request in out {
-        match request {
-            skein_forge_client::Request::Kept { result, .. } => return result.is_ok(),
-            skein_forge_client::Request::Changed { .. }
-            | skein_forge_client::Request::Drift { .. }
-            | skein_forge_client::Request::Save { .. }
-            | skein_forge_client::Request::Progress { .. }
-            | skein_forge_client::Request::Erase { .. }
-            | skein_forge_client::Request::Outcome { .. }
-            | skein_forge_client::Request::Call { .. }
-            | skein_forge_client::Request::Read { .. }
-            | skein_forge_client::Request::ReadAfreshDone
-            | skein_forge_client::Request::OutboxDone
-            | skein_forge_client::Request::Settled { .. } => {}
-        }
-    }
-    false
 }
 
 fn hold(
@@ -3115,6 +3022,9 @@ fn step_read(
         return;
     }
     let Some(row) = d.changes.get(&pending.task) else { return };
+    if admission::read_failed(row, &pending, &result, out) {
+        return;
+    }
     let repository = row.repository;
     let branch = row.branch.clone();
     let base = row.base.clone();
@@ -3143,8 +3053,7 @@ fn step_read(
                 }
                 Err(skein_forge::api::Error::Missing) => pending.branch = None,
                 Ok(_) | Err(_) => {
-                    emit(out, Request::Refused { task: pending.task });
-                    return;
+                    unreachable!("fresh read answer checked");
                 }
             }
             if goal_branch::base_wait(d, repository, &base) {
@@ -3191,8 +3100,7 @@ fn step_read(
                     );
                 }
                 Ok(_) | Err(_) => {
-                    emit(out, Request::Refused { task: pending.task });
-                    return;
+                    unreachable!("fresh read answer checked");
                 }
             }
             if let Some(commit) = catch_up {
@@ -3236,8 +3144,7 @@ fn step_read(
                 }
                 Err(skein_forge::api::Error::Missing) => pending.pull = None,
                 Ok(_) | Err(_) => {
-                    emit(out, Request::Refused { task: pending.task });
-                    return;
+                    unreachable!("fresh read answer checked");
                 }
             }
             pending.stage = StepStage::Ci;
@@ -4230,6 +4137,7 @@ fn release(
     continue_release(d, env, task, entry, out);
 }
 
+#[expect(clippy::too_many_lines, reason = "release drops each goal tier entry with its hold in the same transition")]
 fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     for _ in 0..=env.limits.holds {
         let Some(mut row) = d.releases.get(&task).cloned() else { return };
@@ -4259,6 +4167,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         if let Some((name, writer)) = selected {
             if d.forge_ended(name.forge) {
                 d.holds.remove(&name);
+                crate::tiers::released(d, &name, out);
                 emit(out, Request::Erase { key: Key::Hold(name) });
                 continue;
             }
@@ -4279,6 +4188,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             if goal_branch::is_goal(d, &name) {
                 if !goal_branch::landed(d, &name) {
                     d.holds.remove(&name);
+                    crate::tiers::released(d, &name, out);
                     emit(out, Request::Erase { key: Key::Hold(name) });
                     continue;
                 }
@@ -4310,6 +4220,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
                 }
             }
             d.holds.remove(&name);
+            crate::tiers::released(d, &name, out);
             emit(out, Request::Erase { key: Key::Hold(name) });
             continue;
         }
@@ -4481,6 +4392,7 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
         // Removal leaves the remote forge untouched (temper/docs/design/domain/forge.md, 4.1).
         if let Some(name) = resource {
             d.holds.remove(&name);
+            crate::tiers::released(d, &name, out);
             emit(out, Request::Erase { key: Key::Hold(name) });
         } else {
             row.close_pull = None;
@@ -4495,6 +4407,7 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
             skein_forge_client::Outcome::Made { .. } => match resource {
                 Some(name) => {
                     d.holds.remove(&name);
+                    crate::tiers::released(d, &name, out);
                     emit(out, Request::Erase { key: Key::Hold(name) });
                 }
                 None => row.close_pull = None,
@@ -5483,7 +5396,7 @@ pub(crate) fn classify(d: &Domain, subscription: &Subscriber, news: &News) -> Cl
                 Some(_) => Class::Kept,
             }
         }
-        News::Ci { .. } | News::Changed { .. } => Class::Wakes,
+        News::Ci { .. } | News::Changed { .. } | News::Red(_) => Class::Wakes,
     }
 }
 
@@ -5779,24 +5692,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
-    // The client's transient watcher flags are rebuilt from the connector's
-    // durable writers before any fresh background read can classify a push.
-    {
-        let mut resources = List::with_capacity(env.limits.holds);
-        for (name, hold) in &d.holds {
-            match hold.writer {
-                Some(Writer::Run { .. } | Writer::Lost { .. }) => {
-                    if let Some(resource) = to_client(name, &env.limits) {
-                        resources.push(resource).expect("writers are bounded by holds");
-                    }
-                }
-                Some(Writer::Entry(_)) | None => {}
-            }
-        }
-        for resource in &resources {
-            child(d, env, skein_forge_client::Event::Writer { resource: resource.clone(), taken: true }, out);
-        }
-    }
+    admission::writers(d, env);
     child(d, env, skein_forge_client::Event::PauseOutbox, out);
     for (_, record) in &d.records {
         if !d.forge_ended(record.number) {

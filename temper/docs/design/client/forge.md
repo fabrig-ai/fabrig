@@ -959,6 +959,14 @@ repairs, resolutions and updates, and counts its stall from the release.
 Nothing on the forge is written over until the person decides
 (`../domain/forge.md`, 8.4 and 8.5).
 
+A local watch-admission wait needs no release: recovery or a departing
+read can temporarily consume the client's capacity, and temper retries.
+A persistent resource refusal names the operation, its resource, the
+configuration member, its value and the required usage. Its words say
+what to reduce or reconfigure before release. Release asks for a refused
+watch set again, and holds again while the same bound refuses it. A branch, base or pull
+read failure names its backend cause and what a release retries.
+
 ### 6.1 The change's own
 
 | Held because | The card says | A release |

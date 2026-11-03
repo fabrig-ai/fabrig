@@ -20,6 +20,9 @@ use temper_engine_domain_world::{protocol, walking};
 
 use temper_engine_forge_world::{self as forge_world, translate};
 
+#[path = "forge_routes/resource_admission.rs"]
+mod resource_admission;
+
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
@@ -65,6 +68,12 @@ mod result;
 
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
+
+#[path = "forge_routes/repairs.rs"]
+mod repairs;
+
+#[path = "forge_routes/goal_tier.rs"]
+mod goal_tier;
 
 #[path = "forge_routes/reviews.rs"]
 mod reviews;

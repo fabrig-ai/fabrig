@@ -199,6 +199,7 @@ pub struct ChangeCall {
     pub merge: Option<[u8; 32]>,
     pub after: Box<[ChangeAfter]>,
     pub questions: Option<ChangeQuestions>,
+    pub repairs: Option<skein_forge::api::Commit>,
 }
 
 impl ChangeCall {
@@ -213,6 +214,7 @@ impl ChangeCall {
             merge: None,
             after: Box::new([]),
             questions: None,
+            repairs: None,
         }
     }
 }

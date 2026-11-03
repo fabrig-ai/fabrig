@@ -218,6 +218,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         receipt_run_url: 2048,
         tier_row_observations: 8_192,
         tier_row_tier: 32,
+        tier_row_goals: forge.holds,
         tier_row_pending: forge.changes.checked_mul(2)?.checked_add(1)?,
         tier_flight_pending: forge.client.rows,
         tier_run_landings: forge.changes.checked_mul(2)?.checked_add(1)?,

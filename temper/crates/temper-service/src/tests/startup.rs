@@ -1203,7 +1203,7 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     );
 }
 
-const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next"}"#;
+const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next","span_ms":0}"#;
 
 fn tier_projects(tiers: &str, settings: &str) -> Box<[u8]> {
     format!(
@@ -1240,7 +1240,8 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
                     ignored: Box::new([Box::from(b"docs".as_slice()), Box::from(b"fixtures/data".as_slice())]),
                     artifact: Box::from(b"failures".as_slice()),
                     format: Format::Junit,
-                    branch: Some(Box::from(b"release/next".as_slice())),
+                    follows: temper_engine_domain_forge::Follows::Branch(Box::from(b"release/next".as_slice())),
+                    span_ms: 0,
                 },
                 TierCheck {
                     name: longest.as_bytes().into(),
@@ -1248,7 +1249,8 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
                     ignored: Box::new([]),
                     artifact: longest.as_bytes().into(),
                     format: Format::Lines,
-                    branch: None,
+                    follows: temper_engine_domain_forge::Follows::Landing,
+                    span_ms: 0,
                 },
             ]
         );
@@ -1357,6 +1359,12 @@ fn landing_configuration_tier_refusals_name_the_member() {
         ("format", r#""json""#, "invalid form"),
         ("branch", r#""""#, "invalid form"),
         ("branch", "null", "wrong value kind"),
+        ("span_ms", r#""1200000""#, "wrong value kind"),
+        ("span_ms", "null", "wrong value kind"),
+        ("span_ms", "true", "wrong value kind"),
+        ("span_ms", "-1", "past its bound"),
+        ("span_ms", "1.5", "past its bound"),
+        ("span_ms", "18446744073709551616", "past its bound"),
     ] {
         let path = format!("landing.projects[0].gates[0].tiers[0].{member}");
         let changed = fixtures::with(&input, path.as_bytes(), value.as_bytes());
@@ -1513,5 +1521,27 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
         } else {
             started.expect("eight sections hold the core and two documents");
         }
+    }
+}
+
+#[test]
+fn landing_configuration_reads_goal_tiers_and_optional_spans() {
+    use temper_engine_domain_forge::Follows;
+    for (settings, follows, span_ms) in [
+        (r#","branch":"goal","span_ms":1200000"#, Follows::Goals, 1_200_000),
+        ("", Follows::Landing, 0),
+        (r#","span_ms":0"#, Follows::Landing, 0),
+        (r#","span_ms":18446744073709551615"#, Follows::Landing, u64::MAX),
+        (r#","branch":"Goal""#, Follows::Branch(b"Goal".as_slice().into()), 0),
+    ] {
+        let tiers = format!(r#"[{{"name":"g","workflow":"g.yml","artifact":"report","format":"lines"{settings}}}]"#);
+        let projects = tier_projects(&tiers, "");
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(problems.is_empty(), "{:?}", lines(&problems));
+        let members = members.unwrap();
+        let tier = &members.landing.landings.get(&1).unwrap().repositories[0].tiers[0];
+        assert_eq!(tier.follows, follows);
+        assert_eq!(tier.span_ms, span_ms);
     }
 }
