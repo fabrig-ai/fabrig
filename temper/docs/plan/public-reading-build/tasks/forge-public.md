@@ -88,16 +88,19 @@ Acceptance:
     than `number(Owner::Forge)`) becomes the forge connector's number plus one
     (`domain.config.forge_connector`); any other owner is answered `Unknown` by the root, after
     the same admission.
-  - `Held::PublicRead { reply, answer }` goes to the clients' component as `public-component`
-    takes it (mirror `jig/testing/jig-test-service`'s glue that `public-component` wrote).
+  - `Held::PublicRead { reply, answer }`, and a busy hand-back, go to the clients' component
+    as its `Event::Public { reply, answer }`; the component's
+    `Request::Core(core::Event::PublicRead { reply, read })` is what reaches the root
+    (`tasks/public-component.md`; mirror `jig/testing/jig-test-service`'s glue).
 - **temper-service:** `client_settings` (`clients.rs`) declares in `kit::Settings.public`,
-  beside jig's three, the forge's three kinds: `owner` one more than
+  after jig's three (`public-component` put them there with `jig_kinds(..)`), the forge's
+  three kinds: `owner` one more than
   `temper_client_protocol_wire::number(Owner::Forge)`, kinds 1, 2, 3, `first` and `last`
   `PUBLIC_VERSION`, `task` false for *landings* and true for the others, `bound` from
   `temper_client_protocol_wire::public_bounds(&bounds)` with the panels' `Bounds` as the
-  service makes them; `place` maps the component's public names' owner to
-  `(jig_protocol_store::SecretOwner::PublicNames, 0)`; the component's public read reaches
-  the root and its answer the component (`route.rs`), as jig-test-service's do.
+  service makes them; `place`'s `PublicNames` arm (`public-component`'s) is checked to keep
+  the key under `(jig_protocol_store::SecretOwner::PublicNames, 0)`; the component's public
+  read reaches the root and its answer the component (`route.rs`), as jig-test-service's do.
 - **Step tests,** `temper-engine-domain-forge`'s `src/tests/public.rs`:
   - `each_kind_projects_from_the_source_table`: a forge state with one public change, a
     two-member public landing and a queue; each answer decoded and compared with a record

@@ -80,6 +80,8 @@ Compatible detail, released with batch 2b; no released spec relied on what chang
 
 ## Tasks
 
+Every task below is released (batches 1, 2a, 2b, 2c, 3 and 4).
+
 | Task | Part | Kind | Needs | Minutes | Batch |
 |---|---|---|---|---|---|
 | `public-limits` | jig-public | interface | | 90 | 1 |
@@ -93,16 +95,16 @@ Compatible detail, released with batch 2b; no released spec relied on what chang
 | `public-index` | jig-public | feature | public-limits, public-vocabulary, visibility-core | 150 | 2b |
 | `public-reads-core` | jig-public | feature | public-index | 150 | 2b |
 | `public-component` | jig-public | feature | public-limits, public-vocabulary, public-wire, visibility-wire | 150 | 2b |
-| `public-http` | jig-public | feature | public-component | 120 | 2 |
-| `public-story` | jig-public | feature | public-reads-core, public-http | 120 | 2 |
-| `public-fuzzy-jig` | public-checks | feature | public-http, public-wire | 60 | 2 |
+| `public-http` | jig-public | feature | public-component | 120 | 2c |
+| `public-story` | jig-public | feature | public-reads-core, public-http | 120 | 3 |
+| `public-fuzzy-jig` | public-checks | feature | public-http, public-wire | 60 | 3 |
 | `forge-public` | temper-public | feature | forge-public-wire, public-reads-core, public-component | 150 | 2b |
 | `public-ctl` | temper-public | feature | visibility-wire | 90 | 2a |
-| `public-web` | temper-public | feature | forge-public-wire, public-wire, public-http, fetch-headers | 180 | 3 |
+| `public-web` | temper-public | feature | forge-public-wire, public-wire, public-http, fetch-headers | 180 | 2c |
 | `public-walk` | temper-public | feature | forge-public, public-web, public-ctl, visibility-core | 120 | 3 |
 | `public-fuzzy-temper` | public-checks | feature | forge-public-wire, public-web | 60 | 3 |
 | `public-negative` | public-checks | feature | forge-public, public-http, public-ctl | 210 | 3 |
-| `public-status` | public-checks | docs | every other task | 30 | 3 |
+| `public-status` | public-checks | docs | every other task | 30 | 4 |
 
 ## Critical path
 
@@ -110,7 +112,7 @@ Compatible detail, released with batch 2b; no released spec relied on what chang
 `public-index` (150) -> `public-reads-core` (150) -> `forge-public` (150) ->
 `public-negative` (210) -> `public-status` (30): about 1090 implementer-minutes. Beside it,
 `public-wire`/`public-vocabulary`/`public-limits` -> `public-component` -> `public-http` ->
-`public-web` -> `public-walk`. Five tasks start at once.
+`public-web` -> `public-walk`. Six tasks start at once (`fetch-headers` among them). 21 tasks, about 2470 implementer-minutes in all.
 
 ## Overlaps with other plans
 
