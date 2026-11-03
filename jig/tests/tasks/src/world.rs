@@ -30,6 +30,7 @@ pub const LIMITS: Limits = Limits {
     references: 8,
     subscriptions: 8,
     batch: 8,
+    batch_bytes: 131_072,
     dependencies: 8,
     holdings: 4,
     hold_kinds: 4,

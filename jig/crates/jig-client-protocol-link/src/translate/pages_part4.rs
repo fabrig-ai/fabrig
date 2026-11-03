@@ -96,7 +96,7 @@ pub(crate) fn inbox_selection_fields(
     value: &w::InboxSelection,
     limits: &Limits,
 ) -> Result<c::InboxSelection, w::Problem> {
-    if value.goals().len() > limits.client().rows {
+    if value.goals().len() > limits.wire().inbox_selection_goals {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.goals().len());

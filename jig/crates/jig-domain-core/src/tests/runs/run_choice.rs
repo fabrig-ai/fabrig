@@ -1510,3 +1510,59 @@ fn a_bound_failure_is_not_rechecked_while_its_account_waits() {
     );
     assert_eq!(task.tries, tasks::Tries::NONE);
 }
+
+#[test]
+fn an_answer_whose_followups_pass_the_batch_bytes_is_invalid() {
+    for proposed in [false, true] {
+        let (mut core, mut limits) =
+            placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
+        make_task_ended_by(&mut core, &limits, OPEN_TASK, tasks::EndedBy::Result);
+        claim_existing_open(&mut core, &limits, OPEN_ATTEMPT);
+        let batch: Box<[tasks::New]> = Box::new([new_row(&core, 100, tasks::Funder::Task(OPEN_TASK), None)]);
+        limits.tasks.batch_bytes = u32::try_from(tasks::batch_bytes(&batch).unwrap()).unwrap() - 1;
+        let followups = if proposed {
+            tasks::ResultFollowups::Proposal(Box::new(tasks::Proposal {
+                number: 101,
+                proposer: OPEN_TASK,
+                project: 1,
+                action: tasks::ProposalAction::Batch(batch),
+                reason: Box::new([]),
+                as_holder: false,
+                state: tasks::ProposalState::Pending {
+                    holder: tasks::ProposalHolder::Person(OWNER),
+                    since: Wall::EPOCH,
+                },
+            }))
+        } else {
+            tasks::ResultFollowups::Delegates(batch)
+        };
+        let _out = step(
+            &mut core,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            Event::AnswerPayload {
+                run: Token::new(OPEN_TASK),
+                attempt: Token::new(OPEN_ATTEMPT),
+                payload: Token::new(99),
+                cumulative: 0,
+                end: tasks::End::FinishedWithFollowups {
+                    result: tasks::TaskResult::Verdict { code: 7, fields: Box::new([]), words: Box::new([]) },
+                    followups,
+                },
+                saved: None,
+                invalid_saved: false,
+                read: None,
+                refused: Box::new([]),
+            },
+        );
+        let terminal = core.proofs.get(&OPEN_TASK).unwrap().terminal.clone();
+        assert_eq!(terminal.as_ref().unwrap().end, tasks::End::Failed(tasks::Class::Invalid));
+        let before = core.tasks.task(OPEN_TASK).unwrap().clone();
+        let _replay = step(
+            &mut core,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            invalid_start_answer(OPEN_ATTEMPT, &[]),
+        );
+        assert_eq!(core.tasks.task(OPEN_TASK).unwrap(), &before);
+        assert_eq!(core.proofs.get(&OPEN_TASK).unwrap().terminal, terminal);
+    }
+}

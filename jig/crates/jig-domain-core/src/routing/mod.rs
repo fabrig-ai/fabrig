@@ -564,6 +564,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::AnswerPayload { run, attempt, payload, cumulative, end, saved, invalid_saved, read, refused } => {
             route_answer_payload(
                 core,
+                &env.limits.tasks,
                 work,
                 run,
                 attempt,

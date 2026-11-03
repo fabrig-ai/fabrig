@@ -321,10 +321,10 @@ pub(crate) fn invalid_followups(
     if let Some(reason) = invalid_result(contract, result, limits) {
         return Some(reason);
     }
-    let count = match followups {
-        crate::ResultFollowups::Delegates(batch) => batch.len(),
+    let batch = match followups {
+        crate::ResultFollowups::Delegates(batch) => batch,
         crate::ResultFollowups::Proposal(proposal) => match &proposal.action {
-            crate::ProposalAction::Batch(batch) => batch.len(),
+            crate::ProposalAction::Batch(batch) => batch,
             crate::ProposalAction::Settings { .. }
             | crate::ProposalAction::Effect { .. }
             | crate::ProposalAction::ProcedureEffect { .. }
@@ -336,6 +336,10 @@ pub(crate) fn invalid_followups(
             }
         },
     };
+    if !crate::batch::within(limits, batch) {
+        return Some(InvalidResult::Followups);
+    }
+    let count = batch.len();
     match (contract, result) {
         (Contract::Verdict { choices }, TaskResult::Verdict { code, .. }) => {
             for choice in choices {
