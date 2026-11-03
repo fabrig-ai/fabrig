@@ -108,8 +108,8 @@ fn cleared_result(world: &World, number: u64, run: u64, repaired: bool) {
         format!("Cleared by slow run {run}.")
     };
     assert!(
-        words.find("Landed:").zip(words.find(&cleared)).is_some_and(|(landed, cleared)| landed < cleared),
-        "seed={SEED}, simulated={:?}: expected {cleared:?} after Landed:, got {words:?}",
+        words.find("Landed:").zip(words.find(&cleared)).is_some_and(|(landed, cleared)| cleared < landed),
+        "seed={SEED}, simulated={:?}: expected {cleared:?} before Landed:, got {words:?}",
         world.env.now
     );
 }
@@ -743,6 +743,8 @@ fn task_show_keeps_the_clearing_run() {
     assert_eq!(number, 3);
     let kept = result(&world, number).to_owned();
     assert!(kept.contains("Cleared by slow run 2."), "{kept}");
+    let json = task_show::show_json(&mut world, number);
+    assert!(std::str::from_utf8(&json.stdout).expect("JSON").contains("Cleared by slow run 2."));
     let printed = task_show::show(&mut world, number);
     assert_eq!(printed.status, 0, "{printed:?}");
     let text = std::str::from_utf8(&printed.stdout).expect("ctl UTF-8");
