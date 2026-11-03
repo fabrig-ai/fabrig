@@ -117,6 +117,10 @@ A landing's branch is its changes' `ChangeRow.base` (its first live change's).
   is `Some`, its line is `Cleared by NAME run N, which passed the failures blamed on it;
   repaired by HEX12.`, HEX12 the repairing commit's first twelve digits; with `by: None` the
   line stays as it is.
+- The forge's read `Domain::landing_verification(&self, repository: skein_forge::api::Repository,
+  commit: &skein_forge::api::Commit) -> Option<&Verification>`, in `verification.rs` beside
+  `change_verification`: the live `Verification` row of (repository, commit), `None` without
+  one; it changes nothing. `change_verification_words` reads `repaired.by` through it.
 
 ## 4. A tier's settings (task `goal-tier-config`)
 
