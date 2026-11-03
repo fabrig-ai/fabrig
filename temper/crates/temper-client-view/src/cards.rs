@@ -21,6 +21,7 @@ pub fn status(b: &mut Builder, words: &Words, word: P, holes: &[Hole]) {
 }
 pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
     let hole = match value {
+        c::Refusal::Judged { why, .. } => Some(Hole::Name(why.bytes().into())),
         c::Refusal::Account { account, .. } => Some(Hole::Number(u64::from(*account))),
         c::Refusal::Taken { by } => Some(Hole::Number(*by)),
         c::Refusal::Llm { model, .. } => Some(Hole::Name(words.model_name(model.bytes()))),

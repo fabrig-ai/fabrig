@@ -105,7 +105,9 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     setup.truth.setting_values.push(c::SettingDocument {
         setting: c::Setting::Rules,
         revision: 6,
-        value: settings_values.pop().expect("valid public story fixture"),
+        value: Some(settings_values.pop().expect("valid public story fixture")),
+        application: None,
+        proposed: None,
     });
     setup.truth.revisions.insert(6, c::RevisionAnswer::Revision(values::settings_revision()));
     setup.truth.revision_pages.insert(None, values::settings_page());

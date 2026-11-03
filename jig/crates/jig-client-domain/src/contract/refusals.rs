@@ -184,6 +184,11 @@ pub enum Moved {
 /// A durable request refusal and all facts needed to show it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Refusal {
+    Judged {
+        at: u32,
+        setting: super::Setting,
+        why: super::Text,
+    },
     /// A finish refused while the sign-in may still wait (accounts.md, section 5).
     SignInRedirect {
         why: SignInRedirectWhy,

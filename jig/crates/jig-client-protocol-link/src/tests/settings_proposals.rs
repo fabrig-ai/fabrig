@@ -141,7 +141,7 @@ fn populated_reviews_history_and_carried_proposals_keep_every_fact() {
 const PROPOSAL_ITEMS: u32 = 128;
 const RESET_PIECE: u32 = 6;
 // Five unit tags and the four-byte piece length.
-const REVIEW_PIECE: u32 = 9;
+const REVIEW_PIECE: u32 = 10;
 fn resets(count: u32) -> c::ProposeSettings {
     let mut items = skein_lib::List::with_capacity(count);
     for _ in 0..count {
@@ -179,6 +179,7 @@ fn reviews_keep_their_byte_bound_and_refuse_malformed_pieces() {
     let mut items = skein_lib::List::with_capacity(1);
     items
         .push(c::ReviewItem {
+            application: None,
             setting: c::Setting::Rules,
             edit: c::RevisionItemEdit::Reset,
             now: c::ReviewValue::None,
@@ -194,7 +195,7 @@ fn reviews_keep_their_byte_bound_and_refuse_malformed_pieces() {
     t::wire_settings_review(&review, limits.wire()).expect_err("one past the review byte bound");
     t::restore_settings_review(&wire, &limits).expect_err("the receiving review byte bound is enforced");
     limits = fixtures::limits();
-    for bytes in [b"\0".as_slice(), b"\0\0\0\x06\x03\x02\x02\x02\x02\0".as_slice()] {
+    for bytes in [b"\0".as_slice(), b"\0\0\0\x07\x03\x02\x02\x02\x02\0\0".as_slice()] {
         let wire = w::SettingsReview::new(
             limits.wire(),
             w::SettingsReviewParts { newest: 6, cut: false, items: skein_lib::bytes::copy_of(bytes) },

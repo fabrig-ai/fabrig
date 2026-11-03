@@ -10,6 +10,14 @@ pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> 
             limits,
             w::RefusalSignInRedirectParts { why: wire_sign_in_redirect_why(why, limits)? },
         )?),
+        c::Refusal::Judged { at, setting, why } => w::Refusal::Judged(w::RefusalJudged::new(
+            limits,
+            w::RefusalJudgedParts {
+                at: *at,
+                setting: super::settings::wire_setting(setting, limits)?,
+                why: why.bytes().into(),
+            },
+        )?),
         c::Refusal::Stale(value) => w::Refusal::Stale(wire_refusal_stale(value, limits)?),
         c::Refusal::Full(value) => w::Refusal::Full(wire_refusal_full(value, limits)?),
         c::Refusal::AccountMove { why } => w::Refusal::AccountMove(w::RefusalAccountMove::new(

@@ -54,6 +54,15 @@ pub fn language() -> Language {
             JigPhrase::SettingPolicy => {
                 Box::new([Segment::Text(copy_of(b"policy ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
             }
+            JigPhrase::SettingApplication => Box::new([
+                Segment::Text(copy_of(b"application kind ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingFaultJudged => Box::new([Segment::Text(copy_of(b"refused by its owner"))]),
             JigPhrase::SettingRules => Box::new([Segment::Text(copy_of(b"the rules"))]),
             JigPhrase::SettingFaultShape => {
                 Box::new([Segment::Text(copy_of(b"Setting is out of shape or past its bound"))])

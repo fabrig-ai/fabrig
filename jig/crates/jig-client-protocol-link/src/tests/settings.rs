@@ -548,7 +548,8 @@ fn settings_inventory(count: u32) -> c::SettingsDocument {
                 setting: c::Setting::Charter(c::SettingNumber { number }),
                 name: None,
                 follows: c::SettingFollows::Default,
-                last: 0,
+                last: Some(0),
+                application: None,
             })
             .unwrap();
     }
@@ -654,4 +655,35 @@ fn charter_documents_use_the_clients_row_and_name_bounds() {
     wire_limits.charter_document_name = 2;
     wire_limits.charter_documents = 1;
     assert_eq!(t::wire_charter(&value, &wire_limits).unwrap_err().path, w::Path::CharterDocuments);
+}
+
+#[test]
+fn application_items_and_states_round_trip_without_treating_bytes_as_text() {
+    use jig_client_domain::contract as c;
+    let limits = fixtures::limits();
+    for edit in [
+        c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(Box::new([0, 255, 128])) }),
+        c::SettingEdit::Removed,
+        c::SettingEdit::Reset,
+    ] {
+        let source = c::SettingItem { setting: c::Setting::Application { kind: 6, scope: 8, number: 2 }, edit };
+        let wire = t::wire_setting_item(&source, limits.wire()).unwrap();
+        assert_eq!(t::restore_setting_item(&wire, &limits), Ok(source));
+    }
+    for follows in [
+        c::ApplicationFollows::Default,
+        c::ApplicationFollows::Changed { revision: 3 },
+        c::ApplicationFollows::Removed { revision: 4 },
+    ] {
+        let state = c::ApplicationState { follows, size: 17, charters: List::with_capacity(0) };
+        let source = c::SettingLine {
+            setting: c::Setting::Application { kind: 6, scope: 8, number: 2 },
+            name: None,
+            follows: c::SettingFollows::Change,
+            last: Some(4),
+            application: Some(state),
+        };
+        let wire = t::wire_setting_line(&source, limits.wire()).unwrap();
+        assert_eq!(t::restore_setting_line(&wire, &limits), Ok(source));
+    }
 }

@@ -544,7 +544,9 @@ fn proposed_settings_read_whole_set_removed_and_reset_with_the_reviews_audience(
             assert_eq!(review.items.get(0).expect("review item").would_be, expected);
             let answer = read(&mut world, reader, point.clone());
             match &expected {
-                Some(value) => assert!(matches!(answer, reads::Answer::Setting(document) if document.value == *value)),
+                Some(value) => assert!(
+                    matches!(answer, reads::Answer::Setting(document) if document.value.as_ref() == Some(value))
+                ),
                 None => assert_eq!(answer, reads::Answer::None(reads::Why::Unknown)),
             }
         }
