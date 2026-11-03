@@ -4804,6 +4804,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-playground-world"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-io",
+ "skein-lib",
+ "skein-sim",
+ "skein-sim-world",
+ "temper-playground",
+ "temper-service",
+]
+
+[[package]]
 name = "temper-protocol-records"
 version = "0.0.0"
 dependencies = [
