@@ -45,6 +45,7 @@ pub const MESSAGE_BYTES: u32 = 1024;
 #[must_use]
 pub fn limits() -> Limits {
     Limits {
+        public: jig_protocol_engine_clients::PublicLimits::OFF,
         streams: 2,
         watches_per_stream: 4,
         queued_bytes: 65536,
@@ -179,6 +180,7 @@ pub fn server() -> jig_test_service::server::Server {
 #[must_use]
 pub fn http_limits() -> jig_protocol_engine_clients_http::Limits {
     jig_protocol_engine_clients_http::Limits {
+        public_calls: 0,
         calls: 16,
         streams: 2,
         body: MESSAGE_BYTES,

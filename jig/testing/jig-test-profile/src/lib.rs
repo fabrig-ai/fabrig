@@ -135,8 +135,11 @@ fn profile() -> root::Limits {
         journal,
         routes: 200,
         watermark: root::default_watermark(&journal),
+        public_watermark: root::default_watermark(&journal).checked_div(2).expect("half the watermark"),
+        public_reads: 0,
         connector: connector::LIMITS,
         core: core::Limits {
+            public: jig_domain_core::PublicIndexLimits::OFF,
             routes: 20_783,
             settings: core::settings::Limits {
                 revisions: 4,

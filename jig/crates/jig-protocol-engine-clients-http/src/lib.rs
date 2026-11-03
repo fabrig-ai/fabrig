@@ -37,6 +37,7 @@ pub fn via(settings: &Settings, call: &http::Call) -> Via {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
+    pub public_calls: u32,
     pub calls: u32,
     pub streams: u32,
     pub body: u32,

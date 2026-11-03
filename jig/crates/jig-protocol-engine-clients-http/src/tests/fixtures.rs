@@ -8,7 +8,15 @@ pub fn env() -> Env<Limits> {
     Env {
         now: Time::ZERO,
         wall: Wall::EPOCH,
-        limits: Limits { calls: 4, streams: 2, body: 131_328, read: 16_384, send: 16_384, event: 87_416 },
+        limits: Limits {
+            public_calls: 0,
+            calls: 4,
+            streams: 2,
+            body: 131_328,
+            read: 16_384,
+            send: 16_384,
+            event: 87_416,
+        },
     }
 }
 pub fn mount() -> Mount {

@@ -41,6 +41,7 @@ impl Composition {
             now,
             wall,
             limits: clients::Limits {
+                public: clients::PublicLimits::OFF,
                 streams: limits.watches.max(64),
                 watches_per_stream: limits.watches,
                 queued_bytes: u32::try_from(limits.document_bytes).expect("world document bound"),

@@ -386,6 +386,7 @@ pub enum Now {
 /// Limits of the core's child routes.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub public: PublicIndexLimits,
     /// The most hand-offs one core decision routes, sibling continuations included: the
     /// bound of every drain within a step (skein's programming-model.md, 3 "Bounded"; 4.5).
     pub routes: u32,
@@ -434,6 +435,18 @@ pub struct Limits {
     pub documents: crate::documents::DocumentLimits,
     /// Live view streams.
     pub views: views::Limits,
+}
+
+/// Public index bounds (jig/docs/design/domain/people.md, 13.9).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct PublicIndexLimits {
+    pub goals: u16,
+    pub ended: u16,
+    pub lines: u16,
+    pub depth: u16,
+}
+impl PublicIndexLimits {
+    pub const OFF: Self = Self { goals: 0, ended: 0, lines: 0, depth: 0 };
 }
 
 /// Budgets for the core's own brief sections.
