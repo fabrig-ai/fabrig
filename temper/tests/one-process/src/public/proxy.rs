@@ -104,7 +104,7 @@ impl Proxy {
         self.wire.respond(downstream, answer.wire());
     }
     fn request(&mut self, id: u64, peer: SocketAddr, bytes: &[u8], now: Time) {
-        let (call, _) = http::request(bytes).expect("complete downstream request");
+        let (call, end) = http::request(bytes).expect("complete downstream request");
         let host = call.header(b"host").expect("HTTP/1.1 host");
         let Some(upstream) =
             self.config.upstreams.iter().position(|u| u.names.iter().any(|name| name.as_ref() == host))
@@ -176,7 +176,14 @@ impl Proxy {
             forward.extend_from_slice(b"\r\n");
         }
         forward.extend_from_slice(b"\r\n");
-        // These walks send empty bodies to other routes and GETs to public routes.
+        forward.extend_from_slice(
+            &bytes[end
+                - match call.body {
+                    skein_http::server::Body::None => 0,
+                    skein_http::server::Body::Length(n) => usize::try_from(n).expect("bounded request body"),
+                    skein_http::server::Body::Chunked => unreachable!("world requests use Content-Length"),
+                }..end],
+        );
         self.forwarded.push(forward.clone().into());
         let connection = self.wire.start(self.config.upstreams[upstream].address, call.method, forward.into());
         if public {

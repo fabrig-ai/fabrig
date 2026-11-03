@@ -2,8 +2,12 @@
 mod checks;
 mod deployment;
 mod http;
+mod owners;
 mod programs;
 mod proxy;
+mod requests;
+mod service;
+mod service_checks;
 mod visitor;
 mod wire;
 
@@ -13,6 +17,36 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     if !ACTIVE.with(Cell::get) {
         return;
     }
+    if value["world_settings"]["policies"][0]["policy"]["ceiling"]["grants"]
+        .as_array()
+        .is_some_and(|grants| !grants.is_empty())
+    {
+        for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
+            for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
+                let grants = project.pointer_mut(pointer).expect("world grants");
+                let prototype = grants[0].clone();
+                *grants = temper_engine_domain_forge::CHANGE_KINDS
+                    .into_iter()
+                    .map(|kind| {
+                        let mut grant = prototype.clone();
+                        grant["kind"] = kind.into();
+                        grant
+                    })
+                    .collect();
+            }
+        }
+        for (name, count) in [
+            ("tasks.authority_grants", 8),
+            ("authority.grants", 8),
+            ("notes.scopes", 12),
+            ("people.amendment_bytes", 2048),
+            ("tasks.authority_bytes", 256),
+        ] {
+            value["engine"]["limits"]["overrides"][name] = count.into();
+        }
+    }
+    value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
+    value["application"]["clients"]["public"] = "https://one.example".into();
     for (name, count) in [
         ("clients.public.reads", 4),
         ("clients_http.public_calls", 4),
@@ -26,6 +60,9 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         ("core.public.ended", 4),
         ("core.public.lines", 8),
         ("core.public.depth", 4),
+        ("people.projects", 4),
+        ("authority.projects", 3),
+        ("tasks.spec_bytes", 256),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
@@ -36,8 +73,17 @@ pub fn walk(seed: u64, name: &str) {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         if name == "each_broken_relation_refuses_the_start" {
             deployment::relations();
-        } else {
+        } else if name.starts_with("the_proxy_")
+            || matches!(
+                name,
+                "a_stopped_upstream_serves_copies_until_their_freshness_ends"
+                    | "two_deployments_behind_one_proxy_keep_their_own_copies"
+                    | "a_refused_host_is_never_answered_from_the_cache"
+            )
+        {
             checks::run(seed, name);
+        } else {
+            service::run(seed, name);
         }
     }));
     ACTIVE.with(|active| active.set(false));

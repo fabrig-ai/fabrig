@@ -18,6 +18,16 @@ impl Visitor {
         Self { answers: BTreeMap::new(), wire: Wire::new(None) }
     }
     pub fn send(&mut self, address: SocketAddr, method: Method, path: &[u8], headers: &[(&[u8], &[u8])]) -> u64 {
+        self.send_body(address, method, path, headers, &[])
+    }
+    pub fn send_body(
+        &mut self,
+        address: SocketAddr,
+        method: Method,
+        path: &[u8],
+        headers: &[(&[u8], &[u8])],
+        body: &[u8],
+    ) -> u64 {
         let mut bytes = method.as_bytes().to_vec();
         bytes.extend_from_slice(b" ");
         bytes.extend_from_slice(path);
@@ -28,7 +38,8 @@ impl Visitor {
             bytes.extend_from_slice(value);
             bytes.extend_from_slice(b"\r\n");
         }
-        bytes.extend_from_slice(b"Connection: close\r\nContent-Length: 0\r\n\r\n");
+        bytes.extend_from_slice(format!("Connection: close\r\nContent-Length: {}\r\n\r\n", body.len()).as_bytes());
+        bytes.extend_from_slice(body);
         self.wire.start(address, method, bytes.into())
     }
 }
