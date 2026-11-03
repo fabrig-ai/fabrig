@@ -37,7 +37,7 @@ pub const IMPLICATIONS: [u16; 2] = [1, 2];
 /// The repository agent's turn allowance.
 pub const CHARTER_TURNS: u32 = 8;
 /// Engine overrides for the composition.
-pub const ENGINE_OVERRIDES: [(&str, u32); 20] = [
+pub const ENGINE_OVERRIDES: [(&str, u32); 22] = [
     ("tasks.tasks", 4),
     ("tasks.project_tasks", 4),
     ("tasks.tree_tasks", 6),
@@ -50,7 +50,9 @@ pub const ENGINE_OVERRIDES: [(&str, u32); 20] = [
     ("tasks.result_bytes", 128),
     ("tasks.resource_reports", 4),
     ("tasks.pools", 2),
-    ("tasks.parameters", 4),
+    ("tasks.parameters", 5),
+    ("tasks.spec_bytes", 187),
+    ("tasks.contract_choices", 2),
     ("tasks.executor_kinds", 2),
     ("tasks.authority_grants", 4),
     ("tasks.authority_segments", 4),

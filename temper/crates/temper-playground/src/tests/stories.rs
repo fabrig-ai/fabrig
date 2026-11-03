@@ -105,6 +105,44 @@ fn harness_forge_keeps_its_settings() {
 }
 
 #[test]
+fn story_as_documents_hold_the_product_change_and_review() {
+    use jig_domain_tasks::{Contract, Parameter, Spec, Verdict};
+    // The chat, change, producer and review coexist during the landing.
+    const TASKS: u32 = 4;
+    let deployments = [
+        serde_json::from_slice(A.deployment).expect("story deployment"),
+        documents::world_document_with(documents::configure),
+    ];
+    let spec = Spec {
+        words: b"Review this change at the named head\nPull request: #1\nBranch: temper/1/c2\nBase: main\nHead: 0000000000000000000000000000000000000000\n".as_slice().into(),
+        parameters: Box::new([
+            Parameter::Resource { name: 1, connector: 1, resource: 4_294_967_297 },
+            Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+            Parameter::Bytes { name: 3, value: b"temper/1/c2".as_slice().into() },
+            Parameter::Number { name: 7, value: 1 },
+            Parameter::Bytes { name: 8, value: b"0000000000000000000000000000000000000000".as_slice().into() },
+        ]),
+        job: None,
+        asks: false,
+        inputs: Box::new([]),
+    };
+    let contract = Contract::Verdict {
+        choices: Box::new([
+            Verdict { code: 1, words: 128, followups: 0, fields: Box::new([]) },
+            Verdict { code: 2, words: 128, followups: 0, fields: Box::new([]) },
+        ]),
+    };
+    for document in deployments {
+        let engine = documents::settings::configuration(&document);
+        let limits = &engine.limits.core.tasks;
+        assert!(limits.tasks >= TASKS, "the producer and reviewer fit beside the chat and change");
+        assert!(engine.limits.core.people.inbox_tasks >= 2 * TASKS, "people's inbox follows task admission");
+        assert!(jig_domain_tasks::valid_spec(limits, &spec), "the review's identity and five parameters fit");
+        assert!(jig_domain_tasks::valid_contract(limits, &contract), "the review can approve or request changes");
+    }
+}
+
+#[test]
 fn story_as_stock_authority_funds_its_scripted_delegate() {
     // The tree includes the chat and its immediate delegate as well as the delegate's descendants.
     const CREATORS: u64 = 2;
