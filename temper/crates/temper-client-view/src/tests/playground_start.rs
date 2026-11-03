@@ -91,8 +91,16 @@ fn other_chats_keep_their_pane_and_no_suggestions() {
         assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{row}");
         assert!(f::find(view.tree(), Role::Paragraph, b"New chat").is_some(), "{row}");
         assert!(f::find(view.tree(), Role::List, b"Suggested requests").is_none(), "{row}");
-        for node in view.tree().nodes() {
-            assert!(!node.styles.as_slice().contains(&crate::look::CONTEXT), "{row}");
+        for (at, node) in view.tree().nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&crate::look::CONTEXT) {
+                let end = at + usize::try_from(node.size).unwrap();
+                assert!(
+                    view.tree().nodes()[at..end].iter().any(|child| {
+                        child.role == Role::Paragraph && child.name.as_deref() == Some(b"No repository yet")
+                    }),
+                    "{row}: only the repository context is drawn"
+                );
+            }
         }
     }
 }
@@ -107,7 +115,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Owner,
             true,
             "Signed in as the deployment’s owner".as_bytes(),
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "project owner",
@@ -115,7 +123,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Owner,
             true,
             "Signed in as the project’s owner".as_bytes(),
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "another role",
@@ -123,7 +131,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Policy { role: 1 },
             true,
             b"Signed in as Pat",
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "project fallback",
@@ -131,7 +139,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Policy { role: 1 },
             false,
             b"Signed in as Pat",
-            "Playground · acme/shop on Playground forge",
+            "Project 1 · acme/shop on Playground forge",
         ),
     ] {
         let mut me = template.pages().me(template.client()).unwrap().clone();

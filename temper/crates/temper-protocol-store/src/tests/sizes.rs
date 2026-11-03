@@ -221,7 +221,6 @@ fn largest_forge_record_fits_the_application_ceiling() {
             playground: true,
             org: bytes(limits.first_intent_org),
             repository: bytes(limits.first_intent_repository),
-            project: forge::SetUpProject::New(bytes(limits.new_first_name)),
             label: bytes(limits.first_intent_label),
         }),
     });
@@ -242,7 +241,6 @@ fn largest_forge_record_fits_the_application_ceiling() {
         limits.bot_email,
         limits.first_intent_org,
         limits.first_intent_repository,
-        limits.new_first_name,
         limits.first_intent_label,
     ] {
         payload += u64::from(length);

@@ -1,8 +1,9 @@
 //! temper's banner and project switcher (temper/docs/design/client/README.md, 5.1 and 5.6).
+use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
-use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Address, Domain, pages::Act};
+use temper_client_domain::{ChatsFilter, pages::switcher};
 #[must_use]
 pub const fn owner() -> skein_ui::Owner {
     skein_ui::Owner { number: temper_client_domain::owner::Owner::Pages.asker().0 }
@@ -58,6 +59,18 @@ impl Bindings {
                     (Act::MessageWords { .. }, skein_ui::Act::Input { value }) => Act::MessageWords { words: value },
                     (Act::CardWords { object, .. }, skein_ui::Act::Input { value }) => {
                         Act::CardWords { object: *object, words: value }
+                    }
+                    (Act::Switcher(switcher::Act::RenameWords { .. }), skein_ui::Act::Input { value }) => {
+                        Act::Switcher(switcher::Act::RenameWords { words: value })
+                    }
+                    (Act::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Input { value }) => {
+                        Act::Switcher(switcher::Act::NewWords { words: value })
+                    }
+                    (Act::Switcher(switcher::Act::RenameWords { .. }), skein_ui::Act::Submit) => {
+                        Act::Switcher(switcher::Act::Save)
+                    }
+                    (Act::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Submit) => {
+                        Act::Switcher(switcher::Act::Create)
                     }
                     (Act::ChatWords { .. }, skein_ui::Act::Submit) => Act::StartChat,
                     (Act::MessageWords { .. }, skein_ui::Act::Submit) => Act::Send,
@@ -134,6 +147,7 @@ pub(crate) fn switcher(
                 &words.say(crate::words::Word::NoProjectYet, &[]),
                 Some(crate::look::PROJECT_EMPTY),
             );
+            new_project_form(builder, root, words, bindings);
             return;
         }
         builder.open(Role::Disclosure);
@@ -142,8 +156,7 @@ pub(crate) fn switcher(
         for selected in [true, false] {
             for row in &me.projects {
                 if (Some(row.project) == project) == selected {
-                    let name = crate::pages::project_name(Some(me), root.forge().playground(), row.project, words)
-                        .expect("project from me has a name");
+                    let name = crate::pages::project_name(Some(me), row.project).expect("project from me has a name");
                     if selected {
                         builder.name(&name);
                     }
@@ -154,10 +167,97 @@ pub(crate) fn switcher(
                     }
                     builder.bind(bindings.insert(Act::Project { project: row.project }));
                     builder.close();
+                    if selected {
+                        if root.pages().switcher().renaming() == Some(row.project) {
+                            rename_form(builder, root, words, &name, bindings);
+                        } else if row.role == jig_client::contract::HeldRole::Owner {
+                            action(
+                                builder,
+                                Role::Button,
+                                &words.say(crate::words::Word::Rename, &[]),
+                                Act::Switcher(switcher::Act::Rename),
+                                false,
+                                bindings,
+                            );
+                        }
+                    }
                 }
             }
         }
+        new_project_form(builder, root, words, bindings);
         builder.close();
+    }
+}
+// The banner's forms (temper/docs/design/client/README.md, 5.3).
+fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, project: &[u8], bindings: &mut Bindings) {
+    use crate::words::Word;
+    let switcher = root.pages().switcher();
+    let pending = switcher.pending().is_some();
+    b.open(Role::Form);
+    b.name(&words.say(Word::RenameProject, &[skein_ui::phrases::Hole::Name(project.into())]));
+    b.open(Role::TextField);
+    b.state(skein_ui::State::SubmitsOnEnter);
+    b.name(&words.say(Word::Rename, &[]));
+    b.value(switcher.rename_words(), temper_client_domain::pages::shown(root.pages()));
+    b.focus(0);
+    if pending {
+        b.state(skein_ui::State::Disabled);
+    }
+    b.bind(bindings.insert(Act::Switcher(switcher::Act::RenameWords { words: Box::default() })));
+    b.close();
+    switcher_refusal(b, words, switcher, switcher::Form::Rename);
+    switcher_button(b, words, Word::Save, switcher::Act::Save, pending, bindings);
+    b.open(Role::Button);
+    b.name(&words.say(Word::Cancel, &[]));
+    if switcher.pending() == Some(switcher::Form::Rename) {
+        b.state(skein_ui::State::Disabled);
+    }
+    b.bind(bindings.insert(Act::Switcher(switcher::Act::Cancel)));
+    b.shortcut(skein_ui::Shortcut::ESCAPE);
+    b.close();
+    b.close();
+}
+fn new_project_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
+    use crate::words::Word;
+    let switcher = root.pages().switcher();
+    let pending = switcher.pending().is_some();
+    b.open(Role::Form);
+    b.name(&words.say(Word::NewProject, &[]));
+    b.open(Role::TextField);
+    b.state(skein_ui::State::SubmitsOnEnter);
+    b.name(&words.say(Word::NewProject, &[]));
+    b.placeholder(&words.say(Word::NewProjectPlaceholder, &[]));
+    b.value(switcher.new_words(), temper_client_domain::pages::shown(root.pages()));
+    if pending {
+        b.state(skein_ui::State::Disabled);
+    }
+    b.bind(bindings.insert(Act::Switcher(switcher::Act::NewWords { words: Box::default() })));
+    b.close();
+    switcher_refusal(b, words, switcher, switcher::Form::New);
+    switcher_button(b, words, Word::CreateProject, switcher::Act::Create, pending, bindings);
+    b.close();
+}
+fn switcher_button(
+    b: &mut Builder,
+    words: &crate::words::Words,
+    word: crate::words::Word,
+    act: switcher::Act,
+    pending: bool,
+    bindings: &mut Bindings,
+) {
+    b.open(Role::Button);
+    b.name(&words.say(word, &[]));
+    if pending {
+        b.state(skein_ui::State::Disabled);
+    }
+    b.bind(bindings.insert(Act::Switcher(act)));
+    b.close();
+}
+fn switcher_refusal(b: &mut Builder, words: &crate::words::Words, switcher: &switcher::Switcher, form: switcher::Form) {
+    if let Some((refused, outcome)) = switcher.refusal()
+        && refused == form
+    {
+        crate::pages::chats::outcome_text(b, words, outcome, words.name_bytes);
     }
 }
 pub(crate) fn banner(

@@ -506,7 +506,7 @@ fn the_foremans_words_name_the_three_verdicts() {
 
 #[test]
 fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
-    let bytes = generated();
+    let bytes = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
     let document =
         config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
     let at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
@@ -516,7 +516,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     own.templates[0].flags.listed = true;
     let policy = &mut own.policies.get_mut(&1).unwrap().policy;
     policy.period_spend = 41;
-    // Init's seed copies this policy, whose role allowance must fit its period.
+    // The test's project copies this policy, whose role allowance must fit its period.
     policy.roles[0].period_spend = 41;
     own.rules.maximum_run_spend = 2;
     let given = crate::stock::Given::Own(Box::new(own));
@@ -613,7 +613,7 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
 
 #[test]
 fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
-    let document = generated();
+    let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
     let engine_bytes = fixtures::value(&document, b"engine");
     let engine = fixtures::parse_engine(&engine_bytes);
     let defaults = crate::stock::defaults(&engine.llm);

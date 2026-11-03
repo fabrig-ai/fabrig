@@ -1149,7 +1149,6 @@ mod records {
                     playground: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
-                    project: top::SetUpProject::Existing(5),
                     label: b"Work".as_slice().into(),
                 }),
             };
