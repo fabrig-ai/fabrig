@@ -37,7 +37,7 @@ record Turn {
     read: option u64
     opens_window: bool
     refused: list 1024 Refused
-    body: bytes 16777216
+    body: bytes 33554432
 }
 record Call {
     task: u64 attempt: u64

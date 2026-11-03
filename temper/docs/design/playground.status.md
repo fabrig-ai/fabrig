@@ -25,8 +25,15 @@
     world.
   - 9: the native walk through the web client's host:
     `tests/playground` checks story A's calm start alone. Story A's walk
-    in the one-process world, ignored (4). The wasm32 builds in the gate,
-    so no gate checks `temper-playground`'s build for wasm32, which
-    proves 3's product crates. A log replayed, and the browser tier's
-    walk.
+    in the one-process world, ignored (4). The wasm32 builds in the gate:
+    fab's gate list (`.config/gate/wasm32.txt`) holds neither
+    `temper-playground` nor the web shell, so no gate proves 3's product
+    crates on wasm32. `temper-playground`'s wasm32 clippy fails, with
+    warnings denied, in smith's and temper's crates alone: unmet
+    `clippy::large_enum_variant` expectations on `Source`
+    (`smith/crates/smith-local-service/src/credentials.rs:27`) and on
+    `Stored` (`temper/crates/temper-engine-domain-forge/src/boundary.rs:1024`),
+    and `smith-agent-shell`'s items left unused on wasm32 (smith's
+    `shell.md`, 2.5, and its status). A log replayed, and the browser
+    tier's walk.
   - 10: the bar.

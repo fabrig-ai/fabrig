@@ -71,11 +71,11 @@ fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
 
 #[test]
 fn startup_names_a_transcript_past_the_codec_ceiling() {
-    let document = transcript_document(16_777_217);
+    let document = transcript_document(33_554_433);
     let found = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         lines(&found).as_ref(),
-        b"application.limits.overrides.root.loads.transcript_bytes: 16777217 bytes, past the transcript codec's ceiling of 16777216\n"
+        b"application.limits.overrides.root.loads.transcript_bytes: 33554433 bytes, past the transcript codec's ceiling of 33554432\n"
     );
 }
 
@@ -1596,8 +1596,16 @@ fn capacity_overrides_name_the_failed_dependency() {
     for (member, value, causes) in [
         (b"tasks.tasks".as_slice(), 64, &["tasks.tasks", "64", "people.inbox_tasks", "128"][..]),
         (b"tasks.project_tasks", 64, &[][..]),
-        (b"tasks.batch", 8, &["tasks.batch", "8", "ResultFollowupsDelegates.value", "4", "schema ceiling", "reduce"]),
-        (b"tasks.batch", 2, &["tasks.batch", "2", "TaskRecord", "2391079", "2166708", "profile ceiling", "reduce"]),
+        (
+            b"tasks.batch",
+            1025,
+            &["tasks.batch", "1025", "TaskInterests.result_followups", "1024", "schema ceiling", "reduce"],
+        ),
+        (
+            b"tasks.batch_bytes",
+            1_048_576,
+            &["tasks.batch", "TaskRecord", "2539901", "2166708", "profile ceiling", "reduce"],
+        ),
         (b"tasks.delegates", 8, &["tasks.delegates", "8", "people.operations", "9"]),
         (b"tasks.delegates", 16, &["tasks.delegates", "16", "people.operations", "17"]),
         (b"documents.lines", 8, &[][..]),

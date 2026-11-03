@@ -702,7 +702,7 @@ fn current_and_patched_frames_share_the_exact_direct_read_bound() {
 
 #[test]
 fn configured_read_room_and_frame_capacity_are_measured_separately() {
-    const MAX_FRAME: u64 = 16_777_280;
+    const MAX_FRAME: u64 = 33_554_496;
     let limits = fixtures::store_limits();
     let sets = super::frame_patches::SETS;
     let capacity = crate::transcripts::patches::capacity(&sets.sets[0], 0, &limits).expect("body capacity");

@@ -7,6 +7,7 @@ sources = ["temper/docs/plan/wasm32-temper-3/inputs/request.md", "AGENTS.md"]
 # the line and narrows temper's playground status, or changes nothing and reports. skein's and
 # smith's wasm32 status entries are plan wasm32-more's (task gate-more): plan.md says why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

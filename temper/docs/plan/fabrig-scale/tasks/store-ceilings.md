@@ -96,3 +96,31 @@ Acceptance:
 
 As the implementer's text asks, with the printed row bound at the draft's figures (the figure
 `standard-scale` sizes standard's store by), and every generated file the writer changed.
+
+## Answers
+
+### 2026-11-03: Resume after tasks-pieces completes its codec translations (recommended), or expand this task to repair those mappings here? The required writer cannot compile the current prerequisite. (fabrig-scale/store-ceilings-1, foreman fabrig-scale/store-ceilings/foreman-1)
+
+Resume store-ceilings after tasks-pieces completes its codec translations and verdict bounds; those repairs remain with tasks-pieces.
+The store-ceilings spec declares `needs = ["tasks-pieces"]` and explicitly requires “No configured limit, profile or `codec/` mapping changes.”
+The tasks-pieces acceptance owns the encoders and decoders in `codec/tasks/` and the verdict bounds in `codec/tasks.rs`, including `min(VERDICT_FIELDS, result_bytes)` framing plus result bytes.
+`jig/docs/design/protocol/store.md`, 5.1, requires verdict pieces framed for “at most `VERDICT_FIELDS` items”, never as many items as result bytes.
+The checkout confirms the old list translations and result-byte multiplication remain.
+Keep store-ceilings parked until that prerequisite is complete, then resume generation, acceptance tests, status update and required checks.
+The pushed checkpoint is not accepted as done: generated files, the row bound and acceptance checks remain outstanding.
+
+### 2026-11-03: tasks-pieces's repairs are still absent; stay parked? (fabrig-scale/store-ceilings-2)
+
+The prerequisite is complete: resume now, on this branch merged with the trunk.
+tasks-pieces's `a545c61cb8` ("Bound task row pieces by domain byte sums") is merged into
+`fabrig-scale/integration` (`5c454d3ddf`). On the trunk, `codec/tasks.rs`'s `limits` frames
+verdict rules and fields by `result_bytes.min(VERDICT_FIELDS)` plus `result_bytes`, and
+`codec/tasks/value.rs` writes `Spec.parameters` and `Authority.grants` as pieces
+(`super::pieces::parameters`, `super::pieces::grants`).
+The checkpoint `5cdda6b7cc` does not contain `a545c61cb8` (`git merge-base --is-ancestor`
+fails): its merge of `origin/fabrig-scale/tasks-pieces` took an older tip, so its `codec/` is
+the old one.
+First merge `origin/fabrig-scale/integration` into this branch. In the schema and generated
+files take the trunk's shapes (the pieces) and reapply only this task's ceilings; then run
+the writer and do the remaining acceptance, checks, status sentence and report as the spec says.
+The ceilings table holds as written. `codec/` stays as the trunk has it.

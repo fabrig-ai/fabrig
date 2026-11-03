@@ -1890,7 +1890,7 @@ runs it (section 7).
   ```
 
   jig's `standard` store page admits the frame of any turn smith admits,
-  up to 16,777,216 bytes, and the store's frame and the worker wire
+  up to 33,554,432 bytes, and the store's frame and the worker wire
   carry it (configuration.md, 13.8; jig's `protocol/store.md`, 8.1).
   The other KV bounds stay as they are: a turn's body is a transcript
   file's, never a KV value. Startup refuses a figure past its wire

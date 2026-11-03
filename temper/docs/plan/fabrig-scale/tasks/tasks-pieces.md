@@ -194,3 +194,14 @@ Those domain files belong to batch-bytes and are outside tasks-pieces’ permitt
 The checkout confirms the field and public export are absent; `owned.rs`’s function remains private.
 Keep tasks-pieces parked until that dependency is available, then resume its remaining implementation and required checks.
 The pushed schema checkpoint does not meet the task’s acceptance and is not accepted as done.
+
+## Rebase (2026-11-03, step merge, foreman fabrig-scale/tasks-pieces/foreman-2)
+
+Resolve layouts.rs by preserving tasks-pieces’ tasks fingerprint and integration’s updated core and smith_transcript fingerprints.
+The merge conflicts in `jig/crates/jig-protocol-store/src/generated/layouts.rs`.
+Integration commit `0926af35b5` (“Allow 48-call completions within representable transcript bounds”) updates `core` and `smith_transcript`; tasks-pieces updates the adjacent `tasks` entry.
+Keep integration’s `core` fingerprint beginning `28 2e 6e a5` and `smith_transcript` beginning `7e 10 a1 95`.
+Keep this branch’s `tasks` fingerprint beginning `da ee 43 ce`; preserve all remaining entries.
+These fingerprints describe separate families (`jig/docs/design/protocol/store.md`, 5.3); taking either whole file loses a required update.
+After resolving, run `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-store-codecs-world --test drift`, inspect the generated diff, then run the same drift test without the writer.
+`temper/crates/temper-service/src/tests/startup.rs` auto-merged; the refusal reports no conflict there.
