@@ -31,6 +31,7 @@ it releases; each batch brings it up to date.
 | relay | `relay` | `domain/forge.md` 8.11 |
 | call | `call` | `domain/agent.md` 4.3.1 |
 | foreman | `foreman` | `protocol/configuration.md` 13.4 |
+| panel | `panel` | `client/forge.md` 9.2, `client/README.md` 4.6, `client/tools.md` 5.5 |
 
 The cross-task shapes are `notes/contracts.md` (C1 to C8); the standing rules,
 `notes/common.md`.
@@ -40,20 +41,24 @@ The cross-task shapes are `notes/contracts.md` (C1 to C8); the standing rules,
 Released (needs in brackets):
 
 - relay: `relay-types` [] (C1, C2's pure types and the bound); `relay-surface` [relay-types]
-  (the row and store, parameter 14, the hold past the bound on the wire).
+  (the row and store, parameter 14, the hold past the bound on the wire); `relay-policy`
+  [relay-types] (the pure relay step, C7); `relay-up` [relay-surface, relay-policy,
+  questions-call] (the root's relay, straight up, held answers, the bound; C2's revision 2,
+  the question's words on the record); `relay-foreman` [relay-up, foreman-charter] (a
+  foreman per question, C5).
 - call: `questions-call` [] (the member decoded; foreman and up refused until the relay).
 - foreman: `foreman-charter` [] (the stock's charter 6 and the box's limits).
+- panel: `questions-panel` [relay-surface] (C8).
 
-Next batch (being written): `relay-policy` [relay-types] (the pure relay step, C7);
-`questions-panel` [relay-surface] (C8); `relay-up` [relay-surface, relay-policy,
-questions-call] (the root's relay, straight up, held answers, the bound);
-`relay-foreman` [relay-up, foreman-charter]; then `relay-story`, `questions-help` and
-`reference-relay`.
+Next batch (being written): `relay-story` [relay-foreman, questions-panel], the story
+through `change` whole; `questions-help` [relay-foreman]; `reference-relay`
+[relay-foreman], the reference's coordinator, coding agent and foreman.
 
 ## Critical path, as it stands
 
-`relay-types` → `relay-surface` → `relay-up` → `relay-foreman` → `relay-story`, about six
-hours of implementer time.
+`relay-types` (35) → `relay-surface` (80) → `relay-up` (120) → `relay-foreman` (100) →
+`relay-story`, about six hours of implementer time; `relay-policy` and `questions-call` run
+beside `relay-surface`, `questions-panel` beside `relay-up`.
 
 ## Overlaps with the plans beside this one
 

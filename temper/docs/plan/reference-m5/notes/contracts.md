@@ -175,9 +175,16 @@ pub enum RelayAct {
     Hold,
 }
 
-pub struct Relayed { pub questions: Questions, pub acts: Box<[RelayAct]> }
+pub struct Relayed {
+    pub questions: Questions,
+    pub acts: Box<[RelayAct]>,
+    /// Work is left for a later step: the room ran out before the open questions settled.
+    pub more: bool,
+}
 
-pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits) -> Relayed;
+/// `room`: the messages (`Answer` and `Ask` acts) this step may still send, its batch
+/// (`tasks.batch`) less the replies it already holds.
+pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, room: usize) -> Relayed;
 ```
 
 - The `Finish` text opens with `Finish: the work done holds; list the rest under Left.` and a
@@ -186,7 +193,10 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits) -> 
   to the requester from the question's words whole and those reasons, cut from the end to
   the message bytes and marked.
 - `relay` never reads the clock or the forge; `Questions.open` never exceeds
-  `limits.questions + 1` entries nor `QUESTIONS_OPEN`.
+  `QUESTIONS_OPEN` entries: a question taken past it is answered as 8.1's change that takes
+  none answers, by the root, and never reaches `relay`.
+- A step whose `Relayed.more` is set is followed by another step at once: the root makes
+  the change due again as it does when its facts change.
 
 ## C8. The panel's questions
 
@@ -199,7 +209,20 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits) -> 
   `record Question { asker: u64 number: u64 line: bytes 256 stands: Stands }`, `record
   Questions { route: Route taken: Used open: list 8 Question }`, in the wire schema's own
   spelling.
-- `ctl change show` prints, after `updates`, `questions: ROUTE, TAKEN of LIMIT taken` and one
-  line per open question: `  question N of task T: STANDS: LINE`, STANDS one of `taken`,
-  `with foreman F`, `with foreman` (not yet made), `asked of requester`, `answered, held for
-  dependencies`; with route `none` and nothing taken, the one line `questions: none`.
+- `ctl change show` prints, on the line after `repairs … · updates …`, `questions: ROUTE ·
+  TAKEN of LIMIT taken`, then one line per open question, `  question N of task T · STANDS
+  · LINE`, STANDS one of `taken`, `with foreman F`, `with foreman` (not yet made), `asked of
+  requester`, `answered, held for dependencies`; with route `none` and nothing taken, the
+  one line `questions: none`. Its JSON carries `"questions": {"route", "taken", "limit",
+  "open": [{"asker", "number", "line", "stands", "foreman"}]}`, `foreman` present only with
+  a made foreman.
+
+## Revisions
+
+- **C2, revision 2 (task `relay-up`).** jig offers a procedure no reader of a question's
+  words by number, so the record keeps them: `Open.words: Box<[u8]>`, the question's words
+  whole (at most the deployment's message bytes), after `line`; the store's `record Open`
+  gains `words: bytes 65536` after `line`. C2's bullet that the words are never on the
+  record, and that they are read from the question positions, no longer holds; the
+  question positions stay the history (`domain/forge.md`, 8.11, "Its history"). Task
+  `relay-surface` builds C2 as first written; `relay-up` adds the field and its fallout.

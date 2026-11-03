@@ -38,3 +38,16 @@ id = 1
 story = "a coordinator's change made with questions foreman relays its producer's question: a foreman settles it from the words and the design or escalates it, the coordinator's answer reaches the producer, the change lands; past its four questions the change holds and escalates; an answer that adds a dependency waits for it to land"
 parts = ["relay", "call", "foreman"]
 walk = false
+
+[[part]]
+id = "panel"
+title = "a change's questions on its panel and in temper ctl change show"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 9.2"
+
+[[slice]]
+id = 2
+story = "temper ctl change show prints a change's question route, the questions taken of its bound, and each open question with where it stands"
+parts = ["panel"]
+walk = false
