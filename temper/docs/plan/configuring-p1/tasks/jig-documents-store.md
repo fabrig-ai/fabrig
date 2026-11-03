@@ -93,3 +93,17 @@ The remaining text after “world's `world` and `direct` drivers run no oracle.�
   17.9: the client wire's charter carries no documents.
 ```
 Preserve all other status text and the task's schema, codec, generated files, goldens and tests.
+
+## Rebase (2026-11-03, step merge, foreman configuring-p1/jig-documents-store/foreman-2)
+
+resolve engine.status.md by preserving the store and configuration gap deletions
+The merge conflicts only in `jig/docs/design/domain/engine.status.md`.
+Task commit `609aa1160475b103554077dc895a73b584109879` removes “17.9: the settings store keeps no documents.”
+Integration commit `13700cbb0eca3da4c343f11c262578c7aee6cb89`, merged by `a98cf14403`, removes the adjacent configuration and Small brief gap.
+Resolve the overlapping hunk with both gaps absent; the earlier core gap must also remain absent.
+After “world's `world` and `direct` drivers run no oracle.” the next line must be:
+```text
+  17.9: the client wire's charter carries no documents.
+```
+This supersedes the previous Rebase instruction to retain the configuration gap.
+Preserve all other status text and the task's schema, codec, generated files, goldens and tests.
