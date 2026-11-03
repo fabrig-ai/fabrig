@@ -248,6 +248,16 @@ impl Clients {
             Some(issuer) => Some(provider::Documents { discovery: issuer.discovery(), keys: issuer.key_set() }),
             None => None,
         };
+        if config.limits.clients.public.on() {
+            for kind in &initial.public {
+                if kind.bound > config.limits.clients.public.answer_bytes {
+                    let mut problems = Problems::empty();
+                    problems
+                        .push(Path::root().member(b"clients").member(b"public").member(b"answer_bytes"), What::Bound);
+                    return Err(problems);
+                }
+            }
+        }
         let component = kit::Component::new(initial, &env, &mut out).or(Err(invalid(What::Bound)))?;
         Ok(Self {
             listening: None,

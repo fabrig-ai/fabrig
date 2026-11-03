@@ -33,6 +33,8 @@ pub struct Limits {
     /// Public admission bounds (jig/docs/design/domain/root.md, 10).
     pub public_watermark: u32,
     pub public_reads: u32,
+    /// Public index bounds copied into the core (jig/docs/design/domain/people.md, 13.9).
+    pub public: jig_domain_core::PublicIndexLimits,
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.
     pub memory_bytes: u64,
@@ -123,7 +125,7 @@ pub const VIEWS: views::Limits = views::Limits {
 #[must_use]
 pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
     jig_domain_core::Limits {
-        public: jig_domain_core::PublicIndexLimits::OFF,
+        public: limits.public,
         routes: limits.routes,
         fill_mark: FILL_MARK,
         load_bytes: limits.loads.read_bytes,

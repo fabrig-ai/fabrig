@@ -4768,6 +4768,7 @@ dependencies = [
  "skein-fake-person",
  "skein-forge",
  "skein-heap",
+ "skein-http",
  "skein-io",
  "skein-kv",
  "skein-lib",
