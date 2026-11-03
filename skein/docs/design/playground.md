@@ -133,6 +133,25 @@ on the timer, or after a message:
 - **Bounded:** the exchanges in flight, the page's fetch bound; one
   stream; the jar; bodies by their bounds. Its worst case is its own
   (programming-model.md, 6).
+- **Fetch's reports by construction:** the visitor keeps its exchanges
+  and its stream in `skein-ui-web`'s fetch bookkeeping, the pure half
+  the browser's fetch keeps (ui-web.md, 10), so a refusal past the
+  bound in flight, a body past its bound, an abandon and the stream's
+  pieces are reported as a browser's are: the first piece as it comes,
+  each further one after a read-on.
+- **The headers, as a browser's same-origin fetch sends them:** the
+  application's own, then `Host`, then `Origin: http://<host>` on every
+  method but GET and HEAD, then one `Cookie` joining the jar's cookies
+  whose path the request's is under (RFC 6265, 5.1.4's path-match), in
+  the order they were set.
+- **What the jar reads of a `Set-Cookie`:** its name and value, its
+  `Path` (absent, the request path's directory, RFC 6265, 5.1.4) and
+  its `Max-Age`, counted from the answer's wall. `Expires` is not read,
+  so a cookie set with it alone lasts the visit; `HttpOnly`, `Secure`,
+  `SameSite` and `Domain` are not read: every request is the origin's
+  own and the page sees no cookie. A cookie of one name replaces the
+  one it holds; one past the jar's bound of cookies or of a cookie's
+  bytes is refused, and its answer is reported as any other.
 
 ## 5. The bridge
 

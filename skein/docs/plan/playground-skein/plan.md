@@ -13,6 +13,8 @@ Compatible detail only, in `skein/docs/design/playground.md`:
   it.
 - 6.1 (new): the log's text, version 1: its first line, an input's line and its text forms,
   the `end` or `cut` line, and the digest of what the world said.
+- 4: fetch's reports by construction, the headers a same-origin fetch sends, and what the
+  jar reads of a `Set-Cookie` (`Max-Age`, not `Expires`).
 - 7: the worker's files in the bundle (`boot-worker.js`, `<worker>.js`,
   `<worker>_bg.wasm`, shared snippets) and the refusals.
 
@@ -23,9 +25,12 @@ Compatible detail only, in `skein/docs/design/playground.md`:
 | ui-web | `ui-web-surface`: the bridge's messages, the platform's two duties, the modules laid down | | 1 |
 | bundle | `bundle-worker`: a bundle's worker module | | 1 |
 | playground | `playground-crate`: the crate and its world, laid down | | 1 |
+| ui-web | `ui-web-log`: the session log, its text and its keeping | ui-web-surface | 2 |
+| ui-web | `ui-web-worker-page`: the worker's platform, its pure half | ui-web-surface | 2 |
+| playground | `playground-slices`: the slices' loop | playground-crate, ui-web-surface | 2 |
+| visitor | `playground-visitor`: the visitor and its world | playground-crate, ui-web-surface | 2 |
 
-Later batches (as they are released): `ui-web-log`, `ui-web-worker-page`,
-`ui-web-worker-web`; `playground-visitor`, `playground-slices`, `playground-memory`,
+Later batches (as they are released): `ui-web-worker-web`; `playground-memory`,
 `playground-replay`, `playground-worker`; the status task last.
 
 ## One writer per file

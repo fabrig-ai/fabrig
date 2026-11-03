@@ -347,13 +347,50 @@ The crate at `skein/crates/skein-playground`, its world at `skein/tests/playgrou
 | `replay` | `src/replay.rs` | `playground-replay` |
 | `worker` (wasm32) | `src/worker.rs`, `src/worker/` | `playground-worker` |
 
+### 8.0 The visitor (task `playground-visitor`)
+
+```rust
+/// What the application gives its visitor (playground.md, 4).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Config {
+    /// The application's listener for its clients, in the world.
+    pub listener: core::net::SocketAddr,
+    /// The `Host` it sends, the application's name for that listener (`name:port`); its
+    /// `Origin` is `http://` and the same.
+    pub host: Box<[u8]>,
+    /// The exchanges it holds in flight, the page's fetch bound.
+    pub exchanges: u32,
+    /// The cookies its jar holds, and the most bytes of one, its name and value.
+    pub cookies: u32,
+    pub cookie_bytes: u32,
+    pub io: skein_io::Limits,
+    pub http: skein_http::client::Limits,
+}
+
+/// A program of the world: fetch's inputs in, fetch's reports out, over skein's HTTP client.
+#[derive(Debug)]
+pub struct Visitor { /* private */ }
+impl Visitor {
+    #[must_use] pub fn new(config: &Config) -> Visitor;
+    /// An input, between steps; it acts on it at its next turn.
+    pub fn enter(&mut self, input: bridge::Input);
+    /// Its reports since the last take, in order.
+    pub fn take(&mut self, reports: &mut Vec<fetch::Report>);
+}
+impl skein_shell::Host for Visitor { .. }
+```
+
+An application's process type holds a `Visitor` and gives `Reach` (8.1) functions calling
+`enter` and `take` on it.
+
 ### 8.1 The slices (task `playground-slices`)
 
 ```rust
 /// How the loop reaches the visitor among the world's processes (playground.md, 3).
 #[derive(Debug)]
 pub struct Reach<P> {
-    /// The visitor's index among the world's processes.
+    /// The visitor's index among the world's processes: one the world starts itself before
+    /// any hosted child, so a child dropped never moves it.
     pub at: usize,
     /// Gives the visitor an input, between steps (world.md, 5).
     pub enter: fn(&mut P, bridge::Input),
