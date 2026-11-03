@@ -23,3 +23,29 @@ id = 1
 story = "the fake git program the world hosts ships from temper's crates/ on product crates alone, and every world that hosts it walks its stories as before"
 parts = ["hosted-git"]
 walk = false
+
+[[part]]
+id = "fake-pace"
+title = "temper: the fakes' documents of their own gain pace, the LLM's reply_ms and the forge's ci_ms"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.4"
+
+[[slice]]
+id = 2
+story = "a fake LLM document with pace reply_ms answers each reply after it, and a fake forge document with pace ci_ms gives its CI's verdict after it; the box's fakes keep none"
+parts = ["fake-pace"]
+walk = false
+
+[[part]]
+id = "composition"
+title = "temper: temper-playground, the composition moved out of tests/one-process on product crates alone, and the one-process world composed on it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 3"
+
+[[slice]]
+id = 3
+story = "the one-process world's stories run on temper-playground's composition with its harness beside it, and the composition builds with no test kit"
+parts = ["composition"]
+walk = false
