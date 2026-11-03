@@ -571,9 +571,14 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
     decide(
         &mut world,
         procedure,
-        core::ProcedureStep { started_from: Box::new([dependency]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+        core::ProcedureStep {
+            words: Some(b"execution identity".as_slice().into()),
+            started_from: Box::new([dependency]),
+            ..core::ProcedureStep::new(core::StepEnd::Wait)
+        },
     );
     assert_eq!(live_row(&world, procedure).started_from.as_ref(), [dependency]);
+    assert_eq!(live_row(&world, procedure).spec.words.as_ref(), b"execution identity");
     let before = live_row(&world, procedure).clone();
     let (_, limits) = jig_core_world::faults::plan_fixture(SEED);
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: world.wall_time(), limits: limits.core };
@@ -637,4 +642,54 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
         core::CallPart::ControlRefused(refused) if *refused == problem
     ));
     assert_eq!(live_row(&world, procedure), &before);
+}
+
+#[test]
+fn a_procedure_step_replaces_only_its_own_words() {
+    let (mut world, procedure) = procedure_world(481);
+    let before = live_row(&world, procedure).clone();
+    let requester = live_row(&world, procedure).requester;
+    let tasks::Party::Task(parent) = requester else { panic!("task requester") };
+    let parent_before = live_row(&world, parent).spec.clone();
+    decide(
+        &mut world,
+        procedure,
+        core::ProcedureStep {
+            words: Some(b"execution identity".as_slice().into()),
+            ..core::ProcedureStep::new(core::StepEnd::Wait)
+        },
+    );
+    let after = live_row(&world, procedure);
+    let mut expected = before.spec;
+    expected.words = b"execution identity".as_slice().into();
+    assert_eq!(after.spec, expected);
+    assert_eq!(after.revision, before.revision);
+    assert_eq!(after.revisions, before.revisions);
+    assert_eq!(live_row(&world, parent).spec, parent_before);
+}
+
+#[test]
+fn procedure_words_require_the_due_task_connector_and_code() {
+    let (mut world, procedure) = procedure_world(482);
+    let before = live_row(&world, procedure).clone();
+    let (step, connector, code, _) = world.procedure_inputs.last().expect("due procedure");
+    let (step, connector, code) = (*step, *connector, *code);
+    for (task, owner, program) in [
+        (procedure, connector + 1, u32::from(code)),
+        (procedure, connector, u32::from(code) + 1),
+        (world.assignments[0].0, connector, u32::from(code)),
+    ] {
+        world.send(root::Event::Core(core::Event::ProcedureStep {
+            task,
+            step,
+            connector: owner,
+            code: program,
+            decision: core::ProcedureStep {
+                words: Some(b"refused words".as_slice().into()),
+                ..core::ProcedureStep::new(core::StepEnd::Wait)
+            },
+        }));
+        assert_eq!(live_row(&world, procedure), &before);
+        assert_ne!(live_row(&world, task).spec.words.as_ref(), b"refused words");
+    }
 }

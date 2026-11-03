@@ -91,7 +91,7 @@ fn step(world: &mut World, task: u64, entry: u64) -> top::TierDecision {
     let mut decision = None;
     let mut committed = None;
     for request in world.take_seen() {
-        if let top::Request::TierDecision { task: decided, decision: choice, entry } = request
+        if let top::Request::TierDecision { task: decided, decision: choice, entry, .. } = request
             && decided == task
         {
             decision = Some(choice);

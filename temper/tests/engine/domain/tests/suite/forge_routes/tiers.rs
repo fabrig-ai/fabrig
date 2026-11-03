@@ -94,6 +94,21 @@ fn baseline(world: &mut World) {
     sign_in(world);
 }
 
+#[test]
+fn a_tier_task_names_the_execution_it_dispatched() {
+    let (mut world, _) = chat_world(false, Tier::default());
+    until(&mut world, LANDING_TICKS, "baseline dispatched", |world| {
+        world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Dispatch { .. }))
+    });
+    let row = tier(&world);
+    let run = row.record.run.as_ref().expect("baseline running");
+    let words = std::str::from_utf8(&task(&world, row.task.expect("tier task")).spec.words).expect("task words");
+    assert!(words.contains("org/repo"), "repository missing from task words: {words}");
+    assert!(words.contains("temper/tier/slow.1"), "owned branch missing from task words: {words}");
+    let commit = String::from_utf8(forge_top::commit_text(&run.tip).into_vec()).expect("full forge commit");
+    assert!(words.contains(&commit), "tested commit missing from task words: {words}");
+}
+
 fn sign_in(world: &mut World) {
     let valid = world.store.rows.values().any(|row| {
         matches!(row,
@@ -306,7 +321,8 @@ fn red_range() -> (World, engine::Assignment, [u64; 3]) {
             .collect::<Vec<_>>(),
         [merge(&world, a), merge(&world, b), merge(&world, c)]
     );
-    until(&mut world, RUN_TICKS * 5, "red range judged", |world| tier(world).record.sequence == 2);
+    let run_task = tier(&world).task.expect("range task");
+    let runs = observe_range(&mut world, run_task);
     until(&mut world, LANDING_TICKS, "blamed change red", |world| {
         matches!(change(world, b).change.state, State::Red { .. })
     });
@@ -317,44 +333,8 @@ fn red_range() -> (World, engine::Assignment, [u64; 3]) {
         tier(&world).record.failing,
         policy::Failures::Tests(Box::new([b"suite.alpha".as_slice().into(), b"suite.beta".as_slice().into(),]))
     );
-    let dispatches: Vec<_> = world
-        .writes
-        .iter()
-        .filter_map(|write| match write {
-            skein_forge::api::Write::Dispatch { workflow, branch, inputs } if workflow.as_ref() == b"slow.yml" => {
-                Some((
-                    branch.as_ref(),
-                    inputs
-                        .iter()
-                        .find(|input| input.name.as_ref() == b"temper_tests")
-                        .map(|input| input.value.as_ref()),
-                ))
-            }
-            _ => None,
-        })
-        .collect();
-    assert_eq!(
-        dispatches,
-        [
-            (b"temper/tier/slow.1".as_slice(), None),
-            (b"temper/tier/slow.2".as_slice(), None),
-            (b"temper/tier/slow.2".as_slice(), Some(tier_runs::FAILURES)),
-            (b"temper/tier/slow.2.1".as_slice(), Some(tier_runs::FAILURES)),
-        ],
-        "whole, confirming rerun, then oldest changed landing; documentation skipped"
-    );
-    let probes: Vec<_> = world
-        .writes
-        .iter()
-        .filter_map(|write| match write {
-            skein_forge::api::Write::CreateBranch { branch, commit } if branch.as_ref() == b"temper/tier/slow.2.1" => {
-                Some(*commit)
-            }
-            _ => None,
-        })
-        .collect();
-    assert_eq!(probes, [merge(&world, b)], "the second landing owns both tests");
-    tier_done(&world, 2, "Tier slow run 2: red, 2 tests failing, blamed on 1 landings");
+    red_dispatches(&world, merge(&world, b));
+    red_task_words(&world, run_task, merge(&world, c), merge(&world, b), runs);
     cleared(&mut world, a);
     cleared(&mut world, c);
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
@@ -409,7 +389,7 @@ fn a_silent_runner_past_the_bound_ends_landed_uncleared() {
     assert!(tier(&world).record.run.is_some());
     let run = task(&world, tier(&world).task.expect("live tier task"));
     assert!(matches!(run.phase, tasks::Phase::Active(_)));
-    assert_eq!(run.spec.words.as_ref(), b"Tier slow run 1");
+    assert!(run.spec.words.starts_with(b"Tier slow run 1\n"));
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
 }
 
@@ -514,4 +494,180 @@ fn a_change_into_a_goals_unfollowed_branch_ends_at_landed() {
     assert_eq!(workflows, [b"slow.yml".as_slice()], "the goal branch starts no tier run");
     tier_done(&world, 1, "Tier slow run 1: green, cleared 0 landings");
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
+}
+
+fn dispatched_runs(world: &World) -> Vec<skein_fake_forge_domain::api::Run> {
+    let raw::Answer::Runs(runs) = world
+        .fake
+        .inspect(
+            &world.fake_env.limits,
+            b"org/repo",
+            &raw::Read::Runs {
+                workflow: Some(b"slow.yml".as_slice().into()),
+                commit: None,
+                number: None,
+                page: 1,
+                limit: 100,
+            },
+        )
+        .expect("forge runs")
+    else {
+        panic!("forge runs")
+    };
+    runs.into_vec().into_iter().filter(|run| run.event == raw::RunEvent::Dispatch).collect()
+}
+
+fn execution_words(world: &World, number: u64) -> &str {
+    std::str::from_utf8(&task(world, number).spec.words).expect("execution words")
+}
+
+#[test]
+fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
+    let (mut world, _) = chat_world(false, Tier::default());
+    until(&mut world, LANDING_TICKS, "forge link projected while running", |world| {
+        tier(world).task.is_some_and(|number| execution_words(world, number).contains("forge run "))
+            && restart_cut(world)
+    });
+    let number = tier(&world).task.expect("running tier task");
+    let run = dispatched_runs(&world).into_iter().next().expect("baseline dispatch");
+    assert_eq!(run.state, raw::RunState::Running);
+    let before = execution_words(&world, number).to_owned();
+    assert!(before.contains(&format!("forge run {} http://forge/org/repo/actions/runs/{}", run.number, run.number)));
+    world.restart_same();
+    until(&mut world, RUN_TICKS, "baseline completed after restart", |world| {
+        tier(world).record.sequence == 1
+            && restart_cut(world)
+            && matches!(task(world, number).phase, tasks::Phase::Ended(_))
+    });
+    assert!(execution_words(&world, number).contains(&before));
+    assert!(world.writes.iter().any(|write| matches!(write,
+        skein_forge::api::Write::DeleteBranch { branch } if branch.as_ref() == b"temper/tier/slow.1")));
+    let completed = task(&world, number).clone();
+    world.restart_same();
+    for _ in 0..LANDING_TICKS {
+        tier_runs::tick(&mut world);
+    }
+    assert_eq!(task(&world, number).spec, completed.spec);
+}
+
+fn assert_part_words(
+    world: &World,
+    number: u64,
+    label: &str,
+    branch: &[u8],
+    commit: skein_forge::api::Commit,
+    forge_run: u64,
+) {
+    let words = execution_words(world, number);
+    let commit = String::from_utf8(forge_top::commit_text(&commit).into_vec()).expect("full forge commit");
+    let branch = std::str::from_utf8(branch).expect("branch");
+    let expected = format!(
+        "{label}: commit {commit}, branch {branch}, forge run {forge_run} http://forge/org/repo/actions/runs/{forge_run}"
+    );
+    assert!(words.contains(&expected), "missing {expected}: {words}");
+}
+
+fn observe_range(world: &mut World, task: u64) -> Vec<raw::Run> {
+    let mut written = 0;
+    let mut runs = Vec::<raw::Run>::new();
+    for _ in 0..RUN_TICKS * 5 {
+        assert_dispatch_words(world, task, &world.writes[written..]);
+        written = world.writes.len();
+        for run in dispatched_runs(world) {
+            if !runs.iter().any(|seen| seen.id == run.id) {
+                runs.push(run);
+            }
+        }
+        if tier(world).record.sequence == 2 {
+            return runs;
+        }
+        tier_runs::tick(world);
+    }
+    panic!("red range did not finish");
+}
+
+fn red_dispatches(world: &World, commit: skein_forge::api::Commit) {
+    let dispatches: Vec<_> = world
+        .writes
+        .iter()
+        .filter_map(|write| match write {
+            skein_forge::api::Write::Dispatch { workflow, branch, inputs } if workflow.as_ref() == b"slow.yml" => {
+                Some((
+                    branch.as_ref(),
+                    inputs
+                        .iter()
+                        .find(|input| input.name.as_ref() == b"temper_tests")
+                        .map(|input| input.value.as_ref()),
+                ))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        dispatches,
+        [
+            (b"temper/tier/slow.1".as_slice(), None),
+            (b"temper/tier/slow.2".as_slice(), None),
+            (b"temper/tier/slow.2".as_slice(), Some(tier_runs::FAILURES)),
+            (b"temper/tier/slow.2.1".as_slice(), Some(tier_runs::FAILURES)),
+        ],
+        "whole, confirming rerun, then oldest changed landing; documentation skipped"
+    );
+    let probes: Vec<_> = world
+        .writes
+        .iter()
+        .filter_map(|write| match write {
+            skein_forge::api::Write::CreateBranch { branch, commit } if branch.as_ref() == b"temper/tier/slow.2.1" => {
+                Some(*commit)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(probes, [commit], "the second landing owns both tests");
+}
+
+fn red_task_words(
+    world: &World,
+    run_task: u64,
+    tip: skein_forge::api::Commit,
+    probe: skein_forge::api::Commit,
+    mut runs: Vec<raw::Run>,
+) {
+    runs.sort_by_key(|run| run.number);
+    assert!(runs.len() >= 3);
+    let runs = &runs[runs.len() - 3..];
+    for (run, label, branch, commit) in [
+        (&runs[0], "Judged run", b"temper/tier/slow.2".as_slice(), tip),
+        (&runs[1], "Failed-test rerun", b"temper/tier/slow.2".as_slice(), tip),
+        (&runs[2], "Bisection probe", b"temper/tier/slow.2.1".as_slice(), probe),
+    ] {
+        assert_part_words(world, run_task, label, branch, commit, run.number);
+    }
+    tier_done(world, 2, "Tier slow run 2: red, 2 tests failing, blamed on 1 landings");
+}
+
+fn assert_dispatch_words(world: &World, task: u64, writes: &[skein_forge::api::Write]) {
+    for write in writes {
+        let skein_forge::api::Write::Dispatch { workflow, branch, inputs } = write else { continue };
+        if workflow.as_ref() != b"slow.yml" || !branch.starts_with(b"temper/tier/slow.2") {
+            continue;
+        }
+        let label = if branch.as_ref() != b"temper/tier/slow.2" {
+            "Bisection probe"
+        } else if inputs.iter().any(|input| input.name.as_ref() == b"temper_tests") {
+            "Failed-test rerun"
+        } else {
+            "Judged run"
+        };
+        let commit =
+            &inputs.iter().find(|input| input.name.as_ref() == b"temper_commit").expect("dispatch commit").value;
+        let commit = std::str::from_utf8(commit).expect("commit text");
+        let branch = std::str::from_utf8(branch).expect("branch text");
+        let expected = format!("{label}: commit {commit}, branch {branch}");
+        assert!(execution_words(world, task).contains(&expected), "dispatch left before its task named {expected}");
+    }
+}
+
+fn restart_cut(world: &World) -> bool {
+    world.store.pending.is_empty() && world.pending.is_empty()
 }

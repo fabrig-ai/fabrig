@@ -48,6 +48,8 @@ pub struct Delegate {
 /// A connector-owned procedure's chosen task action before core admission.
 #[derive(PartialEq, Eq, Debug)]
 pub struct ProcedureStep {
+    /// Replace this procedure task's specification words, within the specification byte bound.
+    pub words: Option<Box<[u8]>>,
     pub batch: Box<[Delegate]>,
     pub amendments: Box<[StepAmendment]>,
     pub cancels: Box<[StepCancel]>,
@@ -92,6 +94,7 @@ impl ProcedureStep {
     #[must_use]
     pub fn new(end: StepEnd) -> Self {
         Self {
+            words: None,
             batch: Box::new([]),
             amendments: Box::new([]),
             cancels: Box::new([]),

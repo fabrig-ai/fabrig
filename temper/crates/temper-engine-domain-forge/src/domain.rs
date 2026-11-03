@@ -1129,6 +1129,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::TierWords { task, words } => crate::tiers::words::projected(d, task, &words, out),
         Event::TierTask { repository, tier, number, task } => {
             crate::tiers::task(d, repository, tier, number, Some(task), out);
         }
@@ -1144,23 +1145,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             d.stopping = true;
             child(d, env, skein_forge_client::Event::Settle, out);
         }
-        Event::Bind { request, mut address, subject } => {
-            address.make_ascii_lowercase();
-            assert!(crate::binding_address(&address) && subject.len() <= 255, "admitted binding fields");
-            let answer = if let Some(bound) = d.bindings.get(&address) {
-                if *bound == subject { crate::BindAnswer::Bound } else { crate::BindAnswer::Another }
-            } else if d.bindings.insert(address.clone(), subject.clone()).is_ok() {
-                out.push(Request::Save {
-                    record: Stored::Binding { address, subject },
-                    read_afresh: None,
-                    release: None,
-                });
-                crate::BindAnswer::Bound
-            } else {
-                crate::BindAnswer::Full
-            };
-            out.push(Request::Bound { request, answer });
-        }
+        Event::Bind { request, address, subject } => bind(d, request, address, subject, out),
         Event::PlaygroundMade { project, account } => crate::playground::made(d, project, account, out),
         Event::PlaygroundFailed { why } => crate::playground::failed(d, why, out),
         Event::ResetActAnswered { key, keep } => crate::playground::act_answered(d, key, keep, out),
@@ -6070,3 +6055,17 @@ impl Domain {
 #[cfg(test)]
 #[path = "tests/verification.rs"]
 mod verification_tests;
+
+fn bind(d: &mut Domain, request: Token, mut address: Box<[u8]>, subject: Box<[u8]>, out: &mut Queue<Request>) {
+    address.make_ascii_lowercase();
+    assert!(crate::binding_address(&address) && subject.len() <= 255, "admitted binding fields");
+    let answer = if let Some(bound) = d.bindings.get(&address) {
+        if *bound == subject { crate::BindAnswer::Bound } else { crate::BindAnswer::Another }
+    } else if d.bindings.insert(address.clone(), subject.clone()).is_ok() {
+        out.push(Request::Save { record: Stored::Binding { address, subject }, read_afresh: None, release: None });
+        crate::BindAnswer::Bound
+    } else {
+        crate::BindAnswer::Full
+    };
+    out.push(Request::Bound { request, answer });
+}
