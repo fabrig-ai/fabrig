@@ -142,17 +142,18 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   Edit only that setting in `CONFIG/temper.json`, then restart
   `temper box --config CONFIG --data DATA --cache CACHE` with the same
   directories. Prepared runners keep their registration and secrets.
-- **ctl:** `change show TASK --until cleared` waits for a landed
-  verdict: `verifying`, `red` or `cleared`, naming tiers and runs.
-  `task release` releases a held run. `task show TASK`'s `asked:` names
-  the repository, full tested commit and owned branch. Each judged run,
-  failed-test rerun and bisection probe keeps its commit, branch, forge run
-  number and URL after completion, branch deletion and restart.
-  Red results pair blamed commits with owned or suspected full IDs;
-  inherited failures blame no new landing. IDs are never cut: omissions
-  end with `and N more failing tests; change show TASK`. The panel keeps
-  all IDs; overflow stays `many tests`. Past ctl's output bound, continue
-  with `task text TASK --field specification --from OFFSET`.
+- **ctl:** `change show TASK --until cleared` waits for `cleared` or
+  ended landed and uncleared; `verifying` and `red` remain pending.
+  Inspect the verdict with `change show TASK`; use `--until changed`
+  for panel updates.
+  `task release` releases held runs. `task show TASK`'s `asked:` names
+  repository, full tested commit and owned branch. Runs, failed-test reruns
+  and bisection probes retain commit, branch, forge run number and URL
+  after branch deletion and restart. Red pairs commits with owned or
+  suspected full IDs; inherited failures blame no landing. Omissions say
+  `and N more failing tests; change show TASK`; the panel keeps IDs whole,
+  overflow `many tests`. Past ctl's bound, use
+  `task text TASK --field specification --from OFFSET`.
 
 ## Limits
 
