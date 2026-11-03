@@ -85,3 +85,16 @@ id = 5
 story = "the deployment's owners change kind 1's landing rules with temper ctl settings apply; jig asks the forge to judge them, the forge keeps them, and the next merge is held by the new rule; a refused rule names its fault; a restart keeps the rules; a change's producing charter is kind 3's number 1"
 parts = ["kinds-root"]
 walk = false
+
+[[part]]
+id = "reference"
+title = "the reference's designers' edition: charter 6, the designer's, and the coordinator's second edition, with their documents and sub-agents"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 6
+story = "reference-case.md steps 1 to 6 and 22 through temper ctl, without questions or early starts: P starts a goal from the template for drafts; G surveys with inspect-only sub-agents and makes S, one designer's change per family after S with producer 6 and their LLM choices, and its own changes; each designer writes its family's design into g and lists its changes; G makes each family's batch, at gpt-6.1-sol; the changes land into g; G makes the close-out X, which lands; G reports, g kept. And M4's walk: a Claude Code chat started with two --sub-agent choices asks two inspect-only sub-agents to read two parts of the repository side by side, each at its own LLM choice, seen through ctl, each child's session ended on its budget"
+parts = ["reference"]
+walk = true

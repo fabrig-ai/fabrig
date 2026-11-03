@@ -3,7 +3,7 @@ id = "kinds-switch-charters"
 part = "kinds-root"
 kind = "feature"
 needs = ["kinds-switch-rules", "change-root", "change-story"]
-files = ["temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-engine-domain/src/route/asks.rs", "temper/crates/temper-engine-domain/src/route/policy_translate.rs", "temper/crates/temper-engine-domain/src/tests/**", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/tests/**", "temper/crates/temper-service/src/system.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/tests/**", "temper/tests/engine/domain/src/walking.rs", "temper/tests/engine/domain/src/oracle/config.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/tests/engine/domain/tests/suite/forge_routes/reviews.rs", "temper/tests/engine/domain/tests/suite/forge_routes/kind_charters.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/tests/suite/settings/b2.rs", "temper/tests/system/src/composed/agreement.rs", "temper/docs/design/domain/root.status.md", "temper/docs/design/domain/forge.status.md"]
+files = ["temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-engine-domain/src/route/asks.rs", "temper/crates/temper-engine-domain/src/route/policy_translate.rs", "temper/crates/temper-engine-domain/src/tests/**", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/tests/**", "temper/crates/temper-service/src/system.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/tests/root_checks.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs", "temper/crates/temper-service/src/tests/system.rs", "temper/tests/engine/domain/src/walking.rs", "temper/tests/engine/domain/src/oracle/config.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/tests/engine/domain/tests/suite/forge_routes/reviews.rs", "temper/tests/engine/domain/tests/suite/forge_routes/kind_charters.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/tests/suite/settings/b2.rs", "temper/tests/system/src/composed/agreement.rs", "temper/docs/design/domain/root.status.md", "temper/docs/design/domain/forge.status.md"]
 effort = "high"
 minutes = 120
 +++
@@ -71,7 +71,8 @@ Acceptance:
 ## Owns and may change
 
 - Owns the files in the header for the edits above; in `forge_route.rs`, the charter reads
-  alone.
+  alone. A temper-service test file the header does not list that the compiler names: the
+  field's literal alone, and say so in the report.
 - Options: if jig refuses an unoffered charter as `StepRefusal::Denied` (an authority finding
   on the delegation) rather than `Refused`, hold from that branch with the same words and say
   so. If a world's story asserts review charter 4 by literal, keep its value through kind 3
