@@ -4,6 +4,7 @@ use smith_agent_service::profile::Per;
 mod native;
 mod programs;
 mod prompt_line;
+mod readme;
 
 use super::*;
 use prompt_line::assert_native_prompt_line;

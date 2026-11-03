@@ -7,17 +7,17 @@ A change is a task that writes one repository's branch and lands it: its pull re
 ## What it is
 
 - **A change task** is a delegate a run asks for with the host tool
-  `change`, giving the words and, where its project has several
+  `change`, giving words and, where its project has several
   repositories it may write, which one. Its coder writes the change
   from those words alone (temper help task).
-  With the control family (amend, cancel, release), a run names, too,
-  `landing` (`goal`, a branch, or the default), `after` (the changes
-  it waits for, by task number or a `name` from the same call),
-  `changes` (several at once, all or none), `producer` (the charter
-  number its coder, repairs and resolutions run under; left out, the
-  forge's change charter) and `llm` (an LLM choice for its `producer`
-  and its `review`, by configured model and effort names; a role left
-  out takes its charter's default).
+  With the control family, a run names, too, `landing` (`goal`, a
+  branch, or the default), `branch` (`mine`: its goal branch, landed
+  whole), `after` (what it waits for: task numbers, or names from the
+  same call), `changes` (several at once, all or none), `producer`
+  (the charter number its coder, repairs and resolutions run under;
+  left out, the forge's change charter) and `llm` (choices for its
+  `producer` and `review`, by configured model and effort names;
+  a role left out takes its charter's default).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·

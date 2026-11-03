@@ -208,7 +208,7 @@ fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
 }
 
 #[test]
-fn a_closing_goal_keeps_its_branch_whatever_way_it_ended() {
+fn a_closing_goal_keeps_its_branch_when_no_change_landed_it() {
     for ending in [ReleaseEnding::Done, ReleaseEnding::Failed, ReleaseEnding::Cancelled] {
         let mut d = fresh();
         take(&mut d);
@@ -225,6 +225,148 @@ fn a_closing_goal_keeps_its_branch_whatever_way_it_ended() {
         assert_eq!(d.hold(&name(GOAL_BRANCH)), None);
         assert_eq!(d.branch_head(&name(GOAL_BRANCH)), Some(TIP));
     }
+}
+
+fn landed_row(head: Option<skein_forge::api::Commit>) -> ChangeRow {
+    let mut row = fixtures::opening_row();
+    row.branch = GOAL_BRANCH.into();
+    row.pending = None;
+    row.effect = temper_engine_domain_forge_change::EffectResult::None;
+    row.change.state = temper_engine_domain_forge_change::State::Landed { merge: MERGED, since: env().wall };
+    row.result.head = head;
+    row
+}
+
+fn held_goal_with_change(row: ChangeRow) -> Domain {
+    let mut d = fresh();
+    take(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
+    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    d
+}
+
+fn release(d: &mut Domain, ending: ReleaseEnding) -> Box<[Request]> {
+    outputs(d, Event::Release { task: GOAL, root: OTHER, ending, reason: None, entry: CLOSING })
+}
+
+fn assert_kept_goal(d: &mut Domain) {
+    let released = release(d, ReleaseEnding::Failed);
+    assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+    assert!(released.contains(&Request::Erase { key: Key::Hold(name(GOAL_BRANCH)) }), "{released:?}");
+    for request in &released {
+        if let Request::Retained { .. }
+        | Request::Save { record: Stored::Entry { .. }, .. }
+        | Request::Call { op: Op::Write(Write::DeleteBranch { .. }), .. } = request
+        {
+            panic!("a kept goal branch has no delete or retained hold: {request:?}");
+        }
+    }
+    assert_eq!(d.hold(&name(GOAL_BRANCH)), None);
+    assert!(!d.is_ready());
+}
+
+fn deleting_goal(d: &mut Domain, ending: ReleaseEnding) -> Token {
+    let requests = release(d, ending);
+    assert!(!requests.contains(&Request::Released { task: GOAL }), "delete must settle first: {requests:?}");
+    assert!(d.hold(&name(GOAL_BRANCH)).is_some());
+    outputs(d, Event::Committed { entry: CLOSING });
+    fixtures::answer_next(d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    let (call, op) = fixtures::next_call(d);
+    assert_eq!(op, Op::Write(Write::DeleteBranch { branch: GOAL_BRANCH.into() }));
+    call
+}
+
+fn complete_goal_delete(d: &mut Domain, call: Token, result: Result<Answer, Error>) {
+    let deleted = fixtures::answer(d, call, result);
+    assert!(deleted.contains(&Request::ContinueRelease { task: GOAL }), "{deleted:?}");
+    assert_eq!(d.hold(&name(GOAL_BRANCH)), None);
+    let released = outputs(d, Event::ContinueRelease { task: GOAL, entry: CLOSING });
+    assert!(released.contains(&Request::Released { task: GOAL }), "{released:?}");
+}
+
+#[test]
+fn a_closing_goal_deletes_its_branch_once_a_change_landed_it_whatever_way_it_ended() {
+    for ending in [ReleaseEnding::Done, ReleaseEnding::Failed, ReleaseEnding::Cancelled] {
+        let mut d = held_goal_with_change(landed_row(Some(TIP)));
+        let call = deleting_goal(&mut d, ending);
+        complete_goal_delete(&mut d, call, Ok(Answer::Done));
+    }
+}
+
+#[test]
+fn a_goal_branch_landed_before_or_after_verification_is_deleted() {
+    use temper_engine_domain_forge_change as change;
+    for state in [
+        change::State::Landed { merge: MERGED, since: env().wall },
+        change::State::Red { merge: MERGED, since: env().wall },
+        change::State::Cleared { merge: MERGED },
+        change::State::Uncleared { merge: MERGED },
+    ] {
+        let mut row = landed_row(Some(TIP));
+        row.change.state = state;
+        let mut d = held_goal_with_change(row);
+        let call = deleting_goal(&mut d, ReleaseEnding::Done);
+        complete_goal_delete(&mut d, call, Ok(Answer::Done));
+    }
+}
+
+#[test]
+fn a_closing_goal_keeps_its_branch_moved_past_its_landing() {
+    let mut d = held_goal_with_change(landed_row(Some(fixtures::HEAD)));
+    assert_kept_goal(&mut d);
+    assert_eq!(d.branch_head(&name(GOAL_BRANCH)), Some(TIP));
+}
+
+#[test]
+fn a_closing_goal_keeps_its_branch_when_its_tip_is_unknown() {
+    for head in [Some(TIP), None] {
+        let mut d = held_goal_with_change(landed_row(head));
+        d.heads.remove(&name(GOAL_BRANCH));
+        assert_kept_goal(&mut d);
+    }
+}
+
+#[test]
+fn a_closing_goal_keeps_its_branch_without_a_matching_landed_change() {
+    use temper_engine_domain_forge_change as change;
+    let matching = landed_row(Some(TIP));
+    let mut other_forge = matching.clone();
+    other_forge.repository.forge = 3;
+    let mut other_repository = matching.clone();
+    other_repository.repository.repository = 3;
+    let mut other_branch = matching.clone();
+    other_branch.branch = b"temper/7/c7".as_slice().into();
+    let mut unlanded = matching.clone();
+    unlanded.change.state = change::State::Landing { head: TIP };
+    let mut unknown_head = matching;
+    unknown_head.result.head = None;
+    for row in [other_forge, other_repository, other_branch, unlanded, unknown_head] {
+        let mut d = held_goal_with_change(row);
+        assert_kept_goal(&mut d);
+    }
+}
+
+#[test]
+fn a_goal_branchs_refused_delete_fails_the_release() {
+    let mut d = held_goal_with_change(landed_row(Some(TIP)));
+    let call = deleting_goal(&mut d, ReleaseEnding::Done);
+    let failed = fixtures::answer(&mut d, call, Err(Error::Protected));
+    let mut release_failed = false;
+    for request in &failed {
+        if let Request::ReleaseFailed { task: GOAL, .. } = request {
+            release_failed = true;
+        }
+    }
+    assert!(release_failed, "{failed:?}");
+    assert!(!failed.contains(&Request::Released { task: GOAL }), "{failed:?}");
+    assert!(d.hold(&name(GOAL_BRANCH)).is_some());
+}
+
+#[test]
+fn a_goal_branch_already_gone_completes_its_release() {
+    let mut d = held_goal_with_change(landed_row(Some(TIP)));
+    let call = deleting_goal(&mut d, ReleaseEnding::Done);
+    complete_goal_delete(&mut d, call, Err(Error::Missing));
 }
 
 #[test]
