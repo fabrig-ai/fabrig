@@ -1692,8 +1692,9 @@ init`'s document carries none of them (`setup.md`, 8.3).
   every budget above, scales with it.
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, raise `authority.executors` and
-  `tasks.executor_kinds` to 8 (small's 4), since the stock delegates to
-  six executors, charters 1 to 4 and 6 and the change procedure;
+  `tasks.executor_kinds` to 12 (small's 4), holding the stock and the
+  reference's whole delegation (13.9) within ctl's twelve-kind list
+  capacity;
   `tasks.charters` to 8 (small's 4), since the stock holds five
   charters and a deployment's settings add their own (13.9);
   `tasks.contract_choices` to 4, since a foreman's verdict has three
@@ -2012,10 +2013,10 @@ that changes the stock changes nothing of them.
   that it notes what it learns, then applied whole. Charter 5 is the
   deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives the box;
   it, the merge kind and role 0 are three more executors in the
-  delegation, nine with the stock's six, past the 8 `authority.executors`
-  and `tasks.executor_kinds` 13.4 gives the box, so the walk's document
-  raises both to hold the delegation whole, charter 7's included
-  (below).
+  delegation, nine with the stock's six, within the 12 `authority.executors`
+  and `tasks.executor_kinds` 13.4 gives the box, including room for
+  charter 7 (below). Applying the reference needs no delegation-limit
+  change or restart.
 - **Designers and the cut** (`../draft/reference-code-production.md`,
   sections 3, 5 and 12): the same file's later edition adds
   - *charter 7, the designer's:* instructions to write one family's
@@ -2055,9 +2056,9 @@ that changes the stock changes nothing of them.
     home repository's `main`.
   Charter 7 joins the rules' and policy 1's delegation as charter 5 did;
   it is the deployment's seventh charter, within the 8 `tasks.charters`
-  13.4 gives the box, and the delegation's tenth executor, within what
-  the walk's document gives `authority.executors` and
-  `tasks.executor_kinds` (above).
+  13.4 gives the box, and the delegation's tenth executor, within the
+  12 `authority.executors` and `tasks.executor_kinds` init gives the box
+  (13.4).
   Each document names the forge's host, owner and repository the walk's
   document fills in, as the landing rules do.
 - **The landing rules** are kind 1's rules 1 and 2, items of the
