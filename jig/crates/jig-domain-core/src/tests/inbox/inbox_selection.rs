@@ -918,6 +918,7 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // The settings review carries a 16-byte optional proposal key.
     // Each of its two value sets also carries one project's whole policy:
     // 8,192 owned bytes and the 208-byte ConfiguredPolicy carrier.
+    // The two value sets each carry eight bytes for RunPolicy.tools.
     const SETTINGS_DOCUMENT: u64 = 120_528
         + 4 * 72
         + 16 * 8
@@ -932,7 +933,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
         + 128 * 40
         + 128 * 255 * 4
         + 16
-        + 2 * (8192 + 208);
+        + 2 * (8192 + 208)
+        + 2 * 8;
 
     let (mut core, limits) = fixture();
     waiting(

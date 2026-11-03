@@ -12,7 +12,7 @@ pub struct ForgeSignIn {
 }
 pub(super) fn parse(
     document: &Document,
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     path: &Path,
     problems: &mut Problems,
 ) -> Box<[ForgeSignIn]> {
@@ -28,7 +28,7 @@ pub(super) fn parse(
     let mut rows = List::<ForgeSignIn>::with_capacity(document.len());
     for (index, at) in entries.iter().enumerate() {
         let path = read::index(&path, index);
-        let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = read::object(document, *at, "forge-sign-in", &path, problems) else { continue };
         let forge = read::short(&mut object, document, b"forge", &path, problems);
         let client = read::text(&mut object, document, b"client", &path, problems);
         read::finish(object, document, &path, problems);

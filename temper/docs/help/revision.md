@@ -66,6 +66,8 @@ when its last task ends or moves.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - A revision records what it changed and what each item replaced:
   `revision show` prints `was:` with the past value, its size, or its
   state: default, removed or not offered. `settings show` reads a past

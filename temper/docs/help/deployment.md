@@ -157,6 +157,8 @@ temper ctl settings apply`.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - temper reads its configuration at a start alone: a change to the
   document takes effect at the next start.
 - temper has no command that upgrades a deployment in place or prints
