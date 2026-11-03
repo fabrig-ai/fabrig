@@ -10,8 +10,8 @@ no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); the fake GitHub refuses no push as `GH013`
 (`fake-forge.md`). Of the portable crates, `skein-tls`,
-`skein-fake-forge-github`, `skein-fake-peers` fail the gate's wasm32
-clippy (`testing.md`). json, tls and http's collector have no fuzz
+`skein-fake-forge-github` and `skein-fake-peers` are not in the gate's
+wasm32 clippy (`testing.md`). json, tls and http's collector have no fuzz
 target (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md` and `ui.md`. The code departs in three crates' `tests/`
 directories (`testing.md`) and in `skein-playground`'s manifest
