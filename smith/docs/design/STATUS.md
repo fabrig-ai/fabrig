@@ -1,19 +1,14 @@
 # Status
 
-2026-11-02. Where smith's code lags or departs from its design, from the
-status files below. Two threads cross several documents. Containment
+2026-11-03. Where smith's code lags or departs from its design, from the
+status files below. Containment
 waits on skein's contained trees (skein's `io.md`, 6.2 to 6.4): the
 agent and its commands run as plain children in process groups, so the
 view, the writable scope and `containment: trees` are not built
 (`domain/README.md`, `domain/host.md`, `domain/tools.md`,
 `protocol/README.md`, `protocol/agent.md`, `protocol/events.md`,
-`protocol/hosts.md`, `testing.md`). The withdrawn compatibility forms,
-the `codex` dialect, the account-id grant, an endpoint's `account` and
-its identity profile, are still accepted, since jig's worlds still write
-dialect 1, and their removal is not yet (`protocol/agent.md`,
-`protocol/channel.md`, `protocol/hosts.md`, `protocol/llm.md`). Beside
-them: live content in one process and a grant refreshed while a chat
-starts (`domain/host.md`), messages mid-work and threshold notes
+`protocol/hosts.md`, `testing.md`). Beside it: live content in
+one process and a grant refreshed while a chat starts (`domain/host.md`), messages mid-work and threshold notes
 (`domain/run.md`), what a program offers read from its `system/init`
 and a live run on Claude Code 2.1.312 (`protocol/programs.md`), whether
 three live stories red at their last run pass now and the live refresh

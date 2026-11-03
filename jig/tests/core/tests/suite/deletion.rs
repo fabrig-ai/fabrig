@@ -394,6 +394,9 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
                 // This fixture creates no task, funding source or run outside the removed project.
                 root::Record::Core(core::Record::Tasks(_) | core::Record::Core(_)) => true,
                 root::Record::Connector { record, .. } => match record {
+                    connector::Record::SettingDefault { .. }
+                    | connector::Record::SettingChange { .. }
+                    | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
                     connector::Record::Task { project: owner, .. }
                     | connector::Record::Adoption { project: owner, .. }
                     | connector::Record::Proposal { project: owner, .. } => *owner == project,

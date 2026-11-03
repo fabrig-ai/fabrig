@@ -24,7 +24,6 @@
       "provider": "openai",
       "address": "{proc.llm.ready.address}",
       "transport": "tls",
-      "identity": "plain",
       "connect": 1000,
       "handshake": 1000,
       "models": [

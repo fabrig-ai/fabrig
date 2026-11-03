@@ -853,7 +853,7 @@ fn paste_reads_the_fakes_key_as_a_file_or_as_the_web_fields_restored_armour() {
     file.put(b"-----END RSA PRIVATE KEY-----\n").unwrap();
     let file = file.finish();
     for bytes in [restored, pem.expose(), file.as_ref()] {
-        let bundle = records::encode_pasted(11, bytes).unwrap();
+        let bundle = records::encode_pasted(&[(11, bytes)]).unwrap();
         paste_connects(Secret::new(Box::from(bytes)), bundle);
     }
 }
@@ -895,7 +895,11 @@ fn paste_connects(pem: Secret, bundle: Secret) {
 }
 // Use the fake's HTTP face, preserving its installation table across paste,
 // reconcile and accept; every request still crosses the real setup codecs.
-fn github_reply(service: &mut crate::Service, face: &mut Face, github: &mut skein_forge_machine_world::github::Fake) {
+pub(super) fn github_reply(
+    service: &mut crate::Service,
+    face: &mut Face,
+    github: &mut skein_forge_machine_world::github::Fake,
+) {
     face.sent(service);
     let wall = service.engine.as_ref().unwrap().env.wall;
     let reply = github.serve(&face.wire.received, wall);
@@ -983,7 +987,7 @@ fn a_stopped_paste_erases_its_carried_row_and_keeps_no_pem_in_its_terminal() {
 #[test]
 fn a_carried_bundle_of_the_wrong_item_is_not_a_key() {
     let mut service = service(8, Duration::from_secs(3600));
-    let bundle = records::encode_pasted(1, b"*").unwrap();
+    let bundle = records::encode_pasted(&[(1, b"*")]).unwrap();
     let digest = skein_lib::sha256::digest(bundle.expose());
     paste_start(&mut service, bundle, digest);
     assert!(service.engine.as_ref().unwrap().notes.iter().any(|note| if let crate::Note::BoxLink { line } = note {
@@ -1581,7 +1585,7 @@ fn an_install_held_past_the_states_life_answers_busy() {
 fn pasted_app_key_form_and_401_failures_use_the_persons_words() {
     let mut service = service(8, Duration::from_secs(3600));
     let pem = b"not a PEM key";
-    let bundle = records::encode_pasted(11, pem).unwrap();
+    let bundle = records::encode_pasted(&[(11, pem)]).unwrap();
     let digest = skein_lib::sha256::digest(bundle.expose());
     paste_start(&mut service, bundle, digest);
     for _ in 0_u32..4 {
@@ -1967,15 +1971,15 @@ fn a_non_owner_accept_never_reaches_the_setup_host() {
 }
 
 #[test]
-fn foreign_and_legacy_pastes_name_the_version_and_repaste() {
-    for bytes in [&[0, 2, 10, 0, 0, 0, 1, b'*'][..], &[1, 1, 11, 0, 1, 0, b'*'][..]] {
+fn foreign_versions_and_former_layouts_are_refused() {
+    for (bytes, why) in [
+        (&[0, 2, 10, 0, 0, 0, 1, b'*'][..], b"pasted with another version of temper: paste it again".as_slice()),
+        (&[0, 1, 10, 0, 0, 0, 1, b'*'][..], b"the pasted value is not a key".as_slice()),
+    ] {
         let mut service = service(8, Duration::from_secs(3600));
         let bundle = Secret::new(Box::from(bytes));
         let digest = skein_lib::sha256::digest(bundle.expose());
         paste_start(&mut service, bundle, digest);
-        assert_eq!(
-            paste_ended(&mut service, false, b"*").as_deref(),
-            Some(b"pasted with another version of temper: paste it again".as_slice())
-        );
+        assert_eq!(paste_ended(&mut service, false, b"*").as_deref(), Some(why));
     }
 }

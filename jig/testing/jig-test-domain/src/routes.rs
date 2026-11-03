@@ -579,6 +579,10 @@ pub(super) fn route_connector(
 ) {
     for _ in 0..requests.len() {
         match requests.pop().expect("connector request count") {
+            connector::Request::SettingsJudged { .. }
+            | connector::Request::SettingsDefaults { .. }
+            | connector::Request::SettingValue { .. }
+            | connector::Request::RestoreRefused { .. } => unreachable!("settings routing: apps-world"),
             connector::Request::ProjectReleased { project } => {
                 work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
             }
@@ -636,6 +640,9 @@ pub(super) fn route_connector(
             connector::Request::RestartDone => work.push(Work::ConnectorRestartDone { number }),
             connector::Request::Save { record } => {
                 match &record {
+                    connector::Record::SettingDefault { .. }
+                    | connector::Record::SettingChange { .. }
+                    | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
                     connector::Record::Outbox(row) => {
                         assert!(crate::remember_outbox(domain, number, row), "bounded outbox owner routes");
                     }

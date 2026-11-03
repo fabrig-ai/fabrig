@@ -62,10 +62,10 @@ Expect: `connecting`; the wait prints the forges, GitHub's line
 `forge FORGE · GitHub · connected · ` and its state, its
 installations below it, then `met`.
 
-If not: `credential file must contain 1 to 4089 bytes` or a key
+If not: `credential file must contain 1 to 4085 bytes` or a key
 file's mode (exit 1): mend `FILE`, then the same call with the same
-key. `connected already` (exit 2): the forge holds a key, which this
-build cannot replace. An App short of a permission or an event
+key. `connected already` (exit 2): the forge holds a key; `forge
+replace FORGE FILE` replaces it. An App short of a permission or an event
 connects, and `temper serve` prints what it lacks on its stderr,
 `temper serve: forge FORGE: App lacks ` then each name, which a box writes
 to its `serve` log under `DATA/box/logs/`: grant them in the App's

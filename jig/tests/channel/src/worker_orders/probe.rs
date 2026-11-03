@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, VecDeque};
 // The marker names no run in the one-chat fixture.
 pub(crate) const OTHER_RUN: u64 = 991;
 const OTHER_ATTEMPT: u64 = 992;
-// Smith's Call record, smith-channel's version-five kind table.
+// Smith's Call record, smith-channel's version-six kind table.
 const PROCESS_CALL: u16 = 0x0107;
 const HEADER: usize = 8;
 // Refusing the extra assignment, taking Cancel and taking the unrelated marker.

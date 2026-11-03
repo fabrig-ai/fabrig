@@ -1262,7 +1262,7 @@ impl World {
             } else if self.anthropic {
                 skein_llm::Provider::Anthropic
             } else {
-                skein_llm::Provider::OpenAiCodex
+                skein_llm::Provider::OpenAi
             };
             setup.order_requests = matches!(self.order, Some(Order::Requests));
             let mut parent = Parent::new(

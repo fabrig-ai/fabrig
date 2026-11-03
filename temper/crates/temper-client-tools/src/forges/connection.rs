@@ -1,5 +1,5 @@
 //! Forge connections (temper/docs/design/client/tools.md, 5.5).
-use super::{ACCEPT, CONNECT, Forges, INSTALL, domain, finish};
+use super::{ACCEPT, CONNECT, Forges, INSTALL, REPLACE, domain, finish};
 use crate::{
     jig::{
         self,
@@ -24,18 +24,21 @@ pub(super) struct Pending {
     install: bool,
     installation: Option<u64>,
     manifest: bool,
+    replace: bool,
     first: Option<super::Intent>,
     called: Option<Called>,
 }
 pub(super) fn owns(call: &jig::call::Call) -> bool {
     let name = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name;
-    name == CONNECT.name || name == INSTALL.name || name == ACCEPT.name
+    name == CONNECT.name || name == INSTALL.name || name == ACCEPT.name || name == REPLACE.name
 }
+#[expect(clippy::too_many_arguments, reason = "the connection forms share one request encoder")]
 fn request(
     forge: u16,
     app: Option<(u64, bool)>,
     installation: Option<u64>,
     manifest: bool,
+    tokens: bool,
     admin: Option<w::ForgejoAdmin>,
     limits: &Limits,
     new: Option<w::ForgeAsk>,
@@ -47,6 +50,17 @@ fn request(
     };
     let request = if let Some(installation) = installation {
         w::Request::Accept(w::Accept::new(&bounds, w::AcceptParts { forge, installation }).ok()?)
+    } else if tokens {
+        w::Request::Connect(
+            w::Connect::new(
+                &bounds,
+                w::ConnectParts {
+                    forge: making,
+                    how: w::How::ForgejoTokens(w::ForgejoTokens::new(&bounds, w::ForgejoTokensParts {}).ok()?),
+                },
+            )
+            .ok()?,
+        )
     } else if let Some(admin) = admin {
         w::Request::Connect(
             w::Connect::new(&bounds, w::ConnectParts { forge: making, how: w::How::ForgejoAdmin(admin) }).ok()?,
@@ -182,7 +196,7 @@ fn admin_how(
 }
 const MANAGED_FAILURE: &[u8] = b"invalid --api, --tls, --git, --web or --git-program";
 
-#[expect(clippy::manual_map, reason = "the domain matches without closures")]
+#[expect(clippy::manual_map, clippy::too_many_lines, reason = "the connection forms share admission and sending")]
 pub(super) fn send(
     state: &mut Forges,
     client: &jig_client::Client,
@@ -195,20 +209,17 @@ pub(super) fn send(
         finish(called, printed, out);
         return;
     }
-    if crate::table::TOOLS.get(usize::from(called.call.tool)).expect("parsed tool").name == CONNECT.name
-        && called.call.form == 2
-    {
-        let printed =
-            render::failure(b"forgejo is not offered yet; use forge connect FORGE github --key KEY", called.json, 2);
-        finish(called, printed, out);
+    let tool = crate::table::TOOLS.get(usize::from(called.call.tool)).expect("parsed tool").name;
+    if tool == REPLACE.name {
+        replace(state, env, called, out);
         return;
     }
-    let tool = crate::table::TOOLS.get(usize::from(called.call.tool)).expect("parsed tool").name;
+    let tokens = tool == CONNECT.name && (called.call.form == 2 || called.call.form == 7);
     let installation = if tool == ACCEPT.name { number(&called.call, 1) } else { None };
     let install = tool == INSTALL.name || installation.is_some();
     let manifest = !install && (called.call.form == 1 || called.call.form == 5);
     let forge = u16::try_from(number(&called.call, 0).unwrap_or(0)).expect("checked forge number");
-    let app = if install { None } else { pasted_app(&called.call) };
+    let app = if install || tokens { None } else { pasted_app(&called.call) };
     let admin = !install && (called.call.form == 3 || called.call.form == 6);
     let first = admin && value(&called.call, 3).is_some();
     let admin_how = if admin {
@@ -241,15 +252,18 @@ pub(super) fn send(
     };
     let value = called.value.take();
     if value.is_some() != (!install && !manifest) {
-        let printed =
-            render::failure(b"forge connect requires a private key file; forge install takes no value", called.json, 1);
+        let printed = render::failure(
+            b"forge connect requires a private credential file; forge install takes no value",
+            called.json,
+            1,
+        );
         finish(called, printed, out);
         return;
     }
     let new = if called.call.form >= 4 && tool == CONNECT.name {
-        if admin {
+        if admin || tokens {
             match managed(&called.call, &env.limits) {
-                Some(forge) => Some(w::ForgeAsk::Managed(forge)),
+                Some(forge) => Some(if tokens { w::ForgeAsk::Connected(forge) } else { w::ForgeAsk::Managed(forge) }),
                 None => {
                     let printed = render::failure(MANAGED_FAILURE, called.json, 1);
                     finish(called, printed, out);
@@ -262,7 +276,7 @@ pub(super) fn send(
     } else {
         None
     };
-    let Some(request) = request(forge, app, installation, manifest, admin_how, &env.limits, new) else {
+    let Some(request) = request(forge, app, installation, manifest, tokens, admin_how, &env.limits, new) else {
         let printed = render::failure(b"forge request encoding failed", called.json, 1);
         finish(called, printed, out);
         return;
@@ -275,9 +289,22 @@ pub(super) fn send(
     let kept_request = request.clone();
     let event = match value {
         Some(pem) => {
-            let bundled = if admin { admin_token(pem.expose()) } else { domain::pasted_app_key(pem.expose()) };
+            let bundled = if tokens {
+                match super::tokens::Tokens::read(pem.expose(), true) {
+                    Ok(bundle) => Some(bundle),
+                    Err(error) => {
+                        let printed = render::failure(&error.words(), called.json, 1);
+                        finish(called, printed, out);
+                        return;
+                    }
+                }
+            } else if admin {
+                admin_token(pem.expose())
+            } else {
+                domain::pasted_app_key(pem.expose())
+            };
             let Some(value) = bundled else {
-                let printed = render::failure(b"credential file must contain 1 to 4089 bytes", called.json, 1);
+                let printed = render::failure(b"credential file must contain 1 to 4085 bytes", called.json, 1);
                 finish(called, printed, out);
                 return;
             };
@@ -287,9 +314,67 @@ pub(super) fn send(
     };
     state.connections.insert(
         key,
-        Pending { forge, request: kept_request, install, installation, manifest, first, called: Some(called) },
+        Pending {
+            forge,
+            request: kept_request,
+            install,
+            installation,
+            manifest,
+            replace: false,
+            first,
+            called: Some(called),
+        },
     );
     out.push(Out::Client { event });
+}
+fn replace(state: &mut Forges, env: &Env<Limits>, mut called: Called, out: &mut Queue<Out>) {
+    let Some(file) = called.value.take() else {
+        let printed = render::failure(b"forge replace requires a private credential file", called.json, 1);
+        finish(called, printed, out);
+        return;
+    };
+    let end = skein_lib::bytes::find(file.expose(), b"\n").unwrap_or(file.expose().len());
+    let value = if file.expose().get(..end) == Some(b"-----BEGIN RSA PRIVATE KEY-----".as_slice()) {
+        domain::pasted_app_key(file.expose())
+    } else {
+        match super::tokens::Tokens::read(file.expose(), false) {
+            Ok(bundle) => Some(bundle),
+            Err(error) => {
+                let printed = render::failure(&error.words(), called.json, 1);
+                finish(called, printed, out);
+                return;
+            }
+        }
+    };
+    let Some(value) = value else {
+        let printed = render::failure(b"credential file must contain 1 to 4085 bytes", called.json, 1);
+        finish(called, printed, out);
+        return;
+    };
+    let forge = u16::try_from(number(&called.call, 0).expect("forge argument")).expect("checked forge");
+    let bounds = temper_client_domain::forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
+    let request = w::Request::Replace(w::Replace::new(&bounds, w::ReplaceParts { forge }).expect("checked forge"));
+    let Some(request) = super::lifecycle::ask(request, &env.limits) else {
+        let printed = render::failure(b"forge request encoding failed", called.json, 1);
+        finish(called, printed, out);
+        return;
+    };
+    let key = Key { asker: Owner::Forge.asker(), number: (u64::from(called.call_number) << 32u32) | 5 };
+    let name = crate::key::engine(called.call.key.as_ref().expect("replace requires a key"));
+    state.connections.insert(
+        key,
+        Pending {
+            forge,
+            request: request.clone(),
+            install: false,
+            installation: None,
+            manifest: false,
+            replace: true,
+            first: None,
+            called: Some(called),
+        },
+    );
+    out.push(Out::Client { event: Event::Carry { key, name, request, value: Some(value) } });
 }
 pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut Queue<Out>) -> bool {
     match told {
@@ -299,11 +384,12 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
             let Some(bounds) = temper_client_domain::forge::wire_limits(&env.limits.domain.forge) else { return false };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
             let (forge, install, installation, manifest) = match request.into_parts().request {
+                w::Request::Replace(_) => return false,
                 w::Request::Accept(value) => (value.forge(), true, Some(value.installation()), false),
                 w::Request::Install(value) => (value.forge(), true, None, false),
                 w::Request::Connect(value) => match value.how() {
                     w::How::GithubManifest(_) => (super::making_number(value.forge()), false, None, true),
-                    w::How::GithubApp(_) | w::How::ForgejoAdmin(_) => return false,
+                    w::How::GithubApp(_) | w::How::ForgejoAdmin(_) | w::How::ForgejoTokens(_) => return false,
                 },
                 w::Request::RemoveForge(_)
                 | w::Request::EndPlayground
@@ -323,6 +409,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                     install,
                     installation,
                     manifest,
+                    replace: false,
                     first: None,
                     called: None,
                 },
@@ -418,6 +505,8 @@ fn text(pending: &Pending, answer: &Answer, kept: bool, limits: &Limits, out: &m
     if kept {
         out.put(if pending.installation.is_some() {
             b"kept: forge-accept "
+        } else if pending.replace {
+            b"kept: forge-replace "
         } else if install {
             b"kept: forge-install "
         } else {
@@ -478,6 +567,8 @@ fn json(answer: &Answer, kept: bool, pending: &Pending, out: &mut Encoder) {
         out.key(b"operation");
         out.string(if pending.installation.is_some() {
             b"forge-accept"
+        } else if pending.replace {
+            b"forge-replace"
         } else if pending.install {
             b"forge-install"
         } else {
@@ -550,6 +641,8 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
             let mut operation = render::outcome::Operation::of(&pending.request);
             operation.word = if pending.installation.is_some() {
                 b"forge-accept"
+            } else if pending.replace {
+                b"forge-replace"
             } else if install {
                 b"forge-install"
             } else {
@@ -682,7 +775,8 @@ fn number(call: &jig::call::Call, index: usize) -> Option<u64> {
 }
 fn managed(call: &jig::call::Call, limits: &Limits) -> Option<w::ManagedForge> {
     let bounds = temper_client_domain::forge::wire_limits(&limits.domain.forge)?;
-    let Some(Value::Text(api)) = value(call, 6) else { return None };
+    let (api_at, tls_at, git_at, web_at, program_at) = if call.form == 7 { (3, 4, 5, 6, 7) } else { (6, 7, 8, 9, 10) };
+    let Some(Value::Text(api)) = value(call, api_at) else { return None };
     let mut split = None;
     for (index, byte) in api.iter().enumerate() {
         if *byte == b':' {
@@ -709,13 +803,13 @@ fn managed(call: &jig::call::Call, limits: &Limits) -> Option<w::ManagedForge> {
         Some(host) => host.strip_suffix(b"]")?,
         None => host,
     };
-    let Some(Value::Text(git)) = value(call, 8) else { return None };
+    let Some(Value::Text(git)) = value(call, git_at) else { return None };
     if host.is_empty() || git.is_empty() {
         return None;
     }
-    let tls = text_option(call, 7).ok()?;
-    let web = text_option(call, 9).ok()?;
-    let git_program = text_option(call, 10).ok()?;
+    let tls = text_option(call, tls_at).ok()?;
+    let web = text_option(call, web_at).ok()?;
+    let git_program = text_option(call, program_at).ok()?;
     w::ManagedForge::new(
         &bounds,
         w::ManagedForgeParts { host: host.into(), port, tls, git: git.clone(), web, git_program },

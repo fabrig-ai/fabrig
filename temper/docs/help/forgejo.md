@@ -12,8 +12,8 @@ Connect a deployment to a Forgejo it does not run, as its site admin, so that te
   and temper makes its bot, the bot's tokens, and at each adoption
   the bot's access and the repository's hook. Owned: temper runs the
   Forgejo itself; on a box, temper help box says how in its step 4,
-  and on a server, temper help server. Connected, a bot's tokens given
-  by hand, is not offered: `forge connect FORGE forgejo` is refused.
+  and on a server, temper help server. Connected, a user's two tokens
+  given by hand in a tokens file, is temper help forge's.
 - **The admin's token** in `FILE`: regular, owned by you, mode 0600,
   made in a site admin's settings with the scopes `write:admin`,
   `read:user` and `write:repository`.
@@ -61,7 +61,7 @@ the project's home.`; the wait prints the forges, forge `FORGE`
 `managed`, then `met`.
 
 If not: `invalid --api, --tls, --git or --web` (exit 1): mend the
-address. `credential file must contain 1 to 4089 bytes`, or a key
+address. `credential file must contain 1 to 4085 bytes`, or a key
 file's mode (exit 1): mend `FILE`, then the same call with the same
 key. A token without `write:repository` connects, and the adoption
 says that scope is missing: give it, then connect again. `LOGIN is

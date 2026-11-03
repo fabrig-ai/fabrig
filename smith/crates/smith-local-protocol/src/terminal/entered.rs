@@ -67,8 +67,8 @@ mod tests {
     fn every_slash_line_is_a_local_command() {
         for (line, expected) in [
             (
-                b"/model codex/small".as_slice(),
-                Slash::Model { model: b"codex/small".as_slice().into(), selected: None },
+                b"/model openai/small".as_slice(),
+                Slash::Model { model: b"openai/small".as_slice().into(), selected: None },
             ),
             (b"/effort high".as_slice(), Slash::Effort { level: b"high".as_slice().into() }),
             (b"/new".as_slice(), Slash::New),

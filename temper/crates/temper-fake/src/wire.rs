@@ -3,7 +3,7 @@ use crate::{limits as l, llm};
 use alloc::boxed::Box;
 use skein_fake_forge_protocol as forgejo;
 use skein_fake_llm_protocol::{documents, provider};
-use skein_llm::{Credential, Scheme};
+use skein_llm::Credential;
 
 pub(crate) fn forge_limits() -> forgejo::Limits {
     forgejo::Limits {
@@ -88,7 +88,7 @@ pub(crate) fn llm(
             path: llm::ROUTE.into(),
             headers: Box::new([]),
         },
-        Credential { scheme: Scheme::Key, value: configuration.key.expose().into(), account_id: Box::new([]) },
+        Credential::key(configuration.key.expose().into()),
         llm_limits(),
         configuration.domain,
         llm::LIMITS,

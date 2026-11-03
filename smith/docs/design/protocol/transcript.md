@@ -229,8 +229,7 @@ jobs of every earlier window and activation.
   (README.md, section 8). Any other is the transcript refusal *another
   version*, and nothing is translated: its host starts the run afresh
   from its brief (domain/run.md, section 6). A transcript of an older
-  version, such as a conversation on the withdrawn `codex` dialect keeps,
-  is refused the same way, and is never carried over to another
+  version is refused the same way, and is never carried over to another
   endpoint.
 - **A host may keep turns of several versions** for people to read. A
   reader is handed a transcript in one version, and only one in the

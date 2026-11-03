@@ -350,8 +350,13 @@ pub enum Act {
     SetUpOwnedAtOnce,
     GitHub { back: Box<[u8]> },
     Managed { place: Managed },
+    Connected { place: Managed },
     PlaceWrite { field: super::admin::PlaceField, text: Box<[u8]> },
     ConnectManaged,
+    ConnectTokens,
+    OpenReplace { forge: u16 },
+    CloseReplace { forge: u16 },
+    Replace { forge: u16 },
     Remove { forge: u16 },
     ConfirmRemove,
     CancelRemove,
@@ -405,8 +410,13 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
             super::github::manifest(side, limits, 0, back, out);
         }
         Act::Managed { place } => super::admin::send_new(side, limits, place, out),
+        Act::Connected { place } => super::tokens::send_new(side, limits, place, out),
         Act::PlaceWrite { field, text } => super::admin::place_write(side, limits, field, text),
         Act::ConnectManaged => super::admin::connect_managed(side, limits, out),
+        Act::OpenReplace { forge } => super::replace::open(side, forge),
+        Act::CloseReplace { forge } => super::replace::close(side, forge),
+        Act::Replace { forge } => super::replace::send(side, limits, forge, out),
+        Act::ConnectTokens => super::tokens::connect_new(side, limits, out),
         Act::Remove { forge } => remove(side, forge),
         Act::ConfirmRemove => confirm_remove(side, limits, out),
         Act::CancelRemove => {
@@ -455,7 +465,7 @@ pub(crate) fn can_make(side: &super::Side) -> bool {
     {
         return false;
     }
-    true
+    !super::tokens::busy(side)
 }
 pub(crate) fn new_record(side: &mut super::Side, kind: Kind, mode: Mode) {
     let mut seen = skein_lib::List::with_capacity(ROWS);
@@ -466,7 +476,7 @@ pub(crate) fn new_record(side: &mut super::Side, kind: Kind, mode: Mode) {
     }
     side.setup_form.making = Some(New { kind, mode, seen: seen.into_boxed(), accepted: false });
 }
-fn bind_new(side: &mut super::Side) {
+fn bind_new(side: &mut super::Side, out: &mut skein_lib::Queue<super::Request>) {
     let Some(making) = &side.setup_form.making else { return };
     if !making.accepted {
         return;
@@ -485,6 +495,14 @@ fn bind_new(side: &mut super::Side) {
             {
                 pending.forge = row.number;
             }
+            if let Some(pending) = &mut side.tokens
+                && pending.forge == 0
+                && making.kind == Kind::Forgejo
+                && making.mode == Mode::Connected
+            {
+                pending.forge = row.number;
+                out.push(super::Request::ConnectForge { forge: row.number });
+            }
             if let Some(pending) = &mut side.app
                 && pending.forge == 0
                 && making.kind == Kind::GitHub
@@ -497,14 +515,21 @@ fn bind_new(side: &mut super::Side) {
     }
 }
 #[must_use]
-pub(crate) fn making(side: &super::Side, forge: u16, bounds: &w::Limits) -> Option<w::Making> {
+pub(crate) fn making(side: &super::Side, forge: u16, bounds: &w::Limits, place: Option<Managed>) -> Option<w::Making> {
     if forge == 0
         && let Some(new) = &side.setup_form.making
     {
         let ask = match (new.kind, new.mode) {
             (Kind::GitHub, Mode::Connected | Mode::Managed | Mode::Owned | Mode::Fake) => w::ForgeAsk::Github,
             (Kind::Forgejo, Mode::Owned) => w::ForgeAsk::Owned,
-            (Kind::Forgejo, Mode::Managed | Mode::Connected | Mode::Fake) => return None,
+            (Kind::Forgejo, Mode::Connected) => {
+                let Managed { host, port, tls, git, web } = place?;
+                w::ForgeAsk::Connected(
+                    w::ManagedForge::new(bounds, w::ManagedForgeParts { host, port, tls, git, web, git_program: None })
+                        .ok()?,
+                )
+            }
+            (Kind::Forgejo, Mode::Managed | Mode::Fake) => return None,
         };
         return Some(w::Making::New(w::NewForge::new(bounds, w::NewForgeParts { forge: ask }).ok()?));
     }
@@ -618,6 +643,9 @@ fn removal_told(
             side.setup_form.making = None;
             side.app = None;
             side.admin = None;
+            side.replacements.clear();
+            side.tokens_form.clear();
+            side.tokens = None;
             out.push(super::Request::Leave { to: Box::from(b"/welcome?at=forge".as_slice()) });
         }
         side.changed();
@@ -658,6 +686,9 @@ pub(crate) fn configure(side: &mut super::Side, limits: super::Limits, out: &mut
             side.pickers.clear();
             side.admin_form = super::admin::Draft::new();
             side.admin = None;
+            side.replacements.clear();
+            side.tokens_form.clear();
+            side.tokens = None;
             side.app_form.clear();
             side.app = None;
         }
@@ -750,7 +781,7 @@ fn send_setup(
     let Some(party) = side.party else { return };
     let SetupValues { playground, org, repository, project } = values;
     let Some(bounds) = wire_limits(&limits) else { return };
-    let Some(target) = making(side, forge, &bounds) else { return };
+    let Some(target) = making(side, forge, &bounds, None) else { return };
     let Some(ask) = ask_target(target, org.clone(), repository.clone(), project.clone(), playground, &bounds) else {
         return;
     };
@@ -813,6 +844,13 @@ pub(crate) fn told(
     out: &mut skein_lib::Queue<super::Request>,
 ) -> bool {
     use jig_client::{Latest, Outcome, Progress, Told};
+    if super::replace::told(side, client, value, limits) {
+        return true;
+    }
+    if super::tokens::told(side, client, value, limits) {
+        bind_new(side, out);
+        return true;
+    }
     if removal_told(side, value, limits, out) {
         return true;
     }
@@ -895,8 +933,10 @@ pub(crate) fn told(
     {
         new.accepted = true;
     }
-    bind_new(side);
+    bind_new(side, out);
     super::admin::stopped(side);
+    super::tokens::stopped(side);
+    super::replace::stopped(side);
     maybe_adopt(side, limits, out);
     side.changed();
     true
@@ -958,7 +998,7 @@ fn end(side: &mut super::Side, out: &mut skein_lib::Queue<super::Request>) {
 // The first repository is adopted on the forge side, even away from the flow
 // (protocol/setup.md, 6.7), after jig has made its project.
 pub(crate) fn maybe_adopt(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib::Queue<super::Request>) {
-    bind_new(side);
+    bind_new(side, out);
     if side.party.is_none() || side.served == super::Served::OutOfDate {
         return;
     }
@@ -1143,7 +1183,7 @@ pub(crate) fn adopted(
 /// Bundle a pasted App's PEM for jig's carried value (protocol/credentials.md, 2.2).
 #[must_use]
 pub fn pasted_app_key(pem: &[u8]) -> Option<skein_lib::Secret> {
-    temper_protocol_records::encode_pasted(11, pem).ok()
+    temper_protocol_records::encode_pasted(&[(11, pem)]).ok()
 }
 
 /// Restore only RSA armour separators stripped by a password input, then bundle it.
@@ -1201,10 +1241,10 @@ pub fn connect_refusal(why: &temper_client_protocol_wire::v1::ForgeRefusal) -> (
         temper_client_protocol_wire::v1::ForgeRefusal::NoSuchForge => (b"no_such_forge", b"no such forge"),
         temper_client_protocol_wire::v1::ForgeRefusal::NotTaken => (b"not_taken", b"not taken by this forge"),
         temper_client_protocol_wire::v1::ForgeRefusal::Connected => {
-            (b"connected", b"connected already: forge-replace replaces its key")
+            (b"connected", b"connected already: forge replace replaces its key or tokens")
         }
         temper_client_protocol_wire::v1::ForgeRefusal::NotConnected => {
-            (b"not_connected", b"not connected: connect the App first")
+            (b"not_connected", b"not connected: connect it first")
         }
         temper_client_protocol_wire::v1::ForgeRefusal::Busy => (b"busy", b"busy"),
         temper_client_protocol_wire::v1::ForgeRefusal::NoKey => (b"no_key", b"no key"),
@@ -1236,10 +1276,25 @@ pub fn slug(row: &Row) -> Option<&[u8]> {
 }
 
 /// Payload space within the existing carried-value budget after schema framing.
-pub use temper_protocol_records::PASTED_PAYLOAD;
+pub use temper_protocol_records::{PASTED_PAYLOAD, decode_pasted};
 
 /// Bundle a site admin's token with the same family as a pasted App key.
 #[must_use]
 pub fn pasted_admin_token(token: &[u8]) -> Option<skein_lib::Secret> {
-    temper_protocol_records::encode_pasted(1, token).ok()
+    temper_protocol_records::encode_pasted(&[(1, token)]).ok()
+}
+
+/// A connected Forgejo's pasted tokens and hooks' secret, one bundle
+/// (protocol/credentials.md, 2.2): `ApiToken`, `GitToken`, `WebhookSecret`, each when given.
+#[must_use]
+pub fn pasted_tokens(api: Option<&[u8]>, git: Option<&[u8]>, secret: Option<&[u8]>) -> Option<skein_lib::Secret> {
+    let mut items = skein_lib::List::with_capacity(3);
+    for (code, value) in [(2, api), (3, git), (5, secret)] {
+        if let Some(value) = value
+            && !value.is_empty()
+        {
+            items.push((code, value)).expect("at most three items");
+        }
+    }
+    temper_protocol_records::encode_pasted(items.as_slice()).ok()
 }

@@ -608,11 +608,34 @@ and `connect-forge.html`.
     and no action;
   - *Your Forgejo,* a forge to make: its addresses, "Its address", its
     API's host, "Its git base", the base of its remotes, and "Its web
-    address", its pages, optional; then its admin's form, as a managed
-    Forgejo's (below). "Connect as its admin" sends `Connect` of a new
-    managed forge, `ManagedForge` naming those addresses (`README.md`,
-    4.6), which the request's decision makes as its record
+    address", its pages, optional; then two forms, its admin's, as a
+    managed Forgejo's, and its bot's tokens, as a connected Forgejo's
+    (both below). "Connect as its admin" sends `Connect` of a new
+    managed forge, `managed` naming those addresses, and "Connect with
+    its tokens" of a new connected one, `connected` naming them
+    (`README.md`, 4.6), which the request's decision makes as its record
     (`../protocol/forge.md`, 2.2); with no address, nothing is sent.
+  - *A connected Forgejo,* kept or to make: "Connect with its bot’s
+    tokens", then "Make a Forgejo user for temper, not a site admin, with
+    write access to each repository temper will work on, and paste two
+    of its tokens: one with the scopes read:user, write:issue and
+    write:repository, and one for git with write:repository and
+    read:user. temper acts as that user." Its fields, "API token" and
+    "Git token", and "Webhook secret", with the hint "Only if you made
+    hooks to temper’s listener: their secret.", each a password field
+    passed straight to a `Secret`, outside text actions, as the admin's
+    token is. The button "Connect with its tokens" sends `Connect {
+    forge, how: ForgejoTokens }`, `forge` the kept forge's number or the
+    new one's addresses, the tokens and the secret carried as one bundle
+    of `ApiToken`, `GitToken` and `WebhookSecret` when given
+    (`../protocol/credentials.md`, 2.2), and empties the three fields as
+    it leaves; a stop empties them again. Before sending: an empty
+    token, "Required."; the bundle past its bound, "The pasted values
+    are past 4 KiB, the most a request carries." Refused, the refusal
+    shows under the button in `ForgeRefusal`'s words (Details, above;
+    `connected`, "Forge N is connected already: replace its tokens on
+    Forges."). A kept connected Forgejo, not connected or stopped, shows
+    this form alone, under its name.
   - *A managed Forgejo,* kept or to make: "Connect as its admin", then "Paste a
     site admin’s token with the scopes write:admin, read:user,
     write:organization and write:repository. temper keeps it, and uses it
@@ -627,8 +650,8 @@ and `connect-forge.html`.
     The button "Connect as its admin" sends `Connect { forge, how:
     ForgejoAdmin { first: Some(FirstAsk) } }`, `forge` the kept forge's
     number or the new one's addresses, with the four fields and
-    the token carried as item 1, a single-item bundle with its six-byte
-    header, at most 4 KiB. No RSA armour restoration applies. Sending
+    the token carried as a bundle of one `AdminToken` item, at most 4
+    KiB in all. No RSA armour restoration applies. Sending
     empties the token field; a stop empties it again and keeps the other
     fields. Before sending: an empty token or name, "Required."; a bundle
     past its bound, "The pasted values are past 4 KiB, the most a request
@@ -655,6 +678,13 @@ and `connect-forge.html`.
   repository or starter workflow), with the diagnostic and "Paste the
   token again to finish it." Every stop says "temper kept nothing of the
   token." No "Set up again" action is offered.
+- **Connecting, with its bot's tokens,** says "Connecting forge F with
+  its bot’s tokens." and "Checking that both answer as one user, not a
+  site admin." A stop returns to Details with its fields empty and the
+  row's last connect's line under the button (the row's table, below).
+  Connected, it is Ready with no first repository (below): "FORGE is
+  connected", "Connected as LOGIN.", LOGIN the user its tokens answer
+  as.
 - **Refused at admission,** the refusal shows above the fields, the token
   asked for again. `first is bot`: "That organization has the name of
   temper's bot on this forge, and on Forgejo users and organizations
@@ -789,10 +819,16 @@ says:
   writing run is taken, or `setup.runs` runs are running) is its
   request's outcome, shown by the page or the tool that sent it, and
   never on the row. The reasons a run stops with include
-  "the pasted value changed", "the API token and the git token answer as
-  LOGIN and LOGIN", "LOGIN is not temper's bot: add `temper:bot` to its
-  full name on Forgejo" (5.5), the forge unreachable, a `Manifest` or an
-  `Install` that stopped, its failure said here and never in its answer
+  "the pasted value changed", "the pasted values are not a Forgejo's
+  tokens", a connected Forgejo's `Check`'s ("the git token answers as
+  another user than the API token", "the tokens answer as another user
+  than LOGIN, this forge's: connect that user as a new forge", LOGIN
+  the record's, "the API token is a site admin's: give the tokens of a
+  user that is not one", "Forgejo refused the API token" or "Forgejo
+  refused the git token"; `../protocol/setup.md`, section 4), "LOGIN is
+  not temper's bot: add `temper:bot` to its full name on Forgejo"
+  (5.5), the forge unreachable, a `Manifest` or an `Install` that
+  stopped, its failure said here and never in its answer
   (`README.md`, section 8), or "interrupted; paste again" after a
   restart, once the connect's own record is kept; until then a restart
   drops a running connect unsaid, its carried value erased at start
@@ -872,15 +908,14 @@ says:
 
 Its actions, each a request of the forge's family (`README.md`, section
 8), offered by kind, mode, setup and state. The engine domain decides
-every offer; the client reads it (`../domain/forge.md`, 4.1). The
-bot-token paste is not offered by the current client:
+every offer; the client reads it (`../domain/forge.md`, 4.1):
 
 | Action | Offered | What it does |
 |---|---|---|
 | Connect | GitHub, to make, or kept, not connected or stopped | "Connect GitHub", with `back`, the page's address to come back to: the answer is a link to the manifest's page (9.1), a path on the page's own origin, `/forges/N/github/manifest?state=S`; without `back`, the terminal's link is the whole address on the clients' listener. The browser goes to it in the page's own tab; the page posts temper's manifest to GitHub, the person creates the App under their own account and installs it on an account GitHub offers, and the setup route sends the tab back to `back`. Or "Connect an App of your own": its id, and its private key pasted as GitHub gives it; no webhook secret is asked, since temper points the App's hook at `https://SLUG.invalid/` and hears changes from its delivery log |
-| Connect (not offered) | Forgejo through its bot's tokens | its bot's API token, its git token and, where the person made hooks to temper's listener, their secret, pasted together; both tokens must answer as one user |
+| Connect | Forgejo of the connected mode, kept, not connected or stopped, or one to make by its addresses | "Connect with its tokens": its bot's API token, its git token and, where the person made hooks to temper's listener, their secret, pasted together; `Check` finds both answer as one user, not a site admin, and on a kept forge as its kept user; only then are they kept, its login with the record, and the forge connected; tokens of another user stop it, the forge as it was (`../protocol/setup.md`, section 4) |
 | Connect | Forgejo with `admin` true, not connected or connecting, or one to make by its addresses | "Connect as its admin": a site admin's token pasted, with the first repository, project and runner label (default `docker`); Reconcile makes or finds the marked bot, then Create makes the repository; only after Done is the admin token kept and the forge connected; never `TakeOver` (`../protocol/setup.md`, 5.5) |
-| Replace | GitHub, connected or stopped; a Forgejo of the connected mode, connected or stopped | a new App key, or a new API token, git token or both, pasted, which must answer as the forge's user (on GitHub, the same App); the old is erased once the new is kept |
+| Replace | GitHub, connected or stopped; a Forgejo of the connected mode, connected or stopped | "Replace", which opens its fields in the row: on GitHub "Private key", the App's new key as GitHub gives it, restored as Connect's is, and "Replace the key"; on a Forgejo "API token", "Git token" and "Webhook secret", and "Replace the tokens"; then `Replace { forge }`, the key or the tokens and the secret given carried as one bundle; they must answer as the forge's user (on GitHub, the same App), and each is kept over the old; answered connecting, the row says Connecting, and a stop leaves it as it was with its last connect's line; refused, the refusal shows under the button in `ForgeRefusal`'s words (`not connected`, "Connect it first."); the terminal shell, with no secret field of several lines, says in the key's field's place "Paste the key on this page in a browser, or run temper ctl forge replace N FILE, FILE the key's file, readable by you alone." (`tools.md`, 5.5) |
 | Install the App; Install on another account | GitHub, connected: "Install on GitHub" before any accepted installation (Connecting), "Install on another account" after one, and Ready's "Choose its repositories on GitHub" | a fresh link to temper's App's install page, with `back`, where the browser goes in the page's own tab; the person picks the account and its repositories on GitHub, keeping GitHub's default, all of them, or choosing some, and the setup route sends the tab back to `back` |
 | New repository | Forgejo owned or managed, connected | the set up's same fields: organization (default `work`), repository (default `hello`) and a project, one of the person's or a new one; the general form of the first repository (`../protocol/setup.md`, section 15) |
 | Forget the admin's token | managed | the admin's token erased; the forge is connected, its bot and tokens kept, and adopting a repository grants nothing more: the person makes the bot a collaborator |
@@ -888,10 +923,11 @@ bot-token paste is not offered by the current client:
 | Set up again | the row's offer offered, set up failed | the same ask again: what the last one left is kept, a fetched binary hashed and not fetched again |
 | Remove | every forge of the person's, the playground's aside | "Remove", confirmed in its row, its words naming what goes and what stays on the forge (Removing a forge, above); then `RemoveForge`, which ends the forge at once and removes it whole (`../domain/forge.md`, 4.1) |
 
-Connect, but on a stopped forge or one whose records say why it is not
-connected, "Connect as its admin" and "Set up a Forgejo here" are the
-flow's, at its Details; every other action is a row's, in its opened
-part.
+GitHub's Connect, but on a stopped forge or one whose records say why
+it is not connected, "Connect with its tokens", "Connect as its admin"
+and "Set up a Forgejo here" are the flow's, at its Details, which a
+row offering one links to, "Connect ›", `ConnectForge` at its forge;
+every other action is a row's, in its opened part.
 
 A pasted value is a field of its own (`README.md`, 3.6 and section 8),
 emptied as the request leaves and shown nowhere, then or after; the
@@ -1056,7 +1092,7 @@ and its hold (2.5) follow.
 | the browser's steps of a connect (9.1) | none of jig's: temper's routes on the clients' listener | `../protocol/forge.md`, the setup's host |
 | the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
-| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { proposer, number }`, beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
 
 ### 9.1 The browser's steps, on the clients' listener
 

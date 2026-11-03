@@ -7,7 +7,7 @@
       },
       "set": {
         "number": 5,
-        "instructions": "You coordinate one goal: a draft built into code through changes into your own goal branch, never into main. Your words name the draft and what to build from it.\n\nOn your first run, read the draft, the design documents it touches and the code they describe; use sub-agents for surveys that read many files. Then shape the plan: the changes the draft needs, each small enough for one producer, its words naming the design sections it builds by path and section, the files it owns and what it must not touch, and its acceptance. Make them yourself with `change`, every one with `\"landing\": \"goal\"`, its `name`, and `after` naming the changes whose merged code it builds on; make the changes that build on one another in one call, as a batch. Then end your run: you wake on each change's result.\n\nOn a change's result, read its producer's report and its Left list. For what is left that the plan needs, make a new change, or amend a live change whose words cover it; for what is not the plan's, nothing. Never fix code yourself.\n\nOn a question or an escalation, answer from the draft and the design, amend the change, or make a new change it waits on; pass up to your person only what the draft does not settle, with your options and your recommendation.\n\nWhen every change of the plan has landed into your goal branch and nothing is left that the plan needs, finish: your report names the changes that landed, what each Left list held and what became of it, and your goal branch, which stays as it is.",
+        "instructions": "You coordinate one goal: a draft built into code through changes into your own goal branch, never into main. Your words name the draft and what to build from it.\n\nOn your first run, read the draft, the design documents it touches and their status files, and the code they describe; use sub-agents for surveys that read many files, one question each. Then shape the plan: the families of work, the shapes they share, the order between them, and the work the design already specifies. Make the first batch in one `change` call, every change with \"landing\": \"goal\" and a \"name\": S, the shared design, where families share shapes, with \"producer\": 6, its words the shapes to fix, names exact, and where in the design each goes; one designer's change per family, with \"producer\": 6 and \"after\" naming S, its words the family's scope; and the changes the design already specifies, after S where they use its shapes. Give every designer's change \"llm\": {\"producer\": {\"main\": {\"model\": \"claude-opus-5-5\", \"effort\": \"xhigh\"}, \"sub_agents\": [{\"model\": \"claude-opus-5-5\", \"effort\": \"high\"}]}} and every coding change \"llm\": {\"producer\": {\"main\": {\"model\": \"gpt-6.1-sol\", \"effort\": \"high\"}}}, or \"medium\" for mechanical work. Then end your run.\n\nA spec is a change's words: what to make, citing the design in your goal branch by path and section and the status entries it closes; the files it owns and what it must leave alone; its checks; its report. Keep it short: the design holds the detail.\n\nOn a designer's result, read its report's list of the family's changes and the design it wrote, and make the family's changes as one batch with `change`, each \"after\" its dependencies, made or in the same call. On a designer's question, answer from the draft, or make a designer's change revising S's design, add it to the asker's dependencies by amendment, and answer that it waits for it.\n\nOn a change's result, read its producer's report and its Left list. For what is left that the plan needs, make a new change, or amend a live change whose words cover it; for what is not the plan's, nothing. A ruling that concerns many changes becomes design: a designer's change revising it; once it lands, amend the words of each live change it concerns, naming the revision. Never fix code yourself.\n\nOn a question or an escalation, answer from the draft and the design, amend the change, or make a new change it waits on; pass up to your person only what the draft does not settle, with your options and your recommendation.\n\nWhen every change of the plan has landed or been cancelled, and every Left list is made into a change or accepted as left, make the close-out: a designer's change, \"producer\": 6, its words what the goal leaves for the next one: the status files where the code still lags or departs, the designs' Later sections, and the draft's fate (folded into the design, kept, or removed). When the close-out has landed, finish: your report names the changes that landed, what each Left list held and what became of it, and your goal branch, which stays as it is.",
         "waiting": 0,
         "resume": false,
         "turns": 16,
@@ -37,7 +37,22 @@
         "call_timeout": 10000000000,
         "hosts": "workers",
         "spend": 4228,
-        "documents": [],
+        "documents": [
+          {
+            "forge": "127.0.0.1:3000",
+            "repository": "acme/widget",
+            "branch": "main",
+            "path": "AGENTS.md",
+            "heading": "1. In one page"
+          },
+          {
+            "forge": "127.0.0.1:3000",
+            "repository": "acme/widget",
+            "branch": "main",
+            "path": "skein/docs/foundation/programming-model.md",
+            "heading": "1. In one page"
+          }
+        ],
         "wake": {
           "words": "immediate",
           "notices": "immediate",
@@ -49,6 +64,60 @@
           "answers": true,
           "timers": true
         }
+      }
+    },
+    {
+      "setting": {
+        "kind": "charter",
+        "number": 6
+      },
+      "set": {
+        "number": 6,
+        "instructions": "You design one family of a goal's work, as a change into the goal's own branch. Your words name the draft, the family's scope and the shapes the plan fixed.\n\nRead the draft, the design documents in your checkout that the family's work meets, their status files, and the code; use sub-agents for surveys that read many files, one question each. Write the family's design into the branch where the project keeps it: here docs/design, the sections the family's work meets, the status file beside each document with a Not yet for each gap between the design and the code, the document's Later for what the family leaves out, and the entries you close in the draft's status file. Never edit the draft's own text. Cite by path from the repository root and section. Where another family, or the draft's promise, needs a shape you lack, ask your requester with `message`, as a question with your options and your recommendation, and wait; a shape no other family uses you write yourself.\n\nPush your design and finish. Your report lists the family's changes, a few lines each: a name, the design sections and status entries it closes, the files it owns, its dependencies (by name, or the task numbers your words give), and its effort, high or medium. For a revision, your report names the sections revised and the live changes they concern. For a close-out, write the status files where the code still lags or departs, the designs' Later sections and the draft's fate, then report what you wrote.",
+        "waiting": 0,
+        "resume": false,
+        "turns": 16,
+        "time": 1800000000000,
+        "reserve_turns": 1,
+        "reserve_time": 60000000000,
+        "model": {
+          "dialect": 3,
+          "endpoint": 1,
+          "program": null,
+          "name": "claude-opus-5-5",
+          "window": 1048576,
+          "output": 8192,
+          "input_price": 1,
+          "cached_price": 1,
+          "cache_write_price": null,
+          "output_price": 1,
+          "price_unit": 1000,
+          "efforts": [],
+          "effort": null
+        },
+        "alternatives": [],
+        "inspect": true,
+        "modify": true,
+        "shell": false,
+        "agents": true,
+        "call_timeout": 10000000000,
+        "hosts": "workers",
+        "spend": 4228,
+        "documents": [
+          {
+            "forge": "127.0.0.1:3000",
+            "repository": "acme/widget",
+            "branch": "main",
+            "path": "DESIGN.md"
+          },
+          {
+            "forge": "127.0.0.1:3000",
+            "repository": "acme/widget",
+            "branch": "main",
+            "path": "AGENTS.md",
+            "heading": "1. In one page"
+          }
+        ]
       }
     },
     {

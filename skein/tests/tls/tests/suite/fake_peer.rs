@@ -57,7 +57,7 @@ struct Sender {
 
 impl Sender {
     fn new(body: Box<[u8]>) -> Self {
-        let target = skein_llm::Endpoint::codex().target;
+        let target = skein_llm::Endpoint::openai().target;
         let head = [
             b"POST ".as_slice(), target.as_ref(),
             b" HTTP/1.1\r\nHost: skein.test\r\nAuthorization: Bearer token\r\nChatGPT-Account-Id: acc\r\nContent-Type: application/json\r\nContent-Length: 6359\r\n\r\n",
@@ -317,16 +317,12 @@ fn a_request_body_larger_than_one_tls_read_arrives_whole() {
                 provider::Config {
                     without_credential: false,
                     provider: documents::Provider::OpenAi,
-                    path: skein_llm::Endpoint::codex().target,
+                    path: skein_llm::Endpoint::openai().target,
                     headers: Box::new([]),
                     echo: skein_llm::openai::Echo::NONE,
                     usage_fields: documents::UsageFields::ALL,
                 },
-                skein_llm::Credential {
-                    scheme: skein_llm::Scheme::Bearer,
-                    value: b"token".as_slice().into(),
-                    account_id: b"acc".as_slice().into(),
-                },
+                skein_llm::Credential { scheme: skein_llm::Scheme::Bearer, value: b"token".as_slice().into() },
                 skein_llm_world::fake::limits(&skein_llm_world::limits()),
                 domain,
                 limits,

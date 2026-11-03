@@ -35,18 +35,14 @@ fn endpoints_with_client(connect: Duration, client: skein_llm::client::Limits) -
             name: llm::Endpoint(42),
             destination: skein_llm_connection::Endpoint {
                 limits: client,
-                credential: skein_llm::client::CredentialLimits {
-                    value: limits().grant_value_bytes,
-                    account_id: limits().grant_value_bytes,
-                },
+                credential: skein_llm::client::CredentialLimits { value: limits().grant_value_bytes },
                 address: SocketAddr::from(([127, 0, 0, 1], 443)),
                 transport: skein_llm_connection::Transport::Tls {
                     server_name: skein_tls::Name::new("example.test").expect("server name"),
                     trust: skein_tls::Config::new(roots, &[]).expect("test trust"),
                 },
-                llm: shared::Endpoint::codex(),
+                llm: shared::Endpoint::openai(),
             },
-            identity: smith_protocol_llm::IdentityProfile::Plain,
             models: Box::new([]),
         }]),
         1,
@@ -98,7 +94,7 @@ fn env(now: u64, limits: &ComponentLimits) -> Env<ComponentLimits> {
 }
 
 fn credential(value: &[u8]) -> Credential {
-    Credential { value: value.into(), account_id: b"account".as_slice().into(), scheme: skein_llm::Scheme::Bearer }
+    Credential::bearer(value.into())
 }
 
 #[test]
@@ -311,7 +307,7 @@ fn prepared_failure(limits: &ComponentLimits) -> codec::Prepared {
         owner: Token::new(71),
         prompt: prompt(),
         endpoint_name: llm::Endpoint(42),
-        endpoint: shared::Endpoint::codex(),
+        endpoint: shared::Endpoint::openai(),
         credential: credential(b"secret"),
 
         receiving: limits.receiving,
@@ -361,8 +357,8 @@ fn every_shared_failure_class_keeps_each_evidence_and_detail() {
 #[test]
 fn a_full_connection_pool_and_two_grant_generations_fit_the_component_bound() {
     // Peak with two live connections and both credential generations retained.
-    // Measured 1_048_441 B on 2026-10-28; a quarter of headroom, rounded up.
-    const POOL_CEILING: u64 = 1_400_000;
+    // Measured 54_209 B on 2026-11-03; a quarter of headroom, rounded up.
+    const POOL_CEILING: u64 = 70_000;
 
     let limits = limits();
     let destinations = endpoints();
@@ -495,7 +491,7 @@ fn a_response_failure_keeps_its_status_in_the_evidence() {
             owner: Token::new(71),
             prompt: prompt(),
             endpoint_name: llm::Endpoint(42),
-            endpoint: shared::Endpoint::codex(),
+            endpoint: shared::Endpoint::openai(),
             credential: credential(b"secret"),
 
             receiving: limits.receiving,

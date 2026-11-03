@@ -5,10 +5,11 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use skein_lib::{List, Reader, Secret, Writer};
 
-/// The carried value's existing aggregate budget (protocol/credentials.md, 2.2).
+/// The carried value's aggregate budget (protocol/credentials.md, 2.2).
 pub const PASTED_BYTES: usize = 4096;
-/// Version u16, variant u8 and secret length u32 use seven bytes.
-pub const PASTED_PAYLOAD: usize = PASTED_BYTES - 7;
+/// One item's framing: version u16, list count u32, variant u8 and secret length u32.
+pub const PASTED_PAYLOAD: usize =
+    PASTED_BYTES - (size_of::<u16>() + size_of::<u32>() + size_of::<u8>() + size_of::<u32>());
 
 #[expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "keep the public row encoder's Vec result")]
 pub fn encode(item: Item, bytes: &[u8]) -> Result<Vec<u8>, Unreadable> {
@@ -132,20 +133,35 @@ impl PastedError {
         }
     }
 }
-/// One item, as every existing producer and the setup reader accept.
-pub fn encode_pasted(code: u16, bytes: &[u8]) -> Result<Secret, Unreadable> {
-    if bytes.is_empty() || bytes.len() > PASTED_BYTES {
+/// One to three distinct, nonempty items within the carried value's aggregate bound.
+pub fn encode_pasted(items: &[(u16, &[u8])]) -> Result<Secret, Unreadable> {
+    if items.is_empty() || items.len() > usize::try_from(v1::CEILINGS.pasted_items).expect("schema ceiling") {
         return Err(Unreadable);
     }
-    let item = if code == 11 {
-        v1::PastedItem::Pem(
-            v1::Pem::new(&v1::CEILINGS, v1::PemParts { value: Secret::new(Box::from(bytes)) }).or(Err(Unreadable))?,
-        )
-    } else {
-        let (_, _, item) = super::parse((u64::from(super::FAMILY_FORGE) << 48) | u64::from(code)).ok_or(Unreadable)?;
-        pasted_item(generated(item, bytes)?)
-    };
-    let row = v1::Pasted::new(&v1::CEILINGS, v1::PastedParts { item }).or(Err(Unreadable))?;
+    let mut values = List::with_capacity(u32::try_from(items.len()).expect("bounded items"));
+    let mut seen = 0_u16;
+    for &(code, bytes) in items {
+        if bytes.is_empty() || bytes.len() > PASTED_BYTES {
+            return Err(Unreadable);
+        }
+        let item = if code == 11 {
+            v1::PastedItem::Pem(
+                v1::Pem::new(&v1::CEILINGS, v1::PemParts { value: Secret::new(Box::from(bytes)) })
+                    .or(Err(Unreadable))?,
+            )
+        } else {
+            let (_, _, item) =
+                super::parse((u64::from(super::FAMILY_FORGE) << 48) | u64::from(code)).ok_or(Unreadable)?;
+            pasted_item(generated(item, bytes)?)
+        };
+        let bit = 1_u16 << code;
+        if seen & bit != 0 {
+            return Err(Unreadable);
+        }
+        seen |= bit;
+        values.push(item).or(Err(Unreadable))?;
+    }
+    let row = v1::Pasted::new(&v1::CEILINGS, v1::PastedParts { items: values }).or(Err(Unreadable))?;
     let size = usize::try_from(row.measure()).expect("pasted length");
     if size > PASTED_BYTES {
         return Err(Unreadable);
@@ -154,7 +170,8 @@ pub fn encode_pasted(code: u16, bytes: &[u8]) -> Result<Secret, Unreadable> {
     row.encode(&mut out).expect("measured pasted value");
     Ok(Secret::new(out.finish()))
 }
-pub fn decode_pasted(bytes: &[u8]) -> Result<(u16, Secret), PastedError> {
+/// The bundle's distinct, nonempty items, in their encoded order.
+pub fn decode_pasted(bytes: &[u8]) -> Result<Box<[(u16, Secret)]>, PastedError> {
     if bytes.len() > PASTED_BYTES {
         return Err(PastedError::Unreadable);
     }
@@ -168,7 +185,25 @@ pub fn decode_pasted(bytes: &[u8]) -> Result<(u16, Secret), PastedError> {
             });
         }
     };
-    let item = match row.into_parts().item {
+    let items = row.into_parts().items;
+    if items.is_empty() {
+        return Err(PastedError::Unreadable);
+    }
+    let mut values = List::with_capacity(items.len());
+    let mut seen = 0_u16;
+    for item in items.into_boxed() {
+        let (code, value) = pasted_value(item)?;
+        let bit = 1_u16 << code;
+        if value.is_empty() || seen & bit != 0 {
+            return Err(PastedError::Unreadable);
+        }
+        seen |= bit;
+        values.push((code, value)).or(Err(PastedError::Unreadable))?;
+    }
+    Ok(values.into_boxed())
+}
+fn pasted_value(item: v1::PastedItem) -> Result<(u16, Secret), PastedError> {
+    let item = match item {
         v1::PastedItem::Pem(value) => return Ok((11, value.into_parts().value)),
         v1::PastedItem::AdminToken(value) => v1::Item::AdminToken(value),
         v1::PastedItem::ApiToken(value) => v1::Item::ApiToken(value),

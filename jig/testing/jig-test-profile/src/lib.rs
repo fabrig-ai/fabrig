@@ -259,7 +259,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 #[must_use]
 pub fn scripted_model() -> core::Model {
     core::Model {
-        dialect: 1,
+        dialect: 3,
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),

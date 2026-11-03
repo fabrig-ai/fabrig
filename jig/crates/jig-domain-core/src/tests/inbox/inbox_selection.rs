@@ -910,7 +910,11 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // Sixteen retained specification lines carry eight aligned bytes for asks.
     // Two value sets each price charter wake policies and two documents.
     // Templates retain resource slices and specification lines retain job specs.
-    const SETTINGS_DOCUMENT: u64 = 120_528 + 4 * 72 + 16 * 8 + 2 * 8 * 16 + 16 * 8 + 2 * 56 + 2 * 2 * 440;
+    // Application settings enlarge SettingLine by 8 bytes for each of the 11
+    // defaults and 11 changes, ReviewItem by 24 bytes for 128 items (Setting
+    // and its two optional Values), and RevisionItemHead by 8 bytes for 128 heads.
+    const SETTINGS_DOCUMENT: u64 =
+        120_528 + 4 * 72 + 16 * 8 + 2 * 8 * 16 + 16 * 8 + 2 * 56 + 2 * 2 * 440 + 2 * 11 * 8 + 128 * 24 + 128 * 8;
 
     let (mut core, limits) = fixture();
     waiting(

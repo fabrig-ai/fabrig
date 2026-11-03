@@ -43,7 +43,7 @@ fn plaintext_endpoints(client_limits: skein_llm::client::Limits, llm: skein_llm:
             transport: skein_llm_connection::Transport::Plaintext,
             llm,
             limits: client_limits,
-            credential: skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+            credential: skein_llm::client::CredentialLimits { value: 2048 },
         })
         .expect("one plaintext endpoint");
     endpoints
@@ -236,7 +236,7 @@ fn run(seed: u64) -> (Vec<String>, (u32, u32, bool)) {
 }
 
 #[test]
-fn codex_calls_complete_reuse_and_replay_one_plaintext_connection() {
+fn responses_calls_complete_reuse_and_replay_one_plaintext_connection() {
     assert_replays(7, 8, run);
 }
 
@@ -245,7 +245,7 @@ fn per_call_reasoning_policy(endpoint_default: bool) {
     let mut client_limits = skein_llm_world::limits();
     client_limits.drop_reasoning = endpoint_default;
     client_limits.reasoning = 5;
-    let endpoints = plaintext_endpoints(client_limits, skein_llm::Endpoint::codex());
+    let endpoints = plaintext_endpoints(client_limits, skein_llm::Endpoint::openai());
     let mut component = Component::new(endpoints, &limits()).expect("configured endpoint");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
     let mut up = Queue::uncapped();
@@ -394,7 +394,7 @@ fn a_paused_owner_holds_the_connection_s_reads_and_its_reuse() {
     profile.connections = CALLS;
     profile.io.sockets = CALLS;
     let mut component =
-        Component::new(plaintext_endpoints(skein_llm_world::limits(), skein_llm::Endpoint::codex()), &profile)
+        Component::new(plaintext_endpoints(skein_llm_world::limits(), skein_llm::Endpoint::openai()), &profile)
             .expect("two admitted calls on one endpoint binding");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut up = Queue::uncapped();

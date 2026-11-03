@@ -82,10 +82,11 @@ fn plan_change(world: &mut World, chat: &engine::Assignment, input: &[u8]) -> Op
     world.until(Until::Ready);
     let before = world.answers.len();
     let input = smith_domain_run::HostInput::attested(input.into()).expect("bounded input");
-    let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
+    let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call_configured(
         smith_domain_run::CallName { activation: chat.attempt, completion: 1, position: 1 },
         b"change",
         &input,
+        &walking::models(),
     )
     .expect("change decodes") else {
         panic!("change call")
@@ -110,8 +111,47 @@ fn a_plan_member_from_a_task_without_control_is_refused() {
     let rows = world.store.rows.clone();
     plan_change(&mut world, &chat, br#"{"words":"Small fix","landing":"main"}"#);
     assert_eq!(world.call_errors.len(), 1);
-    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, name, after and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
     assert_eq!(world.store.rows, rows, "no delegate or call record is built");
+}
+
+#[test]
+fn a_producer_from_a_task_without_control_is_refused() {
+    let (mut world, chat) = plan_world(false);
+    let rows = world.store.rows.clone();
+    plan_change(&mut world, &chat, br#"{"words":"Small fix","producer":6}"#);
+    assert_eq!(world.call_errors.len(), 1);
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.store.rows, rows, "no delegate or call record is built");
+    assert_eq!(world.assigned.len(), 1);
+}
+
+#[test]
+fn a_producer_or_llm_with_control_is_refused_before_delegation() {
+    for input in [
+        br#"{"words":"Small fix","llm":{"producer":{"main":{"model":"scripted"}}}}"#.as_slice(),
+        br#"{"words":"Small fix","producer":6}"#,
+        br#"{"changes":[{"words":"First fix"},{"words":"Second fix","llm":{"review":{"main":{"model":"scripted"}}}}]}"#,
+    ] {
+        let (mut world, chat) = plan_world(true);
+        let answer = plan_change(&mut world, &chat, input);
+        assert!(
+            matches!(answer, Some(engine::CallAnswer::DelegationRefused(problem)) if problem.why == tasks::Refusal::Spec)
+        );
+        assert!(world.call_errors.is_empty());
+        assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
+        assert_eq!(
+            world
+                .store
+                .rows
+                .keys()
+                .filter(|key| matches!(key, Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(_)))))
+                .count(),
+            1,
+            "no delegate is built"
+        );
+        assert_eq!(world.assigned.len(), 1);
+    }
 }
 
 #[test]

@@ -21,6 +21,7 @@ fn entrance_limits_reject_incoherent_names_rows_and_windows() {
         Limits { applications: 0, ..LIMITS },
         Limits { collaborators: 0, ..LIMITS },
         Limits { landings: 0, ..LIMITS },
+        Limits { landing_rules: 0, ..LIMITS },
         Limits { brief_sections: 0, ..LIMITS },
         Limits { brief_bytes: 0, ..LIMITS },
         Limits { client: skein_forge_client::Limits { calls: 0, ..LIMITS.client }, ..LIMITS },

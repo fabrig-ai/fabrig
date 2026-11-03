@@ -181,6 +181,28 @@ pub(crate) fn route_forge(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted forge output") {
+            forge::Request::ConnectForge { forge } => {
+                let choice = Some(crate::Choice::Forge(forge));
+                let address = match root.pages.address() {
+                    Address::ConnectForge { forge: Some(crate::Choice::Managed) } => {
+                        Address::ConnectForge { forge: choice }
+                    }
+                    Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Managed) } } => {
+                        Address::Welcome { step: crate::Step::Forge { forge: choice } }
+                    }
+                    Address::Inbox { .. }
+                    | Address::Chats { .. }
+                    | Address::Accounts
+                    | Address::Forges
+                    | Address::ConnectForge { .. }
+                    | Address::ConnectModel { .. }
+                    | Address::Welcome { .. }
+                    | Address::Chat { .. }
+                    | Address::Task { .. }
+                    | Address::Adopt { .. } => continue,
+                };
+                out.push(Request::Show { address, replace: true });
+            }
             forge::Request::PanelEnded { subject } => refresh_panel(root, env, subject, true, out),
             forge::Request::Client { asked } => client(root, env, asked, out),
             forge::Request::Leave { to } => out.push(Request::Leave { to, replace: false }),

@@ -231,6 +231,7 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["project", "fund", "1", "200", "--key", "fund"],
     &["forge", "setup", "3", "--key", "setup"],
     &["forge", "connect", "3", "github", "--key", "connect"],
+    &["forge", "replace", "3", "file", "--key", "replace"],
     &["forge", "install", "3", "--key", "install"],
     &["forge", "accept", "3", "22", "--key", "accept"],
     &["playground", "start", "--key", "start"],
@@ -255,7 +256,13 @@ fn direct(argv: &[&str]) {
         let mut request = None;
         let mut key = None;
         for _ in 0_u32..2 {
-            let value = if parsed.tool == rows::ADD_KEY_AT
+            let value = if crate::table::TOOLS[usize::from(parsed.tool)].name == b"forge replace" {
+                Some(skein_lib::Secret::new(
+                    b"-----BEGIN RSA PRIVATE KEY-----\nfake-key-for-step-tests\n-----END RSA PRIVATE KEY-----"
+                        .as_slice()
+                        .into(),
+                ))
+            } else if parsed.tool == rows::ADD_KEY_AT
                 || parsed.tool == rows::REPLACE_KEY_AT
                 || parsed.tool == rows::IMPORT_AT
             {

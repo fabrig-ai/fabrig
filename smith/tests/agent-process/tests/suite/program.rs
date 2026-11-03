@@ -178,7 +178,7 @@ fn an_endpoint_without_a_program_refuses_a_program_grant() {
 
 #[test]
 fn a_credential_grant_for_a_program_endpoint_is_refused() {
-    refused(Case::default(), &charter(), &smith_agent_process_world::withdrawn(b"account", b"value"));
+    refused(Case::default(), &charter(), &smith_agent_process_world::bearer(b"value"));
 }
 
 fn changed_charter(change: impl FnOnce(&mut smith_charter::CharterParts)) -> Box<[u8]> {
