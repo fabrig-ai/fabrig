@@ -15,6 +15,8 @@ files = [
   "temper/crates/temper-playground/stories/a/deployment.json",
   "temper/crates/temper-engine-domain/src/route/playground.rs",
   "temper/crates/temper-engine-domain/src/tests/setup.rs",
+  "temper/crates/temper-playground/src/programs.rs",
+  "temper/tests/one-process/src/world.rs",
   "Cargo.lock",
 ]
 effort = "high"
@@ -335,3 +337,45 @@ the three.
   question with its evidence. Commit and push each repair with its test before asking.
 - Then the previous answers' steps and the acceptance as written: the full walk, its kept
   `tests/fixtures/story-a.log` recorded under `SKEIN_CODEGEN_WRITE`, and its replay.
+
+2026-11-03. **Story A's checkouts are refused 401 by the typed git transport's empty token
+snapshot: route story A's git through the live peer's `Route`, or repair `Typed`'s authentication
+elsewhere?** Route it, here; `temper-fake-git` stays as it is. A story's forge peer issues the bot's
+token at its takeover, after the world is built, so a table copied at `Story::start` can never hold
+it; the peer story A builds is `temper_fake::forge::peer`, whose git route is bounded by
+`temper_fake::forge::git_limits()`, and the shipped `temper fake git` reaches that same peer over
+`Route::new(temper_fake::forge::git_limits())` (`temper/crates/temper/src/fake/git.rs`, ~49). The
+world runs the fake git program as `temper fake` runs it (`temper/docs/design/playground.md`, 3 and
+5.1); the typed transport stays for the worlds whose tables are seeded before they start (the
+`setup` array's entries, the one-process world's own scenarios). This task's files gain
+`temper-playground`'s `src/programs.rs` and the one-process world's `src/world.rs`, for this
+repair alone.
+
+- `programs::Parameters` gains `pub route: Option<skein_fake_forge_protocol::Limits>`: the world's
+  git reaches its forge peer over HTTP with these bounds. `programs::git` builds
+  `Process::GitRoute` with `Route::new(..)` when `H::github()` (with `H::git_limits()`, as now) or
+  when `parameters().route` is `Some(limits)` (with `limits`); otherwise `Process::Git` with the
+  typed transport, as now. Nothing else of `programs.rs` changes (in particular `agent_root` keeps
+  reading `H::github()` alone).
+- `story.rs`: one function decides it from the deployment, `pub fn route(document:
+  &serde_json::Value) -> Option<skein_fake_forge_protocol::Limits>`, `Some(temper_fake::forge::git_limits())`
+  when `application.demo` is present (the playground is offered, the same rule as the handover's
+  above), `None` otherwise; `world_metered` fills `Parameters::route` with it. `Fakes`, `Start` and
+  `Story::start` stay as they are: `Fakes::forge`, the typed view over the peer's shared forge, is
+  still what the outcome and the referee read.
+- `temper/tests/one-process/src/world.rs`: `parameters` sets `route: None`, and its
+  `Story::PlaygroundA` branch sets `parameters.route` from `temper_playground::story::route` of the
+  story's deployment, so the one-process story A runs the composition's git as the playground does
+  (`one-process-replay` replays over `temper_playground::world`, which gets it from
+  `world_metered`). No other line there.
+- A regression in `temper-playground`'s `src/tests/`: story A's fresh world's
+  `story::parameters(..).route` is `Some(temper_fake::forge::git_limits())`, and the `setup`-array
+  world of `src/tests/world.rs` keeps `None`.
+- If `Route` itself fails in this world (a connection, an encoding bound, a refusal with the bot's
+  credential) for a cause in `temper-fake-git`, `temper-fake-git-hosted`, skein or the peer rather
+  than in the selection above, stop and ask with the evidence (the git child's error lines, file
+  and line); a protocol bound of these documents falls under the earlier answers' allowance.
+- Then the earlier answers' steps and the acceptance as written: the full walk, its kept
+  `tests/fixtures/story-a.log` recorded under `SKEIN_CODEGEN_WRITE`, its replay; the one-process
+  `story_a.rs` once alone with `--run-ignored all` (its `#[ignore]` lifted only if it passes). Add
+  `heavy cargo nextest run -p temper-one-process-world` to the checks.
