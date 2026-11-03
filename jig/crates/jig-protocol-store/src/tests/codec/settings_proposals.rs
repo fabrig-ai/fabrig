@@ -108,3 +108,69 @@ fn hold_owner_call_parts_and_placed_hold_revisions_round_trip_in_core_6() {
         settled: None,
     }));
 }
+
+#[test]
+fn application_settings_asks_and_judged_refusals_round_trip_at_their_bounds() {
+    let limits = super::people_limits();
+    for number in [0, u32::MAX] {
+        for count in [0, limits.ask_change_settings_projects] {
+            let mut projects = skein_lib::List::with_capacity(count);
+            for _ in 0..count {
+                projects.push(number).unwrap();
+            }
+            ask_round_trip(p::Ask::ChangeSettings {
+                against: number,
+                digest: [0xa5; 32],
+                projects: projects.into_boxed(),
+            });
+        }
+        for setting in [p::Setting::Rules, p::Setting::Application { kind: number, scope: number, number }] {
+            for count in [0, limits.refusal_judged_why] {
+                let why = skein_lib::bytes::zeroed(usize::try_from(count).unwrap());
+                people_round_trip(p::Stored::Answer {
+                    key: p::RequestKey { person: 9, key: [7; 16] },
+                    ask: Box::new(p::Ask::ChangeSettings {
+                        against: number,
+                        digest: [0xa5; 32],
+                        projects: Box::new([]),
+                    }),
+                    models: Box::new([]),
+                    outcome: p::Outcome::Refused(p::Refusal::Judged { at: number, setting, why }),
+                    at: Wall::EPOCH,
+                });
+            }
+            people_round_trip(p::Stored::Answer {
+                key: p::RequestKey { person: 9, key: [7; 16] },
+                ask: Box::new(p::Ask::ChangeSettings { against: number, digest: [0xa5; 32], projects: Box::new([]) }),
+                models: Box::new([]),
+                outcome: p::Outcome::Refused(p::Refusal::NotWellFormed {
+                    at: number,
+                    why: p::Malformed::Settings { setting, fault: p::SettingFault::Judged },
+                }),
+                at: Wall::EPOCH,
+            });
+        }
+    }
+}
+
+#[test]
+fn judged_refusal_words_use_the_people_words_bound() {
+    let mut domain = fixtures::CORE_LIMITS;
+    domain.people.words = 7;
+    let limits = crate::codec::people::limits(&domain).unwrap();
+    assert_eq!(limits.refusal_judged_why, 7);
+    for count in [7, 8] {
+        let row = p::Stored::Answer {
+            key: p::RequestKey { person: 9, key: [7; 16] },
+            ask: Box::new(p::Ask::ChangeSettings { against: 1, digest: [0; 32], projects: Box::new([]) }),
+            models: Box::new([]),
+            outcome: p::Outcome::Refused(p::Refusal::Judged {
+                at: 0,
+                setting: p::Setting::Application { kind: 1, scope: 0, number: 1 },
+                why: skein_lib::bytes::zeroed(count),
+            }),
+            at: Wall::EPOCH,
+        };
+        assert_eq!(crate::codec::people::encode(&row, &limits, &[]).is_ok(), count == 7);
+    }
+}

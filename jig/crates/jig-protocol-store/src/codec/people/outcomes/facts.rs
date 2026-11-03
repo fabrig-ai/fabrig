@@ -479,7 +479,10 @@ pub(super) fn decode_limit_kind(value: wire::LimitKind) -> domain::LimitKind {
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation preserves every stored refusal variant")]
 pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> Result<wire::Refusal, wire::Problem> {
     Ok(match value {
-        domain::Refusal::Judged { .. } => unreachable!("a judged refusal: apps-store"),
+        domain::Refusal::Judged { at, setting, why } => wire::Refusal::Judged(wire::RefusalJudged::new(
+            limits,
+            wire::RefusalJudgedParts { at: *at, setting: encode_setting(*setting, limits)?, why: why.clone() },
+        )?),
         domain::Refusal::Stale { newest } => {
             wire::Refusal::Stale(wire::RefusalStale::new(limits, wire::RefusalStaleParts { newest: *newest })?)
         }
@@ -618,6 +621,10 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation preserves every stored refusal variant")]
 pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
     match value {
+        wire::Refusal::Judged(value) => {
+            let wire::RefusalJudgedParts { at, setting, why } = value.into_parts();
+            domain::Refusal::Judged { at, setting: decode_setting(&setting), why }
+        }
         wire::Refusal::Stale(value) => domain::Refusal::Stale { newest: value.newest() },
         wire::Refusal::Full(value) => {
             let v = value.into_parts();
@@ -836,7 +843,9 @@ fn encode_setting(value: domain::Setting, limits: &wire::Limits) -> Result<wire:
             wire::Setting::Policy(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
         }
         domain::Setting::Rules => wire::Setting::Rules,
-        domain::Setting::Application { .. } => unreachable!("an application's setting: apps-store"),
+        domain::Setting::Application { kind, scope, number } => wire::Setting::Application(
+            wire::ApplicationSetting::new(limits, wire::ApplicationSettingParts { kind, scope, number })?,
+        ),
     })
 }
 fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
@@ -848,7 +857,7 @@ fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
         domain::SettingFault::Budget => wire::SettingFault::Budget,
         domain::SettingFault::Grace => wire::SettingFault::Grace,
         domain::SettingFault::Owner => wire::SettingFault::Owner,
-        domain::SettingFault::Judged => unreachable!("an application's setting: apps-store"),
+        domain::SettingFault::Judged => wire::SettingFault::Judged,
     }
 }
 
@@ -858,6 +867,9 @@ fn decode_setting(value: &wire::Setting) -> domain::Setting {
         wire::Setting::Template(value) => domain::Setting::Template(value.number()),
         wire::Setting::Policy(value) => domain::Setting::Policy(value.number()),
         wire::Setting::Rules => domain::Setting::Rules,
+        wire::Setting::Application(value) => {
+            domain::Setting::Application { kind: value.kind(), scope: value.scope(), number: value.number() }
+        }
     }
 }
 fn decode_setting_fault(value: &wire::SettingFault) -> domain::SettingFault {
@@ -869,6 +881,7 @@ fn decode_setting_fault(value: &wire::SettingFault) -> domain::SettingFault {
         wire::SettingFault::Budget => domain::SettingFault::Budget,
         wire::SettingFault::Grace => domain::SettingFault::Grace,
         wire::SettingFault::Owner => domain::SettingFault::Owner,
+        wire::SettingFault::Judged => domain::SettingFault::Judged,
     }
 }
 
