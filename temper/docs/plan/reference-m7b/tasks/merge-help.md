@@ -91,3 +91,19 @@ Acceptance: the three replacements below are in `temper/docs/help/change.md`, an
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+2026-11-03. **The page is 6 bytes over its bound with the R2 text: shorter text, or trim other prose?**
+Shorter text; trim no other prose. The page now starts at 8,191 bytes (it grew after R2 was
+written). Keep run 1's branch, and change its first replacement so that it ends with these lines in
+place of the original line ``  same call) and `changes` (several at once, all or none).``:
+
+```
+  same call), `changes` (several at once, all or none) and `merge`
+  (a catch-up).
+```
+
+The second replacement stays R2's, verbatim. The page then measures 8,187 bytes. The design's
+`merge` is "a catch-up (forge.md, section 10): the commit to take", so naming the catch-up is
+enough for the help. Then run step 4's checks, the reader help tests among them.
