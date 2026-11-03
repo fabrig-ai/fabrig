@@ -256,6 +256,10 @@ impl Component {
         if credential.value.is_empty() {
             return Err(GrantError::Scheme);
         }
+        let bounds = skein_llm::client::CredentialLimits { value: self.limits.grant_value_bytes, account_id: 0 };
+        if skein_llm::client::check_credential(&credential, &bounds).is_err() {
+            return Err(GrantError::Bounds);
+        }
         for ((account, endpoint), ()) in &self.bindings {
             if *account == name.account {
                 let options = self.options.get(endpoint).ok_or(GrantError::Scheme)?;
@@ -753,14 +757,14 @@ mod tests {
                 Scheme::Bearer => Credential::bearer(b"fixture".as_slice().into()),
                 Scheme::Key => Credential::key(b"fixture".as_slice().into()),
             };
-            assert!(credential.account_id.is_empty());
             assert_eq!(component.grant(name, credential, Time::from_nanos(100)), expected, "{provider:?} {scheme:?}");
             match expected {
                 Ok(()) => {
                     let installed = component.grants.read(name, Time::ZERO).expect("installed grant");
                     assert_eq!(installed.scheme, scheme);
                     assert_eq!(installed.value.as_ref(), b"fixture");
-                    assert!(installed.account_id.is_empty());
+                    assert!(skein_llm::client::check_credential(&installed,
+                        &skein_llm::client::CredentialLimits { value: 128, account_id: 0 }).is_ok());
                 }
                 Err(_) => assert!(matches!(component.grants.read(name, Time::ZERO), Err(GrantError::Missing))),
             }

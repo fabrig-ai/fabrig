@@ -12,7 +12,7 @@ use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn a_derived_history_at_its_bound_is_sent_and_one_byte_more_is_refused_typed() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         history_edge(provider);
     }
 }
@@ -75,8 +75,8 @@ fn history_edge(provider: skein_llm::Provider) {
     let Fixture { declared, client, mut limits, decoded, allowance } = fixture(provider);
     let tools = smith_protocol_llm_world::LIMITS.session.tools;
     let configuration = match provider {
-        skein_llm::Provider::OpenAi => panic!("fixture exercises the withdrawn routes"),
-        skein_llm::Provider::OpenAiCodex => 0,
+        skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
+        skein_llm::Provider::OpenAi => 0,
         skein_llm::Provider::Anthropic => 1,
     };
     let system = b"@history-window";

@@ -89,16 +89,8 @@ impl ClientPeer {
         let endpoint_name = prompt.endpoint;
         let endpoint = configuration.endpoint.clone();
         let peer_endpoint = endpoint.clone();
-        let credential = skein_llm::Credential {
-            value: configuration.credential.value.clone(),
-            account_id: configuration.credential.account_id.clone(),
-            scheme: skein_llm::Scheme::Bearer,
-        };
-        let peer_credential = skein_llm::Credential {
-            value: credential.value.clone(),
-            account_id: credential.account_id.clone(),
-            scheme: skein_llm::Scheme::Bearer,
-        };
+        let credential = match configuration.credential.scheme { skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()), skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()) };
+        let peer_credential = match credential.scheme { skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()), skein_llm::Scheme::Key => skein_llm::Credential::key(credential.value.clone()) };
         let codec::Prepared { client, context } =
             codec::prepare(codec::Input { owner, prompt, endpoint_name, endpoint, credential, receiving }, limits)?;
         let peer = Exchange::prepared_with_options(

@@ -222,11 +222,7 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
                 endpoint_name: prompt.endpoint,
                 prompt,
                 endpoint: configuration.endpoint.clone(),
-                credential: skein_llm::Credential {
-                    value: configuration.credential.value.clone(),
-                    account_id: configuration.credential.account_id.clone(),
-                    scheme: skein_llm::Scheme::Bearer,
-                },
+                credential: match configuration.credential.scheme { skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()), skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()) },
 
                 receiving,
             },
@@ -245,11 +241,7 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
         let mut peer = skein_llm_world::fake::Exchange::prepared(
             prepared.client,
             configuration.endpoint.clone(),
-            Some(skein_llm::Credential {
-                value: configuration.credential.value.clone(),
-                account_id: configuration.credential.account_id.clone(),
-                scheme: skein_llm::Scheme::Bearer,
-            }),
+            Some(match configuration.credential.scheme { skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()), skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()) }),
             bounds.client,
             scripts,
         );

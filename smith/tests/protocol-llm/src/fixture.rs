@@ -55,26 +55,22 @@ pub fn configurations() -> Box<[Configuration]> {
 /// The named wire dialects exercised by protocol stories.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Dialect {
-    /// Codex's Responses grammar and replay envelopes.
-    Codex,
+    /// Synthetic public OpenAI Responses grammar and replay envelopes.
+    OpenAi,
     /// Anthropic's Messages grammar and signed thinking.
     Anthropic,
 }
 impl Dialect {
     /// The supported fixture dialects.
-    pub const ALL: [Self; 2] = [Self::Codex, Self::Anthropic];
+    pub const ALL: [Self; 2] = [Self::OpenAi, Self::Anthropic];
     /// Endpoint, grant and independent expectations for this dialect.
     #[must_use]
     pub fn configuration(self) -> Configuration {
         match self {
-            Self::Codex => Configuration {
-                endpoint: skein_llm::Endpoint::codex(),
+            Self::OpenAi => Configuration {
+                endpoint: skein_llm::Endpoint::openai(),
                 usage_fields: skein_fake_llm_protocol::documents::UsageFields::ALL,
-                credential: skein_llm::Credential {
-                    value: b"fixture-token".as_slice().into(),
-                    account_id: b"fixture-account".as_slice().into(),
-                    scheme: skein_llm::Scheme::Bearer,
-                },
+                credential: skein_llm::Credential::bearer(b"fixture-token".as_slice().into()),
                 error_prefix: b"Error: ".as_slice().into(),
                 error_flag: false,
                 continuation_arguments:
@@ -83,7 +79,7 @@ impl Dialect {
             Self::Anthropic => Configuration {
                 endpoint: skein_llm::Endpoint::anthropic(),
                 usage_fields: skein_fake_llm_protocol::documents::UsageFields::ALL,
-                credential: skein_llm::Credential::anthropic(b"fixture-token".as_slice().into()),
+                credential: skein_llm::Credential::key(b"fixture-token".as_slice().into()),
                 error_prefix: Box::new([]),
                 error_flag: true,
                 continuation_arguments: br#"{"opaque":{"future":[1,true,null]},"extra":"unchanged"}"#.as_slice().into(),
@@ -94,7 +90,7 @@ impl Dialect {
     #[must_use]
     pub const fn reasoning(self) -> Option<u64> {
         match self {
-            Self::Codex => Some(0),
+            Self::OpenAi => Some(0),
             Self::Anthropic => None,
         }
     }

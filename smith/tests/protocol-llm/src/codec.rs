@@ -6,7 +6,7 @@ use smith_domain::{llm, run};
 
 pub use smith_protocol_llm::{
     Below, BelowEvent, Component, ComponentError, ComponentLimits, ConfiguredEndpoint, EndpointError, EndpointOptions,
-    Endpoints, Error, FromDomain, GrantError, Grants, IdentityProfile, Limits, Receiving, Stated, ToDomain, ToolKind,
+    Endpoints, Error, FromDomain, GrantError, Grants, Limits, Receiving, Stated, ToDomain, ToolKind,
     ToolSchema, completion_bound, component_valid, decode, decode_deliver, decode_finish, deliver_schema,
     finish_schema, render_bound, render_outcome, schemas_for_contract, valid,
 };
