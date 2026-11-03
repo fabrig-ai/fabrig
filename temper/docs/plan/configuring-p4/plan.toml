@@ -1,3 +1,25 @@
 draft = "configuring-p4"
 repo = "fabrig"
 sources = ["temper/docs/plan/configuring-p4/inputs/request.md", "temper/docs/design/draft/configuring.execution.md", "temper/docs/design/draft/configuring.md", "temper/docs/design/draft/reference-code-production.md", "AGENTS.md", "DESIGN.md"]
+
+# P4 of temper/docs/design/draft/configuring.execution.md (stage 1, configuring.md 8.1), built on
+# main: P1 to P3 and the reference's M1 to M10 landed. Its design is
+# temper/docs/design/domain/testing.md, 6.5, written by this cut; its code one tool crate,
+# temper/tools/stage-one, held by the acceptance and never by the binary (plan.md).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "golden"
+title = "The golden, section 14 cut into obligations over the reference's profile, and its check in code"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 6.5"
+
+[[slice]]
+id = 1
+story = "temper-stage-one checks evidence made from the reference's profile, every setting met, and fails each mutation of it"
+parts = ["golden"]
+walk = false
