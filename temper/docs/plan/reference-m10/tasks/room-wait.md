@@ -102,3 +102,20 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+2026-11-03. Question (run `room-wait-1`): widen this task to rewrite temper's
+`forge_routes::reviews::beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal`
+and the other fixtures the wait breaks, or leave them? Answer: leave them; the task is not
+widened. Its acceptance holds as pushed (commit `21b0cf5fcd`: the focused tests it names
+pass, `temper-engine-domain`'s among them, and `heavy cargo check -p temper-engine-domain
+--tests` passes), and temper stays "nothing" for it. The wait is the design's behaviour
+(`jig/docs/design/domain/connectors.md`, 6.2): the temper test is to assert the wait, its
+order, and the wake and batch made when room frees, not be bent back to "due". That
+rewrite, `room_wait: None` in `temper/crates/temper-service/src/tests/fixtures.rs`, the
+page ceiling in `temper/tests/real-loop/tests/suite/template_bounds.rs`, the profile price
+in `jig/testing/jig-test-service/src/tests.rs` and the resident size behind
+`jig/tests/client-protocol`'s `turn_read::a_page_sized_turn_is_read_whole_once` go to the
+trunk's end check and its repair. A rerun changes nothing and reports them under `## Left`,
+as the first run did.
