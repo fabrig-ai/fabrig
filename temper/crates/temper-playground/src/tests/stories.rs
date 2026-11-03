@@ -95,6 +95,14 @@ fn story_as_stock_authority_funds_its_scripted_delegate() {
 }
 
 #[test]
+fn story_as_stock_runs_fit_the_hosted_agents_spend_bound() {
+    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let engine = documents::settings::configuration(&document);
+    let defaults = temper_service::stock::defaults(&engine.llm);
+    assert!(documents::agent().bounds.spend >= defaults.rules.maximum_run_spend);
+}
+
+#[test]
 fn story_as_delegates_fit_the_result_contract_bound() {
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let contract = &llm["asked"][0]["turns"][0]["lines"][1]["arguments"]["batch"][0]["contract"];

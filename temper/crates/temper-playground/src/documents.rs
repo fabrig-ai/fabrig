@@ -324,7 +324,8 @@ pub fn agent() -> temper_service::settings::Agent {
             output: 512,
         }]),
         turns: agent_profile().policy.max_turns,
-        spend: 100,
+        // Story A's stock run allowance at its model's template prices.
+        spend: 4200,
         time: Duration::from_secs(300),
         waiting: Duration::from_secs(60),
         checks: Duration::from_secs(5),
