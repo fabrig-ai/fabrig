@@ -3,7 +3,7 @@ id = "restore-surface"
 part = "restore"
 kind = "interface"
 needs = ["policy-surface"]
-files = ["jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/application.rs", "jig/crates/jig-domain-core/src/settings/restart.rs", "jig/crates/jig-domain-core/src/routing/settings/dispatch.rs", "jig/crates/jig-domain-core/src/effects/connector.rs", "jig/crates/jig-domain-people/src/boundary.rs", "jig/crates/jig-domain-people/src/refusals.rs", "jig/crates/jig-domain-core/src/tests/settings/replaced.rs", "jig/crates/jig-domain-core/src/tests/settings.rs"]
+files = ["jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/application.rs", "jig/crates/jig-domain-core/src/settings/restart.rs", "jig/crates/jig-domain-core/src/routing/settings/dispatch.rs", "jig/crates/jig-domain-core/src/effects/connector.rs", "jig/crates/jig-domain-people/src/boundary.rs", "jig/crates/jig-domain-people/src/refusals.rs", "jig/crates/jig-domain-core/src/tests/settings/replaced.rs", "jig/crates/jig-domain-core/src/tests/settings.rs", "jig/crates/jig-protocol-config/src/profile/small.rs", "jig/crates/jig-protocol-config/src/tests/profile.rs", "jig/testing/jig-test-service/src/tests.rs", "temper/crates/temper-service/src/store.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/limits.rs", "temper/crates/temper-service/src/tests/store.rs"]
 effort = "high"
 minutes = 90
 +++
@@ -135,3 +135,35 @@ Acceptance:
 
 The edits outside the owned files, by file (a list); how the request, outcome and refusal are
 refused or reached today; any price or expectation corrected and why.
+
+## Answers
+
+2026-11-03. **Raise Small's derived store limits, or keep them and revise the sizing plan?**
+Raise them. Small's `STORE_KV` `value`, `chunk` and `page.bytes` are no budget of the
+user's but envelopes derived from the largest row (the comment says so; `cf7ee61604` and
+`e6d351c2b7` raised them the same way for job specs and dependency marks), and 17.10's record
+needs two whole sets per revision in the worst case: the items set at most a whole set, and
+what they replaced is at most the settings now, another. Do it this way, on your branch
+(pushed head `cfebdbacfb`):
+
+- `jig/crates/jig-protocol-config/src/profile/small.rs`: `value` to the admission need you
+  measured (2,039,684), and `page.bytes` and `chunk` derived from it as now (value + 2,079
+  key; page + 20): 2,041,763 and 2,041,783 unless your measurement says otherwise. Rewrite
+  the page comment to name the largest row as it now is (a revision's record with what its
+  items replaced, if that is it). `commit`, `budget`, `segment`, `queued_bytes` and the rest do
+  not derive from `value`: leave them. Standard (`standard.rs`) only if a test shows it short,
+  derived the same way.
+- The literals that pin those figures, and nothing else in their files:
+  `jig/crates/jig-protocol-config/src/tests/profile.rs` (81), `jig/testing/jig-test-service/
+  src/tests.rs` (25), and temper-service's `store.rs` (476), `tests/startup.rs` (58),
+  `tests/limits.rs` (483), `tests/store.rs` (98). The spec's `files` now lists them.
+- The three fixed-price literals in `jig/crates/jig-protocol-store/src/tests/format.rs`, as the
+  pre-approved option already allows, each comment naming the replaced-state term.
+- Then the focused run of the edited packages and their dependents again. A failure the raised
+  limit does not explain (the run named "startup/readiness and refusal-precedence" failures
+  besides the shortfall): read its log; if your change reaches it, fix it; if not, run it once
+  alone and report it under `## Left` with both logs. Any other production limit or budget
+  that fails is still a stop and a question. Name the raised figures and the measurement they
+  come from in the commit.
+
+The skeleton is unchanged.
