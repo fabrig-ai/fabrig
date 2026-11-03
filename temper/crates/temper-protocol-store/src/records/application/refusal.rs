@@ -368,6 +368,7 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
         p::Refusal::Stale { .. }
         // Only settings admission emits Full; a forge application carries no settings value.
         | p::Refusal::Full { .. }
+        | p::Refusal::Judged { .. }
         // Only finishing an account sign-in emits SignInRedirect.
         | p::Refusal::SignInRedirect { .. } => {
             return Err(w::Problem { path: w::Path::RefusalTag, reason: skein_codec::Reason::Bound });

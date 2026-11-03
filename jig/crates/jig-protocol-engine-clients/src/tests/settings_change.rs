@@ -25,7 +25,7 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
     let wire = ask();
     let encoded = f::encode_ask(&wire);
     let expected_digest = crate::sign_in::digest(&encoded).expose().try_into().expect("settings fixture");
-    let expected = p::Ask::ChangeSettings { against: 5, digest: expected_digest };
+    let expected = p::Ask::ChangeSettings { against: 5, digest: expected_digest, projects: Box::default() };
     assert_eq!(translate::asks::ask(wire, &exchange.component.settings.models, &f::wire()), Ok(expected));
     let keyed = w::Keyed::new(
         &exchange.env.limits.wire,

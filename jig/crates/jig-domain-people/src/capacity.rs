@@ -238,7 +238,8 @@ fn room(refusal: &Refusal) -> Option<CapacityCause> {
             | LimitKind::Resource
             | LimitKind::Service => None,
         },
-        Refusal::Stale { .. }
+        Refusal::Judged { .. }
+        | Refusal::Stale { .. }
         | Refusal::Full { .. }
         | Refusal::Circle { .. }
         | Refusal::Dependency { .. }

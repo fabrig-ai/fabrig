@@ -287,6 +287,7 @@ fn archiving_a_settings_revision_copies_its_items_before_erasing_the_held_row() 
     use jig_domain_core::settings as s;
     let mut store = fixtures::opened();
     let revision = s::Revision {
+        applications: Box::default(),
         head: s::Head {
             number: 1,
             against: 0,

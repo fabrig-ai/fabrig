@@ -24,6 +24,7 @@ pub(crate) fn start(
 ) -> Queue<Request> {
     assert!(core.settings_input.is_none(), "one settings admission at a time");
     let against = change.against;
+    let projects = s::application::projects(&change.items);
     let room = route_writes(&env.limits)
         .expect("validated settings room")
         .saturating_sub(1)
@@ -43,7 +44,7 @@ pub(crate) fn start(
             reply_to,
             sign_in,
             key,
-            ask: people::Ask::ChangeSettings { against, digest },
+            ask: people::Ask::ChangeSettings { against, digest, projects },
             models: Box::new([]),
         },
     );
@@ -57,10 +58,21 @@ pub(crate) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, 
         Some(_) if against != core.current.newest() => {
             people::Outcome::Refused(people::Refusal::Stale { newest: core.current.newest() })
         }
-        Some((Ok(change), room)) => match decide(core, env, routed, s::Decider::Party(person), None, *change, room) {
-            Ok(revision) => people::Outcome::SettingsChanged { revision },
-            Err(why) => people::Outcome::Refused(why),
-        },
+        Some((Ok(change), room)) => {
+            if has_application(&change.items) {
+                if let Err(why) = preflight(core, env, &change, None) {
+                    people::Outcome::Refused(why)
+                } else {
+                    s::application::start(core, routed, request, person, *change, room);
+                    return;
+                }
+            } else {
+                match decide(core, env, routed, s::Decider::Party(person), None, *change, room) {
+                    Ok(revision) => people::Outcome::SettingsChanged { revision },
+                    Err(why) => people::Outcome::Refused(why),
+                }
+            }
+        }
         Some((Err(failure), _)) => malformed(failure),
         None => people::Outcome::Refused(people::Refusal::NotOffered),
     };
@@ -69,12 +81,56 @@ pub(crate) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, 
 pub(crate) fn malformed(failure: s::Failure) -> people::Outcome {
     people::Outcome::Refused(malformed_refusal(failure))
 }
-fn malformed_refusal(failure: s::Failure) -> people::Refusal {
+pub(crate) fn malformed_refusal(failure: s::Failure) -> people::Refusal {
     people::Refusal::NotWellFormed {
         at: 0,
         why: people::Malformed::Settings { setting: failure.setting, fault: failure.fault },
     }
 }
+fn has_application(items: &[s::Item]) -> bool {
+    for item in items {
+        if s::application::is_application(item.setting) {
+            return true;
+        }
+    }
+    false
+}
+fn preflight(
+    core: &Core,
+    env: &Env<Limits>,
+    change: &s::Change,
+    proposal: Option<(people::Proposer, u32)>,
+) -> Result<(), people::Refusal> {
+    if !withdrawal_room(core, proposal) || core.current.newest().checked_add(1).is_none() {
+        return Err(people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+    }
+    if change.against != core.current.newest() {
+        return Err(people::Refusal::Stale { newest: core.current.newest() });
+    }
+    if let Err(failure) = s::change_shape(&change.items, &env.limits) {
+        return Err(malformed_refusal(failure));
+    }
+    if let Err(failure) = s::application::check(core, &change.items) {
+        return Err(malformed_refusal(failure));
+    }
+    match s::check_change(&core.current, &change.items, &core.settings, &core.connectors, &env.limits) {
+        Ok(()) => Ok(()),
+        Err(failure) => Err(malformed_refusal(failure)),
+    }
+}
+
+pub(crate) fn decide_judged(
+    core: &mut Core,
+    env: &Env<Limits>,
+    routed: &mut Routed,
+    person: u64,
+    change: s::Change,
+    room: u32,
+    kept: Box<[s::application::Kept]>,
+) -> Result<u32, people::Refusal> {
+    decide_with(core, env, routed, s::Decider::Party(person), None, change, room, kept)
+}
+
 pub(crate) fn decide(
     core: &mut Core,
     env: &Env<Limits>,
@@ -84,6 +140,23 @@ pub(crate) fn decide(
     change: s::Change,
     room: u32,
 ) -> Result<u32, people::Refusal> {
+    decide_with(core, env, routed, by, proposal, change, room, Box::default())
+}
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the decision envelope and judged metadata commit atomically along the existing settings path"
+)]
+fn decide_with(
+    core: &mut Core,
+    env: &Env<Limits>,
+    routed: &mut Routed,
+    by: s::Decider,
+    proposal: Option<(people::Proposer, u32)>,
+    mut change: s::Change,
+    room: u32,
+    kept: Box<[s::application::Kept]>,
+) -> Result<u32, people::Refusal> {
     let previous = core.current.newest();
     if !withdrawal_room(core, proposal) {
         return Err(people::Refusal::Limit { which: people::LimitKind::Arithmetic });
@@ -91,15 +164,20 @@ pub(crate) fn decide(
     if change.against != previous {
         return Err(people::Refusal::Stale { newest: previous });
     }
-    if !s::changes_current(&core.current, &change.items) {
+    if kept.is_empty() && !s::changes_current(&core.current, &change.items) {
         return Err(people::Refusal::NotWellFormed { at: 0, why: people::Malformed::SettingsUnchanged });
     }
-    if let Err(failure) = s::change_shape(&change.items, &env.limits) {
+    preflight(core, env, &change, proposal)?;
+    if let Err(failure) = s::application::references(&core.current, &change.items, &kept) {
         return Err(malformed_refusal(failure));
     }
-    if let Err(failure) = s::check_change(&core.current, &change.items, &core.settings, &core.connectors, &env.limits) {
-        return Err(malformed_refusal(failure));
+    let mut jig_items = skein_lib::List::with_capacity(u32::try_from(change.items.len()).expect("bounded items"));
+    for item in change.items {
+        if !s::application::is_application(item.setting) {
+            jig_items.push(item).expect("jig items");
+        }
     }
+    change.items = jig_items.into_boxed();
     let charters = s::check::changed_charters(&core.current, &change.items, &core.settings, &env.limits);
     let Some(number) = previous.checked_add(1) else {
         return Err(people::Refusal::Limit { which: people::LimitKind::Arithmetic });
@@ -152,7 +230,9 @@ pub(crate) fn decide(
     let writes = s::apply(&mut core.current, &change.items, number);
     core.current.head =
         s::Head { number, against: previous, at: env.wall, by, proposal, moved: change.running == s::Running::Moves };
-    let revision = s::Revision { head: core.current.head.clone(), items: change.items };
+    let application_writes = u32::try_from(kept.len()).expect("bounded application writes");
+    let applications = s::application::keep(core, &mut routed.out, kept, number);
+    let revision = s::Revision { head: core.current.head.clone(), items: change.items, applications };
     let (writes, oldest) = s::restart::revision_writes_with_hold(
         Some(revision),
         writes,
@@ -161,6 +241,7 @@ pub(crate) fn decide(
         env.limits.settings.history,
         room.saturating_sub(s::withdrawal_writes(&env.limits).expect("withdrawal write bound"))
             .saturating_sub(held_writes)
+            .saturating_sub(application_writes)
             .saturating_sub(s::move_writes(&env.limits).expect("move write bound")),
         keep_previous,
     );

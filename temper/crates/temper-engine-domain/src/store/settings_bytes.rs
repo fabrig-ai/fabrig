@@ -6,6 +6,9 @@ use jig_domain_tasks as tasks;
 
 pub(super) fn record(row: &Record) -> Option<u64> {
     match row {
+        Record::Application { state, .. } => u64::try_from(size_of::<jig_domain_core::settings::application::State>())
+            .ok()?
+            .checked_add(u64::try_from(state.charters.len()).ok()?.checked_mul(4)?),
         Record::Default { default, .. } => value(&default.value),
         Record::Changed { changed, .. } => match &changed.value {
             Some(changed) => value(changed),

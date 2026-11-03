@@ -51,7 +51,9 @@ fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::List
             names.insert(setting, ()).expect("change names");
         }
         for item in items {
-            names.insert(item.setting, ()).expect("overlay names");
+            if !super::application::is_application(item.setting) {
+                names.insert(item.setting, ()).expect("overlay names");
+            }
         }
     }
     let mut result = skein_lib::List::with_capacity(names.len());
@@ -175,7 +177,7 @@ fn check_set(
                 policy_fault(current, defaults, items, policy, rules, settings, connectors, limits)
             }
             Value::Rules(_) => None,
-            Value::Application(_) => unreachable!("an application's setting: apps-core"),
+            Value::Application(_) => unreachable!("application values stay outside jig's offered settings"),
         };
         if let Some(fault) = fault {
             return Err(Failure { setting, fault });
@@ -195,11 +197,10 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
         }
         Value::Policy(_) => match setting {
             Setting::Policy(number) => number != 0,
-            Setting::Charter(_) | Setting::Template(_) | Setting::Rules => false,
-            Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+            Setting::Charter(_) | Setting::Template(_) | Setting::Rules | Setting::Application { .. } => false,
         },
         Value::Rules(value) => setting == Setting::Rules && authority::valid_rules(value, &limits.authority),
-        Value::Application(_) => unreachable!("an application's setting: apps-core"),
+        Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
         return Err(Failure { setting, fault: Fault::Shape });
@@ -241,7 +242,7 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
                 && value.implies.len() <= bound.implications
                 && rules_patterns_fit(value, bound)
         }
-        Value::Application(_) => unreachable!("an application's setting: apps-core"),
+        Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape }) }
 }
@@ -627,8 +628,7 @@ pub(super) fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) ->
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Rules => return Ok(()),
-        Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+        Setting::Rules | Setting::Application { .. } => return Ok(()),
     };
     let count = counts.get_mut(slot).expect("three numbered kinds");
     *count = count.saturating_add(1);
