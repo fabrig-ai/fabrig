@@ -55,7 +55,7 @@ pub const CEILINGS: Limits = Limits {
     run_proof_accounts: 64,
     run_proof_credentials: 1_024,
     run_proof_outstanding: 64,
-    turn_record_transcript: 8_388_608,
+    turn_record_transcript: 16_777_216,
 };
 
 /// A field or tag that caused a codec problem.
