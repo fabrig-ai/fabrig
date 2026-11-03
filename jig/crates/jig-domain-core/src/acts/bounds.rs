@@ -91,7 +91,8 @@ fn creating_executors(
             crate::settings::Setting::Charter(number) => *number,
             crate::settings::Setting::Template(_)
             | crate::settings::Setting::Policy(_)
-            | crate::settings::Setting::Rules => continue,
+            | crate::settings::Setting::Rules
+            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
             jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let charter = core.charter(number).expect("offered charter");

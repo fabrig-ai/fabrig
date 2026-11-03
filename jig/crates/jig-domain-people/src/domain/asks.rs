@@ -14,7 +14,9 @@ pub(super) fn project(ask: &Ask) -> u32 {
         | Ask::AccountSignIn { .. }
         | Ask::AccountSignOut { .. }
         | Ask::AccountChange { .. } => 0,
-        Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
+        Ask::Restore { .. } | Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
+            crate::DEPLOYMENT
+        }
         Ask::RemoveProject { project, .. }
         | Ask::Rename { project, .. }
         | Ask::Compound { project, .. }
@@ -135,6 +137,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         return false;
     }
     match ask {
+        Ask::Restore { reason, .. } => reason.len() <= skein_lib::length::usize_of(limits.words),
         Ask::Compound { operations, .. } => crate::compound::refusal(limits, operations).is_none(),
         Ask::MarkSeen { seen } => match seen {
             Seen::Results { .. } => true,
@@ -272,7 +275,8 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         Ask::Create { batch, .. } | Ask::Propose { action: crate::Action::Batch(batch), .. } => {
             crate::batch::invalid(limits, batch)
         }
-        Ask::RemoveProject { .. }
+        Ask::Restore { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }

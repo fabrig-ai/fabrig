@@ -4,10 +4,10 @@ use jig_client_domain::contract::{
     HeldRevision, KindImplication, LlmChoice, ModelEffort, Pattern, PatternEnd, PolicyEditRole, PolicyGuard,
     PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider,
     RevisionDocument, RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead, RevisionParty,
-    RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts, SettingItem,
-    SettingLine, SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument, Size,
-    TaskContractDocument, TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor, TemplateOverride,
-    Text,
+    RevisionReplaced, RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts,
+    SettingItem, SettingLine, SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument,
+    Size, TaskContractDocument, TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor,
+    TemplateOverride, Text,
 };
 use skein_lib::{Duration, List, Wall};
 fn text(value: &[u8]) -> Text {
@@ -235,14 +235,44 @@ pub fn settings_document() -> SettingsDocument {
 }
 #[must_use]
 pub fn settings_revision() -> RevisionDocument {
-    let mut items = List::with_capacity(7);
+    let mut items = List::with_capacity(10);
     for item in settings_change().items.into_boxed() {
         let SettingEdit::Set(value) = item.edit else { unreachable!("set fixture") };
-        items.push(RevisionItem { setting: item.setting, edit: RevisionEdit::Set(value) }).expect("settings");
+        items
+            .push(RevisionItem {
+                setting: item.setting,
+                edit: RevisionEdit::Set(value.clone()),
+                replaced: RevisionReplaced::Value(value),
+            })
+            .expect("settings");
     }
-    for edit in [RevisionEdit::Removed, RevisionEdit::Reset, RevisionEdit::TooLarge(Size { bytes: 999 })] {
-        items.push(RevisionItem { setting: Setting::Charter(SettingNumber { number: 8 }), edit }).expect("edit");
+    for (edit, replaced) in [
+        (RevisionEdit::Removed, RevisionReplaced::Default),
+        (RevisionEdit::Reset, RevisionReplaced::Removed),
+        (RevisionEdit::TooLarge(Size { bytes: 999 }), RevisionReplaced::NotOffered),
+        (RevisionEdit::Removed, RevisionReplaced::TooLarge(Size { bytes: 1001 })),
+    ] {
+        items
+            .push(RevisionItem { setting: Setting::Charter(SettingNumber { number: 8 }), edit, replaced })
+            .expect("edit");
     }
+    let SettingValue::Policy(policy) = settings_values().get(2).expect("policy").clone() else {
+        unreachable!("policy fixture")
+    };
+    items
+        .push(RevisionItem {
+            setting: Setting::ProjectPolicy { project: 5 },
+            edit: RevisionEdit::Set(SettingSet { value: SettingValue::Policy(policy.clone()) }),
+            replaced: RevisionReplaced::Value(SettingSet { value: SettingValue::Policy(policy) }),
+        })
+        .expect("project policy");
+    items
+        .push(RevisionItem {
+            setting: Setting::Application { kind: 2, scope: 3, number: 4 },
+            edit: RevisionEdit::Application(jig_client_domain::contract::SizedEdit::Set { size: 20 }),
+            replaced: RevisionReplaced::Application { size: 10 },
+        })
+        .expect("application");
     RevisionDocument { head: settings_head(), items }
 }
 #[must_use]

@@ -528,6 +528,15 @@ templates (authority.md, section 6) reach only what clients create after
 them: a task keeps the values it was made with
 (`../protocol/configuration.md`, 3.1).
 
+Its owners change its policy part by part, or whole as an item of a
+change of settings (engine.md, 17.2), so that one decision sets the
+project up beside the deployment's settings: by one party who owns
+both, where the change names the deployment's items too. Either way
+the policy is the project's own record, applied as above, and is no
+setting: it has no default, follows no revision and is never pinned;
+the revision that set it records it whole and the policy it replaced,
+so that restoring a version can set it back (engine.md, 17.10).
+
 A project made after the first start (`MakeProject`, 5.1) is made in
 the decision that admits the request, in one commit with its answer:
 
@@ -573,7 +582,9 @@ refused for its grace.
   act on it, or any other request or watch on it is refused unknown, as
   on a project that never was. It leaves every list and every party's
   `me`, its roles are erased, and its name is free again from that
-  decision; its number is never given again (core.md, 6.1).
+  decision; its number is never given again (core.md, 6.1). A pending
+  proposal of settings naming its policy is withdrawn in that decision,
+  as no longer applying (engine.md, 17.6).
 - **Its tasks ended, then erased.** Each live task of the project is
   cancelled by the deployment, with no reason, in the deployment's
   compound (tasks.md, section 7), as many compounds as the operations

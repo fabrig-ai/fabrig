@@ -46,6 +46,10 @@ pub(in crate::codec) fn wire_setting(value: &c::Setting, limits: &w::Limits) -> 
             w::ApplicationSettingParts { kind: *kind, scope: *scope, number: *number },
         )?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
+            limits,
+            w::ProjectPolicySettingParts { project: *project },
+        )?),
     })
 }
 
@@ -299,6 +303,7 @@ pub(in crate::codec) fn wire_revision_item(
         w::RevisionItemParts {
             setting: wire_setting(&value.setting, limits)?,
             edit: wire_revision_edit(&value.edit, limits)?,
+            replaced: wire_revision_replaced(&value.replaced, limits)?,
         },
     )
 }
@@ -583,5 +588,21 @@ fn wire_sized_edit(v: &c::SizedEdit, limits: &w::Limits) -> Result<w::SizedEdit,
         }
         c::SizedEdit::Remove => w::SizedEdit::Remove,
         c::SizedEdit::Reset => w::SizedEdit::Reset,
+    })
+}
+
+pub fn wire_revision_replaced(
+    value: &c::RevisionReplaced,
+    limits: &w::Limits,
+) -> Result<w::RevisionReplaced, w::Problem> {
+    Ok(match value {
+        c::RevisionReplaced::Value(v) => w::RevisionReplaced::Value(wire_setting_set(v, limits)?),
+        c::RevisionReplaced::TooLarge(v) => w::RevisionReplaced::TooLarge(wire_size(v, limits)?),
+        c::RevisionReplaced::Default => w::RevisionReplaced::Default,
+        c::RevisionReplaced::Removed => w::RevisionReplaced::Removed,
+        c::RevisionReplaced::NotOffered => w::RevisionReplaced::NotOffered,
+        c::RevisionReplaced::Application { size } => {
+            w::RevisionReplaced::Application(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+        }
     })
 }

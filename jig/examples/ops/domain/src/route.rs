@@ -881,7 +881,9 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connecto
         ) => {}
         (
             Some(Connector::Infrastructure | Connector::Observability) | None,
-            connector::Ask::JudgeSettings { .. }
+            connector::Ask::RestoreSettings { .. }
+            | connector::Ask::ForgetReplaced { .. }
+            | connector::Ask::JudgeSettings { .. }
             | connector::Ask::KeepSettings { .. }
             | connector::Ask::KeepProposalSettings { .. }
             | connector::Ask::DropProposalSettings { .. }
@@ -1077,6 +1079,7 @@ pub(crate) fn connector_out(
                     core::settings::Setting::Template(number) => *number,
                     core::settings::Setting::Charter(_)
                     | core::settings::Setting::Policy(_)
+                    | core::settings::Setting::ProjectPolicy { .. }
                     | core::settings::Setting::Rules
                     | core::settings::Setting::Application { .. } => continue,
                 };

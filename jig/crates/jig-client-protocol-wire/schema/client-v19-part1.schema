@@ -61,7 +61,8 @@ record SettingDocument { setting: Setting revision: u32 value: option SettingVal
 record Size { bytes: u64 }
 record ApplicationEdit { edit: SizedEdit }
 enum RevisionEdit { set: SettingSet, too_large: Size, removed, reset, application: ApplicationEdit }
-record RevisionItem { setting: Setting edit: RevisionEdit }
+enum RevisionReplaced { value: SettingSet, too_large: Size, default, removed, not_offered, application: ApplicationSize }
+record RevisionItem { setting: Setting edit: RevisionEdit replaced: RevisionReplaced }
 record RevisionDocument { head: RevisionHead items: bytes 16777216 }
 record RevisionForgotten { oldest: u32 }
 enum RevisionAnswer { revision: RevisionDocument, forgotten: RevisionForgotten, unknown }
@@ -69,11 +70,13 @@ record ReadRevisionAnswer { value: RevisionAnswer }
 record RevisionRow { head: RevisionHead items: list 32 RevisionItemHead more: u32 }
 record RevisionsPage { rows: list 32 RevisionRow next: option u32 forgotten: bool }
 record OutcomeMovedToNewest { newest: u32 moved: u32 stayed: u32 }
-enum Outcome { document: OutcomeDocument, made: OutcomeMade, settings_changed: OutcomeSettingsChanged, moved_to_newest: OutcomeMovedToNewest }
+record OutcomeRestored { proposal: u64 to: u32 left_out: list 256 Setting }
+enum Outcome { document: OutcomeDocument, made: OutcomeMade, settings_changed: OutcomeSettingsChanged, moved_to_newest: OutcomeMovedToNewest, restored: OutcomeRestored }
 enum Malformed { project_mismatch, two_as_allowed, conversation_not_agent, cycle, proposed_as_allowed, ended_by, name: MalformedName, settings: MalformedSettings, settings_unchanged, running }
 record RefusalJudged { at: u32 setting: Setting why: text 65536 }
 record RefusalMalformed { at: u32 why: Malformed }
-enum Refusal { malformed: RefusalMalformed, role: RefusalRole, taken: RefusalTaken, not_waiting, no_further, authority: RefusalAuthority, limit: RefusalLimit, moved: RefusalMoved, ended: RefusalEnded, unknown, not_offered, key_conflict, no_escalation_holder, llm: RefusalLlm, provider, account: RefusalAccount, circle: RefusalCircle, dependency: RefusalDependency, kept: RefusalKept, name_taken, account_move: RefusalAccountMove, stale: RefusalStale, full: RefusalFull, sign_in_redirect: RefusalSignInRedirect, judged: RefusalJudged }
+record RefusalForgotten { oldest: u32 }
+enum Refusal { malformed: RefusalMalformed, role: RefusalRole, taken: RefusalTaken, not_waiting, no_further, authority: RefusalAuthority, limit: RefusalLimit, moved: RefusalMoved, ended: RefusalEnded, unknown, not_offered, key_conflict, no_escalation_holder, llm: RefusalLlm, provider, account: RefusalAccount, circle: RefusalCircle, dependency: RefusalDependency, kept: RefusalKept, name_taken, account_move: RefusalAccountMove, stale: RefusalStale, full: RefusalFull, sign_in_redirect: RefusalSignInRedirect, judged: RefusalJudged, forgotten: RefusalForgotten }
 record Done { outcome: Outcome }
 record Refused { refusal: Refusal at: option u32 }
 enum Final { done: Done, refused: Refused }
@@ -92,7 +95,8 @@ record MeProject { project: u32 name: DocumentText role: HeldRole pool: option P
 record EntranceRefusal { refusal: Refusal }
 record MoveToNewest { revision: u32 }
 record Lift { hold: u64 revision: u64 with_tasks: bool }
-enum Ask { message: Message, answer: Answer, take: Take, hand_back: HandBack, decide: Decide, release: Release, amend: boxed Amend, stop: Stop, cancel: Cancel, move_task: Move, seen: Seen, edit_note: EditNote, delete_note: DeleteNote, change_policy: ChangePolicy, set_roles: SetRoles, make_service: MakeService, set_pool: SetPool, compound: Compound, create: Create, propose: Propose, withdraw: Withdraw, sign_in: AskSignIn, sign_out: AskSignOut, account_change: AskAccountChange, rename: Rename, make_project: MakeProject, change_settings: ChangeSettings, move_to_newest: MoveToNewest, lift: Lift, remove_project: RemoveProject }
+record Restore { revision: u32 reason: text 65536 }
+enum Ask { message: Message, answer: Answer, take: Take, hand_back: HandBack, decide: Decide, release: Release, amend: boxed Amend, stop: Stop, cancel: Cancel, move_task: Move, seen: Seen, edit_note: EditNote, delete_note: DeleteNote, change_policy: ChangePolicy, set_roles: SetRoles, make_service: MakeService, set_pool: SetPool, compound: Compound, create: Create, propose: Propose, withdraw: Withdraw, sign_in: AskSignIn, sign_out: AskSignOut, account_change: AskAccountChange, rename: Rename, make_project: MakeProject, change_settings: ChangeSettings, move_to_newest: MoveToNewest, lift: Lift, remove_project: RemoveProject, restore: Restore }
 enum ReadValue { tasks: TaskPage, project: Project, ended: boxed Ended, me: Me, task: Task, proposal: Proposal, escalation: Escalation, question: Question, person_task: PersonTask, result: ResultDocument, ended_page: EndedPage, history: HistoryPage, activity: ActivityPage, inbox: InboxPage, spend: SpendPage, notes: NotePage, deployment: Deployment, turn: ArchivedTurn, settings: SettingsDocument, setting: SettingDocument, revision: ReadRevisionAnswer, revisions: RevisionsPage, task_text: TaskText }
 enum DeliveryValue { project: Project, me: Me, task: boxed Task, proposal: Proposal, tree: Tree, chips: Chips, inbox: Inbox, tasks: Tasks, run_state: RunState, deployment: Deployment, accounts: Accounts, settings: SettingsDocument }
 record OriginRevision { revision: u32 }

@@ -44,7 +44,13 @@ fn page(
         Some(key) => Some(crate::reads::Position::Owner(key)),
         None => None,
     };
-    crate::reads::loaded(core, &env(limits), load, crate::reads::Loaded::Page { rows: rows.into_boxed(), next })
+    crate::reads::loaded(
+        core,
+        &env(limits),
+        &mut Queue::uncapped(),
+        load,
+        crate::reads::Loaded::Page { rows: rows.into_boxed(), next },
+    )
 }
 
 fn erases(out: &Queue<Request>) -> Box<[Key]> {
@@ -236,7 +242,7 @@ fn a_busy_page_is_asked_again() {
     let (mut core, limits) = make_tree();
     let out = start(&mut core, &limits, 1);
     let (token, range) = load(&out);
-    let out = crate::reads::loaded(&mut core, &env(&limits), token, crate::reads::Loaded::Busy);
+    let out = crate::reads::loaded(&mut core, &env(&limits), &mut Queue::uncapped(), token, crate::reads::Loaded::Busy);
     let (new, retried) = load(&out);
     assert_ne!(new, token);
     assert_eq!(retried, range);
@@ -245,7 +251,7 @@ fn a_busy_page_is_asked_again() {
     row.project = 1;
     let out = page(&mut core, &limits, &out, Box::new([Record::Tasks(tasks::Stored::Ended(Box::new(row)))]), None);
     let (token, range) = load(&out);
-    let out = crate::reads::loaded(&mut core, &env(&limits), token, crate::reads::Loaded::Busy);
+    let out = crate::reads::loaded(&mut core, &env(&limits), &mut Queue::uncapped(), token, crate::reads::Loaded::Busy);
     assert_eq!(load(&out).1, range, "a busy task page also retries");
 }
 
@@ -303,6 +309,7 @@ fn an_erasure_can_load_and_retry_while_client_read_slots_are_full() {
     }
     let out = start(&mut core, &limits, 1);
     let (token, range) = load(&out);
-    let retry = crate::reads::loaded(&mut core, &env(&limits), token, crate::reads::Loaded::Busy);
+    let retry =
+        crate::reads::loaded(&mut core, &env(&limits), &mut Queue::uncapped(), token, crate::reads::Loaded::Busy);
     assert_eq!(load(&retry).1, range);
 }

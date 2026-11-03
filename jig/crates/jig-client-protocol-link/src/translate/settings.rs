@@ -16,6 +16,10 @@ pub fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting
         c::Setting::Template(item) => w::Setting::Template(wire_setting_number(item, limits)?),
         c::Setting::Policy(item) => w::Setting::Policy(wire_setting_number(item, limits)?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
+            limits,
+            w::ProjectPolicySettingParts { project: *project },
+        )?),
         c::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
             limits,
             w::ApplicationSettingParts { kind: *kind, scope: *scope, number: *number },
@@ -28,6 +32,7 @@ pub fn restore_setting(value: &w::Setting) -> Result<c::Setting, w::Problem> {
         w::Setting::Template(item) => c::Setting::Template(restore_setting_number(item)?),
         w::Setting::Policy(item) => c::Setting::Policy(restore_setting_number(item)?),
         w::Setting::Rules => c::Setting::Rules,
+        w::Setting::ProjectPolicy(v) => c::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     })
 }
@@ -736,6 +741,7 @@ pub fn wire_revision_item(value: &c::RevisionItem, limits: &w::Limits) -> Result
         w::RevisionItemParts {
             setting: wire_setting(&value.setting, limits)?,
             edit: wire_revision_edit(&value.edit, limits)?,
+            replaced: wire_revision_replaced(&value.replaced, limits)?,
         },
     )
 }
@@ -743,6 +749,7 @@ pub fn restore_revision_item(value: &w::RevisionItem, limits: &Limits) -> Result
     Ok(c::RevisionItem {
         setting: restore_setting(value.setting())?,
         edit: restore_revision_edit(value.edit(), limits)?,
+        replaced: restore_revision_replaced(value.replaced(), limits)?,
     })
 }
 pub fn wire_revision_document(
@@ -1220,4 +1227,34 @@ pub(super) fn restore_sized_edit(v: &w::SizedEdit) -> c::SizedEdit {
         w::SizedEdit::Remove => c::SizedEdit::Remove,
         w::SizedEdit::Reset => c::SizedEdit::Reset,
     }
+}
+
+pub fn wire_revision_replaced(
+    value: &c::RevisionReplaced,
+    limits: &w::Limits,
+) -> Result<w::RevisionReplaced, w::Problem> {
+    Ok(match value {
+        c::RevisionReplaced::Value(v) => w::RevisionReplaced::Value(wire_setting_set(v, limits)?),
+        c::RevisionReplaced::TooLarge(v) => w::RevisionReplaced::TooLarge(wire_size(v, limits)?),
+        c::RevisionReplaced::Default => w::RevisionReplaced::Default,
+        c::RevisionReplaced::Removed => w::RevisionReplaced::Removed,
+        c::RevisionReplaced::NotOffered => w::RevisionReplaced::NotOffered,
+        c::RevisionReplaced::Application { size } => {
+            w::RevisionReplaced::Application(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+        }
+    })
+}
+
+pub fn restore_revision_replaced(
+    value: &w::RevisionReplaced,
+    limits: &Limits,
+) -> Result<c::RevisionReplaced, w::Problem> {
+    Ok(match value {
+        w::RevisionReplaced::Value(v) => c::RevisionReplaced::Value(restore_setting_set(v, limits)?),
+        w::RevisionReplaced::TooLarge(v) => c::RevisionReplaced::TooLarge(restore_size(v)?),
+        w::RevisionReplaced::Default => c::RevisionReplaced::Default,
+        w::RevisionReplaced::Removed => c::RevisionReplaced::Removed,
+        w::RevisionReplaced::NotOffered => c::RevisionReplaced::NotOffered,
+        w::RevisionReplaced::Application(v) => c::RevisionReplaced::Application { size: v.size() },
+    })
 }

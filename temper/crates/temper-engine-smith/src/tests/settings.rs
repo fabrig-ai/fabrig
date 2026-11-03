@@ -363,19 +363,20 @@ fn settings_refusals_keep_ctls_words_without_a_client_dependency() {
         (jig_domain_people::SettingFault::Grace, c::SettingFault::Grace),
         (jig_domain_people::SettingFault::Owner, c::SettingFault::Owner),
     ] {
-        let core =
-            R::NotWellFormed { at: 2, why: Malformed::Settings { setting: s::Setting::Charter(1), fault: core } };
-        let client = c::Refusal::Malformed {
-            at: 2,
-            why: c::Malformed::Settings(c::MalformedSettings {
-                setting: c::Setting::Charter(c::SettingNumber { number: 1 }),
-                fault: client,
-            }),
-        };
-        assert_eq!(
-            crate::settings::refusal(&core),
-            temper_client_tools::jig::render::settings_refusal(&client, temper_client_tools::limits::TEXT)
-        );
+        for (setting, client_setting) in [
+            (s::Setting::Charter(1), c::Setting::Charter(c::SettingNumber { number: 1 })),
+            (s::Setting::ProjectPolicy { project: 1 }, c::Setting::ProjectPolicy { project: 1 }),
+        ] {
+            let core = R::NotWellFormed { at: 2, why: Malformed::Settings { setting, fault: core } };
+            let client = c::Refusal::Malformed {
+                at: 2,
+                why: c::Malformed::Settings(c::MalformedSettings { setting: client_setting, fault: client }),
+            };
+            assert_eq!(
+                crate::settings::refusal(&core),
+                temper_client_tools::jig::render::settings_refusal(&client, temper_client_tools::limits::TEXT)
+            );
+        }
     }
 }
 
@@ -427,4 +428,20 @@ fn settings_proposals_refuse_cut_or_trailing_value_bytes() {
     for malformed in [cut, trailing.as_ref()] {
         assert_eq!(crate::settings::kind_values(&[application_item(malformed.into())]), Err(Problem::Range(b"items")));
     }
+}
+
+#[test]
+fn a_runs_proposal_carries_a_project_policy_item() {
+    let policy = r#"{"escalation_role":null,"ceiling":{"models":"all","tools":1,"grants":[],"delegation":{"kinds":[],"tasks":1,"depth":1},"spend":100,"deadline":null,"notes":0,"note_resources":[]},"projections":[],"period_spend":200,"roles":[],"requirements":[],"permissions":[],"templates":[]}"#;
+    let body = format!(
+        r#"{{"against":1,"reason":"project policy","items":[{{"setting":{{"kind":"project-policy","project":1}},"set":{policy}}}]}}"#
+    );
+    let call = decided(b"propose_settings", body.as_bytes()).expect("project policy proposal");
+    let engine::Tool::ProposeSettings { items, .. } = call.tool else { panic!("settings proposal") };
+    assert_eq!(items.len(), 1);
+    let item = items.first().expect("project policy item");
+    assert_eq!(item.setting, s::Setting::ProjectPolicy { project: 1 });
+    let s::Edit::Set(s::Value::Policy(value)) = &item.edit else { panic!("whole policy value") };
+    assert_eq!(value.policy.period_spend, 200);
+    assert_eq!(value.policy.ceiling.budget.spend, 100);
 }

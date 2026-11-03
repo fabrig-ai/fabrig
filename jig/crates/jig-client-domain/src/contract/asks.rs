@@ -79,6 +79,11 @@ pub enum AnswerOn {
 /// Every jig request, without keys owned by the root table.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ask {
+    /// Propose the settings as a revision left them, against the newest (domain/engine.md, 17.10).
+    Restore {
+        revision: u32,
+        reason: Text,
+    },
     ChangeSettings(super::ChangeSettings),
     MoveToNewest(super::MoveToNewest),
     /// Admit and create a batch together.
@@ -252,6 +257,12 @@ pub enum AskAccountHolder {
 /// The durable result of one ask.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Outcome {
+    /// A restore proposed for review (domain/engine.md, 17.10).
+    Restored {
+        proposal: u64,
+        to: u32,
+        left_out: List<super::Setting>,
+    },
     SettingsChanged(super::OutcomeSettingsChanged),
     MovedToNewest(super::OutcomeMovedToNewest),
     /// Whole committed owner facts, without inferred names or explanations.

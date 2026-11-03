@@ -22,7 +22,7 @@ pub(super) const EMPTY: wire::Limits = wire::Limits {
     ..wire::CEILINGS
 };
 
-pub(super) fn piece_bound(sum: u32, owned: usize, item: u64, payload: bool) -> Option<u32> {
+pub(in crate::codec) fn piece_bound(sum: u32, owned: usize, item: u64, payload: bool) -> Option<u32> {
     let owned = u64::try_from(owned).ok()?;
     let framing = item.checked_add(u64::try_from(size_of::<u32>()).expect("length size"))?;
     let sum = u64::from(sum);
@@ -382,7 +382,7 @@ pub(super) fn decode_permissions(
     Ok(values.into_boxed())
 }
 
-pub(super) fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, wire::Problem> {
+pub(in crate::codec) fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, wire::Problem> {
     match skein_codec::piece::split(reader) {
         Ok(value) => Ok(value),
         Err(reason) => Err(wire::Problem { path: wire::Path::RowValue, reason }),

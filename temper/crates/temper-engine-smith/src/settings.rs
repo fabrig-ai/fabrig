@@ -225,6 +225,15 @@ pub fn settings_answer(
 pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
     use jig_domain_people::{Malformed, Refusal};
     match why {
+        Refusal::Forgotten { oldest } => {
+            let mut measure = settings_form::Text::measure();
+            measure.put(b"forgotten; oldest kept revision ");
+            measure.number(u64::from(*oldest));
+            let mut out = settings_form::Text::writing_exact(measure);
+            out.put(b"forgotten; oldest kept revision ");
+            out.number(u64::from(*oldest));
+            return out.finish();
+        }
         Refusal::Judged { why, .. } => {
             let mut out = settings_form::Text::measure();
             out.put(b"refused by its owner: ");
@@ -263,6 +272,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         settings_form::Refusal::Stale(*newest)
     } else if let Refusal::NotWellFormed { at, why: Malformed::Settings { setting, fault } } = why {
         let setting = match setting {
+            s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
             s::Setting::Charter(number) => c::Setting::Charter(c::SettingNumber { number: *number }),
             s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
             s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),

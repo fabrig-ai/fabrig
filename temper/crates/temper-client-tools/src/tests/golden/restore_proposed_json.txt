@@ -1,0 +1,1 @@
+{"operation":"restore","outcome":{"done":{"restored":{"proposal":7,"to":0,"left_out":[{"kind":"landing-rule","project":3,"number":2},{"kind":"project-policy","project":3}]}}},"task":null,"to":null}

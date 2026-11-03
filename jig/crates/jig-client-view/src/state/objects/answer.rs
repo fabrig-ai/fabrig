@@ -31,7 +31,8 @@ pub fn recovery(object: &Object) -> Recovery {
         Card::Unknown { .. } => recovery.look_again = true,
         Card::Refused { refusal } => match refusal {
             Refusal::Stale(_) | Refusal::Moved { .. } => recovery.look_again = true,
-            Refusal::Judged { .. }
+            Refusal::Forgotten { .. }
+            | Refusal::Judged { .. }
             | Refusal::Full(_)
             | Refusal::Circle { .. }
             | Refusal::Dependency { .. }

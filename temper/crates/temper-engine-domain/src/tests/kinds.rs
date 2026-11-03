@@ -13,6 +13,7 @@ const PROPOSAL: u64 = 7;
 const WITHDRAWN_PROPOSAL: u64 = 8;
 const CHARTERS: u32 = 8;
 const OWNER: Token = Token::new(19);
+const RESTORE_OWNER: Token = Token::new(20);
 // The typed fixture carries the encoding's entrance-measured size.
 const RULE_BYTES: u32 = 32;
 // A charter's encoded u32 occupies four bytes.
@@ -86,6 +87,20 @@ fn answer(domain: &mut Domain) -> Box<[connector::Judged]> {
     };
     assert_eq!(owner, OWNER);
     assert!(domain.work.is_empty());
+    judged
+}
+
+fn restored(kind: u32, scope: u32, number: u32, edit: application::RestoredEdit) -> application::Restored {
+    application::Restored { kind, scope, number, edit }
+}
+
+fn restored_answer(domain: &mut Domain, expected_owner: Token) -> Box<[connector::Judged]> {
+    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged }))) =
+        domain.work.pop()
+    else {
+        panic!("the same step returns SettingsRestored to the core");
+    };
+    assert_eq!(owner, expected_owner);
     judged
 }
 
@@ -251,6 +266,122 @@ fn a_proposal_is_kept_judged_from_its_kept_values_and_dropped() {
     })))));
     assert!(domain.forge.proposal_settings(WITHDRAWN_PROPOSAL).is_empty());
     assert_eq!(domain.forge.setting(2, PROJECT, RULE), Some(&rule(false)));
+}
+
+#[test]
+fn a_restore_ask_reaches_the_forge_and_its_answer_reaches_the_core() {
+    let (mut domain, env) = root();
+    let forge_env = crate::translate::environment_forge(&env);
+    let previous = [
+        settings::Asked { kind: 2, scope: PROJECT, number: RULE, edit: settings::Edit::Set(rule(false)) },
+        settings::Asked { kind: 3, scope: 0, number: 1, edit: settings::Edit::Set(charter(6)) },
+    ];
+    let current = [
+        settings::Asked { edit: settings::Edit::Set(rule(true)), ..previous[0].clone() },
+        settings::Asked { edit: settings::Edit::Set(charter(2)), ..previous[1].clone() },
+    ];
+    domain.forge.keep_settings(&forge_env, 2, None, &previous, &mut Queue::uncapped());
+    domain.forge.keep_settings(&forge_env, 3, None, &current, &mut Queue::uncapped());
+    domain.kinds = values(rule(true));
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector::Ask::RestoreSettings {
+            owner: RESTORE_OWNER,
+            proposal: PROPOSAL,
+            items: Box::new([
+                restored(3, 0, 1, application::RestoredEdit::Set { revision: 3 }),
+                restored(2, PROJECT, RULE + 1, application::RestoredEdit::Set { revision: 3 }),
+                restored(2, PROJECT, RULE, application::RestoredEdit::Set { revision: 3 }),
+                restored(1, 0, RULE, application::RestoredEdit::Remove),
+                restored(3, 0, 2, application::RestoredEdit::Reset),
+            ]),
+        },
+    );
+    let judged = restored_answer(&mut domain, RESTORE_OWNER);
+    assert_eq!(
+        judged.as_ref(),
+        &[
+            connector::Judged::Accept { size: CHARTER_BYTES, charters: Box::new([6]) },
+            connector::Judged::Refuse { why: settings::Refusal::Replaced.words().into() },
+            connector::Judged::Accept { size: RULE_BYTES, charters: Box::default() },
+            connector::Judged::Accept { size: 0, charters: Box::default() },
+            connector::Judged::Accept { size: CHARTER_BYTES, charters: Box::new([4]) },
+        ]
+    );
+    let writes = committed_writes(&mut domain, &env, decision);
+    assert!(writes.contains(&saved(settings::SettingSlot::Proposal(PROPOSAL), settings::Edit::Set(rule(false)))));
+    let kept = domain.forge.proposal_settings(PROPOSAL);
+    assert_eq!(kept.len(), 4);
+    for (key, edit) in &kept {
+        assert!(writes.contains(&Write::Save(Record::Forge {
+            row: Box::new(forge::Stored::Setting(settings::SettingRow { key: *key, edit: edit.clone() })),
+        })));
+    }
+    assert_eq!(domain.forge.setting(2, PROJECT, RULE), Some(&rule(true)));
+    assert_eq!(domain.forge.charters(), forge::ForgeCharters { change: 2, review: 4 });
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    judge(
+        &mut domain,
+        &env,
+        &mut decision,
+        Some(PROPOSAL),
+        Box::new([project_rule(application::Edit::Set(Box::default()))]),
+    );
+    assert_eq!(
+        answer(&mut domain).as_ref(),
+        &[connector::Judged::Accept { size: RULE_BYTES, charters: Box::default() }]
+    );
+}
+
+#[test]
+fn a_forget_ask_erases_only_older_replaced_rows_in_the_roots_decision() {
+    let (mut domain, env) = root();
+    let forge_env = crate::translate::environment_forge(&env);
+    for (revision, value) in [(1, rule(true)), (2, rule(false)), (3, rule(true))] {
+        domain.forge.keep_settings(
+            &forge_env,
+            revision,
+            None,
+            &[settings::Asked { kind: 2, scope: PROJECT, number: RULE, edit: settings::Edit::Set(value) }],
+            &mut Queue::uncapped(),
+        );
+    }
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(&mut domain, &env, &mut decision, connector::Ask::ForgetReplaced { before: 3 });
+    let writes = committed_writes(&mut domain, &env, decision);
+    let setting_key =
+        settings::SettingKey { kind: 2, scope: PROJECT, number: RULE, slot: settings::SettingSlot::Replaced(2) };
+    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Setting(setting_key)))));
+    assert!(!writes.contains(&Write::Erase(Key::Forge(forge::Key::Setting(settings::SettingKey {
+        slot: settings::SettingSlot::Replaced(3),
+        ..setting_key
+    })))));
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector::Ask::RestoreSettings {
+            owner: OWNER,
+            proposal: PROPOSAL,
+            items: Box::new([
+                restored(2, PROJECT, RULE, application::RestoredEdit::Set { revision: 2 }),
+                restored(2, PROJECT, RULE, application::RestoredEdit::Set { revision: 3 }),
+            ]),
+        },
+    );
+    let judged = restored_answer(&mut domain, OWNER);
+    assert_eq!(
+        judged.as_ref(),
+        &[
+            connector::Judged::Refuse { why: settings::Refusal::Replaced.words().into() },
+            connector::Judged::Accept { size: RULE_BYTES, charters: Box::default() },
+        ]
+    );
+    assert_eq!(domain.forge.setting(2, PROJECT, RULE), Some(&rule(true)));
 }
 
 fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
@@ -579,6 +710,7 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
         let mut out = Queue::uncapped();
         domain.forge.keep_settings(
             &crate::translate::environment_forge(&env),
+            2,
             None,
             &[settings::Asked { kind: 1, scope: 0, number: RULE, edit: edit.clone() }],
             &mut out,
