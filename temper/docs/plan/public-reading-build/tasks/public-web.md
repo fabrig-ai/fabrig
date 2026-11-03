@@ -196,3 +196,8 @@ the words added with their numbers, and how the shell reports visibility.
 2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
 
 For this task: Show each goal's and task's title on the board and the goal tree, and the project's name as the board's heading.
+
+2026-11-03. **A public project's name in the wire** (answered for `public-wire`): jig's
+*projects* answer is a list of `PublicProject { project, name }`, and `PublicBoard` carries
+`name` after `project`, each the project's name within the client wire's project-name bound
+(64 bytes).
