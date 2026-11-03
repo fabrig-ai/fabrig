@@ -87,3 +87,16 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and each page's bytes.
+
+## Answers
+
+2026-11-03. **Q** (`configuration-pages-1`): `budget.md`, `ctl.md` and `change.md` sit 4 to 8
+bytes under the concept bound of 8,192, so even the shortened line passes it: trim their prose,
+or wait for `help-stock`? **A:** trim. `help-stock` has landed and made no room; no other task
+owns these pages now. In those three pages alone, shorten existing prose by at least the line's
+excess (about 50 bytes each, with a margin of a few bytes), preferring the `## Limits` section
+the line goes into: a wordier phrasing, a repeated qualifier. Keep every fact, command, link,
+the head and the template's sections; drop no bullet's meaning, and do not touch the bound.
+Every other concept page keeps its text as the pre-approved option says. Then run
+`tests::rules::each_page_keeps_its_head_template_links_and_voice` alone, then `temper-docs`' focused tests, before the rest of step 4,
+and list each trimmed sentence (before and after) in the report.
