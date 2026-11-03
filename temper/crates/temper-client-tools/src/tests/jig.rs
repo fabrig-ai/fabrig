@@ -35,3 +35,5 @@ mod projects;
 mod replays;
 
 mod specification;
+
+mod restore;

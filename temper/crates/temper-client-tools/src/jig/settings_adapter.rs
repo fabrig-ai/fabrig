@@ -502,7 +502,18 @@ pub fn form_revision_head(v: &c::RevisionHead) -> n::RevisionHead {
 }
 
 pub fn form_revision_item(v: &c::RevisionItem) -> n::RevisionItem {
-    n::RevisionItem { setting: form_setting(v.setting), edit: form_revision_edit(&v.edit) }
+    n::RevisionItem {
+        setting: form_setting(v.setting),
+        edit: form_revision_edit(&v.edit),
+        replaced: match &v.replaced {
+            c::RevisionReplaced::Value(value) => n::RevisionReplaced::Value(form_setting_set(value)),
+            c::RevisionReplaced::TooLarge(size) => n::RevisionReplaced::TooLarge(form_size(size)),
+            c::RevisionReplaced::Application { size } => n::RevisionReplaced::Application { size: *size },
+            c::RevisionReplaced::Default => n::RevisionReplaced::Default,
+            c::RevisionReplaced::Removed => n::RevisionReplaced::Removed,
+            c::RevisionReplaced::NotOffered => n::RevisionReplaced::NotOffered,
+        },
+    }
 }
 
 pub fn form_revision_item_edit(v: &c::RevisionItemEdit) -> n::RevisionItemEdit {

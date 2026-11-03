@@ -273,7 +273,11 @@ pub fn party(number: u64, me: Option<&Me>, out: &mut Text) {
 }
 pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     match why {
-        Refusal::Forgotten { .. } => unreachable!("a restore: restore-ctl"),
+        Refusal::Forgotten { oldest } => {
+            out.put(b"forgotten; the oldest kept is revision ");
+            out.number(u64::from(*oldest));
+            return;
+        }
         Refusal::Judged { why, .. } => {
             out.put(b"refused by its owner: ");
             out.put(why.bytes());
@@ -356,8 +360,7 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
 fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     let word = Word::refusal(why);
     let text = match why {
-        Refusal::Forgotten { .. } => unreachable!("a restore: restore-ctl"),
-        Refusal::Stale(_) | Refusal::Full(_) => {
+        Refusal::Forgotten { .. } | Refusal::Stale(_) | Refusal::Full(_) => {
             unreachable!("the tools do not request settings")
         }
         Refusal::Judged { why, .. } => book.say(0, word.id(), &[Hole::Name(why.bytes().into())]),
