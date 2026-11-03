@@ -1201,10 +1201,10 @@ pub fn connect_refusal(why: &temper_client_protocol_wire::v1::ForgeRefusal) -> (
         temper_client_protocol_wire::v1::ForgeRefusal::NoSuchForge => (b"no_such_forge", b"no such forge"),
         temper_client_protocol_wire::v1::ForgeRefusal::NotTaken => (b"not_taken", b"not taken by this forge"),
         temper_client_protocol_wire::v1::ForgeRefusal::Connected => {
-            (b"connected", b"connected already: forge-replace replaces its key")
+            (b"connected", b"connected already: forge replace replaces its key or tokens")
         }
         temper_client_protocol_wire::v1::ForgeRefusal::NotConnected => {
-            (b"not_connected", b"not connected: connect the App first")
+            (b"not_connected", b"not connected: connect it first")
         }
         temper_client_protocol_wire::v1::ForgeRefusal::Busy => (b"busy", b"busy"),
         temper_client_protocol_wire::v1::ForgeRefusal::NoKey => (b"no_key", b"no key"),
@@ -1242,4 +1242,19 @@ pub use temper_protocol_records::PASTED_PAYLOAD;
 #[must_use]
 pub fn pasted_admin_token(token: &[u8]) -> Option<skein_lib::Secret> {
     temper_protocol_records::encode_pasted(&[(1, token)]).ok()
+}
+
+/// A connected Forgejo's pasted tokens and hooks' secret, one bundle
+/// (protocol/credentials.md, 2.2): `ApiToken`, `GitToken`, `WebhookSecret`, each when given.
+#[must_use]
+pub fn pasted_tokens(api: Option<&[u8]>, git: Option<&[u8]>, secret: Option<&[u8]>) -> Option<skein_lib::Secret> {
+    let mut items = skein_lib::List::with_capacity(3);
+    for (code, value) in [(2, api), (3, git), (5, secret)] {
+        if let Some(value) = value
+            && !value.is_empty()
+        {
+            items.push((code, value)).expect("at most three items");
+        }
+    }
+    temper_protocol_records::encode_pasted(items.as_slice()).ok()
 }

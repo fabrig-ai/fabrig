@@ -299,11 +299,12 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
             let Some(bounds) = temper_client_domain::forge::wire_limits(&env.limits.domain.forge) else { return false };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
             let (forge, install, installation, manifest) = match request.into_parts().request {
+                w::Request::Replace(_) => return false,
                 w::Request::Accept(value) => (value.forge(), true, Some(value.installation()), false),
                 w::Request::Install(value) => (value.forge(), true, None, false),
                 w::Request::Connect(value) => match value.how() {
                     w::How::GithubManifest(_) => (super::making_number(value.forge()), false, None, true),
-                    w::How::GithubApp(_) | w::How::ForgejoAdmin(_) => return false,
+                    w::How::GithubApp(_) | w::How::ForgejoAdmin(_) | w::How::ForgejoTokens(_) => return false,
                 },
                 w::Request::RemoveForge(_)
                 | w::Request::EndPlayground
