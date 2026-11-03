@@ -1,3 +1,23 @@
 draft = "configuring-p2-build"
 repo = "fabrig"
 sources = ["temper/docs/plan/configuring-p2-build/inputs/request.md", "temper/docs/plan/configuring-p2/plan.md", "temper/docs/plan/configuring-p2/notes/next-cut.md", "temper/docs/plan/configuring-p2/notes/contracts.md", "temper/docs/design/draft/configuring.execution.md", "AGENTS.md", "DESIGN.md"]
+
+# P2 of temper/docs/design/draft/configuring.execution.md (settings through ctl), built from
+# the design configuring-p2 released, on M3's landed settings (plan.md).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "policy-item"
+title = "A project's own policy as an item of a change and of a proposal of settings"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.2"
+
+[[slice]]
+id = 1
+story = "An owner of both the deployment and a project changes charters and the project's policy in one change of settings, through temper ctl's settings file"
+parts = ["policy-item"]
+walk = false
