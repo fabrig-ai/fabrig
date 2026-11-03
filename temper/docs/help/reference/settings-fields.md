@@ -124,6 +124,14 @@ How a new task of one shape is filled: its executor, result, budget, deadline an
 - `label`: integer, 0 to 4,294,967,295. A number that groups the task in the lists of ended tasks; temper reads nothing else from it.
 - `grace`: nanoseconds, or null. How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, refused as `grace`.
 - `llm`: `llm`, or null. The models the task asks for, or null for its charter's default.
+- `resources`: list of at most 32, each `template_symbol`. The connectors' resources a task made from it holds, such as the forge's own goal branch. Optional; left out, []. No pair twice.
+
+## template_symbol
+
+A connector's resource named after the task.
+
+- `connector`: integer, 0 to 65,535. The connector's number.
+- `symbol`: integer, 0 to 65,535. The symbol's number, offered by the connector.
 
 ## text
 
