@@ -140,7 +140,7 @@ the restart in the middle of a run came from finding-135's workaround, not from 
 - Commit: 677e405ca112365653d5d504de259b00fd11a0d4
 - Area: chat / charter 1
 - Severity: medium
-- Sightings: (none)
+- Sightings: finding-156
 
 ### Reproduction
 
@@ -166,7 +166,7 @@ What passes does not include the chats' words, and step 7 only asks the walker t
 - Commit: 677e405ca112365653d5d504de259b00fd11a0d4
 - Area: chat close / change panel
 - Severity: low
-- Sightings: (none)
+- Sightings: finding-157
 
 ### Reproduction
 

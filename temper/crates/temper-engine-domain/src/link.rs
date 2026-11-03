@@ -3,6 +3,7 @@
 //! Payloads stay owned here until the fleet asks for or drops them. The
 //! protocol layer alone reads an ended answer's outcome and encodes typed
 //! assignments.
+//! Review run failures follow temper/docs/design/domain/forge.md, 8.3.
 use crate::boundary::{Link, Parts, Payload, Request, Work, WorkerInput, WorkerRequest};
 use crate::domain::Domain;
 use alloc::boxed::Box;
@@ -120,7 +121,7 @@ fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
     saved && parts.pushed.len() <= usize::try_from(limits.forge.resources_per_task).expect("u32 fits usize")
 }
 
-/// The shared link interprets worker endings; temper adds the forge parts.
+/// Interpret worker endings with forge parts and the change's failed-review policy.
 pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: Token) {
     if match domain.answer_parts.get(&payload) {
         Some(parts) => !parts_within(parts, &domain.limits),
@@ -140,6 +141,7 @@ pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
     for _ in 0..out.len() {
         match out.pop().expect("link output count") {
             hub::Request::Core(mut event) => {
+                fail_review(domain, &mut event);
                 decorate_answer(domain, &mut event);
                 domain.work.push(Work::Core(event));
             }
@@ -157,6 +159,58 @@ pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
                 unreachable!("immediate payload routing returns a core event or protocol read")
             }
         }
+    }
+}
+
+// A run that cannot judge supplies no verdict (temper/docs/design/domain/forge.md, 8.3).
+fn fail_review(domain: &Domain, event: &mut core::Event) {
+    let core::Event::AnswerPayload { run, attempt, payload, end, .. } = event else { return };
+    if !domain.core.current_proof(run.raw(), attempt.raw()) || !current_review(domain, run.raw()) {
+        return;
+    }
+    let Some(Payload::Answer {
+        end: hub::Ending::Link(host::Ending::Failed { failure: host::Failure::Run(failure), .. }),
+        ..
+    }) = domain.hub_link.payload(*payload)
+    else {
+        return;
+    };
+    let Some(reason) = review_failure(failure) else { return };
+    *end =
+        tasks::End::Finished { result: tasks::TaskResult::Failure { reason: reason.into() }, cancel_delegates: false };
+}
+
+fn current_review(domain: &Domain, task: u64) -> bool {
+    let Some(task_row) = domain.core.tasks.task(task) else { return false };
+    let tasks::Party::Task(parent) = task_row.requester else { return false };
+    let Some(row) = domain.forge.change(parent) else { return false };
+    let Some((child, temper_engine_domain_forge_change::Delegate::Gate { number, head })) = row.delegate else {
+        return false;
+    };
+    if child != task
+        || row.change.last_head != Some(head)
+        || row.change.state == (temper_engine_domain_forge_change::State::CancellingGates { head })
+    {
+        return false;
+    }
+    for gate in &row.change.gates {
+        if gate.number == number && gate.kind == temper_engine_domain_forge_change::GateKind::Agent {
+            return true;
+        }
+    }
+    false
+}
+
+fn review_failure(failure: &host::RunFailure) -> Option<&'static [u8]> {
+    match failure {
+        host::RunFailure::Model => Some(b"Review model call failed before giving a verdict"),
+        host::RunFailure::Policy => Some(b"Review ended without a verdict"),
+        host::RunFailure::Budget => Some(b"Review exhausted its run budget without a verdict"),
+        host::RunFailure::Exceeded(_) => Some(b"Review exceeded a model call bound without a verdict"),
+        host::RunFailure::Cancelled
+        | host::RunFailure::Stale
+        | host::RunFailure::Limited { .. }
+        | host::RunFailure::Refused { .. } => None,
     }
 }
 
@@ -550,6 +604,21 @@ fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Bo
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn review_failures_leave_cancellation_and_account_waits_to_the_core() {
+        for failure in [
+            host::RunFailure::Cancelled,
+            host::RunFailure::Stale,
+            host::RunFailure::Limited { account: 1, reset: None },
+            host::RunFailure::Refused { account: 1 },
+        ] {
+            assert_eq!(review_failure(&failure), None);
+        }
+        for failure in [host::RunFailure::Model, host::RunFailure::Policy, host::RunFailure::Budget] {
+            assert!(review_failure(&failure).is_some());
+        }
+    }
 
     #[test]
     fn text_pieces_reach_the_core_with_their_identity_and_offsets() {

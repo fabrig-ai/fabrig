@@ -1083,11 +1083,17 @@ pub fn adopt(
 
 /// This fixture's changes use the ordinary charter without an agent review.
 pub fn native_landing_settings(directory: &Path) {
+    producer_landing_settings(directory, 1);
+}
+
+/// Stage no-review landing rules and the producer charter this fixture delegates to.
+/// temper/docs/design/protocol/configuration.md, 13.4–13.6.
+pub fn producer_landing_settings(directory: &Path, producer: u64) {
     let value = serde_json::json!({"items":[
         {"setting":{"kind":"landing-rule","number":1},"set":{
             "pattern":{"segments":["666f726765"],"last":{"open":""}},
             "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}},
-        {"setting":{"kind":"forge-charter","number":1},"set":1}
+        {"setting":{"kind":"forge-charter","number":1},"set":producer}
     ]});
     super::write_private(
         &directory.join("native-landing-settings.json"),
