@@ -90,23 +90,33 @@ The opt-in live suite exercises `client::Client` against the public OpenAI Respo
 Anthropic Messages endpoints over certificate-verified TLS. It checks streamed
 text and token usage, multi-turn replay, tool-argument streaming and tool-result
 replay, HTTP connection reuse, and invalid-token failures for each provider.
-There are no retries or credential refreshes. OpenAI tests use subscription
-quota and require a valid, unexpired OAuth access token. Anthropic tests use an API key.
+There are no retries or credential refreshes. OpenAI's text and tool stories use
+subscription quota and require a valid, unexpired OAuth access token that holds
+the public route's scope, `api.responses.write`. Anthropic tests use an API key.
 
-Name a Codex login, then run the automatic live suite:
+The automatic live suite calls a provider only in `openai_unauthorized`, which
+sends the lent login's token replaced by an invalid one. Name a Codex login, then
+run it:
 
 ```sh
 export SKEIN_TEST_LIVE_OPENAI_AUTH="$HOME/.codex/auth.json"
 heavy cargo nextest run -p skein-llm-world --profile live-skein
 ```
 
-The three Anthropic stories, `anthropic_streamed_text_and_history`,
-`anthropic_tool_round_trip` and `anthropic_unauthorized`, are ignored and manual
-(skein/docs/design/llm.status.md, 5). The owner supplies a private plaintext key
-file and runs one alone, replacing `NAME` with its exact test name:
+The other five provider stories are ignored and manual
+(skein/docs/design/llm.status.md, 5). The two OpenAI stories,
+`openai_streamed_text_and_history` and `openai_tool_round_trip`, need a login of
+the same form whose access token holds `api.responses.write`, which the Codex
+login lacks; the owner names it in `SKEIN_TEST_LIVE_OPENAI_AUTH`. The three
+Anthropic stories, `anthropic_streamed_text_and_history`,
+`anthropic_tool_round_trip` and `anthropic_unauthorized`, need a private plaintext
+key file, which the owner names in `SKEIN_TEST_LIVE_ANTHROPIC_KEY`. The owner sets
+the variable a story reads and runs it alone, replacing `NAME` with its exact test
+name:
 
 ```sh
-export SKEIN_TEST_LIVE_ANTHROPIC_KEY="/path/to/private/anthropic-key"
+export SKEIN_TEST_LIVE_OPENAI_AUTH="/path/to/login/auth.json"         # an OpenAI story
+export SKEIN_TEST_LIVE_ANTHROPIC_KEY="/path/to/private/anthropic-key" # an Anthropic story
 heavy cargo nextest run -p skein-llm-world --test live --profile live-skein --run-ignored only -E 'test(=NAME)'
 ```
 

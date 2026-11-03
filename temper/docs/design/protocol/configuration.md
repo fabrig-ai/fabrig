@@ -1590,10 +1590,9 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   its row: its producing, its repairs, its resolutions and its checks'
   gates run under the producer's charter it was made with, its agents'
   gates, the reviews, under the
-  review charter it was made with (number 2; the stock's charter 4,
-  fixed by the binary, until 13.6's step 2), its foremen under the
-  foreman's charter it was made with (number 3; the stock's charter 6,
-  fixed by the binary likewise), and a newer charter of any reaches the
+  review charter it was made with (number 2; the stock's charter 4), its
+  foremen under the foreman's charter it was made with (number 3; the
+  stock's charter 6), and a newer charter of any reaches the
   changes made after it (`../domain/root.md`, section 6). A change whose
   questions take no foreman is granted no delegation to the foreman's.
 - **A project's questions are read when a change is made,** as its
@@ -2083,7 +2082,9 @@ that changes the stock changes nothing of them.
     concerns, and the close-out, X, a designer's change, before its
     report; each change's `producer` and `llm` (`../domain/agent.md`,
     4.3.1): a designer's change `"producer": 7` at the template's LLM
-    choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high; a
+    choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, with
+    questions `up`, its designer's questions going straight to the
+    coordinator with no foreman (`../domain/forge.md`, 8.11); a
     coding change the coding agent's charter, its default, at
     gpt-6.1-sol and the spec's effort, high or medium, on smith's direct
     backend with an OpenAI account's key (N20); its documents:

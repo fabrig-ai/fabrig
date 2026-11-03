@@ -10,7 +10,5 @@ where, document by document. By step (sections 3 to 7):
   - **every step:** the goal's changes made by `change` with all their
     fields (N22) and their agents' LLM choices (N19).
   - **2, 5:** surveys as sub-agents reaching temper's runs (N10).
-  - **5, 9, 11, 14, 15:** a change relaying its agents' questions, through
-    a foreman or straight up (N1).
   - **3, 4, 6, 15, 22:** a designer as a change's producer (N13), and the
     plan's text as design in g (N12, step 4).

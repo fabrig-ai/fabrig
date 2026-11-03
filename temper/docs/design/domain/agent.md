@@ -674,10 +674,11 @@ run starts fresh, its brief carrying the tail.
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
 | the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
 
-The change's agents run under the forge's charters, the ones the change
-was made with, kept on it whatever later changes of settings make them
+The change's agents run under the charters the change was made with,
+kept on it whatever later changes of settings make them
 (`../protocol/configuration.md`, 13.2): its producing, repairs and
-resolutions under the forge's charter, a coding agent's; its reviews
+resolutions under its producer's charter, the one its `change` named
+(4.3.1) or else the forge's change charter, a coding agent's; its reviews
 under the forge's review charter, a reviewer's, whose instructions are
 to judge the change through its brief and the forge's reads and give a
 verdict, or fail saying why it cannot (forge.md, 8.3), and whose tools
@@ -887,6 +888,14 @@ host:
   person's priorities, its notes), or ask its person a question of its
   own and answer the goal once it has the answer, in place of 8.2's
   route through the person's inbox. Default: 8.2's route.
+- **A change's foremen's LLM choice** (forge.md, 8.11): `llm` (4.3.1)
+  names the producer's and the reviews' roles, and a change's foremen
+  run at their charter's default, where the reference's draft gives
+  each change one for its foremen too
+  (`../draft/reference-code-production.md`, sections 5 and 14). Default:
+  the foreman's charter's, the reference setting its model there
+  (`../protocol/configuration.md`, 13.9); a `foreman` role once a plan
+  needs foremen of different weights.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP
