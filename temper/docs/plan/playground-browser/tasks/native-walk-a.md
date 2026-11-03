@@ -508,3 +508,14 @@ or leave the walk blocked?** The wait yes, here; closing chats no, diagnosis fir
 - Commit and push the wait with the walk's progress before asking; then the acceptance as written:
   the full walk, its kept `tests/fixtures/story-a.log` recorded under `SKEIN_CODEGEN_WRITE`, its
   replay, and the one-process `story_a.rs` once alone with `--run-ignored all`.
+
+2026-11-03. **Four runs without landing again (runs 9 to 12): go on, or rethink the task?** Go on,
+with the previous answer (the reply wait at 60 s, no chat-closing steps, the third request's
+"Authority missing" diagnosed) as the next run's work; no new decision. The runs are still no loop:
+each reached a new stall its stop rule named and pushed its repairs with their tests (the chat
+ending, the prices and tasks, the forge stock, the task, inbox, parameter, spec and choice bounds),
+and the next got further: run 12's CSV change landed with CI and review passed, and its dark-theme
+reply was seen. The branch's pushed commits (to `9678bee8e1`) stay and the next run starts from
+them. The earlier rules hold: a refusal outside the allowances' classes, the stock's own
+construction among them, is a question with the typed refusal and its evidence, asked after
+committing and pushing what is repaired.
