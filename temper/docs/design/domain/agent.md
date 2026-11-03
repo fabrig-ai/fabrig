@@ -145,7 +145,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   (`../protocol/configuration.md`, 13.4). The task's authority decides
   each call by its family (jig's `domain/authority.md`, sections 3 and
   8.5): a call beyond it is answered beyond authority, naming what it
-  lacked, and the run may `propose` it instead.
+  lacked, and the run may `propose` it instead. A refused tool family
+  is named from the call's tool, and repeated findings for that family
+  print once; the refusal grants no additional authority.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, 51,717 bytes in the small profile, before any turn. The largest stock

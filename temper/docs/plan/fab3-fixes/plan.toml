@@ -5,6 +5,7 @@ sources = ["temper/docs/plan/fab3-fixes/inputs/request.md", "temper/docs/design/
 # The acceptance findings of forgejo-connect and withdrawn-forms (inputs/request.md): one direct
 # part, three independent tasks, none reading another. plan.md says what was decided and why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

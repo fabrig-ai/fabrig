@@ -15,30 +15,25 @@ fn call(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> Printed {
     answer
 }
 
-fn offered(world: &mut ClientWorld, agent: ClientId, task: u64) -> Vec<Vec<String>> {
-    let printed = call(world, agent, &[b"change", b"show", task.to_string().as_bytes(), b"--project", b"1"]);
-    let text = std::str::from_utf8(&printed.stdout).expect("panel text");
-    let reason = text.lines().find_map(|line| line.strip_prefix("held: ")).expect("held panel");
-    let (release, cancel) = reason.split_once("; or cancel it: ").expect("both ways out");
-    let release = release.split_once("; release it: ").expect("release command").1;
-    let release = release.split_once(" (it holds again unless it has more)").expect("release's consequence").0;
-    let cancel = cancel.split_once(" at ").expect("held step").0;
-    assert_eq!(reason.matches("task ").count(), 2, "every offered command is checked: {reason}");
-    [release, cancel]
-        .into_iter()
-        .map(|command| {
-            let words: Vec<String> = command
-                .split_ascii_whitespace()
-                .map(|word| if word == "REASON" { "because" } else { word }.to_owned())
-                .collect();
-            let argv: Vec<&[u8]> = words.iter().map(String::as_bytes).collect();
-            assert!(
-                matches!(temper_client_tools::table::parse(&argv), Ok(Parsed::Call { .. })),
-                "ctl takes the printed command: {command}"
-            );
-            words
-        })
-        .collect()
+fn offered(world: &mut ClientWorld, agent: ClientId, task: u64) -> Vec<String> {
+    let panel = call(world, agent, &[b"change", b"show", task.to_string().as_bytes(), b"--project", b"1"]);
+    let task_read = call(world, agent, &[b"task", b"show", task.to_string().as_bytes()]);
+    let recovery = format!("; cancel: task cancel {task} REASON; or ask afresh; bare release holds again");
+    let panel_text = std::str::from_utf8(&panel.stdout).expect("panel text");
+    assert!(panel_text.contains(&recovery), "actionable recovery: {panel_text}");
+    assert!(!panel_text.contains("; release it: task release"), "{panel_text}");
+    let command = recovery.split_once("; cancel: ").expect("cancel command").1;
+    let command = command.split_once("; or ask").expect("ask afresh").0;
+    let task_text = std::str::from_utf8(&task_read.stdout).expect("task text");
+    assert!(task_text.contains("its 0 tasks are made"), "the cause survives the summary's cut: {task_text}");
+    assert!(task_text.contains(command), "task read offers the same cancellation: {task_text}");
+    let words: Vec<String> = command
+        .split_ascii_whitespace()
+        .map(|word| if word == "REASON" { "because" } else { word }.to_owned())
+        .collect();
+    let argv: Vec<&[u8]> = words.iter().map(String::as_bytes).collect();
+    assert!(matches!(temper_client_tools::table::parse(&argv), Ok(Parsed::Call { .. })), "{command}");
+    words
 }
 
 #[test]
@@ -65,9 +60,9 @@ fn a_holds_offered_commands_are_ones_ctl_takes() {
     call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"held"]);
     let before = world.front().engine.task(task).expect("held change").clone();
     assert!(matches!(before.phase, tasks::Phase::Held { .. }));
-    let commands = offered(&mut world, agent, task);
-    let release: Vec<&[u8]> = commands[0].iter().map(String::as_bytes).collect();
-    call(&mut world, agent, &release);
+    offered(&mut world, agent, task);
+    let hold = before.revisions.hold.to_string();
+    call(&mut world, agent, &[b"task", b"release", task.to_string().as_bytes(), b"--hold", hold.as_bytes()]);
     call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"held"]);
     let after = world.front().engine.task(task).expect("held again");
     assert!(matches!(after.phase, tasks::Phase::Held { .. }));
@@ -76,7 +71,7 @@ fn a_holds_offered_commands_are_ones_ctl_takes() {
     let printed = call(&mut world, agent, &[b"change", b"show", task.to_string().as_bytes(), b"--project", b"1"]);
     assert!(printed.stdout.windows(b"released without more tasks".len()).any(|w| w == b"released without more tasks"));
     let commands = offered(&mut world, agent, task);
-    let cancel: Vec<&[u8]> = commands[1].iter().map(String::as_bytes).collect();
+    let cancel: Vec<&[u8]> = commands.iter().map(String::as_bytes).collect();
     call(&mut world, agent, &cancel);
     let ended = call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"ended"]);
     assert!(ended.stdout.windows(b"Cancelled".len()).any(|w| w == b"Cancelled"), "{ended:?}");

@@ -76,6 +76,17 @@ impl Text {
 /// and byte escaping. A cut keeps the log's end and says bytes were omitted.
 #[must_use]
 pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
+    bounded(answer, &[], max_bytes)
+}
+
+/// Render a decided answer with its host tool's name, naming a refused family.
+/// Job logs fit the configured bound, including metadata and byte escaping.
+#[must_use]
+pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
+    bounded(answer, tool, max_bytes)
+}
+
+fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
     if let CallAnswer::ForgeRead(read) = answer
         && let Ok(api::Answer::Job { attempt, step, log, truncated }) = read.as_ref()
     {
@@ -95,7 +106,7 @@ pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
             }
         };
     }
-    self::answer(answer)
+    answer_text(answer, tool)
 }
 
 fn job_text(
@@ -155,7 +166,11 @@ fn escaped_len(text: &[u8]) -> usize {
 /// becomes a bounded host error, so no decided call is left unanswered.
 #[must_use]
 pub fn answer(answer: &CallAnswer) -> HostAnswer {
-    match rendered(answer) {
+    answer_text(answer, &[])
+}
+
+fn answer_text(answer: &CallAnswer, tool: &[u8]) -> HostAnswer {
+    match rendered(answer, tool) {
         Ok(answer) => answer,
         Err(Problem::TooLarge) => HostAnswer::new(
             bytes::copy_of(b"The recorded answer exceeded the host text limit; ask a narrower read."),
@@ -170,7 +185,7 @@ pub fn answer(answer: &CallAnswer) -> HostAnswer {
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable answer vocabulary")]
-fn rendered(answer: &CallAnswer) -> Result<HostAnswer, Problem> {
+fn rendered(answer: &CallAnswer, tool: &[u8]) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
         CallAnswer::SettingsRefused(why) => {
@@ -220,26 +235,12 @@ fn rendered(answer: &CallAnswer) -> Result<HostAnswer, Problem> {
             forge_error(&mut text, *refusal)?;
             true
         }
-        value @ (CallAnswer::ForgeEffectDenied { answer, findings }
-        | CallAnswer::ToolDenied { answer, findings }
-        | CallAnswer::DelegationDenied { answer, findings }) => {
-            text.add(b"Authority ")?;
-            authority(&mut text, *answer)?;
-            text.add(b": ")?;
-            let mut change_hint = false;
-            for finding in findings {
-                finding_text(&mut text, *finding)?;
-                text.add(b"; ")?;
-                if let CallAnswer::DelegationDenied { .. } = value
-                    && let jig_domain_authority::Finding::Executor { .. } | jig_domain_authority::Finding::Grant { .. } =
-                        finding
-                {
-                    change_hint = true;
-                }
-            }
-            if change_hint {
-                text.add(b"For a change to a repository, call change with what to change.")?;
-            }
+        CallAnswer::ForgeEffectDenied { answer, findings } | CallAnswer::ToolDenied { answer, findings } => {
+            authority_findings(&mut text, *answer, findings, tool, false)?;
+            true
+        }
+        CallAnswer::DelegationDenied { answer, findings } => {
+            authority_findings(&mut text, *answer, findings, tool, true)?;
             true
         }
         CallAnswer::ForgeRead(read) => match read.as_ref() {
@@ -488,6 +489,61 @@ fn authority(text: &mut Text, answer: jig_domain_authority::Answer) -> Result<()
         jig_domain_authority::Answer::Propose => text.add(b"needs proposal"),
         jig_domain_authority::Answer::Refuse => text.add(b"refused"),
     }
+}
+
+fn authority_findings(
+    text: &mut Text,
+    answer: jig_domain_authority::Answer,
+    findings: &[jig_domain_authority::Finding],
+    tool: &[u8],
+    delegation: bool,
+) -> Result<(), Problem> {
+    use jig_domain_authority::Finding;
+    text.add(b"Authority ")?;
+    authority(text, answer)?;
+    text.add(b": ")?;
+    let mut family_seen = false;
+    let mut change_hint = false;
+    for finding in findings {
+        if *finding == Finding::Tool {
+            if family_seen {
+                continue;
+            }
+            family_seen = true;
+            text.add(b"tool family")?;
+            if let Some(family) = tool_family(tool) {
+                text.add(b" ")?;
+                text.add(family)?;
+            }
+        } else {
+            finding_text(text, *finding)?;
+        }
+        text.add(b"; ")?;
+        if delegation && let Finding::Executor { .. } | Finding::Grant { .. } = finding {
+            change_hint = true;
+        }
+    }
+    if change_hint {
+        text.add(b"For a change to a repository, call change with what to change.")?;
+    }
+    Ok(())
+}
+
+fn tool_family(tool: &[u8]) -> Option<&'static [u8]> {
+    Some(match tool {
+        b"amend" | b"cancel" | b"release" => b"control",
+        b"goal" | b"change" | b"delegate" => b"delegate",
+        b"message" | b"introduce" => b"message",
+        b"decide" | b"withdraw" | b"decide_escalation" => b"decide",
+        b"propose" => b"propose",
+        b"subscribe" | b"subscribe_forge" | b"unsubscribe" => b"subscribe",
+        b"effect_forge" => b"effect",
+        b"note" => b"note",
+        b"recall" => b"recall",
+        b"settings" | b"propose_settings" => b"settings",
+        name if name.starts_with(b"read_") => b"read",
+        _ => return None,
+    })
 }
 
 fn finding_text(text: &mut Text, finding: jig_domain_authority::Finding) -> Result<(), Problem> {
