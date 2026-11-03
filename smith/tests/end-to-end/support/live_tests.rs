@@ -384,8 +384,6 @@ fn stderr_keeps_only_complete_allow_listed_forms() {
         allowed.push(format!("smith: {}", credential.line("claude")));
         allowed.push(format!("smith: warning: {}", credential.line("claude")));
     }
-    allowed.push(format!("smith: warning: {}", Credential::NotSignedIn.line("codex")));
-    allowed.push(format!("smith: warning: {}", Credential::NotSignedIn.line("anthropic")));
     let rejected = [
         "private-stderr",
         "smith: agent started private-tail",

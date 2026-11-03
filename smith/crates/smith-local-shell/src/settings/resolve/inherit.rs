@@ -19,7 +19,6 @@ pub(super) fn apply(settings: &mut Settings) -> Result<(), Refusal> {
         let provider = input::text(settings, &key)?.to_string();
         let preset = match provider.as_str() {
             "openai" => Preset::OpenAi,
-            "codex" => Preset::Codex,
             "anthropic" => Preset::Anthropic,
             _ => return Err(input::refuse(settings, &key, "unknown endpoint preset")),
         };
