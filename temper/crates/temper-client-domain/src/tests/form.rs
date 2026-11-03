@@ -391,3 +391,189 @@ fn an_out_of_date_form_keeps_its_pending_adoption() {
     );
     assert_eq!(root.client().pending(key).expect("kept adoption").progress, jig_client::Progress::NotServed);
 }
+
+fn first_rows(
+    state: temper_client_protocol_wire::v1::FirstState,
+) -> skein_lib::List<temper_client_protocol_wire::v1::ForgeRow> {
+    use temper_client_protocol_wire::v1 as w;
+    let mut rows = skein_lib::List::with_capacity(3);
+    for (number, mode) in [(1, w::Mode::Fake), (2, w::Mode::Owned), (3, w::Mode::Owned)] {
+        rows.push(
+            w::ForgeRow::new(
+                &w::CEILINGS,
+                w::ForgeRowParts {
+                    number,
+                    kind: w::Kind::Forgejo,
+                    mode,
+                    connection: w::Connection::NotConnected,
+                    offer: w::Offer::NotOffered,
+                    first: Some(
+                        w::FirstRepository::new(
+                            &w::CEILINGS,
+                            w::FirstRepositoryParts {
+                                playground: number == 1,
+                                org: b"work".as_slice().into(),
+                                repository: b"hello".as_slice().into(),
+                                state: state.clone(),
+                                label: b"docker".as_slice().into(),
+                            },
+                        )
+                        .unwrap(),
+                    ),
+                    installations: skein_lib::List::with_capacity(0),
+                    ended: None,
+                    app: None,
+                    web: None,
+                    repositories: skein_lib::List::with_capacity(1),
+                    owned: None,
+                    admin: false,
+                    read_only: false,
+                    ended_stop: None,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
+    rows
+}
+fn made() -> temper_client_protocol_wire::v1::FirstState {
+    use temper_client_protocol_wire::v1 as w;
+    w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 7 }).unwrap())
+}
+fn deliver_first(
+    root: &mut crate::Domain,
+    watch: skein_lib::Token,
+    rows: skein_lib::List<temper_client_protocol_wire::v1::ForgeRow>,
+) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    crate::step(
+        root,
+        &fixtures::env(&fixtures::limits()),
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap()),
+                    },
+                },
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+}
+fn open_form(root: &mut crate::Domain) {
+    crate::step(
+        root,
+        &fixtures::env(&fixtures::limits()),
+        Event::Went { place: crate::Place::Address(crate::Address::Adopt { project: fixtures::PROJECT }) },
+        &mut Queue::uncapped(),
+    );
+}
+fn assert_first(form: &forge::Form) {
+    for (field, text, written) in [
+        (forge::Text::Forge, b"2".as_slice(), 1),
+        (forge::Text::Owner, b"work", 1),
+        (forge::Text::Name, b"hello", 1),
+        (forge::Text::Landing, b"main", 1),
+        (forge::Text::Prefix, b"temper/", 0),
+        (forge::Text::Checks, b"", 0),
+    ] {
+        assert_eq!((form.texts[field.index()].text.as_ref(), form.texts[field.index()].written), (text, written));
+    }
+    assert_eq!((form.role, form.home.on, form.ci.on), (forge::Role::Owned, true, true));
+    assert_eq!(forge::adoption(form, fixtures::limits().forge.checks).unwrap().forge, 2);
+}
+#[test]
+fn the_form_opens_filled_for_the_lowest_real_unadopted_first_repository() {
+    let (mut root, _, watch) = super::connect::opened(true);
+    deliver_first(&mut root, watch, first_rows(made()));
+    open_form(&mut root);
+    assert_first(root.forge().form().unwrap());
+}
+#[test]
+fn the_form_leaves_defaults_for_adopted_unmade_and_fake_first_repositories() {
+    use temper_client_protocol_wire::v1 as w;
+    let mut adopted = first_rows(made());
+    let mut parts = adopted.get(0).unwrap().clone().into_parts();
+    parts
+        .repositories
+        .push(
+            w::Adoption::new(
+                &w::CEILINGS,
+                w::AdoptionParts { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 99 },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    *adopted.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    let mut fake = first_rows(made());
+    fake.truncate(1);
+    let failed = w::FirstState::Failed(
+        w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::Repository }).unwrap(),
+    );
+    for (case, rows) in [
+        ("adopted", adopted),
+        ("fake", fake),
+        ("making", first_rows(w::FirstState::Making)),
+        ("failed", first_rows(failed)),
+    ] {
+        let (mut root, _, watch) = super::connect::opened(true);
+        deliver_first(&mut root, watch, rows);
+        open_form(&mut root);
+        let form = root.forge().form().unwrap();
+        assert_eq!(form.texts, forge::form(fixtures::PROJECT).texts, "case {case}");
+    }
+}
+#[test]
+fn a_late_first_repository_delivery_fills_only_an_unwritten_form() {
+    for written in [false, true] {
+        let (mut root, _, watch) = super::connect::opened(true);
+        open_form(&mut root);
+        if written {
+            fixtures::form_act(&mut root, fixtures::write(forge::Text::Owner, b"mine", forge::Typed::Bytes));
+        }
+        deliver_first(&mut root, watch, first_rows(made()));
+        let form = root.forge().form().unwrap();
+        if written {
+            assert_eq!(form.texts[forge::Text::Owner.index()].text.as_ref(), b"mine");
+            assert_eq!(form.texts[forge::Text::Landing.index()].text.as_ref(), b"");
+        } else {
+            assert_first(form);
+        }
+    }
+}
+#[test]
+fn adopting_the_first_repository_resets_to_plain_defaults_even_on_later_deliveries() {
+    let (mut root, _, watch) = super::connect::opened(true);
+    deliver_first(&mut root, watch, first_rows(made()));
+    open_form(&mut root);
+    let mut out = fixtures::form_act(&mut root, forge::Act::Adopt);
+    let attempt = sent(&mut out);
+    crate::step(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Family(fixtures::adopted_bytes())),
+                    why: None,
+                },
+            },
+        },
+        &mut out,
+    );
+    deliver_first(&mut root, watch, first_rows(made()));
+    let form = root.forge().form().unwrap();
+    let defaults = forge::form(fixtures::PROJECT);
+    for (field, default) in form.texts.iter().zip(defaults.texts) {
+        assert_eq!(field.text, default.text);
+        assert!(field.written > 0);
+    }
+    assert_eq!(form.outcome, Some(fixtures::adopted()));
+}

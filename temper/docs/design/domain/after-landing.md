@@ -285,7 +285,11 @@ red by earlier failures it does not run (5.3).
   due step (jig's `domain/tasks.md`, 5.3). New part words are saved
   before its effects are issued; the procedure continues at a deadline
   due immediately. The task keeps them after
-  completion, branch release and restart. Observations not yet projected
+  completion, branch release and restart. Ordinary ctl `task show TASK`
+  follows missing specification chunks within its output bounds, so `asked:`
+  retains these identities beyond the overview prefix; when exhausted it
+  gives a `task text` continuation at the first undisplayed byte.
+  Observations not yet projected
   are kept on the tier row until a step acknowledges their task words,
   including across follower replacement and restart.
 - **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's

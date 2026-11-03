@@ -53,6 +53,7 @@ pub(crate) fn main(
         context(b, root, words);
         failure(b, root, playground, words, bindings);
     }
+    repository_context(b, root, words, bindings);
     list(b, root, words, bindings, times);
     crate::frame::playground_banner(b, root, words, forge);
     b.close();
@@ -60,6 +61,15 @@ pub(crate) fn main(
         && root.pages().me(root.client()).is_some()
         && root.pages().project().is_some()
     {
+        if offers_first_chat(root) {
+            b.open(Role::Button);
+            b.name(&words.say(Word::FirstChat, &[]));
+            if !ready_to_start(root) {
+                b.state(State::Disabled);
+            }
+            b.bind(bindings.insert(Act::FirstChat));
+            b.close();
+        }
         let ready = ready_to_start(root);
         if !ready {
             bindings.block_submissions();
@@ -69,7 +79,9 @@ pub(crate) fn main(
         b.open(Role::TextArea);
         b.name(&words.say(Word::StartChat, &[]));
         b.placeholder(&words.say(Word::DescribeChange, &[]));
-        if let Address::Chats { start: true, .. } = root.pages().address() {
+        if let Address::Chats { start: true, .. } = root.pages().address()
+            && root.pages().switcher().renaming().is_none()
+        {
             b.focus(0);
         }
         if ready {
@@ -110,6 +122,55 @@ pub(crate) fn main(
     }
     b.close();
 }
+fn repository_context(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
+    if let Some(project) = root.pages().project()
+        && temper_client_domain::forge::listed::without_repository(root.forges(), root.forge().playground(), project)
+            == Some(true)
+    {
+        b.open(Role::Slot);
+        b.style(crate::look::CONTEXT);
+        text(b, Role::Paragraph, &words.say(Word::NoRepositoryYet, &[]));
+        control(
+            b,
+            bindings,
+            Role::Link,
+            &words.say(Word::ForgeAdopt, &[]),
+            Act::Go { address: Address::Adopt { project } },
+        );
+        b.close();
+    }
+}
+
+/// The first-chat offer follows the unfiltered chats document (temper/docs/design/client/README.md, 3.5).
+fn offers_first_chat(root: &Domain) -> bool {
+    let Some(project) = root.pages().project() else { return false };
+    if let Some(playground) = root.forge().playground()
+        && playground.project == Some(project)
+    {
+        return false;
+    }
+    let Some(chats) = root.pages().chats() else { return false };
+    if chats.filter != ChatsFilter::All {
+        return false;
+    }
+    if let Some(live) = chats.live(root.client())
+        && (!live.rows.is_empty() || live.more)
+    {
+        return false;
+    }
+    if let Some(page) = &chats.page {
+        if !page.live.is_empty() || page.live_after.is_some() {
+            return false;
+        }
+        if let EndedGroup::Rows { rows, after, .. } = &page.ended
+            && (!rows.is_empty() || after.is_some())
+        {
+            return false;
+        }
+    }
+    true
+}
+
 fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times) {
     let Some(chats) = root.pages().chats() else { return };
     b.open(Role::Slot);
@@ -277,9 +338,7 @@ pub(crate) fn row(
     // Keep the number's link in a container: a paragraph is flattened to text
     // by the terminal, hiding the command promised by client/README.md, 3.5.
     b.open(Role::Slot);
-    if let Some(project) =
-        super::project_name(root.pages().me(root.client()), root.forge().playground(), line.project, words)
-    {
+    if let Some(project) = super::project_name(root.pages().me(root.client()), line.project) {
         b.text(Run::Plain, &project);
         words.text(b, Word::ToolSeparator, &[]);
     }

@@ -651,7 +651,6 @@ fn first_ask() -> FirstAsk {
     FirstAsk {
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
-        project: SetUpProject::Existing(1),
         label: b"docker".as_slice().into(),
     }
 }
@@ -768,7 +767,6 @@ fn admitted_admin_connect_marks_connecting_and_keeps_the_first_repository_intent
                 playground: false,
                 org: first.org,
                 repository: first.repository,
-                project: first.project,
                 state: FirstState::Making,
                 label: first.label,
             })

@@ -40,7 +40,7 @@ pub(super) fn text(
                 super::proposal::text(value, reading, limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
-                super::task_text(task, me, book, vocabulary, out);
+                super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), out);
                 vocabulary.task_next(task, out);
                 super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
             }
@@ -51,7 +51,7 @@ pub(super) fn text(
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => {
                 let (task, result) = super::super::ended_task(value).expect("validated ended task");
-                super::task_text(task, me, book, vocabulary, out);
+                super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), out);
                 super::result_text(result, vocabulary, out);
                 vocabulary.task_next(task, out);
                 super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);

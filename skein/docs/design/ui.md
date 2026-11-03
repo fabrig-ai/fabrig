@@ -409,11 +409,15 @@ two platforms (4.1); section 16 maps each onto the web, iOS and Android.
   presses only with its shortcut's modifier held and no other: none, the
   primary one alone, or Alt alone. Any other set, Shift held among it,
   or Control on Apple's platforms, is no shortcut.
-- **Escape** is named only inside a dialog (section 14). The platform's
-  Escape key, or its escape or back gesture, presses the first bound,
-  enabled node in the open dialog that names it, wherever the focus is
-  in the dialog. In a dialog naming none, Escape does nothing of its
-  own: the dialog's buttons decide.
+- **Escape** is named only inside a dialog or a form (section 14). The
+  platform's Escape key, or its escape or back gesture, presses the
+  first bound, enabled node in the open dialog that names it, wherever
+  the focus is in the dialog. Outside every open dialog, while the focus
+  is in a form, it presses the first bound, enabled node naming it in
+  the innermost form that holds the focus: a field edited in place, in
+  a landmark of its own, is cancelled by Escape as a dialog is. In a
+  dialog or a form naming none, Escape does nothing of its own: its
+  buttons decide.
 - **No new act:** a shortcut is a `Press`. The text shell and the fake
   person ignore shortcuts and act on the node itself.
 
@@ -774,7 +778,7 @@ that is missing).
 | exactly one main | a second main, or none |
 | at most one banner; at most one content info | a second of either |
 | each shortcut at most once | a shortcut an earlier node names |
-| Escape only inside a dialog | a node outside every dialog naming Escape |
+| Escape only inside a dialog or a form | a node outside every dialog and every form naming Escape |
 
 - **Nothing else hangs from the page node,** so every node a person reads
   or acts on is inside a landmark or a dialog.
@@ -893,7 +897,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | a value, a focus request | `value`; `focus()` |
 | a count, a position | `aria-setsize`, `aria-posinset`; on a table and its rows, `aria-rowcount`, `aria-rowindex` |
 | spans, a sort | `rowspan`, `colspan`; `aria-sort` |
-| a shortcut | `aria-keyshortcuts`; Escape, the `<dialog>`'s `cancel` event |
+| a shortcut | `aria-keyshortcuts`; Escape, the `<dialog>`'s `cancel` event, or in a form its `keydown` |
 | a region name, style tokens | `data-region`; classes |
 
 ### 16.2 iOS

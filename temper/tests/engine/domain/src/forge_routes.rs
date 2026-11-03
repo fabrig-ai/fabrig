@@ -1878,6 +1878,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         task,
         entry,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Unknown,
@@ -1887,6 +1888,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: true,
     });
     world.run_for(1);

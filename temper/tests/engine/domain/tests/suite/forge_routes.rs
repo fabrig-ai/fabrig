@@ -75,6 +75,9 @@ mod goal_changes;
 #[path = "forge_routes/change_producer.rs"]
 mod change_producer;
 
+#[path = "forge_routes/early_start.rs"]
+mod early_start;
+
 #[path = "forge_routes/goal_landing.rs"]
 mod goal_landing;
 

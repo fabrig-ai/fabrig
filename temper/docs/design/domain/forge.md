@@ -1139,7 +1139,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
 
 1. **Producing:** a task for an agent, with the charter the change
    names, whose workspace starts from its landing branch (or its saved
-   work) and pushes the change's branch (`agent.md`, section 6). Its
+   work; or, started early, from its landing branch with its
+   dependencies' pushed heads merged in: 8.11) and pushes the change's
+   branch (`agent.md`, section 6). Its
    result is the head it pushed. An attempt whose answer was lost may
    have pushed all the same: its writer slot is freed for another task only once the
    branch has been read afresh (jig's `domain/tasks.md`, 6.3), and a
@@ -1658,6 +1660,60 @@ landing: under the queue, while its merge is sent and not yet settled;
 under the turn, while its landing has begun its proof and not yet landed
 (`landing.md`, 4.2). Its producing, repair or resolution run finishes
 its turn and parks, as every run under a drain does.
+
+### 8.11 Early starts
+
+The change procedure starts kept (jig's `domain/connectors.md`, 6.1): a
+change made with a pending dependency is active and kept rather than
+waiting, so its producer may work beside its dependencies while its
+merge waits for them (8.2, step 7; section 9). Its producer starts
+early, by these rules:
+
+- **When.** At producing, with no head of its own pushed, once each
+  pending dependency that is a change into the same repository and
+  landing branch has a pushed head (its branch's head as the forge last
+  read it, 5.2), and none of them is itself kept by a pending dependency.
+  One level only: a dependency kept by its own question alone does not
+  block. A pending dependency that is a change into another repository
+  orders the landings alone (`landing.md`, 4.1): the producer neither
+  waits for its push nor merges it. Any other pending dependency (a task
+  that is no change, a change into another landing branch) has no head
+  to start from, and the producer waits for it to be done. While the
+  change waits so, at producing with no producer, its stall does not
+  count.
+- **From what.** Its producer's workspace starts from the landing
+  branch's tip with those heads merged into it, one by one in the order
+  of the change's dependencies (`worker.md`, section 5). The change
+  keeps each head it started from, with its dependency, and marks those
+  dependencies started from (jig's `domain/connectors.md`, 6.1).
+- **A conflict refuses it.** A head that does not merge cleanly fails
+  the producer's preparation as a conflict naming it (`worker.md`,
+  section 5). The change cancels that producer, its early start spent,
+  and waits for its dependencies to be done; nothing is held or
+  escalated, and its marks stay.
+- **Once.** A change starts its producer early at most once. An early
+  producer that ends failed, for whatever reason, holds nothing: the
+  change waits for its dependencies to be done, then makes its next
+  producer, whose failure for good holds it as 8.4 says.
+- **The next producer merges the landing tip first.** A producer of a
+  change that started early, whose workspace would start from the
+  change's pushed branch or from saved work, starts instead from a
+  merge in progress: that start, with the landing branch's tip as the
+  base merged into it (`worker.md`, 4.1 and section 5). A conflict is
+  left in its checkout for it to settle; its first push commits the
+  merge. One with nothing pushed or saved starts from the landing
+  branch's tip, which now holds its dependencies' work.
+- **Done while kept.** The early producer's result is the change's head,
+  as any producer's: the change opens its pull request, and is checked
+  and gated as its rules ask, but is not ready until its last dependency
+  is done (section 9). Its head carries its dependencies' work as they
+  had pushed it, which their landings contain.
+- **A dependency started from stays.** Removing it would leave its
+  unlanded work in the change's head, so an amendment leaving it out is
+  refused, naming it (jig's `domain/tasks.md`, section 7): its requester
+  cancels the change and makes it again instead. One that fails or is
+  cancelled holds the change, as any failed dependency does (jig's
+  `domain/tasks.md`, 5.5).
 
 ## 9. Landing queues
 
