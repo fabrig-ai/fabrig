@@ -251,3 +251,143 @@ fn a_proposal_is_kept_judged_from_its_kept_values_and_dropped() {
     assert!(domain.forge.proposal_settings(WITHDRAWN_PROPOSAL).is_empty());
     assert_eq!(domain.forge.setting(2, PROJECT, RULE), Some(&rule(false)));
 }
+
+fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
+    use jig_domain_core::{
+        settings::{Kind, KindScope},
+        start::{Action, Phase},
+    };
+    let limits = resume_fixture::limits();
+    let mut config = resume_fixture::config(7);
+    config.kinds_stock = Box::new([
+        settings::Stock { kind: 1, scope: 0, number: RULE, value: rule(true) },
+        settings::Stock { kind: 3, scope: 0, number: 1, value: charter(1) },
+    ]);
+    if declared {
+        config.core.kinds = Box::new([
+            Kind {
+                number: 1,
+                scope: KindScope::Deployment,
+                connector: 0,
+                value_bytes: RULE_BYTES,
+                per_scope: limits.forge.landing_rules,
+                charters: 0,
+            },
+            Kind {
+                number: 3,
+                scope: KindScope::Deployment,
+                connector: 0,
+                value_bytes: CHARTER_BYTES,
+                per_scope: 2,
+                charters: 1,
+            },
+        ]);
+    }
+    let mut domain = Domain::new(config, &limits).unwrap();
+    let env = Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits };
+    domain.start_wall = Some(env.wall);
+    domain.core_header_loaded = true;
+    domain.forge.restore_begin(env.wall);
+    let core_env = crate::limits::environment_core(&env);
+    let mut action = domain.core.start_begin(false, env.wall);
+    for _ in 0_u32..20 {
+        let mut out = Queue::uncapped();
+        action = match action {
+            Action::Step(Phase::RestoreConnector { connector: 0 }) => return (domain, env),
+            Action::Step(phase) => domain.core.start_done(&core_env, phase, &mut out),
+            Action::Commit(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
+            Action::Idle | Action::Refused(_) => panic!("start stopped before the forge restore"),
+        };
+    }
+    panic!("start did not reach the forge restore");
+}
+
+#[test]
+fn a_start_gives_the_forge_its_defaults() {
+    use jig_domain_core::start::Phase;
+    let (mut domain, env) = at_connector_restore(true);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    for (kind, value) in [(1, rule(true)), (3, charter(2))] {
+        crate::restart::restore_page_row(
+            &mut domain,
+            &env,
+            Record::Forge {
+                row: Box::new(forge::Stored::Setting(settings::SettingRow {
+                    key: settings::SettingKey { kind, scope: 0, number: 1, slot: settings::SettingSlot::Default },
+                    edit: settings::Edit::Set(value),
+                })),
+            },
+        );
+        crate::route::route_into(&mut domain, &env, &mut decision);
+    }
+    assert_eq!(domain.forge.setting(3, 0, 1), Some(&charter(2)), "the stored default reached the forge");
+    crate::restart::restore_connector_done(&mut domain);
+    assert_eq!(domain.core.start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
+    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsDefaults { connector: 0, defaults }))) =
+        domain.work.pop()
+    else {
+        panic!("the core receives the defaults before the restore completes");
+    };
+    assert_eq!(
+        defaults.as_ref(),
+        &[
+            connector::DefaultState {
+                kind: 1,
+                scope: 0,
+                number: RULE,
+                size: RULE_BYTES,
+                charters: Box::default(),
+                differs: false
+            },
+            connector::DefaultState {
+                kind: 3,
+                scope: 0,
+                number: 1,
+                size: CHARTER_BYTES,
+                charters: Box::new([1]),
+                differs: true
+            },
+        ]
+    );
+    let Some(Work::StartDone(Phase::RestoreConnector { connector: 0 })) = domain.work.pop() else {
+        panic!("the forge restore completes after its defaults");
+    };
+    assert!(domain.work.is_empty());
+    assert!(domain.kinds_stock.is_none(), "defaults are given once at this start");
+    assert_eq!(domain.forge.setting(3, 0, 1), Some(&charter(1)));
+    crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+}
+
+#[test]
+fn save_settings_defaults_writes_the_forges_rows() {
+    let (mut domain, env) = root();
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(&mut domain, &env, &mut decision, connector::Ask::SaveSettingsDefaults { revision: Some(2) });
+    crate::route::route_into(&mut domain, &env, &mut decision);
+    let writes = committed_writes(&mut domain, &env, decision);
+    for (kind, number, value) in [(1, RULE, rule(true)), (3, 1, charter(2)), (3, 2, charter(4))] {
+        assert!(writes.contains(&Write::Save(Record::Forge {
+            row: Box::new(forge::Stored::Setting(settings::SettingRow {
+                key: settings::SettingKey { kind, scope: 0, number, slot: settings::SettingSlot::Default },
+                edit: settings::Edit::Set(value),
+            })),
+        })));
+    }
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(&mut domain, &env, &mut decision, connector::Ask::SaveSettingsDefaults { revision: None });
+    assert!(domain.work.is_empty(), "matching defaults need no further rows, even without a revision");
+    crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+}
+
+#[test]
+fn no_kinds_declared_sends_no_defaults() {
+    use jig_domain_core::start::Phase;
+    let (mut domain, _) = at_connector_restore(false);
+    assert!(domain.kinds_stock.is_none(), "undeclared stock is not retained");
+    crate::restart::restore_connector_done(&mut domain);
+    let Some(Work::StartDone(Phase::RestoreConnector { connector: 0 })) = domain.work.pop() else {
+        panic!("the forge restore completes after its defaults");
+    };
+    assert!(domain.work.is_empty(), "no SettingsDefaults precedes the restore completion");
+    assert!(domain.forge.setting(1, 0, RULE).is_none());
+}

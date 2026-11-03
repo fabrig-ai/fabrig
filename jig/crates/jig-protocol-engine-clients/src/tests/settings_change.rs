@@ -158,7 +158,10 @@ fn settings_answers_and_each_fault_keep_their_facts() {
                         w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
                     ),
                     p::Setting::Rules => w::Setting::Rules,
-                    p::Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
+                    p::Setting::Application { kind, scope, number } => w::Setting::Application(
+                        w::ApplicationSetting::new(&limits, w::ApplicationSettingParts { kind, scope, number })
+                            .expect("application setting")
+                    ),
                 }
             );
         }
@@ -343,4 +346,68 @@ fn a_changed_template_keeps_its_resources() {
     let translated = translate::settings::items(wire.into_parts().items, &models, &limits).unwrap();
     let s::Edit::Set(s::Value::Template(template)) = &translated[1].edit else { panic!("template") };
     assert_eq!(template.resources.as_ref(), &resources);
+}
+
+#[test]
+fn application_edits_round_trip_from_client_bytes_into_changes_and_proposals() {
+    use jig_client_domain::contract as c;
+    use jig_client_protocol_link::translate::settings as link;
+    let limits = f::wire();
+    let setting = c::Setting::Application { kind: 17, scope: 4, number: 9 };
+    for (edit, expected) in [
+        (
+            c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(Box::new([0, 255, 128, 7])) }),
+            s::Edit::Set(s::Value::Application(Box::new([0, 255, 128, 7]))),
+        ),
+        (c::SettingEdit::Removed, s::Edit::Removed),
+        (c::SettingEdit::Reset, s::Edit::Reset),
+    ] {
+        let mut items = List::with_capacity(1);
+        items.push(c::SettingItem { setting, edit }).unwrap();
+        let client = c::ChangeSettings { against: 5, running: c::Running::Stays, items };
+        let wire = link::wire_change_settings(&client, &limits).unwrap();
+        assert_eq!(link::restore_change_settings(&wire, &f::client_limits()), Ok(client));
+        let bytes = f::encode_ask(&w::Ask::ChangeSettings(wire));
+        let w::Ask::ChangeSettings(wire) = w::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap() else {
+            panic!("change")
+        };
+        let change = translate::settings::change(wire.clone(), &f::models(), &limits).unwrap();
+        let expected = s::Item { setting: s::Setting::Application { kind: 17, scope: 4, number: 9 }, edit: expected };
+        assert_eq!(change.items.as_ref(), ::core::slice::from_ref(&expected));
+        let parts = wire.into_parts();
+        let proposed = w::Propose::new(
+            &limits,
+            w::ProposeParts {
+                project: 0,
+                action: w::ProposeAction::Settings(
+                    w::ProposeSettings::new(&limits, w::ProposeSettingsParts { against: 5, items: parts.items })
+                        .unwrap(),
+                ),
+                reason: Box::from(b"review".as_slice()),
+            },
+        )
+        .unwrap();
+        let proposed = translate::settings::proposed(proposed, &f::models(), &limits).unwrap();
+        assert_eq!(proposed.items.as_ref(), &[expected]);
+        assert_eq!(proposed.reason.as_ref(), b"review");
+    }
+}
+
+#[test]
+fn a_judged_refusal_reaches_the_client_with_its_item_and_connector_words() {
+    use jig_client_domain::contract as c;
+    let limits = f::wire();
+    let reply = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::Judged {
+        at: 2,
+        setting: p::Setting::Application { kind: 7, scope: 4, number: 9 },
+        why: Box::from("requires approval λ".as_bytes()),
+    }));
+    let wire = translate::answers::answer(&reply, &f::models(), &limits).unwrap();
+    let answer = jig_client_protocol_link::translate::answers::answer(wire, &f::client_limits()).unwrap();
+    let c::Answer::Refused { refusal: c::Refusal::Judged { at, setting, why }, .. } = answer else {
+        panic!("judged refusal")
+    };
+    assert_eq!(at, 2);
+    assert_eq!(setting, c::Setting::Application { kind: 7, scope: 4, number: 9 });
+    assert_eq!(why.bytes(), "requires approval λ".as_bytes());
 }

@@ -28,7 +28,7 @@ All 30 released (needs in brackets):
   (`jig-test-connector` owns a kind); `apps-proposals` [change]; `apps-start` [proposals]
   (defaults at a start, the release's revision); `apps-store` [proposals] (settings-v1,
   people-v14, tasks-v9 in place); `apps-wire` [proposals] (client-v19 in place);
-  `apps-world` [connector, start, store] (the core world's story); `apps-proposal-key`
+  `apps-world` [connector, start, store, wire] (the core world's story); `apps-proposal-key`
   [proposals, store, wire] (a settings proposal's deployment-unique key, sent as C2's
   `proposal`: a revision of what `apps-proposals`, `apps-store` and `apps-wire` build).
 - kinds-forge: `kinds-values` [] (the forge's values of kinds 1 to 3, `ForgeCharters`, its

@@ -183,7 +183,10 @@ red by earlier failures it does not run (5.3).
   landing is cleared in every tier following the branch it landed on
   (at once, where no tier follows it: section 2); its branch's
   hold stays until then, and the branch is deleted as the task closes
-  (`forge.md`, 11), by queue and by turn alike.
+  (`forge.md`, 11), by queue and by turn alike. A goal's landing, a
+  change on its requester's held branch (`forge.md`, 8.1), holds none:
+  the goal's own branch stays the goal's, deleted as the goal closes
+  once this change has landed it.
 - **Its result is given at cleared,** naming the landing and, for a red
   one, the landing that repaired it. Its goal waits for it as for any
   delegate's result; a coordinator that goes on sooner does not wait,

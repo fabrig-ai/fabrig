@@ -79,3 +79,29 @@ role 0, owner: spend per period 415104; parties: party 1 owner; only the period 
 ### Triage reason
 
 project show's owner pool lacking reserved, spent and left balances is a budget read, not part of M8's tier story, and blocked nothing
+
+## finding-131: A chat's read_branches with prefix '' answers 'Forge read failed: empty' while the repository has main and temper/tier/slow.1
+
+- Rung: rm8
+- Walk: walk-53
+- Backend: chatgpt-forgejo
+- Commit: 8b15ca51842f5bb3295bbe94783161fa92e7e91b
+- Area: chat forge reads
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Walk-53 steps 1-5; chat show 2 after its first reply.
+
+### Expected
+
+The branch list, or words saying why none.
+
+### Seen
+
+call read_branches {repository: playground/widget, prefix: ''} -> 'Forge read failed: empty'; serve.log 'read refused ... tool=read_branches layer=forge-client reason=forge read failed error=Some(Empty)'.
+
+### Triage reason
+
+the chat's read_branches with an empty prefix fails with "Forge read failed: empty" instead of listing branches; the chat worked around it and nothing on the walk stalled

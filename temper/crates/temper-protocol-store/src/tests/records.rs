@@ -266,6 +266,28 @@ fn a_change_in_each_state_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_changes_role_choices_round_trip_with_or_without_models() {
+    use jig_domain_tasks::{LlmChoice, ModelEffort};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let producing = LlmChoice {
+        main: ModelEffort { model: 3, effort: Some(1) },
+        subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }, ModelEffort { model: 2, effort: None }]),
+        account: Some(17),
+    };
+    let review = LlmChoice {
+        main: ModelEffort { model: 4, effort: Some(2) },
+        subagents: Box::new([ModelEffort { model: 1, effort: None }, ModelEffort { model: 3, effort: Some(1) }]),
+        account: None,
+    };
+    for (producing_llm, review_llm) in [(None, None), (Some(producing), Some(review))] {
+        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: false });
+        row.producing_llm = producing_llm;
+        row.review_llm = review_llm;
+        let row = forge::Stored::Change(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+#[test]
 fn verifying_changes_keep_the_first_observation_at_wall_time_extremes() {
     use temper_engine_domain_forge_change::{Hold, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -753,9 +775,11 @@ fn every_application_outcome_preserves_its_complete_record() {
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row.clone()), "{row:?}");
         assert_eq!(bytes[2], 15, "the Application family tag");
     }
+    // Settings judgement words cannot occur in a forge application refusal.
+    let limits =
+        jig_protocol_store::people_v14::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v14::CEILINGS };
     assert!(
-        jig_protocol_store::people_v14::Refusal::encoded_bound(&jig_protocol_store::people_v14::CEILINGS)
-            .expect("bounded facts")
+        jig_protocol_store::people_v14::Refusal::encoded_bound(&limits).expect("bounded facts")
             <= u64::from(v11::CEILINGS.core_refused_refusal)
     );
 }

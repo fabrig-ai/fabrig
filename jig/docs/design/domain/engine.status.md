@@ -15,12 +15,7 @@
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle. 17.6: a
-  proposal naming a project's items waits for the deployment's owners alone. An
-  application's kinds in 17.7: jig's settings are closed
-  (`jig-domain-people/src/settings.rs`'s `Setting`,
-  `jig-domain-core/src/settings.rs`'s `Value`, settings-v1's `Setting`
-  and `Value`), so an application declares no kind of its own, and no
-  connector judges or keeps one.
+  proposal naming a project's items waits for the deployment's owners alone.
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a

@@ -237,6 +237,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
             now: Some(s::Value::Template(Box::new(template))),
             origin: Some((false, 1)),
             would_be: Some(s::Value::Template(Box::new(next))),
+            application: None,
         })
         .expect("item");
     let mut heads = skein_lib::List::with_capacity(1);

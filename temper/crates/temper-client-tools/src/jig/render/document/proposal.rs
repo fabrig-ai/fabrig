@@ -110,7 +110,7 @@ fn resolved<'a>(
             Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document))))
                 if document.setting == setting =>
             {
-                Ok(Some(&document.value))
+                Ok(document.value.as_ref())
             }
             Some(Readout::Jig(c::ReadResult::None(why))) => {
                 let reason: &[u8] = match why {
@@ -369,6 +369,7 @@ fn encode_review_value(value: &c::ReviewValue, setting: c::Setting, page: Option
                 c::SettingValue::Charter(_) => b"charter",
                 c::SettingValue::Template(_) => b"template",
                 c::SettingValue::Policy(_) => b"policy",
+                c::SettingValue::Application(_) => b"application",
                 c::SettingValue::Rules(_) => b"rules",
             });
             settings::encode_value(value, out);

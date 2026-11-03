@@ -502,6 +502,7 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
         w::Refusal::Stale(_) => unreachable!("forge applications cannot store a stale settings refusal"),
         // Forge application requests never enter settings' held-revision admission.
         w::Refusal::Full(_) => unreachable!("forge applications cannot store a full settings refusal"),
+        w::Refusal::Judged(_) => unreachable!("forge applications cannot store a judged settings refusal"),
         w::Refusal::SignInRedirect(_) => unreachable!("forge applications cannot finish an account sign-in"),
         w::Refusal::NameTaken => p::Refusal::NameTaken,
         w::Refusal::Account(value) => p::Refusal::Account {

@@ -20,6 +20,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         landings.insert(*key, value.clone()).expect("copied landing");
     }
     engine::Config {
+        kinds_stock: Box::default(),
         period_span: config.period_span,
         core: core::Config {
             jobs: c.jobs.clone(),
