@@ -47,12 +47,26 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             }
             temper_engine_domain_forge::How::GitHubManifest { .. } => unreachable!("manifest has its own door"),
             temper_engine_domain_forge::How::ForgejoTokens => {
-                unreachable!("a tokens connect is refused at admission until the routing stages Check")
+                // check-connect stages the tokens connect's Check run.
+                engine.events.push(root::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
+                    forge,
+                    request,
+                    answer: temper_engine_domain_forge::ConnectAnswer::Refused(
+                        temper_engine_domain_forge::ForgeRefusal::NotTaken,
+                    ),
+                })));
             }
         },
 
-        root::Request::Replace { .. } => {
-            unreachable!("a Replace is refused at admission until the routing stages Check and Paste")
+        root::Request::Replace { forge, request, carried: _ } => {
+            // replace-run stages the replacement's Check or Paste run.
+            engine.events.push(root::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
+                forge,
+                request,
+                answer: temper_engine_domain_forge::ConnectAnswer::Refused(
+                    temper_engine_domain_forge::ForgeRefusal::NotTaken,
+                ),
+            })));
         }
         root::Request::Manifest { forge, request, back } => {
             crate::setup::public::manifest(engine, forge, request, back);
