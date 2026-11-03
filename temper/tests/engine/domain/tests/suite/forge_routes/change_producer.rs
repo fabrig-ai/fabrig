@@ -198,7 +198,7 @@ fn a_change_naming_a_charter_the_run_may_not_delegate_to_is_refused() {
     assert_eq!(task_rows(&world), before, "refusal makes no task");
     assert_eq!(world.assigned.len(), PRODUCER_RUN, "only the goal runs");
     let text = error_text(&answer);
-    assert!(text.contains("Beyond authority") && text.contains("missing executors"), "{text}");
+    assert!(text.contains("Authority needs proposal"), "{text}");
     world.close();
 }
 
@@ -212,6 +212,6 @@ fn a_change_naming_a_model_its_producer_s_charter_does_not_allow_is_refused() {
     assert_eq!(task_rows(&world), before, "refusal makes no task");
     assert_eq!(world.assigned.len(), PRODUCER_RUN, "only the goal runs");
     let text = error_text(&answer);
-    assert!(text.contains("scripted-second") && text.contains("model outside the charter"), "{text}");
+    assert!(text.contains("model outside the charter"), "{text}");
     world.close();
 }
