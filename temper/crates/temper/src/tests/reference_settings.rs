@@ -9,9 +9,10 @@ const COORDINATOR: u32 = 5;
 const DESIGNER: u32 = 7;
 const CODER: u32 = 2;
 const FOREMAN: u32 = 6;
+const TRIAGE: u32 = 8;
 const GOAL: u32 = 4;
-// The reference supplies four charters, one template and two landing rules.
-const ITEMS: u32 = 7;
+// The reference supplies five charters, one template and two landing rules.
+const ITEMS: u32 = 8;
 // temper-init/template/agent.json's profile.policy.max_turns.
 const TURNS: u32 = 16;
 
@@ -52,6 +53,7 @@ fn the_reference_settings_file_decodes() {
         (DESIGNER, b"claude-opus-5-5".as_slice()),
         (CODER, b"gpt-6.1-sol".as_slice()),
         (FOREMAN, b"gpt-6.1-sol".as_slice()),
+        (TRIAGE, b"gpt-6.1-sol".as_slice()),
     ] {
         let SettingValue::Charter(charter) = value(&items, Setting::Charter(SettingNumber { number })) else {
             panic!("reference charter")
@@ -88,6 +90,8 @@ fn the_reference_settings_file_decodes() {
         std::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions are UTF-8");
     assert!(instructions.contains(r#""branch": "mine""#));
     assert!(instructions.contains(r#""questions": "foreman""#));
+    assert!(instructions.contains(r#""questions": "up""#));
+    assert!(instructions.contains("delegate its triage to charter 8"));
     assert!(instructions.contains("decide"));
     assert!(instructions.contains(r#""repairs""#));
     assert!(instructions.contains("a red of your goal branch's tier"));
@@ -154,6 +158,21 @@ fn the_reference_settings_file_decodes() {
     assert!(!foreman.shell());
     assert!(!foreman.agents());
     assert!(foreman.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/foreman.txt")));
+    let SettingValue::Charter(triage) = value(&items, Setting::Charter(SettingNumber { number: TRIAGE })) else {
+        panic!("triage charter")
+    };
+    assert!(triage.inspect());
+    assert!(!triage.modify());
+    assert!(!triage.shell());
+    assert!(!triage.agents());
+    assert_eq!(triage.model, foreman.model);
+    assert_eq!(triage.reserve_turns, foreman.reserve_turns);
+    assert_eq!(triage.reserve_time, foreman.reserve_time);
+    assert_eq!(triage.call_timeout, foreman.call_timeout);
+    assert_eq!(triage.spend, foreman.spend);
+    assert_eq!(triage.wake, WakePolicy::DEFAULT);
+    assert!(triage.documents.is_empty());
+    assert!(bytes::find(triage.instructions.bytes(), b"You never edit, push or run anything.").is_some());
     assert!(
         core::str::from_utf8(coder.instructions.bytes())
             .expect("coding instructions")
