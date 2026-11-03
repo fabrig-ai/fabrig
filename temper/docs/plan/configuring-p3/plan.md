@@ -8,7 +8,7 @@ brought up to date with each.
 
 | Part | Slice | Design | Tasks |
 |---|---|---|---|
-| `charter-tools` | 1 | jig's `domain/engine.md` 7.1; temper's `domain/agent.md` 4.3 | `tools-surface` (batch 1); the formats and the offer follow |
+| `charter-tools` | 1 | jig's `domain/engine.md` 7.1; temper's `domain/agent.md` 4.3 | `tools-surface` (batch 1); `tools-offered`, `tools-store`, `tools-client` (batch 2) |
 
 Still to come (batch 2 on): the brief's room checked at a start and at a change's entrances
 (`domain/agent.md` 4.3); charter 3 and template 3 in the stock with the settings family in
@@ -35,10 +35,25 @@ reference pages `limits`, `configuration` and `configuration-engine`
   families stay declared as today (`protocol/configuration.status.md` keeps its 13.4 entry for
   them).
 
+## Batches
+
+1. `tools-surface` (interface, 60): `RunPolicy.tools`, every literal and decoder filling
+   `EVERY_FAMILY`; no byte moves.
+2. `tools-offered` (45; needs `tools-surface`): temper-engine-smith offers the settings
+   family only where the charter's mask and the authority hold it; `tools-store` (60; needs
+   `tools-surface`): settings-v1's `RunPolicy` keeps it, in place; `tools-client` (150; needs
+   `tools-surface`, `tools-store`): client-v19's charter, jig's client crates, temper's
+   settings form, `FIELDS` and the `settings-fields` page; it closes jig's 7.1 status entry,
+   which is why it waits for `tools-store`.
+
+The surveys found that neither the worker wire nor the tasks family carries a `RunPolicy`:
+the engine picks a run's host tools before it encodes smith's charter
+(`temper-service/src/assignment.rs`), and a task keeps its charter's number and revision.
+
 ## Critical path (as it stands)
 
-`tools-surface` (60) -> the formats (store, worker side, client wire) and the offer -> the
-stock's charter 3 -> the agent's stories -> the walk.
+`tools-surface` (60) -> `tools-offered` (45) -> the stock's charter 3 -> the agent's stories
+-> the walk. `tools-store` -> `tools-client` (210) runs beside it.
 
 ## Overlaps with other plans
 
