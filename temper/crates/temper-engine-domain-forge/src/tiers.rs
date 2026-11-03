@@ -856,7 +856,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
         )
     };
     let p::Next::Judged(verdict) = next else { unreachable!("saved final observation judges the committed part") };
-    let words = verdict_words(&row.tier, &verdict);
+    let words = verdict_words(d, row, &verdict, &run.landings);
     crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
     row.record = p::judged(
         &row.record,
@@ -1638,45 +1638,130 @@ fn observation(
     }
 }
 
-fn verdict_words(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
-    let count = u64::try_from(verdict.landings.len()).expect("bounded range");
-    match &verdict.failing {
-        p::Failures::Tests(tests) if tests.is_empty() => joined(&[
-            b"Tier ",
-            tier,
-            b" run ",
-            skein_lib::Decimal::of(verdict.number).as_bytes(),
-            b": green, cleared ",
-            skein_lib::Decimal::of(count).as_bytes(),
-            b" landings",
-        ]),
-        failing @ (p::Failures::Tests(_) | p::Failures::Many) => {
-            let failures = match failing {
-                p::Failures::Tests(tests) => {
-                    skein_lib::Decimal::of(u64::try_from(tests.len()).expect("bounded tests")).as_bytes().into()
-                }
-                p::Failures::Many => Box::from(b"many".as_slice()),
-            };
-            let mut blamed = 0_u64;
-            for blame in &verdict.landings {
-                if *blame != p::Blame::Cleared {
-                    blamed = blamed.checked_add(1).expect("bounded range");
+fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p::Landing]) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    parts.push(verdict_summary(&row.tier, verdict)).expect("verdict words");
+    for (at, blame) in verdict.landings.iter().enumerate() {
+        let (kind, failures) = match blame {
+            p::Blame::Cleared => continue,
+            p::Blame::Owns(failures) => (b" owns: ".as_slice(), failures),
+            p::Blame::Suspect(failures) => (b" suspected of: ".as_slice(), failures),
+        };
+        let landing = landings.get(at).expect("one verdict per landing");
+        let continuation = landing_read(d, row.repository, landing.commit);
+        let prefix = joined(&[b"\n", &crate::commit_text(&landing.commit), kind]);
+        match failures {
+            p::Failures::Many => {
+                parts.push(joined(&[&prefix, b"many tests", &continuation])).expect("verdict words");
+            }
+            p::Failures::Tests(tests) => {
+                for test in tests {
+                    parts.push(joined(&[&prefix, &report_id(test), &continuation])).expect("verdict words");
                 }
             }
-            joined(&[
-                b"Tier ",
-                tier,
-                b" run ",
-                skein_lib::Decimal::of(verdict.number).as_bytes(),
-                b": red, ",
-                &failures,
-                b" tests failing, blamed on ",
-                skein_lib::Decimal::of(blamed).as_bytes(),
-                b" landings",
-            ])
         }
     }
+    let mut words = List::uncapped();
+    for part in parts.as_slice() {
+        for byte in part {
+            words.push(*byte).expect("verdict words");
+        }
+    }
+    words.into_boxed()
 }
+
+fn landing_read(d: &Domain, repository: Repository, commit: Commit) -> Box<[u8]> {
+    if let Some(verification) = d.verifications.get(&(repository, commit))
+        && let Some(change) = verification.changes.first()
+    {
+        joined(&[b"; change show ", skein_lib::Decimal::of(*change).as_bytes()])
+    } else {
+        Box::new([])
+    }
+}
+
+// One complete attribution per line lets the task shell fit its report without cutting an ID.
+fn report_id(test: &[u8]) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    words.push(b'"').expect("opening quote");
+    for byte in test {
+        let escaped: &[u8] = match byte {
+            b'\n' => b"\\n",
+            b'\r' => b"\\r",
+            b'\\' => b"\\\\",
+            b'"' => b"\\\"",
+            _ => core::slice::from_ref(byte),
+        };
+        for byte in escaped {
+            words.push(*byte).expect("test id words");
+        }
+    }
+    words.push(b'"').expect("closing quote");
+    words.into_boxed()
+}
+
+fn verdict_summary(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
+    let count = u64::try_from(verdict.landings.len()).expect("bounded range");
+    let prefix = joined(&[b"Tier ", tier, b" run ", skein_lib::Decimal::of(verdict.number).as_bytes()]);
+    if let p::Failures::Tests(tests) = &verdict.failing
+        && tests.is_empty()
+    {
+        return joined(&[&prefix, b": green, cleared ", &count_words(count, b" landing", b" landings")]);
+    }
+    let mut blamed = 0_u64;
+    for blame in &verdict.landings {
+        if *blame != p::Blame::Cleared {
+            blamed = blamed.checked_add(1).expect("bounded range");
+        }
+    }
+    let failures = match &verdict.failing {
+        p::Failures::Tests(tests) => {
+            count_words(u64::try_from(tests.len()).expect("bounded tests"), b" test", b" tests")
+        }
+        p::Failures::Many => Box::from(b"many tests".as_slice()),
+    };
+    let mut words = joined(&[
+        &prefix,
+        b": red, ",
+        &failures,
+        b" failing, blamed on ",
+        &count_words(blamed, b" landing", b" landings"),
+    ]);
+    let inherited = inherited_tests(verdict);
+    if inherited > 0 {
+        words = joined(&[&words, b"; ", &count_words(inherited, b" inherited test", b" inherited tests")]);
+    }
+    words
+}
+
+fn count_words(count: u64, singular: &[u8], plural: &[u8]) -> Box<[u8]> {
+    joined(&[skein_lib::Decimal::of(count).as_bytes(), if count == 1 { singular } else { plural }])
+}
+
+fn inherited_tests(verdict: &p::Verdict) -> u64 {
+    let p::Failures::Tests(tests) = &verdict.failing else { return 0 };
+    let mut count = 0_u64;
+    for test in tests {
+        let mut owned = false;
+        for blame in &verdict.landings {
+            match blame {
+                p::Blame::Owns(p::Failures::Many) | p::Blame::Suspect(p::Failures::Many) => owned = true,
+                p::Blame::Owns(p::Failures::Tests(ids)) | p::Blame::Suspect(p::Failures::Tests(ids)) => {
+                    owned |= ids.contains(test);
+                }
+                p::Blame::Cleared => {}
+            }
+        }
+        if !owned {
+            count = count.checked_add(1).expect("bounded tests");
+        }
+    }
+    count
+}
+
+#[cfg(test)]
+#[path = "tests/tiers/verdict.rs"]
+mod verdict_tests;
 
 fn cancelled(d: &mut Domain, row: &mut TierRow, task: u64, out: &mut Queue<Request>) {
     row.record.run = None;
