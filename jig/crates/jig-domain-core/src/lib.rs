@@ -17,6 +17,7 @@ mod funding;
 mod inbox;
 mod limits;
 mod numbers;
+pub mod public;
 pub mod reads;
 mod routing;
 pub mod runs;
@@ -67,6 +68,10 @@ pub use crate::{
         brief_holds_documents, charter_owned_bytes, policy_owned_bytes, valid,
     },
     numbers::{Counters, Deployment, Family, fresh},
+    public::{
+        PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicCounts, PublicDocument, PublicExecutor,
+        PublicGoal, PublicHold, PublicLine, PublicPhase, PublicProjects, PublicRead,
+    },
     reads::{SettingsAnswer, SettingsRead},
     routing::{
         fire, resume_fleet,

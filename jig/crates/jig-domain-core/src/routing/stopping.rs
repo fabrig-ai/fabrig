@@ -96,6 +96,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::Marked { .. }
         | Event::ReadLoaded { .. }
         | Event::Read { .. }
+        | Event::PublicRead { .. }
+        | Event::PublicAnswered { .. }
         | Event::ApplicationPart { .. }
         | Event::ApplicationFinished { .. }
         | Event::ProjectionSettled { .. }

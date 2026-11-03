@@ -223,6 +223,7 @@ impl World {
             | root::Delivery::Link { .. }
             | root::Delivery::Core(
                 core::Held::Delivery { .. }
+                | core::Held::PublicRead { .. }
                 | core::Held::SettledCall { .. }
                 | core::Held::Assign { .. }
                 | core::Held::Inbound { .. }
