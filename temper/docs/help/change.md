@@ -13,7 +13,9 @@ A change is a task that writes one repository's branch and lands it: its pull re
   With the control family, a run names, too, `landing` (`goal`, a
   branch, or the default), `branch` (`mine`: its goal branch, landed
   whole), `after` (what it waits for: task numbers, or names from the
-  same call) and `changes` (several at once, all or none).
+  same call),
+  `changes` (several at once, all or none) and `merge` (a catch-up's
+  commit).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·
@@ -55,9 +57,8 @@ Its steps, as `step:` prints them:
 - `first`: at the front, temper checks CI and the blocking gates again;
 - `updating`: a branch behind its landing branch is updated by the
   forge, which merges the base in, where its rules ask up to date;
-  else a conflicting change is held, saying so;
-- `resolving`: an agent resolves a conflict with the base and pushes
-  the merge commit;
+- `resolving`: the merge job, then an agent, settles a conflict with
+  the base and pushes the merge commit;
 - `repairing`: an agent repairs it, after CI failed at its head (a
   review still running there is cancelled first), a gate asked for
   changes, or the base broke it, its brief naming its pull request
