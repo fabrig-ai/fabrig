@@ -210,6 +210,16 @@ pub(super) fn propose(
     };
     reply
 }
+pub(super) fn restore(world: &mut World, signed: u64, key: u8, revision: u32, reason: &[u8]) -> people::Reply {
+    ask(world, signed, key, people::Ask::Restore { revision, reason: reason.into() })
+}
+pub(super) fn restored(reply: &people::Reply) -> (u64, Box<[settings::Setting]>) {
+    let people::Reply::Outcome(people::Outcome::Restored { proposal, to, left_out }) = reply else {
+        panic!("restored: {reply:?}")
+    };
+    assert_eq!(*to, people::Role::Owner.number());
+    (*proposal, left_out.clone())
+}
 pub(super) fn proposed(reply: &people::Reply) -> u64 {
     let people::Reply::Outcome(people::Outcome::Proposed { proposal, to }) = reply else {
         panic!("proposed: {reply:?}")

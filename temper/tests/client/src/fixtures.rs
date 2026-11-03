@@ -1329,3 +1329,9 @@ pub fn finish_chat(front: &mut Joint, task: u64, spent: u64) {
     );
     front.engine.settle();
 }
+
+/// Temper's kinds configured as in the domain world's settings stories.
+#[must_use]
+pub fn kinds_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, Joint::with_kinds(seed, domain_limits()))
+}
