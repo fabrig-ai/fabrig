@@ -219,6 +219,7 @@ p { margin: 0; }
 .doc-sec.flash { animation: flash 1.8s ease-out; }
 @keyframes flash { 0% { background: #fde7cf; } 100% { background: var(--signal-pale); } }
 .doc-empty { color: var(--muted); }
+.doc-foot { position: sticky; bottom: 0; max-width: 640px; margin: 32px auto 0; padding: 16px 0 4px; background: linear-gradient(rgba(255, 255, 255, 0), var(--surface) 28%); }
 
 /* Start a goal. */
 dialog.sheet { width: min(620px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 0; border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); }
@@ -325,7 +326,6 @@ html.framed .mock-fab, html.framed .mock-panel { display: none !important; }
   .seg .split { display: none; }
   .session[data-mode=split] { grid-template-columns: minmax(0, 1fr); }
   .session[data-mode=split] .doc { display: none; }
-  .session-top .right .btn:not(.primary) { display: none; }
   .session-top .right .byline, .session-app ~ .mock-fab, .session-app ~ .mock-panel { display: none; }
   .thread { padding: 20px 16px; }
   .convo-foot { padding: 8px 12px 14px; }

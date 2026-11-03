@@ -189,7 +189,7 @@ window.MOCK = {
           ],
         },
         {
-          id: 'T3', title: 'Pane chat line', status: 'handed to a goal', goal: 'pane-chat-line', live: false, when: '9 h',
+          id: 'T3', title: 'Pane chat line', status: 'closed', goal: 'pane-chat-line', live: false, when: '9 h',
           model: 'ChatGPT, through your plan · GPT-5',
           thread: [
             { who: 'you', text: 'The chats in the side pane lost their layout: title, time and status run together.' },
@@ -199,7 +199,7 @@ window.MOCK = {
           replies: ['It landed at 01:12; the goal has the details.'],
         },
         {
-          id: 'T2', title: 'Welcome stall', status: 'handed to a goal', goal: 'welcome-stall', live: false, when: '14 h',
+          id: 'T2', title: 'Welcome stall', status: 'closed', goal: 'welcome-stall', live: false, when: '14 h',
           model: 'Claude, through your subscription · Opus',
           thread: [
             { who: 'you', text: 'The welcome stops at “Making Default…”. Find out why, then fix it with a box test.' },
@@ -233,8 +233,20 @@ window.MOCK = {
           changed: 'kinds',
           openQuestion: { short: 'How long can a decision be overturned after it landed?', question: 'The draft leaves one question open: how long can a decision be overturned once its change has landed?', choices: [{ label: 'Until it lands, then only by a new goal', rec: true }, { label: 'For 24 hours, by reverting' }] },
         },
-        { id: 'first-run-projects.md', goal: 'first-run-projects', status: 'goal running', updated: 'Mon', path: 'docs/design/draft/first-run-projects.md' },
-        { id: 'forge-cards.md', goal: 'forge-cards', status: 'goal running', updated: '04:00', path: 'docs/design/draft/forge-cards.md' },
+        {
+          id: 'first-run-projects.md', goal: 'first-run-projects', status: 'goal running', updated: 'Mon', path: 'docs/design/draft/first-run-projects.md',
+          doc: [
+            { id: 'top', html: '<h1>First run: projects</h1><p class="doc-muted">Draft, 2026-11-02, with the user. Landed as the goal first-run-projects.</p>' },
+            { id: 'one', html: '<h2>1. In one page</h2><ul><li>The welcome makes a Default project; the playground has its own.</li><li>A project page with no repository yet says so, and offers to create one.</li><li>Project records carry a policy, kept in jig’s store.</li></ul>' },
+          ],
+        },
+        {
+          id: 'forge-cards.md', goal: 'forge-cards', status: 'goal running', updated: '04:00', path: 'docs/design/draft/forge-cards.md',
+          doc: [
+            { id: 'top', html: '<h1>Forge cards</h1><p class="doc-muted">Draft, 2026-11-03, with the user.</p>' },
+            { id: 'one', html: '<h2>1. In one page</h2><ul><li>The welcome’s Forge step is two cards: GitHub, and Forgejo.</li><li>Forgejo runs on this machine at once, or connects to a deployment (a help link).</li></ul>' },
+          ],
+        },
         {
           id: 'dashboards.md', status: 'idea', updated: 'Oct 28', path: 'docs/design/draft/dashboards.md',
           doc: [

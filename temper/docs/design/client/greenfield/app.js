@@ -3,7 +3,7 @@
 // in step. Nothing is sent anywhere.
 (() => {
   const M = window.MOCK;
-  const KEY = 'temper-greenfield-v1';
+  const KEY = 'temper-greenfield-v2';
   const PLAN_MS = 5000;
   const framed = window.top !== window;
   if (framed) document.documentElement.classList.add('framed');
@@ -77,6 +77,7 @@
     const words = { running: 'running', planning: 'planning', landed: g.ended ? `landed ${g.ended}` : 'landed', stopped: 'stopped' };
     return [g.state, words[g.state] || g.state];
   }
+  const slug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 28).replace(/^-+|-+$/g, '') || 'untitled';
   const wayName = id => (P().ways.find(w => w.id === id) || { name: id }).name;
   const needSentence = (n, still) => n === 0 ? (still ? 'Nothing else needs you.' : 'Nothing needs you.') : n === 1 ? (still ? 'One thing still needs you.' : 'One thing needs you.') : `${NUM[n] || n} things ${still ? 'still need' : 'need'} you.`;
 
@@ -175,7 +176,6 @@
       ['home', 'home.html', 'Home'],
       ['needs', 'needs.html', 'Needs you', n],
       pt.goals && ['goals', 'goals.html', 'Goals'],
-      pt.drafts && ['drafts', 'drafts.html', 'Drafts'],
       ['chats', 'chats.html', 'Chats'],
       pt.changes && ['changes', 'changes.html', 'Changes'],
     ].filter(Boolean);
@@ -186,7 +186,7 @@
       <a class="brand" href="home.html">temper</a>
       ${switcher()}
       <div class="nav">${navItems().map(([k, h, l, n]) => `<a href="${h}"${k === active ? ' aria-current="page"' : ''}><span>${l}</span>${n ? `<span class="count">${n}</span>` : ''}</a>`).join('')}</div>
-      ${pt.drafts ? '<a class="new" href="chat.html?id=new&amp;draft=1">+ New draft</a>' : '<a class="new" href="chat.html?id=new">+ New chat</a>'}
+      <a class="new" href="chat.html?id=new">+ New chat</a>
       <div class="rail-foot">
         ${pt.away ? `<button type="button" class="away" role="switch" aria-checked="${awayOn()}" data-away><span>${awayOn() ? `Away until ${esc(P().awayUntil)}` : 'Away'}</span><i></i></button>` : ''}
         <a href="settings.html"${active === 'settings' ? ' aria-current="page"' : ''}>Settings</a>
@@ -275,7 +275,7 @@
       </section>` : `<section class="section" aria-labelledby="chats">
         <div class="section-head"><h2 class="section-title" id="chats">Chats</h2><a class="link" href="chats.html">All ${chats().length}</a></div>
         <div class="lines">${chats().slice(0, 4).map(c => `<a href="chat.html?id=${encodeURIComponent(c.id)}"><span>${esc(c.title)}</span><span class="when">${esc(c.status)} · ${esc(c.when)}</span></a>`).join('')}</div>
-        <p class="facts">A chat suits one change. For bigger work, a draft written with a chat becomes a goal: a plan, its tasks, landing. <a class="link" href="settings.html">Turn on drafts and goals</a></p>
+        <p class="facts">A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing. <a class="link" href="settings.html">Turn on drafts and goals</a></p>
       </section>`}
       <p class="facts">Landing: ${esc(p.landing.line)}${pt.changes ? ' · <a class="link" href="changes.html">Changes</a>' : ''}</p>
     </div>`);
@@ -320,7 +320,7 @@
     return frame('goals', `<div class="col">
       <header class="intro"><p class="kicker">${esc(P().name)} · goals</p><h1 class="headline">${all.length} goals, ${all.filter(pick.running).length + all.filter(pick.needs).length} under way.</h1>
       <p class="lede">A goal turns a draft into landed work, its own way: ${esc(P().ways.map(w => w.name.toLowerCase()).join(', '))}.</p></header>
-      <section class="section"><div class="section-head"><div class="filters">${fb('all', 'All')}${fb('needs', 'Needs you')}${fb('running', 'Under way')}${fb('ended', 'Ended')}</div>${parts().drafts ? '<a class="link" href="drafts.html">Start one from a draft</a>' : ''}</div>
+      <section class="section"><div class="section-head"><div class="filters">${fb('all', 'All')}${fb('needs', 'Needs you')}${fb('running', 'Under way')}${fb('ended', 'Ended')}</div>${parts().drafts ? '<a class="link" href="chats.html?f=drafts">Start one from a draft</a>' : ''}</div>
       ${shown.length ? `<div class="goal-rows">${shown.map(goalRow).join('')}</div>` : '<p class="empty">None.</p>'}</section>
     </div>`);
   }
@@ -371,32 +371,35 @@
   }
   function draftHref(id) {
     const d = drafts().find(x => x.id === id);
-    if (!d) return 'drafts.html';
-    return d.chat ? `chat.html?id=${encodeURIComponent(d.chat)}` : d.doc ? `chat.html?draft=${encodeURIComponent(d.id)}` : 'drafts.html';
+    if (!d) return 'chats.html';
+    return d.chat ? `chat.html?id=${encodeURIComponent(d.chat)}` : d.doc ? `chat.html?draft=${encodeURIComponent(d.id)}` : 'chats.html';
   }
 
-  function draftsPage() {
-    const ds = drafts();
-    return frame('drafts', `<div class="col">
-      <header class="intro"><p class="kicker">${esc(P().name)} · drafts</p><h1 class="headline">Write it down with an agent, then start a goal from it.</h1>
-      <p class="lede">Drafts live in the repository, in <span class="mono" style="font-size:14px">docs/design/draft/</span>, and travel with the code.</p></header>
-      <section class="section"><div class="section-head"><h2 class="section-title">Drafts · ${ds.length}</h2><a class="btn small" href="chat.html?id=new&amp;draft=1">+ New draft</a></div>
-      <div class="goal-rows">${ds.map(d => {
-        const href = d.goal ? `goal.html?g=${encodeURIComponent(d.goal)}` : draftHref(d.id);
-        const st = d.goal ? `<span class="state-running">goal ${esc(d.goal)}</span>` : d.chat ? `<span class="state-needs">${esc(d.status)} with ${esc(d.chat)}</span>` : esc(d.status);
-        return `<a class="goal-row" href="${href}"><span class="top mono"><span>${esc(d.path)}</span><span>${st}</span></span><span class="line">${esc(d.id.replace(/\.md$/, '').replace(/-/g, ' '))}</span><span class="byline">updated ${esc(d.updated)}</span></a>`;
-      }).join('') || '<p class="empty">No drafts yet.</p>'}</div></section>
-    </div>`);
-  }
-
+  // Chats: every conversation, each saying what it made, and the drafts
+  // no chat has taken up yet.
   function chatsPage() {
+    const pt = parts();
+    if (params.get('f')) S.chatFilter = params.get('f');
+    if (!pt.drafts && S.chatFilter === 'drafts') S.chatFilter = 'all';
     const f = S.chatFilter;
-    const cs = chats().filter(c => f === 'all' || (f === 'live' ? c.live : !c.live));
+    const ds = pt.drafts ? drafts() : [];
+    const writes = c => !!(c.writes && pt.drafts);
+    const cs = chats().filter(c => f === 'all' || (f === 'live' ? c.live : f === 'drafts' ? writes(c) : !c.live));
+    const loose = ds.filter(d => !d.chat && (f === 'all' || f === 'drafts'));
     const fb = (k, l) => `<button type="button" aria-pressed="${f === k}" data-chat-filter="${k}">${l}</button>`;
+    const title = d => { const t = d.id.replace(/\.md$/, '').replace(/-/g, ' '); return t[0].toUpperCase() + t.slice(1); };
+    const chatRow = c => {
+      const d = writes(c) && ds.find(x => x.id === c.writes);
+      const made = writes(c) ? `writes ${c.writes}${d && d.goal ? ` · started goal ${d.goal}` : ''}` : c.goal ? `started goal ${c.goal}` : '';
+      const st = /waiting/.test(c.status) ? `<span class="state-needs">${esc(c.status)}</span>` : esc(c.status);
+      return `<a class="goal-row${c.live ? '' : ' ended'}" href="chat.html?id=${encodeURIComponent(c.id)}"><span class="top mono"><span>${esc(c.id)}${made ? ` · ${esc(made)}` : ''}</span><span>${st} · ${esc(c.when)}</span></span><span class="line">${esc(c.title)}</span></a>`;
+    };
+    const draftRow = d => `<a class="goal-row" href="chat.html?draft=${encodeURIComponent(d.id)}"><span class="top mono"><span>${esc(d.path)}</span><span>${d.goal ? `started goal ${esc(d.goal)}` : 'draft, not discussed'} · ${esc(d.updated)}</span></span><span class="line">${esc(title(d))}</span></a>`;
     return frame('chats', `<div class="col">
-      <header class="intro"><p class="kicker">${esc(P().name)} · chats</p><h1 class="headline">Talk to an agent about ${esc(P().repo)}.</h1></header>
-      <section class="section"><div class="section-head"><div class="filters">${fb('all', 'All')}${fb('live', 'Live')}${fb('closed', 'Closed')}</div><a class="btn small" href="chat.html?id=new">+ New chat</a></div>
-      <div class="lines">${cs.map(c => `<a href="chat.html?id=${encodeURIComponent(c.id)}"><span>${esc(c.title)} <span class="mono">${esc(c.id)}</span></span><span class="when">${c.status === 'waiting on you' || c.status === 'waiting on your words' ? `<span class="state-needs">${esc(c.status)}</span>` : esc(c.status)} · ${esc(c.when)}</span></a>`).join('') || '<p class="empty">None.</p>'}</div></section>
+      <header class="intro"><p class="kicker">${esc(P().name)} · chats</p><h1 class="headline">Talk to an agent about ${esc(P().repo)}.</h1>
+      <p class="lede">A chat answers a question or changes the code${pt.drafts ? ', and can write a draft beside it' : ''}${pt.goals ? '. A draft becomes a goal for bigger work' : ''}.</p></header>
+      <section class="section"><div class="section-head"><div class="filters">${fb('all', 'All')}${fb('live', 'Live')}${pt.drafts ? fb('drafts', 'Drafts') : ''}${fb('closed', 'Closed')}</div><a class="btn small" href="chat.html?id=new">+ New chat</a></div>
+      ${cs.length || loose.length ? `<div class="goal-rows">${cs.map(chatRow).join('')}${loose.map(draftRow).join('')}</div>` : '<p class="empty">None.</p>'}</section>
     </div>`);
   }
 
@@ -412,7 +415,7 @@
 
   function settingsPage() {
     const pt = parts();
-    const sw = (k, label, small) => `<div class="setting"><div><span>${label}</span><small>${small}</small></div><label class="toggle-row"><span>${pt[k] ? 'Shown' : 'Hidden'}</span><input type="checkbox" class="switch" data-part="${k}"${pt[k] ? ' checked' : ''} aria-label="${label}"></label></div>`;
+    const sw = (k, label, small, on = 'Shown', off = 'Hidden') => `<div class="setting"><div><span>${label}</span><small>${small}</small></div><label class="toggle-row"><span>${pt[k] ? on : off}</span><input type="checkbox" class="switch" data-part="${k}"${pt[k] ? ' checked' : ''} aria-label="${label}"></label></div>`;
     const sel = (k, label, small, opts) => `<div class="setting"><div><label for="s-${k}">${label}</label>${small ? `<small>${small}</small>` : ''}</div><select id="s-${k}" data-set="${k}">${opts.map(o => `<option${setting(k, opts[0]) === o ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
     const kinds = setting('kinds', { impl: true, retry: true, words: true, deps: false });
     const kind = (k, l) => `<label><input type="checkbox" data-kind="${k}"${kinds[k] ? ' checked' : ''}> ${l}</label>`;
@@ -422,7 +425,7 @@
       <nav class="tabs" aria-label="Settings"><a href="#" aria-current="page">How work runs</a><a href="#" data-later-note="Repositories: ${esc(P().repo)} on ${esc(P().forge)}.">Repositories</a><a href="#" data-later-note="Forges: not drawn in this experiment.">Forges</a><a href="#" data-later-note="Accounts: not drawn in this experiment.">Accounts</a><a href="#" data-later-note="Builders: a separate app; temper only names which to use.">Builders</a></nav>
       <div class="settings">
         <section class="section" style="gap:0"><h2 class="section-title" style="margin-bottom:6px">What the project shows</h2>
-          ${sw('drafts', 'Drafts', 'Documents you write with a chat, before any work starts.')}
+          ${sw('drafts', 'Chats can write drafts', 'A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.', 'On', 'Off')}
           ${sw('goals', 'Goals', 'Bigger work from a draft: a plan, tasks, landing.')}
           ${sw('changes', 'Changes', 'The landing queue, as a page.')}
           ${sw('away', 'Away switch', 'Lets agents decide within limits while you’re away.')}
@@ -457,33 +460,34 @@
     const p = P();
     let c;
     const id = params.get('id');
-    const draftId = params.get('draft');
-    if (id === 'new') c = { id: null, title: params.get('draft') ? 'New draft' : 'New chat', status: 'new', thread: [], replies: ['Here’s a first outline; it’s in the draft beside us.', 'Done; the change is highlighted in the draft.', 'Noted, it’s in.'], writes: params.get('draft') ? 'untitled.md' : null, model: 'Claude, through your subscription · Opus', fresh: true };
+    const pt = parts();
+    const draftId = id === 'new' ? null : params.get('draft');
+    if (id === 'new') c = { id: null, title: 'New chat', status: 'new', thread: [], replies: ['Here’s a first outline; it’s in the draft beside us.', 'Done; the change is highlighted in the draft.', 'Noted, it’s in.'], writes: pt.drafts && params.get('draft') ? 'untitled.md' : null, model: 'Claude, through your subscription · Opus', fresh: true };
     else if (draftId) { const d = drafts().find(x => x.id === draftId); c = { id: null, title: d.id, status: 'new', thread: [], replies: ['Read it. What would you like to change first?', 'Done; the change is highlighted in the draft.'], writes: d.id, model: 'Claude, through your subscription · Opus', fresh: true }; }
     else c = chat(id) || chats()[0];
-    const d = c.writes ? (drafts().find(x => x.id === c.writes) || { id: c.writes, path: `docs/design/draft/${c.writes}`, status: 'writing', updated: 'not yet' }) : null;
+    const d = c.writes && pt.drafts ? (drafts().find(x => x.id === c.writes) || { id: c.writes, path: `docs/design/draft/${c.writes}`, status: 'writing', updated: 'not yet' }) : null;
     const docSecs = d ? (S.newDocs[c.id || ''] || d.doc || []) : [];
     const key = c.writes || 'none';
-    const def = d ? 'split' : 'off';
+    const thread = [...c.thread, ...(S.threads[c.id] || [])];
+    const def = draftId && !thread.length ? 'full' : 'off';
     const mode = d ? (S.panel[key] || def) : 'off';
     const shownMode = narrow() && mode === 'split' ? 'off' : mode;
-    const thread = [...c.thread, ...(S.threads[c.id] || [])];
     const changed = S.docChanged[key] ?? d?.changed;
-    const started = d && S.draftGoal[d.id];
-    const pt = parts();
+    const started = d && (S.draftGoal[d.id] || d.goal);
     const segBtn = (m, label, icon, cls = '') => `<button type="button" class="${cls}" data-mode="${m}" aria-pressed="${shownMode === m}" title="${label}">${ICON[icon]}<span>${label}</span></button>`;
     const turn = t => t.who === 'you' ? `<p class="turn-you">${esc(t.text)}</p>`
       : t.who === 'agent' ? `<p class="turn-agent">${esc(t.text)}</p>`
       : t.who === 'typing' ? '<div class="typing" aria-label="Writing"><i></i><i></i><i></i></div>'
       : `<p class="turn-tool">${ICON.pen}<span>${esc(t.text.replace(/ [^ ]+$/, ''))}</span><span class="file">${esc(t.text.split(' ').pop())}</span><span>${esc(t.detail || '')}</span>${t.ref && d ? `<button type="button" data-show="${esc(t.ref)}">Show</button>` : ''}${t.goal ? `<a class="link" href="goal.html?g=${encodeURIComponent(t.goal)}">Open</a>` : ''}</p>`;
-    const where = d ? ['Drafts', 'drafts.html'] : ['Chats', 'chats.html'];
+    const where = ['Chats', 'chats.html'];
     return `<div class="session-app">
       <header class="session-top">
-        <nav class="crumbs" aria-label="Where"><a class="back" href="${where[1]}" aria-label="Back">‹</a><span class="trail"><a href="home.html">${esc(p.name)}</a> / <a href="${where[1]}">${where[0]}</a> /</span><strong>${esc(d ? d.id : c.title)}</strong></nav>
+        <nav class="crumbs" aria-label="Where"><a class="back" href="${where[1]}" aria-label="Back">‹</a><span class="trail"><a href="home.html">${esc(p.name)}</a> / <a href="${where[1]}">${where[0]}</a> /</span><strong>${esc(c.title)}</strong></nav>
         <div class="right">
           <span class="byline" style="white-space:nowrap">${c.id ? `${esc(c.id)} · ` : ''}${esc(c.model)}</span>
           ${d ? `<div class="seg" role="group" aria-label="The draft" data-key="${esc(key)}">${segBtn('off', 'Chat', 'chat')}${segBtn('split', 'Split', 'split', 'split')}${segBtn('full', 'Draft', 'doc')}</div>` : ''}
-          ${d && pt.goals && !c.fresh ? (started ? `<a class="btn small" href="goal.html?g=${encodeURIComponent(started)}">Goal ${esc(started)} →</a>` : `<button type="button" class="btn primary small" data-start-goal>Start goal…</button>`) : ''}
+          ${!d && pt.drafts ? '<button type="button" class="btn small" data-add-draft>+ Draft</button>' : ''}
+          ${d && pt.goals && docSecs.length ? (started ? `<a class="btn small" href="goal.html?g=${encodeURIComponent(started)}">Goal ${esc(started)} →</a>` : `<button type="button" class="btn primary small" data-start-goal>Start goal…</button>`) : ''}
         </div>
       </header>
       <div class="session" data-mode="${mode}" data-key="${esc(key)}">
@@ -492,12 +496,12 @@
             ${thread.length ? '' : `<p class="meta-line">${d ? `A chat that writes ${esc(d.id)}. Say what it should hold.` : 'Say what you want; the agent works in ' + esc(p.repo) + '.'}</p>`}
             ${thread.map(turn).join('')}
           </div></div>
-          <div class="convo-foot">${composer(`data-chat-say="${esc(c.id || '')}" data-writes="${esc(c.writes || '')}"`, c.fresh ? (d ? 'What should this draft hold?' : 'What do you want done?') : `Reply to ${c.id}`, 'Enter sends · Shift+Enter for a new line · Ctrl+\\ switches the draft')}</div>
+          <div class="convo-foot">${composer(`data-chat-say="${esc(c.id || '')}" data-writes="${esc(c.writes || '')}"`, c.fresh ? (d ? 'What should this draft hold?' : 'What do you want done?') : `Reply to ${c.id}`, d ? 'Enter sends · Shift+Enter for a new line · Ctrl+\\ switches the draft' : 'Enter sends · Shift+Enter for a new line')}</div>
         </section>
         ${d ? `<article class="doc" aria-label="${esc(d.id)}"><div class="doc-inner">
           <p class="doc-path"><span>${esc(d.path)}</span><span>${d.chat || c.id ? `edited ${esc(d.updated)}` : esc(d.status)}</span></p>
           ${docSecs.length ? docSecs.map(s => `<section class="doc-sec${s.id === changed ? ' changed' : ''}" data-sec="${esc(s.id)}">${s.html}${s.id === changed ? `<p class="changed-note">Changed by ${esc(c.id || 'the agent')} just now</p>` : ''}</section>`).join('') : '<p class="doc-empty">The draft appears here as you write it together.</p>'}
-        </div></article>` : ''}
+        </div>${mode === 'full' && !thread.length ? `<div class="doc-foot">${composer(`data-chat-say="" data-writes="${esc(c.writes)}"`, 'Ask about this draft, or say what to change', '')}</div>` : ''}</article>` : ''}
       </div>
       ${d ? startSheet(d) : ''}
     </div>`;
@@ -547,14 +551,14 @@
         <label><input type="radio" name="scenario" value="away"${S.scenario === 'away' ? ' checked' : ''}> Back from away</label>
         <p style="color:#52616f;font-size:12px">Scenarios are fabrig’s; hello is a small new project. Switch projects with the project menu.</p>
         <h3>Pages</h3>
-        <div class="pages"><a href="home.html">Home</a><a href="needs.html">Needs you</a><a href="goals.html">Goals</a><a href="goal.html?g=first-run-projects">A goal</a><a href="drafts.html">Drafts</a><a href="chat.html?id=T4">Draft session</a><a href="chats.html">Chats</a><a href="changes.html">Changes</a><a href="settings.html">Settings</a></div>
+        <div class="pages"><a href="home.html">Home</a><a href="needs.html">Needs you</a><a href="goals.html">Goals</a><a href="goal.html?g=first-run-projects">A goal</a><a href="chat.html?id=T4">Draft session</a><a href="chats.html">Chats</a><a href="changes.html">Changes</a><a href="settings.html">Settings</a></div>
         <a href="phone.html?p=${encodeURIComponent(here)}">Open this page in a phone frame</a>
         <button type="button" class="reset" data-reset>Reset everything</button>
       </div>`;
   }
 
   // ---- Drawing and wiring -----------------------------------------------
-  const PAGES = { home, needs: needsPage, goals: goalsPage, goal: goalPage, drafts: draftsPage, chats: chatsPage, changes: changesPage, settings: settingsPage, chat: chatPage, phone: phonePage };
+  const PAGES = { home, needs: needsPage, goals: goalsPage, goal: goalPage, chats: chatsPage, changes: changesPage, settings: settingsPage, chat: chatPage, phone: phonePage };
   function render() {
     const scrollY = window.scrollY;
     const thread = document.getElementById('thread');
@@ -562,7 +566,7 @@
     const panelOpen = document.getElementById('mock-panel')?.classList.contains('open');
     document.body.innerHTML = (PAGES[page] || home)() + mockCorner();
     if (panelOpen) document.getElementById('mock-panel')?.classList.add('open');
-    document.title = `${{ home: 'Home', needs: 'Needs you', goals: 'Goals', goal: params.get('g') || 'Goal', drafts: 'Drafts', chats: 'Chats', changes: 'Changes', settings: 'Settings', chat: 'Session', phone: 'Phone frame' }[page] || 'temper'} · ${P().name} · temper`;
+    document.title = `${{ home: 'Home', needs: 'Needs you', goals: 'Goals', goal: params.get('g') || 'Goal', chats: 'Chats', changes: 'Changes', settings: 'Settings', chat: 'Session', phone: 'Phone frame' }[page] || 'temper'} · ${P().name} · temper`;
     window.scrollTo(0, scrollY);
     const t = document.getElementById('thread');
     if (t && threadAtEnd) t.scrollTop = t.scrollHeight;
@@ -579,10 +583,10 @@
       cid = `T${n}`;
       const title = text.length > 42 ? `${text.slice(0, 40)}…` : text;
       const isDraft = writes === 'untitled.md';
-      const docName = isDraft ? `${text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28) || 'untitled'}.md` : writes;
+      const docName = isDraft ? `${slug(text)}.md` : writes;
       list(S.newChats).unshift({ id: cid, title: isDraft ? `${title}, draft` : title, status: 'working', live: true, when: 'now', writes: docName, model: 'Claude, through your subscription · Opus', thread: [], replies: ['Here’s a first outline; it’s in the draft beside us.', 'Done; the change is highlighted in the draft.', 'Noted, it’s in.'] });
-      if (isDraft) list(S.newDrafts).unshift({ id: docName, chat: cid, status: 'writing', updated: 'just now', path: `docs/design/draft/${docName}`, doc: [] });
-      else if (writes) S.draftChat[writes] = cid;
+      if (isDraft) { list(S.newDrafts).unshift({ id: docName, chat: cid, status: 'writing', updated: 'just now', path: `docs/design/draft/${docName}`, doc: [] }); if (S.panel['untitled.md']) S.panel[docName] = S.panel['untitled.md']; }
+      else if (writes) { S.draftChat[writes] = cid; S.panel[writes] = 'split'; }
       history.replaceState(null, '', `chat.html?id=${cid}`);
       params.set('id', cid); params.delete('draft');
     }
@@ -604,7 +608,7 @@
         const d = drafts().find(x => x.id === w);
         if (!d?.doc?.length && !secs) {
           secs = S.newDocs[cid] = [
-            { id: 'top', html: `<h1>${esc(text.length > 60 ? `${text.slice(0, 57)}…` : text)}</h1><p class="doc-muted">Draft, 2026-11-04, with the user.</p>` },
+            { id: 'top', html: `<h1>${esc(c.title.replace(/, draft$/, ''))}</h1><p class="doc-muted">Draft, 2026-11-04, with the user.</p>` },
             { id: 'one', html: '<h2>1. In one page</h2><ul><li>[What the draft decides, in a few lines]</li></ul>' },
             { id: 'open', html: '<h2>Open questions</h2><ol><li>[What is left for you to decide]</li></ol>' },
           ];
@@ -644,6 +648,15 @@
       else if (key && narrow()) { S.panel[key] = 'full'; save(); render(); }
       const s = document.querySelector(`[data-sec="${CSS.escape(d.show)}"]`);
       if (s) { s.scrollIntoView({ behavior: 'smooth', block: 'center' }); s.classList.remove('flash'); void s.offsetWidth; s.classList.add('flash'); }
+    }
+    else if ('addDraft' in d) {
+      const c = params.get('id') !== 'new' && chat(params.get('id'));
+      if (!c) { S.panel['untitled.md'] = 'split'; save(); location.href = 'chat.html?id=new&draft=1'; return; }
+      const name = `${slug(c.title)}.md`;
+      list(S.newDrafts).unshift({ id: name, chat: c.id, status: 'writing', updated: 'just now', path: `docs/design/draft/${name}`, doc: [] });
+      S.chatPatch[c.id] = { ...(S.chatPatch[c.id] || {}), writes: name };
+      S.panel[name] = 'split';
+      save(); render();
     }
     else if ('startGoal' in d) document.getElementById('start-sheet').showModal();
     else if ('close' in d) t.closest('dialog').close();
