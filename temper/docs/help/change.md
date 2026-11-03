@@ -6,21 +6,23 @@ A change is a task that writes one repository's branch and lands it: its pull re
 
 ## What it is
 
-- **A change task** is a delegate a run asks for with the host tool
-  `change`, giving the words and, where it may write several
-  repositories, which one. Its coder uses those words alone (temper help task).
-  With the control family, a run names, too, `landing` (`goal`, a
+- **A change task** is delegated with `change`, giving its words and,
+  if the run may write several repositories, which one. Its coder
+  reads those words alone (temper help task).
+  With control, it also names `landing` (`goal`, a
   branch, or the default), `branch` (`mine`: its goal branch, landed
   whole), `after` (what it waits for: task numbers, or names from the
-  same call), `changes` (several at once, all or none) `merge` (a catch-up) and `questions`
+  same call), `merge` (a catch-up), `repairs` (the red landing's merge
+  commit from its news: temper help tier), `changes` (several at once,
+  all or none), and `questions`
   (`foreman`, `up`, or `none`, the default: how its producer's questions go).
-- **Its pull request title** is its coder's, punctuation kept, cut with
-  “…” at a UTF-8 boundary where the forge needs it.
+- **Its pull request title** is its coder's, punctuation kept, cut at a
+  UTF-8 boundary with “…” where the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·
   OWNER/NAME on forge FORGE · BRANCH into BASE`, its pull request and
   its address, `step:` and the step, `way: turn · landing task N`
   where its project lands by turn, the CI at its head, its gates, and
-  how many repairs, resolutions and updates it has used of its limits.
+  its repairs, resolutions and updates used against their limits.
   Next is `questions: ROUTE · TAKEN of LIMIT taken`, then each open
   question with its asker, number, first line and where it stands;
   with route `none` and nothing taken, `questions: none`.
@@ -33,11 +35,13 @@ A change is a task that writes one repository's branch and lands it: its pull re
   each verdict at the head it judged, cut from the end and marked when
   long. It names no check or test the change didn't see. Where tiers
   follow its landing branch (temper help tier), the result waits for
-  their verdicts and adds a line, `Cleared by TIER run N.`, or `Not
-  cleared: no verdict within the verification bound.` Or it fails,
-  or is cancelled, as any task. A coder that concludes the request does
-  not apply ends it successfully, saying why, with no pull request and
-  nothing claimed landed.
+  their verdicts and adds a line, `Cleared by TIER run N.`, for a
+  landing once red, `Cleared by TIER run N, which passed the failures
+  blamed on it; repaired by COMMIT.` where a change naming it repaired
+  it, or `Not cleared: no verdict within the verification bound.` Or it
+  fails or is cancelled. A coder that concludes the request does not
+  apply ends it successfully, saying why, with no pull request or
+  claim of landing.
 
 ## How it changes
 
@@ -77,8 +81,8 @@ Its steps, as `step:` prints them:
 - `cleared`: all its tiers cleared it, and its result comes; with no
   verdict by the verification bound, it ends `landed, uncleared`.
 
-Where its project lands by turn (temper help landing), no CI runs at
-its head and it waits in no queue: `gating` follows `opening`, then:
+With landing by turn (temper help landing), it has no CI at its head or queue:
+`gating` follows `opening`, then:
 
 - `ready`: its gates hold at its head, and its landing, `way: turn ·
   landing task N`, proves its candidate and waits for the turn;
@@ -88,8 +92,8 @@ its head and it waits in no queue: `gating` follows `opening`, then:
   output, and its new head makes it ready again;
 - `landed`: main was fast-forwarded to its candidate.
 
-After a release, `reopening` reopens its closed pull request and
-`recreating` pushes its missing branch again.
+After release, `reopening` reopens its pull request; `recreating`
+pushes its missing branch again.
 
 **Held,** `held: REASON at STEP`, it makes no progress: `its wait
 stalled`, `its repairs are spent`, `its resolutions are spent`, `its
@@ -97,14 +101,14 @@ updates are spent`, `its branch was moved on the forge`, `its branch
 is missing on the forge`, `its pull request was closed on the forge`,
 `its pull request was retargeted on the forge`, `a delegate or a write
 failed for good`, or `a person rejected a gate`. A release resets its
-counts and resumes; after a coder's failure for good before pushing,
+counts and resumes. After a coder fails for good before pushing,
 release at `producing` makes a fresh coder, one more task. After a
-repair's failure for good, release at `repairing` makes a fresh repair
+repair fails for good, release at `repairing` makes a fresh repair
 for the same reason, counted against its reset limit. Either holds
-again if its authority can't cover one.
-Held at `producing`, its chat hears the coder's words on why it made
-no change, kept whole within 512 bytes in its hold: cancel if they
-hold, or release if the coder was wrong. Its
+again if authority cannot cover one.
+Held at `producing`, the hold and chat carry the coder's words whole
+within 512 bytes: cancel if they hold, or release if the coder was
+wrong. Its
 panel also names a held task, the change's own or its writer's or
 reviewer's, `held: task N (REASON)`, with that task's way out: an
 effect vetoed or a step refused, and why (what it lacks, or the
@@ -128,8 +132,6 @@ forge's answer).
   show` prints each, `gate 1 · review · blocking · approved`; temper
   posts none to the forge as a review or a status, so the pull
   request's reviews there may be empty.
-- **Bounded work:** past a limit of repairs, resolutions or updates,
-  it holds.
 - **The parent hears its result,** landed, and cleared where tiers follow its branch, or not.
 
 ## Acting on it

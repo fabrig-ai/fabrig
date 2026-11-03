@@ -260,6 +260,7 @@ fn repair() -> forge::ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        repairs: None,
         catch_up: None,
         merge_result: None,
     }

@@ -624,6 +624,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         effect_account,
         producer_failure,
         report,
+        repairs,
         catch_up,
         merge_result,
     } = value;
@@ -678,6 +679,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             questions: encode_questions(questions),
             producer_failure: producer_failure.clone(),
             report: report.clone(),
+            repairs: *repairs,
             catch_up: *catch_up,
             merge_result: merge_result.clone(),
             effect_account: match effect_account {
@@ -725,6 +727,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         effect_account,
         producer_failure,
         report,
+        repairs,
         catch_up,
         merge_result,
     } = value.into_parts();
@@ -771,6 +774,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         questions: decode_questions(questions),
         producer_failure,
         report,
+        repairs,
         catch_up,
         merge_result,
         effect_account: match effect_account {

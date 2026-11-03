@@ -55,6 +55,9 @@ fn the_reference_settings_file_decodes() {
     assert!(instructions.contains(r#""branch": "mine""#));
     assert!(instructions.contains(r#""questions": "foreman""#));
     assert!(instructions.contains("decide"));
+    assert!(instructions.contains(r#""repairs""#));
+    assert!(instructions.contains("a red of your goal branch's tier"));
+    assert!(instructions.contains("with `note`"));
     assert!(coordinator.instructions.bytes().ends_with(
         b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
     ));

@@ -9,14 +9,21 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 - **A tier** is a workflow too slow for a change's CI, such as a
   browser suite or an exhaustive profile. A repository names its tiers
   beside its gates, and each tier names the branch it follows: the
-  repository's landing branch, its main, unless it names another. A
-  landing on a branch no tier follows, a goal's own branch for one, is
-  cleared as it lands.
+  repository's landing branch, its main, unless it names another, or
+  `goal`, the goals' own branches. A landing on a branch no tier
+  follows, or one only a tier of goal branches follows, is cleared as
+  it lands.
 - **A run** covers every landing since the tier's last judged run. One
   run per tier goes at a time, and the next starts at the newest tip
   once the last ends. temper dispatches it on a branch of its own,
   `temper/tier/NAME.N`, made at the commit it runs, and deletes the
   branch when the run ends.
+- **A tier of goal branches,** `"branch": "goal"`, checks each goal's
+  branch at its newest tip: at most one run per span per branch, one
+  at a time across branches. It judges no landing. On red, it reruns
+  failed tests alone. Failures that repeat go to the goal holding the
+  branch, marked new or still failing; new failures wake it. Green
+  says nothing.
 - **The baseline:** A newly configured tier first runs at its followed
   branch's current tip as a baseline, without any landing. Baseline
   failures are blamed on no landing and inherited by the next run.
@@ -27,10 +34,9 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   reads the failing tests' ids from it. A failed run that names no
   test, or whose artifact is absent or unreadable, is a runner's fault,
   never a red.
-- **A tip already judged:** where the files the tier reads at a new tip
-  are those of a tip it already ran, that run's receipt judges it with
-  no new run, so a landing of documentation every tier ignores clears
-  at once.
+- **A tip already judged:** if the files the tier reads match a tip
+  already run, its receipt judges it without a run; documentation
+  every tier ignores clears at once.
 
 ## How it changes
 
@@ -44,6 +50,13 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   first; a landing that changes nothing the tier reads is skipped.
 - **A landing's verdict is its own:** red only by the failures blamed
   on it, until a later run passes them, which clears it.
+- **A red goes to its goal** as news: the tier, the run, the
+  landing's commit, the failing tests blamed on it and the end of
+  each failed job's log, waking the goal. The goal repairs it with a
+  change naming the red landing (`repairs`, temper help change);
+  when a later run passes the failures, the red landing is cleared,
+  repaired by that change's landing, and its change's result ends
+  `repaired by COMMIT.`
 - **A runner's fault,** a lost run or a failed setup, runs the part
   again, up to the project's `tier_retries`. Past them, the tier's run
   task is held, `Tier NAME run N held after K runner faults, last:
@@ -53,13 +66,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 - **A change lives to cleared:** landed, then verifying, until every
   tier following its branch has cleared its landing, and its result
-  comes then (temper help change). A green tip never hides a red
-  landing behind it.
+  comes then (temper help change).
 - **Bounded:** past the project's verification bound, two hours unless
   set, with no verdict, the change ends landed and uncleared, saying
   so; a later verdict still counts on the tier.
-- **Only temper's runs judge:** a run of the workflow that temper did
-  not dispatch is not read.
+- **Only temper's runs judge:** undispatched workflow runs are not read.
 
 ## Acting on it
 
@@ -67,7 +78,7 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   go at `application.landing.projects[].gates[].tiers`.
   The project's `gates` array holds repository entries; each
   repository's `gates` array holds workflow gates, beside its `tiers`.
-  This example shows the nesting for project 1, forge 1, repository 7:
+  For project 1, forge 1, repository 7:
 
   ```json
   {
@@ -98,62 +109,50 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   }
   ```
 
-  Use the relevant project, forge and repository numbers, as printed
-  by `project show PROJECT`, `forge list` and
-  `forge repositories FORGE` through ctl (temper help ctl).
-  Preserve the existing configuration: add the tier to the matching
-  repository entry in the matching project, creating missing entries
-  with the shape above. Keep other members, deployment and project
-  rules, repositories, workflow gates and tiers, and the project's
-  existing `by` (`queue` or `turn`). The empty arrays here illustrate
-  the shape; they do not replace existing rules or gates.
-  Set `tier_retries` and `verification_bound_ms` beside the project's
-  `by`; the example shows their defaults. Stop and restart the deployment
-  afterward with the same directories (temper help deployment).
-  Without `branch`, the tier follows the repository's landing branch;
-  set `branch` to another branch's name to follow it instead.
+  Use project, forge and repository numbers from
+  `project show PROJECT`, `forge list` and `forge repositories FORGE`
+  through ctl (temper help ctl). Preserve the existing configuration:
+  add the tier to the matching repository and project, creating missing
+  entries as above. Keep other members, deployment and project rules,
+  repositories, workflow gates and tiers, and the project's existing
+  `by` (`queue` or `turn`). Set `tier_retries` and
+  `verification_bound_ms` beside the project's `by`; the example shows
+  their defaults. Stop and restart the deployment afterward with the
+  same directories (temper help deployment); set `branch` to another
+  branch's name to follow it instead, or to `goal` to follow the goals'
+  own branches. Set `span_ms` to keep a tier's runs on one branch at
+  least that many milliseconds apart; none when absent.
 - **The report format:** set `format` to `junit` for JUnit reports or
-  `lines` for one failing test id per line. For a line report, change
-  the example's `"format": "junit"` to `"format": "lines"` and upload
-  the failing ids in the artifact named by `artifact`.
+  `lines` for one failing test id per line.
 - **The workflow** is dispatch-only and takes the inputs
   `temper_commit` and `temper_key`, and `temper_tests`, the ids to run
   alone, one per line, when temper gives them: it runs only those then.
-  It uploads its report as the named artifact.
 - **The box's runner:** workflows using `temper-host` execute on the
   host. JavaScript `uses:` actions such as `actions/checkout@v4` and
   `actions/upload-artifact@v3` need compatible Node.js installed there
   as `node`, on `application.machine.owned.runner.path` (default
   `/usr/local/bin:/usr/bin:/bin`). After changing that configuration,
-  restart the box. An installation available only through an
-  interactive shell is insufficient: the runner uses the configured
-  PATH, not the shell's.
-- **Runner capacity:** CI and tiers using `temper-host` share the box's
-  runner. `application.machine.owned.runner.capacity` defaults to 1,
-  the minimum: one job runs at a time, so a slow tier can keep CI waiting
-  and prevent changes from landing during its run. Set it to 2 for one
-  single-job tier plus CI, or 3 for two such tiers plus CI. Count
-  concurrent jobs in multi-job workflows and jobs from other repositories
-  sharing the runner as well; each needs a slot.
-  On a real-backend box, stop with Ctrl-C or SIGTERM and wait for
-  `Stopped`. Edit that setting in `CONFIG/temper.json`, preserving the
-  other settings, then restart `temper box --config CONFIG --data DATA
-  --cache CACHE` with the same directories. This also updates an already
-  prepared runner's configuration while preserving its registration and
-  secrets. Capacity changes require the runner to be stopped.
-- **ctl:** `change show TASK --until cleared` waits for a verdict:
-  `verifying`, `red` or `cleared`, naming tiers and runs. `task show`
-  reads the run; `task release` releases a held one.
-  `asked:` names the repository, full tested commit and owned branch.
-  Each judged run, failed-test rerun and bisection probe names its own
-  commit, branch, forge run number and URL, kept after completion,
-  branch deletion and restart.
-  Red results pair blamed merge commits with their owned or suspected
-  full IDs; inherited failures blame no new landing. IDs are never cut:
-  omitted IDs end with `and N more failing tests; change show TASK`.
-  The panel retains all IDs. Overflow stays `many tests`.
-  ctl reads beyond the overview within its output bound; beyond it,
-  `task show` prints `task text TASK --field specification --from OFFSET`.
+  restart the box. Node.js only in an interactive shell is insufficient.
+- **Runner capacity:** CI and tiers using `temper-host` share a runner.
+  `application.machine.owned.runner.capacity` defaults to 1:
+  one job at a time, delaying CI and landings. Use
+  2 for one single-job tier plus CI, or 3 for two such tiers plus CI.
+  Count jobs in multi-job workflows and other repositories too.
+  Stop the real-backend box with Ctrl-C or SIGTERM; wait for `Stopped`.
+  Edit only that setting in `CONFIG/temper.json`, then restart
+  `temper box --config CONFIG --data DATA --cache CACHE` with the same
+  directories. Prepared runners keep their registration and secrets.
+- **ctl:** `change show TASK --until cleared` waits for a landed
+  verdict: `verifying`, `red` or `cleared`, naming tiers and runs.
+  `task release` releases a held run. `task show TASK`'s `asked:` names
+  the repository, full tested commit and owned branch. Each judged run,
+  failed-test rerun and bisection probe keeps its commit, branch, forge run
+  number and URL after completion, branch deletion and restart.
+  Red results pair blamed commits with owned or suspected full IDs;
+  inherited failures blame no new landing. IDs are never cut: omissions
+  end with `and N more failing tests; change show TASK`. The panel keeps
+  all IDs; overflow stays `many tests`. Past ctl's output bound, continue
+  with `task text TASK --field specification --from OFFSET`.
 
 ## Limits
 
@@ -161,5 +160,5 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   at most 16 failing tests, each id at most 256 bytes; past them its
   failures are many, blamed by landing alone.
 - A tier follows one branch: following two takes two tiers.
-- temper neither tells a goal of a red after landing nor posts a
-  verdict to the forge.
+- temper posts no verdict to the forge, and a red whose goal has
+  ended, or of a landing temper did not make, reaches no one.
