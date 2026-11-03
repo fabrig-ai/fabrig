@@ -2,7 +2,7 @@
 id = "agent-ctl-story"
 part = "configuring-agent"
 kind = "feature"
-needs = ["stock-configuring", "agent-kinds"]
+needs = ["stock-configuring", "agent-kinds", "tools-store"]
 files = ["temper/tests/client/tests/suite/configuring_chat.rs", "temper/tests/client/tests/suite/main.rs", "temper/tests/client/src/front.rs", "temper/tests/client/src/fixtures.rs"]
 effort = "high"
 minutes = 120
@@ -73,3 +73,27 @@ Acceptance, in `temper/tests/client/tests/suite/configuring_chat.rs`:
 ## Report
 
 As the implementer's text says, and each story's wall time.
+
+## Answers
+
+2026-11-03. **Q** (`agent-ctl-story-1`): merge `origin/configuring-p3/tools-store-r1` and
+retest, or wait for fab to supply a base with the restart repairs? **A:** merge; `tools-store`
+is now in `needs`. The owner's and stale stories fail the restart oracle because the settings
+codec decodes every charter's tools as `RunPolicy::EVERY_FAMILY`, not charter 3's mask 1,536,
+which `tools-store` replaces by the stored mask (as `agent-stories` was answered the same day);
+this task's acceptance ("the focused tests of the client world pass, all of them") cannot hold
+without it. `tools-store` has landed in the run's trunk (`60948c78f4` is an ancestor of
+`origin/configuring-p3/integration`): merge `origin/configuring-p3/integration` into this branch
+(merge, never rebase, pushed to the same branch), then rerun each story alone. Leave the codec,
+the schema and the engine world's `src/oracle.rs` unchanged.
+
+- The member story's restart panic (`people projections require start_project before open`)
+  is unobserved after the merge. If it remains, read its log: the existing stories restart
+  cleanly, so look first at what this task's fixture adds (the member's role and its project
+  setup in `src/fixtures.rs`, the caller selector in `src/front.rs`) and repair it there. If its
+  cause lies outside this spec's `files`, report it under `## Left` with the log, and edit
+  nothing outside them.
+- `proposal show`'s missing running-work summary, waiting-owner text and the word `stale`: the
+  pre-approved option holds; assert what it prints and list the gaps under `## Left`.
+- `temper/crates/temper/tests/suite/startup.rs`'s stock-policy byte figure and `wiring.rs`'s
+  scratch-binary story are not this task's; list them under `## Left` as reported, untouched.

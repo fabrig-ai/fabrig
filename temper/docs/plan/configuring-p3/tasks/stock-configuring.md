@@ -170,3 +170,20 @@ acceptance cannot hold without either.
   it under `## Left` for `help-stock` or the trunk's end check.
 - The rest of the acceptance is unchanged: every package it names runs its focused tests, one
   command per group, and the report gives each run's counts.
+
+2026-11-03. **Q** (`stock-configuring-2`): widen the readers to
+`temper/crates/temper/tests/suite/creating.rs`? **A:** yes (option A); temper's focused tests,
+in the acceptance, cannot pass without it.
+
+- `creating.rs`, for the new count alone, as the other readers: in
+  `the_cluster_offers_every_stock_charter`, the count 5 and its message naming the
+  configuring agent ("stock chat, producer, configuring and reviewers"); its overflow line
+  `documents.lines = 4`, one below the stock's five charters, so the refusal stays at the
+  boundary; in `the_browser_receives_a_complete_stock_me_offer`, the isolating
+  `documents.lines = 5`. Every other assertion stays. List it in the report.
+- Run each of the two tests alone first, then the rest of the acceptance's focused suites, one
+  command per package group, each excluding the live and proof binaries
+  (`-E 'not binary(/^live/) & not binary(=proof_live)'`), and give each run's counts.
+- Another reader the merged trunk brings that fails only on the count of four charters or two
+  templates is fixed the same way and listed; any other failure, stop and report it with its
+  log.
