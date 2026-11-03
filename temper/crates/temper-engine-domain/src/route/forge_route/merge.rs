@@ -1,7 +1,6 @@
 //! The merge job and the resolution it leaves (temper/docs/design/domain/forge.md, 8.4;
 //! temper/docs/design/domain/worker.md, 4.4).
 use alloc::boxed::Box;
-use jig_domain_tasks as tasks;
 use skein_lib::{List, Writer};
 use temper_protocol_worker_wire::v1;
 
@@ -32,24 +31,4 @@ pub(super) fn spec(
     let mut writer = Writer::new(usize::try_from(spec.measure()).ok()?);
     spec.encode(&mut writer).ok()?;
     Some(writer.finish())
-}
-
-pub(super) fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], bound: u32) -> Box<[u8]> {
-    let mut room = bound;
-    for parameter in parameters {
-        if let tasks::Parameter::Bytes { value, .. } = parameter {
-            room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
-        }
-    }
-    let mut words = List::with_capacity(room);
-    super::append(&mut words, b"Resolve the merge conflict and push the merge commit");
-    if let Some(result) = result {
-        super::append(
-            &mut words,
-            b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n",
-        );
-        let result = super::forge::text::fit(result, usize::try_from(words.room()).expect("u32 fits usize"), b"...");
-        super::append(&mut words, &result);
-    }
-    words.into_boxed()
 }

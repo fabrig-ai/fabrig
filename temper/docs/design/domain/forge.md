@@ -1343,6 +1343,10 @@ delegate's terminal wakes it to offer the landed result.
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered
   sizes decide the fit, with the repair reason before the pull section.
+  Repair instructions preserve the requested change and unrelated content
+  already landed on the base, including both independent appended lines
+  and existing blank lines. Lost content is restored from the review's
+  remarks; content is never removed just to make a check pass.
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../protocol/configuration.md`, section 3): a job of
@@ -1367,7 +1371,16 @@ delegate's terminal wakes it to offer the landed result.
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
   writes of its own; the worker commits the tree as the merge, with both
-  parents, and pushes it (`worker.md`, section 5).
+  parents, and pushes it (`worker.md`, section 5). Its instructions keep
+  both sides' intended content by the same preservation rule as repairs;
+  the shared coding charter applies it to repairs and resolutions too.
+  The specification reserves its pinned parameters' bytes before its words.
+  Where the full instructions do not fit, a compact instruction keeps both
+  sides and blank lines, with the full rule in the coding charter; where
+  neither fits, the change holds instead of issuing an oversized delegate.
+  Required preservation instructions precede optional merge-job results. A
+  result is appended only with room for its context and any truncation marker;
+  it never displaces the preservation instructions.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that
@@ -1389,8 +1402,12 @@ delegate's terminal wakes it to offer the landed result.
   `../client/tools.md`, area 2's `task amend`) lets it go on, a bare one
   holds it again, saying so. The requester and panel's recovery words
   offer `task cancel TASK REASON`, or asking for the change afresh, and
-  explain that bare release holds again. They advertise only commands
-  the client takes.
+  explain that bare release holds again. A task allowance hold also offers
+  `task amend TASK --rev REV --tasks N REASON`, followed by
+  `task release TASK --hold HOLD`, with room for a repair and review in
+  the replacement lifetime allowance. Cancellation comes before these
+  commands so a bounded task summary retains a way out. They advertise
+  only commands the client takes.
 - **Stalls:** each wait on the forge (CI that never reports, a
   mergeability never known, a forge's merge queue that neither lands
   nor ejects it, a gate's task stuck) is bounded by a stall counted from
