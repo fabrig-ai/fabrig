@@ -18,8 +18,7 @@
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.
-  5.3, beside its acts above: `revision restore`'s
-  items of temper's kinds and of a project's policy. 6.1: a task wait's refusal by a worker's hello
+  6.1: a task wait's refusal by a worker's hello
   prints its stop bound as jig's nanoseconds, `allowed grace N ns`, not
   whole seconds (`render/document/llm.rs`, `HelloRefusal::StopBound`).
   8.1: `GROUP VERB --help`; `temper ctl` parses a
@@ -27,7 +26,13 @@
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without
-  FORGE, which `temper-client-tools`' own step tests hold alone. 11.3:
+  FORGE, which `temper-client-tools`' own step tests hold alone; the
+  joined story of a settings file of each kind proposed, shown, accepted
+  and restored (`tests/client`'s `settings_tools.rs`,
+  `each_kind_through_ctl_proposed_shown_accepted_and_restored`),
+  ignored because the world's joint component does not correlate the
+  forge's `ForgeRead` replies, its reason naming `restore-request` too,
+  on main since. 11.3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`

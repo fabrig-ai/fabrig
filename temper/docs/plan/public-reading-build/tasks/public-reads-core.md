@@ -3,7 +3,7 @@ id = "public-reads-core"
 part = "jig-public"
 kind = "feature"
 needs = ["public-index"]
-files = ["jig/crates/jig-domain-core/src/public/reads.rs", "jig/crates/jig-domain-core/src/public/reads/**", "jig/crates/jig-domain-core/src/tests/public/reads.rs", "jig/crates/jig-domain-core/src/tests/public/reads/**", "jig/testing/jig-test-domain/src/admission.rs", "jig/testing/jig-test-domain/src/client_documents.rs", "jig/testing/jig-test-domain/src/routes.rs", "jig/testing/jig-test-domain/src/tests/public.rs"]
+files = ["jig/crates/jig-domain-core/src/public/reads.rs", "jig/crates/jig-domain-core/src/public/index.rs", "jig/crates/jig-domain-core/src/public/reads/**", "jig/crates/jig-domain-core/src/tests/public/reads.rs", "jig/crates/jig-domain-core/src/tests/public/reads/**", "jig/testing/jig-test-domain/src/admission.rs", "jig/testing/jig-test-domain/src/client_documents.rs", "jig/testing/jig-test-domain/src/routes.rs", "jig/testing/jig-test-domain/src/tests/public.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -145,3 +145,15 @@ For this task: Fill the title and the name from their sources. A spec amendment 
 *projects* answer is a list of `PublicProject { project, name }`, and `PublicBoard` carries
 `name` after `project`, each the project's name within the client wire's project-name bound
 (64 bytes).
+
+2026-11-03. **The projects document's enumeration** (asked by run `public-reads-core-1`):
+`public-index` exposes only `Index::project(number)`, so this task may add one crate-private
+accessor to `jig/crates/jig-domain-core/src/public/index.rs`, and nothing else in that file:
+`Index::projects(&self) -> impl Iterator<Item = (u32, &Project)>`, iterating the index's
+`projects` map (a `skein_lib::Map`, ordered by key, so ascending) and yielding only the
+`Some(Project)` entries; `Busy` (`None`) entries are skipped, as kind 1 lists only `Ready`
+projects. Return an iterator, not a boxed slice: the projection already bounds what it
+writes. Give it the same `cfg_attr(not(test), expect(dead_code, ...))` as `project` only if
+nothing outside tests calls it; once `reads.rs` calls it, no attribute. Neither scanning
+`Core.names` or the people child nor walking project numbers is allowed. No protocol or
+stored-format change.
