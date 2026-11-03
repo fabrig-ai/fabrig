@@ -15,8 +15,9 @@ three live stories red at their last run pass now and the live refresh
 story's expectation on a fresh record (`testing.md`), the `--account`
 flag (`shell.md`, `testing.md`) and `smith-agent-shell` in the gate's
 wasm32 clippy, which it fails (`shell.md`), and the benchmarks'
-calibrations and arms, with three departures (`benchmarks.md`).
-`domain/session.md`,
+calibrations and arms, with three departures (`benchmarks.md`). A
+restored session knows the run's `wait` by its name, which its opening
+does not give (`domain/session.md`).
 `protocol/charter.md`, `protocol/limits.md` and `protocol/transcript.md`
 have no gap. smith has no drafts.
 
