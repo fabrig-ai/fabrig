@@ -3503,6 +3503,7 @@ fn change_facts(
             Some(_) | None => None,
         },
         writer_taken,
+        requester_branch: false,
         drift: if retargeted { Some(change::Hold::Retargeted) } else { row.drift },
         first: queue_first(d, row, env.wall, &env.limits),
         may_merge,
