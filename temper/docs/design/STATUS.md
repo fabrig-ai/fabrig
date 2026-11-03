@@ -3,9 +3,10 @@
 2026-11-03. Where temper's code lags or departs from its design, and its
 design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built for
-a repository's tiers, their verdicts and a change living to cleared;
-its reds to goals, trailers, what the forge shows and the landing log
-are not (`domain/after-landing.md`, `protocol/store.md`), nor are
+a repository's tiers, a goal branch's own tier, their verdicts, a red's
+news to its goal, a repair naming its red and a change living to
+cleared; a red of no goal's, trailers, what the forge shows and the
+landing log are not (`domain/after-landing.md`, `protocol/store.md`), nor are
 findings, whole (`domain/findings.md`, with their families in
 `protocol/store.md` and their groups in `client/tools.md`). The worker
 runs temper's merge kind, and the merge job settles a change's conflict
