@@ -750,10 +750,27 @@ fn members(
         next = read::after(document, value_at)?;
     }
     object.finish(document, path, problems);
+    validate_members(document, at, end, path, limits, problems, stream_overrides)
+}
+
+fn validate_members(
+    document: &Document,
+    at: u32,
+    end: u32,
+    path: &Path,
+    limits: &Limits,
+    problems: &mut Problems,
+    stream_overrides: bool,
+) -> Result<(), What> {
     if !problems.is_empty() {
         return Ok(());
     }
-    next = at.checked_add(1).ok_or(What::Bound)?;
+    if let Some(problem) = crate::domain::capacity(&limits.core) {
+        let What::Capacity { member, .. } = problem.what else { unreachable!("capacity diagnostic") };
+        problems.push(path.member(member), problem.what);
+        return Ok(());
+    }
+    let mut next = at.checked_add(1).ok_or(What::Bound)?;
     let mut fits = Fits { hub: None, core: None };
     for _ in at..end {
         if next == end {

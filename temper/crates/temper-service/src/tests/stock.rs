@@ -7,7 +7,8 @@
 use super::fixtures;
 use jig_protocol_config as config;
 
-fn generated() -> Box<[u8]> {
+/// The complete startup document emitted by init for fixed machine facts.
+pub(super) fn generated() -> Box<[u8]> {
     use core::num::NonZeroU16;
     let answer = temper_init::files(
         &temper_init::Facts {
@@ -58,7 +59,8 @@ fn without_projects() -> Box<[u8]> {
     }
     document
 }
-fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
+/// Replace one engine override, keeping every other generated entry.
+pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
     let original = fixtures::value(document, b"engine.limits.overrides");
     let parsed =
         config::document(&original, &config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 }).unwrap();

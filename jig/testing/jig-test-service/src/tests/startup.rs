@@ -36,8 +36,14 @@ fn a_service_whose_operations_cannot_close_a_conversation_is_refused() {
     );
     let found = crate::named(&document).expect_err("operations per request");
     let problem = found.problems.get(0).expect("problem");
-    assert_eq!(problem.path, Path::root().member(b"engine").member(b"limits"));
-    assert_eq!(problem.what, What::Operations { operations: 4, delegates: 4, goals: 8 });
+    assert_eq!(
+        problem.path,
+        Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.delegates")
+    );
+    assert_eq!(
+        problem.what,
+        What::Capacity { member: b"tasks.delegates", configured: 4, requires: b"people.operations", required: 5 }
+    );
 }
 
 #[test]
