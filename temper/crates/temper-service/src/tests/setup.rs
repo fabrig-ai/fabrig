@@ -1632,6 +1632,9 @@ mod bound_webhook;
 #[path = "setup_admin.rs"]
 mod admin_tests;
 
+#[path = "setup_tokens.rs"]
+mod tokens_tests;
+
 #[path = "setup_create.rs"]
 mod create_tests;
 

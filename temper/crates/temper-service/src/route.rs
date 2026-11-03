@@ -47,14 +47,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             }
             temper_engine_domain_forge::How::GitHubManifest { .. } => unreachable!("manifest has its own door"),
             temper_engine_domain_forge::How::ForgejoTokens => {
-                // check-connect stages the tokens connect's Check run.
-                engine.events.push(root::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
-                    forge,
-                    request,
-                    answer: temper_engine_domain_forge::ConnectAnswer::Refused(
-                        temper_engine_domain_forge::ForgeRefusal::NotTaken,
-                    ),
-                })));
+                crate::setup::public::tokens_connect(engine, forge, request, carried);
             }
         },
 
