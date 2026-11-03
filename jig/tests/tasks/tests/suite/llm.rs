@@ -2,8 +2,8 @@
 //! refused naming the model and why (domain/tasks.md, sections 3, 4 and 7; domain/authority.md,
 //! section 8.1).
 use jig_domain_tasks::{
-    Amendment, Authority, Event, Executor, LlmChoice, LlmFault, ModelEffort, Models, Party, PersonAddress, Problem,
-    Refusal,
+    Amendment, Authority, CharterModels, Domain, Event, Executor, LlmChoice, LlmFault, ModelEffort, Models, Party,
+    PersonAddress, Problem, Refusal,
 };
 use jig_tasks_world::{LIMITS, Reply, World, authority, domain, task};
 
@@ -100,6 +100,7 @@ fn a_choice_is_refused_naming_its_first_failing_model_and_why() {
             LlmFault::Effort,
         ),
         (Executor::Agent { charter: 1 }, 0b1111, choice(effort(1, None), &[effort(3, None)]), 3, LlmFault::Charter),
+        (Executor::Agent { charter: 1 }, 0b1111, choice(effort(3, None), &[]), 3, LlmFault::Charter),
         (
             Executor::Agent { charter: 1 },
             0b0001,
@@ -117,14 +118,55 @@ fn a_choice_is_refused_naming_its_first_failing_model_and_why() {
         (procedure, 0b1111, choice(effort(1, None), &[]), 1, LlmFault::Procedure),
         (person, 0b1111, choice(effort(1, None), &[]), 1, LlmFault::Procedure),
     ];
+    let domain = domain(&LIMITS, 72);
     for (executor, models, llm, model, why) in cases {
         let mut world = World::new(72, LIMITS);
         let before = world.records.clone();
+        if let Executor::Agent { charter } = executor {
+            assert_eq!(domain.check_llm(charter, Models::Named(models), &llm), Err(Refusal::Llm { model, why }));
+        }
         let mut new = chosen(1, models, llm);
         new.executor = executor;
         refused(&world.make(PERSON, vec![new]), model, why);
         assert_eq!(world.records, before, "{why:?} writes nothing");
     }
+}
+
+#[test]
+fn a_delegates_choice_is_refused_outside_its_charters_models_without_writes() {
+    let mut world = World::new(75, LIMITS);
+    assert_eq!(world.make(PERSON, vec![task(1, &[])]), Reply::Made(vec![1]));
+    let before = world.records.clone();
+    let mut child = chosen(2, 0b1111, choice(effort(0, Some(0)), &[effort(3, None)]));
+    child.funder = jig_domain_tasks::Funder::Task(1);
+    refused(&world.make(Party::Task(1), vec![child]), 3, LlmFault::Charter);
+    assert_eq!(world.records, before, "the refused delegate writes nothing");
+}
+
+#[test]
+fn a_choice_checked_alone_fits_or_names_an_unoffered_charter() {
+    let domain = domain(&LIMITS, 76);
+    let mut fitting = choice(effort(0, Some(1)), &[effort(1, None), effort(2, Some(0))]);
+    fitting.account = Some(u32::MAX);
+    assert_eq!(domain.check_llm(1, Models::Named(0b111), &fitting), Ok(()));
+    assert_eq!(domain.check_llm(9, Models::ALL, &fitting), Err(Refusal::Llm { model: 0, why: LlmFault::Charter }));
+}
+
+#[test]
+fn a_choice_checked_alone_uses_the_newest_charter_including_its_removal() {
+    let mut charters = jig_tasks_world::charters().into_vec();
+    charters.push(CharterModels { number: 1, revision: 2, models: Some(Box::new([1])) });
+    charters.push(CharterModels { number: 2, revision: 2, models: None });
+    let domain = Domain::new(&LIMITS, 77, 2, charters.into_boxed_slice(), Box::new(jig_tasks_world::EFFORTS));
+    assert_eq!(domain.check_llm(1, Models::ALL, &choice(effort(1, None), &[])), Ok(()));
+    assert_eq!(
+        domain.check_llm(1, Models::ALL, &choice(effort(0, Some(0)), &[])),
+        Err(Refusal::Llm { model: 0, why: LlmFault::Charter })
+    );
+    assert_eq!(
+        domain.check_llm(2, Models::ALL, &choice(effort(3, None), &[])),
+        Err(Refusal::Llm { model: 3, why: LlmFault::Charter })
+    );
 }
 
 #[test]
