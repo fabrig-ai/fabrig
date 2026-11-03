@@ -3,7 +3,7 @@ id = "kinds-ctl-reads"
 part = "kinds-root"
 kind = "feature"
 needs = ["kinds-ctl-form", "apps-proposal-key", "kinds-switch-charters"]
-files = ["temper/crates/temper-client-protocol-wire/**", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-engine-domain/src/route/kinds.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/decision.rs", "temper/crates/temper-engine-domain/src/route.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-engine-domain/src/tests/kinds.rs", "temper/crates/temper-client-domain/src/forge/**", "temper/crates/temper-client-tools/src/jig/**", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/tests/**", "temper/tests/codecs/tests/suite/fuzzy/client_wire.rs", "temper/docs/help/settings.md", "temper/docs/help/configure.md", "temper/docs/help/reference/ctl-settings.md", "temper/docs/help/reference/ctl-proposal.md", "temper/docs/design/client/tools.status.md", "temper/docs/design/client/forge.status.md"]
+files = ["temper/crates/temper-client-protocol-wire/**", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-engine-domain/src/route/kinds.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/decision.rs", "temper/crates/temper-engine-domain/src/route.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-engine-domain/src/admission.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-service/src/clients/translation.rs", "temper/tests/engine/domain/src/escalation.rs", "temper/tests/engine/domain/src/oracle.rs", "temper/tests/engine/domain/src/walking.rs", "temper/tests/system/src/composed.rs", "temper/crates/temper-engine-domain/src/tests/kinds.rs", "temper/crates/temper-client-domain/src/forge/**", "temper/crates/temper-client-tools/src/jig/**", "temper/crates/temper-client-tools/src/root.rs", "temper/crates/temper-client-tools/src/settings.rs", "temper/crates/temper-client-tools/src/settings/**", "temper/crates/temper-client-tools/src/lib.rs", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/tests/**", "temper/tests/codecs/tests/suite/fuzzy/client_wire.rs", "temper/docs/help/settings.md", "temper/docs/help/configure.md", "temper/docs/help/reference/ctl-settings.md", "temper/docs/help/reference/ctl-proposal.md", "temper/docs/design/client/tools.status.md", "temper/docs/design/client/forge.status.md"]
 effort = "high"
 minutes = 150
 +++
@@ -100,3 +100,23 @@ reads into that input and encoding the answer, and `temper-service/src/route.rs`
 the kit's `FromApplication::Read` (out of scope, the refusal the acceptance names). In those
 four files change only this plumbing and the arms the compiler forces (the workers' list of
 unexpected deliveries in `route.rs`); say in the report which deliveries you added.
+
+2026-11-03. May this task change the tools' `root.rs` and add an outer `settings.rs` for
+application settings hooks, or should ctl's part be split off? Change them, as the run
+recommended (option 1); no split: the acceptance names ctl's commands, and `client/tools.md`,
+4 already gives the shape (jig's module names no temper item; the host's `jig::render::Parts`,
+implemented in the root, carries what is temper's). The header now names `src/root.rs`,
+`src/settings.rs` (and `src/settings/**`) and `src/lib.rs` for its `mod` line. Add to
+`jig::render::Parts` (or a trait beside it in `src/jig/`, set on the runner as `parts` is) the
+hooks jig's settings and proposal commands need, in jig's terms only: the application
+setting names a host offers (`landing-rule`, `forge-charter` come from the host, not from
+`jig/rows.rs`), the read to send for one (opaque bytes or numbers the runner passes through)
+and the rendering of its answer as text and `--json`; implement them in `src/settings.rs`
+over `temper_client_protocol_wire` and `temper_client_domain`, called from `root.rs`'s
+`Parts`. Move `jig/runner/kinds.rs`, `jig/render/document/settings/kinds.rs` and the
+wire-naming parts of `jig/render/document/proposal.rs` and `jig/rows.rs` out of `src/jig/`
+accordingly. The boundary test stays as it is and must pass. The other compiler-forced arms
+the run made (`admission.rs`, `domain.rs`, `route/forge_route.rs`, `clients/translation.rs`,
+the engine and system worlds' lists) are now in the header; change nothing else in them. The
+four downstream failures under the report's `## Left` (`change_panel`, `task`'s forge panel,
+the two ChangedJudge simulations) are not this task's: report them again under `## Left`.
