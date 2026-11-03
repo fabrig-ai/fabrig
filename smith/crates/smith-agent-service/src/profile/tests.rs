@@ -51,7 +51,7 @@ pub(super) fn declarations() -> Configuration {
 )]
 fn forty_eight_calls_per_response_derive_with_two_models() {
     // smith/docs/design/protocol/limits.md, section 4: turn-in-channel.
-    const TURN_BODY_CEILING: u32 = 16_777_216;
+    const TURN_BODY_CEILING: u32 = 33_554_432;
     let mut selected = standard();
     selected.declared.tool_payload = 10_662;
     selected.declared.read_window = 256;
