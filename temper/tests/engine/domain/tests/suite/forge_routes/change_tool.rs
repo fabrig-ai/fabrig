@@ -137,18 +137,25 @@ fn questions_are_a_plans_member() {
 }
 
 #[test]
-fn questions_foreman_is_not_offered_yet() {
-    for batch in [false, true] {
+fn questions_foreman_is_offered_alone_and_in_a_batch() {
+    const ONE_CHANGE: usize = 1;
+    for (input, count) in [
+        (br#"{"words":"Small fix","questions":"foreman"}"#.as_slice(), ONE_CHANGE),
+        (
+            br#"{"changes":[{"name":"a","words":"First fix"},{"words":"Small fix","questions":"foreman","after":["a"]}]}"#.as_slice(),
+            TWO_CHANGES,
+        ),
+    ] {
         let (mut world, chat) = plan_world(true);
-        let rows = world.store.rows.clone();
-        let assigned = world.assigned.len();
-        let member = r#"{"words":"Small fix","questions":"foreman"}"#;
-        let input = if batch { format!(r#"{{"changes":[{{"words":"First fix"}},{member}]}}"#) } else { member.into() };
-        assert_eq!(plan_change(&mut world, &chat, input.as_bytes()), None);
-        assert_eq!(world.call_errors.len(), 1);
-        assert_eq!(world.call_errors[0].text.as_ref(), b"change's questions foreman is not offered yet.");
-        assert_eq!(world.store.rows, rows, "no delegate or call record is built");
-        assert_eq!(world.assigned.len(), assigned, "nothing is delegated");
+        let answer = plan_change(&mut world, &chat, input);
+        let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("delegated: {answer:?}") };
+        assert_eq!(made.len(), count);
+        assert!(world.call_errors.is_empty());
+        let task = made.last().expect("foreman change").task;
+        let change = live(&world, task);
+        assert_eq!(change.spec.words.as_ref(), b"Small fix");
+        assert!(change.spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 1 }));
+        assert!(change.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Charter(6)));
     }
 }
 
