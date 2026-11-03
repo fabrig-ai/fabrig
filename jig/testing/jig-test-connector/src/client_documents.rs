@@ -131,6 +131,7 @@ fn task(domain: &Domain, project: u32, number: u64) -> Result<&[crate::Path], Do
             | crate::Record::Made { .. }
             | crate::Record::SettingDefault { .. }
             | crate::Record::SettingChange { .. }
+            | crate::Record::SettingReplaced { .. }
             | crate::Record::SettingProposal { .. },
         ) => Err(DocumentMissing::Unknown),
         None => match domain.procedures.get(&number) {
