@@ -90,6 +90,7 @@ pub const LIMITS: d::Limits = d::Limits {
         repairs: 3,
         resolutions: 3,
         updates: 3,
+        questions: 4,
         stall: Duration::from_secs(30),
         gates: 8,
         clean_heads: 8,

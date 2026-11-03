@@ -13,7 +13,11 @@ fn entrance_limits_reject_incoherent_names_rows_and_windows() {
         Limits { name_bytes: 0, ..LIMITS },
         Limits { name_bytes: PANEL_NAME_BYTES + 1, ..LIMITS },
         Limits {
-            change_policy: temper_engine_domain_forge_change::Limits { gates: PANEL_GATES + 1, ..LIMITS.change_policy },
+            change_policy: temper_engine_domain_forge_change::Limits {
+                gates: PANEL_GATES + 1,
+                questions: 4,
+                ..LIMITS.change_policy
+            },
             ..LIMITS
         },
         Limits { queue_window: Duration::ZERO, ..LIMITS },
