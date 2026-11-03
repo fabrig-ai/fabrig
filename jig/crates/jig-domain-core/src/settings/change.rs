@@ -6,17 +6,20 @@ use crate::{
 use skein_lib::List;
 
 pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
-    if items.len()
-        > skein_lib::length::usize_of(
-            super::capacity(limits)
-                .expect("settings capacity")
-                .checked_mul(2)
-                .expect("item union")
-                .checked_add(1)
-                .expect("one project policy"),
-        )
-    {
-        return Err(Failure { setting: items.first().expect("past nonzero capacity").setting, fault: Fault::Count });
+    let bound = super::capacity(limits)
+        .expect("settings capacity")
+        .checked_mul(2)
+        .expect("item union")
+        .checked_add(1)
+        .expect("one project policy");
+    let mut jig = 0_u32;
+    for item in items {
+        if !super::application::is_application(item.setting) {
+            jig = jig.checked_add(1).expect("bounded item count");
+            if jig > bound {
+                return Err(Failure { setting: item.setting, fault: Fault::Count });
+            }
+        }
     }
     let mut counts = [0_u32; 3];
     let mut project_policy = false;

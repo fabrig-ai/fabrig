@@ -93,10 +93,10 @@ pub(super) fn signed_out(to: ReplyTo, out: &mut Queue<Request>) {
 
 pub(super) fn outcome_reply(outcome: Outcome) -> Reply {
     match outcome {
-        Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         Outcome::Again(why) => Reply::Again(why),
         Outcome::SignedOut => Reply::SignedOut,
-        Outcome::Compound { .. }
+        Outcome::Restored { .. }
+        | Outcome::Compound { .. }
         | Outcome::CompoundRefused { .. }
         | Outcome::MarkedSeen { .. }
         | Outcome::Applied { .. }
@@ -366,9 +366,9 @@ fn written_place(domain: &Domain, person: u64, ask: &Ask) -> Option<(RequestKey,
 
 pub(super) fn reserves_answer(ask: &Ask) -> bool {
     match ask {
-        Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         Ask::MarkSeen { .. } => false,
-        Ask::Application { .. }
+        Ask::Restore { .. }
+        | Ask::Application { .. }
         | Ask::AccountSignIn { .. }
         | Ask::AccountSignOut { .. }
         | Ask::AccountChange { .. }
@@ -446,11 +446,11 @@ pub(super) fn answer_decided(
     }
 
     match outcome {
-        Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         // A refused admission is retryable with the same key, including
         // pressure reported by tasks or another child through the root.
         Outcome::Again(_) | Outcome::SignedOut => {}
-        Outcome::Compound { .. }
+        Outcome::Restored { .. }
+        | Outcome::Compound { .. }
         | Outcome::CompoundRefused { .. }
         | Outcome::MarkedSeen { .. }
         | Outcome::Applied { .. }

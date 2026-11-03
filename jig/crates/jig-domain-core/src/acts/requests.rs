@@ -26,9 +26,9 @@ pub(crate) fn request(
         crate::settings::revisions::release_run(row, *again)?;
     }
     let (act, subject) = match ask {
-        people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         // An account request's check is its holder's, which people made (domain/authority.md, 8.4).
-        people::Ask::Lift { .. }
+        people::Ask::Restore { .. }
+        | people::Ask::Lift { .. }
         | people::Ask::Propose { action: people::Action::Settings { .. }, .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::MoveToNewest { .. }
@@ -129,7 +129,6 @@ pub(crate) fn request(
         people::Ask::SetPool { .. } => (Act::SetPool, documents::Subject::Project { project }),
     };
     match ask {
-        people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         // The person-task entrance compares the named revision before phase
         // eligibility, and preserves the ended-task lookup.
         people::Ask::AnswerPerson { .. } => return Ok(()),
@@ -154,7 +153,8 @@ pub(crate) fn request(
                 | jig_domain_tasks::Escalation::Rejected { .. } => return Ok(()),
             }
         }
-        people::Ask::Compound { .. }
+        people::Ask::Restore { .. }
+        | people::Ask::Compound { .. }
         | people::Ask::Application { .. }
         | people::Ask::Say { .. }
         | people::Ask::AnswerQuestion { .. }

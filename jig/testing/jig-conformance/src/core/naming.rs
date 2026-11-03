@@ -196,7 +196,6 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
 
 fn ask_project(ask: &people::Ask) -> Option<u32> {
     match ask {
-        people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         people::Ask::Compound { project, .. }
         | people::Ask::EditNote { project, .. }
         | people::Ask::MakeService { project, .. }
@@ -221,9 +220,10 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::Create { project, .. }
         | people::Ask::Propose { project, .. }
         | people::Ask::Withdraw { project, .. } => Some(*project),
-        people::Ask::MakeProject { .. } | people::Ask::ChangeSettings { .. } | people::Ask::MoveToNewest { .. } => {
-            Some(0)
-        }
+        people::Ask::Restore { .. }
+        | people::Ask::MakeProject { .. }
+        | people::Ask::ChangeSettings { .. }
+        | people::Ask::MoveToNewest { .. } => Some(0),
         people::Ask::Application { scope, .. } => match scope {
             people::ApplicationScope::Own => None,
             people::ApplicationScope::Project(project) => Some(*project),

@@ -334,7 +334,7 @@ pub(crate) fn connector(
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
     match event {
-        connector::Event::SettingsRestored { .. } => unreachable!("a restore: restore-request"),
+        connector::Event::SettingsRestored { owner, judged } => return crate::routing::settings::restore::restored(core, env, work, owner, judged),
         connector::Event::DescribeBusy { owner } => describe_busy(core, env, work, &mut out, owner),
         connector::Event::DescribeRefused { owner } => describe_refused(core, env, work, &mut out, owner),
         connector::Event::Described { owner, description } => described(core, env, work, &mut out, owner, description),

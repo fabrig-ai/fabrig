@@ -267,7 +267,6 @@ impl Core {
             after = Some(key);
             let source = Key::People(people::Key::Answer(key));
             match outcome {
-                people::Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
                 people::Outcome::Applied { connector, .. } => {
                     assert!(self.connectors.contains(connector), "{source:?} links missing connector {connector}");
                 }
@@ -293,7 +292,8 @@ impl Core {
                         self.link_allocated_task(&source, given.task);
                     }
                 }
-                people::Outcome::MarkedSeen { seen: people::Seen::Results { .. } }
+                people::Outcome::Restored { .. }
+                | people::Outcome::MarkedSeen { seen: people::Seen::Results { .. } }
                 | people::Outcome::Compound { .. }
                 | people::Outcome::CompoundRefused { .. }
                 | people::Outcome::Again(_)

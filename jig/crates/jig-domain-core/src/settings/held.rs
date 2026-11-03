@@ -292,6 +292,9 @@ impl Core {
             self.current.oldest = if self.current.oldest == 0 { revision } else { self.current.oldest.min(revision) };
         }
         out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Settings(Key::Held(revision))))));
+        if revision < cutoff {
+            super::restart::forget_replaced(self, self.current.oldest.max(cutoff), out);
+        }
         true
     }
 

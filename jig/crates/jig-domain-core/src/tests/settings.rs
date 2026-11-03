@@ -8,5 +8,6 @@ pub(in crate::tests) mod kept_models;
 pub(in crate::tests) mod project_baselines;
 mod project_policy;
 mod replaced;
+mod restore;
 pub(in crate::tests) mod task_settings;
 pub(in crate::tests) mod templates;

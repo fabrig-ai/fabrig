@@ -321,7 +321,6 @@ pub(crate) fn acted(
         Reply::Account | Reply::Project | Reply::Uses | Reply::Adoption => unreachable!("reset act reply"),
     };
     let (keep, why) = match outcome {
-        people::Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         people::Outcome::Again(_) => (true, None),
         people::Outcome::Refused(people::Refusal::NotOffered) => (
             true,
@@ -337,7 +336,8 @@ pub(crate) fn acted(
         people::Outcome::Refused(people::Refusal::Role { held: None }) => {
             (true, Some(b"no first owner configured".as_slice()))
         }
-        people::Outcome::Refused(_)
+        people::Outcome::Restored { .. }
+        | people::Outcome::Refused(_)
         | people::Outcome::CompoundRefused { .. }
         | people::Outcome::Compound { .. }
         | people::Outcome::AccountRemoved { .. }

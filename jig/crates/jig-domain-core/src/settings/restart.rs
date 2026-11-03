@@ -505,6 +505,10 @@ impl Core {
             keep_previous,
         );
         self.current.oldest = oldest;
+        let before = oldest.max(newest.saturating_sub(env.limits.settings.history)).max(1);
+        if erased_revision(&writes, before) {
+            forget_replaced(self, before, &mut out);
+        }
         for write in writes.into_boxed() {
             out.push(Request::Write(write));
         }
@@ -613,4 +617,31 @@ pub(crate) fn first_start(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Re
     })));
     out.push(Request::Write(save(Record::Extent { oldest: 0, keys: core.current.keys })));
     true
+}
+
+/// Erasing history and its connector values belongs to one decision (engine.md, 17.10).
+pub(crate) fn forget_replaced(core: &Core, before: u32, out: &mut Queue<Request>) {
+    let mut connectors = Map::with_capacity(u32::try_from(core.kinds.len()).expect("declared kinds"));
+    for kind in &core.kinds {
+        connectors.insert(kind.connector, ()).expect("kind owners");
+    }
+    for (&connector, ()) in &connectors {
+        out.push(Request::Ask {
+            connector,
+            ask: crate::Ask::Effect(crate::effects::connector::Ask::ForgetReplaced { before: u64::from(before) }),
+        });
+    }
+}
+/// Notify only when a record fell outside retained history, including the old newest.
+pub(crate) fn erased_revision(writes: &List<Write>, before: u32) -> bool {
+    for write in writes {
+        match write {
+            Write::Erase(crate::Key::Core(CoreKey::Settings(Key::History(_)))) => return true,
+            Write::Erase(crate::Key::Core(CoreKey::Settings(Key::Held(revision)))) if *revision < before => {
+                return true;
+            }
+            Write::Save(_) | Write::Erase(_) | Write::CopySettingsRevision(_) | Write::DropTranscript { .. } => {}
+        }
+    }
+    false
 }

@@ -237,7 +237,6 @@ fn fits(received: &Subject, request: &Subject) -> bool {
 }
 fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
     Some(match ask {
-        people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         people::Ask::Say { task, .. } => (Act::Message, Subject::Task { task: *task }),
         people::Ask::AnswerQuestion { task, question, .. } => {
             (Act::Answer, Subject::Question { task: *task, message: *question })
@@ -282,7 +281,8 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         people::Ask::SetRoles { project, .. } => (Act::SetRoles, Subject::Project { project: *project }),
         people::Ask::MakeService { project, .. } => (Act::MakeService, Subject::Project { project: *project }),
         people::Ask::SetPool { project, .. } => (Act::SetPool, Subject::Project { project: *project }),
-        people::Ask::Lift { .. }
+        people::Ask::Restore { .. }
+        | people::Ask::Lift { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::MakeProject { .. }
