@@ -27,9 +27,10 @@ Acceptance:
 - No line you edited names another repository, a path outside the repository or a record kept
   there. Other lines of these files do (script code that reads `$HOME/src/rust/tmp/`, `AGENTS.md`
   3 and 8, `reference-case.execution.md` 3's old code, "its agents' questions"): they stay.
-- `cargo fmt --check -p skein-fake-forge-protocol -p temper` passes, `sh -n` passes on each
-  script you changed, and `python3 -I -B scripts/old_forms.py`, run from the `skein`, `jig` and
-  `temper` roots, raises no count.
+- `cargo fmt --check -p skein-fake-forge-protocol -p temper` passes, each script you changed
+  passes the syntax check of its shebang's shell (`sh -n`, `bash -n` for
+  `jig/scripts/live-sign-in.sh`), and `python3 -I -B scripts/old_forms.py`, run from the
+  `skein`, `jig` and `temper` roots, raises no count.
 
 ## Inputs
 
@@ -132,3 +133,12 @@ Acceptance:
 
 `notes/common.md`'s report; each edit's `file:line` after it; any line found moved or changed
 at your base and what you did; the outward check's result if it exists at your base.
+
+## Answers
+
+2026-11-03. `sh -n` fails on `jig/scripts/live-sign-in.sh`, a Bash script: accept `bash -n`, or
+convert it to POSIX shell? Accept `bash -n`: a script's syntax is checked by the shell its
+shebang names (`#!/usr/bin/env bash` there, `#!/bin/sh` for the other five), and its `sh -n`
+failure is the base's, on lines you do not own. No conversion: it is a behaviour change outside
+this wording task. The acceptance now says so; nothing else changes, and the pushed commit
+`3fc7240619` stands if its other checks held.
