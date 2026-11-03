@@ -3,7 +3,7 @@ use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
 // ChangeRow dominates Row with the producer report bounded by the fixture's 512 operation bytes.
-const APPLICATION_ROW_BYTES: u32 = 121_757;
+const APPLICATION_ROW_BYTES: u32 = 122_332;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
@@ -16,6 +16,7 @@ fn the_application_sizes_are_the_largest_key_and_row() {
     // A producer failure adds 1 presence + 4 length + 512 words = 517 bytes.
     // The producer report adds a four-byte length and the client's 512-byte operation bound.
     // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
+    // Catch-up adds 33 bytes, merge result adds 517 bytes, and the merge delegate adds 25 bytes.
     // NoChange has a 65,540-byte bounded payload; Gating has a 100-byte payload.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),

@@ -826,6 +826,10 @@ pub struct ChangeRow {
     pub producer_failure: Option<Box<[u8]>>,
     /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
     pub report: Box<[u8]>,
+    /// The commit this catch-up merges (temper/docs/design/domain/forge.md, 8.2).
+    pub catch_up: Option<skein_forge::api::Commit>,
+    /// The last merge job's result, at most 512 bytes (temper/docs/design/domain/forge.md, 8.4).
+    pub merge_result: Option<Box<[u8]>>,
 }
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {
@@ -1515,6 +1519,8 @@ pub enum Event {
     },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
+        /// The change's current authority delegates to the merge kind (domain/forge.md, 8.4).
+        merge_job: bool,
         task: u64,
         entry: u64,
         heard: change::Heard,

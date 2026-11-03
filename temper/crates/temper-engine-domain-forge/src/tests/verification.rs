@@ -218,6 +218,8 @@ fn opening_row() -> ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        catch_up: None,
+        merge_result: None,
     }
 }
 
@@ -302,6 +304,7 @@ fn advance(d: &mut Domain, task: u64, wall: Wall, cancelled: bool) -> Queue<Requ
         d,
         &environment,
         StepInput {
+            merge_job: false,
             task,
             entry: OPEN,
             heard: heard(cancelled),

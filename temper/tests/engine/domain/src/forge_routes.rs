@@ -77,6 +77,8 @@ pub struct World {
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     pub signed_in: Option<u64>,
     pub assigned: Vec<engine::Assignment>,
+    pub jobs: Vec<host::JobAssignment>,
+    pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
     pub delivered_messages: BTreeMap<(u64, u64), Vec<u64>>,
     pub answers: Vec<temper_engine_domain::CallAnswer>,
@@ -115,6 +117,7 @@ pub struct World {
 }
 
 #[derive(Clone, Copy, Default)]
+#[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
@@ -128,6 +131,9 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub merge_kind: bool,
+    pub resolutions: Option<u32>,
+    pub merge_authority: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -287,6 +293,9 @@ impl World {
             spec_bytes,
             result_bytes,
             forge_charter,
+            merge_kind,
+            merge_authority,
+            resolutions,
             turn,
             landing_members,
             slots,
@@ -576,6 +585,7 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                merge_job: None,
                                 after: engine::AfterLandingCheck {
                                     tier_retries: 2,
                                     verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),
@@ -684,6 +694,28 @@ impl World {
             }
             if let Some(spec_bytes) = spec_bytes {
                 limits.tasks.spec_bytes = spec_bytes;
+            }
+            if merge_kind {
+                let mut bound = protocol::merge_bound();
+                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
+                bound.result = bound.result.min(limits.tasks.result_bytes);
+                config.core.jobs = Box::new([bound]);
+            }
+            if merge_authority {
+                limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(5);
+                limits.authority.executors = limits.authority.executors.max(5);
+                let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
+                let mut extended = kinds.to_vec();
+                extended.push(authority::Executor::Job(3));
+                *kinds = extended.into_boxed_slice();
+                for project in &mut config.core.seed_projects {
+                    let policy = &mut project.policy.policy;
+                    policy.ceiling.delegation.kinds.clone_from(kinds);
+                    policy.roles[0].authority.delegation.kinds.clone_from(kinds);
+                }
+            }
+            if let Some(resolutions) = resolutions {
+                limits.forge.change_policy.resolutions = resolutions;
             }
             if let Some(stall) = stall {
                 limits.forge.change_policy.stall = stall;
@@ -864,6 +896,8 @@ impl World {
             adopted: Vec::new(),
             signed_in: None,
             assigned: Vec::new(),
+            jobs: Vec::new(),
+            job_workspaces: BTreeMap::new(),
             delivered_messages: BTreeMap::new(),
             answers: Vec::new(),
             call_errors: Vec::new(),
@@ -903,6 +937,32 @@ impl World {
         self.env.limits.forge.client = limits;
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid client admission bounds");
+        self
+    }
+
+    /// Configure the project's merge command before the first input.
+    #[must_use]
+    pub fn with_merge_job(mut self, command: &[u8]) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "merge command precedes world startup");
+        if let Some(landing) = self.restart_config.landing.landings.get_mut(&1) {
+            landing.merge_job = Some(command.into());
+        } else {
+            self.restart_config
+                .landing
+                .landings
+                .insert(
+                    1,
+                    engine::ProjectLanding {
+                        merge_job: Some(command.into()),
+                        by: engine::Way::Queue,
+                        repositories: Box::new([]),
+                        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                    },
+                )
+                .expect("one project's landing");
+        }
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid merge job configuration");
         self
     }
 
@@ -1214,6 +1274,12 @@ impl World {
                         self.signed_in = Some(sign_in);
                     }
                     Delivery::Assigned { assignment, .. } => self.assigned.push(assignment),
+                    Delivery::AssignedJob { job, workspace, .. } => {
+                        if let Some(workspace) = workspace {
+                            self.job_workspaces.insert(job.run.raw(), workspace);
+                        }
+                        self.jobs.push(job);
+                    }
                     Delivery::Read { reply, answer } => self.reads.push((reply, answer)),
                     Delivery::Link { down: host::LinkDown::Message { run, attempt, name, .. }, .. } => {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
@@ -1907,6 +1973,7 @@ pub fn hint_world() -> forge_world::World {
 pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
     use temper_engine_domain_forge_change as change;
     world.event(forge_top::Event::StepChange {
+        merge_job: false,
         task,
         entry,
         heard: change::Heard {

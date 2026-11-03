@@ -166,8 +166,11 @@ fn the_landing_changes_own_update_of_the_goal_branch_is_not_drift() {
 
 #[test]
 fn a_landing_changes_repair_writes_the_goal_branch_under_its_goals_hold() {
-    for kind in [change::Delegate::Repair(change::Repair::Gate(1)), change::Delegate::Resolve { base: fixtures::BASE }]
-    {
+    for kind in [
+        change::Delegate::Repair(change::Repair::Gate(1)),
+        change::Delegate::Resolve { base: fixtures::BASE },
+        change::Delegate::Merge { base: fixtures::BASE, from: Some(fixtures::HEAD) },
+    ] {
         for holder in [GOAL, fixtures::CHANGE] {
             let mut d = held_by(Some(holder));
             let mut row = landing_row();
@@ -186,7 +189,9 @@ fn a_landing_changes_repair_writes_the_goal_branch_under_its_goals_hold() {
             assert_eq!(item.push.as_deref(), Some(GOAL_BRANCH));
             let start = match kind {
                 change::Delegate::Repair(_) => items::Start::Branch(GOAL_BRANCH.into()),
-                change::Delegate::Resolve { base } => items::Start::Merge { branch: GOAL_BRANCH.into(), base },
+                change::Delegate::Resolve { base } | change::Delegate::Merge { base, .. } => {
+                    items::Start::Merge { branch: GOAL_BRANCH.into(), base }
+                }
                 change::Delegate::Produce | change::Delegate::Gate { .. } => unreachable!("repair or resolution"),
             };
             assert_eq!(item.start, start);

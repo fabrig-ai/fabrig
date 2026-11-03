@@ -1402,6 +1402,7 @@ fn change_decodes_a_plan_member_each() {
                 name: Some(b"x".as_slice().into()),
                 landing: Some(expected),
                 branch: None,
+                merge: None,
                 after: Box::new([engine::ChangeAfter::Task(4), engine::ChangeAfter::Name(b"w".as_slice().into())]),
             }]
         );
@@ -1483,6 +1484,7 @@ fn change_decodes_several_changes_in_order() {
             name: None,
             landing: Some(engine::ChangeLanding::Branch(b"main".as_slice().into())),
             branch: None,
+            merge: None,
             after: Box::new([engine::ChangeAfter::Task(1)]),
         }]
     );
@@ -1525,7 +1527,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;
@@ -1973,6 +1975,39 @@ fn document_sections_have_repository_path_and_heading_titles() {
         assert_eq!(section.title.as_ref(), title);
         assert_eq!(section.text.as_ref(), b"[read failed]");
     }
+}
+
+/// temper/docs/design/domain/agent.md, 4.3.1: merge accepts both commit widths and pads SHA-1.
+#[test]
+fn a_plan_change_reads_merge_as_a_commit() {
+    for (digits, length) in [("aB".repeat(20), 20), ("aB".repeat(32), 32)] {
+        let input = format!(r#"{{"words":"Catch up","merge":"{digits}"}}"#);
+        let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("catch-up").tool else {
+            panic!("change")
+        };
+        let mut commit = [0_u8; 32];
+        commit[..length].fill(0xab);
+        assert_eq!(changes[0].merge, Some(commit));
+        assert_eq!(changes[0].landing, None);
+        let input = format!(r#"{{"changes":[{{"words":"Catch up","landing":"goal","merge":"{digits}"}}]}}"#);
+        let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("catch-up batch").tool
+        else {
+            panic!("change")
+        };
+        assert_eq!(changes[0].merge, Some(commit));
+        assert_eq!(changes[0].landing, Some(engine::ChangeLanding::Goal));
+    }
+}
+
+/// temper/docs/design/domain/agent.md, 4.3.1: a malformed commit names the refused member.
+#[test]
+fn a_malformed_merge_is_refused_naming_it() {
+    for (digit, length) in [("a", 0), ("a", 39), ("a", 41), ("a", 63), ("a", 65), ("g", 40), ("g", 64)] {
+        let digits = digit.repeat(length);
+        let input = format!(r#"{{"words":"Catch up","merge":"{digits}"}}"#);
+        assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range(b"merge")));
+    }
+    assert_eq!(decided(b"change", br#"{"words":"Catch up","merge":42}"#), Err(Problem::Type(b"merge")));
 }
 
 #[test]
