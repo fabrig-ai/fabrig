@@ -1,10 +1,10 @@
 # reference-code-production: status
 
-2026-11-02. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
+2026-11-03. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
-    4.3.1: `change` names no requester's branch, `questions`, LLM choice,
+    4.3.1: `change` names no `questions`, LLM choice,
     producer's charter or merge job, nor `repairs`. `../domain/forge.md`, 8.1 and 8.9: a
     change's producer runs under the forge's change charter, and
     `../protocol/configuration.md`, 13.2 numbers the forge's charters for

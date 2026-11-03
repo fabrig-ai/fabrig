@@ -1,6 +1,6 @@
 # after-landing: status
 
-2026-11-02. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-03. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 - **Not yet:** 3: the pending verdict status a run posts on its tip
   before it is held (section 9's). 5.2, 11: the suspects' rule and a
@@ -14,7 +14,8 @@
   is the landing's commit, the tier alone otherwise, though the
   landing's `Verification` row keeps the run
   (`temper-engine-domain/src/route/forge_route.rs`, `tier_landing_run`);
-  a verdict is news to no goal; and a verdict after the bound, or after
+  a verdict is news to no goal; a goal's landing holds its goal's
+  branch as a change holds its own (`forge.md`, 8.1, and its status); and a verdict after the bound, or after
   a verifying change is cancelled, reaches no one: the `Verification`
   row goes with the landing's last change, and no landing log or red of
   no goal's keeps the landing's verdict. 7: no red reaches a goal, and
