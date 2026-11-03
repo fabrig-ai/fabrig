@@ -554,6 +554,11 @@ fn panel() -> forge::Panel {
         repairs: forge::PanelUsed { used: 1, limit: 3 },
         resolutions: forge::PanelUsed { used: 2, limit: 4 },
         updates: forge::PanelUsed { used: 3, limit: 5 },
+        questions: forge::PanelQuestions {
+            route: temper_engine_domain_forge_change::Route::None,
+            taken: forge::PanelUsed { used: 0, limit: 4 },
+            open: Box::new([]),
+        },
     }
 }
 fn decoded_panel(value: forge::Panel, forges: &crate::forges::Forges) -> w::ChangePanel {
@@ -599,6 +604,15 @@ fn a_panel_encodes_and_decodes_back_whole() {
             repairs: w::Used::new(&w::CEILINGS, w::UsedParts { used: 1, limit: 3 }).unwrap(),
             resolutions: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
             updates: w::Used::new(&w::CEILINGS, w::UsedParts { used: 3, limit: 5 }).unwrap(),
+            questions: w::Questions::new(
+                &w::CEILINGS,
+                w::QuestionsParts {
+                    route: w::Route::None,
+                    taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                    open: List::with_capacity(0),
+                },
+            )
+            .expect("no questions"),
         },
     )
     .unwrap();
@@ -665,6 +679,7 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
         (None, None),
         (Some(change::Hold::Stalled), Some(w::Hold::Stalled)),
         (Some(change::Hold::Repairs), Some(w::Hold::Repairs)),
+        (Some(change::Hold::Questions), Some(w::Hold::Questions)),
         (Some(change::Hold::Resolutions), Some(w::Hold::Resolutions)),
         (Some(change::Hold::Updates), Some(w::Hold::Updates)),
         (Some(change::Hold::BranchMoved), Some(w::Hold::Moved)),
@@ -2160,4 +2175,62 @@ fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
     assert_eq!(set.value(), temper_engine_smith::kinds::encode(&value.value).as_ref());
     assert_eq!(*decoded.items().as_slice()[1].edit(), w::SettingEdit::Removed);
     assert_eq!(*decoded.items().as_slice()[2].edit(), w::SettingEdit::Reset);
+}
+
+#[test]
+fn a_panels_questions_map_field_for_field() {
+    for (route, expected_route) in [
+        (change::Route::None, w::Route::None),
+        (change::Route::Foreman, w::Route::Foreman),
+        (change::Route::Up, w::Route::Up),
+    ] {
+        let mut value = panel();
+        let mut open = List::with_capacity(5);
+        let mut expected = List::with_capacity(5);
+        for (index, (stands, wire)) in [
+            (forge::PanelStands::Taken, w::Stands::Taken),
+            (
+                forge::PanelStands::Foreman(None),
+                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: None }).unwrap()),
+            ),
+            (
+                forge::PanelStands::Foreman(Some(15)),
+                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: Some(15) }).unwrap()),
+            ),
+            (forge::PanelStands::Asked, w::Stands::Asked),
+            (forge::PanelStands::Held, w::Stands::Held),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let asker = 71_u64.checked_add(u64::try_from(index).unwrap()).unwrap();
+            let number = 1_u64.checked_add(u64::try_from(index).unwrap()).unwrap();
+            let line = b"Which branch?".as_slice();
+            open.push(forge::PanelQuestion { asker, number, line: Box::from(line), stands }).unwrap();
+            expected
+                .push(
+                    w::Question::new(
+                        &w::CEILINGS,
+                        w::QuestionParts { asker, number, line: Box::from(line), stands: wire },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        value.questions =
+            forge::PanelQuestions { route, taken: forge::PanelUsed { used: 2, limit: 4 }, open: open.into_boxed() };
+        let got = decoded_panel(value, &fixtures::forge_table(&[]));
+        assert_eq!(
+            got.questions(),
+            &w::Questions::new(
+                &w::CEILINGS,
+                w::QuestionsParts {
+                    route: expected_route,
+                    taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
+                    open: expected
+                }
+            )
+            .unwrap()
+        );
+    }
 }

@@ -696,8 +696,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
 // The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
 // The banner's setup link and project switcher add two literal phrases (5.1 and 5.6).
-const PHRASES: u32 = 1217;
-const SEGMENTS: u32 = 2097;
+const PHRASES: u32 = 1218;
+const SEGMENTS: u32 = 2098;
 const ALL: [Word; 624] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,

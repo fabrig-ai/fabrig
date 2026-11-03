@@ -589,9 +589,9 @@ pub fn fixture_5_2() -> forge::Fixture {
                 value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
             }
             value["world_settings"]["helper"] = true.into();
-            // Four charters (the placed director, chat, helper and reviewer)
-            // plus the change procedure must fit the delegation's kinds.
-            for (name, size) in [("tasks.charters", 4), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
+            // The four stock charters and the helper need five catalogue slots.
+            // The director, chat, helper, reviewer and change procedure need five delegation kinds.
+            for (name, size) in [("tasks.charters", 5), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
                 value["engine"]["limits"]["overrides"][name] = size.into();
             }
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();

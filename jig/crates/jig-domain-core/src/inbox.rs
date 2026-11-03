@@ -217,7 +217,7 @@ impl Core {
         match row.requester {
             tasks::Party::Person(person) => {
                 for line in &row.question_lines {
-                    if line.answer.is_some() {
+                    if line.answer.is_some() || (self.person_answers && self.conversation_requester(row).is_none()) {
                         continue;
                     }
                     let mut at = None;

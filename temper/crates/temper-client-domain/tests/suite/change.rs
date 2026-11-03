@@ -238,6 +238,11 @@ mod tests {
             repairs: used(0, 3),
             resolutions: used(0, 3),
             updates: used(0, 3),
+            questions: w::Questions::new(
+                &w::CEILINGS,
+                w::QuestionsParts { route: w::Route::None, taken: used(0, 4), open: List::with_capacity(0) },
+            )
+            .expect("no questions"),
         }
     }
     fn queued(place: u32, ahead: &[u64]) -> w::Step {

@@ -8,7 +8,8 @@ for every landing on a repository's landing branch, by queue
 (`forge.md`, sections 8 to 10), by turn (`landing.md`), or by anyone
 outside temper. Findings, where a verdict files a flake or a red whose
 goal has ended, are `findings.md`'s; a project without findings keeps
-them in the verdict's own record. What is still open is section 13.
+them in the verdict's own record. What is still open is section 13;
+what waits, section 14.
 
 ## 1. In one page
 
@@ -490,3 +491,16 @@ with failing tests by id and uploading their artifacts:
   uncleared on its own judgement before the bound.
 - **Tiers on the forge's runners or on workers:** both are allowed by
   the draft; the forge's runners here, workers once a worker runs jobs.
+- **Blame on a goal's branch:** whether a tier following goal branches
+  should bisect a red to the merge that brought it and name that change
+  in its news, rather than leave the goal to triage (5.4). Triage
+  matched the evidence; blame would need the verdict machinery on a
+  goal's branch (`../draft/reference-code-production.md`, section 17).
+
+## 14. Later
+
+- **A red after landing blamed within a goal's landing,** bisected over
+  its changes' merges to the change that brought it. A goal's landing
+  is one landing to its tiers, so its red names the goal's landing
+  alone and the goal triages it (section 7;
+  `../draft/reference-landing.md`, section 11).

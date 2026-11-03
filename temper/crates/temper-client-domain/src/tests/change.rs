@@ -95,6 +95,7 @@ fn holds_supply_each_reason() {
     for (hold, word) in [
         (w::Hold::Stalled, W::Stalled),
         (w::Hold::Repairs, W::RepairsSpent),
+        (w::Hold::Questions, W::QuestionsSpent),
         (w::Hold::Resolutions, W::ResolutionsSpent),
         (w::Hold::Updates, W::UpdatesSpent),
         (w::Hold::Moved, W::Moved),

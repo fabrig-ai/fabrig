@@ -1453,6 +1453,78 @@ fn a_producer_report_is_bounded_by_the_forge_operation_bytes() {
 }
 
 #[test]
+fn a_changes_questions_and_foreman_charter_round_trip_unchanged() {
+    use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State};
+    const ASKER: u64 = 7;
+    let mut row =
+        fixtures::change_row(State::Held { was: Box::new(State::Checking { head: [1; 32] }), why: Hold::Questions });
+    let mut open = skein_lib::List::uncapped();
+    for (number, stands) in [
+        (1, Stands::Taken),
+        (2, Stands::Foreman { task: None }),
+        (3, Stands::Foreman { task: Some(9) }),
+        (4, Stands::Asked),
+        (5, Stands::Held { answer: b"Keep the documented behavior".as_slice().into() }),
+    ] {
+        open.push(Open {
+            asker: ASKER,
+            number,
+            line: b"Which behavior?".as_slice().into(),
+            words: b"Which behavior?\nKeep both options.".as_slice().into(),
+            stands,
+        })
+        .unwrap();
+    }
+    row.questions = Questions { route: Route::Foreman, taken: 3, open: open.into_boxed() };
+    row.foreman_charter = 6;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let row = forge::Stored::Change(row);
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn a_held_answer_is_bounded_by_the_forge_operation_bytes() {
+    use temper_engine_domain_forge_change::{Open, Stands, State};
+    let bound = fixtures::LIMITS.client.op_bytes;
+    let bounds = crate::bounds(&fixtures::LIMITS, bound).expect("fixture bounds");
+    assert_eq!(bounds.limits().held_answer, bound);
+    for (length, accepted) in [(bound, true), (bound + 1, false)] {
+        let mut row = fixtures::change_row(State::Producing { requested: true });
+        row.questions.open = Box::new([Open {
+            asker: 7,
+            number: 1,
+            line: Box::new([]),
+            words: Box::new([]),
+            stands: Stands::Held { answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()) },
+        }]);
+        let row = forge::Stored::Change(row);
+        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+        assert_eq!(records::decode(&records::encode(&row), &bounds), expected, "answer bytes: {length}");
+    }
+}
+
+#[test]
+fn an_open_questions_words_are_bounded_by_the_forge_operation_bytes() {
+    use temper_engine_domain_forge_change::{Open, Stands, State};
+    let bound = fixtures::LIMITS.client.op_bytes;
+    let bounds = crate::bounds(&fixtures::LIMITS, bound).expect("fixture bounds");
+    assert_eq!(bounds.limits().open_words, bound);
+    for (length, accepted) in [(bound, true), (bound + 1, false)] {
+        let mut row = fixtures::change_row(State::Producing { requested: true });
+        row.questions.open = Box::new([Open {
+            asker: 7,
+            number: 1,
+            line: Box::new([]),
+            words: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()),
+            stands: Stands::Asked,
+        }]);
+        let row = forge::Stored::Change(row);
+        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+        assert_eq!(records::decode(&records::encode(&row), &bounds), expected, "question bytes: {length}");
+    }
+}
+
+#[test]
 fn a_changes_early_start_round_trips_each_arm_and_head_order() {
     use temper_engine_domain_forge_change::{Early, StartedFrom, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

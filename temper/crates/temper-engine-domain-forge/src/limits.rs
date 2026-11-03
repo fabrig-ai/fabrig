@@ -98,6 +98,7 @@ pub fn valid(l: &Limits) -> bool {
         || l.name_bytes == 0
         || l.name_bytes > crate::PANEL_NAME_BYTES
         || l.change_policy.gates > crate::PANEL_GATES
+        || usize::try_from(l.change_policy.questions).expect("u32 fits usize") >= temper_engine_domain_forge_change::QUESTIONS_OPEN
         || l.queue_window == skein_lib::Duration::ZERO
         || l.adoptions == 0
         || l.applications == 0

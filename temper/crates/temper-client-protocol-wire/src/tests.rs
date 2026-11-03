@@ -116,6 +116,8 @@ fn limits_take_each_bound_from_its_source_field() {
             change_panel_branch: 16,
             change_panel_landing: 16,
             change_panel_gates: crate::GATES,
+            question_line: 256,
+            questions_open: 8,
             managed_forge_host: 255,
             managed_forge_tls_some: 255,
             managed_forge_git: crate::ADDRESS_BYTES,

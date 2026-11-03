@@ -8,19 +8,23 @@
 //! decision, while a committed pending state asks for no duplicate action.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::disallowed_macros, reason = "the relay contracts require Default for Route and Questions")]
 
 extern crate alloc;
 
 mod boundary;
 mod domain;
 mod queue;
+mod relay;
 #[cfg(test)]
 mod tests;
 
 pub use boundary::{
     Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Change, Ci, Decision, Delegate, DelegateSpend, Early, Effect,
-    EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, GateReport, Heard, Hold, Limits, Pending, PendingKind,
-    Pull, Ready, Repair, StartedFrom, State, Status, Stepped, Verification, Way,
+    EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, GateReport, Heard, Hold, Limits, Open, Pending,
+    PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route, Stands, StartedFrom, State,
+    Status, Stepped, Verification, Way,
 };
 pub use domain::{authority_words, released, review_failed, step};
 pub use queue::first;
+pub use relay::{Asked, RelayAct, RelayHeard, Relayed, Settled, relay};
