@@ -149,7 +149,7 @@
         "tasks.result_bytes": 128,
         "tasks.spec_bytes": 128,
         "tasks.tasks": 2,
-        "tasks.tree_tasks": 1,
+        "tasks.tree_tasks": 4,
         "views.runs": 1,
         "views.text_bytes": 1024,
         "views.watchers": 16,
@@ -182,7 +182,7 @@
             "cached": 1,
             "input": 1,
             "output": 1,
-            "unit": 1000000
+            "unit": 1000
           },
           "window": 1048576
         }
