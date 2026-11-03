@@ -12,15 +12,10 @@
   6: retention; a delegate's question to a conversation kept with the
   conversation. 7: a chat answering its delegates' questions and asking
   its person by a person task.
-- **Departs:** 5.2: a deleted project's live tasks are cancelled with no
-  grace, a conversation among them (`jig-domain-core/src/admission/deletion.rs`,
-  `cancel`, `grace: None`), because `RemoveProject` names no grace and
-  the engine reads no template; whether a deletion gives its
-  conversations their close's grace is the user's to decide. 6, 8: the
-  person's own answer is off by default, behind `Core::person_answers()`
-  (`jig-domain-core/src/inbox.rs`), because each application opts in
-  before the first step, as temper does. With it off, the asked task
-  answers and relays. With it on, credits stored before it was set,
-  naming a task answerer, route by the question's current inbox owner,
-  and moving a recipient re-points its incoming person-answerer credits
-  to its new person.
+- **Departs:** 6, 8: the person's own answer is off by default, behind
+  `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because
+  each application opts in before the first step, as temper does. With
+  it off, the asked task answers and relays. With it on, credits stored
+  before it was set, naming a task answerer, route by the question's
+  current inbox owner, and moving a recipient re-points its incoming
+  person-answerer credits to its new person.

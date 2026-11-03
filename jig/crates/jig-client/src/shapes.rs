@@ -102,6 +102,20 @@ pub fn close_chat(me: &Me, project: u32, chat: u64, delegates: &[Delegate], reas
     operations.push(Operation::Cancel { project, task: chat, reason, grace }).expect("chat last");
     Ok(Ask::Compound { project, operations })
 }
+/// A project's deletion with the chat template's grace, as a close gives one
+/// (client/domain/client.md, 19; domain/people.md, 5.2).
+pub fn remove_project(me: &Me, project: u32) -> Result<Ask, NotOffered> {
+    for membership in &me.projects {
+        if membership.project == project {
+            let grace = match template(me, project, CHAT) {
+                Some(template) => template.grace,
+                None => None,
+            };
+            return Ok(Ask::RemoveProject { project, grace });
+        }
+    }
+    Err(NotOffered::Project)
+}
 #[must_use]
 pub fn set_goal(me: &Me, project: u32, draft: GoalDraft, reason: Text) -> Judged {
     let creating = match creating(me, project) {

@@ -8,7 +8,8 @@ use temper_engine_domain_forge_issues as issues;
 
 use crate::{
     BranchHead, ChangeRow, CiState, Class, Event, Hold, IssueRow, Key, Kinds, Limits, Name, News, PullState,
-    ReleaseEnding, ReleaseRow, Repository, Request, RestartStage, Role, Stored, Subscriber, Topic, What, Writer,
+    RecordKind, ReleaseEnding, ReleaseRow, Repository, Request, RestartStage, Role, Stored, Subscriber, Topic, What,
+    Writer,
 };
 use crate::{adoption, brief, held, topics};
 
@@ -167,6 +168,7 @@ pub struct Domain {
     pub(crate) panel_ci: Map<u64, change::Ci>,
     pub(crate) issues: Map<u64, IssueRow>,
     releases: Map<u64, ReleaseRow>,
+    pub(crate) kept: Map<u64, Box<[Name]>>,
     namespace: Box<[u8]>,
     pub(crate) adoptions: Map<Token, adoption::PendingAdoption>,
     pub(crate) application: adoption::State,
@@ -553,7 +555,7 @@ impl Domain {
             connect: crate::connect::State::new(l.applications),
             installations: Map::with_capacity(l.client.rows),
             repositories: Map::with_capacity(l.repositories),
-            names: Map::with_capacity(l.tasks),
+            names: Map::with_capacity(l.tasks.checked_add(l.repositories).ok_or(skein_forge::api::Error::TooLarge)?),
             holds: Map::with_capacity(l.holds),
             subscriptions: Map::with_capacity(l.subscriptions),
             goal_files: Map::with_capacity(l.changes),
@@ -577,6 +579,7 @@ impl Domain {
             panel_ci: Map::with_capacity(l.changes),
             issues: Map::with_capacity(l.issues),
             releases: Map::with_capacity(l.tasks),
+            kept: Map::with_capacity(l.repositories),
             namespace: config.namespace.clone(),
             adoptions: Map::with_capacity(l.adoptions),
             application: adoption::State::new(l),
@@ -845,6 +848,51 @@ impl Domain {
         match self.names.get(&task) {
             Some(names) => Some(names),
             None => None,
+        }
+    }
+
+    /// A released task's repositories (temper/docs/design/domain/forge.md, 4.1).
+    #[must_use]
+    pub fn kept_names(&self, task: u64) -> Option<&[Name]> {
+        match self.kept.get(&task) {
+            Some(names) => Some(names),
+            None => None,
+        }
+    }
+
+    /// Split restored live and kept names (temper/docs/design/domain/forge.md, 16).
+    pub fn link_names(&mut self, tasks: &jig_domain_tasks::Domain, limits: &Limits) {
+        if self.restore_fit.is_some() {
+            return;
+        }
+        let mut absent = List::with_capacity(self.names.capacity());
+        let mut live = 0_u32;
+        for (task, _) in &self.names {
+            if tasks.task(*task).is_none() {
+                absent.push(*task).expect("bounded restored names");
+            } else {
+                if let Err(failure) =
+                    restore::room(RecordKind::Names, RestoreSet::Rows(RecordKind::Names), live, limits.tasks, false)
+                {
+                    self.restore_fit = Some(Box::new(failure));
+                    return;
+                }
+                live = live.checked_add(1).expect("bounded live names");
+            }
+        }
+        for task in absent.into_boxed() {
+            if let Err(failure) = restore::room(
+                RecordKind::Names,
+                RestoreSet::Rows(RecordKind::Names),
+                self.kept.len(),
+                limits.repositories,
+                self.kept.contains_key(&task),
+            ) {
+                self.restore_fit = Some(Box::new(failure));
+                return;
+            }
+            let resources = self.names.remove(&task).expect("restored names row");
+            self.kept.insert(task, resources).expect("kept names fit");
         }
     }
 
@@ -1259,13 +1307,24 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 }
             }
         },
-        Event::Names { task, resources } => names(d, env, task, resources, out),
+        Event::Names { task, resources } => {
+            if !d.kept.contains_key(&task) {
+                names(d, env, task, resources, out);
+            }
+        }
         Event::Rename { task, resources } => {
             if d.names.contains_key(&task) {
                 names(d, env, task, resources, out);
             }
         }
-        Event::Unnamed { task } => unnamed(d, env, task, out),
+        Event::Unnamed { task } => {
+            if d.kept.remove(&task).is_some() {
+                emit(out, Request::Erase { key: Key::Names(task) });
+                crate::removal::unnamed(d, out);
+            } else {
+                unnamed(d, env, task, false, out);
+            }
+        }
         Event::Hold { task, resource, from } => hold(d, env, task, resource, from, out),
         Event::Claim { task, attempt, writes, holders } => claim(d, env, task, attempt, &writes, &holders, out),
         Event::Answered { task, attempt, pushed } => answered(d, env, task, attempt, &pushed, out),
@@ -1878,7 +1937,7 @@ fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, o
     drain(d, env, out);
 }
 
-fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, keep: bool, out: &mut Queue<Request>) {
     let mut list: List<skein_forge_client::Watch> = List::with_capacity(env.limits.client.resources);
     for (owner, row) in &d.names {
         if *owner == task {
@@ -1922,11 +1981,75 @@ fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request
         skein_forge_client::Event::Keep { owner: Token::new(task), watches: list.into_boxed() },
         &mut d.client_out,
     );
-    if kept(&d.client_out) && d.names.remove(&task).is_some() {
-        emit(out, Request::Erase { key: Key::Names(task) });
+    if kept(&d.client_out)
+        && let Some(resources) = d.names.remove(&task)
+    {
+        if keep {
+            keep_names(d, env, task, resources, out);
+        } else {
+            emit(out, Request::Erase { key: Key::Names(task) });
+        }
         crate::removal::unnamed(d, out);
     }
     drain(d, env, out);
+}
+
+// Keep repository names alone, in name order (temper/docs/design/domain/forge.md, 4.1).
+fn keep_names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, out: &mut Queue<Request>) {
+    let mut repositories = Map::with_capacity(env.limits.resources_per_task);
+    for name in resources {
+        repositories.insert(Name { what: What::Repository, ..name }, ()).expect("bounded task resources");
+    }
+    let mut resources = List::with_capacity(env.limits.resources_per_task);
+    for (name, ()) in &repositories {
+        resources.push(name.clone()).expect("bounded task repositories");
+    }
+    let resources = resources.into_boxed();
+    if d.kept.len() == d.kept.capacity() {
+        let mut oldest = None;
+        for (owner, row) in &d.kept {
+            if names_covered(d, *owner, row, task, &resources) {
+                oldest = Some(*owner);
+                break;
+            }
+        }
+        if names_covered(d, task, &resources, task, &resources) {
+            oldest = Some(match oldest {
+                Some(owner) => owner.min(task),
+                None => task,
+            });
+        }
+        let oldest = oldest.expect("at most one last naming task per repository");
+        emit(out, Request::Erase { key: Key::Names(oldest) });
+        if oldest == task {
+            return;
+        }
+        d.kept.remove(&oldest);
+    }
+    d.kept.insert(task, resources.clone()).expect("bounded kept names");
+    emit(out, Request::Save { record: Stored::Names { task, resources }, release: None, read_afresh: None });
+}
+
+fn names_covered(d: &Domain, task: u64, resources: &[Name], released: u64, releasing: &[Name]) -> bool {
+    for name in resources {
+        let mut covered = false;
+        for (owner, row) in d.names.iter().chain(d.kept.iter()) {
+            if *owner > task {
+                for later in row {
+                    covered |= name.forge == later.forge && name.repository == later.repository;
+                }
+            }
+        }
+        if released > task {
+            for later in releasing {
+                covered |= name.forge == later.forge && name.repository == later.repository;
+            }
+        }
+        if !covered {
+            return false;
+        }
+    }
+    true
 }
 
 fn kept(out: &Queue<skein_forge_client::Request>) -> bool {
@@ -3811,7 +3934,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         for topic in &topics {
             unsubscribe(d, task, topic.clone(), out);
         }
-        unnamed(d, env, task, out);
+        unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
         d.releases.remove(&task);
         emit(out, Request::Erase { key: Key::Release(task) });
@@ -5393,7 +5516,7 @@ pub(crate) fn erase_removed_repositories(d: &mut Domain, forge: u16, out: &mut Q
             continue;
         }
         let mut named = false;
-        for (_, names) in &d.names {
+        for (_, names) in d.names.iter().chain(d.kept.iter()) {
             for name in names {
                 named |= name.forge == forge && name.repository == repository.repository;
             }
@@ -5612,11 +5735,10 @@ impl Domain {
     #[expect(clippy::too_many_lines, reason = "one exhaustive failure-path scan of the referencing family")]
     pub(super) fn restored_link_key(
         &self,
-        kind: crate::RecordKind,
+        kind: RecordKind,
         need: crate::reconcile::Need,
         client_repository: bool,
     ) -> Key {
-        use crate::RecordKind;
         use crate::reconcile::Need;
         match kind {
             RecordKind::Call => {
@@ -5656,10 +5778,7 @@ impl Domain {
                 }
             }
             RecordKind::Names => {
-                for (key, resources) in &self.names {
-                    if need.task(*key, crate::reconcile::names_forge(resources)) {
-                        return Key::Names(*key);
-                    }
+                for (key, resources) in self.names.iter().chain(self.kept.iter()) {
                     for name in resources {
                         if need.name(name) {
                             return Key::Names(*key);

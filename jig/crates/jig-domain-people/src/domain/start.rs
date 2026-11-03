@@ -228,8 +228,8 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         return restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
-        Stored::Deletion { project, step } => {
-            domain.deletions.insert(project, step).expect("deletion fit checked");
+        Stored::Deletion { project, step, grace } => {
+            domain.deletions.insert(project, crate::KeptDeletion { step, grace }).expect("deletion fit checked");
         }
         Stored::Person { number, identity } => {
             domain.identities.insert(identity.key.clone(), number).expect("identity fit checked");

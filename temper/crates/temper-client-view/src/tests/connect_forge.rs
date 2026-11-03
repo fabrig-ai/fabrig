@@ -165,27 +165,30 @@ fn forgejo_here_details_say_the_first_repository_and_set_it_up() {
     assert!(view.tree().nodes().iter().find(|n| n.id == id).unwrap().states.as_slice().contains(&State::Disabled));
 }
 #[test]
-fn forgejo_here_without_the_box_lists_its_four_commands() {
+fn forgejo_here_without_the_box_says_to_start_temper_with_the_box() {
     let view = f::page_view(&root(Some(Choice::Forge(HERE)), w::Connection::NotSetUp, w::Offer::NotUnderTheBox));
-    node(view.tree(), Role::Heading { level: 2 }, b"Set it up from a terminal");
-    words_in_order(
-        view.tree(),
-        &[
-            "temper was not started by temper box, so it does not start a Forgejo itself. Run these, keep the last two running (a service manager is best), then restart temper:",
-            "temper forge fetch 3",
-            "temper forge prepare 3",
-            "temper forge run 3 forgejo",
-            "temper forge run 3 runner",
-            "Once it is connected, make your first repository here.",
-        ],
-    );
-    assert!(f::find(view.tree(), Role::Button, b"Set up a Forgejo here").is_none());
-    assert_eq!(view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_CODE)).count(), 1);
-    let index = view.tree().nodes().iter().position(|n| n.styles.as_slice().contains(&crate::look::FLOW_CODE)).unwrap();
+    node(view.tree(), Role::Heading { level: 2 }, b"Set it up under temper box");
+    let details =
+        view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_DETAILS)).unwrap();
+    let paragraphs: Vec<_> = view
+        .tree()
+        .nodes()
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| n.role == Role::Paragraph && parent(view.tree(), n.id) == Some(details.id))
+        .collect();
+    assert_eq!(paragraphs.len(), 1);
+    let (index, paragraph) = paragraphs[0];
     assert_eq!(
         f::node_text(view.tree(), index).as_ref(),
-        b"temper forge fetch 3\ntemper forge prepare 3\ntemper forge run 3 forgejo\ntemper forge run 3 runner"
+        b"temper was not started by temper box, so it does not start a Forgejo itself. Start temper with temper box to set one up here."
     );
+    assert!(paragraph.text.iter().all(|run| run.run == skein_ui::Run::Plain));
+    assert!(f::find(view.tree(), Role::Button, b"Set up a Forgejo here").is_none());
+    assert!(
+        !view.tree().nodes().iter().any(|n| n.role == Role::Button && parent(view.tree(), n.id) == Some(details.id))
+    );
+    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_CODE)));
 }
 #[test]
 fn elsewhere_details_give_the_next_unused_number() {

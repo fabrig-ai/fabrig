@@ -153,7 +153,7 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
                     name.project = Some(*project);
                     name.task = Some(*task);
                 }
-                people::Act::Adopt { project, .. } | people::Act::RemoveProject { project } => {
+                people::Act::Adopt { project, .. } | people::Act::RemoveProject { project, .. } => {
                     name.project = Some(*project);
                 }
                 people::Act::MakeProject { .. } | people::Act::AddKey { .. } | people::Act::RemoveAccount { .. } => {}
@@ -201,7 +201,7 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::MakeService { project, .. }
         | people::Ask::Adopt { project, .. }
         | people::Ask::SetRoles { project, .. }
-        | people::Ask::RemoveProject { project }
+        | people::Ask::RemoveProject { project, .. }
         | people::Ask::Rename { project, .. }
         | people::Ask::ChangePolicy { project, .. }
         | people::Ask::SetPool { project, .. }
