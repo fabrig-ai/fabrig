@@ -352,12 +352,14 @@ fn full_visit() -> Script {
     script
 }
 #[test]
-fn the_visitors_worst_case_is_bounded() {
+fn the_visitors_peak_is_bounded() {
     // Measured site peak 15,874 B, visitor peak 14,006 B; plus 25%, rounded up.
     const CEILING: u64 = 20_000;
     for seed in SEEDS {
         let outcome = site::run(seed, &full_visit(), Memory::Within(CEILING));
-        assert!(outcome.peaks().expect("metered processes").into_iter().all(|peak| peak <= CEILING), "seed {seed}");
+        let peaks = outcome.peaks().expect("metered processes");
+        eprintln!("seed {seed}: process heap peaks {peaks:?} B");
+        assert!(peaks.into_iter().all(|peak| peak <= CEILING), "seed {seed}");
     }
 }
 
