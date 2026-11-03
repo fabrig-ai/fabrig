@@ -16,6 +16,10 @@ mod closing;
 mod mint;
 #[path = "provider.rs"]
 pub(crate) mod provider;
+#[path = "public/component.rs"]
+mod public;
+#[path = "public/me.rs"]
+mod public_me;
 #[path = "reads.rs"]
 mod reads;
 #[path = "services.rs"]
@@ -40,6 +44,7 @@ pub struct Component {
     streams: Map<Token, crate::stream::Stream>,
     next: u64,
     phase: closing::Phase,
+    public: public::State,
 }
 impl Component {
     pub fn new(settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
@@ -86,8 +91,10 @@ impl Component {
                 return Err(Unusable::Limits);
             }
         }
+        let public = public::State::new(&settings, env)?;
         let rng = CryptoRng::new(&settings.seed, settings.stream).ok_or(Unusable::Seed)?;
         let mut value = Self {
+            public,
             provider: provider::State::new(&env.limits),
             settings,
             rng,
@@ -108,6 +115,7 @@ impl Component {
             phase: closing::Phase::Active,
         };
         value.fresh_link(env, out);
+        out.push(Request::Secrets(SecretsRequest::Get { owner: SecretOwner::PublicNames }));
         Ok(value)
     }
     fn name(&mut self) -> Token {
@@ -140,7 +148,12 @@ impl Component {
                     self.refused(exchange);
                 }
             }
+            Event::Secrets(SecretsAnswer::Got { owner: SecretOwner::PublicNames, value }) => {
+                self.public_key(value, out);
+            }
+            Event::Secrets(SecretsAnswer::Kept { owner: SecretOwner::PublicNames }) => self.public_kept(),
             Event::Secrets(answer) => self.secrets(env, answer, out),
+            Event::Public { reply, answer } => self.public_answer(env, reply.into_token(), answer, out),
             Event::Application(crate::FromApplication::Undecodable { to }) => {
                 let exchange = to.into_token();
                 self.pending.exchanges.remove(&exchange);
@@ -157,13 +170,25 @@ impl Component {
             Event::Stop => self.stop(),
             Event::Close => self.close(),
             Event::Abort => self.abort(),
-            Event::Read { reply, answer } => self.read_answer(env, reply.into_token(), &answer),
+            Event::Read { reply, answer } => {
+                if let Some(frame) = public_me::read_frame(&answer) {
+                    self.named_read(env, reply.into_token(), frame);
+                } else {
+                    self.read_answer(env, reply.into_token(), &answer);
+                }
+            }
             Event::Application(crate::FromApplication::Read { reply, family, record }) => {
                 self.application_read(env, reply.into_token(), family, record);
             }
             Event::Admitted { watcher } => self.watch_answer(env, watcher, None),
             Event::WatchRefused { watcher, why } => self.watch_answer(env, watcher, Some(why)),
-            Event::Delivery { watcher, document } => self.delivery(env, watcher, &document, out),
+            Event::Delivery { watcher, document } => {
+                if let Some(frame) = public_me::frame(&document) {
+                    self.named_delivery(env, watcher, frame, out);
+                } else {
+                    self.delivery(env, watcher, &document, out);
+                }
+            }
             Event::WatchEnded { watcher, why } => self.watch_ended(env, watcher, why),
             Event::RunText { watcher, turn, from, to, text, cut, call, writing } => {
                 self.run_text(
@@ -200,8 +225,10 @@ impl Component {
         }
     }
     /// Advances one queued HTTP transition, bounding each invocation's output.
+    #[expect(clippy::too_many_lines, reason = "one bounded transition pump includes the separate public drain")]
     pub fn up(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
         if self.aborting() {
+            self.public.abort(env.limits.public.bytes_burst);
             if let Some((name, _)) = self.pending.mints.first() {
                 let name = *name;
                 self.mint_refused(name, crate::MintRefusal::NotReady, out);
@@ -284,6 +311,9 @@ impl Component {
             if self.stream_up(env, out) {
                 return true;
             }
+            if !self.public.settled() {
+                return false;
+            }
             return self.close_up(out);
         };
         let mut connection = self.connections.remove(&owner).expect("selected exchange");
@@ -318,7 +348,9 @@ impl Component {
                     }
                 }
             }
+            crate::FromTransport::PublicRead { exchange, read } => self.public_read(env, exchange, read, out),
             crate::FromTransport::StreamGone { stream } => {
+                self.public.gone(stream);
                 self.connections.remove(&stream);
                 if let Some(value) = self.streams.get_mut(&stream) {
                     value.phase = crate::stream::Phase::Closing;

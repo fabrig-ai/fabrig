@@ -84,6 +84,7 @@ impl Component {
                                     }
                                     SecretOwner::Service(party) => self.service_sign_in(env, exchange, party, out),
                                     SecretOwner::Carried(_) => unreachable!("carried values are only erased"),
+                                    SecretOwner::PublicNames => unreachable!("public names have their own key handler"),
                                 }
                             } else {
                                 match owner {
@@ -92,6 +93,7 @@ impl Component {
                                         self.respond(exchange, routes::refused());
                                     }
                                     SecretOwner::Carried(_) => unreachable!("carried values are only erased"),
+                                    SecretOwner::PublicNames => unreachable!("public names have their own key handler"),
                                 }
                             }
                         }

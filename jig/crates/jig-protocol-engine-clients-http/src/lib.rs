@@ -159,7 +159,7 @@ impl Mount {
     }
     fn component(&mut self, env: &Env<Limits>, message: kit::ToTransport) {
         let name = match &message {
-            kit::ToTransport::Reply { exchange, .. } => *exchange,
+            kit::ToTransport::Reply { exchange, .. } | kit::ToTransport::Public { exchange, .. } => *exchange,
             kit::ToTransport::Streamed { stream, .. } | kit::ToTransport::StreamEnded { stream, .. } => *stream,
         };
         let Some(call) = self.calls.get_mut(&name) else {
@@ -181,6 +181,7 @@ impl Mount {
             }
             kit::ToTransport::Streamed { message, .. } => call.stream(env, message),
             kit::ToTransport::StreamEnded { why, .. } => call.end(env, why),
+            kit::ToTransport::Public { .. } => unreachable!("public reads have no HTTP route in this mount"),
         }
     }
     #[must_use]

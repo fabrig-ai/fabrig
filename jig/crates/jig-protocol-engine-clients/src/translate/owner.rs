@@ -141,12 +141,16 @@ pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w
 fn project(
     value: &d::FrameProjectRole,
     models: &[crate::Model],
+    names: Option<&crate::public::Names>,
     limits: &w::Limits,
 ) -> Result<w::MeProject, w::Problem> {
     w::MeProject::new(
         limits,
         w::MeProjectParts {
-            public: None, // Filled by the public names (jig/docs/design/domain/people.md, 13.8).
+            public: match names {
+                Some(names) if value.public => Some(names.project(value.project)),
+                Some(_) | None => None,
+            },
             project: value.project,
             name: text(&value.name, limits)?,
             role: held_role(value.role, limits)?,
@@ -164,9 +168,18 @@ fn project(
     )
 }
 pub fn frame(value: &d::Frame, models: &[crate::Model], limits: &w::Limits) -> Result<w::Me, w::Problem> {
+    frame_named(value, models, None, limits)
+}
+/// The component supplies its held public key (jig/docs/design/domain/people.md, 13.8).
+pub(crate) fn frame_named(
+    value: &d::Frame,
+    models: &[crate::Model],
+    names: Option<&crate::public::Names>,
+    limits: &w::Limits,
+) -> Result<w::Me, w::Problem> {
     let mut projects = List::with_capacity(value.projects.len());
     for item in &value.projects {
-        projects.push(project(item, models, limits)?).expect("supplied projects");
+        projects.push(project(item, models, names, limits)?).expect("supplied projects");
     }
     let updates = match value.updates {
         d::Count::Known(value) => w::Count::new(limits, w::CountParts { value, limited: false })?,
