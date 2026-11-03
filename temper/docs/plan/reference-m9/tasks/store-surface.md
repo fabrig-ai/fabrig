@@ -3,7 +3,7 @@ id = "store-surface"
 part = "surface"
 kind = "interface"
 needs = []
-files = ["temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/v11.rs", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/change.rs", "temper/crates/temper-protocol-store/src/records/verification.rs", "temper/crates/temper-protocol-store/src/records/tiers.rs", "temper/crates/temper-protocol-store/src/tests/**", "temper/tests/codecs/**", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/verification.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/crates/temper-engine-domain-forge/src/tests/verification.rs"]
+files = ["temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/v11.rs", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/change.rs", "temper/crates/temper-protocol-store/src/records/verification.rs", "temper/crates/temper-protocol-store/src/records/tiers.rs", "temper/crates/temper-protocol-store/src/records.rs", "temper/crates/temper-protocol-store/src/tests/**", "temper/tests/codecs/**", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/verification.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/crates/temper-engine-domain-forge/src/tests/verification.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -82,3 +82,15 @@ Acceptance:
 ## Report
 
 As the implementer's text asks; name each reader file you touched and the regeneration you ran.
+
+## Answers
+
+2026-11-03. Q: `goals: list 65536 TierGoal` makes `TierRow`'s encoded worst case pass u32, so
+the schema does not generate: lower the ceiling or change the layout? A: lower the ceiling, the
+layout kept. `notes/contracts.md`, section 1, now writes `goals: list 256 TierGoal` (with
+`TierRow`'s other lists, about 2.2 GiB worst case, within u32); use it as written. In
+`records.rs`'s `tier_limits` (now in this spec's files) set `tier_row_goals: forge.holds`, so
+`bounds` refuses a forge whose `holds` passes the ceiling at start, as `tier_row_pending`
+bounds `changes`; add one assertion beside `tests/tiers.rs`'s other limit checks that
+`tier_row_goals` is the fixture's `holds`. The pushed schema on `reference-m9/store-surface`
+is the start: change its 65536 to 256 and regenerate.

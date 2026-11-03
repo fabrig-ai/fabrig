@@ -39,3 +39,43 @@ id = 1
 story = "the store keeps what a repair names and a tier's goal branches, a red's news has its words, a tier reads `goal` and its span, and the coordinator's charter triages"
 parts = ["surface", "tier-config", "charter"]
 walk = false
+
+[[part]]
+id = "repairs"
+title = "temper: change takes repairs, the root checks it against a red landing, and a run passing its failures clears it repaired by that landing"
+mode = "direct"
+needs = ["surface"]
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[part]]
+id = "red-news"
+title = "temper: a red after landing reaches each goal of its landing's changes as news, with the failing tests, the run and the failed jobs' logs' ends"
+mode = "direct"
+needs = ["surface"]
+design = "temper/docs/design/domain/after-landing.md, 7"
+
+[[slice]]
+id = 2
+story = "a red after landing reaches its goal as news, and a change into main naming it with repairs clears it, repaired by it"
+parts = ["repairs", "red-news"]
+walk = false
+
+[[part]]
+id = "goal-tier"
+title = "temper: g's tier follows each goal's own branch, paced by its span, judging no landing, its reds news to the goal; the reference configures it"
+mode = "direct"
+needs = ["surface", "tier-config", "red-news"]
+design = "temper/docs/design/domain/after-landing.md, 3"
+
+[[part]]
+id = "stories"
+title = "temper: the world's stories of a red to its goal, a repair naming it and g's tier; help for both"
+mode = "direct"
+needs = ["repairs", "red-news", "goal-tier"]
+design = "temper/docs/design/domain/after-landing.md, 12"
+
+[[slice]]
+id = 3
+story = "g's tier checks a goal's branch along the way and tells the goal its reds while merges go on; a red after landing reaches the goal, which repairs it into main with repairs, and the repair clears it (steps 20, 25 to 27; reference-landing.md, section 9's third story)"
+parts = ["goal-tier", "stories"]
+walk = true
