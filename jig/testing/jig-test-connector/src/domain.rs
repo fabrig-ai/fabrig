@@ -181,6 +181,10 @@ impl Domain {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::SettingsDefaults => crate::settings::defaults(domain, out),
+        Event::RestoreSettings { token, proposal, items } => {
+            crate::settings::restore(domain, token, proposal, &items, out);
+        }
+        Event::ForgetReplaced { before } => crate::settings::forget_replaced(domain, before, out),
         Event::JudgeSettings { token, revision: _, proposal, items } => {
             crate::settings::judge(domain, token, proposal, &items, out);
         }

@@ -1193,7 +1193,8 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             connector::Request::RestoreRefused { kind, scope, number } => {
                 refuse_settings_restore(kind, scope, number);
             }
-            connector::Request::SettingsJudged { .. }
+            connector::Request::SettingsRestored { .. }
+            | connector::Request::SettingsJudged { .. }
             | connector::Request::SettingsDefaults { .. }
             | connector::Request::SettingValue { .. } => {
                 unreachable!("restoring a row only reports resources or a refusal")

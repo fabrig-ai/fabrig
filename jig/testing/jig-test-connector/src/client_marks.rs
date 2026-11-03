@@ -171,7 +171,8 @@ pub(crate) fn collect(domain: &Domain, env: &Env<Limits>, out: &mut Queue<Reques
                 Request::Save { record } => saved(domain, subject, record),
                 Request::Erase { key } => erased(domain, subject, key),
                 Request::Changed { resource: path } => resource(domain, subject, None, path),
-                Request::SettingsJudged { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
                 | Request::SettingsDefaults { .. }
                 | Request::SettingValue { .. }
                 | Request::RestoreRefused { .. }
