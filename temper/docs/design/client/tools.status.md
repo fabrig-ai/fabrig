@@ -8,10 +8,7 @@
   `qa passes` and `hold list`. 5.3: `task move
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
   `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
-  restore`; a template's resources in a settings file and in
-  `settings show`: the file's template has no `resources` member
-  (`temper-settings-form/src/view.rs`), and one applied from a file
-  names none (`jig/settings_adapter.rs`, `client_template`). 5.5: area 2's procedure executor choice for `goal start`,
+  restore`. 5.5: area 2's procedure executor choice for `goal start`,
   `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and

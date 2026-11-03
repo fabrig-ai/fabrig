@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 51] = [
+const SHAPES: [Shape; 52] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -16,6 +16,7 @@ const SHAPES: [Shape; 51] = [
     Shape::WakeRule,
     Shape::WakeBatch,
     Shape::Template,
+    Shape::Symbol,
     Shape::Text,
     Shape::Executor,
     Shape::Contract,
@@ -376,6 +377,7 @@ fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
         if field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
+            || (field.shape == Shape::Template && field.name == b"resources")
             || (field.shape == Shape::Charter && field.name == b"wake")
             || (field.shape == Shape::Document && field.name == b"heading")
         {
@@ -403,6 +405,8 @@ fn a_path_resolves_through_its_shapes() {
     for (path, shape, name) in [
         (b"charter.model.name".as_slice(), Shape::Model, b"name".as_slice()),
         (b"model.name", Shape::Model, b"name"),
+        (b"template.resources[].connector", Shape::Symbol, b"connector"),
+        (b"template.resources[].symbol", Shape::Symbol, b"symbol"),
         (b"landing-rule.pattern.last.exact", Shape::LandingLast, b"exact"),
         (b"landing-rule.gates[].freshness", Shape::LandingGate, b"freshness"),
         (b"landing-rule.approvals[].people", Shape::LandingApproval, b"people"),
@@ -647,5 +651,26 @@ fn line_paths_resolve(line: &[u8]) {
 fn every_path_a_line_names_resolves() {
     for line in &lines() {
         line_paths_resolve(line.bytes);
+    }
+}
+
+#[test]
+fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
+    let mut limits = Limits::standard();
+    limits.settings.template_resources = 2;
+    let resources = resolve(b"template.resources").expect("resource field");
+    assert_eq!(resources.list, Some(Bound::Limit(Limit::TemplateResources)));
+    assert_eq!(super::most(resources.list.expect("list"), &limits), 2);
+    let page = super::page(&limits);
+    for needle in [
+        b"`resources`: list of at most 2, each `symbol`".as_slice(),
+        b"Optional; absent means an empty list",
+        b"its own goal branch",
+    ] {
+        let mut found = false;
+        for word in page.windows(needle.len()) {
+            found |= word == needle;
+        }
+        assert!(found, "field catalogue describes the resource contract");
     }
 }

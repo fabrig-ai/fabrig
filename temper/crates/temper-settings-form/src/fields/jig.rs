@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 51] = [
+pub static FORMS: [Form; 52] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and, but for the rules, its number." },
@@ -10,6 +10,7 @@ pub static FORMS: [Form; 51] = [
     Form { shape: Shape::WakeRule, name: b"wake_rule", choice: Choice::One { words: &[Word { word: b"never", line: b"It waits for the task's next run." }, Word { word: b"immediate", line: b"It wakes the task at once." }] }, line: b"How a kind of message wakes a task: a word, or an object with one member." },
     Form { shape: Shape::WakeBatch, name: b"wake_batch", choice: Choice::Every, line: b"A batch of messages that wakes a task once." },
     Form { shape: Shape::Template, name: b"template", choice: Choice::Every, line: b"How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it." },
+    Form { shape: Shape::Symbol, name: b"symbol", choice: Choice::Every, line: b"A connector resource resolved when the task is created." },
     Form { shape: Shape::Text, name: b"text", choice: Choice::Every, line: b"A text, whole." },
     Form {
         shape: Shape::Executor,
@@ -77,7 +78,7 @@ pub static FORMS: [Form; 51] = [
     Form { shape: Shape::LandingLast, name: b"landing-last", choice: Choice::One { words: &[] }, line: b"The final resource segment, in the same hex form as a pattern's last segment." },
     Form { shape: Shape::ForgeCharter, name: b"forge-charter", choice: Choice::Number, line: b"An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'." },
 ];
-pub static FIELDS: [Field; 187] = [
+pub static FIELDS: [Field; 190] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -342,6 +343,14 @@ pub static FIELDS: [Field; 187] = [
     Field { shape: Shape::WakeBatch, name: b"age", value: Value::Nanoseconds, list: None, null: false, line: b"Or once the oldest has waited this long; above zero, else refused as `shape`." },
     Field {
         shape: Shape::Template,
+        name: b"resources",
+        value: Value::Shape(Shape::Symbol),
+        list: Some(Bound::Limit(Limit::TemplateResources)),
+        null: false,
+        line: b"Optional; absent means an empty list. Resource symbols resolved for the new task; forge connector 0, symbol 1 is its own goal branch.",
+    },
+    Field {
+        shape: Shape::Template,
         name: b"number",
         value: Value::Integer(Width::U32),
         list: None,
@@ -422,6 +431,8 @@ pub static FIELDS: [Field; 187] = [
     },
     Field { shape: Shape::Template, name: b"grace", value: Value::Nanoseconds, list: None, null: true, line: b"How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, refused as `grace`." },
     Field { shape: Shape::Template, name: b"llm", value: Value::Shape(Shape::Llm), list: None, null: true, line: b"The models the task asks for, or null for its charter's default." },
+    Field { shape: Shape::Symbol, name: b"connector", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector that resolves the symbol; 0 is the forge." },
+    Field { shape: Shape::Symbol, name: b"symbol", value: Value::Integer(Width::U16), list: None, null: false, line: b"The connector's resource symbol; the forge's 1 is its own goal branch." },
     Field {
         shape: Shape::Text,
         name: b"bytes",

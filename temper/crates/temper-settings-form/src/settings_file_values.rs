@@ -227,6 +227,7 @@ pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
     let fields = d.object(
         at,
         &[
+            b"resources",
             b"number",
             b"name",
             b"executor",
@@ -242,6 +243,7 @@ pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
         ],
     )?;
     Ok(c::Template {
+        resources: template_resources(d, optional(&fields, b"resources"))?,
         number: u32::try_from(d.number(field(&fields, b"number")?)?)
             .or(Err(error(b"template_number", b"integer bound")))?,
         name: d.document_text(field(&fields, b"name")?)?,
@@ -273,6 +275,36 @@ pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
             Some(llm_choice(d, field(&fields, b"llm")?)?)
         },
     })
+}
+fn template_resources(d: &Decoder, at: Option<u32>) -> Result<List<c::Symbol>, Error> {
+    let Some(at) = at else { return Ok(List::with_capacity(0)) };
+    let positions = d.array(at, d.limits.template_resources, b"template.resources")?;
+    let mut values = List::with_capacity(positions.len());
+    for at in &positions {
+        values.push(template_symbol(d, *at)?).expect("checked list length");
+    }
+    Ok(values)
+}
+fn template_symbol(d: &Decoder, at: u32) -> Result<c::Symbol, Error> {
+    let fields = match d.object(at, &[b"connector", b"symbol"]) {
+        Ok(fields) => fields,
+        Err(why) => return Err(why.at(b"template.resources")),
+    };
+    Ok(c::Symbol {
+        connector: symbol_number(d, field(&fields, b"connector"), b"connector")?,
+        symbol: symbol_number(d, field(&fields, b"symbol"), b"symbol")?,
+    })
+}
+fn symbol_number(d: &Decoder, at: Result<u32, Error>, member: &[u8]) -> Result<u16, Error> {
+    let number = match at {
+        Ok(at) => d.number(at),
+        Err(why) => return Err(why.at(b"template.resources")),
+    };
+    let number = match number {
+        Ok(number) => number,
+        Err(why) => return Err(why.named(member).at(b"template.resources")),
+    };
+    u16::try_from(number).or(Err(error(member, b"integer bound").at(b"template.resources")))
 }
 pub(super) fn setting_policy(d: &Decoder, at: u32) -> Result<c::SettingPolicy, Error> {
     let fields = d.object(
