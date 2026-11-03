@@ -17,5 +17,5 @@ where, document by document. By step (sections 3 to 7):
     for a change that started early.
   - **3, 4, 6, 15, 22:** a designer as a change's producer (N13), and the
     plan's text as design in g (N12, step 4).
-  - **20:** g's tier and its reds as news (N5).
-  - **26:** a repair naming the red it repairs (N22).
+  - **22:** G's close-out waiting for g's tier's last run to be green
+    (N5).

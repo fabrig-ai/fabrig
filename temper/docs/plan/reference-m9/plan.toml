@@ -9,6 +9,7 @@ sources = ["temper/docs/plan/reference-m9/inputs/request.md", "temper/docs/desig
 # words, a tier's settings) and the charter's triage; then `repairs` and the red's news from
 # main's tiers; then g's tier in the forge, the reference's tiers, help and the stories.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
