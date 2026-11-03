@@ -210,13 +210,13 @@ pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
     offered_tools(timeout, true, true, true)
 }
 
-/// Settings, message and plan declarations require their respective run families.
+/// Settings declarations require the charter's and the run's settings family; message and plan declarations the run's families.
 /// Root authority still decides each accepted call by its durable name.
-pub(crate) fn tools_for(timeout: Duration, authority: tasks::Tools) -> Box<[run::HostTool]> {
+pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tasks::Tools) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
     offered_tools(
         timeout,
-        authority.0 & families.settings != 0,
+        charter.0 & authority.0 & families.settings != 0,
         authority.0 & families.message.0 != 0,
         authority.0 & families.control.0 != 0,
     )
