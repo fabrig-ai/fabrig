@@ -1,0 +1,3 @@
+draft = "kv-pay-per-use"
+repo = "fabrig"
+sources = ["skein/docs/plan/kv-pay-per-use/inputs/request.md", "AGENTS.md"]
