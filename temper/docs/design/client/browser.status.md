@@ -2,10 +2,8 @@
 
 2026-11-03. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:**
-  4.6: item 12, the
-  playground's story A on the built playground and its log replayed
-  natively (`../playground.status.md`).
+- **Not yet:** 4.6: item 12, the playground's story A on the built
+  playground and its log replayed natively (`../playground.status.md`).
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,
