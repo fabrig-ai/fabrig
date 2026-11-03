@@ -91,7 +91,7 @@ pub(crate) fn llm(
         Credential::key(configuration.key.expose().into()),
         llm_limits(),
         configuration.domain,
-        llm::LIMITS,
+        configuration.limits,
     )?;
     for key in configuration.added_keys {
         peer.accept(Credential::key(key.expose().into()))?;
