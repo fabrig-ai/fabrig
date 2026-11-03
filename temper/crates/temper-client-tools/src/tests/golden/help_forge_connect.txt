@@ -40,7 +40,7 @@ Connect GitHub through an App, or a Forgejo as its site admin
 Prints: `connecting`, then the wait to make; for github, the address to open in a browser
 --json: the record forge-connect.
 Key: --key KEY, required.
-The key or token file holds 1 to 4089 bytes after one final
+The key or token file holds 1 to 4085 bytes after one final
 newline is trimmed. Then forge list --until connected:FORGE, or,
 after a browser, --until settled.
 With `--first`, it goes on to make and adopt that repository, and
