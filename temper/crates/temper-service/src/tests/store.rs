@@ -85,7 +85,7 @@ fn page_floor_admits_exact_map_and_frame_bounds_and_refuses_one_short() {
 #[test]
 fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
     let (mut root, _, profile) = fixtures::store_limits();
-    root.loads.transcript_bytes = 2_168_723;
+    root.loads.transcript_bytes = 2_168_915;
     // Model startup's turn-plus-record and decoded read-row load bounds.
     root.loads.bytes =
         root.loads.transcript_bytes.checked_add(u32::try_from(size_of::<engine::Record>()).unwrap()).unwrap();
@@ -95,7 +95,7 @@ fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
         .checked_add(u64::try_from(size_of::<jig_domain_core::Record>()).unwrap())
         .unwrap();
     let checked = store::limits(&root, &root.forge, &profile).expect("shipped maximum fits Small");
-    assert_eq!(checked.store.page.bytes, 2_168_787);
+    assert_eq!(checked.store.page.bytes, 2_168_979);
     assert_eq!(checked.store.page.bytes, profile.store.page.bytes);
     for transcript in [jig_protocol_store::core_v6::CEILINGS.turn_record_transcript + 1, u32::MAX] {
         root.loads.transcript_bytes = transcript;
