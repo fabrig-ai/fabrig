@@ -445,3 +445,35 @@ are the value that disagrees with the box. This is no test budget or timeout of 
 - Then the acceptance as written: the full walk, its kept `tests/fixtures/story-a.log` recorded under
   `SKEIN_CODEGEN_WRITE`, its replay, and the one-process `story_a.rs` once alone with
   `--run-ignored all` (its `#[ignore]` lifted only if it passes).
+
+2026-11-03. **The producer is refused as outside its delegation (the composition's forge stock
+selects charter 1, the script grants charters 2 and 4): keep the product's forge stock for demo
+worlds, or set the harness's `forge_charter` to 2?** Keep the product's forge stock, here; the script
+stays as it is. This is the same rule as the chat ending's answer: story A is the box's playground on
+product code, only the composition's documents differ (`temper/docs/design/playground.md`, 1, 3 and
+5.2), and the box's forge defaults are `temper_service::stock::forge`'s (change charter 2, review
+charter 4, the deployment's landing rule; `protocol/configuration.md`, 13.4). The harness's
+`world_settings` forge defaults, charter 1 and its own landing rules, are the harness worlds'
+choice. A `forge_charter = 2` alone would keep a landing configuration the box never has.
+
+- `temper/crates/temper-playground/src/documents.rs`, `given_with`: when the document's
+  `application.demo` is present, `Given::Own`'s `forge` is `temper_service::stock::forge(&limits)`;
+  otherwise `settings::forge(&document)` as now. `limits` are the engine limits the service would
+  derive (`temper_service::limits::engine` over the parsed engine's jig limits and the document's
+  application limits, or, if those take no public path from here, the small profile's,
+  `temper_service::limits::profile(Profile::Small)`, which is story A's profile); `stock::forge`
+  reads none of them today. `world_settings`' injection, the jig defaults and every other value stay
+  as they are; `documents/settings.rs` stays as it is. The one-process world's playground stories
+  reach this through `documents::given_with` and get the same; its other stories, with no demo, keep
+  the harness's.
+- A regression in `temper-playground`'s `src/tests/`, beside the chat ending's: story A's deployment
+  through `documents::given` gives the forge stock equal to `temper_service::stock::forge`'s (its
+  kind 3 items charters 2 and 4), and `world_document()`'s keeps `settings::forge`'s (charter 1).
+- If the stock's landing rule then holds the CSV change (a gate, CI or up-to-date requirement story
+  A's fake forge does not meet), that is no document bound of these answers' allowances: a question
+  with the change's gates and the rule, asked after committing and pushing what is repaired. Any
+  other new failure past the producer's start is a question likewise, unless it falls in an earlier
+  allowance's class as written.
+- Then the acceptance as written: the full walk, its kept `tests/fixtures/story-a.log` recorded under
+  `SKEIN_CODEGEN_WRITE`, its replay, and the one-process `story_a.rs` once alone with
+  `--run-ignored all` (its `#[ignore]` lifted only if it passes).
