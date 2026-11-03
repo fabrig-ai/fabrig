@@ -1,5 +1,7 @@
 //! Root stories for temper/docs/design/domain/after-landing.md, 3–6 and 12.
 use super::*;
+#[path = "tier_task_show.rs"]
+mod task_show;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_tiers as policy;
 use temper_engine_domain_world::tier_runs::{self, LANDING_TICKS, RUN_TICKS, SEED, Tier};
@@ -532,6 +534,7 @@ fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
     let run = dispatched_runs(&world).into_iter().next().expect("baseline dispatch");
     assert_eq!(run.state, raw::RunState::Running);
     let before = execution_words(&world, number).to_owned();
+    task_show::assert_words(&mut world, number, &before);
     assert!(before.contains(&format!("forge run {} http://forge/org/repo/actions/runs/{}", run.number, run.number)));
     world.restart_same();
     until(&mut world, RUN_TICKS, "baseline completed after restart", |world| {
@@ -548,6 +551,7 @@ fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
         tier_runs::tick(&mut world);
     }
     assert_eq!(task(&world, number).spec, completed.spec);
+    task_show::assert_words(&mut world, number, &before);
 }
 
 fn assert_part_words(
