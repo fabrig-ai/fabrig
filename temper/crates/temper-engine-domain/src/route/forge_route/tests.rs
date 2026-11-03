@@ -1573,6 +1573,11 @@ fn a_small_landed_result_cuts_only_evidence_and_keeps_both_identity_lines() {
     assert!(cut.len() <= usize::try_from(bound).unwrap());
 }
 
+fn assert_repair_instruction(words: &[u8], opening: &[u8]) {
+    assert!(words.starts_with(opening));
+    assert!(words.ends_with(super::REPAIR_PRESERVATION));
+}
+
 #[test]
 fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
     let mut row = change_row(Some(42));
@@ -1580,12 +1585,12 @@ fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
     row.result.head = Some(SHA1);
     row.result.failed.bytes = Box::from(b"/ check (pull_request), / changes (pull_request)".as_slice());
     let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
-    assert_eq!(words.as_ref(), b"Repair CI at abcdef012345: / check (pull_request), / changes (pull_request)\nRepair the failed CI on the change branch");
+    assert_repair_instruction(&words, b"Repair CI at abcdef012345: / check (pull_request), / changes (pull_request)\nRepair the failed CI on the change branch");
     // A client cuts contexts, keeping the complete opening and pinned head.
     row.result.failed.bytes = Box::from([b'x'; 200]);
     let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
     assert!(words[..128].starts_with(b"Repair CI at abcdef012345: "));
-    assert!(words.ends_with(b"\nRepair the failed CI on the change branch"));
+    assert!(words.ends_with(super::REPAIR_PRESERVATION));
     assert!(super::repair_words(&row, super::forge_change::Repair::Ci, &[], 64).is_none());
 }
 
@@ -1594,9 +1599,9 @@ fn a_base_break_repairs_words_open_with_its_head_and_base() {
     let mut row = change_row(Some(42));
     row.change.last_head = Some(SHA1);
     let words = super::repair_words(&row, super::forge_change::Repair::Semantic, &[], 512).unwrap();
-    assert_eq!(
-        words.as_ref(),
-        b"Repair the base's break at abcdef012345: main\nRepair the base update's semantic conflict"
+    assert_repair_instruction(
+        &words,
+        b"Repair the base's break at abcdef012345: main\nRepair the base update's semantic conflict",
     );
 }
 
@@ -1622,8 +1627,8 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
         row.change.gates =
             Box::new([Gate { number: 7, kind, blocking: true, freshness: Freshness::Exact, eager: false }]);
         let parameters = [super::tasks::Parameter::Bytes { name: 2, value: row.base.clone() }];
-        let bound = u32::try_from(expected.len() + row.base.len()).unwrap();
-        assert_eq!(super::repair_words(&row, Repair::Gate(7), &parameters, bound).unwrap().as_ref(), expected);
+        let bound = u32::try_from(expected.len() + row.base.len() + super::REPAIR_PRESERVATION.len() + 1).unwrap();
+        assert_repair_instruction(&super::repair_words(&row, Repair::Gate(7), &parameters, bound).unwrap(), expected);
         assert!(super::repair_words(&row, Repair::Gate(7), &parameters, 64).is_none());
     }
     assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");
@@ -2369,24 +2374,33 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
 
 /// temper/docs/design/domain/forge.md, 8.4: a resolution carries the job's result within its words' room.
 #[test]
-#[expect(
-    clippy::disallowed_macros,
-    clippy::disallowed_methods,
-    reason = "unit fixtures format expected protocol bytes and resolution text"
-)]
+#[expect(clippy::disallowed_methods, reason = "unit fixtures compare bounded resolution text")]
 fn a_resolution_after_a_merge_job_carries_its_result() {
-    const OPENING: &[u8] = b"Resolve the merge conflict and push the merge commit";
-    const PREFIX: &str = "Resolve the merge conflict and push the merge commit\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
+    const PREFIX: &[u8] = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
     const RESULT: &[u8] = b"{\"settled\":[\"a\"],\"left\":[\"b\"]}";
     let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
-    let full = alloc::format!("{PREFIX}{}", core::str::from_utf8(RESULT).unwrap());
-    let bound = u32::try_from(full.len() + 40).unwrap();
-    assert_eq!(super::merge::resolution_words(None, &parameters, bound).as_ref(), OPENING);
-    assert_eq!(super::merge::resolution_words(Some(RESULT), &parameters, bound).as_ref(), full.as_bytes());
-    let cut_bound = u32::try_from(PREFIX.len() + 40 + 12).unwrap();
-    let cut = super::merge::resolution_words(Some(RESULT), &parameters, cut_bound);
-    assert_eq!(cut.as_ref(), alloc::format!("{PREFIX}{}...", core::str::from_utf8(&RESULT[..9]).unwrap()).as_bytes());
-    assert_eq!(cut.len() + 40, usize::try_from(cut_bound).unwrap());
+    let opening = super::resolution_words(None, &parameters, 4096).unwrap();
+    for expected in ["requested change", "unrelated content", "independent appended lines", "blank lines"] {
+        assert!(core::str::from_utf8(&opening).unwrap().contains(expected));
+    }
+    let bound = u32::try_from(opening.len() + PREFIX.len() + RESULT.len() + 40).unwrap();
+    let full = super::resolution_words(Some(RESULT), &parameters, bound).unwrap();
+    assert!(full.starts_with(&opening));
+    assert_eq!(&full[opening.len()..opening.len() + PREFIX.len()], PREFIX);
+    assert!(full.ends_with(RESULT));
+    for remaining in [0, PREFIX.len() + 2, PREFIX.len() + 3, PREFIX.len() + 12] {
+        let cut_bound = u32::try_from(opening.len() + 40 + remaining).unwrap();
+        let cut = super::resolution_words(Some(RESULT), &parameters, cut_bound).unwrap();
+        assert!(cut.starts_with(&opening));
+        assert!(cut.len() + 40 <= usize::try_from(cut_bound).unwrap());
+        if remaining < PREFIX.len() + 3 {
+            assert_eq!(cut, opening);
+        } else {
+            assert!(cut.ends_with(b"..."));
+            assert_eq!(cut.len() + 40, usize::try_from(cut_bound).unwrap());
+            assert_eq!(&cut[opening.len() + PREFIX.len()..cut.len() - 3], &RESULT[..remaining - PREFIX.len() - 3]);
+        }
+    }
     assert_eq!(
         super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
         Some((super::forge_change::Status::Passed, false, false))
@@ -2395,6 +2409,35 @@ fn a_resolution_after_a_merge_job_carries_its_result() {
         super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed)),
         Some((super::forge_change::Status::Failed, true, false))
     );
+}
+
+#[test]
+fn a_resolution_preserves_both_sides_within_a_small_spec() {
+    use super::tasks::Parameter;
+    let parameters = [
+        Parameter::Bytes { name: 2, value: Box::from(b"main".as_slice()) },
+        Parameter::Bytes { name: 3, value: Box::from(b"temper/1/c2".as_slice()) },
+        Parameter::Bytes { name: 6, value: commit_text(&SHA1) },
+    ];
+    let words = super::resolution_words(Some(b"merge job result"), &parameters, 128).unwrap();
+    assert_eq!(words.as_ref(), b"Resolve the merge conflict. Keep both sides and blank lines.");
+    let mut bytes = words.len();
+    for parameter in &parameters {
+        if let Parameter::Bytes { value, .. } = parameter {
+            bytes += value.len();
+        }
+    }
+    assert!(bytes <= 128, "resolution and pinned parameters need {bytes} spec bytes");
+    assert!(
+        super::resolution_words(Some(b"merge job result"), &parameters, u32::try_from(bytes - 1).unwrap()).is_none()
+    );
+    for expected in [b"both sides".as_slice(), b"blank lines".as_slice()] {
+        let mut found = false;
+        for part in words.windows(expected.len()) {
+            found |= part == expected;
+        }
+        assert!(found, "bounded instructions preserve content");
+    }
 }
 
 #[test]

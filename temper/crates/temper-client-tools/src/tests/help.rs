@@ -86,7 +86,7 @@ const USAGES: &[&[u8]] = &[
     b"account forget ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
     b"account rank ACCOUNT POSITION [--source sign_in|key|program] [--key KEY]\n",
     b"account retry ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
-    b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] REASON [--key KEY]\n",
+    b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]\n",
     b"account declare PROVIDER ADAPTER NAME [--account ACCOUNT] --key KEY\n",
     b"account verify ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
     b"forge list [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
