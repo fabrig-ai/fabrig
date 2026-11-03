@@ -62,7 +62,7 @@ const USAGES: &[&[u8]] = &[
     b"task activity TASK [--before CURSOR] [--limit COUNT]\n",
     b"task turn TASK TURN [--part PART] [--from OFFSET]\n",
     b"task run TASK [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] --key KEY\n",
+    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
     b"task message TASK TEXT --key KEY\n",
     b"chat close TASK [--move TASK]... [--reason TEXT] --key KEY\n",
     b"task answer TASK QUESTION TEXT [--key KEY]\n",
@@ -321,6 +321,10 @@ fn the_project_reference_is_what_the_table_renders() {
     );
 }
 
+#[test]
+fn the_chat_reference_is_what_the_table_renders() {
+    reference_matches(b"chat", b"ctl-chat");
+}
 #[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
