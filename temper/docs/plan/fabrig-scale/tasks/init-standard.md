@@ -3,7 +3,7 @@ id = "init-standard"
 part = "box"
 kind = "feature"
 needs = ["standard-scale", "forge-profile", "smith-calls", "client-capacities"]
-files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md"]
+files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md"]
 effort = "high"
 minutes = 240
 +++
@@ -124,3 +124,35 @@ Acceptance:
 
 As the implementer's text asks, with T, the payload, and every override added or kept beyond
 the list above, each with why.
+
+## Answers
+
+2026-11-03. **`engine.limits.io.sockets: 106 bytes, past its bound of 64` under `standard`: who
+raises `limits::SOCKETS`?** This task does; it is widened to that one figure. The count grows
+with jig's `standard` (its OAuth driver's accounts, exchanges and listeners, sized for 16
+accounts and 4 sign-ins), not with any override of init's document, and no task after this one
+can unblock it (`forge-profile` has landed; `brief-room` needs this task). The sockets are
+temper's own constant, which `configuration.md`, 7 says holds the owned example's document under
+`small`; under `standard` it must hold it there.
+
+- `temper/crates/temper-service/src/limits.rs`: `SOCKETS` 128 (the owned example's 106 under
+  `standard`, with room for a webhook's hooks as the owned example has); its doc comment says it
+  holds `standard`'s owned example with both listeners and a sign-in. Nothing else in the file.
+- `temper/crates/temper-service/src/tests/checks.rs`: `one_ios_entities_hold_both_services_and_their_children`
+  and `hook_connections_past_the_process_sockets_are_refused` keep their meaning: raise their
+  overrides (`git_component.operations`, `forge_component.hooks`) so the count passes 128, and
+  their expected words with them (`..., past its bound of 128`). If a raised figure trips another
+  bound first, pick the override that reaches past 128 alone.
+- `temper/docs/design/protocol/configuration.md`, 7 (the webhooks' listener's bullet): "and
+  `small`'s hold a document ..." becomes "and hold, under `standard`, a document ...", the rest of
+  the sentence as it is. Nothing else in the document.
+
+**The other refusal, `engine.limits.store: the store's map sizing is past its codec or arithmetic
+bounds` (`StoreMap(Ceiling)`)**, is this task's to diagnose once the sockets pass: find which step
+returns it (`limits::engine` returning `None`, or `store::layout`'s `SizeRefusal::Ceiling`) and on
+which figure. If an override of init's document causes it or can mend it (a carrier past a codec
+ceiling, a store bound), the pre-approval above covers it: the least that passes, never lowering a
+contracts' figure, listed in the report. If the cause is a figure in `limits.rs` beyond `SOCKETS`,
+jig's profile or a codec ceiling, stop and ask with the function, the figure and the bound it
+passes.
+
