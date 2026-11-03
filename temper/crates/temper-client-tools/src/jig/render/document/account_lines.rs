@@ -1,4 +1,4 @@
-//! Model panels from the bounded account projection (client/tools.md, 5.5 area 5).
+//! Bounded model panels (temper/docs/design/client/tools.md, 5.5 area 5).
 //! Text and JSON retain the same model selection, omissions and digest.
 use super::Text;
 use skein_json::{Document, document::Kind};
