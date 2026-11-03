@@ -256,6 +256,15 @@ def main(argv=None):
         if (args.tier == "browser" and args.tree in ("skein", "jig", "temper")) or profile == "qa-temper":
             target = target_directory(env)
             bundle(args.tree, target, env)
+            if profile == "browser-temper":
+                playground = target / "temper-playground"
+                started = time.monotonic()
+                code = step("playground bundle", ["heavy", "temper/scripts/bundle.sh", "--playground", str(playground)],
+                            dict(env, CARGO_TARGET_DIR=str(target)))
+                if code:
+                    raise FailedStep(f"playground bundle: exit {code}")
+                print(f"tiers: playground bundle built in {time.monotonic() - started:.3f}s", flush=True)
+                env["TEMPER_TEST_PLAYGROUND"] = str(playground)
         elif any("env" in binary for binary in binary_map[profile]):
             target = target_directory(env)
         for binary in binary_map[profile]:
