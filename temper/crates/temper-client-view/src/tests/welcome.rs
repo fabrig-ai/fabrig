@@ -63,7 +63,7 @@ fn model_without_a_persons_forge_has_no_line() {
 }
 
 #[test]
-fn model_names_the_new_project_while_forgejo_sets_up() {
+fn model_names_the_first_repository_while_forgejo_sets_up() {
     let (mut root, watch) = f::forge_root_watch(
         Address::Welcome { step: Step::Forge { forge: None } },
         forge::rows(w::Connection::NotSetUp, w::Offer::Offered),
@@ -83,14 +83,14 @@ fn model_names_the_new_project_while_forgejo_sets_up() {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
     );
     let view = f::page_view(&root);
-    line_before_model(view.tree(), "Forgejo on this machine · Setting up · work/hello, into the new project Default");
+    line_before_model(view.tree(), "Forgejo on this machine · Setting up · work/hello");
     each_step(view.tree(), true);
 }
 
 #[test]
-fn model_ticks_the_first_repository_made_in_its_project() {
+fn model_ticks_the_first_repository_made() {
     let view = model_view(forge::first_rows(forge::connected(), forge::made()));
-    let line = line_before_model(view.tree(), "Forgejo on this machine · work/hello, in Shop");
+    let line = line_before_model(view.tree(), "Forgejo on this machine · work/hello");
     let line = view.tree().nodes().iter().find(|n| n.id == line).unwrap();
     assert!(line.styles.as_slice().contains(&crate::look::FLOW_DONE));
     let index = view.tree().nodes().iter().position(|n| n.id == line.id).unwrap();
@@ -99,17 +99,17 @@ fn model_ticks_the_first_repository_made_in_its_project() {
 }
 
 #[test]
-fn model_says_github_has_no_repository_chosen_yet() {
+fn model_ticks_a_connected_github_without_a_repository() {
     let view = model_view(forge::github_rows(true));
-    line_before_model(view.tree(), "GitHub · no repository chosen yet");
-    each_step(view.tree(), true);
+    line_before_model(view.tree(), "GitHub · Connected as my-app[bot] (9)");
+    each_step(view.tree(), false);
 }
 
 #[test]
-fn an_installed_github_without_a_repository_opens_the_picker_on_the_welcome() {
+fn an_installed_github_without_a_repository_shows_connected_and_view() {
     let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, forge::github_rows(true));
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        node(view.tree(), Role::Heading { level: 2 }, "Choose a repository to start in");
+        node(view.tree(), Role::Link, "View");
         for name in [b"Go on".as_slice(), b"Start over"] {
             assert!(f::find(view.tree(), Role::Button, name).is_none());
         }
@@ -142,27 +142,27 @@ fn model_names_the_failed_first_repository_step() {
     for (step, connection, failed) in [
         (
             w::CreateStep::Admin,
-            "Forgejo on this machine · Set up failed: checking the admin's token · work/hello, into Shop",
+            "Forgejo on this machine · Set up failed: checking the admin's token · work/hello",
             "Making work/hello failed: checking the admin's token",
         ),
         (
             w::CreateStep::Org,
-            "Forgejo on this machine · Set up failed: making the organization · work/hello, into Shop",
+            "Forgejo on this machine · Set up failed: making the organization · work/hello",
             "Making work/hello failed: making the organization",
         ),
         (
             w::CreateStep::Repository,
-            "Forgejo on this machine · Set up failed: making the repository · work/hello, into Shop",
+            "Forgejo on this machine · Set up failed: making the repository · work/hello",
             "Making work/hello failed: making the repository",
         ),
         (
             w::CreateStep::File,
-            "Forgejo on this machine · Set up failed: adding the starter workflow · work/hello, into Shop",
+            "Forgejo on this machine · Set up failed: adding the starter workflow · work/hello",
             "Making work/hello failed: adding the starter workflow",
         ),
     ] {
         let view = model_view(forge::first_rows(
-            forge::connected(),
+            w::Connection::Connecting,
             w::FirstState::Failed(w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step }).unwrap()),
         ));
         line_before_model(view.tree(), connection);
@@ -174,8 +174,8 @@ fn model_names_the_failed_first_repository_step() {
 
 #[test]
 fn model_keeps_steps_while_the_first_repository_is_making() {
-    let view = model_view(forge::first_rows(forge::connected(), w::FirstState::Making));
-    line_before_model(view.tree(), "Forgejo on this machine · Connected as temper (42) · work/hello, into Shop");
+    let view = model_view(forge::first_rows(w::Connection::Connecting, w::FirstState::Making));
+    line_before_model(view.tree(), "Forgejo on this machine · Connecting · work/hello");
     each_step(view.tree(), true);
     node(view.tree(), Role::Status, "under way");
 }
@@ -585,7 +585,7 @@ fn a_kept_real_forge_hides_the_playground() {
             let root = f::playground_forges_root(Address::Welcome { step }, rows.clone());
             assert!(root.forge().playground().is_some(), "the cached answer has not been reread yet");
             let view = f::page_view(&root);
-            assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
+            assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none(), "{:?}", root.forges());
         }
     }
 }
@@ -603,12 +603,12 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
         &[
             "Model:",
             "Forge: Forgejo on this machine",
-            "Project Shop, with work/hello",
-            "Open Shop",
-            "It opens once work/hello is made.",
+            "Project: Default",
+            "Open Default",
+            "It opens once your forge and model are ready.",
         ],
     );
-    let after = node(view.tree(), Role::Paragraph, "It opens once work/hello is made.");
+    let after = node(view.tree(), Role::Paragraph, "It opens once your forge and model are ready.");
     let after = view.tree().nodes().iter().find(|n| n.id == after).unwrap();
     assert!(after.styles.as_slice().contains(&crate::look::WELCOME_AFTER));
     assert!(after.styles.as_slice().contains(&crate::look::WELCOME_TINY));
@@ -617,7 +617,7 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
         !view.tree().nodes().iter().find(|n| n.id == disclosure).unwrap().states.as_slice().contains(&State::Expanded)
     );
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_CARD)));
-    let open = node(view.tree(), Role::Button, "Open Shop");
+    let open = node(view.tree(), Role::Button, "Open Default");
     assert!(view.tree().nodes().iter().find(|n| n.id == open).unwrap().states.as_slice().contains(&State::Disabled));
 }
 
@@ -745,9 +745,9 @@ fn github_adopted_rows() -> skein_lib::List<w::ForgeRow> {
     rows
 }
 #[test]
-fn model_ticks_githubs_durable_adoption_with_its_named_project() {
+fn model_ticks_connected_github_even_with_an_adopted_repository() {
     let view = model_view(github_adopted_rows());
-    let id = line_before_model(view.tree(), "GitHub · sam/widget, in Shop");
+    let id = line_before_model(view.tree(), "GitHub · Connected as my-app[bot] (9)");
     assert!(
         view.tree().nodes().iter().find(|n| n.id == id).unwrap().styles.as_slice().contains(&crate::look::FLOW_DONE)
     );
@@ -759,7 +759,7 @@ fn ready_root(rows: skein_lib::List<w::ForgeRow>) -> d::Domain {
     root
 }
 #[test]
-fn managed_forgejo_ready_names_its_adopted_repository_and_opens_its_project() {
+fn managed_forgejo_ready_uses_the_default_checklist() {
     // Forge 4 is Forgejo elsewhere in the standalone configuration.
     const ELSEWHERE: u16 = 4;
     let mut rows = owned_adopted_rows();
@@ -770,40 +770,29 @@ fn managed_forgejo_ready_names_its_adopted_repository_and_opens_its_project() {
     *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
     let root = ready_root(rows);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Heading { level: 1 }, "work/hello is ready");
+    node(view.tree(), Role::Heading { level: 1 }, "Almost ready");
     forge::words_in_order(
         view.tree(),
-        &["Forge: Forgejo, connected as temper", "Model:", "Project Shop, with work/hello", "Open Shop"],
+        &["Forge: Forgejo, connected as temper", "Model:", "Project: Default", "Open Default"],
     );
-    assert_eq!(
-        press(&root, Role::Link, "Open Shop"),
-        d::Action::Pages(pages::Act::OpenProject { project: f::PROJECT })
-    );
+    assert_eq!(press(&root, Role::Button, "Open Default"), d::Action::Pages(pages::Act::MakeDefault));
 }
 #[test]
 fn github_ready_has_the_same_checklist_and_project_control_as_owned_forgejo() {
     for (rows, heading, forge_line, project_line) in [
-        (
-            github_adopted_rows(),
-            "sam/widget is ready",
-            "Forge: GitHub, connected as my-app[bot]",
-            "Project Shop, with sam/widget",
-        ),
+        (github_adopted_rows(), "Almost ready", "Forge: GitHub, connected as my-app[bot]", "Project: Default"),
         (
             owned_adopted_rows(),
-            "work/hello is ready",
+            "Almost ready",
             "Forge: Forgejo on this machine, connected as temper",
-            "Project Shop, with work/hello",
+            "Project: Default",
         ),
     ] {
         let root = ready_root(rows);
         let view = f::page_view(&root);
         node(view.tree(), Role::Heading { level: 1 }, heading);
-        forge::words_in_order(view.tree(), &[forge_line, "Model:", project_line, "Open Shop"]);
-        assert_eq!(
-            press(&root, Role::Link, "Open Shop"),
-            d::Action::Pages(pages::Act::OpenProject { project: f::PROJECT })
-        );
+        forge::words_in_order(view.tree(), &[forge_line, "Model:", project_line, "Open Default"]);
+        assert_eq!(press(&root, Role::Button, "Open Default"), d::Action::Pages(pages::Act::MakeDefault));
         assert!(
             f::find(view.tree(), Role::Link, "Open on GitHub ↗".as_bytes()).is_none(),
             "no repository web address in the row"
@@ -1009,10 +998,10 @@ fn welcomes_five_steps_use_the_owned_pins_without_a_future_login() {
 }
 
 #[test]
-fn ready_offers_forgejo_sign_in_only_after_its_owned_repository_is_adopted() {
+fn ready_offers_forgejo_sign_in_only_when_its_owned_forge_is_connected() {
     for (rows, offered) in [
         (owned_adopted_rows(), true),
-        (forge::first_rows(forge::connected(), w::FirstState::Making), false),
+        (forge::first_rows(w::Connection::Connecting, w::FirstState::Making), false),
         (
             forge::pinned_rows(
                 w::Connection::SettingUp(
@@ -1043,7 +1032,7 @@ fn ready_offers_forgejo_sign_in_only_after_its_owned_repository_is_adopted() {
                     crate::href(&mut view, link).as_deref(),
                     Some(b"http://127.0.0.1:3000/user/oauth2/temper".as_slice())
                 );
-                forge::words_in_order(view.tree(), &["Open Shop", "Open Forgejo ↗"]);
+                forge::words_in_order(view.tree(), &["Open Default", "Open Forgejo ↗"]);
             }
         }
     }
@@ -1100,7 +1089,7 @@ fn an_unfinished_store_opens_at_its_step() {
         f::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
         let view = f::page_view(&root);
         node(view.tree(), Role::Heading { level: 1 }, heading);
-        assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
+        assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none(), "{:?}", root.forges());
     }
 }
 
@@ -1109,4 +1098,71 @@ fn a_whole_store_moves_on() {
     let mut root = ready_root(owned_adopted_rows());
     assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Whole));
     assert_eq!(first_run_destination(&mut root), Address::Chats { filter: ChatsFilter::All, start: false });
+}
+
+#[test]
+fn ready_making_and_its_endings_keep_one_retry_act() {
+    for refused in [true, false] {
+        let mut root = ready_root(owned_adopted_rows());
+        let mut view = f::page_view(&root);
+        let id = node(view.tree(), Role::Button, "Open Default");
+        let action = crate::act(&mut view, id, Act::Press).unwrap();
+        let mut out = skein_lib::Queue::uncapped();
+        d::step(
+            &mut root,
+            &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+            d::Event::Act { action },
+            &mut out,
+        );
+        let mut attempt = None;
+        while let Some(request) = out.pop() {
+            if let d::Request::Client {
+                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: sent, key, .. } },
+            } = request
+            {
+                attempt = Some((sent, key));
+            }
+        }
+        let view = f::page_view(&root);
+        let id = node(view.tree(), Role::Button, "Open Default");
+        assert!(view.tree().disabled(id));
+        node(view.tree(), Role::Status, "Making Default…");
+        if refused {
+            f::root_event(
+                &mut root,
+                d::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Answer {
+                            attempt: attempt.unwrap().0,
+                            envelope: skein_lib::RequestEnvelope::Final,
+                            answer: Some(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+                                refusal: jig_client::contract::Refusal::NameTaken,
+                                at: None,
+                            })),
+                            why: None,
+                        },
+                    },
+                },
+            );
+        } else {
+            f::root_event(
+                &mut root,
+                d::Event::Client {
+                    event: jig_client::Event::Up { up: jig_client::Up::NotKept { key: attempt.unwrap().1 } },
+                },
+            );
+        }
+        let mut view = f::page_view(&root);
+        let id = node(view.tree(), Role::Button, "Open Default");
+        assert!(!view.tree().disabled(id));
+        assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::MakeDefault)));
+        let text = f::text(view.tree());
+        let text = core::str::from_utf8(&text).unwrap();
+        if refused {
+            assert!(text.contains("Default was not made: "));
+            assert!(text.contains("Another project has that name"));
+        } else {
+            assert!(text.contains("It is not known whether Default was made."));
+        }
+    }
 }

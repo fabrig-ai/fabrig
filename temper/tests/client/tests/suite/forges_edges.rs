@@ -572,7 +572,7 @@ fn admin_private(world: &mut Pages, client: ClientId) {
     }
 }
 #[test]
-fn elsewhere_welcome_after_restart_connects_retries_and_opens_its_new_project() {
+fn elsewhere_welcome_after_restart_connects_retries_and_leaves_the_repository_unadopted() {
     let mut world = admin_world(forge::Mode::Managed);
     let client = open(&mut world, Address::Welcome { step: Step::Forge { forge: None } });
     follow(&mut world, client, vec![see(Role::Button, b"Start over"), gone(Role::Region, b"GitHub")]);
@@ -641,7 +641,7 @@ fn elsewhere_welcome_after_restart_connects_retries_and_opens_its_new_project() 
         why: None,
         stop: None,
     })));
-    // Adoption advances welcome to Model (client/README.md, 3.5); the durable
+    // Connection advances welcome to Model (client/README.md, 3.5); the durable
     // runner label belongs to this forge's Ready (client/forge.md, 5.4).
     follow(
         &mut world,
@@ -652,20 +652,18 @@ fn elsewhere_welcome_after_restart_connects_retries_and_opens_its_new_project() 
             see(Role::Heading { level: 2 }, b"Connected as qa-bot (id 1), managed."),
             see(
                 Role::Paragraph,
-                "Made work/hello, and its project hello. Its CI runs on your forge’s runners labelled linux-arm; with none, a change’s checks wait.".as_bytes(),
+                "Made work/hello. Its CI runs on your forge’s runners labelled linux-arm; with none, a change’s checks wait.".as_bytes(),
             ),
             PersonStep::Go { address: Address::Welcome { step: Step::Ready } },
-            see(Role::Heading { level: 1 }, b"work/hello is ready"),
-            see(Role::Paragraph, b"Project hello, with work/hello"),
-            see(Role::Link, b"Open hello"),
+            see(Role::Heading { level: 1 }, b"Almost ready"),
+            see(Role::Paragraph, b"Project: Default"),
+            see(Role::Button, b"Open Default"),
         ],
     );
     admin_private(&mut world, client);
-    let open = node(&world, client, Role::Link, b"Open hello").id;
-    world.act(client, open, Act::Press);
-    follow(&mut world, client, vec![see(Role::Heading { level: 1 }, b"Chats")]);
+    assert!(node(&world, client, Role::Button, b"Open Default").states.as_slice().contains(&State::Disabled));
     admin_private(&mut world, client);
-    assert!(world.front().engine_adopted(OWNED, 42));
+    assert!(!world.front().engine_adopted(OWNED, 42));
 }
 
 #[test]
@@ -694,7 +692,7 @@ fn setup_steps_show_the_reported_step_and_current_flow_step() {
             "Preparing: its database, temper’s admin, your account",
             "Starting Forgejo and its runner",
             "Connecting as temper",
-            "Making the first repository, and adopting it into its project",
+            "Making the first repository",
         ];
         assert_eq!(items.len(), labels.len(), "{words}");
         for (stage, ((index, item), label)) in items.iter().zip(labels).enumerate() {
@@ -966,15 +964,14 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
         vec![
             PersonStep::Go { address: Address::Welcome { step: Step::Ready } },
             see(Role::Heading { level: 1 }, b"Almost ready"),
-            see(Role::Paragraph, b"Project Default, with work/hello"),
-            see(Role::Disclosure, b"Each step"),
+            see(Role::Paragraph, b"Project: Default"),
+            gone(Role::Disclosure, b"Each step"),
             gone(Role::Heading { level: 2 }, b"Setting up Forgejo on this machine"),
             gone(Role::Link, b"Later"),
         ],
     );
-    node(&world, client, Role::Paragraph, "Forge: Forgejo on this machine · Connected as qa-bot (1)".as_bytes());
-    assert!(!node(&world, client, Role::Disclosure, b"Each step").states.as_slice().contains(&State::Expanded));
-    assert!(node(&world, client, Role::Button, b"Open Default").states.as_slice().contains(&State::Disabled));
+    node(&world, client, Role::Paragraph, "Forge: Forgejo on this machine, connected as qa-bot".as_bytes());
+    assert!(!node(&world, client, Role::Button, b"Open Default").states.as_slice().contains(&State::Disabled));
     assert_eq!(world.front().set_ups().len(), ONE_SETUP);
 }
 

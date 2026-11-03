@@ -41,6 +41,8 @@ pub struct Pages {
     pub(crate) choice: choice::Draft,
     accounts_open: bool,
     welcome: Option<welcome::Welcome>,
+    default_project: welcome::DefaultProject,
+    pub(crate) welcome_decision: Option<welcome::FirstRun>,
     party: Option<u64>,
     next: u64,
     pub(crate) serial: u64,
@@ -50,6 +52,7 @@ pub struct Pages {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    MakeDefault,
     OpenProject {
         project: u32,
     },
@@ -173,6 +176,8 @@ impl Pages {
             choice: choice::Draft::default(),
             accounts_open: false,
             welcome: None,
+            default_project: welcome::DefaultProject::new(),
+            welcome_decision: None,
             party: None,
             next: 1,
             serial: 0,
@@ -196,6 +201,10 @@ impl Pages {
     #[must_use]
     pub const fn welcome(&self) -> Option<&welcome::Welcome> {
         self.welcome.as_ref()
+    }
+    #[must_use]
+    pub const fn default_project(&self) -> &welcome::DefaultProject {
+        &self.default_project
     }
     pub(crate) fn decide_welcome(&mut self) {
         if let Some(welcome) = &mut self.welcome {
@@ -412,6 +421,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 | Act::Confirm
                 | Act::Cancel),
         } => confirmation(pages, env, client, act, out),
+        Event::Act { act: Act::MakeDefault } => make_default(pages, out),
         Event::Act { act: Act::OpenProject { project } } => {
             choose_project(pages, client, project);
             out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
@@ -435,6 +445,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
     }
+    default_chosen(pages, client);
     returned(pages, client, out);
     let owner = pages.accounts_open
         && match accounts::current_me(client) {
@@ -451,6 +462,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if default_told(pages, client, &told, out) {
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
+        return false;
+    }
     if let Told::Answered { key, outcome } = &told
         && let Some((through, pending)) = pages.seeing
         && *key == pending
@@ -813,6 +828,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SendAmendment
         | Act::AmendAgain
         | Act::Choice(_)
+        | Act::MakeDefault
         | Act::OpenProject { .. }
         | Act::Project { .. }
         | Act::Accounts(_)
@@ -921,6 +937,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         }
     }
     project_changed(pages, client);
+    default_chosen(pages, client);
 }
 
 #[expect(clippy::manual_map, reason = "step code reads the first project without closures")]
@@ -1022,5 +1039,105 @@ fn leave_conversations(pages: &mut Pages, out: &mut Queue<Request>) {
     }
     if let Some(task) = pages.task.take() {
         pages.next = task.leave(out);
+    }
+}
+
+fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
+    if pages.address != (Address::Welcome { step: crate::Step::Ready }) || pages.default_project.making.is_some() {
+        return;
+    }
+    match pages.welcome_decision {
+        Some(welcome::FirstRun::Whole | welcome::FirstRun::Unfinished { step: crate::Step::Ready }) => {}
+        Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) | None => return,
+    }
+    pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+    let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+    let state = &mut pages.default_project;
+    state.attempt = state.attempt.checked_add(1).expect("welcome attempts fit");
+    state.making = Some(key);
+    state.ended = None;
+    state.project = None;
+    let number = skein_lib::Decimal::of(state.attempt);
+    let mut name = skein_lib::Writer::new(16_usize.checked_add(number.as_bytes().len()).expect("welcome name fits"));
+    name.put(b"welcome-default-").expect("measured welcome name");
+    name.put(number.as_bytes()).expect("measured welcome number");
+    let name = name.finish();
+    out.push(Request::Client(jig_client::Event::Send {
+        key,
+        name: Some(crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&name).expect("welcome name fits"))),
+        request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::MakeProject {
+            name: jig_client::contract::Text::new(b"Default".as_slice().into(), 64).expect("default name fits"),
+            policy: 1,
+        })),
+    }));
+}
+fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
+    let Some(key) = pages.default_project.making else { return false };
+    let outcome = match told {
+        Told::Answered { key: answered, outcome } if *answered == key => outcome,
+        Told::Pending { key: pending } if *pending == key => {
+            match client.pending(key) {
+                Some(pending) if pending.progress == jig_client::Progress::Unknown => {}
+                Some(_) | None => return true,
+            }
+            &jig_client::Outcome::Unknown
+        }
+        Told::Link { .. }
+        | Told::Pending { .. }
+        | Told::Answered { .. }
+        | Told::Kept { .. }
+        | Told::Dropped { .. }
+        | Told::Changed { .. }
+        | Told::Text { .. }
+        | Told::Ended { .. }
+        | Told::Page { .. } => return false,
+    };
+    pages.default_project.making = None;
+    match outcome {
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
+            jig_client::contract::Outcome::Document(jig_client::contract::DocumentOutcome::ProjectMade { project }),
+        ))) => pages.default_project.project = Some(*project),
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+            refusal,
+            ..
+        })) => {
+            if *refusal == jig_client::contract::Refusal::NameTaken
+                && let Some(me) = pages.me(client)
+            {
+                for row in &me.projects {
+                    if row.name.bytes() == b"Default" {
+                        pages.default_project.project = Some(row.project);
+                        break;
+                    }
+                }
+            }
+            if pages.default_project.project.is_none() {
+                pages.default_project.ended = Some(welcome::Ended::Refused(refusal.clone()));
+            }
+        }
+        jig_client::Outcome::Answered(
+            jig_client::Answered::Family(_) | jig_client::Answered::Jig(jig_client::contract::Answer::Done(_)),
+        )
+        | jig_client::Outcome::NotKept
+        | jig_client::Outcome::Unknown
+        | jig_client::Outcome::Limit
+        | jig_client::Outcome::Unconfirmed
+        | jig_client::Outcome::Held
+        | jig_client::Outcome::Unsent
+        | jig_client::Outcome::Full { .. }
+        | jig_client::Outcome::Lost => pages.default_project.ended = Some(welcome::Ended::Unknown),
+    }
+    if pages.default_project.project.is_some() {
+        default_chosen(pages, client);
+        out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
+    }
+    true
+}
+fn default_chosen(pages: &mut Pages, client: &Client) {
+    if let Some(project) = pages.default_project.project {
+        choose_project(pages, client, project);
+        if pages.project == Some(project) {
+            pages.default_project.project = None;
+        }
     }
 }

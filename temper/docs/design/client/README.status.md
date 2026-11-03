@@ -10,15 +10,6 @@
   with their tests. 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing.
-  3.5, The welcome: whole once a real forge's first repository is
-  adopted, not once the person has a project
-  (`temper-client-domain`'s `pages/welcome.rs`, `decision` and
-  `first_adopted`); the Forge step's project field and the client's
-  adoption of the first repository (`temper-client-view`'s
-  `forge/connect.rs`, `setup_fields` and `github_picker`;
-  `temper-client-domain`'s `forge/forges.rs`, `maybe_adopt`); Ready's
-  "Open Default", where `temper-client-view`'s `pages/welcome.rs`
-  `ready` waits for that adoption.
   3.5, A project with no repository: the chats page says nothing of it
   (`temper-client-view`'s `pages/chats.rs`). 4.4: the form opened
   filled for a set up's first repository adopted nowhere

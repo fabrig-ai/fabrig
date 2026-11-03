@@ -19,15 +19,7 @@
   forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
   6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
-  the reads of the forge's other parts. 5.4: the set up names a project
-  and its Ready adopts the first repository into it: the Details'
-  "Into a new project, named" (`temper-client-view`'s
-  `forge/connect.rs`, `setup_fields` and `admin_form`), Setting up's
-  "ORG/NAME, into PROJECT" and "Making ORG/NAME, and adopting it into
-  PROJECT" (`first_line`, `progress_in`), Ready's "ORG/NAME is ready"
-  and "Open PROJECT" (`ready_card`, `admin_ready`), and GitHub's
-  "Choose a repository to start in" (`github_picker`,
-  `github_adopted`).
+  the reads of the forge's other parts.
 - **Departs:** 5.4: `ConnectForge`'s `?forge=elsewhere` draws A Forgejo
   elsewhere's Details, the configuration's entries for a forge and a
   restart (`forge/connect.rs` `elsewhere`); Your Forgejo's card has the

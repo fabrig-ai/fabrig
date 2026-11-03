@@ -45,8 +45,6 @@ pub enum Act {
     SetUp { forge: u16 },
     SetUpAtOnce { forge: u16 },
     SetupWrite { field: super::forges::SetupField, text: Box<[u8]> },
-    StartIn { forge: u16 },
-    Picker { forge: u16, act: super::picker::Act },
     StartPlayground,
     EndPlayground,
     AdminWrite { field: super::admin::Field, text: Box<[u8]> },
