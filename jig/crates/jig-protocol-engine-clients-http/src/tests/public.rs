@@ -136,6 +136,21 @@ fn options_head_and_post_are_404_with_no_access_control_header() {
     }
 }
 #[test]
+fn a_public_head_has_no_reply_stream() {
+    let mut mount = mount();
+    let mut out = Queue::with_capacity(32);
+    f::call(&mut mount, &mut out, Method::Head, PATH, &[], b"");
+    for request in &out {
+        match request {
+            Request::Http { request: http::Request::Reply(_), .. } => {
+                panic!("HEAD completes with its response head and has no reply stream")
+            }
+            Request::Http { .. } | Request::Component(_) => {}
+        }
+    }
+    assert_eq!(f::answered(&mut mount, &mut out, f::EXCHANGE).0, 404);
+}
+#[test]
 fn a_credential_on_the_route_is_never_read() {
     let cases: [Box<[skein_http::Header]>; 3] = [Box::new([]), Box::new([f::cookie_header()]), Box::new(f::bearer())];
     for headers in cases {

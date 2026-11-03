@@ -10,6 +10,7 @@ use skein_lib::{
 #[expect(clippy::struct_excessive_bools, reason = "the public room is independent of browser and call lifecycle state")]
 pub(crate) struct Call {
     pub name: Token,
+    pub method: skein_http::Method,
     pub public: bool,
     pub stream: Option<crate::stream::Stream>,
     pub events: Queue<http::Event>,
@@ -29,6 +30,7 @@ impl Call {
     pub fn new(name: Token, limits: &Limits) -> Self {
         Self {
             name,
+            method: skein_http::Method::Get,
             public: false,
             stream: None,
             events: Queue::with_capacity(8),
@@ -93,6 +95,10 @@ impl Call {
         self.offset = 0;
         self.requests.push(http::Request::Discard);
         self.requests.push(http::Request::Respond(response));
+        // The server completes HEAD at its response head, with no reply stream.
+        if self.method == skein_http::Method::Head {
+            return;
+        }
         if self.response.is_empty() {
             self.requests.push(http::Request::Reply(Down::Finish));
         } else {
