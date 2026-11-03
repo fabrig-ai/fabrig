@@ -220,7 +220,7 @@ fn the_reference_settings_fit_the_reference_profile() {
     assert_eq!(u64::from(TURNS), max_turns);
     assert_eq!(Some(u64::from(INIT_TURNS)), init_agent["profile"]["policy"]["max_turns"].as_u64());
     let overrides = &limits["engine"]["limits"]["overrides"];
-    let mut charters = 4_u64;
+    let mut charters = 5_u64;
     for item in &items {
         if let SettingEdit::Set(set) = &item.edit
             && let SettingValue::Charter(charter) = &set.value

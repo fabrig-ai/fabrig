@@ -50,9 +50,16 @@ const FORGE: u16 = 1;
 pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
 /// Delegate (`change` and `delegate`), Message (delegates' questions and answers)
-/// and Read (the forge's reads), jig's families (jig's `domain/authority.md`);
+/// Read (the forge's reads), and Settings (the configuring chat reads settings and
+/// proposes), jig's families (jig's `domain/authority.md`);
 /// protocol/configuration.md, 13.4.
-const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 512);
+const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 512 | 1024);
+
+const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
+const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
+const CONFIGURING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1536);
+const REVIEWING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
+const FOREMAN_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 
 /// One stock value past a limit the document set (protocol/configuration.md, 13.4).
 /// `limit` is its override name under `engine.limits`; `setting` needs `needed`.
@@ -161,6 +168,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm) -> Option<Defaults> {
     let mut charters = Box::new([
         charter(1, 8, include_bytes!("stock/chat.txt"), llm),
         charter(2, 16, include_bytes!("stock/coding.txt"), llm),
+        configuring_charter(llm),
         reviewer(llm),
         foreman(llm),
     ]);
@@ -177,7 +185,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm) -> Option<Defaults> {
     for charter in charters.iter_mut() {
         charter.spend = run;
     }
-    let templates = Box::new([chat(), goal()]);
+    let templates = Box::new([chat(), goal(), configuring()]);
     let mut policies = Map::with_capacity(1);
     let mut role_authority = ceiling(ceiling_spend);
     role_authority.budget.spend = chat_spend;
@@ -246,9 +254,22 @@ fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_conf
             shell: false,
             agents: true,
             call_timeout: Duration::from_millis(10_000),
-            tools: RunPolicy::EVERY_FAMILY,
+            tools: match number {
+                1 => CHAT_CHARTER_TOOLS,
+                2 => CODING_TOOLS,
+                3 => CONFIGURING_TOOLS,
+                4 => REVIEWING_TOOLS,
+                6 => FOREMAN_TOOLS,
+                _ => unreachable!("stock charter number"),
+            },
         },
     }
+}
+fn configuring_charter(llm: &jig_protocol_config::Llm) -> Charter {
+    let mut value = charter(3, 8, include_bytes!("stock/configuring.txt"), llm);
+    value.policy.modify = false;
+    value.policy.agents = false;
+    value
 }
 fn reviewer(llm: &jig_protocol_config::Llm) -> Charter {
     let mut value = charter(4, 16, include_bytes!("stock/review.txt"), llm);
@@ -287,6 +308,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
             kinds: Box::new([
                 authority::Executor::Charter(1),
                 authority::Executor::Charter(2),
+                authority::Executor::Charter(3),
                 authority::Executor::Charter(4),
                 authority::Executor::Charter(6),
                 authority::Executor::Procedure(2),
@@ -317,6 +339,9 @@ fn chat() -> Template {
         grace: Some(Duration::from_millis(5000)),
         llm: None,
     }
+}
+fn configuring() -> Template {
+    Template { number: 3, name: bytes::copy_of(b"configuring"), executor: TemplateExecutor::Charter(3), ..chat() }
 }
 fn goal() -> Template {
     Template {
