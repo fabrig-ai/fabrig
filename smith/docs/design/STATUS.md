@@ -10,9 +10,7 @@ view, the writable scope and `containment: trees` are not built
 `protocol/hosts.md`, `testing.md`). The withdrawn compatibility forms,
 the `codex` dialect, the account-id grant, an endpoint's `account` and
 its identity profile, are still accepted, since jig's worlds still write
-dialect 1, and smith's product still runs on them (its `codex` preset,
-the `anthropic` preset's identity and the ChatGPT account id); their
-removal is not yet (`shell.md`, `protocol/agent.md`,
+dialect 1, and their removal is not yet (`protocol/agent.md`,
 `protocol/channel.md`, `protocol/hosts.md`, `protocol/llm.md`). Beside
 them: live content in one process and a grant refreshed while a chat
 starts (`domain/host.md`), messages mid-work and threshold notes
