@@ -62,7 +62,7 @@ the refusal of a tier's format should name the accepted forms junit and lines; n
 - Commit: 8488691cc819e6000e75d4db7a959252a4b27d5a
 - Area: ctl project show
 - Severity: low
-- Sightings: (none)
+- Sightings: finding-121
 
 ### Reproduction
 
