@@ -8,7 +8,3 @@
   charged); moving a task under another task; successors; questions that
   outlive their asker. 8.3: markers. 8.5: a conversation's questions.
   12: the stories of these.
-- **Departs:** 7: a deleted project's conversations are cancelled with
-  no grace (`jig-domain-core/src/admission/deletion.rs`, `cancel`),
-  because `RemoveProject` names no grace and the engine reads no
-  template (`people.md`, 5.2, and its status).

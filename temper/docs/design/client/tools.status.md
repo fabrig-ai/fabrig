@@ -36,10 +36,4 @@
   does (jig's `domain/people.md`, 5.1), where its row holds the task;
   `hold lift` is keyed optionally (`Keyed::Optional`). 12: an authority's
   entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
-  not in the table. 5.5: `forge setup` refused "not under the box"
-  prints the four `temper forge` commands and a restart
-  (`temper-client-domain`'s `forge/words.rs` `set_up_commands`), not
-  that temper starts with `temper box`, though those commands find no
-  group's file for a forge the box did not run
-  (`../protocol/setup.md`, 7.4): words for an owned forge set up by
-  hand, which the box's group files leave without a way.
+  not in the table.

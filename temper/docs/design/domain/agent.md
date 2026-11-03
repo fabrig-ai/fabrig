@@ -277,7 +277,10 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 The stock chat first reads the code a repository change touches with the
 forge's `read_branch` for its head, then `read_file`. It calls `change`
 with the person's request and only what it read, never describing code
-it has not read. For a fix, if the named fault is absent, it changes
+it has not read. Repository changes go through `change`, never through
+writes to the chat's workspace. After delegation the chat says only that
+work started; it claims no addition, fix or completion until the delegate's
+`Landed` result names its pull request and merge commit. For a fix, if the named fault is absent, it changes
 nothing and says what the code has. The stock coder likewise writes
 nothing and finishes with the successful `no_change` verdict saying what the code has when the
 named fault is absent, never adding a feature in a fix's place. Where

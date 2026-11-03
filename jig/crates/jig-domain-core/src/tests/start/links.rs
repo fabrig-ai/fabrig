@@ -580,7 +580,7 @@ fn connector_resource_roles_link_their_projects() {
     ] {
         let (mut core, env) = loaded();
         if let Some(step) = deletion {
-            restore_person(&mut core, &env, people::Stored::Deletion { project, step });
+            restore_person(&mut core, &env, people::Stored::Deletion { project, step, grace: None });
             assert!(core.authority.policy(project).is_none());
         }
         let mut out = Queue::uncapped();

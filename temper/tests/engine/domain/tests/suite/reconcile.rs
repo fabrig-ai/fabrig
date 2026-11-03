@@ -51,10 +51,13 @@ fn asserts_before_switch(row: forge::Stored, expected: forge::MissingLink) {
 #[test]
 fn a_missing_task_asserts_before_the_switch() {
     asserts_before_switch(
-        forge::Stored::Names { task: ABSENT_TASK, resources: Box::new([]) },
+        forge::Stored::Call {
+            key: forge::NamedCall { task: ABSENT_TASK, attempt: 1, completion: 1, position: 1 },
+            answer: forge::CallPayload::Refused(skein_forge::api::Error::Refused),
+        },
         forge::MissingLink {
-            kind: forge::RecordKind::Names,
-            key: forge::Key::Names(ABSENT_TASK),
+            kind: forge::RecordKind::Call,
+            key: forge::Key::Call(forge::NamedCall { task: ABSENT_TASK, attempt: 1, completion: 1, position: 1 }),
             need: forge::Need::Task { task: ABSENT_TASK, retired: None },
         },
     );

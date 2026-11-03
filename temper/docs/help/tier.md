@@ -17,6 +17,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   once the last ends. temper dispatches it on a branch of its own,
   `temper/tier/NAME.N`, made at the commit it runs, and deletes the
   branch when the run ends.
+- **The baseline:** A newly configured tier first runs at its followed
+  branch's current tip as a baseline, without any landing. Baseline
+  failures are blamed on no landing and inherited by the next run.
+  Subsequent ranges start after the baseline tip. Landings arriving
+  during the baseline wait for the next run to verify them.
 - **Its report:** the run uploads an artifact, named in the tier's
   settings, holding a JUnit file or one test id per line, and temper
   reads the failing tests' ids from it. A failed run that names no

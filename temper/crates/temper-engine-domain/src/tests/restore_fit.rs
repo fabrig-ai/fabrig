@@ -69,23 +69,27 @@ fn first_fit_failure_prevents_translation_linking_and_repeated_journal_release()
 
 #[test]
 fn derived_fit_refuses_before_missing_links_at_the_restore_terminal() {
-    let (mut d, env) = super::resume::at_phase(false, jig_domain_core::start::Phase::Link);
+    let mut limits = super::resume_fixture::limits();
+    limits.forge.client.resources = limits.forge.resources_per_task - 1;
+    limits.forge.holds = limits.forge.client.resources;
+    let (mut d, env) = super::resume::at_phase_with_limits(false, jig_domain_core::start::Phase::Link, &limits);
+    let (source, _, task) = super::projection_settled::live_goal(None);
+    jig_domain_tasks::step(
+        &mut d.core.tasks,
+        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        jig_domain_tasks::Event::Restore {
+            record: jig_domain_tasks::Stored::Live(Box::new(source.tasks().task(task).unwrap().clone())),
+        },
+        &mut Queue::uncapped(),
+    );
     let l = env.limits.forge;
-    let mut number = 0;
-    let mut task = 100;
-    while number <= l.client.resources {
-        let mut resources = skein_lib::List::with_capacity(l.resources_per_task);
-        while resources.room() > 0 && number <= l.client.resources {
-            resources
-                .push(forge::Name { forge: 1, repository: 999, what: forge::What::Pull(u64::from(number)) })
-                .unwrap();
-            number += 1;
-        }
-        d.work.push(Work::Forge(forge::Event::Restore {
-            record: forge::Stored::Names { task, resources: resources.into_boxed() },
-        }));
-        task += 1;
+    let mut resources = skein_lib::List::with_capacity(l.resources_per_task);
+    for number in 0..=l.client.resources {
+        resources.push(forge::Name { forge: 1, repository: 999, what: forge::What::Pull(u64::from(number)) }).unwrap();
     }
+    d.work.push(Work::Forge(forge::Event::Restore {
+        record: forge::Stored::Names { task, resources: resources.into_boxed() },
+    }));
     d.work.push(Work::ForgeRestored);
     let mut decision = crate::Decision::decide(&mut d.journal, &env.limits.journal);
     crate::route::route_into(&mut d, &env, &mut decision);

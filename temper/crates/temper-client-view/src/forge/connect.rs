@@ -451,24 +451,11 @@ fn here(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings,
     let terminal = row.offer == Offer::NotUnderTheBox;
     flow::details(b, &w.say(if terminal { Word::ForgeTerminal } else { Word::ForgeHere }, &[]));
     if terminal {
-        text(b, w, Role::Paragraph, Word::ForgeTerminalDetails);
-        let commands = forge::words::set_up_commands(row.number);
-        let mut rest = commands.as_ref();
         b.open(Role::Paragraph);
-        b.style(look::FLOW_CODE);
-        // The shared forge words delimit exactly the four terminal commands with backticks.
-        for index in 0_u32..4 {
-            let Some(start) = skein_lib::bytes::find(rest, b"`") else { break };
-            let tail = rest.get(start..).expect("command start").strip_prefix(b"`").expect("backtick");
-            let Some(end) = skein_lib::bytes::find(tail, b"`") else { break };
-            if index != 0 {
-                b.text(Run::Code, b"\n");
-            }
-            b.text(Run::Code, tail.get(..end).expect("command end"));
-            rest = tail.get(end..).expect("command end").strip_prefix(b"`").expect("backtick");
-        }
+        b.text(Run::Plain, &w.say(Word::ForgeTerminalDetails, &[]));
+        b.text(Run::Plain, b" ");
+        b.text(Run::Plain, &w.say(Word::ForgeTerminalNext, &[]));
         b.close();
-        text(b, w, Role::Paragraph, Word::ForgeTerminalNext);
     } else {
         if let Some(owned) = &row.owned {
             crate::cards::text(

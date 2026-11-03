@@ -805,7 +805,7 @@ record TaskCapacityActionBatch { first: option u64 members: u32 }
 record TaskCapacityActionProposal { number: u64 }
 record TaskCapacityActionPersonProposal { number: u64 }
 record TaskCapacityActionMessage { task: u64 number: u64 }
-record RemoveProject { project: u32 }
+record RemoveProject { project: u32 grace: option duration }
 record Rename { project: u32 name: text 64 }
 record MakeProject { name: text 64 policy: u32 }
 record Authorize { query: bytes 8192 }

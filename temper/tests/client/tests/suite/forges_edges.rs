@@ -394,7 +394,7 @@ fn owned_details_offer_one_setup_and_name_its_costs() {
 }
 
 #[test]
-fn not_under_box_explains_all_four_commands_without_action() {
+fn not_under_box_says_to_start_temper_with_the_box_without_action() {
     let mut world = configured(true, false, forge::Mode::Owned);
     connection(&mut world, OWNED, forge::Connection::NotSetUp);
     let client = open(&mut world, at(OWNED));
@@ -402,16 +402,18 @@ fn not_under_box_explains_all_four_commands_without_action() {
         &mut world,
         client,
         vec![
-            see(Role::Heading { level: 2 }, b"Set it up from a terminal"),
+            see(Role::Heading { level: 2 }, b"Set it up under temper box"),
             gone(Role::Button, b"Set up a Forgejo here"),
         ],
     );
     let words = text(&world, client);
-    for command in
-        ["temper forge fetch 1", "temper forge prepare 1", "temper forge run 1 forgejo", "temper forge run 1 runner"]
-    {
-        assert!(words.contains(command), "missing {command}: {words}");
+    for expected in [
+        "temper was not started by temper box, so it does not start a Forgejo itself.",
+        "Start temper with temper box to set one up here.",
+    ] {
+        assert!(words.contains(expected), "missing {expected}: {words}");
     }
+    assert!(!words.contains("temper forge fetch"));
     follow(&mut world, client, vec![PersonStep::Go { address: flow(None) }, see(Role::Button, b"Start over")]);
     assert!(text(&world, client).contains("not finished"));
 }

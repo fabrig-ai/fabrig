@@ -18,14 +18,13 @@ questions lag (`domain/people.md`, `domain/tasks.md`, `domain/engine.md`,
 `me`'s `resolved_default`, a service's root, the one-shot mode and the
 drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). A deleted
-project's settings are not erased, nor is `RemoveProject` offered in the
-project's document (`domain/people.md`, `domain/connectors.md`,
-`client/domain/contract.md`). The code departs where a deleted project's
-conversations are cancelled with no grace (`domain/people.md`,
-`domain/tasks.md`); and in a few single items (`README.md`,
-`client/domain/client.md`, `domain/engine.md`, `domain/root.md`,
-`examples.md`). `domain/core.md`, `domain/providers.md` and
-`client/domain/README.md` have no gap of their own. jig has no drafts.
+project's settings are not erased, nor is `RemoveProject` offered in
+the project's document (`domain/people.md`, `domain/connectors.md`,
+`client/domain/contract.md`). The code departs
+in a few single items (`README.md`, `client/domain/client.md`,
+`domain/engine.md`, `domain/root.md`, `examples.md`). `domain/core.md`,
+`domain/providers.md` and `client/domain/README.md` have no gap of their
+own. jig has no drafts.
 
 Design documents:
 - [`README.md`](README.status.md)

@@ -1,0 +1,65 @@
+draft = "playground-decisions"
+repo = "fabrig"
+sources = ["temper/docs/plan/playground-decisions/inputs/request.md", "temper/docs/design/draft/archive/playground-reset.md", "AGENTS.md", "DESIGN.md"]
+
+# The user's five decisions on the playground reset (inputs/request.md), brought to the code.
+# 1, the playground reset at a start that finds it running, and 5, the words for a forge set up
+# without the box: one task each, released first. 2, a removed forge's names kept while a kept
+# task names them, and 3, a deleted project's conversations cancelled with their close's grace:
+# their designers state the mechanism first (notes/contracts.md, C1 and C2). 4 needs no change.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "box-words"
+title = "temper: without the box, the page, the Forges row and ctl say to start temper with temper box"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 5.4"
+
+[[part]]
+id = "playground-restart"
+title = "temper: a start that finds the playground running resets it, as the banner does"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.4"
+
+[[slice]]
+id = 1
+story = "without the box, Forgejo on this machine says Set it up under temper box and ctl's forge setup says to start temper with temper box, naming no temper forge command"
+parts = ["box-words"]
+walk = false
+
+[[slice]]
+id = 2
+story = "a box restarted while the playground runs comes back with the playground reset: no row, no scripted account, its fake forge removed, the person on the welcome"
+parts = ["playground-restart"]
+walk = false
+
+[[part]]
+id = "deletion-grace"
+title = "jig and temper: a deleted project's conversations asked to finish within the grace its RemoveProject carries, the chat template's"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/people.md, 5.2"
+
+[[slice]]
+id = 3
+story = "an owner deletes a project with a live chat and its delegates, with the chat template's grace: the delegates are cancelled, the chat asked to finish and cancelled when the grace ends, then all erased; the playground's reset gives its chats the same"
+parts = ["deletion-grace"]
+walk = false
+
+[[part]]
+id = "kept-names"
+title = "jig and temper: a removed forge's repositories' names kept while a kept task names them, jig telling connectors at a task's erasure"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 4.1"
+
+[[slice]]
+id = 4
+story = "an ended chat that worked on a repository of a forge since removed reads its name across a start until its project's deletion erases the chat, then the repository's row goes"
+parts = ["kept-names"]
+walk = false

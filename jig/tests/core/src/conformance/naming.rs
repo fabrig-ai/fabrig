@@ -236,7 +236,7 @@ mod tests {
             })),
             root::Record::Core(core::Record::People(people::Stored::Acted {
                 key: acted,
-                act: people::Act::RemoveProject { project },
+                act: people::Act::RemoveProject { project, grace: None },
                 outcome: people::Outcome::ProjectRemoved { project },
                 at: Wall::EPOCH,
             })),

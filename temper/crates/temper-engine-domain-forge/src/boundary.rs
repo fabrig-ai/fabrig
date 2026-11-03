@@ -966,7 +966,7 @@ pub enum Stored {
     Repository(Repository),
     /// One held resource.
     Hold(Hold),
-    /// All live resources named by one task.
+    /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge.md, 4.1).
     Names {
         task: u64,
         resources: Box<[Name]>,
@@ -1356,12 +1356,12 @@ pub enum Event {
         task: u64,
         resources: Box<[Name]>,
     },
-    /// Replace the resources of a task still named; a task its release unnamed stays so.
+    /// Replace a live task's resources; a released task's kept row stays as it is.
     Rename {
         task: u64,
         resources: Box<[Name]>,
     },
-    /// Remove all resources and subscriptions of an ended task.
+    /// The task is erased: drop what the connector keeps of its names.
     Unnamed {
         task: u64,
     },

@@ -2215,10 +2215,21 @@ them as it does any Forgejo.
   granted by the document's `acts` (8.3), and the forge's is the
   connector's own removal, which needs no grant:
   1. `project`: the playground's project deleted, by `RemoveProject`
-     (jig's `domain/people.md`, 5.2), answered removed once the project
-     is closed, so the step passes then; its chats are cancelled and
-     erased with it in the deletion's own kept steps, which go on
-     beside the reset's next steps until whole;
+     (jig's `domain/people.md`, 5.2), with the grace of temper's chat
+     template (template 1, `configuration.md`, section 2) as the
+     settings hold it when the act is sent, or none once it is removed:
+     jig's core reads no template, so temper's root reads it and fills
+     the act, as it reads the goal template for a goal
+     (`../domain/agent.md`, 4.3.2). It is answered removed once the
+     project is closed, so the step passes then; its chats are asked to
+     finish within that grace, as their person's close asks one, then
+     cancelled and erased with it in the deletion's own kept steps,
+     which go on beside the reset's next steps until whole. The act
+     sent again at a start carries the grace the settings hold then: if
+     the act was made before the restart with another, it is another
+     act under the key, refused as a key conflict, which moves the row
+     on as a refusal does (below), and the deletion made then goes on
+     with the grace it keeps;
   2. `forge`: the fake forge removed (`../domain/forge.md`, 4.1), its
      group stopped and its directory, file and record removed (7.1);
   3. `account`: the scripted account removed, by `RemoveAccount`;
@@ -2248,7 +2259,7 @@ them as it does any Forgejo.
 - **A box restarted while the playground runs:** its fake forge keeps
   no state across its starts (below), so the engine's records of the
   branches it lost would outlive it. The start resets the playground,
-  as the banner does, and the person meets the welcome (section 16).
+  as the banner does, and the person meets the welcome.
 - **`application.demo`,** or null for none:
 
   ```
@@ -3317,10 +3328,6 @@ Each is intended; what it needs is named with it.
   Forgejo's web, with the scopes they choose; never the preparation's
   `admin_token`, which the engine's setup host alone takes (section
   9).
-- **A box restarted in the playground** (8.4). The fake forge keeps no
-  state across its starts, so the engine's records of the branches it
-  lost outlive it. Default: the start resets the playground, as the
-  banner does, and the person meets the welcome.
 - **The welcome's Default project after a start over** (6.7): the
   project a removed forge's first repository was to go into, made
   already, stays empty. Default: reused by the next set up's first

@@ -61,7 +61,7 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.tasks.checked_mul(2)?)? // ProposedEffect: repository and task.
         .checked_add(l.repositories)? // Repository: forge.
         .checked_add(l.holds.checked_mul(3)?)? // Hold: name, task, writer task.
-        .checked_add(l.tasks.checked_mul(l.resources_per_task.checked_add(1)?)?)? // Names.
+        .checked_add(l.tasks.checked_add(l.repositories)?.checked_mul(l.resources_per_task)?)? // Names.
         .checked_add(l.subscriptions.checked_mul(2)?)? // Subscription: repository and owner.
         .checked_add(l.client.resources.checked_mul(3)?)? // BranchHead, PullState, Client::Live.
         .checked_add(l.subscriptions)? // Ci: repository.
@@ -76,18 +76,6 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.changes)?
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
         .checked_add(l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)?)
-}
-pub(super) fn names_forge(resources: &[Name]) -> Option<u16> {
-    let mut retired = None;
-    if let Some(name) = resources.first() {
-        retired = Some(name.forge);
-    }
-    for name in resources {
-        if retired != Some(name.forge) {
-            retired = None;
-        }
-    }
-    retired
 }
 impl Need {
     pub(super) fn repository(self, repository: Repository) -> bool {
@@ -178,9 +166,7 @@ impl Reconciliation {
                 }
                 Ok(())
             }
-            Stored::Names { task, resources } => {
-                let retired = names_forge(resources);
-                self.task(RecordKind::Names, *task, retired)?;
+            Stored::Names { resources, .. } => {
                 for name in resources {
                     self.name(RecordKind::Names, name)?;
                 }
@@ -325,7 +311,7 @@ impl Domain {
     }
 
     // History survives removal without retaining its repository's row
-    // (temper/docs/design/domain/forge.md, 4.1 and 20).
+    // (temper/docs/design/domain/forge.md, 4.1).
     const fn historical_repository(kind: RecordKind) -> bool {
         match kind {
             RecordKind::BranchHead

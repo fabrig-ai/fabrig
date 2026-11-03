@@ -25,11 +25,15 @@ const PROJECT: u32 = 1;
 const UNKNOWN: u32 = 99;
 const PARTY: u64 = 1;
 const REMOVE: u8 = 91;
+const REMOVE_GRACED: u8 = 92;
+const GRACE: Duration = Duration::from_secs(5);
+const CHAT_OPERATIONS: u32 = 3; // The conversation and its two live delegates.
 const SHARED: u32 = 0;
 const SOLE: u32 = 2;
 
 fn configuration(seed: u64) -> (root::Config, root::Limits) {
     let (mut config, mut limits) = jig_core_world::faults::plan_fixture(seed);
+    limits.core.people.operations = CHAT_OPERATIONS;
     limits.core.authority.projects = 3;
     limits.core.people.projects = 4;
     limits.core.people.initial_owners = 2;
@@ -180,7 +184,11 @@ fn act(world: &mut World, key: u8, act: people::Act) {
 }
 
 fn remove(world: &mut World, key: u8) {
-    act(world, key, people::Act::RemoveProject { project: PROJECT });
+    act(world, key, people::Act::RemoveProject { project: PROJECT, grace: None });
+}
+
+fn remove_graced(world: &mut World) {
+    act(world, REMOVE_GRACED, people::Act::RemoveProject { project: PROJECT, grace: Some(GRACE) });
 }
 
 fn deletion() -> root::Key {
@@ -300,7 +308,7 @@ fn scope_names(scope: &notes::Scope, project: u32) -> bool {
 
 fn ask_names(ask: &people::Ask, project: u32) -> bool {
     match ask {
-        people::Ask::RemoveProject { project: owner }
+        people::Ask::RemoveProject { project: owner, .. }
         | people::Ask::Compound { project: owner, .. }
         | people::Ask::Create { project: owner, .. }
         | people::Ask::EditNote { project: owner, .. }
@@ -348,7 +356,7 @@ fn people_names(row: &people::Stored, project: u32) -> bool {
         people::Stored::Acted { act, .. } => match act {
             people::Act::Close { project: owner, .. }
             | people::Act::Adopt { project: owner, .. }
-            | people::Act::RemoveProject { project: owner } => *owner == project,
+            | people::Act::RemoveProject { project: owner, .. } => *owner == project,
             people::Act::MakeProject { .. } | people::Act::AddKey { .. } | people::Act::RemoveAccount { .. } => false,
         },
         people::Stored::Answer { ask, .. } => ask_names(ask, project),
@@ -444,6 +452,49 @@ fn a_deleted_project_leaves_only_its_spend() {
         };
         assert_eq!(uses.as_deref(), Some(expected.as_slice()));
     }
+}
+
+#[test]
+fn a_deleted_projects_chat_finishes_within_the_deletions_grace() {
+    let mut world = deleted_world(SEED);
+    let chat = world.assignments[0].0;
+    let delegates = live_row(&world, chat).delegates.clone();
+    remove_graced(&mut world);
+    removed(&world);
+    for delegate in delegates {
+        let ended = root::Key::Core(core::Key::Tasks(tasks::Key::Ended(delegate)));
+        let row = match world.store.rows.get(&ended) {
+            Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row)))) => row,
+            _ => live_row(&world, delegate),
+        };
+        assert!(matches!(row.phase,
+            tasks::Phase::Closing(tasks::Closing { ending: tasks::Ending::Cancelled { ref reason, .. }, .. })
+            | tasks::Phase::Ended(tasks::Ending::Cancelled { ref reason, .. }) if reason.is_empty()));
+        assert!(row.grace.is_none());
+    }
+    let row = live_row(&world, chat);
+    let grace = row.grace.as_ref().expect("conversation asked to finish");
+    assert_eq!(grace.by, tasks::Party::Deployment { project: PROJECT });
+    assert!(grace.reason.is_empty());
+    let message = world
+        .inbound
+        .iter()
+        .find(|word| word.number == grace.message)
+        .expect("finish request reaches the conversation");
+    assert!(matches!(message.kind, tasks::MessageKind::FinishRequested { .. }));
+    assert_eq!(message.number, grace.message);
+    assert_eq!(grace.until, skein_lib::Wall::from_nanos(message.at.as_nanos() + GRACE.as_nanos()));
+    assert!(message.words.is_empty());
+    world.advance(Duration::from_secs(4));
+    assert!(matches!(live_row(&world, chat).phase, tasks::Phase::Active(_)));
+    world.advance(Duration::from_secs(1));
+    assert!(matches!(
+        live_row(&world, chat).phase,
+        tasks::Phase::Closing(tasks::Closing { ending: tasks::Ending::Cancelled { .. }, .. })
+    ));
+    finish(&mut world);
+    assert_eq!(rows_naming(&world, PROJECT), Vec::<String>::new());
+    assert!(!final_rows(&world).contains_key(&deletion()));
 }
 
 #[test]
@@ -571,7 +622,10 @@ fn a_closed_project_refuses_every_entry_as_one_never_made() {
             people::Act::Adopt { project: PROJECT, adoption: adoption() },
             people::Act::Adopt { project: UNKNOWN, adoption: adoption() },
         ),
-        (people::Act::RemoveProject { project: PROJECT }, people::Act::RemoveProject { project: UNKNOWN }),
+        (
+            people::Act::RemoveProject { project: PROJECT, grace: None },
+            people::Act::RemoveProject { project: UNKNOWN, grace: None },
+        ),
     ]
     .into_iter()
     .enumerate()

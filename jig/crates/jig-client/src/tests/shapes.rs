@@ -109,6 +109,25 @@ fn close_chat_cancels_the_chat_last_with_its_template_s_grace() {
     );
 }
 #[test]
+fn remove_project_gives_the_chat_template_s_grace() {
+    assert_eq!(remove_project(&me(), PROJECT), Ok(Ask::RemoveProject { project: PROJECT, grace: Some(SHAPE_GRACE) }));
+}
+#[test]
+fn remove_project_gives_no_grace_once_the_chat_template_is_gone() {
+    let mut me = me();
+    let templates = &mut shape_project(&mut me).templates;
+    let goal = templates.get(1).unwrap().clone();
+    templates.clear();
+    templates.push(goal).unwrap();
+    assert_eq!(remove_project(&me, PROJECT), Ok(Ask::RemoveProject { project: PROJECT, grace: None }));
+}
+#[test]
+fn remove_project_of_a_project_not_in_me_is_not_offered() {
+    let mut me = me();
+    me.projects.clear();
+    assert_eq!(remove_project(&me, PROJECT), Err(NotOffered::Project));
+}
+#[test]
 fn fall_puts_a_draft_without_a_deadline_beyond_a_bound_that_has_one() {
     let mut creating = creating();
     creating.within.latest = Some(DEADLINE);
