@@ -10,6 +10,11 @@ use temper_fake_git_hosted::Remote;
 use temper_playground::documents;
 pub(crate) use temper_playground::documents::settings_file;
 pub(crate) use temper_playground::fakes::forge_table;
+pub mod playground;
+
+pub(crate) fn playground() -> bool {
+    STORY.with(|slot| matches!(slot.get(), Story::PlaygroundA))
+}
 
 // One hook per push: the setup's topic push and the agent's change.
 pub(crate) const ADOPT_HOOKS: usize = 2;
@@ -313,7 +318,9 @@ pub(crate) fn first_start() -> bool {
 thread_local! { static SETTINGS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
 thread_local! { static REVISION: std::cell::Cell<u32> = const { std::cell::Cell::new(1) }; }
 pub(crate) fn setup_settings(phase: crate::world::Phase) {
-    FIRST_START.with(|slot| slot.set(matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. })));
+    FIRST_START.with(|slot| {
+        slot.set(!playground() && matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }));
+    });
     SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain)));
     REVISION.with(|slot| {
         slot.set(if matches!(phase, crate::world::Phase::Drain | crate::world::Phase::Restart) { 2 } else { 1 });

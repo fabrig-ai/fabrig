@@ -11,6 +11,9 @@ files = [
   "temper/docs/development/playground-memory.md",
   "temper/docs/design/playground.status.md",
   "Cargo.lock",
+  "temper/crates/temper-playground/src/story.rs",
+  "temper/tests/one-process/src/world.rs",
+  "temper/tests/one-process/src/fixtures.rs",
 ]
 effort = "high"
 minutes = 150
@@ -95,3 +98,36 @@ Acceptance:
 
 As the implementer's text says, and: the table, in short (the three largest peaks and what
 controls each).
+
+## Answers
+
+2026-11-03. Q: wait for owners to supply measurement access, or change the composition's and
+harness's APIs here? A: change them here, in two small additive seams and nothing more; no other
+task owns them and waiting supplies nothing. This replaces "Nothing in `temper-playground` or
+the harness changes" for these seams alone; behaviour is kept and every existing caller reads as
+before.
+
+- **The playground world's meter,** `temper/crates/temper-playground/src/story.rs`:
+  `pub fn world_metered<N: skein_sim_world::Meter>(start: Start, meter: N) -> World<Process<()>,
+  Machine, N>`, which is today's `world` with `.with_meter(meter)` right after `with_machine`,
+  before any process is admitted; `world(start)` becomes `world_metered(start, Bare)`. `capture`
+  and `step` become generic over the world's meter (`N: Meter`). The test binary's meter is its
+  own `skein_sim_world::Meter` impl over `skein_heap::Span` per process index (admit, around,
+  release, restart), in `tests/memory.rs`: skein-world's `Metered` is crate-private and stays so.
+- **The one-process runner's memory,** `temper/tests/one-process/src/world.rs` and
+  `src/fixtures.rs`: `Settings` gains `pub memory: skein_world::Memory`, passed to
+  `new_controlled` in place of the hard-coded `Memory::Unchecked`; `fixtures::calm` sets
+  `Memory::Unchecked`. `Outcome` gains `pub peaks: Option<Vec<u64>>`, from skein-world's outcome's
+  `peaks()`, with the process names in index order if the table needs them. Merge
+  `origin/playground-temper/one-process-story-a` first: it edits the same file; keep its lines.
+- **The knobs are halved by hand,** not by an API: for each run, halve the knob's value in the
+  document that holds it (`temper-playground`'s documents, jig's Small profile as the playground
+  takes it, the fakes' limits) as a local, uncommitted edit, run, record, and restore it with
+  `git checkout -- <file>` before the next. The commands and the edited constant go in
+  `playground-memory.md`; the pushed branch carries no knob and no edit to those files.
+- **If story A does not walk yet** on the one-process world (its test still `#[ignore]`d for the
+  playground's handover, `one-process-story-a`'s own gap): write `story_a_at_its_high_water` over
+  the same entry as `tests/suite/story_a.rs`, record its high water and its knobs as
+  `unmeasured: story A does not walk yet` in `playground-memory.md`, leave the status entry as it
+  is, and report it under `## Left`. The playground world's first step and start, the fake disk,
+  and each knob's effect on them are measured in full regardless.

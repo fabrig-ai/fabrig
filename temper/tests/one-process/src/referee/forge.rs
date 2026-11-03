@@ -10,7 +10,7 @@ pub(crate) struct Forge {
     transport: temper_fake_git_hosted::Typed,
     tree: BTreeMap<Vec<u8>, Vec<u8>>,
     pub(crate) pushed: Vec<Pushed>,
-    merge: bool,
+    story: Story,
     edited: bool,
     prepared: bool,
     hooks: Option<std::net::SocketAddr>,
@@ -22,13 +22,16 @@ impl Forge {
             transport,
             tree: BTreeMap::from([(b"conflict.txt".to_vec(), content.to_vec())]),
             pushed: Vec::new(),
-            merge: matches!(story, Story::Merge),
+            story,
             edited: false,
             prepared: false,
             hooks: None,
         }
     }
     pub(crate) fn hand_hooks(&mut self, bound: std::net::SocketAddr) {
+        if matches!(self.story, Story::PlaygroundA) {
+            return;
+        }
         if self.hooks != Some(bound) {
             self.transport.forge.borrow_mut().hooks = Some(skein_fake_forge_protocol::delivery::Endpoint {
                 forge: 1,
@@ -39,7 +42,7 @@ impl Forge {
         }
     }
     pub(crate) fn adopted(&mut self) {
-        if self.merge && !self.prepared {
+        if matches!(self.story, Story::Merge) && !self.prepared {
             crate::stories::prepare_merge_branch(&self.transport);
             self.prepared = true;
         }
@@ -64,10 +67,24 @@ impl Forge {
             if let Observation::Merged { repository, head, .. } = &observed {
                 green(&forge, repository, *head);
             }
-            let Observation::Moved { repository, branch, from, to, by: 1 } = observed else { continue };
+            let Observation::Moved { repository, branch, from, to, by } = observed else { continue };
+            if by != 1 && !matches!(self.story, Story::PlaygroundA) {
+                continue;
+            }
             let metadata = forge.domain.metadata(&repository).expect("observed repository");
             if branch == metadata.default_branch {
                 green(&forge, &repository, to);
+            }
+            if matches!(self.story, Story::PlaygroundA) {
+                if from != Some(to) && branch != metadata.default_branch {
+                    let object = forge.domain.object(to).expect("pushed object");
+                    self.pushed.push(Pushed {
+                        branch,
+                        commit: to,
+                        parents: object.parent.into_iter().chain(object.merge_parent).collect(),
+                    });
+                }
+                continue;
             }
             // Git may create the remote branch at the editor's first committed change.
             // Earlier preparation has no completed agent write.
@@ -101,7 +118,19 @@ impl Forge {
         );
     }
     pub(crate) fn complete(&self) -> bool {
-        self.pushed.iter().any(|push| !self.merge || push.parents == [fixtures::BRANCH_HEAD, fixtures::MOVED_BASE])
+        if matches!(self.story, Story::PlaygroundA) {
+            if crate::world::playground_answers() != 3 {
+                return false;
+            }
+            let outcome = crate::stories::playground::outcome(&self.transport);
+            return outcome.csv
+                && outcome.green
+                && outcome.answered == 3
+                && self.pushed.iter().any(|push| push.commit == outcome.main);
+        }
+        self.pushed.iter().any(|push| {
+            !matches!(self.story, Story::Merge) || push.parents == [fixtures::BRANCH_HEAD, fixtures::MOVED_BASE]
+        })
     }
 }
 fn green(forge: &skein_fake_peers::forge::Forge, repository: &[u8], head: u64) {
