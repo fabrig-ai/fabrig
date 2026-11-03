@@ -337,7 +337,7 @@ record TaskOutcome {
     refusals: u32
     phase: Phase
 }
-record TaskRecord { history: TaskHistory run: TaskRun definition: TaskDefinition interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
+record TaskRecord { history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
 record EndedByParty { party: u64 label: u32 ended_at: u64 task: u64 }
 record EndedByProject { project: u32 label: u32 ended_at: u64 task: u64 }
 enum HoldOwner { party: Person, task: Number }

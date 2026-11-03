@@ -73,6 +73,7 @@ pub(crate) struct PendingStep {
     gates: Box<[change::GateReport]>,
     queue_repair_active: bool,
     kept: bool,
+    pending: Box<[change::Pending]>,
     branch: Option<skein_forge::api::Commit>,
     base_tip: Option<skein_forge::api::Commit>,
     pull: Option<skein_forge::api::Pull>,
@@ -90,6 +91,7 @@ struct StepInput {
     gates: Box<[change::GateReport]>,
     queue_repair_active: bool,
     kept: bool,
+    pending: Box<[change::Pending]>,
 }
 
 /// One committed outbox entry. A held one is out of the client's outbox and
@@ -169,6 +171,7 @@ pub struct Domain {
     pub(crate) sequence: u64,
     pub(crate) changes: Map<u64, ChangeRow>,
     steps: Map<Token, PendingStep>,
+    start_conflicts: Map<u64, skein_forge::api::Commit>,
     makings: Map<Token, goal_branch::Making>,
     pub(crate) panel_ci: Map<u64, change::Ci>,
     pub(crate) issues: Map<u64, IssueRow>,
@@ -207,6 +210,7 @@ pub struct Domain {
     judge_criteria: u32,
     projection_due: Map<u64, skein_lib::Wall>,
     change_due: Map<u64, skein_lib::Wall>,
+    /// True wakes the procedure too; false steps only its pending dependents.
     pub(crate) procedure_wakes: Map<u64, bool>,
     pub(crate) settling: Map<u64, crate::settle::Settle>,
 }
@@ -613,6 +617,7 @@ impl Domain {
             sequence: 0,
             changes: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
+            start_conflicts: Map::with_capacity(l.changes),
             makings: Map::with_capacity(l.holds),
             panel_ci: Map::with_capacity(l.changes),
             issues: Map::with_capacity(l.issues),
@@ -979,6 +984,12 @@ impl Domain {
             Some(row) => Some(row.commit),
             None => None,
         }
+    }
+
+    /// A producer's refused early start, retained until that delegate ends (domain/forge.md, 8.11).
+    #[must_use]
+    pub fn start_conflict(&self, task: u64) -> Option<skein_forge::api::Commit> {
+        self.start_conflicts.get(&task).copied()
     }
 
     /// Adopted repository facts used by root authority and workspace translation.
@@ -1458,8 +1469,19 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 }
             }
         }
-        Event::StepChange { task, entry, heard, gates, queue_repair_active, kept } => {
-            step_change(d, env, StepInput { task, entry, heard, gates, queue_repair_active, kept }, out);
+        Event::StartConflicted { child, tag, head } => {
+            for (task, row) in &d.changes {
+                if row.delegate == Some((child, change::Delegate::Produce))
+                    && crate::tag(row.repository.forge, row.repository.repository) == tag
+                {
+                    d.start_conflicts.insert(*task, head).expect("one start conflict per change");
+                    d.procedure_wakes.insert(*task, true).expect("one pending wake per change");
+                    break;
+                }
+            }
+        }
+        Event::StepChange { task, entry, heard, gates, queue_repair_active, kept, pending } => {
+            step_change(d, env, StepInput { task, entry, heard, gates, queue_repair_active, kept, pending }, out);
         }
         Event::ReleaseChange { task } => release_change(d, env, task, out),
         Event::SettleEffects { task, root, ending } => settle_effects(d, env, task, root, ending, out),
@@ -1540,11 +1562,11 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         goal_branch::retry(d, env, out);
     }
     if out.room() > 0
-        && let Some((task, _)) = d.procedure_wakes.iter().next()
+        && let Some((task, wake)) = d.procedure_wakes.iter().next()
     {
-        let task = *task;
+        let (task, wake) = (*task, *wake);
         d.procedure_wakes.remove(&task);
-        emit(out, Request::WakeProcedure { task });
+        emit(out, if wake { Request::WakeProcedure { task } } else { Request::StepDependents { task } });
     }
 }
 
@@ -2302,7 +2324,9 @@ fn answered(
             for (pushed_name, commit) in pushed {
                 if pushed_name == name && undrifted {
                     let head = BranchHead { name: name.clone(), commit: *commit, owned: true };
+                    let previous = d.branch_head(name);
                     d.heads.insert(name.clone(), head.clone()).expect("reported head was a live resource");
+                    wake_head_dependents(d, name, previous, *commit);
                     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
                     child(
                         d,
@@ -2478,11 +2502,13 @@ fn lost_read(
     let undrifted = row.drift.is_none();
     save_hold(out, row.clone());
     if undrifted && let Some(commit) = observed {
+        let previous = d.branch_head(&pending.name);
         let head = BranchHead { name: pending.name.clone(), commit, owned: true };
         if d.heads.insert(pending.name.clone(), head.clone()).is_err() {
             lost_failed(d, pending.task, pending.attempt, &pending.name, b"branch head capacity exhausted", out);
             return;
         }
+        wake_head_dependents(d, &pending.name, previous, commit);
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
         child(d, env, skein_forge_client::Event::Pushed { resource: resource.clone(), commit }, out);
     }
@@ -2755,6 +2781,7 @@ fn delegate_result(
         return;
     }
     row.delegate = None;
+    d.start_conflicts.remove(&task);
     row.delegate_status = if no_change { change::Status::Failed } else { status };
     match kind {
         change::Delegate::Gate { number, head } => {
@@ -2859,7 +2886,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     if d.stopping {
         return;
     }
-    let StepInput { task, entry, mut heard, gates, queue_repair_active, kept } = input;
+    let StepInput { task, entry, mut heard, gates, queue_repair_active, kept, pending: dependencies } = input;
+    heard.start_conflict = d.start_conflict(task);
     if heard.released {
         release_change(d, env, task, out);
         heard.released = false;
@@ -2894,6 +2922,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending.heard.lacking = heard.lacking;
         pending.heard.spend = heard.spend;
         pending.kept = kept;
+        pending.pending = dependencies;
+        pending.heard.start_conflict = heard.start_conflict;
         pending.queue_repair_active = queue_repair_active;
         pending.gates = gates;
         pending.woken = true;
@@ -2922,6 +2952,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         gates: if gates.is_empty() { row.verdicts.clone() } else { gates },
         queue_repair_active,
         kept,
+        pending: dependencies,
         branch: None,
         base_tip: None,
         pull: None,
@@ -2985,6 +3016,7 @@ fn step_verified(
         gates: Box::new([]),
         queue_repair_active: false,
         kept: false,
+        pending: Box::new([]),
         branch: row.change.last_head,
         base_tip: Some(merge),
         pull: None,
@@ -3042,6 +3074,8 @@ fn step_read(
     let repository = row.repository;
     let branch = row.branch.clone();
     let base = row.base.clone();
+    let pull_number = row.pull;
+    let preparing = row.change.state.clone();
     let required = match d.repositories.get(&repository) {
         Some(repository) => crate::ci::required(&repository.protection),
         None => &[],
@@ -3049,7 +3083,19 @@ fn step_read(
     let next = match pending.stage {
         StepStage::Branch => {
             match result {
-                Ok(skein_forge::api::Answer::Commit(commit)) => pending.branch = Some(commit),
+                Ok(skein_forge::api::Answer::Commit(commit)) => {
+                    pending.branch = Some(commit);
+                    branch_changed(
+                        d,
+                        env,
+                        skein_forge_client::Resource {
+                            repository,
+                            what: skein_forge_client::What::Branch(branch.clone()),
+                        },
+                        commit,
+                        out,
+                    );
+                }
                 Err(skein_forge::api::Error::Missing) => pending.branch = None,
                 Ok(_) | Err(_) => {
                     emit(out, Request::Refused { task: pending.task });
@@ -3086,8 +3132,18 @@ fn step_read(
             }
             match result {
                 Ok(skein_forge::api::Answer::Commit(commit)) => {
-                    pending.base_tip =
-                        Some(if let change::State::Preparing { main, .. } = row.change.state { main } else { commit });
+                    let tip = if let change::State::Preparing { main, .. } = preparing { main } else { commit };
+                    pending.base_tip = Some(tip);
+                    branch_changed(
+                        d,
+                        env,
+                        skein_forge_client::Resource {
+                            repository,
+                            what: skein_forge_client::What::Branch(base.clone()),
+                        },
+                        commit,
+                        out,
+                    );
                 }
                 Ok(_) | Err(_) => {
                     emit(out, Request::Refused { task: pending.task });
@@ -3095,7 +3151,7 @@ fn step_read(
                 }
             }
             pending.stage = StepStage::Pull;
-            match row.pull {
+            match pull_number {
                 Some(number) => skein_forge::api::Read::Pull { number },
                 None => skein_forge::api::Read::PullFor { head: branch, base },
             }
@@ -3309,6 +3365,7 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
                 gates: pending.gates,
                 queue_repair_active: pending.queue_repair_active,
                 kept: pending.kept,
+                pending: pending.pending,
             },
             out,
         );
@@ -3324,6 +3381,7 @@ fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<R
         None => false,
     };
     if row.title.is_empty()
+        && d.start_conflict(task).is_none()
         && (producing || row.delegate_status == change::Status::Passed)
         && row.change.state == (change::State::Producing { requested: true })
     {
@@ -3361,8 +3419,9 @@ fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<R
     Some(row)
 }
 
-fn change_standing(row: &ChangeRow, pending: &PendingStep) -> change::Heard {
+fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change::Heard {
     change::Heard {
+        start_conflict: d.start_conflict(row.task),
         effect: if row.pending.is_some() { change::EffectResult::Pending } else { row.effect },
         ..pending.heard
     }
@@ -3412,7 +3471,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         accept_released_branch(d, env, &mut row, head, out);
     }
     let facts = change_facts(d, env, &row, pending, base_tip);
-    let heard = change_standing(&row, pending);
+    let heard = change_standing(d, &row, pending);
     for _ in 0_u32..16 {
         let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
         let advanced = stepped.change != row.change;
@@ -3425,6 +3484,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 return;
             }
             decision @ (change::Decision::None
+            | change::Decision::CancelProducer
             | change::Decision::Wait { .. }
             | change::Decision::Delegate(_)
             | change::Decision::CancelGates { .. }
@@ -3510,6 +3570,7 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
 }
 
 #[expect(clippy::manual_map, reason = "step code uses concrete matches, without callbacks")]
+#[expect(clippy::too_many_lines, reason = "the coherent change snapshot includes question and early-start facts")]
 fn change_facts(
     d: &Domain,
     env: &Env<Limits>,
@@ -3573,6 +3634,7 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        pending: pending.pending.clone(),
         verification: d.change_verification(row.task),
         verification_bound,
         ask: crate::landing::ask_for(d, row),
@@ -5088,6 +5150,27 @@ fn from_client(resource: &skein_forge_client::Resource, l: &Limits) -> Option<Na
     Some(Name { forge: resource.repository.forge, repository: resource.repository.repository, what })
 }
 
+// The root reads jig's pending dependency graph when it receives this wake.
+fn wake_head_dependents(
+    d: &mut Domain,
+    name: &Name,
+    previous: Option<skein_forge::api::Commit>,
+    commit: skein_forge::api::Commit,
+) {
+    if previous == Some(commit) {
+        return;
+    }
+    for (task, row) in &d.changes {
+        if row.repository.forge == name.forge
+            && row.repository.repository == name.repository
+            && crate::items::branch_matches(name, &row.branch)
+            && !d.procedure_wakes.contains_key(task)
+        {
+            d.procedure_wakes.insert(*task, false).expect("one pending wake per change");
+        }
+    }
+}
+
 #[expect(clippy::manual_map, reason = "step code has no closures")]
 fn branch_changed(
     d: &mut Domain,
@@ -5097,6 +5180,11 @@ fn branch_changed(
     out: &mut Queue<Request>,
 ) {
     let Some(name) = from_client(&resource, &env.limits) else { return };
+    // A held goal's head is confirmed by its writers and merge outcomes.
+    // An observation must not replace the baseline used to detect drift.
+    if goal_branch::is_goal(d, &name) && d.holds.contains_key(&name) {
+        return;
+    }
     if let Some(hold) = d.holds.get(&name)
         && hold.drift.is_some()
     {
@@ -5122,7 +5210,8 @@ fn branch_changed(
     if d.heads.insert(name, row.clone()).is_err() {
         return;
     }
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(row) });
+    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(row.clone()) });
+    wake_head_dependents(d, &row.name, previous, commit);
     crate::tiers::observed(d, env, resource.repository, &branch, previous, commit, out);
     let Some(before) = previous else { return };
     if before == commit {

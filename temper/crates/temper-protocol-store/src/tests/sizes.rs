@@ -5,13 +5,15 @@ use temper_engine_domain_forge as forge;
 // ChangeRow includes its 512-byte report, a four-byte foreman charter and 20,953 question bytes:
 // route (1), taken (4), count (4), and sixteen entries of asker (8), number (8),
 // line (4 + 256), whole words (4 + 512), stands (1) and held answer (4 + 512).
-const APPLICATION_ROW_BYTES: u32 = 140_149;
+// Early start adds its tag (1), head count (4) and 64 task/head pairs (40 each).
+const APPLICATION_ROW_BYTES: u32 = 142_714;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
     // Change's eight remarks hold 4096 bytes each; eight failure counts add 100 bytes.
     // Authority causes add 42 bytes to each of eight holds, drift and released.
     // Way and landing add ten bytes.
+    // Early adds one tag, a four-byte count and 64 task/head pairs of 40 bytes.
     // Terminal CI adds a presence byte, a 32-byte head and a one-byte status.
     // The effect account adds 1 presence + 8 entry + 4 length + 512 words = 525 bytes.
     // A producer failure adds 1 presence + 4 length + 512 words = 517 bytes.

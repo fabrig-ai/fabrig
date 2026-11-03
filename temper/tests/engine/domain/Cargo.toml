@@ -43,6 +43,7 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
+temper-client-tools.workspace = true
 jig-engine-clients-world = { path = "../../../../jig/tests/engine-clients" }
 jig-protocol-engine-clients.workspace = true
 jig-client-protocol-wire.workspace = true
