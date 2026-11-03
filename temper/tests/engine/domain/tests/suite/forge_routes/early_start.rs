@@ -12,7 +12,6 @@ const TWO_MERGES: u32 = 2; // One merge per change in the pair.
 const RESULT_BYTES: u32 = 224; // Three results, a landing subscription and 128 bytes of core news fit 1024 bytes.
 const LANDINGS: usize = 2; // C2 and C3 each land once into g.
 
-
 fn world() -> World {
     world_with(false)
 }
@@ -125,7 +124,6 @@ fn goal_world() -> (World, engine::Assignment, Box<[u8]>, u64) {
 }
 
 fn goal_world_in(mut world: World) -> (World, engine::Assignment, Box<[u8]>, u64) {
-
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
     let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
@@ -684,5 +682,5 @@ fn a_dependent_change_starts_early_on_its_dependencys_pushed_head() {
     assert_eq!(c3_landing.parents.as_ref(), &[c2_landing.id]);
     assert_landed_tree(&world, main, merged_tip, c2_head, c3_head);
     assert_eq!(change_row(&world, c3).change.last_head, Some(translate::commit(c3_head)));
-    world.close();
+    stop(&mut world, &goal);
 }
