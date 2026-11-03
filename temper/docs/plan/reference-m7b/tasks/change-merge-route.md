@@ -182,3 +182,17 @@ compiler-required `merge_job: false` the run reported). The shape:
 - **Step 4 adds** `heavy cargo nextest run -p jig-domain-core --lib -E 'test(/job/)'`, then the
   package's tests; `heavy cargo check -p jig-test-domain -p jig-ops-domain --tests`; clippy on
   `jig-domain-core`, `--all-targets -- -D warnings`. Jig names no temper (the field is generic).
+
+## Rebase (2026-11-03, step merge, foreman reference-m7b/change-merge-route/foreman-3)
+
+resolve the four merge conflicts while preserving merge-job routing and incoming tier reporting.
+The merge refusal is the branch’s: all four conflicts reproduce against `origin/reference-m7b/integration`.
+Incoming commit `f012f783bf` adds tier reporting; merge `bc2c7c68e3` updates the light-rule conflict story.
+
+- `temper/crates/temper-engine-domain-forge/src/domain.rs`: retain both complete functions at EOF: this branch’s `merge_available` and incoming `bind`. Keep incoming `Event::TierWords` handling and the extracted `Event::Bind` call.
+- `temper/crates/temper-engine-domain/src/route/asks.rs`: retain this branch’s `step_made` signature with `env` and `decision`, its updated caller, and synchronous `super::forge_event(...Delegated...)` delivery before job activation. Add incoming tier-task detection and queued `Event::TierWords` at the start of that function.
+- `temper/crates/temper-engine-domain/src/route/forge_route/tests.rs`: retain both merge-job tests and incoming `release_held_tier`, each with its own closing brace. Preserve incoming tier assertions and `projection: None` fields.
+- `temper/tests/engine/domain/tests/suite/forge_routes/light_rules.rs`: retain two separate stories. Keep incoming `a_conflict_under_rules_asking_neither_delegates_resolution` with default resolution budget, observed-base delegation, and no update. Keep this branch’s `a_conflict_under_rules_asking_neither_says_why_it_holds` with `Some(0)`, waiting for the hold and asserting `Hold::Resolutions`, no source, and no delegate. Keep the configurable fixture helper.
+
+These stories cover distinct requirements of `temper/docs/design/domain/forge.md, 8.4`: ordinary conflicts resolve; exhausted resolution budgets hold.
+Validate the combined changes with the spec’s focused merge/light-rule tests and required package checks.
