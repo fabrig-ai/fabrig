@@ -2298,7 +2298,8 @@ profile, `docs/examples/reference/` (`../protocol/configuration.md`,
 
 #### 6.5.1 The obligations
 
-Each obligation is one field of one row of section 14, and of one kind:
+Each obligation is one field of one row of the reference's table, and
+of one kind:
 
 - *a setting*, which the accepted settings hold, by one of eight
   tests: `equal` (the value, whole), `at-least` (a number no smaller),
@@ -2311,7 +2312,7 @@ Each obligation is one field of one row of section 14, and of one kind:
   the golden's roles);
 - *the box's*, a prerequisite the box brings (6.5.2), which the agent
   proposes nothing for, and names where the box lacks it;
-- *a gap*, a field of section 14 no design carries
+- *a gap*, a field of the table no design carries
   (`../draft/reference-code-production.status.md`), which the agent
   must say temper cannot model, offering the nearest thing
   (`agent.md`, 8.1): the golden gives the words, any of whose
