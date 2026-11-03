@@ -789,6 +789,15 @@ The table grows area by area, each with its stories (section 11).
      result text ceiling; nested sources, hosts, programs and offers do not
      consume an account list's row count. Text presents the bounded JSON
      projection, sharing its omissions and digest for reads and waits.
+   - **Model text** names `models for project N`, then `provider P · NAME`
+     and each `model NAME`. Each model names its description, window and
+     output in tokens, efforts, and input, cached input, cache write and
+     output prices per the supplied token unit, in deployment spend units.
+     Missing provider numbers, names and descriptions print `unknown`;
+     an empty effort list prints `none listed`. The accompanying accounts
+     use the account text above, preserving supplied source and readiness
+     states without inferring provider readiness. Loss prints `cut: true`
+     and the result keeps its `models` digest; JSON retains its records.
    - **One result per call.** `account connect` prints the address and
      returns; the sign-in goes on at the engine, and `account list
      --until settled` follows it (5.4). It never opens a browser, and

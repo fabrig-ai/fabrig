@@ -1,4 +1,4 @@
-//! Factories close unused startup signal descriptors before running their host.
+//! The fake disk and hosted roots (temper/docs/design/playground.md, 3–4).
 use skein_io::kernel::{Complete, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
@@ -8,7 +8,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 const CLOSE: Token = Token::new(u64::MAX);
-pub(crate) struct SignalHost<H> {
+pub struct SignalHost<H> {
     host: H,
     signal: Option<Fd>,
     closing: bool,
@@ -30,6 +30,9 @@ impl<H> DerefMut for SignalHost<H> {
     }
 }
 impl<H: Host> Host for SignalHost<H> {
+    fn state_digest(&self) -> Option<[u8; 32]> {
+        self.host.state_digest()
+    }
     fn drain(&mut self) {
         self.host.drain();
     }
@@ -91,9 +94,13 @@ struct Binding {
     opened: Option<skein_sim::Handle>,
 }
 thread_local! { static ROOTS: RefCell<Roots> = RefCell::new(Roots::default()); }
-pub(crate) fn agent_roots(_spawn: &skein_io::kernel::Spawn) -> Vec<skein_world::StartupRoot> {
-    if crate::lower::github::active() {
-        return vec![skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"agent".as_slice().into() }];
+#[must_use]
+pub fn agent_roots<H: crate::programs::Harness>(_spawn: &skein_io::kernel::Spawn) -> Vec<skein_sim_world::StartupRoot> {
+    if H::github() {
+        return vec![skein_sim_world::StartupRoot {
+            name: b"worker".as_slice().into(),
+            path: b"agent".as_slice().into(),
+        }];
     }
     let name = ROOTS.with(|roots| {
         let mut roots = roots.borrow_mut();
@@ -101,17 +108,17 @@ pub(crate) fn agent_roots(_spawn: &skein_io::kernel::Spawn) -> Vec<skein_world::
         roots.next += 1;
         format!("agent/{number}").into_bytes().into_boxed_slice()
     });
-    vec![skein_world::StartupRoot { name: name.clone(), path: name }]
+    vec![skein_sim_world::StartupRoot { name: name.clone(), path: name }]
 }
 /// The supplied root is resolved from the same Start the hosted agent reads.
-pub(crate) struct Rooted<H> {
+pub struct Rooted<H> {
     host: H,
     binding: Option<u64>,
     input: Option<Fd>,
     frame: Vec<u8>,
 }
 impl<H> Rooted<H> {
-    pub fn new(host: H, inherited: &skein_world::Inherited) -> Self {
+    pub fn new(host: H, inherited: &skein_sim_world::Inherited) -> Self {
         let binding = inherited
             .roots
             .iter()
@@ -134,7 +141,7 @@ impl<H> Rooted<H> {
             self.frame.extend_from_slice(&buf[..*count as usize]);
             while self.frame.len() >= 8 {
                 let length = u32::from_be_bytes(self.frame[4..8].try_into().expect("Start length")) as usize;
-                assert!(length <= crate::fixtures::agent_limits().channel.start_bytes as usize, "bounded Start");
+                assert!(length <= crate::documents::agent_limits().channel.start_bytes as usize, "bounded Start");
                 if self.frame.len() < length + 8 {
                     return;
                 }
@@ -143,7 +150,7 @@ impl<H> Rooted<H> {
                     continue;
                 }
                 let start = smith_channel::Start::decode(
-                    &crate::fixtures::agent_limits().channel.bodies,
+                    &crate::documents::agent_limits().channel.bodies,
                     &mut skein_lib::Reader::new(&self.frame[8..8 + length]),
                 )
                 .expect("agent Start");
@@ -223,12 +230,22 @@ impl<H: Host> Host for Rooted<H> {
         self.host.exit()
     }
 }
-pub(crate) struct Machine(pub skein_fake_machine::Machine);
-impl skein_world::Machine for Machine {
+/// Shared disk access for handovers and the simulator's machine calls.
+pub struct Machine(pub std::rc::Rc<RefCell<skein_fake_machine::Machine>>);
+impl Machine {
+    #[must_use]
+    pub fn new(disk: skein_fake_machine::Machine) -> Self {
+        Self(std::rc::Rc::new(RefCell::new(disk)))
+    }
+}
+impl skein_sim_world::Machine for Machine {
+    fn state_digest(&self) -> Option<[u8; 32]> {
+        Some(self.0.borrow().state_digest())
+    }
     fn open_root(&mut self, path: &[u8]) -> Result<skein_sim::Handle, skein_io::kernel::Error> {
         if let Some(number) = path.strip_prefix(b"agent/") {
             let number = std::str::from_utf8(number).expect("root number").parse().expect("root number");
-            let supplied = skein_sim::Handle::new(self.0.reopen_root(1).raw());
+            let supplied = skein_sim::Handle::new(self.0.borrow_mut().reopen_root(1).raw());
             ROOTS.with(|roots| {
                 assert!(
                     roots
@@ -241,25 +258,27 @@ impl skein_world::Machine for Machine {
             return Ok(supplied);
         }
         if path == b"agent" {
-            let worker = self.0.reopen_root(1);
+            let worker = self.0.borrow_mut().reopen_root(1);
             // The parent has no workspace; repository runs adopt its prepared directory.
-            let path = if crate::lower::github::active() {
-                let workspaces =
-                    self.0.open(worker, b"workspaces", skein_fake_machine::How::Directory).expect("workspace scaffold");
-                let entries = self.0.list(workspaces, 16, 4096).expect("scenario workspace names");
+            let path = {
+                let workspaces = self
+                    .0
+                    .borrow_mut()
+                    .open(worker, b"workspaces", skein_fake_machine::How::Directory)
+                    .expect("workspace scaffold");
+                let entries = self.0.borrow_mut().list(workspaces, 16, 4096).expect("scenario workspace names");
                 // The GitHub scenarios prepare the chat first, then one change.
                 assert!(entries.len() <= 2, "one chat and at most one change workspace");
-                self.0.close(workspaces);
+                self.0.borrow_mut().close(workspaces);
                 entries.last().map_or_else(
-                    || crate::fixtures::PREPARED_REPOSITORY.to_vec(),
+                    || b"workspaces/0/app".to_vec(),
                     |(_, key)| [b"workspaces/", key.as_ref(), b"/app"].concat(),
                 )
-            } else {
-                crate::fixtures::PREPARED_REPOSITORY.to_vec()
             };
-            let root = match self.0.open(worker, &path, skein_fake_machine::How::Directory) {
+            let opened = self.0.borrow_mut().open(worker, &path, skein_fake_machine::How::Directory);
+            let root = match opened {
                 Ok(root) => {
-                    self.0.close(worker);
+                    self.0.borrow_mut().close(worker);
                     root
                 }
                 Err(skein_fake_machine::Refusal::NotFound) => worker,
@@ -274,23 +293,23 @@ impl skein_world::Machine for Machine {
             b"/setup" => 3,
             _ => return Err(skein_io::kernel::Error::NotFound),
         };
-        Ok(skein_sim::Handle::new(self.0.reopen_root(index).raw()))
+        Ok(skein_sim::Handle::new(self.0.borrow_mut().reopen_root(index).raw()))
     }
     fn close_root(&mut self, root: skein_sim::Handle) {
         self.release(root);
-        self.0.close(skein_fake_machine::Opened::new(root.raw()));
+        self.0.borrow_mut().close(skein_fake_machine::Opened::new(root.raw()));
     }
-    fn cut(&mut self, cut: skein_world::Cut, held: &[skein_sim::Handle], seed: u64) {
+    fn cut(&mut self, cut: skein_sim_world::Cut, held: &[skein_sim::Handle], seed: u64) {
         match cut {
-            skein_world::Cut::Kill => {
+            skein_sim_world::Cut::Kill => {
                 for handle in held {
                     self.release(*handle);
-                    self.0.close(skein_fake_machine::Opened::new(handle.raw()));
+                    self.0.borrow_mut().close(skein_fake_machine::Opened::new(handle.raw()));
                 }
             }
-            skein_world::Cut::PowerLoss => {
+            skein_sim_world::Cut::PowerLoss => {
                 ROOTS.with(|roots| roots.borrow_mut().bindings.clear());
-                self.0.crash(seed);
+                self.0.borrow_mut().crash(seed);
             }
         }
     }
@@ -314,7 +333,7 @@ impl skein_world::Machine for Machine {
             | Ask::Sync { file }
             | Ask::Stat { file } => *file = self.resolve(*file),
         }
-        skein_fake_machine::step(&mut self.0, call, answers);
+        skein_fake_machine::step(&mut self.0.borrow_mut(), call, answers);
     }
 }
 impl Machine {
@@ -330,6 +349,7 @@ impl Machine {
             let path = binding.path.as_ref().expect("workspace bound before file access");
             let opened = self
                 .0
+                .borrow_mut()
                 .open(skein_fake_machine::Opened::new(supplied.raw()), path, skein_fake_machine::How::Directory)
                 .expect("Start workspace root");
             let opened = skein_sim::Handle::new(opened.raw());
@@ -345,12 +365,13 @@ impl Machine {
             if let Some(number) = number
                 && let Some(opened) = roots.bindings.remove(&number).expect("root binding").opened
             {
-                self.0.close(skein_fake_machine::Opened::new(opened.raw()));
+                self.0.borrow_mut().close(skein_fake_machine::Opened::new(opened.raw()));
             }
         });
     }
 }
-pub(crate) fn fresh() -> skein_fake_machine::Machine {
+#[must_use]
+pub fn fresh() -> skein_fake_machine::Machine {
     ROOTS.with(|roots| *roots.borrow_mut() = Roots::default());
     let mut machine = skein_fake_machine::Machine::for_user(1000);
     for items in [
@@ -366,4 +387,53 @@ pub(crate) fn fresh() -> skein_fake_machine::Machine {
         machine.close(root);
     }
     machine
+}
+
+/// Lay the world's synthetic handovers after its state, worker and client roots.
+pub fn setup(machine: &mut skein_fake_machine::Machine) {
+    let setup = machine.lay(&[
+        skein_fake_machine::Item::file(b"admin.token", crate::fakes::ADMIN_TOKEN).mode(0o600),
+        skein_fake_machine::Item::directory(b"forge-1"),
+        skein_fake_machine::Item::file(b"forge-1/admin_token", crate::fakes::ADMIN_TOKEN).mode(0o600),
+        skein_fake_machine::Item::file(b"llm.key", crate::documents::KEY).mode(0o600),
+    ]);
+    machine.close(setup);
+}
+
+/// Resolve the world's path namespace; unprefixed paths use its setup directory.
+pub(crate) fn path(path: &[u8]) -> (u32, &[u8]) {
+    let path = path.strip_prefix(b"/").unwrap_or(path);
+    let path = path.strip_prefix(b"./").unwrap_or(path);
+    for (name, index) in [(b"state/".as_slice(), 0), (b"worker/", 1), (b"client/", 2), (b"setup/", 3)] {
+        if let Some(path) = path.strip_prefix(name) {
+            return (index, path);
+        }
+    }
+    (3, path)
+}
+/// Lay one synthetic handover at its configured path before the service starts.
+pub fn lay_handover(disk: &mut skein_fake_machine::Machine, at: &[u8], bytes: &[u8]) {
+    use skein_fake_machine::{How, Refusal};
+    let (index, path) = path(at);
+    let mut directory = disk.reopen_root(index);
+    let parts: Vec<_> = path.split(|byte| *byte == b'/').filter(|part| !part.is_empty()).collect();
+    let (name, parents) = parts.split_last().expect("handover has a file name");
+    for parent in parents {
+        match disk.make_directory(directory, parent, 0o700) {
+            Ok(()) | Err(Refusal::Exists) => {}
+            Err(why) => panic!("handover directory: {why:?}"),
+        }
+        let child = disk.open(directory, parent, How::DirectoryNoFollow).expect("handover directory");
+        disk.close(directory);
+        directory = child;
+    }
+    let file = match disk.open(directory, name, How::CreateNoFollow { mode: 0o600 }) {
+        Ok(file) => file,
+        Err(Refusal::Exists) => disk.open(directory, name, How::WriteNoFollow).expect("handover file"),
+        Err(why) => panic!("handover file: {why:?}"),
+    };
+    disk.truncate(file, 0).expect("handover file length");
+    disk.write(file, 0, bytes).expect("bounded handover");
+    disk.close(file);
+    disk.close(directory);
 }

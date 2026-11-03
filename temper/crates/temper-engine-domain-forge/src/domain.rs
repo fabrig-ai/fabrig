@@ -714,7 +714,7 @@ impl Domain {
             if row.handoff == Handoff::Handed {
                 continue;
             }
-            if row.handoff != Handoff::Ready {
+            if row.handoff != Handoff::Ready || goal_branch::reserved_before(self, *number) {
                 return None;
             }
             for (_, pending) in &self.steps {
@@ -4713,7 +4713,7 @@ fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         return;
     }
     // skein's forge-client.md, 7.2: each new Make is above every held entry.
-    // Fresh-read chains retain their reserved numbers; built changes,
+    // Fresh-read chains and goal-branch makings retain their reserved numbers; built changes,
     // projections and releases share this outbox and wait for lower chains
     // and entries to finish or commit. Hand over at most one per step.
     let Some(number) = d.next_handoff() else { return };
