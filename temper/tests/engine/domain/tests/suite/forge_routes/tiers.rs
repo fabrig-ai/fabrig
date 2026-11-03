@@ -1,7 +1,7 @@
 //! Root stories for temper/docs/design/domain/after-landing.md, 3–6 and 12.
 use super::*;
 #[path = "tier_task_show.rs"]
-mod task_show;
+pub(super) mod task_show;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_tiers as policy;
 use temper_engine_domain_world::tier_runs::{
@@ -43,7 +43,8 @@ fn a_tier_task_names_the_execution_it_dispatched() {
     assert!(words.contains(&commit), "tested commit missing from task words: {words}");
 }
 
-fn sign_in(world: &mut World) {
+/// Refresh the fixture owner only after its current sign-in expires.
+pub(super) fn sign_in(world: &mut World) {
     let valid = world.store.rows.values().any(|row| {
         matches!(row,
         Record::Core(jig_domain_core::Record::People(people::Stored::SignIn { number, expires, .. }))

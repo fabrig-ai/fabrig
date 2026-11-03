@@ -91,6 +91,8 @@ pub fn class(event: &Event) -> Class {
 fn connector_class(event: &connector::Event) -> Class {
     match event {
         connector::Event::SettingsDefaults
+        | connector::Event::RestoreSettings { .. }
+        | connector::Event::ForgetReplaced { .. }
         | connector::Event::JudgeSettings { .. }
         | connector::Event::KeepSettings { .. }
         | connector::Event::KeepProposalSettings { .. }

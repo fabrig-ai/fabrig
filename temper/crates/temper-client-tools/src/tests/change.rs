@@ -928,3 +928,26 @@ fn ordinary_and_json_red_reads_keep_long_ids_and_many() {
         }
     }
 }
+
+#[test]
+fn resource_holds_keep_full_names_and_recovery_in_both_ctl_forms() {
+    const WORDS: &[u8] = b"watch resources on branch temper/11/c13 in playground/widget: forge.client.resources = 8; required usage 9; reduce the named work or raise this limit in the deployment configuration, restart, then release";
+    assert!(WORDS.len() > 128);
+    for (command, json) in [("task", false), ("task", true), ("change", false), ("change", true)] {
+        let mut root = f::signed_in(f::PARTY);
+        let arguments = [command, "show", "2", "--project", "1"];
+        let arguments = if command == "change" { &arguments[..] } else { &arguments[..3] };
+        let call = root.submit_prepared(f::call(arguments), json, None);
+        if command == "change" {
+            end_panel(&mut root, call, c::WatchEnd::Unknown);
+        }
+        let mut held = f::held_task(task(false, false), c::HoldCategory::ResourceUnavailable);
+        held.hold.as_mut().unwrap().words = Some(f::document_text(WORDS));
+        root.serve(call, f::task_result(held));
+        let printed = root.answer(call).expect("held task read");
+        assert!(
+            skein_lib::bytes::find(&printed.stdout, WORDS).is_some()
+                || skein_lib::bytes::find(&printed.stderr, WORDS).is_some()
+        );
+    }
+}

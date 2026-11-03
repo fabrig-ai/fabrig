@@ -190,7 +190,8 @@ impl World {
                     self.records.remove(key);
                     self.commits += 1;
                 }
-                Request::SettingsJudged { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
                 | Request::SettingsDefaults { .. }
                 | Request::SettingValue { .. }
                 | Request::RestoreRefused { .. }
@@ -280,7 +281,8 @@ impl World {
                     let reply = self.system.answer(call, faults.pop_front().unwrap_or(Fault::None));
                     self.event(Event::System(reply))
                 }
-                Request::SettingsJudged { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
                 | Request::SettingsDefaults { .. }
                 | Request::SettingValue { .. }
                 | Request::RestoreRefused { .. }

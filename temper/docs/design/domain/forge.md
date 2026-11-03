@@ -690,11 +690,21 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   checked against `forge.tasks`, `forge.resources_per_task`,
   `forge.name_bytes` and the client's `forge.client.op_bytes` as well.
   A refusal carries the failed operation, its resource and its typed cause
-  to the root. A persistent hold explains the act that resolves it:
+  to the root. The task document carries the complete retained hold account,
+  up to 512 bytes, independently of its general text preview bound. Both ctl
+  output forms show that account. A persistent hold explains the act that resolves it:
   reduce the named work, or change the named configuration member and
   restart, then release; an access or backend failure names its own cause.
   A released change whose initial names were refused asks for them again;
   while the bound still refuses them it holds again.
+- **The stock resource capacity is 16:** three chats naming one repository
+  each and three changes naming two resources each use at most nine distinct
+  watches. Two followed tier branches and up to four departing reads
+  (`forge.client.pending`) keep the overlap within fifteen slots; shared
+  resources count once. Six participating tasks and their six branch holds
+  fit the stock `forge.tasks` and `forge.holds`, both eight; each change fits
+  `forge.resources_per_task`, two. Landed changes keep their watches until
+  they clear (`after-landing.md`, section 6).
 - **Temporary admission pressure waits:** when recovery is incomplete,
   or a departing resource's read still occupies capacity, the desired
   names are saved and the complete watch set is retried after one second.
