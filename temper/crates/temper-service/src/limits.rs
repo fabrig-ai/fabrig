@@ -126,8 +126,9 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     lifetime: Duration::from_secs(10),
     // Allowance for clock movement, from the engine forge world fixture.
     clock_margin: Duration::from_secs(1),
-    // Live forge resources, from the engine forge world fixture.
-    resources: 8,
+    // Three chat branches, six change names, two followed tier branches and
+    // four departing reads fit sixteen slots (domain/forge.md, 5.1).
+    resources: 16,
     // Repositories retained, from the engine forge world fixture.
     repositories: 2,
     // Normal resource polling interval, from the engine forge world fixture.
