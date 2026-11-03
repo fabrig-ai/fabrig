@@ -188,12 +188,13 @@ pub struct ChangeCall {
     pub landing: Option<ChangeLanding>,
     pub branch: Option<ChangeBranch>,
     pub after: Box<[ChangeAfter]>,
+    pub repairs: Option<skein_forge::api::Commit>,
 }
 
 impl ChangeCall {
     #[must_use]
     pub fn words(words: Box<[u8]>, repository: Option<Box<[u8]>>) -> Self {
-        Self { words, repository, name: None, landing: None, branch: None, after: Box::new([]) }
+        Self { words, repository, name: None, landing: None, branch: None, after: Box::new([]), repairs: None }
     }
 }
 
