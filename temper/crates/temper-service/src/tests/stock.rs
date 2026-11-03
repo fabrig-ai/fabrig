@@ -88,7 +88,9 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
     for authority in [&defaults.rules.ceiling, &policy.ceiling, &policy.roles[0].authority] {
         assert_eq!(
             authority.tools,
-            jig_domain_authority::Tools(families.delegate.0 | families.message.0 | families.read.0 | families.settings)
+            jig_domain_authority::Tools(
+                families.delegate.0 | families.message.0 | families.control.0 | families.read.0 | families.settings
+            )
         );
         assert_eq!(authority.delegation.tasks, 18);
         assert_eq!(authority.delegation.depth, 4);
