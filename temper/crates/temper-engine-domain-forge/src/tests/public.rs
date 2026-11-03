@@ -661,6 +661,9 @@ fn the_largest_answers_fit_their_declared_bounds() {
         contexts: 2,
         refusal_bytes: 64,
     };
+    let change = d.public(&ask(w::PUBLIC_CHANGE, Some(CHANGE), &public), &limits).expect("bounded change");
+    let change = w::PublicChange::decode(&w::CEILINGS, &mut Reader::new(&change.record)).expect("change link");
+    assert_eq!(change.pull().as_ref().expect("pull").len(), 2048);
     let declared = temper_client_protocol_wire::public_bounds(&bounds);
     assert_eq!(declared, [4927, 198_733, 165_794]);
     for ((kind, task), bound) in
@@ -752,8 +755,9 @@ fn links_come_from_the_retained_forge_and_fake_links_are_empty() {
 }
 
 fn maximal_proofs(d: &mut Domain) {
-    // Long forge links and every member proof reach the panels' receiving bounds.
-    d.configured.get_mut(&1).expect("forge").git = Box::new([b'a'; 2000]);
+    // A 2012-byte base, /org/repo (9), /pulls/ (7) and u64::MAX (20) fill the 2048-byte link.
+    // Every member proof also carries a run address at its receiving bound.
+    d.configured.get_mut(&1).expect("forge").git = Box::new([b'a'; 2012]);
     let mut proof_gates = List::with_capacity(8);
     for number in 0..8_u64 {
         let name: Box<[u8]> = Box::from(skein_lib::Decimal::of(number).as_bytes());
