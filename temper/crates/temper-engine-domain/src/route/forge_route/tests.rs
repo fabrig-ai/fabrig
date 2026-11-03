@@ -165,6 +165,36 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
     }
 }
 
+#[test]
+fn a_change_on_its_requesters_branch_asks_no_write_holding() {
+    use super::{forge, tasks};
+    let (mut domain, env) = two_forges();
+    let connector = domain.config.forge_connector;
+    let spec = tasks::Spec {
+        parameters: Box::new([
+            tasks::Parameter::Resource { name: 1, connector, resource: forge::tag(1, 1) },
+            tasks::Parameter::Bytes { name: 2, value: Box::from(b"main".as_slice()) },
+            tasks::Parameter::Bytes { name: 3, value: Box::from(b"temper/7/g8".as_slice()) },
+            tasks::Parameter::Number { name: 11, value: 1 },
+        ]),
+        ..goal_spec()
+    };
+    let holdings = super::task_holdings(
+        &mut domain,
+        &env,
+        GOAL_PROJECT,
+        GOAL_ROOT,
+        GOAL_CHANGE,
+        tasks::Executor::Procedure { connector, code: super::CHANGE_CODE },
+        &spec,
+        Some(GOAL_TASK),
+        false,
+        &[],
+    )
+    .expect("a change on its requester's branch admitted");
+    assert!(holdings.is_empty(), "the goal keeps its holding instead of handing it down");
+}
+
 const GOAL_PROJECT: u32 = 5;
 const GOAL_ROOT: u64 = 7;
 const GOAL_TASK: u64 = 8;
