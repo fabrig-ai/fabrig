@@ -124,7 +124,14 @@ impl Worker {
             git,
             jobs: jobs::Jobs::new(slots),
             sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),
-            root: root::Domain::new(&prepared.root, Box::new([])),
+            root: root::Domain::new(
+                &prepared.root,
+                Box::new([root::tooling::Kind {
+                    bound: crate::limits::merge_bound(),
+                    verb: b"merge".as_slice().into(),
+                    delivers: true,
+                }]),
+            ),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: prepared.root },
             agent: Agent {
                 run_limits: agent.run_limits,
@@ -989,5 +996,28 @@ fn owner_of(event: &mut io::Event, new: Token) {
         | io::Event::Window { .. }
         | io::Event::Resized
         | io::Event::Shutdown { .. } => {}
+    }
+}
+
+#[cfg(test)]
+mod merge_tests {
+    /// temper/docs/design/domain/worker.md, 4.4.
+    #[test]
+    fn the_production_worker_declares_the_merge_kind() {
+        let mut worker = crate::tests::fixtures::worker();
+        let mut out = skein_lib::Queue::uncapped();
+        temper_worker_domain::step(&mut worker.root, &worker.env, temper_worker_domain::Event::Ready, &mut out);
+        let temper_worker_domain::Request::Hello(hello) = out.pop().expect("worker hello") else {
+            panic!("ready declares capabilities");
+        };
+        assert_eq!(
+            hello.jobs.as_ref(),
+            [jig_domain_host::JobBound {
+                kind: jig_domain_host::JobKind(3),
+                spec: 8_192,
+                result: 65_536,
+                deadline: skein_lib::Duration::from_secs(600),
+            }]
+        );
     }
 }
