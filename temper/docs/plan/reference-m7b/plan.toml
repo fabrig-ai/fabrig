@@ -24,3 +24,29 @@ id = 1
 story = "a policy whose role's delegation names {\"kind\": \"job\", \"number\": 3} starts, its role holding Executor::Job(3)"
 parts = ["config-jobs"]
 walk = false
+
+[[part]]
+id = "merge-kind"
+title = "temper's merge kind: the worker runs it in a merge in progress and pushes the merge; the engine declares it; a project names its merge_job"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/worker.md, 4.4"
+
+[[slice]]
+id = 2
+story = "a worker whose hello declares kind 3 runs a merge job in a merge in progress, its command settling a conflict, and pushes a merge with both parents; a project's merge_job reaches the forge"
+parts = ["merge-kind"]
+walk = false
+
+[[part]]
+id = "change-merge"
+title = "a change's conflict goes to the merge job, then a resolution for what it leaves, under rules asking an update and under rules asking none"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[slice]]
+id = 3
+story = "a change into a goal's branch whose merge the forge refuses for a conflict is settled by the merge job and merges; one the job cannot settle goes to a resolution in a merge in progress, then merges"
+parts = ["change-merge"]
+walk = false
