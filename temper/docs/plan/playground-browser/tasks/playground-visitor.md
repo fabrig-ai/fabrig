@@ -114,3 +114,16 @@ Acceptance:
 As the implementer's text says, and also: the visitor's bounds you chose and why; the number of
 slices and steps `story_a_posts_its_printed_link` took; whether wasm32 clippy of
 `temper-playground` passed at your base and at your head.
+
+## Answers
+
+2026-11-03. **May `story_a_starts_with_no_box_calm_and_prints_its_link`'s exit assertion also
+accept the visitor with `Exit::Code(0)`?** Yes: extend that reader edit; the visitor's lifecycle
+is unchanged. An idle visitor (no exchange, no stream) is empty, and `skein_shell::Host::exit`'s
+default reports an empty host as `Some(Exit::Code(0))` (`skein/crates/skein-shell/src/drive.rs`);
+`World` finishes a process on its exit only when it was spawned hosted
+(`skein/crates/skein-sim-world/src/world.rs`, `self.hosted`), and the visitor is spawned plainly,
+as in skein's `tests/playground/src/native.rs`, so it stays live and takes the next input. In
+`temper/tests/playground/tests/suite/world.rs`, the exit assertion admits `Process::Git(_)` or
+`Process::Visitor(_)` with `Some(Exit::Code(0))`, and its message says "only hosted git and the
+idle visitor may report Code(0)". This edit is within "Reader files" above; nothing else widens.
