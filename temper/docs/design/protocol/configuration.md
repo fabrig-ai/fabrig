@@ -1670,9 +1670,9 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 16 turns; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
 | charter 6, a foreman's | as charter 4, with the `stock` module's `foreman.txt`: settle the question its brief carries from the change's words, the design in its checkout and the change's pushed head, read through the forge's reads; `answer` only what they settle, `finish` where the work done holds and the rest is the asker's Left list, `escalate` with its reasons otherwise, never guessing past them; a foreman's verdict as its contract (`../domain/forge.md`, 8.11) |
 | template 1, a chat | jig's chat, run by charter 1 |
-| charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
+| charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its `tools` the settings and read families, 1,536, so that its runs alone in the stock are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads and `read_docs`; no workspace (it names no repository), and its instructions delegate nothing and effect nothing |
 | template 2, a goal | jig's goal, its executor chosen |
-| template 3, the configuring chat | a chat, flagged conversation and labelled as jig's chat is, run by charter 3 |
+| template 3, the configuring chat | a chat named `configuring`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 3 |
 | policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,539, delegation, messages, reads and settings (jig's `ToolFamilies` Delegate, Message, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 18 tasks 4 deep (the chat counted among them), so that a chat's advisor and two dependent delegates, each with its change's procedure and the procedure's six (a producer, a review, and two repairs each followed by its review), fit: 1 + 1 + 2 × 8 |
 | the rules | today's: tools 1,539, delegation, messages, reads and settings, the forge's grants under `forge`, delegation to charters 1, 2, 3, 4 and 6 and the change procedure, 18 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
@@ -1689,8 +1689,10 @@ init`'s document carries none of them (`setup.md`, 8.3).
   and delivers through smith's own `deliver`, never delegating or
   effecting; charter 4, the reviewer's, and charter 6, the foreman's,
   name the read family alone, as
-  its row says; charter 3 names those its row lists (settings, reads
-  and propose, for `withdraw`), not charter 1's with settings added.
+  its row says; charter 3 names those its row lists (settings and
+  reads), not charter 1's with settings added. As numbers, jig's
+  `ToolFamilies` bits: charter 1 1,023, every family but settings;
+  charter 2 514; charter 3 1,536; charters 4 and 6 512.
   smith's host part counts a run's brief beside its tools, so a brief
   is rendered within the room its charter leaves. The small profile
   gives the host part 51,717 bytes: 34,524 for the largest stock
@@ -1709,8 +1711,10 @@ init`'s document carries none of them (`setup.md`, 8.3).
   deployment whose work wants another, a coordinator's that wakes on each
   result and paces its news, sets it on the charter as any of its members
   (13.9).
-- **The configuring agent is a setting** like any other (`../draft/configuring.md`, 5.1): "Tell temper how you work" starts template 3,
-  which an owner may change or remove as any template. Its runs read
+- **The configuring agent is a setting** like any other: template 3
+  starts it, from `chat start --template 3` (`../client/tools.md`,
+  5.3) and, once the web client's pages land, from "Tell temper how
+  you work", and an owner may change or remove it as any template. Its runs read
   and propose settings; they never change one, since jig's `settings`
   family proposes and an owner accepts (jig's `domain/engine.md`, 17.6).
 - **Built at each start** by `temper-service`'s `stock` module, as

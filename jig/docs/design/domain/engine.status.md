@@ -5,7 +5,10 @@
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
-  7.1, 9: the brief's lineage, calls and waiting sections. 17.5, 17.10: a connector
+  7.1, 9: the brief's lineage, calls and waiting sections. 7.1: a
+  charter's `tools`, its host-family mask: `RunPolicy` carries none,
+  nor do the settings store's and the client wire's charters
+  (`jig-domain-core/src/runs/state.rs`). 17.5, 17.10: a connector
   keeps no value its items replaced, beside its changes
   (`jig-test-connector`'s `settings.rs`, `keep`). 7.2: what a
   turn's calls made, written beside the turn. 7.3: `move`, `succeed`,

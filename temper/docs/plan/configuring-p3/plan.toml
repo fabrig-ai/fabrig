@@ -1,0 +1,23 @@
+draft = "configuring-p3"
+repo = "fabrig"
+sources = ["temper/docs/plan/configuring-p3/inputs/request.md", "temper/docs/design/draft/configuring.execution.md", "temper/docs/design/draft/configuring.md", "AGENTS.md", "DESIGN.md"]
+
+# P3 of temper/docs/design/draft/configuring.execution.md (the configuring agent), built on
+# main: P1, P2 and the reference's M1 to M10 landed (plan.md).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "charter-tools"
+title = "A charter's host families: jig's RunPolicy carries its tools, and temper offers the settings family only where a charter names it"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 7.1"
+
+[[slice]]
+id = 1
+story = "Only a run whose charter names the settings family, and whose authority holds it, is offered settings and propose_settings"
+parts = ["charter-tools"]
+walk = false
