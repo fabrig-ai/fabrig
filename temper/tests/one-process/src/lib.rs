@@ -1,7 +1,7 @@
 //! The actual service, native client and hosted programs on the crashing machine.
 mod box_listener;
 pub mod fixtures;
-mod machine;
+
 mod oracle;
 pub mod referee;
 mod restart_control;

@@ -5,8 +5,8 @@ use crate::world::Settings;
 use jig_channel_world::fixtures as channel;
 use skein_lib::{Duration, Secret};
 pub(crate) use temper_playground::documents::{
-    AGENTS, CHAT_WAIT_MS, CLIENTS, FORGE, FORGE_CONNECTOR, GRANT_KINDS, PROCEDURE_CODE, PRODUCER_SPEND, PRODUCER_TOOLS,
-    REPOSITORY, WORKER_USER, agent, agent_configuration, agent_declarations, agent_limits, agent_profile, forges,
+    CHAT_WAIT_MS, CLIENTS, FORGE, FORGE_CONNECTOR, GRANT_KINDS, PROCEDURE_CODE, PRODUCER_SPEND, PRODUCER_TOOLS,
+    REPOSITORY, WORKER_USER, agent_limits,
 };
 pub use temper_playground::documents::{HOOK_SECRET, KEY as LLM_TOKEN};
 pub use temper_playground::fakes::{API_TOKEN, GIT_TOKEN};
@@ -44,7 +44,6 @@ pub(crate) const MOVING_USER: u64 = 2;
 pub(crate) const ADOPTION_FORM_START: usize = 3;
 pub(crate) const ADOPTION_FORM_STEPS: usize = 7;
 pub(crate) const ADOPTION_REPLY_STEP: usize = 7;
-pub(crate) const PREPARED_REPOSITORY: &[u8] = b"workspaces/0/app";
 #[must_use]
 pub fn calm(seed: u64) -> Settings {
     Settings { seed, config: skein_sim::Config::calm() }

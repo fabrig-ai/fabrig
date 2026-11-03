@@ -4,10 +4,9 @@ use crate::{
     ctl::{Caller, Command},
     fixtures,
     lower::github,
-    machine::{Machine, SignalHost},
     referee::{self, Store},
     stories,
-    world::{self, Person, Proc, Story},
+    world::{self, HarnessProcess, OneProcess, Person, Proc, Story},
 };
 use serde_json::json;
 use skein_fake_forge_domain as forge;
@@ -17,6 +16,10 @@ use skein_io::kernel::Exit;
 use skein_lib::{Duration, Time};
 use skein_shell::Host;
 use std::{cell::RefCell, rc::Rc};
+use temper_playground::{
+    machine::{Machine, SignalHost},
+    programs,
+};
 // Five seconds until renewal under the component's unchanged ten-minute lead.
 const TOKEN_LIFE: Duration = Duration::from_secs(605);
 const PATIENCE: Time = Time::from_nanos(30_000_000_000);
@@ -127,7 +130,7 @@ impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         let (first, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Calls(caller) = &mut other[0] else { panic!("caller second") };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { panic!("caller second") };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -164,7 +167,7 @@ impl skein_world::Referee<Proc> for Judge {
             assert!(now >= Time::from_nanos(5_000_000_000), "the component's renewal timer fired");
             assert_eq!(observer::tokens() as u64, minted, "every refreshed token byte was observed");
             checkpoint(service, &self.store.borrow());
-            let Proc::Calls(caller) = &mut other[0] else { unreachable!() };
+            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
             caller.commands.push_back(Command::new(&[
                 b"task",
                 b"message",
@@ -194,15 +197,17 @@ impl skein_world::Referee<Proc> for Judge {
             }
             checkpoint(service, &self.store.borrow());
             for proc in other.iter_mut() {
-                if let Proc::Client(person) = proc {
+                if let Proc::Other(HarnessProcess::Client(person)) = proc {
                     person.saved();
                 }
             }
             self.browsing = true;
         }
-        if self.browsing && other.iter().any(|proc| matches!(proc, Proc::Client(person) if person.finished)) {
+        if self.browsing
+            && other.iter().any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished))
+        {
             checkpoint(service, &self.store.borrow());
-            let Proc::Calls(caller) = &mut other[0] else { unreachable!() };
+            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
             caller.closed = true;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             for proc in other {
@@ -286,45 +291,67 @@ pub fn delivery(renew: bool) -> observer::Counts {
     let (forge, mut peer) =
         github::peer_with_ci(if renew { TOKEN_LIFE } else { skein_fake_forge_github::installations::TOKEN_LIFE });
     let (app, files) = observer::input(&mut peer);
-    let mut disk = crate::machine::fresh();
+    let transport = stories::forge(Story::Adopt);
+    let mut disk = temper_playground::machine::fresh();
     let input = disk.lay(&files);
     disk.close(input);
     let caller = disk.reopen_root(2);
     let native = disk.reopen_root(2);
-    let mut world = skein_world::World::new_controlled(
-        fixtures::SEED,
-        skein_sim::Config::calm(),
-        skein_world::Memory::Unchecked,
-        |controls| Judge {
-            controls,
-            store,
-            forge,
-            app,
-            renew,
-            calls: 0,
-            answers: 0,
-            handed: false,
-            initial: false,
-            refreshed: false,
-            browsing: false,
-            stopping: false,
-            read: false,
-            pushed: false,
-            landed: false,
-        },
-    )
-    .with_machine(Machine(disk));
-    world::host_programs(&mut world);
-    world.spawn_restartable(world::service_roots(), world::service);
-    world.spawn_root(skein_sim::Handle::new(caller.raw()), |root| Proc::Calls(Box::new(Caller::scripted(root))));
-    world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer, None))));
-    world.spawn(|| Proc::Peer(Box::new(SignalHost::new(provider(renew), None))));
-    world.spawn_root(skein_sim::Handle::new(native.raw()), |root| {
-        Proc::Client(Box::new(SignalHost::new(Person::pages(root, pages::task_steps()), None)))
+    let machine = Machine::new(disk);
+    let parameters = world::parameters(&machine, transport.clone());
+    let outcome = programs::with(parameters, || {
+        let mut world = skein_world::World::new_controlled(
+            fixtures::SEED,
+            skein_sim::Config::calm(),
+            skein_world::Memory::Unchecked,
+            |controls| Judge {
+                controls,
+                store,
+                forge,
+                app,
+                renew,
+                calls: 0,
+                answers: 0,
+                handed: false,
+                initial: false,
+                refreshed: false,
+                browsing: false,
+                stopping: false,
+                read: false,
+                pushed: false,
+                landed: false,
+            },
+        )
+        .with_machine(machine);
+        for (program, roots) in programs::programs::<OneProcess>() {
+            world.host_roots(program, roots);
+        }
+        let limits = temper_client_shell_cli::limits::native();
+        world.host_roots(
+            skein_world::HostedProgram {
+                program: crate::ctl::PROGRAM.into(),
+                make: |spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited)))),
+                instances: 1,
+                operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
+            },
+            crate::ctl::roots,
+        );
+        world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
+        world.spawn_root(skein_sim::Handle::new(caller.raw()), |root| {
+            Proc::Other(HarnessProcess::Calls(Box::new(Caller::scripted(root))))
+        });
+        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer, None))));
+        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(provider(renew), None))));
+        world.spawn_root(skein_sim::Handle::new(native.raw()), |root| {
+            Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(
+                Person::pages(root, pages::task_steps()),
+                None,
+            ))))
+        });
+        world.run()
     });
-    let mut outcome = world.run();
     assert!(outcome.procs.iter().all(Host::is_empty), "M15 run drains");
-    let counts = observer::finish(&mut outcome.machine.0);
+    let counts = observer::finish(&mut outcome.machine.0.borrow_mut());
     world::lower_store(None);
     github::set_active(false);
     counts
