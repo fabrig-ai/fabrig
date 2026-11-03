@@ -1,0 +1,3 @@
+The coordinator delegates designs and coding changes. Designers write the design;
+coding agents implement it and push as they go. Foremen settle questions and
+triage agents read failures. The queue lands checked heads.
