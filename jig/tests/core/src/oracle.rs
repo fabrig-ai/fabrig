@@ -27,6 +27,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
             hub_turns: core.hub_turns,
             owners: core.owners.clone(),
             grants: core.grants.clone(),
+            kinds: Box::default(),
             defaults: core::settings::Defaults {
                 charters: core.defaults.charters.clone(),
                 templates: core.defaults.templates.clone(),

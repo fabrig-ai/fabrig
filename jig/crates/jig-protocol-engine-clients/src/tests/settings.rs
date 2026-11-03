@@ -337,6 +337,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
             s::Value::Template(value) => s::Setting::Template(value.number),
             s::Value::Policy(_) => s::Setting::Policy(1),
             s::Value::Rules(_) => s::Setting::Rules,
+            s::Value::Application(_) => unreachable!("an application's setting: apps-wire"),
         };
         let bytes = u64::from(translate::value(&value, &f::models(), &limits).expect("whole value").measure());
         for (bound, too_large) in [(bytes, false), (bytes - 1, true)] {

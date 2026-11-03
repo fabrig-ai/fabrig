@@ -143,6 +143,8 @@ pub struct Config {
     pub grants: Box<[people::ActGrant]>,
     /// Configured authority and policy.
     pub defaults: settings::Defaults,
+    /// An application's kinds of settings (domain/engine.md, 17.5).
+    pub kinds: Box<[settings::Kind]>,
     /// Deployment and run settings retained by the core.
     pub settings: Settings,
     /// Projects used only by the first start (configuration.md, 3).

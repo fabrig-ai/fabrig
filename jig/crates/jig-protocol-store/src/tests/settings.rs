@@ -251,6 +251,7 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
                 assert_eq!(choice.subagents[0].model, 0);
             }
             s::Value::Policy(_) | s::Value::Charter(_) => panic!("fixture setting"),
+            s::Value::Application(_) => unreachable!("an application's setting: apps-store"),
         }
     }
 }

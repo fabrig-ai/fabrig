@@ -857,6 +857,11 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connec
         | core::effects::connector::Ask::Restore { .. }
         | core::effects::connector::Ask::ReadAfresh
         | core::effects::connector::Ask::SettleOutbox => unreachable!("effect handoff vocabulary"),
+        core::effects::connector::Ask::JudgeSettings { .. }
+        | core::effects::connector::Ask::KeepSettings { .. }
+        | core::effects::connector::Ask::KeepProposalSettings { .. }
+        | core::effects::connector::Ask::DropProposalSettings { .. }
+        | core::effects::connector::Ask::SaveSettingsDefaults { .. } => unreachable!("no application kind is declared"),
     };
     work.push(Work::Connector { number, event });
 }

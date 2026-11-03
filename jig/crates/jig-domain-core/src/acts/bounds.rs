@@ -56,6 +56,7 @@ pub(crate) fn creating(
             crate::settings::Setting::Template(_)
             | crate::settings::Setting::Policy(_)
             | crate::settings::Setting::Rules => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let charter = core.charter(number).expect("offered charter");
         if creating_charter(core, limits, party, project, held, charter.number) && charters.room() > 0 {

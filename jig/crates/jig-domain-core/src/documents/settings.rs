@@ -72,6 +72,7 @@ pub(crate) fn build(core: &Core) -> Settings {
         let name = match current.value(setting) {
             Some(Value::Template(value)) => Some(Text { bytes: value.name.clone(), cut: false }),
             Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         };
         settings.push(SettingLine { setting, name, follows, last }).expect("one line per setting");
     }
