@@ -16,9 +16,9 @@ Milestone M3 of `temper/docs/design/draft/reference-case.execution.md`: designer
 The cross-family shapes are `notes/contracts.md` (C1 to C6); the standing rules,
 `notes/common.md`.
 
-## Tasks so far
+## Tasks
 
-Released (needs in brackets):
+All 30 released (needs in brackets):
 
 - subagents: `subagents-profile` [] (the owned example's agent declares `conversations` 3);
   `subagents-ctl` [] (`chat start --sub-agent MODEL[:EFFORT]`).
@@ -57,7 +57,7 @@ Released (needs in brackets):
 - reference: `reference-charters` [] (charter 6, the designer's; charter 5's second edition;
   their documents and sub-agents), released last as the request asks.
 - change-temper: `change-call-llm` [] (`ChangeCall.producer` and `llm` decoded, refused until
-  the root checks them); `change-row-llm` [kinds-store, change-call-llm] (the row's
+  the root checks them); `change-row-llm` [kinds-store, kinds-route, change-call-llm] (the row's
   `producing_llm` and `review_llm`, store-v11 in place); `change-root` [change-jig-check,
   change-call-llm, change-row-llm] (the root checks `producer` and `llm`, the procedure's
   authority, parameter 11); `change-story` [change-root] (the engine world's story).
@@ -98,7 +98,7 @@ for the whole.
 - The documents name the forge's host and repository as placeholders (`127.0.0.1:3000`,
   `acme/widget`), which the walk fills in as it does for the landing rules.
 
-## Left for later in this cut
+## Decided along the way
 
 - **A settings proposal's identity** (C2's `proposal`): jig keeps settings proposals by
   proposer and number, so the number is not unique across proposers; `apps-proposal-key`
