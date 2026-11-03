@@ -1551,5 +1551,12 @@ of each record shows every addition in review. Read by `PublicRead`
 - **Nothing else crosses:** no spec, instructions, inputs, result,
   words, question or answer, turn, note, reason, label, proposal,
   escalation, party, account or resource.
+- **A schema of their own:** jig's public records are a schema apart
+  in `jig-client-protocol-wire`, versioned apart from its other records,
+  naming only one another and scalars, never a record of another
+  schema, so a field added to a private document never reaches a
+  visitor; a test reads the schema and refuses a name from elsewhere,
+  and a text golden lists each public record's fields, so every
+  addition shows in review.
 - **An application's public documents** are its own records in its own
   wire, beside these, under the same rule.

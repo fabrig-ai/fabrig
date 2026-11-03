@@ -242,7 +242,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 
   `<task>` and `<project>` are the task's and the project's numbers in
   decimal. A later page's path comes with it, in this shape
-  (`/projects/<project>/board`, `/projects/<project>/changes`).
+  (`/projects/<project>/board`, `/projects/<project>/changes`). The
+  public pages' paths, under `/public`, are section 8's.
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with
   every field unset, so that `/` is the inbox unfiltered and
@@ -360,7 +361,9 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   instead: temper's mark, "Sign in" and "Continue with Google", the ways
   read from the page's `temper-sign-in` meta at start
   (`../protocol/sign-in.md`, section 7); the link leaves for Google's
-  sign-in and comes back to the page's address.
+  sign-in and comes back to the page's address. Where the deployment
+  has public projects, the signed-out main and the sign-in page add a
+  link, "Read the public projects", to `/public` (section 8).
 - **A link's sign-in not taken,** answered full, busy or not ready: the
   link is not spent, and the main says why and that the link stays
   usable until it expires (`README.md`, 5.1), full with the deployment's
@@ -961,6 +964,10 @@ Not in the tier, each in the lowest world that shows it:
   `skein-ui.css` does. Default: light only (2.5).
 - **Other browsers** than Chromium are `skein-browser`'s question
   (skein's `browser.md`).
+- **One shared stream per public document,** fanned out by the server
+  to every visitor reading it, in place of each page reading again
+  (section 8). Default: none; pages read again at the `max-age`, and a
+  visitor never holds a stream.
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
@@ -1123,3 +1130,75 @@ gallery builds it.
   `scripts/bundle.sh`'s order, read from that script.
 - **Their cost:** together at most 1 s (0.5 s before the user's doubling of
   10-22, provisional) of the default suite; no fuzzy test.
+
+## 8. Reading without signing in
+
+The web client's anonymous mode: a visitor reads a public project
+(jig's `domain/people.md`, section 13) through its public documents,
+jig's and the forge's (`forge.md`, section 11), never signing in and
+never streaming (`../draft/first-release.md`, 5.3).
+
+### 8.1 Its pages and addresses
+
+| Page | Path | Reads |
+|---|---|---|
+| `PublicProjects` | `/public` | jig's *projects* |
+| `PublicBoard { project }` | `/public/projects/<project>` | jig's *board*, and the forge's *landings* for its queue's line |
+| `PublicTask { project, task }` | `/public/projects/<project>/tasks/<task>` | jig's *card*, and the forge's *change* where the task makes one |
+| `PublicLandings { project }` | `/public/projects/<project>/landings` | the forge's *landings* |
+| `PublicLanding { project, task }` | `/public/projects/<project>/landings/<task>` | the forge's *landing* |
+
+- **By temper's address codec,** as every page's (2.3), numbers in
+  decimal; a path under `/public` that does not read is `/public`.
+- **Served as every page is:** the server answers each with the page
+  and the bundle (2.2); nothing on the server is new but the public
+  kinds the forge declares to jig (`forge.md`, 11.1).
+
+### 8.2 How it reads
+
+- **No sign-in, no stream, no small store.** At an address under
+  `/public`, the shell starts the public mode in place of `jig-client`'s
+  sign-in: no `Transport`, no credential, no watch. It reads each
+  document its page shows by jig's public `GET` through jig's HTTP
+  client end (jig's `protocol/client.md`, 17.5), and decodes it with
+  jig's and the forge's public records alone.
+- **It reads again by itself,** every `max-age`, which jig's *projects*
+  document gives, while its tab is visible; a hidden tab reads nothing,
+  and reads at once when shown. The browser's cache and the proxy's
+  answer most of these reads; the engine sees one per document per
+  `max-age` (`../protocol/sign-in.md`, 2.4).
+- **Busy** keeps what the page shows, marked as of when it was read, and
+  reads again after `Retry-After`, doubling to a bound of a minute;
+  **unknown** shows "Not public, or not here." with a link to `/public`.
+- **Anyone, signed in or not,** sees the same pages at these addresses:
+  the answers are the same for every visitor. A signed-in person's
+  cookie goes with the `GET` and is never read. The banner offers "Sign
+  in" where the deployment has a way, and nothing else of a person's.
+
+### 8.3 What it shows
+
+- **The board:** the project's goals, each a line: its number, its
+  title where its author shows it and "Goal N" otherwise, its phase in
+  words, for how long, its spend; under it its tree's lines: "task 1234,
+  a coder, running for 14 minutes", its charter's name, its phase, its
+  times; and the queue's line from the landings.
+- **A task:** its line, its lineage up to its goal as links, its
+  delegates, and where it makes a change, the change's step in words,
+  CI's state, its gates' verdicts, and "its change on the forge", the
+  pull's address, with the head's commit linked by its short hash.
+- **The landings:** the turn, the queue in order and the recent
+  landings, each landed commit a link.
+- **Never** a person's name, words, an agent's words, or anything the
+  records do not carry: the view reads only the public records.
+
+### 8.4 Its tests
+
+- **Step tests:** the address codec's public paths, both ways, and a
+  malformed one read as `/public`; the public mode's reads, its timer,
+  a hidden tab reading nothing, busy keeping the page and backing off,
+  unknown's main.
+- **The browser tier** (section 4): a public project on fakes read at
+  `/public`, its board, a task and its landings, by a page with no
+  sign-in and no stream, the view's text checked against the public
+  records' fields alone; and a project made private, its pages unknown
+  at the next read.

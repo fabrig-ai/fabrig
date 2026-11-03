@@ -8,7 +8,8 @@ review. Written by the cut as it releases; each batch brings it up to date.
 
 ## Parts
 
-None. The code batch is sketched in `notes/next-cut.md` for the plan that follows the review.
+None: the request asks for no tasks. The code batch is sketched in `notes/next-cut.md` for the
+plan that follows the review.
 
 ## The design, batch 1: jig's generic part
 
@@ -35,13 +36,36 @@ Released with the first push, by the lead:
 
 ## The design, batch 2: temper's part
 
-Written next: the public projections (temper's forge documents and landings), their routes
-and `max-age`, the web client's anonymous mode; then the draft's status closed.
+Released with the second push, by the lead:
+
+- temper's `client/forge.md`, section 11 (new), "Public documents": 11.1 the forge's public
+  kinds, *change*, *landings* and *landing*; 11.2 what crosses (structure and mechanics),
+  what is linked (pulls, commits and CI runs, as forge addresses) and what never does
+  (questions, reasons, tiers' text, branch names, reviews, results); 11.3 their own
+  `public-v1.schema`, naming no panel's record, and the text golden of public fields; 11.4
+  their world. 9's table gains their row.
+- temper's `client/browser.md`, section 8 (new), "Reading without signing in": the public
+  pages and their `/public` addresses (8.1), reading by `GET` with no sign-in, stream or small
+  store, again every `max-age` while visible (8.2), what each page shows (8.3), its tests
+  (8.4); 2.3 and 2.4 point to it; 5 gains a shared stream per document as an open question.
+- temper's `protocol/sign-in.md`, 2.4 (new): a deployment opening, the proxy caching the
+  public `GET`s alone and limiting each address.
+- temper's `client/tools.md`, 5.2 and 5.3: `project amend PROJECT --visibility
+  public|private`, `goal amend TASK --title shown|hidden` (the closed vocabulary's `amend`,
+  no new verb), `project show`'s visibility.
+- jig's `client/domain/contract.md`, 12 and `protocol/client.md`, 19, compatible detail: the
+  public records are a schema of their own, versioned apart, naming nothing outside it.
+- Statuses: forge, browser, sign-in and tools Not yet; the draft's `first-release.status.md`
+  5.3 entry closed, with the design that carries it, one Design departs and three Open
+  entries; `v0.1.0.status.md`'s 5 entry narrowed to the site.
 
 ## Critical path
 
-No tasks; the review comes first. The code batch's path, as sketched, is in
-`notes/next-cut.md`.
+No tasks; the security review comes first (the report's Question). The code batch as
+sketched (`notes/next-cut.md`): `public-surface` (90) -> `visibility-core` (120) ->
+`public-reads-core` (180) -> `forge-public` (150) -> `public-walk` (120), about 660
+implementer-minutes, with `public-wire` -> `public-component` -> `public-http` ->
+`public-web` (570) beside it; 13 tasks in two parts, `jig-public` and `temper-public`.
 
 ## Decided along the way
 
@@ -59,11 +83,23 @@ No tasks; the review comes first. The code batch's path, as sketched, is in
   sets its figures, which are the user's (the draft's status, Open).
 - **One `max-age` per deployment,** at most 60 seconds, for every public answer, jig's and the
   application's, and the bound on how long a project made private stays readable at a proxy.
+- **Public reads alone go without a credential:** every other credential-less exchange stays
+  signed out, so the public party's surface is one message (the draft's status, Design
+  departs: the review may say otherwise).
+- **The public records are schemas of their own** in jig's and temper's wires, naming no
+  record of the private documents, so a field added to a panel or a task never reaches a
+  visitor; a text golden of their fields is what review sees change.
+- **Visibility and the title flag through ctl** use the closed vocabulary's `amend`
+  (`agent-docs.md`, 7.2): a new verb would change a draft, which a cut never edits.
+- **Names hidden, the mirror Later, the figures the user's:** the request's conservative
+  defaults, recorded as Open in `first-release.status.md`, with proposed figures for
+  dev.fabrig.ai.
 
 ## Overlaps with other plans
 
 - configuring-p2-build's merged tasks (on its trunk, not yet on main) edit jig's
-  `domain/engine.status.md` (`restore-story`) and `client/domain/contract.status.md`
-  (`settings-wire`). This cut adds one entry to each, at 11 and at 3.2, 5.1 and 12; whichever
-  lands second merges a line.
+  `domain/engine.status.md` (`restore-story`), `client/domain/contract.status.md`
+  (`settings-wire`) and temper's `client/tools.status.md` (`policy-ctl`, `restore-ctl`,
+  `restore-story`). This cut adds one entry to each (engine's 11; contract's 3.2, 5.1 and 12;
+  tools' 5.2 and 5.3); whichever lands second merges a line.
 - No code file is changed by this plan.

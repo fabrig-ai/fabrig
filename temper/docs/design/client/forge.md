@@ -1077,6 +1077,7 @@ and its hold (2.5) follow.
 | the picker (5.1) | temper's `Adopt` page, through the `Reachable` request (`README.md`, section 8) | `../protocol/forge.md`, the setup's host's `Reachable`; `../domain/forge.md`, section 4 |
 | each forge's connection, its mode, installations and actions (5.4, 5.5) | temper's `Forges` page; the deployment's part | `../protocol/forge.md`, at start, connecting at runtime, a forge stopped, GitHub's installations and the setup's host; `../protocol/credentials.md`, the forges' records |
 | the browser's steps of a connect (9.1) | none of jig's: temper's routes on the clients' listener | `../protocol/forge.md`, the setup's host |
+| a public project's changes and landings, for a visitor (section 11) | jig's public reads, `PublicRead`, of the forge's public kinds | `../domain/forge.md`, sections 8 and 9; `../domain/landing.md`, section 14 |
 | the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
 | temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
@@ -1358,3 +1359,73 @@ made by the forge connector from what it keeps of the change
   repository is listed, and adopting one the project holds is refused
   by the engine as any adoption; the request naming the project is the
   candidate, and the domain's page is asked to say which.
+
+## 11. Public documents
+
+What a visitor reads of a public project's forge, without signing in
+(jig's `domain/people.md`, section 13; `../draft/first-release.md`,
+5.3): the forge's public projections, beside jig's board and cards. Each
+is a record of its own, made by a projection from the forge's state,
+never a cut of a panel: a field is in it only once added there.
+
+### 11.1 Their kinds
+
+Declared by the forge family to jig's clients' component at start, read
+by jig's `PublicRead` (jig's `protocol/client.md`, section 19; over HTTP,
+17.5), each naming a public project first:
+
+| Kind | Names | Answered with |
+|---|---|---|
+| *change* | a project, a change's task | `PublicChange`: the change's task; its repository's and its pull's addresses on the forge; its head; its step, without words; its hold's kind; CI's state; its gates, each its number, kind, whether it blocks and its verdict; its repairs, resolutions and updates, used and allowed; its way and its landing |
+| *landings* | a project | `PublicLandings`: the turn's landing; the project's landings, newest first within the panel's bound, each its task, phase, changes and landed commits; and each landing branch's queue in order, each change its task, its goal and when it became ready |
+| *landing* | a project, a landing's task | `PublicLanding`: its phase; its hold's kind and counts; its members, each its change's task, its repository's and pull's addresses, its base, candidate and landed commits, and its gates, each its configured name, whether it blocks, its proof's state and, once run, the run's address; its stale proofs; whether it holds the turn |
+
+A change whose task is in no goal's tree of the project, and a change
+or a landing of another project, are unknown, as jig's card is; jig's
+core admits the read on the project's visibility, and the forge judges
+the task's (jig's `domain/connectors.md`, 5.5).
+
+### 11.2 What crosses, and what never
+
+- **Structure and mechanics:** task numbers, steps and phases, holds'
+  kinds, CI's states, gates' kinds, names and verdicts, counts, commit
+  hashes, times, a run's state, and a landing branch's name, which its
+  adoption configures.
+- **Linked, not shown:** a pull request and a commit are addresses on
+  the forge, its web address with the repository's path, the pull's
+  number and the commit's hash, never its title, body or message; the
+  forge decides who reads there. A CI run's address likewise.
+- **Never:** a question's line and every question (2.2), an authority
+  hold's reason, a verifying or red tier's text (the step carries the
+  tiers' count alone), a change's branch name, a review's words, a
+  result, findings, the outbox's descriptions, a forge's credentials,
+  installations or accounts, and the settings.
+- **A step without words:** the public step is the step's name, with a
+  queued change's place and the tasks ahead, a repair's reason's kind
+  (CI, a gate's number, semantic), and a landed change's merge; nothing
+  that carries text.
+
+### 11.3 Their records and golden
+
+- **A schema of their own,** `temper-client-protocol-wire`'s
+  `public-v1.schema`, versioned apart from the family's other records:
+  its records name only one another and scalars, never a record of the
+  panels' schema, so a field added to a panel never reaches a visitor.
+  A test reads the schema and refuses a name from elsewhere.
+- **The golden of the public types:** a text file beside the schema
+  listing each public record with its fields and their types, which a
+  test compares with the schema. Any addition changes it, and shows in
+  review as a public field; adding one passes the user's test, that no
+  agent wrote it.
+- **Bounded** as the panels are (`Bounds`), each list within its
+  panel's bound, so each answer's bytes are known at start.
+
+### 11.4 Their world
+
+In the forge's world (`../domain/forge.md`, section 18): a public
+project's change, from producing to landed, read at each step as its
+public document, with no question line, branch or reason in it; a
+landing with two members and a failed gate read as its public document,
+the run's address in it; a change of a private project, and one in a
+conversation's tree, unknown; and the golden test failing on a field
+added to `public-v1.schema` until the golden says it.

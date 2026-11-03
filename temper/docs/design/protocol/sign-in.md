@@ -105,6 +105,33 @@ browsers use (`configuration.md`, section 3). With one:
   `engine.owners`. With `sign_in` `null`, the first owner of the link's
   provider, `owner` and `Owner`, as before.
 
+### 2.4 Public reading
+
+A deployment that opens its public projects to anyone
+(`../draft/first-release.md`, 5.3; jig's `domain/people.md`, section
+13; `../client/browser.md`, section 8):
+
+- **Off until figured:** jig's public limits are zero in every profile,
+  so a deployment opens by setting `clients.public.rate`,
+  `clients.public.bytes`, `clients.public.reads`,
+  `clients_http.public_calls` and `clients.public.max_age` in its
+  `limits` (jig's `protocol/configuration.md`, section 6), and its
+  owners make a project public (`project amend --visibility public`,
+  `../client/tools.md`, 5.3). Each figure
+  is the deployment's; dev.fabrig.ai's are the user's
+  (`../draft/first-release.status.md`).
+- **The proxy caches the public reads alone:** `GET /jig/v1/public/…`,
+  by its whole path, for the `max-age` each answer carries, a `404` as
+  a `200`, never a `503`; and nothing else temper serves, whose answers
+  say `no-store` or `no-cache`. It serves a cached answer to every
+  visitor, so the engine sees one read per document per `max-age`.
+- **The proxy limits each address:** public reads per second and in
+  flight per client address, answering past them itself, before the
+  engine; jig counts no address (jig's `domain/people.md`, 13.5).
+- **Nothing else opens:** the printed link's route stays denied from
+  outside (2.3); every other route answers as without public reading,
+  a visitor with no cookie signed out.
+
 ## 3. Who may sign in
 
 - **An identity is Google's provider and the member's address.**

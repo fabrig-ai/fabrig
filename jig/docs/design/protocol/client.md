@@ -1407,7 +1407,9 @@ The messages of public reading (`../domain/people.md`, section 13):
 
 - **`PublicRead { owner, version, kind, numbers }`,** an exchange with
   no credential and no stream: an owner, jig or an application's family;
-  the owner's version; a kind of that owner's public documents; at most
+  the version of the owner's public records, which are versioned apart
+  (`../client/domain/contract.md`, section 12); a kind of that owner's
+  public documents; at most
   two numbers, which the kind names. jig's kinds: *projects*, with none;
   *board*, a project; *card*, a project and a task. An application's
   kinds take a project first, and at most one number of its own.
