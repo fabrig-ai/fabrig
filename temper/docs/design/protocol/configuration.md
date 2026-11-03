@@ -899,6 +899,20 @@ have one, an engine alone none. Each:
   operations, staged and in flight, independently of its domain's room.
   With the owned example's worker it fits the kernel's 32,768 entries.
 
+A goal's deployment capacity is sized with `engine.limits.overrides`:
+`tasks.tasks` and `tasks.project_tasks` bound live concurrency;
+`tasks.tree_tasks` counts lifetime tasks including the root, and
+`tasks.depth` counts depth below that root at zero. `tasks.delegates`
+bounds live direct delegates, `tasks.batch` one atomic creation,
+`tasks.project_goals` live tracked goals per project, and `documents.lines`
+a charter document read. These are distinct from stored policy authority.
+The inbox and compound-operation dependencies are jig's configuration.md,
+section 6; refusals preserve the source, dependent capacity and required
+minimum. Task batch refusals preserve the codec field and ceiling. When
+a task record drives the map value past the fixed profile ceiling, the
+refusal names `TaskRecord`, its batch capacity and both sizes, and says to
+reduce task record capacities; that ceiling has no scalar override.
+
 ## 8. First start and every start
 
 - **Every command that reads the document checks it,** once its three
