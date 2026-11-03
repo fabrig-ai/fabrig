@@ -2,7 +2,7 @@
 id = "store-ceilings"
 part = "jig-rows"
 kind = "migration"
-needs = ["tasks-pieces"]
+needs = ["tasks-pieces", "settings-ceilings"]
 files = ["jig/crates/jig-protocol-store/schema/tasks-v9.schema", "jig/crates/jig-protocol-store/schema/core-v6.schema", "jig/crates/jig-protocol-store/src/generated/tasks_v9.rs", "jig/crates/jig-protocol-store/src/generated/core_v6.rs", "jig/crates/jig-protocol-store/src/generated/layouts.rs", "jig/crates/jig-protocol-store/golden/tasks/**", "jig/crates/jig-protocol-store/golden/core/**", "jig/crates/jig-protocol-store/src/tests/**", "jig/tests/store-codecs/tests/suite/profiles.rs", "jig/docs/design/protocol/configuration.status.md"]
 effort = "medium"
 minutes = 75
@@ -124,3 +124,16 @@ First merge `origin/fabrig-scale/integration` into this branch. In the schema an
 files take the trunk's shapes (the pieces) and reapply only this task's ceilings; then run
 the writer and do the remaining acceptance, checks, status sentence and report as the spec says.
 The ceilings table holds as written. `codec/` stays as the trunk has it.
+
+### 2026-11-03: settings-v1 refuses result_bytes 262,144 (`FieldRule.name` 4,096, `Approval.state` 65,536), so `codec::limits` stays `None`: a prerequisite, or widen this task? (fabrig-scale/store-ceilings-3, foreman fabrig-scale/store-ceilings/foreman-2)
+
+A prerequisite: the new task `settings-ceilings` (`tasks/settings-ceilings.md`), now in this
+task's `needs`. It is not a ceiling raise alone: settings-v1's `Verdict.fields` is a
+`list 512 FieldRule`, so a 512 KiB name puts a `Proposal` of templates past `u32`; settings-v1
+takes tasks-v9's pieces shape for verdict fields, which changes `codec/settings.rs`, a codec
+mapping this task may not touch. This task's scope and acceptance are unchanged.
+Stay parked until `settings-ceilings` is on the trunk; then merge `origin/fabrig-scale/integration`
+into this branch (keep the trunk's settings-v1 and `layouts.rs`, rerun the writer so `layouts.rs`
+holds both), and finish: `the_codecs_hold_fabrig_scale` passing with `codec::limits` `Some`,
+the row bound printed, the status sentence, the focused tests and checks. The checkpoint
+`071c2bae45` stands; its generated files are regenerated after the merge.
