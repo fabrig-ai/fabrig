@@ -3,7 +3,7 @@ id = "inbox-depth"
 part = "clients"
 kind = "migration"
 needs = []
-files = ["jig/crates/jig-client-protocol-wire/schema/client-v19.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-client-protocol-link/src/limits.rs", "jig/crates/jig-client-protocol-link/src/tests/**", "jig/crates/jig-protocol-engine-clients/src/tests/**", "jig/docs/design/client/domain/pages.status.md"]
+files = ["jig/crates/jig-client-protocol-wire/schema/client-v19.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-client-protocol-link/src/limits.rs", "jig/crates/jig-client-protocol-link/src/translate/pages_part4.rs", "jig/crates/jig-client-protocol-link/src/tests/**", "jig/crates/jig-protocol-engine-clients/src/tests/**", "jig/docs/design/client/domain/pages.status.md"]
 effort = "medium"
 minutes = 75
 +++
@@ -30,6 +30,8 @@ Acceptance:
 - `jig/crates/jig-client-protocol-link/src/limits.rs`: `wire.inbox_selection_goals` is the wire's
   ceiling (`w::CEILINGS.inbox_selection_goals`), not `client.rows`, with a comment: a selection is
   a handful of numbers, every one received whatever the client's rows (pages.md, 3).
+- `jig/crates/jig-client-protocol-link/src/translate/pages_part4.rs`: `inbox_selection_fields`
+  bounds `value.goals()` by `limits.wire().inbox_selection_goals`, not `limits.client().rows`.
 - Tests:
   - in `jig-client-protocol-link`'s tests, `an_inbox_entry_33_goals_deep_is_received`: a client
     with `rows` 8 decodes an inbox row whose selection names 33 goals;
@@ -65,10 +67,21 @@ Acceptance:
 
 1. The schema; the writer; read `git diff --stat`.
 2. The link's mapping; the two tests; each package one at a time.
-3. The status line; `cargo fmt`; `python3 -I -B jig/scripts/old_forms.py`; `heavy cargo clippy -p
+3. The status line; `cargo fmt`; `python3 -I -B scripts/old_forms.py` from `jig/`; `heavy cargo clippy -p
    jig-client-protocol-wire -p jig-client-protocol-link -p jig-protocol-engine-clients
    --all-targets -- -D warnings`; the citations check; commit and push.
 
 ## Report
 
 As the implementer's text asks, with the generated files the writer changed.
+
+## Answers
+
+- 2026-11-03. Q: widen the task to `translate/pages_part4.rs`, whose `inbox_selection_fields`
+  still refuses more goals than `client.rows`, or give that fix to another task? A: widen it.
+  The task's own acceptance (`an_inbox_entry_33_goals_deep_is_received`) cannot hold without it,
+  and the check is the same cap the task removes from `limits.rs`. `inbox_selection_fields`
+  bounds the goals by `limits.wire().inbox_selection_goals` (the wire's ceiling, which decoding
+  already enforced); nothing else in that file changes. The file is added to the header and
+  acceptance. Keep the pushed commit and continue from it: the engine-side test, the status
+  line, and the remaining suites and checks. `old_forms.py` runs from `jig/`.

@@ -1602,6 +1602,8 @@ fn capacity_overrides_name_the_failed_dependency() {
         (b"tasks.delegates", 16, &["tasks.delegates", "16", "people.operations", "17"]),
         (b"documents.lines", 8, &[][..]),
         (b"tasks.tree_tasks", 128, &[][..]),
+        (b"tasks.message_bytes", 131_072, &["tasks.message_bytes", "131072", "tasks.inbox_bytes", "131072"]),
+        (b"authority.grants", 15, &["authority.grants", "15", "notes.scopes", "18"]),
     ] {
         let document = super::stock::limited(&initial, member, value);
         if causes.is_empty() {

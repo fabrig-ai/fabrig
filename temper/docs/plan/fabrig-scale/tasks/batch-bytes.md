@@ -3,7 +3,7 @@ id = "batch-bytes"
 part = "jig-rows"
 kind = "feature"
 needs = ["override-relations", "transcript-ceilings"]
-files = ["jig/crates/jig-domain-tasks/src/**", "jig/crates/jig-domain-core/src/routing/run/payloads.rs", "jig/crates/jig-domain-core/src/tests.rs", "jig/crates/jig-domain-core/src/tests/runs/run_choice.rs", "jig/crates/jig-protocol-config/src/overrides.rs", "jig/crates/jig-protocol-config/src/profile/small.rs", "jig/crates/jig-protocol-config/src/tests/overrides.rs", "jig/crates/jig-protocol-store/src/tests/fixtures.rs", "jig/testing/jig-test-profile/src/lib.rs", "jig/tests/tasks/src/world.rs", "jig/tests/tasks/tests/suite/lifecycle.rs", "jig/tests/tasks/tests/suite/proposals.rs", "jig/tests/store/src/root.rs", "temper/crates/temper-engine-domain-forge/src/tests/reconcile.rs", "temper/crates/temper-engine-domain/src/tests/resume_fixture.rs", "temper/tests/engine/domain/src/walking.rs", "jig/docs/design/domain/tasks.status.md"]
+files = ["jig/crates/jig-domain-tasks/src/**", "jig/crates/jig-domain-core/src/routing/run/payloads.rs", "jig/crates/jig-domain-core/src/routing/mod.rs", "jig/crates/jig-domain-core/src/tests.rs", "jig/crates/jig-domain-core/src/tests/runs/run_choice.rs", "jig/crates/jig-protocol-config/src/overrides.rs", "jig/crates/jig-protocol-config/src/profile/small.rs", "jig/crates/jig-protocol-config/src/tests/overrides.rs", "jig/crates/jig-protocol-store/src/tests/fixtures.rs", "jig/testing/jig-test-profile/src/lib.rs", "jig/tests/tasks/src/world.rs", "jig/tests/tasks/tests/suite/lifecycle.rs", "jig/tests/tasks/tests/suite/proposals.rs", "jig/tests/store/src/root.rs", "temper/crates/temper-engine-domain-forge/src/tests/reconcile.rs", "temper/crates/temper-engine-domain/src/tests/resume_fixture.rs", "temper/tests/engine/domain/src/walking.rs", "jig/docs/design/domain/tasks.status.md"]
 effort = "high"
 minutes = 120
 +++
@@ -82,7 +82,8 @@ Acceptance:
 - `jig-protocol-config`: `overrides.rs` (the two lines above) and `profile/small.rs` (the line
   and its comment), and `src/tests/overrides.rs`'s `SMALL` table, which gains
   `(b"tasks.batch_bytes", 131_072),` after `tasks.batch`. No other file of the crate.
-- `jig-domain-core`: `routing/run/payloads.rs` and the test below; no other production file.
+- `jig-domain-core`: `routing/run/payloads.rs`, the one call in `routing/mod.rs` (see Answers)
+  and the test below; no other production file.
 - If a check in `jig-domain-core` other than the answer route (a delegation's preflight, a
   procedure's batch admission) counts a batch against `tasks.batch`, leave it: the tasks
   child's check is the batch's one admission, and its `Refusal::Batch` reaches the caller as
@@ -143,3 +144,16 @@ Acceptance:
 As the implementer's text asks, with: each fixture whose `batch_bytes` is not 131,072 and why;
 `size_of::<New>()` and `size_of::<RecurringTemplate>()` on the build machine; and any check
 outside the tasks child that counts a batch against `tasks.batch`, left as it is.
+
+## Answers
+
+2026-11-03. *May `routing/mod.rs` change so `route_answer_payload` can read `tasks.batch_bytes`?*
+Yes. `route_answer_payload` gains a parameter `limits: &tasks::Limits`, and its one caller
+(`routing/mod.rs`, the `Event::AnswerPayload` arm of `step_work`) passes `&env.limits.tasks`. That
+is the only change in `routing/mod.rs`, and `routing/mod.rs` is now in `files`. Core keeps no copy
+of the task limits; it reads them from `env` as it does elsewhere. In `route_answer_payload`, the
+follow-ups' bytes check sits beside `invalid_saved || invalid`, in the `None` arm of
+`committed_terminal` (a terminal already committed keeps its own end), and it uses
+`jig_domain_tasks::batch_bytes` (`None` counts as past). The test builds its own `Env` limits with a
+small `batch_bytes`, or a batch past 131,072 bytes, so that the end becomes
+`End::Failed(Class::Invalid)`.
