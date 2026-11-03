@@ -542,6 +542,7 @@ pub fn fixture(seed: u64, engine_slots: u32) -> (root::Config, root::Limits) {
 
 fn party_refusal(why: people::Refusal) -> parties::Refusal {
     match why {
+        people::Refusal::Forgotten { .. } => unreachable!("a restore: restore-request"),
         people::Refusal::Judged { at, setting, why } => parties::Refusal::Judged {
             at,
             setting: match setting {

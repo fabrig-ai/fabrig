@@ -74,6 +74,7 @@ impl Domain {
             let source = Key::Answer(*key);
             link(self, source, key.person);
             match &answer.outcome {
+                Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
                 Outcome::ServiceMade { person } => link(self, source, *person),
                 Outcome::RolesSet { project } => {
                     assert!(self.roles.contains_key(project), "{source:?} links missing roster {project}");
@@ -261,6 +262,7 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
 
 fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
     match ask {
+        crate::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         crate::Ask::SetRoles { holdings, .. } => {
             for holding in holdings {
                 link(domain, source, holding.person);

@@ -4,6 +4,7 @@ use skein_lib::bytes::is_utf8;
 
 pub(crate) fn valid(ask: &Ask) -> bool {
     match ask {
+        Ask::Restore { .. } => false,
         Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => is_utf8(words),
         Ask::Propose { action: crate::Action::Batch(batch), reason, .. } => is_utf8(reason) && batch_words(batch),
         Ask::Create { batch, .. } => batch_words(batch),
