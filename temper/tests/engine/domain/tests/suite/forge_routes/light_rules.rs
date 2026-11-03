@@ -135,39 +135,27 @@ fn a_change_under_rules_asking_neither_merges_at_its_head() {
 }
 
 #[test]
-fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
+fn a_conflict_under_rules_asking_neither_delegates_resolution() {
     let (mut world, task, head, base) = pushed_change(true);
     // A persistent conflict is decided after the shipped mergeability window,
-    // with the world's twenty-second durable round trip left for the hold.
+    // with the world's twenty-second durable round trip left for resolution.
     let deadline =
         world.env.now.saturating_add(world.env.limits.forge.client.settle).saturating_add(Duration::from_secs(20));
     while world.env.now <= deadline {
         world.tick();
-        if matches!(live_task(&world, task).phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. }) {
+        if matches!(change_row(&world, task).delegate, Some((_, change_step::Delegate::Resolve { .. }))) {
             break;
         }
     }
-    assert!(
-        matches!(live_task(&world, task).phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. }),
-        "phase: {:?}; change: {:?}",
-        live_task(&world, task).phase,
-        change_row(&world, task)
-    );
-    assert!(matches!(
-        change_row(&world, task).change.state,
-        change_step::State::Held { why: change_step::Hold::Resolutions, .. }
-    ));
-    let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase else { panic!("worded hold") };
-    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
+    let resolution = super::delegates::fixtures::next_delegate(&mut world);
     let row = change_row(&world, task);
-    let expected = format!(
-        "The merge into {} conflicts, and its landing rule asks no update: settle the conflict on {} and release the change, or cancel it.",
-        core::str::from_utf8(&row.base).expect("base branch"),
-        core::str::from_utf8(&row.branch).expect("change branch")
-    );
-    assert_eq!(words.as_ref(), expected.as_bytes());
+    let expected_base = translate::commit(base);
+    assert_eq!(row.change.state, change_step::State::Resolving { requested: true, base: expected_base });
+    assert_eq!(row.delegate, Some((resolution.task, change_step::Delegate::Resolve { base: expected_base })));
+    assert_eq!(live_task(&world, resolution.task).requester, tasks::Party::Task(task));
+    assert_eq!((row.change.updates, row.change.repairs, row.change.resolutions), (0, 0, 1));
+    assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Update { .. })));
     assert_eq!(world.merges, 0);
-    assert_no_update_or_delegate(&world, task);
     let pull = assert_pending_and_stale(&mut world, head, base);
     assert!(!pull.checking, "the forge has settled mergeability");
     assert!(!pull.mergeable);
