@@ -63,8 +63,8 @@ document's members); the standing rules, `notes/common.md`.
 
 4. `agent-stories` (150; needs `stock-configuring`, `agent-kinds`, `tools-store`): 6.4's row in the
    engine's domain world, charter 3's flows; `agent-ctl-story` (120; the same needs): the
-   walk's story through ctl in the joined client world; `help-stock` (docs, 60; the same
-   needs): the help pages that state the stock; `limits-jig` (interface, 120; no needs):
+   walk's story through ctl in the joined client world; `help-stock` (docs, 60; needs
+   `stock-configuring`, `agent-kinds`): the help pages that state the stock; `limits-jig` (interface, 120; no needs):
    jig's names table, the parser's lookup; `limits-pages` (150; needs `limits-jig`): temper's,
    the setup's and the box's tables, the pages `limits` and `limits-engine`; `members-jig`
    (interface, 150; needs `limits-jig`): jig's members table, its decoders reading through
