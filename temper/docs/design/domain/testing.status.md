@@ -42,9 +42,7 @@
   tests and joined with the engine, since the pages are not built
   (`../client/README.status.md`); the joined world's configuring chat
   starts, proposes, is accepted, waits for an owner and goes stale
-  through ctl alone (`tests/client`'s `configuring_chat.rs`). 6.5:
-  `tools/stage-one` is not built: the golden's file and its decoder,
-  the judge's brief and the verdict's decoder, and `collect`. 6: a state
+  through ctl alone (`tests/client`'s `configuring_chat.rs`). 6: a state
   digest for replay (`testing-strategy.md`, section 6); the walking
   world compares its formatted state
   (`tests/engine/domain/src/walking.rs`, `run_replayed`).
