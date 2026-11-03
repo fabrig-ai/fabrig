@@ -10,7 +10,9 @@
   `Setting` names none (`jig-domain-people/src/settings.rs`), and no
   change replaces a project's policy. 17.10: restoring a version: no
   `Restore` request, and a revision's record keeps no item's replaced
-  value (settings-v1's `Revision` and `Item`). 7.2: what a
+  value (settings-v1's `Revision` and `Item`). 17.5, 17.10: a connector
+  keeps no value its items replaced, beside its changes
+  (`jig-test-connector`'s `settings.rs`, `keep`). 7.2: what a
   turn's calls made, written beside the turn. 7.3: `move`, `succeed`,
   `hold` and `lift`. 11.1: `me`'s
   `resolved_default`. 15: core-world stories that opt out of the restart

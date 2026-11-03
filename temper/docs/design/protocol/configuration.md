@@ -1575,9 +1575,14 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   forge's charter, and a pending proposal's items of temper's kinds
   through the forge's family (`../client/forge.md`, section 9); jig's
   documents give their states and sizes alone.
-- **Never pinned.** Every merge is judged by the rules as they are
-  then, whatever revision its change was made in: what work may do is
-  always current (`../draft/configuring.md`, section 4).
+- **Never pinned.** Every merge is judged by the landing rules the
+  forge holds then, the deployment's and its project's, whatever
+  revision its change was made in: what work may do is always current,
+  as a task's authority from jig's rules and its project's policy is
+  (jig's `domain/engine.md`, 17.4), and only what a run is given, its
+  charter, keeps the revision its task was made in. A change of the
+  rules reaches a change already in flight at its next merge; a merge
+  already made stays as it was decided.
 - **The forge's charters are read when a change is made.** The forge
   reads its own kind 3, as it holds it, and the root grants the
   change's procedure delegation to its producer's charter, its
@@ -1765,8 +1770,14 @@ init`'s document carries none of them (`setup.md`, 8.3).
   defaults, which make a revision recorded as the release's (jig's
   `domain/engine.md`, 17.7).
 - **A release that changes a default** reaches every deployment that
-  kept it, at its next start, by a revision recorded as the release's,
-  and its release notes say so (`../draft/configuring.md`, 3.2).
+  kept it. A setting no change is over follows the binary's default, so
+  at the next start the new default makes a revision recorded as the
+  release's, with no proposal (jig's `domain/engine.md`, 17.7): new
+  work takes it, running work keeps the revision it runs under (jig's
+  `domain/engine.md`, 17.3), and the release's notes name each default
+  it changed. A setting a deployment changed keeps its change; a reset
+  removes the stored change, as a change of its own, and the setting
+  follows the default again.
 
 ### 13.5 The members gone
 
