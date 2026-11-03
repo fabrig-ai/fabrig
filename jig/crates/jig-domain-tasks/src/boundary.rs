@@ -1235,6 +1235,8 @@ pub struct TaskRecord {
     pub refusals: u32,
     /// Current lifecycle or the retained final outcome.
     pub phase: Phase,
+    /// A procedure batch refused for live task room (connectors.md, 6.2).
+    pub room_wait: Option<crate::RoomWait>,
     /// A question-form message to its requester has been admitted; never cleared.
     pub asked_requester: bool,
 }

@@ -61,6 +61,7 @@ mod payer;
 
 mod account;
 
+mod room;
 mod waits;
 
 mod settings_proposals;

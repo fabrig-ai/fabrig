@@ -275,3 +275,77 @@ fn landing_rule_members_past_the_given_limits_name_their_paths() {
         );
     }
 }
+
+const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null"#;
+fn template_file(resources: &[u8]) -> Box<[u8]> {
+    let length = TEMPLATE_PREFIX
+        .len()
+        .checked_add(resources.len())
+        .expect("fixture resources")
+        .checked_add(SUFFIX.len())
+        .expect("suffix");
+    let mut out = Writer::new(length);
+    out.put(TEMPLATE_PREFIX).unwrap();
+    out.put(resources).unwrap();
+    out.put(SUFFIX).unwrap();
+    out.finish()
+}
+fn template(bytes: &[u8], limits: &Limits) -> c::Template {
+    let items = file::decode(bytes, limits).expect("template file");
+    let c::SettingEdit::Set(set) = &items.get(0).unwrap().edit else { panic!("set") };
+    let c::SettingValue::Template(value) = &set.value else { panic!("template") };
+    *value.clone()
+}
+#[test]
+fn a_settings_file_template_names_its_resources() {
+    let limits = Limits::standard();
+    let value = template(&template_file(br#", "resources":[{"connector":1,"symbol":1}]"#), &limits);
+    assert_eq!(value.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
+    let wire = crate::wire::settings_wire_template(&value, &limits.settings).unwrap();
+    assert_eq!(wire.resources().get(0).unwrap().connector(), 1);
+    assert_eq!(wire.resources().get(0).unwrap().symbol(), 1);
+    assert_eq!(crate::wire::documents_me_template(&wire, &limits).unwrap(), value);
+}
+#[test]
+fn a_settings_file_template_without_resources_names_none() {
+    for resources in [b"".as_slice(), br#", "resources":[]"#] {
+        assert!(template(&template_file(resources), &Limits::standard()).resources.is_empty());
+    }
+}
+#[test]
+fn a_settings_file_template_refuses_a_resource_pair_twice() {
+    let bytes = template_file(br#", "resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":1}]"#);
+    assert_eq!(
+        file::decode(&bytes, &Limits::standard()).unwrap_err().as_ref(),
+        b"settings file item 1: template.resources: duplicate pair"
+    );
+}
+#[test]
+fn a_settings_file_template_bounds_resources_before_decoding_members() {
+    let mut limits = Limits::standard();
+    limits.settings.template_resources = 2;
+    let bytes = template_file(br#", "resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":2}]"#);
+    assert_eq!(template(&bytes, &limits).resources.len(), 2);
+    let bytes = template_file(br#", "resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":2},null]"#);
+    assert_eq!(
+        file::decode(&bytes, &limits).unwrap_err().as_ref(),
+        b"settings file item 1: template.resources: bound 2"
+    );
+}
+#[test]
+fn a_settings_file_template_refuses_malformed_resources_naming_the_path() {
+    for (resources, member) in [
+        (br#", "resources":null"#.as_slice(), b"template.resources".as_slice()),
+        (br#", "resources":{}"#, b"template.resources"),
+        (br#", "resources":[false]"#, b"template.resources"),
+        (br#", "resources":[{"connector":"1","symbol":1}]"#, b"template.resources.connector"),
+        (br#", "resources":[{"connector":1,"symbol":false}]"#, b"template.resources.symbol"),
+        (br#", "resources":[{"connector":65536,"symbol":1}]"#, b"template.resources.connector"),
+        (br#", "resources":[{"connector":1,"symbol":65536}]"#, b"template.resources.symbol"),
+        (br#", "resources":[{"connector":1}]"#, b"template.resources.symbol"),
+        (br#", "resources":[{"connector":1,"symbol":1,"extra":1}]"#, b"template.resources.extra"),
+    ] {
+        let why = file::decode(&template_file(resources), &Limits::standard()).unwrap_err();
+        assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
+    }
+}

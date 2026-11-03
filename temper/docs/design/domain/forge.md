@@ -1886,13 +1886,18 @@ early, by these rules:
   change waits for its dependencies to be done, then makes its next
   producer, whose failure for good holds it as 8.4 says.
 - **The next producer merges the landing tip first.** A producer of a
-  change that started early, whose workspace would start from the
-  change's pushed branch or from saved work, starts instead from a
-  merge in progress: that start, with the landing branch's tip as the
+  change that started early, or of a change into a landing branch whose
+  rules ask no update (a goal's own branch, section 11 and 8.7), whose
+  workspace would start from the change's pushed branch or from saved
+  work, starts instead from a merge in progress: that start, with the landing branch's tip as the
   base merged into it (`worker.md`, 4.1 and section 5). A conflict is
   left in its checkout for it to settle; its first push commits the
   merge. One with nothing pushed or saved starts from the landing
-  branch's tip, which now holds its dependencies' work.
+  branch's tip, which now holds its dependencies' work. So a producer
+  going on after an answer that added a dependency, or after an
+  amendment naming a revision of the design that landed into the
+  branch, works on the branch as it now stands, as one into main is
+  brought up to date by the forge's update (section 10).
 - **Done while kept.** The early producer's result is the change's head,
   as any producer's: the change opens its pull request, and is checked
   and gated as its rules ask, but is not ready until its last dependency
