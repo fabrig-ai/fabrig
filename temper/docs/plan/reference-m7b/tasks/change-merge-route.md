@@ -3,7 +3,7 @@ id = "change-merge-route"
 part = "change-merge"
 kind = "feature"
 needs = ["change-merge-surface", "change-merge-steps", "merge-settings"]
-files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/**", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/tests/engine/domain/src/**", "temper/tests/engine/domain/tests/suite/forge_routes/**", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/crates/temper-engine-domain/src/route/now.rs", "temper/crates/temper-engine-domain/src/route/asks.rs", "temper/crates/temper-engine-domain/src/link.rs", "temper/crates/temper-engine-domain/src/decision.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/tests.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/translate.rs", "temper/crates/temper-service/src/clients/translation.rs", "temper/crates/temper-service/src/tests/**"]
+files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/**", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/tests/engine/domain/src/**", "temper/tests/engine/domain/tests/suite/forge_routes/**", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/crates/temper-engine-domain/src/route/now.rs", "temper/crates/temper-engine-domain/src/route/asks.rs", "temper/crates/temper-engine-domain/src/link.rs", "temper/crates/temper-engine-domain/src/decision.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/tests.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/translate.rs", "temper/crates/temper-service/src/clients/translation.rs", "temper/crates/temper-service/src/tests/**", "temper/crates/temper-engine-domain-forge/src/tests/verification.rs", "jig/crates/jig-domain-core/src/vocabulary.rs", "jig/crates/jig-domain-core/src/routing/mod.rs", "jig/crates/jig-domain-core/src/routing/run/preparation.rs", "jig/crates/jig-domain-core/src/routing/run/jobs.rs", "jig/crates/jig-domain-core/src/tests/jobs.rs", "jig/crates/jig-domain-core/src/tests/runs/windows.rs", "jig/testing/jig-test-domain/src/routes.rs", "jig/examples/ops/domain/src/route.rs"]
 effort = "high"
 minutes = 170
 +++
@@ -150,3 +150,35 @@ now hold the root's `route/now.rs`, `route/asks.rs`, `link.rs`, `decision.rs`, `
 
 Nothing else changes: the exhaustion fixture is this task's to repair as the run says, and a
 catch-up's `Merge { from: None }` head stays `catch-up-call`'s.
+
+2026-11-03. **May this task extend into Jig's job claim so the root supplies the writer names
+apart from the authority paths, or should a prerequisite supply it?** This task makes it: its
+stories cannot pass without it, no task of the plan owns it, and it is one field and one loop.
+The core is wrong here, not temper: a claim holds "the writer slots of the holds its workspace
+writes" (`jig/docs/design/domain/engine.md, 7.1`, step 3), the names its connectors translate
+and a run's root returns with `ClaimPrepared`; a job's claim is "as a run's does" (7.5), yet
+`routing/run/jobs.rs`, `prepared`, names its slots by the authority's segments. `files` above
+now hold the Jig files below and `temper-engine-domain-forge/src/tests/verification.rs` (the
+compiler-required `merge_job: false` the run reported). The shape:
+
+- **The root names a job's holds** (`vocabulary.rs`): `Event::WorkspacePrepared` gains
+  `holds: Box<[tasks::Name]>`, documented as a job's held names, its connectors' translation
+  of `writes` (engine.md, 7.1, step 3); an agent's is empty, its names coming with
+  `ClaimPrepared` as today. `routing/mod.rs` and `preparation.rs` pass it to `jobs::prepared`.
+- **The core claims them, and still checks the writes** (`jobs.rs`, `prepared`): the claim's
+  `writes` are `holds`, deduplicated, past `limits.tasks.holdings` held for `Hold::Effects` as
+  now; the loop over `write.effect.name.segments` and `additional` goes. `admission` still
+  checks the authority `writes`, unchanged. A job with authority writes and no holds claims no
+  slot, as a run whose root returns none.
+- **Every maker of the event fills it:** temper's `route/now.rs`, `workspace`, for a job with
+  the hub names of its workspace's `names` (`hub_name`, as `claim_workspace` makes them; one
+  helper both call), the names its parent's tasks hold covers; the forge's `Names` and own
+  holds stay at `JobClaimed`, as the run built them. `jig-test-domain`'s `routes.rs` with the names it
+  keeps in `workspace_writes` for a job, empty for an agent; the ops example's `route.rs` and
+  the core's tests with empty holds where they make none.
+- **One core test** in `tests/jobs.rs`: `a_job_claims_the_names_its_root_prepared`, a job
+  whose authority write is one path and whose `holds` another: the claim's `writes` are the
+  `holds`, and the job is claimed.
+- **Step 4 adds** `heavy cargo nextest run -p jig-domain-core --lib -E 'test(/job/)'`, then the
+  package's tests; `heavy cargo check -p jig-test-domain -p jig-ops-domain --tests`; clippy on
+  `jig-domain-core`, `--all-targets -- -D warnings`. Jig names no temper (the field is generic).
