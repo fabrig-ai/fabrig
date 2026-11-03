@@ -775,7 +775,7 @@ fn after_step(which: u8) -> w::Step {
     let mut tiers = List::with_capacity(1);
     let line: &[u8] = match which {
         0 => b"fast run 2 running",
-        1 => b"fast run 2 \xc2\xb7 2 tests",
+        1 => b"fast run 2 \xc2\xb7 owns 1 test: no-break",
         _ => b"fast run 3",
     };
     tiers.push(Box::from(line)).unwrap();
@@ -791,7 +791,7 @@ fn after_step(which: u8) -> w::Step {
 fn after_landing_text_and_json_keep_tier_lines_merge_and_following_call() {
     for (which, line) in [
         (0, b"step: verifying \xc2\xb7 fast run 2 running".as_slice()),
-        (1, b"step: red \xc2\xb7 fast run 2 \xc2\xb7 2 tests".as_slice()),
+        (1, b"step: red \xc2\xb7 fast run 2 \xc2\xb7 owns 1 test: no-break".as_slice()),
         (2, b"step: cleared \xc2\xb7 fast run 3".as_slice()),
         (3, b"step: landed, uncleared\n".as_slice()),
     ] {
@@ -803,6 +803,9 @@ fn after_landing_text_and_json_keep_tier_lines_merge_and_following_call() {
         assert_eq!(skein_lib::bytes::find(&text.stdout, b"--until cleared").is_some(), which < 2);
         let json = change::print(Some(&value), true, None, b"", &f::limits_root(), &change::Holds::new());
         contains(&json.stdout, br#""tiers":["fast run "#);
+        if which == 1 {
+            contains(&json.stdout, b"owns 1 test: no-break");
+        }
         contains(&json.stdout, br#""merge":"2222222222222222222222222222222222222222""#);
     }
 }
@@ -823,5 +826,26 @@ fn landed_is_met_by_every_later_step_and_cleared_waits_through_red() {
         }
         deliver(&mut root, panel(after_step(final_step)));
         assert_eq!(root.answer(call).unwrap().status, 0);
+    }
+}
+
+#[test]
+fn ordinary_and_json_red_reads_keep_long_ids_and_many() {
+    let prefix = "slow run 3 · owns 1 test: ".as_bytes();
+    let mut long = skein_lib::Writer::new(prefix.len().checked_add(256).unwrap());
+    long.put(prefix).unwrap();
+    long.put(&[b'x'; 256]).unwrap();
+    let long = long.finish();
+    for line in [long.as_ref(), b"slow run 3 \xc2\xb7 suspected of many tests"] {
+        let mut tiers = List::with_capacity(1);
+        tiers.push(Box::from(line)).unwrap();
+        let step = w::Step::Red(w::Red::new(&w::CEILINGS, w::RedParts { merge: [34; 32], tiers }).unwrap());
+        let value = panel(step);
+        for json in [false, true] {
+            let printed = change::print(Some(&value), json, None, b"", &f::limits_root(), &change::Holds::new());
+            assert_eq!(printed.status, 0);
+            contains(&printed.stdout, line);
+            contains(&printed.stdout, b"2222222222222222222222222222222222222222");
+        }
     }
 }

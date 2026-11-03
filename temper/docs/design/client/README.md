@@ -1555,7 +1555,12 @@ for its kind, its user's login and its installations. Its nodes:
     gating, queued (its place, from 1 (u32), and the tasks ahead of it,
     nearest first, at most 64 (u64 each)), first, updating, resolving,
     repairing (its reason: CI, a gate by its number (u64), or a semantic
-    conflict), landing, or landed (its merge commit, 32 bytes);
+    conflict), landing, or landed (its merge commit, 32 bytes); verifying,
+    red and cleared also carry the merge and at most 32 tier strings of at
+    most 8192 bytes each. A tier string names its run and every full failing
+    ID owned by or suspected of that landing, or explicitly `many tests`.
+    The bound holds the 16 admitted IDs of up to 256 bytes each, their
+    separators and tier/run words; IDs are never cut to fit the wire;
   - its hold: none, or why: stalled; past its repairs, its resolutions
     or its updates; its branch moved; its branch missing; its pull
     request closed; its pull request retargeted; a delegate or effect
