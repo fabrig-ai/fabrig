@@ -175,7 +175,7 @@ pub(crate) fn tokens_connect(engine: &mut Engine, forge: u16, request: Token, ca
         Some(Event::Secret { value: Some(SecretValue::Carried { kind: CarriedKind::Value, value }), .. })
             if skein_lib::sha256::digest(value.expose()) == carried.digest =>
         {
-            tokens(value.expose())
+            tokens(value.expose(), false)
         }
         Some(_) | None => Err(b"the pasted value changed".as_slice()),
     };
@@ -194,8 +194,61 @@ pub(crate) fn tokens_connect(engine: &mut Engine, forge: u16, request: Token, ca
         stage(engine, run, host::Plan::Check { forge });
     }
 }
+/// Replace checks the new values against the forge's kept identity (protocol/forge.md, 2.2).
+pub(crate) fn replace(engine: &mut Engine, forge: u16, request: Token, carried: Carried) {
+    if full(engine, forge) {
+        event(
+            engine,
+            domain::Event::ConnectAnswered {
+                forge,
+                request,
+                answer: domain::ConnectAnswer::Refused(domain::ForgeRefusal::Busy),
+            },
+        );
+        return;
+    }
+    let run = super::lifecycle::next_run(&mut engine.setup.lifecycle);
+    event(engine, domain::Event::ConnectAnswered { forge, request, answer: domain::ConnectAnswer::Connecting });
+    let value = engine.store.secrets(run, Secrets::Get { owner: SecretOwner::Application, number: carried.number });
+    let parsed = match value {
+        Some(Event::Secret { value: Some(SecretValue::Carried { kind: CarriedKind::Value, value }), .. })
+            if skein_lib::sha256::digest(value.expose()) == carried.digest =>
+        {
+            replacement(engine, forge, value.expose())
+        }
+        Some(_) | None => Err(b"the pasted value changed".as_slice()),
+    };
+    let (pasted, plan, failure) = match parsed {
+        Ok((pasted, plan)) => (Some(pasted), Some(plan), None),
+        Err(reason) => (None, None, Some(reason)),
+    };
+    engine
+        .setup
+        .public
+        .insert(run, Caller::Connect { forge, request, number: carried.number, pasted, stop: None })
+        .expect("public room checked");
+    if let Some(reason) = failure {
+        super::ended(engine, run, root::SetupEnd::Stopped { forge, reason: Box::from(reason) });
+    } else if let Some(plan) = plan {
+        stage(engine, run, plan);
+    }
+}
+fn replacement(engine: &Engine, forge: u16, bytes: &[u8]) -> Result<(Pasted, host::Plan), &'static [u8]> {
+    let config = engine.workers.forges.get(forge).expect("admitted replacement has a forge");
+    match config.kind {
+        crate::settings::Kind::Forgejo => Ok((Pasted::Tokens(tokens(bytes, true)?), host::Plan::Check { forge })),
+        crate::settings::Kind::GitHub => {
+            let key = pasted(bytes, 11, b"the pasted value is not a key")?;
+            let unreadable = b"its records are unreadable".as_slice();
+            let rows = engine.forge_records.rows.forge(forge).ok_or(unreadable)?;
+            let bytes = rows.get(temper_protocol_records::Item::AppId).or(Err(unreadable))?;
+            let app = skein_forge_setup::item::app_id(bytes).ok_or(unreadable)?;
+            Ok((Pasted::App(key), host::Plan::Paste { forge, app }))
+        }
+    }
+}
 #[expect(clippy::type_complexity, reason = "the bundle keeps the codec item list and the refusal words")]
-fn tokens(bytes: &[u8]) -> Result<Box<[(u16, Secret)]>, &'static [u8]> {
+fn tokens(bytes: &[u8], replacing: bool) -> Result<Box<[(u16, Secret)]>, &'static [u8]> {
     let invalid = b"the pasted values are not a Forgejo's tokens".as_slice();
     let items = match temper_protocol_records::decode_pasted(bytes) {
         Ok(items) => items,
@@ -216,7 +269,7 @@ fn tokens(bytes: &[u8]) -> Result<Box<[(u16, Secret)]>, &'static [u8]> {
             _ => return Err(invalid),
         }
     }
-    if api && git { Ok(items) } else { Err(invalid) }
+    if (api && git) || (replacing && (api || git)) { Ok(items) } else { Err(invalid) }
 }
 /// Check's token failures use the connected Forgejo's words (protocol/forge.md, 2.2).
 pub(super) fn tokens_failure(

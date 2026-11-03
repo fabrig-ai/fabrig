@@ -895,7 +895,11 @@ fn paste_connects(pem: Secret, bundle: Secret) {
 }
 // Use the fake's HTTP face, preserving its installation table across paste,
 // reconcile and accept; every request still crosses the real setup codecs.
-fn github_reply(service: &mut crate::Service, face: &mut Face, github: &mut skein_forge_machine_world::github::Fake) {
+pub(super) fn github_reply(
+    service: &mut crate::Service,
+    face: &mut Face,
+    github: &mut skein_forge_machine_world::github::Fake,
+) {
     face.sent(service);
     let wall = service.engine.as_ref().unwrap().env.wall;
     let reply = github.serve(&face.wire.received, wall);

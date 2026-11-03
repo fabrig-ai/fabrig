@@ -2282,3 +2282,6 @@ fn fixture_fixed(
     let (settings, _) = layer.pending.unwrap();
     Ok((settings, layer.env.limits))
 }
+
+#[path = "setup_replace.rs"]
+mod replace_tests;

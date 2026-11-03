@@ -1505,3 +1505,45 @@ pub fn checked_endpoints(
     }
     Ok(settings)
 }
+
+/// Send a carried forge request through the authenticated client bytes.
+pub fn forge_connecting(
+    service: &mut crate::Service,
+    bearer: &[u8],
+    key: u8,
+    request: temper_client_protocol_wire::v1::Request,
+    bundle: Secret,
+) {
+    use jig_client_protocol_wire::v19 as j;
+    use skein_lib::Reader;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
+    let engine = service.engine.as_mut().unwrap();
+    let limits = &engine.clients.env.limits.wire;
+    let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
+    family.encode(&mut bytes).unwrap();
+    let keyed = j::Keyed::new(
+        limits,
+        j::KeyedParts {
+            key: [key; 16],
+            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
+            version: wire::CLIENT_VERSION,
+            request: bytes.finish(),
+            value: Some(bundle),
+        },
+    )
+    .unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
+    keyed.encode(&mut bytes).unwrap();
+    let mut peer = http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
+    peer.pump(engine, true);
+    let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
+    let j::KeyedAnswer::FinalAnswer(answer) =
+        j::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut Reader::new(&peer.received()[at..])).unwrap()
+    else {
+        panic!("family terminal")
+    };
+    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
+    assert_eq!(answer, w::Outcome::Connecting);
+}
