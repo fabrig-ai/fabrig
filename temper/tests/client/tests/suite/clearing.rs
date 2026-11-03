@@ -5,6 +5,7 @@ use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{forge_routes::World, protocol, tier_runs as tiers};
 
+#[expect(dead_code, reason = "the shared ctl fixture also contains assertions for engine-world hold stories")]
 #[path = "../../../engine/domain/tests/suite/forge_routes/tier_task_show.rs"]
 mod task_show;
 

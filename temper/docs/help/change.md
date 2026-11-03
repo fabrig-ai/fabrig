@@ -38,10 +38,10 @@ A change is a task that writes one repository's branch and lands it: its pull re
   `Cleared by TIER run N.`, or, for a landing once red, `Cleared by TIER
   run N, which passed the failures blamed on it; repaired by COMMIT.`
   where a change naming it repaired it, or `Not cleared: no verdict
-  within the verification bound.` These words precede the pull address
-  to stay readable in `task show TASK`'s text window. Or it fails or is
-  cancelled. A coder that concludes the request does not apply ends it
-  successfully, saying why, with no pull request or claim of landing;
+  within the verification bound.` Verdicts precede the address
+  to fit `task show TASK`'s text window. Or it fails or is
+  cancelled. A coder finding no change applies ends
+  successfully, saying why, with no pull request or claimed landing;
   failure for good holds it at `producing` (below).
 
 ## How it changes
