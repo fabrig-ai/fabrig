@@ -239,7 +239,7 @@ impl RateLimit {
         None
     }
 }
-/// A route's named error decides before its HTTP status (llm.md, 4.6–4.8).
+/// A route's named error decides before its HTTP status (llm.md, sections 4.7 and 4.8).
 #[must_use]
 pub fn classify(
     provider: Provider,
@@ -254,13 +254,6 @@ pub fn classify(
     };
     let named = match provider {
         Provider::Anthropic => anthropic_failure(kind, error, rate, wall),
-        Provider::OpenAiCodex => {
-            if kind == b"usage_limit_reached" {
-                Some(Failure::Exhausted { retry_after: error_reset(error, wall) })
-            } else {
-                responses_failure(kind, rate, error, wall)
-            }
-        }
         Provider::OpenAi => responses_failure(kind, rate, error, wall),
     };
     if let Some(failure) = named {

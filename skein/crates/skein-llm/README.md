@@ -1,8 +1,8 @@
 # skein-llm
 
 A provider-neutral LLM client following Skein's step model: no async, runtime,
-sockets or hidden retries. Its routes are OpenAI's public Responses (`Endpoint::openai()`), ChatGPT's
-withdrawn Codex Responses, and Anthropic's Messages. It composes
+sockets or hidden retries. Its routes are OpenAI's public Responses (`Endpoint::openai()`)
+and Anthropic's Messages. It composes
 `skein-http` (HTTP/SSE) and `skein-json` over a caller-owned plaintext stream,
 normally supplied by TLS.
 
@@ -17,13 +17,11 @@ as `Cut`. Both complete normally and are refused in history until the caller
 replaces them; only `ToolCall` represents an executable call.
 Completed blocks preserve provider replay metadata for the next turn.
 
-For Codex, the caller obtains and refreshes an OAuth access token, supplies the
-`chatgpt-account-id`, and connects to `Endpoint::codex()`'s authority. The
-crate never reads an auth file or initiates sign-in. Additional endpoint
-headers can identify the actual client or provide session/request IDs.
-Archived Pi identity constants in `openai::identity` are explicitly opt-in.
-Codex requests use `store:false`, `stream:true` and full history; they omit
-unsupported token caps and sampling settings.
+For OpenAI, use `Endpoint::openai()` with a key or a caller-obtained access
+token, both sent as a bearer. The caller obtains and refreshes its credential;
+the crate reads no auth file and initiates no sign-in. Responses requests use
+`store:false`, `stream:true` and full history; they omit unsupported token
+caps and sampling settings.
 
 To drive one call:
 
@@ -66,7 +64,7 @@ set through `Endpoint::headers`. Credential and framing headers cannot be overri
 
 Anthropic uses native ordered message blocks, tool schemas and tool-result
 error flags. `Prompt::max_output_tokens` sets its required `max_tokens`, defaulting
-to `Limits::declared_output_tokens`; zero is invalid. Codex requires this setting to be `None`.
+to `Limits::declared_output_tokens`; zero is invalid. The public Responses route requires this setting to be `None`.
 `reasoning_effort` accepts `off` or adaptive-thinking effort `low`, `medium`,
 `high`, `max`; model compatibility is the caller's choice. Anthropic accepts
 `Prompt::affinity` with no effect on its wire bytes. Completed thinking and
@@ -74,11 +72,9 @@ redacted-thinking blocks retain signatures/data as Anthropic-tagged replay.
 Received tool arguments remain raw; resending requires valid JSON objects and
 native Anthropic identifiers. Provider replay cannot cross dialects.
 
-Codex renders `Affinity::key` as a lowercase UUID in `prompt_cache_key` and
-`session-id`. Its `thread-id` XORs the big-endian thread number into the key's
-last four bytes; thread zero equals the key. Without affinity all three are
-absent. Both header names are reserved, and request head limits price their
-fixed width alongside credentials and endpoint headers.
+The public route renders `Affinity::key` as a lowercase UUID in the body's
+`prompt_cache_key`. Without affinity it sends no key. `session-id`, `thread-id`
+and `chatgpt-account-id` are reserved endpoint-header names.
 
 The low-level `openai` and `anthropic` modules expose bounded document codecs
 for fakes and specialized protocol stacks. Both share `Json` and dialect limits.
@@ -90,11 +86,11 @@ The [design](../../docs/design/llm.md) defines lifecycle and memory contracts.
 stack; the world crate's fuzzy profile varies fragmentation, flow control and
 close races. The archived response fixtures say where they came from.
 
-The opt-in live suite exercises `client::Client` against the real Codex and
+The opt-in live suite exercises `client::Client` against the public OpenAI Responses and
 Anthropic Messages endpoints over certificate-verified TLS. It checks streamed
 text and token usage, multi-turn replay, tool-argument streaming and tool-result
 replay, HTTP connection reuse, and invalid-token failures for each provider.
-There are no retries or credential refreshes. Codex tests use subscription
+There are no retries or credential refreshes. OpenAI tests use subscription
 quota and require a valid, unexpired OAuth access token. Anthropic tests use an API key.
 
 Name a Codex login and a private plaintext Anthropic key file, then run:
@@ -106,8 +102,8 @@ heavy cargo nextest run -p skein-llm-world --profile live-skein
 ```
 
 `SKEIN_TEST_LIVE_OPENAI_AUTH` names a Codex `auth.json`, or a directory
-holding one (a `CODEX_HOME`); the tests read its `.tokens.access_token` and
-`.tokens.account_id`. `SKEIN_TEST_LIVE_ANTHROPIC_KEY` names a mode-0600
+holding one (a `CODEX_HOME`); the tests read its `.tokens.access_token` and pass it as
+`Credential::bearer` to `Endpoint::openai()`. `SKEIN_TEST_LIVE_ANTHROPIC_KEY` names a mode-0600
 plaintext file containing the API key. Each Anthropic call reads it once, trims
 surrounding ASCII whitespace, and sends it as `Credential::key` on
 `Endpoint::anthropic()`. An empty, oversized or non-private key file is refused.
@@ -126,8 +122,8 @@ before the user's doubling of 10-22, provisional) socket timeouts.
 Optional `SKEIN_TEST_LIVE_OPENAI_MODEL` and `SKEIN_TEST_LIVE_ANTHROPIC_MODEL`
 override `gpt-5.5` and `claude-haiku-4-5`. `SKEIN_TEST_LIVE_CA_FILE` overrides
 the default Linux CA bundle at `/etc/ssl/certs/ca-certificates.crt`.
-Codex's successful subscription responses can omit `Content-Type`; the client
-accepts that omission for Codex while validating any explicitly supplied type.
+Public Responses accepts a missing `Content-Type` while validating any
+explicitly supplied type.
 
 Applications can retain `Replay::to_bytes` envelopes without owning provider
 codecs. `replay_bytes` bounds the receiving envelope: its seven-byte header
@@ -137,8 +133,8 @@ caller-owned. Shared independent scripts and HTTP/SSE peers are described in
 [fake-llm.md](../../docs/design/fake-llm.md).
 
 Owners may enable `client::Limits.drop_reasoning` to receive `Block::Dropped`
-for Codex reasoning beyond the opaque cap. Dropped blocks emit no history item;
-Anthropic thinking and other opaque Codex items retain typed limit failures.
+for Responses reasoning beyond the opaque cap. Dropped blocks emit no history item;
+Anthropic thinking and other opaque Responses items retain typed limit failures.
 `Client::prepare_with_reasoning_drop` selects the policy explicitly for one
 call, overriding that default in either direction. Connection owners supply
 `Request::Start.drop_reasoning` from the selected model's policy. Calls with

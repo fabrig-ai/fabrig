@@ -1,4 +1,4 @@
-//! Anthropic subscription Messages documents and a bounded streaming decoder.
+//! Anthropic Messages documents and a bounded streaming decoder.
 pub(crate) mod filter;
 mod peer;
 mod request;

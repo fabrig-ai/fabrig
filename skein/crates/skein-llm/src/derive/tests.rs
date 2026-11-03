@@ -122,7 +122,7 @@ fn read_head(limits: http::Limits, wire: &[u8]) -> Result<http::Response, http::
 
 #[test]
 fn derived_response_heads_accept_both_bounds_and_refuse_one_byte_or_field_over() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let mut limits = Limits::derive(&DECLARED).unwrap().dialect(provider).http;
         limits.request = 256;
         limits.read = 256;
@@ -139,7 +139,10 @@ fn derived_response_heads_accept_both_bounds_and_refuse_one_byte_or_field_over()
 
 #[test]
 fn derived_headroom_accepts_larger_heads_without_changing_the_call_reservation() {
-    for (provider, head, fields) in [(Provider::OpenAiCodex, 1935, 42), (Provider::Anthropic, 1435, 31)] {
+    {
+        let provider = Provider::Anthropic;
+        let head = 1435; // Largest archived Anthropic head.
+        let fields = 31; // Its field count.
         let mut limits = Limits::derive(&DECLARED).unwrap().dialect(provider);
         limits.http.request = 256;
         limits.http.read = 256;
@@ -162,22 +165,18 @@ fn derived_headroom_accepts_larger_heads_without_changing_the_call_reservation()
 fn owner_declared_counts_accept_the_boundary_and_refuse_one_more_by_name() {
     let declared = Declared { tools: 2, history_items: 3, ..DECLARED };
     let derived = Limits::derive(&declared).unwrap();
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let mut bounds = derived.dialect(provider);
         bounds.http.request = 4096;
         bounds.http.read = 256;
         bounds.http.send = 256;
         bounds.sse.chunk = 256;
         let endpoint = match provider {
-            Provider::OpenAiCodex | Provider::OpenAi => crate::Endpoint::codex(),
+            Provider::OpenAi => crate::Endpoint::openai(),
             Provider::Anthropic => crate::Endpoint::anthropic(),
         };
         let credential = match provider {
-            Provider::OpenAiCodex | Provider::OpenAi => crate::Credential {
-                scheme: crate::Scheme::Bearer,
-                value: b"fake".as_slice().into(),
-                account_id: b"fake".as_slice().into(),
-            },
+            Provider::OpenAi => crate::Credential { scheme: crate::Scheme::Bearer, value: b"fake".as_slice().into() },
             Provider::Anthropic => crate::Credential::key(b"fake".as_slice().into()),
         };
         let schema = Json::from_bytes(b"{}", &DocumentLimits { bytes: 2, strings: 2, depth: 2, tokens: 2 }).unwrap();
@@ -223,4 +222,19 @@ fn the_public_route_takes_the_head_floor() {
     const HEAD_FIELDS: u32 = 128;
     let bounds = Limits::derive(&DECLARED).unwrap().dialect(Provider::OpenAi);
     assert_eq!((bounds.http.head, bounds.http.headers, bounds.error_bytes), (HEAD_BYTES, HEAD_FIELDS, HEAD_BYTES));
+}
+
+#[test]
+fn synthetic_public_decoder_constants_match_the_responses_measurements() {
+    let constants = &super::OPENAI;
+    // llm.md, sections 4.2 and 7: measured Responses projection and policy floors.
+    assert_eq!(constants.response_head, 16_384);
+    assert_eq!(constants.response_fields, 128);
+    assert_eq!(constants.error_bytes, 16_384);
+    assert_eq!(constants.detail_bytes, 1024);
+    assert_eq!(constants.metadata, 86);
+    assert_eq!(constants.fixed_tokens, 30);
+    assert_eq!(constants.fixed_text, 196);
+    assert_eq!(constants.event_field, 38);
+    assert_eq!(constants.depth, 32);
 }
