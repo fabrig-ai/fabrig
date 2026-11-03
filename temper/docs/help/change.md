@@ -13,7 +13,9 @@ A change is a task that writes one repository's branch and lands it: its pull re
   With the control family, a run names, too, `landing` (`goal`, a
   branch, or the default), `branch` (`mine`: its goal branch, landed
   whole), `after` (what it waits for: task numbers, or names from the
-  same call) and `changes` (several at once, all or none).
+  same call), `repairs` (the red landing it repairs, by its merge
+  commit's digits as the red's news names them: temper help tier) and
+  `changes` (several at once, all or none).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·
@@ -30,9 +32,11 @@ A change is a task that writes one repository's branch and lands it: its pull re
   each verdict at the head it judged, cut from the end and marked when
   long. It names no check or test the change didn't see. Where tiers
   follow its landing branch (temper help tier), the result waits for
-  their verdicts and adds a line, `Cleared by TIER run N.`, or `Not
-  cleared: no verdict within the verification bound.` Or it fails,
-  or is cancelled, as any task. A coder that concludes the request does
+  their verdicts and adds a line, `Cleared by TIER run N.`, for a
+  landing once red, `Cleared by TIER run N, which passed the failures
+  blamed on it; repaired by COMMIT.` where a change naming it repaired
+  it, or `Not cleared: no verdict within the verification bound.` Or it
+  fails, or is cancelled, as any task. A coder that concludes the request does
   not apply ends it successfully, saying why, with no pull request and
   nothing claimed landed; one that fails for good holds it at
   `producing` (below).
@@ -41,10 +45,8 @@ A change is a task that writes one repository's branch and lands it: its pull re
 
 Its steps, as `step:` prints them:
 
-- `producing`: the coder writes the change in its files, and temper
-  pushes its work as the change's branch once it finishes; a coder
-  that fails holds it here, with its words; a coder that explicitly
-  concludes no change applies ends the change successfully;
+- `producing`: the coder writes the change, and temper
+  pushes its work as the change's branch once it finishes;
 - `opening`: temper opens its pull request;
 - `checking`: the forge's CI runs at its head, where its landing
   branch's rules ask it;
@@ -99,10 +101,10 @@ is missing on the forge`, `its pull request was closed on the forge`,
 failed for good`, or `a person rejected a gate`. A release resets its
 counts and goes on from where it was held; held at `producing` because
 its coder failed for good before pushing, it makes a fresh coder, one
-more of its tasks, or holds again if its authority can't cover one.
+more of its tasks.
 Held at `repairing` because its repair failed for good, release makes
 a fresh repair for the same reason, counted against its reset repair
-limit, or holds again if its authority can't cover one.
+limit. Either holds again if its authority can't cover one.
 Held at `producing`, its hold carries the coder's own words, why it
 made no change, whole within 512 bytes, and its chat hears them:
 cancel it if they hold, or release it if the coder was wrong. Its
@@ -129,8 +131,6 @@ forge's answer).
   show` prints each, `gate 1 · review · blocking · approved`; temper
   posts none to the forge as a review or a status, so the pull
   request's reviews there may be empty.
-- **Bounded work:** past a limit of repairs, resolutions or updates,
-  it holds.
 - **The parent hears its result,** landed, and cleared where tiers follow its branch, or not.
 
 ## Acting on it
