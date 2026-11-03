@@ -66,7 +66,7 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   private regular file owned by this user`; `account import` says
   `record file`.
 - **A secret's bounds:** a model's key holds 1 to 4096 bytes and a
-  forge's 1 to 4089, once one final newline is trimmed; an account's
+  forge's 1 to 4085, once one final newline is trimmed; an account's
   record at most 131072.
 - **The deployment's own secrets** (its workers' secrets, Google's
   client secret) are private files too: a start refuses one readable by
@@ -78,8 +78,8 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   `me` reads it; temper help ctl gives the loop.
 - **The secrets' tools:** `account add-key`, `account replace-key` and
   `account import` read a model's key or an account's record (temper
-  help account); `forge connect` reads a forge's key or token (temper
-  help forge).
+  help account); `forge connect` and `forge replace` read a forge's key or
+  tokens (temper help forge).
 - **People:** a person joins a deployment that signs in with Google by
   a change of its configuration and a restart (temper help server).
 

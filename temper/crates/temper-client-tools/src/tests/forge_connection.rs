@@ -126,16 +126,6 @@ fn install_sends_no_back_or_value_and_accepts_an_optional_key() {
     }
 }
 #[test]
-fn unoffered_ways_exit_two_without_reading_or_sending_a_value() {
-    let words = &["forge", "connect", "3", "forgejo", "tokens", "--key", "app"];
-    let mut root = f::signed_in(f::PARTY);
-    let call = root.submit(words);
-    let printed = root.answer(call).expect("not offered");
-    assert_eq!(printed.status, 2);
-    assert!(skein_lib::bytes::find(&printed.stderr, b"not offered yet").is_some());
-    assert!(root.nothing_sent());
-}
-#[test]
 fn connect_and_install_print_their_durable_outcomes() {
     for json in [false, true] {
         for (words, outcome, status, text, structured) in [
@@ -896,5 +886,271 @@ fn new_managed_forge_refuses_bad_addresses_before_sending() {
         let printed = root.answer(call).expect("invalid address refused locally");
         assert_eq!(printed.status, 1);
         assert!(root.sends.is_empty());
+    }
+}
+
+#[test]
+fn tokens_file_layout_preserves_values_and_names_only_errors() {
+    use crate::forges::tokens::Tokens;
+    let file = b"git git placeholder  \nwebhook_secret hook placeholder\napi api placeholder";
+    let Ok(bundle) = Tokens::read(file, true) else { panic!("connect tokens") };
+    let expected = temper_client_domain::forge::forges::pasted_tokens(
+        Some(b"api placeholder"),
+        Some(b"git placeholder  "),
+        Some(b"hook placeholder"),
+    )
+    .unwrap();
+    assert!(bundle.expose() == expected.expose());
+    for (file, connect, words) in [
+        (b"api placeholder\nother hidden".as_slice(), true, b"tokens file line 2: unknown name".as_slice()),
+        (b"api placeholder\napi hidden", true, b"tokens file line 2: a name twice"),
+        (b"api placeholder\ngit", true, b"tokens file line 2: no value"),
+        (b"api placeholder\ngit ", true, b"tokens file line 2: no value"),
+        (b"api placeholder\n", true, b"tokens file line 2: unknown name"),
+        (b"api placeholder\n\ngit hidden", true, b"tokens file line 2: unknown name"),
+        (b"api placeholder", true, b"tokens file names no git"),
+        (b"git placeholder", true, b"tokens file names no api"),
+        (b"webhook_secret placeholder", false, b"tokens file names no token"),
+    ] {
+        let Err(error) = Tokens::read(file, connect) else { panic!("invalid tokens file accepted") };
+        assert_eq!(error.words().as_ref(), words);
+    }
+}
+
+const TOKENS: &[&str] = &["forge", "connect", "3", "forgejo", "tokens", "--key", "tokens"];
+const NEW_TOKENS: &[&str] = &[
+    "forge",
+    "connect",
+    "forgejo",
+    "tokens",
+    "--api",
+    "forge.invalid:3000",
+    "--git",
+    "https://forge.invalid/git",
+    "--key",
+    "tokens",
+];
+const REPLACE: &[&str] = &["forge", "replace", "3", "tokens", "--key", "replace"];
+
+fn token_items() -> [Box<[u8]>; 3] {
+    let mut rng = skein_lib::Rng::new(f::SEED);
+    // Sixteen ASCII bytes per item keep the random values within one line.
+    let mut items = [Box::<[u8]>::from([0; 16]), Box::from([0; 16]), Box::from([0; 16])];
+    for item in &mut items {
+        for byte in item.iter_mut() {
+            *byte = b'a'.checked_add(u8::try_from(rng.below(26)).unwrap()).unwrap();
+        }
+    }
+    items
+}
+fn tokens_file(items: &[Box<[u8]>; 3]) -> Box<[u8]> {
+    let length = items[0]
+        .len()
+        .checked_add(items[1].len())
+        .unwrap()
+        .checked_add(items[2].len())
+        .unwrap()
+        .checked_add(b"git \nwebhook_secret \napi ".len())
+        .unwrap();
+    let mut file = skein_lib::Writer::new(length);
+    for (prefix, item) in [(b"git ".as_slice(), &items[1]), (b"\nwebhook_secret ", &items[2]), (b"\napi ", &items[0])] {
+        file.put(prefix).unwrap();
+        file.put(item).unwrap();
+    }
+    file.finish()
+}
+fn no_items(printed: &crate::jig::Printed, items: &[Box<[u8]>; 3]) {
+    for bytes in [&printed.stdout, &printed.stderr] {
+        for item in items {
+            assert!(skein_lib::bytes::find(bytes, item).is_none());
+        }
+    }
+}
+#[test]
+fn tokens_connect_carries_the_items_for_kept_and_new_connected_forges() {
+    let items = token_items();
+    let file = tokens_file(&items);
+    let expected =
+        temper_client_domain::forge::forges::pasted_tokens(Some(&items[0]), Some(&items[1]), Some(&items[2])).unwrap();
+    for json in [false, true] {
+        for words in [TOKENS, NEW_TOKENS] {
+            let mut root = f::signed_in(f::PARTY);
+            let call = root.submit_prepared(f::call(words), json, Some(Secret::new(file.clone())));
+            let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
+            let w::How::ForgejoTokens(_) = connect.how() else { panic!("tokens connect") };
+            match connect.forge() {
+                w::Making::Kept(kept) => assert_eq!(kept.forge(), 3),
+                w::Making::New(new) => {
+                    let w::ForgeAsk::Connected(forge) = new.forge() else { panic!("connected forge") };
+                    assert_eq!(forge.host(), b"forge.invalid");
+                    assert_eq!(forge.port(), 3000);
+                    assert_eq!(forge.git(), b"https://forge.invalid/git");
+                    assert!(forge.tls().is_none());
+                    assert!(forge.web().is_none());
+                    assert!(forge.git_program().is_none());
+                }
+            }
+            assert!(root.carried[&call].expose() == expected.expose());
+            assert!(root.saved.is_empty());
+            assert!(root.answer(call).is_none());
+            root.adoption_answer(call, w::Outcome::Connecting);
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 0);
+            assert_eq!(
+                printed.stdout.as_ref(),
+                if json {
+                    br#"{"connecting":{}}"#
+                } else if words == TOKENS {
+                    b"connecting\ntemper ctl DIR forge list --until connected:3\n".as_slice()
+                } else {
+                    b"connecting\n"
+                }
+            );
+            no_items(&printed, &items);
+        }
+    }
+}
+#[test]
+fn new_tokens_connect_preserves_optional_addresses_and_git_program() {
+    let mut root = f::signed_in(f::PARTY);
+    let words = f::extended(
+        NEW_TOKENS,
+        &["--tls", "forge.invalid", "--web", "https://forge.invalid", "--git-program", "/data/bin/git"],
+    );
+    let call = root.submit_value(words.as_slice(), Some(Secret::new(tokens_file(&token_items()))));
+    let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
+    let w::Making::New(new) = connect.forge() else { panic!("new forge") };
+    let w::ForgeAsk::Connected(forge) = new.forge() else { panic!("connected forge") };
+    assert_eq!(forge.tls().as_deref(), Some(b"forge.invalid".as_slice()));
+    assert_eq!(forge.web().as_deref(), Some(b"https://forge.invalid".as_slice()));
+    assert_eq!(forge.git_program().as_deref(), Some(b"/data/bin/git".as_slice()));
+}
+#[test]
+fn broken_tokens_files_send_nothing_and_name_the_line_without_values() {
+    for json in [false, true] {
+        for words in [TOKENS, NEW_TOKENS, REPLACE] {
+            for (file, why) in [
+                (b"api hidden\nother hidden".as_slice(), b"tokens file line 2: unknown name".as_slice()),
+                (b"api hidden\napi hidden", b"tokens file line 2: a name twice"),
+                (b"api hidden\ngit", b"tokens file line 2: no value"),
+                (b"api hidden\ngit ", b"tokens file line 2: no value"),
+                (b"api hidden\n\ngit hidden", b"tokens file line 2: unknown name"),
+                (b"api hidden\ngit hidden\n", b"tokens file line 3: unknown name"),
+                (b"api\thidden\ngit hidden", b"tokens file line 1: unknown name"),
+            ] {
+                let mut root = f::signed_in(f::PARTY);
+                let call = root.submit_prepared(f::call(words), json, Some(Secret::new(file.into())));
+                let printed = root.answer(call).unwrap();
+                assert_eq!(printed.status, 1);
+                assert!(root.nothing_sent());
+                assert!(skein_lib::bytes::find(&printed.stderr, why).is_some());
+                assert!(skein_lib::bytes::find(&printed.stderr, b"hidden").is_none());
+            }
+        }
+    }
+}
+#[test]
+fn tokens_files_require_both_connect_tokens_and_at_least_one_replace_token() {
+    for (words, file, why) in [
+        (TOKENS, b"api hidden".as_slice(), b"tokens file names no git".as_slice()),
+        (NEW_TOKENS, b"git hidden", b"tokens file names no api"),
+        (REPLACE, b"webhook_secret hidden", b"tokens file names no token"),
+    ] {
+        for json in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let call = root.submit_prepared(f::call(words), json, Some(Secret::new(file.into())));
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 1);
+            assert!(root.nothing_sent());
+            assert!(skein_lib::bytes::find(&printed.stderr, why).is_some());
+            assert!(skein_lib::bytes::find(&printed.stderr, b"hidden").is_none());
+        }
+    }
+}
+#[test]
+fn replace_carries_one_key_or_the_given_tokens_then_prints_the_wait() {
+    let items = token_items();
+    let file = tokens_file(&items);
+    let header = b"-----BEGIN RSA PRIVATE KEY-----\n";
+    let mut pem = skein_lib::Writer::new(header.len().checked_add(items[0].len()).unwrap());
+    pem.put(header).unwrap();
+    pem.put(&items[0]).unwrap();
+    let pem = pem.finish();
+    for (file, expected) in [
+        (pem.as_ref(), temper_client_domain::forge::forges::pasted_app_key(&pem).unwrap()),
+        (
+            file.as_ref(),
+            temper_client_domain::forge::forges::pasted_tokens(Some(&items[0]), Some(&items[1]), Some(&items[2]))
+                .unwrap(),
+        ),
+        (
+            b"api api placeholder".as_slice(),
+            temper_client_domain::forge::forges::pasted_tokens(Some(b"api placeholder"), None, None).unwrap(),
+        ),
+        (
+            b"git git placeholder".as_slice(),
+            temper_client_domain::forge::forges::pasted_tokens(None, Some(b"git placeholder"), None).unwrap(),
+        ),
+    ] {
+        for json in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let call = root.submit_prepared(f::call(REPLACE), json, Some(Secret::new(file.into())));
+            let w::Request::Replace(replace) = request(&root, call) else { panic!("replace") };
+            assert_eq!(replace.forge(), 3);
+            assert!(root.carried[&call].expose() == expected.expose());
+            assert!(root.saved.is_empty());
+            assert!(root.answer(call).is_none());
+            root.adoption_answer(call, w::Outcome::Connecting);
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 0);
+            assert_eq!(
+                printed.stdout.as_ref(),
+                if json {
+                    br#"{"connecting":{}}"#.as_slice()
+                } else {
+                    b"connecting\ntemper ctl DIR forge list --until connected:3\n"
+                }
+            );
+            no_items(&printed, &items);
+            for value in [b"api placeholder".as_slice(), b"git placeholder"] {
+                assert!(skein_lib::bytes::find(&printed.stdout, value).is_none());
+                assert!(skein_lib::bytes::find(&printed.stderr, value).is_none());
+            }
+        }
+    }
+}
+#[test]
+fn tokens_connect_and_replace_print_engine_refusals_with_exit_two() {
+    for words in [TOKENS, NEW_TOKENS, REPLACE] {
+        for (why, text, structured) in [
+            (
+                w::ForgeRefusal::NotConnected,
+                b"not connected: connect it first\n".as_slice(),
+                br#"{"refused":{"why":"not_connected"}}"#.as_slice(),
+            ),
+            (
+                w::ForgeRefusal::Connected,
+                b"connected already: forge replace replaces its key or tokens\n",
+                br#"{"refused":{"why":"connected"}}"#,
+            ),
+        ] {
+            for json in [false, true] {
+                let items = token_items();
+                let mut root = f::signed_in(f::PARTY);
+                let call = root.submit_prepared(f::call(words), json, Some(Secret::new(tokens_file(&items))));
+                let bounds = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).unwrap();
+                root.adoption_answer(
+                    call,
+                    w::Outcome::ConnectRefused(
+                        w::ConnectRefused::new(&bounds, w::ConnectRefusedParts { why: why.clone() }).unwrap(),
+                    ),
+                );
+                let printed = root.answer(call).unwrap();
+                assert_eq!(printed.status, 2);
+                assert!(printed.stdout.is_empty());
+                assert_eq!(printed.stderr.as_ref(), if json { structured } else { text });
+                no_items(&printed, &items);
+            }
+        }
     }
 }

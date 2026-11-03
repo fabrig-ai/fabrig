@@ -60,7 +60,7 @@ pub const SET_UP: Tool = Tool {
 };
 pub const CONNECT: Tool = Tool {
     name: b"forge connect",
-    line: b"Connect GitHub through an App, or a Forgejo as its site admin",
+    line: b"Connect GitHub through an App, or a Forgejo by its tokens or as its site admin",
     prints: b"`connecting`, then the wait to make; for github, the address to open in a browser",
     result: b"forge-connect",
     forms: &[
@@ -89,8 +89,8 @@ pub const CONNECT: Tool = Tool {
         ],
         &[
             positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Required, b"The Forgejo's forge number"),
-            positional(b"way", b"forgejo", Kind::Word { set: &[b"forgejo"] }, Required, b"Not offered yet"),
-            positional(b"file", b"FILE", Kind::Literal, Required, b"Not offered yet; no file is read"),
+            positional(b"way", b"forgejo", Kind::Word { set: &[b"forgejo"] }, Required, b"As a Forgejo user, by their tokens"),
+            positional(b"file", b"FILE", Kind::File, Required, b"The private tokens file of the Forgejo user"),
         ],
         &[
             positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Required, b"The Forgejo's forge number"),
@@ -157,10 +157,32 @@ pub const CONNECT: Tool = Tool {
             flag(b"web", b"URL", Kind::Literal, Optional, b"The web address"),
             flag(b"git-program", b"FILE", Kind::Literal, Optional, b"The git executable; the worker's git when absent"),
         ],
+        &[
+            positional(b"way", b"forgejo", Kind::Word { set: &[b"forgejo"] }, Required, b"As a Forgejo user, by their tokens"),
+            positional(b"file", b"FILE", Kind::File, Required, b"The private tokens file of the Forgejo user"),
+            flag(b"api", b"HOST:PORT", Kind::Literal, Required, b"The Forgejo API host and port"),
+            flag(b"tls", b"NAME", Kind::Literal, Optional, b"The TLS server name; plaintext when absent"),
+            flag(b"git", b"URL", Kind::Literal, Required, b"The git address"),
+            flag(b"web", b"URL", Kind::Literal, Optional, b"The web address"),
+            flag(b"git-program", b"FILE", Kind::Literal, Optional, b"The git executable; the worker's git when absent"),
+        ],
     ],
     keyed: Keyed::Required,
     area: 6,
-    notes: b"The key or token file holds 1 to 4085 bytes after one final\nnewline is trimmed. Then forge list --until connected:FORGE, or,\nafter a browser, --until settled.\nWith `--first`, it goes on to make and adopt that repository, and\nprints its project. `connected already` (exit 2): the forge holds a\nkey, which this build cannot replace.\n",
+    notes: b"The key or tokens file holds 1 to 4085 bytes after one final\nnewline is trimmed. Then forge list --until connected:FORGE, or,\nafter a browser, --until settled.\nA tokens file has one `NAME VALUE` line per item: api, git and\nwebhook_secret, each at most once, one space then a nonempty value\nto the line's end; no other line. Connect needs api and git.\nWith `--first`, it goes on to make and adopt that repository, and\nprints its project. `connected already` (exit 2): the forge holds a\nkey or tokens; forge replace replaces them.\n",
+};
+pub const REPLACE: Tool = Tool {
+    name: b"forge replace",
+    line: b"Replace a forge's App key, or a Forgejo's tokens",
+    prints: b"`connecting`, then `forge list --until connected:FORGE`",
+    result: b"forge-replace",
+    forms: &[&[
+        positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Required, b"The connected or stopped forge's number"),
+        positional(b"file", b"FILE", Kind::File, Required, b"The private file of the App's new PEM key, or the Forgejo user's tokens"),
+    ]],
+    keyed: Keyed::Required,
+    area: 6,
+    notes: b"On GitHub, the new key must be of the same App. On a connected\nForgejo, the tokens must answer as the same user: api, git or both,\nand webhook_secret when its hooks' secret changes. Each new value\nreplaces the old, then the forge connects with them. A tokens file\nhas one `NAME VALUE` line per item: api, git and webhook_secret,\neach at most once, one space then a nonempty value to the line's\nend; no other line. A value is never printed. `not connected`\n(exit 2): connect it first. `busy` (exit 2): it is connecting.\n",
 };
 pub const INSTALL: Tool = Tool {
     name: b"forge install",
@@ -213,6 +235,7 @@ pub const REPOSITORIES: Tool = Tool {
 };
 mod connection;
 mod repositories;
+pub(crate) mod tokens;
 pub const DEMO_START: Tool = Tool {
     name: b"playground start",
     line: b"Start the playground; run it again to finish what is not done",
@@ -377,6 +400,7 @@ pub(crate) fn owns(call: &jig::call::Call) -> bool {
         || name == REMOVE.name
         || name == PLAYGROUND_END.name
         || name == CONNECT.name
+        || name == REPLACE.name
         || name == INSTALL.name
         || name == ACCEPT.name
         || name == REPOSITORIES.name
