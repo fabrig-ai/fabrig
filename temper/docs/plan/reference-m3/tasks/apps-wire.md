@@ -115,3 +115,18 @@ option and left the review's application items to this task, so
   `startup/problems.rs` and `store/settings_bytes.rs`: each `apps-wire` arm replaced by its
   real handling (an application's setting named by its numbers, a judged refusal by its
   words, an application's value as its bytes), the arm alone.
+
+2026-11-03. **Q:** a reset's size after the edit has no source when the setting is changed or
+removed now: show it as unknown (A), or have the core keep each default's size apart (B)?
+
+**A:** A, in the design's own terms; the skeleton is unchanged. The core keeps an
+application setting's state and its current value's size, never a default's apart
+(`jig/docs/design/domain/engine.md`, 17.5, **The core keeps the rest**), and a revision's
+record already gives a reset no size. So a review item of an application's setting carries
+the set's `SizedEdit` as it is and the setting's state now (`Follows`, size, charters):
+the size after the edit is a `Set`'s own size, none for a removal, and a reset says only
+that the setting returns to its default, with no size; the application's own reads serve
+the default and its size (`jig/docs/design/client/domain/contract.md`, 5.1, "the
+application serving its values"). No separate "unknown" marker, no zero for a size, no ask
+to a connector during review, no change to `State` or the store. Keeping defaults' sizes in
+the core is not this milestone's; leave it.
