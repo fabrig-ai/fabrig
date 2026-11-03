@@ -127,6 +127,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         change_panel_branch: bounds.field_bytes,
         change_panel_landing: bounds.field_bytes,
         change_panel_gates: GATES,
+        question_line: 256,
+        questions_open: 8,
         managed_forge_host: 255,
         managed_forge_tls_some: 255,
         managed_forge_git: ADDRESS_BYTES,

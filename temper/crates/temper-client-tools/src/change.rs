@@ -26,7 +26,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 pub const READ: Tool = Tool {
     name: b"change show",
     line: b"Read a change's way to landing: its pull request, CI and step",
-    prints: b"`change N`, its repository, branch and landing branch, its pull request, step and CI at its head, and a digest",
+    prints: b"`change N`, its repository, branch and landing branch, its pull request, step and CI at its head; its questions: the route, those taken of its bound, and each open question with where it stands; and a digest",
     result: b"change",
     forms: &[&[
         positional(b"task", b"TASK", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"The change task's number"),
@@ -1036,6 +1036,7 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
         out.key(key);
         used_json(used, out);
     }
+    encode_questions(panel.questions(), out);
     encode_holds(holds, out);
     if let Some(digest) = digest {
         out.key(b"digest");
@@ -1176,6 +1177,7 @@ fn text(
             out.put(b"\n");
         }
         text_checks(panel, out);
+        text_questions(panel.questions(), out);
         if let Some(digest) = digest {
             out.put(b"digest: ");
             out.put(&digest.hex());
@@ -1378,5 +1380,87 @@ fn progress(step: &w::Step) -> Progress {
         | w::Step::Resolving
         | w::Step::Repairing(_)
         | w::Step::Landing => Progress::Before,
+    }
+}
+
+fn route(route: &w::Route) -> &'static [u8] {
+    match route {
+        w::Route::None => b"none",
+        w::Route::Foreman => b"foreman",
+        w::Route::Up => b"up",
+    }
+}
+fn stands(stands: &w::Stands) -> &'static [u8] {
+    match stands {
+        w::Stands::Taken => b"taken",
+        w::Stands::Foreman(_) => b"foreman",
+        w::Stands::Asked => b"asked",
+        w::Stands::Held => b"held",
+    }
+}
+fn encode_questions(questions: &w::Questions, out: &mut Encoder) {
+    out.key(b"questions");
+    out.object_start();
+    out.key(b"route");
+    out.string(route(questions.route()));
+    out.key(b"taken");
+    out.unsigned(u64::from(questions.taken().used()));
+    out.key(b"limit");
+    out.unsigned(u64::from(questions.taken().limit()));
+    out.key(b"open");
+    out.array_start();
+    for question in questions.open() {
+        out.object_start();
+        out.key(b"asker");
+        out.unsigned(question.asker());
+        out.key(b"number");
+        out.unsigned(question.number());
+        out.key(b"line");
+        out.string(question.line());
+        out.key(b"stands");
+        out.string(stands(question.stands()));
+        if let w::Stands::Foreman(foreman) = question.stands()
+            && let Some(task) = foreman.task()
+        {
+            out.key(b"foreman");
+            out.unsigned(*task);
+        }
+        out.object_end();
+    }
+    out.array_end();
+    out.object_end();
+}
+fn text_questions(questions: &w::Questions, out: &mut Text) {
+    out.put(b"questions: ");
+    out.put(route(questions.route()));
+    if *questions.route() != w::Route::None || questions.taken().used() != 0 {
+        out.put(b" \xc2\xb7 ");
+        out.number(u64::from(questions.taken().used()));
+        out.put(b" of ");
+        out.number(u64::from(questions.taken().limit()));
+        out.put(b" taken");
+    }
+    out.put(b"\n");
+    for question in questions.open() {
+        out.put(b"  question ");
+        out.number(question.number());
+        out.put(b" of task ");
+        out.number(question.asker());
+        out.put(b" \xc2\xb7 ");
+        match question.stands() {
+            w::Stands::Taken => out.put(b"taken"),
+            w::Stands::Foreman(foreman) => {
+                out.put(b"with foreman");
+                if let Some(task) = foreman.task() {
+                    out.put(b" ");
+                    out.number(*task);
+                }
+            }
+            w::Stands::Asked => out.put(b"asked of requester"),
+            w::Stands::Held => out.put(b"answered, held for dependencies"),
+        }
+        out.put(b" \xc2\xb7 ");
+        out.put(question.line());
+        out.put(b"\n");
     }
 }

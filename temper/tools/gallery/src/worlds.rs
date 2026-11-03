@@ -516,6 +516,15 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
                 repairs: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("repairs"),
                 resolutions: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("resolutions"),
                 updates: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("updates"),
+                questions: w::Questions::new(
+                    &w::CEILINGS,
+                    w::QuestionsParts {
+                        route: w::Route::None,
+                        taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                        open: List::with_capacity(0),
+                    },
+                )
+                .expect("no questions"),
             },
         )
         .expect("change panel"),
