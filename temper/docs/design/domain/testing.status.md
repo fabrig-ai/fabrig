@@ -22,8 +22,8 @@
   story connects the probe App without `--read-only`, so its record's
   `read_only` is false (`crates/temper/tests/support/live_github.rs`).
   2.7: the owned-forge
-  landing pair has not passed after a landing (the runner is fab's, in the
-  agents repository): neither story has passed live on its own store, the
+  landing pair has not passed in the after-landing tier: neither story
+  has passed live on its own store, the
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`). 4.3: the shell subset;
