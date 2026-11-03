@@ -3,7 +3,7 @@ id = "room-checks"
 part = "room"
 kind = "feature"
 needs = ["room-table", "stock-configuring", "agent-kinds"]
-files = ["temper/crates/temper-engine-domain/src/route.rs", "temper/crates/temper-engine-domain/src/route/tools.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/tests/room_checks.rs", "temper/crates/temper-engine-domain/src/tests.rs", "temper/crates/temper-service/src/startup.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-service/src/tests/room.rs", "temper/crates/temper-service/src/tests.rs", "temper/docs/design/domain/agent.status.md"]
+files = ["temper/crates/temper-engine-domain/src/route.rs", "temper/crates/temper-engine-domain/src/route/tools.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/tests/room_checks.rs", "temper/crates/temper-engine-domain/src/tests.rs", "temper/crates/temper-service/src/startup.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-service/src/tests/room.rs", "temper/crates/temper-service/src/tests.rs", "temper/docs/design/domain/agent.status.md", "temper/crates/temper-service/src/lib.rs", "temper/crates/temper-service/src/stop.rs", "temper/crates/temper/src/host.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -89,3 +89,25 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and each stock charter's room in the small profile.
+
+## Answers
+
+2026-11-03. May the stored-charter start refusal add its diagnostic in
+`temper-service/src/lib.rs`, `temper-service/src/stop.rs` and `temper/src/host.rs`?
+Yes: the acceptance's stored-change start refusal cannot be said without it, and no
+existing case carries a charter's room. The three files are added to `files`, for this
+diagnostic alone:
+
+- `domain.rs`: `StartStop::Room(room::Short)`, set by the root's check of the current
+  charters once `LoadCore` has restored the stored settings and before the next phase
+  (the pre-approved first-decision option).
+- `lib.rs`: `Stop::Room(temper_engine_domain::room::Short)`; `stop.rs` maps
+  `StartStop::Room` to it.
+- `host.rs`: `ending` renders it as the start's other refusals are,
+  `temper serve: restart refused: ` and `Short::words()`, with a row in its existing
+  table of endings.
+- No store, wire or jig change; jig's `start::Failure` stays as it is.
+
+The rest of the acceptance stands as written: the accepted stored proposal and reset not
+checked, the run's error and its next call decided, the status sentence removed, and
+the focused suites and worlds the spec names.
