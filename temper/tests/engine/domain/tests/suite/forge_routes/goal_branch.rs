@@ -13,6 +13,141 @@ const FIRST_RUN: usize = 0;
 const PRODUCER_RUN: usize = 1;
 const ONE_MERGE: u32 = 1;
 const GOAL_BUDGET: u64 = 300; // Leaves 200 of the owner's 500 units for an outside chat.
+const REFERENCE_BUDGET: u64 = 2_500_000;
+
+fn reference_template() -> jig_domain_core::Template {
+    use jig_client::contract as c;
+    let limits = temper_client_tools::limits::tools();
+    let decoded = temper_client_tools::jig::settings_file::decode(
+        include_bytes!("../../../../../../docs/examples/reference/settings.json"),
+        &limits,
+    )
+    .expect("shipped reference settings");
+    let mut item = decoded
+        .into_boxed()
+        .into_vec()
+        .into_iter()
+        .find(|item| item.setting == c::Setting::Template(c::SettingNumber { number: 4 }))
+        .expect("reference template 4");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) = &mut item.edit else {
+        panic!("reference template value")
+    };
+    template.llm = None; // The scripted worker uses the fixture's model.
+    let mut items = skein_lib::List::with_capacity(1);
+    items.push(item).expect("one template");
+    let ask = c::Ask::ChangeSettings(c::ChangeSettings { against: 1, items, running: c::Running::Stays });
+    let jig_client_protocol_wire::Ask::ChangeSettings(change) =
+        jig_client_protocol_link::translate::asks::ask(&ask, &limits.settings).expect("settings wire")
+    else {
+        panic!("settings change")
+    };
+    let items = jig_protocol_engine_clients::translate::settings::items(change.items().into(), &[], &limits.settings)
+        .expect("reference template reaches the core");
+    let jig_domain_core::settings::Edit::Set(jig_domain_core::settings::Value::Template(template)) =
+        items.into_vec().pop().expect("one template").edit
+    else {
+        panic!("core template value")
+    };
+    *template
+}
+
+fn reference_defaults() -> jig_domain_core::settings::Defaults {
+    let llm = jig_protocol_config::Llm {
+        endpoints: Box::new([]),
+        providers: Box::new([]),
+        descriptions: Box::new([None]),
+        models: Box::new([stock::box_model()]),
+    };
+    let mut defaults = temper_service::stock::defaults(&llm);
+    // Admission needs charter 5; the scripted world takes the stock run policy,
+    // whose model and document requirements fit its fake worker and repository.
+    let mut coordinator = defaults.charters[0].clone();
+    coordinator.number = 5;
+    coordinator.documents = Box::new([]);
+    defaults.charters = [defaults.charters.as_ref(), &[coordinator]].concat().into();
+    defaults.templates = [defaults.templates.as_ref(), &[reference_template()]].concat().into();
+    defaults.rules.period_spend = REFERENCE_BUDGET;
+    reference_authority(&mut defaults.rules.ceiling);
+    let policy = defaults.policies.get_mut(&1).expect("stock project policy");
+    policy.policy.period_spend = REFERENCE_BUDGET;
+    reference_authority(&mut policy.policy.ceiling);
+    for role in &mut policy.policy.roles {
+        reference_authority(&mut role.authority);
+        role.period_spend = REFERENCE_BUDGET;
+    }
+    defaults
+}
+
+fn reference_authority(authority: &mut authority::Authority) {
+    authority.budget.spend = REFERENCE_BUDGET;
+    authority.delegation.kinds =
+        [authority.delegation.kinds.as_ref(), &[authority::Executor::Charter(5)]].concat().into();
+}
+
+fn reference_request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
+    let people::Ask::Create { project, mut batch } = world.chat(1, b"TEXT") else { panic!("goal batch") };
+    let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("coordinator charter") };
+    let tasks::Contract::Report { words } = template.contract else { panic!("goal report") };
+    assert_eq!(template.budget, people::TemplateBudget::Given);
+    assert_eq!(template.deadline, people::TemplateDeadline::Given);
+    let member = &mut batch[0];
+    member.executor = people::TaskExecutor::Agent { charter };
+    member.contract = people::Contract::Report { words };
+    member.budget = people::Budget::Named;
+    member.authority.spend = REFERENCE_BUDGET;
+    // 2026-11-04T13:00Z, the reference walk's deadline.
+    member.authority.deadline = Some(skein_lib::Wall::from_nanos(1_793_797_200_000_000_000));
+    member.deadline = people::Deadline::Named;
+    member.tracked = template.tracked;
+    member.label = template.label;
+    member.flags = people::Flags {
+        conversation: template.flags.conversation,
+        listed: template.flags.listed,
+        retention: people::Retention::Kept,
+        ended_by: people::EndedBy::Result,
+    };
+    assert!(template.llm.is_none());
+    member.llm = None;
+    member.symbols = template
+        .resources
+        .iter()
+        .map(|symbol| people::Symbol { connector: symbol.connector, symbol: symbol.symbol })
+        .collect();
+    people::Ask::Create { project, batch }
+}
+
+#[test]
+fn reference_template_four_starts_on_the_configured_forge() {
+    let defaults = reference_defaults();
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    limits.documents.lines = 8;
+    let mut world = World::configured_stock_limits(&defaults, &stock::box_model(), &limits);
+    world.adopt();
+    let mut event = protocol::hello(Token::new(7), Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("worker hello")
+    };
+    hello.bounds = jig_test_profile::fixtures::bounds();
+    let model = stock::box_model();
+    hello.bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    world.send(event);
+    let template = defaults.templates.iter().find(|template| template.number == 4).expect("template 4");
+    let request = reference_request(&world, template);
+    let outcome = ask(&mut world, GOAL_REQUEST, request);
+    let people::Outcome::Created { first: goal, last, .. } = outcome else {
+        panic!("reference goal must be admitted: {outcome:?}")
+    };
+    assert_eq!(goal, last);
+    world.until(Until::Ready);
+    let branch = format!("temper/{goal}/g{goal}");
+    let mut held = resource(branch.as_bytes());
+    held.connector = 1;
+    assert!(live_task(&world, goal).holdings.contains(&tasks::Holding::Write { resource: held, kind: 1 }));
+    assert_eq!(forge_hold(&world, branch.as_bytes()).expect("exclusive forge hold").task, goal);
+    assert_eq!(branch_tip(&mut world, branch.as_bytes()), branch_tip(&mut world, b"main"));
+    world.close();
+}
 
 pub(super) fn adopted_world() -> World {
     let mut world = World::configured(true, true);
