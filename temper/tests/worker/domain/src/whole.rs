@@ -19,6 +19,7 @@ use temper_worker_domain::{
 use crate::protocol;
 
 pub mod jobs;
+pub mod merge;
 pub mod orders;
 
 const RUN: Token = Token::new(81);

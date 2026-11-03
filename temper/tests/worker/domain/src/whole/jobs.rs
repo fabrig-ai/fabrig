@@ -37,18 +37,20 @@ pub struct Report {
     pub trace: Vec<String>,
 }
 
-struct World {
-    domain: Domain,
+pub(super) struct World {
+    kind: tooling::Kind,
+    pub(super) repository: Box<[u8]>,
+    pub(super) domain: Domain,
     env: Env<temper_worker_domain::Limits>,
     out: Queue<Request>,
     owed: VecDeque<Event>,
-    operations: VecDeque<(Token, tooling::Request)>,
-    disk: Checkout,
-    forge: Forge,
-    workspace: Option<Token>,
+    pub(super) operations: VecDeque<(Token, tooling::Request)>,
+    pub(super) disk: Checkout,
+    pub(super) forge: Forge,
+    pub(super) workspace: Option<Token>,
     held_push: Option<(Token, git::Op)>,
-    report: Report,
-    stops: u32,
+    pub(super) report: Report,
+    pub(super) stops: u32,
 }
 
 fn kind(delivers: bool) -> tooling::Kind {
@@ -60,17 +62,22 @@ fn kind(delivers: bool) -> tooling::Kind {
 }
 
 impl World {
-    fn new(seed: u64, delivers: bool) -> Self {
-        let limits = crate::limits();
+    pub(super) fn new(seed: u64, kind: tooling::Kind, limits: temper_worker_domain::Limits) -> Self {
         let mut forge = Forge::new(seed);
         let first = forge.repository(
             REMOTE,
             b"main",
-            [(b"code".to_vec(), b"original\n".to_vec()), (b"tools/check".to_vec(), b"command\n".to_vec())].into(),
+            [
+                (b"code".to_vec(), b"original\n".to_vec()),
+                ([b"tools/", kind.verb.as_ref()].concat(), b"command\n".to_vec()),
+            ]
+            .into(),
         );
         forge.create_branch(REMOTE, b"topic", first).expect("delivery branch");
         Self {
-            domain: Domain::new(&limits, Box::new([kind(delivers)])),
+            domain: Domain::new(&limits, Box::new([kind.clone()])),
+            kind,
+            repository: b"work".as_slice().into(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
             owed: VecDeque::new(),
@@ -91,7 +98,7 @@ impl World {
         }
     }
 
-    fn event(&mut self, event: Event) {
+    pub(super) fn event(&mut self, event: Event) {
         self.owed.push_back(event);
         for _ in 0..128 {
             while let Some(request) = self.out.pop() {
@@ -125,12 +132,12 @@ impl World {
                 match &op {
                     git::Op::Make { workspace } => self.workspace = Some(*workspace),
                     git::Op::Commit { at, title, body, .. } => {
-                        assert_eq!(at.repository.as_ref(), b"work");
-                        assert_eq!(title.as_ref(), b"job 9");
+                        assert_eq!(at.repository, self.repository);
+                        assert_eq!(title.as_ref(), format!("job {}", self.kind.bound.kind.0).as_bytes());
                         assert!(body.is_empty());
                     }
                     git::Op::Push { at, .. } => {
-                        assert_eq!(at.repository.as_ref(), b"work");
+                        assert_eq!(at.repository, self.repository);
                         self.report.pushes += 1;
                         assert!(self.held_push.replace((owner, op)).is_none());
                         return;
@@ -200,7 +207,7 @@ impl World {
         });
     }
 
-    fn start(&mut self) -> Token {
+    pub(super) fn start(&mut self) -> Token {
         let (owner, op) = self.operations.pop_front().expect("write request");
         let tooling::Request::Write { owner: inner, path, bytes } = op else { panic!("write before spawn") };
         assert_eq!(owner, inner);
@@ -215,8 +222,8 @@ impl World {
         let tooling::Request::Spawn { owner: inner, program, args, env, dir, deadline } = op else { panic!("spawn") };
         assert_eq!(inner, owner);
         assert_eq!(dir.as_ref(), directory);
-        assert_eq!(program.as_ref(), [directory.as_slice(), b"/home/tools/check"].concat());
-        assert_eq!(args.as_ref(), [program.clone(), b"check".as_slice().into(), path]);
+        assert_eq!(program.as_ref(), [directory.as_slice(), b"/home/tools/", self.kind.verb.as_ref()].concat());
+        assert_eq!(args.as_ref(), [program.clone(), self.kind.verb.clone(), path]);
         assert_eq!(
             env.as_ref(),
             [
@@ -227,7 +234,10 @@ impl World {
             ]
         );
         assert_eq!(deadline, self.env.now.saturating_add(Duration::from_secs(5)));
-        assert!(self.disk.exists(&[translate::dir(workspace).as_slice(), b"/home/tools/check"].concat()));
+        assert!(
+            self.disk
+                .exists(&[translate::dir(workspace).as_slice(), b"/home/tools/", self.kind.verb.as_ref()].concat())
+        );
         self.event(Event::Job { owner, event: tooling::Event::Spawned { owner } });
         owner
     }
@@ -254,7 +264,7 @@ impl World {
         self.event(Event::Job { owner, event: tooling::Event::Read { owner, bytes: Some(RESULT.into()) } });
     }
 
-    fn pushed(&mut self, stale: bool) {
+    pub(super) fn pushed(&mut self, stale: bool) {
         let (owner, op) = self.held_push.take().expect("job delivery began");
         if stale {
             self.forge.advance(REMOTE, b"topic", b"code", b"another writer\n");
@@ -268,7 +278,7 @@ impl World {
 #[must_use]
 pub fn run(seed: u64, case: Case) -> Report {
     let delivers = matches!(case, Case::Delivered | Case::Stale | Case::Cancelled);
-    let mut world = World::new(seed, delivers);
+    let mut world = World::new(seed, kind(delivers), crate::limits());
     world.event(Event::Ready);
     assert_eq!(world.report.kinds.as_ref(), [kind(delivers).bound]);
     if case != Case::Hello {
