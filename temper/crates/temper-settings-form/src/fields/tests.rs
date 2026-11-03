@@ -665,7 +665,7 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
     for needle in [
         b"`resources`: list of at most 2, each `symbol`".as_slice(),
         b"Optional; absent means an empty list",
-        b"its own goal branch",
+        b"forge connector 1, symbol 1 is its own goal branch",
     ] {
         let mut found = false;
         for word in page.windows(needle.len()) {
