@@ -400,8 +400,21 @@ impl Domain {
                 "project landing configuration bounded and supported"
             );
         }
-        let root_config =
-            RootConfig { forge_connector, forge_charter: config.forge_charter, landings: config.landing.landings };
+        let mut merge_kind = None;
+        for bound in &config.core.jobs {
+            if bound.kind.0 == forge::MERGE_KIND {
+                merge_kind = Some(*bound);
+            }
+        }
+        if let Some(bound) = merge_kind {
+            forge.merge_kind(bound.spec, bound.result);
+        }
+        let root_config = RootConfig {
+            merge_kind,
+            forge_connector,
+            forge_charter: config.forge_charter,
+            landings: config.landing.landings,
+        };
         let link_rng = skein_lib::Rng::new(config.core.seed);
         let mut core = Core::new(config.core, &core_limits(limits))?;
         // temper/docs/design/domain/agent.md, 8.2: the person answers in their inbox.

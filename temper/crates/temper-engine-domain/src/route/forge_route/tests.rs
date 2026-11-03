@@ -1876,3 +1876,46 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
     assert!(domain.forge_effects.is_empty());
     assert!(domain.work.is_empty());
 }
+
+/// temper/docs/design/domain/worker.md, 4.4: the root writes C2's worker record.
+#[test]
+fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
+    use temper_protocol_worker_wire::v1;
+    for (head, head_text) in COMMITS {
+        for (base, base_text) in COMMITS {
+            let bytes = super::merge::spec(b".temper/merge", head, base, 4096).expect("merge spec");
+            let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+            assert_eq!(decoded.command(), b".temper/merge");
+            let expected = alloc::format!(
+                "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
+                core::str::from_utf8(head_text).unwrap(),
+                core::str::from_utf8(base_text).unwrap(),
+            );
+            assert_eq!(decoded.request(), expected.as_bytes());
+            let bound = u32::try_from(bytes.len()).unwrap();
+            assert_eq!(super::merge::spec(b".temper/merge", head, base, bound), Some(bytes));
+            assert_eq!(super::merge::spec(b".temper/merge", head, base, bound - 1), None);
+        }
+    }
+}
+
+/// temper/docs/design/domain/forge.md, 8.4: a resolution carries the job's result within its words' room.
+#[test]
+fn a_resolution_after_a_merge_job_carries_its_result() {
+    const OPENING: &[u8] = b"Resolve the merge conflict and push the merge commit";
+    const PREFIX: &str = "Resolve the merge conflict and push the merge commit\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
+    const RESULT: &[u8] = b"{\"settled\":[\"a\"],\"left\":[\"b\"]}";
+    let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
+    let full = alloc::format!("{PREFIX}{}", core::str::from_utf8(RESULT).unwrap());
+    let bound = u32::try_from(full.len() + 40).unwrap();
+    assert_eq!(super::merge::resolution_words(None, &parameters, bound).as_ref(), OPENING);
+    assert_eq!(super::merge::resolution_words(Some(RESULT), &parameters, bound).as_ref(), full.as_bytes());
+    let cut_bound = u32::try_from(PREFIX.len() + 40 + 12).unwrap();
+    let cut = super::merge::resolution_words(Some(RESULT), &parameters, cut_bound);
+    assert_eq!(cut.as_ref(), alloc::format!("{PREFIX}{}...", core::str::from_utf8(&RESULT[..9]).unwrap()).as_bytes());
+    assert_eq!(cut.len() + 40, usize::try_from(cut_bound).unwrap());
+    assert_eq!(
+        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
+        Some((super::forge_change::Status::Passed, false, false))
+    );
+}

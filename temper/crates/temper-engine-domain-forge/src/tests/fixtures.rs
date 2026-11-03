@@ -184,6 +184,7 @@ pub fn step_change(d: &mut Domain) {
     outputs(
         d,
         Event::StepChange {
+            merge_job: false,
             task: CHANGE,
             entry: OPEN + 1,
             heard: change::Heard {
