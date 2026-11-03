@@ -20,6 +20,7 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
                 return Err(Failure { setting: item.setting, fault: Fault::Shape });
             }
             Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {}
+            Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         }
         for earlier in items.iter().take(at) {
             if item.setting == earlier.setting {

@@ -392,6 +392,7 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                         }
                     }
                     settings::Value::Rules(_) => {}
+                    settings::Value::Application(_) => unreachable!("an application's setting: apps-core"),
                 }
             }
             settings::Edit::Removed | settings::Edit::Reset => {}

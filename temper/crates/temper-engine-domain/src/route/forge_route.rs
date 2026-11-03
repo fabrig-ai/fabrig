@@ -4382,6 +4382,13 @@ pub(crate) fn effect_ask(
         | jig_domain_core::effects::connector::Ask::Restore { .. }
         | jig_domain_core::effects::connector::Ask::ReadAfresh
         | jig_domain_core::effects::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
+        jig_domain_core::effects::connector::Ask::JudgeSettings { .. }
+        | jig_domain_core::effects::connector::Ask::KeepSettings { .. }
+        | jig_domain_core::effects::connector::Ask::KeepProposalSettings { .. }
+        | jig_domain_core::effects::connector::Ask::DropProposalSettings { .. }
+        | jig_domain_core::effects::connector::Ask::SaveSettingsDefaults { .. } => {
+            unreachable!("no application kind is declared")
+        }
     }
 }
 

@@ -40,6 +40,7 @@ fn encode_setting(value: &settings::Setting, limits: &wire::Limits) -> Result<wi
             wire::Setting::Policy(wire::PolicyNumber::new(limits, wire::PolicyNumberParts { number: *entry })?)
         }
         settings::Setting::Rules => wire::Setting::Rules,
+        settings::Setting::Application { .. } => unreachable!("an application's setting: apps-store"),
     })
 }
 fn decode_setting(value: wire::Setting) -> settings::Setting {
@@ -339,6 +340,7 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
         settings::Value::Template(entry) => wire::Value::Template(Box::new(encode_template(entry, limits)?)),
         settings::Value::Policy(entry) => wire::Value::Policy(Box::new(encode_configured_policy(entry, limits)?)),
         settings::Value::Rules(entry) => wire::Value::Rules(Box::new(encode_rules(entry, limits)?)),
+        settings::Value::Application(_) => unreachable!("an application's setting: apps-store"),
     })
 }
 fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::Value, wire::Problem> {
@@ -1893,6 +1895,7 @@ fn remap_value(
             }
         }
         settings::Value::Charter(_) => {}
+        settings::Value::Application(_) => unreachable!("an application's setting: apps-store"),
     }
 }
 

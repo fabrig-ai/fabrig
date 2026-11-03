@@ -137,6 +137,7 @@ pub(crate) fn decide(
                 s::Setting::Charter(_) => charters = true,
                 s::Setting::Template(_) | s::Setting::Policy(_) => templates = true,
                 s::Setting::Rules => rules = true,
+                jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
             }
         }
     }
