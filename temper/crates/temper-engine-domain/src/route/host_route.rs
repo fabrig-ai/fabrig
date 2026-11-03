@@ -25,6 +25,7 @@ pub enum HostDelivery {
     Settings {
         to: ReplyTo,
         answer: Box<jig_domain_core::SettingsAnswer>,
+        application: Option<temper_engine_domain_forge::settings::SizedValue>,
         from: u32,
         requested: Option<u64>,
     },
@@ -369,6 +370,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let FlightRender::Settings { from, requested } = flight.render else { unreachable!("settings rendering context") };
     let request = crate::boundary::delivery_output(Delivery::Host(Box::new(HostDelivery::Settings {
         to,
+        application: super::tools::settings_value(domain, &answer),
         answer,
         from,
         requested,

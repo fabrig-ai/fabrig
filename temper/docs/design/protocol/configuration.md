@@ -1574,13 +1574,16 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 - **Kept by the forge,** in its family `Setting` (`store.md`, section
   2), written in jig's decisions (jig's `domain/engine.md`, 17.5): the
   stock defaults of its kinds the binary gave it at the last start, each
-  setting's current change, and the items of pending proposals of
-  settings that name its kinds. jig keeps only their states and sizes.
-  Once a change is committed, the forge saves its items and replaces
-  its rules, the deployment's or the project's, whole; each live change
-  into a repository it serves is stepped after the commit, so a gate a
-  rule added is asked for and one it dropped no longer waited on
-  (`../domain/forge.md`, 8.3). At a start the forge is given the stock
+  setting's current change, the items of pending proposals of settings
+  that name its kinds, and, beside each change it saves, the value the
+  setting held before, by the revision that made the change, for as long
+  as jig's history keeps that revision's record, so that a restore
+  proposes it again (jig's `domain/engine.md`, 17.10). jig keeps only
+  their states and sizes. Once a change is committed, the forge saves
+  its items and replaces its rules, the deployment's or the project's,
+  whole; each live change into a repository it serves is stepped after
+  the commit, so a gate a rule added is asked for and one it dropped no
+  longer waited on (`../domain/forge.md`, 8.3). At a start the forge is given the stock
   defaults, tells jig which changed, and holds the current values
   before its other records (`../domain/forge.md`, section 16).
 - **Erased with their project.** A project deleted (jig's

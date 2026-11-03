@@ -6,6 +6,7 @@ mod fixtures;
 mod forms;
 mod hosts;
 mod llm;
+mod members;
 mod names;
 mod overrides;
 mod profile;

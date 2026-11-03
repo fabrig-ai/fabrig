@@ -340,3 +340,17 @@ pub(crate) fn relay_payload(
         }
     }
 }
+
+/// The core's successful newest-revision read supplies the document and family check;
+/// the connector supplies only its own value (jig's domain/engine.md, 17.5).
+pub(super) fn settings_value(
+    domain: &Domain,
+    answer: &core::SettingsAnswer,
+) -> Option<temper_engine_domain_forge::settings::SizedValue> {
+    let core::SettingsAnswer::Setting(document) = answer else { return None };
+    let core::settings::Setting::Application { kind, scope, number } = document.setting else { return None };
+    if document.revision != domain.core.current.newest() {
+        return None;
+    }
+    domain.forge.setting(kind, scope, number).cloned()
+}

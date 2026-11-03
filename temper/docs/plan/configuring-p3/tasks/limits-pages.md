@@ -3,7 +3,7 @@ id = "limits-pages"
 part = "pages"
 kind = "feature"
 needs = ["limits-jig"]
-files = ["temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-service/src/limits/reference.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/limits.rs", "temper/crates/temper-forge-setup/src/limits.rs", "temper/crates/temper-forge-setup/src/tests/limits.rs", "temper/crates/temper-box/src/limits.rs", "temper/crates/temper-box/src/tests/limits.rs", "temper/crates/temper/src/tests/limits.rs", "temper/crates/temper/src/tests.rs", "temper/crates/temper-docs/src/lib.rs", "temper/docs/help/reference/limits.md", "temper/docs/help/reference/limits-engine.md", "temper/docs/design/protocol/documentation.status.md", "temper/crates/temper-service/Cargo.toml", "Cargo.lock"]
+files = ["temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-service/src/limits/reference.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/limits.rs", "temper/crates/temper-forge-setup/src/limits.rs", "temper/crates/temper-forge-setup/src/check.rs", "temper/crates/temper-forge-setup/src/tests/limits.rs", "temper/crates/temper-box/src/limits.rs", "temper/crates/temper-box/src/tests/limits.rs", "temper/crates/temper/src/tests/limits.rs", "temper/crates/temper/src/tests.rs", "temper/crates/temper-docs/src/lib.rs", "temper/docs/help/reference/limits.md", "temper/docs/help/reference/limits-engine.md", "temper/docs/design/protocol/documentation.status.md", "temper/crates/temper-service/Cargo.toml", "Cargo.lock"]
 effort = "high"
 minutes = 150
 +++
@@ -86,3 +86,21 @@ are now in `files`, and this is the one dependency the spec allows beyond `commo
 temper-box needs only skein and temper-forge-setup, which temper-service already has, so the
 edge makes no cycle and C3 keeps its shape: both renderers stay in temper-service's `limits`
 module. No other dependency changes.
+
+2026-11-03. May the task give `setup.fetch_bytes` a table row and change
+`temper-forge-setup/src/check.rs` so its name is looked up first? Yes (option A). The
+design names it (`configuration.md`, 7) and the page must list every override
+(`documentation.md`, 8), so leaving it out would fail this task's own acceptance. In
+`temper-forge-setup/src/limits.rs`, beside `fetch_bytes`, add `FETCH_NAMES`: one row with
+C3's members (`name`, `unit` bytes, `line`, `value`), with `value` reading the scalar
+(`fn(&u64) -> u64`). Its small value is `FETCH_BYTES`. The setup crate's row type may be
+generic over what `value` reads (`Name<L>`, with `Limits`, `Host` and `u64` as `L`), or it
+may be a second struct with the same members: choose whichever is plainer. `check.rs` is
+now in `files`. There, `check::limits` finds the name in `FETCH_NAMES` before it calls
+`limits::fetch_bytes`, and every other name still goes to `apply`. Keep that hunk to the
+lookup: `limits`' signature, its `(Limits, u64)` result and `Checked` stay as they are.
+`reference` renders the fetch row in the setup's section, beside `NAMES` and the host's.
+The setup crate's `every_row_is_a_name_the_parser_takes` covers the fetch row too, and
+reads its value from what `check::limits` returns after the override is applied. C3 in
+`notes/contracts.md` says this too.
+

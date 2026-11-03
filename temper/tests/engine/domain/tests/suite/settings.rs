@@ -728,8 +728,10 @@ fn host_tool(
     }
     let (to, answer) = if let Some(index) = settings_delivery {
         let Delivery::Host(delivery) = driver.delivered.remove(index) else { panic!("settings delivery") };
-        let engine::HostDelivery::Settings { to, answer, from, requested } = *delivery else { panic!("settings read") };
-        (to, temper_engine_smith::settings_answer(&answer, from, requested, driver.root.models()))
+        let engine::HostDelivery::Settings { to, answer, application, from, requested } = *delivery else {
+            panic!("settings read")
+        };
+        (to, temper_engine_smith::settings_answer(&answer, from, requested, driver.root.models(), application.as_ref()))
     } else {
         let (to, rendered_name) = driver.protocol.pending_renders.pop().expect("host answer to render");
         assert_eq!(rendered_name, name);

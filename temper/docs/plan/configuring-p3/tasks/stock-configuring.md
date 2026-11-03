@@ -2,7 +2,7 @@
 id = "stock-configuring"
 part = "configuring-agent"
 kind = "feature"
-needs = ["tools-offered"]
+needs = ["tools-offered", "tools-store"]
 files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/stock/configuring.txt", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/docs/design/domain/agent.status.md", "temper/docs/design/protocol/configuration.status.md"]
 effort = "high"
 minutes = 180
@@ -147,3 +147,26 @@ The instructions, `temper/crates/temper-service/src/stock/configuring.txt`, verb
 
 As the implementer's text says, and: every reader file changed, by group; the help pages'
 wrong lines; `stock_brief.rs`' printed figures for each charter.
+
+## Answers
+
+2026-11-03. **Q** (`stock-configuring-1`): widen the readers to `welcome_policy.rs` and
+`startup.rs`, and take `tools-store` as a prerequisite? **A:** yes to both (option A); the
+acceptance cannot hold without either.
+
+- `needs` now names `tools-store`. Until it lands, `jig-protocol-store`'s `decode_run_policy`
+  fills `RunPolicy.tools` with `EVERY_FAMILY`, so a restart turns every stock charter's new mask
+  into a release revision: that is the cause of the restart-oracle failures in the engine's
+  domain world and of `fixtures.rs`' `Refused(Stale { newest: 2 })`, and of the `engine.rs`,
+  `tools.rs` and `workers.rs` failures that reach it. Start from the pushed branch, merge the
+  trunk holding `tools-store` (and `tools-offered`), and rerun those first; weaken no revision
+  assertion. If any still fails with `tools-store` merged, stop and report it with its log.
+- Readers added to the survey, for the new count or member alone, as the others:
+  `temper-service/src/tests/welcome_policy.rs` (the stock charter list `[1, 2, 3, 4, 6]`; the
+  pinned policy bytes re-measured, 3,282 as `stock.rs`' test pins it) and
+  `temper-service/src/tests/startup.rs` (the template labels and numbers with template 3, as
+  the stock now orders them). List them in the report.
+- `configuration.status.md`'s other 13.4 host-family sentence stays, as this spec says; report
+  it under `## Left` for `help-stock` or the trunk's end check.
+- The rest of the acceptance is unchanged: every package it names runs its focused tests, one
+  command per group, and the report gives each run's counts.

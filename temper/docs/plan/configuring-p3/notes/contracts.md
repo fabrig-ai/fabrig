@@ -141,6 +141,9 @@ temper's `protocol/documentation.md`, 8: `limits` (temper's names) and `limits-e
   `temper_service::limits::Limits`) and `pub fn find`; the setup's and the box's as their
   crates' `NAMES` beside their parsers (`temper-forge-setup/src/limits.rs`,
   `temper-box/src/limits.rs`), each `apply` (and `apply_host`) looking its name up first.
+  The setup's `setup.fetch_bytes`, a scalar outside `Limits` and `Host`, has its own
+  `FETCH_NAMES` row (the same members, `value` over a `u64`), which `check::limits` looks
+  up before `limits::fetch_bytes` (answer, 2026-11-03).
 - The pages render from them, in `temper-service`'s `limits` module:
   `pub fn reference(out: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>` for
   `limits` (temper's, the setup's and the box's) and
