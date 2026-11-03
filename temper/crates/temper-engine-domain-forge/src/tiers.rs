@@ -6,6 +6,7 @@ use skein_forge::api::{self, Commit, Repository, Write};
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
+mod goals;
 mod parts;
 pub(crate) mod red;
 pub(crate) mod words;
@@ -90,13 +91,16 @@ fn name(repository: Repository, branch: &[u8]) -> Name {
     Name { forge: repository.forge, repository: repository.repository, what: What::Branch(path_parts(branch)) }
 }
 pub(crate) fn watched(d: &Domain) -> List<Name> {
-    let mut names = List::with_capacity(d.tiers.capacity());
+    let mut names =
+        List::with_capacity(d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches"));
     for (repository, _) in &d.repositories {
         if d.forge_ended(repository.forge) {
             continue;
         }
         for tier in configured_all(d, *repository) {
-            if let Some(branch) = followed(d, *repository, tier) {
+            if tier.follows == Follows::Goals {
+                goals::watches(d, *repository, &mut names);
+            } else if let Some(branch) = followed(d, *repository, tier) {
                 let name = name(*repository, &branch);
                 if !names.as_slice().contains(&name) {
                     names.push(name).expect("one watch per tier");
@@ -257,6 +261,10 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
         names.push(tier.clone()).expect("configured tiers");
     }
     for tier in names.into_boxed() {
+        if tier.follows == Follows::Goals {
+            goals::start_due(d, env, repository, &tier, out);
+            continue;
+        }
         let Some(branch) = followed(d, repository, &tier) else { continue };
         let Some(head) = d.heads.get(&name(repository, &branch)) else { continue };
         let tip = head.commit;
@@ -282,6 +290,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
         if let Some(target) = target
             && let Some(tip_key) = target.key
             && p::due(&row.record, target.commit)
+            && goals::span_passed(row.started, tier.span, env.now)
         {
             let mut range = List::with_capacity(u32::try_from(row.pending.len()).expect("range bound"));
             if row.baseline.take().is_none() {
@@ -298,6 +307,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             row.result = d.landing.receipts.get(&receipt_key(d, &row, tip_key)).cloned();
             row.received = row.result.is_some();
             row.record.run = Some(run);
+            row.started = Some(env.now);
             row.requested = false;
             row.cancelled = false;
             row.purpose = None;
@@ -460,6 +470,7 @@ pub(crate) fn observed(
     after: Commit,
     out: &mut Queue<Request>,
 ) {
+    goals::observed(d, repository, branch, before, after, out);
     let mut names = List::with_capacity(env.limits.tiers.tiers);
     for tier in configured_all(d, repository) {
         if followed(d, repository, tier).as_deref() == Some(branch) {
@@ -720,7 +731,8 @@ fn advance(
     words::observe(row, follow);
     let run = row.record.run.as_ref().expect("followed run");
     let observation = observation(env, row, follow, &outcome);
-    if run.part == p::Part::Whole
+    if row.goal.is_none()
+        && run.part == p::Part::Whole
         && let Some(receipt) = &observation
     {
         crate::landing::put_receipt(d, env, receipt_key(d, row, run.key), receipt.clone(), out);
@@ -871,17 +883,24 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
         )
     };
     let p::Next::Judged(verdict) = next else { unreachable!("saved final observation judges the committed part") };
-    let newly_red = red::landings(d, row, &verdict);
-    if !newly_red.is_empty() {
-        let Some(logs) = red::logs(d, env, row, out) else {
+    if row.goal.is_some() {
+        if !goals::finish(d, env, row, &verdict, out) {
             wait(row.task.expect("tier task"), out);
             return;
-        };
-        red::landed(d, row, &newly_red, &logs, out);
+        }
+    } else {
+        let newly_red = red::landings(d, row, &verdict);
+        if !newly_red.is_empty() {
+            let Some(logs) = red::logs(d, env, row, out) else {
+                wait(row.task.expect("tier task"), out);
+                return;
+            };
+            red::landed(d, row, &newly_red, &logs, out);
+        }
+        let run = row.record.run.as_ref().expect("judged range");
+        crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
     }
-    let run = row.record.run.as_ref().expect("judged range");
     let words = verdict_words(&row.tier, &verdict);
-    crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
     row.record = p::judged(
         &row.record,
         &verdict,
@@ -1198,6 +1217,12 @@ pub(crate) fn deadline(d: &Domain) -> Option<Time> {
         }
     }
     for (_, row) in &d.tiers {
+        if let Some(at) = span_deadline(d, row) {
+            next = Some(match next {
+                Some(old) => old.min(at),
+                None => at,
+            });
+        }
         if let Some(flight) = &row.flight
             && row.result.is_none()
             && let Some(at) = flight.next
@@ -1211,6 +1236,18 @@ pub(crate) fn deadline(d: &Domain) -> Option<Time> {
     next
 }
 pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut repositories = List::with_capacity(d.repositories.capacity());
+    for (_, row) in &d.tiers {
+        if let Some(at) = span_deadline(d, row)
+            && at <= env.now
+            && !repositories.as_slice().contains(&row.repository)
+        {
+            repositories.push(row.repository).expect("adopted repositories");
+        }
+    }
+    for repository in repositories.into_boxed() {
+        start_due(d, env, repository, out);
+    }
     let mut tasks = List::with_capacity(d.tier_ops.due.capacity());
     for (task, when) in &d.tier_ops.due {
         if *when <= env.wall {
@@ -1277,6 +1314,24 @@ fn branch_write(write: &Write) -> Option<(&[u8], bool)> {
 }
 pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome, out: &mut Queue<Request>) {
     use skein_forge_client::Outcome;
+    let made_branch = match outcome {
+        Outcome::Made { made: skein_forge_client::Made::Branch(commit), .. } => Some(commit),
+        Outcome::Made { .. }
+        | Outcome::Failed(_)
+        | Outcome::Raced { .. }
+        | Outcome::Withdrawn
+        | Outcome::Held
+        | Outcome::Uncertain
+        | Outcome::Queued => None,
+    };
+    if let Some(commit) = made_branch
+        && let Some(kept) = d.entries.get(&entry)
+        && let Some((branch, false)) = branch_write(&kept.entry.effect.write)
+    {
+        let repository = kept.entry.repository;
+        let branch = Box::from(branch);
+        goals::observed(d, repository, &branch, None, commit, out);
+    }
     let mut found = None;
     for (key, row) in &d.tiers {
         if row.branch == (TierBranch::Pending { entry })
@@ -1401,6 +1456,26 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
     d.entries.remove(&entry);
     out.push(Request::Erase { key: crate::Key::Entry(entry) });
 }
+pub(crate) fn released(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
+    goals::released(d, name, out);
+}
+
+fn span_deadline(d: &Domain, row: &TierRow) -> Option<Time> {
+    if row.record.run.is_some() {
+        return None;
+    }
+    let tier = configured(d, row)?;
+    if tier.follows == Follows::Goals {
+        return goals::deadline(row, tier.span);
+    }
+    let target = row.baseline.as_ref().or(row.pending.last())?;
+    target.key?;
+    if !p::due(&row.record, target.commit) {
+        return None;
+    }
+    Some(row.started?.saturating_add(tier.span?))
+}
+
 pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     d.tier_ops.due = Map::with_capacity(d.tier_ops.due.capacity());
     let mut keys = List::with_capacity(d.tiers.capacity());
@@ -1574,6 +1649,15 @@ pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
     held = held.checked_add(
         u64::try_from(row.pending.len()).ok()?.checked_mul(u64::try_from(size_of::<TierLanding>()).ok()?)?,
     )?;
+    held = held
+        .checked_add(
+            u64::try_from(row.goals.len()).ok()?.checked_mul(u64::try_from(size_of::<crate::TierGoal>()).ok()?)?,
+        )?
+        .checked_add(u64::try_from(size_of::<Option<u64>>()).ok()?)?
+        .checked_add(u64::try_from(size_of::<Option<Time>>()).ok()?)?;
+    for goal in &row.goals {
+        held = held.checked_add(u64::try_from(goal.branch.len()).ok()?)?.checked_add(failures_bytes(&goal.failing)?)?;
+    }
     if let Some(flight) = &row.flight {
         if let Some(report) = &flight.report {
             held = held.checked_add(u64::try_from(report.url.len()).ok()?)?;
@@ -1709,6 +1793,7 @@ fn verdict_words(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
 fn cancelled(d: &mut Domain, row: &mut TierRow, task: u64, out: &mut Queue<Request>) {
     red::forget(d, row);
     row.record.run = None;
+    row.goal = None;
     row.task = None;
     d.offered_tier(task);
     row.requested = false;
