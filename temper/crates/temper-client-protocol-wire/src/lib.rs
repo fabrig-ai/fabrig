@@ -151,7 +151,6 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         first_ask_label: 64,
         set_up_org: bounds.field_bytes,
         set_up_repository: bounds.field_bytes,
-        new_project_name: bounds.field_bytes,
         first_repository_org: bounds.field_bytes,
         first_repository_repository: bounds.field_bytes,
         first_repository_label: 64,

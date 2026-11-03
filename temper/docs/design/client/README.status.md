@@ -10,6 +10,11 @@
   with their tests. 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing.
+  4.4: the picker, which the adoption page does not draw
+  (`temper-client-view`'s `forge/page.rs`).
+  5.3, Projects in the banner: the banner draws one button per project
+  (`temper-client-view`'s `frame.rs`, `project_buttons`), not the open one alone with its
+  switcher.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat

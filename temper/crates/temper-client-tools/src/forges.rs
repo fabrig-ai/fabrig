@@ -292,8 +292,7 @@ use skein_lib::{Env, Queue, Time};
 use temper_client_domain::{
     forge::{
         forges::{
-            self as domain, Connection, First, FirstState, Offer, Row, SetUpAnswer, SetUpOutcome, SetUpProject,
-            SetUpRefusal, Step,
+            self as domain, Connection, First, FirstState, Offer, Row, SetUpAnswer, SetUpOutcome, SetUpRefusal, Step,
         },
         words,
     },
@@ -318,7 +317,7 @@ struct Intent {
     forge: u16,
     org: Box<[u8]>,
     repository: Box<[u8]>,
-    project: SetUpProject,
+    project: jig::call::Project,
 }
 #[derive(Debug)]
 struct SettingUp {
@@ -465,6 +464,22 @@ fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, 
         } else {
             None
         };
+        if let Some(intent) = &intent
+            && value(&called.call, 3).is_some()
+            && let jig::call::Project::Name(name) = &intent.project
+            && (name.is_empty()
+                || name.len() > usize::try_from(env.limits.domain.forge.field_bytes).expect("field bound fits"))
+        {
+            let printed = setup_answer_print(
+                intent.forge,
+                SetUpAnswer::Outcome(SetUpOutcome::Refused(SetUpRefusal::Invalid)),
+                called.json,
+                false,
+                &env.limits,
+            );
+            finish(called, printed, out);
+            return;
+        }
         let request = match &intent {
             Some(intent) => setup_ask(intent, &env.limits),
             None => lifecycle::ask(temper_client_protocol_wire::v1::Request::StartPlayground, &env.limits),
@@ -609,15 +624,8 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
                 playground: request.playground,
                 forge: making_number(&request.forge),
                 org: request.org,
+                project: jig::call::Project::Name(request.repository.clone()),
                 repository: request.repository,
-                project: match request.project {
-                    temper_client_protocol_wire::v1::SetUpProject::Existing(project) => {
-                        SetUpProject::Existing(project.project())
-                    }
-                    temper_client_protocol_wire::v1::SetUpProject::New(project) => {
-                        SetUpProject::New(project.into_parts().name)
-                    }
-                },
             })
         }
         temper_client_protocol_wire::v1::Request::StartPlayground => None,
@@ -1079,7 +1087,6 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
                 SetUpRefusal::NotOffered => b"not_offered",
                 SetUpRefusal::NotUnderTheBox => b"not_under_the_box",
                 SetUpRefusal::Busy => b"busy",
-                SetUpRefusal::NewProject => b"new_project",
                 SetUpRefusal::Invalid => b"invalid",
             });
             out.object_end();
@@ -1115,15 +1122,8 @@ pub(crate) fn setup_print(forge: u16, outcome: &Outcome, json: bool, kept: bool,
         Outcome::Unknown => Some(SetUpAnswer::Outcome(SetUpOutcome::Unknown)),
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {
             let mut operation = render::outcome::Operation::of(
-                &domain::ask(
-                    forge,
-                    b"work".as_slice().into(),
-                    b"hello".as_slice().into(),
-                    SetUpProject::New(b"hello".as_slice().into()),
-                    false,
-                    &limits.domain.forge,
-                )
-                .expect("checked limits"),
+                &domain::ask(forge, b"work".as_slice().into(), b"hello".as_slice().into(), false, &limits.domain.forge)
+                    .expect("checked limits"),
             );
             operation.word = b"forge-setup";
             if kept {
@@ -1152,6 +1152,9 @@ pub(crate) fn setup_print(forge: u16, outcome: &Outcome, json: bool, kept: bool,
         }
     };
     let Some(answer) = answer else { return render::failure(b"set up answer decoding failed", json, 1) };
+    setup_answer_print(forge, answer, json, kept, limits)
+}
+fn setup_answer_print(forge: u16, answer: SetUpAnswer, json: bool, kept: bool, limits: &Limits) -> jig::Printed {
     let status = match answer {
         SetUpAnswer::Outcome(SetUpOutcome::SettingUp) => 0,
         SetUpAnswer::Outcome(SetUpOutcome::Unknown | SetUpOutcome::Refused(_)) | SetUpAnswer::EntranceRefused(_) => 2,
@@ -1191,7 +1194,6 @@ fn settled(connection: &Connection) -> bool {
 }
 
 fn intent(forge: u16, call: &jig::call::Call, client: &Client) -> Intent {
-    use jig::call::Project;
     let playground = value(call, 4).is_some();
     let org = match value(call, 1) {
         Some(Value::Text(bytes)) => bytes.clone(),
@@ -1213,8 +1215,13 @@ fn intent(forge: u16, call: &jig::call::Call, client: &Client) -> Intent {
             }
         }
     };
-    let project = match value(call, 3) {
-        Some(Value::Project(Project::Number(number))) => SetUpProject::Existing(*number),
+    let project = selected_project(value(call, 3), &repository, client);
+    Intent { playground, forge, org, repository, project }
+}
+fn selected_project(value: Option<&Value>, repository: &[u8], client: &Client) -> jig::call::Project {
+    use jig::call::Project;
+    match value {
+        Some(Value::Project(Project::Number(number))) => Project::Number(*number),
         Some(Value::Project(Project::Name(name))) => {
             let mut found = None;
             if let Some(me) = crate::forge::me(client) {
@@ -1226,13 +1233,12 @@ fn intent(forge: u16, call: &jig::call::Call, client: &Client) -> Intent {
                 }
             }
             match found {
-                Some(number) => SetUpProject::Existing(number),
-                None => SetUpProject::New(name.clone()),
+                Some(number) => Project::Number(number),
+                None => Project::Name(name.clone()),
             }
         }
-        _ => SetUpProject::New(repository.clone()),
-    };
-    Intent { playground, forge, org, repository, project }
+        _ => Project::Name(repository.into()),
+    }
 }
 // Both ways of making a first repository finish through the same watch and Adopt.
 fn watch_first(state: &mut Forges, env: &Env<Limits>, key: Key, called: Called, intent: Intent, out: &mut Queue<Out>) {
@@ -1329,8 +1335,8 @@ fn setup_changed(
             out.push(Out::Client { event: Event::Unwatch { handle } });
             let intent = watch.setup.expect("setup intent");
             let project = match intent.project {
-                SetUpProject::Existing(project) => project,
-                SetUpProject::New(_) => 0,
+                jig::call::Project::Number(project) => project,
+                jig::call::Project::Name(_) => 0,
             };
             let adoption = temper_client_domain::forge::Adoption {
                 project,
@@ -1345,7 +1351,7 @@ fn setup_changed(
                 checks: Box::default(),
             };
             match intent.project {
-                SetUpProject::Existing(project) => {
+                jig::call::Project::Number(project) => {
                     let mut name = Box::default();
                     if let Some(me) = crate::forge::me(client) {
                         for row in &me.projects {
@@ -1357,7 +1363,7 @@ fn setup_changed(
                     }
                     send_adoption(state, env, watch.called, adoption, name, out);
                 }
-                SetUpProject::New(name) => {
+                jig::call::Project::Name(name) => {
                     let value = temper_client_domain::forge::start::StartIn::new(adoption, name);
                     let Some(request) = value.ask(&env.limits.domain.forge) else {
                         let printed = render::failure(b"project encoding failed", watch.called.json, 1);
@@ -1400,19 +1406,6 @@ fn first_json(first: &First, out: &mut Encoder) {
     out.string(&first.org);
     out.key(b"repository");
     out.string(&first.repository);
-    out.key(b"project");
-    out.object_start();
-    match &first.project {
-        SetUpProject::Existing(project) => {
-            out.key(b"existing");
-            out.unsigned(u64::from(*project));
-        }
-        SetUpProject::New(name) => {
-            out.key(b"new");
-            out.string(name);
-        }
-    }
-    out.object_end();
     out.key(b"playground");
     out.boolean(first.playground);
     out.key(b"state");
@@ -1452,14 +1445,6 @@ fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
     } else {
         w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge: intent.forge }).ok()?)
     };
-    let project = match &intent.project {
-        SetUpProject::Existing(project) => w::SetUpProject::Existing(
-            w::ExistingProject::new(&bounds, w::ExistingProjectParts { project: *project }).ok()?,
-        ),
-        SetUpProject::New(name) => {
-            w::SetUpProject::New(w::NewProject::new(&bounds, w::NewProjectParts { name: name.clone() }).ok()?)
-        }
-    };
     let request = w::Request::SetUp(
         w::SetUp::new(
             &bounds,
@@ -1467,7 +1452,6 @@ fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
                 forge,
                 org: intent.org.clone(),
                 repository: intent.repository.clone(),
-                project,
                 playground: intent.playground,
             },
         )
@@ -1489,7 +1473,6 @@ fn resolve_forge(intent: &mut Intent, call: &jig::call::Call, rows: &[Row]) {
                 && let Some(first) = &row.first
                 && first.org == intent.org
                 && first.repository == intent.repository
-                && first.project == intent.project
                 && first.playground == intent.playground
             {
                 intent.forge = row.number;

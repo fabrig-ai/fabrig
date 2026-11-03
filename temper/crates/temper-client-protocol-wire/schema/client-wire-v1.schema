@@ -15,14 +15,11 @@ record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes
 enum ForgeAsk { github, owned, managed: ManagedForge, connected: ManagedForge }
 record NewForge { forge: ForgeAsk }
 enum Making { kept: Kept, new: NewForge }
-record ExistingProject { project: u32 }
-record NewProject { name: bytes 1024 }
-enum SetUpProject { existing: ExistingProject, new: NewProject }
-record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
+record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 playground: bool }
 record Return { source: u32 path: bytes 512 }
 record GitHubApp { id: u64 read_only: option bool }
 record GitHubManifest { back: option bytes 512 }
-record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
+record FirstAsk { org: bytes 1024 repository: bytes 1024 label: bytes 64 }
 record ForgejoAdmin { first: option FirstAsk }
 record ForgejoTokens { }
 enum How { github_app: GitHubApp, github_manifest: GitHubManifest, forgejo_admin: ForgejoAdmin, forgejo_tokens: ForgejoTokens }
@@ -36,7 +33,7 @@ record Accept { forge: u16 installation: u64 }
 record RemoveForge { forge: u16 }
 enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace }
 versioned record Requesting { request: Request }
-enum SetUpRefusal { not_offered, not_under_the_box, busy, new_project, invalid }
+enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
 enum StartRefusal { not_offered }
 record StartRefused { why: StartRefusal }
@@ -62,7 +59,7 @@ enum CreateStep { admin, org, repository, file }
 record Made { id: u64 }
 record CreateFailed { step: CreateStep }
 enum FirstState { making, made: Made, failed: CreateFailed }
-record FirstRepository { org: bytes 1024 repository: bytes 1024 project: SetUpProject state: FirstState label: bytes 64 playground: bool }
+record FirstRepository { org: bytes 1024 repository: bytes 1024 state: FirstState label: bytes 64 playground: bool }
 record Account { id: u64 login: bytes 1024 }
 record Installation { id: u64 account: option Account suspended: bool stray: bool }
 record ConnectStopped { why: bytes 256 }

@@ -125,7 +125,6 @@ fn setup(key: u8) -> Event {
             forge: forge::Making::Kept(1),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: forge::SetUpProject::Existing(1),
         }),
     })
 }
@@ -643,7 +642,6 @@ fn admin_first() -> forge::FirstAsk {
     forge::FirstAsk {
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
-        project: forge::SetUpProject::Existing(1),
         label: b"docker".as_slice().into(),
     }
 }
@@ -674,7 +672,6 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
                     playground: false,
                     org: first.org,
                     repository: first.repository,
-                    project: first.project,
                     state: forge::FirstState::Making,
                     label: first.label,
                 })

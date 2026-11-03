@@ -235,6 +235,13 @@ fn decorate_answer(domain: &mut Domain, event: &mut core::Event) {
     let (task, attempt) = (run.raw(), attempt.raw());
     let parts = domain.answer_parts.get(payload).expect("worker answer has temper parts").clone();
     let Parts { saved, pushed, preparation } = if parts_within(&parts, &domain.limits) { parts } else { Parts::none() };
+    if let Some(crate::Preparation::Conflicted { tag, head }) = &preparation {
+        domain.work.push(Work::Forge(temper_engine_domain_forge::Event::StartConflicted {
+            child: task,
+            tag: *tag,
+            head: *head,
+        }));
+    }
     if let Some(preparation) = preparation
         && domain.facts.try_push(crate::Fact::PreparationFailed { task, attempt, preparation }).is_err()
     {

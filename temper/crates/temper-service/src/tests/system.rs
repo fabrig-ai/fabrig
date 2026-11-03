@@ -347,10 +347,6 @@ fn box_setup(
                         forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge }).unwrap()),
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
-                        project: w::SetUpProject::Existing(
-                            w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 })
-                                .expect("project"),
-                        ),
                     },
                 )
                 .unwrap(),

@@ -1,4 +1,4 @@
-//! GitHub scenarios on the joint engine/client world, with scripted setup and picker boundaries.
+//! GitHub scenarios on the joint engine/client world, with scripted setup boundaries.
 use temper_client_world::fixtures;
 
 #[test]
@@ -116,21 +116,21 @@ fn an_abandoned_install_stays_connecting_and_install_again_can_accept() {
     front.engine.settle();
     revisit(&mut front, &mut root);
     let ready = view(&root);
-    node(&ready, Role::Heading { level: 2 }, b"Choose a repository to start in");
-    node(&ready, Role::Choice, b"acme/shop");
-    node(&ready, Role::Choice, b"acme/second");
+    node(&ready, Role::Heading { level: 2 }, b"GitHub is connected");
+    assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Choice));
+    assert!(front.reachable_reads.is_empty());
     let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("ready rows") };
     assert_eq!(rows[0].installations.len(), 1);
     assert!(!d::forge::connect::underway(&rows[0]));
 }
 
 #[test]
-fn ready_for_an_account_without_repositories_says_none_reachable() {
+fn ready_for_an_account_without_repositories_adopts_nothing() {
     let (front, root) = Joint::github_fixture_with(fixtures::SEED, true, true);
-    assert_eq!(front.reachable_reads, [(1, Some(1), 1)]);
+    assert!(front.reachable_reads.is_empty());
     let ready = view(&root);
-    node(&ready, Role::Heading { level: 2 }, b"Choose a repository to start in");
-    node(&ready, Role::Status, b"None reachable.");
+    node(&ready, Role::Heading { level: 2 }, b"GitHub is connected");
+    node(&ready, Role::Paragraph, b"Connected as app[bot].");
     assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Choice));
     assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"More")));
 }

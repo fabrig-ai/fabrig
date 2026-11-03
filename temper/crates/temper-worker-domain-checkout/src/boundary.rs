@@ -140,6 +140,9 @@ pub enum Start {
     /// Fetch the branch and base, check out the branch and leave their merge
     /// in progress. The next commit records both parents even if unchanged.
     Merge { branch: Box<[u8]>, base: Commit },
+    /// The tip of a base branch with each head merged into it in order, each
+    /// merge committed (domain/worker.md, section 5).
+    Merged { branch: Box<[u8]>, heads: Box<[Commit]> },
 }
 
 /// A commit's message.
@@ -182,6 +185,8 @@ pub enum Failure {
     Missing { repository: u32, missing: Missing },
     /// The forge refused the identity of the repository at `repository`.
     Refused { repository: u32 },
+    /// The head that did not merge cleanly into the base.
+    Conflicted { repository: u32, head: Commit },
 }
 
 /// Why a request was refused at the entrance.
@@ -248,7 +253,11 @@ impl Start {
     pub(crate) const fn is_saved(&self) -> bool {
         match self {
             Self::Saved { .. } => true,
-            Self::Base { .. } | Self::Branch { .. } | Self::Commit { .. } | Self::Merge { .. } => false,
+            Self::Base { .. }
+            | Self::Branch { .. }
+            | Self::Commit { .. }
+            | Self::Merge { .. }
+            | Self::Merged { .. } => false,
         }
     }
 }

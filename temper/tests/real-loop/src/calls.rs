@@ -400,6 +400,10 @@ pub fn inbox_after(call: usize) -> Arg {
 }
 fn delegate_number(stdout: &[u8]) -> u64 {
     let value: serde_json::Value = serde_json::from_slice(stdout).expect("task tree JSON");
+    if let Some(children) = value.get("task").unwrap_or(&value).get("delegates").and_then(serde_json::Value::as_array) {
+        assert_eq!(children.len(), 1, "one child task");
+        return children[0]["chip"]["task"].as_u64().expect("child task number");
+    }
     let tree = &value["tree"];
     let root = tree["root"]["task"].as_u64().expect("tree root");
     let mut children = tree["rows"].as_array().expect("tree rows").iter().filter(|node| node["parent"] == root);

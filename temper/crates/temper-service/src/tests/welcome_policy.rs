@@ -107,12 +107,33 @@ fn sign_in_owner(driver: &mut Driver) {
 
 #[test]
 fn real_init_offers_its_owner_a_chat_with_all_three_procedures() {
-    const READ: Token = Token::new(901);
+    const EMPTY: Token = Token::new(901);
+    const READ: Token = Token::new(902);
     let (config, limits) = generated();
     let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
     driver.settle();
     sign_in_owner(&mut driver);
     driver.settle();
+    driver.send(Event::Party(PartyInput::Read {
+        reply_to: ReplyTo::new(EMPTY),
+        sign_in: driver.session(),
+        read: core::reads::Read::Frame,
+    }));
+    driver.settle();
+    let document = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            let Delivery::Read { reply, answer: core::reads::Answer::Document(document) } = delivery else {
+                return None;
+            };
+            (*reply == ReplyTo::new(EMPTY)).then_some(document)
+        })
+        .expect("owner's initial frame");
+    let core::documents::Document::Frame(frame) = document.as_ref() else { panic!("frame") };
+    assert!(frame.projects.is_empty());
+    ask(&mut driver, 1, people::Ask::MakeProject { name: "Hello".into(), policy: 1 });
+    assert_eq!(reply(&driver, 1), &people::Reply::Outcome(people::Outcome::ProjectMade { project: 1 }));
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: driver.session(),
@@ -131,7 +152,7 @@ fn real_init_offers_its_owner_a_chat_with_all_three_procedures() {
         })
         .expect("owner's frame");
     let core::documents::Document::Frame(frame) = document.as_ref() else { panic!("frame") };
-    let project = frame.projects.iter().find(|project| project.project == 1).expect("seed project");
+    let project = frame.projects.iter().find(|project| project.project == 1).expect("first made project");
     let offered = project.creating.as_ref().expect("owner may start a chat");
     let core::acts::Bounds::Create { procedures, charters, .. } = &offered.within else { panic!("create bounds") };
     assert_eq!(procedures.iter().map(|procedure| procedure.code).collect::<Vec<_>>(), [2, 3, 4]);
@@ -190,13 +211,13 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     let (config, limits) = generated();
     // Init inherits today's Small profile; also prove the stricter product question.
     assert_eq!(limits.policy_bytes, 16_384);
-    assert_eq!(config.core.seed_projects.len(), 1);
+    assert!(config.core.seed_projects.is_empty());
     assert_eq!(config.landing_rules.deployment.len(), 1);
     assert!(config.landing_rules.projects.is_empty());
-    let seed = &config.core.seed_projects[0].policy;
+    let stock = config.core.defaults.policies.get(&1).expect("stock policy 1");
     let snapshot =
-        core::policy_snapshot(&seed.policy, &seed.permissions, &seed.templates).expect("whole configured seed");
-    assert_eq!(config.core.defaults.policies.get(&1), Some(seed), "welcome copies this exact configured policy");
+        core::policy_snapshot(&stock.policy, &stock.permissions, &stock.templates).expect("whole stock policy");
+    assert_eq!(limits.authority.projects, 2);
     assert!(engine::refused(generated().0, &limits).is_empty());
     let mut strict = limits;
     strict.policy_bytes = 4096;
@@ -221,14 +242,14 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     driver.forge = Some(ForgeStand::with(&[(&owner, &first, 7), (&owner, &second, 8)]).at_forge(2));
     driver.settle();
     let before = policies(&driver);
-    assert_eq!(before, vec![(1, snapshot.clone())]);
+    assert!(before.is_empty());
     sign_in_owner(&mut driver);
     driver.send(Event::Forge(Box::new(forge::Event::Connection {
         forge: 2,
         state: forge::Connection::Connected { id: 1, login: b"app[bot]".as_slice().into() },
     })));
     driver.settle();
-    assert_eq!(policies(&driver), before, "connection and sign-in do not rewrite the seed policy");
+    assert_eq!(policies(&driver), before, "connection and sign-in make no project policy");
     for (key, name, repository) in [(1, &first, 7), (2, &second, 8)] {
         ask(
             &mut driver,
@@ -239,21 +260,8 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
                 policy: 1,
             },
         );
-        let project = if key == 1 {
-            assert_eq!(reply(&driver, key), &people::Reply::Outcome(people::Outcome::ProjectMade { project: 2 }));
-            2
-        } else {
-            assert_eq!(
-                reply(&driver, key),
-                &people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Limit {
-                    which: people::LimitKind::Projects
-                })),
-                "second welcome selection exceeds the unchanged two-project capacity"
-            );
-            // Independently price two real adoptions using the already generated
-            // project. This is the ordinary adoption boundary, not a welcome fallback.
-            1
-        };
+        let project = u32::from(key);
+        assert_eq!(reply(&driver, key), &people::Reply::Outcome(people::Outcome::ProjectMade { project }));
         let adoption = forge::Adoption {
             project,
             forge: 2,
@@ -304,15 +312,23 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
         let forge::Stored::Repository(row) = row.as_ref() else { panic!("repository key names its row") };
         assert_eq!((row.project, row.home), (project, true));
         let after = policies(&driver);
-        assert_eq!(after.len(), 2);
+        assert_eq!(after.len(), usize::from(key));
         for (_, value) in &after {
             assert_eq!(value, &snapshot, "adoption adds no policy grants, requirements or metadata");
         }
     }
+    ask(&mut driver, 3, people::Ask::MakeProject { name: "Third".into(), policy: 1 });
+    assert_eq!(
+        reply(&driver, 3),
+        &people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Limit {
+            which: people::LimitKind::Projects
+        })),
+        "third welcome selection exceeds the unchanged two-project capacity"
+    );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
     assert_eq!(bytes, 3250);
     std::eprintln!(
-        "real init joined policy: {bytes}/4096 requested bytes, configured bound {}; projects 1 and 2; adopted=2; owner=39, repositories=64 bytes each; second welcome MakeProject refuses Projects",
+        "real init joined policy: {bytes}/4096 requested bytes, configured bound {}; projects 1 and 2; adopted=2; owner=39, repositories=64 bytes each; third welcome MakeProject refuses Projects",
         limits.policy_bytes
     );
     assert!(bytes <= 4096);

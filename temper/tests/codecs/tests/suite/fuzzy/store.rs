@@ -168,11 +168,6 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
             playground: rng.below(2) == 0,
             org: drawn_field(rng),
             repository: drawn_field(rng),
-            project: if rng.below(2) == 0 {
-                forge::SetUpProject::Existing(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
-            } else {
-                forge::SetUpProject::New(drawn_field(rng))
-            },
             label: drawn_field(rng),
         })
     };
