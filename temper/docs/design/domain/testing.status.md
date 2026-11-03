@@ -2,10 +2,7 @@
 
 2026-11-03. Where temper's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 2: the owned welcome walk's Open Default and its reload,
-  by native clients with the browser's client bounds
-  (`crates/temper/tests/fake_backends/walk/here_key.rs`).
-  2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
+- **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and
   B1's are still the real loop's own fixtures
