@@ -404,11 +404,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Left => {
             pages.switcher.close();
+            if let Some(inbox) = pages.inbox.take() {
+                pages.next = pages.next.max(inbox.leave(out));
+            }
             if let Some(home) = pages.home.take() {
                 home.leave(out);
             }
             if let Some(chats) = pages.chats.take() {
-                pages.next = chats.leave(out);
+                pages.next = pages.next.max(chats.leave(out));
             }
             leave_conversations(pages, out);
             pages.accounts.leave(out);
@@ -715,10 +718,10 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             home.leave(out);
         }
         if let Some(inbox) = pages.inbox.take() {
-            pages.next = inbox.leave(out);
+            pages.next = pages.next.max(inbox.leave(out));
         }
         if let Some(chats) = pages.chats.take() {
-            pages.next = chats.leave(out);
+            pages.next = pages.next.max(chats.leave(out));
         }
         leave_conversations(pages, out);
         if let Address::Task { task, filter } = address {
@@ -729,10 +732,17 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Address::Chat { task } = address {
             pages.chat = Some(chat::Chat::new(task, pages.next, &env.limits, out));
         }
-        if let Address::Home { .. } = address {
+        if let Address::Home { project } = address {
             pages.home = Some(home::Home::new(pages.next, out));
             pages.next = pages.next.checked_add(1).expect("page handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
+            pages.next = pages.next.checked_add(2).expect("page handles fit");
+            pages.inbox = Some(inbox::Inbox::new(
+                crate::address::Filter { project: Some(project), kind: None, goal: None },
+                pages.next,
+                &env.limits,
+                out,
+            ));
         }
         if let Address::Chats { filter, .. } = address {
             let mut page = chats::Chats::new(pages.next);
@@ -789,7 +799,11 @@ fn seen_answered(outcome: &jig_client::Outcome) -> bool {
 }
 
 fn open_result(pages: &mut Pages, task: u64, through: u64, out: &mut Queue<Request>) {
-    if pages.inbox.is_some() && through > pages.seen && pages.seeing.is_none() {
+    if let Address::Inbox { .. } = pages.address
+        && pages.inbox.is_some()
+        && through > pages.seen
+        && pages.seeing.is_none()
+    {
         pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
         let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
         pages.seeing = Some((through, key));
@@ -870,8 +884,11 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             chat.see(&mut pages.serial, out);
         }
     } else if let Some(chats) = &mut pages.chats {
-        if !chats.told(told, out) {
-            return false;
+        if !chats.told(told.clone(), out) {
+            return match &mut pages.inbox {
+                Some(inbox) => inbox.told(client, told, out),
+                None => false,
+            };
         }
     } else if !match &mut pages.inbox {
         Some(inbox) => inbox.told(client, told, out),
@@ -1194,10 +1211,10 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
 
 fn leave_conversations(pages: &mut Pages, out: &mut Queue<Request>) {
     if let Some(chat) = pages.chat.take() {
-        pages.next = chat.leave(out);
+        pages.next = pages.next.max(chat.leave(out));
     }
     if let Some(task) = pages.task.take() {
-        pages.next = task.leave(out);
+        pages.next = pages.next.max(task.leave(out));
     }
 }
 

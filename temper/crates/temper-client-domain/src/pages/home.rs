@@ -39,12 +39,24 @@ impl Home {
     }
 }
 
+/// What needs the person in this project (temper/docs/design/client/README.md, 3.5, Home).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Needs {
+    Unknown,
+    /// The project's cards of the needs' groups; `cut` where the read was cut.
+    Count {
+        count: u32,
+        cut: bool,
+    },
+}
+
 /// The facts Home draws (temper/docs/design/client/README.md, 3.5, Home).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Facts {
     pub configured: bool,
     pub repository: Repository,
     pub chat_asked: bool,
+    pub needs: Needs,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Repository {
@@ -84,7 +96,14 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
         Some(chats) => chats.asked(root.client(), project),
         None => false,
     };
-    Facts { configured, repository: repository(root, project), chat_asked }
+    let needs = match root.pages().inbox() {
+        Some(inbox) if inbox.filter.project == Some(project) && inbox.delivered(root.client()) => Needs::Count {
+            count: u32::try_from(inbox.needs().count()).expect("inbox cards fit"),
+            cut: *inbox.cut.first().expect("needs cut"),
+        },
+        Some(_) | None => Needs::Unknown,
+    };
+    Facts { configured, repository: repository(root, project), chat_asked, needs }
 }
 fn repository(root: &Domain, project: u32) -> Repository {
     use forge::listed::Held;
