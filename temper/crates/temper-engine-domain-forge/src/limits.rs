@@ -70,6 +70,14 @@ pub struct Limits {
     pub client: skein_forge_client::Limits,
 }
 
+impl Limits {
+    /// Members times projects, saturating (temper/docs/design/domain/forge.md, 5.5).
+    #[must_use]
+    pub const fn dismissed(&self) -> u32 {
+        self.bindings.saturating_mul(self.judge_projects)
+    }
+}
+
 /// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TierLimits {
@@ -108,6 +116,8 @@ pub fn valid(l: &Limits) -> bool {
         || l.collaborators == 0
         || l.landings == 0
         || l.landing_rules == 0
+        || l.landing_rules.saturating_mul(l.roles).saturating_mul(2) > 8192
+        || l.client.inbox > 256
         || l.brief_sections == 0
         || l.brief_bytes == 0
         || !skein_forge_client::valid(&l.client)

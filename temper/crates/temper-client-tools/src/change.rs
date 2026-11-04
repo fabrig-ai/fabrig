@@ -37,7 +37,7 @@ pub const READ: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 6,
-    notes: b"Until it lands, it prints `next: temper ctl DIR change show TASK\n--until landed`, or, while a task is held, `next: temper ctl DIR\ntask show N`; while verifying or red, `next: temper ctl DIR change show TASK\n--until cleared`; landed, its merge commit. A wait for its landing ends\nat a hold, `not met: held` (exit 3). A task with no change fails,\n`no change panel for task N` (exit 2). The forge holds its diff,\nreviews and logs: read them there.\n",
+    notes: b"While landing-rule approval is outstanding, it prints each requirement,\ncounted people and review heads, the remaining count and any unmapped\nreviews, then points to the pull request for review. Unread and incomplete\nevidence are named separately from zero qualifying approvals.\nOtherwise, until it lands, it prints `next: temper ctl DIR change show TASK\n--until landed`, or, while a task is held, `next: temper ctl DIR\ntask show N`; while verifying or red, `next: temper ctl DIR change show TASK\n--until cleared`; landed, its merge commit. A wait for its landing ends\nat a hold, `not met: held` (exit 3). A task with no change fails,\n`no change panel for task N` (exit 2). The forge holds its diff,\nreviews and logs: read them there.\n",
 };
 #[derive(Debug)]
 pub(crate) struct Changes {
@@ -934,7 +934,6 @@ fn used_json(used: &w::Used, out: &mut Encoder) {
     out.unsigned(u64::from(used.limit()));
     out.object_end();
 }
-#[expect(clippy::too_many_lines, reason = "the change document emits its fields in one fixed order")]
 fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &mut Encoder) {
     out.object_start();
     out.key(b"task");
@@ -1015,6 +1014,23 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
     }
     out.key(b"ci");
     out.string(ci(panel.ci()));
+    encode_gates(panel, out);
+    encode_approvals(panel, out);
+    for (key, used) in
+        [(b"repairs".as_slice(), panel.repairs()), (b"resolutions", panel.resolutions()), (b"updates", panel.updates())]
+    {
+        out.key(key);
+        used_json(used, out);
+    }
+    encode_questions(panel.questions(), out);
+    encode_holds(holds, out);
+    if let Some(digest) = digest {
+        out.key(b"digest");
+        out.string(&digest.hex());
+    }
+    out.object_end();
+}
+fn encode_gates(panel: &w::ChangePanel, out: &mut Encoder) {
     out.key(b"gates");
     out.array_start();
     for gate in panel.gates() {
@@ -1030,19 +1046,74 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
         out.object_end();
     }
     out.array_end();
-    for (key, used) in
-        [(b"repairs".as_slice(), panel.repairs()), (b"resolutions", panel.resolutions()), (b"updates", panel.updates())]
-    {
-        out.key(key);
-        used_json(used, out);
+}
+fn review_read(read: &w::ReviewRead) -> &'static [u8] {
+    match read {
+        w::ReviewRead::Unread => b"unread",
+        w::ReviewRead::Incomplete => b"incomplete",
+        w::ReviewRead::Complete => b"complete",
     }
-    encode_questions(panel.questions(), out);
-    encode_holds(holds, out);
-    if let Some(digest) = digest {
-        out.key(b"digest");
-        out.string(&digest.hex());
+}
+fn freshness(freshness: &w::RuleFreshness) -> &'static [u8] {
+    match freshness {
+        w::RuleFreshness::Exact => b"exact",
+        w::RuleFreshness::Clean => b"clean",
     }
-    out.object_end();
+}
+fn encode_approvals(panel: &w::ChangePanel, out: &mut Encoder) {
+    out.key(b"approvals");
+    out.array_start();
+    for line in panel.approvals() {
+        out.object_start();
+        for (key, value) in [
+            (b"scope".as_slice(), line.scope()),
+            (b"rule", line.number()),
+            (b"role", line.role()),
+            (b"required", line.required()),
+        ] {
+            out.key(key);
+            out.unsigned(u64::from(value));
+        }
+        out.key(b"freshness");
+        out.string(freshness(line.freshness()));
+        out.key(b"read");
+        out.string(review_read(line.read()));
+        out.key(b"remaining");
+        match line.remaining() {
+            Some(count) => out.unsigned(u64::from(*count)),
+            None => out.null(),
+        }
+        out.key(b"refused");
+        out.boolean(line.refused());
+        out.key(b"counted");
+        out.array_start();
+        for review in line.counted() {
+            out.object_start();
+            out.key(b"person");
+            out.unsigned(review.person());
+            out.key(b"head");
+            out.string(&hex(review.head()));
+            out.object_end();
+        }
+        out.array_end();
+        out.object_end();
+    }
+    out.array_end();
+    out.key(b"unmapped_reviews");
+    out.array_start();
+    for review in panel.unmapped_reviews() {
+        out.object_start();
+        out.key(b"account");
+        out.unsigned(review.account());
+        out.key(b"head");
+        out.string(&hex(review.head()));
+        out.key(b"verdict");
+        out.string(verdict(review.verdict()));
+        out.key(b"reason");
+        out.string(b"forge account mapped to no person");
+        out.object_end();
+    }
+    out.array_end();
 }
 fn encode_holds(holds: &Holds, out: &mut Encoder) {
     if let Some(held) = &holds.own {
@@ -1085,7 +1156,6 @@ fn json(
         encode(panel.expect("read panel"), digest, holds, out);
     }
 }
-#[expect(clippy::too_many_lines, reason = "the change read prints its panel and following call together")]
 fn text(
     panel: Option<&w::ChangePanel>,
     digest: Option<Digest>,
@@ -1183,19 +1253,7 @@ fn text(
             out.put(&digest.hex());
             out.put(b"\n");
         }
-        if holds.own.is_some() || holds.run.is_some() {
-            out.put(b"next: temper ctl DIR task show ");
-            out.number(if holds.own.is_some() { panel.task() } else { panel.runs().expect("held delegate") });
-            out.put(b"\n");
-        } else if progress(panel.step()) == Progress::Verifying {
-            out.put(b"next: temper ctl DIR change show ");
-            out.number(panel.task());
-            out.put(b" --until cleared\n");
-        } else if landed(panel.step()).is_none() && *panel.step() != w::Step::Ended {
-            out.put(b"next: temper ctl DIR change show ");
-            out.number(panel.task());
-            out.put(b" --until landed\n");
-        }
+        text_next(panel, holds, out);
     }
     match met {
         Some(true) => out.put(b"met\n"),
@@ -1205,6 +1263,82 @@ fn text(
             out.put(b"\n");
         }
         None => {}
+    }
+}
+fn approval_wait(panel: &w::ChangePanel) -> bool {
+    for line in panel.approvals() {
+        if *line.read() != w::ReviewRead::Complete || *line.remaining() != Some(0) || line.refused() {
+            return true;
+        }
+    }
+    false
+}
+fn text_next(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
+    if holds.own.is_some() || holds.run.is_some() {
+        out.put(b"next: temper ctl DIR task show ");
+        out.number(if holds.own.is_some() { panel.task() } else { panel.runs().expect("held delegate") });
+        out.put(b"\n");
+    } else if approval_wait(panel) && progress(panel.step()) == Progress::Before {
+        out.put(b"next: review the pull request");
+        if let Some(pull) = panel.pull() {
+            out.put(b" ");
+            out.put(pull.address());
+        }
+        out.put(b" for the required role; only a mapped project person counts\n");
+    } else if progress(panel.step()) == Progress::Verifying {
+        out.put(b"next: temper ctl DIR change show ");
+        out.number(panel.task());
+        out.put(b" --until cleared\n");
+    } else if landed(panel.step()).is_none() && *panel.step() != w::Step::Ended {
+        out.put(b"next: temper ctl DIR change show ");
+        out.number(panel.task());
+        out.put(b" --until landed\n");
+    }
+}
+fn text_approvals(panel: &w::ChangePanel, out: &mut Text) {
+    for line in panel.approvals() {
+        out.put(b"approval: scope ");
+        out.number(u64::from(line.scope()));
+        out.put(b" rule ");
+        out.number(u64::from(line.number()));
+        out.put(b" role ");
+        out.number(u64::from(line.role()));
+        out.put(b" ");
+        out.put(freshness(line.freshness()));
+        out.put(b" required ");
+        out.number(u64::from(line.required()));
+        out.put(b"; ");
+        match line.read() {
+            w::ReviewRead::Unread => out.put(b"reviews not read yet"),
+            w::ReviewRead::Incomplete => out.put(b"reviews incomplete"),
+            w::ReviewRead::Complete => out.put(b"reviews complete"),
+        }
+        if let Some(remaining) = line.remaining() {
+            out.put(b"; counted ");
+            out.number(u64::from(line.counted().len()));
+            out.put(b"; remaining ");
+            out.number(u64::from(*remaining));
+        }
+        if line.refused() {
+            out.put(b"; changes requested");
+        }
+        out.put(b"\n");
+        for review in line.counted() {
+            out.put(b"  counted person ");
+            out.number(review.person());
+            out.put(b" at head ");
+            out.put(&hex(review.head()));
+            out.put(b"\n");
+        }
+    }
+    for review in panel.unmapped_reviews() {
+        out.put(b"uncounted review: forge account ");
+        out.number(review.account());
+        out.put(b" at head ");
+        out.put(&hex(review.head()));
+        out.put(b" ");
+        out.put(verdict(review.verdict()));
+        out.put(b"; mapped to no person\n");
     }
 }
 fn text_holds(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
@@ -1263,6 +1397,7 @@ fn text_checks(panel: &w::ChangePanel, out: &mut Text) {
         out.put(verdict(gate.verdict()));
         out.put(b"\n");
     }
+    text_approvals(panel, out);
     for (i, (label, used)) in [
         (b"repairs ".as_slice(), panel.repairs()),
         (b"resolutions ", panel.resolutions()),

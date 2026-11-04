@@ -1697,6 +1697,90 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
 }
 
 #[test]
+fn restore_review_compares_resolved_rules_values() {
+    for equal in [false, true] {
+        for paged in [[true, true], [false, true], [true, false], [false, false]] {
+            for refused in [[false, false], [true, false], [false, true], [true, true]] {
+                if paged.iter().zip(refused).any(|(paged, refused)| refused && !paged) {
+                    continue;
+                }
+                let now = rules_spend(8_300_000);
+                let proposed = rules_spend(if equal { 8_300_000 } else { 8_117_760 });
+                assert_eq!(measured_review_value(&now), measured_review_value(&proposed));
+                let [current, restored] =
+                    [(now.clone(), paged[0]), (proposed.clone(), paged[1])].map(|(value, paged)| {
+                        if paged {
+                            measured_review_value(&value)
+                        } else {
+                            c::ReviewValue::Value(c::SettingSet { value })
+                        }
+                    });
+                let (mut root, call) = fixtures::read_call(&["proposal", "show", "p73/7"]);
+                serve_review(&mut root, call, restored_rules_review(current, restored));
+                for (index, value) in [now, proposed].into_iter().enumerate() {
+                    if !paged[index] {
+                        continue;
+                    }
+                    assert_eq!(
+                        root.reads.get(&call).expect("rules read").1,
+                        c::Read::Setting(c::ReadSetting {
+                            setting: c::Setting::Rules,
+                            revision: if index == 0 { 4 } else { 0 },
+                            proposal: (index == 1)
+                                .then_some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
+                        })
+                    );
+                    if refused[index] {
+                        root.serve(call, c::ReadResult::None(c::ReadNone::Refused));
+                    } else {
+                        serve_policy_value(&mut root, call, c::Setting::Rules, &value);
+                    }
+                }
+                let answer = root.answer(call).expect("restore review");
+                assert_eq!(answer.status, 0);
+                let output = core::str::from_utf8(&answer.stdout).expect("text");
+                let kept = equal && !refused.contains(&true);
+                let label = if kept { "kept" } else { "changed" };
+                assert!(output.contains(&format!("rules · {label} · now ")), "{paged:?} {refused:?}: {output}");
+                assert_eq!(output.contains("rules · kept"), kept);
+                if refused.contains(&true) {
+                    assert_eq!(output.matches("refused").count(), refused.iter().filter(|v| **v).count());
+                } else {
+                    assert!(output.contains("8300000"));
+                    assert!(output.contains(if equal { "8300000" } else { "8117760" }));
+                }
+            }
+        }
+    }
+}
+fn rules_spend(spend: u64) -> c::SettingValue {
+    let (_, value) = values().remove(3);
+    let c::SettingValue::Rules(mut rules) = value else { panic!("rules") };
+    rules.period_spend = spend;
+    c::SettingValue::Rules(rules)
+}
+fn restored_rules_review(now: c::ReviewValue, would_be: c::ReviewValue) -> c::ReadValue {
+    // Revision 4 accepted a rules set; restoring revision 1 resets it to the default.
+    let mut proposal = review_proposal(Some(c::SettingsReview {
+        key: None,
+        newest: 4,
+        cut: false,
+        items: list([c::ReviewItem {
+            setting: c::Setting::Rules,
+            edit: c::RevisionItemEdit::Reset,
+            now,
+            would_be,
+            origin: c::SettingOrigin::Change(c::OriginRevision { revision: 4 }),
+            application: None,
+        }]),
+    }));
+    let c::ReadValue::Proposal(p) = &mut proposal else { panic!("proposal") };
+    let c::ProposalAction::Settings(s) = &mut p.action else { panic!("settings") };
+    s.against = 4;
+    proposal
+}
+
+#[test]
 fn settings_acceptance_defaults_to_stays_and_preserves_other_decisions() {
     for json in [false, true] {
         for settings in [false, true] {
@@ -2823,5 +2907,30 @@ fn revision_show_large_temper_values_name_a_working_historical_read() {
         let answer = root.answer(call).expect("whole historical value");
         assert_eq!(answer.status, 0);
         assert!(core::str::from_utf8(&answer.stdout).unwrap().contains("\"ci\":false"));
+    }
+}
+
+#[test]
+fn proposal_show_prints_the_whole_settings_reason_in_text_and_json() {
+    for bytes in [900, 649] {
+        let mut reason = String::from("temper enforces: review every change. your agents follow: keep reports short. ");
+        let effect = " Running work keeps its current instructions until an owner moves it.";
+        reason.push_str(&"x".repeat(bytes - reason.len() - effect.len()));
+        reason.push_str(effect);
+        for json in [false, true] {
+            let mut proposal = review_proposal(None);
+            let c::ReadValue::Proposal(value) = &mut proposal else { panic!("proposal") };
+            value.reason = c::DocumentText::complete(words(&reason));
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
+            serve_review(&mut root, call, proposal);
+            let answer = root.answer(call).expect("proposal shown");
+            assert_eq!(answer.status, 0);
+            let printed = core::str::from_utf8(&answer.stdout).expect("UTF-8 proposal");
+            assert!(printed.contains(&reason), "whole reason: {printed}");
+            if json {
+                assert!(printed.contains("\"cut\":false"), "{printed}");
+            }
+        }
     }
 }

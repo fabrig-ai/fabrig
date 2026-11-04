@@ -302,6 +302,12 @@ The GitHub routes of forge.md 3.2's Actions, tree, ref and label calls.
 | `Write::UpdateRef { branch, to }` | `PATCH R/git/refs/heads/<branch>` `{sha: <to>, force: false}` | `Done`; `Stale` for a `422` "Update is not a fast forward"; `Protected` for a rule the credential may not bypass |
 | `Write::Labels`, `Write::CreateLabel`, `CreateIssue`'s labels | `PUT R/issues/<number>/labels` `{labels}`; `POST R/labels`; `POST R/issues` `{labels}` | as forge.md's rows |
 
+- **A commit range keeps commits alone.** Its decoder requires
+  `total_commits` and `commits`, including each sha, parent sha and
+  commit message, and skips changed files and their contents. The page
+  preserves GitHub's oldest-first order. `more` follows the next link;
+  a terminal page short of the remaining total fails `InvalidAnswer`,
+  so a missing commit list cannot prove an empty range.
 - **A ref update is a push** to GitHub's rules: it passes a rule that
   requires a pull request only for a credential on that rule's
   ruleset's bypass list with `Always`. `Protection` carries both apart

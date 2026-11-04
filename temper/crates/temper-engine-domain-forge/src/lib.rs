@@ -29,6 +29,8 @@ mod capabilities;
 mod ci;
 mod commit;
 mod connect;
+mod dismissed;
+pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, Dismissal};
 mod domain;
 mod effect_words;
 mod forges;
@@ -80,8 +82,8 @@ pub use limits::{
     BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, TierLimits, valid,
 };
 pub use panel::{
-    MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelQuestion, PanelQuestions, PanelStands,
-    PanelStep, PanelUsed,
+    MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
+    PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
@@ -281,6 +283,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Writer(row) => Key::Writer(row.forge),
         Stored::Setting(row) => Key::Setting(row.key),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
+        Stored::Dismissed { party, what } => Key::Dismissed { party: *party, what: *what },
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
 }
@@ -455,7 +458,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::ForgeNumber { .. }
+        Stored::Dismissed { .. }
+        | Stored::ForgeNumber { .. }
         | Stored::Playground(_)
         | Stored::Ci(_)
         | Stored::Landed { .. }

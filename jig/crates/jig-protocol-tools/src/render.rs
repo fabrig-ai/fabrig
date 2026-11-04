@@ -614,6 +614,8 @@ fn settings_refused(why: &jig_domain_people::Refusal) -> Rendered {
         b"malformed set"
     } else if let Refusal::Limit { which: LimitKind::SettingsProposals } = why {
         b"pending settings proposals limit"
+    } else if let Refusal::Limit { which: LimitKind::Words } = why {
+        b"reason exceeds people.words; shorten the reason and propose again"
     } else if let Refusal::Authority { lacking: Lack::Approver, .. } = why {
         b"no owner to accept"
     } else {

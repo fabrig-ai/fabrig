@@ -91,7 +91,7 @@ Every limit engine.limits.overrides and a worker's limits.overrides take: its un
 - `people.pending`: count, 8. Bounds simultaneous keyed flights, including answered moves waiting for Written.
 - `people.waiters`: count, 4. Bounds reply destinations per flight, including its first caller.
 - `people.identity_bytes`: bytes, 1,024. Bounds combined subject, login and display-name bytes per party.
-- `people.words`: bytes, 2,048. Bounds opening-word or escalation rejection-reason bytes per keyed ask, including pending and completed copies.
+- `people.words`: bytes, 2,048. Bounds opening words, escalation rejection and settings-proposal reason bytes, including pending and completed copies.
 - `people.amendment_bytes`: bytes, 8,192. Bounds owned bytes carried by one keyed task amendment.
 - `people.sign_in_lifetime_ms`: milliseconds, 86,400,000. Bounds the lifetime of a person sign-in.
 - `people.request_retention_ms`: milliseconds, 86,400,000. Bounds time for which completed person keys replay their durable answers.

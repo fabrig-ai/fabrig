@@ -51,6 +51,8 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => return false,
     };
     let limits = crate::forge::wire_limits(&env.limits.forge).expect("checked wire bounds");

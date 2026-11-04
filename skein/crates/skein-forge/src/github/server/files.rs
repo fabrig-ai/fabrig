@@ -3,6 +3,44 @@ use super::{document, output_limits};
 use crate::api;
 use skein_json::writer::Encoder;
 use skein_lib::{Overflow, Writer};
+
+/// Writes a comparison page's complete commit messages and total range count.
+pub fn commits(total: u64, rows: &[api::CommitMessage], out: &mut Writer) -> Result<(), Overflow> {
+    let limits = output_limits(out)?;
+    let mut measure = Encoder::measure(&limits);
+    commits_json(total, rows, &mut measure)?;
+    let length = measure.measured().or(Err(Overflow))?;
+    let mut json = Encoder::write(length, &limits);
+    commits_json(total, rows, &mut json)?;
+    out.put(&json.finish())
+}
+fn commits_json(total: u64, rows: &[api::CommitMessage], json: &mut Encoder) -> Result<(), Overflow> {
+    json.object_start();
+    json.key(b"total_commits");
+    json.unsigned(total);
+    json.key(b"commits");
+    json.array_start();
+    for row in rows {
+        json.object_start();
+        json.key(b"sha");
+        json.string(&crate::github::id::write_commit(&row.id).ok_or(Overflow)?);
+        json.key(b"parents");
+        json.array_start();
+        for parent in &row.parents {
+            commit_json(parent, json)?;
+        }
+        json.array_end();
+        json.key(b"commit");
+        json.object_start();
+        json.key(b"message");
+        json.string(&row.message);
+        json.object_end();
+        json.object_end();
+    }
+    json.array_end();
+    json.object_end();
+    Ok(())
+}
 /// Writes comparison metadata, commits and filenames.
 pub fn compare(
     row: &document::Compare,

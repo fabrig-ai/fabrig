@@ -1,96 +1,97 @@
 journey 2
-seed 2567820850463133091
-clocks 367500000 1793820185563000064
+seed 17156808241273795332
+clocks 210900000 1793830583280999936
 primary control
-ways "" "http://127.0.0.1:46161"
+ways "" "http://127.0.0.1:8367"
 path "/welcome"
-secret "\xf0\xfe\xba?\xc4\xfc\xc3\xea\x19\x7f\\\x09\xa5\xe6\x08>n\x0b\xf9\x0a\xe0Q&\xe3d\x86\xe5\xb0A\xdd1 "
-turn 464199999 1793820185659000064
+secret "\xf2\xc1\xc0\xa9\x9e\x7f;w\xc7!$\xa1\xf0\x8d\x95a\x97\xc3b\xf6ZF^<\x18A\xbcx\xe1\xc7\xd82"
+turn 282199999 1793830583352999936
 start
-exchange 1 33554432 POST "/jig/v1/sign-in/link" "\x00\x00\x00 \xf0\xfe\xba?\xc4\xfc\xc3\xea\x19\x7f\\\x09\xa5\xe6\x08>n\x0b\xf9\x0a\xe0Q&\xe3d\x86\xe5\xb0A\xdd1 " "Content-Type" "application/octet-stream"
+exchange 1 33554432 POST "/jig/v1/sign-in/link" "\x00\x00\x00 \xf2\xc1\xc0\xa9\x9e\x7f;w\xc7!$\xa1\xf0\x8d\x95a\x97\xc3b\xf6ZF^<\x18A\xbcx\xe1\xc7\xd82" "Content-Type" "application/octet-stream"
 deadline none
-turn 537500000 1793820185732999936
-heard answered 1 200 "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x18\xe5<\x88\xfe\xfc\x92\xa5"
+turn 339500000 1793830583409999872
+heard answered 1 200 "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x18\xe5E\xfd\xe5\xa0\xf8\x84"
 open 4096 "/jig/v1/stream"
-deadline 60537500001
-turn 570299999 1793820185764999936
+deadline 60339500001
+turn 364199999 1793830583435000064
 heard opened
-deadline 60537500001
-turn 587899999 1793820185783000064
-heard piece "data: ALAjAOjE6tcRewQDniWvOtYAAAACAAAAABMAAAATAQABAAAADQAAAA0AAAACVAvkAA==\x0a\x0a"
-exchange 2 33554432 POST "/jig/v1/watch" "\xb0#\x00\xe8\xc4\xea\xd7\x11{\x04\x03\x9e%\xaf:\xd6\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x13\x00\x00\x00\x01\x00" "Content-Type" "application/octet-stream"
-exchange 3 33554432 POST "/jig/v1/watch" "\xb0#\x00\xe8\xc4\xea\xd7\x11{\x04\x03\x9e%\xaf:\xd6\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x13\x00\x00\x00\x01\x08" "Content-Type" "application/octet-stream"
-save "stream" "\x00\x13\x00\x02\x00\x00\x00\x10\xb0#\x00\xe8\xc4\xea\xd7\x11{\x04\x03\x9e%\xaf:\xd6"
+deadline 60339500001
+turn 389900000 1793830583460000000
+heard piece "data: AA6ntZnpYKoowN3SQlwksdEAAAACAAAAABMAAAATAQABAAAADgAAAA4AAAACVAvkAA==\x0a\x0a"
+exchange 2 33554432 POST "/jig/v1/watch" "\x0e\xa7\xb5\x99\xe9`\xaa(\xc0\xdd\xd2B\\$\xb1\xd1\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x13\x00\x00\x00\x01\x00" "Content-Type" "application/octet-stream"
+exchange 3 33554432 POST "/jig/v1/watch" "\x0e\xa7\xb5\x99\xe9`\xaa(\xc0\xdd\xd2B\\$\xb1\xd1\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x13\x00\x00\x00\x01\x08" "Content-Type" "application/octet-stream"
+save "stream" "\x00\x13\x00\x02\x00\x00\x00\x10\x0e\xa7\xb5\x99\xe9`\xaa(\xc0\xdd\xd2B\\$\xb1\xd1"
 writes 1
 carried 1
 written "stream"
-deadline 20587900000
-turn 599199999 1793820185793999872
-heard answered 3 200 "\x01"
-deadline 20587900000
-turn 603399999 1793820185798000128
-heard piece "data: AQAAAAAAAAADAAAAABMAAABRCgAAAAAAAAAAAAAAAAAAAQAAAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAQAAAAAwAAAAAAAAAAAQEBAQAAAA8AAAACAAAAAAAAAAABAQAA\x0a\x0a"
-deadline 20603400000
-turn 607000000 1793820185801999872
-heard piece "data: AQAAAAAAAAACAAAAABMAAAEYAQAAAAAAAAABAAAAAAVvd25lcgAAAAAFT3duZXIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE6UkU8AAAEAAAAAvQAAAEMAAAABAAAABm9wZW5haQABAQAAAAAAAAEBAAAAImh0dHBzOi8vY2hhdGdwdC5jb20vc2V0dGluZ3MvdXNhZ2UAAB7+AAAAGwAAAAMAAAAEZGVtbwAAAQAAAAAAAAAAAAAe/gAAAFMAAAACAAAACWFudGhyb3BpYwAAAAAAAAEAAAALY2xhdWRlX2NvZGUAAAABAAAAIGh0dHBzOi8vY2xhdWRlLmFpL3NldHRpbmdzL3VzYWdlAAAe/gAAAB7+AAAQAA==\x0a\x0a"
-exchange 4 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x0d\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x0d\x03" "Content-Type" "application/octet-stream"
-exchange 5 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x0d\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x0d\x00" "Content-Type" "application/octet-stream"
-exchange 6 33554432 POST "/jig/v1/watch" "\xb0#\x00\xe8\xc4\xea\xd7\x11{\x04\x03\x9e%\xaf:\xd6\x00\x00\x00\x00\x00\x00\x00\x08\x01\x00\x01\x00\x00\x00\x0d\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x0d\x01" "Content-Type" "application/octet-stream"
-deadline 20607000001
-turn 613699999 1793820185808999936
+deadline 20389900001
+turn 405699999 1793830583476000000
+heard piece "data: AQAAAAAAAAACAAAAABMAAAEYAQAAAAAAAAABAAAAAAVvd25lcgAAAAAFT3duZXIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE6UkU8AAAEAAAAAvQAAAEMAAAABAAAABm9wZW5haQABAQAAAAAAAAEBAAAAImh0dHBzOi8vY2hhdGdwdC5jb20vc2V0dGluZ3MvdXNhZ2UAAB7+AAAAGwAAAAMAAAAEZGVtbwAAAQAAAAAAAAAAAAAe/gAAAFMAAAACAAAACWFudGhyb3BpYwAAAAAAAAEAAAALY2xhdWRlX2NvZGUAAAABAAAAIGh0dHBzOi8vY2xhdWRlLmFpL3NldHRpbmdzL3VzYWdlAAAe/gAAAB7+AAAQAA==\x0a\x0adata: AQAAAAAAAAADAAAAABMAAABRCgAAAAAAAAAAAAAAAAAAAQAAAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAQAAAAAwAAAAAAAAAAAQEBAQAAAA8AAAACAAAAAAAAAAABAQAA\x0a\x0a"
+exchange 4 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x0e\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x0e\x03" "Content-Type" "application/octet-stream"
+exchange 5 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x0e\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x0e\x00" "Content-Type" "application/octet-stream"
+exchange 6 33554432 POST "/jig/v1/watch" "\x0e\xa7\xb5\x99\xe9`\xaa(\xc0\xdd\xd2B\\$\xb1\xd1\x00\x00\x00\x00\x00\x00\x00\x08\x01\x00\x01\x00\x00\x00\x0e\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x0e\x01" "Content-Type" "application/octet-stream"
+exchange 7 33554432 POST "/jig/v1/watch" "\x0e\xa7\xb5\x99\xe9`\xaa(\xc0\xdd\xd2B\\$\xb1\xd1\x00\x00\x00\x00\x00\x00\x00\x0a\x01\x00\x01\x00\x00\x00\x0e\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x0e\x04" "Content-Type" "application/octet-stream"
+deadline 20405700000
+turn 419000000 1793830583488999936
 heard answered 2 200 "\x01"
-deadline 20607000001
-turn 618500000 1793820185814000128
-heard answered 4 200 "\x01\x01\x00\x01\x00\x00\x00\x0d\x00\x00\x00\x04\x00\x0d\x01\x01"
-deadline 20607000001
-turn 628000000 1793820185823000064
-heard piece "data: AQAAAAAAAAAIAQABAAAADQAAAAYADQAAAAA=\x0a\x0a"
-deadline 20628000001
-turn 629500000 1793820185824999936
-heard answered 5 200 "\x02\x00"
-deadline 20628000001
-turn 635399999 1793820185830000128
+deadline 20405700000
+turn 419699999 1793830583489999872
+heard answered 3 200 "\x01"
+deadline 20405700000
+turn 432900000 1793830583503000064
+heard answered 4 200 "\x01\x01\x00\x01\x00\x00\x00\x0e\x00\x00\x00\x04\x00\x0e\x01\x01"
+deadline 20405700000
+turn 446299999 1793830583516999936
 heard answered 6 200 "\x01"
-deadline 20628000001
-turn 1618099999 1793820186812999936
+deadline 20405700000
+turn 447099999 1793830583518000128
+heard piece "data: AQAAAAAAAAAIAQABAAAADgAAAAYADgAAAAA=\x0a\x0adata: AQAAAAAAAAAKAQABAAAADgAAAAYADgAAAAA=\x0a\x0a"
+deadline 20447100000
+turn 460900000 1793830583531000064
+heard answered 7 200 "\x01"
+deadline 20447100000
+turn 461699999 1793830583532000000
+heard answered 5 200 "\x02\x00"
+deadline 20447100000
+turn 1402599999 1793830584472999936
 mark
-deadline 20628000001
-turn 2207599999 1793820187403000064
+deadline 20447100000
+turn 1993500000 1793830585064000000
 mark
 act press "Act { action: Pages(Go { address: Welcome { step: Forge { forge: None } } }) }" "Set up temper"
 show "/welcome?at=forge" push
-deadline 20628000001
-turn 2756500000 1793820187952000000
+deadline 20447100000
+turn 2532599999 1793830585603000064
 mark
-deadline 20628000001
-turn 3332500000 1793820188528000000
+deadline 20447100000
+turn 3089000000 1793830586159000064
 mark
 act press "Act { action: Pages(Go { address: Welcome { step: Forge { forge: Some(Owned) } } }) }" "Run on this machine"
 show "/welcome?at=forge&forge=owned" push
-deadline 20628000001
-turn 3891799999 1793820189087000064
+deadline 20447100000
+turn 3652400000 1793830586723000064
 mark
-deadline 20628000001
-turn 4440500000 1793820189635000064
+deadline 20447100000
+turn 4213500000 1793830587284000000
 mark
 act press "Act { action: Forge(Forges(RunOwned)) }" "Run on this machine"
-save "m\xed^\xc4\xba\xee-\xc5\xdf\x80\x1d\xe2]\xa3\xa9\xaf" "\x00\x13\x00\x02\x00\x00\x00T\x00\x00\x00\x01\xa1\x1e\xa9\x7f\xefSggm\xed^\xc4\xba\xee-\xc5\xdf\x80\x1d\xe2]\xa3\xa9\xaf\x00\x00\x00\x00\x00\x00\x00\x01\x01\x18\xe4\xed\xf5Z\x1e7\x00\x01\x00\x01\x00\x00\x00\x0d\x00\x00\x00\x1c\x01\x00\x00\x00\x17\x00\x0d\x01\x01\x01\x00\x00\x00\x04work\x00\x00\x00\x05hello\x00"
+save "~\xde\xf1\xe4\x81\xebR\xda\xdc\xfe\xd9KT-'\x09" "\x00\x13\x00\x02\x00\x00\x00T\x00\x00\x00\x01\x93\xfd\x8a\xc69\xa9>K~\xde\xf1\xe4\x81\xebR\xda\xdc\xfe\xd9KT-'\x09\x00\x00\x00\x00\x00\x00\x00\x01\x01\x18\xe4\xf7j>K\x0d\x00\x01\x00\x01\x00\x00\x00\x0e\x00\x00\x00\x1c\x01\x00\x00\x00\x17\x00\x0e\x01\x01\x01\x00\x00\x00\x04work\x00\x00\x00\x05hello\x00"
 writes 1
 carried 1
-written "m\xed^\xc4\xba\xee-\xc5\xdf\x80\x1d\xe2]\xa3\xa9\xaf"
-exchange 7 33554432 POST "/jig/v1/request" "m\xed^\xc4\xba\xee-\xc5\xdf\x80\x1d\xe2]\xa3\xa9\xaf\x01\x00\x01\x00\x00\x00\x0d\x00\x00\x00\x1c\x01\x00\x00\x00\x17\x00\x0d\x01\x01\x01\x00\x00\x00\x04work\x00\x00\x00\x05hello\x00\x00" "Content-Type" "application/octet-stream"
-deadline 20628000001
-turn 4472299999 1793820189667000064
-heard piece "data: AQAAAAAAAAAIAQABAAAADQAAAFoADQAAAAEAAQAAAA8xMjcuMC4wLjE6NDY3ODEAAgAAAQAAAAR3b3JrAAAABWhlbGxvAAAAAAt0ZW1wZXItaG9zdAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAA=\x0a\x0adata: AQAAAAAAAAAIAQABAAAADQAAAFoADQAAAAEAAQAAAA8xMjcuMC4wLjE6NDY3ODEAAgECAQAAAAR3b3JrAAAABWhlbGxvAAAAAAt0ZW1wZXItaG9zdAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAA=\x0a\x0adata: AQAAAAAAAAAIAQABAAAADQAAAFwADQAAAAEAAQAAAA8xMjcuMC4wLjE6NDY3ODEAAgIBAAIBAAAABHdvcmsAAAAFaGVsbG8AAAAAC3RlbXBlci1ob3N0AAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAA==\x0a\x0a"
-deadline 24472300000
-turn 4486699999 1793820189681999872
-heard answered 7 200 "\x01\x01\x00\x01\x00\x00\x00\x0d\x00\x00\x00\x03\x00\x0d\x04"
-erase "m\xed^\xc4\xba\xee-\xc5\xdf\x80\x1d\xe2]\xa3\xa9\xaf"
+written "~\xde\xf1\xe4\x81\xebR\xda\xdc\xfe\xd9KT-'\x09"
+exchange 8 33554432 POST "/jig/v1/request" "~\xde\xf1\xe4\x81\xebR\xda\xdc\xfe\xd9KT-'\x09\x01\x00\x01\x00\x00\x00\x0e\x00\x00\x00\x1c\x01\x00\x00\x00\x17\x00\x0e\x01\x01\x01\x00\x00\x00\x04work\x00\x00\x00\x05hello\x00\x00" "Content-Type" "application/octet-stream"
+deadline 20447100000
+turn 4241500000 1793830587312000000
+heard piece "data: AQAAAAAAAAAIAQABAAAADgAAAFkADgAAAAEAAQAAAA4xMjcuMC4wLjE6ODM2OAACAAABAAAABHdvcmsAAAAFaGVsbG8AAAAAC3RlbXBlci1ob3N0AAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAA==\x0a\x0adata: AQAAAAAAAAAIAQABAAAADgAAAFsADgAAAAEAAQAAAA4xMjcuMC4wLjE6ODM2OAACAgEAAgEAAAAEd29yawAAAAVoZWxsbwAAAAALdGVtcGVyLWhvc3QAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAA\x0a\x0a"
+deadline 24241500001
+turn 4249599999 1793830587320000000
+heard answered 8 200 "\x01\x01\x00\x01\x00\x00\x00\x0e\x00\x00\x00\x03\x00\x0e\x04"
+erase "~\xde\xf1\xe4\x81\xebR\xda\xdc\xfe\xd9KT-'\x09"
 writes 1
 show "/welcome?at=model" push
 carried 1
-deadline 24472300000
-turn 5509000000 1793820190704000000
+deadline 24241500001
+turn 5285299999 1793830588356000000
 mark
-deadline 24472300000
+deadline 24241500001
 end

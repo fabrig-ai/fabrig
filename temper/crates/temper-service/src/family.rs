@@ -167,6 +167,7 @@ pub fn to_root(
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
+                        | w::Request::Dismiss(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
                         | w::Request::EndPlayground => {
@@ -230,6 +231,20 @@ pub fn to_root(
                             installation: value.installation,
                             page: value.page,
                         }),
+                    }));
+                }
+                w::Request::Dismiss(value) => {
+                    let what = match value.into_parts().what {
+                        w::Dismissal::ToBegin(value) => forge::Dismissal::ToBegin { project: value.project() },
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Dismiss { what },
                     }));
                 }
                 w::Request::Adopt(value) => value,
@@ -318,6 +333,11 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::landings_subject(subject.project(), subject.ended())),
                     },
+                    w::Watch::Dismissed => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::DISMISSED_SUBJECT),
+                    },
                     w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
@@ -342,32 +362,9 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
         }
         None => None,
     };
-    let mut gates = List::with_capacity(forge::PANEL_GATES);
-    for gate in value.gates {
-        gates
-            .push(
-                w::Gate::new(
-                    limits,
-                    w::GateParts {
-                        number: gate.number,
-                        kind: match gate.kind {
-                            change::GateKind::Agent => w::GateKind::Review,
-                            change::GateKind::Person => w::GateKind::Approval,
-                            change::GateKind::Check => w::GateKind::Check,
-                        },
-                        blocks: gate.blocking,
-                        verdict: match gate.verdict {
-                            change::Status::Unknown => w::Verdict::None,
-                            change::Status::Pending => w::Verdict::Pending,
-                            change::Status::Passed => w::Verdict::Approved,
-                            change::Status::Failed => w::Verdict::Changes,
-                        },
-                    },
-                )
-                .ok()?,
-            )
-            .ok()?;
-    }
+    let gates = panel_gates(value.gates, limits)?;
+    let approvals = panel_approvals(value.approvals, limits)?;
+    let unmapped_reviews = panel_unmapped(value.unmapped_reviews, limits)?;
     let record = w::ChangePanel::new(
         limits,
         w::ChangePanelParts {
@@ -394,6 +391,8 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
                 change::Status::Failed => w::Ci::Failed,
             },
             gates,
+            approvals,
+            unmapped_reviews,
             repairs: used(value.repairs, limits)?,
             resolutions: used(value.resolutions, limits)?,
             updates: used(value.updates, limits)?,
@@ -402,6 +401,100 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
     )
     .ok()?;
     Some(wire::change_panel(&record))
+}
+
+fn panel_gates(value: Box<[forge::PanelGate]>, limits: &w::Limits) -> Option<List<w::Gate>> {
+    let mut gates = List::with_capacity(forge::PANEL_GATES);
+    for gate in value {
+        gates
+            .push(
+                w::Gate::new(
+                    limits,
+                    w::GateParts {
+                        number: gate.number,
+                        kind: match gate.kind {
+                            change::GateKind::Agent => w::GateKind::Review,
+                            change::GateKind::Person => w::GateKind::Approval,
+                            change::GateKind::Check => w::GateKind::Check,
+                        },
+                        blocks: gate.blocking,
+                        verdict: match gate.verdict {
+                            change::Status::Unknown => w::Verdict::None,
+                            change::Status::Pending => w::Verdict::Pending,
+                            change::Status::Passed => w::Verdict::Approved,
+                            change::Status::Failed => w::Verdict::Changes,
+                        },
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(gates)
+}
+fn panel_approvals(value: Box<[forge::PanelApproval]>, limits: &w::Limits) -> Option<List<w::Approval>> {
+    let mut approvals = List::with_capacity(limits.change_panel_approvals);
+    for line in value {
+        let mut counted = List::with_capacity(limits.approval_counted);
+        for review in line.counted {
+            counted
+                .push(
+                    w::CountedReview::new(limits, w::CountedReviewParts { person: review.person, head: review.head })
+                        .ok()?,
+                )
+                .ok()?;
+        }
+        approvals
+            .push(
+                w::Approval::new(
+                    limits,
+                    w::ApprovalParts {
+                        scope: line.scope,
+                        number: line.rule,
+                        role: line.role,
+                        freshness: match line.freshness {
+                            forge::JudgeFreshness::Exact => w::RuleFreshness::Exact,
+                            forge::JudgeFreshness::Clean => w::RuleFreshness::Clean,
+                        },
+                        required: line.required,
+                        read: match line.read {
+                            forge::ReviewRead::Unread => w::ReviewRead::Unread,
+                            forge::ReviewRead::Incomplete => w::ReviewRead::Incomplete,
+                            forge::ReviewRead::Complete => w::ReviewRead::Complete,
+                        },
+                        counted,
+                        remaining: line.remaining,
+                        refused: line.refused,
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(approvals)
+}
+fn panel_unmapped(value: Box<[forge::UnmappedReview]>, limits: &w::Limits) -> Option<List<w::UnmappedReview>> {
+    let mut reviews = List::with_capacity(limits.change_panel_unmapped_reviews);
+    for review in value {
+        reviews
+            .push(
+                w::UnmappedReview::new(
+                    limits,
+                    w::UnmappedReviewParts {
+                        account: review.account,
+                        head: review.head,
+                        verdict: match review.verdict {
+                            skein_forge::api::Verdict::Approve => w::Verdict::Approved,
+                            skein_forge::api::Verdict::Comment => w::Verdict::None,
+                            skein_forge::api::Verdict::RequestChanges => w::Verdict::Changes,
+                        },
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(reviews)
 }
 
 fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w::Questions> {
@@ -594,6 +687,10 @@ pub fn answer(
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
         Some(root::ApplicationAnswer::Returning) => w::Outcome::Returning,
+        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
+        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge)) => w::Outcome::ForgeRefused(
+            w::ForgeRefused::new(limits, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).ok()?,
+        ),
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(a))) => {
             w::Outcome::Adopted(
                 w::Adopted::new(
@@ -1001,11 +1098,24 @@ fn admin_stop(stop: forge::AdminStop, limits: &w::Limits) -> Option<w::AdminStop
     })
 }
 
-/// Encode a whole landing document, with deployment addresses at this boundary.
+/// Encode a whole forge document, with deployment addresses at this boundary.
 #[must_use]
 pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
+        forge::Document::Dismissals(rows) => {
+            let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
+            for row in rows {
+                let value = match row {
+                    forge::Dismissal::ToBegin { project } => {
+                        w::Dismissal::ToBegin(w::ToBegin::new(limits, w::ToBeginParts { project }).ok()?)
+                    }
+                };
+                dismissed.push(value).ok()?;
+            }
+            let document = w::Dismissals::new(limits, w::DismissalsParts { dismissed }).ok()?;
+            Some(wire::dismissals(&document))
+        }
         forge::Document::Landing(value) => {
             let mut members = List::with_capacity(u32::try_from(value.members.len()).ok()?);
             for member in value.members {

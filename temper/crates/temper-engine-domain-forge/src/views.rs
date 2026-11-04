@@ -1,5 +1,5 @@
-//! Landing documents from the top's retained facts (domain/landing.md, 14).
-use crate::{Check, Domain, Panel, ReceiptKey, ReceiptRun};
+//! Forge documents from retained facts (domain/landing.md, 14; domain/forge.md, 5.5).
+use crate::{Check, DISMISSED_SUBJECT, Dismissal, Domain, Panel, ReceiptKey, ReceiptRun};
 use alloc::boxed::Box;
 use core::mem::size_of_val;
 use jig_domain_people::ApplicationScope;
@@ -20,6 +20,7 @@ pub enum Document {
     Change(Panel),
     Landing(LandingView),
     Landings(LandingsView),
+    Dismissals(Box<[Dismissal]>),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -84,10 +85,21 @@ impl Domain {
         &self,
         subject: u64,
         scope: ApplicationScope,
+        party: u64,
         now: skein_lib::Wall,
         limits: &crate::Limits,
     ) -> Option<Document> {
-        let ApplicationScope::Project(project) = scope else { return None };
+        let project = match scope {
+            ApplicationScope::Own => {
+                return if subject == DISMISSED_SUBJECT {
+                    Some(Document::Dismissals(self.dismissals(party)))
+                } else {
+                    None
+                };
+            }
+            ApplicationScope::Project(project) => project,
+            ApplicationScope::Deployment => return None,
+        };
         for ended in [false, true] {
             if subject == landings_subject(project, ended) {
                 return Some(Document::Landings(self.landings_view(project, ended)?));
@@ -296,12 +308,16 @@ impl Document {
     pub fn owned_bytes(&self) -> usize {
         let mut size = size_of::<Self>();
         match self {
+            Self::Dismissals(rows) => {
+                size = size.saturating_add(size_of_val(rows.as_ref()));
+            }
             Self::Change(panel) => {
                 size = size
                     .saturating_add(panel.owner.len())
                     .saturating_add(panel.name.len())
                     .saturating_add(panel.branch.len())
                     .saturating_add(panel.landing.len())
+                    .saturating_add(panel.approval_bytes())
                     .saturating_add(panel.gates.len().saturating_mul(size_of::<crate::PanelGate>()));
                 if let crate::PanelStep::Queued { ahead, .. } = &panel.step {
                     size = size.saturating_add(size_of_val(ahead.as_ref()));

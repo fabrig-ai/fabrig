@@ -74,6 +74,80 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "home-three-left",
+        heading: "You’re set up. Nothing has run yet.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Adopt work/hello" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-two-left",
+        heading: "Two things left to begin with.",
+        parts: &[
+            Part::Text { text: "work/hello is in Hello" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-one-left",
+        heading: "One thing left to begin with.",
+        parts: &[
+            Part::Text { text: "work/hello is in Hello" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-ready",
+        heading: "Hello is ready for work.",
+        parts: &[
+            Part::Text { text: "work/hello is in Hello" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-adopting",
+        heading: "You’re set up. Nothing has run yet.",
+        parts: &[
+            Part::Text { text: "Adopting work/hello into Hello" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-refused",
+        heading: "You’re set up. Nothing has run yet.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Adopt work/hello" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-no-repository",
+        heading: "You’re set up. Nothing has run yet.",
+        parts: &[
+            Part::Text { text: "Your agents run on your ChatGPT plan. Hello has no repository yet." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-github",
+        heading: "You’re set up. Nothing has run yet.",
+        parts: &[
+            Part::Text {
+                text: "temper’s App reaches its repositories on sam. Until one is in, chats talk and plan but change no code.",
+            },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
         name: "welcome-model-forge-under-way",
         heading: "Connect a model",
         parts: &[
@@ -406,6 +480,16 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Heading { level: 3 }, name: "JSON output for tally report" },
             Part::Named { role: Role::Button, name: "Accept" },
             Part::Named { role: Role::Paragraph, name: "The old parser accepts" },
+        ],
+    },
+    Holds {
+        name: "settings",
+        heading: "Settings for tally",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Forges" },
+            Part::Named { role: Role::Link, name: "Accounts" },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+            Part::Named { role: Role::Button, name: "Sign out" },
         ],
     },
     Holds {
@@ -903,6 +987,8 @@ fn print_writes_every_page_and_the_bundle() {
         let page = fs::read_to_string(out.join(format!("{}.html", sample.name))).expect("sample page");
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
             assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
+        } else if page.contains("class=\"temper-rail\"") {
+            assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {
             assert!(page.contains("class=\"temper-menu\""), "{}: menu disclosure", sample.name);
             assert!(page.contains("<summary>Menu</summary>"), "{}: menu name", sample.name);

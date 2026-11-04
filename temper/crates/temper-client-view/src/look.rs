@@ -3,6 +3,42 @@ use crate::frame::owner;
 use skein_ui::{Style, look::Names};
 /// A folded account.
 pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
+/// The rail switcher's panel.
+pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
+/// The rail switcher's actions.
+pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
+/// A switcher row's repository words.
+pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
+/// The additional repository count.
+pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
+/// Home's home (client/README.md, 3.5).
+pub const HOME: Style = Style { owner: owner(), token: 200 };
+/// Home's intro (client/README.md, 3.5).
+pub const HOME_INTRO: Style = Style { owner: owner(), token: 201 };
+/// Home's kicker (client/README.md, 3.5).
+pub const HOME_KICKER: Style = Style { owner: owner(), token: 202 };
+/// Home's lede (client/README.md, 3.5).
+pub const HOME_LEDE: Style = Style { owner: owner(), token: 203 };
+/// Home's begin (client/README.md, 3.5).
+pub const HOME_BEGIN: Style = Style { owner: owner(), token: 204 };
+/// Home's steps (client/README.md, 3.5).
+pub const HOME_STEPS: Style = Style { owner: owner(), token: 205 };
+/// Home's step (client/README.md, 3.5).
+pub const HOME_STEP: Style = Style { owner: owner(), token: 206 };
+/// Home's acts (client/README.md, 3.5).
+pub const HOME_ACTS: Style = Style { owner: owner(), token: 207 };
+/// Home's primary (client/README.md, 3.5).
+pub const HOME_PRIMARY: Style = Style { owner: owner(), token: 208 };
+/// Home's quiet (client/README.md, 3.5).
+pub const HOME_QUIET: Style = Style { owner: owner(), token: 209 };
+/// Home's connected (client/README.md, 3.5).
+pub const HOME_CONNECTED: Style = Style { owner: owner(), token: 210 };
+/// Home's lines (client/README.md, 3.5).
+pub const HOME_LINES: Style = Style { owner: owner(), token: 211 };
+/// Home's muted (client/README.md, 3.5).
+pub const HOME_MUTED: Style = Style { owner: owner(), token: 212 };
+/// Home's done (client/README.md, 3.5).
+pub const HOME_DONE: Style = Style { owner: owner(), token: 213 };
 /// The frame's banner.
 pub const BANNER: Style = Style { owner: owner(), token: 0 };
 /// The frame's navigation.
@@ -354,6 +390,8 @@ pub const FLOW_BUSY: Style = Style { owner: owner(), token: 173 };
 /// The welcome forge's fetch meter (temper/docs/design/draft/fetch-progress.md, 5 and 6).
 /// No node carries it yet.
 pub const FLOW_METER: Style = Style { owner: owner(), token: 174 };
+/// The project settings (temper/docs/design/client/README.md, 3.5).
+pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
@@ -365,6 +403,16 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Description, MODEL_FACT, "dd"),
     (owner(), skein_ui::Role::Heading { level: 3 }, ADMIN_LEGEND, "legend"),
 ];
+/// The project's navigation frame (client/README.md, 5.3).
+pub const RAIL: Style = Style { owner: owner(), token: 175 };
+/// The rail's three page entries.
+pub const RAIL_NAV: Style = Style { owner: owner(), token: 176 };
+/// The rail's new chat link.
+pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
+/// The rail's status, settings and person.
+pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
+/// The browser's phone navigation.
+pub const TABBAR: Style = Style { owner: owner(), token: 179 };
 /// The look's names (skein's ui.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
@@ -545,6 +593,63 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-project",
         b"temper-flow-busy",
         b"temper-flow-meter",
+        // Reserved for the other look-round-3 token ranges.
+        b"temper-rail",
+        b"temper-rail-nav",
+        b"temper-rail-new",
+        b"temper-rail-foot",
+        b"temper-tabbar",
+        b"temper-reserved-180",
+        b"temper-reserved-181",
+        b"temper-reserved-182",
+        b"temper-reserved-183",
+        b"temper-reserved-184",
+        b"temper-reserved-185",
+        b"temper-reserved-186",
+        b"temper-reserved-187",
+        b"temper-reserved-188",
+        b"temper-reserved-189",
+        b"temper-projects-menu",
+        b"temper-projects-acts",
+        b"temper-projects-repo",
+        b"temper-projects-more",
+        b"temper-reserved-194",
+        b"temper-reserved-195",
+        b"temper-reserved-196",
+        b"temper-reserved-197",
+        b"temper-reserved-198",
+        b"temper-reserved-199",
+        b"temper-home",
+        b"temper-home-intro",
+        b"temper-home-kicker",
+        b"temper-home-lede",
+        b"temper-home-begin",
+        b"temper-home-steps",
+        b"temper-home-step",
+        b"temper-home-acts",
+        b"temper-home-primary",
+        b"temper-home-quiet",
+        b"temper-home-connected",
+        b"temper-home-lines",
+        b"temper-home-muted",
+        b"temper-home-done",
+        b"temper-reserved-214",
+        b"temper-reserved-215",
+        b"temper-reserved-216",
+        b"temper-reserved-217",
+        b"temper-reserved-218",
+        b"temper-reserved-219",
+        b"temper-reserved-220",
+        b"temper-reserved-221",
+        b"temper-reserved-222",
+        b"temper-reserved-223",
+        b"temper-reserved-224",
+        b"temper-reserved-225",
+        b"temper-reserved-226",
+        b"temper-reserved-227",
+        b"temper-reserved-228",
+        b"temper-reserved-229",
+        b"temper-settings",
     ],
     regions: &[b"temper-link"],
 };
