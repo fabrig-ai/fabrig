@@ -1285,3 +1285,8 @@ unchanged.
   (section 14); the page half runs in the application's browser tier
   (playground.md, 8).
 
+The worker's platform keeps the small store's records whole in the
+page's memory. `store::Store` enforces the small store's bound before
+handing a write to the platform; a write handed to this in-memory
+platform succeeds (decided 2026-11-03).
+
