@@ -20,3 +20,36 @@ id = 1
 story = "paying an item touches its file alone: the index is printed from the item files, one command, and no README row can conflict"
 parts = ["debt-index"]
 walk = false
+
+[[part]]
+id = "forge"
+title = "the forge connection's close: its bound pinned, no spin, its guard first, then the link's face"
+mode = "direct"
+needs = []
+design = "skein/docs/design/link.md, 3.3"
+
+[[part]]
+id = "link"
+title = "skein-link: no bytes in Debug, due and Upload::of, then one state for how it ends"
+mode = "direct"
+needs = []
+design = "skein/docs/design/link.md, 3"
+
+[[slice]]
+id = 2
+story = "a stalled peer can't hold a forge close open, a test says so, and the link says how it ends in one state with no secret in Debug"
+parts = ["forge", "link"]
+walk = false
+
+[[part]]
+id = "owners"
+title = "llm, oauth and setup read the link's face, and their close pins can fail"
+mode = "direct"
+needs = []
+design = "skein/docs/design/link.md, 3.1"
+
+[[slice]]
+id = 3
+story = "each owner spells the link's rules once, and the close order and the close bound are tests that fail when broken"
+parts = ["owners"]
+walk = false
