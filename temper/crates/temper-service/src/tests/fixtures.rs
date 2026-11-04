@@ -126,8 +126,6 @@ pub fn forges() -> Box<[settings::Forge]> {
         git_program: None,
         web: None,
         app_read_only: false,
-        api_token: None,
-        webhook_secret: None,
         user: 42,
         identity: 1,
     }])
@@ -152,8 +150,6 @@ pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
             git_program: forge.git_program.clone(),
             web: forge.web.clone(),
             app_read_only: forge.app_read_only,
-            api_token: None,
-            webhook_secret: None,
             user: forge.user,
             identity: forge.identity,
         }));

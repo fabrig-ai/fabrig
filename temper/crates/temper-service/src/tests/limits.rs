@@ -428,7 +428,6 @@ fn github_component_checks_key_deadline_and_renewal() {
     ] {
         let mut config = fixtures::configured_engine();
         config.forges[0].kind = crate::settings::Kind::GitHub;
-        config.forges[0].api_token = None;
         limits::apply(&mut config.limits, name, value).unwrap();
         if name == b"forge_component.deadline_ms" {
             config.limits.forge.client.lifetime = Duration::from_secs(300);

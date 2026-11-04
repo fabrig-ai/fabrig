@@ -522,8 +522,7 @@ fn the_shared_numbers_are_the_clients_plain_numbers() {
     );
 }
 
-const HEAD_PROBLEMS: &[u8] = b"application.forges[0].api_token: past its bound\n\
-    application.limits.overrides.forge_component.target_bytes: past its bound\n\
+const HEAD_PROBLEMS: &[u8] = b"application.limits.overrides.forge_component.target_bytes: past its bound\n\
     application.limits.overrides.forge_component.token_bytes: past its bound\n\
     application.limits.overrides.forge_component.tls.send: past its bound\n\
     application.limits.overrides.io.output: past its bound\n";

@@ -19,12 +19,6 @@ const WORD: &[u8] = b"temper";
 /// `forge::connect` and the setup gate refuse a held forge before either component is asked.
 pub const HELD_ADDRESS: core::net::SocketAddr =
     core::net::SocketAddr::V4(core::net::SocketAddrV4::new(core::net::Ipv4Addr::LOCALHOST, 0));
-fn held(api: &jig_protocol_config::Address, address: core::net::SocketAddr) -> bool {
-    match api {
-        jig_protocol_config::Address::Host { .. } => address == HELD_ADDRESS,
-        jig_protocol_config::Address::Addr(_) => false,
-    }
-}
 /// A forge's endpoint and TLS transport, supplied by the shell; an unresolved host uses [`HELD_ADDRESS`].
 #[derive(Debug)]
 pub struct ForgeRuntime {
@@ -85,7 +79,7 @@ pub fn settings(
                 },
                 address: skein_io::Addr::Ip(endpoint.address),
                 transport,
-                access: if held(&forge.api, endpoint.address) { None } else { file_access(forge) },
+                access: None,
                 log_origins: forge.log_origins.clone().unwrap_or(endpoint.log_origins),
             })
             .expect("configured forge capacity");
@@ -105,15 +99,6 @@ pub fn settings(
     } else {
         None
     }
-}
-// Transitional Forgejo files; temper-15 replaces them with records.
-fn file_access(forge: &settings::Forge) -> Option<skein_forge_connection::Access> {
-    let token = forge.api_token.as_ref()?;
-    Some(skein_forge_connection::Access {
-        credential: skein_forge::credential::Credential::Token(token.clone()),
-        user: forge.user,
-        webhook_secret: forge.webhook_secret.clone(),
-    })
 }
 fn forge_path(index: u32) -> Path {
     Path::root().member(b"application").member(b"forges").child(Segment::Index(index))
@@ -209,8 +194,6 @@ pub(crate) struct Layer {
     pub(crate) log_origin_limit: u32,
     pub(crate) roots: Option<skein_tls::Config>,
     pub(crate) webhooks: bool,
-    pub(crate) file_access: Map<u16, ()>,
-    pub(crate) startup_access: Map<u16, skein_forge_connection::Access>,
     pub(crate) serving: Option<()>,
     // Some waits for this item; None remembers a completed removal for this run.
     pub(crate) erasing: Map<u16, Option<temper_protocol_records::Item>>,
@@ -226,24 +209,19 @@ pub(crate) struct Layer {
 }
 struct Endpoints {
     roots: Option<skein_tls::Config>,
-    file_access: Map<u16, ()>,
     forges: Map<u16, skein_forge_connection::settings::Forge>,
 }
 fn endpoints(settings: &mut skein_forge_connection::settings::Settings, capacity: u32) -> Endpoints {
     let mut roots = None;
-    let mut file_access = Map::with_capacity(capacity);
     let mut forges = Map::with_capacity(capacity);
     let initial = core::mem::replace(&mut settings.forges, List::with_capacity(capacity));
     for forge in initial.into_boxed() {
-        if forge.access.is_some() {
-            file_access.insert(forge.number, ()).expect("configured forge capacity");
-        }
         if let skein_forge_connection::settings::Transport::Tls { trust, .. } = &forge.transport {
             roots = Some(trust.clone());
         }
         forges.insert(forge.number, forge).expect("validated endpoints");
     }
-    Endpoints { roots, file_access, forges }
+    Endpoints { roots, forges }
 }
 impl Layer {
     pub(crate) fn new(
@@ -271,7 +249,7 @@ impl Layer {
                 }
             }
         }
-        let Endpoints { roots, file_access, forges: endpoints } = endpoints(&mut settings, limits.forges);
+        let Endpoints { roots, forges: endpoints } = endpoints(&mut settings, limits.forges);
         Ok(Self {
             origins: origins::Origins::new(limits.forges, limits.log_origins),
             endpoints,
@@ -279,8 +257,6 @@ impl Layer {
             log_origin_limit: limits.log_origins,
             roots,
             webhooks: settings.webhooks.is_some(),
-            file_access,
-            startup_access: Map::with_capacity(limits.forges),
             serving: None,
             erasing: Map::with_capacity(65_536),
             erase_waiting: Map::with_capacity(limits.forges),
@@ -345,16 +321,6 @@ impl Layer {
         if !self.begun {
             self.begun = true;
             self.component.begin(&self.env, &mut self.above, &mut self.io);
-            for _ in 0..self.startup_access.len() {
-                let forge = *self.startup_access.first().expect("pending document access").0;
-                let access = self.startup_access.remove(&forge).expect("pending document access");
-                self.component.down(
-                    &self.env,
-                    skein_forge_connection::Request::Connect { forge, access },
-                    &mut self.above,
-                    &mut self.io,
-                );
-            }
         } else if let Some(deadline) = self.component.next_deadline()
             && deadline <= now
         {
@@ -404,25 +370,18 @@ pub fn problems(unusable: skein_forge_connection::Unusable, found: &mut Problems
             Stacked::JsonOverHttp | Stacked::JsonOverServer => &[b"forge_component.chunk"],
             Stacked::ServerOverIo => &[b"forge_component.hook_head_bytes", b"io.intake", b"io.output"],
         },
-        Unusable::SecretBytes { .. } => &[b"forge_component.hook_secret_bytes"],
-        Unusable::Secret { forge } => {
-            found.push(forge_path(u32::from(forge)).member(b"webhook_secret"), What::Bound);
-            &[b"forge_component.hook_secret_bytes"]
-        }
+        Unusable::SecretBytes { .. } | Unusable::Secret { .. } => &[b"forge_component.hook_secret_bytes"],
         Unusable::Listener => {
             found.push(Path::root().member(b"application").member(b"webhooks").member(b"listener"), What::Plaintext);
             return;
         }
         Unusable::Forges { .. } => &[b"forge_component.forges"],
-        Unusable::Request { forge } => {
-            found.push(forge_path(u32::from(forge)).member(b"api_token"), What::Bound);
-            &[
-                b"forge_component.target_bytes",
-                b"forge_component.token_bytes",
-                b"forge_component.tls.send",
-                b"io.output",
-            ]
-        }
+        Unusable::Request { .. } => &[
+            b"forge_component.target_bytes",
+            b"forge_component.token_bytes",
+            b"forge_component.tls.send",
+            b"io.output",
+        ],
         Unusable::Zero | Unusable::Word => &[b"forge_component"],
         Unusable::Origin { forge, .. } => {
             found.push(forge_path(u32::from(forge)).member(b"log_origins"), What::Bound);
@@ -436,17 +395,10 @@ pub fn problems(unusable: skein_forge_connection::Unusable, found: &mut Problems
             found.push(forge_path(u32::from(forge)).member(b"number"), What::Unique);
             return;
         }
-        Unusable::Token { forge } | Unusable::Credential { forge } => {
-            found.push(forge_path(u32::from(forge)).member(b"api_token"), What::Bound);
-            return;
-        }
-        Unusable::Key { forge } => {
-            found.push(forge_path(u32::from(forge)).member(b"app_key"), What::Bound);
-            return;
-        }
-        Unusable::User { forge } => {
-            found.push(forge_path(u32::from(forge)).member(b"user"), What::Bound);
-            return;
+        Unusable::Token { .. } | Unusable::Credential { .. } | Unusable::Key { .. } | Unusable::User { .. } => {
+            unreachable!(
+                "temper's prepared settings carry no forge access: a forge's access is its records' (credentials.md, 5)"
+            )
         }
         Unusable::PlaintextName { forge } => {
             found.push(forge_path(u32::from(forge)).member(b"api"), What::Bound);
