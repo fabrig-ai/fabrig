@@ -432,7 +432,7 @@ pub(super) fn root_at_with_forges(
             match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read() {
                 w::Read::Deployment => deliver_deployment(&mut root, token, true, true),
                 w::Read::Playground => read = Some(token),
-                w::Read::Setting(_) | w::Read::ProposalItems(_) => {}
+                w::Read::Setting(_) | w::Read::RevisionSetting(_) | w::Read::ProposalItems(_) => {}
             }
         }
     }
