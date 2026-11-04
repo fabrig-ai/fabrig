@@ -1,5 +1,5 @@
-# forgejo forgejo version 17.0.0+gitea-1.22.0 (release name 17.0.0) built with GNU Make 4.4.1, go1.26.9 : bindata, timetzdata, sqlite, sqlite_unlock_notify sha256 5a3b07e124ed70b4e46ee3939515f003bd3cc85352257a9a4607a527251042ca
-# runner forgejo-runner version v13.2.0
+# forgejo forgejo version 17.0.1+gitea-1.22.0 (release name 17.0.1) built with GNU Make 4.4.1, go1.26.10 : bindata, timetzdata, sqlite, sqlite_unlock_notify sha256 51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f
+# runner forgejo-runner version v13.2.1
 holds api-default-page-cap-50-and-30
 holds pull-for-accepts-encoded-slash
 holds update-conflict-is-409-merge-failed
@@ -79,6 +79,37 @@ holds step-log-suffix-content-range-names-its-first-byte
 holds empty-log-suffix-range-answers-206-empty
 holds step-past-the-last-is-404
 holds runner-a-jobs-token-clones-its-private-repository
+holds tree-commit-id-answers-root-tree
+holds tree-entries-use-git-order
+holds tree-directory-id-answers-directory
+fails tree-pages-and-truncated: expected page lengths 2,1,0 and truncated true,false,false
+holds tree-truncated-stays-true-on-short-last-page
+fails tree-past-last-page-is-an-empty-array: Forgejo answers tree:null, truncated:false
+holds status-combined-keeps-description-and-target-url
+holds status-list-keeps-description-and-target-url
+holds merge-fast-forward-only-moves-base-to-head
+holds merge-fast-forward-only-marks-pull-merged-at-head
+holds merge-fast-forward-only-refuses-diverged-head
+fails merge-fast-forward-only-diverged-is-405: HTTP 500: {"message":"Merge DivergingFastForwardOnly Error: exit status 128: hint: Diverging branches can't be fast-forwarded, you need to either:\nhint:\nhint: \tgit merge --no-ff\nhint:\nhint: or:\nhint:\nhint: \tgit rebase\nhint:\nhint: Disable this message with \"git config advice.diverging false\"\nfatal: Not possible to fast-forward, aborting.\n\n","url":"http://127.0.0.1:3000/api/swagger"}
+holds update-rebase-rewrites-onto-base-and-keeps-messages
+holds update-rebase-containing-base-changes-nothing
+holds update-rebase-conflict-is-409-and-keeps-head
+holds actions-dispatch-missing-workflow-is-404
+fails actions-dispatch-missing-branch-is-404: HTTP 400: {"message":"could not expand reference 'absent'","url":"http://127.0.0.1:3000/api/swagger"}
+holds actions-dispatch-missing-branch-is-400
+holds actions-dispatch-is-204-with-no-body
+holds actions-rerun-running-is-400
+holds actions-dispatch-run-keeps-head-at-dispatch
+fails actions-dispatch-statuses-land-on-dispatch-head: completed dispatch has total_count:0 and statuses:null; no commit statuses
+holds actions-dispatch-only-workflow-push-starts-no-run
+fails actions-dispatch-run-names-event-and-trigger-user: expected event workflow_dispatch, trigger_user.id and created
+holds actions-dispatch-run-names-trigger-event-and-trigger-user
+holds actions-dispatch-run-jobs-list-both-outcomes
+holds actions-dispatch-job-steps-setup-first-completion-last
+holds actions-dispatch-input-reaches-job-log
+holds actions-rerun-completed-is-204
+holds actions-rerun-next-attempt-visible-on-job
+fails actions-runs-filter-workflow-and-head-newest-first: head_sha and newest order hold; workflow is ignored: page 2 also contains other.yaml
 holds compare-files-false-lists-no-commits-files
 holds compare-files-false-keeps-its-own-files-empty
 holds compare-verification-false-changes-nothing-kept
@@ -103,8 +134,6 @@ holds setup-a-git-token-of-write-repository-and-read-user-answers-user-as-the-bo
 holds setup-token-delete-answers-204-and-ends-the-token
 holds setup-token-delete-of-a-missing-id-is-404
 holds setup-admin-token-without-write-admin-is-refused-the-token-routes
-unchecked setup-repository-by-id-reads-its-path-for-an-admin: declared; recording requires the director's run
-unchecked setup-admin-token-without-write-repository-is-refused-the-repository-routes: declared; recording requires the director's run
 holds setup-admin-token-without-a-user-scope-is-refused-user
 holds setup-admin-token-with-read-user-in-place-of-write-user-reads-user
 holds setup-api-token-without-write-issue-is-refused-an-issue-write
@@ -140,6 +169,57 @@ holds setup-hook-listing-pages-by-limit
 holds setup-hook-of-one-url-can-be-made-twice
 holds setup-hook-delete-is-204-and-leaves-the-orgs-other-hooks
 holds setup-hook-delete-of-a-missing-id-is-404
+holds setup-user-repos-lists-owned-collaborating-and-team-repositories
+holds setup-user-repos-rows-carry-permissions-push
+holds setup-user-repos-pages-by-page-and-limit
+holds setup-search-by-an-admin-lists-every-owners-private-repositories
+holds setup-search-answers-ok-and-data
+holds setup-search-sorted-by-id-pages-by-page-and-limit
+holds setup-collaborator-put-by-an-admin-answers-204-and-grants-write
+holds setup-collaborator-permission-reads-back-write
+holds setup-repository-hook-for-a-loopback-address-is-made
+holds setup-repository-hook-is-json-and-active
+holds setup-repository-hook-lists-the-events-it-was-made-with
+holds setup-repository-hook-never-shows-its-secret
+holds setup-repository-hook-of-one-url-can-be-made-twice
+holds setup-repository-hook-patch-and-delete-leave-the-others
+holds setup-repository-hook-listing-pages-by-limit
+holds setup-repository-by-id-reads-its-path-for-an-admin
+holds setup-admin-token-without-write-repository-is-refused-the-repository-routes
+holds setup-repository-creation-returns-adoption-and-clone-fields
+holds setup-repository-creation-honors-both-visibilities
+holds setup-repository-creation-auto-initializes-main-with-a-readme
+holds setup-repository-created-again
+holds setup-repository-invalid-name
+holds setup-repository-missing-org
+holds setup-repository-unauthorized
+holds setup-repository-forbidden
+holds setup-repository-made-in-an-org-is-201-with-a-readme-on-main
+holds setup-repository-made-again-is-409
+holds setup-repository-made-has-actions-when-the-forge-enables-them
+holds setup-file-put-is-201-and-read-back-on-its-branch
+holds setup-file-put-again-is-422
+holds setup-file-missing-reads-raw-404
+holds setup-scope-user-is-read-user
+holds setup-scope-user-of-is-read-user
+holds setup-scope-create-user-is-write-admin
+holds setup-scope-tokens-is-read-admin
+holds setup-scope-create-token-is-write-admin
+holds setup-scope-delete-token-is-write-admin
+holds setup-scope-org-is-read-organization
+holds setup-scope-create-org-is-write-admin
+holds setup-scope-create-repository-is-write-organization
+holds setup-scope-create-file-is-write-repository
+holds setup-scope-repository-is-read-repository
+holds setup-scope-permission-is-read-repository
+holds setup-scope-add-collaborator-is-write-repository
+holds setup-scope-repo-hooks-is-read-repository
+holds setup-scope-create-repo-hook-is-write-repository
+holds setup-scope-edit-repo-hook-is-write-repository
+holds setup-scope-delete-repo-hook-is-write-repository
+holds setup-scope-repo-search-is-read-repository
+holds setup-scope-settings-needs-no-scope
+holds setup-admin-scopes-need-each-of-the-four-categories
 holds cli-migrate-runs-on-a-fresh-work-path
 holds cli-migrate-runs-again-on-a-migrated-work-path
 holds cli-user-create-prints-the-random-password-first
@@ -181,6 +261,8 @@ fails delivery-pull-is-settled-when-its-push-is-delivered: job statuses=[true, t
 holds delivery-pull-is-checking-when-its-push-is-delivered
 # delivery-pull-is-checking-when-its-push-is-delivered: job statuses=[true, true], pull mergeability=[[false, true], [false, true]]
 holds webhook-deliveries
+
+# The following facts retain their prior 17.0.0 / 13.2.0 evidence; not rechecked at the new pin.
 holds component-start-ready
 holds component-start-other-user-stops
 holds component-start-wrong-token-stops
@@ -221,71 +303,6 @@ holds component-keys-found-on-read-back
 holds component-costs-equal-requests-sent
 holds component-read-pull-for-open-after-closed
 holds component-write-open-pull-no-changes
-holds setup-repository-creation-returns-adoption-and-clone-fields
-holds setup-repository-creation-honors-both-visibilities
-holds setup-repository-creation-auto-initializes-main-with-a-readme
-holds setup-repository-created-again
-holds setup-repository-invalid-name
-holds setup-repository-missing-org
-holds setup-repository-unauthorized
-holds setup-repository-forbidden
-holds setup-repository-made-in-an-org-is-201-with-a-readme-on-main
-holds setup-repository-made-again-is-409
-holds setup-repository-made-has-actions-when-the-forge-enables-them
-holds setup-file-put-is-201-and-read-back-on-its-branch
-holds setup-file-put-again-is-422
-holds setup-file-missing-reads-raw-404
-holds setup-scope-user-is-read-user
-holds setup-scope-user-of-is-read-user
-holds setup-scope-create-user-is-write-admin
-holds setup-scope-tokens-is-read-admin
-holds setup-scope-create-token-is-write-admin
-holds setup-scope-delete-token-is-write-admin
-holds setup-scope-org-is-read-organization
-holds setup-scope-create-org-is-write-admin
-holds setup-scope-create-repository-is-write-organization
-holds setup-scope-create-file-is-write-repository
-holds setup-scope-repository-is-read-repository
-holds setup-scope-permission-is-read-repository
-holds setup-scope-add-collaborator-is-write-repository
-holds setup-scope-repo-hooks-is-read-repository
-holds setup-scope-create-repo-hook-is-write-repository
-holds setup-scope-edit-repo-hook-is-write-repository
-holds setup-scope-delete-repo-hook-is-write-repository
-holds setup-scope-repo-search-is-read-repository
-holds setup-scope-settings-needs-no-scope
-holds setup-admin-scopes-need-each-of-the-four-categories
-holds tree-commit-id-answers-root-tree
-holds tree-entries-use-git-order
-holds tree-directory-id-answers-directory
-fails tree-pages-and-truncated: expected page lengths 2,1,0 and truncated true,false,false
-holds tree-truncated-stays-true-on-short-last-page
-fails tree-past-last-page-is-an-empty-array: Forgejo answers tree:null, truncated:false
-holds status-combined-keeps-description-and-target-url
-holds status-list-keeps-description-and-target-url
-holds merge-fast-forward-only-moves-base-to-head
-holds merge-fast-forward-only-marks-pull-merged-at-head
-holds merge-fast-forward-only-refuses-diverged-head
-fails merge-fast-forward-only-diverged-is-405: HTTP 500: {"message":"Merge DivergingFastForwardOnly Error: exit status 128: hint: Diverging branches can't be fast-forwarded, you need to either:\nhint:\nhint: \tgit merge --no-ff\nhint:\nhint: or:\nhint:\nhint: \tgit rebase\nhint:\nhint: Disable this message with \"git config advice.diverging false\"\nfatal: Not possible to fast-forward, aborting.\n\n","url":"http://127.0.0.1:3000/api/swagger"}
-holds update-rebase-rewrites-onto-base-and-keeps-messages
-holds update-rebase-containing-base-changes-nothing
-holds update-rebase-conflict-is-409-and-keeps-head
-holds actions-dispatch-missing-workflow-is-404
-fails actions-dispatch-missing-branch-is-404: HTTP 400: {"message":"could not expand reference 'absent'","url":"http://127.0.0.1:3000/api/swagger"}
-holds actions-dispatch-missing-branch-is-400
-holds actions-dispatch-is-204-with-no-body
-holds actions-rerun-running-is-400
-holds actions-dispatch-run-keeps-head-at-dispatch
-fails actions-dispatch-statuses-land-on-dispatch-head: completed dispatch has total_count:0 and statuses:null; no commit statuses
-holds actions-dispatch-only-workflow-push-starts-no-run
-fails actions-dispatch-run-names-event-and-trigger-user: expected event workflow_dispatch, trigger_user.id and created
-holds actions-dispatch-run-names-trigger-event-and-trigger-user
-holds actions-dispatch-run-jobs-list-both-outcomes
-holds actions-dispatch-job-steps-setup-first-completion-last
-holds actions-dispatch-input-reaches-job-log
-holds actions-rerun-completed-is-204
-holds actions-rerun-next-attempt-visible-on-job
-fails actions-runs-filter-workflow-and-head-newest-first: head_sha and newest order hold; workflow is ignored: page 2 also contains other.yaml
 holds actions-artifact-run-read-keeps-dispatch-head
 holds actions-artifacts-unknown-run-is-404
 holds actions-artifact-upload-completes
