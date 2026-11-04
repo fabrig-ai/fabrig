@@ -27,6 +27,15 @@ mod opens;
 mod private;
 mod store;
 
+/// The file-operation lane, below a service's namespace tags (io.md, 5; lib.md, 4).
+pub const LANE: u64 = 1 << 59;
+
+/// Whether an operation belongs to `FileIo` rather than `Io` (io.md, 5).
+#[must_use]
+pub const fn owns(op: Token) -> bool {
+    op.raw() & LANE != 0
+}
+
 // io.md, 5: a file's contents print as their length, never their bytes.
 struct Contents(Vec<u8>);
 
@@ -352,10 +361,16 @@ impl FileIo {
     fn issue(&mut self, op: Op, subs: &mut Queue<Submit>) {
         assert!(self.outstanding.is_none(), "one kernel operation per file request");
         assert!(op.is_valid(), "file request makes a valid kernel record");
-        let token = Token::new(self.next_op);
-        self.next_op = self.next_op.checked_add(1).expect("operation tokens do not wrap");
+        let token = self.mint_op();
         self.outstanding = Some(token);
         subs.push(Submit { op: token, kind: op });
+    }
+
+    fn mint_op(&mut self) -> Token {
+        assert!(self.next_op < LANE, "operation tokens stay below the file lane");
+        let op = Token::new(LANE | self.next_op);
+        self.next_op = self.next_op.checked_add(1).expect("operation tokens do not wrap");
+        op
     }
 
     fn file(&self, token: Token) -> Option<Fd> {
@@ -678,8 +693,7 @@ fn submit_cancel(io: &mut FileIo, subs: &mut Queue<Submit>) {
     if !io.pending.as_ref().expect("an outstanding operation has a request").can_cancel() {
         return;
     }
-    let op = Token::new(io.next_op);
-    io.next_op = io.next_op.checked_add(1).expect("operation tokens do not wrap");
+    let op = io.mint_op();
     io.cancel_op = Some(op);
     io.cancel_target = Some(target);
     subs.push(Submit { op, kind: Op::Cancel { target } });

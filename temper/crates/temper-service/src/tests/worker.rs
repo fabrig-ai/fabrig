@@ -916,7 +916,7 @@ fn refusal_note(reason: crate::Refusal) -> crate::Note {
 #[test]
 fn worker_preparation_accepts_large_representable_io_edges() {
     let mut settings = fixtures::worker_settings();
-    settings.jig.limits.io.sockets = 1 << 28_u32;
+    settings.jig.limits.io.sockets = (1 << 24_u32) - 1;
     settings.jig.limits.io.sends = u32::MAX;
     worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits()).unwrap();
 }

@@ -110,10 +110,15 @@ pub(crate) fn timers(limits: &Limits) -> Option<u32> {
 
 /// The slots of the operation table: twice the most in flight, as an
 /// operation retired in an iteration keeps its slot until the reclaim point,
-/// and its entity may submit as many again before then.
+/// and its entity may submit as many again before then. No slot reaches
+/// bit 27, so no operation token has `FileIo`'s bit 59 (io.md, 5).
 pub(crate) fn flights(limits: &Limits) -> Option<u32> {
-    operations(limits)?.checked_mul(2)
+    let slots = operations(limits)?.checked_mul(2)?;
+    if slots > MAX_FLIGHTS { None } else { Some(slots) }
 }
+
+/// The operation-table ceiling keeps Io's tokens below the file lane (io.md, 5).
+const MAX_FLIGHTS: u32 = 1 << 27;
 
 /// Whether these limits are representable: every edge bound they size is finite
 /// and every capacity they derive fits (programming-model.md, 6.3).

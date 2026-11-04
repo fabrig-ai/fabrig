@@ -5,11 +5,6 @@
 - **Not yet:** 5: a tree's metadata, the filesystem's status and sync, and
   btrfs's subvolumes (`StatEntry` to `SubvolumePath`). 6, 6.2 to 6.4:
   cgroups and contained trees.
-- **Not yet:** 5: `file_layer.rs`'s `next_op` counts from 1 with no `LANE`,
-  and `valid` has no ceiling of 2^27 slots, so `Io`'s and `FileIo`'s tokens
-  can be equal on one kernel;
-  `skein/testing/skein-world/src/files.rs`'s `TAG` tells them apart by hand
-  (the code's side is `skein/docs/development/debt/D044-io-token-tags.md`).
 - **Departs:** 3, 5, 7: for pipes, files and signals,
   `skein/docs/foundation/programming-model.md`, 5.4 asks for one explicit
   state enum per lifecycle, each state holding exactly its data, no
