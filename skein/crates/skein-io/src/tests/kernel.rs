@@ -5,10 +5,11 @@
 use alloc::boxed::Box;
 use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 
-use skein_lib::Token;
+use skein_lib::{Queue, Token};
 
 use crate::kernel::{
-    Addr, Complete, Done, Entry, Error, Family, Fd, Kind, LONGEST_NAME, Op, OpenHow, Shape, Stat, is_name,
+    Addr, Complete, Done, Entry, Error, Family, Fd, Kind, LONGEST_NAME, Op, OpenHow, Routes, Shape, Stat, Submit,
+    is_name,
 };
 
 const FD: Fd = Fd::new(3);
@@ -776,4 +777,52 @@ fn given_slots_are_resolved_before_submission_and_retained_on_failure() {
     assert!(answer.is_valid(), "failure returns the borrowed Given descriptor");
     answer.result = Ok(Done::Spawned { pidfd: NEW, sender: crate::kernel::Sender::new(1) });
     assert!(answer.is_valid(), "success returns the borrowed Given descriptor");
+}
+const ROUTE_OWNER: Token = Token::new(17);
+const ROUTE_CANCEL: Token = Token::new(18);
+const ROUTE_SLOT: u32 = 1; // One record at the shared queue's bound (kernel.md, 5).
+fn routes(shared_room: u32) -> (Routes, Queue<Submit>, Queue<Submit>) {
+    let mut routes = Routes::new(2); // An operation and its cancel (kernel.md, 5).
+    let mut source = Queue::with_capacity(ROUTE_SLOT);
+    let mut target = Queue::with_capacity(shared_room);
+    source.push(Submit { op: ROUTE_OWNER, kind: Op::Accept { fd: FD } });
+    routes.publish(&mut source, &mut target);
+    (routes, source, target)
+}
+#[test]
+fn a_route_renames_the_record_and_restores_its_owner() {
+    let (mut routes, source, mut target) = routes(ROUTE_SLOT);
+    let submit = target.pop().expect("published record");
+    assert_eq!(submit.op, Token::new(1));
+    assert!(routes.has_operations(), "a published operation is in flight");
+    assert_eq!(routes.complete(complete(submit.kind, Err(Error::Cancelled)), &source).op, ROUTE_OWNER);
+}
+#[test]
+fn a_cancel_renames_and_restores_its_target_and_owner() {
+    let (mut routes, mut source, mut target) = routes(ROUTE_SLOT);
+    let original = target.pop().expect("published target");
+    source.push(Submit { op: ROUTE_CANCEL, kind: Op::Cancel { target: ROUTE_OWNER } });
+    routes.publish(&mut source, &mut target);
+    let cancel = target.pop().expect("published cancel");
+    assert_eq!(cancel.kind, Op::Cancel { target: original.op });
+    let answer = Complete { op: cancel.op, kind: cancel.kind, result: Ok(Done::Nothing) };
+    let answer = routes.complete(answer, &source);
+    assert_eq!(answer.op, ROUTE_CANCEL);
+    assert_eq!(answer.kind, Op::Cancel { target: ROUTE_OWNER });
+}
+#[test]
+fn a_completed_target_keeps_its_route_for_a_waiting_cancel() {
+    let (mut routes, mut source, mut target) = routes(ROUTE_SLOT);
+    let original = target.pop().expect("published target");
+    source.push(Submit { op: ROUTE_CANCEL, kind: Op::Cancel { target: ROUTE_OWNER } });
+    assert_eq!(routes.complete(complete(original.kind, Err(Error::Cancelled)), &source).op, ROUTE_OWNER);
+    assert!(!routes.is_empty() && !routes.has_operations(), "only the waiting cancel's target remains");
+    routes.publish(&mut source, &mut target);
+    assert_eq!(target.pop().expect("published cancel").kind, Op::Cancel { target: original.op });
+}
+#[test]
+fn a_full_shared_queue_leaves_the_source_record_waiting() {
+    let (routes, mut source, target) = routes(0);
+    assert_eq!(source.pop(), Some(Submit { op: ROUTE_OWNER, kind: Op::Accept { fd: FD } }));
+    assert!(target.is_empty() && routes.is_empty(), "nothing leaves without shared room");
 }

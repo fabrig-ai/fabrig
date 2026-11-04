@@ -684,7 +684,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
 | the journal | skein (skein-lib) |
 | the store's encoding: of jig's records / of the application's, and their composition | jig / the application (`protocol/README.md`, section 9) |
 | the protocol layers' components for jig's vocabularies: the workers' channel, accounts, host tools, configuration / its connectors' protocols, its parts' encodings | jig / the application (`protocol/README.md`, sections 5 and 6) |
-| the engine's protocol layer's routing, `iterate` and `main` | the application, copied from the reference (`protocol/service.md`) |
+| the engine's protocol layer's routing, `iterate` and `main` | the application, copied from the reference, around jig's service parts (`protocol/service.md`, sections 7 and 11) |
 | agents' hosts: the hub, the charter's translation / the worker's root, kinds of workspace, `main` (none without agents) | jig / the application |
 | the agent and its capabilities, `smith-host-domain` and `smith-inline-agent` / its charters | smith / the application |
 | the UI kit: the tree and its vocabulary, the builder, the diff, the phrasebook's machinery, Markdown, scenes, the outline's rules; the text shell; the browser parts and their default mapping; the bundler; the fake person, its browser face and the harness | skein (`skein-ui`, `skein-ui-text`, `skein-ui-web`, `skein-ui-bundle`, `skein-fake-person`, `skein-fake-person-browser`: skein's `ui.md`, section 2) |
