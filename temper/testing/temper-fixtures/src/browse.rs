@@ -24,18 +24,18 @@ enum Page {
     Setup,
 }
 
-pub(super) struct Browser {
-    pub(super) seen: Browsed,
+pub struct Browser {
+    pub seen: Browsed,
     address: SocketAddr,
     target: String,
     bytes: Vec<u8>,
     next: Option<String>,
     form: Option<String>,
     page: Page,
-    pub(super) done: bool,
+    pub done: bool,
 }
 impl Browser {
-    pub(super) fn new(call: usize, stdout: &[u8]) -> Self {
+    pub fn new(call: usize, stdout: &[u8]) -> Self {
         let output = std::str::from_utf8(stdout).expect("browser stdout");
         let mut lines = output.lines();
         lines
@@ -59,10 +59,10 @@ impl Browser {
             done: false,
         }
     }
-    pub(super) fn start(&self) -> Op {
+    pub fn start(&self) -> Op {
         Op::Socket { family: Family::of(&self.address) }
     }
-    pub(super) fn complete(&mut self, complete: Complete) -> Option<Op> {
+    pub fn complete(&mut self, complete: Complete) -> Option<Op> {
         match (complete.kind, complete.result.expect("browser operation")) {
             (Op::Socket { .. }, Done::Fd(fd)) => Some(Op::Connect { fd, addr: self.address }),
             (Op::Connect { fd, .. }, Done::Nothing) => {

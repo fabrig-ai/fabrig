@@ -2,8 +2,7 @@ mod chats;
 mod choice;
 mod confirm;
 mod delegation;
-#[path = "../../../testing/client_documents.rs"]
-pub mod documents;
+pub use temper_fixtures::client_documents as documents;
 pub(crate) mod fixtures;
 mod forge_page;
 mod forges;

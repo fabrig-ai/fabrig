@@ -7,8 +7,7 @@ use temper_client_shell_cli::{
     arguments,
     host::{Invocation, OneShot, Startup},
 };
-#[path = "../../real-loop/src/calls/browse.rs"]
-mod browse;
+use temper_fixtures::browse;
 pub const PROGRAM: &[u8] = b"/world/temper-ctl";
 const OUTPUT: usize = 65_536;
 const TAG: u64 = 0xfffe_0000_0000_0000;

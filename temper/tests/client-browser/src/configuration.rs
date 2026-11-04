@@ -4,9 +4,8 @@
 //! until connected; `application.clients.bundle` names the bundle; and every relative path is made absolute
 //! under the scratch, as jig's `tests/client-browser` does, since `temper serve` joins paths to its working
 //! directory and the harness starts it in the test's.
-#[path = "../../real-loop/src/turn_bounds.rs"]
-mod turn_bounds;
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+use temper_playground::documents::turn_bounds;
 
 /// A closed loopback port: the forge's and the LLM endpoint's, which no story reaches.
 pub(crate) const UNREACHED: &str = "127.0.0.1:9";

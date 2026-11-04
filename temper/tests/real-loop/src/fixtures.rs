@@ -8,8 +8,7 @@ use std::{
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::Path,
 };
-#[path = "turn_bounds.rs"]
-pub mod turn_bounds;
+pub use temper_playground::documents::turn_bounds;
 /// A second key the fake LLM peer accepts, for the accounts' stories.
 pub const SECOND_KEY: &[u8] = b"real-loop-second-llm-key";
 pub const TOKEN: &[u8] = jig_channel_world::fixtures::TOKEN;

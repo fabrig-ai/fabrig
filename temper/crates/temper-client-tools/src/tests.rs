@@ -1,7 +1,5 @@
 mod boundary;
-#[path = "../../../testing/client_documents.rs"]
-#[expect(dead_code, reason = "shared document fixtures also supply the other client suites")]
-pub mod documents;
+pub use temper_fixtures::client_documents as documents;
 pub(crate) mod fixtures;
 mod help;
 mod jig;
