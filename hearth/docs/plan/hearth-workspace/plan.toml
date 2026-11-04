@@ -1,0 +1,63 @@
+draft = "hearth-workspace"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-workspace/inputs/request.md"]
+
+# hearth joins the root workspace (inputs/request.md): a port, then the join, then the test layout
+# and the measurements for the user. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "join"
+title = "hearth: built against skein by path as a member of the root workspace, and run by the gate"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 6.3"
+
+[[slice]]
+id = 1
+story = "hearth's packages compile against today's skein as workspace members, and the gate's default and fuzzy profiles run their tests"
+parts = ["join"]
+walk = false
+
+[[part]]
+id = "rules"
+title = "fabrig: the trees' direction check and the repository's rules state hearth's place"
+mode = "direct"
+needs = ["join"]
+design = "AGENTS.md, 1"
+
+[[part]]
+id = "tier"
+title = "hearth: conformance_* and recorded_* in a conformance-hearth tier, out of the gate"
+mode = "direct"
+needs = ["join"]
+design = "tools/tiers/design.md, 1"
+
+[[part]]
+id = "layout"
+title = "hearth: run-time paths, the monorepo's test layout, and readers for its fixtures"
+mode = "direct"
+needs = ["join"]
+design = "skein/docs/design/testing.md, 6"
+
+[[part]]
+id = "costs"
+title = "hearth: what it costs the gate, measured for the user in the plan's final status"
+mode = "direct"
+needs = ["rules", "tier", "layout"]
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 2
+story = "the direction check states that hearth names skein alone and nothing names hearth, and hearth's conformance binaries have their tier outside the gate"
+parts = ["rules", "tier"]
+walk = false
+
+[[slice]]
+id = 3
+story = "hearth's worlds run as one suite each with a fuzzy module, every fixture has a reader, and the user has hearth's costs in the plan's final status"
+parts = ["layout", "costs"]
+walk = false

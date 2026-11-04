@@ -2,7 +2,6 @@
 
 Immutable machines, built from a revision: the daemon that renders, builds and runs a machine's outputs. Start from `hearth/docs/design/README.md`: its section 2 is the reading order, its section 3 the milestones. `hearth/docs/design/STATUS.md` says how far the code is from the design.
 
-- **Not a workspace member yet:** `hearth/` has its own `Cargo.toml` and `Cargo.lock`, pinned to a skein revision by git, and the gate builds none of it.
 - **The design:** `hearth/docs/design/`. Inside hearth, a document is named by its path from there (`domain/render.md, 8.3`; `hearth/docs/design/README.md, 6`).
 - **hearth builds on skein alone:** it depends on no crate of smith, jig or temper, and none of theirs depends on hearth.
 - **Every crate is step code,** except the fakes and test kits under `testing/`, the worlds under `tests/` and the binary's shell, which are ordinary Rust and declare their own lints.

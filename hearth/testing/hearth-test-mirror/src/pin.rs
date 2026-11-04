@@ -1,4 +1,5 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use skein_scratch::paths;
+use std::{collections::BTreeMap, fs};
 
 /// `testing/mirror/pin`, read (domain/testing.md, 6.2); a bump is a commit of it.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -102,7 +103,7 @@ impl Pin {
     /// Reads the committed pin beside this crate; panics naming a bad pin.
     #[must_use]
     pub fn committed() -> Self {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../mirror/pin");
+        let path = paths::tree().join("testing/mirror/pin");
         let bytes = fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
         Self::read(&bytes).unwrap_or_else(|error| panic!("{}: {error:?}", path.display()))
     }

@@ -756,3 +756,117 @@ filter = "binary(=suite)"
 paths = ["tools/tiers/fixtures/*"]
 [[fixture.reader]]
 suite = "tools/tiers/test_cpu.py"
+
+# src/tests.rs and its fixture helper modules; all client-record unit callers.
+[[fixture]]
+paths = ["hearth/crates/hearth-client-protocol-records/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-client-protocol-records"
+filter = "kind(lib)"
+
+# src/tests.rs uses fixtures/resolve.rs for the builder's unit scenarios.
+[[fixture]]
+paths = ["hearth/crates/hearth-domain-builder/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-domain-builder"
+filter = "kind(lib)"
+
+# src/tests.rs and its fixture helper modules; all render-domain unit callers.
+[[fixture]]
+paths = [
+    "hearth/crates/hearth-domain-render/src/tests/fixtures/*.rs",
+    "hearth/crates/hearth-domain-render/src/tests/fixtures/kinds/*.rs",
+]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-domain-render"
+filter = "kind(lib)"
+
+# src/tests.rs and its fixture helper modules; all builder-protocol unit callers.
+[[fixture]]
+paths = ["hearth/crates/hearth-protocol-builder/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-protocol-builder"
+filter = "kind(lib)"
+
+# Shared builder helpers feed suite, real, conformance_render and hearth's binary tests.
+[[fixture]]
+paths = [
+    "hearth/tests/builder/src/fixtures/*.rs",
+    "hearth/tests/builder/src/fixtures/reserved/*.rs",
+    "hearth/tests/builder/src/fixtures/worlds/*.rs",
+]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-builder-world"
+filter = "binary(=suite)"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "hearth-builder-world"
+filter = "binary(=suite)"
+[[fixture.reader]]
+pair = "default"
+package = "hearth-builder-world"
+filter = "binary(=real)"
+[[fixture.reader]]
+pair = "conformance-hearth"
+package = "hearth-builder-world"
+filter = "binary(=conformance_render)"
+[[fixture.reader]]
+pair = "default"
+package = "hearth"
+filter = "binary(=end_to_end)"
+[[fixture.reader]]
+pair = "default"
+package = "hearth"
+filter = "binary(=refusals)"
+
+# real/reserved/hearth.rs calls render_hearth(), whose HEARTH files include this declaration.
+[[fixture]]
+paths = ["hearth/tests/builder/src/fixtures/reserved/hearth.json"]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-builder-world"
+filter = "binary(=real) & test(/^reserved::hearth::/)"
+
+# suite/memory.rs includes the memory and metered helpers; fuzzy tests do not read them.
+[[fixture]]
+paths = ["hearth/tests/config/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-config-world"
+filter = "binary(=suite)"
+
+# suite and fuzzy::revisions use fixtures/revisions.rs, also used by the reference decoder.
+[[fixture]]
+paths = ["hearth/tests/git/src/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-git-world"
+filter = "binary(=suite)"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "hearth-git-world"
+filter = "binary(=suite)"
+
+# Render suite and fuzzy helpers; builder suite/properties.rs also reads generated repositories.
+[[fixture]]
+paths = [
+    "hearth/tests/render/src/fixtures/*.rs",
+    "hearth/tests/render/src/fixtures/decoders/*.rs",
+]
+[[fixture.reader]]
+pair = "default"
+package = "hearth-render-world"
+filter = "binary(=suite)"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "hearth-render-world"
+filter = "binary(=suite)"
+[[fixture.reader]]
+pair = "default"
+package = "hearth-builder-world"
+filter = "binary(=suite)"

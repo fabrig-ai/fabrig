@@ -368,9 +368,6 @@ pub use protocol_world::*;
 pub const HOST_OPERATIONS: u32 = 1;
 /// Read files and stdin in the same four-KiB chunks as the protocol world's pipes.
 pub const HOST_BUFFER: usize = WORLD_PIPE as usize;
-/// The plan's one-MiB bound for each hosted tool.
-pub const FAKE_WORST_CASE: u64 = 1 << 20;
-
 /// The adapter's one startup-close identity cannot collide with service operations.
 pub const STARTUP_CLOSE: skein_lib::Token = skein_lib::Token::new(u64::MAX);
 

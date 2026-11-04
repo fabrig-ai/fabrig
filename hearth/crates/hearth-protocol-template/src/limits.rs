@@ -29,11 +29,9 @@ pub fn worst_case(decoder: Decoder, limits: &Limits) -> Option<u64> {
         Decoder::Expression => crate::expression::worst_case(limits.expression),
         Decoder::Interpolated { length } => compiled(length, limits),
         Decoder::Template => compiled(limits.template, limits)?
-            .checked_add(List::<u32>::worst_case(limits.template.checked_add(1)?)?.checked_mul(2)?)?
-            .checked_add(Stack::<crate::template::statement::Block>::worst_case(
-                limits.statements.min(limits.template),
-            )?)?
-            .checked_add(List::<u32>::worst_case(limits.template)?),
+            .checked_add(List::<u32>::price(limits.template.checked_add(1)?)?.checked_mul(2)?)?
+            .checked_add(Stack::<crate::template::statement::Block>::price(limits.statements.min(limits.template))?)?
+            .checked_add(List::<u32>::price(limits.template)?),
     }
 }
 
@@ -43,9 +41,9 @@ pub(crate) fn instruction_capacity(openings: u32) -> u32 {
 }
 fn compiled(length: u32, limits: &Limits) -> Option<u64> {
     // Shrinking to boxed instructions can briefly hold both allocations.
-    List::<Instruction>::worst_case(instruction_capacity(length))?
+    List::<Instruction>::price(instruction_capacity(length))?
         .checked_mul(2)?
-        .checked_add(List::<Operation>::worst_case(length)?)?
+        .checked_add(List::<Operation>::price(length)?)?
         // Retained text, strings and names are disjoint slices of the input.
         .checked_add(u64::from(length))?
         // One expression is compiled while previous instructions remain held.
