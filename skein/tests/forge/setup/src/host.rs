@@ -667,6 +667,69 @@ mod tests {
     use skein_forge_setup::host::Transport;
     use skein_tls_world::pki;
 
+    fn tls_reply_world() -> HostWorld {
+        let mut settings = fixtures::host_settings();
+        settings.forges.get_mut(0).expect("Forgejo forge").transport =
+            Transport::Tls { server_name: pki::name(), trust: pki::client(&[]) };
+        let mut limits = fixtures::host_limits();
+        limits.runs = 1;
+        let mut world = HostWorld::new_with(7, &[Connect::AnswersOpen(401, b"")], settings, limits);
+        world.wall_base = Some(pki::VALID);
+        world.set_time(Time::ZERO);
+        world.run(1);
+        world
+    }
+
+    #[test]
+    fn taking_a_tls_reply_sends_close_notify_before_the_socket_closes() {
+        let mut world = tls_reply_world();
+        world.settle();
+        assert!(
+            matches!(world.heard(), [Heard::Stop { failure, .. }] if failure.why == skein_forge_setup::reconcile::Why::Refused(401))
+        );
+        assert_eq!(world.peers.len(), 1, "io is still draining the open peer");
+        let Carrier::Tls(tls) = &world.peers.values().next().expect("open peer").pipe else { panic!("TLS peer") };
+        assert!(tls.server.closed, "the server read close_notify after its reply was taken");
+        assert_eq!(world.aborts(), 0);
+        world.finish();
+        assert_eq!(world.aborts(), 1, "io bounds the peer's open sending half");
+    }
+
+    #[test]
+    fn a_tls_close_without_room_returns_the_ended_runs_slot_within_its_bound() {
+        let mut world = tls_reply_world();
+        // Stop granting write room once the peer has queued its reply.
+        for _ in 0..1000 {
+            world.tick();
+            if let Some(peer) = world.peers.values_mut().find(|peer| peer.responded) {
+                let Carrier::Tls(tls) = &mut peer.pipe else { panic!("TLS peer") };
+                tls.hold_room = true;
+                break;
+            }
+        }
+        world.settle();
+        let [Heard::Stop { at: ended, .. }] = world.heard() else { panic!("reply ends the run") };
+        let bound = Time::ZERO
+            .saturating_add(*ended)
+            .saturating_add(world.env.limits.io.close_timeout)
+            .saturating_add(world.env.limits.io.close_timeout);
+        world.run(2);
+        world.settle();
+        assert!(
+            matches!(world.heard().last(), Some(Heard::Stop { failure, .. }) if failure.why == skein_forge_setup::reconcile::Why::Busy)
+        );
+        let deadline = world.host.next_deadline().expect("the link bounds its close");
+        assert!(deadline <= bound);
+        world.advance_to(Time::from_nanos(deadline.as_nanos() - 1));
+        assert_eq!(world.aborts(), 0);
+        world.advance_to(deadline);
+        assert_eq!(world.aborts(), 1);
+        assert!(world.peers.is_empty(), "the expired link close settled the socket");
+        world.run(2);
+        world.finish();
+        assert!(matches!(world.heard().last(), Some(Heard::Done { run, .. }) if *run == Token::new(2)));
+    }
+
     #[test]
     fn the_github_picker_over_tls_reaches_the_same_done_as_plaintext() {
         let mut plain = HostWorld::github(7, &[]);

@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 skein-io.workspace = true
+skein-link.workspace = true
 skein-http.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true

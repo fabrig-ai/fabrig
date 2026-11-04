@@ -7,7 +7,7 @@
   `skein-forge-setup/src/host/limits.rs`'s `check_forge` is `pub(super)`:
   an owner reaches it only by building a `Host`, and
   `temper/crates/temper-service/src/setup/runtime.rs` records an `Add` as
-  served whether the host took it or not. 6.5: `skein-forge-setup/src/host/connection.rs` holds its own transport and sends no `close_notify` on a graceful close, which link.md, 3.3 asks for.
+  served whether the host took it or not.
 - **Departs:** 7: the setup world plays the host component through HTTP
   bytes, but `skein/tests/forge/setup/src/world.rs` and `host.rs` write
   two worlds: Forgejo's reconcile stories in `tests/suite/reconcile.rs`
