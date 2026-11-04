@@ -1,0 +1,232 @@
+//! The `ChatGPT` plan on the fake box: the fake sign-in leaves a usable model for Ready.
+//! (temper/docs/design/protocol/setup.md, 7.5; temper/docs/design/client/README.md, 3.5.)
+use super::open_default::{browser_bounds, named};
+use super::{Act, Call, Walk, usable};
+use crate::support::{WITHIN, ctl};
+use skein_lib::Time;
+use skein_shell::{Clock, Host};
+use skein_ui::{Role, State};
+use skein_world::{Referee, real};
+use std::path::Path;
+use temper_client_domain::{Address, Step};
+use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
+
+#[test]
+fn a_chatgpt_sign_in_on_the_fake_box_leaves_a_usable_model_and_ready_can_create() {
+    let walk = Walk::owned("walk-sign-in");
+    let seen = walk.run_then(
+        vec![
+            Act::Now(Call::new(&["forge", "setup", "--key", "walk-here", "--json"])),
+            Act::Now(Call::new(&["account", "connect", "1", "--key", "walk-plan", "--json"])),
+            Act::Visit,
+            Act::Now(Call::new(&["account", "list", "--until", "settled", "--json"])),
+            Act::After(Box::new(|seen| {
+                let accounts = ctl::json(seen.last().expect("settled accounts"));
+                eprintln!(
+                    "settled sign-in: usable {}; last_end {}; signing {}",
+                    accounts["accounts"]["usable"], accounts["accounts"]["last_end"], accounts["accounts"]["signing"]
+                );
+                Call::new(&["account", "list", "--json"])
+            })),
+        ],
+        ready_can_create,
+    );
+    assert!(usable(seen.answers.last().expect("accounts")), "the sign-in left a usable model");
+    walk.scratch.remove();
+}
+
+#[derive(Debug)]
+enum Page {
+    Starting,
+    Ready,
+    Done,
+}
+struct Judge {
+    page: Page,
+    until: Time,
+}
+impl Referee<NativeClient> for Judge {
+    fn act(&mut self, now: Time, clients: &mut [NativeClient]) {
+        let client = &mut clients[0];
+        match self.page {
+            Page::Starting if client.started() && named(client, Role::Status, b"Owner").is_some() => {
+                client.go(Address::Welcome { step: Step::Ready });
+                self.page = Page::Ready;
+            }
+            Page::Ready => {
+                let model = client.tree().nodes().iter().any(|node| {
+                    node.role == Role::Paragraph
+                        && node.name.as_deref().is_some_and(|name| name.starts_with(b"Model ChatGPT plan"))
+                });
+                let create = named(client, Role::Button, b"Create your project")
+                    .is_some_and(|node| !node.states.as_slice().contains(&State::Disabled));
+                if model && create {
+                    client.close();
+                    self.page = Page::Done;
+                }
+            }
+            Page::Starting | Page::Done => {}
+        }
+        assert!(
+            matches!(self.page, Page::Done) || now < self.until,
+            "Ready missing Model ChatGPT plan and enabled Create your project at {:?}; tree names: {:?}",
+            self.page,
+            client
+                .tree()
+                .nodes()
+                .iter()
+                .filter_map(|node| node.name.as_deref())
+                .map(String::from_utf8_lossy)
+                .collect::<Vec<_>>()
+        );
+    }
+    fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {}
+    fn next_deadline(&self) -> Option<Time> {
+        (!matches!(self.page, Page::Done)).then_some(self.until)
+    }
+    fn passed(&self) -> bool {
+        matches!(self.page, Page::Done)
+    }
+}
+
+/// Ready, by the browser's bounds: the plan's model line, and Create enabled. It presses nothing.
+fn ready_can_create(config: &Path, client: &Path) {
+    let document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+    let engine = document
+        .pointer("/application/clients/listener/socket")
+        .and_then(serde_json::Value::as_str)
+        .expect("clients listener")
+        .parse()
+        .expect("socket");
+    let root = skein_shell::open_root(client).expect("signed-in client's parent root");
+    let clock = Clock::new();
+    let mut world = real::World::new(Judge { page: Page::Starting, until: clock.now().now.saturating_add(WITHIN) });
+    world.spawn_with_fds(vec![root], || {
+        NativeClient::new(
+            Settings {
+                engine: skein_io::Addr::Ip(engine),
+                directory: b"client".as_slice().into(),
+                limits: browser_bounds(),
+            },
+            root,
+            skein_shell::effective_user(),
+            94,
+            Start::Token,
+        )
+        .expect("browser-bounded native client")
+    });
+    let ended = world.run(&clock, WITHIN);
+    assert!(ended.procs.iter().all(Host::is_empty), "Ready's model check drained");
+}
+
+#[test]
+fn a_chatgpt_browser_return_on_the_fake_box_leaves_ready_able_to_create() {
+    let walk = Walk::owned("walk-browser-sign-in");
+    walk.run_then(vec![Act::Now(Call::new(&["forge", "setup", "--key", "walk-here", "--json"]))], browser_sign_in);
+    walk.scratch.remove();
+}
+
+#[derive(Debug)]
+enum Departure {
+    Starting,
+    Model,
+    Signing,
+    Done,
+}
+struct Depart<'a> {
+    page: Departure,
+    until: Time,
+    address: &'a std::cell::Cell<Option<Box<[u8]>>>,
+}
+impl Referee<NativeClient> for Depart<'_> {
+    fn act(&mut self, now: Time, clients: &mut [NativeClient]) {
+        let client = &mut clients[0];
+        match self.page {
+            Departure::Starting if client.started() && named(client, Role::Status, b"Owner").is_some() => {
+                client.go(Address::Welcome { step: Step::Model { way: None } });
+                self.page = Departure::Model;
+            }
+            Departure::Model => {
+                if let Some(button) = named(client, Role::Button, b"Continue with ChatGPT") {
+                    let id = button.id;
+                    assert!(client.act(id, skein_ui::Act::Press), "Continue with ChatGPT accepts its press");
+                    self.page = Departure::Signing;
+                }
+            }
+            Departure::Starting | Departure::Signing | Departure::Done => {}
+        }
+        while let Some(notice) = client.notices() {
+            if let temper_client_shell_terminal::client::Shown::Notice(
+                temper_client_shell_terminal::route::Notice::Leave { to },
+            ) = notice
+            {
+                self.address.set(Some(to));
+                client.close();
+                self.page = Departure::Done;
+            }
+        }
+        assert!(matches!(self.page, Departure::Done) || now < self.until, "browser sign-in stalled at {:?}", self.page);
+    }
+    fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {}
+    fn passed(&self) -> bool {
+        matches!(self.page, Departure::Done)
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        (!self.passed()).then_some(self.until)
+    }
+}
+struct Arrive {
+    settled: bool,
+}
+impl Referee<crate::support::sign_in_browser::Visitor> for Arrive {
+    fn act(&mut self, _now: Time, _visitors: &mut [crate::support::sign_in_browser::Visitor]) {}
+    fn observe(&mut self, _now: Time, visitors: &[crate::support::sign_in_browser::Visitor]) {
+        self.settled = visitors.iter().all(Host::is_empty);
+    }
+    fn passed(&self) -> bool {
+        self.settled
+    }
+}
+fn browser_sign_in(config: &Path, client: &Path) {
+    let document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+    let engine = document
+        .pointer("/application/clients/listener/socket")
+        .and_then(serde_json::Value::as_str)
+        .expect("clients listener")
+        .parse()
+        .expect("socket");
+    let root = skein_shell::open_root(client).expect("signed-in client's parent root");
+    let clock = Clock::new();
+    let address = std::cell::Cell::new(None);
+    let mut world = real::World::new(Depart {
+        page: Departure::Starting,
+        until: clock.now().now.saturating_add(WITHIN),
+        address: &address,
+    });
+    world.spawn_with_fds(vec![root], || {
+        NativeClient::departing(
+            Settings {
+                engine: skein_io::Addr::Ip(engine),
+                directory: b"client".as_slice().into(),
+                limits: browser_bounds(),
+            },
+            root,
+            skein_shell::effective_user(),
+            95,
+            Start::Token,
+        )
+        .expect("browser's departing root")
+    });
+    let ended = world.run(&clock, WITHIN);
+    assert!(ended.procs.iter().all(Host::is_empty), "departed browser drained");
+    let mut visitor = crate::support::sign_in_browser::Visitor::new();
+    visitor.hand(&address.take().expect("browser departure address"));
+    let ended = real::run(vec![visitor], Arrive { settled: false }, &clock, WITHIN);
+    let visitor = &ended.procs[0];
+    let (status, location) = visitor.last_redirect().expect("come-back redirect");
+    assert_eq!(status, 303, "the engine sends the browser back");
+    assert!(location.ends_with(b"/welcome?at=ready"), "the return names Ready");
+    ready_can_create(config, client);
+}
