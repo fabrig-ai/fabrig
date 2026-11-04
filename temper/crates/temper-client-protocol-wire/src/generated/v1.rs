@@ -557,6 +557,8 @@ pub enum Path {
     PlaygroundAnswerTail,
     /// The `welcome` field of `DeploymentAnswer`.
     DeploymentAnswerWelcome,
+    /// The `owned` field of `DeploymentAnswer`.
+    DeploymentAnswerOwned,
     /// The version of `DeploymentAnswer`.
     DeploymentAnswerVersion,
     /// Bytes after `DeploymentAnswer`.
@@ -3682,19 +3684,22 @@ impl PlaygroundAnswer {
 pub struct DeploymentAnswerParts {
     /// The `welcome` field.
     pub welcome: bool,
+    /// The `owned` field.
+    pub owned: bool,
 }
 
 /// `DeploymentAnswer` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DeploymentAnswer {
     welcome: bool,
+    owned: bool,
 }
 
 impl DeploymentAnswer {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: DeploymentAnswerParts) -> Result<Self, Problem> {
-        let DeploymentAnswerParts { welcome } = parts;
-        let value = Self { welcome };
+        let DeploymentAnswerParts { welcome, owned } = parts;
+        let value = Self { welcome, owned };
         Ok(value)
     }
 
@@ -3702,9 +3707,13 @@ impl DeploymentAnswer {
     #[must_use]
     pub fn welcome(&self) -> bool { self.welcome }
 
+    /// Reads the `owned` field.
+    #[must_use]
+    pub fn owned(&self) -> bool { self.owned }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> DeploymentAnswerParts { DeploymentAnswerParts { welcome: self.welcome } }
+    pub fn into_parts(self) -> DeploymentAnswerParts { DeploymentAnswerParts { welcome: self.welcome, owned: self.owned } }
 
 }
 
@@ -9457,6 +9466,7 @@ impl DeploymentAnswer {
         let mut size = 0_u32;
         size = size.checked_add(2).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -9465,6 +9475,8 @@ impl DeploymentAnswer {
         writer.put(&11_u16.to_be_bytes())?;
         let field_welcome = &self.welcome;
         writer.put(&[u8::from(*field_welcome)])?;
+        let field_owned = &self.owned;
+        writer.put(&[u8::from(*field_owned)])?;
         Ok(())
     }
 
@@ -9479,7 +9491,8 @@ impl DeploymentAnswer {
         let version = reader.u16().ok_or(Problem { path: Path::DeploymentAnswerVersion, reason: skein_codec::Reason::Short })?;
         if version != 11 { return Err(Problem { path: Path::DeploymentAnswerVersion, reason: skein_codec::Reason::Version }); }
         let decoded_welcome = match reader.u8().ok_or(Problem { path: Path::DeploymentAnswerWelcome, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::DeploymentAnswerWelcome, reason: skein_codec::Reason::Bool }) };
-        Ok(Self { welcome: decoded_welcome })
+        let decoded_owned = match reader.u8().ok_or(Problem { path: Path::DeploymentAnswerOwned, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::DeploymentAnswerOwned, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { welcome: decoded_welcome, owned: decoded_owned })
     }
 }
 
@@ -14492,7 +14505,7 @@ impl DeploymentAnswer {
 
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 2_u64;
-        size = size.checked_add(1_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
         size.checked_add(0)
     }
 
@@ -14505,7 +14518,7 @@ impl DeploymentAnswer {
 
     pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -17126,8 +17139,8 @@ mod golden_tests {
         ("enum_playground_state_resetting_full", || { let value = PlaygroundState::Resetting; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PlaygroundState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_playground_answer_smallest", || { let value = PlaygroundAnswer::new(&CEILINGS, PlaygroundAnswerParts { forge: 0_u16, project: None, provider: 0_u32, owner: Box::from([].as_slice()), name: Box::from([].as_slice()), state: PlaygroundState::Starting, cues: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PlaygroundAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_playground_answer_full", || { let value = PlaygroundAnswer::new(&CEILINGS, PlaygroundAnswerParts { forge: u16::MAX, project: Some(u32::MAX), provider: u32::MAX, owner: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), state: PlaygroundState::Starting, cues: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([97_u8, 98_u8, 99_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 11, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PlaygroundAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_deployment_answer_smallest", || { let value = DeploymentAnswer::new(&CEILINGS, DeploymentAnswerParts { welcome: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 11, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeploymentAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_deployment_answer_full", || { let value = DeploymentAnswer::new(&CEILINGS, DeploymentAnswerParts { welcome: true }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 11, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeploymentAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_deployment_answer_smallest", || { let value = DeploymentAnswer::new(&CEILINGS, DeploymentAnswerParts { welcome: false, owned: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 11, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeploymentAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_deployment_answer_full", || { let value = DeploymentAnswer::new(&CEILINGS, DeploymentAnswerParts { welcome: true, owned: true }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 11, 1, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeploymentAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_change_subject_smallest", || { let value = ChangeSubject::new(&CEILINGS, ChangeSubjectParts { task: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ChangeSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_change_subject_full", || { let value = ChangeSubject::new(&CEILINGS, ChangeSubjectParts { task: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ChangeSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_pull_smallest", || { let value = Pull::new(&CEILINGS, PullParts { number: 0_u64, address: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Pull::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
