@@ -90,15 +90,30 @@ and everything only Linux can give (containment, trees, io_uring).
 - **It is a story temper has:** `temper/crates/temper/tests/process.rs`,
   `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`,
   in the process tier (`../domain/testing.md`, 2.6). macOS runs that
-  story, never a copy of it. Its agent review and its restart stay in
-  it, unless one needs what macOS lacks; then the story splits, on both
-  platforms, and what is split out says why it stays Linux's.
+  story, never a copy of it, its agent review and its restart included:
+  the restart is a graceful one.
+- **What the story's support takes on macOS:**
+  - a guard for a command it runs that names no `/proc` (today
+    `parent::Guard` is Linux's, and `story_command` builds it
+    unconditionally);
+  - the tools of its CI's steps as macOS's own have them (`base64 -w0`
+    is GNU's), within the cleared environments of its children: the
+    box's `/usr/bin:/bin`, and the owned runner's configured `PATH`;
+  - no process outliving the box, as far as Group can tell (3.5): the
+    story's `left` is Linux's whole-tree proof, and on macOS it says only
+    that the box stopped cleanly and its own children are gone. The
+    story keeps the two apart rather than claiming the one for the
+    other.
 - **No containers:** its jobs run on the runner's host, under the
   `temper-host` label, as on Linux. The macOS runners offer no Docker,
   and the story needs none.
-- **Its binaries come through `temper forge fetch`** (4.3), which
-  `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` then name, so each run
-  also shows that the pinned addresses still answer.
+- **Its binaries come through `temper forge fetch`** (4.3), on a cache
+  of the workflow's own that starts empty, so each run also shows that
+  the pinned addresses still answer. `TEMPER_FORGEJO` and
+  `TEMPER_FORGEJO_RUNNER` then name what it fetched.
+- **It runs alone:** `cargo nextest run --profile process-temper -p temper
+  --test process -E 'test(=NAME)'`, its one selected test checked, with
+  `TEMPER_BUNDLE=none`.
 - **It proves the plumbing, not a person's Mac:** a real account, the
   Keychain and a person's browser stay 2.3's.
 
@@ -166,11 +181,7 @@ and everything only Linux can give (containment, trees, io_uring).
 
 ### 3.5 The harness
 
-- **The simulator's worlds build without the real machine.**
-  `skein-world` today includes the real loop, the ring and the tree
-  keeper unconditionally, so on macOS not even a simulated world
-  compiles. The owner splits it.
-- **The tree keeper gains a method on macOS, Group:** the binary in a
+- **The tree keeper's method on macOS is Group:** the binary in a
   process group of its own; settlement is the group empty after its
   kill. It cannot see a descendant that leaves the group, nor give a
   tree's peak memory, so the tests that need those stay Linux's.
@@ -235,23 +246,34 @@ and everything only Linux can give (containment, trees, io_uring).
   - **One redirect:** `ghcr.io` answers with its storage's address. The
     fetch follows one redirect, to `https`, without the token; another
     refuses, naming the URL. Linux's fetch still takes none.
-  - **An archive:** the body is hashed as it is written, as 6.6 has it,
-    against the archive's digest. Only on a match is the one member
-    taken out, by macOS's own `/usr/bin/tar`, into `<file>.part`, its
-    digest checked, made `0o755` and renamed over its name.
+  - **An archive:** the body goes to `<file>.archive`, private, and is
+    hashed as it is written, as 6.6 has its part file, against the
+    archive's digest, within `setup.fetch_bytes`. Only on a match is
+    the one member, by its exact name, taken out by macOS's own
+    `/usr/bin/tar` into `<file>.part`, within the same bound, its digest
+    checked, made `0o755` and renamed over its name. A wrong digest or a
+    failed extraction removes both files and refuses, and an interrupted
+    fetch starts again from nothing, as 6.6 has it. A binary already at
+    its name with another digest is refused, never overwritten.
 - **Two digests per binary on macOS,** in `skein-forge` beside Linux's
   (skein's `forge.md`, 4.3): the archive's, which is its address, and
-  the binary's, which a file already in the cache is held to.
+  the binary's, which a file already in the cache is held to. A pin is
+  selected by platform, architecture and kind of file: `arm64` alone no
+  longer says which.
 - **One version on both platforms** (`../protocol/setup.md`, 6.1): a pin
-  moves only to versions with bottles, and the version check holds on
-  macOS as on Linux. The bottle is the same version and another build,
-  so 2.4's story is what checks it, and skein's forge conformance
-  (skein's `fake-forge.md`, section 7) joins the workflow with the
-  suites.
+  moves only to versions with bottles, all its digests together, and
+  the version check holds on macOS as on Linux, a bottle's first line
+  checked when its pin is taken. The rule that a fetched binary is the
+  build the conformance checked, byte for byte, stays Linux's: a bottle
+  is the same version and another build. 2.4's story is what checks it,
+  and skein's forge conformance (skein's `fake-forge.md`, section 7)
+  joins the workflow with skein's suites.
 - **A bottle gone:** Homebrew promises nothing about old blobs. The
-  fetch refuses, naming the URL and saying what answers it: the owned
-  entry's `mirror`, whose paths are the same, or a binary given by
-  path. Every workflow run fetches, so a blob's going shows before a
+  fetch refuses, naming the URL and saying what answers it: a binary
+  given by path, or the owned entry's `mirror`, which serves the same
+  archive at the same `/v2/homebrew/core/…/blobs/sha256:DIGEST` path,
+  under the same digests and the same one redirect, and is sent no
+  token. Every workflow run fetches, so a blob's going shows before a
   person meets it (section 7).
 - **The rest is as on Linux:** the machine's `git` on the runner's
   `PATH` (6.1's inputs), and an Intel Mac refused, naming its
@@ -281,8 +303,9 @@ and everything only Linux can give (containment, trees, io_uring).
   default and fuzzy profiles, and the bundle and browser tier where the
   gate has them.
 - **What it installs:** Rust 1.95, the workspace's `rust-version`;
-  `cargo-nextest`; the `wasm32-unknown-unknown` target and, once 2.2
-  starts, Chrome for Testing 147, given by `SKEIN_TEST_CHROMIUM`.
+  `cargo-nextest`; the `wasm32-unknown-unknown` target and, for the
+  first browser suite, Chrome for Testing 147, given by
+  `SKEIN_TEST_CHROMIUM`.
 - **The runner is small:** 3 cores, 7 GB of memory, 14 GB of disk by
   GitHub's table. Line tables only for debug information, the
   dependencies' build cached by the lock, and each run reports its disk,
@@ -294,15 +317,18 @@ and everything only Linux can give (containment, trees, io_uring).
   end of their output come through the public API.
 - **A red run blocks nothing.** It is a finding, triaged as a red
   after landing is (`../domain/after-landing.md`, section 7).
-- **Before the runner,** a change checks that Darwin compiles
-  (`cargo check --target aarch64-apple-darwin`) where rustup can add the
-  target.
+- **Before the runner,** Darwin's compile is checked on Linux, as
+  skein's `shell.md`, section 9 has it: clippy for
+  `aarch64-apple-darwin`, the members that reach rustls left to the
+  runner.
 
 ### 5.2 Linux-only, by name
 
 - **One list per tree,** in its nextest configuration or as
   `cfg(target_os = "linux")` on whole test binaries (the owner's call),
-  each entry with its reason.
+  each entry with its reason. skein's is `shell.md`, section 9; the
+  others follow it, and a test that keeps a tree from compiling joins
+  its list before the workflow's first run.
 - **What it holds, known now:** skein's ring and ring-conformance tests,
   the tree keeper's cgroup and subreaper tests; temper's `unshare`
   adversary and its cgroup cluster; and the after-landing tiers, which
@@ -315,15 +341,20 @@ and everything only Linux can give (containment, trees, io_uring).
    from 17.0.0 and 13.2.0.
 2. **It compiles:** the workflow, from skein's former one (in this
    repository's history at 44c5be34fa), compiling every target of every
-   tree; the habits above skein (4.1, 4.2, 4.3) until it does.
+   tree; each tree's first Linux-only entries (5.2) and what above skein
+   stops a compile.
 3. **The fetch** (4.3).
-4. **The story** (2.4) green on the runner, the workflow's first check
+4. **What the story needs to run:** the habits it reaches, compiling or
+   not: temper's pipe check without `/proc/self/fd`, its login from
+   `getpwuid`, its errors (4.3), smith's tools found (4.1), the trust
+   roots and the directories (4.4), and its own support (2.4).
+5. **The story** (2.4) green on the runner, the workflow's first check
    that runs anything.
-5. **The suites,** tree by tree, each with its Linux-only list (5.2):
-   skein's, with the `macos` profile again; smith's; jig's; temper's
-   (2.1).
-6. **A real Mac:** the checklist, with a person (2.3).
-7. **The demo** through the browser (2.2).
+6. **The suites,** tree by tree, each with its Linux-only list (5.2):
+   skein's, with the `macos` profile again and the throwaway Forgejo
+   off its list; smith's; jig's; temper's (2.1).
+7. **A real Mac:** the checklist, with a person (2.3).
+8. **The demo** through the browser (2.2).
 
 ## 7. Open questions
 
