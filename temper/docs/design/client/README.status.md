@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-03. Where temper's code lags or departs from [README.md](README.md).
+2026-11-04. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.4, 5.5: the composer's supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
@@ -41,8 +41,7 @@
   the client wire has no not-installed reason, pinned as a known gap by
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
-  no reason is recorded (the code's side is
-  `temper/docs/development/debt/D008-pipeline-names-in-code.md`).
+  no reason is recorded.
 - **Departs:** 3.5, With no project yet, and 5.3: with no project, the
   banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s
