@@ -57,6 +57,11 @@ fn sources_seed_their_trees_branches_and_catalogue() {
         assert_eq!(source.repository.as_ref(), b"acme/widget");
         assert_eq!(source.private, private.unwrap_or(false));
         assert_eq!(source.fill, skein_fake_forge_domain::api::Fill::Whole);
+        assert_eq!(
+            forge.domain.permission(&source.repository, 1),
+            Ok(skein_fake_forge_domain::api::Permission::Read),
+            "the site admin can fetch the catalogue source for migration"
+        );
         assert!(skein_fake_forge_protocol::valid(&crate::wire::forge_limits(), &config));
         assert_eq!(
             forge.domain.metadata(&source.repository).expect("seeded repository").default_branch.as_ref(),
