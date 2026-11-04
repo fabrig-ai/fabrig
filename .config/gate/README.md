@@ -33,6 +33,8 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing.md`, 6;
 7. **The outward check:** `cargo nextest run -p fabrig-boundary`, included in
    `default`. Rule: `tests/boundary/tests/outward.rs`'s module doc and `AGENTS.md`, 1.
    The rule is absolute: any match fails, and the check has no inventory.
+8. **Lint profiles:** `python3 -I -B tools/lints/lints.py`, at 0 findings, and
+   `python3 -I -B tools/lints/test_lints.py`. Rule: `tools/lints/design.md`, 5.
 
 ## The gate's lists
 
