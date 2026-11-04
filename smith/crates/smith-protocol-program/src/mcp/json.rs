@@ -81,12 +81,26 @@ fn spell(encoder: &mut Encoder, document: &Document, start: u32, end: u32) {
     }
 }
 
-pub(crate) fn raw(document: &Document, index: u32, bound: u32) -> Option<Box<[u8]>> {
+fn subtree_limits(document: &Document, length: u32) -> skein_json::writer::Limits {
+    skein_json::writer::Limits { depth: document.len(), length }
+}
+
+/// Measure a canonical subtree without allocating its encoded bytes.
+pub(crate) fn raw_length(document: &Document, index: u32) -> Option<u32> {
     let end = after(document, index)?;
-    let limits = skein_json::writer::Limits { depth: document.len(), length: bound };
+    let limits = subtree_limits(document, u32::MAX);
     let mut measure = Encoder::measure(&limits);
     spell(&mut measure, document, index, end);
-    let length = measure.measured().ok()?;
+    measure.measured().ok()
+}
+
+pub(crate) fn raw(document: &Document, index: u32, bound: u32) -> Option<Box<[u8]>> {
+    let end = after(document, index)?;
+    let limits = subtree_limits(document, bound);
+    let length = raw_length(document, index)?;
+    if length > bound {
+        return None;
+    }
     let mut write = Encoder::write(length, &limits);
     spell(&mut write, document, index, end);
     Some(write.finish())
@@ -175,7 +189,7 @@ fn spell_object(encoder: &mut Encoder, document: &Document) {
 }
 
 fn object_schema(document: &Document, bound: u32) -> Option<Box<[u8]>> {
-    let limits = skein_json::writer::Limits { depth: document.len(), length: bound };
+    let limits = subtree_limits(document, bound);
     let mut measure = Encoder::measure(&limits);
     spell_object(&mut measure, document);
     let length = measure.measured().ok()?;
@@ -195,13 +209,18 @@ pub(crate) fn outcome_schema(schema: &[u8], bound: u32) -> Option<Box<[u8]>> {
     Some(skein_lib::bytes::concat(&[prefix, schema, suffix]))
 }
 
-/// Only the single required outcome member crosses into finish decoding.
-pub(crate) fn outcome_input(document: &Document, object: u32, bound: u32) -> Option<Box<[u8]>> {
+/// Find the sole required outcome member before encoding it under the receiving bound.
+pub(crate) fn outcome_value(document: &Document, object: u32) -> Option<u32> {
     let input = field(document, object, b"outcome")?;
     if input != object.checked_add(2)? || document.token(after(document, input)?)?.kind != Kind::ObjectEnd {
         return None;
     }
-    raw(document, input, bound)
+    Some(input)
+}
+
+/// Only the single required outcome member crosses into finish decoding.
+pub(crate) fn outcome_input(document: &Document, object: u32, bound: u32) -> Option<Box<[u8]>> {
+    raw(document, outcome_value(document, object)?, bound)
 }
 
 /// Program children read only (protocol/programs.md, 5.10); every other schema byte is kept.
