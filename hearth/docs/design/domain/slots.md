@@ -1778,7 +1778,7 @@ soft reboot and its fall back, and every live scenario
   and still boots the slot natively on trial before it becomes the
   default.
 
-## 15. What is open
+## 15. Open questions
 
 - **The trial window:** 10 minutes in M3, a place input sealed into the
   units; from M5 the steward computes it from the blessing checks its

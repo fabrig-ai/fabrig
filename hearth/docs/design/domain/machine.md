@@ -1120,7 +1120,7 @@ hearth/docs/design/domain/slots.md, section 4's, judged by booting the firmware 
 - **Gone:** the `rescue` entry, the `efi-removable` and `efi:grub`
   loaders (until 9.4), `startup.nsh`, and legacy `@a`/`@b` and labels.
 
-## 12. What is open
+## 12. Open questions
 
 - **Secure Boot:** an enrolled key signing kernels or unified kernel
   images, or shim's chain; depends on which machines require it
