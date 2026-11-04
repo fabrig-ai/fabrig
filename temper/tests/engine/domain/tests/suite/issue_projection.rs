@@ -232,10 +232,10 @@ fn configured_chat(
     world.adopt();
     world.fail_issue_writes = failing;
     let mut bounds = protocol::bounds();
-    bounds.turns = 16;
+    bounds.turns = 800;
     bounds.models = Box::new([host::ModelBound { name: model().name, window: MODEL_WINDOW, output: MODEL_OUTPUT }]);
     bounds.spend = defaults.rules.maximum_run_spend;
-    bounds.time = defaults.charters[0].policy.time;
+    bounds.time = Duration::from_secs(28_800);
     bounds.message_bytes = limits.tasks.message_bytes.max(limits.tasks.result_bytes);
     bounds.inbox = limits.tasks.run_inbox;
     world.send(engine::Event::Worker(engine::WorkerInput::Link {
