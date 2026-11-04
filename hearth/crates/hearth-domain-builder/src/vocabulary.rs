@@ -1,4 +1,4 @@
-//! The in-process client's call and replies (client/README.md, 3.1).
+//! The in-process client's call and replies (hearth/docs/design/client/README.md, 3.1).
 use crate::{build, render, store};
 use alloc::boxed::Box;
 use skein_lib::{Duration, ReplyTo, Token};
@@ -51,7 +51,7 @@ pub enum Call {
         revision: Box<[u8]>,
         targets: Box<[Box<[u8]>]>,
     },
-    /// One target's output, rendered with its resolution (domain/build.md, 4.1).
+    /// One target's output, rendered with its resolution (hearth/docs/design/domain/build.md, 4.1).
     Build {
         repository: Box<[u8]>,
         revision: Box<[u8]>,
@@ -63,7 +63,7 @@ pub enum Request {
     Progress(Progress),
     Render(render::vocabulary::Request),
     Store(store::vocabulary::Request),
-    /// A build step, for the protocol layer to run (domain/build.md, 4.3).
+    /// A build step, for the protocol layer to run (hearth/docs/design/domain/build.md, 4.3).
     Run {
         step: build::Step,
     },
@@ -84,7 +84,7 @@ pub enum Answer {
     Change(render::diff::Change),
     Spec(render::parts::Spec),
     Error(render::errors::Error),
-    /// A build's layer: its key, and whether it was found (client/README.md, 3.1).
+    /// A build's layer: its key, and whether it was found (hearth/docs/design/client/README.md, 3.1).
     Layer {
         layer: build::Layer,
         key: render::vocabulary::Digest,
@@ -95,7 +95,7 @@ pub enum Answer {
         step: build::Step,
         why: build::vocabulary::Why,
     },
-    /// The store at a limit render's errors do not name: its layers (domain/store.md, 8.1).
+    /// The store at a limit render's errors do not name: its layers (hearth/docs/design/domain/store.md, 8.1).
     Full {
         limit: store::vocabulary::Limit,
         most: u32,
@@ -107,7 +107,7 @@ pub enum State {
     ToBuild,
 }
 
-/// Store notices go to standard error (client/README.md, 3.2).
+/// Store notices go to standard error (hearth/docs/design/client/README.md, 3.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Progress {
     Resolving { key: render::vocabulary::Digest },

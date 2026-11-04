@@ -1,4 +1,5 @@
-//! Typed public values and their compact JSON forms (protocol/format.md, 8.1; domain/render.md, 4.4).
+//! Typed public values and their compact JSON forms (hearth/docs/design/protocol/format.md, 8.1;
+//! hearth/docs/design/domain/render.md, 4.4).
 use crate::form::text::Lines;
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};

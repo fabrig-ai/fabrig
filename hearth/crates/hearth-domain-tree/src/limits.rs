@@ -1,4 +1,4 @@
-//! The walk's bounds (domain/store.md, 5.6) and its worst case.
+//! The walk's bounds (hearth/docs/design/domain/store.md, 5.6) and its worst case.
 use crate::{
     Level,
     links::Link,
