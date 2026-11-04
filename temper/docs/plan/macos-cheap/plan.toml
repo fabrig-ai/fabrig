@@ -1,0 +1,3 @@
+draft = "macos-cheap"
+repo = "fabrig"
+sources = ["temper/docs/plan/macos-cheap/inputs/request.md", "temper/docs/design/draft/macos.md", "temper/docs/design/draft/macos.status.md", "AGENTS.md", "DESIGN.md"]
