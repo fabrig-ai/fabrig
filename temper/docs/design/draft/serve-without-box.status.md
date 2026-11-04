@@ -4,7 +4,6 @@
 
 - **Design lags:**
   - 2: `../../help/box.md` and the `commands` page's init entry follow `temper init` before `--box`.
-  - 3: `../client/README.md`, 3.4 and 3.5 (The welcome; With no project yet), and `../client/browser.md`, 2.4, send every sign-in to the welcome, and offer "Set up temper" and the playground while there is no project.
-  - 3, 4: `../client/README.md`, 3.5 (The welcome's Forge step), and `../client/forge.md`, 5.4, offer Forgejo on this machine before any owned forge's row, everywhere.
-  - 4: `../client/README.md`, 3.4, 3.5 and 4.8 say nothing of reading the deployment's read (4.6) before the welcome decides.
+- **Design departs:**
+  - 4: Forgejo on this machine is offered from the deployment's read, its `owned` (`../client/README.md`, 4.6; `../client/forge.md`, 5.4), rather than from the forges' rows: a first run's store keeps no forge, so with no row a fresh box would lose the card, and section 1 has nothing change under the box. `owned` also asks the box, as `SetUp` does (`../protocol/setup.md`, 7.4), so `temper serve` on a box's document offers no card it would refuse. The cut's, 2026-11-04, put to the user as `forge-offer` in `../../plan/serve-without-box/plan.toml`.
 - **Open:** none.

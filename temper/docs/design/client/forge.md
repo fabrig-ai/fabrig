@@ -532,8 +532,9 @@ and `connect-forge.html`.
     of the person's own keeps its Details, which the card does not link
     to, here or on the welcome's Forge step; its address, a kept GitHub
     forge's (`browser.md`, 2.3), opens them;
-  - *Forgejo on this machine,* while no owned Forgejo is kept but one
-    whose offer is offered (`README.md`, 4.6): "A forge of your own,
+  - *Forgejo on this machine,* while the deployment's read says `owned`
+    and no owned Forgejo is kept but one whose offer is offered
+    (`README.md`, 4.6): "A forge of your own,
     run by temper box. No account needed: temper makes your first
     repository, and you start in it." · "Here · about a minute"; its
     link opens its Details;
@@ -541,7 +542,8 @@ and `connect-forge.html`.
     admin, or with its bot’s tokens."; its link opens its Details,
     where its addresses make a managed forge.
 - **Details** are the choice's, under its level-2 heading, after "‹ All
-  forges", a link back to Choose:
+  forges", a link back to Choose; the address of a kind Choose does not
+  offer, Forgejo on this machine with no `owned`, is Choose:
   - *GitHub,* an App of the person's own, at the GitHub forge's
     address: "An App of your own", "Its id, and its private key as GitHub
     gives it.", "On GitHub, set the App’s setup URL to temper’s address

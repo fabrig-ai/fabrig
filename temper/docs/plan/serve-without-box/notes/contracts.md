@@ -71,3 +71,58 @@ pub(crate) fn run(directories: &Directories, boxed: bool) -> Result<u8, String>;
 `[8367, 8371]` are bare's preferred ports, the clients' and the webhooks'. `Command::Init {
 directories, boxed }`: `temper init --box` is `boxed: true`. `temper box`'s first run and
 `temper box --fake-backends` keep calling `core` and `write_with_program`: neither changes.
+
+## K4. The read's answer, its second field
+
+A compatible addition to K2, made in place by `deployment-read`:
+
+```
+versioned record DeploymentAnswer { welcome: bool owned: bool }
+```
+
+`owned`: the document has `application.machine.owned` and the engine runs under the box
+(`temper/docs/design/client/README.md`, 4.6). A first run's store keeps no forge, so no forges'
+row can carry it (the plan's question `forge-offer`).
+
+In `temper-service/src/family.rs`:
+
+```rust
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Deployment { pub welcome: bool, pub owned: bool }
+```
+
+given to `to_root` after `demo`. `Clients` keeps one, set where it is built, so that `iterate` and
+`advance` gain no parameter.
+
+## K5. The domain's fact
+
+`temper-client-domain/src/forge/deployment.rs`:
+
+```rust
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Answer { pub welcome: bool, pub owned: bool }
+pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue<Request>) -> bool;
+```
+
+and on `Side`, in `forge.rs`, beside `playground_answered`:
+
+```rust
+#[must_use]
+pub const fn deployment(&self) -> Option<deployment::Answer>;
+```
+
+`None` until the read first ends. A record sets the answer. A read that ends with no record keeps
+the answer it has, or, with none, answers `Answer { welcome: false, owned: false }`. It reads when a
+link first becomes live and each time one becomes live after it was not, as the playground does,
+and at no other time. Its answer does not depend on the playground's.
+
+`told` runs before `forge::playground::told` in `route.rs`, whose last `Told::Page` arm swallows
+every forge page. A sibling `told`, not a new arm of the playground's: `read()`'s tests hold that
+`playground::told` asks for one read.
+
+Every test world answers with `Answer { welcome: true, owned: true }` unless the test is about a
+deployment with no welcome, so that nothing else moves. The world helpers:
+
+- `temper-client-view/src/tests/fixtures.rs`: `pub fn deliver_deployment(root, read: Token, welcome: bool, owned: bool)`.
+- `temper-client-domain/src/tests`: the same, beside `deliver_playground_read`.
+- `temper/tests/client/src/front.rs`: `Joint.deployment: (bool, bool)`, default `(true, true)`.
