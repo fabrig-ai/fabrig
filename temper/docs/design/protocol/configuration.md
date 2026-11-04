@@ -454,6 +454,16 @@ section 4); the engine's routing takes each forge's `git` base and git
 program; the clients' listener takes `clients.listener`, and its forge
 routes each GitHub forge's `web`.
 
+`merge_job`, when present, is a string of 1 to 4,096 bytes, with no leading
+`/`, NUL or `..` segment. An invalid form refuses the start at
+`application.landing.projects[i].merge_job` as a form error; a length past
+the ceiling is a bound error. Leaving it out configures no merge command
+(2026-11-04).
+
+A tier's name is unique among both the gates and tiers of its repository.
+Its artifact name is non-empty, at most 32 bytes, and contains no `/`. The
+repository's tier count remains bounded by `forge.tiers.tiers` (2026-11-04).
+
 ## 4. temper's members for a worker
 
 **`application.workers`:** a list with one entry per entry of the
@@ -532,8 +542,9 @@ have one, an engine alone none. Each:
 - **The worker must fit the configured charters.** After those name checks,
   startup builds jig's core configuration once, expands its instruction files,
   and projects its fleet needs with jig's `fleet_needs::configured`. The
-  worker's bounds pass through the same `hello_bounds` conversion as its
-  hello and jig's `shortfall` selects the first unmet requirement. Startup
+  worker's bounds are its agent configuration's `bounds`, which its
+  hello carries unchanged, and jig's `shortfall` selects the first unmet
+  requirement. Startup
   names that requirement's configuration path, required and offered amounts,
   with its dimension's units; the same core configuration then checks the
   root. Admission policy stays in jig, including checks fitting within a
@@ -1991,6 +2002,22 @@ next run.
   when the person points to one in an adopted repository, and says that
   a change landed there reaches the next run.
 
+A document section begins `At BRANCH's head COMMIT`, then the selected text
+on the next line. A cut appends `[N bytes cut]`, or `[more than N bytes
+cut]` when the file read itself was truncated; a later cut renders the
+retained text again without reading another head. Missing resources read
+`Repository OWNER/NAME on HOST is not adopted.`, `No branch BRANCH in
+OWNER/NAME.`, `No file PATH in OWNER/NAME at BRANCH's head COMMIT.` (a
+folder too), or `No heading "HEADING" in PATH at BRANCH's head COMMIT.`. A
+failed or refused read is a failed brief read, rather than one of these
+successful explanatory reads (2026-11-04).
+
+A stored document whose resource name is no forge branch renders with
+`"connector"` and `"name": [segments]`, its `path` and optional `heading`,
+preserving what was stored. A settings file naming a document in that raw
+form is refused as out of shape; the accepted input form is the forge,
+repository and branch form above (2026-11-04).
+
 ### 13.8 A model with a larger output
 
 `temper init`'s limits hold its model, a window of 1,048,576 tokens and
@@ -2337,3 +2364,6 @@ that changes the stock changes nothing of them.
   within `tasks.charters`, their documents within
   `tasks.charter_documents`, their turns within the agent's
   `max_turns`, template 4's report within `tasks.result_bytes`.
+
+The reference's charter 6 also returns `finish` for a red the change did not
+cause, with that red on the asker's Left list (2026-11-04).

@@ -37,14 +37,7 @@ fn render(value: &DocumentOutcome, words: &Words) -> Tree {
         depth: required.depth,
         text_per_node: required.text_per_node,
         text_bytes: required.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 0,
-        patches: 0,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 0,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     };
     let mut b = Builder::new(&limits);
     view::render(&mut b, value, words);
@@ -324,14 +317,7 @@ fn durable_answer_rendering_keeps_every_owner_fact_within_the_existing_notice_en
         depth: required.depth,
         text_per_node: required.text_per_node,
         text_bytes: required.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 0,
-        patches: 0,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 0,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     };
     for value in max_cases() {
         let mut builder = Builder::new(&limits);

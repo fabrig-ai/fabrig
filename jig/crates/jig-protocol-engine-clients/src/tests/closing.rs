@@ -1,11 +1,18 @@
 use super::super::*;
 use super::fixtures;
+fn linked_component(env: &Env<Limits>, out: &mut Queue<Request>) -> Component {
+    let component = Component::new(fixtures::linked_settings(), env, out).expect("start");
+    let Some(Request::Link { .. }) = out.pop() else { panic!("link") };
+    let Some(Request::Secrets(SecretsRequest::Get { owner: SecretOwner::PublicNames })) = out.pop() else {
+        panic!("startup public names lookup")
+    };
+    component
+}
 #[test]
 fn stopping_keeps_the_printed_link_live_and_unspent() {
     let env = fixtures::env();
     let mut out = Queue::with_capacity(8);
-    let mut component = Component::new(fixtures::linked_settings(), &env, &mut out).expect("start");
-    let Some(Request::Link { .. }) = out.pop() else { panic!("link") };
+    let mut component = linked_component(&env, &mut out);
     let secret = component.link.as_ref().expect("live link").secret.clone();
     let until = component.link.as_ref().expect("live link").until;
     let owner = Token::new(99);
@@ -62,8 +69,7 @@ fn close_and_abort_drop_a_links_reservation_even_before_its_core_answer() {
     for abort in [false, true] {
         let env = fixtures::env();
         let mut out = Queue::with_capacity(8);
-        let mut component = Component::new(fixtures::linked_settings(), &env, &mut out).unwrap();
-        out.pop().expect("printed link");
+        let mut component = linked_component(&env, &mut out);
         let link = component.link.take().expect("open link");
         let exchange = Token::new(1);
         component.spending = Some((exchange, link));

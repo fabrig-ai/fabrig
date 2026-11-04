@@ -26,4 +26,4 @@ which executor.
 ## What pays it back
 
 A record with one executor part. The record is a stored format (`tasks_v9`), so the
-change is the user's call (`AGENTS.md`, 7) and needs a store version step.
+change is the user's call and needs a store version step.

@@ -3,3 +3,5 @@ pub mod instructions;
 pub mod offers;
 
 pub mod delegates;
+
+pub mod public;

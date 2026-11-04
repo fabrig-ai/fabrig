@@ -23,7 +23,7 @@ fn every_record_reads_back_as_written() {
         Line::Start,
         Line::Due,
         Line::Place(bytes()),
-        Line::Heard(Heard::Answered { exchange: u32::MAX, status: 200, body: bytes() }),
+        Line::Heard(Heard::Answered { exchange: u32::MAX, status: 200, body: bytes(), headers: Vec::new() }),
         Line::Heard(Heard::Failed { exchange: 2 }),
         Line::Heard(Heard::StreamOpened),
         Line::Heard(Heard::StreamRefused { status: 403 }),
@@ -298,7 +298,7 @@ fn an_exchange_in_flight_is_not_still() {
     let save = recording(&records);
     assert_eq!(still(&save, &save), Ok(false));
     for heard in [
-        vec![Line::Heard(Heard::Answered { exchange: 7, status: 200, body: Box::default() })],
+        vec![Line::Heard(Heard::Answered { exchange: 7, status: 200, body: Box::default(), headers: Vec::new() })],
         vec![Line::Heard(Heard::Failed { exchange: 7 })],
         vec![Line::Carried { writes: 0 }, Line::Lost(7)],
     ] {

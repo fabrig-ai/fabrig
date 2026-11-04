@@ -205,7 +205,7 @@ fn render_edge(text: Box<[u8]>, left: u64, budget: u32, tail: bool) -> Option<Bo
     }
     let mut low = 0_usize;
     let mut high = text.len().min(room);
-    let minimum = marker(left.checked_add(u64::try_from(text.len()).ok()?)?, false);
+    let minimum = marker(left.checked_add(skein_lib::len_u64(text.len()))?, false);
     if minimum > room {
         return None;
     }

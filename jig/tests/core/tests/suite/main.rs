@@ -94,3 +94,5 @@ mod fuzzy {
 
 #[path = "../support/reads.rs"]
 mod read_support;
+
+mod public;

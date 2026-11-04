@@ -5,7 +5,7 @@ use skein_io::{
     kernel::{Complete, Submit},
 };
 use skein_lib::{
-    Env, Queue, Token,
+    Queue, Token,
     sha256::Sha256,
     stream::{Down, Read, Up},
 };
@@ -242,18 +242,13 @@ impl Connection {
     }
     fn io_down(&mut self, request: skein_io::Request) {
         let now = self.clock.now();
-        skein_io::down(
-            &mut self.io,
-            &Env { now: now.now, wall: now.wall, limits: self.limits },
-            request,
-            &mut self.subs,
-        );
+        skein_io::down(&mut self.io, &now.with(self.limits), request, &mut self.subs);
     }
     fn demand(&mut self) {
         let now = self.clock.now();
         http::down(
             &mut self.http,
-            &Env { now: now.now, wall: now.wall, limits: HTTP },
+            &now.with(HTTP),
             http::Request::Body(Down::Demand { read: Read::Arrived { max: CHUNK }, room: 0 }),
             &mut self.http_up,
             &mut self.plain,
@@ -276,7 +271,7 @@ impl Connection {
     fn poll_io(&mut self, closing: bool) {
         self.kernel.reap(&mut self.complete);
         let now = self.clock.now();
-        let env = Env { now: now.now, wall: now.wall, limits: self.limits };
+        let env = now.with(self.limits);
         loop {
             if self.io.is_ready() {
                 skein_io::resume(&mut self.io, &env, &mut self.events, &mut self.subs);
@@ -292,18 +287,14 @@ impl Connection {
                     skein_io::Event::Connecting { socket, .. } => self.socket = Some(socket),
                     skein_io::Event::Connected { .. } if !closing => tls::down(
                         &mut self.tls,
-                        &Env { now: now.now, wall: now.wall, limits: TLS },
+                        &now.with(TLS),
                         tls::Request::Handshake,
                         &mut self.tls_up,
                         &mut self.cipher,
                     ),
-                    skein_io::Event::Stream { up, .. } if !closing => tls::up(
-                        &mut self.tls,
-                        &Env { now: now.now, wall: now.wall, limits: TLS },
-                        up,
-                        &mut self.tls_up,
-                        &mut self.cipher,
-                    ),
+                    skein_io::Event::Stream { up, .. } if !closing => {
+                        tls::up(&mut self.tls, &now.with(TLS), up, &mut self.tls_up, &mut self.cipher);
+                    }
                     skein_io::Event::Closed { .. } => {
                         self.closed = true;
                         self.socket = None;
@@ -332,8 +323,8 @@ impl Connection {
     }
     fn pump(&mut self) -> bool {
         let now = self.clock.now();
-        let http_env = Env { now: now.now, wall: now.wall, limits: HTTP };
-        let tls_env = Env { now: now.now, wall: now.wall, limits: TLS };
+        let http_env = now.with(HTTP);
+        let tls_env = now.with(TLS);
         if let Some(event) = self.http_up.pop() {
             match event {
                 http::Event::Response(response) => {

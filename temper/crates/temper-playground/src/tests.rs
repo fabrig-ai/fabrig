@@ -1,4 +1,6 @@
 //! Composition startup checks (temper/docs/design/playground.md, 3).
+mod visitor;
+
 use crate::{documents, fakes};
 
 #[test]
@@ -74,6 +76,7 @@ fn the_owned_values_equal_the_test_kits_values() {
     profile.declared.conversations = 1;
     profile.declared.calls_per_response = 1;
     profile.policy.max_turns = 800;
+    profile.policy.max_time = skein_lib::Duration::from_secs(28_800);
     profile.policy.check_timeout = skein_lib::Duration::from_secs(5);
     let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
     profile.policy.inbox = hub.held.max(hub.inbox);

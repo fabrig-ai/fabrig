@@ -639,7 +639,7 @@ fn reader(role: Option<jig_domain_people::Role>) -> (Domain, Env<RootLimits>) {
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
     domain.core.people.start_restore(env.wall);
     let mut out = Queue::uncapped();
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
+    let people_env = env.with(env.limits.people);
     for record in [
         people::Stored::Person {
             number: 1,

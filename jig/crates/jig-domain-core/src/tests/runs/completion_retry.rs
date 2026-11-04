@@ -22,6 +22,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 Now::RunText { .. } => return request,
                 Now::Relayed { .. }
                 | Now::EffectAnswer { .. }
+                | Now::TaskRead { .. }
                 | Now::SettingsAnswer { .. }
                 | Now::SettledCallRefused { .. }
                 | Now::Call { .. }
@@ -86,6 +87,8 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::ApplicationWatchEnded { .. }
                 | Held::ReadLoad { .. }
                 | Held::Read { .. }
+                | Held::PublicRead { .. }
+                | Held::PublicWait { .. }
                 | Held::Applied { .. }
                 | Held::CarriedUnused { .. }
                 | Held::Delivery { .. }

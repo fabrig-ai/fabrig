@@ -11,10 +11,7 @@ use skein_fake_forge_protocol::{
 };
 use skein_forge::github::request::Method;
 use skein_json::tokenizer as json;
-use skein_lib::{
-    Env, Queue, ReplyTo, Time, Wall, bytes,
-    stream::{Down, Held},
-};
+use skein_lib::{Queue, ReplyTo, Time, Wall, bytes};
 
 /// One request on the private git route (fake-forge.md 10.1), never its credential.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -265,27 +262,14 @@ pub(crate) fn limits(limits: &Limits) -> protocol::Limits {
 }
 fn decode(name: Name, body: &[u8], limits: &protocol::Limits) -> Option<Call> {
     let mut decoder = git::server::decoder(name, limits);
-    let mut tokenizer = json::Tokenizer::new(&limits.documents.json);
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.documents.json };
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut input = Held::new(bytes::copy_of(body));
-    json::down(&mut tokenizer, &env, git::server::body_first(&decoder), &mut above, &mut below);
-    // At most eight tokenizer/stream transitions per input byte, plus completion.
-    for _ in 0..body.len().saturating_mul(8).saturating_add(64) {
-        if let Some(event) = above.pop() {
-            match git::server::body(&mut decoder, limits, &event) {
-                git::server::BodyStep::Demand(request) => {
-                    json::down(&mut tokenizer, &env, request, &mut above, &mut below);
-                }
-                git::server::BodyStep::Decoded(call) => return Some(call),
-                git::server::BodyStep::Malformed => return None,
-            }
-        } else {
-            let Some(Down::Demand { read, .. }) = below.pop() else {
-                return None;
-            };
-            json::up(&mut tokenizer, &env, input.answer(read)?, &mut above, &mut below);
+    let mut feed = json::Feed::new(body, &limits.documents.json);
+    let mut request = git::server::body_first(&decoder);
+    // An answer but the last reads at least a byte.
+    for _answer in 0..=body.len() {
+        match git::server::body(&mut decoder, limits, &feed.answer(request)) {
+            git::server::BodyStep::Demand(next) => request = next,
+            git::server::BodyStep::Decoded(call) => return Some(call),
+            git::server::BodyStep::Malformed => return None,
         }
     }
     None

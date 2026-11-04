@@ -6,11 +6,11 @@ Companion to `2026-10-31-quality.md`. The rubric and the 13 reviewers' reports, 
 
 # Code-quality review of smith: shared brief
 
-Tree: `~/src/fabrig/leads/smith-review/survey` (a clone of github `manual/component-kit` at `aa95945cc`).
+Tree: a clone of github `manual/component-kit` at `aa95945cc`.
 Paths below are relative to `smith/` in that clone unless they start with `skein/`.
 
 Read only: do not build, run tests, or change anything in the clone. Never touch any other
-path under `~/src/fabrig/`. The only file you write is your report. Review the code as it
+path outside that clone. The only file you write is your report. Review the code as it
 stands on this branch; do not diff it against main.
 
 ## What is being asked

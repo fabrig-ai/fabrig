@@ -133,8 +133,9 @@ pub fn act_then_adopt(root: &mut crate::Domain, acts: &[forge::Act]) -> u32 {
 pub fn sends(out: &mut Queue<Request>) -> u32 {
     let mut sent = 0_u32;
     for _ in 0..out.len() {
-        if let Some(Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { .. } } }) =
-            out.pop()
+        if let Some(Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { .. } },
+        }) = out.pop()
         {
             sent = sent.checked_add(1).expect("bounded output count");
         }
@@ -232,9 +233,9 @@ pub fn start_accounts(
     let mut frame = None;
     let mut accounts = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(contract::Subject::Accounts) },
                 },
@@ -242,9 +243,9 @@ pub fn start_accounts(
         {
             accounts = Some(*watch);
         }
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(contract::Subject::Me) },
                 },
         } = request
@@ -308,9 +309,9 @@ pub fn inbox_home(filter: crate::address::Filter) -> (crate::Domain, Token) {
     );
     let mut watch = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Open {
                             watch: token,
@@ -368,8 +369,9 @@ pub mod chats;
 pub fn opened(root: &mut crate::Domain, out: &mut Queue<Request>) {
     let mut watches = List::with_capacity(limits().client.domain.watches);
     while let Some(request) = out.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Open { watch, .. } } } =
-            request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, .. } },
+        } = request
         {
             watches.push(watch).expect("bounded openings");
         }

@@ -1617,9 +1617,9 @@ impl Domain {
     }
 }
 pub(crate) fn tests_bytes(tests: &[Box<[u8]>]) -> Option<u64> {
-    let mut held = u64::try_from(tests.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+    let mut held = skein_lib::len_u64(tests.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
     for test in tests {
-        held = held.checked_add(u64::try_from(test.len()).ok()?)?;
+        held = held.checked_add(skein_lib::len_u64(test.len()))?;
     }
     Some(held)
 }
@@ -1636,42 +1636,41 @@ pub(crate) fn blame_bytes(blame: &p::Blame) -> Option<u64> {
     }
 }
 pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
-    let mut held = u64::try_from(row.tier.len())
-        .ok()?
-        .checked_add(u64::try_from(row.observations.len()).ok()?)?
+    let mut held = skein_lib::len_u64(row.tier.len())
+        .checked_add(skein_lib::len_u64(row.observations.len()))?
         .checked_add(failures_bytes(&row.record.failing)?)?
         .checked_add(
-            u64::try_from(row.record.flakes.len()).ok()?.checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
+            skein_lib::len_u64(row.record.flakes.len()).checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
         )?;
     for flake in &row.record.flakes {
-        held = held.checked_add(u64::try_from(flake.test.len()).ok()?)?;
+        held = held.checked_add(skein_lib::len_u64(flake.test.len()))?;
     }
     held = held.checked_add(
-        u64::try_from(row.pending.len()).ok()?.checked_mul(u64::try_from(size_of::<TierLanding>()).ok()?)?,
+        skein_lib::len_u64(row.pending.len()).checked_mul(u64::try_from(size_of::<TierLanding>()).ok()?)?,
     )?;
     held = held.checked_add(
-        u64::try_from(row.goals.len()).ok()?.checked_mul(u64::try_from(size_of::<crate::TierGoal>()).ok()?)?,
+        skein_lib::len_u64(row.goals.len()).checked_mul(u64::try_from(size_of::<crate::TierGoal>()).ok()?)?,
     )?;
     for goal in &row.goals {
-        held = held.checked_add(u64::try_from(goal.branch.len()).ok()?)?.checked_add(failures_bytes(&goal.failing)?)?;
+        held = held.checked_add(skein_lib::len_u64(goal.branch.len()))?.checked_add(failures_bytes(&goal.failing)?)?;
     }
     if let Some(flight) = &row.flight {
         if let Some(report) = &flight.report {
-            held = held.checked_add(u64::try_from(report.url.len()).ok()?)?;
+            held = held.checked_add(skein_lib::len_u64(report.url.len()))?;
         }
         held = held.checked_add(
-            u64::try_from(flight.pending.len()).ok()?.checked_mul(u64::try_from(size_of::<api::JobAttempt>()).ok()?)?,
+            skein_lib::len_u64(flight.pending.len()).checked_mul(u64::try_from(size_of::<api::JobAttempt>()).ok()?)?,
         )?;
     }
     if let Some(result) = &row.result {
-        held = held.checked_add(u64::try_from(result.run.url.len()).ok()?)?;
+        held = held.checked_add(skein_lib::len_u64(result.run.url.len()))?;
         if let Some(failures) = &result.failures {
             held = held.checked_add(failures_bytes(failures)?)?;
         }
     }
     if let Some(run) = &row.record.run {
         held = held.checked_add(
-            u64::try_from(run.landings.len()).ok()?.checked_mul(u64::try_from(size_of::<p::Landing>()).ok()?)?,
+            skein_lib::len_u64(run.landings.len()).checked_mul(u64::try_from(size_of::<p::Landing>()).ok()?)?,
         )?;
         match &run.part {
             p::Part::Whole => {}
@@ -1685,8 +1684,7 @@ pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
                     .checked_add(failures_bytes(&finding.failing)?)?
                     .checked_add(tests_bytes(&finding.flakes)?)?
                     .checked_add(
-                        u64::try_from(finding.blamed.len())
-                            .ok()?
+                        skein_lib::len_u64(finding.blamed.len())
                             .checked_mul(u64::try_from(size_of::<p::Blame>()).ok()?)?,
                     )?;
                 for blame in &finding.blamed {
@@ -1810,7 +1808,7 @@ fn report_id(test: &[u8]) -> Box<[u8]> {
 }
 
 fn verdict_summary(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
-    let count = u64::try_from(verdict.landings.len()).expect("bounded range");
+    let count = skein_lib::len_u64(verdict.landings.len());
     let prefix = joined(&[b"Tier ", tier, b" run ", skein_lib::Decimal::of(verdict.number).as_bytes()]);
     if let p::Failures::Tests(tests) = &verdict.failing
         && tests.is_empty()
@@ -1824,9 +1822,7 @@ fn verdict_summary(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
         }
     }
     let failures = match &verdict.failing {
-        p::Failures::Tests(tests) => {
-            count_words(u64::try_from(tests.len()).expect("bounded tests"), b" test", b" tests")
-        }
+        p::Failures::Tests(tests) => count_words(skein_lib::len_u64(tests.len()), b" test", b" tests"),
         p::Failures::Many => Box::from(b"many tests".as_slice()),
     };
     let mut words = joined(&[

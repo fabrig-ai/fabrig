@@ -396,7 +396,7 @@ fn answer(ticket: u64, length: u64) -> Box<[u8]> {
 }
 
 fn answered(owner: Token, ticket: u64, length: u64, error: bool) -> Event {
-    Event::Answered { owner, text: answer(ticket, length), error, spent: 0 }
+    Event::Answered { owner, text: answer(ticket, length), error, spent: 0, after: crate::After::Complete }
 }
 
 fn answer_cancelled(owner: Token) -> Event {
@@ -412,6 +412,7 @@ fn opening(spec: Spec) -> Box<crate::record::Opening> {
         budget: 100,
         transcript: None,
         answered: Box::default(),
+        withheld: None,
     })
 }
 
@@ -1431,6 +1432,7 @@ fn reserved_recorded_call(harness: &mut Harness) -> Token {
                 budget: 100,
                 transcript: None,
                 answered: Box::default(),
+                withheld: None,
             }),
         },
         &mut harness.out,

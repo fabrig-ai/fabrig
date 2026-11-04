@@ -53,11 +53,7 @@ pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option
             Some(core::Event::Fleet(fleet::Event::Lost { channel }))
         }
         Link::Up { up, parts } => {
-            let bytes = if let host::LinkUp::Turn { turn, .. } = &up {
-                u64::try_from(turn.body.len()).expect("bounded turn bytes")
-            } else {
-                0
-            };
+            let bytes = if let host::LinkUp::Turn { turn, .. } = &up { skein_lib::len_u64(turn.body.len()) } else { 0 };
             let invalid = !parts_within(&parts, &domain.limits);
             let mut event = hub::up(&mut domain.hub_link, channel, up)?;
             domain.hold_bytes(bytes);
@@ -115,10 +111,10 @@ pub(crate) fn room(domain: &Domain) -> bool {
 /// resources it saved (domain/forge.md). Beyond them the answer is invalid.
 fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
     let saved = match &parts.saved {
-        Some(tags) => tags.len() <= usize::try_from(limits.tasks.saved_resources).expect("u32 fits usize"),
+        Some(tags) => tags.len() <= skein_lib::usize_of(limits.tasks.saved_resources),
         None => true,
     };
-    saved && parts.pushed.len() <= usize::try_from(limits.forge.resources_per_task).expect("u32 fits usize")
+    saved && parts.pushed.len() <= skein_lib::usize_of(limits.forge.resources_per_task)
 }
 
 /// Interpret worker endings with forge parts and the change's failed-review policy.
@@ -417,6 +413,10 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
     if let tasks::MessageKind::SettingsDecision { outcome, .. } = word.kind {
         return settings_decision_words(outcome, &word.words);
     }
+    if let tasks::MessageKind::Escalation { task, revision, .. } = word.kind {
+        return escalation_words(task, revision, &word.words);
+    }
+
     let (label, number) = match word.kind {
         tasks::MessageKind::QuestionAnswered { question } => {
             if let tasks::Party::Task(asker) = word.from
@@ -577,6 +577,28 @@ fn sender(value: tasks::Party) -> Box<[u8]> {
         tasks::Party::Task(number) | tasks::Party::Person(number) => Box::from(Decimal::of(number).as_bytes()),
         tasks::Party::Deployment { .. } => Box::from(&b"deployment"[..]),
     }
+}
+
+fn escalation_words(task: u64, revision: u64, words: &[u8]) -> Box<[u8]> {
+    let task = Decimal::of(task);
+    let revision = Decimal::of(revision);
+    let parts: [&[u8]; 6] = [
+        words,
+        b"\nHeld task ",
+        task.as_bytes(),
+        b", hold revision ",
+        revision.as_bytes(),
+        b". Use read_task on that task.",
+    ];
+    let mut size = 0_usize;
+    for part in parts {
+        size = size.checked_add(part.len()).expect("bounded escalation envelope");
+    }
+    let mut writer = Writer::new(size);
+    for part in parts {
+        writer.put(part).expect("sized escalation envelope");
+    }
+    writer.finish()
 }
 
 fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Box<[u8]> {

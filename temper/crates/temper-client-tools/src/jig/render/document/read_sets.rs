@@ -27,7 +27,7 @@ pub(super) fn text(
                 super::super::task_source::text(page, limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) => {
-                super::projects::text(project, call, limits, vocabulary, out);
+                super::projects::text(project, call, me, limits, vocabulary, out);
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)
@@ -106,7 +106,7 @@ pub(super) fn text(
         }
     }
 }
-pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
+pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
     let call = &reading.called.call;
     if call.tool == 1 && super::subjects::inbox_eligible(call) {
         super::subjects::encode_inbox_read(reading, limits, out);
@@ -128,7 +128,7 @@ pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budg
                 super::super::task_source::encode(page, limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) => {
-                super::projects::encode(project, call, limits, out, budget);
+                super::projects::encode(project, call, me, limits, out, budget);
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)

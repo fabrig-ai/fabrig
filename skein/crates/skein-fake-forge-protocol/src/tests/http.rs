@@ -173,7 +173,7 @@ fn requests_are_counted_by_route_user_and_total() {
     assert!(bytes::find(&h.body(), b"\"title\":\"created\"").is_some());
 }
 #[test]
-fn a_reset_closes_before_reading_and_a_timeout_drops_or_answers_500() {
+fn a_reset_closes_before_reading_and_a_timeout_answers_500() {
     let mut config = fixtures::config();
     config.faults.reset = 1000;
     let mut h = Harness::new(config);
@@ -189,11 +189,13 @@ fn a_reset_closes_before_reading_and_a_timeout_drops_or_answers_500() {
         let mut h = Harness::new(config);
         fault_write(&mut h, closed, status, "drawn post-write fault");
     }
-    for (seed, closed, status) in [(0, true, None), (2, false, Some(500))] {
+    for (seed, closed, status, row) in
+        [(0, false, Some(500), "domain timeout at seed 0"), (2, false, Some(500), "domain timeout at seed 2")]
+    {
         let mut h = Harness::new(fixtures::config());
         h.service.rng = skein_lib::Rng::new(seed);
         h.fake_env.limits.timeouts = 1000;
-        fault_write(&mut h, closed, status, "domain timeout");
+        fault_write(&mut h, closed, status, row);
     }
 }
 fn fault_write(h: &mut Harness, closed: bool, status: Option<u16>, row: &str) {

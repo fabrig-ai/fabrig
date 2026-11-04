@@ -60,7 +60,7 @@ fn repository_item(
     let length = base.len().checked_add(repository.owner.len()).ok_or(problem(v1::Path::RepositoryRemote))?;
     let length = length.checked_add(repository.name.len()).ok_or(problem(v1::Path::RepositoryRemote))?;
     let length = length.checked_add(6).ok_or(problem(v1::Path::RepositoryRemote))?;
-    if length > usize::try_from(limits.repository_remote).expect("u32 fits usize") {
+    if length > skein_lib::usize_of(limits.repository_remote) {
         return Err(problem(v1::Path::RepositoryRemote));
     }
     let mut remote = Writer::new(length);

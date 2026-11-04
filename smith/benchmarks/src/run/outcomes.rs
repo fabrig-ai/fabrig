@@ -36,7 +36,7 @@ impl Neutral {
         self.checks = task.outcome.iter().filter(|check| neutral(check)).cloned().collect();
         self.waived.clone_from(&task.waives);
         self.deciding.clone_from(&task.deciding);
-        if agent != crate::Agent::Smith {
+        if !agent.reports_events() {
             self.deciding.retain(|name| {
                 !["stream-whole", "paired", "spend-sums", "nothing-lost"].contains(&name.as_str())
                     && !task.event.iter().any(|check| check.name() == name && check.name() != "cache-reuse")
@@ -57,9 +57,7 @@ impl Neutral {
         process: &ProcessResult,
         outcome: &Outcome,
     ) -> Result<&Ended, String> {
-        if let Some(crate::agent::Observing::Smith(observing)) = process.observing.as_deref()
-            && observing.prepared.program_source()
-        {
+        if process.observing.as_deref().is_some_and(crate::agent::Observing::program_source) {
             self.program();
         }
         match observed {

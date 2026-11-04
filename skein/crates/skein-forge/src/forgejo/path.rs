@@ -91,7 +91,7 @@ pub fn read(target: &[u8], limits: &Limits) -> Result<Target, Unread> {
         Some(at) => at,
         None => target.len(),
     };
-    let mut segments = List::with_capacity(12);
+    let mut segments = List::with_capacity(limits.target_bytes);
     let mut query = List::with_capacity(8);
     let mut start = 1;
     for at in 1..=end {

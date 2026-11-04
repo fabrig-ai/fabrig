@@ -936,6 +936,7 @@ the core checks inherited authority and the prospective financial payer.
 | Tool | What it does | Answers |
 |---|---|---|
 | `delegate` | makes a batch of tasks as its delegates, each with what a party's `Create` names, its label, flags and LLM choice among them (tasks.md, section 4) | their numbers and their specs' revisions, and what a budget given `AsAllowed` was given; refused, and why; beyond authority, naming what it lacked and whether a proposal could be accepted |
+| `read_task` | reads its own task, its requester, live direct delegates, explicit references or escalation subjects in its project; retained ended direct delegates remain readable | bounded specification words, lifecycle, dependencies, spec revision, hold revision and reason, including connector hold words; `from` continues cut specification words at the printed `next` byte offset |
 | `message` | words, a question or an answer to a task it references | sent; no reference; the inbox full; too large for a run to read |
 | `amend`, `release` | a task below it: an amendment naming its spec's revision as the run last read it, but for a change of priority alone, and adding or removing dependencies within its reach (tasks.md, section 7); a release naming its hold's, and, for an effect held uncertain, whether to make it again (tasks.md, 5.5 and section 7) | done, with the task's spec revision after the commit, the one its next amendment names (a release moves none); refused, and why; moved, with what it is now |
 | `cancel` | a task below it and its tree, with a reason, and a grace if the run gives one, within the tasks child's bound: the task is asked to finish first (tasks.md, section 7) | done; refused, and why |
@@ -951,13 +952,19 @@ the core checks inherited authority and the prospective financial payer.
 | `note`, `recall` | writes a note in a scope; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
 
-**A run's reads are not recorded.** A connector's read and the
+**A run's reads are not recorded.** A connector's read, `read_task`, and the
 `settings` family's reads decide nothing: checked against the task's
 tools, served from the state as it stands, their answer leaves through
 the journal's door for outputs that decide nothing (root.md, section
 3), and no call record keeps it. A read asked again under its name is
 read again, and may see what changed since. A proposal of settings is a
 decided call, as every other is.
+
+Task reads authorize against the run's own task relationships, not a person's
+project visibility. A stored delegate's owner row proves its immediate requester;
+loading it grants no message, amendment or subscription authority. Authorization
+and the current attempt are checked again after a stored read. Every chunk names
+the current spec revision; restart at zero if it changes between chunks.
 
 **Calls are named, and decided once.** Every call names its task's
 attempt and the run's own name for it. The core commits a call that
@@ -1083,6 +1090,20 @@ hosted run with no agent:
 - **Nothing of it is a transcript:** its spec and result are its
   record; a restart finds a claimed job's attempt as a run's (section
   6) and settles it lost or answered.
+
+The application's declaration of job kinds is ascending by number, each
+once, as the worker's hello is. A batch naming an undeclared job kind is
+refused as `Executor`; a job's spec or deadline beyond its declared bound is
+refused as `Spec` (2026-11-04).
+
+A job's transient preparation or failed delivery uses the transient retry
+class; permanent preparation, stale or refused delivery, and an invalid
+assignment use the permanent class. Its own failure and deadline use the
+run's-own class; failure to start uses the agent's class; an oversized
+result uses invalid; lost contact and shutdown use lost. Engine cancellation
+ends it as cancelled. Busy before starting is a refusal, spending no try. A
+finished job becomes its task's Job result, without asking to cancel
+delegates (2026-11-04).
 
 ## 8. The fleet
 
@@ -1324,6 +1345,19 @@ computes for them is said below (11.1 to 11.5).
   (connectors.md, 5.5). Its watches and reads carry a window, as jig's
   do (`../client/domain/contract.md`, 7.5). Only the document, or why
   there is none, crosses back; the root only routes.
+- **Public reads** (people.md, section 13) are the public party's,
+  with no sign-in: the core admits one only on its public index
+  (people.md, 13.9), the project first, then the task, before any other
+  work, and answers every other unknown alike. It makes jig's public
+  documents (projects, a board, a card) by their projections from the
+  index alone, within the board's bounds, never scanning the live tasks
+  or loading from the store; an application's it asks of the connector
+  that declared the kind, handing it the project's public tasks, and
+  checks the tasks its answer names again in the step that completes
+  the read (people.md, 13.10). It keeps the index with every decision
+  that changes what is public (people.md, 13.7), building a project's
+  entry from its live tasks at start and when it is made public.
+  No watch is opened, nothing is marked, nothing is committed.
 - **Level-triggered,** as facts are (core.md, section 4). A delivery is
   the subject's whole current document, within the watch's window, made
   by the subject's owner when the delivery is made: the core, or a
@@ -2229,6 +2263,12 @@ judges and keeps it within the change's decision.
 - **The root routes, never judges** (root.md, section 11): the judging
   and the keeping are the connector's, in its own terms.
 
+The values-per-scope bound counts every setting state the core keeps in that
+scope: changed, removed and following its default after a reset. Removing or
+resetting a number does not free its slot. A set naming a new number past
+that bound is refused as count before judging; editing a number already kept
+adds no slot (decided 2026-11-03).
+
 ### 17.6 A proposal of settings
 
 - **Proposed by a member or a run.** A party with a role in the
@@ -2287,6 +2327,28 @@ judges and keeps it within the change's decision.
 - **Bounded:** pending proposals of settings in the deployment are a
   limit of their own, each priced at a whole set (17.8), beside the
   tasks child's limits on pending proposals.
+
+Each settings proposal naming an application's items receives a
+deployment-unique `u64` key when it is made. Connector asks to keep, judge,
+accept or drop its values use this key, since proposal numbers are only
+unique within a proposer. The settings review document exposes the key with
+the set so the client can name the application's proposal-value read
+(2026-11-04).
+
+A review of an application's item carries its current state, size and
+charter references. A set gives the size it would set; a removal gives none;
+a reset says it returns to its default without giving that default's size.
+The core keeps no separate default size for this review, makes no connector
+ask during it, and supplies neither zero nor an unknown-size marker. The
+application's own reads serve its default and size (decided 2026-11-03).
+
+Deleting a project withdraws pending settings proposals naming its policy
+before the project state changes. Those proposals are a subset of the
+deployment's pending settings sets, at most `settings.proposals`, so their
+writes fit `settings::withdrawal_writes`, the allowance already included in
+the settings write bound checked against `journal.writes`. Message-number
+capacity is checked before any withdrawal or deletion mutation; this
+requires no additional limit or root-to-core allowance (decided 2026-11-03).
 
 ### 17.7 In the store, and at a start
 
@@ -2439,6 +2501,18 @@ document goes in the charter's instructions.
 - **No authority** is asked of the run: the charter's owners chose its
   documents, as they chose its instructions.
 
+A document's path is 1 to 256 bytes; its heading, when present, is 1 to 80
+bytes. An empty path or a present empty heading is out of shape
+(2026-11-04).
+
+The configuration and service start check that brief sections hold the
+core's own most and `tasks.charter_documents`, naming both limits on
+refusal. The core's in-code validity check does not require this relation:
+fixtures may supply fewer sections. The core then plans documents in charter
+order only while room remains after its own sections, omitting a document
+from both the section plan and the root's document list when no room remains
+(2026-11-04).
+
 ### 17.10 Restoring a version
 
 Restoring a version makes a new proposal of the settings as a revision
@@ -2510,3 +2584,16 @@ decided by the owners of what it touches.
   `setting{kind, scope, number, proposal}`, a pending proposal's item
   (`../client/domain/contract.md`, section 6), and an application's
   items from the application's own read of a proposal's items (17.5).
+
+The restore's size is counted before any deleted project's items are left
+out. Every item found after R counts toward a whole set and at most one
+project's policy, including one that will be omitted, so the answer's
+omitted items are bounded by that same set plus one policy (2026-11-04).
+
+Restoring revision 0 or a revision above the newest is refused as stale,
+naming the newest revision. This differs from an erased revision, which is
+forgotten and names the oldest kept (2026-11-04).
+
+The proposal's reason is `restores revision R: ` followed by the party's
+reason. The combined text is cut to the reason's byte bound at a character
+boundary (2026-11-04).

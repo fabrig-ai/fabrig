@@ -19,8 +19,8 @@ fn passes_the_client_s_transport_requests_out_in_order() {
         panic!("the client journals before sending")
     };
     assert_eq!(record.request, jig_client::Held { key, request: ask.clone() });
-    let Some(Request::Client {
-        request: jig_client::Request::Down { down: jig_client::Down::Send { key, request, .. } },
+    let Some(Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { key, request, .. } },
     }) = out.pop()
     else {
         panic!("the original transport send follows its journal")
@@ -42,8 +42,9 @@ fn a_tell_under_an_asker_no_connector_names_reaches_no_child() {
         },
         &mut out,
     );
-    let Some(Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Read { read, .. } } }) =
-        out.pop()
+    let Some(Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, .. } },
+    }) = out.pop()
     else {
         panic!("the client issued the read")
     };
@@ -84,9 +85,9 @@ fn routes_an_infrastructure_tell_to_its_side() {
     );
     let attempt = (0..out.len())
         .find_map(|_| match out.pop().expect("counted output") {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } => {
-                Some(attempt)
-            }
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => Some(attempt),
             _ => None,
         })
         .expect("the infrastructure request left");

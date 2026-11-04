@@ -1,4 +1,6 @@
-# The fake is ordinary deterministic test code, rather than step code.
+# This protocol world adds a Cell ban to jig/tests/clippy.toml's replay bans:
+# native scenario handoffs use Cell for inherited pipes between iterations,
+# and each such handoff needs a scoped exception.
 disallowed-types = [
     { path = "core::cell::Cell", reason = "scenario handoffs need a narrowly documented exception" },
     { path = "std::collections::HashMap", reason = "ordered maps replay from a seed" },

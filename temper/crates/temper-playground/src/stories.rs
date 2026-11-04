@@ -27,6 +27,16 @@ pub fn all() -> &'static [Story] {
     &[A]
 }
 
+/// The story a start message names, by its `name`.
+#[must_use]
+pub fn named(name: &[u8]) -> Option<&'static Story> {
+    all().iter().find(|story| story.name.as_bytes() == name)
+}
+
+pub(crate) fn admin_token(seed: u64) -> [u8; 40] {
+    credential::credential(documents::seeds(seed).forge, credential::ADMIN_TOKEN)
+}
+
 impl Story {
     /// Decode the compiled documents and build the same peers as `temper fake`.
     #[must_use]
@@ -35,7 +45,7 @@ impl Story {
         let llm = llm::Document::decode(self.llm).expect("compiled story's LLM document");
         let forge = forge::Document::decode(self.forge).expect("compiled story's forge document");
         let llm = llm::peer(llm::configuration(&llm, documents::KEY, seeds.llm)).expect("story's LLM peer");
-        let token = credential::credential(seeds.forge, credential::ADMIN_TOKEN);
+        let token = admin_token(seed);
         let (peer, shared) = forge::peer(&forge, &token, seeds.forge).expect("story's forge peer");
         let (_, table) = forge.seed(seeds.forge);
         let forge = temper_fake_git::Typed::new(shared, &table);

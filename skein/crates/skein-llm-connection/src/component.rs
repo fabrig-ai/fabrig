@@ -17,7 +17,7 @@ use skein_tls::client as tls;
 use crate::boundary::{Event, Refusal, Request};
 use crate::call::{Connection, Phase};
 use crate::endpoint::{Endpoint, EndpointError, Transport};
-use crate::limits::{Limits, valid};
+use crate::limits::{Limits, check};
 
 /// An admitted conversation waiting for an endpoint binding; terminal releases it.
 pub(crate) struct Waiting {
@@ -68,27 +68,7 @@ pub struct Component {
 impl Component {
     /// Validates bounds and stream capacities before the loop starts.
     pub fn new(mut endpoints: List<Endpoint>, limits: &Limits) -> Result<Component, EndpointError> {
-        if endpoints.len() > limits.endpoints {
-            return Err(EndpointError::TooMany);
-        }
-        if limits.endpoints == 0
-            || limits.connections == 0
-            || limits.calls == 0
-            || limits.per_endpoint == 0
-            || limits.per_endpoint > limits.connections
-        {
-            return Err(EndpointError::Limits);
-        }
-        if limits.connections < limits.calls {
-            return Err(EndpointError::ConnectionsCalls { connections: limits.connections, calls: limits.calls });
-        }
-        let mut waiting = List::with_capacity(limits.calls);
-        for _ in 0..limits.calls {
-            match waiting.push(None) {
-                Ok(()) => {}
-                Err(_) => unreachable!("one record per conversation"),
-            }
-        }
+        check(limits, &endpoints)?;
         for index in 0..endpoints.len() {
             let destination = endpoints.get_mut(index).expect("configured endpoint");
             destination.limits.http.request =
@@ -96,56 +76,13 @@ impl Component {
                     Ok(head) => head,
                     Err(error) => return Err(EndpointError::Client(error)),
                 };
-            let largest = llm::client::largest_reservation(&destination.limits).ok_or(EndpointError::Limits)?;
-            if largest > limits.memory {
-                return Err(EndpointError::MemoryLargestCall { memory: limits.memory, call: largest });
-            }
-            let read = llm::client::largest_read(&destination.limits);
-            let send = llm::client::largest_room(&destination.limits);
-            let sse = destination.limits.sse.chunk;
-            if sse > destination.limits.http.read {
-                return Err(EndpointError::SseChunkHttpRead { demand: sse, cap: destination.limits.http.read });
-            }
-            let tokenizer = llm::client::largest_event_demand(&destination.limits);
-            if tokenizer > sse {
-                return Err(EndpointError::TokenizerDemandSseChunk { demand: tokenizer, cap: sse });
-            }
-            match &destination.transport {
-                Transport::Tls { .. } => {
-                    if read > limits.tls.read {
-                        return Err(EndpointError::HttpReadTlsRead { demand: read, cap: limits.tls.read });
-                    }
-                    if send > limits.tls.send {
-                        return Err(EndpointError::HttpSendTlsSend { demand: send, cap: limits.tls.send });
-                    }
-                    if tls::LARGEST_READ > limits.io.largest_read() {
-                        return Err(EndpointError::TlsReadIoIntake {
-                            demand: tls::LARGEST_READ,
-                            cap: limits.io.largest_read(),
-                        });
-                    }
-                    if tls::largest_room(&limits.tls) > limits.io.largest_room() {
-                        return Err(EndpointError::TlsSendIoOutput {
-                            demand: tls::largest_room(&limits.tls),
-                            cap: limits.io.largest_room(),
-                        });
-                    }
-                }
-                Transport::Plaintext => {
-                    if !destination.address.ip().is_loopback() {
-                        return Err(EndpointError::PlaintextAddress);
-                    }
-                    if read > limits.io.largest_read() {
-                        return Err(EndpointError::HttpReadIoIntake { demand: read, cap: limits.io.largest_read() });
-                    }
-                    if send > limits.io.largest_room() {
-                        return Err(EndpointError::HttpSendIoOutput { demand: send, cap: limits.io.largest_room() });
-                    }
-                }
-            }
         }
-        if !valid(limits, &endpoints) {
-            return Err(EndpointError::Limits);
+        let mut waiting = List::with_capacity(limits.calls);
+        for _ in 0..limits.calls {
+            match waiting.push(None) {
+                Ok(()) => {}
+                Err(_) => unreachable!("one record per conversation"),
+            }
         }
         Ok(Component {
             endpoints,

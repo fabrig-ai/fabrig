@@ -309,6 +309,7 @@ fn scope_names(scope: &notes::Scope, project: u32) -> bool {
 fn ask_names(ask: &people::Ask, project: u32) -> bool {
     match ask {
         people::Ask::RemoveProject { project: owner, .. }
+        | people::Ask::SetVisibility { project: owner, .. }
         | people::Ask::Compound { project: owner, .. }
         | people::Ask::Create { project: owner, .. }
         | people::Ask::EditNote { project: owner, .. }
@@ -353,7 +354,8 @@ fn people_names(row: &people::Stored, project: u32) -> bool {
     match row {
         people::Stored::Roles { project: owner, .. }
         | people::Stored::Policy { project: owner, .. }
-        | people::Stored::Deletion { project: owner, .. } => *owner == project,
+        | people::Stored::Deletion { project: owner, .. }
+        | people::Stored::Public { project: owner } => *owner == project,
         people::Stored::Acted { act, .. } => match act {
             people::Act::Close { project: owner, .. }
             | people::Act::Adopt { project: owner, .. }
@@ -376,8 +378,8 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
             let names = match row {
                 root::Record::Core(core::Record::People(row)) => people_names(row, project),
                 root::Record::Core(core::Record::Notes(row)) => match row {
-                    // Globally named bodies can be shared; their scope lines own project membership.
-                    notes::Record::Entry(_) => false,
+                    // Entries and their index lines belong to the same project scope.
+                    notes::Record::Entry(row) => scope_names(&row.scope, project),
                     notes::Record::Line(row) => scope_names(&row.scope, project),
                 },
                 root::Record::Core(core::Record::Accounts(accounts::Stored::Account { number, uses, .. })) => {

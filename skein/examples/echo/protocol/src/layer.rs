@@ -26,8 +26,7 @@ pub struct Protocol {
     conns: Slab<Conn>,
     tables: Tables,
     shutdown: Shutdown,
-    stopping: bool,
-    aborting: bool,
+    stop: Stop,
 }
 
 /// What the layer keeps beside its connections, which a connection's
@@ -91,6 +90,15 @@ enum Shutdown {
     Told,
 }
 
+/// The connections' stop (examples.md, 3.4): drained once the domain asks
+/// `Stop`, aborted by a second shutdown (shell.md, section 13).
+#[derive(Debug)]
+enum Stop {
+    Serving,
+    Draining,
+    Aborting,
+}
+
 impl Protocol {
     /// The layer under `limits`, which must be usable, to listen at `addr`
     /// once the loop first resumes it; `seed` spreads its idle deadlines.
@@ -108,31 +116,35 @@ impl Protocol {
                 rng: Rng::new(seed),
             },
             shutdown: Shutdown::Running,
-            stopping: false,
-            aborting: false,
+            stop: Stop::Serving,
         }
     }
 
     /// Asks for the domain to be told `Shutdown`, from the ready list. Asked
     /// again, it aborts connections still settling (shell.md, section 13).
     pub fn shutdown(&mut self) {
-        match self.shutdown {
-            Shutdown::Running => {
-                if self.stopping {
-                    self.shutdown = Shutdown::Told;
-                    self.aborting = true;
+        let shutdown = mem::replace(&mut self.shutdown, Shutdown::Told);
+        self.shutdown = match shutdown {
+            Shutdown::Running => match self.stop {
+                Stop::Serving => Shutdown::Asked,
+                Stop::Draining => {
+                    self.stop = Stop::Aborting;
                     schedule_stop(self, true);
-                } else {
-                    self.shutdown = Shutdown::Asked;
+                    Shutdown::Told
                 }
-            }
-            Shutdown::Asked | Shutdown::Told => {
-                if !self.aborting {
-                    self.aborting = true;
-                    schedule_stop(self, true);
+                Stop::Aborting => unreachable!("only a shutdown makes connections abort, and it leaves Running"),
+            },
+            shutdown @ (Shutdown::Asked | Shutdown::Told) => {
+                match self.stop {
+                    Stop::Serving | Stop::Draining => {
+                        self.stop = Stop::Aborting;
+                        schedule_stop(self, true);
+                    }
+                    Stop::Aborting => {}
                 }
+                shutdown
             }
-        }
+        };
     }
 
     /// Whether `resume` has something to do. While it has, the loop calls it
@@ -492,8 +504,17 @@ fn listener_closed(proto: &mut Protocol, env: &Env<Limits>) {
 
 /// The domain lets no one more in: the listener closes, once it can.
 fn stop(proto: &mut Protocol, down: &mut Queue<Io>) {
-    proto.stopping = true;
-    schedule_stop(proto, proto.aborting);
+    let stop = mem::replace(&mut proto.stop, Stop::Aborting);
+    proto.stop = match stop {
+        Stop::Serving | Stop::Draining => {
+            schedule_stop(proto, false);
+            Stop::Draining
+        }
+        Stop::Aborting => {
+            schedule_stop(proto, true);
+            Stop::Aborting
+        }
+    };
     let state = mem::replace(&mut proto.listener, CLOSED);
     proto.listener = match state {
         Listener::Unopened | Listener::Backoff { .. } => Listener::Closed { error: None },

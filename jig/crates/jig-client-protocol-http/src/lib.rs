@@ -4,6 +4,8 @@
 extern crate alloc;
 mod call;
 mod printed;
+mod public;
+pub use public::{Freshness, PUBLIC_KEEP, PublicHeard, PublicPath, freshness, public, public_answered, public_target};
 mod stream;
 use alloc::boxed::Box;
 pub use call::{Call, answered, exchange, stream};

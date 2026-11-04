@@ -21,7 +21,7 @@ it.
 
 lib holds the generic containers every crate builds on; a component
 with one user makes lib larger to read and its tests slower, and its
-flags are the shape D017 to D024 remove.
+flags are the shape D018 to D024 remove.
 
 ## What pays it back
 

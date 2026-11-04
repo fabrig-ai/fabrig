@@ -744,13 +744,10 @@ pub fn limits(l: &Config, client: &jig_client::DomainLimits, words: &Words) -> O
                 client.accounts.accounts.checked_mul(2)?.checked_mul(jig_client::contract::ACCOUNT_MANAGE_USAGE)?,
             )?
             .checked_add(client.rows.checked_mul(jig_client::contract::PROGRAM_HOST_NAME)?)?,
-        drawing_bytes: 0,
         styles_per_node: 2,
-        patches: 0,
         bindings: nodes,
         slots: nodes,
         markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     })
 }

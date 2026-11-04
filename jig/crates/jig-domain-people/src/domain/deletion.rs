@@ -109,6 +109,7 @@ pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -164,6 +165,7 @@ pub(super) fn ask_project(ask: &Ask) -> Option<u32> {
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. } => None,
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::Compound { .. }
         | Ask::EditNote { .. }

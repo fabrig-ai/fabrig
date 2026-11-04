@@ -1,5 +1,5 @@
 //! Durable payload accounting and independent answer row admission.
-use crate::{Condition, Delivery, Echo, Effect, Stored, What};
+use crate::{Condition, Delivery, Echo, Effect, Stored, What, Writer};
 use alloc::boxed::Box;
 use skein_forge::{api::Answer, measure};
 
@@ -9,12 +9,15 @@ pub const STAMP_BYTES: usize = 16;
 pub const LABEL_BYTES: usize = 16;
 /// Fixed bytes of a cached reviewer slot.
 pub const REVIEWER_BYTES: usize = 8;
+/// Fixed bytes of a configured writer slot.
+pub const WRITER_BYTES: usize = 16;
 const _: () = {
     assert!(STAMP_BYTES >= size_of::<Delivery>(), "stamp width covers delivery storage");
     assert!(STAMP_BYTES >= size_of::<Echo>(), "stamp width covers echo storage");
     assert!(LABEL_BYTES >= size_of::<Box<[u8]>>(), "label width covers string storage");
     assert!(REVIEWER_BYTES >= size_of::<u64>(), "reviewer width covers identifier storage");
     assert!(REVIEWER_BYTES >= 8, "reviewer width covers protocol identifier");
+    assert!(WRITER_BYTES >= size_of::<Writer>(), "writer width covers writer storage");
 };
 
 /// Count a durable row's strings and fixed list widths.

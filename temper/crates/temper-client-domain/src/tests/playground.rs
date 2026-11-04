@@ -248,9 +248,11 @@ fn a_suggestion_starts_one_chat_with_its_cue_and_preserves_the_draft() {
         let mut out = act(&mut root, Act::Suggest { cue });
         let mut sent = List::with_capacity(1);
         while let Some(request) = out.pop() {
-            if let crate::Request::Client {
+            if let crate::Request::Unlinked {
                 request:
-                    jig_client::Request::Down { down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                    },
             } = request
             {
                 sent.push(*ask).expect("one chat start");
@@ -361,9 +363,9 @@ pub(super) fn deployment_watch(out: &mut Queue<crate::Request>) -> Option<skein_
     let mut watch = None;
     let mut rest = Queue::with_capacity(out.len());
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
+        if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Open { watch: token, subject: jig_client::Watchable::Jig(c::Subject::Deployment) },
                 },
@@ -393,9 +395,9 @@ pub(super) fn deliver_playground_read(root: &mut crate::Domain, page: Readout) -
 pub(super) fn removed(out: &mut Queue<crate::Request>) -> List<skein_lib::Token> {
     let mut attempts = List::with_capacity(4);
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
+        if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Jig(ask), .. },
                 },
         } = request

@@ -151,14 +151,14 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
     }
 }
 
-/// Connect a kept runtime from its loaded records; the shell supplies document access.
+/// Connect a kept runtime from its loaded records.
 pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16) {
     let Some(forge) = engine.workers.forges.get(number) else { return };
     let kind = match forge.kind {
         crate::settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
         crate::settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
     };
-    if engine.forge.file_access.contains_key(&number) || engine.setup.records_only(number) {
+    if engine.setup.records_only(number) {
         return;
     }
     let expected = records::origin(kind, &forge.api);

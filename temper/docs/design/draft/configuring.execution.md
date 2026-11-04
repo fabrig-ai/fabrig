@@ -1,6 +1,6 @@
 # configuring: execution
 
-2026-11-02. How [configuring.md](configuring.md) gets built: the phases
+2026-11-04. How [configuring.md](configuring.md) gets built: the phases
 that carry its order (section 9) into the design and the code, until
 its acceptance passes (section 8). It designs nothing: each phase
 executes a part of the draft and writes its own design as it goes. It
@@ -9,9 +9,9 @@ the reference's M1 to M10.
 
 ## 1. In one page
 
-- **Five phases,** P1 to P5 (section 3), set with fabrig/dogfood and the
-  user on 2026-11-02 so that no two plans' designers write one section
-  at once: the reference's M1 and M3 write jig's `domain/engine.md`,
+- **Five phases,** P1 to P5 (section 3), set with the user on
+  2026-11-02 so that no two designers write one section at once: the
+  reference's M1 and M3 write jig's `domain/engine.md`,
   17.5 to 17.7, temper's `../protocol/configuration.md`, 13.2 to 13.4
   and the section M1 adds after 13.8, and `../domain/agent.md`, 4.3.1,
   and P2 and P3 follow M3 beside them.
@@ -20,8 +20,7 @@ the reference's M1 to M10.
   task's revision, and `chat start --template`. The reference's M3
   takes a charter's documents from P1 rather than building them.
 - **P2 and P3 after M3:** P2 the settings through ctl, temper's kinds in
-  them; P3 the configuring agent. Their designers start once M3's cut
-  has released its design into M3's trunk, and build on its text.
+  them; P3 the configuring agent. They build on M3's design.
 - **P4, stage 1** (`configuring.md`, 8.1): the golden and QA's walk
   through `temper ctl`. **P5, stage 2** (8.2): v0.1.0's rung D, once
   rung C passes.
@@ -32,23 +31,19 @@ the reference's M1 to M10.
 ## 2. How a phase runs
 
 As a milestone of the reference runs (`reference-case.execution.md`,
-section 2): a plan of its own, `temper/docs/plan/configuring-<phase>`,
-started by the user, its entry here its request, this file and
-`configuring.md` the cut's sources; design and build in one pipeline;
-landed whole through the queue; its walk, where there is one, a pass of
-QA through `temper ctl` that blocks nothing. Its designers, its
-implementers and its walker are separate sessions. Old branches are a
-reference, never a plan, as that section says; each phase names its own
-under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
+section 2): its entry here its input, this file and `configuring.md` its
+sources; its design and its build together; landed whole; its walk,
+where there is one, a pass of QA through `temper ctl` that blocks
+nothing.
 
 ## 3. The phases
 
 | | Phase | Executes (`configuring.md`) | Needs | State |
 |---|---|---|---|---|
-| P1 | Documents, revisions, a chat's template | 2 (rules reach the runs), 4, 5.4 (`chat start`) | | done: landed 2026-11-03 01:39Z (plan `configuring-p1`, 13 tasks); its walk folds into P2's |
-| P2 | Settings through ctl | 3.3, 5.4 | P1; the reference's M3 | done: landed 2026-11-03 16:12Z (plans `configuring-p2`, design, and `configuring-p2-build`, 14 tasks) |
-| P3 | The configuring agent | 5.3, 6 | P2 | done: landed 2026-11-03 20:36Z (plan `configuring-p3`, 15 tasks) |
-| P4 | Stage 1 | 8.1 | P3 | cutting since 2026-11-03 20:40Z (plan `configuring-p4`) |
+| P1 | Documents, revisions, a chat's template | 2 (rules reach the runs), 4, 5.4 (`chat start`) | | done: landed 2026-11-03 01:39Z (`be16409150`) |
+| P2 | Settings through ctl | 3.3, 5.4 | P1; the reference's M3 | done: landed 2026-11-03 16:12Z (`bfa287bbc4`) |
+| P3 | The configuring agent | 5.3, 6 | P2 | done: landed 2026-11-03 20:36Z (`a6a8155d35`) |
+| P4 | Stage 1 | 8.1 | P3 | done: landed 2026-11-03 23:12Z (`062fc5fb1f`) |
 | P5 | Stage 2, rung D | 8.2 | P4; rung C (the reference's M10) | not started |
 
 ### P1. Documents, revisions, a chat's template
@@ -67,15 +62,8 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
   any template a chat's.
 - **Tests:** `../domain/testing.md`, 6.4's rows for a charter's
   documents and for running work keeping its revision.
-- **Old code:** jig's and temper's `configuring-revisions/documents-r1`
-  (a charter's documents); temper's `configuring-revisions/fleet` and
-  `configuring-revisions/story` (a charter's version forwarded to a run;
-  running work keeping and moving its revision).
 - **Walk:** folds into P2's.
-- **Done** when it lands. As P1 starts, fabrig/dogfood notes in M3's
-  entry of `reference-case.execution.md` that P1 builds a charter's
-  documents, and that M3's charters naming documents wait for P1 to
-  land.
+- **Done** when it lands.
 
 ### P2. Settings through ctl
 
@@ -97,16 +85,8 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
   proposal's review; `settings show landing-rule` and `forge-charter`;
   `revision restore`; a proposal's items touching a project's policy.
   On M3's temper kinds as settings, never a second copy of them.
-- **Old code:** temper's `configuring-revisions/restore`,
-  `configuring-revisions/set4-r2`, `configuring-revisions/replaced` and
-  `configuring-revisions/settings-file`.
 - **Walk:** a settings file of each kind proposed, shown, accepted and
   restored through `temper ctl`; P1's document reaching a run's brief.
-- **Starts early,** an exception to section 2, fabrig/dogfood's
-  (11-02): once P1 has landed and M3's cut has released its design into
-  M3's trunk, P2's designers read that trunk and write only the
-  sections named above, none of which M3 writes. Its trunk takes M3's
-  later revisions by an update from M3's, and it lands after M3.
 
 ### P3. The configuring agent
 
@@ -122,8 +102,6 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
   `../protocol/configuration.status.md`); the three pages.
 - **Tests:** `../domain/testing.md`, 6.4's rows for the configuring
   agent.
-- **Old code:** temper's `configuring-revisions/agent-tools`; jig's and
-  temper's `configuring-revisions/charter-tools-r6`.
 - **Walk:** a configuring chat started through `temper ctl` on a real
   model, a small description proposed and accepted.
 
@@ -134,8 +112,7 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
   cut into obligations; its check in code and its judge; the box's
   prerequisites and limits; designed beside 6.4 in
   `../domain/testing.md` unless its designers find a better home.
-- **Builds:** the golden, the check and the judge; the walk's brief for
-  fabrig/qa.
+- **Builds:** the golden, the check and the judge; the walk's brief.
 - **Walk:** 8.1 itself, run again as the reference's milestones land.
 - **Done** when 8.1 passes with every obligation of a setting met and
   every gap named, as far as the reference has landed.

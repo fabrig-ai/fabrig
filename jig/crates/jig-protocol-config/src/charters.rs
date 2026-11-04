@@ -119,7 +119,7 @@ fn charter(
             shell: shell?,
             agents: agents?,
             call_timeout: call_timeout?,
-            // Its format carries no mask yet (configuring-p3, contracts C1).
+            // Its format carries no mask yet: every family (jig/docs/design/domain/engine.md, 7.1).
             tools: RunPolicy::EVERY_FAMILY,
         },
     };

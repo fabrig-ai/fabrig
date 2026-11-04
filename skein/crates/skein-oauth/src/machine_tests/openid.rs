@@ -212,7 +212,7 @@ fn failed_fetch(row: FetchRow) -> Option<Request> {
     let get = request(step(&mut client, sign_in(registration_for_keys(row.direct))));
     step(&mut client, answered(get.id, row.status, &row.body, row.now))
 }
-fn failed_fetch_rows() -> [FetchRow; 10] {
+fn failed_fetch_rows() -> [FetchRow; 11] {
     let metadata_cap = usize::try_from(limits().metadata_bytes).expect("fixture");
     let set_cap = usize::try_from(limits().key_set_bytes).expect("fixture");
     let mut metadata_body = bytes::zeroed(metadata_cap.checked_add(1).expect("small fixture"));
@@ -236,6 +236,11 @@ fn failed_fetch_rows() -> [FetchRow; 10] {
             direct: false,
             body: boxed(br#"{"issuer":"https://issuer.example","jwks_uri":"http://issuer.example/keys"}"#),
             ..fetch_row("http off loopback")
+        },
+        FetchRow {
+            direct: false,
+            body: boxed(br#"{"issuer":"https://issuer.example","jwks_uri":"https://a@b"}"#),
+            ..fetch_row("userinfo in key set URL")
         },
         FetchRow { body: boxed(br#"{"keys":[]}"#), ..fetch_row("no fitting key") },
         FetchRow { status: 404, ..fetch_row("not found") },

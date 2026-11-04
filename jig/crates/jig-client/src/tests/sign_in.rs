@@ -356,9 +356,7 @@ fn a_sign_out_that_did_not_reach_the_engine_tells_the_link() {
             | Request::CloseStream
             | Request::Save { .. }
             | Request::Erase { .. }
-            | Request::Told { .. }
-            | Request::Down { .. }
-            | Request::SignOut => {}
+            | Request::Told { .. } => {}
         }
     }
     assert_eq!(links.as_slice(), &[Link::Live]);
@@ -385,9 +383,7 @@ fn the_link_s_service_credential_leaves_once_as_a_host_duty() {
             | Request::Save { .. }
             | Request::Erase { .. }
             | Request::Told { .. }
-            | Request::Down { .. }
-            | Request::Authorized(_)
-            | Request::SignOut => {}
+            | Request::Authorized(_) => {}
         }
     }
     assert_eq!(credentials.as_slice(), &[(MADE_PARTY, fixtures::credential(&SERVICE_CREDENTIAL))]);

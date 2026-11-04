@@ -348,9 +348,9 @@ pub(super) fn root_at_with_forges(
         if let Some(read) = activity_token(request.as_ref()) {
             activity_read = Some(read);
         }
-        if let Some(Request::Client {
+        if let Some(Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open { watch: token, subject: jig_client::Watchable::Jig(subject) },
                 },
         }) = request
@@ -387,9 +387,9 @@ pub(super) fn root_at_with_forges(
     let mut forges = None;
     for _ in 0..out.len() {
         let request = out.pop().expect("counted request");
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { .. } },
                 },
         } = &request
@@ -428,9 +428,9 @@ pub(super) fn root_at_with_forges(
     if playground.is_some() || welcome || forge_rows_answered {
         let mut read = None;
         while let Some(request) = out.pop() {
-            if let Request::Client {
+            if let Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read: token, what: jig_client::Readable::Family { .. } },
                     },
             } = request
@@ -478,9 +478,9 @@ fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: To
     );
 }
 fn activity_token(request: Option<&temper_client_domain::Request>) -> Option<Token> {
-    if let Some(temper_client_domain::Request::Client {
+    if let Some(temper_client_domain::Request::Unlinked {
         request:
-            jig_client::Request::Down {
+            jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
             },
     }) = request
@@ -670,9 +670,9 @@ pub fn inbox_facts(
     );
     if let Some((read, page)) = document {
         while let Some(request) = out.pop() {
-            if let temper_client_domain::Request::Client {
+            if let temper_client_domain::Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read: token, what: jig_client::Readable::Jig(what) },
                     },
             } = request
@@ -1004,9 +1004,9 @@ pub mod chat {
         };
         let mut answered = false;
         while let Some(request) = out.pop() {
-            if let temper_client_domain::Request::Client {
+            if let temper_client_domain::Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Read {
                                 read,
@@ -1096,6 +1096,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
     let mut projects = List::with_capacity(2);
     projects
         .push(MeProject {
+            public: None,
             project: PROJECT,
             name: DocumentText::complete(
                 contract::Text::new(skein_lib::bytes::copy_of(project_name), 32).expect("name fits"),
@@ -1582,9 +1583,9 @@ pub fn playground_start_attempt(root: &mut temper_client_domain::Domain) -> Toke
         &mut out,
     );
     while let Some(request) = out.pop() {
-        if let temper_client_domain::Request::Client {
+        if let temper_client_domain::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
@@ -1622,8 +1623,8 @@ pub fn playground_start_answer(
         &mut out,
     );
     while let Some(request) = out.pop() {
-        if let temper_client_domain::Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Read { read, .. } },
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, .. } },
         } = request
         {
             return Some(read);

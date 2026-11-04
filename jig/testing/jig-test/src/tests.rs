@@ -212,3 +212,29 @@ fn provider_key_files_refuse_group_permissions_and_symbolic_links() {
     assert!(error.contains("Unsafe(Link)"));
     assert!(!error.contains("key contents"));
 }
+
+#[test]
+fn debug_of_an_agent_start_shows_the_environments_count_never_its_entries() {
+    const CANARY: &[u8] = b"canary-7f3a9c";
+    let sources = super::SourceSettings {
+        directory: Box::from(b"/private/programs".as_slice()),
+        executable: Box::from(b"/private/claude".as_slice()),
+        environment: Box::new([Box::from(b"API_KEY=canary-7f3a9c".as_slice())]),
+    };
+    let expected = format!(
+        "SourceSettings {{ directory: {:?}, executable: {:?}, environment_entries: 1 }}",
+        sources.directory, sources.executable
+    );
+    let sources_debug = format!("{sources:?}");
+    let directory = tempfile::tempdir().expect("agent configuration scratch");
+    let mut start = super::agent(&agent_document(directory.path(), false)).expect("configured agent");
+    start.sources = Some(sources);
+    let start_debug = format!("{start:?}");
+    let canary_debug = format!("{CANARY:?}");
+    for debug in [&sources_debug, &start_debug] {
+        assert!(skein_lib::bytes::find(debug.as_bytes(), CANARY).is_none());
+        assert!(!debug.contains(canary_debug.trim_matches(['[', ']'])));
+        assert!(debug.contains("environment_entries: 1"));
+    }
+    assert_eq!(sources_debug, expected);
+}

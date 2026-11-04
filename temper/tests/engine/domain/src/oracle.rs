@@ -271,6 +271,8 @@ impl Driver {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::ReadLoad { .. }
+            | Delivery::Public { .. }
+            | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Drained
@@ -316,7 +318,7 @@ pub fn close_world(
     std::mem::swap(&mut driver.root, root);
     std::mem::swap(&mut driver.store, store);
     std::mem::swap(&mut driver.protocol, protocol);
-    driver.env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits };
+    driver.env = env.with(env.limits);
     driver.period_sent = true;
     driver.events.clear();
     driver.close();

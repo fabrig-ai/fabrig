@@ -34,17 +34,11 @@ pub fn document(value: &mut serde_json::Value, names: &Names<'_>) {
     value["application"]["machine"] = members["machine"].take();
 }
 
-// temper-15 removes this old form and temper-01a's Adopt stand-in.
-pub fn old_form(application: &mut serde_json::Value) {
-    let _ = application;
-}
-
 pub fn configuration(directory: &Path, names: &Names<'_>) {
     super::configuration(directory, &super::Forge::Unreached);
     let path = directory.join("temper.json");
     let mut value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     document(&mut value, names);
-    old_form(&mut value["application"]);
     super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     super::write_private(&directory.join("box/groups/1"), b"owned\n");
@@ -411,8 +405,6 @@ pub fn setup_without_runner(directory: &Path) {
 pub fn refused(directory: &Path, verb: &str, expected: &[u8]) {
     let result = if verb == "prepare" {
         prepare(directory, 1)
-    } else if verb == "reconcile" {
-        reconcile(directory, 1)
     } else {
         command(directory, "forgejo").output().expect("run refuses")
     };
@@ -455,16 +447,6 @@ pub fn start(directory: &Path) -> Running {
     let running = run(directory, "forgejo");
     eprintln!("stage start: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
     running
-}
-#[must_use]
-pub fn reconcile(directory: &Path, forge: u16) -> Output {
-    Command::new(skein_scratch::paths::binary("temper"))
-        .args(["forge", "reconcile"])
-        .args(super::configuration::flags(directory))
-        .arg(forge.to_string())
-        .current_dir(directory)
-        .output()
-        .expect("temper forge reconcile")
 }
 /// Attaches the owned Forgejo through preparation's private admin token.
 #[must_use]
@@ -749,7 +731,7 @@ pub fn bounded(directory: &Path) -> Bounded {
     )
 }
 
-/// The shipped owned form has file-free access and no orgs.
+/// The shipped owned form has file-free access.
 #[must_use]
 pub fn bounded_records(directory: &Path) -> Bounded {
     let owned =

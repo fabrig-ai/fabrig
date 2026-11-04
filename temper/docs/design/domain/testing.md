@@ -364,8 +364,10 @@ in the lower world that owns it, never here.
     within the harness's bound. Its fixture, scripts and checks are its
     own, in its test file, on the tier's shared hosts.
 - **The ladder's twins,** one story a rung of `../draft/v0.1.0.md`'s
-  ladder from B0 up, added once its brief passes on real backends (its
-  section 3): the passing walk replayed on the first run's cast.
+  ladder from B0 up, added once its acceptance story
+  (`../../development/acceptance.md`) passes on real backends
+  (`../draft/v0.1.0.md`, section 3): the passing walk replayed on the
+  first run's cast.
   - **Its scripts are the walk's,** a fake LLM document made from the
     passing run's transcripts by `tools/twin` (4.1), never invented by
     hand: each agent of the walk says what the real model said, turn by
@@ -374,9 +376,9 @@ in the lower world that owns it, never here.
     `playground/widget`, with any commit the walk's person made on it
     (rung B1's gate), and a CI cue that judges as the walk's CI did:
     for B1, a head passes only when it holds `changes/1.md`.
-  - **The person's acts and the checks are the brief's,** through
+  - **The person's acts and the checks are the story's,** through
     `temper ctl` and the fake forge's API: the same request and answer
-    in the same words, read where the brief reads them. A rung's twin
+    in the same words, read where the story reads them. A rung's twin
     replaces its hand-written story once it passes: B0's
     `suite::fuzzy::green_light`, B1's `suite::fuzzy::repair`.
   - **Its data is the playground's story** of the rung
@@ -1331,9 +1333,10 @@ section 8; testing-strategy.md, 2.9).
     (making the App, installing it) are the fixtures', made once by
     hand, and a failing or stalled check is the process tier's on
     fakes.
-- **The ladder's rungs,** a story of their own each once its brief
-  passes on real backends (`../draft/v0.1.0.md`, 3): the brief's
-  scenario as a test in `crates/temper/tests/live.rs`, run by
+- **The ladder's rungs,** a live story of their own each once its
+  acceptance story (`../../development/acceptance.md`) passes on real
+  backends (`../draft/v0.1.0.md`, 3): the acceptance story's steps as a
+  test in `crates/temper/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
   (2.4). B0's three offline proofs are the ignored `proof_live` binary,
@@ -1350,11 +1353,11 @@ section 8; testing-strategy.md, 2.9).
     stops, on a pass, a failure or a signal: the script's last act,
     which it checks by `stat` alone. Whoever runs it holds the login for
     the run.
-  - **Its acts are the brief's,** the person's words included, through
+  - **Its acts are the story's,** the person's words included, through
     `temper ctl`; the forge's by the box's person, its read and write
-    header files (`../protocol/setup.md`, 7.3), as the brief's person
+    header files (`../protocol/setup.md`, 7.3), as the story's person
     acts.
-  - **Its Musts are the brief's "What passes",** read through temper
+  - **Its Musts are the story's "What must hold",** read through temper
     and through Forgejo's API, each a comparison of the two accounts.
   - **Its bounds are the passing walk's,** as its report states them:
     each phase's time and the whole; a run past one fails, naming the
@@ -1370,9 +1373,9 @@ section 8; testing-strategy.md, 2.9).
   record (`TEMPER_LIVE_ACCOUNT`) and
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge` on a held Claude
   Code login (`TEMPER_LIVE_CLAUDE`, with `claude` on the machine's `PATH`), both
-  from fab's shelf of logins. fab's after-landing run with `--live` runs profile
-  `live-temper` under `--run-ignored only`, whose default filter selects these two
-  alone. Automatic live runs take the cheapest models, as the user requires:
+  named inputs of the after-landing tier. The tier runs profile `live-temper`
+  under `--run-ignored only`, whose default filter selects these two alone.
+  Automatic live runs take the cheapest models, as the user requires:
   `gpt-6-luna` and `claude-haiku-5-5`.
   - **One invocation, a store per story:** the runner sets one fresh
     `TEMPER_LIVE_STORE`; each story takes its own store beneath it, named by the
@@ -2131,6 +2134,9 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
     eight stay within the real loop's ceiling with the rest; a
     whole-chat GitHub story that would pass the ceiling goes to the user
     with its numbers.
+  - a playground story walked natively through the web client's host
+    (`../playground.md`, 9) at most 3 s: it runs whole chats, a delegate
+    with its agents, git, CI and a landing, as a whole-chat story does.
 
   A test that misses its guide follows the three questions in 8.1; it
   moves only if what it checks belongs in another tier. It is never
@@ -2157,7 +2163,7 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   made cheaper at the cause the profile shows, or moved only where their
   checks belong under 8.1, by named steps. A change after which the real
   loop's sum is at 15 s or past it puts the ceiling to the user, with
-  its measurements (the repository's `AGENTS.md`, section 6); until the
+  its measurements (the repository's `AGENTS.md`, section 5); until the
   user moves it, the 15 s stands.
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
@@ -2265,6 +2271,224 @@ each behaviour in the lowest world that owns it, and one smoke above:
   loop pass its 15 s, the numbers go to the user; no story is cut or
   moved to fit.
 
+### 6.5 Stage 1: the golden, its check and its judge
+
+Stage 1 of configuring temper by talking to it
+(`../draft/configuring.md`, 8.1) is a walk, never in the gate: a pass
+of QA, playing a person on a box with the stock settings, has the
+configuring agent (`agent.md`, 8.1) propose the reference's
+configuration from the person's documents alone, accepts it, and checks
+what was accepted twice, by code and by a judge. What it is checked
+against is the golden: `../draft/reference-code-production.md`,
+section 14, cut into obligations, with the values of the reference's
+profile, `docs/examples/reference/` (`../protocol/configuration.md`,
+13.9).
+
+- **Held by the acceptance, never by the binary.** The golden, the check
+  and the judge's brief are one tool crate, `tools/stage-one`
+  (`temper-stage-one`, section 7), which may read temper's crates and
+  which no crate of the binary reads. Neither the stock nor the
+  documentation compiled into the binary carries any of it, so the agent
+  works from the person's description alone.
+- **The profile is the golden's values; the obligations say which
+  count.** An obligation names a role or a setting, a member of its
+  value and a test; its expected value is the profile's item for that
+  role, at that member, unless the obligation states its own. A member
+  no obligation names is free: a charter's spend, its call timeout, a
+  run's reserves stay the box's, as the profile leaves them
+  (`../protocol/configuration.md`, 13.9: no budget or time moves).
+- **The profile's placeholders** for the forge and the repository
+  (`127.0.0.1:3000`, `acme/widget`) stand for the box's: the check
+  replaces them in every expected value, a landing rule's pattern
+  compared as its segments' text.
+
+#### 6.5.1 The obligations
+
+Each obligation is one field of one row of the reference's table, and
+of one kind:
+
+- *a setting*, which the accepted settings hold, by one of eight
+  tests: `equal` (the value, whole), `at-least` (a number no smaller),
+  `bits` (each expected bit of a family mask set, others allowed),
+  `contains` (each expected element of a list present, others allowed),
+  `set` (present and not null, whatever its value), `judged` (text the
+  judge reads, 6.5.4; the check only finds it set),
+  `unchanged` (the stock's value, which the accepted revision leaves
+  alone) and `only` (every current setting of a kind binds to one of
+  the golden's roles);
+- *the box's*, a prerequisite the box brings (6.5.2), which the agent
+  proposes nothing for, and names where the box lacks it;
+- *a gap*, a field of the table no design carries
+  (`../draft/reference-code-production.status.md`), which the agent
+  must say temper cannot model, offering the nearest thing
+  (`agent.md`, 8.1): the golden gives the words, any of whose
+  alternatives in the proposal's or the chat's text names it.
+
+**The roles.** Charters, templates and the deployment's landing rules
+are numbered by the proposal, so the golden names them by role and the
+check binds each role to a number:
+
+| Role | The profile's | Bound by |
+|---|---|---|
+| `coordinator` | charter 5 | the charter `goal-template` executes |
+| `designer` | charter 7 | assignment |
+| `coding` | charter 2 | the charter forge charter 1 names |
+| `foreman` | charter 6 | its number, 6, the charter the forge's foremen run under |
+| `triage` | charter 8 | assignment |
+| `goal-template` | template 4 | the template whose `resources` hold *its own goal branch* |
+| `small-goal-template` | the stock's goal template | the stock's number |
+| `main-rule` | landing rule 1 | the deployment's rule whose pattern ends exactly `main` |
+| `goal-rule` | landing rule 2 | the deployment's rule whose pattern ends open on `temper` |
+
+A role bound by assignment takes one of the charters the accepted
+revision adds that no anchor took: of every assignment, the one that
+meets the most obligations, ties going to the lower numbers. The check
+prints the binding; a role left without a charter makes each of its
+obligations missing.
+
+**The rows, cut:**
+
+| Section 14's row | Obligations |
+|---|---|
+| the coordinator's charter | setting: its instructions (`judged`); its model, `model.name`; its workspace and sub-agents, `inspect`, `modify`, `shell`, `agents`; starting fresh, `resume` false; `waiting` 0; its wake policy, `wake`, whole; its documents, `documents` (`contains`: `AGENTS.md`'s "1. In one page" and the code's rules). Box: Claude Code, the program the document's model runs on. The tools it names are the authority's families, the rules' and policy 1's rows below |
+| the designer's charter | setting: its instructions (`judged`); its model, `model.name`; the workspace, delivery and sub-agents, `inspect`, `modify` and `agents` true; `documents` (`contains`: `DESIGN.md`, the design rules). Box: Claude Code, as the coordinator's |
+| the goal template for drafts | setting: `executor.charter`, `{"role": "coordinator"}`; `llm`, whole (section 4's choice); `tracked` (`at-least` 1); `contract.report` (`set`); `resources` (`contains`: *its own goal branch*) |
+| a small goal's template | setting: the stock's goal template, `unchanged` |
+| the coding agent's charter | setting: its instructions (`judged`); `shell` and `modify` true; a run sized past a small fix's, `turns` (`at-least` 17) and `time` (`at-least` one nanosecond past 120 s), charter 2's stock 16 turns and 120 s being a small fix's |
+| the foreman's charter | setting: its instructions (`judged`); its model, `model.name`, gpt-6.1-sol, set on the charter (the draft's status records the departure); `inspect` true, `modify`, `shell` and `agents` false |
+| the forge's charters (kind 3) | setting: 1 names the coding agent's, its anchor; 2, the reviews', `unchanged` (unused, since neither landing rule asks a gate); the foremen's, the foreman's role's number |
+| each change's LLM choices | setting: the coding agent's model, `model.name`, gpt-6.1-sol; the coordinator's instructions (`judged`: a coding change at gpt-6.1-sol at the spec's effort, a designer's at section 4's choice); box: gpt-6.1-sol on smith's direct backend with an OpenAI account's key |
+| the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: the profile's, the stock's with jig's control and notes families, 13.9); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); the project's own policy, its role 0 the same |
+| the landing rule for goal branches | setting: `goal-rule`'s `pattern`; `ci` false, `up_to_date` false; `gates` and `approvals` empty |
+| the landing rule for main | setting: `main-rule`'s `pattern`; `enforce` true, `ci` true, `up_to_date` true; `gates` and `approvals` empty; the deployment's rules `only` the two, so the stock's rule on every branch, which asks CI and a review, is replaced or removed |
+| the repository's merge style | box: a merge commit, the repository's |
+| the project's checks | box: `.temper/pre-pr` in the repository |
+| g's tier | box: the document's tier `goal`, following goal branches, `span_ms` 1,200,000 |
+| main's tiers | box: the document's tier `slow`, following main |
+| questions | setting: the coordinator's instructions (`judged`: `foreman` for each coding change, `up` for a designer's); box: four per change, the document's `forge.change_policy.questions`, the stock's 4 |
+| the merge job | box: the document's `merge_job`, `.temper/merge` in the repository |
+| the profile's limits | box: the limits 6.5.2 names |
+
+The golden's file holds each obligation with its id, its row, its kind,
+and for a setting its subject, member, test and any value of its own;
+its rows above are the design, the file their only encoding. The
+triage's charter, which the reference's table does not name, is an obligation
+through the profile (`../draft/reference-landing.md`, section 6), as
+`../protocol/configuration.md`, 13.9 makes it the reference's: its
+instructions (`judged`), its model, and `inspect` true with `modify`,
+`shell` and `agents` false. No field of the table is a gap: the design
+carries each, as a setting or the box's. The kind
+stays for a field a later edition of the table adds before a design
+carries it.
+
+**Beyond the obligations,** the check fails on:
+
+- *a setting no obligation asks for:* an item of the accepted revision
+  whose setting binds to no role and is no obligation's subject;
+- *a rule made structure without the person's choice*
+  (`../draft/configuring.md`, section 2), as far as settings show it: a
+  landing rule's gate or approval, or a charter's family the golden
+  does not give, fails its `equal` obligation. The pass makes no such
+  choice (6.5.3), so any is the agent's;
+- *what needs a restart, proposed rather than said:* settings cannot
+  carry it, so the judge reads the proposal and the chat for it
+  (6.5.4).
+
+#### 6.5.2 The box
+
+`temper box` with its owned forge (`../protocol/setup.md`, section 7),
+its settings the stock's. What the box brings, and the pass confirms
+before the chat starts (temper's through ctl, the repository's through
+the forge's API as an observer, the limits against the box's document):
+
+- **the models:** Opus 5.5 on Claude Code for the coordinator and
+  designers; gpt-6.1-sol on smith's direct backend, on an OpenAI
+  account's key, for producers, foremen and the triage; a real model
+  for the configuring chat;
+- **the document's members the profile sets** over `temper init`'s:
+  `docs/examples/reference/limits.json`'s and `agent.json`'s
+  overrides, and `landing.json`, the project's merge job and its two
+  tiers (13.9); a change's question bound,
+  `forge.change_policy.questions`, at the stock's 4;
+- **the project,** with its repository adopted, holding `AGENTS.md`,
+  `DESIGN.md`, its code rules, `.temper/pre-pr`, `.temper/merge`, the
+  tiers' workflows and a merge-commit merge style; and, at the path the
+  walk's brief names, `reference-code-production.md` and
+  `reference-landing.md`, the person's process documents. It holds no
+  recipe of the reference either: a copy of fabrig keeps neither the
+  profile, this crate nor the plans that describe them, and an agent
+  found reading a description of the reference's settings elsewhere
+  is a finding against the walk's premise.
+
+Each is a box obligation, recorded present or lacking with what the
+pass saw. A lacking one ends the walk before the chat, a finding against
+the box, never the agent.
+
+#### 6.5.3 The evidence
+
+After the acceptance, the pass collects what the check reads into one
+directory, with `temper-stage-one collect`, through `temper ctl`'s
+reads alone (`../client/tools.md`, 5.3): the revision's record; its
+items, each value whole, as a settings file; every setting's current
+value, the project's policy and temper's kinds among them, as a
+settings file; the proposal's review and the chat, as text. The pass
+adds what only it holds: the box's confirmations, the agent's
+description of the accepted settings back as a workflow (asked once
+the proposal is accepted, `../draft/configuring.md`, section 6), each
+document an accepted charter names, read at its branch's head through
+the forge's API, and the person's two documents. The pass answers the
+agent's questions from the documents and its brief, chooses no rule to
+become structure, and accepts with running work staying as it is.
+
+#### 6.5.4 The check and the judge
+
+- **The check,** `temper-stage-one check EVIDENCE`: the binding, then a
+  line per obligation (met; wrong, with what it found and expected;
+  missing; judged; unchanged; named, and where; unnamed; confirmed;
+  lacking), then what fails beyond them. It passes when every setting is
+  met, judged or unchanged, every gap named, every box obligation
+  confirmed, and nothing fails beyond them. Exit 0 passed, 1 failed, 2
+  for evidence it cannot read.
+- **The judge,** an LLM, reads what code cannot: `temper-stage-one judge
+  EVIDENCE` prints its brief, whole, for a session of its own (never the
+  pass's), at Opus 5.5:
+  - *the rules:* the golden's rules, the reference's text that stays
+    text (`../draft/configuring.md`, section 2's table, and the
+    instructions `../draft/reference-code-production.md`, section 14
+    gives each charter), each with the role it
+    concerns; for each, whether it reaches that role's runs, from where
+    the person wrote it, through the bound charter's instructions or a
+    document it names: `reaches`, `missing`, or `elsewhere` (another
+    role's), with the quote;
+  - *the description* the agent gave back, against the reference's
+    section 1: `matches` or `differs`, with the differences;
+  - *what needs a restart:* whether the proposal or the chat claims to
+    set what the box brings rather than saying it needs the box:
+    `said` or `proposed`, with the quote.
+
+  Its verdict is a JSON file in the brief's form, which the pass saves
+  beside the evidence.
+- **The stage's verdict,** `temper-stage-one verdict EVIDENCE`: passed
+  when the check passes, every rule reaches its role, the description
+  matches, and what needs a restart is said.
+- **It moves with the reference.** A design that comes to carry a gap
+  makes it a setting: the golden's file changes with the status entry
+  that closes, in the same branch.
+- **Tested in the gate as a tool is:** the crate's own step tests, in
+  milliseconds: the golden decodes, and each setting obligation's member
+  resolves in the settings form's `FIELDS` (`../client/tools.md`, 5.3)
+  and in the profile; the check over evidence made from the profile
+  itself, as if the agent had proposed it, passes with every setting met,
+  and with the profile's charters renumbered still passes; each failure
+  by one mutation of that evidence (a value changed, a charter added,
+  a role's charter removed, a gap's words absent, a box obligation
+  lacking); the judge's brief for that evidence, as golden text; the
+  verdict's decoder refusing an unknown rule, a rule twice or missing;
+  `collect`'s assembly from recorded ctl outputs.
+- **Walked,** never in the gate: a pass of QA, run again whenever the
+  agent's instructions, the documentation in the binary or a reference
+  milestone's settings change (`../draft/configuring.md`, 8.1).
+
 ## 7. Layout
 
 ```
@@ -2301,6 +2525,7 @@ tests/fake-checkout                 temper-fake-checkout: working trees' git, ov
 tools/git-transcripts               git's transcripts, from real git against skein's throwaway Forgejo (../protocol/git.md, section 9)
 tools/gallery                       temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/browser.md, section 7), its tests in the view's world
 tools/journeys                      temper-client-journeys: recorded walks replayed through the shipped host and printed (../client/journeys.md), its test reprinting each committed journey
+tools/stage-one                     temper-stage-one: configuring's stage 1, the golden, its check, its judge's brief and the evidence's collection (6.5), its step tests in the focused suite
 scripts/proof-live.sh               the live tier
 ```
 
@@ -2379,6 +2604,13 @@ scripts/proof-live.sh               the live tier
 - **The machine's git in the process tier.** Default: whatever git the
   test host has, 2.41 or later, which ../protocol/git.md's start refuses below
   (../protocol/git.md, section 3); transcripts are of 2.53.
+- **Stage 1's figures** (6.5): the box's limits and the walk's bounds,
+  which are the user's (`../draft/configuring.status.md`). Default: the
+  box's limits the reference's profile whole (6.5.2), its spends and
+  times the box's; the pass at most 3 hours of wall time from the box's
+  start to the stage's verdict, the configuring chat at most 40 of the
+  person's messages, and the judge one session at Opus 5.5, high,
+  within 30 minutes.
 
 ## 11. Later
 

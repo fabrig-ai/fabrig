@@ -17,11 +17,11 @@ impl Story {
         for _ in 0..128 {
             if let Some(event) = events.pop_front() {
                 let mut out = Queue::uncapped();
-                self.client.step(self.now, Wall::EPOCH, event, &mut out);
+                self.client.step_unlinked(self.now, Wall::EPOCH, event, &mut out);
                 while let Some(request) = out.pop() {
                     match request {
-                        client::Request::Told { told } => self.told.push(told),
-                        client::Request::Down { down } => match down {
+                        client::UnlinkedRequest::Told { told } => self.told.push(told),
+                        client::UnlinkedRequest::Down { down } => match down {
                             client::Down::Open { watch, subject: client::Watchable::Jig(subject) } => {
                                 self.engine.open(self.now, 11, watch, subject).expect("valid public story fixture");
                             }
@@ -40,14 +40,9 @@ impl Story {
                             | client::Down::Open { .. }
                             | client::Down::Read { .. }) => panic!("unexpected public down: {other:?}"),
                         },
-                        other @ (client::Request::Exchange { .. }
-                        | client::Request::OpenStream { .. }
-                        | client::Request::CloseStream
-                        | client::Request::Save { .. }
-                        | client::Request::Erase { .. }
-                        | client::Request::SignOut
-                        | client::Request::Authorized(_)
-                        | client::Request::ServiceCredential { .. }) => panic!("unexpected public request: {other:?}"),
+                        other @ (client::UnlinkedRequest::SignOut | client::UnlinkedRequest::Authorized(_)) => {
+                            panic!("unexpected public request: {other:?}")
+                        }
                     }
                 }
             }

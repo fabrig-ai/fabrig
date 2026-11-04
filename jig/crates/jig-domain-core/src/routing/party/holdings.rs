@@ -207,6 +207,11 @@ pub(crate) fn created_holdings(
         return;
     }
     let (request, creating) = core.take_creation(request).expect("completed creation flight");
+    let project = creating.members.first().expect("nonempty batch").project;
+    if project != people::DEPLOYMENT && !core.open_project(project) {
+        pool_refused(&mut routed.work, request, people::Refusal::Unknown);
+        return;
+    }
     if let Some(refused) = creating.refused {
         let which = match refused {
             HoldingsRefusal::Symbol { .. } => people::LimitKind::HoldKind,

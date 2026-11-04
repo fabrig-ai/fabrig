@@ -109,6 +109,11 @@ what waits, section 14.
   it, and kept on the tier's record. The first run's range starts after
   the baseline's tip.
 
+A tier's span is excluded from its key. Default landing and explicitly named
+branch definitions keep their byte encodings; following goal branches has a
+distinct marker, so its key cannot equal either form merely because their
+branch text matches (2026-11-04).
+
 ## 3. Following the mains
 
 - **On each move of the tip of a branch a tier follows,** read as
@@ -151,6 +156,14 @@ what waits, section 14.
   dispatches the run again with its faults counted from 0, its
   landings still verifying; its verdict replaces that status.
 
+A failed receipt at the tip is treated as a failed-test rerun that failed
+again. Its failures go directly to inheritance and blame, with no further
+confirmation run (2026-11-04).
+
+Among due goal branches, one never run sorts before one with a previous
+start; otherwise the oldest start runs first. Equal starts, including two
+branches never run, are ordered by goal number, lowest first (2026-11-04).
+
 ## 4. What a run reports
 
 - **Passed or failed,** from the run's conclusion at its tip.
@@ -191,6 +204,12 @@ red by earlier failures it does not run (5.3).
    suspect's goal is told.
 5. **A fault is not a red** (section 3).
 
+Failures reported as many have no failed-test rerun; their probes run the
+whole tier. Enumerated failure IDs are sorted and unique before judging. A
+landing blamed for many is repaired by a later judged run whose failures can
+be enumerated by test, even if that run fails other tests; a later many
+verdict does not repair it (2026-11-04).
+
 ### 5.3 A landing's verdict is its own
 
 - **Red only by failures blamed on it,** per tier.
@@ -212,6 +231,11 @@ news to the goal holding the branch (section 7), each test marked *new*
 or, where the previous run on that branch failed it too, *still
 failing*. Nothing is blamed, bisected or inherited onto a landing, and
 a fault is a fault (section 3).
+
+On a goal branch, many after many is still failing and is kept for the
+goal's next run. Many after an enumerated result is new and wakes it. When
+the new result enumerates tests but the previous result was many, none of
+those IDs is known to be still failing; each is new (2026-11-04).
 
 ## 6. A change lives to cleared
 
@@ -307,6 +331,17 @@ a fault is a fault (section 3).
   within its bound; past it, the oldest is dropped and counted on the
   tier's record, never holding the tier, so that no repository's
   verification stops for want of a triage.
+
+Red news fits `tasks.message_bytes` in order: header and test IDs as whole
+lines, then the run URL, then failed-job log ends sharing the remaining room
+equally. Only a log's first line may be partial, since cutting a log
+preserves its end. Each failed-job read is bounded by `brief_bytes` divided
+by the failed-job count, using at least one as divisor. A failed or empty
+read yields `[no log]` (2026-11-04).
+
+The commit in `Red on BRANCH: tier NAME run N at COMMIT` is the tested tip's
+first twelve hexadecimal digits; an after-landing red continues to name its
+blamed landing's full commit (2026-11-04).
 
 ## 8. What a landing tells
 
@@ -436,6 +471,10 @@ a fault is a fault (section 3).
   name at most 32 bytes. A main no tier or subscription follows has no
   log (section 8).
 
+A tier's record keeps at most `failing_tests` distinct flake IDs. Once full
+it keeps counting the IDs already retained and drops newly seen flake IDs,
+without holding the tier (2026-11-04).
+
 ## 11. Settings
 
 Beside kind 5's gates, each repository's tiers, each with the branch
@@ -494,8 +533,8 @@ with failing tests by id and uploading their artifacts:
   the draft; the forge's runners here, workers once a worker runs jobs.
 - **Blame on a goal's branch:** whether a tier following goal branches
   should bisect a red to the merge that brought it and name that change
-  in its news, rather than leave the goal to triage (5.4). Triage
-  matched the evidence; blame would need the verdict machinery on a
+  in its news, rather than leave the goal to triage (5.4). Triage costs
+  a wake and no machinery; blame would need the verdict machinery on a
   goal's branch (`../draft/reference-code-production.md`, section 17).
 
 ## 14. Later

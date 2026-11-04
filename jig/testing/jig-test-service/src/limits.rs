@@ -75,6 +75,8 @@ pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
             connector,
             journal,
             watermark: root::default_watermark(&journal),
+            public_watermark: root::default_watermark(&journal).checked_div(2).expect("half the watermark"),
+            public_reads: jig.clients.public.reads,
             routes: jig.routes,
         },
         store: jig_protocol_store::Limits {
@@ -199,6 +201,23 @@ mod tests {
             let cap = sizes::worker_cap(&sizes).expect("worker cap");
             assert!(cap.facts >= frame, "{name:?}: reserve {} must hold {frame}", cap.facts);
             assert!(cap.cap.frames >= cap.facts / 25);
+        }
+    }
+}
+
+#[cfg(test)]
+mod public_tests {
+    use super::*;
+
+    #[test]
+    fn public_admission_follows_the_effective_watermark_and_clients() {
+        for name in [Profile::Small, Profile::Standard] {
+            let mut jig = profile(name);
+            // Distinct from OFF to show that the effective client limit is copied.
+            jig.clients.public.reads = 8;
+            let limits = for_profile(name, &jig);
+            assert_eq!(limits.root.public_watermark, limits.root.watermark / 2);
+            assert_eq!(limits.root.public_reads, 8);
         }
     }
 }

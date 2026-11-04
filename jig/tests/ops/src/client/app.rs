@@ -152,8 +152,8 @@ impl App for Ops {
             Request::Erase { key } => Duty::Store(StoreWrite::Erase(key)),
             Request::Show { address, replace } => Duty::Show { address, replace },
             Request::SignIn { provider } => Duty::SignIn { provider },
-            Request::SignOut | Request::Client { request: jig_client::Request::SignOut } => Duty::SignOut,
-            Request::Client { .. } => Duty::Wire(request),
+            Request::SignOut | Request::Unlinked { request: jig_client::UnlinkedRequest::SignOut } => Duty::SignOut,
+            Request::Client { .. } | Request::Unlinked { .. } => Duty::Wire(request),
             Request::Observability(obs::Out::Read { .. } | obs::Out::Open { .. } | obs::Out::Close { .. })
             | Request::Infrastructure(infra::Out::Read { .. } | infra::Out::Open { .. } | infra::Out::Close { .. }) => {
                 panic!("family work routes through the client")
@@ -180,7 +180,20 @@ impl App for Ops {
         match request {
             Request::Client { request } => {
                 let event = match request {
-                    jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } => {
+                    jig_client::Request::Exchange { exchange, .. } => jig_client::Event::Lost { exchange },
+                    jig_client::Request::OpenStream { .. } => jig_client::Event::StreamGone,
+                    jig_client::Request::Authorized(_)
+                    | jig_client::Request::ServiceCredential { .. }
+                    | jig_client::Request::CloseStream
+                    | jig_client::Request::Save { .. }
+                    | jig_client::Request::Erase { .. }
+                    | jig_client::Request::Told { .. } => return None,
+                };
+                Some(Event::Client { event })
+            }
+            Request::Unlinked { request } => {
+                let event = match request {
+                    jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } } => {
                         jig_client::Event::Up {
                             up: jig_client::Up::Answer {
                                 attempt,
@@ -190,25 +203,21 @@ impl App for Ops {
                             },
                         }
                     }
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open { watch, .. }
                             | jig_client::Down::Close { watch }
                             | jig_client::Down::Continue { watch, .. },
                     } => jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: WatchEnd::Dropped } },
-                    jig_client::Request::Down { down: jig_client::Down::Read { read, .. } } => jig_client::Event::Up {
-                        up: jig_client::Up::ReadDone { read, result: jig_client::Readout::Limit },
-                    },
-                    jig_client::Request::Exchange { exchange, .. } => jig_client::Event::Lost { exchange },
-                    jig_client::Request::OpenStream { .. } => jig_client::Event::StreamGone,
-                    jig_client::Request::SignOut => jig_client::Event::SignOutLost,
-                    jig_client::Request::Authorized(_)
-                    | jig_client::Request::ServiceCredential { .. }
-                    | jig_client::Request::CloseStream
-                    | jig_client::Request::Save { .. }
-                    | jig_client::Request::Erase { .. }
-                    | jig_client::Request::Told { .. }
-                    | jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, .. } } => {
+                        jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone { read, result: jig_client::Readout::Limit },
+                        }
+                    }
+                    jig_client::UnlinkedRequest::SignOut => jig_client::Event::SignOutLost,
+                    jig_client::UnlinkedRequest::Authorized(_)
+                    | jig_client::UnlinkedRequest::Told { .. }
+                    | jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Save { .. } | jig_client::Down::Erase { .. },
                     } => return None,
                 };
@@ -267,8 +276,8 @@ impl App for Ops {
             let ask = domain::wire::ask_value(request.record()).expect("whole environment ask");
             return Some(infrastructure_sent(*exchange, *keyed.key(), &ask));
         }
-        let Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, key, request, .. } },
+        let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, key, request, .. } },
         } = request
         else {
             return None;
@@ -436,8 +445,8 @@ mod tests {
         )
         .expect("bounded keyed fixture");
         [
-            Request::Client {
-                request: jig_client::Request::Down {
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt: ATTEMPT, key: REQUEST_KEY, request: ask, value: None },
                 },
             },

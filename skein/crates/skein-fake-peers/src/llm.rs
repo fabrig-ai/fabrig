@@ -290,7 +290,7 @@ impl Peer {
             | io::Event::Resized
             | io::Event::Window { .. }
             | io::Event::Shutdown { .. } => {
-                panic!("the fake peer only listens and serves classic byte streams");
+                unreachable!("the fake peer only listens and serves classic byte streams");
             }
         }
     }

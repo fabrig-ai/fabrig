@@ -108,6 +108,7 @@ impl Walk {
             exchange,
             status: 200,
             body: encoded(answer.measure(), |writer| answer.encode(writer)),
+            headers: Vec::new(),
         })])
     }
 }

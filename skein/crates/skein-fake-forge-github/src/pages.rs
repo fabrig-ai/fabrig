@@ -72,6 +72,11 @@ pub(crate) struct Store {
     pub(crate) setup: Option<Box<[u8]>>,
 }
 impl Store {
+    #[cfg(test)]
+    pub(crate) fn next_draw(&mut self) -> u64 {
+        self.rng.next_u64()
+    }
+
     pub(crate) fn new(limits: Limits, seed: u64) -> Self {
         Self { states: Map::with_capacity(limits.states), rng: Rng::new(seed), key: 0, setup: None }
     }

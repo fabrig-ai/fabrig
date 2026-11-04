@@ -1,12 +1,23 @@
 //! The visit's bounded, same-origin cookie jar (skein/docs/design/playground.md, 4).
 use skein_lib::Wall;
 
-#[derive(Debug)]
 struct Cookie {
     name: Box<[u8]>,
     value: Box<[u8]>,
     path: Box<[u8]>,
     expires: Option<Wall>,
+}
+
+// skein/docs/design/playground.md, 4: the jar keeps cookie values private; Debug shows their lengths.
+impl core::fmt::Debug for Cookie {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Cookie")
+            .field("name", &self.name)
+            .field("value_len", &self.value.len())
+            .field("path", &self.path)
+            .field("expires", &self.expires)
+            .finish()
+    }
 }
 
 #[derive(Debug)]

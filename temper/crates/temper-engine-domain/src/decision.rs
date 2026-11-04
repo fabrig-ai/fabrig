@@ -232,6 +232,15 @@ pub enum Delivery {
         /// Owned result text, at most journal `result_bytes`.
         words: Box<[u8]>,
     },
+    /// Complete a public read after its barrier (jig/docs/design/domain/people.md, 13.10).
+    Public {
+        reply: ReplyTo,
+        answer: jig_domain_core::PublicAnswer,
+        admitted: bool,
+    },
+    PublicWait {
+        read: Token,
+    },
 }
 
 /// Journal to its root caller: at most one value per entry point; the caller
@@ -316,7 +325,7 @@ impl Decision {
                 row.task != 0
                     && row.attempt != 0
                     && row.turn != 0
-                    && row.transcript.len() <= usize::try_from(limits.transcript_bytes).expect("u32 fits usize")
+                    && row.transcript.len() <= skein_lib::usize_of(limits.transcript_bytes)
             }
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) => {
                 row.key.task != 0 && row.key.attempt != 0 && row.key.completion != 0
@@ -352,9 +361,7 @@ impl Decision {
                         jig_domain_people::EscalationDecision::Release
                         | jig_domain_people::EscalationDecision::Pass => true,
                         jig_domain_people::EscalationDecision::Reject { reason } => {
-                            reason.len()
-                                <= usize::try_from(limits.result_bytes.min(limits.transcript_bytes))
-                                    .expect("u32 fits usize")
+                            reason.len() <= skein_lib::usize_of(limits.result_bytes.min(limits.transcript_bytes))
                         }
                     }
             }
@@ -424,12 +431,9 @@ impl Decision {
     pub fn deliver(&mut self, limits: &Limits, delivery: Delivery) -> Result<(), Delivery> {
         assert!(*limits == self.limits, "decision uses its configured limits");
         let within = match &delivery {
-            Delivery::Result { words, .. } => {
-                words.len() <= usize::try_from(limits.result_bytes).expect("u32 fits usize")
-            }
+            Delivery::Result { words, .. } => words.len() <= skein_lib::usize_of(limits.result_bytes),
             Delivery::ForgeDocument { document, .. } => {
-                document.owned_bytes()
-                    <= usize::try_from(limits.result_bytes.max(limits.transcript_bytes)).expect("u32 fits usize")
+                document.owned_bytes() <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
             }
             Delivery::Panel { panel, .. } => {
                 let mut owned = panel
@@ -445,9 +449,7 @@ impl Decision {
                 if let temper_engine_domain_forge::PanelStep::Queued { ahead, .. } = &panel.step {
                     owned = owned.saturating_add(ahead.len().saturating_mul(size_of::<u64>()));
                 }
-                panel.within()
-                    && owned
-                        <= usize::try_from(limits.result_bytes.max(limits.transcript_bytes)).expect("u32 fits usize")
+                panel.within() && owned <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
             }
             Delivery::Forges { forges, .. } => {
                 let mut owned = forges.rows.len().saturating_mul(size_of::<temper_engine_domain_forge::Row>());
@@ -476,13 +478,12 @@ impl Decision {
                         | Connection::Connecting => 0,
                     });
                 }
-                owned <= usize::try_from(limits.result_bytes.max(limits.transcript_bytes)).expect("u32 fits usize")
+                owned <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
             }
             Delivery::PlaygroundNote { line } => line.len() <= 256,
             Delivery::Fleet(event) => fleet_delivery_within(event),
             Delivery::Relay { word, .. } => {
-                word.number != 0
-                    && word.words.len() <= usize::try_from(limits.transcript_bytes).expect("u32 fits usize")
+                word.number != 0 && word.words.len() <= skein_lib::usize_of(limits.transcript_bytes)
             }
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
@@ -496,11 +497,13 @@ impl Decision {
             | Delivery::Bound { .. }
             | Delivery::Procedure { .. }
             | Delivery::Application { .. }
+            | Delivery::Public { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::ReadLoad { .. }
+            | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Drained
@@ -714,8 +717,8 @@ fn assignment_within(assignment: &crate::Assignment, limits: &Limits) -> bool {
     }
     if assignment.task == 0
         || assignment.attempt == 0
-        || assignment.sections.len() > usize::try_from(limits.deliveries).expect("u32 fits usize")
-        || assignment.saved.len() > usize::try_from(limits.deliveries).expect("u32 fits usize")
+        || assignment.sections.len() > skein_lib::usize_of(limits.deliveries)
+        || assignment.saved.len() > skein_lib::usize_of(limits.deliveries)
     {
         return false;
     }
@@ -733,7 +736,7 @@ fn assignment_within(assignment: &crate::Assignment, limits: &Limits) -> bool {
             return false;
         }
         last = word.number;
-        let Some(total) = owned.checked_add(u64::try_from(word.words.len()).expect("usize fits u64")) else {
+        let Some(total) = owned.checked_add(skein_lib::len_u64(word.words.len())) else {
             return false;
         };
         owned = total;
@@ -745,7 +748,7 @@ fn assignment_within(assignment: &crate::Assignment, limits: &Limits) -> bool {
     owned = 0;
     for section in &assignment.sections {
         let bytes = match &section.body {
-            crate::BriefBody::Text(bytes) => u64::try_from(bytes.len()).expect("usize fits u64"),
+            crate::BriefBody::Text(bytes) => skein_lib::len_u64(bytes.len()),
             crate::BriefBody::Missing(_) => 0,
         };
         let Some(total) = owned.checked_add(bytes) else {
@@ -755,7 +758,7 @@ fn assignment_within(assignment: &crate::Assignment, limits: &Limits) -> bool {
     }
     let mut transcript = 0_u64;
     for turn in &assignment.transcript {
-        let Some(total) = transcript.checked_add(u64::try_from(turn.len()).expect("usize fits u64")) else {
+        let Some(total) = transcript.checked_add(skein_lib::len_u64(turn.len())) else {
             return false;
         };
         transcript = total;
@@ -763,8 +766,7 @@ fn assignment_within(assignment: &crate::Assignment, limits: &Limits) -> bool {
     if !answered_within(assignment, limits) {
         return false;
     }
-    let answered_bytes = u64::try_from(assignment.answered.len())
-        .expect("usize fits u64")
+    let answered_bytes = skein_lib::len_u64(assignment.answered.len())
         .checked_mul(u64::try_from(size_of::<crate::CallRecord>()).expect("usize fits u64"));
     let total = match (transcript.checked_add(inbox_bytes), answered_bytes) {
         (Some(transcript), Some(answered)) => transcript.checked_add(answered),
@@ -791,7 +793,7 @@ fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
             !name.is_empty()
                 && bytes_within(
                     match call.owned_bytes() {
-                        Some(bytes) => bytes.checked_add(u64::try_from(name.len()).expect("usize fits u64")),
+                        Some(bytes) => bytes.checked_add(skein_lib::len_u64(name.len())),
                         None => None,
                     },
                     limits.transcript_bytes,
@@ -802,7 +804,7 @@ fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
 
 pub(crate) fn length_within(bytes: Option<usize>, limit: u32) -> bool {
     match bytes {
-        Some(bytes) => bytes <= usize::try_from(limit).expect("u32 fits usize"),
+        Some(bytes) => bytes <= skein_lib::usize_of(limit),
         None => false,
     }
 }

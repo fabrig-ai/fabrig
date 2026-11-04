@@ -11,15 +11,20 @@ macro_rules! person_story_suite {
         }
     };
     ($make:path; release: [$($release:meta)*], compound_release: [$($compound_release:meta)*], inbox_chat: [$($inbox_chat:meta)*], close: [$($close:meta)*], family: [$($family:meta)*] $(,)?) => {
+        $crate::person_story_suite!(@test $make, a_person_s_inbox_lists_needs_oldest_first_and_updates_newest_first, b_inbox, $crate::stories::shared::b_seed::Facts::InboxOrder, []);
+        $crate::person_story_suite!(@test $make, a_person_s_chats_are_their_own, b_conversations, $crate::stories::shared::b_seed::Facts::OwnChats, []);
+        $crate::person_story_suite!(@test $make, a_delegate_s_escalation_record_names_the_person_who_asked, b_held, $crate::stories::shared::b_seed::Facts::DelegateEscalation, []);
         $crate::person_story_suite!(@test $make, a_draft_is_kept_across_a_reload, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, a_reload_with_requests_pending_sends_them_again_under_their_keys, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, a_dropped_watch_shows_the_page_behind_until_it_reopens, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, a_page_left_with_reads_in_flight_drops_their_answers, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, the_conversations_section_lists_live_chats_by_last_activity, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, a_person_s_chats_list_live_then_ended_by_last_activity, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
+        $crate::person_story_suite!(@test $make, a_person_s_ended_chats_list_the_last_ended_first, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, an_engine_outside_the_client_s_versions_shows_out_of_date, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, starting_a_chat_at_the_text_shell, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, moving_a_goal_up_reorders_the_board, b_goals, $crate::stories::shared::b_seed::Facts::Goals, []);
+        $crate::person_story_suite!(@test $make, a_project_s_tasks_section_lists_the_last_changed_first, b_goals, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, the_project_overview_shows_the_board_s_first_goals, b_goals, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, the_frame_shows_no_conversations_entry_without_a_chat_template, b_goals, $crate::stories::shared::b_seed::Facts::NoChatTemplate, []);
         $crate::person_story_suite!(@test $make, a_goal_beyond_the_allotment_is_proposed_as_the_confirmation_said, b_goals, $crate::stories::shared::b_seed::Facts::GoalOffer { procedure: false }, []);

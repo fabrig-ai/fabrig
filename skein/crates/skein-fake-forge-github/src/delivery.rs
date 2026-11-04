@@ -68,6 +68,11 @@ pub(crate) struct Store {
     closed: bool,
 }
 impl Store {
+    #[cfg(test)]
+    pub(crate) fn next_draw(&mut self) -> u64 {
+        self.rng.next_u64()
+    }
+
     pub(crate) fn new(config: Config, limits: Limits, seed: u64) -> Self {
         let mut rng = Rng::new(seed);
         let next = 1_000_000_000_000_000_000_u64.checked_add(rng.below(1_000_000_000)).expect("19-digit id");

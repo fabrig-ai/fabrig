@@ -35,8 +35,6 @@ pub fn forge_settings() -> temper_service::forges::Forges {
             git_program: None,
             web: Some(base.into()),
             app_read_only: false,
-            api_token: None,
-            webhook_secret: None,
             user: 1,
             identity: 1,
         }));

@@ -167,6 +167,7 @@ pub(crate) fn limits() -> Limits {
         history: 2,
     };
     Limits {
+        public: PublicIndexLimits::OFF,
         routes: 20_783,
         settings: crate::settings::Limits {
             revisions: 4,
@@ -663,6 +664,7 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
     assert_eq!(
         frame.projects.as_slice(),
         &[FrameProjectRole {
+            public: false,
             project: 1,
             role: people::Role::Owner,
             name: Text { bytes: Box::from(&b"Project 1"[..]), cut: false },
@@ -891,7 +893,8 @@ fn new_row(core: &Core, number: u64, funder: tasks::Funder, tracked: Option<u32>
     }
 }
 
-fn make_tree() -> (Core, Limits) {
+/// A live parent with three delegates, one held for budget.
+pub(crate) fn make_tree() -> (Core, Limits) {
     let (mut core, limits) = tree_core();
     let root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
     send_task(

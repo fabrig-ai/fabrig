@@ -368,20 +368,14 @@ impl<A: crate::Application> Engine<A> {
             |source| source.rows.clone(),
         );
         match rows {
-            Rows::Inbox(rows) => { let mut rows: Vec<_> = rows.into_iter().filter(|row| {
+            Rows::Inbox(rows) => Rows::Inbox(rows.into_iter().filter(|row| {
                 if row.project.is_some_and(|project| !self.truth.visible(party,project)) { return false; }
                 match query {
                     Read::Inbox { group, project, kind, goal, .. } => *group == InboxReadGroup::of(row.group()) && project.is_none_or(|p| Some(p) == row.project) && kind.is_none_or(|k| k == row.group()) && goal.is_none_or(|g| self.truth.inbox_selection.get(&party).is_some_and(|selections| selections.iter().any(|selection| selection.cursor == row.cursor && selection.goals.iter().any(|goal| *goal == g)))),
                     Read::TaskText { .. } | Read::Tasks { .. } | Read::Me | Read::Task { .. } | Read::Proposal { .. } | Read::Escalation { .. } | Read::Question { .. }
                     | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
                 }
-            }).collect();
-                // The core orders needs oldest first and updates newest first,
-                // then by update position, task and exact inbox object.
-                // jig/docs/design/domain/engine.md, 11.2.
-                rows.sort_by_key(inbox_order);
-                Rows::Inbox(rows)
-            },
+            }).collect()),
             Rows::Notes(rows) => Rows::Notes(rows.into_iter().filter(|row| {
                 matches!(query, Read::Notes { scope, description, .. } if *scope == row.scope && description.as_ref().is_none_or(|needle| needle.bytes().is_empty() || row.description.bytes().windows(needle.bytes().len()).any(|window| window == needle.bytes())))
             }).collect()),
@@ -460,23 +454,5 @@ fn empty(read: &Read) -> Rows {
         | Read::Revision(_)
         | Read::Revisions(_)
         | Read::Deployment => unreachable!("documents do not request a row source"),
-    }
-}
-
-fn inbox_order(row: &InboxEntry) -> (bool, u64, u64, u64, jig_client_domain::contract::InboxObject) {
-    use jig_client_domain::contract::InboxObject;
-    let time = row.at.map_or(0, skein_lib::Wall::as_nanos);
-    let position = match row.object {
-        InboxObject::Result { position } => Some(position),
-        InboxObject::Reply { message } => Some(message),
-        InboxObject::Question { .. }
-        | InboxObject::Proposal { .. }
-        | InboxObject::Escalation { .. }
-        | InboxObject::PersonTask => None,
-    };
-    let task = row.task_number();
-    match position {
-        Some(position) => (true, u64::MAX - time, u64::MAX - position, task, row.object),
-        None => (false, time, task, task, row.object),
     }
 }

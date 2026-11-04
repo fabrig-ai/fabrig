@@ -138,7 +138,8 @@ target is a compile error naming the three (7.5, 7.6).
 - **The clock gives two times,** read together once per iteration:
   `CLOCK_MONOTONIC`, for every deadline (the kernel's wait deadline is on
   this clock), and `CLOCK_REALTIME`, for things about the world. The loop
-  hands both to the steps in `Env`.
+  hands both to the steps in `Env`; `Now::with(limits)` makes the `Env` of
+  one reading for a step with those limits.
 - **The seed** comes from `getrandom`, once, at startup; everything random
   after it is drawn from the layers' state. It fails, and the service
   does not start, when the kernel refuses `getrandom`.

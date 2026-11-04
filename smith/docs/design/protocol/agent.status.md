@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-03. Where smith's code lags or departs from [agent.md](agent.md).
+2026-11-04. Where smith's code lags or departs from [agent.md](agent.md).
 
 - **Not yet:**
   - 1, 3, 6, 8: the view. Commands, searches and checks run as plain

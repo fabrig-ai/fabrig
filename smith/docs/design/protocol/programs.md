@@ -700,6 +700,15 @@ conditions. smith keeps each as a rule of its own:
   answering side by side. The fake sends what a real run was recorded
   sending, those messages included.
 
+The fake's simultaneous calls may each check their reply. Each queued call
+keeps its own expected text and checks its own tool result when answered;
+the next call takes its own expectation. An interrupt clears the
+outstanding expectation and queued calls (decided 2026-11-02).
+
+A cued fake-program script advances on every user message. The final-turn
+note is the child's next user message, so its scripted answer belongs to
+the next turn of that same cued script (decided 2026-11-02).
+
 ## 9. Open questions
 
 - **Anthropic's terms for a product:** whether a product that runs the

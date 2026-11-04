@@ -352,7 +352,7 @@ impl Frame {
         let (kind, size, mode, links) = if fd == DIRECTORY {
             (Kind::Directory, 0, if self.refused { 0o777 } else { 0o700 }, 2)
         } else {
-            (Kind::File, u64::try_from(self.contents(fd).len()).expect("fixture size"), 0o600, 1)
+            (Kind::File, skein_lib::len_u64(self.contents(fd).len()), 0o600, 1)
         };
         Done::Stat(Stat { kind, size, mode, owner: USER, links })
     }

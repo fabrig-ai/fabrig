@@ -295,7 +295,7 @@ impl Peer {
     pub fn setup_mut(&mut self) -> &mut forgejo::setup::Store {
         match &mut self.service {
             protocol::Service::Forgejo(service) => service.setup_mut(),
-            protocol::Service::Github(_) => panic!("GitHub has no Forgejo setup store"),
+            protocol::Service::Github(_) => unreachable!("GitHub has no Forgejo setup store"),
         }
     }
     pub fn shutdown(&mut self) {
@@ -418,7 +418,7 @@ impl Peer {
             | io::Event::Usage { .. }
             | io::Event::Resized
             | io::Event::Window { .. }
-            | io::Event::Shutdown { .. } => panic!("the forge listens and serves byte streams"),
+            | io::Event::Shutdown { .. } => unreachable!("the forge listens and serves byte streams"),
         }
     }
 

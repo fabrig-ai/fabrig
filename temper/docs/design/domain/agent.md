@@ -132,16 +132,17 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   charter's `inspect`, `modify`, `shell` and `agents` say; `wait`, always;
   `deliver`, for a finite change's contract (jig's `domain/hosts.md`,
   section 8; smith's `domain/run.md`, 8.4), never in an Open run (4.6).
-  A run that cannot deliver cannot modify files: at temper's Smith
-  charter boundary, `modify` is granted only with `deliver` and the
-  charter's permission. A chat's, a goal's, an advisor's and a reviewer's
+  A run that cannot deliver cannot modify files: jig's charter
+  translation grants `modify` only with `deliver` and the charter's
+  permission (jig's `domain/hosts.md`, section 8). A chat's, a goal's, an advisor's and a reviewer's
   runs inspect alone, whatever their charter's `modify` (a rail, not an
   instruction). Stock charter 1 disables `modify`; repository edits,
   including small fixes, go through `change` (4.3.1). The stock coder
   has read, write, edit and remove: a file the change drops is removed
   once read.
 - **Every host tool below,** declared in every charter, each with the
-  charter's call timeout, but those of the `settings` family, declared
+  charter's call timeout, but `read_task`, offered only with the task's read
+  family, and those of the `settings` family, declared
   only where the run's charter names that family in its `tools` (jig's
   `domain/engine.md`, 7.1) and its task's authority has it: charter 3
   alone in the stock
@@ -151,6 +152,14 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lacked, and the run may `propose` it instead. A refused tool family
   is named from the call's tool, and repeated findings for that family
   print once; the refusal grants no additional authority.
+- **A coordinator's task reads.** `read_task {task, from?}` returns a related
+  task's current specification, state, dependencies and spec revision, and its
+  hold revision, reason and connector-supplied account. It also reads retained
+  ended direct delegates. A cut specification prints `next: OFFSET`; pass that
+  byte offset as `from`, and restart at zero if the spec revision changes.
+  Task reads decide nothing and keep no named-call record. Escalations name
+  their task and hold revision and give this recovery call. Read access does
+  not grant messages or amendments to ended tasks, or the subscribe family.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, the room of the agent's smallest window (4.6), before any
@@ -159,7 +168,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `change` (4.3.1); with the authorised brief, its task section a whole
   spec (`../protocol/configuration.md`, section 7), and 1,472 bytes for
   64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves at least 1,129 bytes at `temper init`'s
+  bytes each), it leaves at least 813 bytes at `temper init`'s
   models; `temper-service`'s step tests hold each stock charter's
   figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
@@ -279,6 +288,14 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `temper-engine-smith`'s `turn` takes a turn request alone, and
   answers any other request, a job's included, as not a turn
   (`Problem::Type`).
+
+The refusal says `charter N leaves its brief R bytes of its host part's B;
+it needs at least 2,048`, with thousands' commas in the figures and room
+zero when the non-brief part consumes the bound. A party's direct change or
+proposal is refused as a judged charter item, naming its item index; a run's
+proposal receives a host error with these words and its run continues. On
+restart, a stored current charter that fails the check ends startup with
+`temper serve: restart refused: ` and the same diagnostic (2026-11-04).
 
 #### 4.3.1 A change, in the run's words
 

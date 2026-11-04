@@ -97,7 +97,7 @@ impl Protocol {
     fn with_limits(seed: u64, joint: Joint, fixture: fixtures::Fixture, limits: &top::Limits) -> Self {
         let mut world = Self {
             top: Self::top(seed, fixture.writer, limits),
-            env: Env { now: joint.env.now, wall: joint.env.wall, limits: *limits },
+            env: joint.env.with(*limits),
             joint,
             fixture,
             top_out: Queue::uncapped(),
@@ -351,7 +351,7 @@ impl Protocol {
     /// Accounts the old process's abandoned calls at their deadlines, without delivering them to the top.
     pub fn finish(&mut self) {
         self.generation += 1;
-        let mut terminal = Env { now: self.joint.env.now, wall: self.joint.env.wall, limits: self.joint.env.limits };
+        let mut terminal = self.joint.env.with(self.joint.env.limits);
         terminal.now = terminal.now.saturating_add(terminal.limits.deadline);
         self.joint.component.fire(&terminal, &mut self.joint.above, &mut self.joint.below);
         while let Some(event) = self.joint.above.pop() {

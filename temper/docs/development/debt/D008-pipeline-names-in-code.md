@@ -14,7 +14,7 @@
 
 AGENTS.md (section 2) asks for comments that say what is true now, with
 no history, and for public code that names no session. temper's code
-names the pre-fab pipeline's tasks 22 times, as promises or as history:
+names the former pipeline's tasks 22 times, as promises or as history:
 
 - "temper-15 replaces them with records" (`temper-service/src/forge.rs`),
   "temper-15 removes the forge files" (`temper-forge-setup-shell/src/reconcile.rs`, twice),
@@ -46,7 +46,7 @@ The comments' emphasis words ("actual", 65; "genuine", 9) are counted by
 
 ## Why it matters
 
-The pipeline that numbered those tasks is gone (AGENTS.md, section 8):
+The pipeline that numbered those tasks is gone:
 nobody can look a promise up, and some promise what no plan will do.
 They mark real gaps, which belong in status files, where they are kept.
 
