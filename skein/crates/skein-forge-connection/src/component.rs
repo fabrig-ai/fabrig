@@ -1,4 +1,4 @@
-//! Waiting calls and returned answers (forge-connection.md, sections 2 and 8).
+//! Waiting calls and returned answers (skein/docs/design/forge-connection.md, sections 2, 7.1 and 8).
 use crate::{
     boundary::{Answered, Event, Request},
     connection::{self, Connection, Exchange, Phase, Use},
@@ -31,9 +31,21 @@ pub struct Diagnostics {
     pub malformed: u64,
 }
 #[derive(Debug)]
-pub(crate) enum CallPlan {
-    Forgejo(Plan),
-    GitHub(skein_forge::github::plans::plan::Plan),
+pub(crate) enum Side {
+    Unbegun,
+    Forgejo(Box<ForgejoCall>),
+    GitHub(Box<GitHubCall>),
+}
+#[derive(Debug)]
+pub(crate) struct ForgejoCall {
+    pub plan: Plan,
+}
+#[derive(Debug)]
+pub(crate) struct GitHubCall {
+    pub plan: Option<skein_forge::github::plans::plan::Plan>,
+    pub route: Option<github_calls::Route>,
+    pub discovery: Option<github_calls::Discovery>,
+    pub discovered: Option<api::Answer>,
 }
 #[derive(Debug)]
 #[expect(clippy::enum_variant_names, reason = "the GitHub own plans retain their shared names")]
@@ -48,10 +60,7 @@ pub(crate) enum OwnPlan {
 pub(crate) struct Waiting {
     pub repository: api::Repository,
     pub op: Option<api::Op>,
-    pub plan: Option<CallPlan>,
-    pub route: Option<github_calls::Route>,
-    pub discovery: Option<github_calls::Discovery>,
-    pub discovered: Option<api::Answer>,
+    pub side: Side,
     pub page_size: u32,
     pub connection: Option<Token>,
     pub cost: u32,
@@ -66,10 +75,7 @@ impl Waiting {
         Self {
             repository,
             op: Some(op),
-            plan: None,
-            route: None,
-            discovery: None,
-            discovered: None,
+            side: Side::Unbegun,
             page_size: 1,
             connection: None,
             cost: 0,
@@ -81,9 +87,35 @@ impl Waiting {
         }
     }
     fn origin(&self) -> Option<u32> {
-        match &self.route {
-            Some(route) => route.origin,
-            None => None,
+        let route = match &self.side {
+            Side::GitHub(call) => call.route,
+            Side::Unbegun | Side::Forgejo(_) => None,
+        };
+        route?.origin
+    }
+    fn begun(&self) -> bool {
+        match &self.side {
+            Side::Unbegun => false,
+            Side::Forgejo(_) => true,
+            Side::GitHub(call) => call.plan.is_some(),
+        }
+    }
+    fn forgejo(&mut self) -> Option<&mut ForgejoCall> {
+        match &mut self.side {
+            Side::Forgejo(call) => Some(call),
+            Side::Unbegun | Side::GitHub(_) => None,
+        }
+    }
+    fn github(&mut self) -> Option<&mut GitHubCall> {
+        match &mut self.side {
+            Side::GitHub(call) => Some(call),
+            Side::Unbegun | Side::Forgejo(_) => None,
+        }
+    }
+    fn error(&self, error: api::Error) -> api::Error {
+        match &self.side {
+            Side::Forgejo(call) => call.plan.error(error),
+            Side::Unbegun | Side::GitHub(_) => error,
         }
     }
     fn answered_head(&mut self, status: u16, rate: Option<api::Rate>) {
@@ -430,7 +462,7 @@ impl Component {
         }
         for (_, id) in &common.calls {
             let call = common.waiting.get_mut(*id).expect("indexed call");
-            if call.repository.forge == number && (call.plan.is_some() || call.cost > 0) {
+            if call.repository.forge == number && (call.begun() || call.cost > 0) {
                 call.revoked = true;
             }
         }

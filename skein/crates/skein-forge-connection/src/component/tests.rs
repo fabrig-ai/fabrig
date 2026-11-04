@@ -191,3 +191,52 @@ fn an_unheld_failure_does_not_wake_a_closing_connection() {
     h.component.up(&h.env, skein_io::Event::Failed { owner, error: skein_io::Error::Reset }, &mut h.up, &mut h.io);
     assert_ne!(h.component.next_deadline(), Some(h.env.now));
 }
+
+impl Component {
+    fn test_waiting(&mut self, call: Token, waiting: Waiting) {
+        let id = self.common.waiting.insert(waiting).expect("fixture call room");
+        let _old = self.common.calls.insert(call, id).expect("fixture call index");
+    }
+}
+
+#[test]
+fn a_call_of_the_other_dialect_is_unavailable() {
+    const CALL: Token = Token::new(1);
+    for (name, settings, side) in [
+        (
+            "GitHub call under Forgejo",
+            fixtures::settings(),
+            Side::GitHub(Box::new(GitHubCall { plan: None, route: None, discovery: None, discovered: None })),
+        ),
+        (
+            "Forgejo call under GitHub",
+            fixtures::github_settings(),
+            Side::Forgejo(Box::new(ForgejoCall {
+                plan: Plan::new(fixtures::REPO, api::Op::Read(api::Read::Settings)),
+            })),
+        ),
+    ] {
+        let limits = fixtures::limits();
+        let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+        let mut c = Component::new(settings, &limits, &fixtures::shared()).expect("fixture limits");
+        c.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: 2 };
+        let mut waiting =
+            Waiting::new(fixtures::REPO, api::Op::Read(api::Read::Settings), env.now.saturating_add(limits.deadline));
+        waiting.side = side;
+        c.test_waiting(CALL, waiting);
+        let mut up = Queue::uncapped();
+        let mut io = Queue::uncapped();
+        c.drive_calls(&env, &mut up, &mut io);
+        let Some(Event::Answered(answer)) = up.pop() else {
+            panic!("{name}: terminal answer");
+        };
+        assert_eq!(
+            answer,
+            Answered { call: CALL, cost: 0, free: 0, rate: None, result: Err(api::Error::Unavailable) },
+            "{name}",
+        );
+        c.drive_calls(&env, &mut up, &mut io);
+        assert!(up.is_empty(), "{name}: only one answer");
+        assert!(io.is_empty(), "{name}: no exchange begun");
+    }
+}

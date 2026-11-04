@@ -1,5 +1,5 @@
 //! A call follows a job log once to a configured, separately pooled origin (4.5).
-use super::{Base, Common, GitHubForge, Waiting, github_calls::github_plan};
+use super::{Base, Common, GitHubForge, Waiting};
 use crate::{Event, Fact, Limits};
 use skein_forge::{
     api,
@@ -27,7 +27,6 @@ impl Common {
         io: &mut Queue<skein_io::Request>,
     ) {
         let (call, id) = holder;
-        let number = base.forge.number;
         let forge = &base.forge;
         let mut matched = None;
         for index in 0..forge.log_origins.len() {
@@ -56,14 +55,17 @@ impl Common {
                     drop(data.said_origins.pop());
                 }
                 data.said_origins.push(redirect.origin.clone());
-                up.push(Event::Fact { forge: number, fact: Fact::Origin { origin: redirect.origin } });
+                up.push(Event::Fact { forge: base.forge.number, fact: Fact::Origin { origin: redirect.origin } });
             }
             self.finish(call, id, Err(api::Error::Refused), up);
             return;
         };
         let waiting = self.waiting.get_mut(id).expect("call");
-        waiting.route.as_mut().expect("sent route").origin = Some(index);
-        github_plan(waiting).set_pending(Exchange {
+        let Some(github) = waiting.github() else {
+            return;
+        };
+        github.route.as_mut().expect("sent route").origin = Some(index);
+        github.plan.as_mut().expect("begun plan").set_pending(Exchange {
             request: skein_forge::github::redirect::request(&redirect),
             retention: Some(retention),
             comparison: skein_forge::github::plans::plan::Comparison::Full,
