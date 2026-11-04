@@ -7,6 +7,7 @@ use crate::{
     adopt::{self, Adopt},
     call::{Auth, Call},
     check::{self, Check},
+    copy::{self, Copy},
     create::{self, Create},
     github::{
         accept::{self, Accept},
@@ -34,8 +35,7 @@ pub(crate) fn given_for(forge: &Given, adopted: &[u64]) -> Given {
 /// A Forgejo plan's machine; GitHub's plans are refused.
 fn forgejo_machine(forge: &Forge, given: &Given, plan: Plan, bounds: &Bounds) -> Result<Machine, Failure> {
     Ok(match plan {
-        Plan::Copy { .. }
-        | Plan::Paste { .. }
+        Plan::Paste { .. }
         | Plan::Manifest { .. }
         | Plan::Convert { .. }
         | Plan::Install { .. }
@@ -54,6 +54,9 @@ fn forgejo_machine(forge: &Forge, given: &Given, plan: Plan, bounds: &Bounds) ->
             };
             Machine::TakeOver(TakeOver::new(given, taken).expect("host checks the given"))
         }
+        Plan::Copy { org, repository, from, files, .. } => Machine::Copy(Box::new(
+            Copy::new(given, org, repository, from, files).expect("the owner checks the copy plan"),
+        )),
         Plan::Create { org, repository, files, .. } => Machine::Create(Box::new(
             Create::new(given, org, repository, files).expect("the owner checks the creation plan"),
         )),
@@ -79,6 +82,7 @@ pub(crate) enum Machine {
     TakeOver(TakeOver),
     Adopt(Adopt),
     Create(Box<Create>),
+    Copy(Box<Copy>),
     Reachable(Reachable),
 }
 impl Machine {
@@ -95,6 +99,7 @@ impl Machine {
             Self::TakeOver(machine) => take_over::step(machine, event, out),
             Self::Adopt(machine) => adopt::step(machine, event, out),
             Self::Create(machine) => create::step(machine, event, out),
+            Self::Copy(machine) => copy::step(machine, event, out),
             Self::Reachable(machine) => reachable::step(machine, event, out),
         }
     }
@@ -103,6 +108,7 @@ impl Machine {
         match self {
             Self::Reconcile(machine) => reconcile::halt(machine, why, out),
             Self::Create(machine) => create::halt(machine, why, out),
+            Self::Copy(machine) => copy::halt(machine, why, out),
             Self::Convert(machine) => convert::halt(machine, why, out),
             Self::Paste(machine) => paste::halt(machine, why, out),
             Self::GitHubReconcile(machine) => github_reconcile::halt(machine, why, out),

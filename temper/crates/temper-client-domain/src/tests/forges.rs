@@ -181,6 +181,7 @@ fn fixture_owned(m: Mode) -> Option<forge::forges::Owned> {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the connection table includes each required forge row field")]
 fn every_connection_decodes_into_the_forges_words() {
     let mut records = List::with_capacity(10);
     let mut expected = List::with_capacity(10);
@@ -211,6 +212,7 @@ fn every_connection_decodes_into_the_forges_words() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        makings: List::with_capacity(0),
                         number,
                         kind,
                         mode,
@@ -342,6 +344,7 @@ fn an_out_of_order_document_is_refused() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        makings: List::with_capacity(0),
                         number,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -430,6 +433,7 @@ fn first_repository_decodes_each_state_and_creation_step() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        makings: List::with_capacity(0),
                         number: 3,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -512,6 +516,7 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     number: 1,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,
@@ -579,6 +584,7 @@ fn admin_form_and_typed_stops_survive_client_decode() {
                     w::ForgeRow::new(
                         &limits,
                         w::ForgeRowParts {
+                            makings: List::with_capacity(0),
                             number: 1,
                             kind: w::Kind::Forgejo,
                             mode: w::Mode::Managed,

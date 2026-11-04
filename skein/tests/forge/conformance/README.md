@@ -113,3 +113,32 @@ an absent name returning an empty array, and an unknown run returning 404.
 The download is a direct 200 ZIP containing one deflated `failed.txt`, with a
 signed data descriptor. The artifact listing carries no commit; the supporting
 run read supplies `commit_sha`. `facts.txt` names the seven recorded facts.
+
+`--migrate` records copies and repository deletion alone, on two fresh loopback
+instances and a loopback HTTP proxy. The destination enables local migrations;
+the source keeps `ALLOW_LOCALNETWORKS` off. Both use `Settings::small()` and
+`OFFLINE_MODE = true`. Forgejo 17 also refuses unencrypted source transports:
+the mode records that refusal first, then appends `ALLOW_UNENCRYPTED = true`
+to these disposable instances without reading their credential-bearing config.
+It changes no deployed instance or shared fixture settings.
+
+```sh
+heavy cargo run -p forgejo-conformance -- --migrate \
+  --forgejo <absolute path to the pinned Forgejo> \
+  --scratch target/migrate --out target/migrate-recording
+```
+
+The pinned release binary may be fetched into ignored `target/pins` for this
+recording; verify its digest against `skein-forge/src/forgejo/pin.rs`.
+No source request leaves loopback. The proxy holds upload-pack's response while
+the mode reads a migration in flight, kills and restarts the destination,
+disconnects its client, or deletes its repository. Live deletion also checks
+that the name can be copied again after releasing the stalled migration.
+
+This mode writes only `setup-migrate-*` and `setup-repository-delete*` captures
+and its own fact lines. Add those lines and directories to the shared recording;
+retain every other group's bytes. A `fails` fact records Forgejo's differing
+behavior and does not fail the recording command. Setup or secret-scan errors
+do fail the command. Without `--runner` the workflow-directory fact is
+`unchecked`; with the pinned runner it pushes a change to a copy containing
+both workflow directories and checks that only the Forgejo workflow runs.

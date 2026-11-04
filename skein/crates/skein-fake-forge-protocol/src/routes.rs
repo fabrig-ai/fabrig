@@ -141,7 +141,15 @@ pub fn repository(config: &Config, request: &Request) -> Option<Box<[u8]>> {
         | Request::Update { at, .. }
         | Request::PostStatus { at, .. }
         | Request::CreateBranch { at, .. }
-        | Request::DeleteBranch { at, .. } => Some(full(at)),
+        | Request::DeleteBranch { at, .. } => {
+            let full = full(at);
+            for source in &config.sources {
+                if source.repository == full {
+                    return None;
+                }
+            }
+            Some(full)
+        }
     }
 }
 fn uid(config: &Config, login: &[u8]) -> Option<u64> {

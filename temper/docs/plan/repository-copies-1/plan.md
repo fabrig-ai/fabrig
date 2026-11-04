@@ -41,7 +41,7 @@ names temper, a project or an adoption.
 | `fake-copy` | fake-migration | | the fake's domain copies and deletes | 70 |
 | `copy-surface` | copy-plan | `migrate-request` | the public shapes, every reader compiling | 40 |
 | `copy-machine` | copy-plan | `copy-surface` | the plan's steps | 60 |
-| `copy-words` | copy-plan | `copy-surface` | Forgejo's words, `TimedOut` | 45 |
+| `copy-words` | copy-plan | `copy-surface`, `copy-machine` | Forgejo's words, `TimedOut` | 45 |
 | `copy-facts` | copy-facts | `migrate-request`, `throwaway-migrations` | the facts, recorded | 75 |
 | `fake-migrate` | fake-migration | `migrate-request`, `fake-copy` | the route and the catalogue | 60 |
 | `copy-story` | copy-story | `copy-machine`, `copy-words`, `fake-migrate` | the plan on the fake | 50 |

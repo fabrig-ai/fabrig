@@ -47,16 +47,13 @@ impl Store {
             {
                 return Some(full(limits));
             }
-            let mut id = 0_u32;
-            for repository in &config.repositories {
-                id = id.max(repository.id);
-            }
-            let Some(id) = id.checked_add(1) else {
+            let Some(id) = self.repository_high.checked_add(1) else {
                 return Some(full(limits));
             };
             if let Err(error) = domain::create_repository(hosted.domain, hosted.config, id, &full_name, name, owner) {
                 return Some(failed(error, limits));
             }
+            self.repository_high = id;
             if hosted.domain.can_grant(&full_name, user) == Ok(true) {
                 domain::grant(hosted.domain, &full_name, user, Permission::Admin);
             }
@@ -107,7 +104,7 @@ impl Store {
 fn path_of(at: &Repo) -> Box<[u8]> {
     joined(&[&at.owner, b"/", &at.name])
 }
-fn repository_name(name: &[u8]) -> bool {
+pub(super) fn repository_name(name: &[u8]) -> bool {
     if name.is_empty() || name.len() > 100 || name == b"." || name == b".." {
         return false;
     }
