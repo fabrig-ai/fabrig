@@ -1,3 +1,22 @@
 draft = "github-owner"
 repo = "fabrig"
 sources = ["temper/docs/plan/github-owner/inputs/request.md", "AGENTS.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what the check of a User owner found, and why the managed sitting gains one input.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "owner"
+title = "a neutral owner on the fake forge, fabrig-ai on the live probes, and the App's maker an input"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.7"
+
+[[slice]]
+id = 1
+story = "the relay's tests take a neutral owner, both live probes answer to fabrig-ai alone, the managed sitting's fake run passes with an organization owner and a neutral User making the App, and no code or script names the personal account"
+parts = ["owner"]
+walk = false
