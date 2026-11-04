@@ -405,7 +405,8 @@ fn forges(world: World) -> Box<[u8]> {
                 .expect("failed preparation"),
             ),
             6 => w::Connection::SettingUp(
-                w::SettingUp::new(&limits, w::SettingUpParts { step: Some(w::SetUpStep::Prepare) }).expect("preparing"),
+                w::SettingUp::new(&limits, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
+                    .expect("preparing"),
             ),
             7 => w::Connection::Connected(
                 w::Connected::new(&limits, w::ConnectedParts { id: 2, login: b"temper".as_slice().into() })

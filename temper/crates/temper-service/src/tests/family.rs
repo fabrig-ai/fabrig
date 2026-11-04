@@ -1069,7 +1069,8 @@ fn forges_encode_the_domains_rows_without_settings() {
             w::Kind::Forgejo,
             w::Mode::Owned,
             w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare) }).unwrap(),
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
+                    .unwrap(),
             ),
             w::Offer::Offered,
         ),
