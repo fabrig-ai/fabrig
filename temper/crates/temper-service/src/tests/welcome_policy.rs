@@ -1,4 +1,5 @@
-//! Real init bytes through startup parsing and the root's project/adoption decisions.
+//! Real init bytes through startup parsing and the root's project/adoption decisions
+//! (`temper/docs/design/protocol/configuration.md`, 13.4).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -14,9 +15,9 @@ use temper_engine_domain::{self as engine, Delivery, Event, Key, PartyInput, Rec
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, forge_stand::ForgeStand, store::Store};
 
-fn generated() -> (engine::Config, engine::Limits) {
+fn generated_files() -> temper_init::Answer {
     let port = |value| NonZeroU16::new(value).expect("nonzero synthetic port");
-    let answer = temper_init::files(
+    temper_init::files(
         &temper_init::Facts {
             binary: b"/bin/temper",
             git: Some(b"/bin/git"),
@@ -34,10 +35,13 @@ fn generated() -> (engine::Config, engine::Limits) {
         &[0; 32],
         &[1; 32],
     )
-    .expect("actual init producer");
+    .expect("actual init producer")
+}
+
+fn generated() -> (engine::Config, engine::Limits) {
     let mut files = settings::Files { entries: List::with_capacity(8) };
     let mut document = None;
-    for file in answer.files {
+    for file in generated_files().files {
         if let temper_init::Content::Bytes { bytes, .. } = file.content {
             if file.name == b"temper.json" {
                 document = Some(bytes.clone());
@@ -106,7 +110,44 @@ fn sign_in_owner(driver: &mut Driver) {
 }
 
 #[test]
-fn real_init_offers_its_owner_a_chat_with_all_three_procedures() {
+fn a_fresh_init_names_the_standard_profiles() {
+    let init = generated_files()
+        .files
+        .into_iter()
+        .find_map(|file| match file.content {
+            temper_init::Content::Bytes { bytes, .. } if file.name == b"temper.json" => Some(bytes),
+            temper_init::Content::Bytes { .. } | temper_init::Content::Link { .. } => None,
+        })
+        .expect("generated temper.json");
+    for path in [b"engine.limits.profile".as_slice(), b"workers[0].limits.profile", b"application.limits.profile"] {
+        assert_eq!(fixtures::value(&init, path).as_ref(), br#""standard""#, "{}", str::from_utf8(path).unwrap());
+    }
+    let overrides = fixtures::value(&init, b"engine.limits.overrides");
+    let document = config::document(&overrides, &config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 })
+        .expect("init engine overrides");
+    let mut task_overrides = Vec::new();
+    for at in (1..document.len().checked_sub(1).unwrap()).step_by(2) {
+        let member = document.text(document.token(at).unwrap()).expect("override name");
+        assert!(
+            !member.starts_with(b"people.") && !member.starts_with(b"authority."),
+            "init overrides {} instead of taking standard",
+            str::from_utf8(member).unwrap()
+        );
+        if member.starts_with(b"tasks.") {
+            task_overrides.push(str::from_utf8(member).expect("ASCII override name"));
+        }
+    }
+    task_overrides.sort_unstable();
+    assert_eq!(task_overrides.as_slice(), ["tasks.inbox_bytes", "tasks.message_bytes", "tasks.result_bytes"]);
+    let (_, limits) = generated();
+    assert_eq!(limits.tasks.inbox_messages, 82);
+    assert_eq!(limits.tasks.message_bytes, 10_660);
+    assert_eq!(limits.tasks.result_bytes, 10_660);
+    assert_eq!(limits.tasks.inbox_bytes, limits.tasks.inbox_messages * limits.tasks.message_bytes);
+}
+
+#[test]
+fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     const EMPTY: Token = Token::new(901);
     const READ: Token = Token::new(902);
     let (config, limits) = generated();
@@ -157,6 +198,41 @@ fn real_init_offers_its_owner_a_chat_with_all_three_procedures() {
     let core::acts::Bounds::Create { procedures, charters, .. } = &offered.within else { panic!("create bounds") };
     assert_eq!(procedures.iter().map(|procedure| procedure.code).collect::<Vec<_>>(), [2, 3, 4]);
     assert_eq!(charters.as_slice(), &[1, 2, 3, 4, 6]);
+    let charters = charters.as_slice().to_vec();
+    for (number, (turns, seconds)) in
+        charters.into_iter().zip([(64, 3600), (800, 28_800), (64, 3600), (800, 28_800), (800, 28_800)])
+    {
+        let token = Token::new(1000 + u64::from(number));
+        driver.send(Event::Party(PartyInput::Read {
+            reply_to: ReplyTo::new(token),
+            sign_in: driver.session(),
+            read: core::reads::Read::Setting {
+                setting: core::settings::Setting::Charter(number),
+                revision: 1,
+                proposal: None,
+            },
+        }));
+        driver.settle();
+        let charter = driver
+            .delivered
+            .iter()
+            .find_map(|delivery| {
+                let Delivery::Read { reply, answer: core::reads::Answer::Setting(document) } = delivery else {
+                    return None;
+                };
+                if *reply != ReplyTo::new(token) {
+                    return None;
+                }
+                let Some(core::settings::Value::Charter(charter)) = &document.value else { panic!("stock charter") };
+                Some(charter)
+            })
+            .expect("offered charter's current run policy");
+        assert_eq!(charter.number, number);
+        assert_eq!(charter.policy.turns, turns, "charter {number}");
+        assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "charter {number}");
+        assert_eq!(charter.policy.reserve_turns, 1, "charter {number}");
+        assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "charter {number}");
+    }
 }
 
 fn policies(driver: &Driver) -> Vec<(u32, people::PolicyValue)> {
