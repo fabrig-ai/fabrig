@@ -1055,7 +1055,7 @@ party reads is therefore never lost by a crash.
 | Read | From |
 |---|---|
 | `me` | live state |
-| `task_text{n, field, from}`: specification words or effective instructions, a UTF-8 chunk | live task source, or its retained owner row |
+| `task_text{n, field, from}`: specification words, effective instructions or kept report words, a UTF-8 chunk | live task source, or its retained owner row |
 | `task{n}`; `proposal{key}`; an escalation; a question; a person task | live state, or the store once ended or decided |
 | a result | the store, or live state while a stub names it |
 | a task's history, a page, for it or its subtree | the store |
@@ -1069,8 +1069,12 @@ party reads is therefore never lost by a crash.
 | an application's read, naming its owner, its scope and its window (7.5) | its owner, the connector, through the engine's root |
 
 - **Task source text** is read independently of its overview. `field` selects
-  specification words or effective instructions: an agent's override, otherwise
-  its charter at the task's recorded settings revision. Each answer gives `task`,
+  specification words, effective instructions or result words. Instructions are
+  an agent's override, otherwise its charter at the task's recorded settings
+  revision. Result words are a terminal Report or NoChange's stored words,
+  including a report kept with cancellation, from a live terminal or retained
+  owner row; other results and tasks without a report are unknown. The overview
+  keeps its bounded preview and typed result metadata. Each answer gives `task`,
   `field`, `from`, `total`, `text` and `next`, byte offsets into that source.
   The chunk is at most `documents.text_bytes`, ends at a UTF-8 boundary and
   advances whenever `next` is present. A non-boundary or past-end offset is

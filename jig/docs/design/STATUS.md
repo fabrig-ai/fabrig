@@ -26,12 +26,14 @@ drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
 Public reading's remaining departure is the public index's memory fit
-check (`protocol/configuration.md`).
+check (`protocol/configuration.md`). Both services compose jig's service
+parts, but each still writes a bundle's helpers (`protocol/service.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`, `examples.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
-own. jig has no drafts.
+own. Its one draft, `draft/account-facts.md`, says what a provider
+reports about an account.
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -64,3 +66,6 @@ Design documents:
 - [`protocol/client.md`](protocol/client.status.md)
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/browser.md`](protocol/browser.status.md)
+
+Drafts:
+- [`draft/account-facts.md`](draft/account-facts.status.md)

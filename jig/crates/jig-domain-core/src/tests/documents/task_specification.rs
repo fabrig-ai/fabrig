@@ -239,18 +239,21 @@ fn task_text_reads_live_sources_and_retained_suffixes_under_the_same_visibility(
     };
     assert_eq!(page.bytes, core.tasks.task(1).unwrap().spec.words);
     let mut row = fixtures::ended_report(99, tasks::Party::Person(1));
+    row.phase = tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: Box::from(FAILURE_WORDS) }));
     row.spec.words = Box::from(FAILURE_WORDS);
-    let read = Read::TaskText { task: 99, field: TaskTextField::Specification, from: 127 };
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, read) else { panic!("retained load") };
-    let loaded = crate::reads::Loaded::Page {
-        rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(row))), None)]),
-        next: None,
-    };
-    let Answer::TaskText(page) = loaded_answer(&mut core, &limits, load, loaded).unwrap() else {
-        panic!("retained source chunk")
-    };
-    assert_eq!(page.bytes.as_ref(), "é CI failed: missing artifact".as_bytes());
-    assert_eq!(page.next, None);
+    for field in [TaskTextField::Specification, TaskTextField::Result] {
+        let read = Read::TaskText { task: 99, field, from: 127 };
+        let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, read) else { panic!("retained load") };
+        let loaded = crate::reads::Loaded::Page {
+            rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(row.clone()))), None)]),
+            next: None,
+        };
+        let Answer::TaskText(page) = loaded_answer(&mut core, &limits, load, loaded).unwrap() else {
+            panic!("retained source chunk")
+        };
+        assert_eq!(page.bytes.as_ref(), "é CI failed: missing artifact".as_bytes());
+        assert_eq!(page.next, None);
+    }
 }
 
 #[test]
@@ -286,4 +289,36 @@ fn connector_hold_accounts_keep_their_own_bound_in_task_and_chip() {
         assert_eq!(text.bytes, words);
         assert!(!text.cut);
     }
+}
+
+#[test]
+fn kept_report_text_checks_visibility_offsets_and_utf8_boundaries() {
+    use crate::reads::{TaskTextField, Why, task_text_from_row};
+    let (core, mut limits) = make_tree();
+    limits.documents.text_bytes = 128;
+    let mut row = core.tasks.task(2).unwrap().clone();
+    assert_eq!(task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, 0), Err(Why::Unknown));
+    row.phase = tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: Box::from(FAILURE_WORDS) }));
+    let first = task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, 0).unwrap();
+    assert_eq!(first.bytes.as_ref(), &FAILURE_WORDS[..127]);
+    assert_eq!(first.next, Some(127));
+    let last = task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, 127).unwrap();
+    assert_eq!(last.bytes.as_ref(), &FAILURE_WORDS[127..]);
+    assert_eq!(last.next, None);
+    for from in [128, u64::try_from(FAILURE_WORDS.len() + 1).unwrap(), u64::MAX] {
+        assert_eq!(task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, from), Err(Why::Unknown));
+    }
+    assert_eq!(task_text_from_row(&core, &limits, 99, &row, TaskTextField::Result, 0), Err(Why::Unknown));
+    let end = task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, last.total).unwrap();
+    assert!(end.bytes.is_empty());
+    limits.documents.text_bytes = 1;
+    assert_eq!(task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, 127), Err(Why::Busy));
+    row.phase = tasks::Phase::Ended(tasks::Ending::Cancelled {
+        reason: Box::from(b"stopped".as_slice()),
+        result: Some(tasks::TaskResult::NoChange { words: Box::from(FAILURE_WORDS) }),
+        by: tasks::Party::Person(1),
+        at: Wall::EPOCH,
+    });
+    limits.documents.text_bytes = 128;
+    assert_eq!(task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, 127).unwrap(), last);
 }

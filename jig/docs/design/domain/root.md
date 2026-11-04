@@ -169,13 +169,16 @@ iterate, after the step:
   activation runs in that decision. The root answers with
   `Event::Activate`: `ready`, whether it can carry an activation, and
   `busy`, whether it has no room to read a transcript, read in the step
-  that runs the activation. The core takes every other step of a run's
-  preparation alone, and asks the root only to load the transcript
-  window it names (`Now::StartPreparation`), for which `busy` kept the
-  room. A task the root is not ready for, and an admitted agent with a
-  window to load while the root is busy, wait in the core's due set; the
-  root takes the next with `take_due` when it has room to carry it, as
-  it takes a restart's (`jig/docs/design/README.md`, 6.4).
+  that runs the activation. The core goes on with an admitted agent in
+  that step, and hands its root a step of a run's preparation only where
+  a root does real work: the transcript window it names
+  (`Now::StartPreparation`), for which `busy` kept the room, the brief
+  (`Now::BriefCorePlanned`, `Now::CompleteBrief`) and the workspace
+  (`Now::WorkspaceRequest`). A task the root is not ready for, and an
+  admitted agent with a window to load while the root is busy, wait in
+  the core's due set; the root takes the next with `take_due` when it
+  has room to carry it, as it takes a restart's
+  (`jig/docs/design/README.md`, 6.4).
 - **Released outputs addressed to a child** (the core's resumption after
   a claim commits, a connector's entry to make) are fed back to it as
   events by `iterate`, each as one more step of this shape.
@@ -247,10 +250,10 @@ It inspects nothing it holds. What jig asks of it:
   under load in `jig-core-world` and `jig-ops-world`, each in
   `orders::turn_kept_precedes_terminal_acknowledgement_under_load`.
 - **An early account request follows the previous move's dispatch.**
-  `move_requests_dispatched` requires every stage of the previous move
-  to be dispatched before another early account request starts. The
-  reference service holds this under load in `jig-test-service`,
-  `tests::accounts::an_early_account_request_waits_for_the_previous_moves_dispatch`.
+  `dispatching_move` holds another early account request back until
+  every stage of the previous move is dispatched. The accounts'
+  component holds this in `jig-protocol-accounts`,
+  `component::tests::a_move_finishes_its_remove_read_and_notification_before_forget`.
 - **A sign-in's ending follows its own durable commit.**
   `ending_commit_durable` requires the ending's commit number to be no
   greater than the durable number before its secret is erased. Earlier
@@ -502,3 +505,10 @@ application's.
   wrapping, which have one shape, are best copied and filled by agents
   (section 12), or generated from a short description, which the subset's
   rules on macros would confine to a build step.
+- **The fixed answers two roots keep.** `ops`'s and the test root's
+  answers to `Now::BriefCorePlanned`, and `ops`'s to
+  `Now::WorkspaceRequest`, are fixed, and the values stay, since temper's
+  do real work there (engine.md, 7.1, 9 and 17.9; section 7). Taking
+  those steps from the roots would need a new hand-off for connectors'
+  sections and a gather timeout in the core. Default: the answers stay
+  until `ops` and the test root share their wiring.
