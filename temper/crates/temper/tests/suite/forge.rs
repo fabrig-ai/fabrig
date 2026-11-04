@@ -234,7 +234,7 @@ fn a_newer_recorded_forgejo_refuses_the_preparation_untouched() {
         .iter()
         .map(|name| fs::read(scratch.path().join("forge-1").join(name)).expect("upgrade fixture"))
         .collect();
-    owned::refused(scratch.path(), "prepare", b"temper forge prepare: forge 1: forgejo is prepared at 999.0.0, newer than this temper's pin 17.0.0: its migrations only go forward\n");
+    owned::refused(scratch.path(), "prepare", b"temper forge prepare: forge 1: forgejo is prepared at 999.0.0, newer than this temper's pin 17.0.1: its migrations only go forward\n");
     let after: Vec<_> = files
         .iter()
         .map(|name| fs::read(scratch.path().join("forge-1").join(name)).expect("upgrade fixture"))
@@ -250,7 +250,7 @@ fn the_run_refuses_a_newer_recorded_version_in_its_own_words() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::record_versions(scratch.path(), Some(b"999.0.0"), None);
-    owned::refused(scratch.path(), "run", b"temper forge run: forge 1: prepared at 999.0.0 / 13.2.0, this temper pins 17.0.0 / 13.2.0: no command of this temper runs it\n");
+    owned::refused(scratch.path(), "run", b"temper forge run: forge 1: prepared at 999.0.0 / 13.2.1, this temper pins 17.0.1 / 13.2.1: no command of this temper runs it\n");
     scratch.remove();
 }
 #[test]
@@ -399,7 +399,7 @@ fn forge_fetch_command() {
         fs::rename(scratch.path().join("box/groups/1"), scratch.path().join("box/groups/3")).expect("numbered group");
         let mut server = None;
         let root = scratch.path().join("root.pem");
-        let file = scratch.path().join("forgejo/17.0.0/forgejo");
+        let file = scratch.path().join("forgejo/17.0.1/forgejo");
         match row {
             "fake" => {
                 configuration::fake_entry(&mut document["application"]["machine"]["fake"], "127.0.0.1:3001");
@@ -446,7 +446,7 @@ fn forge_fetch_command() {
                 let mut hash = Sha256::new();
                 hash.update(b"abc");
                 format!(
-                    "temper forge fetch: forge 3: https://{}/forgejo/forgejo/releases/download/v17.0.0/forgejo-17.0.0-linux-{}: digest differs: pinned {}, got {}\n",
+                    "temper forge fetch: forge 3: https://{}/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{}: digest differs: pinned {}, got {}\n",
                     peer.address,
                     match std::env::consts::ARCH {
                         "x86_64" => "amd64",
@@ -455,11 +455,13 @@ fn forge_fetch_command() {
                     },
                     skein_forge::forgejo::pin::digest(
                         skein_forge::forgejo::pin::Binary::Forgejo,
+                        skein_forge::forgejo::pin::Platform::Linux,
                         match std::env::consts::ARCH {
                             "x86_64" => "amd64",
                             "aarch64" => "arm64",
                             _ => unreachable!(),
-                        }
+                        },
+                        skein_forge::forgejo::pin::Form::Binary,
                     )
                     .expect("pin"),
                     String::from_utf8_lossy(&temper_forge_setup::fetch::hex(&hash.finish()))

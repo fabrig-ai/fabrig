@@ -216,7 +216,7 @@ fn the_policy_keeps_a_field_the_answer_already_holds() {
         body: skein_http::server::Body::None,
         close: false,
     };
-    crate::clients::policy::add(&mut response);
+    jig_protocol_engine_clients_http::server::policy::add(&mut response);
     let mut held = 0_u32;
     for header in &response.headers {
         if header.name.eq_ignore_ascii_case(b"Referrer-Policy") {
@@ -231,11 +231,9 @@ fn the_policy_keeps_a_field_the_answer_already_holds() {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the test inspects the fixed CSP directives as UTF-8")]
 fn the_playground_policy_adds_only_its_worker_source() {
-    use crate::clients::policy::{FIELDS, Page, fields};
+    use crate::clients::policy::{FIELDS, playground_fields};
 
-    let service = fields(Page::Service);
-    assert_eq!(FIELDS, service);
-    for ((name, value), (service_name, service_value)) in fields(Page::Playground).into_iter().zip(service) {
+    for ((name, value), (service_name, service_value)) in playground_fields().into_iter().zip(FIELDS) {
         assert_eq!(name, service_name);
         if name == b"Content-Security-Policy" {
             assert_eq!(value.strip_suffix(b"; worker-src 'self'"), Some(service_value));
@@ -314,4 +312,32 @@ fn a_call_past_the_mounts_room_is_answered_busy() {
         1,
         "the released slot mounts another call"
     );
+}
+
+#[test]
+fn listener_limits_accept_stock_and_refuse_zero_connections_or_stall() {
+    let mut limits = crate::limits::server(&fixtures::engine().jig.limits);
+    assert!(crate::server::valid(&limits));
+    limits.connections = 0;
+    assert!(!crate::server::valid(&limits));
+    limits = crate::limits::server(&fixtures::engine().jig.limits);
+    limits.stall = skein_lib::Duration::ZERO;
+    assert!(!crate::server::valid(&limits));
+    limits = crate::limits::server(&fixtures::engine().jig.limits);
+    limits.http.read = 0;
+    assert!(!crate::server::valid(&limits));
+    limits = crate::limits::server(&fixtures::engine().jig.limits);
+    limits.http.head = 1;
+    assert!(!crate::server::valid(&limits));
+    limits = crate::limits::server(&fixtures::engine().jig.limits);
+    limits.http.send = 0;
+    assert!(!crate::server::valid(&limits));
+    limits = crate::limits::server(&fixtures::engine().jig.limits);
+    limits.http.response = 122; // The server's longest answer needs 123 bytes.
+    assert!(!crate::server::valid(&limits));
+    limits = crate::limits::server(&fixtures::engine().jig.limits);
+    limits.http.send = u32::MAX - 12; // Eight hex digits and four framing bytes.
+    assert!(crate::server::valid(&limits));
+    limits.http.send += 1;
+    assert!(!crate::server::valid(&limits));
 }

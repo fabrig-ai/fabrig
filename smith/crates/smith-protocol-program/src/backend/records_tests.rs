@@ -48,7 +48,7 @@ fn assistant_text_redacts_private_values_before_completion() {
     let mut backend = active();
     let secret = mcp::secret_text(backend.names.mcp.expose().try_into().expect("entropy"));
     let path = backend.run_path(b"mcp.json");
-    let input = mcp::json::join(&[b"program error ", &path, b" ", &secret, b" end"]);
+    let input = skein_lib::bytes::concat(&[b"program error ", &path, b" ", &secret, b" end"]);
     let mut value = text();
     value["message"]["content"][0]["text"] = json!(core::str::from_utf8(&input).expect("fixture text"));
     let mut up = Queue::with_capacity(32);
@@ -165,13 +165,14 @@ fn an_unmatched_call_after_text_closes_is_rejected_immediately() {
                 .into(),
             ),
         },
-        &mut backend.io,
+        &mut backend.server_up,
+        &mut below,
     );
-    let call = server.up().expect("MCP call");
+    let call = backend.server_up.pop().expect("MCP call");
     backend.calls.push(call).expect("held room");
-    backend.match_calls();
+    backend.match_calls(&mut below);
     assert!(backend.calls.is_empty(), "closed text must not hold unmatched calls waiting for result");
-    let reply = server_reply(&mut backend);
+    let reply = server_reply(&mut backend, &mut below);
     assert_eq!(reply["id"], json!(1_u32));
     assert_eq!(reply["result"]["isError"], true);
     assert_eq!(reply["result"]["content"][0]["text"], "smith: this call was not in the model's message");

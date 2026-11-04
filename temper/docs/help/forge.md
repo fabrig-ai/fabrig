@@ -9,7 +9,7 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 - **Its kind:** GitHub or Forgejo.
 - **Its number** is its identity, the next one, given when it is set
   up or connected and never given again: another number is another
-  forge. `temper init` writes no forge, only the places this machine
+  forge. `temper init --box` writes no forge, only the places this machine
   gives a Forgejo temper runs, the playground's fake and GitHub
   (`application.machine`).
 - **Its mode,** as `forge list` prints it:
@@ -97,6 +97,12 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
   `effect_forge`, and hear its news with `subscribe_forge`.
 - **Yourself:** read diffs, reviews, CI runs and logs on the forge,
   at the numbers and links ctl prints (temper help ctl).
+
+A resolver's pull request section keeps its pinned pull request and gathered
+content when the base comparison exceeds the forge client's answer limit.
+It marks the comparison omitted within the section's byte budget and lets the
+resolver run. This also applies to review and repair pull request sections;
+other comparison read failures still fail preparation.
 
 A CI repair's brief carries the failed check and the end of its failed
 step's log, with a marker when bytes were cut. On GitHub the end is the

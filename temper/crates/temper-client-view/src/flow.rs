@@ -9,7 +9,6 @@ pub(crate) enum Control<'a> {
     External { name: &'a [u8], address: &'a [u8] },
     Link { name: &'a [u8], to: Binding },
     SecondaryLink { name: &'a [u8], to: Binding },
-    QuietDisabled { name: &'a [u8] },
     Button { name: &'a [u8], to: Binding },
     PrimaryLink { name: &'a [u8], to: Binding },
     PrimaryButton { name: &'a [u8], to: Binding },
@@ -119,7 +118,7 @@ pub(crate) fn control(b: &mut Builder, action: Control<'_>) {
             look::FLOW_PRIMARY
         }
         Control::SecondaryLink { .. } | Control::Button { .. } | Control::Disabled { .. } => look::FLOW_SECONDARY,
-        Control::External { .. } | Control::Link { .. } | Control::QuietDisabled { .. } => look::FLOW_QUIET,
+        Control::External { .. } | Control::Link { .. } => look::FLOW_QUIET,
     };
     match action {
         Control::External { name, address } => {
@@ -137,7 +136,7 @@ pub(crate) fn control(b: &mut Builder, action: Control<'_>) {
             b.name(name);
             b.bind(to);
         }
-        Control::PrimaryDisabled { name } | Control::Disabled { name } | Control::QuietDisabled { name } => {
+        Control::PrimaryDisabled { name } | Control::Disabled { name } => {
             b.open(Role::Button);
             b.name(name);
             b.state(State::Disabled);

@@ -16,6 +16,7 @@ pub(super) fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            host: b"git.example:3000".as_slice().into(),
             number,
             kind,
             mode,
@@ -94,6 +95,90 @@ fn connect_offers_the_three_kinds() {
         press(&root, Role::Link, b"Forgejo on this machine"),
         d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Owned) } })
     );
+}
+
+fn deployment_root(address: Address, owned: bool) -> d::Domain {
+    let (mut root, me, _, _, _, _) =
+        f::root_at_with_forges(address, &f::domain_limits(), b"Shop", None, None, Some(List::with_capacity(0)));
+    let frame = root.pages().me(root.client()).unwrap().clone();
+    f::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::WatchEnded { watch: me, end: jig_client::contract::WatchEnd::Busy },
+            },
+        },
+    );
+    let mut out = skein_lib::Queue::uncapped();
+    let env = skein_lib::Env { now: d::next_deadline(&root).unwrap(), wall: f::NOW, limits: f::domain_limits() };
+    d::fire(&mut root, &env, &mut out);
+    let mut me = None;
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
+                        },
+                },
+        } = request
+        {
+            me = Some(watch);
+        }
+    }
+    d::step(
+        &mut root,
+        &env,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me.expect("me reopens after a gap"),
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
+                        frame,
+                    ))),
+                },
+            },
+        },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                == &w::Read::Deployment
+        {
+            f::deliver_deployment(&mut root, read, true, owned);
+            return root;
+        }
+    }
+    panic!("deployment read reaches the world");
+}
+#[test]
+fn connect_offers_forgejo_on_this_machine_from_the_deployment() {
+    for owned in [false, true] {
+        let root = deployment_root(Address::ConnectForge { forge: None }, owned);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(f::find(view.tree(), Role::Heading { level: 2 }, b"Forgejo on this machine").is_some(), owned);
+            node(view.tree(), Role::Button, b"Connect GitHub");
+            node(view.tree(), Role::Link, b"Your Forgejo");
+        }
+    }
+}
+#[test]
+fn welcome_offers_run_on_this_machine_from_the_deployment() {
+    for owned in [false, true] {
+        let root = deployment_root(Address::Welcome { step: Step::Forge { forge: None } }, owned);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(f::find(view.tree(), Role::Link, b"Run on this machine").is_some(), owned);
+            node(view.tree(), Role::Button, b"Connect GitHub");
+        }
+    }
 }
 
 #[test]
@@ -336,35 +421,24 @@ fn the_welcomes_ready_names_the_forge_and_the_model() {
         f::forge_root_accounts(Address::Welcome { step: Step::Ready }, rows(connected(), w::Offer::Offered));
     f::welcome_account(&mut root, accounts);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Heading { level: 1 }, b"Almost ready");
-    node(view.tree(), Role::Paragraph, b"Forge: Forgejo on this machine, connected as temper");
+    node(view.tree(), Role::Heading { level: 1 }, b"Ready");
+    node(view.tree(), Role::Paragraph, "Forge Forgejo on this machine · connected as temper".as_bytes());
     let steps = view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_STEP));
     for step in steps {
         assert!(step.styles.as_slice().contains(&crate::look::FLOW_DONE));
         assert!(!step.states.as_slice().contains(&State::Current));
     }
-    let account_view = f::page_view(&{
-        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
-        root
-    });
-    let heading = account_view
-        .tree()
-        .nodes()
-        .iter()
-        .find(|n| n.role == Role::Heading { level: 3 })
-        .unwrap()
-        .name
-        .as_deref()
-        .unwrap();
-    let model = [b"Model: ".as_slice(), heading].concat();
-    node(view.tree(), Role::Paragraph, &model);
+    // The account by its kind and who it is; the model is chosen elsewhere
+    // (choice's tests name each kind).
+    let account = crate::pages::accounts::first_usable_short(&root, &f::words()).unwrap();
+    node(view.tree(), Role::Paragraph, &[b"Model ".as_slice(), &account].concat());
 }
 #[test]
 fn ready_without_a_forge_or_model_offers_the_two_steps() {
     let root = f::welcome_root(Step::Ready, false);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, b"Forge: none yet");
-    node(view.tree(), Role::Slot, b"Model: none yet");
+    node(view.tree(), Role::Paragraph, b"Forge none yet");
+    node(view.tree(), Role::Slot, b"Model none yet");
     node(view.tree(), Role::Link, b"Connect a forge");
     node(view.tree(), Role::Link, b"Connect a model");
 }
@@ -374,7 +448,7 @@ fn the_welcomes_ready_follows_a_forge_under_way() {
     let root =
         f::forge_root(Address::Welcome { step: Step::Ready }, rows(w::Connection::Connecting, w::Offer::Offered));
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "Forge: Forgejo on this machine · Connecting".as_bytes());
+    node(view.tree(), Role::Paragraph, "Forge Forgejo on this machine · Connecting".as_bytes());
     node(view.tree(), Role::Disclosure, b"Each step");
     assert!(f::find(view.tree(), Role::Link, b"Adopt a repository").is_none());
 }
@@ -447,10 +521,10 @@ fn drive(root: &mut d::Domain, event: d::Event) -> skein_lib::Queue<d::Request> 
     d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits }, event, &mut out);
     out
 }
-fn act(root: &mut d::Domain, act: d::forge::Act) -> skein_lib::Queue<d::Request> {
+pub(super) fn act(root: &mut d::Domain, act: d::forge::Act) -> skein_lib::Queue<d::Request> {
     drive(root, d::Event::Act { action: d::Action::Forge(act) })
 }
-fn attempt(mut out: skein_lib::Queue<d::Request>) -> skein_lib::Token {
+pub(super) fn attempt(mut out: skein_lib::Queue<d::Request>) -> skein_lib::Token {
     while let Some(request) = out.pop() {
         if let d::Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
@@ -461,7 +535,7 @@ fn attempt(mut out: skein_lib::Queue<d::Request>) -> skein_lib::Token {
     }
     panic!("request sent")
 }
-fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: w::Outcome) {
+pub(super) fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: w::Outcome) {
     f::root_event(root, answer_event(attempt, outcome));
 }
 fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event {
@@ -499,6 +573,7 @@ pub(super) fn first_rows(connection: w::Connection, state: w::FirstState) -> Lis
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                host: b"git.example:3000".as_slice().into(),
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,

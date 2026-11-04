@@ -5,8 +5,13 @@ use skein_lib::{ReplyTo, Token};
 #[test]
 fn the_forge_declares_its_three_public_kinds() {
     let config = crate::tests::fixtures::engine();
-    let settings =
-        client_settings(&config.jig, &crate::tests::fixtures::seeds(), None, List::uncapped(), List::uncapped(), 0);
+    let seeds = crate::tests::fixtures::seeds();
+    let settings = config::clients::settings(
+        &config.jig,
+        &application(&config.jig, None, List::uncapped()),
+        seeds.crypto.clone(),
+        seeds.seed,
+    );
     let kinds = settings.public.as_slice();
     assert_eq!(kinds.len(), 6);
     let forge = kinds.get(3..).expect("forge kinds after jig");
@@ -17,10 +22,6 @@ fn the_forge_declares_its_three_public_kinds() {
         [(2, 1, 1, 1, true), (2, 2, 1, 1, false), (2, 3, 1, 1, true)]
     );
     assert_eq!(expected.map(|kind| kind.bound), [4927, 198_733, 165_794]);
-}
-#[test]
-fn the_public_names_key_is_kept_under_its_owner() {
-    assert_eq!(place(kit::SecretOwner::PublicNames), (jig_protocol_store::SecretOwner::PublicNames, 0));
 }
 #[test]
 fn a_public_read_and_its_answer_cross_the_root_boundary() {

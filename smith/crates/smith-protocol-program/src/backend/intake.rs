@@ -61,9 +61,9 @@ impl Backend {
         {
             self.intake_due = Some(env.now);
         }
-        if self.current.owner().is_some() && !self.turns.ready.is_empty() {
+        if self.current.owner().is_some() && self.turns.deliverable() {
             self.intake_due = Some(env.now);
         }
-        self.read_stdout();
+        self.read_stdout(below);
     }
 }

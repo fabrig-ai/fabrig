@@ -32,7 +32,7 @@ fn ready() -> (Core, Limits) {
 
 fn prepare(core: &mut Core, limits: &Limits, task: u64) -> Box<[Request]> {
     let context = core.tasks.run_context(task).expect("live task");
-    watch_outputs(core, limits, Event::PreparedAgent { context, transcript_waiter: None, busy: false })
+    watch_outputs(core, limits, Event::Activate { context, ready: true, busy: false })
 }
 
 fn load(out: &[Request]) -> Option<Token> {
@@ -50,17 +50,6 @@ fn activates(out: &[Request]) -> bool {
     for request in out {
         if let Request::Now(now) = request
             && let Now::Activate { .. } = now.as_ref()
-        {
-            return true;
-        }
-    }
-    false
-}
-
-fn prepares(out: &[Request]) -> bool {
-    for request in out {
-        if let Request::Now(now) = request
-            && let Now::PrepareAgent { .. } = now.as_ref()
         {
             return true;
         }
@@ -141,9 +130,7 @@ fn a_later_due_activation_prepares_the_refused_brief_again() {
     let before = core.tasks.task(FIRST).expect("preparing task").clone();
     failed(&mut core, &limits, owner);
     let context = core.take_due().expect("the ready host makes the deferred task eligible");
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
-    assert!(prepares(&out));
-    let out = prepare(&mut core, &limits, FIRST);
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
     let mut owner = load(&out).expect("later preparation issues a fresh load");
     let row = core.tasks.task(FIRST).expect("preparing again");
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Preparing));
@@ -222,22 +209,15 @@ fn preparation_without_a_transcript_reaches_the_brief_inside_the_core() {
 #[test]
 fn preparation_with_a_transcript_requests_one_load_then_reaches_the_brief() {
     let (mut core, limits) = ready();
-    let mut proof = RunProof::claimed(FIRST, 1, 1, None, fleet::HostKind::Worker);
-    proof.window = Some(CurrentWindow { attempt: 1, turn: 1, closed: false });
-    core.proofs.insert(FIRST, proof).unwrap();
-    let mut context = core.tasks.run_context(FIRST).unwrap();
-    context.previous_attempt = 1;
-    let out = watch_outputs(
-        &mut core,
-        &limits,
-        Event::PreparedAgent { context, transcript_waiter: Some(Token::new(FIRST)), busy: false },
-    );
+    previous_window(&mut core, &limits, 0, false);
+    let context = core.tasks.run_context(FIRST).unwrap();
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
     let mut loads = 0_u32;
     for request in out {
         match request {
             Request::Write(_) => {}
             Request::Now(now) => {
-                let Now::StartPreparation { task: FIRST, from: Some((1, 1)), .. } = *now else {
+                let Now::StartPreparation { task: FIRST, from: (1, 1), .. } = *now else {
                     panic!("only the transcript load leaves preparation");
                 };
                 loads += 1;
@@ -274,4 +254,71 @@ fn preparation_with_a_transcript_requests_one_load_then_reaches_the_brief() {
     );
     assert!(load(&out).is_some(), "the load answer reached the brief");
     assert!(core.transcripts.get(&FIRST).unwrap().loaded);
+}
+
+fn previous_window(core: &mut Core, limits: &Limits, transient: u32, closed: bool) {
+    let mut proof = RunProof::claimed(FIRST, 1, 1, None, fleet::HostKind::Worker);
+    proof.window = Some(CurrentWindow { attempt: 1, turn: 1, closed });
+    core.proofs.insert(FIRST, proof).unwrap();
+    let mut row = core.tasks.task(FIRST).unwrap().clone();
+    row.attempt = 1;
+    row.tries.transient = transient;
+    let ledger = *core.tasks.funding(row.funder).unwrap();
+    fixtures::restore(core, limits, Box::new([row]));
+    send_task(core, limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    send_task(core, limits, tasks::Event::Check);
+    send_task(core, limits, tasks::Event::Restored);
+}
+
+fn preparation_loads(out: &[Request]) -> List<(u64, (u64, u32))> {
+    let mut loads = List::with_capacity(TASKS);
+    for request in out {
+        if let Request::Now(now) = request
+            && let Now::StartPreparation { task, from } = now.as_ref()
+        {
+            loads.push((*task, *from)).expect("fixture task count bounds loads");
+        }
+    }
+    loads
+}
+
+#[test]
+fn a_busy_root_keeps_an_agent_with_a_window_to_load_due() {
+    for (transient, closed) in [(0, false), (1, true)] {
+        let (mut core, limits) = ready();
+        previous_window(&mut core, &limits, transient, closed);
+        let context = core.tasks.run_context(FIRST).unwrap();
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: true });
+        assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
+        assert_eq!(core.due.len(), 1);
+        assert_eq!(core.due.iter().next().expect("deferred activation").task, FIRST);
+        assert!(!core.contexts.contains_key(&FIRST));
+        assert!(!core.transcripts.contains_key(&FIRST));
+        assert!(preparation_loads(&out).is_empty());
+        let context = core.take_due().expect("busy activation stays eligible");
+        assert_eq!(context.task, FIRST);
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
+        assert_eq!(preparation_loads(&out).as_slice(), [(FIRST, (1, 1))]);
+        assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+    }
+}
+
+#[test]
+fn a_busy_root_still_prepares_an_agent_with_nothing_to_load() {
+    fn retry() -> (Core, Limits) {
+        let (mut core, limits) = ready();
+        previous_window(&mut core, &limits, 1, false);
+        (core, limits)
+    }
+    for setup in [ready, retry] {
+        let (mut core, limits) = setup();
+        let context = core.tasks.run_context(FIRST).unwrap();
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: true });
+        assert!(preparation_loads(&out).is_empty());
+        assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+        assert!(core.due.is_empty());
+        assert!(core.contexts.contains_key(&FIRST));
+        assert_eq!(core.transcripts.get(&FIRST).unwrap().window, None);
+        assert!(load(&out).is_some(), "no transcript load is needed before the brief");
+    }
 }

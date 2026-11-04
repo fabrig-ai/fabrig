@@ -1437,8 +1437,8 @@ fn a_real_account_added_before_is_ready_in_the_playground() {
             if playground { 2 } else { 1 }
         );
         assert_eq!(
-            crate::pages::accounts::first_usable_heading(&root, &fixtures::words()).unwrap().as_ref(),
-            "ChatGPT · Pat · OpenAI · held by Pat".as_bytes()
+            crate::pages::accounts::first_usable_short(&root, &fixtures::words()).unwrap().as_ref(),
+            "ChatGPT plan · Pat".as_bytes()
         );
     }
 }

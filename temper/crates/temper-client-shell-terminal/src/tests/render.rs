@@ -124,3 +124,87 @@ fn the_first_run_prints_forges_and_the_playground_banner() {
     assert!(text.contains("] Forges\n"));
     assert!(text.contains("Use the wizard to set up temper"));
 }
+
+#[test]
+fn no_project_reads_the_same_in_the_terminal() {
+    use jig_client::contract::{Delivery, Subject, WatchEvent};
+    use skein_lib::{Env, List, Queue, Time};
+    use temper_client_domain::{self as client, Event, Request};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let limits = crate::limits::native().client;
+    let env = Env { now: Time::ZERO, wall: fixtures::NOW, limits };
+    let mut root = client::unlinked(&limits, 16);
+    let mut out = Queue::uncapped();
+    for event in [
+        Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
+        Event::Start {
+            address: client::Address::Chats { filter: client::ChatsFilter::All, start: false },
+            kept: List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+    ] {
+        client::step(&mut root, &env, event, &mut out);
+    }
+    while let Some(request) = out.pop() {
+        let up = match request {
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
+                    },
+            } => {
+                let mut me = jig_client_world::stories::frame(1);
+                me.projects.clear();
+                Some(jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(me))) })
+            }
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } if wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read()
+                == &w::Read::Deployment =>
+            {
+                let answer =
+                    w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome: false, owned: false })
+                        .expect("deployment answer");
+                Some(jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::deployment_answer(&answer)),
+                    },
+                })
+            }
+            Request::Client { .. }
+            | Request::Unlinked { .. }
+            | Request::Show { .. }
+            | Request::Leave { .. }
+            | Request::SignOut
+            | Request::Dropped { .. }
+            | Request::Fact { .. } => None,
+        };
+        if let Some(up) = up {
+            client::step(&mut root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
+        }
+    }
+    let mut view = temper_client_view::View::new(
+        &temper_client_view::Limits { tree: fixtures::tree_limits() },
+        &limits,
+        fixtures::page_words(),
+        wire::FORGE,
+    );
+    temper_client_view::build(
+        &mut view,
+        &root,
+        fixtures::NOW,
+        &mut Queue::with_capacity(fixtures::tree_limits().patches),
+    );
+    let print = fixtures::print(view.tree());
+    let text = String::from_utf8_lossy(print.text.as_slice());
+    assert_eq!(text.lines().next(), Some("== No project yet == Live"));
+    assert!(text.lines().any(|line| line == "Make one from the project switcher."), "{text}");
+    assert!(!text.contains("Set up temper"), "{text}");
+    assert!(!text.contains("Try the playground"), "{text}");
+}

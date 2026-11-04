@@ -214,7 +214,7 @@ fn validate_hosted(configuration: &config::Configuration, resources: &Resources)
     {
         return Err(format!("the trace at {} is not supplied by the host", trace.path.display()));
     }
-    if resources.programs.is_some() || !configuration.programs.is_empty() || configuration.service.program.is_some() {
+    if resources.programs.is_some() || configuration.program.is_some() || configuration.service.program.is_some() {
         return Err("program claude_code requires a native shell".into());
     }
     Ok(())
@@ -273,7 +273,7 @@ fn extra_operations(configuration: &config::Configuration, resources: &Resources
         .and_then(|count| {
             // An unbound program leaves one inherited root for the shell to close.
             count.checked_add(u32::from(
-                configuration.endpoint_programs.is_empty()
+                configuration.program_endpoints.is_empty()
                     && resources.programs.as_ref().and_then(|programs| programs.directory).is_some(),
             ))
         })
@@ -351,6 +351,9 @@ impl Host for Agent {
             self.started = true;
             diagnostic(self.errors.as_mut(), "commands run in process groups and are not contained");
             diagnostic(self.errors.as_mut(), "agent started");
+        }
+        while let Some((owner, fault)) = self.service.pop_program_diagnostic() {
+            diagnostic(self.errors.as_mut(), &program_diagnostic_line(owner, fault));
         }
         if self.result.is_some() && !self.reported {
             self.reported = true;
@@ -497,6 +500,22 @@ pub fn given_up_line(given_up: smith_protocol_events::GivenUp) -> String {
     format!("event destination {name} was given up: {why}; later records count as lost")
 }
 
+fn program_diagnostic_line(owner: Token, fault: smith_domain::run::Fault) -> String {
+    let smith_domain::run::Fault::Program { name, exit, detail } = fault else {
+        unreachable!("the operator program drain retains only program faults")
+    };
+    let exit = match exit {
+        Some(exit) => exit.to_string(),
+        None => String::from("unknown"),
+    };
+    format!(
+        "program {} owner={} exit={exit}: {}",
+        String::from_utf8_lossy(&name).escape_debug(),
+        owner.raw(),
+        String::from_utf8_lossy(&detail).escape_debug(),
+    )
+}
+
 fn diagnostic(errors: &mut dyn Write, line: &str) {
     // Diagnostics are best effort, as trace records are; a broken operator
     // output cannot prevent the channel's answer or its lower settlement.
@@ -517,7 +536,7 @@ pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
     let seed = skein_shell::seed()
         .map_err(|errno| format!("kernel seed failed (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
-    let programs = match configuration.programs.get(&config::ProgramName::ClaudeCode) {
+    let programs = match configuration.program.as_ref() {
         Some(program) => Some(open_program(program, errors.as_mut())?),
         None => None,
     };
@@ -572,6 +591,19 @@ pub fn identity() -> smith_events::Agent {
 mod tests {
     use super::given_up_line;
     use smith_protocol_events::{Destination, GivenUp, Why};
+
+    #[test]
+    fn program_lines_keep_correlation_and_escape_operator_detail() {
+        for (exit, word) in [(Some(73), "73"), (None, "unknown")] {
+            let fault = smith_domain::run::Fault::Program {
+                name: b"claude_code".as_slice().into(),
+                exit,
+                detail: b"first\nlast stderr\x1b[31m\xff".as_slice().into(),
+            };
+            let line = super::program_diagnostic_line(skein_lib::Token::new(19), fault);
+            assert_eq!(line, format!("program claude_code owner=19 exit={word}: first\\nlast stderr\\u{{1b}}[31m�"));
+        }
+    }
 
     #[test]
     fn the_given_up_line_names_the_destination_and_why() {

@@ -228,7 +228,7 @@ fn a_window_read_reaches_the_root_as_transcript_pages() {
     let outputs = fixtures::routed(
         &mut component,
         &mut routes,
-        StoreOut::Now(core::Now::StartPreparation { task: 21, transcript_waiter: None, from: Some((1, 1)) }),
+        StoreOut::Now(core::Now::StartPreparation { task: 21, from: (1, 1) }),
     );
     let mut expected_turn = 1_u32;
     let mut pages = 0_u32;

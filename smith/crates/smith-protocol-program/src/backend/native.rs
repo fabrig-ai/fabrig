@@ -35,6 +35,7 @@ impl Backend {
         input: &[u8],
         call: mcp::CallId,
         updated_input: Box<[u8]>,
+        below: &mut Queue<Below>,
     ) {
         let place = policy::place(input, &self.mounts, self.settings.path_bytes);
         if let Some(place) = place {
@@ -55,7 +56,7 @@ impl Backend {
         self.startup.server_mut().expect("permission server").verdict(
             call,
             mcp::Verdict::Allow { updated_input },
-            &mut self.io,
+            below,
         );
     }
 
@@ -89,7 +90,7 @@ impl Backend {
                     owner,
                     root: snapshot.place.root,
                     path: path.into(),
-                    max: self.settings.adapter.stated.file_bytes,
+                    max: self.settings.translation.stated.file_bytes,
                     no_follow: false,
                 },
                 deadline: snapshot.deadline,
@@ -97,7 +98,7 @@ impl Backend {
         }
     }
 
-    pub(super) fn native_event(&mut self, event: file::Event, up: &mut Queue<ToDomain>) {
+    pub(super) fn native_event(&mut self, event: file::Event, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
         let snapshot = self.native.take().expect("one native file terminal");
         if snapshot.cancelled || self.startup.phase() == State::Ending || self.stopping.waiting() {
             return;
@@ -133,12 +134,12 @@ impl Backend {
             After::Allow { call, input } => self.startup.server_mut().expect("snapshot permission server").verdict(
                 call,
                 mcp::Verdict::Allow { updated_input: input },
-                &mut self.io,
+                below,
             ),
             After::Result(result) => up.push(result),
         }
         self.flush_builtins(up);
-        self.match_calls();
+        self.match_calls(below);
     }
 }
 

@@ -66,12 +66,40 @@ enum Part {
     Named { role: Role, name: &'static str },
     Described { role: Role, name: &'static str, description: &'static str },
     Absent { role: Role, name: &'static str },
+    NoRole { role: Role },
     Value { role: Role, name: &'static str, value: &'static str },
     Chats { live: u32, closed: u32 },
     Plan { live: u32, title: &'static str },
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "welcome-model-forge-under-way",
+        heading: "Connect a model",
+        parts: &[
+            Part::Named { role: Role::Progress, name: "Setting up: preparing" },
+            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-forge-done",
+        heading: "Connect a model",
+        parts: &[
+            Part::NoRole { role: Role::Progress },
+            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Absent { role: Role::Disclosure, name: "Each step" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-forge-failed",
+        heading: "Connect a model",
+        parts: &[
+            Part::NoRole { role: Role::Progress },
+            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+        ],
+    },
     Holds {
         name: "playground-resetting", heading: "Chats", parts: &[Part::Text { text: "Leaving the playground…" }]
     },
@@ -240,27 +268,29 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-forge-choose",
         heading: "Connect a forge",
         parts: &[
-            Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Region, name: "Forgejo" },
-            Part::Named { role: Role::Button, name: "Run on this machine" },
-            Part::Named { role: Role::Link, name: "Or connect your deployment" },
+            Part::Named { role: Role::Link, name: "Run on this machine" },
+            Part::Named { role: Role::Region, name: "GitHub" },
+            Part::Named { role: Role::Button, name: "Connect GitHub" },
         ],
     },
     Holds {
         name: "welcome-forge-details",
         heading: "Connect a forge",
         parts: &[
-            Part::Named { role: Role::Button, name: "Set up a Forgejo here" },
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "An empty repository" },
             Part::Named { role: Role::TextField, name: "Organization" },
-            Part::Named { role: Role::TextField, name: "Repository" },
+            Part::Named { role: Role::TextField, name: "Name" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
         ],
     },
     Holds {
         name: "welcome-model-choose",
         heading: "Connect a model",
         parts: &[
+            Part::Named { role: Role::Paragraph, name: "Sign in, in this tab · about a minute" },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
-            Part::Named { role: Role::Link, name: "Use an OpenAI API key" },
         ],
     },
     Holds {
@@ -284,19 +314,28 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-ready-under-way",
         heading: "Almost ready",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Your first project can be created once your forge and model are ready.",
+            },
             Part::Named { role: Role::Disclosure, name: "Each step" },
-            Part::Named { role: Role::Paragraph, name: "Project: Default" },
-            Part::Named { role: Role::Button, name: "Open Default" },
-            Part::Named { role: Role::Paragraph, name: "It opens once your forge and model are ready." },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Button, name: "Create your project" },
+            Part::Named { role: Role::Paragraph, name: "Rename it whenever you like." },
         ],
     },
     Holds {
         name: "welcome-ready-adopted",
-        heading: "Almost ready",
+        heading: "Ready",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "Forge: Forgejo on this machine, connected as temper" },
-            Part::Named { role: Role::Paragraph, name: "Project: Default" },
-            Part::Named { role: Role::Button, name: "Open Default" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Everything is connected. Create your first project and start working.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Button, name: "Create your project" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
         ],
     },
@@ -726,6 +765,7 @@ fn plan_with_ended(tree: &skein_ui::Tree, live: u32, ended: u32, before: &str, a
     assert!(before < after, "{sample}: lower-numbered ended row before live row");
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
 fn each_state_holds_what_its_name_says() {
     for sample in samples::samples() {
         let mut row = None;
@@ -762,6 +802,9 @@ fn each_state_holds_what_its_name_says() {
                         "{}: absent {role:?} {name:?}",
                         sample.name
                     );
+                }
+                Part::NoRole { role } => {
+                    assert!(!tree.nodes().iter().any(|node| node.role == *role), "{}: absent {role:?}", sample.name);
                 }
                 Part::Value { role, name, value } => {
                     let node = find(tree, *role, name, sample.name);
@@ -995,8 +1038,8 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
 fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     use temper_client_view::look;
     for (name, expected) in [
-        ("welcome-forge-choose", vec!["Connect GitHub"]),
-        ("welcome-forge-details", vec!["Set up a Forgejo here"]),
+        ("welcome-forge-choose", vec!["Run on this machine"]),
+        ("welcome-forge-details", vec!["Run on this machine", "Run on this machine"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
         ("github-app-details", vec!["GitHub"]),
         ("github-install", vec!["Install on GitHub"]),
@@ -1016,7 +1059,11 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         assert_eq!(primary, expected, "{name}");
         if name == "welcome-forge-details" {
             assert_eq!(
-                view.tree().nodes().iter().filter(|node| node.styles.as_slice().contains(&look::FLOW_PAIR)).count(),
+                view.tree()
+                    .nodes()
+                    .iter()
+                    .filter(|node| node.styles.as_slice().contains(&look::WELCOME_OPTION_MORE))
+                    .count(),
                 1
             );
         }

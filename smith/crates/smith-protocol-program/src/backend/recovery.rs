@@ -36,7 +36,8 @@ pub(super) fn restartable(failure: llm::Failure) -> bool {
 impl Backend {
     pub(super) fn resume_input(&mut self) -> Option<()> {
         // A retry of an already recorded invocation has consumed this tail.
-        // Only a newly restored window needs the parked-wait explanation.
+        // A newly restored window needs its current activation context and
+        // the parked-wait explanation.
         let restored = self.startup.recorded().is_none() || self.startup.recorded() != self.startup.running_session();
         let Complete { prompt, observation, .. } = self.current.request_mut()?;
         let capture = observation.is_some();
@@ -45,14 +46,25 @@ impl Backend {
         } else {
             b"".as_slice()
         };
-        let rendered = tail::render_observed(
-            prompt,
-            &self.ledger,
-            &self.settings.adapter,
-            self.settings.input_bytes,
-            prefix,
-            capture,
-        )?;
+        let rendered = if restored {
+            tail::render_activation(
+                prompt,
+                &self.ledger,
+                &self.settings.translation,
+                self.settings.input_bytes,
+                prefix,
+                capture,
+            )
+        } else {
+            tail::render_observed(
+                prompt,
+                &self.ledger,
+                &self.settings.translation,
+                self.settings.input_bytes,
+                prefix,
+                capture,
+            )
+        }?;
         self.outgoing = Some(rendered.line);
         if let Some(text) = rendered.text {
             self.prompt_text_measure(skein_lib::Time::ZERO, text);

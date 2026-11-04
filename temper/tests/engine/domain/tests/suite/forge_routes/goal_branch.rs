@@ -423,3 +423,379 @@ fn a_change_by_the_goal_into_its_own_branch_lands_there_taking_its_writer_slot()
     assert_eq!(branch_tip(&mut world, b"main"), main);
     world.close();
 }
+
+fn seeded_goal() -> (World, engine::Assignment, Box<[u8]>) {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits {
+            slots: Some(3),
+            result_bytes: Some(tasks::HOLD_ACCOUNT_BYTES),
+            stall: Some(Duration::from_secs(300)),
+            ..StoryLimits::default()
+        },
+    )
+    .with_goal_question_capacity(12, 4096);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 3, Box::new([])));
+    let request = goal_request(&world, true);
+    let goal = assigned_chat(&mut world, GOAL_REQUEST, request);
+    let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
+    world.until(Until::Ready);
+    let engine::CallAnswer::Delegated(warmup) = change_tool::change_landing(
+        &mut world,
+        &goal,
+        CHANGE_CALL,
+        None,
+        b"Seed fix",
+        Some(engine::ChangeLanding::Goal),
+    ) else {
+        panic!("seed change admitted")
+    };
+    let seed = super::reviews::next_assignment(&mut world, 1);
+    let seed_branch = super::goal_landing::row(&world, warmup[0].task).branch.clone();
+    change_tool::land_change(&mut world, &seed, &seed_branch);
+    world.until(Until::Ready);
+    world.scripted_read_inbox(&goal);
+    (world, goal, branch)
+}
+
+fn merging_siblings() -> (World, engine::Assignment, Box<[u8]>, u64) {
+    let (mut world, goal, branch) = seeded_goal();
+    let first_answer = change_tool::change_landing(
+        &mut world,
+        &goal,
+        CHANGE_CALL + 1,
+        None,
+        b"First fix",
+        Some(engine::ChangeLanding::Goal),
+    );
+    let engine::CallAnswer::Delegated(first) = first_answer else { panic!("first change admitted: {first_answer:?}") };
+    let producer = super::reviews::next_assignment(&mut world, 2);
+    let engine::CallAnswer::Delegated(second) = change_tool::change_landing(
+        &mut world,
+        &goal,
+        CHANGE_CALL + 2,
+        None,
+        b"Sibling fix",
+        Some(engine::ChangeLanding::Goal),
+    ) else {
+        panic!("sibling admitted")
+    };
+    let sibling = super::reviews::next_assignment(&mut world, 3);
+    assert_ne!(producer.task, sibling.task);
+    let first_branch = super::goal_landing::row(&world, first[0].task).branch.clone();
+    world.merges = 0;
+    world.hold_write_answers = Some(HoldWrite::Merge);
+    change_tool::land_change(&mut world, &producer, &first_branch);
+    for _ in 0..STEPS {
+        if !world.held_write_answers.is_empty() {
+            break;
+        }
+        world.tick();
+    }
+    assert_eq!(world.held_write_answers.len(), 1, "fake forge applied the merge");
+    (world, goal, branch, second[0].task)
+}
+
+fn hint_goal_branch(world: &mut World, branch: &[u8]) {
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(branch.into()),
+            key: None,
+        },
+    })));
+}
+
+fn observe_goal_branch(world: &mut World, branch: &[u8]) {
+    hint_goal_branch(world, branch);
+    for _ in 0..200 {
+        world.tick();
+    }
+}
+
+/// Delay a keep observation without reserving a procedure's fresh-read chain.
+pub(super) fn start_slow_keep_read(world: &mut World, branch: &[u8]) -> Token {
+    for _ in 0..STEPS {
+        world.tick();
+        let deciding = world.store.rows.values().any(|record| {
+            matches!(record,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+                if matches!(row.executor, tasks::Executor::Procedure { .. })
+                && matches!(row.phase, tasks::Phase::Active(tasks::Active::Due)))
+        });
+        if !deciding
+            && world.root.quiescent()
+            && world.events.is_empty()
+            && world.store.pending.is_empty()
+            && world.pending.is_empty()
+        {
+            break;
+        }
+    }
+    assert!(world.pending.is_empty(), "prior forge reads settle before delaying keep");
+    world.slow_branch = Some(branch.into());
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Client(skein_forge_client::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(branch.into()),
+            key: None,
+        },
+    }))));
+    for _ in 0..STEPS {
+        if let Some(call) = world.pending.iter().find_map(|(call, op)| match op {
+            skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: read }) if read.as_ref() == branch => {
+                Some(*call)
+            }
+            _ => None,
+        }) {
+            world.slow_branch = None;
+            return call;
+        }
+        world.tick();
+    }
+    panic!("the keep read must start before the merge")
+}
+
+#[test]
+fn a_merge_into_the_goal_branch_observed_before_its_answer_is_not_drift() {
+    let (mut world, goal, branch, sibling) = merging_siblings();
+    let main = branch_tip(&mut world, b"main");
+    assert_ne!(branch_tip(&mut world, &branch), main);
+    observe_goal_branch(&mut world, &branch);
+    assert!(
+        !matches!(live_task(&world, goal.task).phase, tasks::Phase::Held { .. }),
+        "own merge must not hold the goal: {:?}",
+        live_task(&world, goal.task).phase
+    );
+    assert!(
+        !matches!(live_task(&world, sibling).phase, tasks::Phase::Held { .. }),
+        "sibling: {:?}",
+        live_task(&world, sibling).phase
+    );
+    assert!(forge_hold(&world, &branch).expect("goal branch hold").drift.is_none());
+    world.release_write_answers();
+    world.until(Until::Ready);
+    assert_eq!(writer(&world, &branch), None, "confirmed merge frees its writer");
+    assert_eq!(branch_tip(&mut world, b"main"), main);
+    finish_siblings(&mut world, &goal);
+}
+
+fn finish_current_task(world: &mut World, task: u64, result: &tasks::TaskResult) {
+    let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
+    let mut answered = None;
+    for _ in 0..STEPS {
+        world.tick();
+        if world.store.rows.contains_key(&ended) {
+            return;
+        }
+        if let Some(run) = world.assigned.iter().rev().find(|run| run.task == task)
+            && answered != Some(run.attempt)
+        {
+            let attempt = run.attempt;
+            let event = world.protocol.answer(
+                Token::new(7),
+                task,
+                attempt,
+                9,
+                tasks::End::Finished { result: result.clone(), cancel_delegates: false },
+                engine::Parts::none(),
+            );
+            world.send(event);
+            answered = Some(attempt);
+        }
+    }
+    panic!("task {task} did not finish: {:?}", live_task(world, task).phase)
+}
+
+fn finish_siblings(world: &mut World, goal: &engine::Assignment) {
+    let sibling = world.assigned.iter().rev().find(|run| run.task != goal.task).expect("sibling producer").task;
+    finish_current_task(world, sibling, &tasks::TaskResult::NoChange { words: b"No further change".as_slice().into() });
+    finish_current_task(world, goal.task, &tasks::TaskResult::Report { words: b"Done".as_slice().into() });
+    world.until(Until::Ready);
+    world.close();
+}
+
+#[test]
+fn a_merge_answer_before_the_goal_branch_observation_is_not_drift() {
+    let (mut world, goal, branch, sibling) = merging_siblings();
+    let main = branch_tip(&mut world, b"main");
+    world.release_write_answers();
+    world.until(Until::Ready);
+    observe_goal_branch(&mut world, &branch);
+    assert!(!matches!(live_task(&world, goal.task).phase, tasks::Phase::Held { .. }));
+    assert!(!matches!(live_task(&world, sibling).phase, tasks::Phase::Held { .. }));
+    assert!(forge_hold(&world, &branch).expect("goal branch hold").drift.is_none());
+    assert_eq!(writer(&world, &branch), None);
+    assert_eq!(branch_tip(&mut world, b"main"), main);
+    finish_siblings(&mut world, &goal);
+}
+
+#[derive(Clone, Copy)]
+enum BranchMove {
+    Outside,
+    Backwards,
+    Deleted,
+    Unowned,
+}
+
+fn goal_drift(movement: BranchMove) {
+    let (mut world, goal, branch, _) = merging_siblings();
+    if matches!(movement, BranchMove::Unowned) {
+        world.release_write_answers();
+        world.until(Until::Ready);
+    }
+    observe_goal_branch(&mut world, &branch);
+    let expected = branch_tip(&mut world, &branch);
+    let observed = match movement {
+        BranchMove::Outside | BranchMove::Unowned => Some(
+            fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"outside", b"moved", 2)
+                .expect("outside push"),
+        ),
+        BranchMove::Backwards | BranchMove::Deleted => {
+            world.external(1, raw::Op::Write(raw::Write::DeleteBranch { branch: branch.clone() }));
+            if matches!(movement, BranchMove::Backwards) {
+                world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+                Some(1)
+            } else {
+                None
+            }
+        }
+    };
+    if matches!(movement, BranchMove::Outside) {
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: forge_world::REPO,
+                key: None,
+                change: skein_forge::api::Change::BranchMoved {
+                    branch: branch.clone(),
+                    head: translate::commit(observed.expect("outside push has a head")),
+                    actor: 2,
+                },
+            },
+        })));
+    }
+    observe_goal_branch(&mut world, &branch);
+    assert_drift_account(&world, goal.task, &branch, expected, observed);
+    settle_drift(&mut world, &goal, movement);
+}
+
+fn settle_drift(world: &mut World, goal: &engine::Assignment, movement: BranchMove) {
+    world.release_write_answers();
+    world.until(Until::Ready);
+    world.signed_in = None;
+    world.sign_in();
+    let revision = live_task(world, goal.task).revisions.hold;
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(101)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [101; 16],
+        ask: if matches!(movement, BranchMove::Deleted) {
+            people::Ask::Cancel {
+                project: 1,
+                task: goal.task,
+                reason: b"Keep the deletion".as_slice().into(),
+                grace: None,
+            }
+        } else {
+            people::Ask::Release { project: 1, task: goal.task, revision, again: None }
+        },
+    }));
+    world.until(Until::Ready);
+    assert!(
+        !matches!(live_task(world, goal.task).phase, tasks::Phase::Held { .. }),
+        "release: {:?}",
+        world.web_replies
+    );
+    finish_siblings(world, goal);
+}
+
+fn assert_drift_account(world: &World, goal: u64, branch: &[u8], expected: u64, observed: Option<u64>) {
+    let drift = forge_hold(world, branch).expect("goal branch hold").drift.as_ref().expect("outside move retained");
+    assert_eq!(
+        drift.change,
+        forge_top::DriftChange::Branch {
+            expected: translate::commit(expected),
+            observed: observed.map(translate::commit),
+        }
+    );
+    let tasks::Phase::Held { why: tasks::Hold::Drift, source: Some(source), .. } = &live_task(world, goal).phase else {
+        panic!("goal retains drift account")
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("forge account") };
+    let words = std::str::from_utf8(words).expect("hold text");
+    assert!(words.contains(std::str::from_utf8(branch).expect("branch text")) && words.contains("org/repo"), "{words}");
+    assert!(words.contains(&format!("at {} ns since Unix epoch", drift.at.as_nanos())), "{words}");
+    assert!(
+        words.contains(std::str::from_utf8(&engine::commit_text(&translate::commit(expected))).expect("head text")),
+        "{words}"
+    );
+    let moved = observed.map_or_else(
+        || "deletion".into(),
+        |head| String::from_utf8(engine::commit_text(&translate::commit(head)).into()).expect("head text"),
+    );
+    assert!(words.contains(&format!("observed {moved}")), "{words}");
+}
+
+#[test]
+fn an_outside_push_during_a_goal_merge_names_the_resource_and_move() {
+    goal_drift(BranchMove::Outside);
+}
+
+#[test]
+fn a_backward_move_during_a_goal_merge_names_the_resource_and_move() {
+    goal_drift(BranchMove::Backwards);
+}
+
+#[test]
+fn a_deletion_during_a_goal_merge_names_the_resource_and_move() {
+    goal_drift(BranchMove::Deleted);
+}
+
+#[test]
+fn a_forward_move_without_a_goal_writer_names_the_resource_and_move() {
+    goal_drift(BranchMove::Unowned);
+}
+
+fn delayed_goal_comparison(world: &mut World, branch: &[u8]) -> engine::Event {
+    let head = translate::commit(branch_tip(world, branch));
+    hint_goal_branch(world, branch);
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some(index) = world.events.iter().position(|event| {
+            matches!(event,
+            engine::Event::Forge(event) if matches!(event.as_ref(), forge_top::Event::Client(
+                skein_forge_client::Event::Answered { result: Ok(skein_forge::api::Answer::Compare { after, .. }), .. }
+            ) if *after == head))
+        }) {
+            return world.events.remove(index).expect("selected comparison");
+        }
+    }
+    panic!("the keep compares the observed merge before its confirmation")
+}
+
+#[test]
+fn a_goal_merge_confirmed_while_its_observation_is_being_compared_is_not_drift() {
+    let (mut world, goal, branch, sibling) = merging_siblings();
+    let comparison = delayed_goal_comparison(&mut world, &branch);
+    world.release_write_answers();
+    for _ in 0..STEPS {
+        world.tick();
+        if writer(&world, &branch).is_none() {
+            break;
+        }
+    }
+    assert_eq!(writer(&world, &branch), None);
+    world.send(comparison);
+    observe_goal_branch(&mut world, &branch);
+    assert!(!matches!(live_task(&world, goal.task).phase, tasks::Phase::Held { .. }));
+    assert!(!matches!(live_task(&world, sibling).phase, tasks::Phase::Held { .. }));
+    assert!(forge_hold(&world, &branch).expect("goal branch hold").drift.is_none());
+    finish_siblings(&mut world, &goal);
+}

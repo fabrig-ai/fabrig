@@ -126,10 +126,10 @@ fn fixed_own_measurement_is_checked_and_real_declared_models_leave_room() {
     let declarations = declarations(65_536, 512);
     let limits = crate::profile::derive(&profile, &declarations).expect("declared profile");
     let tools = limits.domain.session.tools;
-    let own = super::own_part(&tools, limits.llm.adapter.client.input, 0).expect("fixed own measurement");
+    let own = super::own_part(&tools, limits.llm.translation.client.input, 0).expect("fixed own measurement");
     assert!(own > smith_domain::run::fixed_prompt_bytes().expect("fixed text"));
     assert!(room(&profile, &declarations, own, 0).expect("real model fits measured own").host > 0);
-    assert_eq!(super::own_part(&tools, limits.llm.adapter.client.input, u64::MAX), None);
+    assert_eq!(super::own_part(&tools, limits.llm.translation.client.input, u64::MAX), None);
 }
 
 #[test]

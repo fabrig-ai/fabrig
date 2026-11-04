@@ -7,6 +7,7 @@ use crate::{
         forges::{self, State as Forges},
     },
 };
+use alloc::boxed::Box;
 use jig_client::{Latest, State};
 #[derive(Debug)]
 pub struct Welcome {
@@ -24,9 +25,10 @@ pub enum FirstRun {
     Unfinished { step: crate::Step },
     Whole,
 }
-/// None while the session's playground, forge or account facts are missing.
+/// None while the session's deployment, playground, forge or account facts are missing.
 #[must_use]
 pub fn decision(root: &Domain) -> Option<FirstRun> {
+    root.forge().deployment()?;
     let me = accounts::current_me(root.client())?;
     if !root.forge().playground_answered() {
         return None;
@@ -73,19 +75,33 @@ pub fn forge_connected(row: &forges::Row) -> bool {
     };
     row.mode != forges::Mode::Fake && connected && (row.kind != forges::Kind::GitHub || forges::accepted(row))
 }
-/// Ready's request and last ending survive navigation (3.5).
+/// Ready's first project: its name as written, "Default" until the
+/// person writes another, its request and its last ending, which survive
+/// navigation (3.5).
 #[derive(Debug)]
 pub struct DefaultProject {
+    pub name: Box<[u8]>,
+    /// Create was pressed with no name written.
+    pub unnamed: bool,
     pub making: Option<jig_client::Key>,
     pub attempt: u64,
     pub ended: Option<Ended>,
     pub project: Option<u32>,
 }
 impl DefaultProject {
-    pub(crate) const fn new() -> Self {
-        Self { making: None, attempt: 0, ended: None, project: None }
+    pub(crate) fn new() -> Self {
+        Self { name: DEFAULT_NAME.into(), unnamed: false, making: None, attempt: 0, ended: None, project: None }
+    }
+    /// The name as written, without its outer blanks: what Create asks for.
+    #[must_use]
+    pub fn asked(&self) -> &[u8] {
+        self.name.trim_ascii()
     }
 }
+/// The first project's name until the person writes another (3.5).
+pub const DEFAULT_NAME: &[u8] = b"Default";
+/// jig's project name bound (jig-domain-people's `NAME_BYTES`).
+pub(crate) const NAME_BYTES: u32 = 64;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Ended {
     Refused(jig_client::contract::Refusal),
@@ -94,6 +110,9 @@ pub enum Ended {
 /// A real account alone keeps the playground offered (3.5).
 #[must_use]
 pub fn playground_offered(root: &Domain) -> Option<bool> {
+    if !root.forge().deployment()?.welcome {
+        return Some(false);
+    }
     if !root.forge().playground_answered() {
         return None;
     }

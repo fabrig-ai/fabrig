@@ -87,7 +87,7 @@ pub const CHAT: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Each page is older than the one before it. A run still writing\nadds its words so far.\n",
+    notes: b"Each page is older than the one before it. A run still writing\nadds its words so far.\nTool inputs, outcomes and result summaries are read with task turn TASK TURN;\nthey consume no conversation words budget. JSON leaves those payload fields null.\n",
 };
 pub const ACTIVITY: Tool = Tool {
     name: b"task activity",
@@ -647,7 +647,7 @@ pub const REVISION: Tool = Tool {
     )]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"A forgotten revision prints `revision R is forgotten; the oldest\nkept is revision O`, with exit 0. An item too large to print names\nthe settings show call that reads it.\n",
+    notes: b"A forgotten revision prints `revision R is forgotten; the oldest\nkept is revision O`, with exit 0. An item too large to print names\nthe settings show call that reads it. For a landing rule or forge\ncharter this call includes --revision REVISION and reads the value\nthat revision set, including after later accepted changes. Text and\n--json print the whole historical value when it fits.\n",
 };
 pub const REVISIONS: Tool = Tool {
     name: b"revision list",
@@ -856,15 +856,15 @@ pub const TASK_TEXT_AT: u8 = 61;
 /// Retrieve stored task words without the overview's text truncation.
 pub const TASK_TEXT: Tool = Tool {
     name: b"task text",
-    line: b"Read a chunk of a task's specification or effective instructions",
+    line: b"Read a chunk of a task's specification, effective instructions or kept report",
     prints: b"The source words, byte offsets and total size; then a continuation call or `no more`",
     result: b"task-text",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
         flag(
             b"field",
-            b"specification|instructions",
-            Kind::Word { set: &[b"specification", b"instructions"] },
+            b"specification|instructions|result",
+            Kind::Word { set: &[b"specification", b"instructions", b"result"] },
             Optional,
             b"Which source to read; specification when absent",
         ),
@@ -878,7 +878,7 @@ pub const TASK_TEXT: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision.\n",
+    notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision. Result reads the kept terminal\nreport; unavailable reports are unknown.\n",
 };
 
 /// The goal creation tool's durable position.

@@ -15,7 +15,10 @@ fn concrete_turns_resume_verbatim_without_local_tickets() {
     let prompt = &resumed.prompts[0];
     assert_eq!(prompt.endpoint, llm::Endpoint(7));
     assert_eq!(prompt.messages[1].content[0], llm::Block::Opaque { bytes: recorded::OPAQUE.into() });
-    assert!(matches!(prompt.messages[1].content[1], llm::Block::ToolCall { call: llm::Decoded::Historical, .. }));
+    assert!(matches!(
+        prompt.messages[1].content[1],
+        llm::Block::ToolCall(llm::ToolCall { call: llm::Decoded::Historical, .. })
+    ));
     assert_eq!(prompt.messages[2].content[0], old.turns[0].messages[2].content[0]);
     assert_eq!(
         prompt.messages.last().expect("the scenario supplied a value").content[0],
@@ -97,7 +100,7 @@ fn refusal_cases() -> Vec<RefusalCase> {
 }
 
 fn historical_call(history: &mut record::Transcript, decoded: llm::Decoded) {
-    let llm::Block::ToolCall { call, .. } = &mut history.turns[0].messages[1].content[1] else {
+    let llm::Block::ToolCall(llm::ToolCall { call, .. }) = &mut history.turns[0].messages[1].content[1] else {
         panic!("the saved scenario contains the provider call");
     };
     *call = decoded;
@@ -261,7 +264,9 @@ fn committed_call_results_after_a_yield_are_restored_without_tickets() {
         .expect("saved assistant")
         .content
         .iter()
-        .position(|block| matches!(block, llm::Block::ToolCall { id, .. } if id.as_ref() == b"provider-call"))
+        .position(
+            |block| matches!(block, llm::Block::ToolCall(llm::ToolCall { id, .. }) if id.as_ref() == b"provider-call"),
+        )
         .expect("saved call");
     let sequence = tail.sequence;
     let mut opened = opening(Some(history), 100);
@@ -333,7 +338,7 @@ fn closing_a_resting_batch_keeps_its_result_and_marks_only_unstarted_calls() {
     let mut blocks = recorded::called().into_vec();
     blocks.insert(
         0,
-        llm::Block::ToolCall {
+        llm::Block::ToolCall(llm::ToolCall {
             id: bytes(b"denied-read"),
             name: bytes(b"read"),
             input: br#"{"path":"."}"#.as_slice().into(),
@@ -345,7 +350,7 @@ fn closing_a_resting_batch_keeps_its_result_and_marks_only_unstarted_calls() {
                 },
             },
             replay: None,
-        },
+        }),
     );
     world.complete(blocks.into(), llm::Stop::ToolUse, recorded::USAGE);
     world.domain.reclaim();
@@ -409,7 +414,7 @@ fn owned_io_cancellation_keeps_terminal_results_in_the_turn() {
         world.complete(
             Box::new([
                 llm::Block::Opaque { bytes: recorded::OPAQUE.into() },
-                llm::Block::ToolCall {
+                llm::Block::ToolCall(llm::ToolCall {
                     id: bytes(b"owned-read"),
                     name: bytes(b"read"),
                     input: br#"{"path":"data"}"#.as_slice().into(),
@@ -424,7 +429,7 @@ fn owned_io_cancellation_keeps_terminal_results_in_the_turn() {
                         },
                     },
                     replay: None,
-                },
+                }),
             ]),
             llm::Stop::ToolUse,
             recorded::USAGE,
@@ -522,12 +527,10 @@ fn repeated_provider_ids_keep_distinct_origins_and_restore_includes_history_pref
 // rather than supplied answers as evidence. Contract: smith/docs/design/domain/session.md, 3/5.
 fn initial_owned(opening: &record::Opening) -> u64 {
     let spec = &opening.spec;
-    u64::try_from(
+    skein_lib::len_u64(
         spec.model.len() + spec.system.len() + 2 * spec.prompt.len() + spec.summary.len() + spec.preamble.len(),
-    )
-    .expect("small fixture")
-        + u64::try_from(core::mem::size_of::<llm::Block>()).expect("block size")
-        + u64::try_from(spec.delegated.len() * core::mem::size_of::<llm::Descriptor>()).expect("descriptors")
+    ) + u64::try_from(core::mem::size_of::<llm::Block>()).expect("block size")
+        + skein_lib::len_u64(spec.delegated.len() * core::mem::size_of::<llm::Descriptor>())
 }
 
 fn fill_initial(spec: &mut record::Opening, total: u64) {
@@ -561,7 +564,7 @@ fn cap_filled_provider_credit_preserves_replay_completion_that_wins_cancel() {
     let call = recorded::called().into_vec().remove(1);
     // called() starts with opaque reasoning; the second block is its call.
     let call_payload = match &call {
-        llm::Block::ToolCall { id, name, input, .. } => {
+        llm::Block::ToolCall(llm::ToolCall { id, name, input, .. }) => {
             assert_eq!(id.as_ref(), b"provider-call");
             assert_eq!(name.as_ref(), b"sub_agent");
             assert_eq!(input.as_ref(), br#"{"task":"review"}"#);
@@ -589,7 +592,7 @@ fn cap_filled_provider_credit_preserves_replay_completion_that_wins_cancel() {
     assert_eq!(world.turns[0].usage, recorded::USAGE);
     let mut expected = completion.into_vec();
     match &mut expected[2] {
-        llm::Block::ToolCall { call, .. } => *call = llm::Decoded::Historical,
+        llm::Block::ToolCall(llm::ToolCall { call, .. }) => *call = llm::Decoded::Historical,
         llm::Block::Text { .. }
         | llm::Block::Refusal { .. }
         | llm::Block::Opaque { .. }
@@ -621,7 +624,7 @@ fn full_history_batch_credit_keeps_maximum_late_results() {
     let mut calls = vec![];
     let mut held = 0_u64;
     for id in [b"first".as_slice(), b"second".as_slice()] {
-        calls.push(llm::Block::ToolCall {
+        calls.push(llm::Block::ToolCall(llm::ToolCall {
             id: id.into(),
             name: bytes(b"served"),
             input: bytes(b"{}"),
@@ -632,15 +635,14 @@ fn full_history_batch_credit_keeps_maximum_late_results() {
                 effect: Effect::Read,
             },
             replay: Some(llm::Replay { bytes: bytes(b"\0token\xff") }),
-        });
-        held += u64::try_from(
+        }));
+        held += skein_lib::len_u64(
             2 * core::mem::size_of::<llm::Block>()
                 + 2 * id.len()
                 + b"served".len()
                 + b"{}".len()
                 + b"\0token\xff".len(),
-        )
-        .expect("small fixture");
+        );
     }
     fill_initial(
         &mut spec,
@@ -748,10 +750,10 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         let id = b"-owned".as_slice();
         let name = b"owned".as_slice();
         let input = b"{}".as_slice();
-        let skeleton = u64::try_from(2 * core::mem::size_of::<llm::Block>() + 2 * id.len() + name.len() + input.len())
-            .expect("bounded cells")
-            + call.owned_bytes().expect("checked complete call")
-            - u64::try_from(core::mem::size_of::<Call>()).expect("inline call");
+        let skeleton =
+            skein_lib::len_u64(2 * core::mem::size_of::<llm::Block>() + 2 * id.len() + name.len() + input.len())
+                + call.owned_bytes().expect("checked complete call")
+                - u64::try_from(core::mem::size_of::<Call>()).expect("inline call");
         let mut spec = opening(None, u64::MAX);
         let mount = || Name::new(bytes(b"repo")).expect("mount");
         spec.spec.authority = Authority {
@@ -777,13 +779,13 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         world.open(spec);
         assert_eq!(world.prompts.len(), 1, "provider credit secured before call");
         world.complete(
-            Box::new([llm::Block::ToolCall {
+            Box::new([llm::Block::ToolCall(llm::ToolCall {
                 id: id.into(),
                 name: name.into(),
                 input: input.into(),
                 call: llm::Decoded::Owned { call },
                 replay: None,
-            }]),
+            })]),
             llm::Stop::ToolUse,
             llm::Usage::ZERO,
         );
@@ -907,7 +909,7 @@ fn partial_wait_mutations_are_refused(history: &record::Transcript) {
             let mut content = message.content.to_vec();
             if own_name {
                 for block in &mut content {
-                    if let llm::Block::ToolCall { id, name, .. } = block
+                    if let llm::Block::ToolCall(llm::ToolCall { id, name, .. }) = block
                         && id.as_ref() == b"held"
                     {
                         *name = bytes(b"another_tool");
@@ -1006,7 +1008,7 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
     };
     world.open(spec);
     world.complete(
-        Box::new([llm::Block::ToolCall {
+        Box::new([llm::Block::ToolCall(llm::ToolCall {
             id: bytes(b"large"),
             name: bytes(b"write"),
             input: bytes(b"{}"),
@@ -1015,7 +1017,7 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
                 problem: llm::Problem::Oversize { bytes: 1024, bound: 256 },
             },
             replay: None,
-        }]),
+        })]),
         llm::Stop::ToolUse,
         llm::Usage::ZERO,
     );
@@ -1039,13 +1041,13 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
             .into_bytes();
     assert!(first_input.len() <= 256, "the first part fits one call");
     world.complete(
-        Box::new([llm::Block::ToolCall {
+        Box::new([llm::Block::ToolCall(llm::ToolCall {
             id: bytes(b"piece-0"),
             name: bytes(b"write"),
             input: first_input.into(),
             call: llm::Decoded::Owned { call: Call::Write { path: path(), content: initial.clone().into() } },
             replay: None,
-        }]),
+        })]),
         llm::Stop::ToolUse,
         llm::Usage::ZERO,
     );
@@ -1065,7 +1067,7 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
     .into_bytes();
     assert!(edit_input.len() <= 256, "both edits fit one call");
     world.complete(
-        Box::new([llm::Block::ToolCall {
+        Box::new([llm::Block::ToolCall(llm::ToolCall {
             id: bytes(b"piece-1"),
             name: bytes(b"edit"),
             input: edit_input.into(),
@@ -1087,7 +1089,7 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
                 },
             },
             replay: None,
-        }]),
+        })]),
         llm::Stop::ToolUse,
         llm::Usage::ZERO,
     );
@@ -1127,17 +1129,19 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
         let mut spec = opening(None, 100);
         spec.spec.delegated = Box::new([llm::Descriptor { ticket: Token::new(19), effect: Effect::Write }]);
         first.open(spec);
-        let make = |id: &[u8], name: &[u8]| llm::Block::ToolCall {
-            id: id.into(),
-            name: name.into(),
-            input: bytes(b"{}"),
-            replay: None,
-            call: llm::Decoded::Delegated {
-                descriptor: Token::new(19),
-                source: session::ToolSource::Run,
-                ticket: Token::new(19),
-                effect: Effect::Write,
-            },
+        let make = |id: &[u8], name: &[u8]| {
+            llm::Block::ToolCall(llm::ToolCall {
+                id: id.into(),
+                name: name.into(),
+                input: bytes(b"{}"),
+                replay: None,
+                call: llm::Decoded::Delegated {
+                    descriptor: Token::new(19),
+                    source: session::ToolSource::Run,
+                    ticket: Token::new(19),
+                    effect: Effect::Write,
+                },
+            })
         };
         let mut content = Vec::new();
         if earlier {
@@ -1199,17 +1203,19 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
 fn a_generic_yield_with_two_unstarted_wait_calls_restores_both_as_not_run() {
     let mut first = Scripted::new(31);
     first.open(opening(None, 100));
-    let content = [b"one".as_slice(), b"two"].map(|id| llm::Block::ToolCall {
-        id: id.into(),
-        name: bytes(b"wait"),
-        input: bytes(b"{}"),
-        call: llm::Decoded::Delegated {
-            descriptor: Token::new(991),
-            source: session::ToolSource::Run,
-            ticket: Token::new(991),
-            effect: smith_domain_tools::Effect::Write,
-        },
-        replay: None,
+    let content = [b"one".as_slice(), b"two"].map(|id| {
+        llm::Block::ToolCall(llm::ToolCall {
+            id: id.into(),
+            name: bytes(b"wait"),
+            input: bytes(b"{}"),
+            call: llm::Decoded::Delegated {
+                descriptor: Token::new(991),
+                source: session::ToolSource::Run,
+                ticket: Token::new(991),
+                effect: smith_domain_tools::Effect::Write,
+            },
+            replay: None,
+        })
     });
     first.complete(Box::new(content), llm::Stop::EndTurn, llm::Usage::ZERO);
     assert!(first.delegated.is_empty(), "the generic yield starts neither call");

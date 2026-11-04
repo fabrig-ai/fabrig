@@ -20,7 +20,7 @@ fn abort_upgrades_a_graceful_close_already_sent_to_io() {
         &env.limits,
     )
     .expect("connection");
-    c.socket = Some(Token::new(9));
+    c.link.connecting(Token::new(9), &mut Queue::uncapped());
     c.fail();
     let mut io = Queue::with_capacity(4);
     assert!(c.pump(&env, &mut io));

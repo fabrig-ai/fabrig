@@ -226,20 +226,45 @@ watch's subject, its digest (5.4). It needs no key.
 | `chat show TASK [--before CURSOR]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
 | `task activity TASK [--before CURSOR] [--limit COUNT]` | a task's activity, a page from its end | `activity{n}` |
 | `task turn TASK TURN [--part PART] [--from OFFSET]` | one turn of the task, TURN as `A.T`, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract.md`, section 6) |
-| `task text TASK [--field specification\|instructions] [--from OFFSET]` | one bounded UTF-8 chunk from the stored specification words (default) or effective instructions, with total bytes and continuation | `task_text{n, field, from}` |
+| `task text TASK [--field specification\|instructions\|result] [--from OFFSET]` | one bounded UTF-8 chunk from the stored specification words (default), effective instructions or kept report, with total bytes and continuation | `task_text{n, field, from}` |
 | `task tree TASK` | a task's live tree: its root and each row its window holds, a chip a line, and what it folds (6.1) | `tree{root}` |
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
 | `settings show charter NUMBER [--revision REVISION]`, `settings show template\|policy NUMBER`, `settings show rules` | one setting's value whole, as the newest reads it, or a charter as held REVISION reads it; with `--json`, the value in the form `settings apply` takes. A REVISION no longer held exits 2, `temper ctl: revision R is no longer held; its record is in temper ctl revision show R, and the held ones in temper ctl settings show` | `setting{kind, number, revision}` |
-| `settings show landing-rule NUMBER [--project PROJECT]`, `settings show forge-charter NUMBER` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
-| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' items with their sizes and the state they replaced alone, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}` |
-| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `setting{…}` |
+| `settings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]`, `settings show forge-charter NUMBER [--revision REVISION]` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--revision`, the value that revision set, while it remains in the history; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
+| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' set items read at that revision from the forge and printed whole in text and JSON, with the state they replaced, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}`, the forge’s `RevisionSetting { kind, scope, number, revision }` |
+| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `settings`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 
+- **A settings proposal's review** derives its groups from the delivered
+  settings values, independently of the proposer's reason: *temper
+  enforces* for the settings other than a charter's instructions and
+  documents, *your agents follow* for those instructions and documents.
+  A charter changing both appears in both groups; each group's entries
+  name their fields and refer to the whole before and after values.
+  Its *Effect* reads `settings` for live-task counts by held revision,
+  explains new work on acceptance, no restarts, stays or moves, conversations
+  at their next run and incompatible tasks retaining their revision.
+  Authority remains current even on a retained charter revision (jig's
+  `domain/engine.md`, 17.4). Counts of tasks eligible to move are not
+  available (`README.md`, section 11). JSON retains the whole values and
+  adds `review.groups` with setting and field references and `review.effect`
+  with held revisions and their live-task counts, the running choices and
+  their default, compatibility conditions and the same explanation. A
+  failed inventory read reports unavailable counts, never a count of zero.
+
+- **Temper's revision values** come from a revision-qualified forge read,
+  never from the current setting. A value past its share of the output
+  bound prints its size and `settings show landing-rule NUMBER
+  [--project PROJECT] --revision REVISION` or `settings show forge-charter
+  NUMBER --revision REVISION`; JSON includes the same call as `read`.
+  That read returns the value set by this revision, even after later
+  accepted changes overwrite it. Removed and reset edits retain their
+  words, and `was:` retains the replaced-state metadata.
 - **A revision's value too large to print** says `too large, N bytes;
   read with settings show charter NUMBER --revision REVISION` for a
   charter, and `too large, N bytes; read current value with settings
-  show KIND [NUMBER]` for a template, policy or rules. Only a charter
+  show KIND [NUMBER]` for a template, policy or rules. Among these jig kinds, only a charter
   takes `--revision`; the other reads serve the current value, including
   when the hint appears in a historical revision.
 - **`task list` reads one group a call.** jig answers a task query in
@@ -281,6 +306,11 @@ watch's subject, its digest (5.4). It needs no key.
   (`../protocol/llm.md`, section 7), and `chat show` and `task run` then
   print none: a run shows by its activity, and its words as each turn
   commits.
+- **A conversation keeps its words readable.** `chat show` retains tool
+  identities and failures, but leaves call inputs, outcomes and result
+  summaries to `task turn TASK TURN`. Those payloads consume no conversation
+  text budget. Conversational text shares the bounded window in order;
+  an oversized reply keeps its archived part number and continuation.
 - **A turn too large for a page** comes in a page by its size in place
   of its bytes (jig's `client/domain/contract.md`, 5.1). `task
   activity`, `chat show` and `task show --activity` print it as one
@@ -1071,9 +1101,13 @@ The table grows area by area, each with its stories (section 11).
 
 ### 6.1 Text
 
-A new owner proposal outcome prints the original returned role in the request's
-project. A restored kept line prints its identity alone; read the proposal for
-its present recipient. Replaying the same key retains the original outcome;
+A new settings proposal outcome names the owners of the submitted items:
+`to the deployment's owners` for deployment items, `to project P's owners`
+for a project's. Multiple scopes are listed once each, the deployment first
+then projects by number, followed by `; one person must own every affected
+scope`. Other new owner proposal outcomes print the original returned role
+in the request's project. A restored kept line prints its identity alone;
+read the proposal for its present recipient. Replaying the same key retains the original outcome;
 `settings propose` forwards an optional reason, and `proposal decide`
 on a settings proposal's acceptance sends `--running`'s choice, or stays
 when it is absent, live or repeated, since jig refuses an acceptance of
@@ -1262,6 +1296,11 @@ in the table, in snake case, numbers as jig's integers, no floats. The
 JSON is the contract for scripts; the text follows temper's words, and
 may change with them.
 
+- **`chat show` leaves tool payload fields null:** a call's `input` and
+  `outcome`, and a result's `summary`. Its conversation words retain the
+  turn part records and their continuations. `task turn` serves payloads
+  with the same part numbers.
+
 - **A task's document** prints its fields as jig's client gives them:
   its `dependencies` as links, and beside them its `dependency_facts`,
   one object per dependency, `number`, `pending`, `added` (`null`, or
@@ -1373,7 +1412,12 @@ may change with them.
   the source chunk, its starting byte offset and total size; a cut ends with
   `N bytes left; read on with: task text TASK --field FIELD --from OFFSET`.
   JSON carries `task`, `field`, `from`, `total`, `text` and `next` (null at
-  the end). Offsets keep characters whole. Instructions are the task's
+  the end). `--field result` retrieves the complete kept terminal report,
+  including one retained with cancellation, without expanding task overviews.
+  A cut report in text `task show` prints `read result: task text TASK --field
+  result --from 0`; JSON names the same call under `text_reads.result`, beside
+  its bounded typed result. Follow continuations until `no more`; a task without
+  a kept report is unknown. Offsets keep characters whole. Instructions are the task's
   override or its charter at the task's recorded settings revision; unavailable
   instructions are unknown. Reads reflect current state; restart at zero after
   an amendment or settings move. An agent's

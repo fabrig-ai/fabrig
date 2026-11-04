@@ -27,6 +27,7 @@ pub struct Joint {
     pub admin_connects: Vec<(u16, Token)>,
     pub replacements: Vec<(u16, Token)>,
     pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
+    pub deployment: (bool, bool),
     pub hold_playground_end: bool,
     held_playground_end: Vec<(ClientId, Event)>,
     pub playground_ends: Vec<skein_lib::RequestKey>,
@@ -913,6 +914,7 @@ impl Joint {
             admin_connects: Vec::new(),
             replacements: Vec::new(),
             playground: None,
+            deployment: (true, true),
             hold_playground_end: false,
             held_playground_end: Vec::new(),
             playground_ends: Vec::new(),
@@ -1202,6 +1204,30 @@ impl Joint {
                 },
         } = request
         {
+            if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Deployment)
+            {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                let (welcome, owned) = self.deployment;
+                let answer = w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned })
+                    .expect("deployment answer");
+                self.callbacks.push((
+                    who,
+                    RootEvent::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Family {
+                                    family: wire::FORGE,
+                                    record: Some(wire::deployment_answer(&answer)),
+                                },
+                            },
+                        },
+                    }
+                    .into(),
+                ));
+                return true;
+            }
             if !temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
                 .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Playground)
             {
@@ -1392,6 +1418,7 @@ impl Joint {
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        host: b"git.example:3000".as_slice().into(),
                         number: playground.forge(),
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Fake,

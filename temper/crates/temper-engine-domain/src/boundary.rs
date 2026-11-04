@@ -176,7 +176,13 @@ pub enum Tool {
     /// Create one authorized batch of direct task delegates.
     Delegate { batch: Box<[Delegate]> },
     /// Amend one live delegate after authority fitting and finite source checks.
-    Amend { target: u64, revision: u64, amendment: tasks::Amendment },
+    Amend {
+        target: u64,
+        revision: u64,
+        amendment: tasks::Amendment,
+        /// The host omitted parameters; jig keeps the current task's before admission.
+        keep_parameters: bool,
+    },
     /// Cancel one live delegate's whole subtree with a bounded reason.
     Cancel { target: u64, reason: Box<[u8]> },
     /// Release one held delegate.
@@ -285,7 +291,10 @@ pub enum ChangeAfter {
 
 /// Action a worker can submit for an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[expect(clippy::large_enum_variant, reason = "the worker boundary carries jig's bounded amendment whole")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "the worker boundary carries jig's bounded amendment whole")
+)]
 pub enum ProposedAction {
     Effect { repository: skein_forge::api::Repository, resource: forge::What, write: Box<skein_forge::api::Write> },
     Batch(Box<[Delegate]>),
@@ -529,8 +538,21 @@ pub enum ApplicationAnswer {
 /// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ForgeRead {
-    Setting { kind: u32, scope: u32, number: u32 },
-    ProposalItems { key: u64 },
+    /// The explicit value set in a retained revision.
+    RevisionSetting {
+        kind: u32,
+        scope: u32,
+        number: u32,
+        revision: u32,
+    },
+    Setting {
+        kind: u32,
+        scope: u32,
+        number: u32,
+    },
+    ProposalItems {
+        key: u64,
+    },
 }
 /// Typed answers from the forge's held settings, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -869,7 +891,7 @@ pub(crate) enum Work {
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),
-    Activate(Box<tasks::RunContext>),
+    Activate { context: Box<tasks::RunContext>, ready: bool },
     EscalationLoaded { waiter: Token, rows: Box<[Record]> },
     EscalationFailed { waiter: Token },
     ProposalLoaded { waiter: Token, rows: Box<[Record]> },
@@ -1001,4 +1023,20 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
 pub struct Unsettled {
     pub entry: u64,
     pub task: u64,
+}
+
+/// A failed run's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
+/// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
+#[derive(PartialEq, Eq, Debug)]
+pub struct RunDiagnostic {
+    /// The task whose accepted answer failed.
+    pub task: u64,
+    /// The worker run token.
+    pub run: u64,
+    /// The fenced activation attempt.
+    pub attempt: u64,
+    /// The failure classification reported by the worker.
+    pub failure: jig_domain_host::Failure,
+    /// Worker-bounded evidence for the operator sink alone.
+    pub detail: Box<[u8]>,
 }

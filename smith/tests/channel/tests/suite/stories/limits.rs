@@ -6,12 +6,14 @@ fn completion_turn(calls: u32) -> smith_domain_session::record::Turn {
     use smith_domain_session::llm;
     let mut turn = window_turn_fixture();
     let call_blocks = (0..calls)
-        .map(|number| llm::Block::ToolCall {
-            id: format!("call-{number}").into_bytes().into_boxed_slice(),
-            name: b"host".as_slice().into(),
-            input: b"{}".as_slice().into(),
-            call: llm::Decoded::Historical,
-            replay: None,
+        .map(|number| {
+            llm::Block::ToolCall(llm::ToolCall {
+                id: format!("call-{number}").into_bytes().into_boxed_slice(),
+                name: b"host".as_slice().into(),
+                input: b"{}".as_slice().into(),
+                call: llm::Decoded::Historical,
+                replay: None,
+            })
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();

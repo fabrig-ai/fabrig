@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-03. How far temper's client is from its mockups
+Revised 2026-11-04. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -30,14 +30,38 @@ What the client doesn't draw yet:
 
 Where the client does otherwise:
 
+- **Model's forge pane** (the client README's 3.5; `../browser.md`, 2.5;
+  the user, 2026-11-04): its named Forge region follows the choices and
+  precedes the foot, beside the column from 1280 px and under the
+  choices otherwise. Its name and muted details stack under a mark,
+  a green tick once connected; the repository precedes the connection
+  under way and failed. While setup runs, a named indeterminate bar
+  follows the status before "Each step", moving unless reduced motion
+  is requested; done, failed and GitHub's installation waits have none.
+  The terminal says the reordered line with no bar. "Each step" stays
+  in the pane while unfinished. The mockup is not edited.
+
 - **The welcome adopts nothing** (the client README's 3.5 and 5.6;
   `../../draft/first-run-projects.md`, 4): Forgejo on this machine's
   Details have no "Into a new project, named" and GitHub's step no
   "Choose a repository to start in"; the forge's line names no project;
-  Ready's last line is "Project: Default" and its act "Open Default",
-  which makes the project and opens its chats page, where the mockup's
-  Ready names its repository, "ORG/NAME is ready", and opens it. The
-  mockup is not edited.
+  Ready's act makes the first project with no repository and opens
+  its chats page, where the mockup's Ready names its repository,
+  "ORG/NAME is ready", and opens it. The mockup is not edited.
+- **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
+  `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
+  frame holds temper box's line and the steps, and no person's name or
+  "Sign out"; "Set up temper" is the first card and the default;
+  Forge's Forgejo card comes first with "Run on this machine" alone,
+  no "Or connect your deployment", which opens Forgejo's sheet, what
+  it starts with, an empty repository by default, as the user's
+  greenfield mock draws it; Model's cards hold the plans alone,
+  no key; the forge's ticked line says who temper is on it and that
+  its first repository is in no project yet; the foot has no "Later";
+  Ready is the greenfield mock's, its checklist and its first
+  project's form, "Default" until the person names it otherwise, and
+  "Create your project"; and the words of the cards and leads are the
+  client's. The mockup is not edited.
 
 Not yet known: whether GitHub keeps the state through its
 installation's Configure and Save, and whether the picker reads the
@@ -74,7 +98,7 @@ Not drawn: two ideas that would change temper's engine, not only its pages. A ch
 
 ### 2.3 The first run
 
-`world-first-run.js` is the deployment `temper init` writes (`../../protocol/setup.md`, 8.2 and 8.3): its project 1, "Project 1", which View → Future draws as no project, made by the playground's start or the first repository (`../../draft/archive/first-run.md`, 2.4), the charters `chat` and `coding`, one worker in temper's process, three forges (the demo's fake, GitHub not connected, a Forgejo here not set up), and no account, repository or forge started yet. Every word an agent says is the demo's script (8.4). [first-run.html](first-run.html), the address the documents cite, opens it at its first step. Its steps:
+`world-first-run.js` is the deployment `temper init --box` writes (`../../protocol/setup.md`, 8.2 and 8.3): its project 1, "Project 1", which View → Future draws as no project, made by the playground's start or the first repository (`../../draft/archive/first-run.md`, 2.4), the charters `chat` and `coding`, one worker in temper's process, three forges (the demo's fake, GitHub not connected, a Forgejo here not set up), and no account, repository or forge started yet. Every word an agent says is the demo's script (8.4). [first-run.html](first-run.html), the address the documents cite, opens it at its first step. Its steps:
 
 - **0. The link opened:** the welcome offers Try the playground or Set up temper (section 1.1). Chats behind it has the setup strip, no model and a disabled send button.
 - **1. The demo chosen:** the engine asks temper box for the demo’s fakes, makes the project Playground, adds the Scripted model’s account and adopts playground/widget into it. The chats page is the demo's start (client README, 5.6): the banner under the navigation, as on every page; a chatbar with no task and no number; the context line; the three suggested requests.

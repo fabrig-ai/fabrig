@@ -1,6 +1,6 @@
 # temper's root
 
-Provisional, 2026-10-04, revised 2026-10-30. What temper's engine root
+Provisional, 2026-10-04, revised 2026-11-04. What temper's engine root
 is and does: `temper-engine-domain`, the top-level domain of temper's
 engine, which composes jig's core with the forge connector in the shape
 jig's `domain/root.md` gives every application's root. It says what the
@@ -528,8 +528,12 @@ section 13's.
   `Setting` keeps the typed values, encoded by `temper-protocol-store`
   as every family of the forge's is (`../protocol/store.md`, section
   2).
-- **The root routes, never judges** (section 11): what a landing rule
-  means and whether it is well formed is the forge's.
+- **The forge judges rule structure; the root joins approval eligibility.**
+  When a rule is set, including acceptance of a proposal, the root checks
+  its enforcing approvals against the core's known forge identities and
+  project roles (forge.md, 8.9). It refuses an unmet count before any
+  settings become effective, naming the project, role and count with the
+  remedy. Meaning and structural validity remain the forge's.
 - **The forge's charter is the forge's own value,** read from its kind
   3 when a change is made, and kept on the change (section 6).
 
@@ -851,8 +855,9 @@ and no diagnostic variant enters the store or client wire.
   preparation is ignored. The core owns the window policy (jig's
   `domain/engine.md`, 7.2): a closed window starts fresh with an empty
   tail and no added failure or refusal, while an open window keeps its
-  transient failure policy. A transcript load that cannot be issued
-  still answers `PreparationFailed`. Successful-page cuts and the
+  transient failure policy. A transcript load is issued only with read
+  room: without it the root answers the activation `busy` and the task
+  stays due (jig's `domain/root.md`, 3). Successful-page cuts and the
   transcript row and text validation guards keep their existing
   preparation-failure translation.
 
@@ -1041,9 +1046,11 @@ Startup also checks the seed policy after enforced landing requirements are join
 - keep anything between steps but its children, the journal and the
   values in flight of section 2;
 - read or rewrite a value it carries, beyond wrapping and translating
-  it;
+  it and joining a landing rule's approvals to the core's identities
+  and roles (5.6);
 - give the core a type of the forge's, or the forge one of the core's;
-- route by content beyond the variant;
+- route by content beyond the variant and the approval eligibility
+  check of section 5.6;
 - price a forge effect, or grant the forge's API token, App key or
   webhook secret.
 

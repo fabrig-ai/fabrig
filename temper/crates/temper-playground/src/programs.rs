@@ -266,7 +266,6 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
 }
 /// Host smith with its own configuration and a product diagnostic pipe.
 #[must_use]
-#[expect(clippy::zero_sized_map_values, reason = "smith's program selections use its sole adapter name")]
 pub fn agent<H: Harness>(_spawn: &Spawn, inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Agent, inherited, b"worker/agent");
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
@@ -278,8 +277,8 @@ pub fn agent<H: Harness>(_spawn: &Spawn, inherited: &Inherited) -> Process<H> {
             trace: None,
             profile: documents::agent_profile(),
             declarations: documents::agent_declarations(),
-            programs: std::collections::BTreeMap::new(),
-            endpoint_programs: std::collections::BTreeMap::new(),
+            program: None,
+            program_endpoints: std::collections::BTreeSet::new(),
         },
         smith_agent_shell::Resources {
             input: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,

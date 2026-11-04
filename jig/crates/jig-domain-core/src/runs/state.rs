@@ -160,15 +160,8 @@ impl Core {
     }
 
     /// Begin a bounded transcript load for a due task's previous attempt.
-    pub fn begin_transcript(&mut self, task: u64, previous_attempt: u64) {
+    pub fn begin_transcript(&mut self, task: u64, previous_attempt: u64, window: Option<(u64, u32)>) {
         self.start_input();
-        let window = match self.proofs.get(&task) {
-            Some(proof) => match proof.window {
-                Some(window) => Some((window.attempt, window.turn)),
-                None => None,
-            },
-            None => None,
-        };
         let closed = match self.proofs.get(&task) {
             Some(proof) => {
                 proof.crossed

@@ -18,11 +18,9 @@ skein-io.workspace = true
 skein-shell.workspace = true
 skein-echo-service.workspace = true
 
-# Ordinary Rust (programming-model.md, 10.2), as skein-shell is, with the
-# subset's checks that matter in a main: no silent casts, overflow or
-# panicking indexing. clippy.toml bans the std handles that close on drop.
-[lints.rust]
-unsafe_code = "forbid"
+[lints.rust] # ring: tools/lints/design.md, 2.4
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
 elided_lifetimes_in_paths = "deny"
 unused_must_use = "deny"
 let_underscore_drop = "deny"
@@ -33,7 +31,10 @@ pedantic = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
 wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
 indexing_slicing = "deny"
 arithmetic_side_effects = "deny"
 as_conversions = "deny"
@@ -45,6 +46,7 @@ unimplemented = "deny"
 allow_attributes = "deny"
 allow_attributes_without_reason = "deny"
 disallowed_types = "deny"
+disallowed_macros = "deny"
 disallowed_methods = "deny"
 dbg_macro = "deny"
 missing_assert_message = "deny"

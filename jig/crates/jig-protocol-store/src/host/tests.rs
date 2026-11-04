@@ -1,5 +1,5 @@
-//! Host lifecycle over the simulator and crashing filesystem (store.md, 13).
-use super::{Host, Lane, Submission};
+//! Drivers lifecycle over the simulator and crashing filesystem (store.md, 13).
+use super::{Drivers, Hosted, Lane, NotReady, Submission};
 use crate::{Event, Store, tests::fixtures};
 use skein_fake_machine::{How, Machine, serve};
 use skein_io::kernel::{Complete, Error, Fd, Op};
@@ -7,7 +7,7 @@ use skein_lib::{Queue, Token};
 use skein_sim::{Config, Handle, Pid, Sim};
 
 struct World {
-    host: Host,
+    host: Drivers,
     store: Store,
     machine: Machine,
     sim: Sim,
@@ -22,7 +22,7 @@ impl World {
         let mut sim = Sim::new(1, Config::calm());
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
-        let host = Host::new(&fixtures::store_limits(), 1);
+        let host = Drivers::new(&fixtures::store_limits(), 1);
         let store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], host.seeded());
         Self { host, store, machine, sim, pid, fd, above: Queue::uncapped() }
     }
@@ -95,7 +95,7 @@ fn a_commit_waits_for_its_driver_and_is_recovered_after_close() {
     world.close();
     let handle = world.machine.reopen_root(0);
     world.fd = world.sim.root(world.pid, Handle::new(handle.raw()));
-    world.host = Host::new(&fixtures::store_limits(), 2);
+    world.host = Drivers::new(&fixtures::store_limits(), 2);
     world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
     world.adopt();
     world.settle();
@@ -154,8 +154,35 @@ fn failed_adoption_answers_once_and_can_still_close() {
     assert_eq!(owner, Token::new(41));
     assert!(world.above.is_empty(), "one terminal for the adoption");
     world.close();
-    let mut host = Host::new(&fixtures::store_limits(), 1);
+    let mut host = Drivers::new(&fixtures::store_limits(), 1);
     host.close();
     assert!(host.closed());
     assert_eq!(host.adopt(Fd::new(999), 0, Token::new(42), [0; 16]), Err(Fd::new(999)));
+}
+
+#[test]
+fn a_get_not_ready_follows_its_value() {
+    const OWNER: Token = Token::new(9);
+    for (not_ready, in_pass) in [(NotReady::InPass, true), (NotReady::Above, false)] {
+        let mut hosted = Hosted::new(&fixtures::store_limits(), fixtures::APPLICATION, &[], 1, not_ready);
+        let answer = hosted.secrets(OWNER, crate::Secrets::Get { owner: crate::SecretOwner::SignIn, number: 1 });
+        assert_eq!(answer.is_some(), in_pass);
+        assert_eq!(hosted.above.is_empty(), in_pass);
+        let answer = answer.or(hosted.above.pop());
+        let Some(Event::SecretsNotReady { owner }) = answer else { panic!("get is not ready before the mark") };
+        assert_eq!(owner, OWNER);
+        assert!(hosted.above.is_empty());
+    }
+}
+
+#[test]
+fn debug_of_the_hosted_store_counts_its_terminals() {
+    let mut hosted = Hosted::new(&fixtures::store_limits(), fixtures::APPLICATION, &[], 1, NotReady::InPass);
+    hosted.above.push(Event::Secret {
+        owner: Token::new(9),
+        value: Some(crate::SecretValue::Digest { expiry: 0, digest: [171; 32] }),
+    });
+    let debug = alloc::fmt::format(format_args!("{hosted:?}"));
+    assert!(!debug.contains("171"));
+    assert!(debug.contains("above: 1"));
 }

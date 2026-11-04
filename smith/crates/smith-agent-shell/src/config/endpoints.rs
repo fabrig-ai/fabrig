@@ -36,7 +36,18 @@ pub(super) struct PreparedEndpoint {
 
 pub(super) enum EndpointTransport {
     Plaintext,
-    Tls { server_name: tls::Name, trust_der: Option<String>, trust: Option<document::TrustDocument> },
+    #[cfg_attr(
+        not(unix),
+        expect(
+            dead_code,
+            reason = "only the cfg(unix) trust loading reads these; the checks that build them are portable"
+        )
+    )]
+    Tls {
+        server_name: tls::Name,
+        trust_der: Option<String>,
+        trust: Option<document::TrustDocument>,
+    },
 }
 
 pub(super) fn build_endpoints(
@@ -52,8 +63,9 @@ pub(super) fn build_endpoints(
     let mut names = std::collections::BTreeSet::new();
     let mut numbers = std::collections::BTreeSet::new();
     for (mut endpoint, declared) in endpoints.into_iter().zip(&declarations.endpoints) {
-        let mut client = service::profile::endpoint_client(profile, declared, limits.llm.adapter.client.history_items)
-            .map_err(ConfigurationRefusal::Profile)?;
+        let mut client =
+            service::profile::endpoint_client(profile, declared, limits.llm.translation.client.history_items)
+                .map_err(ConfigurationRefusal::Profile)?;
         if endpoint.name.is_empty()
             || endpoint.name.len()
                 > usize::try_from(smith_charter::CEILINGS.llm_endpoint).expect("endpoint name bound fits usize")

@@ -5,6 +5,7 @@
 //! advances group signals. `spawned` gives a late child its first signal grace.
 
 use super::process::Process;
+use crate::backend::Below;
 use core::mem;
 use skein_io::{self as io, kernel};
 use skein_lib::{Duration, Queue, Time};
@@ -168,7 +169,7 @@ impl Stopping {
         }
     }
 
-    pub fn terminate(&mut self, now: Time, grace: Duration, process: &mut Process, below: &mut Queue<io::Request>) {
+    pub fn terminate(&mut self, now: Time, grace: Duration, process: &mut Process, below: &mut Queue<Below>) {
         if process.exit().is_some() {
             self.release_alarm();
             process.drain(now, below);
@@ -191,7 +192,7 @@ impl Stopping {
         follow(self);
     }
 
-    pub fn spawned(&mut self, now: Time, grace: Duration, process: &mut Process, below: &mut Queue<io::Request>) {
+    pub fn spawned(&mut self, now: Time, grace: Duration, process: &mut Process, below: &mut Queue<Below>) {
         let due = match self.next_deadline() {
             Some(until) => now >= until,
             None => false,
@@ -234,10 +235,14 @@ fn terminating(
     pending: Pending,
     until: Option<Time>,
     process: &Process,
-    below: &mut Queue<io::Request>,
+    below: &mut Queue<Below>,
 ) -> State {
     if let Some(child) = process.child() {
-        below.push(io::Request::Signal { child, to: kernel::Target::Group, signal: kernel::Signal::Terminate });
+        below.push(Below::Io(io::Request::Signal {
+            child,
+            to: kernel::Target::Group,
+            signal: kernel::Signal::Terminate,
+        }));
     }
     State::Terminating { intent, pending, until }
 }
@@ -247,14 +252,14 @@ fn killing(
     pending: Pending,
     until: Option<Time>,
     process: &Process,
-    below: &mut Queue<io::Request>,
+    below: &mut Queue<Below>,
 ) -> State {
     if let Some(child) = process.child() {
-        below.push(io::Request::Signal { child, to: kernel::Target::Group, signal: kernel::Signal::Kill });
+        below.push(Below::Io(io::Request::Signal { child, to: kernel::Target::Group, signal: kernel::Signal::Kill }));
         for pipe in process.pipes().all().into_iter().flatten() {
-            below.push(io::Request::Abort { entity: pipe });
+            below.push(Below::Io(io::Request::Abort { entity: pipe }));
         }
-        below.push(io::Request::Close { entity: child });
+        below.push(Below::Io(io::Request::Close { entity: child }));
     }
     State::Killing { intent, pending, until }
 }

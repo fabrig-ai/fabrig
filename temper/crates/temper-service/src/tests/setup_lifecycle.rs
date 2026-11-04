@@ -703,7 +703,7 @@ fn carried_pem() -> (Secret, Secret) {
 fn paste_start(service: &mut crate::Service, bundle: Secret, digest: [u8; 32]) {
     let engine = service.engine.as_mut().unwrap();
     engine.store.secrets(Token::new(901), fixtures::application_request(records::CARRIED, bundle));
-    let Some(StoreEvent::Carried { number, .. }) = engine.store.above.pop() else { panic!("carried seed kept") };
+    let Some(StoreEvent::Carried { number, .. }) = engine.store.host.above.pop() else { panic!("carried seed kept") };
     assert_eq!(number, records::CARRIED);
     public::connect(
         engine,
@@ -811,7 +811,7 @@ fn paste_ended(service: &mut crate::Service, connected: bool, pem: &[u8]) -> Opt
     // The root's decision is covered through its real admitted application in domain tests.
     crate::route::request(engine, root::Request::EraseCarried { number: records::CARRIED });
     assert_eq!(engine.store.erases, 1);
-    while let Some(event) = engine.store.above.pop() {
+    while let Some(event) = engine.store.host.above.pop() {
         if let StoreEvent::Erased { .. } = event {
             answer(engine, event);
         }

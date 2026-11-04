@@ -73,10 +73,6 @@ fn configuration(directory: &Path, bundle: &Path) -> serde_json::Value {
     absolute_paths(&mut value, directory);
     value
 }
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the fixture path walker visits JSON containers and rewrites named paths; every other leaf stays unchanged"
-)]
 fn absolute_paths(value: &mut serde_json::Value, directory: &Path) {
     match value {
         serde_json::Value::String(text)

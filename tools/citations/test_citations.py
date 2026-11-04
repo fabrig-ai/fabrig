@@ -269,13 +269,24 @@ class Citations(unittest.TestCase):
         self.assertNotIn("notes.md", result.stdout)
         self.assertIn("skein/crates/k/src/lib.rs:4: path gone.md", result.stdout)
 
-    def test_hearths_documents_dates_and_rfcs_are_not_citations(self):
+    def test_dates_and_rfcs_are_not_citations(self):
         self.write(f"{DESIGN}/c.md",
-                   "# c\n\n## 1. One\n\nAs hearth's `domain/store.md`, 5.2, says.\n\n"
-                   "Decided with `a.md`, 2026-10-05; RFC 6749, section 5.1, allows it.\n")
+                   "# c\n\n## 1. One\n\nDecided with `a.md`, 2026-10-05; RFC 6749, section 5.1, allows it.\n")
         self.commit("head")
         result = self.since_base()
         self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_hearths_documents_are_checked_as_a_trees(self):
+        self.write("hearth/docs/design/domain/store.md", "# store\n\n## 5. Five\n\n### 5.2 Two\n")
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\n## 1. One\n\nAs hearth's `domain/store.md`, 5.2, says, and hearth's "
+                   "`domain/store.md`, 5.3, and hearth's `domain/gone.md`, 1.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("store.md 5.2", result.stdout)
+        self.assertIn("hearth/docs/design/domain/store.md 5.3 (missing)", result.stdout)
+        self.assertIn("path domain/gone.md", result.stdout)
 
     def test_another_repositorys_document_is_refused(self):
         self.write(f"{DESIGN}/c.md",

@@ -23,6 +23,10 @@ fn deliver(root: &mut Domain, watch: Token, delivery: c::Delivery) -> Queue<Requ
     up(root, Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) })
 }
 fn answer(root: &mut Domain, present: bool) {
+    crate::tests::deployment::answer(root, true, true);
+    playground_answer(root, present);
+}
+fn playground_answer(root: &mut Domain, present: bool) {
     let mut out = Queue::with_capacity(1);
     forge::playground::told(&mut root.forge, &Told::Link { link: Link::Offline }, f::limits().forge, &mut out);
     forge::playground::told(&mut root.forge, &Told::Link { link: Link::Live }, f::limits().forge, &mut out);
@@ -108,6 +112,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                 w::ForgeRow::new(
                     &limits,
                     w::ForgeRowParts {
+                        host: b"git.example:3000".as_slice().into(),
                         number,
                         kind: w::Kind::Forgejo,
                         mode: if number == wire::FORGE { w::Mode::Fake } else { w::Mode::Connected },
@@ -187,6 +192,52 @@ fn moved(mut out: Queue<Request>, replace: bool) -> bool {
 }
 fn decided(root: &Domain) -> bool {
     root.pages().welcome().unwrap().decided
+}
+fn shown(mut out: Queue<Request>) -> Option<(Address, bool)> {
+    let mut shown = None;
+    while let Some(request) = out.pop() {
+        if let Request::Show { address, replace } = request {
+            assert!(shown.is_none(), "one address change");
+            shown = Some((address, replace));
+        }
+    }
+    shown
+}
+#[test]
+fn no_welcome_moves_each_step_on_to_the_inbox() {
+    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+        let (mut root, _, _, _) = opened(true, step);
+        crate::tests::deployment::answer(&mut root, false, false);
+        let Some((address, _)) = shown(go(&mut root, step)) else { panic!("{step:?} moves on") };
+        assert_eq!(address, Address::Inbox { filter: crate::address::Filter::ALL });
+        assert!(!decided(&root), "the store is not judged");
+    }
+}
+#[test]
+fn no_welcome_replaces_the_address() {
+    let (mut root, _, _, _) = opened(true, Step::Welcome);
+    crate::tests::deployment::answer(&mut root, false, false);
+    assert_eq!(
+        shown(go(&mut root, Step::Welcome)),
+        Some((Address::Inbox { filter: crate::address::Filter::ALL }, true))
+    );
+}
+#[test]
+fn a_welcome_waits_for_the_read() {
+    let (mut root, _, accounts, forges) = opened(true, Step::Welcome);
+    playground_answer(&mut root, false);
+    account(&mut root, accounts, 18, true);
+    let out = rows(&mut root, forges.unwrap(), 3);
+    assert_eq!(shown(out), None);
+    assert!(!decided(&root));
+    crate::tests::deployment::answer(&mut root, true, true);
+    assert!(decided(&root));
+}
+#[test]
+fn no_welcome_offers_no_playground() {
+    let (mut root, _, _, _) = opened(true, Step::Welcome);
+    crate::tests::deployment::answer(&mut root, false, false);
+    assert_eq!(pages::welcome::playground_offered(&root), Some(false));
 }
 #[test]
 fn an_empty_store_offers_the_playground_and_set_up() {
@@ -468,6 +519,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        host: b"git.example:3000".as_slice().into(),
                         number: 3,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -735,6 +787,61 @@ fn default_name_taken_opens_only_the_persons_default() {
         );
     }
 }
+fn name_default(root: &mut Domain, words: &[u8]) -> Queue<Request> {
+    event(root, Event::Act { action: Action::Pages(Act::DefaultName { words: words.into() }) })
+}
+fn made_name(out: &mut Queue<Request>) -> Option<Box<[u8]>> {
+    let mut name = None;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+        } = request
+            && let c::Ask::MakeProject { name: made, policy: 1 } = *ask
+        {
+            name = Some(made.into_bytes());
+        }
+    }
+    name
+}
+#[test]
+fn ready_makes_the_first_project_as_named() {
+    let (mut root, me) = ready_default();
+    assert_eq!(root.pages().default_project().name.as_ref(), b"Default");
+    assert!(name_default(&mut root, b"  Shop ").is_empty());
+    let mut out = press_default(&mut root);
+    assert_eq!(made_name(&mut out).as_deref(), Some(b"Shop".as_slice()));
+    // While it is out, the name stays as asked.
+    name_default(&mut root, b"Other");
+    assert_eq!(root.pages().default_project().asked(), b"Shop");
+    // Taken, it opens the person's project of that name.
+    let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+    frame.projects.get_mut(0).unwrap().name =
+        c::DocumentText::complete(c::Text::new(b"Shop".as_slice().into(), 64).unwrap());
+    deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+    let out = default_answer(
+        &mut root,
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+            refusal: c::Refusal::NameTaken,
+            at: None,
+        })),
+    );
+    assert!(moved(out, false));
+    assert_eq!(root.pages().default_project().ended, None);
+}
+#[test]
+fn ready_asks_for_a_name_before_making_anything() {
+    let (mut root, _) = ready_default();
+    name_default(&mut root, b"   ");
+    assert!(made_name(&mut press_default(&mut root)).is_none());
+    assert!(root.pages().default_project().unnamed);
+    assert_eq!(root.pages().default_project().making, None);
+    name_default(&mut root, b"S");
+    assert!(!root.pages().default_project().unnamed);
+    // jig's name bound holds the field: a longer name leaves it as it was.
+    name_default(&mut root, &[b'x'; 65]);
+    assert_eq!(root.pages().default_project().name.as_ref(), b"S");
+    assert_eq!(made_name(&mut press_default(&mut root)).as_deref(), Some(b"S".as_slice()));
+}
 #[test]
 fn default_refused_or_unknown_offers_a_new_attempt_without_sending_anything() {
     for outcome in [
@@ -767,4 +874,29 @@ fn default_is_refused_until_both_forge_and_model_are_done() {
     rows(&mut root, forges.unwrap(), 3);
     assert!(press_default(&mut root).is_empty());
     assert_eq!(root.pages().default_project().attempt, 0);
+}
+
+#[test]
+fn the_welcome_decision_waits_for_the_deployment_read() {
+    let (mut root, _, accounts, forges) = opened(true, Step::Welcome);
+    playground_answer(&mut root, false);
+    account(&mut root, accounts, 18, false);
+    forge_rows(&mut root, forges.unwrap(), None, false);
+    assert!(root.forge().playground_answered());
+    assert_eq!(pages::welcome::decision(&root), None);
+    assert!(!decided(&root));
+    crate::tests::deployment::answer(&mut root, true, true);
+    assert_eq!(pages::welcome::decision(&root), Some(FirstRun::Empty));
+    assert!(decided(&root), "the deployment answer rebuilds the page");
+}
+#[test]
+fn the_playground_offer_waits_for_the_deployment_and_requires_its_welcome() {
+    let (mut root, _, _, forges) = opened(true, Step::Welcome);
+    playground_answer(&mut root, false);
+    forge_rows(&mut root, forges.unwrap(), None, false);
+    assert_eq!(pages::welcome::playground_offered(&root), None);
+    crate::tests::deployment::answer(&mut root, false, true);
+    assert_eq!(pages::welcome::playground_offered(&root), Some(false));
+    crate::tests::deployment::answer(&mut root, true, false);
+    assert_eq!(pages::welcome::playground_offered(&root), Some(true), "the offer does not require an owned forge");
 }

@@ -150,6 +150,7 @@ fn the_default_is_the_owned_example_so_edited() {
         expected["application"]["limits"]["overrides"]["forge.client.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.output"] = json!(82_u32);
+        expected["application"]["welcome"] = json!(true);
         for (path, value) in [
             (
                 "/engine/llm/providers",
@@ -444,6 +445,19 @@ fn no_placeholder_is_left() {
             .as_slice(),
         ),
         ("agent", template::AGENT, [(b"\"$programs\"".as_slice(), 1_u32), (b"\"$llm\"".as_slice(), 1)].as_slice()),
+        (
+            "bare",
+            template::BARE,
+            [
+                (b"\"$binary\"".as_slice(), 1_u32),
+                (b"\"$agent\"".as_slice(), 2),
+                (b"\"$git\"".as_slice(), 1),
+                (b"\"$listener\"".as_slice(), 1),
+                (b"\"$webhooks\"".as_slice(), 1),
+            ]
+            .as_slice(),
+        ),
+        ("bare agent", template::BARE_AGENT, [(b"\"$programs\"".as_slice(), 1_u32)].as_slice()),
     ] {
         // Exact token counts catch missing, extra and misspelled placeholders.
         let mut count = 0_u32;
@@ -504,4 +518,43 @@ fn the_template_seeds_no_project_and_no_settings_members() {
     }
     assert!(document["application"].get("landing").is_none());
     assert!(document["application"].get("charter").is_none());
+}
+
+#[test]
+fn the_bare_document_is_the_box_less_its_parts() {
+    for (row, facts) in cases() {
+        let boxed = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("boxed files");
+        let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).expect("bare files");
+        let mut expected = parse(content(&boxed, b"temper.json"));
+        assert_eq!(expected["application"]["welcome"], true, "{row}");
+        expected["application"].as_object_mut().unwrap().remove("welcome");
+        expected["application"]["machine"] = json!({"github": null});
+        expected["application"]["demo"] = Value::Null;
+        expected["engine"].as_object_mut().unwrap().remove("acts");
+        for member in ["providers", "endpoints", "models"] {
+            expected["engine"]["llm"][member].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
+        }
+        let mut agent = parse(content(&boxed, b"agent.json"));
+        agent["endpoints"].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
+        let names = [b"worker.secret".as_slice(), b"worker.digest", b"agent.json", b"temper.json"];
+        assert_eq!(bare.len(), names.len(), "{row}");
+        for (file, name) in bare.iter().zip(names) {
+            assert_eq!(file.name, name, "{row}");
+            let source = fixtures::file(&boxed.files, name);
+            assert_eq!(file.directory, source.directory, "{row}");
+            let crate::Content::Bytes { bytes, private } = &file.content else { panic!("bare files hold bytes") };
+            assert_eq!(bytes::find(bytes, b"\"$"), None, "{row}: no placeholder");
+            match name {
+                b"temper.json" => {
+                    assert_eq!(parse(bytes), expected, "{row}");
+                    assert!(!private);
+                }
+                b"agent.json" => {
+                    assert_eq!(parse(bytes), agent, "{row}");
+                    assert!(!private);
+                }
+                _ => assert_eq!(file, source, "{row}: shared secret and digest"),
+            }
+        }
+    }
 }

@@ -127,10 +127,6 @@ fn no_loss_referee_rejects_an_unfinished_cancelled_task() {
 }
 
 #[test]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the outside observation test selects only move and rejected-push evidence"
-)]
 fn no_overwrite_referee_observes_and_rejects_a_divergent_push() {
     let mut config = fake_config();
     config.latency_min = Duration::ZERO;

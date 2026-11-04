@@ -223,6 +223,15 @@ error means the operation did nothing usable: a failed `Socket` or
     completes with its own result, or cancelled if the kernel interrupted
     it;
   - not submitted at all, when the backend failed, the target running on.
+- **A process with several owners of records** renames them at its
+  hand-off: each owner numbers its own operations, and the kernel sees one
+  token space. `kernel::Routes`, in `skein-io`, gives each record a
+  process-wide token as it leaves its owner's queue, gives the owner its
+  own token back with the completion, and carries a cancel to its target's
+  process-wide token. A target that has completed while its cancel waits
+  unpublished keeps its route until the cancel goes. It holds routes for
+  a stated number of operations; past that, or with no room in the shared
+  queue, a record waits in its owner's queue.
 
 ## 6. What every backend does
 
@@ -992,8 +1001,8 @@ interface for its backend.
   which leaves it out; both destroyed, and `NotFound` after. The
   simulator has no btrfs: the minimal fake machine answers these records
   `NotSupported` (testing.md, 4), and a service's own fake machine that
-  models btrfs holds itself to these scenarios (hearth's, its
-  domain/testing.md, 3.3).
+  models btrfs holds itself to these scenarios (hearth's
+  `domain/testing.md`, 3.3).
 - **Processes,** with the fixture program of both backends (echo its
   input, exit with a status, never exit): pipes through chosen
   descriptors, an exit status kept, a `Wait` that waits while the child

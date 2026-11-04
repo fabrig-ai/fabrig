@@ -114,8 +114,8 @@ class RunnerTests(unittest.TestCase):
             'browser-skein = [{package="skein-ui-example-server", bin="skein-ui-example"}]\n'
             'browser-jig = [{package="jig-test", bin="jig-test"}]\n'
             'browser-temper = [{package="temper", bin="temper"}]\n'
-            'qa-temper = [{package="temper", bin="temper"}, '
-            '{package="temper-fake-claude", bin="fake-claude"}]\n'
+            'qa-temper = [{package="smith-fake-claude", bin="fake-claude"}, '
+            '{package="temper", bin="temper"}]\n'
             'qa-smith = []\nprocess-jig = []\nexhaustive-skein = []\n')
         with self.packages.open('a') as output:
             output.write(self.binary_lists)
@@ -175,8 +175,8 @@ class RunnerTests(unittest.TestCase):
         result, calls = self.invoke("temper", "qa")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([call['name'] for call in calls], ["df", "wrap"] * 3)
-        self.assertEqual(calls[1]['args'], ["cargo", "build", "-p", "temper", "--bin", "temper"])
-        self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "temper-fake-claude", "--bin", "fake-claude"])
+        self.assertEqual(calls[1]['args'], ["cargo", "build", "-p", "smith-fake-claude", "--bin", "fake-claude"])
+        self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "temper", "--bin", "temper"])
         self.assertEqual(calls[5]['args'][:3], ["cargo", "nextest", "run"])
         self.assertIsNone(calls[5]['env']['TEMPER_TEST_BUNDLE'])
 

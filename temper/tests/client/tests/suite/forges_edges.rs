@@ -656,12 +656,12 @@ fn elsewhere_welcome_after_restart_connects_retries_and_leaves_the_repository_un
             ),
             PersonStep::Go { address: Address::Welcome { step: Step::Ready } },
             see(Role::Heading { level: 1 }, b"Almost ready"),
-            see(Role::Paragraph, b"Project: Default"),
-            see(Role::Button, b"Open Default"),
+            see(Role::TextField, b"Your first project"),
+            see(Role::Button, b"Create your project"),
         ],
     );
     admin_private(&mut world, client);
-    assert!(node(&world, client, Role::Button, b"Open Default").states.as_slice().contains(&State::Disabled));
+    assert!(node(&world, client, Role::Button, b"Create your project").states.as_slice().contains(&State::Disabled));
     admin_private(&mut world, client);
     assert!(!world.front().engine_adopted(OWNED, 42));
 }
@@ -956,7 +956,7 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
     );
     connection(&mut world, GITHUB, connected());
     follow(&mut world, client, vec![see(Role::Disclosure, b"Each step")]);
-    assert!(text(&world, client).contains("Forgejo on this machine · Setting up: preparing"));
+    assert!(text(&world, client).contains("Forgejo on this machine · work/hello · Setting up: preparing"));
     connection(&mut world, OWNED, connected());
     follow(
         &mut world,
@@ -964,14 +964,14 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
         vec![
             PersonStep::Go { address: Address::Welcome { step: Step::Ready } },
             see(Role::Heading { level: 1 }, b"Almost ready"),
-            see(Role::Paragraph, b"Project: Default"),
+            see(Role::TextField, b"Your first project"),
             gone(Role::Disclosure, b"Each step"),
             gone(Role::Heading { level: 2 }, b"Setting up Forgejo on this machine"),
             gone(Role::Link, b"Later"),
         ],
     );
-    node(&world, client, Role::Paragraph, "Forge: Forgejo on this machine, connected as qa-bot".as_bytes());
-    assert!(!node(&world, client, Role::Button, b"Open Default").states.as_slice().contains(&State::Disabled));
+    node(&world, client, Role::Paragraph, "Forge Forgejo on this machine · connected as qa-bot".as_bytes());
+    assert!(!node(&world, client, Role::Button, b"Create your project").states.as_slice().contains(&State::Disabled));
     assert_eq!(world.front().set_ups().len(), ONE_SETUP);
 }
 

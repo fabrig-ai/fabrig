@@ -8,7 +8,7 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decision, Env, List, Queue, Token};
+use skein_lib::{Decision, Env, List, Queue};
 
 mod brief;
 mod workspace;
@@ -424,11 +424,7 @@ fn route_now(
         }
 
         core::Now::Activate { context } => {
-            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
-        }
-        core::Now::PrepareAgent { context, load_transcript } => {
-            let transcript_waiter = if load_transcript { Some(Token::new(context.task)) } else { None };
-            work.push(Work::Core(core::Event::PreparedAgent { context, transcript_waiter, busy: false }));
+            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
         }
         value @ core::Now::StartPreparation { .. } => {
             domain.now.push(crate::Request::Now(value));
@@ -1188,6 +1184,7 @@ fn workspace_checks(
 mod tests {
     use super::*;
     use crate::tests::fixtures;
+    use skein_lib::Token;
 
     #[test]
     #[expect(clippy::too_many_lines, reason = "one restore round trip checks its edits, records and owner binding")]

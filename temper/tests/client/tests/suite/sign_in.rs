@@ -353,7 +353,7 @@ fn welcome_ready_names_the_sign_in_under_way() {
     let source = h::signing(&front);
     started(&mut front, &mut root, source);
     h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"), true);
-    has(&root, "Model: ChatGPT · signing in");
+    has(&root, "Model ChatGPT · signing in");
 }
 
 // client/README.md 3.5 The welcome Ready: the made usable account names its model line.
@@ -371,7 +371,7 @@ fn welcome_ready_names_the_made_account() {
         }),
     );
     h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"), true);
-    has(&root, "Model: ChatGPT · OpenAI · held by Person");
+    has(&root, "Model ChatGPT plan");
 }
 
 // client/README.md 3.5 Accounts and 5.5 A sign-in: Made uses the signed-in words and acts.

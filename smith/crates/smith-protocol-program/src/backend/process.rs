@@ -3,6 +3,7 @@
 //! Exit retains its code and drain grace until closure settles every handle.
 //! This machine knows no completion, window, MCP listener or stop policy.
 
+use crate::backend::Below;
 use core::mem;
 use skein_io::{self as io, kernel};
 use skein_lib::{Queue, Time, Token};
@@ -78,7 +79,7 @@ impl Process {
         follow(self);
     }
 
-    pub fn exited(&mut self, exit: kernel::Exit, until: Time, below: &mut Queue<io::Request>) {
+    pub fn exited(&mut self, exit: kernel::Exit, until: Time, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Dormant);
         self.state = match state {
             State::Live { resources } | State::Draining { resources, .. } => exited(resources, exit, until, below),
@@ -102,7 +103,7 @@ impl Process {
     }
 
     /// Abort residual streams once, after an exited child's drain grace.
-    pub fn drain(&mut self, now: Time, below: &mut Queue<io::Request>) {
+    pub fn drain(&mut self, now: Time, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Dormant);
         self.state = match state {
             State::Draining { resources, exit, grace } => drained(resources, exit, grace, now, below),
@@ -175,16 +176,16 @@ fn spawned(child: Token, pipes: Pipes) -> State {
     State::Live { resources: Resources { child: Some(child), pipes } }
 }
 
-fn exited(resources: Resources, exit: kernel::Exit, until: Time, below: &mut Queue<io::Request>) -> State {
+fn exited(resources: Resources, exit: kernel::Exit, until: Time, below: &mut Queue<Below>) -> State {
     let exit = match exit {
         kernel::Exit::Code(code) => u32::from(code),
         kernel::Exit::Signal(signal) => 128_u32.checked_add(signal).expect("signal code"),
     };
     if let Some(child) = resources.child {
-        below.push(io::Request::Close { entity: child });
+        below.push(Below::Io(io::Request::Close { entity: child }));
     }
     if let Some(input) = resources.pipes.input {
-        below.push(io::Request::Close { entity: input });
+        below.push(Below::Io(io::Request::Close { entity: input }));
     }
     State::Draining { resources, exit, grace: Grace::Waiting { until } }
 }
@@ -197,14 +198,14 @@ fn closed(mut resources: Resources, owner: Token, child_owner: Token) -> Resourc
     resources
 }
 
-fn drained(resources: Resources, exit: u32, grace: Grace, now: Time, below: &mut Queue<io::Request>) -> State {
+fn drained(resources: Resources, exit: u32, grace: Grace, now: Time, below: &mut Queue<Below>) -> State {
     let grace = match grace {
         Grace::Waiting { until } if now >= until => {
             for pipe in resources.pipes.all().into_iter().flatten() {
-                below.push(io::Request::Abort { entity: pipe });
+                below.push(Below::Io(io::Request::Abort { entity: pipe }));
             }
             if let Some(child) = resources.child {
-                below.push(io::Request::Close { entity: child });
+                below.push(Below::Io(io::Request::Close { entity: child }));
             }
             Grace::Expired
         }

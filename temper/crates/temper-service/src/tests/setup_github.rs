@@ -38,7 +38,7 @@ fn owner_service() -> crate::Service {
             }))),
         ]),
     }));
-    let _committed = store.above.pop().unwrap();
+    let _committed = store.host.above.pop().unwrap();
     let mut config = github_config(STATES, LIFE, None);
     config.jig.limits.core.authority.segments = ADOPTION_SEGMENTS;
     let mut service = local_service(config, store);
@@ -158,6 +158,7 @@ fn request(
         },
         &engine.workers.forges,
         None,
+        crate::family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )

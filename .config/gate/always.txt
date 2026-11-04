@@ -1,4 +1,4 @@
-# Packages whose tests read other packages' files by path.
+# Packages whose tests read other packages' files by path: PACKAGE, or PACKAGE PATH-PREFIX.
 jig-boundary
 temper-box
 temper-client-world
@@ -7,3 +7,4 @@ temper-client-journeys
 temper-stage-one
 skein-oauth-world
 fabrig-boundary
+hearth-render-world hearth/

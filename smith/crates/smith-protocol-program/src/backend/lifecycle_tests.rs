@@ -113,7 +113,7 @@ fn an_accepted_init_uses_the_completion_head_deadline() {
 fn private_diagnostics_redact_known_private_values() {
     let backend = backend();
     let secret = mcp::secret_text(backend.names.mcp.expose().try_into().expect("bounded test fixture"));
-    let bytes = mcp::json::join(&[b"stderr ", &secret, b" ", &backend.run_path(b"mcp.json"), b" tail"]);
+    let bytes = skein_lib::bytes::concat(&[b"stderr ", &secret, b" ", &backend.run_path(b"mcp.json"), b" tail"]);
     let text = backend.private_diagnostic(&bytes);
     assert!(skein_lib::bytes::find(&text, &secret).is_none());
     assert!(skein_lib::bytes::find(&text, &backend.names.run).is_none());
@@ -121,13 +121,13 @@ fn private_diagnostics_redact_known_private_values() {
 }
 #[test]
 fn native_input_is_written_in_whole_chunks_within_its_room() {
-    let mut backend = fixtures::input(vec![b'x'; 10001].into());
+    let mut below = Queue::with_capacity(64);
+    let mut backend = fixtures::input(vec![b'x'; 10001].into(), &mut below);
     let mut count = 0;
     let mut chunks = 0_u32;
     let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+
     for _ in 0_u32..3 {
-        backend.flush(&mut below);
         let room = below.pop().expect("bounded test fixture");
         let Below::Io(io::Request::Output { down: skein_lib::stream::OutputDown::Room { bytes, .. }, .. }) = room
         else {

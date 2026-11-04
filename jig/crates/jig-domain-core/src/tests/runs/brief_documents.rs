@@ -29,7 +29,7 @@ fn plan(core: &mut Core, limits: &Limits, task: u64) -> (List<brief::Planned>, B
     assert_eq!(core.tasks.task(task).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
     let context = core.tasks.run_context(task).unwrap();
     core.contexts.insert(task, context).unwrap();
-    core.begin_transcript(task, 0);
+    core.begin_transcript(task, 0, None);
     let mut work = Queue::uncapped();
     let mut out = crate::routing::run::preparation::plan_brief(
         core,

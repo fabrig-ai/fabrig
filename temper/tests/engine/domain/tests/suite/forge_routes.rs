@@ -1,5 +1,4 @@
 //! Root forge stories with its durable store and the independent fake Forgejo.
-#![expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the forge rows relevant to each story")]
 use crate::stock;
 
 use jig_domain_authority as authority;
@@ -19,6 +18,9 @@ use temper_engine_domain_world::forge_routes::{
 use temper_engine_domain_world::{protocol, walking};
 
 use temper_engine_forge_world::{self as forge_world, translate};
+
+#[path = "forge_routes/approval_identity.rs"]
+mod approval_identity;
 
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
@@ -183,6 +185,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     assert_eq!(live_task(&world, e.task).spec.words.as_ref(), b"dependency e");
     let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"wait for e");
     amendment.dependencies = Some(Box::new([e.task]));
+    let revision = spec_revision(&world, c);
     let event = world.protocol.call(
         Token::new(7),
         chat.task,
@@ -191,7 +194,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
         engine::Call {
             completion: 1,
             position: 3,
-            tool: engine::Tool::Amend { target: c, revision: spec_revision(&world, c), amendment },
+            tool: engine::Tool::Amend { keep_parameters: false, target: c, revision, amendment },
         },
     );
     world.send(event);
@@ -224,7 +227,6 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     let rendered = temper_engine_smith::answer(&engine::CallAnswer::EffectRefused(problem));
     assert_eq!(rendered.text(), format!("Refused: kept until T{} is done", e.task).as_bytes());
     assert!(matches!(live_task(&world, c).phase, tasks::Phase::Active(_)), "kept change is not held");
-
     let event = world.protocol.answer(
         Token::new(7),
         e.task,
@@ -2619,7 +2621,6 @@ fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the story prints an unexpected typed effect answer")]
 fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
     let mut world = World::configured(true, false);
     world.adopt();

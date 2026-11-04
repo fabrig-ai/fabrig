@@ -509,8 +509,9 @@ over skein's harness.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo on this machine's card chosen on the Forge step, and its Details' "Set up a Forgejo here" pressed, which makes the forge and sets it up (`README.md`, 3.5) | `01.html`, the welcome as it was when "Set up temper" was pressed, which leads to `02.html`, the Forge step's choices as they were when Forgejo on this machine's card was chosen, which leads to `03.html`, its Details, the set up's fields filled, as they were when "Set up a Forgejo here" was pressed, which leads to `04.html`, the Model step, the set up running on, as it was when the recording ended; its `README.md` says so |
+| `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`README.md`, 3.5) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html` and `08.html`, the Model step, the set up running on, the second as it was when the recording ended; its `README.md` says so |
 | `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, the chats page in the Demo project, the playground started, its banner's one line at its pane's foot, as it was when the recording ended; its `README.md` says so |
+| `project-landing` | on a fresh `temper box --fake-backends` (3.5): the welcome walked to Ready, Forgejo run on this machine and the ChatGPT plan signed in, "Create your project" pressed, and the page it leads to reloaded, which starts the recording there | `01.html`, the project's first page, the chats page in Default, as it was when the recording ended; its `README.md` says so |
 
 ## 10. Open questions
 
@@ -519,7 +520,12 @@ over skein's harness.
   walk of typing. The user's word.
 - **The gallery's states,** set from hand-written worlds: whether each
   moves to a journey once the fake box reaches it, its answers then the
-  engine's own (`browser.md`, section 7).
+  engine's own (`browser.md`, section 7). Model's forge done and failed
+  and Ready wait on a fake box whose Forgejo set up finishes, so that
+  fewer states are hand-made (`../draft/look-requests.md`, 8).
+- **A render-check command:** in `temper-client-journeys`, taking a
+  request's name. Default: each landing's own script
+  (`../draft/look-requests.md`, 4 and 8).
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.

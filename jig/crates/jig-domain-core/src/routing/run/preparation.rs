@@ -497,44 +497,40 @@ pub(crate) fn plan_note_index(
     }
 }
 
-pub(crate) fn route_prepared_agent(
+/// The window a preparation loads: the proof's, unless a fresh retry starts an open one over.
+fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32)> {
+    let proof = core.proofs.get(&context.task)?;
+    let window = proof.window?;
+    if context.tries.transient == 0 || proof.crossed || window.closed {
+        Some((window.attempt, window.turn))
+    } else {
+        None
+    }
+}
+
+fn prepare_agent(
     core: &mut Core,
     work: &mut Queue<Work>,
     context: Box<tasks::RunContext>,
-    transcript_waiter: Option<Token>,
-    busy: bool,
+    from: Option<(u64, u32)>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    let Some(row) = core.tasks.task(context.task) else { return out };
-    if row.phase != tasks::Phase::Active(tasks::Active::Due) {
-        return out;
+    let number = context.task;
+    if let Some((token, _)) = core.workspace_flight(number) {
+        drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
     }
-    if busy {
-        remember_due(core, context);
+    let previous_attempt = context.previous_attempt;
+    super::results::clear(core, number);
+    assert!(core.contexts.insert(number, context).is_ok(), "bounded activation context");
+    core.begin_transcript(number, previous_attempt, from);
+    work.push(Work::Event(Event::Tasks(tasks::Event::Prepare {
+        reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Acknowledge)),
+        task: number,
+    })));
+    if let Some(from) = from {
+        out.push(Request::Now(Box::new(Now::StartPreparation { task: number, from })));
     } else {
-        let number = context.task;
-        if let Some((token, _)) = core.workspace_flight(number) {
-            drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
-        }
-        let previous_attempt = context.previous_attempt;
-        let fresh = context.tries.transient != 0;
-        super::results::clear(core, number);
-        assert!(core.contexts.insert(number, context).is_ok(), "bounded activation context");
-        core.begin_transcript(number, previous_attempt);
-        let transcript = core.transcripts.get_mut(&number).expect("begun transcript");
-        if fresh && !transcript.closed {
-            transcript.window = None;
-        }
-        work.push(Work::Event(Event::Tasks(tasks::Event::Prepare {
-            reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Acknowledge)),
-            task: number,
-        })));
-        let from = core.transcripts.get(&number).expect("begun transcript").window;
-        if from.is_some() {
-            out.push(Request::Now(Box::new(Now::StartPreparation { task: number, transcript_waiter, from })));
-        } else {
-            work.push(Work::StartBrief { task: number });
-        }
+        work.push(Work::StartBrief { task: number });
     }
     out
 }
@@ -545,6 +541,7 @@ pub(crate) fn route_activate(
     work: &mut Queue<Work>,
     context: Box<tasks::RunContext>,
     ready: bool,
+    busy: bool,
 ) -> Queue<Request> {
     let number = context.task;
     let mut out = Queue::uncapped();
@@ -579,19 +576,12 @@ pub(crate) fn route_activate(
             }
             tasks::Executor::Agent { .. } => match core.run_admission(&context, env.wall, Box::new([])) {
                 crate::RunAdmission::Allow(_) => {
-                    let load_transcript = match core.proofs.get(&number) {
-                        Some(proof) => {
-                            proof.window.is_some()
-                                && (context.tries.transient == 0
-                                    || proof.crossed
-                                    || match proof.window {
-                                        Some(window) => window.closed,
-                                        None => false,
-                                    })
-                        }
-                        None => false,
-                    };
-                    out.push(Request::Now(Box::new(Now::PrepareAgent { context, load_transcript })));
+                    let from = transcript_from(core, &context);
+                    if busy && from.is_some() {
+                        remember_due(core, context);
+                    } else {
+                        return prepare_agent(core, work, context, from);
+                    }
                 }
                 crate::RunAdmission::Wait(_) => remember_due(core, context),
                 crate::RunAdmission::Hold(why) => {
@@ -721,8 +711,7 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
     {
         let previous_attempt = transcript.previous_attempt;
         drop(core.transcripts.remove(&task));
-        core.begin_transcript(task, previous_attempt);
-        core.transcripts.get_mut(&task).expect("restarted empty transcript").window = None;
+        core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {
         super::results::clear(core, task);

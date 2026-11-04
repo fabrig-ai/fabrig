@@ -4,6 +4,7 @@ use skein_lib::{Env, Queue, Time};
 pub mod admin;
 pub mod change;
 pub mod connect;
+pub mod deployment;
 pub mod family;
 pub mod forges;
 mod form;
@@ -55,6 +56,7 @@ pub enum Request {
 #[derive(Debug)]
 pub struct Side {
     playground: playground::State,
+    deployment: deployment::State,
     forges: forges::State,
     forges_open: bool,
     set_up: Option<Box<forges::SetUp>>,
@@ -82,6 +84,7 @@ impl Side {
     pub fn new(_limits: &Limits, seed: u64) -> Side {
         Side {
             playground: playground::State::new(),
+            deployment: deployment::State::new(),
             forges: forges::State::Unknown,
             forges_open: false,
             set_up: None,
@@ -124,6 +127,10 @@ impl Side {
     #[must_use]
     pub const fn playground_answered(&self) -> bool {
         self.playground.answered
+    }
+    #[must_use]
+    pub const fn deployment(&self) -> Option<deployment::Answer> {
+        self.deployment.answer
     }
     #[must_use]
     pub fn playground_starting(&self) -> bool {
@@ -307,6 +314,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
         Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
         Act::SetupWrite { field, text } => forges::write(side, limits, field, text),
+        Act::CopiesWrite { text } => forges::write_copies(side, limits, text),
         Act::Adopt => {
             let Some(_party) = side.party else {
                 return;

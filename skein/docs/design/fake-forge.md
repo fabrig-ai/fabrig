@@ -1196,6 +1196,59 @@ the fake.
   seconds before the user's doubling of 10-22, provisional). The fake's
   clock carries the CI's and the queue's waits, so nothing sleeps.
 
+### 10.6 Without a peer
+
+The forge component's step harness and its machine, joint and protocol
+worlds each play their own wire, so no peer stands between them and the
+layer. They meet the `Server` the peer hosts all the same, one fake at every
+tier (`skein/docs/foundation/testing-strategy.md`, 4), through
+`skein_fake_forge_github::inline`, which hosts it in the caller's turn, over
+a domain the caller lends, with no io.
+
+- **A domain lent for a pass.** `Lent` holds the domain, the clock it runs
+  on and whether due hooks are released ahead of each call. A call settles
+  at zero latency: `call` steps it as admitted and fires the domain until
+  its reply. `release` fires what is due, hands each hook to `Service::hook`
+  and polls the service. A world calls both directly for a fixture's or a
+  person's call.
+- **A connection driven.** `pass` drives one `Server` the world has started
+  and fed: each `Event::Rate` through `domain::rate` and `server::admitted`,
+  each `Event::Domain` through `call` and `server::down`, and the server
+  resumes, until it waits on bytes or holds a head. So a request's admission
+  and its continuations finish inside one pass, as `Service::request`
+  requires. `Close` and `Closed` ask nothing of a pass: the stream is the
+  world's, and the world ends the connection. It moves `Up`s and `Down`s
+  over that stream, and takes each head between passes.
+  `take_head` blanks the credential as it does for the peer, and
+  `Server::credential` lends its value until the next pass, for a tally
+  that counts a request under the identity it presented.
+- **A request in hand.** `Inline` holds a service, a domain and their
+  bounds, for a world with a whole request that wants a whole response.
+  `serve` and `blob` each run one request through a fresh `Server`, of the
+  API's listener and of the blob listener, and return the response's bytes.
+  A cut, a pause or a lost reply is the world's, on those bytes. A request
+  is what the HTTP server admits: an HTTP/1.1 request without `Host` is
+  refused `400`, as a real server refuses it.
+- **Media types.** `Server` names the media types github.com does, with
+  `; charset=utf-8`, on the peer's connections and in `Inline` alike. Bytes
+  of a blob are `application/octet-stream`, as they stand.
+- **What a scenario turns.** `Service::ambiguous_updates` answers an
+  update's conflict with the stale head's refusal, the one spelling
+  forge-github.md, 5.2 reads as ambiguous. `Installations::minted_token`
+  lends a live token by its mint number, so a world that checks for leaks
+  holds every token the layer minted, a reply lost on the wire included.
+- **The fixture.** `skein_fake_forge_github::fixture` is the scenario a
+  world starts from, built once: the App (`APP`, `test-app`, the first
+  public key, no grants) and its bot (`BOT`), the accounts `acme` and
+  `alice`, `acme`'s repositories (`repositories`, or `widgets` alone), a
+  `Config` and `Limits` over them, their installations (`install_one`,
+  `install_three`), the domain's zero-latency `domain_config` and a
+  repository's `setup`. A world names what it varies by struct update, and
+  no more. A scenario's own accounts and repositories, such as the
+  conformance's, stay its own tables inside a fixture `Config`. The domain's
+  branches, pulls and commits are the world's: they are what its stories
+  read.
+
 ## 11. GitHub's conformance
 
 `tests/forge/github` is a tool beside section 7's. It runs the same

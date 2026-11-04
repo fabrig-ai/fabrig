@@ -123,13 +123,11 @@ fn owe_stopped_calls(conversation: &mut Conversation) {
         return;
     }
     let mut results = List::with_capacity(calls);
-    for block in &message.content {
-        match block {
-            Block::ToolCall { id, .. } => results
-                .push(Block::ToolResult { id: id.clone(), result: Returned::NotRun { why: NotRun::Stopped } })
-                .expect("one result for each stopped call"),
-            Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}
-        }
+    for part in &message.content {
+        let Some(call) = part.tool_call() else { continue };
+        results
+            .push(Block::ToolResult { id: call.id.clone(), result: Returned::NotRun { why: NotRun::Stopped } })
+            .expect("one result for each stopped call");
     }
     conversation
         .transcript
@@ -157,20 +155,11 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
         if !super::chosen(&conversation.choice, block) || !super::batching::scheduled(block, &mut blocked) {
             continue;
         }
-        let (effect, credit) = match block {
-            Block::ToolCall { call: Decoded::Owned { call }, .. } => {
-                (tools::effect(call), super::owned_credit(call, limits))
-            }
-            Block::ToolCall { call: Decoded::Delegated { effect, .. }, .. } => {
-                (*effect, super::delegated_credit(limits))
-            }
-            Block::ToolCall {
-                call: Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical, ..
-            }
-            | Block::Text { .. }
-            | Block::Refusal { .. }
-            | Block::Opaque { .. }
-            | Block::ToolResult { .. } => continue,
+        let Some(call) = block.tool_call() else { continue };
+        let (effect, credit) = match &call.call {
+            Decoded::Owned { call } => (tools::effect(call), super::owned_credit(call, limits)),
+            Decoded::Delegated { effect, .. } => (*effect, super::delegated_credit(limits)),
+            Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical => continue,
         };
         if ended || !super::joins(batch, effect, count, limits.parallel_tools) {
             ended = true;
@@ -213,18 +202,11 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
         {
             continue;
         }
-        let credit = match block {
-            Block::ToolCall { call: Decoded::Owned { call }, .. } => {
-                super::owned_credit(call, &tool_limits(call, share, limits)).min(share)
-            }
-            Block::ToolCall { call: Decoded::Delegated { .. }, .. } => super::delegated_credit(limits).min(share),
-            Block::ToolCall {
-                call: Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical, ..
-            }
-            | Block::Text { .. }
-            | Block::Refusal { .. }
-            | Block::Opaque { .. }
-            | Block::ToolResult { .. } => continue,
+        let Some(call) = block.tool_call() else { continue };
+        let credit = match &call.call {
+            Decoded::Owned { call } => super::owned_credit(call, &tool_limits(call, share, limits)).min(share),
+            Decoded::Delegated { .. } => super::delegated_credit(limits).min(share),
+            Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical => continue,
         };
         reserved = reserved.checked_add(credit).expect("batch credit within room");
         reached = reached.checked_add(1).expect("bounded width");
@@ -309,7 +291,7 @@ fn cut_text(text: Box<[u8]>, cap: u64) -> Box<[u8]> {
             kept = kept.checked_sub(1).expect("positive prefix");
         }
     }
-    let omitted = u64::try_from(text.len().checked_sub(kept).expect("prefix within text")).expect("bounded omission");
+    let omitted = skein_lib::len_u64(text.len().checked_sub(kept).expect("prefix within text"));
     let decimal = Decimal::of(omitted);
     let length = kept.checked_add(decimal.as_bytes().len()).expect("marker count").checked_add(17).expect("marker");
     let mut writer = Writer::new(length);

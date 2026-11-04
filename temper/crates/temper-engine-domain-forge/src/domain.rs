@@ -279,26 +279,6 @@ impl Domain {
             if self.forge_ended(*forge) {
                 continue;
             }
-            let mut installations = List::with_capacity(self.installations.len());
-            if config.kind == crate::Kind::GitHub {
-                for ((owner, id), installation) in &self.installations {
-                    if owner == forge {
-                        installations.push((*id, installation.clone())).expect("bounded installations");
-                    }
-                }
-            }
-            let mut repositories = List::with_capacity(self.repositories.len());
-            for (repository, adopted) in &self.repositories {
-                if repository.forge == *forge {
-                    repositories
-                        .push(crate::AdoptedRow {
-                            owner: adopted.owner.clone(),
-                            name: adopted.name.clone(),
-                            project: adopted.project,
-                        })
-                        .expect("bounded adopted repositories");
-                }
-            }
             let (ended, ended_stop) = match self.ended.get(forge) {
                 Some((why, stop)) => (Some(why.clone()), *stop),
                 None => (None, None),
@@ -306,6 +286,7 @@ impl Domain {
             rows.push(crate::Row {
                 read_only: config.kind == crate::Kind::GitHub && config.read_only,
                 number: *forge,
+                host: crate::host(&config.git),
                 kind: config.kind,
                 mode: config.mode,
                 connection: self.connection(*forge),
@@ -315,7 +296,7 @@ impl Domain {
                 },
                 offer: self.offer(*forge),
                 first: self.first.get(forge).cloned(),
-                installations: installations.into_boxed(),
+                installations: self.forge_installations(*forge, config.kind),
                 ended,
                 app: match self.connection(*forge) {
                     crate::Connection::Connected { .. } if config.kind == crate::Kind::GitHub => {
@@ -330,7 +311,7 @@ impl Domain {
                     | crate::Connection::Stopped { .. } => None,
                 },
                 web: config.web.clone(),
-                repositories: repositories.into_boxed(),
+                repositories: self.forge_repositories(*forge),
                 owned: config.owned.clone(),
                 admin: config.admin_connect,
                 ended_stop,
@@ -338,6 +319,31 @@ impl Domain {
             .expect("configured forges");
         }
         crate::Forges { rows: rows.into_boxed() }
+    }
+    fn forge_installations(&self, forge: u16, kind: crate::Kind) -> Box<[(u64, crate::Installation)]> {
+        let mut rows = List::with_capacity(self.installations.len());
+        if kind == crate::Kind::GitHub {
+            for ((owner, id), installation) in &self.installations {
+                if *owner == forge {
+                    rows.push((*id, installation.clone())).expect("bounded installations");
+                }
+            }
+        }
+        rows.into_boxed()
+    }
+    fn forge_repositories(&self, forge: u16) -> Box<[crate::AdoptedRow]> {
+        let mut rows = List::with_capacity(self.repositories.len());
+        for (repository, adopted) in &self.repositories {
+            if repository.forge == forge {
+                rows.push(crate::AdoptedRow {
+                    owner: adopted.owner.clone(),
+                    name: adopted.name.clone(),
+                    project: adopted.project,
+                })
+                .expect("bounded adopted repositories");
+            }
+        }
+        rows.into_boxed()
     }
     /// One decision shared by the document and setup admission (domain/forge.md, 4.1).
     #[must_use]
@@ -377,7 +383,6 @@ impl Domain {
     }
     /// Volatile setup answer or retained adoption outcome for this request.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
     pub fn application_answer(&self, token: Token) -> Option<crate::Answered> {
         if let Some(answer) = self.connect.answers.get(&token) {
             return Some(answer.clone());
@@ -913,7 +918,6 @@ impl Domain {
 
     /// The last durable head observed for a named branch.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the strict subset uses a match without a closure")]
     pub fn branch_head(&self, name: &Name) -> Option<skein_forge::api::Commit> {
         match self.heads.get(name) {
             Some(row) => Some(row.commit),
@@ -1624,7 +1628,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 }
                 let lost_comment = projection && outcome == skein_forge_client::Outcome::Held && posting(d, entry);
                 d.named_outcome(entry, outcome);
-                outcome_facts(d, env, entry, task, outcome, out);
+                settled_facts(d, env, entry, task, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
                 let retain = crate::landing::outcome(d, entry, outcome, out);
                 match outcome {
@@ -1715,7 +1719,33 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     read_afresh_complete(d, out);
 }
 
-#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
+fn settled_facts(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    entry: u64,
+    task: u64,
+    outcome: skein_forge_client::Outcome,
+    out: &mut Queue<Request>,
+) {
+    outcome_facts(d, env, entry, task, outcome, out);
+    settle_merge_writer(d, env, entry, outcome);
+}
+
+fn settle_merge_writer(d: &mut Domain, env: &Env<Limits>, entry: u64, outcome: skein_forge_client::Outcome) {
+    match outcome {
+        skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => return,
+        skein_forge_client::Outcome::Made { .. }
+        | skein_forge_client::Outcome::Failed(_)
+        | skein_forge_client::Outcome::Raced { .. }
+        | skein_forge_client::Outcome::Held
+        | skein_forge_client::Outcome::Withdrawn => {}
+    }
+    if let Some(row) = d.entries.get(&entry) {
+        let entry = row.entry.clone();
+        admission::merge_writer(d, env, &entry, false);
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "merge outcomes save the landing and its verification together")]
 fn outcome_facts(
     d: &mut Domain,
@@ -2646,23 +2676,38 @@ fn delegate_result(
             }
         }
         change::Delegate::Produce => producer_result(row, no_change, failed, words),
-        change::Delegate::Merge { .. } => {
-            if status == change::Status::Passed {
-                let bound = match d.merge_kind {
-                    Some((_, result)) => skein_lib::usize_of(result),
-                    None => 0,
-                };
-                row.merge_result =
-                    Some(Box::from(words.get(..words.len().min(bound)).expect("merge result within its bytes")));
-            }
-        }
-        change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {}
+        change::Delegate::Merge { .. } => completed_merge(row, status, words, d.merge_kind),
+        change::Delegate::Repair(_) => completed_repair(
+            row,
+            child,
+            status,
+            no_change || failed || cancelled,
+            words,
+            env.limits.client.answer_bytes,
+        ),
+        change::Delegate::Resolve { .. } => {}
     }
     let saved = row.clone();
     if kind == change::Delegate::Produce && status == change::Status::Failed {
         d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     }
     save_change(d, out, saved);
+}
+
+fn completed_merge(row: &mut ChangeRow, status: change::Status, words: &[u8], kind: Option<(u32, u32)>) {
+    if status == change::Status::Passed {
+        let bound = match kind {
+            Some((_, result)) => skein_lib::usize_of(result),
+            None => 0,
+        };
+        row.merge_result = Some(Box::from(words.get(..words.len().min(bound)).expect("merge result within its bytes")));
+    }
+}
+
+fn completed_repair(row: &mut ChangeRow, child: u64, status: change::Status, rejected: bool, words: &[u8], bound: u32) {
+    if status == change::Status::Passed && !rejected && !words.is_empty() {
+        row.result.completed(child, words, bound);
+    }
 }
 
 fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[u8]) {
@@ -3478,7 +3523,6 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
     None
 }
 
-#[expect(clippy::manual_map, reason = "step code uses concrete matches, without callbacks")]
 #[expect(clippy::too_many_lines, reason = "the coherent change snapshot includes question and early-start facts")]
 fn change_facts(
     d: &Domain,
@@ -4728,6 +4772,7 @@ fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let row = d.entries.get_mut(&number).expect("selected entry remains");
     row.handoff = Handoff::Handed;
     let entry = row.entry.clone();
+    admission::merge_writer(d, env, &entry, true);
     child(d, env, skein_forge_client::Event::Make { entry }, out);
 }
 
@@ -4749,6 +4794,7 @@ fn resolve(d: &mut Domain, env: &Env<Limits>, number: u64, again: bool, out: &mu
         out,
         Request::Save { read_afresh: None, release: None, record: Stored::Entry { entry: entry.clone(), held: false } },
     );
+    admission::merge_writer(d, env, &entry, true);
     child(d, env, skein_forge_client::Event::Remake { entry }, out);
 }
 
@@ -5092,7 +5138,6 @@ fn wake_head_dependents(
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code has no closures")]
 fn branch_changed(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -5759,7 +5804,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         for number in entries.into_boxed() {
             let task = d.entries.get(&number).expect("collected entry").entry.task;
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
-            outcome_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
+            settled_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
             not_made(d, number, out);
             if let Some(row) = d.releases.get(&task)
                 && !row.failed

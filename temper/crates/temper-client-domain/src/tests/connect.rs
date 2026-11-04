@@ -14,6 +14,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 const HERE: u16 = 3;
 fn row(number: u16, kind: Kind, mode: Mode, connection: C, offer: Offer) -> Row {
     Row {
+        host: b"git.example:3000".as_slice().into(),
         number,
         kind,
         mode,
@@ -45,10 +46,10 @@ fn the_flow_shows_the_step_its_row_is_at() {
         (C::Connected { id: 1, login: b"bot".as_slice().into() }, Shown::Ready(HERE)),
         (C::Stopped { reason: b"stopped".as_slice().into() }, Shown::Choose),
     ] {
-        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows(connection), None), expected);
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows(connection), None, true), expected);
     }
-    assert_eq!(connect::step(None, &rows(C::NotSetUp), None), Shown::Choose);
-    assert_eq!(connect::step(Some(Choice::Forge(9)), &rows(C::NotSetUp), None), Shown::Choose);
+    assert_eq!(connect::step(None, &rows(C::NotSetUp), None, true), Shown::Choose);
+    assert_eq!(connect::step(Some(Choice::Forge(9)), &rows(C::NotSetUp), None, true), Shown::Choose);
     // Leaving the elsewhere card off the welcome does not retire its address.
     for address in [
         Address::Welcome { step: Step::Forge { forge: Some(Choice::Elsewhere) } },
@@ -63,17 +64,17 @@ fn the_flow_shows_the_step_its_row_is_at() {
         else {
             panic!("forge choice");
         };
-        assert_eq!(connect::step(choice, &State::Unknown, None), Shown::Details(Choice::Elsewhere));
+        assert_eq!(connect::step(choice, &State::Unknown, None, true), Shown::Details(Choice::Elsewhere));
     }
     let playground = forge::family::playground(&playground::answer(b"title"), &w::CEILINGS).unwrap();
     assert_eq!(
-        connect::step(Some(Choice::Forge(playground.forge)), &rows(C::NotSetUp), Some(playground.forge)),
+        connect::step(Some(Choice::Forge(playground.forge)), &rows(C::NotSetUp), Some(playground.forge), true),
         Shown::Choose
     );
     let github = State::Rows(Box::new([row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered)]));
-    assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None), Shown::Details(Choice::Forge(2)));
+    assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None, true), Shown::Details(Choice::Forge(2)));
     let fake = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Fake, C::NotSetUp, Offer::Offered)]));
-    assert_eq!(connect::step(Some(Choice::Forge(HERE)), &fake, None), Shown::Choose);
+    assert_eq!(connect::step(Some(Choice::Forge(HERE)), &fake, None, true), Shown::Choose);
 }
 #[test]
 fn a_fresh_deployment_lists_no_forge_and_offers_the_kinds() {
@@ -88,6 +89,41 @@ fn a_fresh_deployment_lists_no_forge_and_offers_the_kinds() {
         &[connect::Choice::GitHub, connect::Choice::Managed]
     );
 }
+#[test]
+fn no_owned_offers_github_and_a_forgejo_elsewhere() {
+    for state in [State::Unknown, State::Ended, State::Rows(Box::new([]))] {
+        assert_eq!(
+            connect::choices(connect::records(&state), None, false).as_ref(),
+            &[connect::Choice::GitHub, connect::Choice::Managed]
+        );
+    }
+}
+#[test]
+fn an_owned_address_with_none_offered_is_choose() {
+    for (state, playground, owned) in [
+        (State::Unknown, None, false),
+        (State::Ended, None, false),
+        (State::Rows(Box::new([])), None, false),
+        (State::Rows(Box::new([])), Some(1), true),
+        (State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotOffered)])), None, true),
+        (
+            State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotUnderTheBox)])),
+            None,
+            true,
+        ),
+    ] {
+        assert_eq!(connect::step(Some(Choice::Owned), &state, playground, owned), Shown::Choose);
+        assert_eq!(connect::welcome_step(Some(Choice::Owned), &state, playground, owned), Shown::Choose);
+    }
+}
+#[test]
+fn an_offered_owned_address_keeps_its_details() {
+    for (state, owned) in [(State::Rows(Box::new([])), true), (rows(C::NotSetUp), false)] {
+        assert_eq!(connect::step(Some(Choice::Owned), &state, None, owned), Shown::Details(Choice::Owned));
+        assert_eq!(connect::welcome_step(Some(Choice::Owned), &state, None, owned), Shown::Details(Choice::Owned));
+    }
+}
+
 fn event(root: &mut crate::Domain, event: Event) -> Queue<Request> {
     event_at(root, event, Time::ZERO)
 }
@@ -444,6 +480,7 @@ fn deliver_first_record(
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                host: b"git.example:3000".as_slice().into(),
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,
@@ -561,11 +598,16 @@ fn ready_waits_on_the_first_repository_made() {
         (forges::FirstState::Made { id: 42 }, Shown::Ready(HERE)),
     ] {
         let rows = with_first(C::Connected { id: 7, login: b"temper".as_slice().into() }, state);
-        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows, None), expected);
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows, None, true), expected);
         assert_eq!(connect::personal(&rows, None).unwrap().number, HERE);
     }
     assert_eq!(
-        connect::step(Some(Choice::Forge(HERE)), &with_first(C::Connecting, forges::FirstState::Made { id: 42 }), None),
+        connect::step(
+            Some(Choice::Forge(HERE)),
+            &with_first(C::Connecting, forges::FirstState::Made { id: 42 }),
+            None,
+            true
+        ),
         Shown::SettingUp(HERE)
     );
 }
@@ -578,7 +620,7 @@ fn a_first_repository_failed_shows_its_step() {
         (forges::CreateStep::File, b"Set up failed: adding the starter workflow"),
     ] {
         let rows = with_first(C::Connected { id: 7, login: Box::default() }, forges::FirstState::Failed { step });
-        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows, None), Shown::SettingUp(HERE));
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows, None, true), Shown::SettingUp(HERE));
         let row = connect::personal(&rows, None).unwrap();
         assert_eq!(forge::words::forge_connection(row).as_ref(), words);
         assert_eq!(forge::listed::dot(&rows, None), forge::listed::Dot::Red);
@@ -693,6 +735,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                host: b"git.example:3000".as_slice().into(),
                 number: 2,
                 kind: w::Kind::Github,
                 mode: w::Mode::Connected,
@@ -730,7 +773,7 @@ fn github_without_an_accepted_installation_is_connecting() {
     let mut state = github_picker_rows();
     let State::Rows(rows) = &mut state else { panic!("rows") };
     rows[0].installations = Box::default();
-    assert_eq!(connect::step(Some(Choice::Forge(2)), &state, None), Shown::SettingUp(2));
+    assert_eq!(connect::step(Some(Choice::Forge(2)), &state, None, true), Shown::SettingUp(2));
     assert_eq!(connect::unfinished(connect::records(&state), None).unwrap().number, 2);
 }
 #[test]
@@ -764,8 +807,8 @@ fn welcome_skips_owned_details_only_when_offered_under_the_box() {
         [(Offer::Offered, Shown::Choose), (Offer::NotUnderTheBox, Shown::Details(Choice::Forge(HERE)))]
     {
         let state = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, offer)]));
-        assert_eq!(connect::welcome_step(Some(Choice::Forge(HERE)), &state, None), expected);
-        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &state, None), Shown::Details(Choice::Forge(HERE)));
+        assert_eq!(connect::welcome_step(Some(Choice::Forge(HERE)), &state, None, true), expected);
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &state, None, true), Shown::Details(Choice::Forge(HERE)));
     }
     let mut candidate = row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered);
     assert!(connect::at_once(&candidate));
@@ -858,6 +901,55 @@ fn choosing_owned_sends_set_up_new_owned() {
     assert_eq!((request.org(), request.repository()), (b"work".as_slice(), b"hello".as_slice()));
 }
 #[test]
+fn the_sheets_run_sets_up_owned_with_an_empty_repository_as_written() {
+    let (mut root, _, _) = opened(true);
+    assert_eq!(root.forge().setup_form().start, forges::Start::Empty);
+    write_setup(&mut root, forges::SetupField::Organization, b"mine");
+    write_setup(&mut root, forges::SetupField::Repository, b"first");
+    let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)));
+    let w::Request::SetUp(request) = request else { panic!("set up") };
+    let w::Making::New(new) = request.forge() else { panic!("new") };
+    assert_eq!(*new.forge(), w::ForgeAsk::Owned);
+    assert_eq!(
+        (request.org(), request.repository(), request.playground()),
+        (b"mine".as_slice(), b"first".as_slice(), false)
+    );
+    assert!(!root.forge().setup_form().not_yet);
+}
+#[test]
+fn the_sheets_copies_and_nothing_are_not_made_yet() {
+    for start in [forges::Start::Copies, forges::Start::Nothing] {
+        let (mut root, _, _) = opened(true);
+        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::Start(start))).is_empty());
+        assert!(
+            f::form_act(&mut root, forge::Act::CopiesWrite { text: b"github.com/a/b".as_slice().into() }).is_empty()
+        );
+        let draft = root.forge().setup_form();
+        assert_eq!((draft.start, &*draft.copies, draft.copies_written), (start, b"github.com/a/b".as_slice(), 1));
+        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)).is_empty());
+        assert!(root.forge().set_up().is_none());
+        assert!(root.forge().setup_form().not_yet);
+        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::Start(forges::Start::Empty))).is_empty());
+        assert!(!root.forge().setup_form().not_yet);
+        let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)));
+        let w::Request::SetUp(request) = request else { panic!("set up") };
+        assert_eq!((request.org(), request.repository()), (b"work".as_slice(), b"hello".as_slice()));
+    }
+}
+#[test]
+fn the_sheets_addresses_are_bounded_as_a_field() {
+    let (mut root, _, _) = opened(true);
+    let bound = f::limits().forge.field_bytes.checked_add(1).unwrap();
+    let mut long = List::with_capacity(bound);
+    for _ in 0..bound {
+        long.push(b'a').unwrap();
+    }
+    let long = long.into_boxed();
+    assert!(f::form_act(&mut root, forge::Act::CopiesWrite { text: long }).is_empty());
+    let draft = root.forge().setup_form();
+    assert_eq!((&*draft.copies, draft.copies_written), (b"".as_slice(), 0));
+}
+#[test]
 fn an_unfinished_github_with_its_app_offers_go_on_first() {
     let mut candidate = row(4, Kind::GitHub, Mode::Connected, C::Stopped { reason: Box::default() }, Offer::NotOffered);
     candidate.app = Some(forges::AppWay::Manifest);
@@ -930,7 +1022,7 @@ fn new_owned_setup_binds_the_made_rows_number_without_adopting() {
 }
 #[test]
 fn the_welcome_shows_a_forge_not_set_up_as_unfinished() {
-    assert_eq!(connect::welcome_step(None, &rows(C::NotSetUp), None), Shown::Unfinished(HERE));
+    assert_eq!(connect::welcome_step(None, &rows(C::NotSetUp), None, true), Shown::Unfinished(HERE));
 }
 #[test]
 fn a_connected_forge_without_its_first_repository_continues_instead_of_starting_over() {
@@ -944,7 +1036,7 @@ fn a_connected_forge_without_its_first_repository_continues_instead_of_starting_
         assert!(connect::unfinished(connect::records(&state), None).is_none());
         let personal = connect::personal(&state, None).unwrap();
         assert!(!connect::complete(personal), "the first repository is still needed");
-        assert_eq!(connect::step(Some(Choice::Forge(personal.number)), &state, None), Shown::Ready(HERE));
+        assert_eq!(connect::step(Some(Choice::Forge(personal.number)), &state, None, true), Shown::Ready(HERE));
     }
 }
 
@@ -977,6 +1069,7 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
             w::ForgeRow::new(
                 &w::CEILINGS,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number: 9,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,

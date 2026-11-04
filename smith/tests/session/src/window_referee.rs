@@ -70,7 +70,7 @@ pub(super) fn recorded_window(session: &mut Session, turn: &agent::record::Turn,
         .iter()
         .filter_map(|block| match block {
             Block::Text { text, .. } => Some(text.as_ref()),
-            Block::Opaque { .. } | Block::Refusal { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } => None,
+            Block::Opaque { .. } | Block::Refusal { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => None,
         })
         .collect::<Vec<&[u8]>>()
         .join(b"\n\n".as_slice());
@@ -116,8 +116,7 @@ pub(super) fn measured(session: &Session, prompt: &crate::provider::MeasuredProm
 }
 
 fn payload_bytes(prompt: &Prompt) -> u64 {
-    u64::try_from(prompt.model.len() + prompt.system.len() + prompt.effort.as_ref().map_or(0, |v| v.len()))
-        .expect("small fixed bytes")
+    skein_lib::len_u64(prompt.model.len() + prompt.system.len() + prompt.effort.as_ref().map_or(0, |v| v.len()))
         + prompt.namespace.owned_bytes().expect("small namespace")
         + prompt.messages.iter().flat_map(|message| &message.content).map(block_bytes).sum::<u64>()
 }
@@ -128,7 +127,7 @@ fn block_bytes(block: &Block) -> u64 {
     let size = match block {
         Block::Text { text, replay: saved } | Block::Refusal { text, replay: saved } => text.len() + replay(saved),
         Block::Opaque { bytes } => bytes.len(),
-        Block::ToolCall { id, name, input, call, replay: saved } => {
+        Block::ToolCall(smith_domain_session::llm::ToolCall { id, name, input, call, replay: saved }) => {
             let decoded = match call {
                 Decoded::Owned { call } => {
                     usize::try_from(call.owned_bytes().expect("small call")).expect("small call")

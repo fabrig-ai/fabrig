@@ -425,6 +425,30 @@ kit's functions, each before startup's step 7, through the kernel as
   remove `LISTEN_FDS` from its own environment; a service that gives
   its children its environment drops it, and sets each child's own.
 
+### 6.7 A durable file at startup
+
+Startup writes what it must keep, a key a person gave it or a generated
+configuration, with the kit, as it reads what it needs (6.1).
+`store_file(kernel, clock, store)` runs io's whole-file store (io.md,
+5.2) to its end, on the kernel it is given, before the service is made:
+the sync, the rename and the directory's sync are io's, and no caller
+drives them by hand.
+
+- The caller opens the root with `open_root`. The store takes it, and
+  closes it on every path.
+- The file goes in that directory, or in a private directory named under
+  it, which the store opens through io's private-file checks (io.md, 5.3)
+  as the effective user the caller read.
+- It answers `Kept`, or `Conflict` when the expectation failed. Otherwise
+  it answers why not: the unsafe entry io's checks found, the kernel's
+  error from the store or from a close after it, the first failure of
+  either, or bytes past a `u32`.
+
+The caller states the timeout and gives the randomness seed. A caller
+that keeps its kernel for the service hands that one in; one that opens a
+kernel for this write alone opens it with `STORE_OPERATIONS`. The store
+holds nothing once it returns.
+
 ## 7. The readiness backend
 
 This backend is for hosts where io_uring is not available: a container

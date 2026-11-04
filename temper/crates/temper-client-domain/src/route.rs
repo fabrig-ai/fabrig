@@ -87,7 +87,6 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         Some(task) => task.panel(&root.client, root.forge_number()),
         None => None,
     };
-    #[expect(clippy::manual_map, reason = "the client's domain matches without a closure")]
     let watched = match root.forge.panel() {
         Some(panel) => Some(panel.subject),
         None => None,
@@ -332,7 +331,8 @@ fn forge_playground(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Tol
     } else {
         told
     };
-    let consumed = forge::playground::told(&mut root.forge, told, env.limits.forge, &mut child);
+    let consumed = forge::deployment::told(&mut root.forge, told, env.limits.forge, &mut child)
+        || forge::playground::told(&mut root.forge, told, env.limits.forge, &mut child);
     route_forge(root, env, &mut child, out);
     // A playground answer can arrive after the page and account watch. Way resolution
     // must exclude its provider on that same rebuild.

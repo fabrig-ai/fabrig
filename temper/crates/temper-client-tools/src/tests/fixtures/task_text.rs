@@ -122,6 +122,7 @@ pub(crate) fn source_chunk(
         field: match field {
             core::reads::TaskTextField::Specification => jig_client::contract::TaskTextField::Specification,
             core::reads::TaskTextField::Instructions => jig_client::contract::TaskTextField::Instructions,
+            core::reads::TaskTextField::Result => jig_client::contract::TaskTextField::Result,
         },
         from: page.from,
         total: page.total,

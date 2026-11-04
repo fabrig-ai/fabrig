@@ -71,11 +71,7 @@ pub struct Author {
     pub email: Box<[u8]>,
 }
 
-/// The private files jig's parts name, by path, as jig's reference takes them.
-#[derive(Debug)]
-pub struct Files {
-    pub entries: List<(Box<[u8]>, Secret)>,
-}
+pub use jig_protocol_config::Files;
 
 /// The seeds the shell draws at start, as jig's reference takes them.
 #[derive(Debug)]
@@ -111,6 +107,7 @@ pub struct Engine {
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub demo: Option<Demo>,
+    pub welcome: bool,
     pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
     pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     pub limits: super::limits::Limits,

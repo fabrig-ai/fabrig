@@ -41,7 +41,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   and fetches Forgejo and runner. Fake needs no account: only local
   Forgejo stays real; GitHub, model, sign-in and remote Forgejo are
   loopback fakes. From a checkout:
-  `cargo build -p temper -p temper-fake-claude` to put `fake-claude`
+  `cargo build -p temper -p smith-fake-claude` to put `fake-claude`
   beside `temper`, then `scripts/bundle.sh --loopback BUNDLE`.
 - **Directories:** `CONFIG`, `DATA`, `CACHE`: absolute, empty, private
   (0700), no links; this box alone. `DIR`: private.
@@ -58,19 +58,19 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 ## 1. Write the configuration
 
 ```
-temper init --config CONFIG --data DATA --cache CACHE
+temper init --box --config CONFIG --data DATA --cache CACHE
 ```
 
-Init writes loopback ports 8367–8371 for clients, owned Forgejo,
-fake forge, demo LLM and webhooks, or free ports if occupied, in both
-files. Another box needs empty directories; keep the first running.
+Init writes loopback ports 8367–8371 for clients, owned Forgejo, fake forge,
+demo LLM and webhooks, or free ports if busy.
+Another box needs empty directories; keep the first running.
 
-Starts refuse occupied saved addresses. Init releases ports;
-step 2 on empty directories runs init, retaining ports.
-Edit first; fake backends need unchanged `CONFIG`.
+Init releases ports; starts refuse occupied addresses. Step 2 on empty
+directories runs init, retaining ports.
+Plain `temper init` then `temper box` has no playground; `--fake-backends`
+refuses it.
 
-Expect: `init: wrote DATA/worker.secret`; the last line gives step 2's
-real-backend command.
+Expect: `init: wrote DATA/worker.secret`; last line: step 2's real command.
 
 **Claude Code:** replace OpenAI with Anthropic below.
 `MODEL`: Claude Code model, e.g. `sonnet` or `opus`.
@@ -99,7 +99,7 @@ jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS
 ```
 
 Expect: no output; `me` lists provider 2, Anthropic, `claude_code`.
-Use it in step 5. Keep the demo model within init's limits.
+Use it in step 5; keep the demo model within init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
 use empty directories.
@@ -118,7 +118,7 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep running; send background output to a file.
+Keep running; log background output.
 The sign-in link follows `Open this link in a browser on this machine.`
 
 Expect: real, `Logs: DATA/box/logs/`. Fake,
@@ -147,39 +147,44 @@ temper ctl DIR me
 
 Expect: `party 1 · owner · Owner`; `me` lists no project yet.
 
-The playground makes `Demo`; setup makes yours (temper help playground).
-Policy 1 sizes each. After `settings apply`, fund the project's period,
-then role 0's pool with distinct keys (temper help weekly-budget).
-Settings never resize budgets; check with `project show PROJECT`.
+Policy 1 sizes future projects; `project-policy` immediately resizes the
+open period and parties' pools (temper help configure). After setup:
+`project show PROJECT`; funding: temper help weekly-budget.
 
-If not: `temper ctl: the sign-in link was refused` (exit 1): spent or
-expired. Use the new link after `A fresh sign-in link:`.
+If not: sign-in refused (exit 1). Use the new link
+after `A fresh sign-in link:`.
 
 ## 4. Set up Forgejo on this machine
 
-Setup adopts into `me`'s project, 1 on a new box.
+When `me` lists no project, leave out `--project`: setup creates a project named `hello`.
 
 ```
-temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
+temper ctl DIR forge setup --org work --repository hello --key KEY
 ```
 
-Expect: `setting up`, then `project: PROJECT · NAME`,
+Expect: `setting up`, then `project: PROJECT · hello`,
 `Adopted work/hello on forge FORGE as owned.` and
 `It is the project's home.`
 
-Each Forgejo start prints:
+Use the printed `PROJECT` number in later commands (1 on a new box).
+Add `--project PROJECT` to choose an existing project.
+
+Instead, `--playground` without `--project` creates `widget`:
+`project: 1 · widget` on a new box.
+
+Forgejo prints:
 
 ```
 Forgejo: api http://127.0.0.1:PORT/api/v1
 Forgejo: person LOGIN
 ```
 
-Headers: `DATA/forge-FORGE/person_read.header` and `person_write.header`
-beside it; `curl -H @PATH` keeps tokens private.
+Headers: `DATA/forge-FORGE/person_read.header` and `person_write.header`;
+`curl -H @PATH` keeps tokens private.
 `person_password` holds your first password.
 
-If not: `not met: timeout` (exit 3) after 300 seconds fetching:
-run `temper ctl DIR forge list --until made:FORGE`, then continue.
+If not: `not met: timeout` (exit 3) after 300 seconds:
+run `temper ctl DIR forge list --until made:FORGE`.
 `temper ctl DIR forge list` names fetch or start failures.
 
 ## 5. Give the model an account
@@ -214,9 +219,9 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
-`program-login` signs Claude Code into `PROGRAMS/NAME` here.
-For an existing login, set `PROGRAMS` to its parent and `NAME` to its
-name; skip `program-login`. Only one box uses it at a time.
+`program-login` signs in at `PROGRAMS/NAME`.
+For an existing login: parent as `PROGRAMS`, name as `NAME`; skip
+`program-login`. One box at a time.
 
 ```
 temper ctl DIR account list --until usable
@@ -295,8 +300,8 @@ If not: `account export: not signed in` (exit 2): add a key where needed.
 at TIME` (exit 2): no room for the move's answers; nothing moved.
 Keep the box running and export again after TIME.
 `temper ctl: unsent` (exit 1): busy engine, nothing moved; export later.
-Other failures: keep running; the account stays, the move cancels at
-its deadline. Export afterward.
+Other failures: keep running; the account stays. Export after the move's
+deadline.
 
 ## Clean up
 

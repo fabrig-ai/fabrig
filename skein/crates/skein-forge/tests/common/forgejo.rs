@@ -425,6 +425,8 @@ pub fn json_cases() -> Vec<(String, Option<Request>)> {
         let probe = [
             "setup-org-route-orgs-made",
             "setup-team-edit-nameless",
+            "setup-user-repos-alice",
+            "setup-user-repos-bob",
             "status-list-keeps-description-and-target-url",
             "update-rebase-first-commit",
             "update-rebase-second-commit",

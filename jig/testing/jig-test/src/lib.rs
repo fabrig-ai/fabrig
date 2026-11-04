@@ -121,7 +121,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
         }
     }
     let policy = configuration.profile.policy;
-    let sources = configuration.programs.get(&smith_agent_shell::config::ProgramName::ClaudeCode).map(|program| {
+    let sources = configuration.program.as_ref().map(|program| {
         let environment = configuration.service.environment.command_entries();
         SourceSettings {
             directory: program.directory.as_os_str().as_bytes().into(),
@@ -134,7 +134,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
         limits: protocol,
         host_limits,
         bounds: jig_domain_host::Bounds {
-            program_endpoints: configuration.endpoint_programs.keys().copied().collect::<Vec<_>>().into_boxed_slice(),
+            program_endpoints: configuration.program_endpoints.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
             models: models.into_boxed_slice(),
             turns: policy.max_turns,
             spend: policy.max_spend,
@@ -258,7 +258,10 @@ fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String>
             providers.push((provider.number, endpoint, origins)).expect("configured provider count");
         }
     }
-    Ok(service::AccountsRuntime { providers, trust_roots, trust_root_bytes })
+    Ok(service::AccountsRuntime {
+        providers,
+        trust: Some(service::TrustBounds { roots: trust_roots, bytes: trust_root_bytes }),
+    })
 }
 struct Configured {
     document: skein_json::Document,
@@ -367,7 +370,7 @@ fn prepare(bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String
 fn configure_sources(service: &mut service::Service, configured: &AgentStart, workers: u32) -> Result<(), String> {
     let Some(sources) = &configured.sources else { return Ok(()) };
     for index in 0..workers {
-        let resources = service::program_sources::Resources::from_paths(
+        let resources = service::program_sources::from_paths(
             sources.directory.clone(),
             sources.executable.clone(),
             sources.environment.clone(),

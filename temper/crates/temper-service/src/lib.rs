@@ -1,6 +1,7 @@
 //! Temper's engine and worker protocol services.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
 pub mod diagnostics;
@@ -26,7 +27,7 @@ pub mod clients;
 pub mod family;
 pub mod identities;
 pub mod program_sources;
-pub mod server;
+pub use jig_protocol_engine_clients_http::server;
 pub mod translate;
 pub mod values;
 mod worker;
@@ -148,6 +149,8 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A failed answer accepted by the hub, for stderr only (domain/worker.md, 4.3).
+    RunFailed(temper_engine_domain::RunDiagnostic),
     /// A forge read refusal with its task, tool, layer and authority findings.
     ReadRefused {
         task: u64,

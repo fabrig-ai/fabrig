@@ -1262,20 +1262,31 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    result's words' first line, the pull request with its address the
    second, and the landing said in words the third, `Landed: pull request
    #7 merged into main as 0123456789ab.`: `root.md`, section 6; then its
+   repairs, when any were asked, with their count, why each was asked
+   (a check that failed, a review's remarks), and each successful repair's
+   result words, attributed to its task in completion order; then its
    producer's last report, the words of its producing task's last
    successful result as that task wrote them, under a line `Report:`
-   (none for a change handed a pushed branch); then what the landing
-   passed, as facts
-   the change itself saw: each check at the landed head with its
-   conclusion, the repairs with their count and why each was asked (a
-   check that failed, a review's remarks), and each review's verdict;
-   all that follows the three lines cut to the result's bound, the
-   change's contract's words (the deployment's `tasks.result_bytes`),
-   from the end and marked; a check or a test
-   the change never saw is never named, so whoever reports the landing
-   reports only what ran). The report is kept with the change from its
-   producer's result, as its pull request's title is (8.1), bounded by
-   that result's own bound. It then verifies until its landing
+   (none for a change handed a pushed branch). After repairs that line is
+   `Producer report (historical; before repairs):`: its export description
+   remains, while its unresolved-work statements describe the producing
+   head, before those repairs. The repair accounts precede those caveats
+   so a long producer report cannot spend their result space. Failed,
+   cancelled, no-change and unrelated children supply no successful
+   repair account. Only production sets the pull request's title (8.1).
+   Then what the landing passed, as facts the change itself saw: each
+   check at the landed head with its conclusion, and each review's verdict
+   (without repairs, their count remains after the checks). All that
+   follows the three lines is cut to the result's bound, the change's
+   contract's words (the deployment's `tasks.result_bytes`), from the end
+   at a UTF-8 boundary and marked with the omitted byte count; a check or
+   a test the change never saw is never named, so whoever reports the
+   landing reports only what ran). The producer report is kept with the
+   change from its producer's result, as its pull request's title is
+   (8.1), bounded by that result's own bound. Successful repair words are
+   retained with the repair reasons in their existing bounded history,
+   including through restart; its prefix and omitted byte count survive
+   later additions. It then verifies until its landing
    is cleared (`after-landing.md`, section 6), and closes, its branch
    deleted as its hold is released (section 11).
 
@@ -1451,6 +1462,12 @@ delegate's terminal wakes it to offer the landed result.
   Required preservation instructions precede optional merge-job results. A
   result is appended only with room for its context and any truncation marker;
   it never displaces the preservation instructions.
+  If the pull section's pinned comparison exceeds the forge client's answer
+  byte or row limit, the section keeps its pull identity and gathered content
+  and appends a comparison-omitted notice within its byte budget. This completes
+  the section; it does not retry the comparison or raise the client's limits.
+  Other comparison read failures still fail the section. The same rule applies
+  to the pull sections for reviews and repairs.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that
@@ -1737,6 +1754,19 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   charter a charter's number (`../protocol/configuration.md`, 13.2). A
   refusal names the item and what fails, and the whole change is
   refused with it.
+- **The root checks approval eligibility** when a rule is set, after the
+  forge's structural judgement, including when a proposal is accepted.
+  For each project in the setting's scope with an adopted writable
+  repository whose branch names overlap the pattern, each enforcing
+  approval needs at least its required count of distinct project members
+  with the named role and a forge user id known to the core. The root
+  joins the people's identities and roles with the forge's rule; a
+  deployment login or display name supplies no forge identity. A refusal
+  names the project, role, required and eligible counts, and asks for
+  known forge people with that role or removal of the approval. No rule
+  or accompanying settings become effective on refusal. Later membership
+  changes can leave a held rule waiting; the merge still counts only
+  people known by forge user id (8.7).
 - **It holds them** decoded, the deployment's rules and each project's,
   within `landing_rules` per scope and `judge_projects` projects, keeps
   their values in its family `Setting`, and replaces a scope's whole

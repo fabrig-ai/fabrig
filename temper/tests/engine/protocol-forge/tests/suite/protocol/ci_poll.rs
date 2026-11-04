@@ -55,7 +55,6 @@ pub(super) fn name_pull(world: &mut Protocol) -> bool {
     true
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "only the kept pull supplies this metadata observation")]
 fn metadata(world: &Protocol) -> Option<skein_forge::api::Summary> {
     world.stored().iter().find_map(|(_, record)| match record {
         top::Stored::Client(skein_forge_client::Stored::Live(row))
@@ -74,7 +73,6 @@ struct Schedule {
     entry: u64,
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "only this change's scheduler requests drive the story")]
 fn hear(world: &mut Protocol, schedule: &mut Schedule) {
     for request in world.take_seen() {
         match request {

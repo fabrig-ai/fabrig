@@ -12,27 +12,27 @@ fn the_restart_asks_one_load_at_a_time() {
     let mut service = fixtures::started(&fixtures::engine_document());
     fixtures::turn(&mut service);
     let engine = fixtures::engine(&mut service);
-    assert_eq!(engine.store.above.len(), 1);
-    let Some(StoreEvent::Page { owner, items, next }) = engine.store.above.pop() else {
+    assert_eq!(engine.store.host.above.len(), 1);
+    let Some(StoreEvent::Page { owner, items, next }) = engine.store.host.above.pop() else {
         panic!("restart load completed by the real store");
     };
     assert_eq!(items.len(), 0);
     assert_eq!(next, None);
-    engine.store.above.push(StoreEvent::Page { owner, items, next });
+    engine.store.host.above.push(StoreEvent::Page { owner, items, next });
     fixtures::turn(&mut service);
     let engine = fixtures::engine(&mut service);
-    let Some(committed @ StoreEvent::Committed { .. }) = engine.store.above.pop() else {
+    let Some(committed @ StoreEvent::Committed { .. }) = engine.store.host.above.pop() else {
         panic!("start writes commit first");
     };
-    assert_eq!(engine.store.above.len(), 0);
-    engine.store.above.push(committed);
+    assert_eq!(engine.store.host.above.len(), 0);
+    engine.store.host.above.push(committed);
     let mut phases = skein_lib::List::with_capacity(5);
     phases.push(Phase::LoadCore).expect("phase count");
     for _ in 0..64_u32 {
         fixtures::turn(&mut service);
         let engine = fixtures::engine(&mut service);
         let mut pages = 0_u32;
-        for event in &engine.store.above {
+        for event in &engine.store.host.above {
             if let StoreEvent::Page { .. } = event {
                 pages = pages.checked_add(1).expect("bounded pages");
             }
@@ -59,7 +59,7 @@ fn the_restart_asks_one_load_at_a_time() {
         ]
     );
     assert!(fixtures::engine(&mut service).domain.ready());
-    assert!(fixtures::engine(&mut service).store.component.mark_durable());
+    assert!(fixtures::engine(&mut service).store.host.mark_durable());
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn sweep_rows_wait_for_each_erase_continuation() {
     }
     let engine = fixtures::engine(&mut service);
     assert_eq!(engine.domain.core_mut().start_phase(), Some(Phase::Sweep));
-    let Some(StoreEvent::Page { owner, .. }) = engine.store.above.pop() else {
+    let Some(StoreEvent::Page { owner, .. }) = engine.store.host.above.pop() else {
         panic!("sweep page");
     };
     // Two expired rows in one terminal page each demand their own erase decision.
@@ -87,12 +87,12 @@ fn sweep_rows_wait_for_each_erase_continuation() {
             expires: skein_lib::Wall::EPOCH,
         })))
     });
-    engine.store.above.push(StoreEvent::Page { owner, items: Box::new(items), next: None });
+    engine.store.host.above.push(StoreEvent::Page { owner, items: Box::new(items), next: None });
     for _ in [7_u64, 8] {
         let mut committed = None;
         for _ in 0..64_u32 {
             fixtures::turn(&mut service);
-            if let Some(event) = fixtures::engine(&mut service).store.above.pop() {
+            if let Some(event) = fixtures::engine(&mut service).store.host.above.pop() {
                 let event @ StoreEvent::Committed { .. } = event else {
                     panic!("one erase commit before another row or EOF: {event:?}");
                 };
@@ -104,11 +104,11 @@ fn sweep_rows_wait_for_each_erase_continuation() {
         for _ in 0..2_u32 {
             fixtures::turn(&mut service);
             let engine = fixtures::engine(&mut service);
-            assert!(engine.store.above.is_empty(), "no younger erase or page while durability is withheld");
+            assert!(engine.store.host.above.is_empty(), "no younger erase or page while durability is withheld");
             assert_eq!(engine.domain.core_mut().start_phase(), Some(Phase::Sweep));
             assert!(!engine.domain.ready());
         }
-        fixtures::engine(&mut service).store.above.push(committed);
+        fixtures::engine(&mut service).store.host.above.push(committed);
     }
     for _ in 0..64_u32 {
         fixtures::turn(&mut service);
@@ -134,8 +134,8 @@ fn each_connectors_fresh_reads_finish_before_the_start_opens() {
         match engine.domain.core_mut().start_phase() {
             Some(Phase::Sweep) => {
                 // This fixture supplies no expired people rows in its sweep.
-                if let Some(StoreEvent::Page { owner, .. }) = engine.store.above.pop() {
-                    engine.store.above.push(StoreEvent::Page { owner, items: Box::new([]), next: None });
+                if let Some(StoreEvent::Page { owner, .. }) = engine.store.host.above.pop() {
+                    engine.store.host.above.push(StoreEvent::Page { owner, items: Box::new([]), next: None });
                 }
             }
             Some(Phase::ReadAfresh { connector }) => {
@@ -199,7 +199,7 @@ fn a_store_answer_is_taken_at_the_watermark() {
     let next_period = fill_to_watermark(&mut driven);
     let first = driven.commit_asked();
     driven.commit(first);
-    assert_eq!(fixtures::engine(&mut driven.service).store.above.len(), 0);
+    assert_eq!(fixtures::engine(&mut driven.service).store.host.above.len(), 0);
     period(&mut driven, next_period);
     assert_eq!(driven.commits.len(), PENDING_COMMITS);
 }
@@ -236,7 +236,7 @@ fn a_failed_commit_releases_nothing_after_it() {
     driven.fail(first);
     driven.commit(second);
     assert_eq!(driven.released_to_parties(), 0);
-    assert_eq!(fixtures::engine(&mut driven.service).store.above.len(), 0);
+    assert_eq!(fixtures::engine(&mut driven.service).store.host.above.len(), 0);
     assert_eq!(driven.end(), Some(&End::Stopped(Stop::CommitFailed { number: first })));
 }
 
@@ -247,7 +247,7 @@ fn a_frame_refusal_keeps_the_reference_uncommitted_stop_barrier() {
     let first = driven.commit_asked();
     driven.chat(102, b"two");
     let second = driven.commit_asked();
-    fixtures::engine(&mut driven.service).store.above.push(jig_protocol_store::Event::FrameTooLarge {
+    fixtures::engine(&mut driven.service).store.host.above.push(jig_protocol_store::Event::FrameTooLarge {
         number: first,
         task: 11,
         bytes: 79,
@@ -255,7 +255,7 @@ fn a_frame_refusal_keeps_the_reference_uncommitted_stop_barrier() {
     });
     driven.commit(second);
     assert_eq!(driven.released_to_parties(), 0);
-    assert_eq!(fixtures::engine(&mut driven.service).store.above.len(), 0);
+    assert_eq!(fixtures::engine(&mut driven.service).store.host.above.len(), 0);
     assert_eq!(driven.end(), Some(&End::Stopped(Stop::CommitFailed { number: first })));
 }
 
@@ -263,7 +263,7 @@ fn a_frame_refusal_keeps_the_reference_uncommitted_stop_barrier() {
 fn the_service_waits_while_its_load_is_outstanding() {
     let mut service = fixtures::started(&fixtures::engine_document());
     fixtures::turn(&mut service);
-    let _held = fixtures::engine(&mut service).store.above.pop().expect("hold the actual load terminal");
+    let _held = fixtures::engine(&mut service).store.host.above.pop().expect("hold the actual load terminal");
     assert!(!service.work_pending(skein_lib::Time::from_nanos(1)), "waiting for the store is not work");
 }
 
@@ -279,10 +279,10 @@ fn a_store_answer_is_work_with_party_outputs_at_the_watermark() {
             core::Event::Period { project: 1, period: 3, budget: 100, next: None },
         ))));
     }
-    engine.store.above.push(terminal);
+    engine.store.host.above.push(terminal);
     assert!(driven.service.work_pending(skein_lib::Time::from_nanos(1)));
     fixtures::turn(&mut driven.service);
-    assert_eq!(fixtures::engine(&mut driven.service).store.above.len(), 0);
+    assert_eq!(fixtures::engine(&mut driven.service).store.host.above.len(), 0);
 }
 
 fn path() -> jig_test_connector::Path {
@@ -524,13 +524,13 @@ fn the_run_s_identity_is_shared_by_a_conversation_s_attempts() {
 fn the_workers_listener_opens_before_the_restart() {
     let mut service = fixtures::started(&fixtures::workers_document());
     fixtures::turn(&mut service);
-    assert!(fixtures::engine(&mut service).store.above.is_empty());
-    assert!(!fixtures::engine(&mut service).workers.as_ref().expect("workers").opened());
+    assert!(fixtures::engine(&mut service).store.host.above.is_empty());
+    assert!(!fixtures::engine(&mut service).workers.as_ref().expect("workers").host.opened());
     fixtures::turn(&mut service);
-    assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").opened());
+    assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.opened());
     // The handed-in record's `Kept` may come in the same pass.
     let mut restored = false;
-    for event in &fixtures::engine(&mut service).store.above {
+    for event in &fixtures::engine(&mut service).store.host.above {
         if let StoreEvent::Page { .. } = event {
             restored = true;
         }
@@ -572,7 +572,7 @@ const IDENTITY: [u8; 16] = [227, 220, 92, 103, 122, 9, 131, 161, 162, 47, 205, 1
 fn kernel_operations_are_routed_back_to_their_owner() {
     use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
     use skein_lib::{Queue, Token};
-    let mut kernel = crate::accounts::Kernel::new(4);
+    let mut kernel = skein_io::kernel::Routes::new(4);
     let mut sockets = Queue::with_capacity(2);
     sockets.push(Submit { op: Token::new(1), kind: Op::Close { fd: Fd::new(6) } });
     let mut output = Queue::with_capacity(4);
@@ -633,9 +633,10 @@ fn a_calls_terminal_keeps_its_live_address_only_for_settlement() {
 fn a_store_refusal_at_open_ends_the_start() {
     let mut service = fixtures::started(&fixtures::engine_document());
     let engine = fixtures::engine(&mut service);
-    let _opened = engine.store.above.pop();
+    let _opened = engine.store.host.above.pop();
     engine
         .store
+        .host
         .above
         .push(StoreEvent::OpenRefused { owner: fixtures::OWNER, why: jig_protocol_store::OpenRefusal::Failed });
     fixtures::turn(&mut service);
@@ -653,14 +654,14 @@ fn a_refused_start_page_keeps_its_phase_and_cause() {
     let mut service = fixtures::started(&fixtures::engine_document());
     fixtures::turn(&mut service);
     let engine = fixtures::engine(&mut service);
-    let Some(StoreEvent::Page { owner, .. }) = engine.store.above.pop() else {
+    let Some(StoreEvent::Page { owner, .. }) = engine.store.host.above.pop() else {
         panic!("LoadCore has one page outstanding");
     };
     let failure = jig_protocol_store::restore::Failure {
         cause: jig_protocol_store::restore::Cause::Range(jig_protocol_store::restore::RangeFailure::Encoding),
         row: None,
     };
-    engine.store.above.push(StoreEvent::PageRefused { owner, failure: failure.clone() });
+    engine.store.host.above.push(StoreEvent::PageRefused { owner, failure: failure.clone() });
     fixtures::turn(&mut service);
     assert_eq!(
         service.end(),
@@ -668,14 +669,14 @@ fn a_refused_start_page_keeps_its_phase_and_cause() {
     );
     let engine = fixtures::engine(&mut service);
     assert!(!engine.domain.ready());
-    assert!(!engine.store.component.mark_durable());
+    assert!(!engine.store.host.mark_durable());
 }
 #[test]
 fn a_core_fit_refusal_keeps_its_phase_and_cause() {
     let mut service = fixtures::started(&fixtures::engine_document());
     fixtures::turn(&mut service);
     let engine = fixtures::engine(&mut service);
-    let _page = engine.store.above.pop().expect("LoadCore page");
+    let _page = engine.store.host.above.pop().expect("LoadCore page");
     let failure = core::start::Failure::Accounting { key: core::Key::Core(core::CoreKey::Deployment) };
     let _refused = engine.domain.core_mut().start_refuse(failure.clone());
     fixtures::turn(&mut service);
@@ -1026,11 +1027,11 @@ fn pass_call(task: u64, attempt: u64, name: &[u8]) -> jig_test_domain::Event {
 
 fn pass_get(driven: &mut fixtures::Driven, key: core::Key) -> Option<core::Record> {
     let engine = fixtures::engine(&mut driven.service);
-    engine.store.ask(jig_protocol_store::Request::Get {
+    engine.store.host.ask(jig_protocol_store::Request::Get {
         owner: skein_lib::Token::new(PASS_CHAT),
         key: jig_protocol_store::Get::Jig(key),
     });
-    let Some(StoreEvent::Got { row, .. }) = engine.store.above.pop() else { panic!("store get") };
+    let Some(StoreEvent::Got { row, .. }) = engine.store.host.above.pop() else { panic!("store get") };
     match row {
         Some(jig_protocol_store::Row::Jig(record)) => Some(record),
         Some(jig_protocol_store::Row::Application { .. }) => panic!("jig row"),
@@ -1076,13 +1077,29 @@ fn pass_files(driven: &mut fixtures::Driven, next_file: &mut i32) {
     let engine = fixtures::engine(service);
     engine.store.iterate();
     // Capture these before iterate can route them back to the root.
-    for _ in 0..engine.store.above.len() {
-        let event = engine.store.above.pop().expect("store answer after file progress");
+    for _ in 0..engine.store.host.above.len() {
+        let event = engine.store.host.above.pop().expect("store answer after file progress");
         if let StoreEvent::Committed { number, .. } = &event {
             driven.commits.push(*number);
             driven.held.insert(*number, event);
         } else {
-            engine.store.above.push(event);
+            engine.store.host.above.push(event);
         }
     }
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the canary checks formatted values and bytes")]
+fn the_workers_host_counts_what_it_holds() {
+    let canary = "canary-workers-host";
+    let mut service = fixtures::started(&fixtures::workers_document());
+    let workers = &mut fixtures::engine(&mut service).workers.as_mut().expect("workers").host;
+    workers.io.push(skein_io::Request::Output {
+        stream: skein_lib::Token::new(1),
+        down: skein_lib::stream::OutputDown::Send {
+            right: skein_lib::Token::new(1),
+            bytes: Box::from(canary.as_bytes()),
+        },
+    });
+    let debug = format!("{workers:?}");
+    assert!(!debug.contains(canary) && !debug.contains(&format!("{:?}", canary.as_bytes())), "{debug}");
 }

@@ -82,8 +82,17 @@ fn run_owned(front: &mut Joint, root: &mut Root, now: &mut Time) {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: None } }) },
     );
     let mut choose = view(root);
-    let button = node(&choose, Role::Button, b"Run on this machine");
-    let action = temper_client_view::act(&mut choose, button, skein_ui::Act::Press).expect("setup new forge");
+    let card = node(&choose, Role::Link, b"Run on this machine");
+    let sheet = Address::Welcome { step: Step::Forge { forge: Some(Choice::Owned) } };
+    assert_eq!(
+        temper_client_view::act(&mut choose, card, skein_ui::Act::Press),
+        Some(d::Action::Pages(d::pages::Act::Go { address: sheet.clone() })),
+        "the card opens the sheet"
+    );
+    pump(front, root, now, d::Event::Went { place: d::Place::Address(sheet) });
+    let mut sheet = view(root);
+    let button = node(&sheet, Role::Button, b"Run on this machine");
+    let action = temper_client_view::act(&mut sheet, button, skein_ui::Act::Press).expect("setup new forge");
     pump(front, root, now, d::Event::Act { action });
 }
 pub(super) fn owned_welcome() -> (Joint, Root, Time) {
@@ -112,7 +121,7 @@ pub(super) fn accept_owned(front: &mut Joint, root: &mut Root, now: &mut Time) -
 #[test]
 fn setting_up_forgejo_here_from_the_welcome() {
     let (mut front, mut root, mut now) = owned_welcome();
-    assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Forge { forge: None } });
+    assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Forge { forge: Some(Choice::Owned) } });
     let setup = root.person().forge().set_up().expect("welcome sent setup");
     assert_eq!((&*setup.org, &*setup.repository, setup.playground), (b"work".as_slice(), b"hello".as_slice(), false));
     assert_eq!(front.set_ups().iter().map(|(forge, _)| *forge).collect::<Vec<_>>(), [OWNED]);
@@ -125,7 +134,7 @@ fn setting_up_forgejo_here_from_the_welcome() {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
     );
     let model = view(&root);
-    node(&model, Role::Paragraph, "Forgejo on this machine · Setting up: preparing · work/hello".as_bytes());
+    node(&model, Role::Paragraph, "Forgejo on this machine · work/hello · Setting up: preparing".as_bytes());
     node(&model, Role::Disclosure, b"Each step");
     pump(
         &mut front,
@@ -167,8 +176,8 @@ fn setting_up_forgejo_here_from_the_welcome() {
             d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Ready }) },
         );
         let ready = view(&root);
-        node(&ready, Role::Heading { level: 1 }, b"Almost ready");
-        node(&ready, Role::Button, b"Open Default");
+        node(&ready, Role::Heading { level: 1 }, b"Ready");
+        node(&ready, Role::Button, b"Create your project");
         assert_eq!(front.applications_admitted(), before, "revisiting Ready adopts nothing");
     }
 }
@@ -181,7 +190,7 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
     let model_address = Address::Welcome { step: Step::Model { way: None } };
     pump(&mut front, &mut root, &mut now, d::Event::Went { place: d::Place::Address(model_address.clone()) });
     let setting_up = view(&root);
-    node(&setting_up, Role::Paragraph, "Forgejo on this machine · Setting up: preparing · work/hello".as_bytes());
+    node(&setting_up, Role::Paragraph, "Forgejo on this machine · work/hello · Setting up: preparing".as_bytes());
     node(&setting_up, Role::Disclosure, b"Each step");
     connection(&mut front, Connection::Connected { id: 1, login: b"temper".as_slice().into() });
     front.engine.send(temper_engine_domain::Event::Forge(Box::new(forge::Event::FirstMade { forge: OWNED, id: 42 })));
@@ -190,7 +199,11 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
     assert_eq!(root.person().pages().address(), &model_address);
     assert!(!front.engine_adopted(OWNED, 42));
     let made = view(&root);
-    let line = node(&made, Role::Paragraph, "Forgejo on this machine · work/hello".as_bytes());
+    let line = node(
+        &made,
+        Role::Paragraph,
+        "Forgejo on this machine · connected as temper · work/hello made, in no project yet".as_bytes(),
+    );
     let line = made.tree().nodes().iter().find(|n| n.id == line).expect("forge line");
     assert!(line.styles.as_slice().contains(&temper_client_view::look::FLOW_DONE));
     assert!(!made.tree().nodes().iter().any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Each step")));

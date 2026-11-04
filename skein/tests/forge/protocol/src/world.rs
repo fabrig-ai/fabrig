@@ -251,7 +251,7 @@ impl World {
     pub fn github_ambiguous_updates(seed: u64) -> Self {
         let mut world = Self::github(seed, 0);
         let Driver::Github(github) = &mut world.joint else { unreachable!("GitHub world") };
-        github.ambiguous_updates = true;
+        github.ambiguous_updates();
         world
     }
 

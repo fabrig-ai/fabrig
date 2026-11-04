@@ -125,6 +125,8 @@ pub struct Owned {
 pub struct Row {
     pub read_only: bool,
     pub number: u16,
+    /// The host in repository resource names, including an explicit port.
+    pub host: Box<[u8]>,
     pub kind: Kind,
     pub mode: Mode,
     pub connection: Connection,
@@ -209,6 +211,14 @@ pub enum State {
     Rows(Box<[Row]>),
     Ended,
 }
+/// What Forgejo on this machine starts with, chosen in the welcome's sheet
+/// (client/README.md, 3.5): only an empty repository is made yet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Start {
+    Empty,
+    Copies,
+    Nothing,
+}
 /// The set up's editable fields (client/forge.md, 5.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetupField {
@@ -231,6 +241,10 @@ pub struct Draft {
     pub fields: [Box<[u8]>; 2],
     pub written: [u64; 2],
     pub checked: bool,
+    pub start: Start,
+    pub copies: Box<[u8]>,
+    pub copies_written: u64,
+    pub not_yet: bool,
 }
 impl Draft {
     pub(crate) fn new() -> Self {
@@ -240,6 +254,10 @@ impl Draft {
             fields: [Box::from(b"work".as_slice()), Box::from(b"hello".as_slice())],
             written: [0; 2],
             checked: false,
+            start: Start::Empty,
+            copies: Box::from(b"".as_slice()),
+            copies_written: 0,
+            not_yet: false,
         }
     }
     #[must_use]
@@ -268,6 +286,16 @@ pub(crate) fn write(side: &mut super::Side, limits: super::Limits, field: SetupF
     if let Some(last) = &mut side.set_up {
         last.answer = None;
     }
+    side.changed();
+}
+/// The sheet's addresses to copy, kept as typed: no copy is made yet.
+pub(crate) fn write_copies(side: &mut super::Side, limits: super::Limits, text: Box<[u8]>) {
+    if text.len() > usize::try_from(limits.field_bytes).expect("field bytes fit") {
+        return;
+    }
+    let draft = &mut side.setup_form;
+    draft.copies = text;
+    draft.copies_written = draft.copies_written.checked_add(1).expect("written count fits");
     side.changed();
 }
 /// New records are identified from the watch, after the entrance answers.
@@ -299,7 +327,8 @@ pub struct Removal {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
     SetUpOwned,
-    SetUpOwnedAtOnce,
+    Start(Start),
+    RunOwned,
     GitHub { back: Box<[u8]> },
     Managed { place: Managed },
     Connected { place: Managed },
@@ -338,12 +367,22 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
             new_record(side, Kind::Forgejo, Mode::Owned);
             set_up(side, limits, 0, out);
         }
-        Act::SetUpOwnedAtOnce => {
+        Act::Start(start) => {
+            side.setup_form.start = start;
+            side.setup_form.not_yet = false;
+            side.changed();
+        }
+        Act::RunOwned => {
+            if side.setup_form.start != Start::Empty {
+                side.setup_form.not_yet = true;
+                side.changed();
+                return;
+            }
             if !can_make(side) || !can_set_up(side) || side.playground_running() {
                 return;
             }
             new_record(side, Kind::Forgejo, Mode::Owned);
-            set_up_at_once(side, limits, 0, out);
+            set_up(side, limits, 0, out);
         }
         Act::GitHub { back } => {
             if !can_make(side)

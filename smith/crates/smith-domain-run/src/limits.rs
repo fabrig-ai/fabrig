@@ -112,7 +112,7 @@ pub struct Limits {
     /// The most bytes of a repository's selected guide a run reads and puts in
     /// its system text.
     pub guide_bytes: u32,
-    /// How long io has for each look in the checkout.
+    /// How long io has for each look in the workspace.
     pub io_timeout: Duration,
     /// Largest aggregate result ownership beyond its inline declaration,
     /// counting every field/item container, name and value as

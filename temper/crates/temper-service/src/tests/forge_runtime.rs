@@ -39,7 +39,7 @@ fn service(host: &[u8]) -> Service {
     let mut service = Service::engine(settings, &fixtures::seeds(), None, List::with_capacity(0)).unwrap();
     let mut store = fixtures::records_store();
     fixtures::commit(&mut store, 1, Box::new([root::Write::Erase(root::Key::Forge(domain::Key::Forge(1)))]));
-    assert!(store.above.pop().is_some());
+    assert!(store.host.above.pop().is_some());
     service.engine.as_mut().unwrap().store = store;
     let record = record(host);
     let api = match core::str::from_utf8(host).unwrap().parse::<core::net::IpAddr>() {
@@ -61,7 +61,7 @@ fn service(host: &[u8]) -> Service {
                 .secrets(Token::new(123), fixtures::application_request(records::number(NUMBER, item), value))
                 .is_none()
         );
-        assert!(engine.store.above.pop().is_some());
+        assert!(engine.store.host.above.pop().is_some());
     }
     let engine = service.engine.as_mut().unwrap();
     fixtures::commit(
@@ -69,7 +69,7 @@ fn service(host: &[u8]) -> Service {
         2,
         Box::new([root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record)) })]),
     );
-    assert!(engine.store.above.pop().is_some());
+    assert!(engine.store.host.above.pop().is_some());
     service
 }
 

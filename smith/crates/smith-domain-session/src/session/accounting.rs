@@ -256,7 +256,7 @@ pub(super) fn receive_result(conversation: &mut Conversation, credit: u64, resul
 /// message.
 pub(super) fn spec_cost(model: &[u8], system: &[u8], delegated: &[Descriptor], content: &[Block]) -> Option<u64> {
     let descriptor = u64::try_from(size_of::<Descriptor>()).ok()?;
-    let delegated = descriptor.checked_mul(u64::try_from(delegated.len()).ok()?)?;
+    let delegated = descriptor.checked_mul(skein_lib::len_u64(delegated.len()))?;
     len(model)?.checked_add(len(system)?)?.checked_add(delegated)?.checked_add(content_cost(content)?)
 }
 
@@ -274,20 +274,11 @@ pub(super) fn held(content: &[Block], calls: u32, choice: &ToolChoice, names: Op
         if !chosen(choice, block) {
             cost = cost.checked_add(choice_bytes(names))?;
         }
-        match block {
-            Block::ToolCall { id, name: _, input: _, call: Decoded::Invalid { problem, .. }, .. } => {
-                cost = cost.checked_add(len(id)?)?.checked_add(problem_cost(problem)?)?;
-            }
-            Block::ToolCall {
-                id,
-                name: _,
-                input: _,
-                call: Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Historical,
-                ..
-            } => {
-                cost = cost.checked_add(len(id)?)?;
-            }
-            Block::Opaque { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::ToolResult { .. } => {}
+        let Some(call) = block.tool_call() else { continue };
+        cost = cost.checked_add(len(&call.id)?)?;
+        match &call.call {
+            Decoded::Invalid { problem, .. } => cost = cost.checked_add(problem_cost(problem)?)?,
+            Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Historical => {}
         }
     }
     Some(cost)
@@ -314,18 +305,18 @@ pub(super) fn payload_cost(block: &Block) -> Option<u64> {
             len(text)?.checked_add(replay_cost(replay.as_ref())?)
         }
         Block::Opaque { bytes } => len(bytes),
-        Block::ToolCall { id, name, input, call, replay } => {
+        Block::ToolCall(call) => {
             // A delegated call is the opener's to hold.
-            let decoded = match call {
+            let decoded = match &call.call {
                 Decoded::Owned { call } => call_cost(call)?,
                 Decoded::Builtin { .. } | Decoded::Delegated { .. } | Decoded::Historical => 0,
                 Decoded::Invalid { problem, .. } => problem_cost(problem)?,
             };
-            len(id)?
-                .checked_add(len(name)?)?
-                .checked_add(len(input)?)?
+            len(&call.id)?
+                .checked_add(len(&call.name)?)?
+                .checked_add(len(&call.input)?)?
                 .checked_add(decoded)?
-                .checked_add(replay_cost(replay.as_ref())?)
+                .checked_add(replay_cost(call.replay.as_ref())?)
         }
         Block::ToolResult { id, result } => len(id)?.checked_add(returned_cost(result)?),
     }
@@ -365,14 +356,14 @@ pub(super) fn outcome_cost(outcome: &Outcome) -> Option<u64> {
         | Outcome::ReadOnly { path } => path.owned_bytes(),
         Outcome::Read { content, .. } => len(content),
         Outcome::Listed { entries, more: _ } => {
-            let mut cost = u64::try_from(size_of::<Entry>()).ok()?.checked_mul(u64::try_from(entries.len()).ok()?)?;
+            let mut cost = u64::try_from(size_of::<Entry>()).ok()?.checked_mul(skein_lib::len_u64(entries.len()))?;
             for entry in entries {
                 cost = cost.checked_add(len(entry.name.as_ref())?)?;
             }
             Some(cost)
         }
         Outcome::Found { hits, more: _, timed_out: _ } => {
-            let mut cost = u64::try_from(size_of::<tools::Hit>()).ok()?.checked_mul(u64::try_from(hits.len()).ok()?)?;
+            let mut cost = u64::try_from(size_of::<tools::Hit>()).ok()?.checked_mul(skein_lib::len_u64(hits.len()))?;
             for hit in hits {
                 cost = cost.checked_add(len(&hit.path)?)?.checked_add(len(&hit.text)?)?;
             }
@@ -383,7 +374,7 @@ pub(super) fn outcome_cost(outcome: &Outcome) -> Option<u64> {
         }
         Outcome::EditFailed { edit: _, why } => match why {
             tools::Mismatch::Ambiguous { count: _, lines } => {
-                u64::try_from(size_of::<u32>()).ok()?.checked_mul(u64::try_from(lines.len()).ok()?)
+                u64::try_from(size_of::<u32>()).ok()?.checked_mul(skein_lib::len_u64(lines.len()))
             }
             tools::Mismatch::NoMatch | tools::Mismatch::Unchanged => Some(0),
         },
@@ -421,8 +412,9 @@ pub(super) fn problem_cost(problem: &Problem) -> Option<u64> {
     }
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "retains the private accounting signature across its callers")]
 pub(super) fn len(bytes: &[u8]) -> Option<u64> {
-    u64::try_from(bytes.len()).ok()
+    Some(skein_lib::len_u64(bytes.len()))
 }
 
 /// A count for a fact, which saturates rather than fails: facts decide

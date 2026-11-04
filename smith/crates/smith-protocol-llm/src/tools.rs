@@ -74,7 +74,7 @@ fn fixed_namespace_bytes(stated: &crate::Stated, namespace: &tools::Namespace) -
         sub_agent(stated.host_part),
     ] {
         for field in [&schema.name, &schema.description, &schema.schema] {
-            bytes = bytes.checked_add(u64::try_from(field.len()).ok()?)?;
+            bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;
         }
     }
     Some(bytes)
@@ -113,8 +113,8 @@ pub(crate) fn contract_text_bytes() -> Option<[u64; 2]> {
     let finish = finishing(Box::new([]));
     let deliver = delivering(Box::new([]));
     Some([
-        u64::try_from(finish.name.len()).ok()?.checked_add(u64::try_from(finish.description.len()).ok()?)?,
-        u64::try_from(deliver.name.len()).ok()?.checked_add(u64::try_from(deliver.description.len()).ok()?)?,
+        skein_lib::len_u64(finish.name.len()).checked_add(skein_lib::len_u64(finish.description.len()))?,
+        skein_lib::len_u64(deliver.name.len()).checked_add(skein_lib::len_u64(deliver.description.len()))?,
     ])
 }
 

@@ -76,17 +76,24 @@ impl Text {
 /// and byte escaping. A cut keeps the log's end and says bytes were omitted.
 #[must_use]
 pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
-    bounded(answer, &[], max_bytes)
+    bounded(answer, &[], max_bytes, None)
 }
 
 /// Render a decided answer with its host tool's name, naming a refused family.
 /// Job logs fit the configured bound, including metadata and byte escaping.
 #[must_use]
 pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
-    bounded(answer, tool, max_bytes)
+    bounded(answer, tool, max_bytes, None)
 }
 
-fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
+/// Render host feedback with the proposing task's ctl name, retaining its holder.
+/// Task and job reads use the configured host body bound.
+#[must_use]
+pub fn answer_for_task(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: u64) -> HostAnswer {
+    bounded(answer, tool, max_bytes, Some(task))
+}
+
+fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) -> HostAnswer {
     if let CallAnswer::TaskRead(read) = answer {
         let cap = usize::try_from(max_bytes).expect("u32 fits").min(HostAnswer::CAPACITY);
         return match task_read(read, cap) {
@@ -117,7 +124,7 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
             }
         };
     }
-    answer_text(answer, tool)
+    answer_text(answer, tool, task)
 }
 
 fn job_text(
@@ -177,11 +184,11 @@ fn escaped_len(text: &[u8]) -> usize {
 /// becomes a bounded host error, so no decided call is left unanswered.
 #[must_use]
 pub fn answer(answer: &CallAnswer) -> HostAnswer {
-    answer_text(answer, &[])
+    answer_text(answer, &[], None)
 }
 
-fn answer_text(answer: &CallAnswer, tool: &[u8]) -> HostAnswer {
-    match rendered(answer, tool) {
+fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> HostAnswer {
+    match rendered(answer, tool, task) {
         Ok(answer) => answer,
         Err(Problem::TooLarge) => HostAnswer::new(
             bytes::copy_of(b"The recorded answer exceeded the host text limit; ask a narrower read."),
@@ -195,8 +202,31 @@ fn answer_text(answer: &CallAnswer, tool: &[u8]) -> HostAnswer {
     }
 }
 
+fn proposed(
+    text: &mut Text,
+    proposal: u64,
+    holder: jig_domain_tasks::ProposalHolder,
+    task: Option<u64>,
+) -> Result<(), Problem> {
+    let settings = holder
+        == (jig_domain_tasks::ProposalHolder::Policy { project: 0, kind: jig_domain_tasks::ProposalKind::Settings });
+    text.add(if settings { b"proposed as " } else { b"Proposed as " })?;
+    if let Some(task) = task {
+        text.add(b"t")?;
+        text.number(task)?;
+        text.add(b"/")?;
+    } else if settings {
+        text.add(b"proposal ")?;
+    }
+    text.number(proposal)?;
+    if settings {
+        text.add(b" to the deployment's owners")?;
+    }
+    Ok(())
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable answer vocabulary")]
-fn rendered(answer: &CallAnswer, tool: &[u8]) -> Result<HostAnswer, Problem> {
+fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
         CallAnswer::TaskRead(read) => return task_read(read, HostAnswer::CAPACITY),
@@ -290,18 +320,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8]) -> Result<HostAnswer, Problem> {
             true
         }
         CallAnswer::Proposed { proposal, holder } => {
-            if let jig_domain_tasks::ProposalHolder::Policy {
-                project: 0,
-                kind: jig_domain_tasks::ProposalKind::Settings,
-            } = holder
-            {
-                text.add(b"proposed as proposal ")?;
-                text.number(*proposal)?;
-                text.add(b" to the deployment's owners")?;
-            } else {
-                text.add(b"Proposed as ")?;
-                text.number(*proposal)?;
-            }
+            proposed(&mut text, *proposal, *holder, task)?;
             false
         }
         CallAnswer::ProposalDecided { proposal, .. } => {
@@ -564,11 +583,11 @@ fn finding_text(text: &mut Text, finding: jig_domain_authority::Finding) -> Resu
         Finding::Oversized => text.add(b"too large"),
         Finding::UnknownProject => text.add(b"unknown project"),
         Finding::UnknownRole => text.add(b"unknown role"),
-        Finding::Authority { .. } => text.add(b"authority ceiling"),
-        Finding::Executor { .. } => text.add(b"executor permission"),
-        Finding::Tasks { .. } => text.add(b"task allowance"),
-        Finding::Spend { .. } => text.add(b"spend allowance"),
-        Finding::Price { .. } => text.add(b"effect price"),
+        Finding::Authority { source, lacks } => authority_lacks(text, source, lacks),
+        Finding::Executor { source } => missing_authority(text, source, b"executor permission", b"delegation.kinds"),
+        Finding::Tasks { source } => missing_authority(text, source, b"task allowance", b"delegation.tasks"),
+        Finding::Spend { source } => missing_authority(text, source, b"spend allowance", b"budget.spend"),
+        Finding::Price { source } => missing_authority(text, source, b"effect price", b"budget.spend"),
         Finding::Arithmetic => text.add(b"arithmetic limit"),
         Finding::RunBudget => text.add(b"run budget"),
         Finding::RunCap => text.add(b"run cap"),
@@ -576,11 +595,11 @@ fn finding_text(text: &mut Text, finding: jig_domain_authority::Finding) -> Resu
         Finding::Account => text.add(b"account unavailable"),
         Finding::Writer => text.add(b"writer held"),
         Finding::Tool => text.add(b"tool family"),
-        Finding::Grant { .. } => text.add(b"resource grant"),
+        Finding::Grant { source } => missing_authority(text, source, b"resource grant", b"grants"),
         Finding::ResourceUnavailable => text.add(b"resource unavailable"),
         Finding::ResourceAccess => text.add(b"resource write unavailable"),
         Finding::Reference => text.add(b"task reference"),
-        Finding::Scope { .. } => text.add(b"note scope"),
+        Finding::Scope { source } => missing_authority(text, source, b"note scope", b"notes"),
         Finding::Required { .. } => text.add(b"required fact"),
         Finding::Failed { .. } => text.add(b"failed fact"),
         Finding::Unpermitted => text.add(b"request not permitted"),
@@ -588,6 +607,63 @@ fn finding_text(text: &mut Text, finding: jig_domain_authority::Finding) -> Resu
         Finding::PeriodSpend => text.add(b"period spend ceiling"),
         Finding::Unguarded { .. } => text.add(b"required guard unavailable"),
     }
+}
+
+fn authority_source(source: jig_domain_authority::Source) -> &'static [u8] {
+    use jig_domain_authority::Source;
+    match source {
+        Source::Task => b"task authority",
+        Source::Role => b"project role authority",
+        Source::Project => b"project policy.ceiling",
+        Source::Deployment => b"rules.ceiling",
+    }
+}
+
+fn missing_authority(
+    text: &mut Text,
+    source: jig_domain_authority::Source,
+    dimension: &[u8],
+    setting: &[u8],
+) -> Result<(), Problem> {
+    text.add(b"missing ")?;
+    text.add(dimension)?;
+    text.add(b" (")?;
+    text.add(authority_source(source))?;
+    text.add(b".")?;
+    text.add(setting)?;
+    text.add(b")")
+}
+
+fn authority_lacks(
+    text: &mut Text,
+    source: jig_domain_authority::Source,
+    lacks: jig_domain_authority::Lacks,
+) -> Result<(), Problem> {
+    let mut first = true;
+    for (missing, dimension, setting) in [
+        (lacks.tools, b"tool permission".as_slice(), b"tools".as_slice()),
+        (lacks.grants, b"resource grant", b"grants"),
+        (lacks.executors, b"executor permission", b"delegation.kinds"),
+        (lacks.tasks, b"task allowance", b"delegation.tasks"),
+        (lacks.depth, b"descendant depth", b"delegation.depth"),
+        (lacks.spend, b"spend allowance", b"budget.spend"),
+        (lacks.deadline, b"deadline", b"budget.deadline"),
+        (lacks.notes, b"note scope", b"notes"),
+        (lacks.models, b"model permission", b"models"),
+    ] {
+        if missing {
+            if !first {
+                text.add(b", ")?;
+            }
+            missing_authority(text, source, dimension, setting)?;
+            first = false;
+        }
+    }
+    if first {
+        text.add(authority_source(source))?;
+        text.add(b" authority ceiling")?;
+    }
+    Ok(())
 }
 
 // These refusals name their tasks, matching jig-protocol-tools' render vocabulary.

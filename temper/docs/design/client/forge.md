@@ -510,16 +510,20 @@ and `connect-forge.html`.
   record as its request is admitted, never before
   (`../protocol/forge.md`, 2.2). While the playground is read, Choose
   offers no card: there is nothing to add (`README.md`, 4.8). The
-  welcome's Forge step offers two (`README.md`, 3.5): GitHub's, as
-  here, and one "Forgejo" card, "A forge of your own. temper can start
-  it and manage it, or you can connect your own deployment.", with
-  Forgejo on this machine's muted line while it is offered and Your
-  Forgejo's otherwise; its button "Run on this machine", while
-  Forgejo on this machine is offered, sends its `SetUp` at once, its
-  first repository `work/hello` asked of no one (`README.md`, 3.5), and
-  its quiet link "Or connect your deployment" opens the help's server
-  page (`../../help/server.md`) on GitHub, in place of Your Forgejo's
-  Details for now. Choose's cards:
+  welcome's Forge step offers two (`README.md`, 3.5): first, while
+  Forgejo on this machine is offered, one "Forgejo" card, the default,
+  "A forge of your own: temper starts it on this machine and manages
+  it. You can import existing repositories into it, from GitHub or
+  elsewhere.", with Forgejo on this machine's muted line and one way,
+  the primary "Run on this machine", which opens Forgejo's sheet, its
+  Details there: what it starts with, an empty repository by default,
+  its names `work` and `hello` until written, and Run, which sends its
+  `SetUp` (`README.md`, 3.5); then GitHub's, as here, its button
+  secondary.
+  Your Forgejo is not on the welcome: the forges page connects it,
+  and the welcome's frame links the help's server page
+  (`../../help/server.md`) on GitHub (the user, 2026-11-04). Choose's
+  cards:
   - *GitHub:* "Your repositories on GitHub. temper makes its own App
     there; you choose the account and the repositories it may use." ·
     "In this tab, on GitHub · about two minutes"; in its link's place
@@ -531,8 +535,9 @@ and `connect-forge.html`.
     of the person's own keeps its Details, which the card does not link
     to, here or on the welcome's Forge step; its address, a kept GitHub
     forge's (`browser.md`, 2.3), opens them;
-  - *Forgejo on this machine,* while no owned Forgejo is kept but one
-    whose offer is offered (`README.md`, 4.6): "A forge of your own,
+  - *Forgejo on this machine,* while the deployment's read says `owned`
+    and no owned Forgejo is kept but one whose offer is offered
+    (`README.md`, 4.6): "A forge of your own,
     run by temper box. No account needed: temper makes your first
     repository, and you start in it." · "Here · about a minute"; its
     link opens its Details;
@@ -540,7 +545,8 @@ and `connect-forge.html`.
     admin, or with its bot’s tokens."; its link opens its Details,
     where its addresses make a managed forge.
 - **Details** are the choice's, under its level-2 heading, after "‹ All
-  forges", a link back to Choose:
+  forges", a link back to Choose; the address of a kind Choose does not
+  offer, Forgejo on this machine with no `owned`, is Choose:
   - *GitHub,* an App of the person's own, at the GitHub forge's
     address: "An App of your own", "Its id, and its private key as GitHub
     gives it.", "On GitHub, set the App’s setup URL to temper’s address
@@ -716,8 +722,8 @@ and `connect-forge.html`.
   fifth, done once the first repository is made, unadopted. Before the
   target is known, the fifth reads "Making the first repository".
   GitHub rows never list Forgejo's steps. The first and the Details
-  name the versions the row's `owned` pins, "Fetching Forgejo 17.0.0
-  and its runner 13.2.0"; the person's login stays off until the row
+  name the versions the row's `owned` pins, "Fetching Forgejo 17.0.1
+  and its runner 13.2.1"; the person's login stays off until the row
   carries it. Then "You may
   leave this page: the steps go on." A failed setup keeps all five steps: those before the failed
   step are done, that step is marked failed (✕), and those after it
@@ -1089,7 +1095,19 @@ and its hold (2.5) follow.
 | a public project's changes and landings, for a visitor (section 11) | jig's public reads, `PublicRead`, of the forge's public kinds | `../domain/forge.md`, sections 8 and 9; `../domain/landing.md`, section 14 |
 | the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
-| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+
+The revision-qualified setting read serves an explicit set item from a
+retained revision. It uses jig's authenticated revision read to confirm
+that revision's item, then reads the forge's value saved before the next
+overwrite, or its current value when no later overwrite exists. The
+forge retains overwritten defaults and explicit values in its replaced
+slots for the same history as jig's revisions. A release retains the old
+default before changing it. Unknown or forgotten revisions, non-set
+items and missing retained values return no value; today's value never
+stands in for a missing historical one. The read is one bounded value,
+with the setting answer's byte ceiling. The tools decode its landing
+rule or charter before joining it with revision metadata (`tools.md`, 5.2).
 
 ### 9.1 The browser's steps, on the clients' listener
 
@@ -1329,7 +1347,10 @@ made by the forge connector from what it keeps of the change
   project `Default` (the look request `welcome-forgejo-card`), waits
   on the user's review of these pages; its project is Ready's now, the
   set up naming none (`README.md`, 3.5; `../draft/first-run-projects.md`,
-  4).
+  4). Since 2026-11-04 its button opens Forgejo's sheet, where an
+  empty repository is the default; what copies of public repositories
+  and starting with nothing send, which no `SetUp` carries yet
+  (`../protocol/setup.md`, 6.7), is open (`README.md`, 3.5).
 - **An App of one's own, offered again** (5.4). Default: GitHub's card
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor

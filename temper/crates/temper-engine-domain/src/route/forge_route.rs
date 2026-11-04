@@ -801,7 +801,6 @@ fn branch_what(branch: &[u8], limit: u32) -> Option<forge::What> {
     Some(forge::What::Branch(branch_parts(branch, limit)?))
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset does not use closures")]
 fn tree_branch(
     repository: &forge::Repository,
     root: u64,
@@ -1306,7 +1305,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::Forge(_)
             | Work::ProjectGoal(_)
             | Work::AgreedGoal(_)
-            | Work::Activate(_)
+            | Work::Activate { .. }
             | Work::EscalationLoaded { .. }
             | Work::EscalationFailed { .. }
             | Work::ProposalLoaded { .. }
@@ -1784,7 +1783,6 @@ pub(crate) fn claimed_writes(
     Some((writes.into_boxed(), holders.into_boxed()))
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses an explicit option match")]
 fn pull_what(number: Option<u64>) -> Option<forge::What> {
     match number {
         Some(number) => Some(forge::What::Pull(number)),
@@ -3977,7 +3975,6 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive connector output translation")]
-#[expect(clippy::manual_map, reason = "the foundation requires explicit option matching")]
 pub(crate) fn outputs(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -4406,14 +4403,14 @@ pub(crate) fn outputs(
             forge::Request::ProjectionFailed { goal } => {
                 projection_failed(domain, goal, domain.core.tasks.task(goal).is_none());
             }
-            forge::Request::Drift { task, .. } => {
+            forge::Request::Drift { task, resource } => {
                 if domain.forge.change(task).is_some() {
                     // domain/forge.md, 8.5: let the procedure retain its precise
                     // hold and current step before holding the task. A generic
                     // hold here prevents its pending wake from running.
                     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
                 } else {
-                    domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Drift }));
+                    holds::drift(domain, task, &resource);
                 }
             }
             forge::Request::TierRun { repository, tier, number, tip } => {

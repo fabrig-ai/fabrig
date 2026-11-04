@@ -1,24 +1,23 @@
-# The world harness is ordinary Rust (programming-model.md, 10.2), as the
-# simulator is: std, Vec, String, closures, traits and formatting are in,
-# since none of it runs in a service. What stays out is what would make a
-# simulated world's run unrepeatable: a clock of its own (the simulator's, or
-# on the real loop the shell's), threads, OS randomness, hash maps with a
-# random seed.
+# clippy variant: ordinary (tools/lints/design.md, 4).
+# What ordinary Rust may not use (skein/docs/foundation/programming-model.md, 10.2):
+# std, closures, traits and formatting are in, but a run is one thread and one
+# loop, and a seed replays (skein/docs/foundation/testing-strategy.md, 1).
+
+# Test code may unwrap (skein/docs/foundation/testing-strategy.md, 4); a harness
+# in a crate's src/ says what it expects instead.
+allow-unwrap-in-tests = true
 
 disallowed-types = [
-    { path = "std::time::Instant", reason = "the simulator owns time; on the ring, skein_shell::Clock" },
-    { path = "std::time::SystemTime", reason = "the simulator owns time; on the ring, skein_shell::Clock" },
     { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },
     { path = "std::collections::HashSet", reason = "iteration order depends on a random seed: BTreeSet" },
     { path = "std::hash::RandomState", reason = "iteration order would depend on a random seed: BTreeMap" },
-    { path = "std::sync::Arc", reason = "one thread, one owner" },
-    { path = "std::sync::Mutex", reason = "one thread" },
-    { path = "std::sync::RwLock", reason = "one thread" },
+    { path = "std::time::Instant", reason = "a run's time comes from its world; on the ring, skein_shell::Clock" },
+    { path = "std::time::SystemTime", reason = "a run's time comes from its world; on the ring, skein_shell::Clock" },
 ]
 
 disallowed-methods = [
     { path = "std::thread::spawn", reason = "one thread, one loop, so that a run replays" },
     { path = "std::thread::Builder::spawn", reason = "one thread, one loop, so that a run replays" },
     { path = "std::thread::scope", reason = "one thread, one loop, so that a run replays" },
-    { path = "std::env::var", reason = "a world's settings come from its scenario" },
+    { path = "std::env::var", reason = "a run's settings come from its code, not the environment" },
 ]

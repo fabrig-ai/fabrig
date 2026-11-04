@@ -450,15 +450,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal),
             Work::GoalSubscribe(subscriber) => forge_route::goal_subscribed(domain, env, subscriber),
             Work::AgreedGoal(read) => goal::ready(domain, env, decision, *read),
-            Work::Activate(context) => {
-                if domain.settling.active() || domain.core.stopping() {
-                    continue;
-                }
-                let ready = domain.ready();
-                let routed =
-                    core::step(&mut domain.core, &environment_core(env), core::Event::Activate { context, ready });
-                route_core_requests(domain, env, decision, routed);
-            }
+            Work::Activate { context, ready } => activate(domain, env, decision, context, ready),
             Work::EscalationLoaded { waiter, rows } => escalation::loaded(domain, env, waiter, rows),
             Work::EscalationFailed { waiter } => escalation::failed(domain, waiter),
             Work::ProposalLoaded { waiter, rows } => proposals::historical_loaded(domain, waiter, rows),
@@ -468,6 +460,19 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::EndedFailed { waiter } => crate::archive::ended_failed(domain, waiter),
         }
     }
+}
+
+/// One activation's step: `busy` is read here, so the load it allows finds its read slot.
+fn activate(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    context: Box<tasks::RunContext>,
+    ready: bool,
+) {
+    let busy = domain.archive_reads.is_full();
+    let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Activate { context, ready, busy });
+    route_core_requests(domain, env, decision, routed);
 }
 
 pub(crate) fn call_answer(domain: &Domain, key: CallKey) -> Option<CallAnswer> {

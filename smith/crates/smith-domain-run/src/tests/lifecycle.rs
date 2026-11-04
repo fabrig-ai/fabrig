@@ -7,7 +7,7 @@ fn a_run_whose_main_conversation_fails_answers_with_its_fault_and_what_it_spent(
     assert!(harness.step(Event::Used { conversation, spend: spend(100) }).is_empty(), "within the budget");
     let end = End::Fault(Fault::Provider);
     let requests = harness.step(ended(conversation, end, spend(100)));
-    assert_eq!(answered(requests), (1, failed(Failure::Model(Fault::Provider), spend(100))));
+    assert_eq!(answered(requests), (1, failed(RunFailure::Model(Fault::Provider), spend(100))));
     assert_eq!(harness.domain.next_deadline(), None);
     harness.domain.reclaim();
     assert_eq!((harness.domain.runs(), harness.domain.conversations()), (0, 0));
@@ -24,7 +24,7 @@ fn a_run_whose_main_conversation_runs_out_of_budget_fails_for_budget() {
         (
             1,
             failed(
-                Failure::Budget { exhausted: Exhausted::Turns, used: Some(0), bound: Some(u64::from(BUDGET.turns)) },
+                RunFailure::Budget { exhausted: Exhausted::Turns, used: Some(0), bound: Some(u64::from(BUDGET.turns)) },
                 Spend::ZERO
             )
         )
@@ -67,7 +67,7 @@ fn an_llm_that_stops_without_finishing_is_nudged_until_its_nudges_run_out() {
         reasoning: None,
     };
     let requests = harness.step(ended(conversation, End::Closed, total));
-    let unfinished = Failure::Policy(Policy::Unfinished { nudges: LIMITS.nudges, rejected: 0 });
+    let unfinished = RunFailure::Policy(Policy::Unfinished { nudges: LIMITS.nudges, rejected: 0 });
     assert_eq!(answered(requests), (1, failed(unfinished, total)));
 }
 
@@ -80,7 +80,7 @@ fn an_llm_whose_last_stop_shows_a_fault_fails_the_run_with_it() {
         let (_, conversation) = harness.running(1, 100);
         drop(harness.step(Event::Yielded { conversation, stop, text: bytes(b"") }));
         let requests = harness.step(ended(conversation, End::Closed, Spend::ZERO));
-        assert_eq!(answered(requests), (1, failed(Failure::Model(fault), Spend::ZERO)));
+        assert_eq!(answered(requests), (1, failed(RunFailure::Model(fault), Spend::ZERO)));
     }
 }
 
@@ -96,7 +96,7 @@ fn an_llm_with_no_input_or_output_left_is_not_nudged() {
         (
             1,
             failed(
-                Failure::Budget { exhausted: Exhausted::Spend, used: Some(BUDGET.spend), bound: Some(BUDGET.spend) },
+                RunFailure::Budget { exhausted: Exhausted::Spend, used: Some(BUDGET.spend), bound: Some(BUDGET.spend) },
                 spend(BUDGET.spend)
             )
         )
@@ -117,7 +117,7 @@ fn an_llm_with_no_turn_left_is_not_nudged() {
         (
             1,
             failed(
-                Failure::Budget {
+                RunFailure::Budget {
                     exhausted: Exhausted::Turns,
                     used: Some(u64::from(BUDGET.turns)),
                     bound: Some(u64::from(BUDGET.turns))
@@ -151,7 +151,7 @@ fn spending_past_the_budget_keeps_admitted_turns_stable_until_yield() {
         (
             1,
             failed(
-                Failure::Budget {
+                RunFailure::Budget {
                     exhausted: Exhausted::Spend,
                     used: Some(BUDGET.spend + 2),
                     bound: Some(BUDGET.spend)
@@ -185,7 +185,7 @@ fn what_an_end_counts_beyond_the_turns_used_is_charged() {
         (
             1,
             failed(
-                Failure::Model(Fault::Completion {
+                RunFailure::Model(Fault::Completion {
                     failure: crate::CompletionFailure::Limit { which: crate::Limit::History, bound: 65_536 },
                     evidence: crate::CompletionEvidence::Unsent,
                     model: 0,
@@ -210,7 +210,7 @@ fn the_deadline_closes_main_and_fails_the_run_for_time() {
         (
             1,
             failed(
-                Failure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
+                RunFailure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
                 Spend::ZERO
             )
         )

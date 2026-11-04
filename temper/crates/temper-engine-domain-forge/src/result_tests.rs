@@ -126,3 +126,32 @@ fn an_empty_report_adds_no_line() {
     let result = ChangeResult::empty();
     assert_eq!(result.reported(b"", &HEAD, BOUND), result.words(&HEAD, BOUND));
 }
+
+#[test]
+fn repair_accounts_precede_stale_caveats_with_utf8_cuts_and_completion_order() {
+    let mut result = ChangeResult::empty();
+    result.repaired(change::Repair::Ci, Some(HEAD), BOUND);
+    result.completed(6, b"Adds changes/2.md", BOUND);
+    result.repaired(change::Repair::Gate(1), Some(HEAD), BOUND);
+    result.completed(9, b"Corrects changes/3.md", BOUND);
+    let caveats = "exports CSV; missing note é".repeat(50);
+    let whole = result.reported(caveats.as_bytes(), &HEAD, 4096).fitted(4096).unwrap();
+    let words = result.reported(caveats.as_bytes(), &HEAD, 256).fitted(256).unwrap();
+    let prefix = b"repairs: 2: CI failed\nsuccessful repair task 6: Adds changes/2.md; review asked for changes\nsuccessful repair task 9: Corrects changes/3.md\nProducer report (historical; before repairs):\nexports CSV;";
+    assert!(words.starts_with(prefix));
+    assert!(skein_lib::bytes::is_utf8(&words));
+    assert!(words.len() <= 256);
+    let cut = skein_lib::bytes::find(&words, b"\n[").expect("cut marker");
+    assert!(whole.starts_with(&words[..cut]));
+    let lost = Decimal::of(u64::try_from(whole.len() - cut).unwrap());
+    assert_eq!(&words[cut + 2..words.len() - b" bytes cut]\n".len()], lost.as_bytes());
+    assert!(words.ends_with(b" bytes cut]\n"));
+    let mut bounded = ChangeResult::empty();
+    bounded.repaired(change::Repair::Ci, Some(HEAD), 64);
+    bounded.completed(10, "é".repeat(600).as_bytes(), 64);
+    assert!(bounded.repairs.bytes.len() <= 64);
+    assert!(bounded.repairs.cut > 0);
+    let retained = bounded.repairs.fitted(64).unwrap();
+    assert!(skein_lib::bytes::is_utf8(&retained));
+    assert!(retained.ends_with(b" bytes cut]\n"));
+}

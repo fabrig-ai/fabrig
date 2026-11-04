@@ -114,7 +114,6 @@ fn configured() -> Driver {
 
 /// Sign `user` in; the person and session its reply names. Person numbers
 /// come from the replies: a first start seeds the configured owners.
-#[expect(clippy::wildcard_enum_match_arm, reason = "the helper selects its own sign-in reply")]
 fn sign_in(driver: &mut Driver, user: u64, reply: u64) -> (u64, u64) {
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
         held: None,
@@ -167,7 +166,6 @@ fn proposed_goal(spec: &[u8], budget: u64, priority: u32) -> people::Ask {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the story follows proposal, approval, planning, and completion")]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the story selects its committed deliveries")]
 fn a_smith_goal_is_proposed_accepted_planned_and_done() {
     let mut driver = configured();
     driver.send(world::hello(5));
@@ -372,7 +370,6 @@ fn burst_child_script(target: u64) -> Script {
     clippy::too_many_lines,
     reason = "the world follows each committed Smith message before and after the wake threshold"
 )]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the story selects assignments and committed answers")]
 fn a_smith_coordinator_is_woken_once_by_a_burst() {
     let mut driver = configured();
     driver.send(world::hello(5));

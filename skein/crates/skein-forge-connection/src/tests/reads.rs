@@ -789,7 +789,7 @@ fn closing_with_a_partial_json_batch_drops_local_work() {
     let heard = h.buffered_answer(response, response.len(), false);
     assert_eq!(heard.len(), 1, "only the head before the incomplete string");
     assert!(!h.connection.ready(), "waits for bytes, not a local spin");
-    h.connection.close(true, &mut h.io);
+    h.connection.close(&h.env, true, &mut h.io);
     h.connection.stream(&h.env, skein_lib::stream::Up::End);
     h.pump();
     assert!(!h.connection.ready(), "close leaves no local work");
@@ -818,7 +818,7 @@ fn json_body_intakes_stay_under_the_ceiling_and_release_on_teardown() {
         }
         for at in 0..connections.len() {
             let h = connections.get_mut(at).expect("configured connection");
-            h.connection.close(false, &mut h.io);
+            h.connection.close(&h.env, false, &mut h.io);
             assert!(!h.connection.ready(), "closed connections do not spin");
         }
     }

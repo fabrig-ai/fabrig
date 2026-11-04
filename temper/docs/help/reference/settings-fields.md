@@ -24,7 +24,7 @@ One setting, and what becomes of it: `setting`, then exactly one of `set` and `e
 
 Which setting: its kind and, but for the rules, its number.
 
-- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind. `"project-policy"`: A project's own policy, set alone and at most once; its value is a policy.
+- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
 - `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for the rules.
 - `project`: integer, 0 to 4,294,967,295. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
@@ -57,7 +57,7 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 
 A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run.
 
-- `forge`: text, at most 32,768 bytes. The forge's host, as its repositories' names carry it.
+- `forge`: text, at most 32,768 bytes. The canonical `host` printed by `temper ctl DIR forge list` (also `forge list --json`), as repository resource names carry it, including its port; copy it unchanged, not the forge number or web address.
 - `repository`: text, at most 65,537 bytes. The repository as OWNER/NAME; one adopted in no project gives a section saying so.
 - `branch`: text, at most 131,075 bytes. The branch whose head is read, its segments joined by `/`.
 - `path`: text, at most 256 bytes. The file's path in the repository, at most 256 bytes.

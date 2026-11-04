@@ -100,7 +100,7 @@ wiring proof is `suite::wiring::a_scratch_binary_answers_one_chat_and_drains`.
 The owned welcome walk combines its key and declared-program variants on
 one owned Forgejo. It keeps private fixtures and ordinary teardown. Once
 it reaches Ready, a native client with the browser's client bounds
-(`../client/README.md`, 2) presses Open Default at the welcome's Ready
+(`../client/README.md`, 2) presses "Create your project" at the welcome's Ready
 and reaches the Chats page; a second such client, the reload, still
 receives its watches: Live, never Behind, the walk's forge on the Forges
 page and its key on the Accounts page.
@@ -1031,7 +1031,7 @@ terminal client, the captures and the faults.
   the story once, its model side a face: the fake issuer and the fake
   LLM peer here, ChatGPT itself in the live tier (2.7), which reuses
   every step and check but the face's:
-  - *the box and its forge:* `temper init` into three empty private
+  - *the box and its forge:* `temper init --box` into three empty private
     directories, the sign-in's and the LLM endpoint's addresses swapped
     for the fakes', then `temper box` on them, which reads that
     document; the owned forge set up from the client and `work/hello` made and
@@ -1193,7 +1193,12 @@ section 8; testing-strategy.md, 2.9).
   naming a held ChatGPT record, a fresh store's first run moves it in by
   `temper ctl account import FILE --key connect-plan`, which removes
   FILE, and waits for it usable in place of the person's sign-in, as an
-  account import does; the script refuses it with a kept store.
+  account import does; the script refuses it with a kept store. Each box
+  exports and verifies the record before stopping, including a successful
+  first box whose result is checked before the restart. The second box
+  imports the returned record with a distinct operation key. Hook installation
+  and reopening import share the give-back's lock; a terminal give-back
+  excludes later imports.
   Every ctl call of a sitting names one DIRECTORY, `client` beneath the
   run's root in the store (`first`, `second`, or tagged on a kept
   store): the import, the held record's give-back and the sitting's
@@ -1398,6 +1403,29 @@ section 8; testing-strategy.md, 2.9).
     (../client/tools.md, 8.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
+- **The held record's guard,** for the landing story, whose two sittings
+  leave the record in the store across a stopped box: the second proves
+  the restart on it. The runner's return and the story's own each need a
+  box up, so a panic between the sittings finds none. `Lent`
+  (`tests/support/held_login.rs`) stands from before the first sitting to
+  the test's end. On every ending, a panic anywhere, a failed assertion
+  or an early return, its `Drop` settles what is owed, by `stat` alone,
+  the record never read:
+  - **The record at its lent path,** a private regular file with bytes
+    in it: nothing. The import has not run, or the story's return has;
+    that is what disarms the guard, so it exports once. The same path
+    holding anything else is reported, never overwritten.
+  - **Moved in, a box up:** `give-back`, within its 60 seconds.
+  - **Moved in, no box up:** a box started over the store for this alone,
+    a new client signed in by the box's link, then `give-back`; the box
+    stops on any ending.
+  - **Still not back:** the notice `LOGIN NOT BACK`, naming the store,
+    which stays for recovery. The guard never panics while the test
+    unwinds; a test that would otherwise pass, it fails.
+
+  The rung's one sitting keeps its box up past a panic, which `run_walk`
+  catches before its return, and a held Claude Code login is used in
+  place, so neither has a guard.
 - **What stays the owner's,** ignored and run by hand: the process tier's chat on a
   real model, `a_real_model_answers_a_chat_and_pushes_a_small_change` (a person's
   sitting); `rung_b0_a_person_agrees_a_plan_before_the_change_lands` (the rung's
@@ -1411,6 +1439,66 @@ section 8; testing-strategy.md, 2.9).
   landing pair above, run after every landing; `scripts/proof-live.sh` and
   `scripts/proof-live-github.sh` select their own story over it
   (`--ignore-default-filter` and their own filter), one at a time. Never at the gate.
+
+### 2.8 macOS
+
+macOS is a person's own machine and Linux the platform of record
+(`../draft/macos.md`). What macOS runs is one workflow; the gate never
+reads it, and whatever is Linux's may be degraded there.
+
+- **The workflow,** `.github/workflows/macos.yml`, on GitHub's `macos-26`,
+  arm64: on the newest `main` four times a day by a schedule, and by
+  hand, on any branch that holds it; never on a push. A red run blocks
+  nothing: it is a finding.
+- **What it runs:** every target of skein, smith, jig and temper
+  compiled, hearth left out
+  (`cargo check --workspace --exclude 'hearth*' --all-targets --keep-going`),
+  then the one story below. Each check runs whatever an earlier one
+  gave, so that one run shows every failure.
+- **What it installs:** Rust 1.95, the workspace's `rust-version`, and
+  `cargo-nextest`, each download checked by its SHA-256.
+- **The runner is small:** line tables only for debug information, no
+  incremental build, `TEMPER_BUNDLE=none`, the registry and the
+  dependencies' build cached by the lock, and each run reports its disk.
+- **A failure reads without a login:** the repository is public, and
+  each failing check annotates its run with its failing tests or errors
+  and the end of its output, which the public API gives.
+- **The one story:**
+  `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`
+  (2.6), never a copy of it: the workflow runs it alone under the profile
+  `process-temper`, and a run that selects nothing is red.
+- **Its binaries come through `temper forge fetch`** (`../protocol/setup.md`,
+  6.6), into a cache of the workflow's own that starts empty, so each
+  run shows that the pinned addresses still answer; `TEMPER_FORGEJO` and
+  `TEMPER_FORGEJO_RUNNER` then name what it fetched, and the box's own
+  fetch finds them in place and holds them to the pins' binary digests.
+  The workflow prints each one's version first, so that a binary that
+  does not run shows apart from the story.
+- **Its support on macOS,** each the simplest that works:
+  - `parent::Guard` holds its child and gives it no parent-death signal,
+    which is Linux's: the test's own ending stops what it started;
+  - the steps of the story's CI use what both systems' tools have, within
+    the cleared `PATH`s of the box and of the owned runner;
+  - `left`, Linux's whole-tree proof, proves nothing under the tree
+    keeper's Group (`skein/docs/design/shell.md`, section 9): it reads
+    empty there, so the story holds the box's clean exit alone.
+- **No containers:** its jobs run on the runner's host under the
+  `temper-host` label, as on Linux.
+- **The Darwin check.** On our Linux machines clippy reaches, for
+  `aarch64-apple-darwin`, the members that do not reach rustls, whose
+  `ring` crate compiles C against Apple's headers (skein's `shell.md`,
+  section 9); the rest are the workflow's.
+- **Linux's own tests, by name.** A test that only Linux can run is built
+  for Linux alone, `cfg(target_os = "linux")` on its test, module or
+  binary, with its reason beside it, and listed here. A test that
+  compiles and fails on macOS and would take real work to port joins the
+  list; none is dropped silently.
+
+  | Test | Its reason |
+  |---|---|
+  | `crates/temper/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
+  | `crates/temper/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
+  | `crates/temper/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `crates/temper/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
 
 ## 3. Neighbours and their faces
 
@@ -2424,6 +2512,13 @@ Each is a box obligation, recorded present or lacking with what the
 pass saw. A lacking one ends the walk before the chat, a finding against
 the box, never the agent.
 
+The walk's bounds, the user's (2026-11-04): the box's limits are the
+reference's profile whole, as above, its spends and times the box's; the
+pass takes at most 3 hours of wall time from the box's start to the
+stage's verdict, the configuring chat at most 40 of the person's
+messages, and the judge one session at Opus 5.5, high, within 30
+minutes.
+
 #### 6.5.3 The evidence
 
 After the acceptance, the pass collects what the check reads into one
@@ -2605,13 +2700,6 @@ scripts/proof-live.sh               the live tier
 - **The machine's git in the process tier.** Default: whatever git the
   test host has, 2.41 or later, which ../protocol/git.md's start refuses below
   (../protocol/git.md, section 3); transcripts are of 2.53.
-- **Stage 1's figures** (6.5): the box's limits and the walk's bounds,
-  which are the user's (`../draft/configuring.status.md`). Default: the
-  box's limits the reference's profile whole (6.5.2), its spends and
-  times the box's; the pass at most 3 hours of wall time from the box's
-  start to the stage's verdict, the configuring chat at most 40 of the
-  person's messages, and the judge one session at Opus 5.5, high,
-  within 30 minutes.
 
 ## 11. Later
 
@@ -2619,3 +2707,7 @@ scripts/proof-live.sh               the live tier
   invocation within profile `live-temper`'s 50 minutes, each story
   bounding itself at 40 (2.7). The profile's figure is set from the
   pair's first after-landing wall times, and is the user's.
+- **A signal between the landing story's sittings.** A signal to the test
+  process runs no `Drop`, and the runner's `give-back` finds no box up:
+  the record stays in the store and the notice says so (2.7). Closing it
+  is a return that starts its own box, in the runner's part.

@@ -17,7 +17,7 @@ mod values;
 mod worker;
 mod worker_route;
 mod workers;
-pub use accounts::AccountsRuntime;
+pub use accounts::{AccountsRuntime, TrustBounds};
 pub use worker::{Worker, WorkerRuntime};
 mod engine;
 pub mod limits;
@@ -59,7 +59,7 @@ pub struct Service {
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     raw_submissions: Queue<Submit>,
-    kernel: accounts::Kernel,
+    kernel: skein_io::kernel::Routes,
     told: Queue<io::Event>,
     engine: Option<Engine>,
     workers: List<Worker>,
@@ -93,10 +93,10 @@ impl Service {
     pub fn account_startup(&self, source: u32, generation: u64, now: Time) -> Option<AccountStartup> {
         let engine = self.engine.as_ref()?;
         let accounts = engine.accounts.as_ref()?;
-        let (driver_made, restores_waiting, wants_waiting) = accounts.startup(source);
+        let (driver_made, restores_waiting, wants_waiting) = accounts.component().startup(source);
         Some(AccountStartup {
-            pending_mark: engine.store.component.pending_mark(),
-            durable: engine.store.component.mark_durable(),
+            pending_mark: engine.store.host.component.pending_mark(),
+            durable: engine.store.host.mark_durable(),
             driver_made,
             restores_waiting,
             wants_waiting,
@@ -113,7 +113,7 @@ impl Service {
             completions: Queue::with_capacity(queue),
             submissions: Queue::with_capacity(queue),
             raw_submissions: Queue::with_capacity(queue),
-            kernel: accounts::Kernel::new(
+            kernel: skein_io::kernel::Routes::new(
                 io::operations(&limits)
                     .expect("io operations")
                     .checked_add(8)
@@ -157,7 +157,7 @@ impl Service {
         }
         let engine = self.engine.as_mut().ok_or(Refused)?;
         let clients = engine.clients.as_mut().ok_or(Refused)?;
-        clients.server.serve(bundle);
+        clients.pages.serve(bundle);
         Ok(())
     }
     /// Adopt the deployment directory opened by the caller before driving startup.
@@ -280,7 +280,7 @@ impl Service {
             }
             && match &self.engine {
                 Some(engine) => match &engine.accounts {
-                    Some(accounts) => accounts.is_empty(),
+                    Some(accounts) => accounts.idle(),
                     None => true,
                 },
                 None => true,
@@ -371,11 +371,11 @@ impl Service {
             && engine.store.opened
             && let Some(workers) = &mut engine.workers
         {
-            for _ in 0..workers.io.len() {
+            for _ in 0..workers.host.io.len() {
                 if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions {
                     break;
                 }
-                let request = workers.io.pop().expect("worker io requests");
+                let request = workers.host.io.pop().expect("worker io requests");
                 io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
             }
         }
@@ -426,7 +426,7 @@ impl Service {
             let ready = match &self.engine {
                 Some(engine) if !engine.store.opened => false,
                 Some(engine) => match &engine.workers {
-                    Some(workers) => workers.opened(),
+                    Some(workers) => workers.host.opened(),
                     None => true,
                 },
                 None => true,
@@ -488,7 +488,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     let started = match &service.engine {
         Some(engine) if !engine.store.opened => false,
         Some(engine) => match &engine.workers {
-            Some(workers) => workers.opened(),
+            Some(workers) => workers.host.opened(),
             None => true,
         },
         None => true,

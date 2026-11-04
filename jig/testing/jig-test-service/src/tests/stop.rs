@@ -30,7 +30,7 @@ fn a_shutdown_stops_the_listeners_before_the_core_hears_stopping() {
     let engine = fixtures::engine(&mut service);
     assert!(!engine.domain.stopping());
     assert_eq!(engine.drain.as_ref().expect("drain").phase, stop::Phase::Stopping);
-    assert_eq!(engine.workers.as_ref().expect("workers").ending, None);
+    assert_eq!(engine.workers.as_ref().expect("workers").host.ending(), None);
     assert_eq!(engine.events.len(), 1);
     let Some(root::Event::Stop) = engine.events.pop() else {
         panic!("the core hears stopping next");
@@ -42,10 +42,13 @@ fn components_close_only_after_the_core_says_drained() {
     let mut service = components();
     service.shutdown();
     let engine = fixtures::engine(&mut service);
-    assert_eq!(engine.workers.as_ref().expect("workers").ending, None);
+    assert_eq!(engine.workers.as_ref().expect("workers").host.ending(), None);
     assert_eq!(engine.drain.as_ref().expect("drain").phase, stop::Phase::Stopping);
     stop::drained(engine);
-    assert_eq!(engine.workers.as_ref().expect("workers").ending, Some(stop::Closing::Drain));
+    assert_eq!(
+        engine.workers.as_ref().expect("workers").host.ending(),
+        Some(jig_protocol_engine_workers::host::Closing::Drain)
+    );
     assert_eq!(engine.drain.as_ref().expect("drain").phase, stop::Phase::Closing { waiting: 2 });
 }
 
@@ -57,8 +60,8 @@ fn the_store_closes_last() {
     assert_eq!(service.end(), None, "components have not reported closed");
     settle(&mut service);
     assert_eq!(service.end(), Some(&End::Drained));
-    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").is_empty());
-    assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").closed());
+    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").idle());
+    assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.closed());
 }
 
 #[test]
@@ -69,8 +72,8 @@ fn a_second_shutdown_aborts_each_component() {
     fixtures::turn(&mut service);
     assert_eq!(service.end(), Some(&End::Aborted));
     settle(&mut service);
-    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").is_empty());
-    assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").closed());
+    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").idle());
+    assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.closed());
 }
 
 #[test]
@@ -108,7 +111,7 @@ fn a_call_the_root_answers_busy_while_stopping_reaches_its_worker() {
         }),
     );
     assert_eq!(
-        fixtures::engine(&mut service).workers.as_ref().expect("workers").component.dropped_down(),
+        fixtures::engine(&mut service).workers.as_ref().expect("workers").host.component.dropped_down(),
         1,
         "the busy relay reaches the workers component even when its channel has gone"
     );
@@ -235,4 +238,14 @@ fn the_service_fires_wall_expiry_before_the_original_elapsed_alarm() {
         engine.domain.core().people.next_deadline().is_none(),
         "the timer removed the sign-in, rather than only closing its watch during Resume"
     );
+}
+
+#[test]
+fn a_lost_listener_changes_nothing_for_the_reference() {
+    let mut service = components();
+    let owner = crate::tokens::token(crate::tokens::WORKER_LISTENERS, 0);
+    service.told.push(skein_io::Event::Closed { owner });
+    crate::route_events(&mut service, skein_lib::Time::ZERO);
+    assert_eq!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.ending(), None);
+    assert_eq!(service.end(), None);
 }

@@ -23,6 +23,8 @@ pub(crate) struct Reading {
     pub thread: Option<Thread>,
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
     pub question: Option<(u64, u64)>,
+    pub proposals: BTreeMap<c::ProposalKey, Option<c::DocumentText>>,
+    pub proposal: Option<c::ProposalKey>,
     pub met_inbox: Option<Printed>,
     pub parts: &'static dyn render::Parts,
     pub application: super::application::Reading,
@@ -85,6 +87,8 @@ fn start_reading(
         thread: None,
         questions: BTreeMap::new(),
         question: None,
+        proposals: BTreeMap::new(),
+        proposal: None,
         met_inbox,
         application: super::application::Reading::new(),
         parts: runner.parts.expect("host vocabulary"),
@@ -205,6 +209,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
 fn task_text_read(call: &Call) -> c::Read {
     let field = match value(call, 1) {
         Some(Value::Word(1)) => c::TaskTextField::Instructions,
+        Some(Value::Word(2)) => c::TaskTextField::Result,
         _ => c::TaskTextField::Specification,
     };
     c::Read::TaskText { task: number(call, 0).unwrap_or(0), field, from: number(call, 2).unwrap_or(0) }
@@ -255,7 +260,7 @@ pub(super) fn page(
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
     if local == super::application::SLOT && reading.application.query.is_some() {
         reading.pending &= !(1 << super::application::SLOT);
-        if let Err(page) = super::application::received(&mut reading, page) {
+        if let Err(page) = super::application::received(&mut reading, page, &env.limits) {
             let printed = render::read(
                 &page,
                 client,
@@ -277,8 +282,8 @@ pub(super) fn page(
         complete(runner, client, env, reading, out);
         return;
     }
-    if reading.called.call.tool == 1 && local == 6 {
-        question_page(&mut reading, page);
+    if reading.called.call.tool == 1 && (local == 6 || local == 7) {
+        inbox_detail(&mut reading, page, local);
         complete(runner, client, env, reading, out);
         return;
     }
@@ -417,11 +422,9 @@ fn close(runner: &Runner, reading: &Reading, out: &mut Queue<Out>) {
 }
 fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
     if reading.called.call.tool == 1
-        && reading.question.is_none()
-        && let Some((task, message)) = next_question(&reading, env.limits.rows)
+        && let Some((local, what)) = next_inbox_detail(&mut reading, env.limits.rows)
     {
-        reading.question = Some((task, message));
-        read(runner, &mut reading, 6, c::Read::Question { task, message }, out);
+        read(runner, &mut reading, local, what, out);
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
@@ -442,7 +445,7 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
-    if reading.called.call.tool == rows::PROPOSAL_AT
+    if (reading.called.call.tool == rows::PROPOSAL_AT || reading.called.call.tool == rows::REVISION_AT)
         && let Some(query) = super::application::next(&reading)
     {
         super::application::read(runner, &mut reading, query, out);
@@ -550,26 +553,7 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
     let task = number(&reading.called.call, 0).unwrap_or(0);
     match reading.called.call.tool {
         rows::SETTINGS_AT => read(runner, reading, 1, c::Read::Settings, out),
-        rows::SETTING_AT => {
-            let call = &reading.called.call;
-            let setting = match reading.parts.setting_selector(call) {
-                Some(setting) => setting,
-                None => super::super::settings_file::selector(call),
-            };
-            match number(call, 2) {
-                Some(n) => {
-                    let revision = u32::try_from(n).expect("parsed revision");
-                    read(
-                        runner,
-                        reading,
-                        1,
-                        c::Read::Setting(c::ReadSetting { setting, revision, proposal: None }),
-                        out,
-                    );
-                }
-                None => read(runner, reading, 6, c::Read::Settings, out),
-            }
-        }
+        rows::SETTING_AT => setting_start(runner, reading, out),
         rows::REVISION_AT => {
             let number = u32::try_from(task).expect("parsed revision");
             read(runner, reading, 1, c::Read::Revision(c::ReadRevision { number }), out);
@@ -582,6 +566,35 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
             None => read(runner, reading, 1, c::Read::Revisions(c::ReadRevisions { before: None }), out),
         },
         _ => unreachable!("settings read tool"),
+    }
+}
+
+fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
+    let call = &reading.called.call;
+    let setting = match reading.parts.setting_selector(call) {
+        Some(setting) => setting,
+        None => super::super::settings_file::selector(call),
+    };
+    if let c::Setting::Application { .. } = setting {
+        if let Some(revision) = number(call, if call.form == 2 { 3 } else { 2 }) {
+            super::application::historical(
+                runner,
+                reading,
+                setting,
+                u32::try_from(revision).expect("parsed revision"),
+                out,
+            );
+        } else {
+            read(runner, reading, 6, c::Read::Settings, out);
+        }
+        return;
+    }
+    match number(call, 2) {
+        Some(n) => {
+            let revision = u32::try_from(n).expect("parsed revision");
+            read(runner, reading, 1, c::Read::Setting(c::ReadSetting { setting, revision, proposal: None }), out);
+        }
+        None => read(runner, reading, 6, c::Read::Settings, out),
     }
 }
 
@@ -632,6 +645,44 @@ fn terminal_read(
         };
         finish(reading, printed, out);
     }
+}
+
+fn next_inbox_detail(reading: &mut Reading, maximum: u32) -> Option<(u32, c::Read)> {
+    if reading.question.is_some() || reading.proposal.is_some() {
+        return None;
+    }
+    if let Some((task, message)) = next_question(reading, maximum) {
+        reading.question = Some((task, message));
+        return Some((6, c::Read::Question { task, message }));
+    }
+    let Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) = reading.pages.get(&1)? else {
+        return None;
+    };
+    for row in page.rows.as_slice().iter().take(usize::try_from(maximum).expect("rows fit")) {
+        if let c::InboxObject::Proposal { proposer, number } = row.object {
+            let proposal = c::ProposalKey { proposer, number };
+            if !reading.proposals.contains_key(&proposal) {
+                reading.proposal = Some(proposal);
+                return Some((7, c::Read::Proposal { proposal }));
+            }
+        }
+    }
+    None
+}
+
+fn inbox_detail(reading: &mut Reading, page: Readout, local: u32) {
+    if local == 6 {
+        question_page(reading, page);
+        return;
+    }
+    let key = reading.proposal.take().expect("one proposal read in flight");
+    let title = match page {
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Proposal(proposal))) if proposal.key == key => {
+            Some(proposal.reason)
+        }
+        Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
+    };
+    reading.proposals.insert(key, title);
 }
 
 // At most the displayed needs page is joined, one read in flight at a time.

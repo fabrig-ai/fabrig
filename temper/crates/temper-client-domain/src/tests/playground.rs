@@ -380,6 +380,7 @@ pub(super) fn deployment_watch(out: &mut Queue<crate::Request>) -> Option<skein_
     watch
 }
 pub(super) fn deliver_playground_read(root: &mut crate::Domain, page: Readout) -> Queue<crate::Request> {
+    super::deployment::answer(root, true, true);
     playground::told(
         &mut root.forge,
         &Told::Link { link: Link::Offline },

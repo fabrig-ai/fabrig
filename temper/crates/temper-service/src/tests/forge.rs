@@ -715,7 +715,7 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
                 .secrets(Token::new(123), fixtures::application_request(*number, value.clone()))
                 .is_none()
         );
-        match service.engine.as_mut().expect("engine").store.above.pop() {
+        match service.engine.as_mut().expect("engine").store.host.above.pop() {
             Some(jig_protocol_store::Event::Kept { .. }) if *number < records::CARRIED => (),
             Some(jig_protocol_store::Event::Carried { number: found, .. }) => assert_eq!(found, *number),
             other => panic!("row kept: {other:?}"),
@@ -862,7 +862,7 @@ fn a_refused_or_corrupt_records_load_stops_the_engine_named() {
         jig_protocol_store::Event::SecretsNotReady { owner: forge::records::LOAD },
     ] {
         let mut service = fixtures::started();
-        service.engine.as_mut().expect("engine").store.above.push(event);
+        service.engine.as_mut().expect("engine").store.host.above.push(event);
         crate::engine::iterate(service.engine.as_mut().expect("engine"), Time::from_nanos(1), skein_lib::Wall::EPOCH);
         let mut expected = jig_protocol_config::Problems::empty();
         expected.push(jig_protocol_config::Path::root().member(b"forge records"), jig_protocol_config::What::Refers);
@@ -889,7 +889,7 @@ fn a_records_key_that_cannot_sign_stops_only_its_forge() {
             .expect("engine")
             .store
             .secrets(Token::new(123), fixtures::application_request(number, value));
-        let _kept = service.engine.as_mut().expect("engine").store.above.pop();
+        let _kept = service.engine.as_mut().expect("engine").store.host.above.pop();
     }
     let mut face = fixtures::ForgeFace::new();
     for _ in 0_u32..40 {

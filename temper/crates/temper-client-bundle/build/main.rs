@@ -8,6 +8,7 @@ use std::{
 
 mod steps;
 
+#[expect(clippy::disallowed_methods, reason = "cargo sets PROFILE for the build script")]
 fn embed(out: &std::path::Path) -> Result<String, String> {
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"))
         .join("../..")

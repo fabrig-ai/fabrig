@@ -213,7 +213,7 @@ pub(crate) fn turn_text(turn: &agent::Turn, cap: u32) -> Box<[u8]> {
                     match block {
                         session::llm::Block::Text { text, replay: _ }
                         | session::llm::Block::Refusal { text, replay: _ } => append_text(&mut shown, text),
-                        session::llm::Block::ToolCall { name, .. } => {
+                        session::llm::Block::ToolCall(session::llm::ToolCall { name, .. }) => {
                             append_text(&mut shown, b"\nTool: ");
                             append_text(&mut shown, name);
                             append_text(&mut shown, b"\n");
@@ -328,13 +328,13 @@ mod tests {
                 role: session::llm::Role::Assistant,
                 content: Box::new([
                     session::llm::Block::Text { text: Box::from(&b"Working"[..]), replay: None },
-                    session::llm::Block::ToolCall {
+                    session::llm::Block::ToolCall(session::llm::ToolCall {
                         id: Box::from(&b"call-1"[..]),
                         name: Box::from(&b"inspect"[..]),
                         input: Box::from(&b"{}"[..]),
                         call: session::llm::Decoded::Historical,
                         replay: None,
-                    },
+                    }),
                     session::llm::Block::ToolResult {
                         id: Box::from(&b"call-1"[..]),
                         result: session::llm::Returned::Text {

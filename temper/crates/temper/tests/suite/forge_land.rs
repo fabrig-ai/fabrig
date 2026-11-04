@@ -402,10 +402,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
     assert_eq!(value["engine"]["limits"], before["engine"]["limits"]);
     assert_eq!(value["workers"], before["workers"]);
     let parsed = smith_agent_shell::config::read(&config.join("agent.json")).expect("ordinary agent schema");
-    assert_eq!(
-        parsed.endpoint_programs.into_iter().collect::<Vec<_>>(),
-        [(2, smith_agent_shell::config::ProgramName::ClaudeCode)]
-    );
+    assert_eq!(parsed.program_endpoints.into_iter().collect::<Vec<_>>(), [2]);
     eprintln!("Claude agent largest turn: {} bytes", parsed.service.limits.channel.bodies.turn_body);
     scratch.remove();
 }
@@ -695,11 +692,169 @@ fn a_claude_plan_selects_provider_two_beside_demo_accounts() {
     );
 }
 
-#[test]
-fn a_held_login_is_due_after_the_second_run_or_a_failed_first_run() {
-    for (first, failed, due) in [(true, false, false), (true, true, true), (false, false, true), (false, true, true)] {
-        assert_eq!(support::held_login::due_back(first, failed), due, "first={first} failed={failed}");
+struct HeldBox {
+    scratch: support::Scratch,
+    paths: [std::path::PathBuf; 3],
+    record: std::path::PathBuf,
+    stub: std::path::PathBuf,
+    starts: usize,
+    returned_before_stop: Vec<bool>,
+}
+
+impl HeldBox {
+    fn new(case: &str) -> Self {
+        use std::{fs, os::unix::fs::PermissionsExt};
+        let scratch = support::Scratch::new(case);
+        let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
+        let record = scratch.path().join("record");
+        support::write_private(&record, b"synthetic fixture");
+        let stub = scratch.path().join("ctl");
+        support::write_private(
+            &stub,
+            br#"#!/bin/sh
+set -eu
+root=$(dirname "$0")
+test -e "$root/running"
+test "$2" = "$(cat "$root/running")/client"
+case "$4" in
+import) mv "$5" "$root/inside" ;;
+list) printf '%s\n' '{"accounts":{"party":[{"provider":1,"plan":true,"number":7}]}}' ;;
+export) test "$5" = 7; mv "$root/inside" "$6" ;;
+*) exit 1 ;;
+esac
+"#,
+        );
+        fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable fake ctl");
+        Self { scratch, paths, record, stub, starts: 0, returned_before_stop: vec![] }
     }
+
+    fn import(plan: &support::forge_land::LivePlan<'_>, stub: &std::path::Path, record: &std::path::Path) {
+        let (commands, _) = support::forge_land::live_commands(plan.first, plan.model);
+        let import = commands
+            .iter()
+            .find(|args| args.starts_with(&["account".into(), "import".into()]))
+            .expect("held record is imported for each box");
+        let words = import.iter().map(String::as_str).collect::<Vec<_>>();
+        assert_eq!(words.last(), Some(&if plan.first { "connect-plan" } else { "restart-plan" }));
+        let imported = support::ctl::alone(plan.client, plan.held_import(stub, &words));
+        assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(0)));
+        assert!(!record.exists(), "import moves the source into the box");
+    }
+
+    fn run(&mut self, first: bool, failed: bool) -> Result<(), &'static str> {
+        use support::{
+            forge_land::{LiveModel, LivePlan},
+            held_login::{End, Ending},
+        };
+        let root = self.scratch.path();
+        let client = root.join(if first { "first" } else { "second" });
+        std::fs::create_dir(&client).expect("fake box client");
+        support::write_private(&root.join("running"), client.as_os_str().as_encoded_bytes());
+        self.starts += 1;
+        let plan = LivePlan {
+            paths: &self.paths,
+            client: &client,
+            first,
+            kept: false,
+            model: LiveModel::ChatGpt { account: Some(&self.record) },
+            address: None,
+            tasks: None,
+            baseline: None,
+            roots: None,
+            words: "",
+            line: "",
+        };
+        plan.install_return_hook(&self.stub);
+        Self::import(&plan, &self.stub, &self.record);
+        let now = skein_lib::Time::ZERO;
+        let mut ending = Ending::new(true, first, failed, now);
+        let mut exit = None;
+        loop {
+            match ending.next(now, true, exit) {
+                End::Return => {
+                    exit = Some(support::ctl::alone(&client, plan.return_call()).exit);
+                }
+                End::Stop(failure) => {
+                    use std::os::unix::fs::PermissionsExt;
+                    self.returned_before_stop.push(std::fs::symlink_metadata(&self.record).is_ok_and(|file| {
+                        file.is_file() && file.len() > 0 && file.permissions().mode() & 0o777 == 0o600
+                    }));
+                    std::fs::remove_file(root.join("running")).expect("stop fake box");
+                    return failure.or(failed.then_some("run failed")).map_or(Ok(()), Err);
+                }
+                End::Wait => panic!("fake ctl already ended"),
+            }
+        }
+    }
+}
+
+/// domain/testing.md, 2.7: validation between boxes cannot strand an imported login.
+#[test]
+fn a_held_login_returns_when_validation_panics_between_boxes() {
+    let mut boxes = HeldBox::new("held-between-boxes");
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        boxes.run(true, false).expect("first box succeeds");
+        let _ = support::forge_land::landed_identity("", "");
+        boxes.run(false, false).expect("second box succeeds");
+    }));
+    let failure = result.expect_err("validation remains a failure");
+    let message =
+        failure.downcast_ref::<String>().map(String::as_str).or_else(|| failure.downcast_ref::<&str>().copied());
+    assert_eq!(message, Some("landed result line"));
+    assert_eq!(boxes.starts, 1, "validation panics before the second box starts");
+    assert_eq!(boxes.returned_before_stop, [true], "record is private, nonempty and back before the first stop");
+    assert!(boxes.record.is_file(), "the stopped box no longer owns the record");
+    boxes.scratch.remove();
+}
+
+/// Both successful boxes return before stopping; failures in either do the same.
+#[test]
+fn a_held_login_returns_on_restart_and_failures_in_either_box() {
+    for failure in [None, Some(true), Some(false)] {
+        let mut boxes = HeldBox::new("held-restart-endings");
+        let first = boxes.run(true, failure == Some(true));
+        assert_eq!(first.is_err(), failure == Some(true));
+        assert_eq!(boxes.returned_before_stop, [true], "first box returns before stopping");
+        if first.is_ok() {
+            assert_eq!(boxes.run(false, failure == Some(false)).is_err(), failure == Some(false));
+        }
+        assert!(boxes.returned_before_stop.iter().all(|returned| *returned), "failure={failure:?}");
+        assert!(boxes.record.is_file());
+        boxes.scratch.remove();
+    }
+}
+
+/// A terminal give-back wins over hook installation and every later import.
+#[test]
+fn terminal_login_cleanup_excludes_a_restart_import() {
+    use support::forge_land::{LiveModel, LivePlan};
+    let mut boxes = HeldBox::new("held-terminal-return");
+    boxes.run(true, false).expect("first box returns");
+    let root = boxes.scratch.path();
+    let terminal = support::ctl::alone(root, support::ctl::Call::command(&root.join("give-back"), &[]));
+    assert_eq!(terminal.exit, Some(skein_io::kernel::Exit::Code(0)));
+    let client = root.join("second");
+    let plan = LivePlan {
+        paths: &boxes.paths,
+        client: &client,
+        first: false,
+        kept: false,
+        model: LiveModel::ChatGpt { account: Some(&boxes.record) },
+        address: None,
+        tasks: None,
+        baseline: None,
+        roots: None,
+        words: "",
+        line: "",
+    };
+    let installed = std::panic::catch_unwind(|| plan.install_return_hook(&boxes.stub));
+    assert!(installed.is_err(), "terminal cleanup must exclude replacement of its return hook");
+    let words = ["account", "import", boxes.record.to_str().expect("record path"), "--key", "restart-plan"];
+    let imported = support::ctl::alone(root, plan.held_import(&boxes.stub, &words));
+    assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(1)));
+    assert!(boxes.record.is_file());
+    assert_eq!(boxes.starts, 1);
+    boxes.scratch.remove();
 }
 
 fn held_launcher(case: &str, story: &str, body: &str) -> (support::Scratch, std::process::Output) {
@@ -1054,4 +1209,223 @@ fn setup_refuses_missing_or_ambiguous_adopted_projects() {
     ] {
         assert!(project_number(&me, "hello").is_err(), "{me}");
     }
+}
+
+fn referee_me() -> jig_client::contract::Me {
+    use jig_client::contract as c;
+    use skein_lib::List;
+    let words = c::DocumentText::complete(c::Text::new(b"Person".as_slice().into(), 6).expect("name"));
+    c::Me {
+        party: c::MeParty { number: 1, kind: c::PartyKind::Person, login: words.clone(), name: words },
+        projects: List::with_capacity(0),
+        providers: List::with_capacity(0),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 256,
+        needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
+        needs_total: 0,
+        updates: c::Count { value: 0, limited: false },
+        results_seen: 0,
+        cut: false,
+        retention: skein_lib::Duration::from_secs(60),
+        deployment_role: None,
+    }
+}
+
+fn referee_json(argv: &[&str], page: &jig_client::contract::ActivityPage) -> Value {
+    use jig_client::{Event, Up};
+    use skein_lib::{Env, List, Queue, Time, Wall};
+    use temper_client_tools::{jig::call::Parsed, root};
+    let mut tools = temper_client_tools::limits::tools();
+    tools.rows = 1; // One row fills a page so the referee follows its cursor.
+    let limits = root::Limits::new(temper_client_tools::limits::client(), tools);
+    let mut root = root::Root::unlinked(&limits, 1).expect("client limits");
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let words: Vec<_> = argv.iter().map(|word| word.as_bytes()).collect();
+    let Parsed::Call { call, .. } = temper_client_tools::table::parse(&words).expect("read argv") else {
+        panic!("read call")
+    };
+    let mut pending = std::collections::VecDeque::from([
+        root::Event::Client { event: Event::StartUnlinked { kept: List::with_capacity(0) } },
+        root::Event::Client { event: Event::SignIn { with: jig_client::With::Transport } },
+        root::Event::Client { event: Event::Up { up: Up::Served { served: true, versions: None } } },
+        root::Event::Call { number: 1, call, json: true, value: None },
+    ]);
+    for _ in 0..32 {
+        let event = pending.pop_front().expect("read still pending");
+        let mut out = Queue::uncapped();
+        root::step(&mut root, &env, event, &mut out);
+        while let Some(request) = out.pop() {
+            if let root::Request::Printed { printed, .. } = request {
+                assert_eq!(printed.status, 0);
+                return serde_json::from_slice(&printed.stdout).expect("rendered JSON");
+            }
+            let Some(up) = referee_response(request, page) else { continue };
+            pending.push_back(root::Event::Client { event: Event::Up { up } });
+        }
+    }
+    panic!("read did not settle")
+}
+
+fn referee_response(
+    request: temper_client_tools::root::Request,
+    page: &jig_client::contract::ActivityPage,
+) -> Option<jig_client::Up> {
+    use jig_client::{Down, UnlinkedRequest, Up, contract as c};
+    let temper_client_tools::root::Request::Unlinked { request: UnlinkedRequest::Down { down } } = request else {
+        return None;
+    };
+    Some(match down {
+        Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
+            Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(referee_me()))) }
+        }
+        Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded },
+        Down::Read { read, .. } => Up::ReadDone {
+            read,
+            result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(page.clone())))),
+        },
+        Down::Save { .. } | Down::Erase { .. } | Down::Send { .. } | Down::Continue { .. } | Down::Close { .. } => {
+            return None;
+        }
+    })
+}
+
+fn referee_turn() -> jig_client::contract::TurnRead {
+    use jig_client::contract as c;
+    use skein_lib::List;
+    let text = |bytes: &[u8]| c::Text::new(bytes.into(), 128).expect("bounded text");
+    let mut blocks = List::with_capacity(4);
+    for (number, tool, failed, outcome) in [
+        (1, b"change".as_slice(), false, Some(b"created".as_slice())),
+        (2, b"delegate".as_slice(), true, Some(b"refused".as_slice())),
+        (3, b"delegate".as_slice(), false, None),
+    ] {
+        blocks
+            .push(c::Block::Call(c::Call {
+                number,
+                tool: text(tool),
+                input: text(b"request"),
+                outcome: outcome.map(text),
+                failed,
+                objects: List::with_capacity(0),
+                parts: List::with_capacity(0),
+            }))
+            .expect("three calls");
+    }
+    blocks.push(c::Block::Text(text(b"The change landed."))).expect("reply");
+    let mut messages = List::with_capacity(1);
+    messages.push(c::Message { speaker: c::Speaker::Assistant, blocks }).expect("assistant");
+    c::TurnRead::Decoded(c::Turn {
+        messages,
+        used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+        spent: 0,
+        read_through: None,
+        cut: false,
+    })
+}
+
+fn referee_activity() -> jig_client::contract::ActivityPage {
+    use jig_client::contract as c;
+    use skein_lib::{List, Wall};
+    let turn = referee_turn();
+    let name = c::TurnName { attempt: 1, number: 1 };
+    let mut rows = List::with_capacity(1);
+    rows.push(c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: 41,
+            position: 1,
+            at: Wall::EPOCH,
+            line: c::Activity::Turn { reply: 1, attempt: 1, turn: 1, read: None },
+        }),
+        decoded: Some(c::ArchivedTurn { task: 41, name, cumulative: 0, read: None, at: Wall::EPOCH, turn }),
+    })
+    .expect("one archived turn");
+    c::ActivityPage { cut: false, rows, before: None, after: None }
+}
+
+#[test]
+fn a_landing_referee_reads_committed_tools_beyond_the_conversation() {
+    use support::forge_land::conversation::Evidence;
+    let mut page = referee_activity();
+    page.before = Some(jig_client::contract::Cursor::new(Box::from([0x11]), 1).expect("cursor"));
+    let chat = referee_json(&["chat", "show", "41", "--json"], &page);
+    assert!(
+        chat.pointer("/activity/rows/0/event/owner/decoded/turn/decoded/messages/0/blocks/0/call/outcome")
+            .expect("call")
+            .is_null()
+    );
+    let mut evidence = Evidence::new(41, 0);
+    assert_eq!(evidence.read(&chat).expect("conversation page"), Some(read_before("chat", "show")));
+    assert!(evidence.tools.is_empty(), "conversation payload omission proves no successful call");
+    page.before = None;
+    let chat = referee_json(&["chat", "show", "41", "--before", "11", "--json"], &page);
+    let detail = evidence.read(&chat).expect("conversation complete").expect("missing detail fetch");
+    assert_eq!(detail, ["task", "activity", "41", "--json"]);
+    page.before = Some(jig_client::contract::Cursor::new(Box::from([0x11]), 1).expect("cursor"));
+    let argv: Vec<_> = detail.iter().map(String::as_str).collect();
+    let activity = referee_json(&argv, &page);
+    assert_eq!(evidence.read(&activity).expect("detail page"), Some(read_before("task", "activity")));
+    assert_eq!(evidence.tools, BTreeSet::from(["change".to_owned()]), "failed and unfinished delegates do not count");
+    page.before = None;
+    let row = page.rows.get_mut(0).expect("activity row");
+    row.source.line =
+        jig_client::contract::Activity::RunEnded { attempt: 1, end: jig_client::contract::RunEnd::Parked, spent: 0 };
+    row.decoded = None;
+    let activity = referee_json(&["task", "activity", "41", "--before", "11", "--json"], &page);
+    assert_eq!(evidence.read(&activity), Ok(None));
+    assert_eq!(evidence.replies.len(), 1, "reply survives the detail reads");
+}
+
+fn read_before(group: &str, verb: &str) -> Vec<String> {
+    [group, verb, "41", "--json", "--before", "11"].map(str::to_owned).to_vec()
+}
+
+#[test]
+fn a_landing_referee_keeps_a_successful_raw_delegate_in_its_evidence() {
+    let mut evidence = support::forge_land::conversation::Evidence::new(41, 0);
+    let mut page = referee_activity();
+    let chat = referee_json(&["chat", "show", "41", "--json"], &page);
+    assert!(evidence.read(&chat).expect("conversation read").is_some());
+    let turn = &mut page.rows.get_mut(0).expect("turn").decoded.as_mut().expect("archive").turn;
+    let jig_client::contract::TurnRead::Decoded(turn) = turn else { panic!("decoded") };
+    let block = turn.messages.get_mut(0).expect("assistant").blocks.get_mut(1).expect("delegate");
+    let jig_client::contract::Block::Call(call) = block else { panic!("call") };
+    call.failed = false;
+    let activity = referee_json(&["task", "activity", "41", "--json"], &page);
+    assert_eq!(evidence.read(&activity), Ok(None));
+    assert_eq!(evidence.tools, BTreeSet::from(["change".to_owned(), "delegate".to_owned()]));
+}
+
+#[test]
+fn a_landing_referee_requires_whole_bounded_activity() {
+    use jig_client::contract as c;
+    use support::forge_land::conversation::Evidence;
+    let chat = referee_json(&["chat", "show", "41", "--json"], &referee_activity());
+    for defect in ["page", "turn", "undecodable"] {
+        let mut evidence = Evidence::new(41, 0);
+        assert!(evidence.read(&chat).expect("conversation").is_some());
+        let mut page = referee_activity();
+        if defect == "page" {
+            page.cut = true;
+        } else {
+            let turn = &mut page.rows.get_mut(0).expect("row").decoded.as_mut().expect("archive").turn;
+            if defect == "undecodable" {
+                *turn = c::TurnRead::Undecodable { why: c::TurnProblem::Malformed };
+            } else {
+                let c::TurnRead::Decoded(turn) = turn else { panic!("decoded") };
+                turn.cut = true;
+            }
+        }
+        let detail = referee_json(&["task", "activity", "41", "--json"], &page);
+        assert!(evidence.read(&detail).is_err(), "reject incomplete {defect}");
+    }
+    let mut evidence = Evidence::new(41, 0);
+    assert!(evidence.read(&chat).expect("conversation").is_some());
+    let mut page = referee_activity();
+    page.before = Some(c::Cursor::new(Box::from([0x11]), 1).expect("cursor"));
+    let detail = referee_json(&["task", "activity", "41", "--json"], &page);
+    for _ in 0..32 {
+        assert!(evidence.read(&detail).expect("within page bound").is_some());
+    }
+    assert_eq!(evidence.read(&detail), Err("bounded conversation evidence pages".to_owned()));
 }

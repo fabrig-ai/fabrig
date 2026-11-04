@@ -37,7 +37,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
     transport.authenticate(checked.credential.as_ref());
     let at = checked.at.as_ref();
     match &checked.command {
-        Command::Version => Answer::success(b"git version 2.53.0\n".to_vec()),
+        Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
         Command::Clone { remote, directory } => {
             let destination = path(at, directory);
             match git::clone_repository(transport, checkout, remote, &destination) {

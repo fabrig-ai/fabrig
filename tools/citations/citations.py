@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 
-TREES = ("temper", "smith", "skein", "jig")
+TREES = ("temper", "smith", "skein", "jig", "hearth")
 CODE_EXT = (".rs", ".py", ".sh", ".toml", ".js")
 SLASH_COMMENTS = (".rs", ".js")
 ALLOW = "tools/citations/allow.txt"
@@ -34,13 +34,11 @@ SECTION_AFTER = re.compile(
 NUM_RE = re.compile(NUM)
 MD_TOKEN = re.compile(r"(?<![\w/.<>-])((?:(?:\.\./)+|\./|/)?[\w][\w.+-]*(?:/[\w.+-]+)*\.md)(?![\w/-])")
 LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
-OWNER = re.compile(r"(?i)\b(temper|smith|skein|jig)['’]s(?:\s+[\w-]+){0,2}\s*[`\[]*$")
-# hearth's documents are the one other repository's left unchecked ("hearth's `domain/store.md`").
-EXTERNAL = re.compile(r"(?i)\bhearth['’]s(?:,?\s+[\w-]+){0,2}\s*[`\[(]*$")
+OWNER = re.compile(r"(?i)\b(temper|smith|skein|jig|hearth)['’]s(?:\s+[\w-]+){0,2}\s*[`\[]*$")
 # A citation of any other repository's document is refused: never resolved, since resolve()
 # would find a same-named file here by suffix.
 OUTSIDE = re.compile(
-    r"(?i)\b(?!(?:the|a|an|this|that|its|their|each|every|no|one|our|whose|which|any|same|hearth)\b)"
+    r"(?i)\b(?!(?:the|a|an|this|that|its|their|each|every|no|one|our|whose|which|any|same)\b)"
     r"[\w-]+\s+repository['’]s\s*[`\[(]*$")
 BARE_SECTION = re.compile(r"(?<![\w.])(sections?)\s+(" + NUM + r"(?:" + SEP + r"(?:section\s+)?" + NUM
                           + r")*)(?![\w.]*\d)(?!\.\d)")
@@ -326,8 +324,6 @@ def check_file(tree, rel, lines, is_code):
             before = text[:start]
             ln = line_at(marks, start)
             ctx = text[max(0, start - 60): end + 60].strip()
-            if EXTERNAL.search(before[-50:]):
-                continue
             if OUTSIDE.search(before[-50:]):
                 out.append(("path", rel, ln, tok, "outside", ctx))
                 continue

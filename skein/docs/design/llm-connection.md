@@ -23,7 +23,7 @@ protocol layer is its first user.
   sections 4 and 4.2). It depends on:
   - lib;
   - io's vocabulary;
-  - skein's TLS machine;
+  - skein's TLS machine and link (link.md);
   - skein's LLM client.
 - **Calls in, answers out.** The owner starts a call with an endpoint, a
   prompt, a credential where the endpoint takes one, and its deadlines.
@@ -47,7 +47,8 @@ protocol layer is its first user.
   handshake, the response's head, idleness between events, and the call
   as a whole. A deadline that passes fails the call as timed out, naming
   the deadline, with the client's evidence of whether the request was
-  sent. A closing connection has none: io's close deadline bounds it.
+  sent. A closing connection has none of these: the link's close
+  deadline bounds it, then io's (link.md, 3.3).
 - **The owner close drains.** The component refuses new calls at its
   entrance, closes idle connections at once and busy ones when their calls
   end, and reports `closed` once every socket has settled. Its idle keep
@@ -62,8 +63,8 @@ protocol layer is its first user.
 
 ## 2. In skein
 
-- **`skein-llm-connection`** depends on lib, io, `skein-tls` and
-  `skein-llm`. It knows no service's domain, tools or credentials store.
+- **`skein-llm-connection`** depends on lib, io, `skein-tls`, `skein-link`
+  and `skein-llm`. It knows no service's domain, tools or credentials store.
 - **The owner's protocol layer:**
   - gives io its own tokens for the component's entities, keeping the
     component's token in each, so io's events reach the component that
@@ -238,8 +239,9 @@ Once it runs, a call that waited is a call like any other.
 - **Bounded work.** Each entrance starts at most one connection's close,
   within its most outputs; the rest follow at later entrances while the
   component has work.
-- **Settlement is io's.** The component arms no deadline for a closing
-  connection (section 6): io's close deadline bounds a peer that never
+- **Settlement is io's.** The component arms no deadline of its own for a
+  closing connection (section 6): the link's close deadline bounds a close
+  that hasn't reached the socket (link.md, 3.3), and io's a peer that never
   answers the close (io.md, section 3.3).
 
 ## 6. Deadlines
@@ -270,7 +272,7 @@ client's evidence: unsent, possibly sent, or a response received.
   | calling, streaming | idle, whole |
   | draining: the terminal given, the body read to its end | idle |
   | idle | the idle keep |
-  | closing | nothing: io's close deadline bounds it |
+  | closing | nothing of its own: the link's close deadline bounds it, then io's |
   | closed | nothing |
 
   An idleness that passes while a connection drains closes it, with no

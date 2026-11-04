@@ -2,7 +2,7 @@
 
 Kind: reference
 
-The configuration document's top level and application members, their bounds and what temper init writes.
+The configuration document's top level and application members, their bounds and what temper init --box writes.
 
 Every member is read at startup; a change to any member needs a restart.
 
@@ -23,6 +23,7 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 
 - `machine`: machine, engine shapes only; required; init writes object. The machine places offered when a forge is made.
 - `demo`: demo or null, engine shapes only; required; init writes object. The playground’s scripted model, or null for none.
+- `welcome`: boolean; optional; init writes true. Whether the document shows the welcome and offers the playground.
 - `limits`: application-limits; required; init writes object. The application limits profile and named overrides.
 - `workers`: list of application-worker, one entry per top-level worker, in the same order; required; init writes list (1 entry). The workers’ workspace directories and git programs.
 - `clients`: application-clients, engine shapes only; required; init writes object. The clients’ listener, browser bundle and public origin.

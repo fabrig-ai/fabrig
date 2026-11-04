@@ -9,10 +9,12 @@ pub fn forging(target: &Target<'_>) -> Page {
     let request = STANDARD.encode(target.request);
     let prefix = std::str::from_utf8(target.prefix).expect("mapping prefix is UTF-8");
     let body = format!(
-        r#"<!doctype html><title>Elsewhere</title><script>
+        r#"<!doctype html><title>Elsewhere</title><h1>Forging requests</h1><script>
 const body = Uint8Array.from(atob("{request}"), c => c.charCodeAt(0));
-fetch("http://{{address}}{prefix}/v1/request", {{method: "POST", mode: "no-cors", credentials: "include", headers: {{"Content-Type": "text/plain"}}, body}}).catch(() => {{}});
-fetch("http://{{address}}{prefix}/v1/request", {{method: "POST", credentials: "include", headers: {{"Content-Type": "application/octet-stream", "Jig-Client": "browser"}}, body}}).catch(() => {{}});
+Promise.allSettled([
+fetch("http://{{address}}{prefix}/v1/request", {{method: "POST", mode: "no-cors", credentials: "include", headers: {{"Content-Type": "text/plain"}}, body}}),
+fetch("http://{{address}}{prefix}/v1/request", {{method: "POST", credentials: "include", headers: {{"Content-Type": "application/octet-stream", "Jig-Client": "browser"}}, body}})
+]).then(() => {{ document.querySelector("h1").textContent = "Forged requests completed"; }});
 </script>
 "#
     );

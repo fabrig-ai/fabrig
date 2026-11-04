@@ -62,7 +62,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/README.md, 4.6).
-pub const CLIENT_VERSION: u32 = 11;
+pub const CLIENT_VERSION: u32 = 13;
 
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
@@ -123,6 +123,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         owned_forge_password: v1::CEILINGS.owned_forge_password,
         adoption_owner: bounds.field_bytes,
         adoption_name: bounds.field_bytes,
+        forge_row_host: ADDRESS_BYTES,
         forge_row_web_some: ADDRESS_BYTES,
         forge_row_repositories: 16,
         reached_name: bounds.field_bytes,
@@ -250,6 +251,21 @@ pub fn decode_playground_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1:
         }
     }
     Some(record)
+}
+
+/// Encode the deployment's answer (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn deployment_answer(record: &v1::DeploymentAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete deployment answer (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_deployment_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DeploymentAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::DeploymentAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
 }
 
 /// Encode which of the family's subjects is watched (client/README.md, 4.6).

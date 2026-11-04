@@ -423,10 +423,20 @@ fn an_amend_naming_an_old_spec_revision_is_answered_moved() {
     let (mut driver, parent, child) = revision_delegate();
     let first = driver.task(child).expect("delegate").revisions.spec;
     let amendment = task_amendment(Some(b"second"), None, b"change");
-    tool_call(&mut driver, &parent, FIRST_CALL, Tool::Amend { target: child, revision: first, amendment });
+    tool_call(
+        &mut driver,
+        &parent,
+        FIRST_CALL,
+        Tool::Amend { keep_parameters: false, target: child, revision: first, amendment },
+    );
     let before = driver.task(child).expect("delegate").clone();
     let amendment = task_amendment(Some(b"stale"), None, b"old view");
-    tool_call(&mut driver, &parent, STALE_CALL, Tool::Amend { target: child, revision: first, amendment });
+    tool_call(
+        &mut driver,
+        &parent,
+        STALE_CALL,
+        Tool::Amend { keep_parameters: false, target: child, revision: first, amendment },
+    );
     assert_eq!(
         driver.answered(STALE_CALL),
         Some(&CallAnswer::Moved { task: child, now: people::Moved::Spec { revision: before.revisions.spec } })
@@ -440,7 +450,12 @@ fn an_amends_answer_names_the_revision_its_next_amendment_names() {
     let (mut driver, parent, child) = revision_delegate();
     let first = driver.task(child).expect("delegate").revisions.spec;
     let amendment = task_amendment(Some(b"second"), None, b"change");
-    tool_call(&mut driver, &parent, FIRST_CALL, Tool::Amend { target: child, revision: first, amendment });
+    tool_call(
+        &mut driver,
+        &parent,
+        FIRST_CALL,
+        Tool::Amend { keep_parameters: false, target: child, revision: first, amendment },
+    );
     assert_eq!(
         driver.answered(FIRST_CALL),
         Some(&CallAnswer::Amended {
@@ -452,7 +467,12 @@ fn an_amends_answer_names_the_revision_its_next_amendment_names() {
     let Some(CallAnswer::Amended { revision, .. }) = driver.answered(FIRST_CALL) else { panic!("revised") };
     let revision = *revision;
     let amendment = task_amendment(Some(b"third"), None, b"next");
-    tool_call(&mut driver, &parent, SECOND_CALL, Tool::Amend { target: child, revision, amendment });
+    tool_call(
+        &mut driver,
+        &parent,
+        SECOND_CALL,
+        Tool::Amend { keep_parameters: false, target: child, revision, amendment },
+    );
     assert_eq!(
         driver.answered(SECOND_CALL),
         Some(&CallAnswer::Amended {

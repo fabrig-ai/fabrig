@@ -509,8 +509,32 @@ fn delegate_tracking_is_optional_and_requires_a_priority_object() {
 }
 
 #[test]
+fn amendment_parameter_omission_is_distinct_from_replacement() {
+    for (parameters, keep, expected) in [
+        ("", true, 0),
+        (r#", "parameters":[]"#, false, 0),
+        (r#", "parameters":[{"kind":"number","name":14,"value":1}]"#, false, 1),
+    ] {
+        let input = format!(
+            "{{\"target\":3,\"revision\":1,\"amendment\":{{\"spec\":{{\"words\":\"new\"{parameters}}},\"reason\":\"scope\"}}}}"
+        );
+        let engine::Tool::Amend { amendment, keep_parameters, .. } =
+            decided(b"amend", input.as_bytes()).expect("amend").tool
+        else {
+            panic!("amend tool")
+        };
+        assert_eq!(keep_parameters, keep, "{parameters}");
+        let spec = amendment.spec.expect("amended spec");
+        assert_eq!(spec.parameters.len(), expected);
+        if expected == 1 {
+            assert_eq!(spec.parameters.as_ref(), &[tasks::Parameter::Number { name: 14, value: 1 }]);
+        }
+    }
+}
+
+#[test]
 fn only_a_priority_amendment_can_omit_its_revision() {
-    let engine::Tool::Amend { target, revision, amendment } =
+    let engine::Tool::Amend { keep_parameters: false, target, revision, amendment } =
         decided(b"amend", br#"{"target":3,"amendment":{"reason":"x","tracked":{"priority":8}}}"#)
             .expect("priority without revision")
             .tool
@@ -581,7 +605,7 @@ fn the_declared_deadline_example_decodes_the_whole_authority() {
             );
         }
     }
-    let engine::Tool::Amend { target, revision, amendment } =
+    let engine::Tool::Amend { keep_parameters: false, target, revision, amendment } =
         decided(b"amend", EXAMPLE).expect("deadline example").tool
     else {
         panic!("amend tool")
@@ -1037,6 +1061,7 @@ fn amend_and_release_calls_name_their_revision() {
         assert_eq!(decided(row.name, row.missing), Err(Problem::Missing(b"revision")), "{:?}", row.name);
         let expected = if row.name == b"amend" {
             engine::Tool::Amend {
+                keep_parameters: false,
                 target: CALL_TASK,
                 revision: 0,
                 amendment: tasks::Amendment {
@@ -1185,12 +1210,15 @@ fn account_notices_are_not_turns_and_terminal_failure_classes_stay_distinct() {
         assert_eq!(turn(notice, Box::default()), Err(Problem::Type(b"request")));
     }
     for (failure, class) in [
-        (run::Failure::Stale, tasks::Class::Transient),
-        (run::Failure::Transcript(run::TranscriptRefusal::Malformed), tasks::Class::Transient),
-        (run::Failure::Budget { exhausted: run::Exhausted::Turns, used: Some(2), bound: Some(2) }, tasks::Class::Run),
-        (run::Failure::Policy(run::Policy::Unfinished { nudges: 1, rejected: 1 }), tasks::Class::Run),
-        (run::Failure::Model(run::Fault::Provider), tasks::Class::Run),
-        (run::Failure::Cancelled, tasks::Class::Agent),
+        (run::RunFailure::Stale, tasks::Class::Transient),
+        (run::RunFailure::Transcript(run::TranscriptRefusal::Malformed), tasks::Class::Transient),
+        (
+            run::RunFailure::Budget { exhausted: run::Exhausted::Turns, used: Some(2), bound: Some(2) },
+            tasks::Class::Run,
+        ),
+        (run::RunFailure::Policy(run::Policy::Unfinished { nudges: 1, rejected: 1 }), tasks::Class::Run),
+        (run::RunFailure::Model(run::Fault::Provider), tasks::Class::Run),
+        (run::RunFailure::Cancelled, tasks::Class::Agent),
     ] {
         assert_eq!(
             result(run::Answer::Failed { failure, spent: spend(13), turns: 2 }, None),
@@ -1872,7 +1900,6 @@ fn a_delegate_executor_or_grant_denial_suggests_change() {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset constructs optional text without closures")]
 fn change_repository_refusals_render_the_three_choices() {
     struct Case {
         named: Option<&'static [u8]>,
@@ -2463,5 +2490,70 @@ fn task_read_hold_reasons_keep_their_numbers_and_failure_classes() {
         assert!(!answer.error());
         assert!(answer.text().len() <= 512);
         assert!(skein_lib::bytes::find(answer.text(), expected).is_some());
+    }
+}
+
+#[test]
+fn authority_findings_name_sources_and_dimensions() {
+    use jig_domain_authority::{Answer, Finding, Source};
+    let dimensions = [
+        ("tool permission", "tools"),
+        ("resource grant", "grants"),
+        ("executor permission", "delegation.kinds"),
+        ("task allowance", "delegation.tasks"),
+        ("descendant depth", "delegation.depth"),
+        ("spend allowance", "budget.spend"),
+        ("deadline", "budget.deadline"),
+        ("note scope", "notes"),
+        ("model permission", "models"),
+    ];
+    for (source, setting) in [
+        (Source::Task, "task authority"),
+        (Source::Role, "project role authority"),
+        (Source::Project, "project policy.ceiling"),
+        (Source::Deployment, "rules.ceiling"),
+    ] {
+        for (index, (dimension, field)) in dimensions.iter().enumerate() {
+            let value = engine::CallAnswer::DelegationDenied {
+                answer: Answer::Refuse,
+                findings: Box::new([Finding::Authority { source, lacks: authority_deficits(1 << index) }]),
+            };
+            let rendered = answer(&value);
+            assert!(rendered.error());
+            assert_eq!(
+                rendered.text(),
+                format!("Authority refused: missing {dimension} ({setting}.{field}); ").as_bytes()
+            );
+        }
+        let value = engine::CallAnswer::DelegationDenied {
+            answer: Answer::Refuse,
+            findings: Box::new([Finding::Authority { source, lacks: authority_deficits(511) }]),
+        };
+        let rendered = answer(&value);
+        for (dimension, field) in dimensions {
+            let expected = format!("missing {dimension} ({setting}.{field})");
+            assert!(skein_lib::bytes::find(rendered.text(), expected.as_bytes()).is_some(), "{:?}", rendered.text());
+        }
+        let value = engine::CallAnswer::DelegationDenied {
+            answer: Answer::Refuse,
+            findings: Box::new([Finding::Executor { source }]),
+        };
+        let rendered = answer(&value);
+        let expected = format!("missing executor permission ({setting}.delegation.kinds)");
+        assert!(skein_lib::bytes::find(rendered.text(), expected.as_bytes()).is_some());
+    }
+}
+
+fn authority_deficits(bits: u16) -> jig_domain_authority::Lacks {
+    jig_domain_authority::Lacks {
+        tools: bits & 1 != 0,
+        grants: bits & 2 != 0,
+        executors: bits & 4 != 0,
+        tasks: bits & 8 != 0,
+        depth: bits & 16 != 0,
+        spend: bits & 32 != 0,
+        deadline: bits & 64 != 0,
+        notes: bits & 128 != 0,
+        models: bits & 256 != 0,
     }
 }

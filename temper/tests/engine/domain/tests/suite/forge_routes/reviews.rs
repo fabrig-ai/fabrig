@@ -1212,6 +1212,7 @@ fn amend_change_authority(world: &mut World, task: u64, authority: tasks::Author
             completion: 97,
             position: 1,
             tool: engine::Tool::Amend {
+                keep_parameters: false,
                 target: task,
                 revision,
                 amendment: temper_engine_domain_world::fixtures::task_amendment(

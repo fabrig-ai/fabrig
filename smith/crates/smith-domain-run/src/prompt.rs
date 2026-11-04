@@ -336,7 +336,7 @@ pub(crate) fn child_host_bytes(
 }
 
 /// The system text of a run's main conversation, given what the run found in
-/// its checkout.
+/// its workspace.
 pub(crate) fn system(
     charter: &Charter,
     mounted: Option<&Workspace>,
@@ -742,7 +742,7 @@ fn render_fields(text: &mut Text, fields: &[FieldRule]) {
 
 fn name(repositories: &[Directory], index: u32) -> &Directory {
     let index = usize::try_from(index).expect("a u32 fits in a usize");
-    repositories.get(index).expect("a guide is of a repository of the checkout")
+    repositories.get(index).expect("a guide is of a repository of the workspace")
 }
 
 /// A verdict and its contract, as one item of a list.
@@ -814,7 +814,7 @@ impl Text {
     fn put(&mut self, bytes: &[u8]) {
         self.len = self.len.saturating_add(bytes.len());
         if self.host {
-            self.add_host(u64::try_from(bytes.len()).unwrap_or(u64::MAX));
+            self.add_host(skein_lib::len_u64(bytes.len()));
         }
         if let Some(writer) = &mut self.writer {
             writer.put(bytes).expect("a text is written as it was measured");

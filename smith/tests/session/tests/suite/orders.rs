@@ -19,13 +19,13 @@ const FILE: &[u8] = b"README.md";
 const OLD: &[u8] = b"README.md: old\n";
 
 fn called(id: &[u8], call: Call) -> llm::Block {
-    llm::Block::ToolCall {
+    llm::Block::ToolCall(llm::ToolCall {
         id: id.into(),
         name: bytes(b"workspace"),
         input: Box::default(),
         call: llm::Decoded::Owned { call },
         replay: None,
-    }
+    })
 }
 
 fn read(id: &[u8], path: &[u8]) -> llm::Block {
@@ -368,7 +368,9 @@ fn reverse_read_terminals_preserve_write_isolation_and_result_order() {
         let calls: Vec<_> = messages[1]
             .content
             .iter()
-            .filter_map(|block| if let llm::Block::ToolCall { id, .. } = block { Some(id) } else { None })
+            .filter_map(
+                |block| if let llm::Block::ToolCall(llm::ToolCall { id, .. }) = block { Some(id) } else { None },
+            )
             .collect();
         let results = &messages[2].content;
         assert_eq!(results.len(), CALLS);

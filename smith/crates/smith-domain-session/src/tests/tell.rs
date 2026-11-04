@@ -148,7 +148,7 @@ fn delegated_facts_keep_identity_source_and_time_at_both_terminals() {
     let (owner, _) = h.open(1);
     h.env.now = Time::from_nanos(11);
     let mut host = delegated(b"host-a", 9, Effect::Read);
-    if let Block::ToolCall { call: Decoded::Delegated { source, .. }, .. } = &mut host {
+    if let Block::ToolCall(crate::llm::ToolCall { call: Decoded::Delegated { source, .. }, .. }) = &mut host {
         *source = crate::ToolSource::Host;
     }
     let content = Box::new([host, delegated(b"run-b", 10, Effect::Read)]);

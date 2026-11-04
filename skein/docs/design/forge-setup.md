@@ -748,9 +748,9 @@ and `uninstall_strays`. The owner chooses both for each forge.
   the items' decoders and the host component. Its plans depend on
   skein-lib, skein-json and `skein-forge`, which holds the setup's
   documents (forge.md, section 5; forge-github.md, section 11). The host
-  component adds io's vocabulary, skein-http's client and skein-tls's
-  client and signing, as the forge component does (forge-connection.md,
-  section 2).
+  component adds io's vocabulary, `skein-link`, skein-http's client and
+  skein-tls's client and signing, as the forge component does
+  (forge-connection.md, section 2).
 - **The owner checks the setup's values and limits at its start,** for
   every command it runs. The crate gives the checks. A refusal names a
   `Place`, the crate's name for each given value and each limit (an org
@@ -891,10 +891,12 @@ check is `supports`: a forge must support the requested plan.
   kind on its forge does (6.3). An admitted run always finds room for
   its connection: the host never waits for one or refuses one mid-run.
 - **The settling is bounded.** A connection closes once its reply is
-  taken, and io aborts a graceful close the peer has not finished within
-  io's `close_timeout`; a run past its deadline (`Times.deadline`) aborts
+  taken, over a link (link.md): TLS's `close_notify` goes first, and the
+  link aborts what hasn't reached the socket within io's `close_timeout`.
+  io then aborts a graceful close the peer has not finished within the
+  same time; a run past its deadline (`Times.deadline`) aborts
   its connection outright. An ended run's slot comes back within
-  `close_timeout` of its end, so a `Busy` for want of a slot is always
+  twice `close_timeout` of its end, so a `Busy` for want of a slot is always
   transient.
 
 ## 7. Verification

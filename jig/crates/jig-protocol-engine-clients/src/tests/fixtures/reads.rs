@@ -265,16 +265,13 @@ fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::Re
     (
         "task text",
         w::Read::TaskText(
-            w::ReadTaskText::new(
-                &limits,
-                w::ReadTaskTextParts { task: 7, field: w::TaskTextField::Instructions, from },
-            )
-            .unwrap(),
+            w::ReadTaskText::new(&limits, w::ReadTaskTextParts { task: 7, field: w::TaskTextField::Result, from })
+                .unwrap(),
         ),
-        reads::Read::TaskText { task: 7, field: reads::TaskTextField::Instructions, from },
+        reads::Read::TaskText { task: 7, field: reads::TaskTextField::Result, from },
         reads::Answer::TaskText(Box::new(reads::TaskText {
             task: 7,
-            field: reads::TaskTextField::Instructions,
+            field: reads::TaskTextField::Result,
             from,
             total,
             next: None,
@@ -285,7 +282,7 @@ fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::Re
                 &limits,
                 w::TaskTextParts {
                     task: 7,
-                    field: w::TaskTextField::Instructions,
+                    field: w::TaskTextField::Result,
                     from,
                     total,
                     next: None,

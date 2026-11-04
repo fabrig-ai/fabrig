@@ -55,11 +55,9 @@ IDs run from `D001` and are never reused:
 
 | ID | Title | Kind | Value | Size | Status |
 |---|---|---|---|---|---|
-| [D001](D001-roots-sequence-core-steps.md) | Every root echoes the core's own steps back to it | coupling | high | M | open |
 | [D002](D002-core-untyped-continuations.md) | The core's continuations are bare numbers | complexity | high | L | open |
 | [D003](D003-core-one-object.md) | The core is one object of 83 fields spread over 50 files | complexity | medium | L | open |
 | [D004](D004-ops-root-jig-wiring.md) | The reference root is half jig wiring, and the test root copies it | coupling | high | L | open |
-| [D005](D005-accounts-host-copied.md) | The reference service's parts are written twice, in temper and in jig's test service | duplication | high | L | open |
 | [D006](D006-link-values-two-paths.md) | The link's values have two import paths, and a grammar is copied | duplication | low | S | open |
 | [D007](D007-contract-written-by-hand.md) | The contract is written out by hand in four or five places | duplication | high | L | open |
 | [D008](D008-link-translate-split-by-number.md) | The link's translation is split by number and repeats one loop | duplication | medium | M | open |
@@ -72,7 +70,6 @@ IDs run from `D001` and are never reused:
 | [D015](D015-exhaustive-lists.md) | Long or-pattern lists stand where a classifier on the type would do | complexity | medium | M | open |
 | [D016](D016-positional-payloads.md) | Event payloads travel as positional arguments | complexity | medium | M | open |
 | [D017](D017-unreachable-re-narrowing.md) | `unreachable!` re-narrows values the types could carry | complexity | medium | M | open |
-| [D019](D019-lint-config-copied.md) | jig's test crates and shells copy one lint block, which no shared table holds | lints | medium | S | open |
 | [D020](D020-inner-allow-guard.md) | Nothing stops an inner `#![allow]` from coming back | lints | low | S | open |
 | [D021](D021-phrases-listed-five-times.md) | Each of the view's phrases is listed four or five times | duplication | medium | M | open |
 | [D024](D024-view-section-context.md) | The view passes a section's context through a field set around calls | coupling | low | S | open |

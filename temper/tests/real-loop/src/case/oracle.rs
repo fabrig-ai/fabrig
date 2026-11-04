@@ -3671,7 +3671,9 @@ mod plan_tests {
         }
         let mut spend = passing.clone();
         if let Part::ToolOutput { output, .. } = &mut spend.told[5].history[1].parts[0] {
-            *output = format!("{SUBOWNER_REFUSAL}spend allowance; ").into_bytes().into();
+            *output = format!("{SUBOWNER_REFUSAL}missing spend allowance (task authority.budget.spend); ")
+                .into_bytes()
+                .into();
         }
         for observed in [prose, child, wrong_parent, forged_output, spend] {
             assert!(!step_5_5(&observed).is_empty());

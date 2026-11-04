@@ -277,7 +277,9 @@
 //! `TCP_NODELAY`; a `Send` never raises `SIGPIPE` (`MSG_NOSIGNAL`).
 
 mod offsets;
+mod routes;
 use offsets::within_offsets;
+pub use routes::Routes;
 
 use alloc::boxed::Box;
 use core::net::SocketAddr;

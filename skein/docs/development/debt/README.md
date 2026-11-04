@@ -63,7 +63,7 @@ debt it says what a reviewer checks.
 | [D002](D002-index-and-length-widening.md) | Index and length conversions are written by hand beside lib's helpers | primitives | medium | M | open |
 | [D003](D003-env-rewraps.md) | `Env` is rebuilt by hand where `Env::with` does it | primitives | medium | S | open |
 | [D004](D004-utf8-checks.md) | UTF-8 is checked by a hand loop in codec and by `from_utf8` under expects | duplication | low | S | open |
-| [D005](D005-civil-calendars.md) | The civil calendar is written three times | duplication | medium | S | open |
+| [D005](D005-civil-calendars.md) | The civil calendar is written twice | duplication | medium | S | open |
 | [D006](D006-lru-tables.md) | Least-recently-used tables are hand-rolled in both forge dialects | primitives | medium | S | open |
 | [D007](D007-joined-and-measure.md) | Byte joining and measuring helpers are copied per file | duplication | low | S | open |
 | [D008](D008-http-head-parsing.md) | HTTP client and server parse message heads separately | duplication | medium | S | open |
@@ -73,7 +73,6 @@ debt it says what a reviewer checks.
 | [D013](D013-forge-connection-parallel-lists.md) | forge-connection keeps forges in parallel lists and dialects as runtime tags | complexity | high | M | open |
 | [D014](D014-forge-setup-vocabulary.md) | forge-setup's shared vocabulary lives in Forgejo's reconcile, and `Reply` mixes dialects | coupling | medium | M | open |
 | [D015](D015-flat-forge-enums.md) | Flat forge request, answer and node enums are re-matched in every module | complexity | medium | L | open |
-| [D016](D016-transport-four-copies.md) | The socket, TLS and HTTP transport is written four times | primitives | high | M | open |
 | [D018](D018-io-pipe-and-file-states.md) | io's pipe, signals and file machines keep state in flags and literals | complexity | medium | M | open |
 | [D019](D019-channel-machine-flags.md) | The channel machine keeps its lifecycle in eleven bools | complexity | medium | S | open |
 | [D020](D020-forge-connection-states.md) | forge-connection's connections keep their state in flags beside a thin tag | complexity | medium | M | open |
@@ -84,14 +83,12 @@ debt it says what a reviewer checks.
 | [D026](D026-crate-tests-directories.md) | Three crates keep a `tests/` directory under `crates/` | tests | medium | S | open |
 | [D027](D027-step-test-layouts.md) | Step tests follow several layouts, some through `#[path]` | tests | low | M | open |
 | [D028](D028-worlds-as-kits.md) | World crates are used as kits by other test crates | tests | medium | M | open |
-| [D029](D029-fake-github-http-faces.md) | Four HTTP faces for the fake GitHub service sit beside its own server | tests | high | M | open |
 | [D030](D030-forge-connection-harness-tests.md) | forge-connection's step tests are mostly a machine world of their own | tests | medium | M | open |
 | [D031](D031-forge-setup-two-worlds.md) | The forge setup world is written twice, once without the host | tests | medium | M | open |
 | [D032](D032-world-harness-copies.md) | Machine-world harness pieces are copied between the protocol worlds | tests | medium | M | open |
 | [D033](D033-limits-literals-in-tests.md) | Tests write out whole `Limits` and `Config` literals instead of one constructor | tests | low | M | open |
 | [D034](D034-codec-double-generation.md) | tests/codec generates its fixtures twice, and skein-codec compiles one of them | tests | medium | S | open |
 | [D035](D035-codegen-diff-and-emit.md) | The schema diff is written twice, and codegen edits its own output as text | duplication | medium | M | open |
-| [D036](D036-lint-blocks-by-hand.md) | Lint configuration is copied by hand into 48 manifests | lints | medium | S | open |
 | [D037](D037-one-word-several-things.md) | One name stands for several things in skein's kits and crates | naming | low | S | open |
 | [D038](D038-comment-words.md) | Comments carry emphasis words, rulings and history | naming | low | S | open |
 | [D039](D039-forge-client-section-citations.md) | forge-client's module headers cite the wrong design sections | naming | low | S | open |

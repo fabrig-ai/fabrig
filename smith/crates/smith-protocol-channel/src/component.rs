@@ -579,7 +579,7 @@ impl Component {
         Ok(())
     }
 
-    /// Relay one checked delivery after its run and checkout effects settled.
+    /// Relay one checked delivery after its run and workspace effects settled.
     #[expect(clippy::too_many_arguments, reason = "the typed channel boundary carries each domain value")]
     pub fn send_delivery(
         &mut self,
@@ -677,21 +677,4 @@ fn invalid_answer(limits: &smith_channel::Limits, invalid: smith_channel::Invali
     .ok()?;
     let frame = smith_channel::frame(smith_channel::Body::Answer(record)).ok()?;
     Some(frame)
-}
-
-fn kind_text(kind: u16) -> Box<[u8]> {
-    let bytes = kind.to_be_bytes();
-    Box::from([
-        b'k',
-        b'i',
-        b'n',
-        b'd',
-        b' ',
-        b'0',
-        b'x',
-        skein_lib::bytes::hex_digit(bytes[0] >> 4),
-        skein_lib::bytes::hex_digit(bytes[0] & 15),
-        skein_lib::bytes::hex_digit(bytes[1] >> 4),
-        skein_lib::bytes::hex_digit(bytes[1] & 15),
-    ])
 }

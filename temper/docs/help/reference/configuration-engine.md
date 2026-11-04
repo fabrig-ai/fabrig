@@ -2,7 +2,7 @@
 
 Kind: reference
 
-The engine and worker configuration members, their bounds and what temper init writes.
+The engine and worker configuration members, their bounds and what temper init --box writes.
 
 A seeded project's policy must be a number; inline policies are refused.
 

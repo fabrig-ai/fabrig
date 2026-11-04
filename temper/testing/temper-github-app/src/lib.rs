@@ -68,18 +68,18 @@ mod tests {
     #[test]
     fn the_seeded_records_are_what_temper_loads_at_start() {
         let scratch = skein_scratch::Scratch::new("temper-github-app");
-        let origin = "127.0.0.1:4321".parse().unwrap();
+        let origin = "127.0.0.1:4321".parse().expect("fixture forge address");
         let records = records(&APP, 17, &[3, 1, 3], origin);
-        seed(scratch.path(), &records).unwrap();
-        let loaded = store::run(scratch.path(), &[], true).unwrap();
+        seed(scratch.path(), &records).expect("fixture records are durable");
+        let loaded = store::run(scratch.path(), &[], true).expect("load durable fixture records");
         assert_eq!(loaded.len(), 6);
         let mut rows = codec::Rows::new();
         for (number, bytes) in &loaded {
             assert!(records.iter().any(|row| row == &(*number, bytes.clone())));
             rows.push(*number, skein_lib::Secret::new(bytes.clone()), 4096);
         }
-        let rows = rows.forge(17).unwrap();
-        assert_eq!(rows.get(Item::AppKey).unwrap(), skein_fake_forge_github::keys::KEYS[0]);
+        let rows = rows.forge(17).expect("fixture forge records");
+        assert_eq!(rows.get(Item::AppKey).expect("fixture app key"), skein_fake_forge_github::keys::KEYS[0]);
         let start = codec::access(
             skein_forge_connection::settings::Kind::GitHub,
             &codec::Origin { kind: skein_forge_connection::settings::Kind::GitHub, api: origin.to_string().into() },
@@ -87,7 +87,7 @@ mod tests {
             &skein_forge_setup::item::Bounds { token_bytes: 512, name_bytes: 256, key_bytes: 4096, installations: 8 },
             false,
         )
-        .unwrap();
+        .expect("fixture records grant app access");
         assert_eq!(start.access.user, APP.bot);
         assert_eq!(start.slug.as_deref(), Some(APP.slug.as_bytes()));
         assert_eq!(&*start.accepted, &[1, 3]);

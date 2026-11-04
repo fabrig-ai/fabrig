@@ -165,7 +165,6 @@ impl ClientPeer {
             | core::Now::AcceptedTurn { .. }
             | core::Now::RefusedPayload { .. }
             | core::Now::Activate { .. }
-            | core::Now::PrepareAgent { .. }
             | core::Now::StartPreparation { .. }
             | core::Now::SeenConversation { .. }
             | core::Now::LoadEndedRead { .. }

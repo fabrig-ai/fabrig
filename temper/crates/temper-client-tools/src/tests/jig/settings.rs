@@ -71,13 +71,13 @@ fn model() -> c::SettingModel {
 fn documents() -> List<c::CharterDocument> {
     list([
         c::CharterDocument {
-            connector: 0,
+            connector: 1,
             name: list(["forge", "code.example", "team", "rules", "branch", "main"].map(|s| s.as_bytes().into())),
             path: b"AGENTS.md".as_slice().into(),
             heading: Some(b"Rules".as_slice().into()),
         },
         c::CharterDocument {
-            connector: 0,
+            connector: 1,
             name: list(
                 ["forge", "code.example", "team", "rules", "branch", "topic", "rules"].map(|s| s.as_bytes().into()),
             ),
@@ -183,8 +183,9 @@ fn settings_show_charter_renders_its_documents() {
 fn a_document_that_is_no_forge_branch_renders_its_name() {
     for (connector, name) in [
         (7, vec!["forge", "code.example", "team", "rules", "branch", "main"]),
-        (0, vec!["other", "resource"]),
-        (0, vec!["forge", "code.example", "team", "rules", "branch"]),
+        (0, vec!["forge", "code.example", "team", "rules", "branch", "main"]),
+        (1, vec!["other", "resource"]),
+        (1, vec!["forge", "code.example", "team", "rules", "branch"]),
     ] {
         let (setting, c::SettingValue::Charter(mut value)) = values().remove(0) else { panic!("charter") };
         value.documents = list([c::CharterDocument {
@@ -426,7 +427,7 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
     if let c::ReadValue::Setting(_) = &value {
         newest_for_setting(&mut root, call);
     }
-    root.serve(call, c::ReadResult::Value(value));
+    serve_review(&mut root, call, value);
     while let Some((_, c::Read::Setting(request))) = root.reads.get(&call).cloned() {
         let (_, value) =
             values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting");
@@ -441,7 +442,19 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
             }))),
         );
     }
+    while root.family_reads.contains_key(&call) {
+        let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
+            panic!("revision value")
+        };
+        root.serve_readout(call, forge_setting_page(Some(forge_value(query.kind()))));
+    }
     root.answer(call).expect("read completed")
+}
+fn serve_review(root: &mut fixtures::Harness, call: u32, value: c::ReadValue) {
+    root.serve(call, c::ReadResult::Value(value));
+    if let Some((_, c::Read::Settings)) = root.reads.get(&call) {
+        newest_for_setting(root, call);
+    }
 }
 fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
     if root.reads.get(&call).expect("setting read").1 == c::Read::Settings {
@@ -1105,6 +1118,93 @@ fn proposed(bytes: &[u8], json: bool) -> (fixtures::Harness, u32) {
     (root, number)
 }
 #[test]
+fn deployment_settings_proposal_names_its_owners() {
+    let file = charter_file(DOCUMENTS);
+    let mut root = fixtures::signed_in(fixtures::PARTY);
+    let mut call = fixtures::call(&["settings", "propose", "FILE", "Please review", "--against", "5", "--key", "k1"]);
+    *call.values.get_mut(0).expect("FILE") = Some(Values::One(Value::Text(file.clone().into())));
+    let number = root.submit_prepared(call, false, None);
+    let c::Ask::Propose { project, reason, action: c::ProposeAction::Settings(settings) } =
+        fixtures::act_ask(&root, number)
+    else {
+        panic!("settings proposal")
+    };
+    assert_eq!(*project, 0);
+    assert_eq!(reason.bytes(), b"Please review");
+    assert_eq!(settings.against, 5);
+    assert_eq!(settings.items, settings_file::decode(&file, &crate::limits::tools()).expect("settings items"));
+    assert_eq!(root.sent_name(number), Some(fixtures::named("k1")));
+    root.done(number, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 0 }));
+    let answer = root.answer(number).expect("proposal outcome");
+    assert_eq!(answer.status, 0);
+    assert_eq!(answer.stdout.as_ref(), b"proposed: p73/7, to the deployment's owners\n");
+}
+
+#[test]
+fn scoped_settings_proposal_names_every_required_owner() {
+    for (selectors, recipient) in [
+        (
+            vec![
+                r#"{"kind":"template","number":1}"#,
+                r#"{"kind":"policy","number":1}"#,
+                r#"{"kind":"rules"}"#,
+                r#"{"kind":"landing-rule","number":1}"#,
+                r#"{"kind":"forge-charter","number":1}"#,
+            ],
+            "the deployment's owners",
+        ),
+        (vec![r#"{"kind":"landing-rule","project":2,"number":1}"#], "project 2's owners"),
+        (vec![r#"{"kind":"project-policy","project":2}"#], "project 2's owners"),
+        (
+            vec![
+                r#"{"kind":"landing-rule","project":2,"number":1}"#,
+                r#"{"kind":"landing-rule","project":2,"number":2}"#,
+            ],
+            "project 2's owners",
+        ),
+        (
+            vec![
+                r#"{"kind":"landing-rule","project":2,"number":1}"#,
+                r#"{"kind":"landing-rule","project":1,"number":1}"#,
+            ],
+            "project 1's owners and project 2's owners; one person must own every affected scope",
+        ),
+        (
+            vec![r#"{"kind":"charter","number":1}"#, r#"{"kind":"landing-rule","project":1,"number":1}"#],
+            "the deployment's owners and project 1's owners; one person must own every affected scope",
+        ),
+    ] {
+        assert_settings_recipient(&selectors, recipient);
+    }
+}
+
+fn assert_settings_recipient(selectors: &[&str], recipient: &str) {
+    let items: Vec<_> = selectors
+        .iter()
+        .map(|selector| {
+            if selector.contains("project-policy") {
+                let policy = setting_json(c::Setting::Policy(c::SettingNumber { number: 5 }), values()[2].1.clone());
+                let policy = String::from_utf8(file_from_setting(&policy)).expect("policy JSON");
+                policy
+                    .strip_prefix("{\"items\":[")
+                    .expect("items")
+                    .strip_suffix("]}")
+                    .expect("items end")
+                    .replace(r#"{"kind":"policy","number":5}"#, selector)
+            } else {
+                format!(r#"{{"setting":{selector},"edit":"reset"}}"#)
+            }
+        })
+        .collect();
+    let file = format!(r#"{{"items":[{}]}}"#, items.join(","));
+    let (mut root, number) = proposed(file.as_bytes(), false);
+    assert!(root.sends.contains_key(&number), "{file}");
+    root.done(number, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 0 }));
+    let answer = root.answer(number).expect("proposal outcome");
+    assert_eq!(answer.status, 0);
+    assert_eq!(answer.stdout.as_ref(), format!("proposed: p73/7, to {recipient}\n").as_bytes(), "{file}");
+}
+#[test]
 fn propose_settings_uses_the_same_whole_items_and_names_its_durable_proposal() {
     for (setting, value) in values() {
         let file = file_from_setting(&setting_json(setting, value));
@@ -1520,6 +1620,22 @@ fn settings_refusals_propose_the_called_tool_without_a_retry_call() {
     }
 }
 
+fn large_charter_review(setting: c::Setting) -> c::ReadValue {
+    let large = c::ReviewValue::TooLarge(c::Size { bytes: 8192 });
+    review_proposal(Some(c::SettingsReview {
+        key: None,
+        newest: 6,
+        cut: false,
+        items: list([c::ReviewItem {
+            setting,
+            edit: c::RevisionItemEdit::Set,
+            now: large.clone(),
+            would_be: large,
+            origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
+            application: None,
+        }]),
+    }))
+}
 #[test]
 fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
     for json in [false, true] {
@@ -1527,23 +1643,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
             let (setting, value) = values().remove(0);
             let mut root = fixtures::signed_in(fixtures::PARTY);
             let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
-            let large = c::ReviewValue::TooLarge(c::Size { bytes: 8192 });
-            root.serve(
-                call,
-                c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
-                    key: None,
-                    newest: 6,
-                    cut: false,
-                    items: list([c::ReviewItem {
-                        setting,
-                        edit: c::RevisionItemEdit::Set,
-                        now: large.clone(),
-                        would_be: large,
-                        origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
-                        application: None,
-                    }]),
-                }))),
-            );
+            serve_review(&mut root, call, large_charter_review(setting));
             assert_eq!(
                 root.reads.get(&call).expect("now read").1,
                 c::Read::Setting(c::ReadSetting { setting, revision: 6, proposal: None })
@@ -1704,6 +1804,9 @@ fn forge_value(kind: u32) -> Box<[u8]> {
     } else {
         br#"{"items":[{"setting":{"kind":"landing-rule","number":1},"set":{"pattern":{"segments":["ff"],"last":{"open":"61"}},"enforce":true,"ci":false,"up_to_date":true,"gates":[{"number":2,"blocking":false,"freshness":"clean"}],"approvals":[{"role":0,"people":1,"freshness":"exact"}]}}]}"#.as_slice()
     };
+    forge_file_value(json)
+}
+fn forge_file_value(json: &[u8]) -> Box<[u8]> {
     let items = settings_file::decode(json, &fixtures::limits()).unwrap();
     let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) = &items.as_slice()[0].edit
     else {
@@ -1858,65 +1961,173 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
         assert!(text.contains(line), "{text}");
     }
 }
+fn forge_review() -> c::ReadValue {
+    forge_state_review(c::Setting::Application { kind: 1, scope: 0, number: 1 }, Some(c::ApplicationFollows::Default))
+}
+fn forge_state_review(setting: c::Setting, follows: Option<c::ApplicationFollows>) -> c::ReadValue {
+    let mut proposal = review_proposal(Some(c::SettingsReview {
+        key: Some(u64::MAX),
+        newest: 5,
+        items: list([c::ReviewItem {
+            setting,
+            edit: c::RevisionItemEdit::Set,
+            now: c::ReviewValue::None,
+            would_be: c::ReviewValue::None,
+            origin: c::SettingOrigin::NotOffered,
+            application: Some(c::ApplicationReview {
+                edit: c::SizedEdit::Set { size: 4 },
+                now: follows.map(|follows| c::ApplicationState { follows, size: 4, charters: list([]) }),
+            }),
+        }]),
+        cut: true,
+    }));
+    let c::ReadValue::Proposal(p) = &mut proposal else { panic!("proposal") };
+    let c::ProposalAction::Settings(settings) = &mut p.action else { panic!("settings proposal") };
+    settings.items = list([c::RevisionItemHead { setting, edit: c::RevisionItemEdit::Set }]);
+    proposal
+}
+fn forge_set_items(kind: u32) -> jig_client::Readout {
+    use temper_client_protocol_wire::v1 as w;
+    let item = w::ProposalItem::new(
+        &w::CEILINGS,
+        w::ProposalItemParts {
+            kind,
+            scope: 0,
+            number: 1,
+            edit: w::SettingEdit::Set(
+                w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(kind) }).unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    forge_items_page(list([item]))
+}
+fn forge_items_page(items: List<temper_client_protocol_wire::v1::ProposalItem>) -> jig_client::Readout {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let record = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) }
+}
+fn forge_proposed_review(kind: u32, follows: Option<c::ApplicationFollows>, json: bool) -> jig::Printed {
+    let file = if kind == 3 {
+        br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.to_vec()
+    } else {
+        file_from_setting(&setting_json(
+            c::Setting::Application { kind, scope: 0, number: 1 },
+            c::SettingValue::Application(forge_value(kind)),
+        ))
+    };
+    let mut root = fixtures::signed_in(fixtures::PARTY);
+    let mut request =
+        fixtures::call(&["settings", "propose", "FILE", "Please review", "--against", "5", "--key", "forge-review"]);
+    *request.values.get_mut(0).unwrap() = Some(Values::One(Value::Text(file.into())));
+    let proposed = root.submit_prepared(request, false, None);
+    let c::Ask::Propose { reason, action: c::ProposeAction::Settings(settings), .. } =
+        fixtures::act_ask(&root, proposed)
+    else {
+        panic!("settings proposal")
+    };
+    assert_eq!(reason.bytes(), b"Please review");
+    assert_eq!(settings.items.as_slice()[0].setting, c::Setting::Application { kind, scope: 0, number: 1 });
+    root.done(proposed, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 0 }));
+    let answer = root.answer(proposed).unwrap();
+    assert_eq!(answer.status, 0);
+    let printed = core::str::from_utf8(&answer.stdout).unwrap();
+    let key = printed.strip_prefix("proposed: ").unwrap().split(',').next().unwrap();
+    let call = root.submit_prepared(fixtures::call(&["proposal", "show", key]), json, None);
+    serve_review(
+        &mut root,
+        call,
+        forge_state_review(c::Setting::Application { kind, scope: 0, number: 1 }, follows.clone()),
+    );
+    root.serve_readout(call, forge_set_items(kind));
+    let value = if follows == Some(c::ApplicationFollows::Removed { revision: 5 }) {
+        None
+    } else if kind == 3 {
+        Some(forge_file_value(br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":2}]}"#))
+    } else {
+        Some(forge_value(kind))
+    };
+    root.serve_readout(call, forge_setting_page(value));
+    root.answer(call).expect("proposal review")
+}
+#[test]
+fn forge_proposal_show_uses_application_state_and_common_line_form() {
+    for (follows, origin, json_origin, now) in [
+        (Some(c::ApplicationFollows::Default), "default", r#""default""#, "2"),
+        (Some(c::ApplicationFollows::Changed { revision: 5 }), "revision 5", r#"{"change":{"revision":5}}"#, "2"),
+        (
+            Some(c::ApplicationFollows::Removed { revision: 5 }),
+            "removed at revision 5",
+            r#"{"removed":{"revision":5}}"#,
+            "none",
+        ),
+        (None, "not offered", r#""not_offered""#, "2"),
+    ] {
+        for json in [false, true] {
+            let answer = forge_proposed_review(3, follows.clone(), json);
+            assert_eq!(answer.status, 0);
+            let text = core::str::from_utf8(&answer.stdout).unwrap();
+            if json {
+                let (_, items) = text.split_once("\"application_items\":").unwrap();
+                let expected = format!("\"origin\":{json_origin},");
+                assert!(items.contains(&expected), "{text}");
+                assert_eq!(text.matches(&expected).count(), 2, "both review origins: {text}");
+            } else {
+                let expected = format!("forge-charter 1 · set · now {now} ({origin}) · would be 6");
+                assert!(text.lines().any(|line| line == expected), "{text}");
+            }
+        }
+    }
+    for follows in [c::ApplicationFollows::Default, c::ApplicationFollows::Changed { revision: 5 }] {
+        let answer = forge_proposed_review(1, Some(follows.clone()), false);
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        let line =
+            text.lines().find(|line| line.starts_with("landing-rule 1 · set · now ")).expect("landing rule line");
+        assert!(
+            line.contains(if follows == c::ApplicationFollows::Default {
+                " (default) · would be "
+            } else {
+                " (revision 5) · would be "
+            }),
+            "{text}"
+        );
+    }
+}
 #[test]
 fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
-    use temper_client_protocol_wire::{self as wire, v1 as w};
+    use temper_client_protocol_wire::v1 as w;
     for json in [false, true] {
         let mut root = fixtures::signed_in(fixtures::PARTY);
         let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
-        root.serve(
-            call,
-            c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
-                key: Some(u64::MAX),
-                newest: 5,
-                items: list([c::ReviewItem {
-                    setting: c::Setting::Application { kind: 1, scope: 0, number: 1 },
-                    edit: c::RevisionItemEdit::Set,
-                    now: c::ReviewValue::None,
-                    would_be: c::ReviewValue::None,
-                    origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
-                    application: None,
-                }]),
-                cut: true,
-            }))),
-        );
+        serve_review(&mut root, call, forge_review());
         let w::Read::ProposalItems(query) = forge_query(&root, call) else { panic!("proposal items") };
         assert_eq!(query.key(), u64::MAX, "the review's key, not proposer 73's number 7");
-        let record = w::ProposalItemsAnswer::new(
-            &w::CEILINGS,
-            w::ProposalItemsAnswerParts {
-                items: list([
-                    w::ProposalItem::new(
-                        &w::CEILINGS,
-                        w::ProposalItemParts {
-                            kind: 1,
-                            scope: 0,
-                            number: 1,
-                            edit: w::SettingEdit::Set(
-                                w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(1) })
-                                    .unwrap(),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                    w::ProposalItem::new(
-                        &w::CEILINGS,
-                        w::ProposalItemParts { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
-                    )
-                    .unwrap(),
-                    w::ProposalItem::new(
-                        &w::CEILINGS,
-                        w::ProposalItemParts { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
-                    )
-                    .unwrap(),
-                ]),
-            },
-        )
-        .unwrap();
-        root.serve_readout(
-            call,
-            jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) },
-        );
+        let items = list([
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts {
+                    kind: 1,
+                    scope: 0,
+                    number: 1,
+                    edit: w::SettingEdit::Set(
+                        w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(1) }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
+            )
+            .unwrap(),
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
+            )
+            .unwrap(),
+        ]);
+        root.serve_readout(call, forge_items_page(items));
         for (kind, scope, number) in [(1, 0, 1), (2, 7, 2), (3, 0, 1)] {
             let w::Read::Setting(query) = forge_query(&root, call) else { panic!("current setting") };
             assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, number));
@@ -1939,7 +2150,6 @@ fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
 fn forge_setting_commands_refuse_selectors_outside_their_forms() {
     for argv in [
         vec!["settings", "show", "landing-rule", "0"],
-        vec!["settings", "show", "landing-rule", "1", "--revision", "2"],
         vec!["settings", "show", "forge-charter", "0"],
         vec!["settings", "show", "forge-charter", "3"],
         vec!["settings", "show", "forge-charter", "1", "--project", "1"],
@@ -2093,7 +2303,7 @@ fn a_large_project_policy_review_reads_the_proposed_value_and_keeps_the_current_
         ),
     ] {
         let (mut root, call) = fixtures::read_call(&argv);
-        root.serve(call, c::ReadResult::Value(review.clone()));
+        serve_review(&mut root, call, review.clone());
         let setting = c::Setting::ProjectPolicy { project: 1 };
         assert_eq!(
             root.reads.get(&call).expect("proposed policy read").1,
@@ -2436,5 +2646,84 @@ fn malformed_template_resources_name_the_member_before_sending() {
         let (mut root, call) = changed(&file, false);
         assert!(root.sends.is_empty());
         assert_eq!(root.answer(call).expect("local refusal").status, 1);
+    }
+}
+
+#[test]
+fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
+    for json in [false, true] {
+        let (mut root, call) =
+            fixtures::read_call(if json { &["revision", "show", "5", "--json"] } else { &["revision", "show", "5"] });
+        let items = [(2, 1), (3, 0)].map(|(kind, scope)| c::RevisionItem {
+            setting: c::Setting::Application { kind, scope, number: 1 },
+            edit: c::RevisionEdit::Application(c::SizedEdit::Set {
+                size: u32::try_from(forge_value(kind).len()).unwrap(),
+            }),
+            replaced: if kind == 3 { c::RevisionReplaced::Default } else { c::RevisionReplaced::NotOffered },
+        });
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+                head: head(c::RevisionDecider::Release),
+                items: list(items),
+            })))),
+        );
+        for kind in [2, 3] {
+            assert!(root.answer(call).is_none(), "revision must read historical forge values before printing");
+            let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
+                panic!("revision-qualified read")
+            };
+            assert_eq!(
+                (query.kind(), query.scope(), query.number(), query.revision()),
+                (kind, u32::from(kind == 2), 1, 5)
+            );
+            root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
+        }
+        let answer = root.answer(call).expect("historical values joined");
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        assert!(text.contains("\"ci\":false"), "{text}");
+        assert!(text.contains(if json { "\"set\":6" } else { "\n6\n" }), "{text}");
+        assert!(text.contains(if json { "\"replaced\":\"default\"" } else { "was: default" }), "{text}");
+    }
+}
+
+#[test]
+fn revision_show_large_temper_values_name_a_working_historical_read() {
+    for json in [false, true] {
+        let (mut root, call) =
+            fixtures::read_call(if json { &["revision", "show", "5", "--json"] } else { &["revision", "show", "5"] });
+        root.limits.tools.result_bytes = 512;
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+                head: head(c::RevisionDecider::Release),
+                items: list([c::RevisionItem {
+                    setting: c::Setting::Application { kind: 2, scope: 1, number: 1 },
+                    edit: c::RevisionEdit::Application(c::SizedEdit::Set { size: 100 }),
+                    replaced: c::RevisionReplaced::Default,
+                }]),
+            })))),
+        );
+        root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
+        let answer = root.answer(call).expect("bounded historical read");
+        assert_eq!(answer.status, 0, "{answer:?}");
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        let command = "settings show landing-rule 1 --project 1 --revision 5";
+        assert!(text.contains(command), "{text}");
+        assert!(text.contains(if json { "\"too_large\":" } else { "too large," }), "{text}");
+        let mut argv: Vec<_> = command.split(' ').collect();
+        if json {
+            argv.push("--json");
+        }
+        let (mut root, call) = fixtures::read_call(&argv);
+        let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
+            panic!("qualified historical read")
+        };
+        assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (2, 1, 1, 5));
+        root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
+        let answer = root.answer(call).expect("whole historical value");
+        assert_eq!(answer.status, 0);
+        assert!(core::str::from_utf8(&answer.stdout).unwrap().contains("\"ci\":false"));
     }
 }

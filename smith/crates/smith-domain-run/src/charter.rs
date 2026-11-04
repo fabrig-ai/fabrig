@@ -137,7 +137,7 @@ pub struct Grants {
     /// Final Change permission does not grant this tool; children never inherit it.
     /// Admission checks minimum container/name/value fit before session or IO.
     pub deliver: Option<outcome::ChangeSpec>,
-    /// The tools that act on the checkout, which conversations run themselves.
+    /// The tools that act on the workspace, which conversations run themselves.
     pub tools: Tools,
     /// Asking for sub-agents: conversations of the LLM's own, opened by the run.
     pub agents: bool,
@@ -146,7 +146,7 @@ pub struct Grants {
     pub host_tools: Box<[HostTool]>,
 }
 
-/// The families of tools a conversation has: those it runs on the checkout,
+/// The families of tools a conversation has: those it runs on the workspace,
 /// and those the run serves. Host declarations stay with main.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Families {
@@ -172,7 +172,7 @@ impl Families {
     }
 }
 
-/// The tool families a conversation runs on the checkout.
+/// The tool families a conversation runs on the workspace.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Tools {
     /// Read, list and search.
@@ -413,7 +413,7 @@ pub(crate) fn cost(charter: &Charter) -> Option<u64> {
         cost = cost.checked_add(len(effort)?)?;
     }
     let section_bytes = u64::try_from(size_of::<Section>()).ok()?;
-    let sections = u64::try_from(charter.brief.sections.len()).ok()?;
+    let sections = skein_lib::len_u64(charter.brief.sections.len());
     cost = cost.checked_add(sections.checked_mul(section_bytes)?)?;
     for section in &charter.brief.sections {
         cost = cost.checked_add(len(&section.title)?)?.checked_add(len(&section.text)?)?;
@@ -483,8 +483,9 @@ pub(crate) fn count(len: usize) -> u32 {
     u32::try_from(len).unwrap_or(u32::MAX)
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "retains the private accounting signature across its callers")]
 pub(crate) fn len(bytes: &[u8]) -> Option<u64> {
-    u64::try_from(bytes.len()).ok()
+    Some(skein_lib::len_u64(bytes.len()))
 }
 
 /// Smith-owned tool names that a host declaration cannot take (smith/docs/design/domain/run.md, section 5.1).

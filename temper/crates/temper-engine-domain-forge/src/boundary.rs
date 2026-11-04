@@ -547,6 +547,8 @@ pub struct AdoptedRow {
 pub struct Row {
     pub read_only: bool,
     pub number: u16,
+    /// The host in repository resource names, including an explicit port.
+    pub host: Box<[u8]>,
     pub kind: Kind,
     pub mode: Mode,
     pub connection: Connection,
@@ -1021,7 +1023,13 @@ pub enum CallPayload {
 }
 
 /// The connector's durable records, wrapped by the root store.
-#[expect(clippy::large_enum_variant, reason = "the durable change row keeps role choices and merge-job state inline")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::large_enum_variant,
+        reason = "the durable change row keeps role choices and merge-job state inline"
+    )
+)]
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Stored {
     /// The connector part of a live named call.

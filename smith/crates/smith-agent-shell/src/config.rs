@@ -41,13 +41,10 @@ pub use refusal::ConfigurationRefusal;
 
 /// Parsed startup configuration and the service it can build.
 pub struct Configuration {
-    pub programs: std::collections::BTreeMap<ProgramName, Program>,
-    /// Program selections keyed by endpoint number; only endpoints naming a program are present.
-    #[expect(
-        clippy::zero_sized_map_values,
-        reason = "Endpoint selections retain the adapter name; Claude Code is currently the sole adapter."
-    )]
-    pub endpoint_programs: std::collections::BTreeMap<u32, ProgramName>,
+    /// The program the configuration declares (smith/docs/design/protocol/agent.md, section 4).
+    pub program: Option<Program>,
+    /// The endpoints the program serves; only endpoints naming a program are present.
+    pub program_endpoints: std::collections::BTreeSet<u32>,
     pub service: service::Config,
     pub memory: u64,
     pub trace: Option<TraceConfig>,
@@ -57,10 +54,9 @@ pub struct Configuration {
 
 /// Validated configuration values awaiting native endpoint resolution and trust loading.
 /// Decoding retains names and trust sources; it performs no DNS or filesystem effects.
-#[expect(clippy::zero_sized_map_values, reason = "the shell configuration uses a unit selector map")]
 pub struct Decoded {
-    programs: std::collections::BTreeMap<ProgramName, Program>,
-    endpoint_programs: std::collections::BTreeMap<u32, ProgramName>,
+    program: Option<Program>,
+    program_endpoints: std::collections::BTreeSet<u32>,
     profile: service::profile::Profile,
     declarations: service::profile::Configuration,
     limits: service::Limits,
@@ -95,7 +91,7 @@ pub fn read(path: &Path) -> Result<Configuration, String> {
 
 /// Validate generated child configuration before the local host spawns it.
 pub fn decode(bytes: &[u8]) -> Result<Decoded, String> {
-    if u64::try_from(bytes.len()).expect("byte length fits u64") > CONFIG_BYTES {
+    if skein_lib::len_u64(bytes.len()) > CONFIG_BYTES {
         return Err(format!("configuration is larger than {CONFIG_BYTES} bytes"));
     }
     let document: Document = serde_json::from_slice(bytes).map_err(|error| format!("configuration JSON: {error}"))?;
@@ -178,8 +174,8 @@ pub fn profile_from_value(value: serde_json::Value) -> Result<service::profile::
 
 fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> {
     let profile = build_profile(&document.profile)?;
-    let programs = programs::build(document.programs)?;
-    let endpoint_programs = programs::endpoints(&document.endpoints, &programs)?;
+    let program = programs::build(document.programs)?;
+    let program_endpoints = programs::endpoints(&document.endpoints, program.as_ref())?;
     if document.endpoints.is_empty() {
         return Err(ConfigurationRefusal::Profile(Refusal::Field {
             limit: LimitName::deployment(Layer::Declared, "endpoints"),
@@ -216,12 +212,12 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
         endpoints: declarations.into_boxed_slice(),
     };
     let mut limits = service::profile::derive(&profile, &declarations).map_err(ConfigurationRefusal::Profile)?;
-    let domain_programs = programs::domain(&endpoint_programs, &mut limits.domain)?;
+    let domain_programs = programs::domain(&program_endpoints, &mut limits.domain)?;
     let environment = machine::Environment::encode(&environment, &limits.machine).map_err(environment_refusal)?;
     let endpoints = build_endpoints(document.endpoints, &declarations, &limits, &profile)?;
     Ok(Decoded {
-        programs,
-        endpoint_programs,
+        program,
+        program_endpoints,
         profile,
         declarations,
         limits,
@@ -237,8 +233,8 @@ impl Decoded {
     /// Trust diagnostics go only to the supplied operator writer.
     pub fn resolve(self, errors: &mut dyn std::io::Write) -> Result<Configuration, ConfigurationRefusal> {
         let Self {
-            programs,
-            endpoint_programs,
+            program,
+            program_endpoints,
             profile,
             declarations,
             mut limits,
@@ -259,7 +255,7 @@ impl Decoded {
             }
         }
         let config = service::Config {
-            program: programs::backend(&programs, &endpoint_programs),
+            program: programs::backend(program.as_ref(), &program_endpoints),
             limits,
             domain: domain::Config { programs: domain_programs, endpoints: endpoints.domain, models: endpoints.models },
             channel_endpoints: endpoints.channel,
@@ -274,8 +270,8 @@ impl Decoded {
             trace,
             profile,
             declarations,
-            programs,
-            endpoint_programs,
+            program,
+            program_endpoints,
         })
     }
 }

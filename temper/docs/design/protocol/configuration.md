@@ -33,8 +33,9 @@ document says what temper adds. What is open is listed in section 11.
   writes no parser of its own for them, and adds only the checks its
   shapes need (section 2).
 - **temper's members,** under `application`: `machine`, `landing`,
-  `charter`, `clients`, `sign_in`, `webhooks`, `demo` and `limits` for
-  the engine (section 3), and `workers`, one entry per worker (section 4).
+  `charter`, `clients`, `sign_in`, `webhooks`, `demo`, `welcome` and
+  `limits` for the engine (section 3), and `workers`, one entry per
+  worker (section 4).
   `webhooks` is the forge component's webhooks' listener, on loopback
   (forge.md, section 5).
 - **No forge is configured.** A forge is a record of the forge
@@ -44,8 +45,8 @@ document says what temper adds. What is open is listed in section 11.
   names no forge.
 - **The document keeps the machine's** (section 3): the clients' and
   webhooks' listeners; `machine`, the places a box's owned Forgejo and
-  its fake forge bind, which `temper init` chooses and the box holds
-  from its start (setup.md, 7.1), and GitHub's, github.com's unless it
+  its fake forge bind, which `temper init --box` chooses and the box
+  holds from its start (setup.md, 7.1), and GitHub's, github.com's unless it
   names a fake; `demo`'s fake LLM's port; and the limits, the forges
   kept among them as a count (section 7). A forge set up or connected
   takes its place from `machine`, or from what the person gives.
@@ -53,6 +54,8 @@ document says what temper adds. What is open is listed in section 11.
   LLM the box runs, its port, its LLM provider, its key and its
   scripts; null for none. `temper serve` reads its key alone, at the
   playground's start.
+- **`welcome`, whether the document shows the welcome** (section 3),
+  whoever wrote it: `true` from `temper init --box`, absent otherwise.
 - **Not configuration:** forges, which people set up or connect at
   runtime; repositories, which people adopt at runtime; the branch
   namespace, which the root derives from the deployment's id; the forge
@@ -233,8 +236,8 @@ document says what temper adds. What is open is listed in section 11.
 ## 3. temper's members for the engine
 
 **`machine`:** the machine's places, never a forge: where a box's owned
-Forgejo and the playground's fake forge listen, which `temper init`
-chooses (setup.md, 8.2) and the box holds from its start (setup.md,
+Forgejo and the playground's fake forge listen, which `temper init
+--box` chooses (setup.md, 8.2) and the box holds from its start (setup.md,
 7.1), and where GitHub is. A forge set up or connected takes its place
 from here (forge.md, 2.2). Each:
 
@@ -466,6 +469,18 @@ repository's tier count remains bounded by `forge.tiers.tiers` (2026-11-04).
 
 ## 4. temper's members for a worker
 
+**`welcome`:** a boolean, or absent: `true` shows the welcome
+(`../client/README.md`, 3.5) and lets the deployment offer the
+playground (setup.md, 8.4); `false` or absent, none.
+
+- **The document alone says:** a start reads the member whoever wrote
+  the document. `temper init --box` writes `true`, `temper init` alone
+  nothing (setup.md, 8.2), and no flag of any command changes it,
+  `temper internal serve`'s `--box` among them (setup.md, 7.4).
+- **Its readers:** the client, from the deployment's read
+  (`../client/README.md`, 4.6), and `StartPlayground`'s offer (setup.md,
+  8.4).
+
 **`application.workers`:** a list with one entry per entry of the
 top-level `workers`, in the same order; standalone and a worker alone
 have one, an engine alone none. Each:
@@ -636,13 +651,14 @@ have one, an engine alone none. Each:
   (`../domain/agent.md`, 4.3); trimming is the fallback. Where a limit
   of temper's is a quantity jig's profile also sets, its constant cites
   jig's profile's.
-- **`small` starts as it stands,** with no override, against the agent
-  temper runs: smith's, whose run bounds (its directories, their names,
+- **`small` starts as it stands** against an agent of its size:
+  smith's, whose run bounds (its directories, their names,
   its accounts) are smith's own and no configuration changes (smith's
   `smith-domain-run`, `derive`; `smith-agent-service`), and whose largest
-  call, its run's `outcome_bytes`, follows from its agent configuration,
-  the owned example's (setup.md, 8.1). Every constant passes the
-  checks below with that agent: a task's resources and the checkout's
+  call, its run's `outcome_bytes`, follows from its agent configuration.
+  The owned example's agent is `standard`'s (setup.md, 8.1): its 48
+  calls pass `small`'s `hub.run_calls`, 8. Every constant passes the
+  checks below with an agent of `small`'s size: a task's resources and the checkout's
   repositories within the agent's directories, the checkout's names
   within theirs, and a run's push message, which smith bounds as a call,
   within the checkout's commit message. So `small` takes a forge's `git`
@@ -906,7 +922,7 @@ have one, an engine alone none. Each:
   each, and neither cut nor refuse a document or an offer for one (jig's
   `client/domain/contract.md`, 5.3), so a party who may amend a task
   reads its document whatever `documents.lines` is. temper's client
-  takes an authority's entries, 12, apart from its rows (jig's
+  takes an authority's entries, 16, apart from its rows (jig's
   `client/domain/client.md`, section 14): the most the process tier and
   the owned example admit in a list, their `authority.grants` and
   `tasks.authority_grants` (setup.md, 8.1). A long authority shows
@@ -1068,8 +1084,8 @@ reduce task record capacities; that ceiling has no scalar override.
   (section 5).
 - **`temper forge prepare|run [DIRECTORIES] FORGE`** and **`temper box
   [DIRECTORIES]`** read the same document as `temper serve` (section 8;
-  setup.md, sections 6 and 7); **`temper init [DIRECTORIES]`** writes
-  it (setup.md, 8.2). Reconcile is no command: the
+  setup.md, sections 6 and 7); **`temper init [DIRECTORIES] [--box]`**
+  writes it (setup.md, 8.2). Reconcile is no command: the
   engine's setup host runs it, at each start and at a connect (setup.md,
   the setup host in the engine).
 
@@ -1210,9 +1226,36 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 ## 11. Open questions
 
 - **A Claude-only box on the small profile.** Its largest turn's store
-  frame passes small's page ceiling (13.8): a page decision of jig's or
-  skein's profile, or the standard profile for such a box. Default:
-  keep the demo endpoint configured, which sizes the room to fit.
+  frame passes small's page ceiling (13.8), where `standard`'s holds any
+  turn smith admits: a page decision of jig's or skein's profile.
+  Default: such a box runs `standard`, as `temper init`'s document does.
+- **A message, a report or a person's spec past what a box takes**
+  (13.4, 13.8). The user's request of 2026-11-03 sizes a message at
+  128 kB and a report at 256 kB, and a box's are its agent's message,
+  10,660 bytes, since a call's payload is bounded by its model's output:
+  128 kB in one call needs an output of about 98,500 tokens, and a
+  message past one offer, 200,068 bytes at luna's window, fits no offer.
+  A spec a person writes stops at `people.words`, 8,192, people-v14's
+  ceiling, past which the format would change, below the largest seen,
+  19 kB; `tasks.spec_bytes`, 131,072, is reached only by a model whose
+  output admits that payload. Default: as they stand, `standard`
+  holding 262,144 for a deployment with larger models. The user's to
+  choose, with no answer yet: smith's messages and host answers take a
+  bound of their own, an offer's (smith's `protocol/limits.md`, 13), so
+  a box's results reach about 200 kB at luna's window while a call stays
+  within the payload; or init's models declare a larger output where the
+  provider allows it, raising every agent figure with T and the budgets'
+  C; or this default stays. Past `people.words`, people-v14's ceilings
+  change in place (jig's `protocol/configuration.md`, section 9).
+- **A brief past the host part's room** (13.4). The same request sizes a
+  run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
+  360,275, is what the host part leaves charter 1 at init's models, a
+  whole spec among it, past the largest fabrig's development has had,
+  200 kB. 1 MB needs a window of about 2.7M tokens or a larger share of
+  it for the host. Default: as it stands. The user's to choose, with no
+  answer yet: smith's room split asked again with measurements (smith's
+  `protocol/limits.md`, 13, "A window's halves"), or a larger window
+  declared for a model whose provider has one.
 - **Requirements an application fixes** (13.3). The landing rules'
   two requirements are in jig's rules, which the deployment's owners may
   change, so landing can be left unenforced by a change of rules.
@@ -1230,9 +1273,10 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   section 7: `moved-repository-is-a-redirect`;
   `tools/git-transcripts/facts.txt`,
   `git-follows-a-renamed-repository-redirect`).
-- **Profiles' numbers,** from the first deployments' measurements
-  (jig's `protocol/configuration.md`, section 9). Default: `small` as
-  written.
+- **Profiles' numbers** beyond fabrig's development, which sizes
+  `standard`'s work (13.4): `small`'s, and each profile's machine
+  concurrency, from the first deployments' measurements (jig's
+  `protocol/configuration.md`, section 9). Default: as written.
 - **A configuration's format version** (jig's `protocol/configuration.md`,
   section 9). Default: none; unknown members refuse the start.
 - **A configuration directory moved or copied.** The agent's paths are
@@ -1307,7 +1351,7 @@ variable, else its default.
   always: no command takes a document's path. A command that finds none
   there is refused, naming the path, and `temper init`, which writes one
   (setup.md, 8.2); `temper box` alone, on an empty configuration
-  directory, runs `temper init` first (setup.md, 7.1).
+  directory, runs `temper init --box` first (setup.md, 7.1).
 - **Resolved once, at start,** before the document is read: each
   directory, from its flag, variable or default, is made absolute
   against the working directory, by joining names, and every parser is
@@ -1477,7 +1521,8 @@ provider, number 2, whose one source is that adapter and whose one model,
 in both effective documents. It keeps the configured `documents.lines`
 capacity, raising it to at least 3 so that the Model step offers OpenAI,
 demo and Anthropic without shrinking creating's executor lists. If the override
-is absent, it adds 3 alongside the credential capacity in the same object. No
+is absent, it retains the named profile's capacity, raised to at least 3,
+alongside the credential capacity in the same object. No
 startup path discovers or falls back to a real `claude` from PATH.
 
 Reuse requires agent.json/programs/claude_code/path to equal that sibling.
@@ -1589,10 +1634,14 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   stored change's, a removal of a setting already removed, a reset of
   one with no change) the forge answers as the same, which jig records
   as no change of it (jig's `domain/connectors.md`, section 17).
-  Whether a project's policy has an approval's role is not the forge's
-  to know: a rule naming a role nobody holds is accepted, and the
-  review page says so (`../client/README.md`, 5.13); a change it covers
-  waits, as one whose approvers have not yet approved. Kind 3 declares
+  The root also checks a set rule's enforcing approvals against the
+  core's project memberships and known forge user ids, including at
+  proposal acceptance (`../domain/forge.md`, 8.9). For each affected
+  project, too few eligible people refuses the whole change, naming
+  project, role, required and eligible counts with the remedy. A
+  deployment login or display name establishes no forge identity.
+  Later membership changes can leave an accepted rule waiting for
+  eligible approvers. Kind 3 declares
   that its value names one charter (jig's `domain/engine.md`, 17.5): the
   forge says which when it judges or reports it, and jig's check of
   references refuses a change that would leave the forge's charter
@@ -1817,16 +1866,17 @@ init`'s document carries none of them (`setup.md`, 8.3).
   | live changes in a project | 18 | `forge.changes` 128, `forge.holds` and `forge.tasks` 128 |
 
   The stock and the reference's whole delegation (13.9) fit the
-  fourteen entries ctl's settings form takes in an authority's list.
+  sixteen entries ctl's settings form takes in an authority's list.
   A limit the table does not name moves with the ones it is coupled to
   (a store row, a carrier, an inbox), sized the same way or the least
   the start's checks take. jig's and temper's stored formats changed in
   place for these figures, before the first release (jig's
   `protocol/store.md`, 5.1 and 5.3). The document's overrides say only
   what differs from the profiles: temper's client's documents
-  (`documents.rows` 2, `documents.lines` 8, `documents.text_bytes`
-  128), the agent's carriers (13.8; `setup.md`, 8.1), the forge's
-  repositories and output (`setup.md`, 8.3), and the machine's
+  (`documents.rows` 2, `documents.text_bytes` 128), the agent's carriers
+  (13.8; `setup.md`, 8.1) with the bounds that follow its message
+  (`setup.md`, 8.1), the forge's repositories and output (`setup.md`,
+  8.3), and the machine's
   concurrency, which is the machine's to size and stays what the box
   had: the worker's one slot, the hubs' and the fleet's slots, and the
   clients' streams, `clients.streams` and `clients_http.streams` 8,
@@ -2061,7 +2111,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   a transcript of up to 33,554,432 bytes, any turn smith admits, and the
   store's frame and the worker wire carry it (jig's
   `protocol/store.md`, 8.1); small's page holds a loaded transcript of
-  at most 1,662,042 bytes (its 1,662,106 less the frame's 64), so a
+  at most 2,168,915 bytes (its 2,168,979 less the frame's 64), so a
   deployment on `small` keeps T within that. The page ceiling admits
   the largest shipped ordinary transcript (jig's
   `protocol/configuration.md`, 6). A deployment with larger output or

@@ -28,7 +28,7 @@ fn a_drain_closes_accounts_then_the_store() {
         }
     }
     assert_eq!(service.end(), Some(&End::Drained));
-    assert!(service.engine.as_ref().expect("engine").accounts.as_ref().unwrap().is_empty());
+    assert!(service.engine.as_ref().expect("engine").accounts.as_ref().unwrap().idle());
     assert!(service.engine.as_ref().expect("engine").store.closed());
 }
 #[test]
@@ -57,6 +57,7 @@ fn refused(why: OpenRefusal) {
         .as_mut()
         .expect("engine")
         .store
+        .host
         .above
         .push(jig_protocol_store::Event::OpenRefused { owner: skein_lib::Token::new(1), why: why.clone() });
     crate::engine::iterate(
@@ -328,7 +329,7 @@ fn missing_forge_links_panic_before_startup_wires() {
             }),
         })]),
     );
-    drop(previous.store.above.pop().expect("fixture commit answer"));
+    drop(previous.store.host.above.pop().expect("fixture commit answer"));
     let mut service = fixtures::restarting_from(previous);
     std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
         for _ in 0..PASSES {
@@ -347,7 +348,7 @@ fn missing_forge_links_panic_before_startup_wires() {
     assert_eq!(service.end(), None, "no startup refusal");
     let engine = service.engine.as_ref().expect("linking engine");
     assert_eq!(engine.domain.start_stop(), None, "no startup refusal recorded");
-    assert!(!engine.store.component.mark_durable(), "no start wires before link");
+    assert!(!engine.store.host.mark_durable(), "no start wires before link");
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption before link");
     assert!(!engine.domain.ready(), "no decisions before link");
 }

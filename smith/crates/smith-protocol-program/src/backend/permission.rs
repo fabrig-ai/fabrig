@@ -4,14 +4,14 @@
 
 use super::Complete;
 use super::PIPE_BYTES;
-use super::{Backend, State, policy};
-use crate::mcp::{self, json};
+use super::{Backend, Below, State, policy};
+use crate::mcp;
 use alloc::boxed::Box;
-use skein_lib::List;
+use skein_lib::{List, Queue};
 use smith_domain::llm;
 
 impl Backend {
-    pub(super) fn permission(&mut self, prompt: mcp::Up) {
+    pub(super) fn permission(&mut self, prompt: mcp::Up, below: &mut Queue<Below>) {
         let (call, tool_name, input, tool_use_id) = match prompt {
             mcp::Up::Prompt { call, tool_name, input, tool_use_id } => (call, tool_name, input, tool_use_id),
             mcp::Up::Call { .. } | mcp::Up::Connected | mcp::Up::Listening { .. } | mcp::Up::Ended(_) => {
@@ -22,7 +22,7 @@ impl Backend {
             self.startup.server_mut().expect("stopped permission prompt").verdict(
                 call,
                 mcp::Verdict::Deny { message: super::stop::INTERRUPTED.into() },
-                &mut self.io,
+                below,
             );
             return;
         }
@@ -48,10 +48,10 @@ impl Backend {
         };
         match verdict {
             mcp::Verdict::Allow { updated_input } => {
-                self.native_permission(index, &tool_name, &input, call, updated_input);
+                self.native_permission(index, &tool_name, &input, call, updated_input, below);
             }
             verdict @ mcp::Verdict::Deny { .. } => {
-                self.startup.server_mut().expect("permission server").verdict(call, verdict, &mut self.io);
+                self.startup.server_mut().expect("permission server").verdict(call, verdict, below);
             }
         }
     }
@@ -71,8 +71,8 @@ impl Backend {
                         && super::calls::equal(
                             &held.input,
                             input,
-                            self.settings.adapter.client.depth,
-                            self.settings.adapter.stated.call_input_bytes,
+                            self.settings.translation.client.depth,
+                            self.settings.translation.stated.call_input_bytes,
                         )
                 }
             };
@@ -104,5 +104,5 @@ pub(super) fn outside(names: &[llm::Served]) -> Box<[u8]> {
         bytes.push(b' ').expect("finishing names fit");
     }
     // The fixed finishing choice contains finish and, when granted, deliver.
-    json::join(&[bytes.as_slice()])
+    skein_lib::bytes::concat(&[bytes.as_slice()])
 }

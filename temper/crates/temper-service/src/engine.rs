@@ -221,7 +221,7 @@ impl Engine {
         } else {
             self.admission = watcher;
         }
-        self.drain_facts();
+        self.drain_notes();
     }
     fn can_pass(&self) -> bool {
         self.passing.is_none()
@@ -231,7 +231,11 @@ impl Engine {
                 None => false,
             }
     }
-    fn drain_facts(&mut self) {
+    fn drain_notes(&mut self) {
+        for _ in 0..self.notes.room() {
+            let Some(diagnostic) = self.domain.pop_run_diagnostic() else { break };
+            self.notes.push(crate::Note::RunFailed(diagnostic));
+        }
         self.facts_waiting = false;
         for _ in 0..root::FACTS {
             if self.notes.room() == 0 {
@@ -252,15 +256,15 @@ impl Engine {
         }
     }
     pub(crate) fn next_deadline(&self) -> Option<Time> {
-        let mut next = crate::accounts::earliest(self.store.next_deadline(), self.workers.next_deadline());
+        let mut next = skein_lib::earliest(self.store.host.next_deadline(), self.workers.host.next_deadline());
         if self.end.is_none() {
-            next = crate::accounts::earliest(next, self.domain.next_deadline(&self.env));
-            next = crate::accounts::earliest(next, self.values.accounts.next_expiry());
+            next = skein_lib::earliest(next, self.domain.next_deadline(&self.env));
+            next = skein_lib::earliest(next, self.values.accounts.next_expiry());
         }
-        next = crate::accounts::earliest(next, self.setup.next_deadline());
-        next = crate::accounts::earliest(next, self.clients.next_deadline());
-        next = crate::accounts::earliest(next, self.forge.component.next_deadline());
-        crate::accounts::earliest(
+        next = skein_lib::earliest(next, self.setup.next_deadline());
+        next = skein_lib::earliest(next, self.clients.next_deadline());
+        next = skein_lib::earliest(next, self.forge.component.next_deadline());
+        skein_lib::earliest(
             next,
             match &self.accounts {
                 Some(accounts) => accounts.next_deadline(),
@@ -269,18 +273,18 @@ impl Engine {
         )
     }
     pub(crate) fn work_pending(&self, now: Time) -> bool {
-        let effects = self.store.component.mark_durable() || self.end.is_some();
-        let secrets_ready = self.end.is_none() && self.store.component.mark_durable();
+        let effects = self.store.host.mark_durable() || self.end.is_some();
+        let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
         let components = (self.store.opened || self.end.is_some())
             && self.clients.work_pending_with_secrets(now, secrets_ready)
             || effects && self.setup.work_pending(now)
             || effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4
             || self.store.work_pending(now)
             || effects && self.forge.work_pending(now)
-            || (self.store.opened || self.end.is_some()) && self.workers.work_pending(now)
+            || (self.store.opened || self.end.is_some()) && self.workers.host.work_pending(now)
             || effects
                 && match &self.accounts {
-                    Some(accounts) => accounts.work_pending(now),
+                    Some(accounts) => accounts.work_pending(now, true),
                     None => false,
                 };
         if self.end.is_some() || !self.store.opened {
@@ -341,11 +345,11 @@ impl Engine {
 /// Every child sees this iteration's time before an input can arm a deadline.
 pub(crate) fn clock(engine: &mut Engine, now: Time, wall: Wall) {
     if engine.facts_waiting && engine.notes.room() > 0 {
-        engine.drain_facts();
+        engine.drain_notes();
     }
     engine.env.now = now;
     engine.env.wall = wall;
-    engine.store.clock(now, wall);
+    engine.store.host.clock(now, wall);
     if let Some(accounts) = &mut engine.accounts {
         accounts.clock(now, wall);
     }
@@ -364,20 +368,20 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         return;
     }
     if let Some(accounts) = &mut engine.accounts {
-        accounts.iterate(now, wall, &mut engine.values, &mut engine.events, &mut engine.store);
+        crate::accounts::iterate(accounts, now, wall, &mut engine.values, &mut engine.events, &mut engine.store);
     }
     crate::forge::gone::advance(engine);
     crate::forge::records::advance(engine);
-    if engine.store.component.mark_durable()
+    if engine.store.host.mark_durable()
         && (!engine.forge_records.loading() || engine.end.is_some() || stop::requested(engine))
     {
         engine.forge.iterate(now, wall);
     }
     // Reconcile must observe the root's restored repositories.
-    if !engine.begin && engine.store.component.mark_durable() && engine.forge_records.done() {
+    if !engine.begin && engine.store.host.mark_durable() && engine.forge_records.done() {
         crate::setup::lifecycle::restored(engine);
     }
-    if engine.store.component.mark_durable() {
+    if engine.store.host.mark_durable() {
         crate::setup::advance(engine);
     }
     forge_pass(engine);
@@ -422,7 +426,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     }
     // Public restore runs before secrets. Once marked, finish secret bootstrap
     // before releasing the script into adoption and fresh forge reads.
-    if engine.store.component.mark_durable() && !engine.forge_records.done() && !stop::requested(engine) {
+    if engine.store.host.mark_durable() && !engine.forge_records.done() && !stop::requested(engine) {
         return;
     }
     input_pass(engine, now);
@@ -468,11 +472,10 @@ fn input_pass(engine: &mut Engine, now: Time) {
         && deadline <= now
     {
         root::fire(&mut engine.domain, &engine.env);
-        engine.drain_facts();
+        engine.drain_notes();
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
 fn completes_pending(engine: &Engine) -> Option<bool> {
     match engine.pending.as_deref() {
         Some(event) => Some(root::completes(event)),
@@ -481,7 +484,7 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
 }
 fn clients_pass(engine: &mut Engine) {
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
-    if engine.end.is_none() && engine.store.component.mark_durable() {
+    if engine.end.is_none() && engine.store.host.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);
     }
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
@@ -518,20 +521,20 @@ pub(crate) fn release(engine: &mut Engine) {
         root::release(&mut engine.domain, &engine.env, &mut engine.requests);
         #[cfg(test)]
         if let Some(trace) = &mut engine.release_trace {
-            trace.released(&engine.requests, before, engine.store.above.len());
+            trace.released(&engine.requests, before, engine.store.host.above.len());
         }
         if engine.requests.is_empty() {
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
-            engine.drain_facts();
+            engine.drain_notes();
             #[cfg(test)]
             let before = engine.requests.len();
             root::release(&mut engine.domain, &engine.env, &mut engine.requests);
             #[cfg(test)]
             if let Some(trace) = &mut engine.release_trace {
-                trace.released(&engine.requests, before, engine.store.above.len());
+                trace.released(&engine.requests, before, engine.store.host.above.len());
             }
         }
-        engine.drain_facts();
+        engine.drain_notes();
         if !engine.requests.is_empty() || engine.domain.quiescent() {
             engine.blocked = false;
         }
@@ -575,19 +578,19 @@ pub(crate) fn release(engine: &mut Engine) {
 
 pub(crate) fn answer(engine: &mut Engine) {
     if engine.end.is_some() {
-        for _ in 0..engine.store.above.len() {
-            let _late = engine.store.above.pop();
+        for _ in 0..engine.store.host.above.len() {
+            let _late = engine.store.host.above.pop();
         }
         for _ in 0..engine.store.routed.len() {
             let _late = engine.store.routed.pop();
         }
         return;
     }
-    for _ in 0..engine.store.above.len() {
+    for _ in 0..engine.store.host.above.len() {
         if engine.notes.room() == 0 {
             break;
         }
-        let event = engine.store.above.pop().expect("store terminals");
+        let event = engine.store.host.above.pop().expect("store terminals");
         match event {
             jig_protocol_store::Event::Opened { installation, pending, .. } => {
                 engine.store.opened = true;
@@ -627,9 +630,9 @@ pub(crate) fn answer(engine: &mut Engine) {
                 } else if crate::tokens::prefix(owner) == 11 {
                     crate::setup::answer(engine, event);
                 } else if crate::accounts::owns(owner) {
-                    engine.store.sources.push(event);
+                    engine.store.host.sources.push(event);
                 } else {
-                    engine.store.secrets.push(event);
+                    engine.store.host.secrets.push(event);
                 }
             }
             event @ jig_protocol_store::Event::Switched { .. } => {
@@ -690,7 +693,7 @@ fn answer_routed(engine: &mut Engine) {
                     engine.step(*event);
                 }
             }
-            Up::Ask(request) => engine.store.ask(request),
+            Up::Ask(request) => engine.store.host.ask(request),
             Up::FrameTooLarge { number, task, bytes, limit } => {
                 stop::frame_too_large(engine, number, task, bytes, limit);
             }
@@ -795,7 +798,7 @@ fn forge_answer(engine: &mut Engine, answer: skein_forge_connection::Answered) {
             crate::forge::back(event).expect("the routing hands the root only the component's answers"),
         ));
     }
-    engine.drain_facts();
+    engine.drain_notes();
 }
 fn forge_hint(engine: &mut Engine, hinted: skein_forge_connection::hooks::Hinted) {
     if engine.drain.is_some() || engine.end.is_some() || engine.domain.forge_ended(hinted.hint.repository.forge) {
@@ -813,7 +816,7 @@ fn forge_hint(engine: &mut Engine, hinted: skein_forge_connection::hooks::Hinted
             hint,
         }));
     }
-    engine.drain_facts();
+    engine.drain_notes();
 }
 fn forge_stopped(engine: &mut Engine, forge: u16, why: skein_forge_connection::Stopped) {
     crate::forge::tokens::accepted(engine, forge, &[]);

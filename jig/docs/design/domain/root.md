@@ -1,6 +1,6 @@
 # The application's root
 
-Provisional, 2026-10-07, revised 2026-10-28. What an application's
+Provisional, 2026-10-07, revised 2026-11-04. What an application's
 engine root is and does: the top-level domain every application on jig
 writes, which composes jig's core with the application's connectors and
 its own child domains. It says what the root carries, the one shape
@@ -164,11 +164,20 @@ iterate, after the step:
   admission, forbids omission. `quiescent` includes this same finishing
   derivation and its broader idle fences; false does not promise
   that finishing can advance (engine.md, 6.1 and 11; people.md, 3).
-- **A task that comes due waits in the core.** The core asks its root for
-  no step of a run's preparation it can take alone. It keeps a due task
-  in its due set, and the root takes the next one with `take_due` when
-  it has room to carry it. That is the root's whole part in an
-  activation, however the task came due: a wake, a commit or a restart
+- **A task that comes due asks its root once.** In the decision that
+  makes a task due, the core asks its root with `Now::Activate`, so an
+  activation runs in that decision. The root answers with
+  `Event::Activate`: `ready`, whether it can carry an activation, and
+  `busy`, whether it has no room to read a transcript, read in the step
+  that runs the activation. The core goes on with an admitted agent in
+  that step, and hands its root a step of a run's preparation only where
+  a root does real work: the transcript window it names
+  (`Now::StartPreparation`), for which `busy` kept the room, the brief
+  (`Now::BriefCorePlanned`, `Now::CompleteBrief`) and the workspace
+  (`Now::WorkspaceRequest`). A task the root is not ready for, and an
+  admitted agent with a window to load while the root is busy, wait in
+  the core's due set; the root takes the next with `take_due` when it
+  has room to carry it, as it takes a restart's
   (`jig/docs/design/README.md`, 6.4).
 - **Released outputs addressed to a child** (the core's resumption after
   a claim commits, a connector's entry to make) are fed back to it as
@@ -241,10 +250,10 @@ It inspects nothing it holds. What jig asks of it:
   under load in `jig-core-world` and `jig-ops-world`, each in
   `orders::turn_kept_precedes_terminal_acknowledgement_under_load`.
 - **An early account request follows the previous move's dispatch.**
-  `move_requests_dispatched` requires every stage of the previous move
-  to be dispatched before another early account request starts. The
-  reference service holds this under load in `jig-test-service`,
-  `tests::accounts::an_early_account_request_waits_for_the_previous_moves_dispatch`.
+  `dispatching_move` holds another early account request back until
+  every stage of the previous move is dispatched. The accounts'
+  component holds this in `jig-protocol-accounts`,
+  `component::tests::a_move_finishes_its_remove_read_and_notification_before_forget`.
 - **A sign-in's ending follows its own durable commit.**
   `ending_commit_durable` requires the ending's commit number to be no
   greater than the durable number before its secret is erased. Earlier
@@ -496,13 +505,10 @@ application's.
   wrapping, which have one shape, are best copied and filled by agents
   (section 12), or generated from a short description, which the subset's
   rules on macros would confine to a build step.
-- **How much of a run's preparation leaves the roots.** Section 3 takes
-  `Now::Activate` and `Now::PrepareAgent` from them, which runs an
-  activation in a later decision than the one that made its task due.
-  `ops`'s and the test root's fixed answers to `BriefCorePlanned`, and
-  `ops`'s to `WorkspaceRequest`, stay, since temper's do real work there
-  (engine.md, 7.1, 9 and 17.9; section 7); removing them would need a
-  new hand-off for connectors' sections and a gather timeout in the
-  core. Default: section 3 as written, those answers staying. Whether an
-  activation may leave its decision is undecided; without that, only
-  `Now::PrepareAgent` goes.
+- **The fixed answers two roots keep.** `ops`'s and the test root's
+  answers to `Now::BriefCorePlanned`, and `ops`'s to
+  `Now::WorkspaceRequest`, are fixed, and the values stay, since temper's
+  do real work there (engine.md, 7.1, 9 and 17.9; section 7). Taking
+  those steps from the roots would need a new hand-off for connectors'
+  sections and a gather timeout in the core. Default: the answers stay
+  until `ops` and the test root share their wiring.

@@ -207,7 +207,7 @@ pub(super) fn completion_owned(completion: &Completion) -> (u64, u64) {
             Said::ToolCall { id, name, input, call, replay } => {
                 let call_bytes = call.owned_bytes().expect("bounded decoded ownership");
                 decoded += call_bytes;
-                u64::try_from(id.len() + name.len() + input.len()).expect("bounded provider fields")
+                skein_lib::len_u64(id.len() + name.len() + input.len())
                     + replay.as_ref().map_or(0, |replay| skein_lib::len_u64(replay.bytes.len()))
                     + call_bytes
             }

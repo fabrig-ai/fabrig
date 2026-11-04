@@ -195,10 +195,6 @@ pub(crate) fn chat_waited(store: &Store) -> bool {
         )
     }) && snapshot(store).receipts.contains(&rules::Receipt::Turn(1, 1, 2))
 }
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the chat's conformance receipts come from relevant durable core rows"
-)]
 fn snapshot(store: &Store) -> rules::Snapshot {
     let mut snapshot = rules::Snapshot::default();
     for row in store.rows.values() {
@@ -258,6 +254,9 @@ impl Referee {
                     && crate::stories::adopted(&self.store.borrow().rows) > 0
             }
             crate::world::Phase::Story => match self.story {
+                crate::world::Story::NoWelcome => other
+                    .iter()
+                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished)),
                 crate::world::Story::Chat { .. } => terminals(&self.store.borrow()) > 0,
                 crate::world::Story::ChatReadThenWait { .. } => chat_waited(&self.store.borrow()),
                 crate::world::Story::Adoption => crate::stories::adopted(&self.store.borrow().rows) > 0,
@@ -502,6 +501,7 @@ impl skein_world::Referee<Proc> for Referee {
                         || matches!(
                             self.story,
                             crate::world::Story::Adoption
+                                | crate::world::Story::NoWelcome
                                 | crate::world::Story::Adopt
                                 | crate::world::Story::Merge
                                 | crate::world::Story::HeldChange
@@ -545,7 +545,6 @@ fn settled(store: &Store) -> u32 {
     )
     .expect("settled claims")
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the conformance receipts select committed client documents")]
 fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) -> Vec<rules::Receipt> {
     use jig_client::contract as c;
     match event {

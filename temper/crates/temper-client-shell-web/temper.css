@@ -975,7 +975,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-welcome-checklist .temper-welcome-end { margin-left: -21px; }
 .temper-welcome-status { margin-bottom: 23.33px; color: var(--temper-muted); font-size: 12.83px; }
 .temper-welcome .temper-welcome-status > p { margin: 0; color: var(--temper-muted); font-size: 12.83px; }
-.temper-welcome-status > .temper-flow-done::first-letter { color: var(--temper-green); }
 .temper-repository-private { display: inline-flex; align-items: center; gap: 5.83px; white-space: nowrap; padding: 2.33px 7px; border-radius: 3.5px; background: #f3f1eb; color: #6d695f; font-size: 11.67px; font-weight: 600; }
 .temper-repository-choice { display: flex; align-items: center; gap: 9.33px; grid-column: 1 / -1; padding: 8.17px 11.67px; border: 1px solid #e8e4dc; border-radius: 5.83px; background: var(--temper-paper); font: 12.83px var(--temper-mono); }
 .temper-repository-choice.temper-repository-selected { border-color: #ba694e; background: var(--temper-accent-pale); }
@@ -1251,3 +1250,167 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* The nested lineage is metadata too; its following wait keeps the old zero margin. */
 .temper-page .temper-meta > p.temper-wait { margin-top: 0; }
+/* The welcome's look (client/README.md, 3.5 and 5.6): IBM Plex, paper and ink, a top bar
+   of the brand, temper box's line and the steps, then one column of choices as cards.
+   Scoped to the welcome's frame; the other pages keep theirs. */
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2'); }
+:root:has(.temper-welcome) {
+  --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
+  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-signal: #c2410c; --gf-good: #15803d;
+  --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
+}
+:root:has(.temper-welcome) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
+#app:has(> .temper-welcome) { --temper-mono: var(--gf-sans); --temper-ink: var(--gf-ink); --temper-muted: var(--gf-muted); --temper-faint: var(--gf-faint); --temper-line: var(--gf-line); --temper-paper: var(--gf-surface); --temper-canvas: var(--gf-paper); }
+/* The top bar: the brand, temper box's line, the steps at its right. */
+#app:has(> .temper-welcome) > .temper-banner { position: static; min-height: 0; flex-wrap: wrap; justify-content: space-between; padding: 22px 32px; border: 0; background: var(--gf-paper); gap: 12px 24px; }
+#app:has(> .temper-welcome) .temper-brand { min-height: 34px; gap: 8px; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app:has(> .temper-welcome) .temper-brand::before { content: '✦'; width: auto; height: auto; background: none; color: var(--gf-signal); font-weight: 400; }
+#app:has(> .temper-welcome) .temper-brand::after { display: none; }
+#app:has(> .temper-welcome) .temper-flow-steps { display: flex; align-items: center; gap: 0; margin: 0; padding: 0; counter-reset: gf-step; }
+#app:has(> .temper-welcome) .temper-flow-step { display: flex; align-items: center; padding: 0; border: 0; counter-increment: gf-step; color: var(--gf-muted); font: 400 14.5px/1.6 var(--gf-sans); }
+#app:has(> .temper-welcome) .temper-flow-step + .temper-flow-step::before { content: ''; width: 18px; height: 1px; margin: 0 4px; background: var(--gf-line-2); }
+#app:has(> .temper-welcome) .temper-flow-step > span { display: flex; align-items: center; gap: 8px; padding: 6px 8px; }
+#app:has(> .temper-welcome) .temper-flow-step > span::before { content: counter(gf-step); width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 13px; box-sizing: border-box; }
+#app:has(> .temper-welcome) .temper-flow-step[aria-current] { color: var(--gf-ink); font-weight: 500; }
+#app:has(> .temper-welcome) .temper-flow-step[aria-current] > span::before { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; }
+#app:has(> .temper-welcome) .temper-flow-step.temper-flow-done > span::before { content: '✓'; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
+/* temper box's line, between the brand and the steps; its own row when narrow. */
+#app:has(> .temper-welcome) .temper-welcome-box-line { margin: 0 auto 0 24px; font: 14px/1.6 var(--gf-sans); color: var(--gf-muted); }
+#app:has(> .temper-welcome) .temper-welcome-box-line strong { color: var(--gf-ink); font-weight: 600; }
+#app:has(> .temper-welcome) .temper-welcome-box-line > .temper-flow-quiet { font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app:has(> .temper-welcome) .temper-welcome-box-line > .temper-flow-quiet:hover { text-decoration-color: var(--gf-ink); }
+@media (max-width: 1100px) {
+  #app:has(> .temper-welcome) .temper-welcome-box-line { order: 3; flex-basis: 100%; margin: 0; }
+}
+/* The page: one column, the tagline above the heading. */
+#app > .temper-welcome { width: min(680px, 100%); margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; font-size: 15px; letter-spacing: normal; }
+#app > .temper-welcome .temper-welcome-tagline { order: -1; margin: 0 0 12px; font: 14px/1.6 var(--gf-sans); font-style: normal; color: var(--gf-muted); }
+#app > .temper-welcome h1, #app > .temper-welcome h1.temper-welcome-intro { margin: 0 0 12px; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-lead, #app > .temper-welcome .temper-welcome-tagline + .temper-welcome-lead { margin: 0 0 32px; font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
+#app > .temper-welcome .temper-welcome-lead strong { font-weight: 600; color: var(--gf-ink); }
+/* The choices: two cards, side by side; the default one, its button filled, bordered in ink. */
+#app > .temper-welcome :is(.temper-welcome-choices, .temper-flow-choices, .temper-model-choices) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 32px; }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) { display: flex; flex-direction: column; align-items: flex-start; margin: 0; padding: 22px; border: 0; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card):has(> .temper-flow-primary, > .temper-flow-actions > .temper-flow-primary) { box-shadow: 0 0 0 1.5px var(--gf-ink); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) > h2 { margin: 0 0 6px; font: 500 18px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) :is(p, .temper-welcome-setup-description) { margin: 0; font-size: 15px; line-height: 1.6; color: var(--gf-ink-2); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) > :is(.temper-welcome-muted, .temper-flow-muted) { margin: 8px 0 0; font-size: 13px; line-height: 1.6; color: var(--gf-faint); }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) > :is(button, a, .temper-flow-actions) { margin-top: auto; }
+#app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) > :is(h2, p, div:not(.temper-flow-actions)):has(+ :is(button, a, .temper-flow-actions)) { margin-bottom: 18px; }
+#app > .temper-welcome .temper-flow-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+/* Buttons: ink filled for the default, white bordered otherwise; quiet acts as underlined words. */
+#app > .temper-welcome :where(.temper-flow-primary, .temper-flow-secondary, .temper-welcome-card > button, .temper-welcome-card > a) { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 14.5px/1.6 var(--gf-sans); text-decoration: none; }
+#app > .temper-welcome :where(.temper-flow-secondary, .temper-welcome-card > button:not(.temper-flow-primary), .temper-welcome-card > a:not(.temper-flow-primary)):hover { border-color: #b4b4ae; background: var(--gf-surface); color: var(--gf-ink); }
+#app > .temper-welcome .temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-welcome .temper-flow-primary:hover { border-color: #000; background: #000; color: #fff; }
+#app > .temper-welcome .temper-flow-quiet { font: 400 15px/1.6 var(--gf-sans); color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-welcome .temper-flow-quiet:hover { text-decoration-color: var(--gf-ink); }
+/* Under the cards: a note, then back and the way out. */
+#app > .temper-welcome .temper-welcome-after { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-foot { display: flex; justify-content: space-between; gap: 16px; margin: 0; padding-top: 4px; font-size: 14px; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-foot > * { margin: 0; }
+#app > .temper-welcome .temper-welcome-foot > :is(a, button) { font: 400 14px/1.6 var(--gf-sans); color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-welcome .temper-welcome-foot > :is(a, button):hover { color: var(--gf-ink); text-decoration-color: var(--gf-ink); }
+/* The forge's state beside the Model step: a pane at the right of the
+   column when the window has room, under the choices when it has not,
+   so that the step's heading and choices sit where the Forge step's do. */
+#app > .temper-welcome { position: relative; }
+#app > .temper-welcome .temper-welcome-status { margin: 0 0 28px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--gf-line); border-radius: 0; background: none; }
+#app > .temper-welcome .temper-welcome-status > p { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 6px; margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-status > p::before { content: '◌' / ''; grid-row: 1; color: var(--gf-faint); }
+#app > .temper-welcome .temper-welcome-status > p.temper-flow-done::before { content: '✓' / ''; color: var(--gf-good); }
+#app > .temper-welcome .temper-welcome-status > p > span:not(.temper-flow-muted) { grid-column: 2; color: var(--gf-ink); font-weight: 400; }
+#app > .temper-welcome .temper-welcome-status > p > span.temper-flow-muted { display: block; grid-column: 2; padding: 0; color: var(--gf-muted); font-size: 13.5px; }
+#app > .temper-welcome .temper-welcome-status strong { font-weight: 500; }
+#app > .temper-welcome .temper-welcome-status > details { margin: 10px 0 0 24px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-status > details > summary { cursor: pointer; }
+#app > .temper-welcome .temper-welcome-status .temper-flow-progress { margin: 10px 0 0; gap: 6px; font-size: 13.5px; line-height: 1.45; }
+@media (min-width: 1280px) {
+  #app > .temper-welcome .temper-welcome-status { position: absolute; top: 44px; left: calc(100% + 8px); width: 272px; margin: 0; padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--gf-line); }
+}
+/* Under way, a bar under the forge's line that keeps moving while the
+   set up runs: indeterminate, since no step says how far it is. */
+#app > .temper-welcome .temper-welcome-status > .temper-flow-busy { position: relative; height: 3px; margin: 8px 0 2px 24px; overflow: hidden; border-radius: 2px; background: var(--gf-line); }
+#app > .temper-welcome .temper-welcome-status > .temper-flow-busy::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 35%; border-radius: 2px; background: var(--gf-ink-2); animation: temper-welcome-busy 1.4s ease-in-out infinite; }
+@keyframes temper-welcome-busy { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) {
+  #app > .temper-welcome .temper-welcome-status > .temper-flow-busy::before { width: 100%; opacity: .3; animation: none; }
+}
+
+/* While the fetch says how far it is: the bar filled to its percentage,
+   the percentage at its end. The fill's width is the progress node's
+   value once skein's carries one (fetch-progress draft, section 6). */
+#app > .temper-welcome .temper-welcome-status > .temper-flow-meter { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 6px 0 0 24px; font-size: 13px; line-height: 1.4; color: var(--gf-muted); font-variant-numeric: tabular-nums; }
+#app > .temper-welcome .temper-welcome-status > .temper-flow-meter::before { content: ''; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--gf-ink-2) 0 var(--temper-flow-meter-fill, 0%), var(--gf-line) var(--temper-flow-meter-fill, 0%) 100%); }
+
+/* Ready, as the greenfield mockup draws it: the checklist's lines, each
+   with its mark in a circle and a hairline under it, then the first
+   project's form. */
+#app > .temper-welcome .temper-welcome-checklist { display: flex; flex-direction: column; gap: 0; margin: 0 0 32px; padding: 0; border-top: 1px solid var(--gf-line); font-size: 15px; }
+#app > .temper-welcome .temper-welcome-checklist > li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li::before { content: '' / ''; position: static; grid-column: 1; grid-row: 1; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; line-height: 1; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li.temper-flow-done::before { content: '✓' / ''; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
+#app > .temper-welcome .temper-welcome-checklist > li > * { grid-column: 2 / -1; margin: 0; }
+#app > .temper-welcome .temper-welcome-checklist > li > :first-child { grid-column: 2; grid-row: 1; }
+#app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 3; grid-row: 1; font-size: 14.5px; }
+#app > .temper-welcome .temper-welcome-checklist > li :is(p, .temper-account-line) { line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li strong { font-weight: 500; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-checklist .temper-welcome-end { margin-left: 0; }
+#app > .temper-welcome form.temper-welcome-project { display: grid; grid-template-columns: minmax(0, 300px) auto; justify-content: start; align-items: center; gap: 8px; margin: 0 0 32px; }
+#app > .temper-welcome .temper-welcome-project > label { grid-column: 1 / -1; font: 600 14px/1.6 var(--gf-sans); color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-project > input { box-sizing: border-box; width: 100%; min-height: 40px; margin: 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
+#app > .temper-welcome .temper-welcome-project > input:disabled { background: #fafaf9; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-project > button { margin: 0; }
+#app > .temper-welcome .temper-welcome-project > button:disabled { opacity: .45; cursor: default; }
+#app > .temper-welcome .temper-welcome-project > :is([role=alert], p) { grid-column: 1 / -1; margin: 0; }
+#app > .temper-welcome .temper-welcome-project > [role=alert] { color: #b42318; font-size: 14px; }
+/* Forgejo on this machine's sheet over the Forge step: what it starts with, the chosen
+   one's own fields under it, then Cancel and Run. The generic dialog's look is undone. */
+#app > .temper-welcome dialog.temper-welcome-sheet { width: min(620px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 24px 26px; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); font: 400 15px/1.6 var(--gf-sans); letter-spacing: normal; }
+#app > .temper-welcome dialog.temper-welcome-sheet[open] { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 20px; }
+#app > .temper-welcome dialog.temper-welcome-sheet[open] > * { flex: none; margin: 0; }
+#app > .temper-welcome dialog.temper-welcome-sheet::backdrop { background: rgba(24, 24, 27, .32); }
+#app > .temper-welcome .temper-welcome-sheet p { margin: 0; color: inherit; font-size: inherit; line-height: 1.6; }
+#app > .temper-welcome .temper-welcome-sheet-head { display: flex; flex-direction: column; gap: 6px; }
+#app > .temper-welcome .temper-welcome-sheet-head > h2 { margin: 0; font: 500 19px/1.6 var(--gf-sans); letter-spacing: -.01em; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-sheet-head > p { font-size: 14px; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-start { min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
+#app > .temper-welcome .temper-welcome-start > legend { margin: 0 0 8px; padding: 0; font: 600 14px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-option { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 10px; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 10px; cursor: pointer; }
+#app > .temper-welcome .temper-welcome-option:has(input:checked) { border-color: var(--gf-ink); background: #fafaf9; }
+#app > .temper-welcome .temper-welcome-option > input { width: auto; height: auto; margin: 4px 0 0; accent-color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-option > label { font-weight: 500; color: var(--gf-ink); cursor: pointer; }
+/* The whole card picks its choice, as the mock's label does. */
+#app > .temper-welcome .temper-welcome-option > label::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+#app > .temper-welcome .temper-welcome-option > p { grid-column: 2; font-size: 13px; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-option-more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: -2px 0 6px 28px; }
+#app > .temper-welcome .temper-welcome-option-more:has(> textarea) { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+#app > .temper-welcome .temper-welcome-option-more label, #app > .temper-welcome .temper-welcome-option-more > p { display: block; margin: 0 0 4px; font: 600 13px/1.6 var(--gf-sans); color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-option-more :is(input, textarea) { box-sizing: border-box; width: 100%; min-height: 38px; margin: 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
+#app > .temper-welcome .temper-welcome-option-more textarea { display: block; min-height: 76px; padding: 8px 12px; resize: vertical; font: 13px/1.5 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace; }
+#app > .temper-welcome .temper-welcome-option-more [role=alert] { margin-top: 4px; color: #b42318; font-size: 13px; }
+#app > .temper-welcome .temper-welcome-sheet > [role=alert] { margin: -8px 0 0; color: #b42318; font-size: 14px; }
+#app > .temper-welcome .temper-welcome-sheet-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--gf-line); }
+#app > .temper-welcome .temper-welcome-sheet-foot > button { display: inline-flex; align-items: center; min-height: 40px; margin: 0; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 400 14.5px/1.6 var(--gf-sans); cursor: pointer; }
+#app > .temper-welcome .temper-welcome-sheet-foot > button:hover { background: #ececea; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-sheet-foot > button.temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-welcome .temper-welcome-sheet-foot > button.temper-flow-primary:hover { border-color: #000; background: #000; }
+#app > .temper-welcome .temper-welcome-sheet-foot > button:disabled { opacity: .45; cursor: default; }
+#app > .temper-welcome .temper-welcome-sheet :focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+@media (max-width: 760px) {
+  #app:has(> .temper-welcome) > .temper-banner { padding: 14px 16px; }
+  #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > span { font-size: 0; gap: 0; padding: 6px 4px; }
+  #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > span::before { font-size: 13px; }
+  #app:has(> .temper-welcome) .temper-flow-step + .temper-flow-step::before { width: 8px; margin: 0 2px; }
+  #app > .temper-welcome { padding: 16px 20px 56px; }
+  #app > .temper-welcome h1, #app > .temper-welcome h1.temper-welcome-intro { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
+  #app > .temper-welcome .temper-welcome-lead, #app > .temper-welcome .temper-welcome-tagline + .temper-welcome-lead { margin-bottom: 24px; font-size: 15.5px; }
+  #app > .temper-welcome :is(.temper-welcome-choices, .temper-flow-choices, .temper-model-choices) { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
+  #app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) { padding: 18px; }
+  #app > .temper-welcome .temper-welcome-checklist { margin-bottom: 24px; }
+  #app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 2 / -1; grid-row: auto; justify-self: start; }
+  #app > .temper-welcome form.temper-welcome-project { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
+  #app > .temper-welcome .temper-welcome-project > button { justify-content: center; min-height: 48px; font-size: 15.5px; }
+}

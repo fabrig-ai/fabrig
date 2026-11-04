@@ -325,10 +325,10 @@ fn the_engine_s_listener_opens_before_its_workers_start() {
     fixtures::memory_store(service.engine().expect("engine"));
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert!(!worker(&mut service).started);
-    assert!(service.engine().expect("engine").store.above.is_empty());
+    assert!(service.engine().expect("engine").store.host.above.is_empty());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert!(worker(&mut service).started);
-    let Some(jig_protocol_store::Event::Page { .. }) = service.engine().expect("engine").store.above.pop() else {
+    let Some(jig_protocol_store::Event::Page { .. }) = service.engine().expect("engine").store.host.above.pop() else {
         panic!("restart begins after listener");
     };
 }

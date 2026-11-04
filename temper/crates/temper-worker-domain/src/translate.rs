@@ -36,7 +36,6 @@ pub(crate) fn workstream(key: &[u8]) -> u64 {
     u64::from_be_bytes(key.try_into().expect("the root keys every checkout by eight bytes"))
 }
 
-#[expect(clippy::manual_map, reason = "explicit option match follows the step subset, without function pointers")]
 fn repository(repository: wire::Repository) -> checkout::Repository {
     let wire::Repository { tag: _, name, remote, git, start, access, identity, account, save } = repository;
     let (push, expected, landing) = match access {
@@ -401,5 +400,48 @@ pub const fn start_cause(why: agent::RunInvalid) -> host::StartCause {
         | agent::RunInvalid::Effort
         | agent::RunInvalid::Conversation
         | agent::RunInvalid::Endpoint => host::StartCause::Other,
+    }
+}
+
+/// Keep model evidence in the operator terminal, outside the encoded LLM result.
+pub(crate) fn failure_detail(result: &agent::RunResult, detail: &[u8], bound: u32) -> Box<[u8]> {
+    let mut text = List::with_capacity(bound);
+    match result {
+        agent::RunResult::Failed {
+            failure: agent::RunFailure::Model(agent::ModelFault::Program { name, exit, detail: program }),
+        } => {
+            diagnostic_part(&mut text, b"program ");
+            diagnostic_part(&mut text, name);
+            if let Some(exit) = exit {
+                diagnostic_part(&mut text, b" exit ");
+                diagnostic_part(&mut text, skein_lib::Decimal::of(u64::from(*exit)).as_bytes());
+            }
+            diagnostic_part(&mut text, b": ");
+            diagnostic_tail(&mut text, program);
+            if !detail.is_empty() {
+                diagnostic_part(&mut text, b"\n");
+                diagnostic_tail(&mut text, detail);
+            }
+        }
+        agent::RunResult::Failed { .. }
+        | agent::RunResult::Accepted { .. }
+        | agent::RunResult::Parked
+        | agent::RunResult::Refused { .. } => diagnostic_tail(&mut text, detail),
+    }
+    text.into_boxed()
+}
+
+fn diagnostic_tail(text: &mut List<u8>, bytes: &[u8]) {
+    let from = bytes.len().saturating_sub(skein_lib::usize_of(text.room()));
+    diagnostic_part(text, bytes.get(from..).expect("bounded suffix"));
+}
+
+fn diagnostic_part(text: &mut List<u8>, bytes: &[u8]) {
+    for byte in bytes {
+        if text.room() == 0 {
+            break;
+        }
+        let byte = if byte.is_ascii_control() && *byte != b'\n' && *byte != b'\t' { b'?' } else { *byte };
+        text.push(byte).expect("diagnostic room");
     }
 }

@@ -133,7 +133,6 @@ pub enum Run {
 }
 /// None when the task ended without a run, or its chip is not an owner's.
 #[must_use]
-#[expect(clippy::manual_map, reason = "the client's domain matches without a closure")]
 pub fn run(task: &c::Task) -> Option<Run> {
     let c::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
     match phase {
@@ -411,6 +410,7 @@ impl Task {
             | Act::SendAmendment
             | Act::AmendAgain
             | Act::MakeDefault
+            | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::Switcher(_)
@@ -510,6 +510,7 @@ impl Task {
             }
             Act::SendAmendment => self.send(env, client, Sending::Amend, serial, out),
             Act::MakeDefault
+            | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::Switcher(_)

@@ -42,9 +42,9 @@ impl Backend {
             self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
             return;
         }
-        self.startup.initialized(&mut self.io);
+        self.startup.initialized(&mut self.server_up, below);
         if !self.compaction() {
-            self.remember_session();
+            self.remember_session(below);
         }
         self.completion_deadline(env, true, up);
     }
@@ -62,7 +62,7 @@ impl Backend {
     }
 
     fn init_problem(&self, bytes: &[u8]) -> Option<Box<[u8]>> {
-        let depth = self.settings.adapter.client.depth;
+        let depth = self.settings.translation.client.depth;
         let tokens = self.settings.stream_tokens;
         if self.compaction() {
             if super::compact::checked_init(bytes, depth, tokens).is_some() {
@@ -135,35 +135,42 @@ impl Backend {
     }
 
     pub(super) fn builtin_results(&mut self, document: &Document, up: &mut Queue<ToDomain>) -> Option<()> {
+        self.turns.problem = b"user record has no message";
         let message = json::field(document, 0, b"message")?;
+        self.turns.problem = b"user message has no content";
         let content = json::field(document, message, b"content")?;
         if document.token(content)?.kind != Kind::ArrayStart {
             return Some(());
         }
+        self.turns.problem = b"user content token is missing";
         let mut index = content.checked_add(1)?;
         for _ in 0..document.len() {
             if document.token(index)?.kind == Kind::ArrayEnd {
                 break;
             }
             if json::text_in(document, json::field(document, index, b"type")) == Some(b"tool_result") {
+                self.turns.problem = b"tool_result has no string tool_use_id";
                 let id = json::text_in(document, json::field(document, index, b"tool_use_id"))?;
                 for slot in 0..self.ledger.len() {
-                    let call = self.ledger.get(slot)?;
+                    let call = self.ledger.get(slot).expect("ledger slot");
                     if call.builtin && call.id.as_ref() == id && !call.answered && call.answer.is_none() {
+                        self.turns.problem = b"tool_result content is missing, malformed or exceeds text bound";
                         let text =
                             result_text(document, json::field(document, index, b"content")?, self.settings.line_bytes)?;
                         let error = match json::field(document, index, b"is_error") {
                             Some(value) => document.token(value)?.kind == Kind::True,
                             None => false,
                         };
-                        if !self.reply_room(u64::try_from(text.len()).ok()?) {
+                        self.turns.problem = b"tool_result exceeds retained reply byte bound";
+                        if !self.reply_room(skein_lib::len_u64(text.len())) {
                             return None;
                         }
-                        self.ledger.get_mut(slot)?.answer =
+                        self.ledger.get_mut(slot).expect("ledger slot").answer =
                             Some(if error { mcp::Answer::Error(text) } else { mcp::Answer::Text(text) });
                     }
                 }
             }
+            self.turns.problem = b"user block has no closing token";
             index = json::after(document, index)?;
         }
         self.flush_builtins(up);
@@ -173,7 +180,7 @@ impl Backend {
     // Share the retained-reply budget. Reserve each MCP slot's full cap so
     // its later answer cannot consume bytes already held by a built-in.
     pub(super) fn reply_room(&self, extra: u64) -> bool {
-        let maximum = u64::from(self.settings.adapter.rendered_result)
+        let maximum = u64::from(self.settings.translation.rendered_result)
             .checked_mul(u64::from(self.settings.ledger_slots().expect("call slots")))
             .expect("reply budget");
         let mut retained = extra;
@@ -184,7 +191,7 @@ impl Backend {
                     None => 0,
                 }
             } else {
-                u64::from(self.settings.adapter.rendered_result)
+                u64::from(self.settings.translation.rendered_result)
             };
             retained = match retained.checked_add(bytes) {
                 Some(bytes) => bytes,
@@ -227,14 +234,20 @@ pub(super) fn init_error(
                 }
             }
             if !granted {
-                return Some(json::join(&[b"smith: the program offers a built-in tool the run did not grant: ", name]));
+                return Some(skein_lib::bytes::concat(&[
+                    b"smith: the program offers a built-in tool the run did not grant: ",
+                    name,
+                ]));
             }
         }
         index = json::after(&document, index)?;
     }
     for (slot, tool) in policy::BUILTINS.iter().enumerate() {
         if tool.granted(grants) && !seen.get(slot).expect("six built-ins") {
-            return Some(json::join(&[b"smith: the program lacks a granted built-in tool: ", tool.name()]));
+            return Some(skein_lib::bytes::concat(&[
+                b"smith: the program lacks a granted built-in tool: ",
+                tool.name(),
+            ]));
         }
     }
     None

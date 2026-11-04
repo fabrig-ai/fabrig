@@ -345,39 +345,11 @@ pub(crate) fn brief_answer(
         Ok(skein_forge::api::Answer::Compare { before, after, files, commits, .. })
             if fetch.stage == BriefStage::Compare && Some((before, after)) == fetch.comparison =>
         {
-            match fetch.mode {
-                PullMode::Conflict(_) | PullMode::Semantic(_) => {
-                    append(&mut fetch.words, b"What landed in the base:\n");
-                    for commit in commits {
-                        append(&mut fetch.words, &crate::commit_text(&commit));
-                        append(&mut fetch.words, b"\n");
-                    }
-                    for file in files {
-                        append(&mut fetch.words, b"Base file: ");
-                        append(&mut fetch.words, &file.path);
-                        append(&mut fetch.words, b"\n");
-                        if match fetch.mode {
-                            PullMode::Conflict(_) => true,
-                            PullMode::Review | PullMode::Semantic(_) | PullMode::Other => false,
-                        } {
-                            for changed in &fetch.changed {
-                                if changed == &file.path {
-                                    append(&mut fetch.words, b"Conflicting file: ");
-                                    append(&mut fetch.words, &file.path);
-                                    append(&mut fetch.words, b"\n");
-                                }
-                            }
-                        }
-                    }
-                }
-                PullMode::Review | PullMode::Other => {
-                    append(&mut fetch.words, b"Against base:\n");
-                    for file in files {
-                        append(&mut fetch.words, &file.path);
-                        append(&mut fetch.words, b"\n");
-                    }
-                }
-            }
+            comparison_words(&mut fetch, files, commits);
+            None
+        }
+        Err(skein_forge::api::Error::TooLarge) if fetch.stage == BriefStage::Compare => {
+            append(&mut fetch.words, b"[comparison omitted: forge client limit exceeded]\n");
             None
         }
         Ok(skein_forge::api::Answer::Reviews { reviews, .. }) if fetch.stage == BriefStage::Reviews => {
@@ -451,6 +423,47 @@ pub(crate) fn brief_answer(
         crate::held::ready(domain, fetch.owner, read, out);
     }
     true
+}
+
+/// Comparison contents follow the pinned pull identity and gathered diff.
+fn comparison_words(
+    fetch: &mut BriefFetch,
+    files: Box<[skein_forge::api::File]>,
+    commits: Box<[skein_forge::api::Commit]>,
+) {
+    match fetch.mode {
+        PullMode::Conflict(_) | PullMode::Semantic(_) => {
+            append(&mut fetch.words, b"What landed in the base:\n");
+            for commit in commits {
+                append(&mut fetch.words, &crate::commit_text(&commit));
+                append(&mut fetch.words, b"\n");
+            }
+            for file in files {
+                append(&mut fetch.words, b"Base file: ");
+                append(&mut fetch.words, &file.path);
+                append(&mut fetch.words, b"\n");
+                if match fetch.mode {
+                    PullMode::Conflict(_) => true,
+                    PullMode::Review | PullMode::Semantic(_) | PullMode::Other => false,
+                } {
+                    for changed in &fetch.changed {
+                        if changed == &file.path {
+                            append(&mut fetch.words, b"Conflicting file: ");
+                            append(&mut fetch.words, &file.path);
+                            append(&mut fetch.words, b"\n");
+                        }
+                    }
+                }
+            }
+        }
+        PullMode::Review | PullMode::Other => {
+            append(&mut fetch.words, b"Against base:\n");
+            for file in files {
+                append(&mut fetch.words, &file.path);
+                append(&mut fetch.words, b"\n");
+            }
+        }
+    }
 }
 
 /// Start gathering a connector-owned section while its parent holds only

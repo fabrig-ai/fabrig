@@ -5,7 +5,7 @@
 use super::{Call, CallId, PROMPT_TOOL, PROTOCOL_VERSIONS, Refused, Tool, Up};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, collector, tokenizer, writer::Encoder};
-use skein_lib::{List, Writer};
+use skein_lib::{List, Queue};
 
 fn limits(bound: u32) -> collector::Limits {
     collector::Limits {
@@ -102,30 +102,32 @@ pub(crate) fn quote(bytes: &[u8], bound: u32) -> Option<Box<[u8]>> {
     Some(write.finish())
 }
 
-pub(crate) fn join(parts: &[&[u8]]) -> Box<[u8]> {
-    let mut length = 0_usize;
-    for part in parts {
-        length = length.checked_add(part.len()).expect("admitted JSON size");
-    }
-    let mut writer = Writer::new(length);
-    for part in parts {
-        writer.put(part).expect("measured JSON parts");
-    }
-    writer.finish()
-}
-
 pub(crate) fn reply(id: &[u8], result: &[u8]) -> Box<[u8]> {
-    join(&[b"{\"jsonrpc\":\"2.0\",\"id\":", id, b",\"result\":", result, b"}\n"])
+    skein_lib::bytes::concat(&[b"{\"jsonrpc\":\"2.0\",\"id\":", id, b",\"result\":", result, b"}\n"])
 }
 
 pub(crate) fn error(id: &[u8], code: &[u8], message: &[u8]) -> Box<[u8]> {
-    join(&[b"{\"jsonrpc\":\"2.0\",\"id\":", id, b",\"error\":{\"code\":", code, b",\"message\":\"", message, b"\"}}\n"])
+    skein_lib::bytes::concat(&[
+        b"{\"jsonrpc\":\"2.0\",\"id\":",
+        id,
+        b",\"error\":{\"code\":",
+        code,
+        b",\"message\":\"",
+        message,
+        b"\"}}\n",
+    ])
 }
 
 pub(crate) fn result(text: &[u8], error: bool, bound: u32) -> Option<Box<[u8]>> {
     let quoted = quote(text, bound)?;
     let flag: &[u8] = if error { b"true" } else { b"false" };
-    Some(join(&[b"{\"content\":[{\"type\":\"text\",\"text\":", &quoted, b"}],\"isError\":", flag, b"}"]))
+    Some(skein_lib::bytes::concat(&[
+        b"{\"content\":[{\"type\":\"text\",\"text\":",
+        &quoted,
+        b"}],\"isError\":",
+        flag,
+        b"}",
+    ]))
 }
 
 pub(crate) fn field_in(document: &Document, object: Option<u32>, name: &[u8]) -> Option<u32> {
@@ -190,7 +192,7 @@ pub(crate) fn outcome_schema(schema: &[u8], bound: u32) -> Option<Box<[u8]>> {
     if length > usize::try_from(bound).ok()? {
         return None;
     }
-    Some(join(&[prefix, schema, suffix]))
+    Some(skein_lib::bytes::concat(&[prefix, schema, suffix]))
 }
 
 /// Only the single required outcome member crosses into finish decoding.
@@ -207,7 +209,7 @@ pub(crate) fn sub_agent_schema(schema: &[u8]) -> Box<[u8]> {
     let families = br#"["inspect","modify","shell"]"#;
     let start = skein_lib::bytes::find(schema, families).expect("direct sub_agent tool families");
     let end = start.checked_add(families.len()).expect("enum within direct schema");
-    join(&[
+    skein_lib::bytes::concat(&[
         schema.get(..start).expect("prefix before enum"),
         br#"["inspect"]"#,
         schema.get(end..).expect("suffix after enum"),
@@ -240,7 +242,7 @@ pub(crate) fn tool_list(tools: &[Tool], bound: u32, schema_bytes: u32) -> Result
             normalized = object_schema(&schema, schema_bytes.min(bound)).ok_or(Refused::TooLarge)?;
             &normalized
         };
-        let record = join(&[
+        let record = skein_lib::bytes::concat(&[
             b"{\"name\":",
             &name,
             b",\"description\":",
@@ -272,7 +274,7 @@ pub(crate) fn tool_list(tools: &[Tool], bound: u32, schema_bytes: u32) -> Result
 }
 
 impl super::Server {
-    pub(crate) fn message(&mut self, line: &[u8]) {
+    pub(crate) fn message(&mut self, line: &[u8], above: &mut Queue<Up>) {
         let Some(document) = collect(line) else {
             self.output.push(error(b"null", b"-32700", b"parse error"));
             return;
@@ -307,20 +309,20 @@ impl super::Server {
                     }
                 }
                 #[expect(clippy::disallowed_macros, reason = "MCP serverInfo reports the package version required by the protocol")]
-                let result = join(&[b"{\"protocolVersion\":\"", version,
+                let result = skein_lib::bytes::concat(&[b"{\"protocolVersion\":\"", version,
                     b"\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"smith\",\"version\":\"",
                     env!("CARGO_PKG_VERSION").as_bytes(), b"\"}}"]);
                 self.output.push(reply(&id, &result));
             }
             Some(b"ping") => self.output.push(reply(&id, b"{}")),
             Some(b"tools/list") => self.output.push(reply(&id, &self.tool_list)),
-            Some(b"tools/call") => self.call(&document, params, id),
+            Some(b"tools/call") => self.call(&document, params, id, above),
             Some(_) => self.output.push(error(&id, b"-32601", b"unknown method")),
             None => self.output.push(error(&id, b"-32600", b"invalid request")),
         }
     }
 
-    fn call(&mut self, document: &Document, params: Option<u32>, id: Box<[u8]>) {
+    fn call(&mut self, document: &Document, params: Option<u32>, id: Box<[u8]>, above: &mut Queue<Up>) {
         let name = text_in(document, field_in(document, params, b"name"));
         let arguments = field_in(document, params, b"arguments");
         let input = match arguments {
@@ -380,7 +382,7 @@ impl super::Server {
                 for index in 0..self.calls.len() {
                     if self.calls.get(index).expect("call slot").is_none() {
                         *self.calls.get_mut(index).expect("free call slot") = Some(Call { call, id });
-                        self.above.push(event);
+                        above.push(event);
                         return;
                     }
                 }

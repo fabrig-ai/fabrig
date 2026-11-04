@@ -97,7 +97,7 @@ fn blocks(input: &[skein_llm::Block], limits: &skein_llm::client::Limits) -> Res
                     Ok(encoded) => encoded,
                     Err(error) => return Err(Error::from_client(error)),
                 };
-                Block::Opaque { bytes: u64::try_from(encoded.len()).or(Err(Error::Limit))? }
+                Block::Opaque { bytes: skein_lib::len_u64(encoded.len()) }
             }
             skein_llm::Block::Dropped { bytes } => Block::Opaque { bytes: *bytes },
         };

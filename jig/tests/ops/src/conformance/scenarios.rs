@@ -523,18 +523,10 @@ impl ScenarioApplication for Ops {
                     to: ReplyTo::new(Token::new(8002)),
                     key: core::CallKey { task, attempt, completion: 2, position: 0 },
                     action: core::NamedAction::Amend {
+                        keep_parameters: false,
                         target: state(world).children[0],
                         revision: 0,
                         amendment: tasks::Amendment {
-                            tracked: None,
-                            addressed: None,
-                            release: None,
-                            instructions: None,
-                            wake: None,
-                            dependencies: None,
-                            authority: None,
-                            llm: None,
-                            reason: b"run evidence".as_slice().into(),
                             spec: Some(tasks::Spec {
                                 job: None,
                                 asks: false,
@@ -542,6 +534,7 @@ impl ScenarioApplication for Ops {
                                 parameters: Box::new([]),
                                 inputs: Box::new([]),
                             }),
+                            ..jig_test_profile::fixtures::unchanged(b"run evidence")
                         },
                     },
                 }));

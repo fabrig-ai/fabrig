@@ -127,6 +127,31 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                     jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                     },
+            } if temper_client_protocol_wire::decode_reading(&record.bytes, &wire_limits())
+                .expect("forge reading")
+                .read()
+                == &temper_client_protocol_wire::v1::Read::Deployment =>
+            {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                Some(jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::deployment_answer(
+                            &w::DeploymentAnswer::new(
+                                &w::CEILINGS,
+                                w::DeploymentAnswerParts { welcome: true, owned: true },
+                            )
+                            .expect("deployment answer"),
+                        )),
+                    },
+                })
+            }
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
             } if landed
                 && temper_client_protocol_wire::decode_reading(&record.bytes, &wire_limits())
                     .expect("forge reading")
@@ -323,6 +348,7 @@ fn demo_forges() -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number: 1,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,

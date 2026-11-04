@@ -28,6 +28,7 @@ fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            host: b"git.example:3000".as_slice().into(),
             number: FORGE,
             kind: w::Kind::Forgejo,
             mode: w::Mode::Managed,
@@ -174,7 +175,7 @@ fn each_stop_returns_to_details_and_erases_only_the_token() {
         token(&mut root, TOKEN);
         deliver(&mut root, watch, row(true, w::Connection::NotConnected, Some(stop), None));
         assert_eq!(
-            forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None),
+            forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true),
             Shown::Details(Choice::Forge(FORGE))
         );
         assert!(!root.forge().admin_form().has_token());
@@ -209,7 +210,7 @@ fn connecting_then_ready_makes_no_project_and_adopts_nothing() {
     token(&mut root, TOKEN);
     send(&mut root);
     deliver(&mut root, watch, row(true, w::Connection::Connecting, None, None));
-    assert_eq!(forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None), Shown::SettingUp(FORGE));
+    assert_eq!(forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true), Shown::SettingUp(FORGE));
     let mut out = deliver(&mut root, watch, row(true, connected(), None, Some(first())));
     let mut projects = 0_u32;
     while let Some(request) = out.pop() {
@@ -224,7 +225,7 @@ fn connecting_then_ready_makes_no_project_and_adopts_nothing() {
         }
     }
     assert_eq!(projects, 0);
-    assert_eq!(forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None), Shown::Ready(FORGE));
+    assert_eq!(forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true), Shown::Ready(FORGE));
     assert!(deliver(&mut root, watch, row(true, connected(), None, Some(first()))).is_empty());
 }
 #[test]
@@ -263,7 +264,7 @@ fn create_stops_keep_the_fields_and_empty_the_token() {
         );
         assert!(!root.forge().admin_form().has_token());
         assert_eq!(
-            forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None),
+            forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true),
             Shown::Details(Choice::Forge(FORGE))
         );
         assert_eq!(root.forge().admin_form().fields[1].as_ref(), b"hello");

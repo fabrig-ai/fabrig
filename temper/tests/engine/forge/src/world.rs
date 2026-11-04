@@ -251,6 +251,26 @@ impl World {
         )
     }
 
+    /// Keep client admission at eight rows while the fake can answer larger comparisons.
+    #[must_use]
+    pub fn with_comparison_room(seed: u64) -> World {
+        let mut config = fake_config();
+        config.limits.files = 20;
+        config.limits.commits = 64;
+        Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            6,
+            false,
+            None,
+            config,
+        )
+    }
+
     pub fn preload_branches(&mut self, count: u32) {
         for number in 0..count {
             self.external(
@@ -279,7 +299,18 @@ impl World {
         turn: bool,
         tier: Option<raw::Workflow>,
     ) -> World {
-        Self::configured_repositories(seed, facts, hooked, writer, protection, signatures, branches, turn, tier, 1)
+        Self::configured_repositories(
+            seed,
+            facts,
+            hooked,
+            writer,
+            protection,
+            signatures,
+            branches,
+            turn,
+            tier,
+            fake_config(),
+        )
     }
     #[expect(
         clippy::too_many_arguments,
@@ -295,7 +326,7 @@ impl World {
         branches: u32,
         turn: bool,
         tier: Option<raw::Workflow>,
-        repositories: u32,
+        mut config: forge::Config,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
@@ -304,9 +335,7 @@ impl World {
             client: skein_forge_client::Limits { facts, ..CLIENT },
             ..LIMITS
         };
-        let mut config = fake_config();
         config.limits.branches = branches;
-        config.limits.repositories = repositories;
         if tiered {
             config.limits.statuses = 16;
             config.limits.content_bytes = 512;
@@ -502,7 +531,7 @@ impl World {
             4,
             true,
             Some(workflow.clone()),
-            2,
+            repository_config(2),
         );
         forge::repository(
             &mut world.forge,
@@ -779,6 +808,14 @@ impl World {
     pub fn push(&mut self, branch: &[u8], content: &[u8]) {
         self.push_file(branch, b"file", content);
     }
+    /// Push a complete tree as one commit, including an unchanged tree for history bounds.
+    pub fn push_tree(&mut self, branch: &[u8], files: Box<[raw::File]>) {
+        let parent = self.branch(branch);
+        let commit = forge::commit_tree(&mut self.forge, &self.forge_env.limits, parent, None, files, b"landing")
+            .expect("fixture tree fits");
+        self.external(raw::Op::Git(raw::Git::Push { branch: Box::from(branch), commit, expected: Some(parent) }), 1);
+    }
+
     pub fn push_file(&mut self, branch: &[u8], path: &[u8], content: &[u8]) {
         self.push_as(branch, path, content, 1);
     }
@@ -1188,6 +1225,12 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
+}
+
+fn repository_config(repositories: u32) -> forge::Config {
+    let mut config = fake_config();
+    config.limits.repositories = repositories;
+    config
 }
 
 /// Bounded Forgejo fixture shared by the connector and root worlds.

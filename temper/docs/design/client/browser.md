@@ -347,7 +347,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   cookie, so the browser's stays as it was (jig's `domain/people.md`,
   section 3); a cookie the engine does not know, or one ended or
   expired, signs in afresh, with a new cookie. The welcome follows,
-  which moves on to the chats page once the first run is over
+  which moves on to the chats page once the first run is over, and to
+  the inbox, drawing nothing of itself, on a deployment with no welcome
   (`README.md`, 3.5, The welcome).
 - **A reload, or another tab,** signs in with `Transport`, by the cookie
   (jig's `client/domain/client.md`, section 12).
@@ -417,20 +418,17 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   main (its focus ring, its visually hidden boxes); and a viewport
   length, which a zoom grows like any other. Dialogs are drawn inside
   main, and scale with it.
-- **Connection flows:** the welcome steps use compact 14 px headings and
-  9 px card corners; its opening introduction keeps its larger heading.
-  Standalone connection cards use 5 px corners. The
+- **Connection flows:** standalone connection cards use 5 px corners;
+  the welcome's steps have a look of their own (The welcome's look,
+  below). The
   current step is ink, its bar and its bold label, never the accent,
   which beside the done steps' green reads as a step gone wrong; the
   accent is for what to press. The view assigns `FLOW_PRIMARY` to
   filled terracotta acts, `FLOW_SECONDARY` to neutral small buttons and
   `FLOW_QUIET` to quiet terracotta links. Connect a forge's choices use
-  three equal columns, the welcome's Forge step's two, as its own cards
-  do, and model choices two, stacking below 760 px. Choice cards keep
+  three equal columns and model choices two, stacking below 760 px. Choice cards keep
   small headings, ink body text, muted metadata and bottom-aligned acts;
-  on the welcome's Forge step a card's quiet link sits beside its
-  button, in a row that wraps under it at phone width, as the
-  welcome's foot keeps its links; details share their padding. `FLOW_PAIR` groups organization/repository
+  details share their padding. `FLOW_PAIR` groups organization/repository
   and the half-width project field, stacking below 760 px. Setup field
   labels are small and muted, and setup notes are a muted bulleted list.
   Setup and Ready repository subtitles are muted and tight beneath their
@@ -439,13 +437,9 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   muted values, 6 px row padding and hairline separators. Its action row
   wraps with an 8 px gap, retaining Continue with ChatGPT (README, 5.5).
   Those list and action styles do not select Accounts or Forges rows.
-  The welcome's phone gutter is 16 px. Progress draws ✓, ●, ✕ and ○ for done,
+  Progress draws ✓, ●, ✕ and ○ for done,
   current, failed and pending; status words remain accessible in the DOM,
-  visually hidden. Back, Later and the playground alternative are quiet
-  text controls without underlines; Back and Later stay together on the
-  left, with only the playground alternative at the right. Back and Later
-  are bold terracotta, and the playground alternative is plain ink. Each
-  keeps a focus ring.
+  visually hidden.
   A managed Forgejo's admin Details' first-repository fields sit in an
   outlined fieldset with "Your first repository" as its legend. The view's
   named Region and heading map to fieldset and legend through `look::ELEMENTS`,
@@ -455,6 +449,55 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   standalone page's holder choice or outer Choose card. Inside a way,
   its single Back returns to Model Choose. The API key details keep the
   full-width card with contents limited to 420 px; failure reasons in flow details are red.
+- **The welcome's look** (the user's greenfield pass, 2026-11-04;
+  `README.md`, 3.5 and 5.6), at its own scale, in `temper.css`'s last
+  block, every rule scoped to the welcome's frame
+  (`#app:has(> .temper-welcome)`), so that no other page changes: IBM
+  Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
+  1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
+  name in the signal colour (#c2410c). The banner is a top bar, 22 px
+  by 32 px, the brand, temper box's line in 14 px muted words, its
+  "temper box" ink and bold, and the steps at its right in 14.5 px
+  words, each a numbered 24 px circle, the current one filled ink, a
+  done one ticked green, joined by short hairlines; at 1100 px and
+  under, temper box's line takes its own row under them. The main is
+  one 680 px column: the tagline (14 px) above the level-1 heading
+  (32 px, 500),
+  the lead (17 px), then the choices as cards side by side, white on
+  paper, 12 px corners, their acts at their foot so that their
+  buttons line up; the default card, the one holding the
+  step's primary act, is outlined in ink. A primary act is a filled
+  ink button, a secondary one a white bordered button, a quiet one
+  underlined words. The muted line under the cards is 14.5 px; the
+  foot, "‹ Back" at the left and the playground alternative at the
+  right, is muted underlined words. Model's forge region follows the
+  choices before the foot: from 1280 px, a 272 px pane to the right of
+  the column, its top at the heading's, with a hairline on its left;
+  narrower, in the column with a hairline above. Its line stacks a quiet
+  ring, the forge's strong name in ink and each detail muted on its own
+  line; once connected the ring is a green tick, drawn by style alone,
+  and "Each step" is gone. Under way, the repository precedes the status,
+  with a 3 px hairline track under it, a 35% ink segment sliding across
+  every 1.4 s; reduced motion makes it a faint full track with no animation.
+  Done, failed and GitHub's installation waits have no bar. Forgejo's sheet is a native modal dialog, 620 px
+  wide, white, 14 px corners, over a dimmed page: its heading 19 px,
+  its line 14 px muted; "Start it with" its fieldset's legend; each
+  choice a bordered card, 10 px corners, that picks its choice
+  wherever pressed, the chosen one outlined in ink; the chosen one's
+  fields under it, indented, small bold labels over 38 px inputs, the
+  addresses a monospace text area; its foot, under a hairline, the
+  quiet "Cancel" and the primary Run at its right (the user's mockup,
+  2026-11-04). Ready's checklist is a column of lines between
+  hairlines, each with its mark in a 24 px circle, ticked green once
+  done, its name in ink at 500 and what it says muted, "Open Forgejo ↗"
+  at the forge line's right; under it, the first project's form, its
+  small bold label over a 300 px field, 40 px high, and "Create your
+  project" at the field's right, "Rename it whenever you like." muted
+  under them. At 760 px and under, the cards stack, the steps but the
+  current one keep their circles alone, the forge line's link goes
+  under its words, Ready's field and act stack, the act 48 px high and
+  full width, and the gutters are 16 px in the top bar and 20 px in
+  the main. Each act keeps a focus ring.
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
   `temper.css`, whose variables and rules it builds on: what the task
   pages add to the look, as `task.html` draws it in the terminal
@@ -535,8 +578,8 @@ without it.
   `./target/debug/temper box`, serves the browser; so do `cargo build
   --release` and `cargo install --git` of temper's repository.
 - **A crate of its own embeds it,** `temper-client-bundle`, ordinary
-  Rust with its own `[lints]` table, as tools have, which `temper`
-  depends on. Its library is data: the bundle's files, each its path
+  Rust on the `binary` lint profile (`tools/lints/design.md`, 2.3), which
+  `temper` depends on. Its library is data: the bundle's files, each its path
   from the bundle's root (`index.html`, then `<digest>/…`) and its
   bytes by `include_bytes!`, in a directory read's order, and the
   digest, both written by its build script into `OUT_DIR`. A build
@@ -980,6 +1023,13 @@ Not in the tier, each in the lowest world that shows it:
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
+- **A bar that fills** (2.5, The welcome's look;
+  `../draft/fetch-progress.md`, 5 and 6): `temper-flow-meter` is a 4 px
+  bar with the figure at its end, muted, in tabular figures, filled to
+  `--temper-flow-meter-fill`, 0% unless given. The figure waits on the
+  forge's row, and the fill on a value on skein's progress node, a
+  draft of skein's not yet written. Default: the moving bar, and no
+  node takes the token.
 
 ## 7. The gallery
 
@@ -1070,6 +1120,9 @@ from the engine's own answers, is where the look is tuned.
 | `github-picker` | the installation's reached repositories, ready to adopt |
 | `github-adopted` | the adopted GitHub repository and its primary Open act |
 | `welcome-model-choose` | the welcome's Model choices, with ChatGPT sign-in and an API key |
+| `welcome-model-forge-under-way` | Model at first run step 6, Forgejo setting up, its Forge pane and Each step |
+| `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
+| `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
 | `welcome-model-signing-in` | signing in to ChatGPT inside the welcome |
 | `welcome-model-signin-ready` | ChatGPT Ready with the account's address and Accounts-page line |

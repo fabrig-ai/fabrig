@@ -10,13 +10,13 @@ use super::*;
 const STAND_IN: &[u8] = b"smith: the program wrote no result for this call";
 
 fn builtin(id: &[u8], effect: Effect) -> Block {
-    Block::ToolCall {
+    Block::ToolCall(crate::llm::ToolCall {
         id: bytes(id),
         name: bytes(b"Read"),
         input: bytes(br#"{"file_path":"file"}"#),
         call: Decoded::Builtin { effect },
         replay: None,
-    }
+    })
 }
 
 fn result_event(session: Token, id: &[u8], text: &[u8], error: bool) -> Event {
@@ -41,7 +41,7 @@ fn returned(messages: &[Message], id: &[u8]) -> Returned {
         .find_map(|block| match block {
             Block::ToolResult { id: found, result } if found.as_ref() == id => Some(result.clone()),
             Block::ToolResult { .. }
-            | Block::ToolCall { .. }
+            | Block::ToolCall(_)
             | Block::Text { .. }
             | Block::Refusal { .. }
             | Block::Opaque { .. } => None,
@@ -165,13 +165,13 @@ fn a_builtin_call_is_never_skipped() {
         choice: crate::llm::ToolChoice::Only(Box::new([FINISH.ticket])),
         names: Some(Box::new([bytes(b"finish")])),
     })));
-    let invalid = Block::ToolCall {
+    let invalid = Block::ToolCall(crate::llm::ToolCall {
         id: bytes(b"bad"),
         name: bytes(b"bad"),
         input: bytes(b"{}"),
         replay: None,
         call: Decoded::Invalid { descriptor: Some(FINISH.ticket), problem: Problem::UnknownTool },
-    };
+    });
     assert_eq!(
         harness.step(Event::Completed {
             owner: session,

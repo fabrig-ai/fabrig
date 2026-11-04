@@ -91,9 +91,9 @@ fn load_routing(service: &mut crate::Service) {
         let _startup_note = service.engine.as_mut().expect("engine").notes.pop();
     }
     // These routing tests fake the listeners, leaving the host and forge as their real components.
-    for _ in 0..service.engine.as_mut().expect("engine").workers.io.len() {
+    for _ in 0..service.engine.as_mut().expect("engine").workers.host.io.len() {
         let skein_io::Request::Listen { owner, addr } =
-            service.engine.as_mut().expect("engine").workers.io.pop().unwrap()
+            service.engine.as_mut().expect("engine").workers.host.io.pop().unwrap()
         else {
             panic!("worker listener")
         };
@@ -157,7 +157,6 @@ fn the_host_starts_after_loading_with_temper_urls_and_the_configured_limits() {
     assert!(service.engine.as_ref().expect("engine").setup.io.is_empty(), "manifest is local");
 }
 #[test]
-#[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 fn reads_use_the_retained_row_past_its_version_and_absence_answers_none() {
     for present in [false, true] {
         let mut service = service(8, Duration::from_secs(3600));
@@ -416,11 +415,11 @@ fn written_is_answered_only_after_kept_and_the_routing_rows_follow_each_keep() {
 fn a_failed_keep_stops_the_engine_and_never_answers_written() {
     let (mut service, _face) = writing();
     let owner = *service.engine.as_mut().expect("engine").setup.writes.first().unwrap().0;
-    let Some(StoreEvent::Kept { owner: kept }) = service.engine.as_mut().expect("engine").store.above.pop() else {
+    let Some(StoreEvent::Kept { owner: kept }) = service.engine.as_mut().expect("engine").store.host.above.pop() else {
         panic!("pending keep terminal")
     };
     assert_eq!(kept, owner);
-    service.engine.as_mut().expect("engine").store.above.push(StoreEvent::Corrupt { owner });
+    service.engine.as_mut().expect("engine").store.host.above.push(StoreEvent::Corrupt { owner });
     crate::engine::iterate(service.engine.as_mut().expect("engine"), Time::ZERO, Wall::EPOCH);
     assert!(service.end().is_some());
     assert!(service.engine.as_ref().expect("engine").setup.answers.is_empty());
@@ -811,9 +810,9 @@ fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &
             )
             .is_none()
     );
-    let answer = store.above.pop();
+    let answer = store.host.above.pop();
     let Some(StoreEvent::Kept { owner: found }) = answer else {
-        panic!("durable seed: {answer:?}, marked: {}", store.component.mark_durable());
+        panic!("durable seed: {answer:?}, marked: {}", store.host.mark_durable());
     };
     assert_eq!(found, owner);
 }
@@ -843,7 +842,7 @@ fn local_store(token: bool) -> crate::store::Store {
             root::Write::Save(root::Record::Forge { row: Box::new(Stored::Forge(fixtures::forge_record(1))) }),
         ]),
     }));
-    let Some(StoreEvent::Committed { number, .. }) = store.above.pop() else {
+    let Some(StoreEvent::Committed { number, .. }) = store.host.above.pop() else {
         panic!("durable repository");
     };
     assert_eq!(number, header.commits);
@@ -993,7 +992,7 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         assert_eq!(write.number, records::number(1, Item::Origin), "never writes AdminToken");
         assert!(engine.forge.starts.is_empty(), "Origin Kept is held");
         assert!(engine.values.identities.newest(1).is_none());
-        let Some(StoreEvent::Kept { owner }) = engine.store.above.pop() else {
+        let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else {
             panic!("durable Origin");
         };
         answer(engine, StoreEvent::Kept { owner });
@@ -1039,8 +1038,8 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         assert!(engine.setup.runs.is_empty(), "Forgejo does not reconcile from Connected");
         // A second start uses exactly the durable store, including its AdminToken and Origin.
         let mut store = core::mem::replace(&mut engine.store, fixtures::records_store());
-        for _ in 0..store.above.len() {
-            let _terminal = store.above.pop();
+        for _ in 0..store.host.above.len() {
+            let _terminal = store.host.above.pop();
         }
         let mut restarted = local_service(local_config(true, fake), store);
         restore_local(&mut restarted);
@@ -1242,7 +1241,7 @@ fn takeover_to_kept(service: &mut crate::Service, face: &mut Face) {
     assert!(service.take_handover_removal().is_none(), "no removal before Kept");
     let engine = service.engine.as_mut().unwrap();
     assert!(engine.setup.answers.is_empty(), "Written waits for Kept");
-    let Some(StoreEvent::Kept { owner }) = engine.store.above.pop() else { panic!("durable AdminToken") };
+    let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else { panic!("durable AdminToken") };
     answer(engine, StoreEvent::Kept { owner });
     let Some((_, host::Answer::Written)) = engine.setup.answers.pop() else { panic!("Kept answers Written") };
     assert!(service.take_handover_removal().is_none(), "Kept alone does not remove");
@@ -1282,7 +1281,7 @@ fn finish_local(service: &mut crate::Service, face: &mut Face) {
     face.reply(service, br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#);
     let engine = service.engine.as_mut().unwrap();
     assert!(engine.forge.starts.is_empty());
-    let Some(StoreEvent::Kept { owner }) = engine.store.above.pop() else { panic!("durable Origin") };
+    let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else { panic!("durable Origin") };
     answer(engine, StoreEvent::Kept { owner });
     assert_eq!(engine.forge.starts.get(0).unwrap().1.user, 42);
     lifecycle::connected(engine, 1);
@@ -1654,7 +1653,7 @@ fn ended_store() -> crate::store::Store {
         2,
         Box::new([root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(ended_record())) })]),
     );
-    assert!(store.above.pop().is_some());
+    assert!(store.host.above.pop().is_some());
     store
 }
 #[test]
@@ -1792,7 +1791,7 @@ fn setup_reconciliation_waits_for_the_mark() {
     for _ in 0..PASSES {
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
     }
-    assert!(engine.store.component.mark_durable());
+    assert!(engine.store.host.mark_durable());
     assert!(engine.setup.lifecycle.startup_restored());
     assert!(engine.setup.component.is_some());
     assert!(engine.setup.runs.is_empty(), "the handover read precedes reconciliation");

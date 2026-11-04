@@ -8,16 +8,15 @@ simulation, faults and fake machine (`kernel.md`, `io.md`,
 `simulator.md`, `shell.md`, `testing.md`). The forge kit lacks the calls
 no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
-`forge-github.md`); the fake GitHub refuses no push as `GH013`
-(`fake-forge.md`). Of the portable crates, `skein-tls`,
-`skein-fake-forge-github` and `skein-fake-peers` are not in the gate's
-wasm32 clippy, though they pass it (`testing.md`). json, tls and http's
-collector have no fuzz target (`json.md`, `tls.md`, `http.md`). A few
-items lag in `lib.md`, `examples.md`, `forge-setup.md`, `kv.md` and
-`ui.md`. The code departs in three crates' `tests/` directories
-(`testing.md`) and in `skein-playground`'s manifest (`playground.md`),
-and five of the LLM live suite's provider stories are manual, run by
-the owner (`llm.md`).
+`forge-github.md`); the fake GitHub refuses no push as `GH013`, and
+names bare media types on its peer's connections (`fake-forge.md`).
+json, tls and http's collector have no fuzz target
+(`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
+`examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
+suite's logins have no design (`skein-live`), five of its provider
+stories being manual, run by the owner (`llm.md`). The code departs
+in three crates' `tests/` directories (`testing.md`) and in
+`skein-playground`'s manifest (`playground.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
 `browser.md` have no gap. The state machines of io, channel,
@@ -26,9 +25,9 @@ llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); single departures stand in
-`forge-setup.md`, `forge-connection.md`, `io.md`, `json.md`, `kv.md`,
-`llm.md`, `shell.md` and `testing.md`. The foundation's rules
-(`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+`fake-forge.md`, `forge-setup.md`, `forge-connection.md`, `io.md`,
+`json.md`, `kv.md`, `link.md`, `llm.md`, `shell.md` and `testing.md`. The
+foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, and the design departs from
@@ -49,6 +48,7 @@ Design documents:
 - [`kv.md`](kv.status.md)
 - [`http.md`](http.status.md)
 - [`tls.md`](tls.status.md)
+- [`link.md`](link.status.md)
 - [`channel.md`](channel.status.md)
 - [`llm.md`](llm.status.md)
 - [`llm-connection.md`](llm-connection.status.md)
@@ -70,4 +70,5 @@ Design documents:
 
 Drafts:
 - [`draft/component-kit.md`](draft/component-kit.status.md)
+- [`draft/progress-value.md`](draft/progress-value.status.md)
 - [`draft/redb.md`](draft/redb.status.md)
