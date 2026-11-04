@@ -788,9 +788,9 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       } else if (way === 'claude') {
         body = `${status}${head('Your Claude subscription')}
           <section class="panel">
-            <p>temper runs Claude Code, signed in to your subscription on each machine its agents run on. On this one first, in a terminal:</p>
+            <p>temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:</p>
             <pre class="cmd">temper program-login claude-owner</pre>
-            <p class="muted">Claude Code asks you to sign in. temper never reads its login.</p>
+            <p class="muted">It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login.</p>
             <div class="acts"><button type="button" class="btn primary" data-claude-check>I’ve signed in</button><a class="btn quiet" href="welcome.html?at=model">All ways</a></div>
           </section>${foot}`;
       } else if (m?.ready) {
@@ -799,7 +799,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
         body = `${status}${head('Connect a model', 'temper’s agents run on a plan you sign in to.')}
           <div class="choices-grid">
             ${choice('ChatGPT', 'Your ChatGPT plan: sign in, and temper’s agents use its included usage.', 'Sign in, in this tab · about a minute', '<button type="button" class="btn primary" data-chatgpt>Continue with ChatGPT</button>', ' lead')}
-            ${choice('Claude', 'Your Claude subscription, through Claude Code on each host temper’s agents run on.', 'A command in a terminal, on each host', '<a class="btn" href="welcome.html?at=model&amp;way=claude">Use your Claude subscription</a>')}
+            ${choice('Claude', 'Your Claude subscription, through Claude Code in an environment of its own on this machine, apart from yours.', 'One command in a terminal, on this machine', '<a class="btn" href="welcome.html?at=model&amp;way=claude">Use your Claude subscription</a>')}
           </div>${foot}`;
       }
     } else {
