@@ -42,7 +42,9 @@ beside `../client/journeys.md`, whose section 7 then cites it.
 - **Held, at the top.** A request the person is still weighing carries
   a `Look-hold: WHY` trailer beside its `Look-request`, and sits above
   every request to land; a request drawn on a held one's pages is held
-  with it. Releasing one drops the trailer.
+  with it. Releasing one drops the trailer. One branch keeps them all
+  on `main` through `look-refresh.sh`, and lets the requests above a
+  held one build on its pages (the user, 2026-11-04).
 - **Its message says, in words:**
   - what changes and why, in the person's terms;
   - each state the pages do not show that the change reaches (done,
@@ -158,7 +160,4 @@ per page change and per state the message names.
 
 ## 9. Open questions
 
-- **Held requests** (section 2): a trailer, at the top of the one
-  branch, is recommended over a branch of their own, which
-  `look-refresh.sh` does not keep on `main` and whose pages the
-  requests above could not build on; the user's word.
+None.
