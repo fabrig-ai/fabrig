@@ -158,6 +158,46 @@ pub fn a_person_s_chats_list_live_then_ended_by_last_activity<F: Front<Test>>(wo
     );
     finish(world);
 }
+/// The newest ending first: `QueryOrder::Ended`.
+pub fn a_person_s_ended_chats_list_the_last_ended_first<F: Front<Test>>(world: &mut World<Test, F>) {
+    let client = ready(world);
+    start_chat(world, client, b"Second chat");
+    for (task, title) in [(CHAT, b"Hello".as_slice()), (2, b"Second chat".as_slice())] {
+        world.person(
+            client,
+            vec![
+                Step::Go { address: Address::Jig(Page::Task { task, section: TaskSection::Activity }) },
+                Step::See { find: Find::text(title), within: WAIT },
+                Step::Press { find: Find::exactly_named(Role::Button, b"Cancel") },
+                Step::Type {
+                    find: Find::named(Role::TextArea, b"Your reason"),
+                    words: b"Done chatting".as_slice().into(),
+                },
+                Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
+                Step::See { find: Find::text(b"Ended"), within: WAIT },
+            ],
+        );
+        finish(world);
+    }
+    world.person(
+        client,
+        vec![
+            Step::Go { address: crate::stories::conversation() },
+            Step::See { find: Find::named(Role::Button, b"Read earlier"), within: WAIT },
+            Step::Press { find: Find::named(Role::Button, b"Read earlier") },
+            Step::See { find: Find::named(Role::Link, b"Second chat"), within: WAIT },
+            Step::See { find: Find::named(Role::Link, b"Hello"), within: WAIT },
+        ],
+    );
+    finish(world);
+    let tasks: Vec<_> = world
+        .tree(client)
+        .nodes()
+        .iter()
+        .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
+        .collect();
+    assert_eq!(tasks, vec![2, CHAT]);
+}
 pub fn an_engine_outside_the_client_s_versions_shows_out_of_date<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world);
     world.fault(FrontFault::Versions);
