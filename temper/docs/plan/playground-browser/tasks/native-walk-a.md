@@ -609,3 +609,23 @@ The walk lands as it is: its 2.208 s is within the guide, and the acceptance's w
 - The next run merges the trunk if its branch lacks the guide's line, runs the checks the answers
   list once (the package's tests, clippy, `temper-playground`'s, the one-process world's), reports
   the walk's CPU against 3 s, and pushes. No budget, pace, script, fixture or timeout moves.
+
+2026-11-04. **May this task migrate its short startup fixture, `story-a-start.log`, to log version
+2, or must `temper-playground`'s startup regression stay blocked?** Migrate it. The fixture is
+under `temper/crates/temper-playground/src/tests/**`, one of this task's files, and the checks the
+answers list include `temper-playground`'s tests, which cannot pass while it is version 1. The
+previous answer's "no fixture moves" kept the walk's own kept log (`tests/fixtures/story-a.log`)
+from being rewritten to hide a cost or a difference. It did not freeze a supporting fixture in a
+format skein's reader no longer reads (`skein/crates/skein-ui-web/src/log/reader.rs`, version 2
+since `ed8b1f0760` gave exchanges `cache=` and `keep=`).
+
+- Make it from the kept full log, with no new recording: the full log's header and its first
+  twelve inputs, which are the old fixture's steps (147 to 376, up to Try the playground's
+  `exchange id=6` at step 376), then the line `cut`, as the old fixture ends. The full log's
+  `said` digests are the composition's as it stands; the old fixture's step-226 digest is stale.
+- Check it with `story::tests::story_a_start_makes_its_project_and_adopts_widget` alone, then
+  `temper-playground`'s package run. The full walk's fixture stays byte for byte as it is.
+- If the prefix replay reports `Differs`, report it whole and stop and ask: the walk and this
+  regression replay one world.
+- The rest is as the previous answer says: report the walk's CPU against 3 s and push. What the
+  report lists under `## Left` stays left.
