@@ -3,6 +3,7 @@ mod app_facts;
 mod checks;
 pub(crate) mod fixtures;
 mod git;
+mod inline;
 mod installations;
 mod job_logs;
 mod keys;
