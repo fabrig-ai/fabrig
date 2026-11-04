@@ -9,6 +9,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_domain_people as people;
+use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue, ReplyTo};
 
 #[must_use]
@@ -209,26 +210,14 @@ pub(super) fn proposed_setting(
     setting: settings::Setting,
     proposal: (people::Proposer, u64),
 ) -> Queue<Request> {
-    let (people::Proposer::Party(proposer), number) = proposal else {
-        return terminal(reply, Answer::None(Why::Unknown));
-    };
-    let Some(row) = core.tasks.person_proposal(proposer, number) else {
-        return terminal(reply, Answer::None(Why::Unknown));
-    };
-    let pending = match row.state {
-        jig_domain_tasks::PersonProposalState::Pending { .. } => true,
-        jig_domain_tasks::PersonProposalState::SettingsAccepted { .. }
-        | jig_domain_tasks::PersonProposalState::Accepted { .. }
-        | jig_domain_tasks::PersonProposalState::Rejected { .. }
-        | jig_domain_tasks::PersonProposalState::Withdrawn { .. } => false,
-    };
-    if (party != proposer && core.people.role(party, row.project).is_none()) || !pending {
+    let (proposer, number) = proposal;
+    if !pending_settings_review(core, party, proposer, number) {
         return terminal(reply, Answer::None(Why::Unknown));
     }
     let Ok(number) = u32::try_from(number) else {
         return terminal(reply, Answer::None(Why::Unknown));
     };
-    let Some(proposal) = core.settings_proposals.get(&(people::Proposer::Party(proposer), number)) else {
+    let Some(proposal) = core.settings_proposals.get(&(proposer, number)) else {
         return terminal(reply, Answer::None(Why::Unknown));
     };
     for item in &proposal.applications {
@@ -261,6 +250,48 @@ pub(super) fn proposed_setting(
         }
     }
     terminal(reply, Answer::None(Why::Unknown))
+}
+
+fn pending_settings_review(core: &Core, party: u64, proposer: people::Proposer, number: u64) -> bool {
+    match proposer {
+        people::Proposer::Party(proposer) => {
+            let Some(row) = core.tasks.person_proposal(proposer, number) else { return false };
+            if party != proposer && core.people.role(party, row.project).is_none() {
+                return false;
+            }
+            match row.state {
+                tasks::PersonProposalState::Pending { .. } => true,
+                tasks::PersonProposalState::SettingsAccepted { .. }
+                | tasks::PersonProposalState::Accepted { .. }
+                | tasks::PersonProposalState::Rejected { .. }
+                | tasks::PersonProposalState::Withdrawn { .. } => false,
+            }
+        }
+        people::Proposer::Task(task) => {
+            let Some(row) = core.tasks.task(task) else { return false };
+            let Some(proposal) = &row.proposal else { return false };
+            if proposal.number != number || core.people.role(party, people::DEPLOYMENT) != Some(people::Role::Owner) {
+                return false;
+            }
+            let pending = match proposal.state {
+                tasks::ProposalState::Pending { .. } => true,
+                tasks::ProposalState::Accepted { .. }
+                | tasks::ProposalState::Rejected { .. }
+                | tasks::ProposalState::Withdrawn => false,
+            };
+            let settings_action = match proposal.action {
+                tasks::ProposalAction::Settings { .. } => true,
+                tasks::ProposalAction::Batch(..)
+                | tasks::ProposalAction::Effect { .. }
+                | tasks::ProposalAction::ProcedureEffect { .. }
+                | tasks::ProposalAction::Amend { .. }
+                | tasks::ProposalAction::Widen { .. }
+                | tasks::ProposalAction::Release { .. }
+                | tasks::ProposalAction::ReleasePlaced { .. } => false,
+            };
+            pending && settings_action
+        }
+    }
 }
 
 fn application_proposal(core: &Core, setting: settings::Setting, edit: &settings::application::SizedEdit) -> Answer {

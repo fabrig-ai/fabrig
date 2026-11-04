@@ -283,7 +283,11 @@ impl<P: ShellPlatform> Shell<P> {
         let window = web_sys::window().expect("window");
         let document = window.document().expect("document");
         let heading = document.query_selector("main h1").expect("heading selector");
-        let words = heading.as_ref().and_then(|element| element.text_content()).unwrap_or_default();
+        let words = if document.query_selector("main.temper-home").expect("Home selector").is_some() {
+            "Home".to_owned()
+        } else {
+            heading.as_ref().and_then(|element| element.text_content()).unwrap_or_default()
+        };
         // Session storage survives reload, but closing the tab loses its requests.
         let closing_loses = self.store.read_all(&self.platform).iter().any(|record| record.key.len() == 16);
         self.title.set(words.as_bytes(), b"temper", b"en", closing_loses);

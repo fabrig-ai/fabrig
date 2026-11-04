@@ -5,6 +5,7 @@ pub mod admin;
 pub mod change;
 pub mod connect;
 pub mod deployment;
+pub mod dismissed;
 pub mod family;
 pub mod forges;
 mod form;
@@ -54,11 +55,14 @@ pub enum Request {
     Send { request: skein_lib::Token, name: Option<skein_lib::RequestKey>, ask: jig_client::Ask },
 }
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "each session watch keeps whether its own handle is open")]
 pub struct Side {
     playground: playground::State,
     deployment: deployment::State,
     forges: forges::State,
     forges_open: bool,
+    dismissed: dismissed::State,
+    dismissed_open: bool,
     set_up: Option<Box<forges::SetUp>>,
     setup_form: forges::Draft,
     admin_form: admin::Draft,
@@ -87,6 +91,8 @@ impl Side {
             deployment: deployment::State::new(),
             forges: forges::State::Unknown,
             forges_open: false,
+            dismissed: dismissed::State::Unknown,
+            dismissed_open: false,
             set_up: None,
             setup_form: forges::Draft::new(),
             admin_form: admin::Draft::new(),
@@ -474,7 +480,7 @@ pub fn answer(limits: &crate::Limits, answered: &jig_client::Answered) -> Option
     }
 }
 
-/// The page and ctl name the same adoption (client/forge.md, 5.4).
+/// Ready and ctl name the same adoption (temper/docs/design/client/README.md, 3.5).
 #[must_use]
 pub fn first_repository_key(forge: u16, additional: bool) -> skein_lib::RequestKey {
     let prefix: &[u8] = if additional { b"first-repository-additional-" } else { b"first-repository-" };
@@ -483,6 +489,28 @@ pub fn first_repository_key(forge: u16, additional: bool) -> skein_lib::RequestK
     text.put(prefix).expect("key prefix fits");
     text.put(number.as_bytes()).expect("key number fits");
     crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&text.finish()).expect("first repository key fits"))
+}
+
+/// Each refusal gives Home's next adoption a new name (temper/docs/design/client/README.md, 3.5).
+#[must_use]
+pub fn first_repository_again_key(forge: u16, attempt: u64) -> skein_lib::RequestKey {
+    let prefix = b"first-repository-again-";
+    let forge = skein_lib::Decimal::of(u64::from(forge));
+    let attempt = skein_lib::Decimal::of(attempt);
+    let length = prefix
+        .len()
+        .checked_add(forge.as_bytes().len())
+        .expect("forge fits")
+        .checked_add(1)
+        .expect("separator fits")
+        .checked_add(attempt.as_bytes().len())
+        .expect("key fits");
+    let mut text = skein_lib::Writer::new(length);
+    text.put(prefix).expect("prefix fits");
+    text.put(forge.as_bytes()).expect("forge fits");
+    text.put(b"-").expect("separator fits");
+    text.put(attempt.as_bytes()).expect("attempt fits");
+    crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&text.finish()).expect("adoption key fits"))
 }
 
 /// Project creation has its own dedup name; a refused attempt needs a new one.

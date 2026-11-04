@@ -291,7 +291,12 @@ fn populate_page(
                     out,
                 );
                 let delivery = match subject {
-                    Subject::Settings => unreachable!("temper does not watch settings"),
+                    Subject::Settings => Some(Delivery::Settings(Box::new(jig_client::contract::SettingsDocument {
+                        newest: 0,
+                        settings: skein_lib::List::with_capacity(0),
+                        held: skein_lib::List::with_capacity(0),
+                        pending: skein_lib::List::with_capacity(0),
+                    }))),
                     Subject::Me => Some(Delivery::Me(Box::new(jig_client_world::stories::frame(1)))),
                     Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_world::stories::task()))),
                     Subject::Deployment => {

@@ -15,6 +15,7 @@ mod clearing;
 mod configuring_chat;
 mod connect_forge;
 mod connect_model;
+mod dismissed;
 mod forges;
 mod hold_commands;
 mod inbox;
@@ -56,3 +57,5 @@ mod welcome_m3_owned;
 mod welcome_m4;
 
 mod reloads;
+
+mod person_task_tools;

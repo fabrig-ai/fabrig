@@ -358,10 +358,7 @@ fn model_ticks_the_first_repository_made() {
         Address::Welcome { step: Step::Model { way: None } },
         forge::first_rows(forge::connected(), forge::made()),
     ));
-    let line = line_in_forge(
-        view.tree(),
-        "Forgejo on this machine · connected as temper · work/hello made, in no project yet",
-    );
+    let line = line_in_forge(view.tree(), "Forgejo on this machine · connected as temper · work/hello made");
     let line = view.tree().nodes().iter().find(|n| n.id == line).unwrap();
     assert!(line.styles.as_slice().contains(&crate::look::FLOW_DONE));
     let index = view.tree().nodes().iter().position(|n| n.id == line.id).unwrap();
@@ -375,7 +372,7 @@ fn model_ticks_the_first_repository_made() {
         [
             (skein_ui::Run::Strong, b"Forgejo on this machine".as_slice()),
             (skein_ui::Run::Plain, b"connected as temper".as_slice()),
-            (skein_ui::Run::Plain, b"work/hello made, in no project yet".as_slice())
+            (skein_ui::Run::Plain, b"work/hello made".as_slice())
         ]
     );
     each_step(view.tree(), false);
@@ -489,7 +486,7 @@ fn the_welcome_frame_is_the_brand_the_box_line_and_the_steps() {
             .contains(&crate::look::WELCOME_INTRO)
     );
     assert!(f::find(tree, Role::Button, b"Sign out").is_none());
-    assert!(f::banner_statuses(tree).is_empty());
+    assert!(f::frame_statuses(tree).is_empty());
     let banner = tree.nodes().iter().position(|n| n.role == Role::Banner).unwrap();
     let banner = &tree.nodes()[banner..banner + usize::try_from(tree.nodes()[banner].size).unwrap()];
     let line = banner.iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_BOX_LINE)).unwrap();
@@ -1444,7 +1441,7 @@ fn ready_making_and_its_endings_keep_one_retry_act() {
             }
         }
         let view = f::page_view(&root);
-        let id = node(view.tree(), Role::Button, "Creating Default…");
+        let id = node(view.tree(), Role::Button, "Creating My project…");
         assert!(view.tree().disabled(id));
         let field = node(view.tree(), Role::TextField, "Your first project");
         assert!(view.tree().disabled(field));
@@ -1490,37 +1487,52 @@ fn ready_making_and_its_endings_keep_one_retry_act() {
 
 #[test]
 fn ready_names_its_first_project_in_a_form() {
-    let mut root = ready_root(owned_adopted_rows());
-    let mut view = f::page_view(&root);
-    let tree = view.tree();
-    node(tree, Role::Paragraph, "Everything is connected. Create your first project and start working.");
-    let form = node(tree, Role::Form, "Your first project");
-    let form = tree.nodes().iter().position(|n| n.id == form).unwrap();
-    assert!(tree.nodes()[form].styles.as_slice().contains(&crate::look::WELCOME_PROJECT));
-    let end = form.checked_add(usize::try_from(tree.nodes()[form].size).unwrap()).unwrap();
-    let inside = &tree.nodes()[form..end];
-    let field = inside.iter().find(|n| n.role == Role::TextField).unwrap();
-    assert_eq!(field.name.as_deref(), Some(b"Your first project".as_slice()));
-    assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"Default");
-    assert!(field.states.as_slice().contains(&State::SubmitsOnEnter));
-    let field = field.id;
-    for name in ["Create your project", "Rename it whenever you like."] {
-        assert!(inside.iter().any(|n| n.name.as_deref() == Some(name.as_bytes())), "{name} in the form");
+    for (rows, offered, unnamed) in [
+        (owned_adopted_rows(), "My project", "A name for it: My project, or one of yours."),
+        (forge::first_rows(forge::connected(), forge::made()), "Hello", "A name for it: Hello, or one of yours."),
+    ] {
+        let mut root = ready_root(rows);
+        let mut view = f::page_view(&root);
+        let tree = view.tree();
+        node(
+            tree,
+            Role::Paragraph,
+            if offered == "Hello" {
+                "Everything is connected. Create your first project, with work/hello in it, and start working."
+            } else {
+                "Everything is connected. Create your first project and start working."
+            },
+        );
+        let form = node(tree, Role::Form, "Your first project");
+        let form = tree.nodes().iter().position(|n| n.id == form).unwrap();
+        assert!(tree.nodes()[form].styles.as_slice().contains(&crate::look::WELCOME_PROJECT));
+        let end = form.checked_add(usize::try_from(tree.nodes()[form].size).unwrap()).unwrap();
+        let inside = &tree.nodes()[form..end];
+        let field = inside.iter().find(|n| n.role == Role::TextField).unwrap();
+        assert_eq!(field.name.as_deref(), Some(b"Your first project".as_slice()));
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), offered.as_bytes());
+        assert!(field.states.as_slice().contains(&State::SubmitsOnEnter));
+        let field = field.id;
+        for name in ["Create your project", "Rename it whenever you like."] {
+            assert!(inside.iter().any(|n| n.name.as_deref() == Some(name.as_bytes())), "{name} in the form");
+        }
+        // Writing names it; Enter is Create.
+        assert_eq!(
+            crate::act(&mut view, field, Act::Input { value: b"Shop".as_slice().into() }),
+            Some(d::Action::Pages(pages::Act::DefaultName { words: b"Shop".as_slice().into() }))
+        );
+        assert_eq!(crate::act(&mut view, field, Act::Submit), Some(d::Action::Pages(pages::Act::MakeDefault)));
+        // No name: Create says so, and makes nothing.
+        f::root_event(
+            &mut root,
+            d::Event::Act { action: d::Action::Pages(pages::Act::DefaultName { words: b" ".as_slice().into() }) },
+        );
+        f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(pages::Act::MakeDefault) });
+        let view = f::page_view(&root);
+        node(view.tree(), Role::Alert, unnamed);
+        let field = node(view.tree(), Role::TextField, "Your first project");
+        assert!(
+            view.tree().nodes().iter().find(|n| n.id == field).unwrap().states.as_slice().contains(&State::Invalid)
+        );
     }
-    // Writing names it; Enter is Create.
-    assert_eq!(
-        crate::act(&mut view, field, Act::Input { value: b"Shop".as_slice().into() }),
-        Some(d::Action::Pages(pages::Act::DefaultName { words: b"Shop".as_slice().into() }))
-    );
-    assert_eq!(crate::act(&mut view, field, Act::Submit), Some(d::Action::Pages(pages::Act::MakeDefault)));
-    // No name: Create says so, and makes nothing.
-    f::root_event(
-        &mut root,
-        d::Event::Act { action: d::Action::Pages(pages::Act::DefaultName { words: b" ".as_slice().into() }) },
-    );
-    f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(pages::Act::MakeDefault) });
-    let view = f::page_view(&root);
-    node(view.tree(), Role::Alert, "A name for it: Default, or one of yours.");
-    let field = node(view.tree(), Role::TextField, "Your first project");
-    assert!(view.tree().nodes().iter().find(|n| n.id == field).unwrap().states.as_slice().contains(&State::Invalid));
 }

@@ -341,7 +341,8 @@ pub(super) fn object(key: c::ObjectKey, out: &mut Text) {
         }
         c::ObjectKey::PersonTask(task) => {
             out.number(task);
-            out.put(b" \xc2\xb7 person task");
+            out.put(b" \xc2\xb7 person task\n  read: task show ");
+            out.number(task);
         }
         c::ObjectKey::Result(task) => {
             out.number(task);

@@ -90,7 +90,7 @@ fn a_reload_with_an_adoption_pending_sends_it_once() {
     let person = world.client(fixtures::PARTY, fixtures::project());
     world.person(
         person,
-        vec![Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: fixtures::WITHIN }],
+        vec![Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: fixtures::WITHIN }],
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     world.fault(FrontFault::NoAnswer);
@@ -108,7 +108,7 @@ fn a_reload_with_an_adoption_pending_sends_it_once() {
 }
 
 #[test]
-fn the_first_repository_is_adopted_from_default_with_nothing_typed() {
+fn ready_adopts_the_first_repository_with_nothing_typed() {
     use jig_client_world::harness::App;
     use temper_client_domain::{self as d, Address};
     use temper_client_world::{app::Temper, front::account_acts as accounts};
@@ -128,14 +128,11 @@ fn the_first_repository_is_adopted_from_default_with_nothing_typed() {
     accounts::settle(&mut front, &mut root);
     accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: d::Step::Ready }));
     press_adoption(&mut front, &mut root, Role::Button, b"Create your project");
-    assert_eq!(root.person().pages().address(), &fixtures::chats_page());
-    let chats = super::connect_forge::view(&root);
-    super::connect_forge::node(&chats, Role::Paragraph, b"No repository yet");
-    press_adoption(&mut front, &mut root, Role::Link, b"Adopt a repository");
-    press_adoption(&mut front, &mut root, Role::Button, b"Adopt");
-    assert!(front.engine_adopted(1, 42), "the engine holds work/hello as owned");
-    let outcome = super::connect_forge::view(&root);
-    super::connect_forge::node(&outcome, Role::Status, b"Adopted work/hello on forge 1 as owned.");
+    let project = root.person().pages().project().expect("Ready's project");
+    assert_eq!(root.person().pages().address(), &Address::Home { project });
+    assert!(front.engine_adopted(1, 42), "Ready adopts work/hello as owned");
+    assert_eq!(root.person().pages().adopting().expect("Ready's adoption").out, None);
+    assert_eq!(root.person().pages().adopting().expect("Ready's adoption").ended, None);
     accounts::event(&mut front, &mut root, Temper::went(fixtures::chats_page()));
     let chats = super::connect_forge::view(&root);
     assert!(!chats.tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"No repository yet")));

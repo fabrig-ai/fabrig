@@ -138,7 +138,12 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     view.accounts.begin(root.pages().accounts().is_none());
     let mut builder = view.render.builder();
     builder.open(Role::Page);
-    crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
+    let rail_project = crate::frame::rail_project(root, &view.forge_words, &view.sign_in);
+    if let Some(project) = rail_project {
+        crate::frame::rail(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge, project);
+    } else {
+        crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
+    }
     match root.pages().address() {
         temper_client_domain::Address::Welcome { .. } => {}
         temper_client_domain::Address::ConnectModel { .. }
@@ -149,6 +154,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Forges
         | temper_client_domain::Address::ConnectForge { .. }
+        | temper_client_domain::Address::Home { .. }
+        | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Adopt { .. } => {
             crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
         }
@@ -163,6 +170,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Forges
         | temper_client_domain::Address::ConnectForge { .. }
+        | temper_client_domain::Address::Home { .. }
+        | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Adopt { .. } => {
             crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
         }
@@ -218,6 +227,18 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             view.limits.tree.text_per_node,
             &mut times,
         );
+    } else if let temper_client_domain::Address::Home { project } = root.pages().address() {
+        crate::pages::home::main(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            *project,
+            &view.forge_sign_in,
+            &mut times,
+        );
+    } else if let temper_client_domain::Address::Settings { project } = root.pages().address() {
+        crate::pages::home::settings(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Chat { .. } = root.pages().address() {
         crate::pages::chat::main(
             &mut builder,
@@ -267,6 +288,11 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     } else if let temper_client_domain::Address::Adopt { .. } = root.pages().address() {
         view.adoption_main(&mut builder, root);
+    }
+    if let Some(project) = rail_project
+        && view.forge_words.shell == crate::words::Shell::Browser
+    {
+        crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project);
     }
     builder.close();
     view.next_change = times.next;

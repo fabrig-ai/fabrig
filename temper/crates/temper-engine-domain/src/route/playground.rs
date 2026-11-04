@@ -254,6 +254,7 @@ pub(crate) fn adopted(domain: &mut Domain, token: Token, outcome: Option<forge::
                 forge::ApplicationOutcome::CoreRefused(_) | forge::ApplicationOutcome::ForgeRefused(_),
             )
             | forge::Answered::SetUp(_)
+            | forge::Answered::Dismiss(_)
             | forge::Answered::RemoveForge(_)
             | forge::Answered::StartPlayground(_)
             | forge::Answered::EndPlayground(_)

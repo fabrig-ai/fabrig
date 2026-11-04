@@ -48,6 +48,11 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         let binding =
             forge::Stored::Binding { address, subject: temper_codecs_world::drawn(&mut rng, 255).into_boxed_slice() };
         row_and_key(&binding, &mut rng, &bounds);
+        let dismissed = forge::Stored::Dismissed {
+            party: rng.next_u64(),
+            what: forge::Dismissal::ToBegin { project: u32::try_from(rng.below(4_294_967_296)).expect("u32") },
+        };
+        row_and_key(&dismissed, &mut rng, &bounds);
         record(&temper_codecs_world::drawn(&mut rng, 512), &bounds);
         key(&temper_codecs_world::drawn(&mut rng, 512));
         forge_rows(&mut rng, &bounds);

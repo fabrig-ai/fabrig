@@ -5,11 +5,17 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 5] = [
+    let pages: [(Address, &[u8]); 11] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All, start: false }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
         (Address::Task { task: 7, filter: PlanFilter::All }, b"/tasks/7"),
+        (Address::Home { project: 0 }, b"/projects/0"),
+        (Address::Home { project: u32::MAX }, b"/projects/4294967295"),
+        (Address::Settings { project: 0 }, b"/projects/0/settings"),
+        (Address::Settings { project: u32::MAX }, b"/projects/4294967295/settings"),
+        (Address::Home { project: 3 }, b"/projects/3"),
+        (Address::Settings { project: 3 }, b"/projects/3/settings"),
         (Address::Adopt { project: 3 }, b"/projects/3/adopt"),
     ];
     for (address, path) in pages {
@@ -104,7 +110,13 @@ fn a_path_that_is_no_page_is_missing() {
         b"chats",
         b"/chats/x",
         b"/tasks",
-        b"/projects/1",
+        b"/projects/01",
+        b"/projects/1/other",
+        b"/projects/99999999999",
+        b"/projects/4294967296",
+        b"/projects/4294967296/settings",
+        b"/projects/01/settings",
+        b"/projects/99999999999/settings",
         b"/projects/1/board",
         b"/projects/3/adopt/x",
         b"//",

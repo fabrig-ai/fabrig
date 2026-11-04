@@ -1414,3 +1414,140 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-welcome form.temper-welcome-project { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
   #app > .temper-welcome .temper-welcome-project > button { justify-content: center; min-height: 48px; font-size: 15.5px; }
 }
+
+/* The project's settings */
+.temper-settings > ul { list-style: none; margin: 7px 0 14px; padding: 0; }
+.temper-settings > ul > li { padding: 9.33px 0; }
+.temper-settings .temper-nav-needs, .temper-settings .temper-nav-limited { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
+.temper-settings .temper-nav-needs { background: var(--temper-red); }
+.temper-settings .temper-nav-limited { background: var(--temper-amber); }
+
+/* The project's frame */
+:root:has(#app > .temper-rail) {
+  --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
+  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-good: #15803d;
+  --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
+}
+:root:has(#app > .temper-rail) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
+#app:has(> .temper-rail) { display: grid; grid-template-columns: 232px minmax(0, 1fr); align-content: start; min-height: 100vh; --temper-mono: var(--gf-sans); }
+/* The rail. */
+#app > .temper-rail { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 26px; padding: 28px 20px 24px; border-right: 1px solid var(--gf-line); overflow-y: auto; }
+#app > .temper-rail > .temper-brand { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-rail > .temper-brand::before { content: '✦'; width: auto; height: auto; background: none; color: var(--gf-signal); font-weight: 400; }
+#app > .temper-rail > .temper-brand::after { display: none; }
+#app > .temper-rail .temper-projects { position: relative; flex: none; }
+#app > .temper-rail .temper-projects > summary { top: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--gf-line); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; list-style: none; cursor: pointer; }
+#app > .temper-rail .temper-projects > summary::after { content: '⌄'; width: auto; height: auto; margin: 0; border: 0; transform: none; color: var(--gf-faint); font-weight: 400; }
+#app > .temper-rail .temper-projects[open]::details-content { display: block; position: static; width: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#app > .temper-rail .temper-projects-menu { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-surface); box-shadow: 0 12px 32px rgba(24, 24, 27, .12); }
+#app > .temper-rail .temper-projects-menu > button { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-ink); text-align: left; }
+#app > .temper-rail .temper-projects-menu > button:hover { background: var(--gf-hover); }
+#app > .temper-rail .temper-projects-menu > button[aria-pressed=true] { font-weight: 600; }
+#app > .temper-rail .temper-projects-menu > button > span:first-child { flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A project's repositories in small type: the one, the home and how many
+   more ("infra/deploy +2"), "3 repositories" with no home, or "no
+   repository"; a long name is cut before its count, never the count. */
+#app > .temper-rail .temper-projects-menu > button > .temper-projects-repo { display: flex; min-width: 0; color: var(--gf-faint); font-size: 12.5px; font-weight: 400; }
+#app > .temper-rail .temper-projects-repo > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#app > .temper-rail .temper-projects-repo > .temper-projects-more { flex: none; white-space: pre; }
+#app > .temper-rail .temper-projects-acts { display: flex; flex-direction: column; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--gf-line); }
+#app > .temper-rail .temper-projects-acts > :is(a, button), #app > .temper-rail .temper-project-new input { padding: 7px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-muted); font-size: 13.5px; text-align: left; text-decoration: none; }
+#app > .temper-rail .temper-projects-acts > :is(a, button):hover, #app > .temper-rail .temper-project-new input:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-rail .temper-project-new { display: flex; align-items: center; gap: 6px; margin: 0; padding: 0; border: 0; }
+#app > .temper-rail .temper-project-new input::placeholder { color: var(--gf-muted); }
+#app > .temper-rail .temper-project-new input:focus { outline: 0; background: var(--gf-paper); color: var(--gf-ink); }
+#app > .temper-rail .temper-project-new button { flex: none; padding: 4px 10px; border: 1px solid var(--gf-line-2); border-radius: 6px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13px; }
+#app > .temper-rail > .temper-rail-nav { display: flex; flex-direction: column; gap: 2px; }
+#app > .temper-rail > .temper-rail-nav > a { display: flex; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-nav > a:hover { background: #f0f0ee; }
+#app > .temper-rail > .temper-rail-nav > a[aria-current] { background: var(--gf-hover); font-weight: 500; }
+#app > .temper-rail > .temper-rail-new { padding: 9px 10px; border: 1px dashed #c9c9c3; border-radius: 8px; color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-new:hover { border-color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-rail > .temper-rail-foot > :is(a, [role=status], [data-region=temper-link]) { padding: 6px 10px; border-radius: 6px; }
+#app > .temper-rail > .temper-rail-foot > a:hover { background: #f0f0ee; color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-foot > a[aria-current] { background: var(--gf-hover); color: var(--gf-ink); font-weight: 500; }
+/* The link's state shows only when it is not live. */
+#app > .temper-rail > .temper-rail-foot > [data-region=temper-link]:has(> .temper-live) { display: none; }
+/* The tab bar, a phone's alone. */
+#app > .temper-tabbar { display: none; }
+@media (max-width: 760px) {
+  #app:has(> .temper-rail) { grid-template-columns: minmax(0, 1fr); }
+  #app > .temper-rail { z-index: 20; height: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px 20px; border-right: 0; background: var(--gf-paper); overflow: visible; }
+  #app > .temper-rail > :not(.temper-projects) { display: none; }
+  #app > .temper-rail .temper-projects > summary { justify-content: flex-start; padding: 6px 0; border: 0; background: none; font-size: 17px; font-weight: 600; }
+  #app > .temper-rail .temper-projects > summary::before { content: '✦'; margin-right: 8px; color: var(--gf-signal); font-weight: 400; }
+  #app > .temper-rail .temper-projects-menu { right: auto; min-width: 220px; }
+  #app > .temper-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px 8px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--gf-line); background: var(--gf-surface); }
+  #app > .temper-tabbar > a { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; color: var(--gf-muted); }
+  #app > .temper-tabbar > a[aria-current] { color: var(--gf-ink); font-weight: 600; }
+}
+
+/* The other pages under the rail */
+#app:has(> .temper-rail) > .temper-rail { grid-column: 1; grid-row: 1 / span 3; }
+#app:has(> .temper-rail) > :is(main, section.temper-accounts) { grid-column: 2; min-width: 0; }
+#app:has(> .temper-rail) { grid-template-rows: auto auto minmax(0, 1fr); }
+#app:has(> .temper-rail) > main { grid-row: 3; align-self: start; }
+#app:has(> .temper-rail) .temper-sidebar { top: 0; height: 100vh; height: 100dvh; }
+#app:has(> .temper-rail) > .temper-chat { grid-row: 3; height: 100%; min-height: 0; }
+#app:has(> .temper-rail) .temper-sidebar > .temper-rows { flex: none; min-width: 0; border-inline: 0; border-radius: 0; background: none; }
+#app:has(> .temper-rail) .temper-sidebar .temper-row { display: block; padding: 12px 0; border-radius: 0; }
+#app:has(> .temper-rail) .temper-sidebar .temper-row > .temper-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+#app:has(> .temper-rail) .temper-sidebar .temper-row > p:not(:first-of-type):not(.temper-details):not(.temper-time) { margin: 3.5px 0; text-align: left; }
+#app:has(> .temper-rail) .temper-sidebar .temper-row > :is(.temper-details, .temper-time) { display: inline-block; margin: 4px 10px 0 0; padding: 0; border: 0; border-radius: 0; background: none; text-align: left; }
+
+#app > .temper-rail .temper-nav-count { color: var(--gf-muted); }
+#app > :is(.temper-rail, .temper-tabbar) :is(.temper-nav-needs, .temper-nav-limited) { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
+#app > :is(.temper-rail, .temper-tabbar) .temper-nav-needs { background: var(--temper-red); }
+#app > :is(.temper-rail, .temper-tabbar) .temper-nav-limited { background: var(--temper-amber); }
+#app > .temper-rail .temper-rail-foot > [role=alert] { overflow-wrap: anywhere; color: var(--temper-red); }
+@media (max-width: 760px) {
+  #app:has(> .temper-rail) > .temper-rail { grid-column: 1; grid-row: 1; }
+  #app:has(> .temper-rail) > :is(main, section.temper-accounts) { grid-column: 1; }
+  #app:has(> .temper-rail) { grid-template-rows: auto auto auto minmax(0, 1fr); }
+  #app:has(> .temper-rail) > main { grid-row: 4; }
+  #app:has(> .temper-rail) > main:where(:not(.temper-home)) { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  #app:has(> .temper-rail) .temper-sidebar { top: auto; height: auto; }
+  #app:has(> .temper-rail):has(> .temper-chat) { grid-template-rows: auto auto auto minmax(0, 1fr); padding-bottom: calc(63px + env(safe-area-inset-bottom)); }
+  #app:has(> .temper-rail) > .temper-chat { grid-row: 4; padding-bottom: 0; }
+}
+
+/* Home's column. */
+#app > .temper-home { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; display: flex; flex-direction: column; align-items: center; gap: 60px; font-size: 15px; letter-spacing: normal; }
+#app > .temper-home > * { width: 100%; max-width: 720px; margin: 0; }
+#app > .temper-home > .temper-home-intro { display: flex; flex-direction: column; gap: 16px; }
+#app > .temper-home .temper-home-kicker { margin: 0; font-size: 13px; color: var(--gf-muted); }
+#app > .temper-home h1 { margin: 0; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
+#app > .temper-home .temper-home-lede { margin: 0; font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
+#app > .temper-home > section { display: flex; flex-direction: column; gap: 14px; }
+#app > .temper-home > section > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+/* To begin: numbered steps, each ticked once done. */
+#app > .temper-home .temper-home-steps { display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 1px solid var(--gf-line); list-style: none; counter-reset: temper-home-step; }
+#app > .temper-home .temper-home-steps > li { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 12px; padding: 18px 4px; border-bottom: 1px solid var(--gf-line); counter-increment: temper-home-step; }
+#app > .temper-home .temper-home-steps > li::before { content: counter(temper-home-step); grid-column: 1; grid-row: 1 / span 3; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; color: var(--gf-muted); }
+#app > .temper-home .temper-home-steps > li.temper-home-done::before { content: '✓'; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
+#app > .temper-home .temper-home-steps > li > * { grid-column: 2; }
+#app > .temper-home .temper-home-steps h3 { margin: 0; font: 500 16px/1.6 var(--gf-sans); color: var(--gf-ink); }
+#app > .temper-home .temper-home-steps > li.temper-home-done h3 { color: var(--gf-muted); font-weight: 400; }
+#app > .temper-home .temper-home-steps > li > p { margin: 2px 0 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-home .temper-home-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+#app > .temper-home .temper-home-acts > :is(a, button) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); text-decoration: none; }
+#app > .temper-home .temper-home-acts > :is(a, button):hover { border-color: #b4b4ae; }
+#app > .temper-home .temper-home-acts > .temper-home-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-home .temper-home-acts > .temper-home-primary:hover { background: #000; }
+#app > .temper-home .temper-home-acts > .temper-home-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+#app > .temper-home .temper-home-acts > .temper-home-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
+/* Connected: a line each, its act at the right. */
+#app > .temper-home .temper-home-lines { display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 1px solid var(--gf-line); list-style: none; }
+#app > .temper-home .temper-home-lines > li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-home .temper-home-lines > li > p { margin: 0; color: var(--gf-ink); }
+#app > .temper-home .temper-home-lines .temper-home-muted { color: var(--gf-muted); }
+#app > .temper-home .temper-home-lines > li > :is(a, button) { flex: none; padding: 0; border: 0; background: none; color: var(--gf-faint); font: 13px/1.6 var(--gf-sans); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-home-lines > li > :is(a, button):hover { text-decoration-color: var(--gf-ink); }
+
+@media (max-width: 760px) {
+  #app > .temper-home { padding: 8px 20px 112px; gap: 32px; }
+  #app > .temper-home > .temper-home-intro { gap: 10px; }
+  #app > .temper-home h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
+  #app > .temper-home .temper-home-lede { font-size: 15.5px; }
+}
