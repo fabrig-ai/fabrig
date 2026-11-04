@@ -162,3 +162,13 @@ fn small_is_unchanged() {
     assert_eq!(tasks.result_bytes, 512);
     assert_eq!(limits.store.store.value, 2_166_900);
 }
+
+#[test]
+fn profiles_retain_a_day_of_deciding_answers_with_fivefold_room() {
+    for selected in [Profile::Small, Profile::Standard] {
+        let people = profile(selected).core.people;
+        // Twenty conversations each: create, three messages, decide. Fivefold headroom.
+        assert_eq!(people.requests, people.people * 20 * 5 * 5);
+        assert_eq!(people.request_retention, skein_lib::Duration::from_secs(86_400));
+    }
+}
