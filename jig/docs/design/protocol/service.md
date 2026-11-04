@@ -599,3 +599,73 @@ and feeds the answer back.
 - **Reads for an owner's diagnostics and tests:** whether it has opened,
   the effects waiting, whether it holds an event, and the component, for
   what the component reports of itself. None of them formats a value.
+
+### 11.2 The worker's agents
+
+`jig-protocol-worker-agents` holds two parts of a worker's protocol
+layer: `sources`, a component, and `route`, functions that keep no
+state. Both speak the hub's values and smith's, and neither names a
+root.
+
+- **One answer per call.** The program sources run one command at a
+  time, so each of `start`, `from_io` and `fire` returns the owner and
+  the answer it settled, if any, and the service pushes it as its root's
+  event in the same pass.
+- **A name smith refuses is an answer.** `start` checks a source's name
+  against smith's grammar; a name it refuses answers `Unconfigured`, and
+  no command runs.
+- **How settings name a program is the service's.** `Resources::new`
+  takes smith's `Programs`, the environment and the bound on a path,
+  which is a value. Each service keeps one small function from its
+  settings to `Resources`.
+- **The route takes smith's values and the hub's,** and gives them back,
+  or `route`'s own: `Invalid`, what of a start did not decode, and
+  `Processed`, an agent process's event as a live piece or as smith's
+  process event. A worker's root hands its payloads out in its own
+  enums, in a domain crate, and `jig-domain-host` links no smith, so
+  each service keeps a few lines matching those enums onto the route.
+- **A delivery's evidence is a value.** The application keeps it and
+  says what it must say (`channel.md`, 6.2), and `decode` takes that as
+  `Evidence`: `Text`, where the bytes are a receipt's or a refusal's
+  words, or `Reply`, where they are smith's `DeliveryReply`, which must
+  decode and agree with the outcome the core kept. `evidence` makes
+  that check alone. `decode` reports the first thing that fails in the
+  start's order: the charter, the transcript, then each answered call,
+  so a delivery's evidence is checked in its place.
+
+### 11.3 The workers' side
+
+`jig_protocol_engine_workers::host::Workers` holds the channel
+component, the workers' listeners and their accepted sockets, behind
+one owner's calls. The owner makes it from the engine's configuration,
+its private files, a payload version and `Tokens`, the namespaces of
+the listeners' and the connections' tokens, and drains `io` as it
+drains every component's. This `host` is the one module of the channel's
+crate that reads configuration.
+
+- **The root's events are pulled.** After every call that moves the
+  component (`down`, `up`, `iterate`, `close`, `abort`) the owner reads
+  `pending` and calls `output` that many times, before anything else in
+  its pass. Each call takes one of the component's requests, in order.
+  `output` does itself what needs no owner: an io request joins `io`, a
+  socket is bound or forgotten, the component's close is noted, and it
+  returns `None` for those. `Hello`, `Up` and `Lost` come out as
+  `Output`, and the owner routes each before it asks for the next, so
+  its root sees the component's order. An `Up` keeps its parts' bytes:
+  the owner decodes them or drops them.
+- **A grant's value comes in.** The table of values is the application's.
+  `grants` names the grants a `LinkDown` carries; the owner looks up
+  each, in order, and hands `down` the finished `Event::Down`, one slot
+  per grant. An assignment is the owner's whole: it encodes one the same
+  way.
+- **What a lost listener means is the owner's.** `up` returns `Seen`:
+  `Taken`, `Unknown` for an event the host has no use for, or
+  `ListenerClosed`, which says whether the host was already ending. An
+  owner may stop its engine on a listener it did not close, or carry on.
+- **Closing.** `close` closes the listeners and drains the component;
+  `abort` aborts them. A listener that opens after either is closed or
+  aborted at once. `closed` holds once the component has closed, no
+  socket or listener is left and `io` is empty.
+- **The bound address.** The host keeps each listener's configured
+  address, for the owner's report of a lost one, and the address last
+  bound, in `listening`, until the owner takes it.
