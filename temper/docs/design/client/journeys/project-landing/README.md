@@ -17,3 +17,11 @@ been replaced with a Home recording.
 
 - `01.html`: the welcome, as the kept recording ends; it does not show
   the intended project's Home or the fresh walk's blocked Ready page.
+
+The `project-home` look request draws Home in Hello, with `work/hello`
+adopted. It cannot equal this Welcome print while the walk is blocked.
+`temper-client-gallery` draws the Home implementation through its
+`home-three-left`, `home-two-left`, `home-one-left`, `home-ready`,
+`home-adopting`, `home-refused`, `home-no-repository` and `home-github`
+states. They are hand-made deliveries to the client, not a recording
+of the box. The recording gap is `../../journeys.status.md`, 9.

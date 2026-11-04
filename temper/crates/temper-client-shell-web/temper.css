@@ -1505,7 +1505,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app:has(> .temper-rail) > .temper-rail { grid-column: 1; grid-row: 1; }
   #app:has(> .temper-rail) > :is(main, section.temper-accounts) { grid-column: 1; }
   #app:has(> .temper-rail) { grid-template-rows: auto auto auto minmax(0, 1fr); }
-  #app:has(> .temper-rail) > main { grid-row: 4; padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  #app:has(> .temper-rail) > main { grid-row: 4; }
+  #app:has(> .temper-rail) > main:where(:not(.temper-home)) { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   #app:has(> .temper-rail) .temper-sidebar { top: auto; height: auto; }
   #app:has(> .temper-rail):has(> .temper-chat) { grid-template-rows: auto auto auto minmax(0, 1fr); padding-bottom: calc(63px + env(safe-area-inset-bottom)); }
   #app:has(> .temper-rail) > .temper-chat { grid-row: 4; padding-bottom: 0; }

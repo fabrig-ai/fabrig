@@ -1145,7 +1145,9 @@ keeps (`../protocol/configuration.md`, section 2).
   no such project in `me`, it says "Project N is not one of yours.", N
   the address's number, and the chats' link. One column of prose, in
   this order:
-  - *Its intro:* a kicker, the project's name; the headline, the level-1
+  - *Its intro:* a kicker, the current day and time, updated each minute
+    (the user's answer to `home-age-and-ci` in
+    `temper/docs/plan/look-round-3/plan.toml`); the headline, the level-1
     heading, by what To begin leaves: "You’re set up. Nothing has run
     yet." with three steps left, "Two things left to begin with.", "One
     thing left to begin with.", then "PROJECT is ready for work."; the
@@ -1157,8 +1159,8 @@ keeps (`../protocol/configuration.md`, section 2).
     repository* says so.
   - *To begin,* a level-2 heading and three numbered steps, each a
     level-3 heading, a line and its acts. Done, a step's number is a
-    green tick, its heading muted and regular, and its acts go, by
-    style alone (`temper-home-done`).
+    green tick and its heading muted and regular (`temper-home-done`);
+    its acts go.
     1. "Tell temper how you work", "In your own words: how you plan,
        review and land work. temper proposes how it will run that, and
        nothing changes until you accept.", with "Start", the act of *The
@@ -1167,7 +1169,8 @@ keeps (`../protocol/configuration.md`, section 2).
        cannot read that document sees it not done.
     2. The repository, in the first state that holds: adopted (a row's
        `repositories` names the project), done, "ORG/NAME is in
-       PROJECT", "Chats can change its code now.", ORG/NAME the project's
+       PROJECT", "temper can change its code now; checked changes land
+       on main through temper's merge queue.", ORG/NAME the project's
        first adopted (5.3); while Ready's adoption is out, not done, with
        no acts, "Adopting ORG/NAME into PROJECT", "Chats can change its
        code once it is in."; with a first repository to adopt, not done,
@@ -2335,6 +2338,8 @@ while the watch is refused, ended or not delivered. A long name is cut
 with an ellipsis before its count, never the count. `me` does not say
 which repository is a project's home (4.4), so its first adopted, the
 first its rows list on the forge numbered lowest, stands in for it.
+The repositories in a row follow the forge's repository ids ascending,
+not the time they were adopted.
 With no home known, "3 repositories" is the row's words; the stand-in
 leaves that state unreached until the client is given the home. In the
 terminal a row reads "PROJECT · work/hello", one run of words. Choosing
@@ -4588,9 +4593,12 @@ own tests:
   user's, each a new fact of a protocol): the user's greenfield mock's
   kicker says "PROJECT · made just now" and its repository's step "its
   CI ran on main and passed.". No client is given when a project was
-  made, nor a repository's CI outside a change. Default: the kicker
-  names the project alone, and the step says "Chats can change its code
-  now." alone.
+  made, nor a repository's CI outside a change. The user's answer to
+  `home-age-and-ci` in `temper/docs/plan/look-round-3/plan.toml` keeps
+  both facts out of the protocol: the kicker is the current day and
+  time, and the step says "temper can change its code now; checked
+  changes land on main through temper's merge queue.". Supplying a
+  creation age or a first CI result needs its own protocol decision.
 - **The mockups' question card:** the asker's lineage and its link
   ("Open T3 ↗"), and choices as buttons beside "Answer in words"
   (`world-solo.js`). jig's question carries words alone, so choices
