@@ -90,7 +90,7 @@ pub const SHIPPED: Limits = Limits {
 pub fn worst_case(kind: Kind, limits: &Limits) -> Option<u64> {
     let own = decode::worst_case(&Limits { key: key(kind, limits), ..*limits })?;
     let inputs = match kind {
-        Kind::Resolution => List::<Item>::worst_case(limits.resolution.inputs)?,
+        Kind::Resolution => List::<Item>::price(limits.resolution.inputs)?,
         Kind::Store | Kind::Layer | Kind::Tree | Kind::CacheFile => 0,
     };
     // A body is read whole, but a tree file's reader keeps the last path.
@@ -122,18 +122,18 @@ pub fn held(kind: Kind, limits: &Limits) -> Option<u64> {
     let lists = match kind {
         Kind::Store => return Some(0),
         Kind::CacheFile => 0,
-        Kind::Layer => List::<Digest>::worst_case(limits.layer.placed)?
-            .checked_add(List::<Tool>::worst_case(limits.layer.tools)?)?
-            .checked_add(List::<Step>::worst_case(limits.layer.steps)?)?,
-        Kind::Tree => List::<Xattr>::worst_case(tree::XATTRS)?
-            .checked_add(List::<Kernel>::worst_case(limits.tree.kernels)?)?
+        Kind::Layer => List::<Digest>::price(limits.layer.placed)?
+            .checked_add(List::<Tool>::price(limits.layer.tools)?)?
+            .checked_add(List::<Step>::price(limits.layer.steps)?)?,
+        Kind::Tree => List::<Xattr>::price(tree::XATTRS)?
+            .checked_add(List::<Kernel>::price(limits.tree.kernels)?)?
             .checked_add(u64::from(limits.tree.item))?,
         Kind::Resolution => {
-            let line = List::<Box<[u8]>>::worst_case(l.inputs)?.checked_add(List::<Index>::worst_case(l.indices)?)?;
-            List::<Package>::worst_case(l.packages)?
-                .checked_add(List::<Line>::worst_case(l.lines)?)?
+            let line = List::<Box<[u8]>>::price(l.inputs)?.checked_add(List::<Index>::price(l.indices)?)?;
+            List::<Package>::price(l.packages)?
+                .checked_add(List::<Line>::price(l.lines)?)?
                 .checked_add(u64::from(l.lines).checked_mul(line)?)?
-                .checked_add(List::<Item>::worst_case(l.inputs)?)?
+                .checked_add(List::<Item>::price(l.inputs)?)?
         }
     };
     match kind {

@@ -413,7 +413,7 @@ pub(crate) fn cost(charter: &Charter) -> Option<u64> {
         cost = cost.checked_add(len(effort)?)?;
     }
     let section_bytes = u64::try_from(size_of::<Section>()).ok()?;
-    let sections = u64::try_from(charter.brief.sections.len()).ok()?;
+    let sections = skein_lib::len_u64(charter.brief.sections.len());
     cost = cost.checked_add(sections.checked_mul(section_bytes)?)?;
     for section in &charter.brief.sections {
         cost = cost.checked_add(len(&section.title)?)?.checked_add(len(&section.text)?)?;
@@ -483,8 +483,9 @@ pub(crate) fn count(len: usize) -> u32 {
     u32::try_from(len).unwrap_or(u32::MAX)
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "retains the private accounting signature across its callers")]
 pub(crate) fn len(bytes: &[u8]) -> Option<u64> {
-    u64::try_from(bytes.len()).ok()
+    Some(skein_lib::len_u64(bytes.len()))
 }
 
 /// Smith-owned tool names that a host declaration cannot take (smith/docs/design/domain/run.md, section 5.1).

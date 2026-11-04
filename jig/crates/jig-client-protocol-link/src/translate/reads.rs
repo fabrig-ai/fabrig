@@ -33,6 +33,7 @@ pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
                 field: match field {
                     c::TaskTextField::Specification => w::TaskTextField::Specification,
                     c::TaskTextField::Instructions => w::TaskTextField::Instructions,
+                    c::TaskTextField::Result => w::TaskTextField::Result,
                 },
                 from: *from,
             },
@@ -227,6 +228,7 @@ fn task_text(value: w::TaskText, limits: &Limits) -> Result<c::TaskText, Undecod
         field: match value.field {
             w::TaskTextField::Specification => c::TaskTextField::Specification,
             w::TaskTextField::Instructions => c::TaskTextField::Instructions,
+            w::TaskTextField::Result => c::TaskTextField::Result,
         },
         from: value.from,
         total: value.total,

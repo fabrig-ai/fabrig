@@ -39,10 +39,29 @@ pub fn bundle() -> crate::server::Bundle {
         files,
     }
 }
-pub fn serving(bundle: crate::server::Bundle) -> crate::server::Server {
-    let mut server = server();
-    server.serve(bundle);
-    server
+pub struct Serving {
+    server: crate::server::Server,
+    pages: crate::server::Pages,
+}
+impl Default for Serving {
+    fn default() -> Self {
+        Self {
+            server: server(),
+            pages: crate::server::Pages::new(
+                &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+            ),
+        }
+    }
+}
+impl Serving {
+    pub fn route(&self, head: &skein_http::server::Call) -> crate::server::Answer {
+        self.pages.route(head)
+    }
+}
+pub fn serving(bundle: crate::server::Bundle) -> Serving {
+    let mut serving = Serving::default();
+    serving.pages.serve(bundle);
+    serving
 }
 pub const REFERENCE_POLICY: &[u8] = b"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 pub const POLICY_FIELDS: &[(&[u8], &[u8])] = &[
@@ -69,16 +88,24 @@ impl ServerResponse {
     }
 }
 
-pub fn answer(server: &mut crate::server::Server, request: &[u8]) -> ServerResponse {
+pub fn answer(serving: &mut Serving, request: &[u8]) -> ServerResponse {
+    let server = &mut serving.server;
     let mut out = Queue::with_capacity(128);
     server.up(listening(), &mut out);
     server.up(accepted(server::SOCKET), &mut out);
     server_drain(server, &mut out);
     while out.pop().is_some() {} // server_bytes grants the initial response reservation.
     server_bytes(server, &mut out, request);
-    wire_response(server, &mut out)
+    pump(server, Some(&mut serving.pages), &mut out)
 }
 pub fn wire_response(server: &mut crate::server::Server, out: &mut Queue<crate::server::Routed>) -> ServerResponse {
+    pump(server, None, out)
+}
+fn pump(
+    server: &mut crate::server::Server,
+    mut pages: Option<&mut crate::server::Pages>,
+    out: &mut Queue<crate::server::Routed>,
+) -> ServerResponse {
     use crate::server::Routed;
     use skein_lib::stream::{Down, Up};
     let limits = crate::limits::profile_limits(jig_protocol_config::Profile::Small).server.http;
@@ -96,8 +123,18 @@ pub fn wire_response(server: &mut crate::server::Server, out: &mut Queue<crate::
                     server.up(skein_io::Event::Stream { owner: server::OWNER, up: Up::Room }, out);
                 }
                 Routed::Io(skein_io::Request::Abort { .. }) => panic!("unexpected connection abort"),
-                Routed::Io(_) | Routed::Http { .. } => {}
-                Routed::Call { .. } => panic!("server forwarded its own route"),
+                Routed::Http { call, event } => {
+                    if let Some(pages) = pages.as_mut()
+                        && pages.owns(call)
+                    {
+                        pages.event(server, call, event, out);
+                    }
+                }
+                Routed::Call { call, head } => {
+                    let Some(pages) = pages.as_mut() else { panic!("server forwarded its own route") };
+                    pages.call(server, call, &head, pages.route(&head), out);
+                }
+                Routed::Io(_) => {}
             }
         } else if !advanced {
             break;

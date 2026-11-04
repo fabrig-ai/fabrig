@@ -28,10 +28,10 @@ impl Final {
         }
     }
 
-    pub(crate) fn note_bytes(&self) -> Option<u64> {
+    pub(crate) fn note_bytes(&self) -> u64 {
         match self {
-            Final::Pending(final_turn) => u64::try_from(final_turn.note.len()).ok(),
-            Final::Absent | Final::Answering { .. } => Some(0),
+            Final::Pending(final_turn) => skein_lib::len_u64(final_turn.note.len()),
+            Final::Absent | Final::Answering { .. } => 0,
         }
     }
 

@@ -31,4 +31,4 @@ focused suite.
 
 Move the `Harness` tests into the machine world as scenarios, keeping
 true step tests in the crate, and give the forge worlds one io harness.
-After D029, so the moved tests use the fake's own server.
+The moved tests use the fake's own server.

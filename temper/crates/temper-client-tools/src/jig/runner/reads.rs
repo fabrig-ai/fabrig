@@ -205,6 +205,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
 fn task_text_read(call: &Call) -> c::Read {
     let field = match value(call, 1) {
         Some(Value::Word(1)) => c::TaskTextField::Instructions,
+        Some(Value::Word(2)) => c::TaskTextField::Result,
         _ => c::TaskTextField::Specification,
     };
     c::Read::TaskText { task: number(call, 0).unwrap_or(0), field, from: number(call, 2).unwrap_or(0) }

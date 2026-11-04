@@ -255,7 +255,7 @@ pub(crate) fn job_problem_bound() -> Option<u64> {
     let mut largest = 0;
     for problem in [llm::Problem::JobsFull { jobs: u32::MAX }, llm::Problem::UnknownJob { job: u32::MAX }] {
         let rendered = self::problem(problem, u32::MAX).ok()?;
-        largest = largest.max(u64::try_from(rendered.len()).ok()?);
+        largest = largest.max(skein_lib::len_u64(rendered.len()));
     }
     Some(largest)
 }

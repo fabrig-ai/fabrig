@@ -40,7 +40,7 @@ pub(crate) fn request(
         tools::Op::Store { at, content, expect } => {
             check(roots, limits, at.root, &at.path, true)?;
             if content.len() > usize::try_from(limits.file_bytes).expect("u32 fits usize") {
-                return Err(tools::Done::TooLarge { size: u64::try_from(content.len()).unwrap_or(u64::MAX) });
+                return Err(tools::Done::TooLarge { size: skein_lib::len_u64(content.len()) });
             }
             let expected = match expect {
                 tools::Expect::Absent => match directory_end(&at.path) {

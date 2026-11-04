@@ -380,14 +380,14 @@ fn a_too_linked_read_keeps_its_bound_after_decoding() {
 #[test]
 fn source_text_reads_keep_offsets_and_reject_false_continuations() {
     let limits = fixtures::limits();
-    let field = c::TaskTextField::Instructions;
+    let field = c::TaskTextField::Result;
     let w::Read::TaskText(read) =
         translate::reads::read(&c::Read::TaskText { task: 7, field, from: 127 }, limits.wire()).unwrap()
     else {
         panic!("source read")
     };
     assert_eq!(read.from(), 127);
-    assert_eq!(read.field(), &w::TaskTextField::Instructions);
+    assert_eq!(read.field(), &w::TaskTextField::Result);
     for (from, total, next, text, valid) in [
         (127, 130, None, "éZ", true),
         (127, 131, Some(130), "éZ", true),
@@ -402,7 +402,7 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
                 limits.wire(),
                 w::TaskTextParts {
                     task: 7,
-                    field: w::TaskTextField::Instructions,
+                    field: w::TaskTextField::Result,
                     from,
                     total,
                     next,

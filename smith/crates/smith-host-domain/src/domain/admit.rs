@@ -119,9 +119,9 @@ fn answered_bytes(calls: &[AnsweredCall], name_bytes: u32) -> Option<u64> {
         if call.tool.is_empty() || !within(&call.tool, u64::from(name_bytes)) {
             return None;
         }
-        total = total.checked_add(u64::try_from(call.tool.len()).ok()?)?;
+        total = total.checked_add(skein_lib::len_u64(call.tool.len()))?;
         let reply = match &call.reply {
-            crate::SavedReply::Host { body, .. } => u64::try_from(body.len()).ok()?,
+            crate::SavedReply::Host { body, .. } => skein_lib::len_u64(body.len()),
             crate::SavedReply::Delivery(delivery) => match delivery.as_ref() {
                 Delivery::Delivered(delivered) => delivered.owned_bytes(),
                 Delivery::Refused(refusal) => refusal.owned_bytes(),

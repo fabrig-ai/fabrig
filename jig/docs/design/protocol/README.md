@@ -177,13 +177,14 @@ An application that mixes the last two has both.
 | `jig-protocol-engine-workers` | component | engine | workers' channels: opening, authentication, liveness, translation to and from the hub's vocabulary (`channel.md`) |
 | `jig-protocol-worker-link` | component | worker | the link: dialling, liveness, the grace's clock, relays across channels, translation to and from the hub's vocabulary, smith's payloads carried as bytes (`channel.md`) |
 | `jig-protocol-charter` | translation | engine | the core's charter put into smith's, as smith's bytes, and a run's result read back (`../domain/hosts.md`, section 8) |
+| `jig-protocol-worker-agents` | component | worker | the program sources and the worker route, between smith's host half and the channel (`service.md`, section 11) |
 | `jig-protocol-tools` | translation | engine | the core's host tools: their schemas and descriptions, their calls decoded into the core's typed requests, their answers rendered as text (`channel.md`, 6.3) |
 | `jig-protocol-accounts` | translation, table | engine | the accounts child's vocabulary to skein's accounts driver's and back, and the values lent, tokens and keys with their scheme (`llm.md`, section 5) |
 | `jig-protocol-config` | parsing | engine, worker | jig's part of a configuration, parsed and checked (`configuration.md`) |
 | `jig-protocol-store` | component, codecs | engine | jig's records and the application's on skein-kv, transcripts' files, the secrets' store (`store.md`) |
 | `jig-client-protocol-wire` | codecs | engine, client | jig's wire records, both ends, from schemas: jig's messages, their operations and compound requests, subjects and reads, documents, the stream's events, the small store's records (`client.md`, section 3) |
 | `jig-protocol-engine-clients` | component | engine | the clients' component: jig's messages from the application's transport, each with its credential as opaque bytes, and to it; a `Mint` from the application's server; streams and their pacing; credentials minted, verified, expired and revoked, the printed link's secret; the OpenID provider's codes and access tokens (`client.md`, section 18); translation to and from the core's vocabulary. No HTTP, path, cookie or listener (`client.md`, 4.2) |
-| `jig-protocol-engine-clients-http` | mapping | engine | the default HTTP mapping's engine end: its routes under the prefix the application mounts it at, the stream as server-sent events, the credential as a cookie or a bearer, and the example guards (`client.md`, section 17; `browser.md`, 12.2) |
+| `jig-protocol-engine-clients-http` | mapping | engine | the default HTTP mapping's engine end: its routes under the prefix the application mounts it at, the stream as server-sent events, the credential as a cookie or a bearer, and the example guards (`client.md`, section 17; `browser.md`, 12.2), and the server part an application builds its listener on (`service.md`, 11.4) |
 | `jig-client-protocol-link` | component | client | jig's messages encoded and decoded, the stream's events, the small store's records; no HTTP (`client.md`, 4.3) |
 | `jig-client-protocol-http` | mapping | client | the default HTTP mapping's client end: a message as a method, a path, headers and a body; the stream's server-sent events cut into events; for the host and wasm32 (`client.md`, 17.4) |
 | `jig-protocol-transcript` | decoding | engine, client | turns' bytes into the client's vocabulary (`../client/domain/client.md`, section 10) |
@@ -210,10 +211,13 @@ processes (smith's `protocol/hosts.md`, sections 2 and 3).
   drives, its codec crate, and the domain vocabulary it translates: the
   hub's for the channel's sides, the core's (or a child's) for the
   engine's others. None depends on an application's crate, and none names
-  a system.
-- **Which crates link smith.** Of jig's, only `jig-protocol-charter` and
-  the client's decoding of turns; `jig-protocol-tools` gives its schemas
-  as bytes the charter declares. The application links the rest where it
+  a system. A host of `service.md`, section 11, reads jig's configuration
+  too.
+- **Which crates link smith.** Of jig's, only `jig-protocol-charter`,
+  `jig-protocol-worker-agents`, which an application whose workers run no
+  agents leaves out, and the client's decoding of turns;
+  `jig-protocol-tools` gives its schemas as bytes the charter declares.
+  The application links the rest where it
   composes them: its root, the agent capability; its protocol layer,
   smith's components and smith's codecs.
 
@@ -221,12 +225,12 @@ processes (smith's `protocol/hosts.md`, sections 2 and 3).
 
 | Part | In | Written |
 |---|---|---|
-| the protocol layer's routing: io's tokens, events to the root, outputs to components, values between components, timers, smith's payloads decoded and encoded with smith's codec functions | each process | copied from the reference service (`service.md`, section 7) |
+| the protocol layer's routing: io's tokens, events to the root, outputs to components, values between components, timers, smith's payloads decoded and encoded with smith's codec functions | each process | copied from the reference service (`service.md`, section 7), around jig's service parts (`service.md`, section 11) |
 | `iterate` and `main` | each process | copied from the reference service and the reference binary, `jig-test` |
 | an `agent` command, smith's agent shell, if its workers run agent processes from its own binary | the binary | copied from the reference binary (`service.md`, section 7) |
 | its configuration's own members, and their parsing | each process | its own |
 | its connectors' protocols: their systems' clients, credentials, and webhooks, on a listener of each connector's own at an address its configuration names, or on its server's, routed by path (section 13) | the engine | its own |
-| its server: the clients' listener, its TLS, its routes and its URL space; its own pages, bundle and API; jig's clients' component, mounted under any prefix it chooses, since jig reserves no path; every HTTP and browser guard, jig's example guards as they are, wrapped, or its own | the engine | its own, after the reference service's (`service.md`, section 7; `browser.md`, section 12) |
+| its server: the clients' listener, on jig's server part (`service.md`, 11.4), its TLS, its routes and its URL space; its own pages, bundle and API; jig's clients' component, mounted under any prefix it chooses, since jig reserves no path; every HTTP and browser guard, jig's example guards as they are, wrapped, or its own | the engine | its own, after the reference service's (`service.md`, section 7; `browser.md`, section 12) |
 | its transport: jig's messages carried between `jig-client` and the clients' component, each with its credential: jig's default HTTP mapping, as it is or wrapped, or its own (a local socket, an in-process channel) | engine and client | jig's default mapping, or its own (`client.md`, section 17) |
 | its sign-in: every way of signing in but the printed link and services' credentials (OAuth, a directory, a chat platform's identity), on its own routes, redirects included, with its settings and secrets; the identity it verified, handed to the clients' component in a `Mint`, from its server code alone; how the minted credential travels | the engine, the client | its own (`client.md`, section 8) |
 | its presentation: its routes and screens, words and look, confirmations and drafts, home and navigation, on `jig-client` and jig's helpers if they suit, with skein's UI kit, anything else, or nothing; or jig's reference UI, `jig-client-view`, as `ops` and jig's test application use it | the client | its own (`../client/domain/`) |

@@ -472,7 +472,10 @@ pub(crate) fn call_payload_answer(payload: forge::CallPayload) -> CallAnswer {
     }
 }
 
-#[expect(clippy::result_large_err, reason = "a refused answer returns to its caller whole")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::result_large_err, reason = "a refused answer returns to its caller whole")
+)]
 pub(crate) fn keep_connector_answer(
     domain: &mut Domain,
     key: crate::CallKey,

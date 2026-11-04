@@ -75,7 +75,7 @@ impl Harness {
     fn connect(&mut self) {
         self.listen();
         self.accept(SOCKET);
-        let line = json::join(&[self.server.secret(), b"\n"]);
+        let line = skein_lib::bytes::concat(&[self.server.secret(), b"\n"]);
         self.event(io::Event::Stream { owner: OWNER, up: stream::Up::Bytes(line) });
         self.acknowledge();
     }
@@ -109,7 +109,10 @@ impl Harness {
         assert_eq!(bytes.as_ref(), ACK);
     }
     fn message(&mut self, message: &[u8]) {
-        self.event(io::Event::Stream { owner: OWNER, up: stream::Up::Bytes(json::join(&[message, b"\n"])) });
+        self.event(io::Event::Stream {
+            owner: OWNER,
+            up: stream::Up::Bytes(skein_lib::bytes::concat(&[message, b"\n"])),
+        });
     }
     fn response(&mut self) -> Value {
         for _ in 0_u8..20 {
@@ -212,7 +215,10 @@ fn the_first_authenticated_connection_closes_the_listener() {
     h.accept(SOCKET);
     h.accept(Token::new(102));
     drain(&mut h.below);
-    h.event(io::Event::Stream { owner: OWNER, up: stream::Up::Bytes(json::join(&[h.server.secret(), b"\n"])) });
+    h.event(io::Event::Stream {
+        owner: OWNER,
+        up: stream::Up::Bytes(skein_lib::bytes::concat(&[h.server.secret(), b"\n"])),
+    });
     let requests = drain(&mut h.below);
     assert!(requests.contains(&io::Request::Close { entity: LISTENER }));
     assert!(requests.contains(&io::Request::Abort { entity: Token::new(102) }));
@@ -474,7 +480,7 @@ fn a_tool_schema_is_bounded_before_listening() {
         _ => false,
     });
     let mut oversized = tool();
-    oversized.input_schema = json::join(&[&oversized.input_schema, b" "]);
+    oversized.input_schema = skein_lib::bytes::concat(&[&oversized.input_schema, b" "]);
     let _refusal =
         Server::new(FIRST, 0, &[7; 32], Box::new([oversized]), Limits { schema_bytes, ..limits() }, &mut below)
             .expect_err("valid schema one byte past its bound");

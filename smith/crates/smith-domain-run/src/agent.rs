@@ -152,7 +152,7 @@ pub(crate) fn yielded(call: &mut Child, text: &[u8], stop: Stop, limits: &Limits
         Child::Working { child } => {
             let max = usize::try_from(limits.answer_bytes).expect("a u32 fits in a usize");
             let kept = text.get(..max).unwrap_or(text);
-            let cut = u64::try_from(text.len().saturating_sub(kept.len())).expect("a usize fits in a u64");
+            let cut = skein_lib::len_u64(text.len().saturating_sub(kept.len()));
             (Child::Answering { child, text: copy_of(kept), cut, stop }, Some(child))
         }
         // Stopped already, and being closed.

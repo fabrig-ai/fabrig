@@ -208,8 +208,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     // This is 1.5 times the shipped file cap, including its replacement.
     let regrowth = output.checked_add(output.saturating_sub(1).checked_next_power_of_two()?.checked_div(2)?)?;
     super::worst_case(limits)?
-        .checked_add(skein_lib::Stack::<frame::Frame<'_>>::worst_case(limits.statements)?)?
-        .checked_add(List::<super::Binding<'_>>::worst_case(bindings)?)?
+        .checked_add(skein_lib::Stack::<frame::Frame<'_>>::price(limits.statements)?)?
+        .checked_add(List::<super::Binding<'_>>::price(bindings)?)?
         .checked_add(regrowth)?
         .checked_add(limits.made)
 }

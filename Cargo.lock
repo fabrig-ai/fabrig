@@ -340,6 +340,318 @@ dependencies = [
 ]
 
 [[package]]
+name = "hearth"
+version = "0.0.0"
+dependencies = [
+ "hearth-builder-world",
+ "hearth-client-protocol-records",
+ "hearth-protocol-git",
+ "hearth-service-builder",
+ "libc",
+ "skein-fail-stop",
+ "skein-io",
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+]
+
+[[package]]
+name = "hearth-accounts-world"
+version = "0.0.0"
+dependencies = [
+ "hearth-protocol-accounts",
+ "skein-heap",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-builder-world"
+version = "0.0.0"
+dependencies = [
+ "hearth",
+ "hearth-domain-builder",
+ "hearth-domain-render",
+ "hearth-domain-store",
+ "hearth-fake-git",
+ "hearth-fake-machine",
+ "hearth-fake-mmdebstrap",
+ "hearth-lib",
+ "hearth-protocol-builder",
+ "hearth-protocol-config",
+ "hearth-protocol-template",
+ "hearth-protocol-tree",
+ "hearth-recordings",
+ "hearth-render-world",
+ "hearth-test-mirror",
+ "skein-heap",
+ "skein-io",
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+ "skein-sim",
+ "skein-world",
+]
+
+[[package]]
+name = "hearth-client-protocol-records"
+version = "0.0.0"
+dependencies = [
+ "skein-json",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-config-world"
+version = "0.0.0"
+dependencies = [
+ "hearth-protocol-config",
+ "skein-heap",
+ "skein-json",
+ "skein-lib",
+ "skein-scratch",
+ "skein-world",
+]
+
+[[package]]
+name = "hearth-conformance-world"
+version = "0.0.0"
+dependencies = [
+ "hearth-fake-git",
+ "hearth-fake-machine",
+ "hearth-fake-mmdebstrap",
+ "hearth-git-world",
+ "hearth-protocol-git",
+ "hearth-protocol-mmdebstrap",
+ "hearth-recordings",
+ "hearth-test-mirror",
+ "skein-lib",
+ "skein-scratch",
+]
+
+[[package]]
+name = "hearth-domain-build"
+version = "0.0.0"
+dependencies = [
+ "hearth-lib",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-domain-builder"
+version = "0.0.0"
+dependencies = [
+ "hearth-domain-build",
+ "hearth-domain-render",
+ "hearth-domain-store",
+ "hearth-lib",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-domain-render"
+version = "0.0.0"
+dependencies = [
+ "hearth-lib",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-domain-store"
+version = "0.0.0"
+dependencies = [
+ "hearth-lib",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-domain-tree"
+version = "0.0.0"
+dependencies = [
+ "hearth-lib",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-fake-git"
+version = "0.0.0"
+dependencies = [
+ "hearth-fake-machine",
+ "sha1",
+]
+
+[[package]]
+name = "hearth-fake-machine"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "skein-sim",
+ "skein-world",
+]
+
+[[package]]
+name = "hearth-fake-mmdebstrap"
+version = "0.0.0"
+dependencies = [
+ "hearth-fake-machine",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-git-world"
+version = "0.0.0"
+dependencies = [
+ "hearth-protocol-git",
+ "hearth-recordings",
+ "skein-heap",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
+name = "hearth-lib"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-mmdebstrap-world"
+version = "0.0.0"
+dependencies = [
+ "hearth-protocol-mmdebstrap",
+ "hearth-recordings",
+ "hearth-test-mirror",
+ "skein-heap",
+ "skein-lib",
+ "skein-scratch",
+ "skein-world",
+]
+
+[[package]]
+name = "hearth-protocol-accounts"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-protocol-builder"
+version = "0.0.0"
+dependencies = [
+ "hearth-client-protocol-records",
+ "hearth-domain-builder",
+ "hearth-lib",
+ "hearth-protocol-config",
+ "hearth-protocol-git",
+ "hearth-protocol-mmdebstrap",
+ "hearth-protocol-template",
+ "hearth-protocol-tree",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-protocol-config"
+version = "0.0.0"
+dependencies = [
+ "skein-json",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-protocol-git"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-protocol-mmdebstrap"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-protocol-template"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-protocol-tree"
+version = "0.0.0"
+dependencies = [
+ "hearth-lib",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-recordings"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+]
+
+[[package]]
+name = "hearth-render-world"
+version = "0.0.0"
+dependencies = [
+ "hearth-config-world",
+ "hearth-domain-render",
+ "hearth-lib",
+ "hearth-protocol-builder",
+ "hearth-protocol-config",
+ "hearth-protocol-template",
+ "minijinja",
+ "skein-heap",
+ "skein-lib",
+ "skein-scratch",
+ "skein-world",
+]
+
+[[package]]
+name = "hearth-service-builder"
+version = "0.0.0"
+dependencies = [
+ "hearth-domain-builder",
+ "hearth-protocol-builder",
+ "skein-io",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-template-world"
+version = "0.0.0"
+dependencies = [
+ "hearth-protocol-template",
+ "skein-heap",
+ "skein-lib",
+ "skein-scratch",
+]
+
+[[package]]
+name = "hearth-test-mirror"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+]
+
+[[package]]
+name = "hearth-tree-world"
+version = "0.0.0"
+dependencies = [
+ "hearth-domain-tree",
+ "hearth-lib",
+ "hearth-protocol-tree",
+ "skein-heap",
+ "skein-lib",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1284,10 +1596,12 @@ name = "jig-protocol-accounts"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
+ "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
  "skein-http",
  "skein-io",
+ "skein-kv",
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
@@ -1393,6 +1707,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-protocol-engine-clients",
  "skein-http",
+ "skein-io",
  "skein-lib",
 ]
 
@@ -1401,6 +1716,7 @@ name = "jig-protocol-engine-workers"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-protocol-config",
  "jig-protocol-worker-wire",
  "skein-channel",
  "skein-codec",
@@ -1454,6 +1770,21 @@ dependencies = [
  "jig-client-domain",
  "skein-lib",
  "smith-transcript",
+]
+
+[[package]]
+name = "jig-protocol-worker-agents"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-host",
+ "skein-io",
+ "skein-lib",
+ "smith-channel",
+ "smith-domain-run",
+ "smith-host-domain",
+ "smith-host-protocol",
+ "smith-protocol-channel",
+ "smith-protocol-program",
 ]
 
 [[package]]
@@ -1686,6 +2017,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-tools",
+ "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "jig-test-connector",
@@ -1700,12 +2032,10 @@ dependencies = [
  "skein-json",
  "skein-kv",
  "skein-lib",
- "skein-oauth",
  "skein-oauth-accounts",
  "skein-world",
  "smith-channel",
  "smith-charter",
- "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
  "smith-host-protocol",
@@ -1862,6 +2192,23 @@ name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
+
+[[package]]
+name = "memo-map"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5449c8c750f1a07ea702bbd212bd999fceece9b3d1508b17023b3e174583124b"
+
+[[package]]
+name = "minijinja"
+version = "2.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2929e494b2280e1e18959bb2e121da03347ae896896fdfaceaab43c88a02803f"
+dependencies = [
+ "memo-map",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "num-conv"
@@ -2121,6 +2468,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7523beb55eece201a2356bee0bbca0d1ab466c14c07703b2e0ee6d42cb0c2c"
 dependencies = [
  "serde_core",
+]
+
+[[package]]
+name = "sha1"
+version = "0.10.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a978451301f4db1d02937a4ab3ccce137717b81826e79b7d49ffe3244a13c3b8"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
 ]
 
 [[package]]
@@ -3286,7 +3644,6 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-events",
- "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
@@ -3523,7 +3880,6 @@ dependencies = [
  "smith-local-process-world",
  "smith-local-service",
  "smith-local-shell",
- "smith-protocol-channel",
  "smith-protocol-program",
  "smith-protocol-translate",
 ]
@@ -3613,7 +3969,6 @@ dependencies = [
  "smith-host-domain",
  "smith-local-domain",
  "smith-local-protocol",
- "smith-protocol-channel",
  "smith-protocol-translate",
  "smith-transcript",
 ]
@@ -3689,7 +4044,6 @@ dependencies = [
  "smith-local-process-world",
  "smith-local-protocol",
  "smith-local-service",
- "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-program",
  "smith-protocol-translate",
@@ -3797,7 +4151,6 @@ dependencies = [
  "smith-domain-session",
  "smith-domain-tools",
  "smith-events",
- "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-translate",
@@ -3896,7 +4249,6 @@ dependencies = [
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
- "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-translate",
  "smith-tools-world",
@@ -5015,6 +5367,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-transcript",
+ "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "skein-channel",

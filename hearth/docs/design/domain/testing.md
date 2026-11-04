@@ -192,8 +192,8 @@ testing/mirror                      the local mirror's pin, its extras, its fetc
 tests/<name>                        hearth-<name>-world: one subject's domain and machine worlds (2.4)
 tests/system                        hearth-system-world: the system worlds (2.3)
 tests/client, tests/dev             the client's worlds, hearth-client-world and hearth-client-dev-world [M3, M3b]
-tests/*/tests/*.rs                  focused tests
-tests/*/tests/fuzzy_*.rs            fuzzy tests
+tests/*/tests/suite/*.rs            focused tests
+tests/*/tests/suite/fuzzy/*.rs      fuzzy tests
 tests/conformance/tests/*.rs        conformance (section 5)
 tests/real/tests/*.rs               real builds (section 6)
 tests/real/tests/boot.rs            the boot test (6.6)

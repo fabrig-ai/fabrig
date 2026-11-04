@@ -201,7 +201,7 @@ fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_r
             }))),
         ])
     }));
-    let _kept = store.above.pop().unwrap();
+    let _kept = store.host.above.pop().unwrap();
     let mut service = local_service(picker_config(), store);
     restore_local(&mut service);
     let engine = service.engine.as_mut().unwrap();

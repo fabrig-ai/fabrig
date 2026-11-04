@@ -84,9 +84,7 @@ pub fn feedback(returned: Returned, max_bytes: u64) -> Result<Feedback, Feedback
 }
 
 fn unchanged(text: Box<[u8]>, error: bool, max_bytes: u64) -> Result<Feedback, FeedbackRefusal> {
-    let Some(length) = u64::try_from(text.len()).ok() else {
-        return Err(FeedbackRefusal::TooLarge);
-    };
+    let length = skein_lib::len_u64(text.len());
     if length > max_bytes {
         return Err(FeedbackRefusal::TooLarge);
     }

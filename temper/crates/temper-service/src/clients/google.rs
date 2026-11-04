@@ -288,11 +288,11 @@ impl Google {
     pub(super) fn next_deadline(&self) -> Option<Time> {
         let mut next = None;
         for (_, pending) in &self.pending {
-            next = crate::accounts::earliest(next, Some(pending.deadline));
+            next = skein_lib::earliest(next, Some(pending.deadline));
         }
         for (_, fetch) in &self.fetches {
             if !fetch.web.closing() && !fetch.web.closed() {
-                next = crate::accounts::earliest(next, Some(fetch.web.deadline));
+                next = skein_lib::earliest(next, Some(fetch.web.deadline));
             }
         }
         next

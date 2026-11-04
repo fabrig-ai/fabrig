@@ -156,7 +156,7 @@ impl Backend {
                             Some(value) => document.token(value)?.kind == Kind::True,
                             None => false,
                         };
-                        if !self.reply_room(u64::try_from(text.len()).ok()?) {
+                        if !self.reply_room(skein_lib::len_u64(text.len())) {
                             return None;
                         }
                         self.ledger.get_mut(slot)?.answer =
@@ -227,14 +227,20 @@ pub(super) fn init_error(
                 }
             }
             if !granted {
-                return Some(json::join(&[b"smith: the program offers a built-in tool the run did not grant: ", name]));
+                return Some(skein_lib::bytes::concat(&[
+                    b"smith: the program offers a built-in tool the run did not grant: ",
+                    name,
+                ]));
             }
         }
         index = json::after(&document, index)?;
     }
     for (slot, tool) in policy::BUILTINS.iter().enumerate() {
         if tool.granted(grants) && !seen.get(slot).expect("six built-ins") {
-            return Some(json::join(&[b"smith: the program lacks a granted built-in tool: ", tool.name()]));
+            return Some(skein_lib::bytes::concat(&[
+                b"smith: the program lacks a granted built-in tool: ",
+                tool.name(),
+            ]));
         }
     }
     None

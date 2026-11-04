@@ -1,6 +1,6 @@
 # Status
 
-Updated 2026-10-26. How far hearth's code is from its design.
+Updated 2026-11-04. How far hearth's code is from its design.
 
 | Area | Built | Not yet |
 |---|---|---|
@@ -20,3 +20,5 @@ Updated 2026-10-26. How far hearth's code is from its design.
 | `domain/development.md` | None. | Mutable machines, capture/apply, Incus, clusters/containers and VMs. |
 | `domain/artifacts.md` | None. | All. |
 | `domain/reproducible.md` | None. | All. |
+
+- **Departs:** `domain/testing.md`: 8.4: a world's memory tests are modules of its suite, not a binary of their own, and a process's heap is checked under scenario ceilings, with no worst case of the whole, because the root's rules are skein's (`skein/docs/foundation/programming-model.md`, 6.3). 9.2: the `conformance` profile is `conformance-hearth` and also runs `recorded_*`, and there is no `measure` profile, because the root's tier profiles are `<tier>-<tree>`.

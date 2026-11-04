@@ -157,7 +157,7 @@ pub fn memory_store(engine: &mut crate::Engine) {
         &crate::limits::profile_limits(jig_protocol_config::Profile::Small).store,
     )
     .expect("final admitted fixture store");
-    engine.store.component = jig_protocol_store::Store::over(
+    engine.store.host.component = jig_protocol_store::Store::over(
         &limits,
         jig_test_store::application(&engine.env.limits.connector),
         &engine.store.models,
@@ -166,7 +166,7 @@ pub fn memory_store(engine: &mut crate::Engine) {
             secrets: skein_kv::Store::memory(&limits.secrets),
         },
     );
-    engine.store.ask(jig_protocol_store::Request::Open {
+    engine.store.host.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -238,13 +238,13 @@ impl Driven {
     pub fn turn(&mut self, commit: bool) {
         turn(&mut self.service);
         let engine = engine(&mut self.service);
-        for _ in 0..engine.store.above.len() {
-            let event = engine.store.above.pop().expect("store terminal");
+        for _ in 0..engine.store.host.above.len() {
+            let event = engine.store.host.above.pop().expect("store terminal");
             if let jig_protocol_store::Event::Committed { number, .. } = &event {
                 self.commits.push(*number);
                 self.held.insert(*number, event);
             } else {
-                engine.store.above.push(event);
+                engine.store.host.above.push(event);
             }
         }
         for _ in 0..engine.parties_out().len() {
@@ -265,7 +265,7 @@ impl Driven {
             for _ in 0..self.commits.len() {
                 let number = self.commits.pop().expect("held commits");
                 if let Some(event) = self.held.remove(&number) {
-                    engine.store.above.push(event);
+                    engine.store.host.above.push(event);
                 }
             }
         }
@@ -287,12 +287,12 @@ impl Driven {
     }
     pub fn commit(&mut self, number: u64) {
         let event = self.terminal(number);
-        engine(&mut self.service).store.above.push(event);
+        engine(&mut self.service).store.host.above.push(event);
         self.turn(false);
     }
     pub fn fail(&mut self, number: u64) {
         self.held.remove(&number);
-        engine(&mut self.service).store.above.push(jig_protocol_store::Event::Failed { number });
+        engine(&mut self.service).store.host.above.push(jig_protocol_store::Event::Failed { number });
         self.turn(false);
     }
     pub fn released_to_parties(&self) -> usize {

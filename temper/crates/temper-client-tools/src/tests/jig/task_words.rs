@@ -902,3 +902,83 @@ fn landing_lines_find_the_pull_after_verification_and_keep_both_evidence_parts()
     assert!(f::has(&printed, CLEARING.as_bytes()), "{printed:?}");
     assert!(!f::has(&printed, b"pull request: "), "{printed:?}");
 }
+
+const KEPT_REPORT: &[u8] = concat!(
+    "Landed into g1: changes 2, 3, 4. ",
+    "The report keeps the acceptance evidence and all the decisions made while finishing this goal. ",
+    "é Distinctive suffix beyond the overview: every kept word is readable through ctl. ",
+    "Follow the continuation to reach the final report sentence."
+)
+.as_bytes();
+
+#[test]
+fn ended_report_is_readable_beyond_task_show_preview() {
+    let (core, limits, mut row) = f::source_task(b"Finish the goal");
+    row.phase = jig_domain_tasks::Phase::Ended(jig_domain_tasks::Ending::Done(jig_domain_tasks::TaskResult::Report {
+        words: Box::from(KEPT_REPORT),
+    }));
+    row.ended_at = Some(Wall::EPOCH);
+    let summary = f::source_summary(&core, &limits, &row);
+    let Some(c::TaskResult::Ending(ending)) = summary.result.clone() else { panic!("kept report ending") };
+    let c::ChipEnding::Done(c::ResultValue::Report(preview)) = ending.as_ref() else { panic!("typed report") };
+    assert_eq!(preview.bytes().len(), 128);
+    assert!(preview.cut);
+    for argv in [["task", "show", "1"].as_slice(), &["task", "show", "1", "--json"]] {
+        let printed = f::read_answer(argv, ended(summary.clone(), c::Ending::Task(ending.clone()), None));
+        assert_eq!(printed.status, 0);
+        assert!(f::has(&printed, b"Landed into g1: changes 2, 3, 4"));
+        assert!(!f::has(&printed, b"final report sentence"));
+        assert!(f::has(&printed, b"task text 1 --field result --from 0"));
+        if argv.len() == 4 {
+            assert!(f::has(&printed, b"\"cut\":true"));
+        }
+    }
+    assert_eq!(report_chunks(&core, &limits, &row).as_ref(), KEPT_REPORT);
+}
+
+#[expect(clippy::disallowed_methods, reason = "test argv converts decimal bytes into command arguments")]
+fn report_chunks(
+    core: &jig_domain_core::Core,
+    limits: &jig_domain_core::Limits,
+    row: &jig_domain_tasks::TaskRecord,
+) -> Box<[u8]> {
+    let mut whole = skein_lib::Writer::new(KEPT_REPORT.len());
+    let mut from = 0;
+    for _ in 0..KEPT_REPORT.len() {
+        let offset = skein_lib::Decimal::of(from);
+        let offset = core::str::from_utf8(offset.as_bytes()).unwrap();
+        let (mut root, call) = f::read_call(&["task", "text", "1", "--field", "result", "--from", offset]);
+        let Some((_, c::Read::TaskText { task: 1, field: c::TaskTextField::Result, from: requested })) =
+            root.reads.get(&call)
+        else {
+            panic!("result field starts a bounded read")
+        };
+        assert_eq!(*requested, from);
+        let page = f::source_chunk(core, limits, row, jig_domain_core::reads::TaskTextField::Result, from);
+        root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page.clone()))));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 0);
+        let start =
+            skein_lib::bytes::find(&printed.stdout, b"bytes:\n").unwrap().checked_add(b"bytes:\n".len()).unwrap();
+        let end = start.checked_add(page.text.bytes().len()).unwrap();
+        whole.put(&printed.stdout[start..end]).unwrap();
+        match page.next {
+            Some(next) => {
+                assert!(next > from);
+                let prefix = b"task text 1 --field result --from ";
+                let offset = skein_lib::Decimal::of(next);
+                let mut continuation =
+                    skein_lib::Writer::new(prefix.len().checked_add(offset.as_bytes().len()).unwrap());
+                continuation.put(prefix).unwrap();
+                continuation.put(offset.as_bytes()).unwrap();
+                assert!(f::has(&printed, &continuation.finish()));
+                from = next;
+            }
+            None => {
+                assert!(f::has(&printed, b"no more"));
+                break;
+            }
+        }
+    }
+    whole.finish()
+}

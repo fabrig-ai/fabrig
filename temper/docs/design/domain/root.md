@@ -1,6 +1,6 @@
 # temper's root
 
-Provisional, 2026-10-04, revised 2026-10-30. What temper's engine root
+Provisional, 2026-10-04, revised 2026-11-04. What temper's engine root
 is and does: `temper-engine-domain`, the top-level domain of temper's
 engine, which composes jig's core with the forge connector in the shape
 jig's `domain/root.md` gives every application's root. It says what the
@@ -851,8 +851,9 @@ and no diagnostic variant enters the store or client wire.
   preparation is ignored. The core owns the window policy (jig's
   `domain/engine.md`, 7.2): a closed window starts fresh with an empty
   tail and no added failure or refusal, while an open window keeps its
-  transient failure policy. A transcript load that cannot be issued
-  still answers `PreparationFailed`. Successful-page cuts and the
+  transient failure policy. A transcript load is issued only with read
+  room: without it the root answers the activation `busy` and the task
+  stays due (jig's `domain/root.md`, 3). Successful-page cuts and the
   transcript row and text validation guards keep their existing
   preparation-failure translation.
 

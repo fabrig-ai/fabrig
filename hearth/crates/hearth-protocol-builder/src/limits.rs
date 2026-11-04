@@ -63,14 +63,14 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(limits.mmdebstrap.include).checked_mul(4)?)?
         .checked_add(u64::from(limits.mmdebstrap.request).checked_mul(u64::from(limits.mmdebstrap.name))?)?
         .checked_add(u64::from(limits.mmdebstrap.line).checked_mul(u64::from(limits.tree.resolution.lines))?)?;
-    let walk = List::<skein_io::file::Entry>::worst_case(limits.walk.page)?
+    let walk = List::<skein_io::file::Entry>::price(limits.walk.page)?
         .checked_add(u64::from(limits.walk.page).checked_mul(255)?)?
         .checked_add(255)?
         .checked_mul(u64::from(limits.walk.depth))?;
-    let listing = List::<crate::render::vocabulary::Blob>::worst_case(limits.git.entries)?
+    let listing = List::<crate::render::vocabulary::Blob>::price(limits.git.entries)?
         .checked_add(u64::from(limits.git.paths_total))?
         .checked_add(u64::from(limits.git.entries).checked_mul(64)?)?;
-    let queues = Queue::<crate::Asked>::worst_case(4)?.checked_add(Queue::<Box<[u8]>>::worst_case(4)?)?;
+    let queues = Queue::<crate::Asked>::price(4)?.checked_add(Queue::<Box<[u8]>>::price(4)?)?;
     child
         .checked_add(records)?
         .checked_add(resolve)?

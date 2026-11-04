@@ -63,7 +63,7 @@ debt it says what a reviewer checks.
 | [D002](D002-index-and-length-widening.md) | Index and length conversions are written by hand beside lib's helpers | primitives | medium | M | open |
 | [D003](D003-env-rewraps.md) | `Env` is rebuilt by hand where `Env::with` does it | primitives | medium | S | open |
 | [D004](D004-utf8-checks.md) | UTF-8 is checked by a hand loop in codec and by `from_utf8` under expects | duplication | low | S | open |
-| [D005](D005-civil-calendars.md) | The civil calendar is written three times | duplication | medium | S | open |
+| [D005](D005-civil-calendars.md) | The civil calendar is written twice | duplication | medium | S | open |
 | [D006](D006-lru-tables.md) | Least-recently-used tables are hand-rolled in both forge dialects | primitives | medium | S | open |
 | [D007](D007-joined-and-measure.md) | Byte joining and measuring helpers are copied per file | duplication | low | S | open |
 | [D008](D008-http-head-parsing.md) | HTTP client and server parse message heads separately | duplication | medium | S | open |
@@ -84,7 +84,6 @@ debt it says what a reviewer checks.
 | [D026](D026-crate-tests-directories.md) | Three crates keep a `tests/` directory under `crates/` | tests | medium | S | open |
 | [D027](D027-step-test-layouts.md) | Step tests follow several layouts, some through `#[path]` | tests | low | M | open |
 | [D028](D028-worlds-as-kits.md) | World crates are used as kits by other test crates | tests | medium | M | open |
-| [D029](D029-fake-github-http-faces.md) | Four HTTP faces for the fake GitHub service sit beside its own server | tests | high | M | open |
 | [D030](D030-forge-connection-harness-tests.md) | forge-connection's step tests are mostly a machine world of their own | tests | medium | M | open |
 | [D031](D031-forge-setup-two-worlds.md) | The forge setup world is written twice, once without the host | tests | medium | M | open |
 | [D032](D032-world-harness-copies.md) | Machine-world harness pieces are copied between the protocol worlds | tests | medium | M | open |

@@ -15,8 +15,8 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing.md`, 6;
 2. **Clippy, warnings denied:** `cargo clippy --workspace --all-targets -- -D warnings`.
    For a selection, replace `--workspace` with a `-p` for each package the change
    reaches and each in `.config/gate/always.txt`. Rules: `skein/clippy.toml`,
-   `smith/clippy.toml`, `jig/clippy.toml`, `temper/clippy.toml`, `tests/clippy.toml`
-   and `AGENTS.md`, 2 (a lint exception is a scoped `#[expect]`).
+   `smith/clippy.toml`, `jig/clippy.toml`, `temper/clippy.toml`, `hearth/clippy.toml`,
+   `tests/clippy.toml` and `AGENTS.md`, 2 (a lint exception is a scoped `#[expect]`).
 3. **The wasm32 clippy:** `cargo clippy --target wasm32-unknown-unknown -p PKG ... -- -D warnings`,
    with a `-p` for each package in `.config/gate/wasm32.txt`.
    Rule: `skein/docs/design/testing.md`, 10, “Checked in the gate”.
@@ -58,8 +58,8 @@ Each list has one entry per line; `#` starts a comment line.
   tier with its prerequisites; `tools/tiers/run --cpu DIR TREE TIER [-- NEXTEST_ARGS...]`
   accounts it against `tools/tiers/budgets.toml`. The hyphenated profiles in
   `.config/nextest.toml` are `browser-skein`, `live-skein`, `live-smith`, `live-jig`,
-  `browser-jig`, `process-temper`, `live-temper` and `browser-temper`. Never in the
-  gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
+  `browser-jig`, `process-temper`, `live-temper`, `browser-temper` and
+  `conformance-hearth`. Never in the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
   `skein/docs/foundation/testing-strategy.md`, 8.1.
 - **The after-landing tier:** after each landing on main,
   `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing.md`, 2.3),

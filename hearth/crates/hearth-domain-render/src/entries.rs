@@ -683,9 +683,9 @@ fn range<'c>(
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     held_worst_case(limits)?
         .checked_add(evaluate::worst_case(limits)?)?
-        .checked_add(List::<Binding<'_>>::worst_case(2)?)?
-        .checked_add(Keys::<Box<[u8]>, Concrete>::worst_case(limits.expansion)?)?
-        .checked_add(List::<Operand<'_>>::worst_case(limits.document)?)?
+        .checked_add(List::<Binding<'_>>::price(2)?)?
+        .checked_add(Keys::<Box<[u8]>, Concrete>::price(limits.expansion)?)?
+        .checked_add(List::<Operand<'_>>::price(limits.document)?)?
         // The current record reserves every declared field before admission;
         // shrinking its list may hold the replacement beside that reservation.
         .checked_add(u64::try_from(size_of::<Made>()).ok()?.checked_mul(37 * 2)?)
@@ -696,8 +696,8 @@ pub(crate) fn held_worst_case(limits: &Limits) -> Option<u64> {
     // Each kept field spends at least ELEMENT; absent fields leave no slot
     // in the finished box. Text and string-list slots share the same allowance.
     let fields = u64::from(limits.expansion).checked_mul(37)?.min(limits.expanded / evaluate::ELEMENT);
-    List::<Concrete>::worst_case(limits.expansion)?
-        .checked_add(List::<Group>::worst_case(14)?)?
+    List::<Concrete>::price(limits.expansion)?
+        .checked_add(List::<Group>::price(14)?)?
         .checked_add(fields.checked_mul(u64::try_from(size_of::<Made>()).ok()?)?)?
         .checked_add(limits.expanded.checked_mul(4)?)
 }

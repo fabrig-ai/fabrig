@@ -47,7 +47,7 @@ fn configured(hooks: bool) -> fixtures::ConfiguredEngine {
 }
 fn record_answers(service: &mut crate::Service) {
     let engine = service.engine.as_mut().unwrap();
-    while let Some(event) = engine.store.above.pop() {
+    while let Some(event) = engine.store.host.above.pop() {
         answer(engine, event);
     }
     while engine.setup.answers.pop().is_some() {}
@@ -214,7 +214,7 @@ fn records_fake_restart_reconciles_restored_repositories_and_adopts_only_the_mis
                 .unwrap();
         }
         fixtures::commit(&mut store, 2, writes.into_boxed());
-        assert!(store.above.pop().is_some());
+        assert!(store.host.above.pop().is_some());
         let mut service = local_service(configured(false), store);
         restore_local(&mut service);
         assert_eq!(service.engine.as_ref().unwrap().domain.adopted_ids(1).len(), usize::try_from(adopted + 1).unwrap());
