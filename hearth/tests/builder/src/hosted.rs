@@ -330,7 +330,7 @@ impl Host for Hosted {
                 || (self.ready.is_some_and(|ready| now >= ready)
                     && self.stall_after.is_none_or(|after| self.sent < after)))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         (self.pending.is_none()
             && (self.jobs.is_empty() || matches!(self.jobs.front(), Some(Job::Pipe(..))))
             && self.exit.is_none()
@@ -349,9 +349,6 @@ impl Host for Hosted {
     }
     fn operations(&self) -> u32 {
         fixtures::HOST_OPERATIONS
-    }
-    fn worst_case(&self) -> u64 {
-        fixtures::FAKE_WORST_CASE
     }
 }
 #[must_use]
