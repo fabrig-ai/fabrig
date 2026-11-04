@@ -1,0 +1,35 @@
+draft = "fail-stop-names"
+repo = "fabrig"
+sources = ["hearth/docs/plan/fail-stop-names/inputs/request.md"]
+
+# Two small direct parts, independent of each other (inputs/request.md); see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "fail-stop"
+title = "Every binary installs the fail-stop hook, checked by a test over the workspace"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 2"
+
+[[slice]]
+id = 1
+story = "Every binary of the workspace installs the hook first, and fabrig-boundary fails one that doesn't"
+parts = ["fail-stop"]
+walk = false
+
+[[part]]
+id = "names"
+title = "The private domain leaves skein's transcript, and the person's account temper's design"
+mode = "direct"
+needs = []
+design = "AGENTS.md, 2"
+
+[[slice]]
+id = 2
+story = "The captured transcript reads git.example.org on equal terms, and temper's design says the probe account"
+parts = ["names"]
+walk = false
