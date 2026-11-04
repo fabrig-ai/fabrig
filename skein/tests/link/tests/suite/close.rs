@@ -1,4 +1,4 @@
-use skein_lib::stream::{Down, Read, Up};
+use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Time, bytes};
 use skein_link::{Event, Moved, Start};
 use skein_link_world::{DEADLINE, NOW, SOCKET, Trace, World};
@@ -180,4 +180,54 @@ fn a_close_whose_room_never_comes_is_aborted_at_its_deadline() {
     assert!(!world.wire.server.closed);
     world.link.fire(DEADLINE, &mut world.below);
     assert!(world.below.is_empty(), "the deadline fires once");
+}
+
+fn stalled_close() -> World {
+    let mut world = World::ready();
+    world.room = false;
+    world.close(false);
+    world.settle();
+    world
+}
+
+#[test]
+fn a_stream_failure_during_a_close_closes_the_socket() {
+    let mut world = stalled_close();
+    world.link.up(&world.env, Up::Failed(Fault::Reset));
+    world.settle();
+    assert_eq!(world.trace, [Trace::Demand, Trace::Close]);
+    assert!(world.above.is_empty(), "closing gives nothing above");
+    assert_eq!(world.link.next_deadline(), None);
+    assert!(!world.link.has_work());
+}
+
+#[test]
+fn a_stream_end_during_a_close_waits_for_its_deadline() {
+    let mut world = stalled_close();
+    world.link.up(&world.env, Up::End);
+    world.settle();
+    assert_eq!(world.trace, [Trace::Demand], "the demand for room stays outstanding");
+    assert!(world.above.is_empty());
+    assert!(!world.link.has_work());
+    assert_eq!(world.link.next_deadline(), Some(DEADLINE));
+    world.link.fire(DEADLINE, &mut world.below);
+    world.settle();
+    assert_eq!(world.trace, [Trace::Demand, Trace::Abort]);
+    assert_eq!(world.link.next_deadline(), None);
+}
+
+#[test]
+fn a_close_after_tls_failed_closes_the_socket() {
+    let mut world = World::ready();
+    world.room = false;
+    world.link.up(&world.env, Up::Failed(Fault::Reset));
+    world.settle();
+    assert_eq!(world.above, [Event::Stream(Up::Failed(Fault::Reset)), Event::Failed]);
+    world.above.clear();
+    world.close(false);
+    world.settle();
+    assert_eq!(world.trace, [Trace::Close]);
+    assert!(world.above.is_empty(), "the close gives nothing more above");
+    assert_eq!(world.link.next_deadline(), None);
+    assert!(!world.link.has_work());
 }
