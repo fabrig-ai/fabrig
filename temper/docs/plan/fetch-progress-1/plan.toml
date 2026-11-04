@@ -1,0 +1,3 @@
+draft = "fetch-progress-1"
+repo = "fabrig"
+sources = ["temper/docs/plan/fetch-progress-1/inputs/request.md", "temper/docs/design/draft/fetch-progress.md", "temper/docs/design/draft/fetch-progress.status.md", "skein/docs/design/draft/progress-value.md", "AGENTS.md", "DESIGN.md"]
