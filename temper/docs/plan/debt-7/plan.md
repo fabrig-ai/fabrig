@@ -64,7 +64,7 @@ task names. This file grows with each release; what is here so far is what has b
   `StoreDirectory::{Root, Private}` (`skein/docs/design/shell.md`, 6.7). The caller opens the root, so the
   errors both sites answer stay as they are.
 - **D009 adds lines.** A skein host and its first tests, against two copies smith loses, and the item asks for
-  a new cleanup host too: about +190 in skein, at most -50 in smith, both capped in their specs. Part
+  a new cleanup host too: about +190 in skein, at most -38 in smith, both capped in their specs. Part
   smith-items may not end below its start, against the request's aim. The tasks' reports give the sum.
 
 - **The whole of D005 is cut, in the order the code allows, with every part one chain.** jig and temper each move a
