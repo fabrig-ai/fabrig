@@ -3,7 +3,7 @@ id = "making-run"
 part = "making-service"
 kind = "feature"
 needs = ["making-root", "copy-machine", "copy-words", "fake-migrate"]
-files = ["temper/crates/temper-service/src/setup.rs", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/src/setup/making.rs", "temper/crates/temper-service/src/setup/runtime.rs", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/tests/setup_making.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-forge-setup/src/limits.rs"]
+files = ["temper/crates/temper-service/src/setup.rs", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/src/setup/making.rs", "temper/crates/temper-service/src/setup/runtime.rs", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/tests/setup_making.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-forge-setup/src/limits.rs", "temper/crates/temper-engine-domain/src/domain.rs"]
 effort = "high"
 minutes = 75
 +++
@@ -65,6 +65,8 @@ Acceptance, in a new `temper-service/src/tests/setup_making.rs`, on `setup_creat
   `source::parse`, and `address` gives the kept form.
 - Remove "6.9: ..." from `temper/docs/design/protocol/setup.status.md`, and "4.6, 8: ..." from
   `temper/docs/design/client/README.status.md`.
+- **The root's forwards:** `temper-engine-domain/src/domain.rs`, beside `forge_connection` and `forge_ended`:
+  `making`, `next_making` and `making_due`, one line each onto `self.forge`, nothing else in that file.
 - Pre-approved:
   - A run that stops `Busy` here is a bug of the pull's: assert in a test it never happens, and treat it
     as `Waiting` if it does.
@@ -79,3 +81,23 @@ implementer's checks; commit and push.
 ## Report
 
 As the implementer's text asks; what a forge's other writing runs do while a long copy lasts.
+
+## Answers
+
+2026-11-04. How does the service reach the connector's `making`, `next_making` and `making_due`, which
+`temper_engine_domain::Domain` does not forward?
+
+This task adds them, option B: `making-root` is merged and its acceptance did not need them, and the root's
+`forge_connection`, `forge_ended` and `adopted_ids` are the same seam. `temper/crates/temper-engine-domain/src/domain.rs`
+joins the header's files, for these three alone, each `#[must_use]`, with a line of doc, and the connector's
+semantics:
+
+```rust
+pub fn making(&self, key: &forge::MakingKey) -> Option<&forge::RepositoryMaking>;
+pub fn next_making(&self, forge: u16) -> Option<&forge::RepositoryMaking>;
+pub fn making_due(&self, forge: u16) -> Option<forge::MakingKey>;
+```
+
+Do not reimplement the selection through `forges()`. The service's events reach the connector as its others
+do: `root::Event::Forge(Box::new(domain::Event::MakingStarted { .. }))`. The answer changes no code: the
+service's tests are what check the forwards.
