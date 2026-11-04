@@ -170,18 +170,18 @@ fn begin(
     let Some(message) = commit_message(&change, &domain.config.title_field, rules) else {
         return save_answer(
             name,
-            owner,
             run::Delivery::Failed(run::DeliveryFailure::new(0, run::DeliveryReason::TooLarge)),
             Box::new([]),
+            AfterSave::Return { owner },
             out,
         );
     };
     let Some(message) = crate::delivery::named_message(message, name) else {
         return save_answer(
             name,
-            owner,
             run::Delivery::Failed(run::DeliveryFailure::new(0, run::DeliveryReason::TooLarge)),
             Box::new([]),
+            AfterSave::Return { owner },
             out,
         );
     };
@@ -244,7 +244,7 @@ fn advance_delivery(
             let name = in_place.name;
             let owner = in_place.owner;
             let answer = in_place.result();
-            save_answer(name, owner, answer, in_place.receipts.into_boxed(), out)
+            save_answer(name, answer, in_place.receipts.into_boxed(), AfterSave::Return { owner }, out)
         }
     }
 }
@@ -599,7 +599,9 @@ fn follow_in_place(domain: &mut Domain, env: &Env<Limits>, mut call: InPlace, ou
     let state = core::mem::replace(&mut call.state, State::Done);
     match state {
         State::Advance => advance_delivery(domain, env, call, out),
-        State::Answer(answer) => save_answer(call.name, call.owner, *answer, call.receipts.into_boxed(), out),
+        State::Answer(answer) => {
+            save_answer(call.name, *answer, call.receipts.into_boxed(), AfterSave::Return { owner: call.owner }, out)
+        }
         State::Unknown => deliver_unknown(domain, env, call.owner, call.next),
         state @ (State::Plain
         | State::Status
@@ -650,22 +652,22 @@ fn deliver_unknown(domain: &mut Domain, env: &Env<Limits>, owner: Token, directo
 fn save_timeout(call: InPlace, directory: u32, out: &mut Queue<Request>) -> Delivering {
     save_answer(
         call.name,
-        call.owner,
         run::Delivery::Failed(run::DeliveryFailure::new(directory, run::DeliveryReason::TimedOut)),
         call.receipts.into_boxed(),
+        AfterSave::Return { owner: call.owner },
         out,
     )
 }
 
-fn save_answer(
+pub(super) fn save_answer(
     name: run::CallName,
-    owner: Token,
     delivery: run::Delivery,
     landed: Box<[run::Receipt]>,
+    after: AfterSave,
     out: &mut Queue<Request>,
 ) -> Delivering {
     let record = DeliveryRecord { name, state: DeliveryState::Answer(delivery), landed };
-    save(record, AfterSave::Return { owner }, out)
+    save(record, after, out)
 }
 
 /// The one place a record goes to the store.

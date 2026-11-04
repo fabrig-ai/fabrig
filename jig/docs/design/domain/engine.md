@@ -1891,6 +1891,11 @@ section 5).
   and its child's sweep skipped, so that a writer's bug costs a record
   and not the start. For now it panics (the user, 10-28); after the
   first release.
+- **A duplicate person's identity,** at a start (section 6): a link
+  that cannot be made, so it panics, naming its row. Whether it refuses
+  the start instead, beside section 6's refusals, a cause of people's
+  and a failure of the core's. Default: it panics; the user's to
+  decide.
 
 - **A fresh attempt's tail, lost before its first turn.** An attempt
   that starts fresh from a closed window, or past the resume limit,

@@ -1088,7 +1088,7 @@ names (section 2.3):
 | `check_timeout` | 5 minutes, which the default reserve's 5 minutes holds (domain/run.md, 9.1) | provisional |
 | `tool_deadline` | 20 minutes, the most a command's call may ask for | provisional; the tool-output probe |
 | `job_poll` | 30 s, a `job` call's wait when it asks for none | provisional; the tool-output probe's `background` |
-| `job_wait` | 5 minutes, the longest yield or wait a call may ask for | provisional; the dogfood's polls |
+| `job_wait` | 5 minutes, the longest yield or wait a call may ask for | provisional; the polls of real runs |
 | `parallel_tools` | 4 adjacent reads run at once | provisional; the parallel-read probe |
 | `group_stop` | 1 s for each of its three steps | provisional; the process-tree probe |
 | `close` | 5 s | provisional |
@@ -1096,7 +1096,7 @@ names (section 2.3):
 | `wrap_up` | 60 s, a child's final turn's allowance at most | provisional; the budget probe's `wrap-up` |
 | `cancel_grace` | 10 s | provisional |
 | `exit_grace` | derived: the agent's teardown bound, two `close`s, the event stream's `write_deadline` and its cancels' settling, plus one more `close` as a margin (skein's `shell.md`, section 13; protocol/limits.md, section 7); a setting below the bound is refused | decided as derived; the margin provisional |
-| `sign_in_time` | 10 minutes | provisional |
+| `sign_in_time` | 10 minutes, a browser sign-in's deadline (4.5) and skein's `oauth.md` sign-in deadline; no profile value: the product's client limits fix it, and `smith check` does not print it | provisional |
 | `refresh_lead` | 60 s before the access token expires | provisional; the `credentials` probe |
 
 ### 6.6 Instructions

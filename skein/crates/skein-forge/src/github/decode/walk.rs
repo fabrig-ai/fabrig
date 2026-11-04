@@ -6,7 +6,7 @@ use skein_json::{
     Token,
     tokenizer::{self, Event, Request},
 };
-use skein_lib::Stack;
+use skein_lib::{Stack, bytes};
 mod protection;
 use super::protection::Node as P;
 /// Container roles in the first GitHub documents.
@@ -1010,7 +1010,7 @@ impl Walk {
                 true
             }
             (Read::Number, Token::Number(text)) => {
-                if crate::forgejo::id::unsigned(text).is_none() {
+                if bytes::decimal(text).is_none() {
                     return Err(Malformed::Range { field: field.key });
                 }
                 true

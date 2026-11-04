@@ -68,7 +68,6 @@ debt it says what a reviewer checks.
 | [D007](D007-joined-and-measure.md) | Byte joining and measuring helpers are copied per file | duplication | low | S | open |
 | [D008](D008-http-head-parsing.md) | HTTP client and server parse message heads separately | duplication | medium | S | open |
 | [D009](D009-oauth-credentials-raw.md) | The oauth crates hold credentials as raw bytes, not `Secret` | primitives | medium | M | open |
-| [D010](D010-github-on-forgejo-modules.md) | GitHub's dialect stands on Forgejo's modules | coupling | high | M | open |
 | [D011](D011-fake-github-on-forgejo-fake.md) | The fake GitHub stands on the fake Forgejo, which is named as the neutral fake | coupling | medium | M | open |
 | [D012](D012-anthropic-on-openai.md) | Anthropic's dialect stands on `openai/`, with a mirror vocabulary | coupling | medium | M | open |
 | [D013](D013-forge-connection-parallel-lists.md) | forge-connection keeps forges in parallel lists and dialects as runtime tags | complexity | high | M | open |

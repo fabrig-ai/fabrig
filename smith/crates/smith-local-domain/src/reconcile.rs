@@ -4,7 +4,7 @@
 //! this loaded intent until follow yields its saved answer or ends recovery.
 //! `reconcile_git` consumes one git terminal; follow derives the next request.
 use super::Domain;
-use super::delivery::{self, AfterSave, Delivering};
+use super::delivery::{AfterSave, Delivering, save_answer};
 use crate::chat::State as ChatState;
 use crate::{DeliveryIntent, DeliveryRecord, DeliveryState, GitOp, GitResult, IntentDirectory, Limits, Request};
 use alloc::boxed::Box;
@@ -200,7 +200,9 @@ pub(super) fn follow(
     match state {
         State::Advance => reconcile_next(domain, env, reconcile, out),
         State::Interrupted { directory } => reconcile_answer(reconcile, Some(directory), out),
-        State::Answer(answer) => reconcile_terminal(reconcile, *answer, out),
+        State::Answer(answer) => {
+            save_answer(reconcile.record.name, *answer, reconcile.receipts.into_boxed(), AfterSave::ResumeLoading, out)
+        }
         State::Unknown => recovery_unknown(domain, out),
         state @ (State::Inspect { .. } | State::Push { .. } | State::InspectPush) => {
             reconcile.state = state;
@@ -255,19 +257,5 @@ fn reconcile_answer(reconcile: Reconcile, interrupted: Option<u32>, out: &mut Qu
             })
         }
     };
-    reconcile_terminal_with_receipts(reconcile.record.name, answer, landed.into_boxed(), out)
-}
-
-fn reconcile_terminal(reconcile: Reconcile, answer: agent::run::Delivery, out: &mut Queue<Request>) -> Delivering {
-    reconcile_terminal_with_receipts(reconcile.record.name, answer, reconcile.receipts.into_boxed(), out)
-}
-
-fn reconcile_terminal_with_receipts(
-    name: agent::run::CallName,
-    answer: agent::run::Delivery,
-    landed: Box<[agent::run::Receipt]>,
-    out: &mut Queue<Request>,
-) -> Delivering {
-    let record = DeliveryRecord { name, state: DeliveryState::Answer(answer), landed };
-    delivery::save(record, AfterSave::ResumeLoading, out)
+    save_answer(reconcile.record.name, answer, landed.into_boxed(), AfterSave::ResumeLoading, out)
 }

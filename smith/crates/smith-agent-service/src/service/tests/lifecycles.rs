@@ -40,7 +40,7 @@ fn each_settled_answer_gives_its_last_line() {
 #[test]
 fn the_first_failure_stands_in_every_phase() {
     for phase in [
-        Teardown::Live,
+        Teardown::Live { failure: None },
         Teardown::Answered { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful },
         Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Components },
     ] {
@@ -64,7 +64,7 @@ fn a_failure_before_the_answer_leaves_the_run_live() {
     let mut service = admitted(19);
     service.stages.mark_failed(Failure::Send);
     teardown::follow(&mut service.stages, Some(&service.frame));
-    assert_eq!(service.stages.teardown, Teardown::LiveUnsent { failure: Failure::Send });
+    assert_eq!(service.stages.teardown, Teardown::Live { failure: Some(Failure::Send) });
     assert!(service.stages.io_requests.is_empty());
     assert!(!service.stages.llm.closed());
     assert_eq!(done(&service), None);
@@ -73,10 +73,7 @@ fn a_failure_before_the_answer_leaves_the_run_live() {
         Some(&mut service.frame),
         io::Event::Shutdown { signal: kernel::ServiceSignal::Interrupt, from: None },
     );
-    match service.stages.domain_events.pop().expect("live shutdown cancels") {
-        domain::Event::Cancel { run } => assert_eq!(run, Token::new(19)),
-        other => panic!("cancel: {other:?}"),
-    }
+    assert_cancel(&mut service.stages.domain_events, Token::new(19));
 }
 
 #[test]
@@ -93,10 +90,7 @@ fn a_cancel_before_the_handle_is_delivered_once_after_it() {
     assert!(service.stages.domain_events.is_empty());
     domain_down(&mut service.stages, Some(&mut service.frame));
     assert_eq!(service.stages.admission, Admission::Admitted { run });
-    match service.stages.domain_events.pop().expect("owed cancel") {
-        domain::Event::Cancel { run: named } => assert_eq!(named, run),
-        other => panic!("cancel: {other:?}"),
-    }
+    assert_cancel(&mut service.stages.domain_events, run);
     domain_down(&mut service.stages, Some(&mut service.frame));
     assert!(service.stages.domain_events.is_empty());
 }
@@ -109,10 +103,7 @@ fn a_waiting_cancel_goes_before_the_messages_that_waited_for_the_run() {
     service.stages.domain_requests.push(domain::Request::Admitted { host_run: START_REPLY, run: Token::new(19) });
     domain_down(&mut service.stages, Some(&mut service.frame));
     assert_eq!(service.stages.pending_messages.len(), 1);
-    match service.stages.domain_events.pop().expect("cancel before message") {
-        domain::Event::Cancel { run } => assert_eq!(run, Token::new(19)),
-        other => panic!("cancel: {other:?}"),
-    }
+    assert_cancel(&mut service.stages.domain_events, Token::new(19));
     assert!(service.stages.domain_events.is_empty());
     domain_down(&mut service.stages, Some(&mut service.frame));
     assert!(service.stages.pending_messages.is_empty());
@@ -129,33 +120,22 @@ fn a_waiting_cancel_goes_before_the_messages_that_waited_for_the_run() {
 #[test]
 fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
     fn start() -> Box<smith_protocol_translate::DecodedStart> {
-        Box::new(smith_protocol_translate::DecodedStart {
-            live: None,
-            identity: None,
-            messages: Box::default(),
-            activation: 1,
-            charter: charter(&smith_agent_world::Settings::calm(1)),
-            mounts: Some(Box::new([
-                smith_protocol_translate::Mount {
-                    name: Box::from(b"first".as_slice()),
-                    path: Box::from(b"/first".as_slice()),
-                    writable: true,
-                    git: true,
-                    conflicts: Box::default(),
-                },
-                smith_protocol_translate::Mount {
-                    name: Box::from(b"second".as_slice()),
-                    path: Box::from(b"/second".as_slice()),
-                    writable: false,
-                    git: false,
-                    conflicts: Box::default(),
-                },
-            ])),
-            transcript: None,
-            answered: Box::default(),
-            grants: Box::default(),
-            window: domain::Window { turns: 8, bytes: 4096 },
-        })
+        decoded_start(Box::new([
+            smith_protocol_translate::Mount {
+                name: Box::from(b"first".as_slice()),
+                path: Box::from(b"/first".as_slice()),
+                writable: true,
+                git: true,
+                conflicts: Box::default(),
+            },
+            smith_protocol_translate::Mount {
+                name: Box::from(b"second".as_slice()),
+                path: Box::from(b"/second".as_slice()),
+                writable: false,
+                git: false,
+                conflicts: Box::default(),
+            },
+        ]))
     }
     let mut agent = service();
     let decoded = start();
@@ -192,6 +172,6 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
     assert!(refused.root_to_open().is_none());
     match refused.stages.teardown {
         Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
-        other => panic!("refused Start passed Live: {other:?}"),
+        other @ Teardown::Live { .. } => panic!("refused Start passed Live: {other:?}"),
     }
 }

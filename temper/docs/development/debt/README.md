@@ -61,9 +61,5 @@ checks.
 | ID | title | kind | value | size | status |
 |---|---|---|---|---|---|
 | D001 | temper-service carries a drifted copy of jig's reference service | duplication | high | M | open |
-| D007 | `temper-docs` keeps a page kind no page has | dead code | low | S | open |
-| D008 | Code names the old pipeline's tasks and rulings | naming | low | S | open |
-| D009 | The client keeps interim account counts beside jig's | duplication | low | S | open |
-| D010 | Test fixtures are shared by `#[path]` across crates | tests | low | S | open |
 | D011 | `clippy::manual_map` is excused site by site, 127 times | lints | low | S | open |
 | D012 | The forge's domain and route files, and nine more, are too large to read | complexity | medium | L | open |

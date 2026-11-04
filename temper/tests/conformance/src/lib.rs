@@ -735,7 +735,7 @@ fn delivered(peers: &mut Peers, clock: Clock, delivery: root::Delivery) {
         root::Delivery::WebReply { to, reply } => {
             let call = to.into_token().raw();
             // Admission pressure is retried; a refusal saves no answer
-            // (jig b7bdd9e8: refusal facts and `Again`).
+            // (refusal facts and `Again`).
             match &reply {
                 people::Reply::Again(_) | people::Reply::Full { .. } => {
                     peers.ask_retries.insert(call, clock.now + 1_000_000_000);

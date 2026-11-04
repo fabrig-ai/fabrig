@@ -349,8 +349,7 @@ impl World {
                 else {
                     panic!("scripted reroute starts at actual requester Waiting");
                 };
-                // Rerouting keeps the hold's revision (jig 00de0b8c; jig's
-                // domain/people.md, 5.1).
+                // Rerouting keeps the hold's revision (jig's domain/people.md, 5.1).
                 record.escalation = tasks::Escalation::Waiting {
                     revision,
                     holder: tasks::EscalationHolder::Role { project: 1, role: 0 },

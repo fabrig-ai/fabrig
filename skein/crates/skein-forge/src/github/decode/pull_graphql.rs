@@ -3,6 +3,7 @@ use super::{Malformed, document};
 use crate::api;
 use alloc::boxed::Box;
 use skein_json::Token;
+use skein_lib::bytes;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Node {
@@ -42,7 +43,7 @@ impl State {
                 self.pull.merge_commit = Some(super::super::id::commit(&text).ok_or(Malformed::Id { field: key })?);
             }
             (Node::Queue, Token::Number(text)) => {
-                let number = crate::forgejo::id::unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                let number = bytes::decimal(&text).ok_or(Malformed::Range { field: key })?;
                 self.pull.queued = Some(u32::try_from(number).ok().ok_or(Malformed::Range { field: key })?);
             }
             (Node::Removal, Token::String(text)) => {
@@ -58,8 +59,7 @@ impl State {
                     }
                     end = end.checked_sub(1).ok_or(Malformed::Range { field: key })?;
                 }
-                self.pull.dequeued =
-                    Some(skein_lib::bytes::copy_of(text.get(..end).ok_or(Malformed::Range { field: key })?));
+                self.pull.dequeued = Some(bytes::copy_of(text.get(..end).ok_or(Malformed::Range { field: key })?));
             }
             (
                 Node::EnqueueEnvelope

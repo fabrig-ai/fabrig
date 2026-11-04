@@ -345,7 +345,7 @@ pub enum SetupEnd {
 /// The input union, with one variant for each typed peer.
 #[derive(Debug)]
 pub enum Event {
-    /// Terminal of the protocol-owned plan named by `run`; temper-07 consumes it.
+    /// Terminal of the protocol-owned plan named by `run`.
     Setup {
         run: Token,
         end: SetupEnd,
@@ -568,7 +568,7 @@ pub enum PartyInput {
         change: Box<core::settings::Change>,
         kinds: Box<[KindValue]>,
     },
-    /// End one authenticated sign-in through the people child (ruling 116).
+    /// End one authenticated sign-in through the people child.
     SignOut {
         reply_to: ReplyTo,
         sign_in: u64,

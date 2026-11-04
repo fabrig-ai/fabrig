@@ -1,9 +1,8 @@
 //! Hosted commands observed through their pipes, exit and a service watch cue.
 //! Answer bounds follow skein/docs/foundation/testing-strategy.md, 2.10.
 use crate::fixtures;
-mod browse;
-pub use browse::Browsed;
-use browse::Browser;
+pub use temper_fixtures::browse::Browsed;
+use temper_fixtures::browse::Browser;
 const BROWSER: usize = usize::MAX - 1;
 const SIGN_IN_HTTP: usize = usize::MAX - 2;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};

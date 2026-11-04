@@ -452,9 +452,9 @@ impl Target {
         }
         if let Some(out) = &mut self.writer {
             if slashes {
-                crate::forgejo::path::file(text, out).expect("measured path");
+                crate::path::file(text, out).expect("measured path");
             } else {
-                crate::forgejo::path::segment(text, out).expect("measured segment");
+                crate::path::segment(text, out).expect("measured segment");
             }
         }
         Ok(())
@@ -664,7 +664,7 @@ fn items_target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
             out.put(b"/issues?state=all");
             if since.as_nanos() != 0 {
                 out.put(b"&since=");
-                out.segment(&crate::forgejo::time::write(*since))?;
+                out.segment(&crate::time::write(*since))?;
             }
             out.put(b"&sort=updated&direction=asc");
             out.page(*page, *per_page, true);

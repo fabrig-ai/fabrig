@@ -301,7 +301,7 @@ fn check_github(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unusa
         }
     }
     if github {
-        if let Err(problem) = skein_forge::github::limits::check(&github_documents(l)) {
+        if let Err(problem) = skein_forge::github::limits::check(&documents(l)) {
             return Err(Unusable::GitHubDocuments(problem));
         }
         if let Err(problem) = skein_forge::github::limits::check(&github_mint_documents(l)) {
@@ -552,7 +552,7 @@ fn largest_row(listing: Listing, l: &Limits) -> Option<u64> {
     };
     u64::try_from(fixed).ok()?.checked_add(payload)
 }
-/// Derived Forgejo document limits, with body strings capped independently of incoming bytes.
+/// Derived document limits, with body strings capped independently of incoming bytes.
 #[must_use]
 pub fn documents(l: &Limits) -> documents::Limits {
     documents::Limits {
@@ -571,22 +571,10 @@ pub fn documents(l: &Limits) -> documents::Limits {
         target_bytes: l.target_bytes,
     }
 }
-/// GitHub documents use the same component bounds in their dialect's vocabulary.
-pub(crate) fn github_documents(l: &Limits) -> skein_forge::github::limits::Limits {
-    let docs = documents(l);
-    skein_forge::github::limits::Limits {
-        json: docs.json,
-        writer: docs.writer,
-        string_bytes: docs.string_bytes,
-        body_bytes: docs.body_bytes,
-        inner: docs.inner,
-        target_bytes: docs.target_bytes,
-    }
-}
 // RFC 3339's YYYY-MM-DDTHH:MM:SSZ must fit even when token_bytes is smaller.
 const MINTED_TIME_BYTES: u32 = 20;
 pub(crate) fn github_mint_documents(l: &Limits) -> skein_forge::github::limits::Limits {
-    let mut docs = github_documents(l);
+    let mut docs = documents(l);
     docs.string_bytes = l.token_bytes.max(MINTED_TIME_BYTES);
     docs.json.string = docs.json.string.max(docs.string_bytes);
     docs

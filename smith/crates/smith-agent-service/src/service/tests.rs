@@ -9,8 +9,9 @@ mod setup;
 
 pub(crate) use setup::{account_request, account_service, charter, configuration, domain_configuration};
 use setup::{
-    admit_pending, admitted, at_watermark, event_service, host_message, interrupted_before_admission, limits,
-    preparing_message_run, service, watermark, with_channel_streams, with_input, without_channel,
+    admit_pending, admitted, assert_cancel, at_watermark, decoded_start, event_service, host_message,
+    interrupted_before_admission, limits, preparing_message_run, service, watermark, with_channel_streams, with_input,
+    without_channel,
 };
 
 use super::request::domain_request;
@@ -176,20 +177,14 @@ fn termination_signal_cancels_the_admitted_run() {
         Some(&mut service.frame),
         io::Event::Shutdown { signal: kernel::ServiceSignal::Terminate, from: None },
     );
-    match service.stages.domain_events.pop().expect("cancel event") {
-        domain::Event::Cancel { run } => assert_eq!(run, Token::new(91)),
-        other => panic!("unexpected signal result: {other:?}"),
-    }
+    assert_cancel(&mut service.stages.domain_events, Token::new(91));
 }
 
 #[test]
 fn signal_during_opening_waits_for_the_admitted_run_handle() {
     let mut service = interrupted_before_admission(19);
     domain_down(&mut service.stages, Some(&mut service.frame));
-    match service.stages.domain_events.pop().expect("deferred cancel") {
-        domain::Event::Cancel { run } => assert_eq!(run, Token::new(19)),
-        other => panic!("unexpected deferred result: {other:?}"),
-    }
+    assert_cancel(&mut service.stages.domain_events, Token::new(19));
 }
 
 #[test]
@@ -529,24 +524,13 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
     enter(
         &mut service,
         Input::Host(channel::Heard::Start {
-            start: Box::new(smith_protocol_translate::DecodedStart {
-                live: None,
-                identity: None,
-                messages: Box::default(),
-                activation: 1,
-                charter: charter(&smith_agent_world::Settings::calm(1)),
-                mounts: Some(Box::new([smith_protocol_translate::Mount {
-                    name: Box::from(b"work".as_slice()),
-                    path: Box::from(b"/work".as_slice()),
-                    writable: false,
-                    git: false,
-                    conflicts: Box::default(),
-                }])),
-                transcript: None,
-                answered: Box::default(),
-                grants: Box::default(),
-                window: domain::Window { turns: 8, bytes: 4096 },
-            }),
+            start: decoded_start(Box::new([smith_protocol_translate::Mount {
+                name: Box::from(b"work".as_slice()),
+                path: Box::from(b"/work".as_slice()),
+                writable: false,
+                git: false,
+                conflicts: Box::default(),
+            }])),
         }),
     );
     iterate(&mut service, Time::ZERO, Wall::EPOCH);

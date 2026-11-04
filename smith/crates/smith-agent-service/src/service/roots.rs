@@ -1,6 +1,6 @@
 //! Adopted roots close in reverse order, with one report outstanding at a time.
 //! The state knows root tokens, never their paths or directory contracts.
-//! `adopt` retains a root, `reported` settles its close, and `follow` requests the next.
+//! `adopt` retains a root, `take_report` settles its close, and `follow` requests the next.
 //! Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use super::Stages;
@@ -21,19 +21,13 @@ pub(super) enum Roots {
 
 impl Roots {
     pub(super) fn adopt(&mut self, root: Token, capacity: u32) {
-        let state = mem::replace(self, Self::Empty);
-        *self = match state {
-            Self::Empty => {
-                let mut roots = List::with_capacity(capacity);
-                roots.push(root).expect("admitted root count");
-                Self::Held { roots }
-            }
-            Self::Held { mut roots } => {
-                roots.push(root).expect("admitted root count");
-                Self::Held { roots }
-            }
+        let mut roots = match mem::replace(self, Self::Empty) {
+            Self::Empty => List::with_capacity(capacity),
+            Self::Held { roots } => roots,
             Self::Closing { .. } => unreachable!("roots attach before their close"),
         };
+        roots.push(root).expect("admitted root count");
+        *self = Self::Held { roots };
     }
 
     pub(super) fn first(&self) -> Option<Token> {
@@ -57,43 +51,28 @@ impl Roots {
         }
     }
 
-    pub(super) fn reported(&mut self) -> bool {
-        let state = mem::replace(self, Self::Empty);
-        let reported;
-        *self = match state {
-            Self::Closing { roots } => {
-                reported = true;
-                Self::Held { roots }
-            }
-            state @ (Self::Empty | Self::Held { .. }) => {
-                reported = false;
-                state
-            }
+    pub(super) fn take_report(&mut self) -> bool {
+        let (state, reported) = match mem::replace(self, Self::Empty) {
+            Self::Closing { roots } => (Self::Held { roots }, true),
+            state @ (Self::Empty | Self::Held { .. }) => (state, false),
         };
+        *self = state;
         reported
     }
 
     fn close_next(&mut self) -> Option<Token> {
-        let state = mem::replace(self, Self::Empty);
-        let next;
-        *self = match state {
+        let (state, next) = match mem::replace(self, Self::Empty) {
             Self::Held { mut roots } => match roots.last().copied() {
                 Some(root) => {
                     let remaining = roots.len().checked_sub(1).expect("positive root count");
                     roots.truncate(remaining);
-                    next = Some(root);
-                    Self::Closing { roots }
+                    (Self::Closing { roots }, Some(root))
                 }
-                None => {
-                    next = None;
-                    Self::Empty
-                }
+                None => (Self::Empty, None),
             },
-            state @ (Self::Empty | Self::Closing { .. }) => {
-                next = None;
-                state
-            }
+            state @ (Self::Empty | Self::Closing { .. }) => (state, None),
         };
+        *self = state;
         next
     }
 }
@@ -129,7 +108,7 @@ mod tests {
         let mut roots = Roots::Empty;
         assert!(roots.closed());
         assert!(!roots.held());
-        assert!(!roots.reported());
+        assert!(!roots.take_report());
         assert_eq!(roots.close_next(), None);
         for value in [11, 12, 13] {
             roots.adopt(Token::new(value), 3);
@@ -138,20 +117,20 @@ mod tests {
         for value in [13, 12, 11] {
             assert!(roots.held());
             assert!(!roots.closed());
-            assert!(!roots.reported());
+            assert!(!roots.take_report());
             assert_eq!(roots.close_next(), Some(Token::new(value)));
             assert!(!roots.held());
             assert!(!roots.closed());
             assert_eq!(roots.close_next(), None);
-            assert!(roots.reported());
+            assert!(roots.take_report());
         }
         assert!(roots.held(), "the last report retains an empty Held until the next pass");
         assert!(!roots.closed());
-        assert!(!roots.reported());
+        assert!(!roots.take_report());
         assert_eq!(roots.first(), None);
         assert_eq!(roots.close_next(), None);
         assert!(roots.closed());
         assert!(!roots.held());
-        assert!(!roots.reported());
+        assert!(!roots.take_report());
     }
 }

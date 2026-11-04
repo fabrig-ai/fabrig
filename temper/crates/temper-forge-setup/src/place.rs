@@ -83,7 +83,7 @@ pub fn item(item: skein_forge_setup::item::Item) -> File {
     match item {
         Item::AppId | Item::AppSlug | Item::AppKey | Item::Accepted | Item::Pasted => {
             unreachable!(
-                "items come only from in-process Forgejo Reconcile, never files, stores or peers; temper-01/13 take GitHub records"
+                "items come only from in-process Forgejo Reconcile, never files, stores or peers; GitHub's items are records"
             )
         }
         Item::AdminToken => File::AdminToken,

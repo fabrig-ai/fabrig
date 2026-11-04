@@ -1,6 +1,29 @@
 //! Named initial states and typed entrances for service boundary scenarios.
 
 use super::*;
+use smith_protocol_translate::{DecodedStart, Mount};
+
+pub(super) fn decoded_start(mounts: Box<[Mount]>) -> Box<DecodedStart> {
+    Box::new(DecodedStart {
+        live: None,
+        identity: None,
+        messages: Box::default(),
+        activation: 1,
+        charter: charter(&smith_agent_world::Settings::calm(1)),
+        mounts: Some(mounts),
+        transcript: None,
+        answered: Box::default(),
+        grants: Box::default(),
+        window: domain::Window { turns: 8, bytes: 4096 },
+    })
+}
+
+pub(super) fn assert_cancel(events: &mut Queue<domain::Event>, run: Token) {
+    match events.pop() {
+        Some(domain::Event::Cancel { run: named }) => assert_eq!(named, run, "cancel for run {run:?}"),
+        other => panic!("expected cancel for run {run:?}, got {other:?}"),
+    }
+}
 
 pub(super) fn limits() -> Limits {
     crate::fixture::small()

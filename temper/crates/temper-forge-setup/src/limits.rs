@@ -114,7 +114,7 @@ pub fn small() -> Limits {
     let repositories = 2;
     Limits {
         orgs: ORGS,
-        reachable: 8, // temper-10 supplies picker.page.
+        reachable: 8, // Legacy command default; checked startup supplies picker.page.
         files: 2,
         file_bytes: 4096,
         repositories,

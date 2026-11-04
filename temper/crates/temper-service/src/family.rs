@@ -650,7 +650,7 @@ pub fn answer(
                         reason: match reason {
                             forge::AdoptionRefusal::NoSuchForge => w::ForgeReason::NoSuchForge,
                             forge::AdoptionRefusal::NotFound => w::ForgeReason::NotFound,
-                            // temper-07 adds not_installed to the client wire.
+                            // The client wire has no not-installed reason (client/README.md, 4.7).
                             forge::AdoptionRefusal::NotInstalled | forge::AdoptionRefusal::NoAccess => {
                                 w::ForgeReason::NoAccess
                             }

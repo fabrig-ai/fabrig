@@ -4040,6 +4040,7 @@ dependencies = [
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-init",
+ "temper-playground",
  "temper-protocol-store",
  "temper-real-loop-world",
  "temper-service",
@@ -4096,9 +4097,7 @@ dependencies = [
  "skein-ui-bundle",
  "skein-ui-web",
  "skein-world",
- "smith-agent-shell",
  "temper-client-domain",
- "temper-engine-domain",
  "temper-playground",
  "temper-playground-world",
  "temper-service",
@@ -4120,6 +4119,7 @@ dependencies = [
  "skein-ui",
  "skein-world",
  "temper-client-protocol-wire",
+ "temper-fixtures",
  "temper-protocol-records",
 ]
 
@@ -4139,6 +4139,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
  "temper-client-view",
+ "temper-fixtures",
 ]
 
 [[package]]
@@ -4211,6 +4212,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
+ "temper-fixtures",
 ]
 
 [[package]]
@@ -4257,6 +4259,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
  "temper-docs",
+ "temper-fixtures",
  "temper-settings-form",
 ]
 
@@ -4275,6 +4278,7 @@ dependencies = [
  "skein-ui-text",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-fixtures",
 ]
 
 [[package]]
@@ -4681,6 +4685,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-fixtures"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-io",
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-forge-setup"
 version = "0.0.0"
 dependencies = [
@@ -4790,6 +4803,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-fake-git-hosted",
+ "temper-fixtures",
  "temper-github-app",
  "temper-playground",
  "temper-protocol-store",
@@ -4974,7 +4988,9 @@ dependencies = [
  "temper-fake",
  "temper-fake-git",
  "temper-fake-git-hosted",
+ "temper-fixtures",
  "temper-github-app",
+ "temper-playground",
  "temper-protocol-records",
  "temper-protocol-store",
  "temper-service",

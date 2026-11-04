@@ -20,19 +20,23 @@ pub(crate) struct Bindings {
     entries: List<(Token, Meaning)>,
     next: u64,
     revision: u64,
-    counts: temper_client_domain::limits::AccountLimits,
+    counts: jig_client::AccountCounts,
+    row_uses: u32,
 }
 pub(crate) const fn owner() -> skein_ui::Owner {
     // View-local owner, outside the u16 wire family/asker namespace.
     skein_ui::Owner { number: 65536 }
 }
 impl Bindings {
-    pub fn new(counts: temper_client_domain::limits::AccountLimits, providers: u32) -> Self {
+    pub fn new(counts: jig_client::AccountCounts, row_uses: u32, providers: u32) -> Self {
         let capacity = binding_capacity(&counts, providers);
-        Self { entries: List::with_capacity(capacity), next: 0, revision: 0, counts }
+        Self { entries: List::with_capacity(capacity), next: 0, revision: 0, counts, row_uses }
     }
-    pub const fn counts(&self) -> temper_client_domain::limits::AccountLimits {
+    pub const fn counts(&self) -> jig_client::AccountCounts {
         self.counts
+    }
+    pub const fn row_uses(&self) -> u32 {
+        self.row_uses
     }
     pub const fn revision(&self) -> u64 {
         self.revision
@@ -87,7 +91,7 @@ impl Bindings {
     }
 }
 /// Each of two account lists has source actions, state actions, ranks and one editor.
-pub(crate) fn binding_capacity(counts: &temper_client_domain::limits::AccountLimits, providers: u32) -> u32 {
+pub(crate) fn binding_capacity(counts: &jig_client::AccountCounts, providers: u32) -> u32 {
     let source = counts.sources.checked_mul(6).expect("source controls fit");
     let accounts = source
         .checked_add(16)

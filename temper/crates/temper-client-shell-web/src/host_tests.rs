@@ -1,4 +1,4 @@
-//! 16:52Z ruling: the host owns secret/clearing/target evidence; Chromium owns navigation and re-entry.
+//! The host owns secret/clearing/target evidence; Chromium owns navigation and re-entry.
 use super::*;
 use jig_client::contract as c;
 use skein_ui::{EntryKind, Role};

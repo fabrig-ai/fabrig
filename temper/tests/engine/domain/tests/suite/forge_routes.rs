@@ -1039,7 +1039,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
         ask: people::Ask::Amend {
             project: 1,
             task: repair,
-            // The person names the specification revision they amend (jig 00de0b8c).
+            // The person names the specification revision they amend.
             revision: spec_revision(&world, repair),
             release: None,
             amendment: people::Amendment {

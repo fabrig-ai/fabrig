@@ -88,7 +88,7 @@ pub(super) fn lower_events(service: &mut Stages, mut frame: Option<&mut Frame>) 
     }
     for _ in 0..service.limits.queue {
         let Some(event) = service.file_events.pop() else { break };
-        if event.owner() == super::ROOT_CLOSE_OWNER && service.roots.reported() {
+        if event.owner() == super::ROOT_CLOSE_OWNER && service.roots.take_report() {
             continue;
         }
         let Some(event) = program::file_event(service, event) else { continue };
@@ -387,7 +387,7 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
         channel::Heard::Cancel => super::admission::cancel(service),
         channel::Heard::WriteFailed => service.mark_failed(Failure::WriteFailed),
         channel::Heard::Ended { why: _ } => match service.teardown {
-            Teardown::Live | Teardown::LiveUnsent { .. } => {
+            Teardown::Live { .. } => {
                 service.mark_failed(Failure::ChannelEnded);
                 if let Some(run) = service.admission.run() {
                     service.domain_events.push(domain::Event::Cancel { run });

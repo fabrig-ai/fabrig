@@ -1,10 +1,9 @@
-#[path = "../../../../testing/first_run.rs"]
-pub mod first_run;
 use jig_client::contract as c;
 use jig_client::contract::{ApplicationPart, Part, PartKey, PartKind};
 use skein_lib::{Duration, Env, List, Queue, RequestLimits, Time, Token, Wall, Writer};
 use temper_client_domain::{Limits, forge};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+pub use temper_fixtures::first_run;
 pub const NOW: Wall = Wall::EPOCH;
 pub const FORGE: u16 = temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge);
 pub const PROJECT: u32 = 1;
@@ -52,11 +51,7 @@ pub fn limits() -> Limits {
             exchanges: 8,
         };
 
-        Limits {
-            forge: forge::Limits { field_bytes: 256, checks: 8 },
-            client,
-            accounts: temper_client_domain::limits::AccountLimits { accounts: 16, sources: 8, uses: 8, sign_ins: 4 },
-        }
+        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
     }
 }
 pub fn words() -> crate::words::Words {

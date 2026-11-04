@@ -1,5 +1,6 @@
 //! Pure call plans and their exchange events.
 use crate::forgejo::{decode, document, header};
+pub use crate::plan::Failure;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
 
@@ -29,18 +30,6 @@ pub enum Body {
     Empty,
     /// Not the document its request gets: the connection closes.
     Malformed(decode::Malformed),
-}
-
-/// Why an exchange failed (forge.md, 3.4,
-/// "Unavailable is provable only before the first byte").
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Failure {
-    /// The server never saw the request: no byte written (a refused connect, a failed
-    /// handshake, the deadline while waiting), or skein-http's `Closed`: `Unavailable`.
-    Unseen,
-    /// It may have been read: a reset, the stream's end, `Truncated`, `Stream`, the
-    /// deadline in flight, an answer HTTP refuses: `Timeout`.
-    Seen,
 }
 
 /// What a connection tells the call it serves, in order: `Head`, `Row`s, `Done`; or `Failed`.
