@@ -885,6 +885,7 @@ fn connection(
             w::SettingUp::new(
                 limits,
                 w::SettingUpParts {
+                    fetched: None,
                     step: match step {
                         None => None,
                         Some(forge::SetUpStep::Fetch) => Some(w::SetUpStep::Fetch),

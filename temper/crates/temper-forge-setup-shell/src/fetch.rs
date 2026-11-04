@@ -93,7 +93,12 @@ fn finish(handle: &fs::File, part: &[u8], file: &[u8]) -> Result<(), Failed> {
         .map_err(|why| file_error(file, &why))
 }
 /// Runs the machine; an interrupted body leaves its part to be truncated next time.
-pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Result<(), Failed> {
+pub fn run(
+    limits: &skein_io::Limits,
+    trust: &Trust,
+    mut machine: Fetch,
+    out: &mut dyn io::Write,
+) -> Result<(), Failed> {
     let roots = skein_shell::read_trust_roots(
         trust,
         &skein_shell::RootBounds { bundle_bytes: 1 << 20, certificates: 1024, certificate_bytes: 65_536 },
@@ -104,11 +109,11 @@ pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Resu
     let mut part_file: Option<fs::File> = None;
     let mut part_path: Box<[u8]> = Box::new([]);
     let mut event = Event::Begin;
-    let mut out = Queue::uncapped();
+    let mut requests = Queue::uncapped();
     let result = loop {
-        fetch::step(&mut machine, event, &mut out);
-        assert_eq!(out.len(), 1, "one fetch request per event");
-        let answer = match out.pop().expect("one fetch request") {
+        fetch::step(&mut machine, event, &mut requests);
+        assert_eq!(requests.len(), 1, "one fetch request per event");
+        let answer = match requests.pop().expect("one fetch request") {
             Request::Hash { file } => hash(&file).map(Event::Hashed),
             Request::Get { origin, path, authorization } => {
                 if let Some(mut old) = connection.take() {
@@ -127,6 +132,12 @@ pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Resu
                 part_path = part;
                 Event::Done
             }),
+            Request::Say(fetched) => {
+                match out.write_all(&fetched.line()) {
+                    Ok(()) | Err(_) => {}
+                }
+                Ok(Event::Done)
+            }
             Request::Read => {
                 let connection = connection.as_mut().expect("body follows Get");
                 connection.demand();
