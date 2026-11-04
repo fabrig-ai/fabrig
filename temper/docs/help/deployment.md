@@ -167,4 +167,4 @@ For the configuration members that need a restart, read `temper help configurati
   what ctl reads of one.
 - A box on fake backends keeps a deployment of its own under
   `DATA/box/fake-backends`, and refuses a `CONFIG` changed after
-  `temper init`.
+  `temper init --box`.

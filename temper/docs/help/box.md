@@ -58,19 +58,19 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 ## 1. Write the configuration
 
 ```
-temper init --config CONFIG --data DATA --cache CACHE
+temper init --box --config CONFIG --data DATA --cache CACHE
 ```
 
-Init writes loopback ports 8367–8371 for clients, owned Forgejo,
-fake forge, demo LLM and webhooks, or free ports if occupied, in both
-files. Another box needs empty directories; keep the first running.
+Init writes loopback ports 8367–8371 for clients, owned Forgejo, fake forge,
+demo LLM and webhooks, or free ports if busy. For another box, keep the
+first running and use empty directories.
 
-Starts refuse occupied saved addresses. Init releases ports;
-step 2 on empty directories runs init, retaining ports.
-Edit first; fake backends need unchanged `CONFIG`.
+Init releases ports; starts refuse occupied addresses. Step 2 on empty
+directories runs init, retaining ports.
+Plain `temper init` then `temper box` has no playground; `--fake-backends`
+refuses it.
 
-Expect: `init: wrote DATA/worker.secret`; the last line gives step 2's
-real-backend command.
+Expect: `init: wrote DATA/worker.secret`; last line: step 2's real command.
 
 **Claude Code:** replace OpenAI with Anthropic below.
 `MODEL`: Claude Code model, e.g. `sonnet` or `opus`.
@@ -99,7 +99,7 @@ jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS
 ```
 
 Expect: no output; `me` lists provider 2, Anthropic, `claude_code`.
-Use it in step 5. Keep the demo model within init's limits.
+Use it in step 5; keep the demo model within init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
 use empty directories.

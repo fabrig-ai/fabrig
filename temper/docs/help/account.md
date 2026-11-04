@@ -7,7 +7,7 @@ An account is how a deployment pays an LLM provider for its runs, through its so
 ## What it is
 
 - **A provider** is an LLM provider in the configuration, by its
-  number: `temper init` writes provider 1, OpenAI, and provider 3, the
+  number: `temper init --box` writes provider 1, OpenAI, and provider 3, the
   playground's scripted model. `me` lists the providers your party may
   use and how each signs in.
 - **An account** is your party's, or the deployment's, held for its
