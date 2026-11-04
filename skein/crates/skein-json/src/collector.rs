@@ -173,6 +173,7 @@ pub struct Counts {
 pub struct Collector {
     tokenizer: Tokenizer,
     events: Queue<json::Event>,
+    // Stages one request within up (json.md, 5.1); empty on entry, so capacity 1 cannot reject a push.
     demands: Queue<Down>,
     walk: Stack<Frame>,
     document: Builder,
@@ -226,7 +227,7 @@ impl Collector {
         Ok(Collector {
             tokenizer: Tokenizer::new(&limits.tokenizer),
             events: Queue::uncapped(),
-            demands: Queue::uncapped(),
+            demands: Queue::with_capacity(1),
             walk: Stack::with_capacity(limits.tokenizer.depth),
             document: Builder::new(capacity),
             state: State::Idle,
