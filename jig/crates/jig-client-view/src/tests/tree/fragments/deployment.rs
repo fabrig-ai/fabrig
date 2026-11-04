@@ -459,8 +459,8 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
     let exact = skein_ui::Limits {
         nodes: tree.len(),
         depth,
-        text_per_node: tree.nodes().iter().map(crate::tests::text_bytes).max().unwrap(),
-        text_bytes: tree.nodes().iter().map(crate::tests::text_bytes).sum(),
+        text_per_node: tree.nodes().iter().map(skein_ui::Node::text_bytes).max().unwrap(),
+        text_bytes: tree.nodes().iter().map(skein_ui::Node::text_bytes).sum(),
         ..maximum
     };
     assert_eq!(build(&client, w, exact).len(), tree.len());
@@ -1098,7 +1098,7 @@ fn whole_account_lists_above_rows_fill_the_view_counts() {
         usize::try_from(CLIENT.client.accounts.accounts).unwrap()
     );
     assert!(tree.len() <= bounds.nodes);
-    assert!(tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>() <= bounds.text_bytes);
+    assert!(tree.nodes().iter().map(skein_ui::Node::text_bytes).sum::<u32>() <= bounds.text_bytes);
 }
 
 #[test]

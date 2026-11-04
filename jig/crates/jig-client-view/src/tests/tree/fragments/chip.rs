@@ -112,21 +112,18 @@ fn build(value: &ChipDetails, words: &Words) -> (Tree, JigBindings, Limits) {
         depth: f.depth,
         text_per_node: f.text_per_node,
         text_bytes: f.text_bytes,
-        drawing_bytes: 0,
         styles_per_node: 2,
-        patches: 0,
         bindings: f.bindings,
         slots: f.slots,
         markdown_depth: 2,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     };
     let mut b = Builder::new(&capacity);
     let mut bindings = JigBindings::new(f.bindings, 256);
     view::render(&mut b, value, &client.view(), words, &mut bindings);
     let tree = b.finish();
     assert!(tree.len() <= f.nodes);
-    assert!(tree.nodes().iter().all(|node| crate::tests::text_bytes(node) <= f.text_per_node));
+    assert!(tree.nodes().iter().all(|node| node.text_bytes() <= f.text_per_node));
     (tree, bindings, f)
 }
 
@@ -387,8 +384,7 @@ fn exact_owner_verdict_fits_chip_result_fragment_at_full_field_capacity_and_reje
     goldens.check(&tree);
     assert!(u32::try_from(tree.nodes().len()).unwrap() <= envelope.nodes);
     assert!(
-        tree.nodes().iter().map(|node| u64::from(crate::tests::text_bytes(node))).sum::<u64>()
-            <= u64::from(envelope.text_bytes)
+        tree.nodes().iter().map(|node| u64::from(node.text_bytes())).sum::<u64>() <= u64::from(envelope.text_bytes)
     );
 
     assert_eq!(value, before);
@@ -437,8 +433,7 @@ fn maximum_chip_fragment_checks_selected_language_storage_raw_slots_loss_and_ari
     value.ended_at = Some(Wall::from_nanos(200));
     let (tree, bindings, envelope) = build(&value, words());
     assert!(
-        tree.nodes().iter().map(|node| u64::from(crate::tests::text_bytes(node))).sum::<u64>()
-            <= u64::from(envelope.text_bytes)
+        tree.nodes().iter().map(|node| u64::from(node.text_bytes())).sum::<u64>() <= u64::from(envelope.text_bytes)
     );
     assert_eq!(tree.nodes().iter().filter(|node| node.slot.is_some()).count(), 7);
     for node in tree.nodes() {

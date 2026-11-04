@@ -20,14 +20,8 @@ const UI: skein_ui::Limits = skein_ui::Limits {
     depth: 2,
     text_per_node: 64,
     text_bytes: 128,
-    drawing_bytes: 0,
-    styles_per_node: 0,
-    patches: 0,
-    bindings: 0,
-    slots: 0,
     markdown_depth: 1,
-    scene_marks: 0,
-    scene_bytes: 0,
+    ..skein_ui::Limits::EMPTY
 };
 fn overridden_world() -> World<Test, Scripted> {
     let mut language = words::english();

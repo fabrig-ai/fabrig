@@ -16,14 +16,7 @@ fn builder(nodes: u32, book: &Phrasebook) -> Builder {
         depth: 4,
         text_per_node: bytes,
         text_bytes: nodes.checked_add(1).unwrap().checked_mul(bytes).unwrap(),
-        drawing_bytes: 0,
-        styles_per_node: 0,
-        patches: 0,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 0,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     })
 }
 
