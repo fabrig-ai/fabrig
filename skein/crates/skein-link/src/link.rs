@@ -59,13 +59,7 @@ impl fmt::Debug for Link {
 impl Link {
     #[must_use]
     pub fn new(tls: Option<tls::Client>) -> Link {
-        Link {
-            socket: None,
-            tls,
-            events: Queue::uncapped(),
-            cipher: Queue::uncapped(),
-            ending: Ending::Open,
-        }
+        Link { socket: None, tls, events: Queue::uncapped(), cipher: Queue::uncapped(), ending: Ending::Open }
     }
     #[must_use]
     pub fn encrypted(&self) -> bool {
