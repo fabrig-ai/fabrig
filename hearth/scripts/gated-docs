@@ -1,0 +1,2 @@
+# Markdown read by the build or tests, one repository-relative path per line.
+# No checked-in Markdown is currently read; tests construct their README bytes.
