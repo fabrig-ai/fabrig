@@ -15,3 +15,5 @@
   `pending_grant`, `aborted` and `file_active` beside `Exchange::stage`;
   no reason is recorded (the code's side is
   `skein/docs/development/debt/D022-oauth-states.md`).
+- **Not yet:** 1: `skein-oauth/src/redirect.rs`'s `issuer_endpoint` takes any
+  address that starts `https://`, one with no host or with userinfo among them.

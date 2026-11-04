@@ -323,7 +323,8 @@ client's evidence: unsent, possibly sent, or a response received.
   The prompt it was started with is the owner's until the client prepares
   the request from it.
 - **`valid(limits, endpoints)`** checks endpoint and pool sizes, every
-  route's edge limits and the capacities derived from them. The pool
+  route's edge limits and the capacities derived from them, and holds
+  exactly when `Component::new` would make the component. The pool
   must hold at least one largest call's reservation; the component
   names that relationship when refusing it. No heap-price sum is checked
   at startup.
