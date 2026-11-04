@@ -955,8 +955,9 @@ keeps (`../protocol/configuration.md`, section 2).
     the step's body draws the sign-in as `ConnectModel`'s does, its
     address and then its end, and an account made there `ConnectModel`'s
     Ready, its "Start a chat" replaced by "Continue", to the welcome's
-    Ready (`/welcome?at=ready`), whose act makes the project. Above
-    them, once a forge is acted on, the forge's line, so that Model
+    Ready (`/welcome?at=ready`), whose act makes the project. After
+    the choices and before the foot, once a forge is acted on, a region
+    named "Forge" holds the forge's line and its steps, so that Model
     says what Forge did: while it sets up or connects, "FORGE ·
     CONNECTION · ORG/NAME", ORG/NAME its first repository, and a disclosure, "Each
     step", holding `ConnectForge`'s Setting up steps; once connected,
@@ -965,9 +966,15 @@ keeps (`../protocol/configuration.md`, section 2).
     LOGIN temper's on the forge (`forge.md`, 5.4). A forge with no first repository, GitHub's
     or a Forgejo connected with its bot's tokens, reads "FORGE ·
     CONNECTION" while it connects, and once connected, ticked, "✓ FORGE
-    · CONNECTION". Ticked, FORGE is strong and the rest quieter, the
-    tick, FORGE, the dot and the rest each a node of their own, for the
-    look; the line's name is its words without the tick. The line
+    · CONNECTION". In the browser, in every state, FORGE is strong and
+    each detail a muted text node on a line of its own, with no dot or
+    tick in the text: the stylesheet draws a quiet ring, or a green
+    tick once connected. From 1280 px the region is a 272 px pane to
+    the right of the 680 px column, its top at the heading's, with a
+    hairline at its left; narrower it stays after the choices, with a
+    hairline above it. The terminal prints "Forge:" and the line's
+    words indented under it, joined with dots and a leading "✓ " once
+    connected. The line's name is its words without the tick. The line
     names no project but to say its first repository is in none yet,
     as Ready adopts nothing; a set up or a first repository that failed keeps all
     five steps, with its failed step marked ✕, preceding steps done

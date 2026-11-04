@@ -30,6 +30,13 @@ What the client doesn't draw yet:
 
 Where the client does otherwise:
 
+- **Model's forge pane** (the client README's 3.5; `../browser.md`, 2.5;
+  the user, 2026-11-04): its named Forge region follows the choices and
+  precedes the foot, beside the column from 1280 px and under the
+  choices otherwise. Its name and muted details stack under a mark,
+  a green tick once connected; "Each step" stays in the pane while
+  unfinished. The mockup is not edited.
+
 - **The welcome adopts nothing** (the client README's 3.5 and 5.6;
   `../../draft/first-run-projects.md`, 4): Forgejo on this machine's
   Details have no "Into a new project, named" and GitHub's step no

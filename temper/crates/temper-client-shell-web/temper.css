@@ -975,7 +975,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-welcome-checklist .temper-welcome-end { margin-left: -21px; }
 .temper-welcome-status { margin-bottom: 23.33px; color: var(--temper-muted); font-size: 12.83px; }
 .temper-welcome .temper-welcome-status > p { margin: 0; color: var(--temper-muted); font-size: 12.83px; }
-.temper-welcome-status > .temper-flow-done::first-letter { color: var(--temper-green); }
 .temper-repository-private { display: inline-flex; align-items: center; gap: 5.83px; white-space: nowrap; padding: 2.33px 7px; border-radius: 3.5px; background: #f3f1eb; color: #6d695f; font-size: 11.67px; font-weight: 600; }
 .temper-repository-choice { display: flex; align-items: center; gap: 9.33px; grid-column: 1 / -1; padding: 8.17px 11.67px; border: 1px solid #e8e4dc; border-radius: 5.83px; background: var(--temper-paper); font: 12.83px var(--temper-mono); }
 .temper-repository-choice.temper-repository-selected { border-color: #ba694e; background: var(--temper-accent-pale); }
@@ -1314,12 +1313,23 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-welcome .temper-welcome-foot > * { margin: 0; }
 #app > .temper-welcome .temper-welcome-foot > :is(a, button) { font: 400 14px/1.6 var(--gf-sans); color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-welcome .temper-welcome-foot > :is(a, button):hover { color: var(--gf-ink); text-decoration-color: var(--gf-ink); }
-/* The forge's state above the Model step. */
-#app > .temper-welcome .temper-welcome-status { margin: 0 0 32px; padding: 14px 16px; border-radius: 10px; background: #eef6f0; }
-#app > .temper-welcome .temper-welcome-status > p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-status > p > span:first-child { color: var(--gf-good); font-weight: 600; }
-#app > .temper-welcome .temper-welcome-status > p > span:nth-child(n+3) { color: var(--gf-muted); }
+/* The forge's state beside the Model step: a pane at the right of the
+   column when the window has room, under the choices when it has not,
+   so that the step's heading and choices sit where the Forge step's do. */
+#app > .temper-welcome { position: relative; }
+#app > .temper-welcome .temper-welcome-status { margin: 0 0 28px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--gf-line); border-radius: 0; background: none; }
+#app > .temper-welcome .temper-welcome-status > p { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 6px; margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-status > p::before { content: '◌' / ''; grid-row: 1; color: var(--gf-faint); }
+#app > .temper-welcome .temper-welcome-status > p.temper-flow-done::before { content: '✓' / ''; color: var(--gf-good); }
+#app > .temper-welcome .temper-welcome-status > p > span:not(.temper-flow-muted) { grid-column: 2; color: var(--gf-ink); font-weight: 400; }
+#app > .temper-welcome .temper-welcome-status > p > span.temper-flow-muted { display: block; grid-column: 2; padding: 0; color: var(--gf-muted); font-size: 13.5px; }
 #app > .temper-welcome .temper-welcome-status strong { font-weight: 500; }
+#app > .temper-welcome .temper-welcome-status > details { margin: 10px 0 0 24px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-status > details > summary { cursor: pointer; }
+#app > .temper-welcome .temper-welcome-status .temper-flow-progress { margin: 10px 0 0; gap: 6px; font-size: 13.5px; line-height: 1.45; }
+@media (min-width: 1280px) {
+  #app > .temper-welcome .temper-welcome-status { position: absolute; top: 44px; left: calc(100% + 8px); width: 272px; margin: 0; padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--gf-line); }
+}
 /* Ready, as the greenfield mockup draws it: the checklist's lines, each
    with its mark in a circle and a hairline under it, then the first
    project's form. */
@@ -1384,9 +1394,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-welcome .temper-welcome-lead, #app > .temper-welcome .temper-welcome-tagline + .temper-welcome-lead { margin-bottom: 24px; font-size: 15.5px; }
   #app > .temper-welcome :is(.temper-welcome-choices, .temper-flow-choices, .temper-model-choices) { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
   #app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card) { padding: 18px; }
-  #app > .temper-welcome .temper-welcome-status { margin-bottom: 24px; }
-  #app > .temper-welcome .temper-welcome-status > p > span:nth-child(3) { display: none; }
-  #app > .temper-welcome .temper-welcome-status > p > span:nth-child(4) { flex-basis: 100%; padding-left: 22px; }
   #app > .temper-welcome .temper-welcome-checklist { margin-bottom: 24px; }
   #app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 2 / -1; grid-row: auto; justify-self: start; }
   #app > .temper-welcome form.temper-welcome-project { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
