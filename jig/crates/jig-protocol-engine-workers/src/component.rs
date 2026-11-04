@@ -1,4 +1,4 @@
-//! Worker channel ownership and routing (protocol/channel.md, sections 4 and 10.2).
+//! Routing (protocol/channel.md, sections 4 and 10.2); Debug (jig/docs/design/protocol/service.md, 11.3).
 use crate::{
     Event, Limits, Request, Worker,
     connection::{Connection, Ending, Phase},
@@ -21,7 +21,6 @@ enum Life {
     Aborting,
     Closed,
 }
-#[derive(Debug)]
 pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
@@ -33,6 +32,11 @@ pub struct Component {
     next_part: u64,
     life: Life,
     dropped_down: u64,
+}
+impl core::fmt::Debug for Component {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("Component").field(&self.life).field(&(self.connections.len(), self.dropped_down)).finish()
+    }
 }
 impl Component {
     pub fn new(limits: &Limits, workers: Box<[Worker]>, payload: u32) -> Result<Self, Unusable> {

@@ -75,3 +75,13 @@ Acceptance:
 
 As the implementer's text says, with `notes/common.md`'s table and the net lines. First say in one line whether the
 panic was real, and what ran to show it.
+
+## Rebase (2026-11-04, step merge, foreman debt-10/listener-text/foreman-1)
+
+Resolve the status-file conflict by preserving trunk’s added gaps and removing only the completed 11.6 gap.
+The merge conflicts in `jig/docs/design/protocol/service.status.md`.
+Commit `127f855119592a8758dbd1844f7398f4a8b1a28b` added gaps for 11.2 (`Undecoded`), 11.4 (`bundle`), and 11/11.5 (`Drivers`/`mark_durable`) beside the line this branch deletes.
+Rebase onto the landing trunk and retain those additions and all other trunk status entries.
+Remove only `**Not yet:** 11.6: address_text stands in jig_protocol_engine_clients::host` (with its existing Markdown formatting).
+Keep the status date current; both inspected versions already say `2026-11-04`.
+Preserve the branch’s formatter move, call-site updates, and startup-refusal tests. No code change is needed for this conflict.
