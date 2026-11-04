@@ -3,7 +3,7 @@ id = "reference-trim"
 part = "reference"
 kind = "feature"
 needs = ["stock-scale"]
-files = ["temper/docs/examples/reference/limits.json", "temper/docs/examples/reference/agent.json", "temper/docs/examples/reference/settings.json", "temper/crates/temper/src/tests/reference_settings.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper/tests/suite/startup.rs", "temper/docs/design/protocol/configuration.status.md"]
+files = ["temper/docs/examples/reference/limits.json", "temper/docs/examples/reference/agent.json", "temper/docs/examples/reference/settings.json", "temper/crates/temper/src/tests/reference_settings.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper/tests/suite/startup.rs", "temper/docs/design/protocol/configuration.status.md", "temper/tests/engine/domain/tests/suite/forge_routes/goal_branch.rs"]
 effort = "high"
 minutes = 120
 +++
@@ -69,6 +69,8 @@ Acceptance:
 - The files of the header, for what acceptance names.
 - Readers that name `agent.json` of the reference (`rg -n 'reference/agent.json'`): a test that
   reads it to merge it stops doing so, its assertion on what it set removed; each listed.
+- `temper/tests/engine/domain/tests/suite/forge_routes/goal_branch.rs`: the worker hello's
+  offered bounds only (see Answers).
 - `docs/examples/reference/landing.json` and the repository's `.temper/` are not yours.
 - If init's admission refuses the merged document (a limit `tasks.tree_tasks` 1,024 ties to,
   the least that passes), add that limit to `limits.json` at the least value that passes and
@@ -85,3 +87,33 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+### 2026-11-04: may this task repair the goal-branch fixture, or does a separate task?
+
+This task repairs it: acceptance names the test, and a separate task would only park this one.
+The header now holds `goal_branch.rs`, for one line.
+
+The likely cause is `stock-scale`'s, not the settings you changed; read from the code, not yet
+run. `reference_template_four_starts_on_the_configured_forge` gives its
+worker `jig_test_profile::fixtures::bounds()`, whose `time` is 3,600 s. The hello is checked
+against every configured charter (`jig_domain_fleet::needs::shortfall`, from `channel.rs`), and
+the stock's charters 2, 4 and 6 now run 28,800 s, so the hello gets `AgentShortfall::Time`, no
+worker joins and no run is assigned: the `answers=[], assignments=[]` of your log. The test's
+charters come from the stock, not from the reference's settings.
+
+The repair, as `stock-scale`'s answer treats a fixture (what an agent offers, not a stock
+figure), after `hello.bounds.models = ...` in that test:
+
+```rust
+hello.bounds.time = Duration::from_secs(28_800); // The stock's longest charter.
+```
+
+- First merge `origin/fabrig-scale/stock-scale`: if the test already passes, change nothing here.
+- `jig_test_profile`'s `bounds()` stays; jig names no stock.
+- If it still fails, read the hello's refusal: another offered bound may rise the same way, the
+  figure the refusal names, listed in the report. A failure no offered bound repairs is a
+  question; no stock, budget or timeout moves.
+- The `problems.rs` lint is `stock-scale`'s: leave it under `## Left` unless the merge mended it,
+  and finish `heavy cargo clippy -p temper --all-targets` as far as it goes.
