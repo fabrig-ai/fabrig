@@ -384,8 +384,7 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
 - **skein's foundation documents** are named by their file names:
   `programming-model.md`, `testing-strategy.md`, `notes.md`. Other
   documents carry their project's name, never a path: skein's
-  `channel.md`, `draft/archive/factory.md`, jig's `connectors.md`, os's
-  `deploy.md`.
+  `channel.md`, jig's `connectors.md`.
 - **Each document** says in one page what it is, then its parts, what it
   owes and is owed below the domain, its world, what it keeps or changes
   from os, and what is open.
@@ -686,7 +685,7 @@ user (`testing-strategy.md`, section 9). From the earliest:
 | writing a tree's metadata: symlink, link, chmod, chown, extended attributes, mkdir, truncate (skein's `kernel.md`, 6.4) | change sets | M2 |
 | setting an entry's times, without following links (`utimensat`) | a slot's `/var`, copied (domain/slots.md, 5.3); later, the walk's clamp (domain/reproducible.md, 5.1) | M3 |
 | spawning as another user, with supplementary groups; signalling a process group | the steward under the activator, the builder under the steward; stopping a tool | M2 |
-| contained process trees (skein's draft `process.md`), with id maps through `newuidmap`, a composed root and `pivot_root`, network and uts namespaces, fresh `/proc`, `/sys` and `/dev`, `no_new_privs` and limits (domain/build.md, 8.8) | sandboxes | M2 |
+| contained process trees, with id maps through `newuidmap`, a composed root and `pivot_root`, network and uts namespaces, fresh `/proc`, `/sys` and `/dev`, `no_new_privs` and limits (domain/build.md, 8.8) | sandboxes | M2 |
 | a closed list of synchronous ioctls in the ring adapter: `GET_SUBVOL_INFO`, `GET_SUBVOL_ROOTREF`, `INO_LOOKUP_USER`, `SUBVOL_CREATE`, `SNAP_CREATE_V2`, `SNAP_DESTROY_V2`, `SUBVOL_SETFLAGS` (domain/store.md, 5.8; skein's `kernel.md`, 6.5) | the store and the slots, unprivileged where they can be | M2 |
 | a digest of a world's state, for replay (domain/testing.md, 8.4) | replay checks in hearth's worlds | M1 |
 | an exclusive lock on a directory, taken without waiting, which the owner asks for again on its own timer (skein's `kernel.md`, 6.1; `io.md`, 5) | the store's lock (domain/store.md, 8.2, step 1) | M1 |

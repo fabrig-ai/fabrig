@@ -604,7 +604,7 @@ H("initramfs",
   ```
 
 - **No PID 1 answers in a sandbox;** `SYSTEMD_OFFLINE=1` makes
-  `systemctl` act on files (systemd's `ENVIRONMENT.md`), with the layer
+  `systemctl` act on files (systemd's environment variables), with the layer
   as `/`, so no `--root`.
 
 ### 7.6 `customize.sh`
@@ -797,7 +797,7 @@ the packages step: a tool root                    every other step: the layer as
 ### 8.8 What it asks of skein
 
 README.md (8.1) asks for contained process trees with id maps through
-`newuidmap`. Beyond skein's draft `process.md`, sandboxes need:
+`newuidmap`. Beyond contained process trees, sandboxes need:
 
 - **a view that is only what is given:** a root the owner composes and
   `pivot_root`, rather than the host read-only with given directories

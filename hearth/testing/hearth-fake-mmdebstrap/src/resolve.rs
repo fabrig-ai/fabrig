@@ -1,4 +1,4 @@
-//! Mark requests before dependencies, using the model of apt in decisions.md, 14.
+//! Mark requests before dependencies, using apt's model.
 use alloc::{
     boxed::Box,
     collections::{BTreeMap, BTreeSet},

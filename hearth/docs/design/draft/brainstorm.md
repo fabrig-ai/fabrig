@@ -370,8 +370,7 @@ same wire. Inside, hearth is Debian on btrfs, and says so.
 
 ## 7. The IaC format
 
-os's configuration and task formats (os's `config-format.md` and
-`task-format.md`) fit the factory better than most IaC formats:
+os's configuration and task formats fit the factory better than most IaC formats:
 configuration is declarative data; templates cannot run anything;
 rendering is deterministic and cheap; a task bundles everything about
 one concern; variants are thin; secrets are named by path only. Their

@@ -1,19 +1,13 @@
 # Test-time caps doubled provisionally at the user's request, 10-22.
 # Slow periods are doubled; terminate-after counts stay fixed, so termination
 # deadlines double as well.
-# The two test suites (docs/development/workflow.md, section 2): the focused
+# The two test suites: the focused
 # one, every test but the fuzzy ones, within 30 seconds; and the fuzzy one, the
 # test binaries named fuzzy_* beside each world's focused tests, within 2
 # minutes. A suite past its budget fails, naming the tests it stopped; a test
 # past its slow period is flagged SLOW as it runs. The profiles outside the
 # gate (domain/testing.md, 9.2) come with their tiers, and their binaries join these
 # filters' exclusions.
-#
-# nextest refuses a filter that names a binary no crate has, so until the
-# first world's fuzzy test lands the fuzzy profile selects none(), and the
-# default profile everything. The landing that adds that test gives both
-# profiles their filters, the two lines marked below; scripts/check.sh fails
-# it otherwise (workflow.md, section 1).
 
 [profile.default]
 default-filter = "not binary(/^fuzzy_/) and not binary(/^conformance_/)"
@@ -39,7 +33,7 @@ default-filter = "not binary(/^conformance_/)"
 global-timeout = "2h"
 slow-timeout = { period = "120s" }
 
-# heavy cargo nextest run --workspace --profile conformance; HEARTH_RECORD=1 captures.
+# cargo nextest run --workspace --profile conformance; HEARTH_RECORD=1 captures.
 [profile.conformance]
 default-filter = "binary(/^conformance_/)"
 global-timeout = "4m"

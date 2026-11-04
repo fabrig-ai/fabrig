@@ -8,7 +8,7 @@ M3 builds the rest of the client, with the steward that serves it, but
 for the commands a later milestone marks ([M3b], [M5], [M6]). The
 steward's faces, standalone mode and the wire are protocol/wire.md's.
 Documents are named by their path from `docs/design/`, as everywhere in
-hearth's design (README.md, section 6). What is open is in section 5.
+hearth's design (../README.md, section 6). What is open is in section 5.
 
 ## 1. In one page
 
@@ -35,7 +35,7 @@ hearth's design (README.md, section 6). What is open is in section 5.
 ## 2. Its crates
 
 A crate that exists for the client is named
-`hearth-client-{domain,protocol,<kind>}-<name>` (README.md, 4.2):
+`hearth-client-{domain,protocol,<kind>}-<name>` (../README.md, 4.2):
 
 | Crate | What it is | Milestone | Designed in |
 |---|---|---|---|
@@ -53,7 +53,7 @@ A crate that exists for the client is named
   loop; the activator's crates run as root for the root-only commands.
   None of them exists for the client.
 - **The binary is `hearth`,** the project's name alone: each process,
-  and the client (README.md, 4.2).
+  and the client (../README.md, 4.2).
 
 ## 3. The command line
 
@@ -222,7 +222,7 @@ A crate that exists for the client is named
 | 77 | not permitted | the peer's credentials do not allow it; a root-only command run by another user |
 
 - **0, 1 and 2 keep os's and the bash fleet's meanings** (os's
-  `deploy.md`, exit codes; the bash fleet's validation contract): 1 is
+  exit codes; the bash fleet's validation contract): 1 is
   an answer, 2 is a failure. 2 means the input must change; 75 means the
   same command may succeed later, as domain/render.md, 7.1 separates
   configuration errors from operational ones.
@@ -254,7 +254,7 @@ A crate that exists for the client is named
   cleanly.
 - **Peer credentials decide.** The steward reads the peer's uid with
   `SO_PEERCRED` when it accepts the connection (an ask of skein,
-  README.md, 8.1) and never trusts a uid a record names.
+  ../README.md, 8.1) and never trusts a uid a record names.
   - root, and the uids listed as operators in the steward's
     configuration, may run every command the socket serves;
   - any other uid may run `render`, `diff` (but `--running`, which
@@ -321,11 +321,11 @@ A crate that exists for the client is named
   `hearth`, mode 0700 (domain/machine.md, 3.1), and the client tries the
   socket first: if a daemon answers, the daemon serves.
 - **M1's client never tries a socket.** There is no daemon before M3,
-  and no Unix socket in skein before it (README.md, 8.1): `render` and
+  and no Unix socket in skein before it (../README.md, 8.1): `render` and
   `diff` always run in-process.
 - **Uses:** a developer's machine (M1, M2); CI posting the rendered diff
   of a change (domain/render.md, section 6); the factory's builders when they
-  run without an activator (README.md, 4.1).
+  run without an activator (../README.md, 4.1).
 
 ### 3.6 Root-only commands
 
@@ -397,7 +397,7 @@ A crate that exists for the client is named
 - **The tools** are util-linux's `unshare`, `mount` and `setpriv`;
   util-linux is essential in Debian, so `setpriv` is in every slot, run
   inside the view after the `chroot`. Skein's contained process trees
-  would do all of it at spawn (README.md, 8.1). That ambient
+  would do all of it at spawn (../README.md, 8.1). That ambient
   capabilities survive `setpriv`'s `--no-new-privs` and the exec of the
   shell is to verify.
 - **Refused on a slot being prepared:** the activator's state says so,

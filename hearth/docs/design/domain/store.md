@@ -1291,7 +1291,7 @@ What the steward must keep across restarts and reboots lives in
   `useradd -r -F -K SUB_UID_MIN=<base>` (to verify).
 - **Base 262144 (0x40000) by default:** aligned, and below
   systemd-nspawn's automatic range (524288 to 1879048191, systemd's
-  `UIDS-GIDS.md`), which hearth's containers may use [M5] only with
+  UID and GID documentation), which hearth's containers may use [M5] only with
   idmapped mounts: a shift into a container's own range needs its base
   at prepare, before nspawn would pick one (domain/slots.md, 12.1 and 12.4).
   domain/machine.md (section 8) sets it at bootstrap.

@@ -1372,7 +1372,7 @@ ids are facts; drift is never repaired in place.
 - **When:** on demand from the client, and at every start; on a period
   with operating's signals [M5] (domain/operating.md, section 4).
 - **Drift is the activator's:** it wrote the record, and only root can
-  read every file of a slot (README, section 4.2).
+  read every file of a slot (`README.md`, 4.2).
 - **A host's containers [M5]** are checked by the host's activator under
   the same ids, reported for the container's target: the running slot's
   root from the top level, against its record and manifest;

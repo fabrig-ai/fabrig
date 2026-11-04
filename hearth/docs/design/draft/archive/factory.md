@@ -500,7 +500,7 @@ ops            jig's example, on fakes; its connectors may seed the real ones
 ## 12. What it asks
 
 - **jig:**
-  - connector crates shared by applications (`qa.md`, section 9);
+  - connector crates shared by applications;
   - clients that are not people, for the active lab;
   - services as parties on the forge.
 - **temper:** gates that require another party's status at a head;

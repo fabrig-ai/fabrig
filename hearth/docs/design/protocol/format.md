@@ -5,7 +5,7 @@ repository as hearth reads it: the repository's files, how targets are
 made from bases and environments, how layers merge, what a task declares
 and the schema of its settings, the template language, exports between
 targets, and how secrets, identity and software are named. It takes os's
-`config-format.md` and `task-format.md` further, for agents and digests
+configuration and task formats further, for agents and digests
 (draft/brainstorm.md, section 7), and is written fresh: there is no
 converter from os's configurations. Milestone M1 builds it, but for
 checks (M5) and artifacts (M6). How a revision becomes a spec is

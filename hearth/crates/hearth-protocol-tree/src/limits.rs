@@ -64,7 +64,7 @@ pub struct CacheFileLimits {
     pub path: u32,
     pub oid: u32,
 }
-/// Store.md, 6.1's defaults and the plan's decoder bounds.
+/// domain/store.md, 6.1's defaults and the plan's decoder bounds.
 pub const SHIPPED: Limits = Limits {
     depth: 8,
     key: 64,

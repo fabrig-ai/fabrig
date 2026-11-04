@@ -12,8 +12,7 @@ rust-version = "1.95"
 publish = false
 
 # skein is a git dependency named by its GitHub URL, with no rev, branch or
-# tag: Cargo.lock pins it, a repin moves it, and skein's `plan` finds it by
-# the source's "/skein.git#" (skein's development.md, sections 5.7 and 9.5):
+# tag: Cargo.lock pins it:
 [workspace.dependencies]
 hearth-render-world = { path = "tests/render" }
 libc = "0.2.186"

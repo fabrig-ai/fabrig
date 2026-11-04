@@ -4,7 +4,7 @@ use hearth_domain_render::{
     evaluate::{Filter, Missing, Value},
     limits::Limits,
 };
-/// Format.md, 4.1's recursive pseudocode; independent of render's merge.
+/// protocol/format.md, 4.1's recursive pseudocode; independent of render's merge.
 #[must_use]
 pub fn merge(target: Option<crate::json::Json>, patch: &crate::json::Json) -> Option<crate::json::Json> {
     use crate::json::Json;
