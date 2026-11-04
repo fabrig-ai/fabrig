@@ -298,6 +298,19 @@ impl App for Test {
     }
     fn unsent(request: Request) -> Option<Event> {
         match request {
+            Request::Client { request } => {
+                let event = match request {
+                    jig_client::Request::Exchange { exchange, .. } => jig_client::Event::Lost { exchange },
+                    jig_client::Request::OpenStream { .. } => jig_client::Event::StreamGone,
+                    jig_client::Request::Authorized(_)
+                    | jig_client::Request::ServiceCredential { .. }
+                    | jig_client::Request::CloseStream
+                    | jig_client::Request::Save { .. }
+                    | jig_client::Request::Erase { .. }
+                    | jig_client::Request::Told { .. } => return None,
+                };
+                Some(Event::Client { event })
+            }
             Request::Unlinked { request } => {
                 let event = match request {
                     jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } } => {
@@ -330,14 +343,7 @@ impl App for Test {
                 };
                 Some(Event::Client { event })
             }
-            Request::Client { request: jig_client::Request::Exchange { exchange, .. } } => {
-                Some(Event::Client { event: jig_client::Event::Lost { exchange } })
-            }
-            Request::Client { request: jig_client::Request::OpenStream { .. } } => {
-                Some(Event::Client { event: jig_client::Event::StreamGone })
-            }
-            Request::Client { .. }
-            | Request::Save { .. }
+            Request::Save { .. }
             | Request::Erase { .. }
             | Request::Show { .. }
             | Request::SignOut

@@ -231,9 +231,6 @@ pub(crate) fn route_client(
             | jig_client::Request::OpenStream { .. }
             | jig_client::Request::CloseStream
             | jig_client::Request::ServiceCredential { .. }) => out.push(Request::Client { request }),
-            jig_client::Request::Down { .. } | jig_client::Request::SignOut => {
-                unreachable!("a linked client asks no Down or SignOut (jig's client.md, 4.4)")
-            }
         }
     }
     forge_served(root, env, out);

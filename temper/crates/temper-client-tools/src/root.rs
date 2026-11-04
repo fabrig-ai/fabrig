@@ -247,9 +247,6 @@ fn drain(
                         root.recovery.output(&request, &link_limits(env));
                         out.push(Request::Client { request });
                     }
-                    jig_client::Request::Down { .. } | jig_client::Request::SignOut => {
-                        unreachable!("a linked client asks no Down or SignOut (jig's client.md, 4.4)")
-                    }
                 },
                 ClientOutput::Unlinked(request) => match request {
                     jig_client::UnlinkedRequest::Told { told } => route(root, env, told, child, out),

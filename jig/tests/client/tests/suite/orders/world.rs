@@ -435,10 +435,6 @@ impl World {
         }
     }
 
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "unexpected linked duties fail at the world's observation boundary"
-    )]
     fn outputs(&mut self, out: &mut Queue<client::Request>) {
         while let Some(request) = out.pop() {
             match request {
@@ -462,7 +458,9 @@ impl World {
                     self.writes.push_back(Write { saves: Vec::new(), erases });
                 }
                 client::Request::Exchange { exchange, message, .. } => self.wire(exchange, message),
-                other => panic!("unexpected client duty: {other:?}"),
+                other @ (client::Request::Authorized(_) | client::Request::ServiceCredential { .. }) => {
+                    panic!("unexpected client duty: {other:?}")
+                }
             }
         }
     }
