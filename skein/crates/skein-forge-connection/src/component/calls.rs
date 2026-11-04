@@ -160,14 +160,7 @@ impl Component {
         let call_connections = self.call_connections();
         for (owner, connection) in &self.connections {
             let c = self.connection_slab.get(*connection).expect("indexed connection");
-            let mut reserved = false;
-            for n in 0..self.forges.len() {
-                if self.forges.get(n).expect("forge").base.own == Some(*owner)
-                    && self.forges.get(n).expect("forge").base.forge.kind == crate::settings::Kind::GitHub
-                {
-                    reserved = true;
-                }
-            }
+            let reserved = c.role == connection::Use::Reserved;
             if reserved {
                 continue;
             }
@@ -176,12 +169,7 @@ impl Component {
                     token = Some(*owner);
                     break;
                 }
-                let mut start = false;
-                for entry in &self.forges {
-                    if entry.base.own == Some(*owner) {
-                        start = true;
-                    }
-                }
+                let start = c.role != connection::Use::Calls;
                 if !start {
                     other = Some(*connection);
                 }
@@ -203,6 +191,10 @@ impl Component {
         let token = token.expect("selected connection");
         if self.forges.get(at).expect("forge").base.own == Some(token) {
             self.forges.get_mut(at).expect("forge").base.own = None;
+            self.connection_slab
+                .get_mut(*self.connections.get(&token).expect("own token"))
+                .expect("own connection")
+                .role = connection::Use::Calls;
         }
         let _old = self.holders.insert(token, call).expect("one holder per connection");
         let waiting = self.waiting.get_mut(id).expect("indexed call");

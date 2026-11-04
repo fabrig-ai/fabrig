@@ -421,6 +421,7 @@ impl Component {
             && let Some(id) = self.connections.get(&token)
         {
             let c = self.connection_slab.get_mut(*id).expect("start connection");
+            c.role = connection::Use::Calls;
             c.close(env, c.in_flight(), io);
         }
         match &mut entry.dialect {
@@ -751,18 +752,12 @@ impl Component {
     }
     fn call_connections(&self) -> u32 {
         let mut count = 0_u32;
-        for (owner, id) in &self.connections {
-            if self.connection_slab.get(*id).expect("indexed connection").membership == connection::Membership::Removed
-            {
+        for (_, id) in &self.connections {
+            let c = self.connection_slab.get(*id).expect("indexed connection");
+            if c.membership == connection::Membership::Removed {
                 continue;
             }
-            let mut reserved = false;
-            for entry in &self.forges {
-                if entry.base.own == Some(*owner) && entry.base.forge.kind == crate::settings::Kind::GitHub {
-                    reserved = true;
-                }
-            }
-            if !reserved {
+            if c.role != connection::Use::Reserved {
                 count = count.checked_add(1).expect("bounded connections");
             }
         }
@@ -805,6 +800,11 @@ impl Component {
         let owner = self.open_call(at, env, io);
         let entry = self.forges.get_mut(at).expect("forge");
         entry.base.own = Some(owner);
+        self.connection_slab.get_mut(*self.connections.get(&owner).expect("own token")).expect("own connection").role =
+            match entry.base.forge.kind {
+                crate::settings::Kind::Forgejo => connection::Use::Own,
+                crate::settings::Kind::GitHub => connection::Use::Reserved,
+            };
         match &mut entry.dialect {
             Dialect::Forgejo { plan } => {
                 *plan = None;
