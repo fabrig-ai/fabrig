@@ -29,6 +29,8 @@ holds the standing rules every task names.
    - `tasks/connection-twins.md`, medium, ~20 minutes, needs `forge-plan-failure`.
    - `tasks/forge-root-close.md`, docs, medium, ~15 minutes, needs `forge-users` and `connection-twins`: the item goes.
 
+(11-04, agents/loop for fabrig/debt: part 4 and the question `d001-scope` left this plan; the run moved an atomic release into two commits and asked to change the test's oracle. They wait with fabrig/debt, specs in `coord/debt/held-debt-5/`.)
+
 4. **jig-core-steps** (jig D001; `jig/docs/design/domain/root.md, 3`), slice 4. `notes/core-steps.md`
    holds what each root does with each arm, why the due set, and what must not change. The cut wrote
    3's new paragraph and its **Not yet**. **D001 stays open:** see the question below.
