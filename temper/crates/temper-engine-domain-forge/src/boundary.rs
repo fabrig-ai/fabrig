@@ -1107,6 +1107,11 @@ pub enum Stored {
     Playground(Playground),
     Tier(TierRow),
     Verification(Verification),
+    /// A person's dismissals (temper/docs/design/domain/forge.md, 5.5).
+    Dismissed {
+        party: u64,
+        what: crate::Dismissal,
+    },
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1147,6 +1152,7 @@ pub enum Key {
     Playground,
     Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
     Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
+    Dismissed { party: u64, what: crate::Dismissal },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -86,6 +86,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             Stored::ProposedEffect(ProposedEffect { number: n, entry: status(n, n), resource: What::Repository })
         }
         RecordKind::Entry => Stored::Entry { entry: status(n, n), held: true },
+        RecordKind::Dismissed => Stored::Dismissed { party: n, what: Dismissal::ToBegin { project: number } },
         RecordKind::Binding => {
             Stored::Binding { address: Box::new([u8::try_from(number).unwrap()]), subject: Box::new([]) }
         }
@@ -154,6 +155,7 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
         (K::ProposedEffect, LIMITS.tasks),
         (K::Entry, LIMITS.entries),
         (K::Binding, LIMITS.bindings),
+        (K::Dismissed, LIMITS.dismissed()),
         (K::Setting, crate::settings::rows(&LIMITS).unwrap()),
         (K::Flight, LIMITS.entries),
         (K::Writer, CLIENT.repositories),
@@ -568,6 +570,7 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
 fn a_zero_capacity_table_refuses_its_first_row() {
     for (kind, limits) in [
         (RecordKind::Binding, Limits { bindings: 0, ..LIMITS }),
+        (RecordKind::Dismissed, Limits { bindings: 0, ..LIMITS }),
         (RecordKind::Call, Limits { named_calls: 0, ..LIMITS }),
         (RecordKind::Change, Limits { changes: 0, ..LIMITS }),
         (RecordKind::Issue, Limits { issues: 0, ..LIMITS }),
