@@ -58,7 +58,10 @@ fn reference_defaults() -> jig_domain_core::settings::Defaults {
         descriptions: Box::new([None]),
         models: Box::new([stock::box_model()]),
     };
-    let mut defaults = temper_service::stock::defaults(&llm);
+    let mut defaults = temper_service::stock::defaults(
+        &llm,
+        temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
+    );
     // Admission needs charter 5; the scripted world takes the stock run policy,
     // whose model and document requirements fit its fake worker and repository.
     let mut coordinator = defaults.charters[0].clone();

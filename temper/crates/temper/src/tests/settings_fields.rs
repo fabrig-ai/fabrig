@@ -191,7 +191,10 @@ fn every_member_ctl_prints_for_the_stock_is_a_field() {
     const STOCK_VALUES: usize = 10;
     let llm = llm();
     let models = models(&llm);
-    let stock = temper_service::stock::defaults(&llm);
+    let stock = temper_service::stock::defaults(
+        &llm,
+        jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Standard).core.tasks.result_bytes,
+    );
     let mut checked = 0;
     for value in stock.charters {
         walk(Shape::Charter, printed(&StockValue::Charter(Box::new(value)), &models));

@@ -406,7 +406,7 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
     let mut engine =
         config::engine(&document, engine_at, &jig_protocol_config::Directories::working(), config::Defaults::Passed)
             .unwrap();
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
     for declared in [false, true] {
         let mut agent = fixtures::startup_agent();
@@ -485,7 +485,7 @@ fn configured_keys_use_the_token_bound_instead_of_the_moved_file_ceiling() {
         config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 }).unwrap();
     let mut engine =
         config::engine(&document, 0, &jig_protocol_config::Directories::working(), config::Defaults::Passed).unwrap();
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
     engine.limits.token = 1;
     let key = engine.limits.token;

@@ -47,9 +47,9 @@ max(`tasks.delegates` + 1, `tasks.project_goals`) and at most
 
 A refused start names the failed dependency and required minimum.
 A fixed schema ceiling or profile store ceiling cannot be raised with
-a scalar override. `tasks.batch` grows the stored task record; reduce
-the named capacity or its spec/result/authority sizes when it exceeds
-that ceiling. Check each edit from a fresh configuration: a refusal of
+a scalar override. A batch's bytes, `tasks.batch_bytes`, and the inbox's messages grow
+the stored task record; reduce the named capacity or its spec, message, result and
+authority sizes when it exceeds that ceiling. Check each edit from a fresh configuration: a refusal of
 an earlier edit can still be present. For a goal's sizing example,
 read temper help budget; it does not promise a hundred-change profile.
 

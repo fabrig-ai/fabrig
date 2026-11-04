@@ -82,7 +82,7 @@ pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
 #[test]
 fn stock_chats_can_delegate_message_and_read_the_forge() {
     let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let policy = &defaults.policies.get(&1).expect("stock policy 1").policy;
     let families = jig_domain_core::ToolFamilies::JIG;
     for authority in [&defaults.rules.ceiling, &policy.ceiling, &policy.roles[0].authority] {
@@ -92,15 +92,15 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
                 families.delegate.0 | families.message.0 | families.control.0 | families.read.0 | families.settings
             )
         );
-        assert_eq!(authority.delegation.tasks, 18);
-        assert_eq!(authority.delegation.depth, 4);
+        assert_eq!(authority.delegation.tasks, 384);
+        assert_eq!(authority.delegation.depth, 32);
     }
 }
 
 #[test]
 fn stock_chats_inspect_and_delegate_while_coders_modify() {
     let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
         assert!(charter.policy.inspect);
         assert!(!charter.policy.shell);
@@ -112,7 +112,7 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
 #[test]
 fn the_configuring_agent_is_charter_3_and_template_3() {
     let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 6]);
     for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1536, 512, 512]) {
         assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
@@ -142,7 +142,7 @@ fn the_stock_passes_jigs_one_check() {
         crate::named(&document, &config::Directories::working()).expect("stock passes startup parsing");
         let engine = engine(&document);
         let core = config::core(&engine, [1; 16], 7);
-        let defaults = crate::stock::defaults(&engine.llm);
+        let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         assert_eq!(defaults.charters[0].policy.instructions.as_ref(), include_bytes!("../stock/chat.txt"));
         assert_eq!(defaults.charters[1].policy.instructions.as_ref(), include_bytes!("../stock/coding.txt"));
         for charter in &defaults.charters {
@@ -163,7 +163,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let document = without_projects();
     let engine = engine(&document);
     let core = config::core(&engine, [1; 16], 7);
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let mut run = (0, Setting::Charter(1));
     for charter in &defaults.charters {
         let bytes = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
@@ -184,7 +184,6 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"tasks.charters", 5, Setting::Charter(1), "the stock offers 5 charters"),
         (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
         (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
-        (b"tasks.result_bytes", 32, Setting::Template(1), "the stock's template 1 needs 32 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
         (b"core.settings.alternatives", 1, Setting::Charter(1), "the stock's charter 1 needs 1 alternative"),
         (b"core.settings.permissions", 1, Setting::Policy(1), "the stock's policy 1 needs 1 permission"),
@@ -196,7 +195,10 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         config::overrides::apply(&mut minimum, name, needed).unwrap();
     }
     assert_eq!(settings::check(&current, &core.settings, &core.connectors, &minimum.core), Ok(()));
-    assert_eq!(crate::stock::floors(&crate::stock::defaults(&engine.llm), &minimum), Ok(()));
+    assert_eq!(
+        crate::stock::floors(&crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes), &minimum),
+        Ok(())
+    );
     for &(name, needed, setting, words) in rows {
         let mut at = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
         config::overrides::apply(&mut at.limits, name, needed).unwrap();
@@ -209,7 +211,11 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
         config::overrides::apply(&mut at.limits, name, needed - 1).unwrap();
         assert!(settings::check(&current, &core.settings, &core.connectors, &at.limits.core).is_err(), "{name:?}");
-        let found = crate::stock::floors(&crate::stock::defaults(&engine.llm), &at.limits).unwrap_err();
+        let found = crate::stock::floors(
+            &crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes),
+            &at.limits,
+        )
+        .unwrap_err();
         assert_eq!(found, crate::stock::Floor { limit: name, configured: needed - 1, needed, setting });
         crate::startup::checks::stock(&at, &mut problems);
         let words = if name == b"core.run_bytes" {
@@ -238,8 +244,8 @@ fn each_floor_refuses_one_below_the_stocks_need() {
 fn each_charters_run_bytes_floor_names_that_charter() {
     use jig_domain_core::settings::Setting;
     let engine = engine(&without_projects());
-    for charter in &crate::stock::defaults(&engine.llm).charters {
-        let mut defaults = crate::stock::defaults(&engine.llm);
+    for charter in &crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).charters {
+        let mut defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         // Isolate each run policy from larger stock runs.
         defaults.charters = Box::new([charter.clone()]);
         let needed = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
@@ -263,7 +269,7 @@ fn each_charters_run_bytes_floor_names_that_charter() {
 fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     let document = without_projects();
     let engine = engine(&document);
-    let mut own = crate::stock::defaults(&engine.llm);
+    let mut own = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let mut needed = 0;
     for charter in &mut own.charters {
         charter.policy.instructions = Box::default();
@@ -415,7 +421,7 @@ fn each_charter_offers_every_configured_model() {
         (generated(), [b"gpt-6-luna".as_slice(), b"demo"].as_slice()),
     ] {
         let engine = engine(&document);
-        let defaults = crate::stock::defaults(&engine.llm);
+        let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         for charter in &defaults.charters {
             assert_eq!(charter.policy.model.name.as_ref(), names[0]);
             assert_eq!(charter.policy.alternatives.len(), names.len() - 1);
@@ -468,7 +474,7 @@ fn stock_startup_requires_a_model_before_building_its_charters() {
 fn a_worlds_own_defaults_cannot_restore_document_members() {
     let init = generated();
     let stock = engine(&init);
-    let mut own = crate::stock::defaults(&stock.llm);
+    let mut own = crate::stock::defaults(&stock.llm, stock.limits.core.tasks.result_bytes);
     own.charters[0].policy.turns = 9;
     let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     for member in ["charters", "templates", "policies", "rules"] {
@@ -495,7 +501,7 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
 #[test]
 fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
     let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let reviewer = defaults.charters.iter().find(|charter| charter.number == 4).expect("review charter");
     let words = core::str::from_utf8(&reviewer.policy.instructions).expect("review instructions");
     for phrase in [
@@ -512,7 +518,7 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 #[test]
 fn the_foremans_charter_reads_and_gives_a_verdict() {
     let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 6]);
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let mut expected = defaults.charters[3].clone();
@@ -537,7 +543,7 @@ fn the_foremans_charter_reads_and_gives_a_verdict() {
 #[test]
 fn the_foremans_words_name_the_three_verdicts() {
     let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let words = core::str::from_utf8(&foreman.policy.instructions).expect("foreman instructions");
     for phrase in ["answer:", "finish:", "escalate:", "never edit, push or run anything"] {
@@ -552,7 +558,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
         config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
     let at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
     let stock = crate::startup::engine(&document, at, &config::Directories::working()).unwrap();
-    let mut own = crate::stock::defaults(&stock.llm);
+    let mut own = crate::stock::defaults(&stock.llm, stock.limits.core.tasks.result_bytes);
     own.charters[0].policy.waiting = skein_lib::Duration::from_millis(1);
     own.templates[0].flags.listed = true;
     let policy = &mut own.policies.get_mut(&1).unwrap().policy;
@@ -597,14 +603,17 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
     cheap.cache_write_price = Some(3);
     cheap.output_price = 4;
     cheap.price_unit = 1000;
-    for (row, model, c, k) in [("init", init, 1057, 4228), ("cheap with costliest prices and rounding", cheap, 7, 32)] {
+    for (row, model, c, k) in [("init", init, 1057, 4228), ("cheap with costliest prices and rounding", cheap, 7, 256)]
+    {
         engine.llm.models[0] = model;
-        let stock = crate::stock::defaults(&engine.llm);
+        let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (charter, turns) in stock.charters.iter().zip([8, 16, 8, 16, 16]) {
+        for (charter, (turns, seconds)) in
+            stock.charters.iter().zip([(64, 3600), (800, 28_800), (64, 3600), (800, 28_800), (800, 28_800)])
+        {
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
-            assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(120), "{row}");
+            assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
             assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "{row}");
         }
@@ -620,7 +629,7 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
             policy.period_spend,
             policy.roles[0].period_spend,
         ] {
-            assert_eq!(spend, 48 * k, "{row}");
+            assert_eq!(spend, 80 * 24 * k, "{row}");
         }
     }
 }
@@ -636,7 +645,7 @@ fn startup_refuses_stock_budget_overflow_before_constructing_defaults() {
 #[test]
 fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
     let engine = engine(&generated());
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let mut expected = defaults.charters[1].clone();
     expected.number = 4;
     expected.policy.instructions = include_bytes!("../stock/review.txt").as_slice().into();
@@ -658,7 +667,7 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
     let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
     let engine_bytes = fixtures::value(&document, b"engine");
     let engine = fixtures::parse_engine(&engine_bytes);
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let core = config::core(&engine, [1; 16], 7);
     for ceiling in [
         &defaults.rules.ceiling,
@@ -838,5 +847,44 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
     }
     for item in &stock {
         assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
+    }
+}
+
+#[test]
+fn the_stock_pool_funds_eighty_chats_at_once() {
+    let engine = engine(&generated());
+    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    assert_eq!(stock.rules.minimum_run_spend, 2 * 1057);
+    assert_eq!(stock.rules.maximum_run_spend, 4228);
+    let policy = &stock.policies.get(&1).expect("policy 1").policy;
+    assert_eq!(stock.templates[0].budget, jig_domain_people::TemplateBudget::AsAllowed { cap: None });
+    let chat_spend = policy.roles[0].authority.budget.spend;
+    assert_eq!(chat_spend, 24 * 4228);
+    for spend in [stock.rules.period_spend, policy.period_spend, policy.roles[0].period_spend] {
+        assert!(spend >= 80 * chat_spend);
+        assert!(spend < 81 * chat_spend);
+    }
+}
+
+#[test]
+fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
+    let mut engine = engine(&generated());
+    for result_bytes in [32, 10_660, 262_144] {
+        engine.limits.core.tasks.result_bytes = result_bytes;
+        let stock = crate::stock::defaults(&engine.llm, result_bytes);
+        for template in &stock.templates {
+            assert_eq!(template.contract, jig_domain_tasks::Contract::Report { words: result_bytes });
+        }
+        assert_eq!(crate::stock::floors(&stock, &engine.limits), Ok(()));
+        engine.limits.core.tasks.result_bytes -= 1;
+        assert_eq!(
+            crate::stock::floors(&stock, &engine.limits),
+            Err(crate::stock::Floor {
+                limit: b"tasks.result_bytes",
+                configured: u64::from(result_bytes - 1),
+                needed: u64::from(result_bytes),
+                setting: jig_domain_core::settings::Setting::Template(1),
+            })
+        );
     }
 }

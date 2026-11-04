@@ -97,7 +97,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         jig_protocol_config::Defaults::Passed,
     )
     .unwrap();
-    let defaults = crate::stock::defaults(&jig.llm);
+    let defaults = crate::stock::defaults(&jig.llm, jig.limits.core.tasks.result_bytes);
     jig_protocol_config::pass(&mut jig, defaults).unwrap();
     jig
 }

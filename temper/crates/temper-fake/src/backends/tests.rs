@@ -410,7 +410,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     for field in ["name", "window", "output", "prices"] {
         assert_eq!(model[field], agent_model[field], "program declarations agree: {field}");
     }
-    let stock = temper_service::stock::defaults(&admitted.llm);
+    let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {
         assert!(charter.policy.alternatives.iter().any(|model| model.name.as_ref() == b"fake-claude"));
         assert_eq!(charter.policy.model.name.as_ref(), b"gpt-6-luna", "default remains credential-backed");

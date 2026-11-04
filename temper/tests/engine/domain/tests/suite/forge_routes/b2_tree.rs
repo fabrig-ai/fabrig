@@ -36,7 +36,7 @@ fn defaults() -> jig_domain_core::settings::Defaults {
         descriptions: Box::new([None]),
         models: Box::new([model()]),
     };
-    temper_service::stock::defaults(&llm)
+    temper_service::stock::defaults(&llm, box_limits().tasks.result_bytes)
 }
 
 fn world_with(defaults: &jig_domain_core::settings::Defaults) -> (World, engine::Assignment) {

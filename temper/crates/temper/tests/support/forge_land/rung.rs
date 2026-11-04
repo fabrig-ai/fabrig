@@ -513,56 +513,6 @@ impl Driver {
         )?;
         Ok(goal)
     }
-
-    fn funds(&mut self) -> Result<(), String> {
-        let revision = self.ctl(&["settings", "show"], None)?["newest"].as_u64().ok_or("settings revision")?;
-        let rules = self.ctl(&["settings", "show", "rules"], None)?;
-        let policy = self.ctl(&["settings", "show", "policy", "1"], None)?;
-        require(rules["revision"] == revision && policy["revision"] == revision, "same settings revision")?;
-        let file = self.store.join("funds.json");
-        write_json(&file, &funds_document(&rules, &policy)?);
-        self.ctl(
-            &[
-                "settings",
-                "apply",
-                file.to_str().ok_or("funds path")?,
-                "--against",
-                &revision.to_string(),
-                "--key",
-                "rung-funds",
-            ],
-            None,
-        )?;
-        Ok(())
-    }
-}
-
-/// Edit only numeric members present in ctl's values, preserving the rest of
-/// the revision's settings document (walk 1, step 3).
-pub fn funds_document(rules: &Value, policy: &Value) -> Result<Value, String> {
-    fn spend(value: &mut Value, pointer: &str, amount: u64) -> Result<(), String> {
-        let field = value.pointer_mut(pointer).ok_or_else(|| format!("funds: missing {pointer}"))?;
-        require(field.is_u64(), &format!("funds: {pointer} is not a spend"))?;
-        *field = amount.into();
-        Ok(())
-    }
-    require(rules["setting"] == json!({"kind":"rules"}), "funds: rules selector")?;
-    require(policy["setting"] == json!({"kind":"policy","number":1}), "funds: policy selector")?;
-    let mut r = rules["value"].clone();
-    let mut p = policy["value"].clone();
-    for value in [&mut r, &mut p] {
-        spend(value, "/ceiling/spend", 207_552)?;
-        spend(value, "/period_spend", 449_696)?;
-    }
-    let role = p["roles"]
-        .as_array()
-        .ok_or("funds: policy roles")?
-        .iter()
-        .position(|role| role["number"] == 0)
-        .ok_or("funds: role 0")?;
-    spend(&mut p, &format!("/roles/{role}/authority/spend"), 207_552)?;
-    spend(&mut p, &format!("/roles/{role}/period_spend"), 415_104)?;
-    Ok(json!({"items":[{"setting":rules["setting"],"set":r}, {"setting":policy["setting"],"set":p}]}))
 }
 
 fn stop_box(boxed: &mut Child) -> Result<(), String> {
@@ -818,7 +768,6 @@ fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Va
 /// All ordinary ctl setup before importing the held account, shared by the
 /// live walk and the process proof with the existing fake model.
 fn setup_tools(driver: &mut Driver) -> Result<(), String> {
-    driver.funds()?;
     driver.ctl(&["forge", "setup", "--playground", "--key", "rung-forge"], None)?;
     driver.wait(&["forge", "list"], "settled")?;
     let forges = driver.ctl(&["forge", "list"], None)?;
