@@ -1031,7 +1031,7 @@ terminal client, the captures and the faults.
   the story once, its model side a face: the fake issuer and the fake
   LLM peer here, ChatGPT itself in the live tier (2.7), which reuses
   every step and check but the face's:
-  - *the box and its forge:* `temper init` into three empty private
+  - *the box and its forge:* `temper init --box` into three empty private
     directories, the sign-in's and the LLM endpoint's addresses swapped
     for the fakes', then `temper box` on them, which reads that
     document; the owned forge set up from the client and `work/hello` made and
