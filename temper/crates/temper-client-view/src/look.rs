@@ -39,6 +39,36 @@ pub const HOME_LINES: Style = Style { owner: owner(), token: 211 };
 pub const HOME_MUTED: Style = Style { owner: owner(), token: 212 };
 /// Home's done (client/README.md, 3.5).
 pub const HOME_DONE: Style = Style { owner: owner(), token: 213 };
+/// Home's Needs you region (client/README.md, 3.5).
+pub const HOME_NEEDS: Style = Style { owner: owner(), token: 214 };
+/// A Home section's heading and link (client/README.md, 3.5).
+pub const HOME_HEAD: Style = Style { owner: owner(), token: 215 };
+/// The Needs you heading while something needs the person (client/README.md, 3.5).
+pub const HOME_SIGNAL: Style = Style { owner: owner(), token: 216 };
+/// Home's wide-page Answer in a row link (client/README.md, 3.5).
+pub const HOME_IN_A_ROW: Style = Style { owner: owner(), token: 217 };
+/// Home's linked needs or chat rows (client/README.md, 3.5).
+pub const HOME_ROWS: Style = Style { owner: owner(), token: 218 };
+/// A Home row's kind or state and age (client/README.md, 3.5).
+pub const HOME_WHEN: Style = Style { owner: owner(), token: 219 };
+/// A Home section's empty words (client/README.md, 3.5).
+pub const HOME_EMPTY: Style = Style { owner: owner(), token: 220 };
+/// Home's Chats region (client/README.md, 3.5).
+pub const HOME_CHATS: Style = Style { owner: owner(), token: 221 };
+/// Home's phone question and Answer link (client/README.md, 3.5).
+pub const HOME_CTA: Style = Style { owner: owner(), token: 222 };
+/// Home's phone Answer control (client/README.md, 3.5).
+pub const HOME_CTA_GO: Style = Style { owner: owner(), token: 223 };
+/// Home's first needs card (client/README.md, 3.5).
+pub const ASK: Style = Style { owner: owner(), token: 224 };
+/// The needs card's task link, kind and age (client/README.md, 3.5).
+pub const ASK_META: Style = Style { owner: owner(), token: 225 };
+/// The needs card's words (client/README.md, 3.5).
+pub const ASK_QUESTION: Style = Style { owner: owner(), token: 226 };
+/// The needs card's actions (client/README.md, 3.5).
+pub const ASK_CHOICES: Style = Style { owner: owner(), token: 227 };
+/// A quiet action on the needs card (client/README.md, 3.5).
+pub const ASK_QUIET: Style = Style { owner: owner(), token: 228 };
 /// The frame's banner.
 pub const BANNER: Style = Style { owner: owner(), token: 0 };
 /// The frame's navigation.
@@ -633,21 +663,21 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-lines",
         b"temper-home-muted",
         b"temper-home-done",
-        b"temper-reserved-214",
-        b"temper-reserved-215",
-        b"temper-reserved-216",
-        b"temper-reserved-217",
-        b"temper-reserved-218",
-        b"temper-reserved-219",
-        b"temper-reserved-220",
-        b"temper-reserved-221",
-        b"temper-reserved-222",
-        b"temper-reserved-223",
-        b"temper-reserved-224",
-        b"temper-reserved-225",
-        b"temper-reserved-226",
-        b"temper-reserved-227",
-        b"temper-reserved-228",
+        b"temper-home-needs",
+        b"temper-home-head",
+        b"temper-home-signal",
+        b"temper-home-in-a-row",
+        b"temper-home-rows",
+        b"temper-home-when",
+        b"temper-home-empty",
+        b"temper-home-chats",
+        b"temper-home-cta",
+        b"temper-home-cta-go",
+        b"temper-ask",
+        b"temper-ask-meta",
+        b"temper-ask-question",
+        b"temper-ask-choices",
+        b"temper-ask-quiet",
         b"temper-reserved-229",
         b"temper-settings",
     ],
