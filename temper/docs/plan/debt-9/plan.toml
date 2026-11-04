@@ -74,6 +74,19 @@ story = "a reviewer reads RunFailure in the run as in the host, no adapter for t
 parts = ["smith-names"]
 walk = false
 
+[[part]]
+id = "transport"
+title = "skein D016: one Link under the four components, each sending close_notify on a graceful close"
+mode = "direct"
+needs = []
+design = "skein/docs/design/link.md, 3"
+
+[[slice]]
+id = 5
+story = "the four components stand on one transport, and a graceful close over TLS reaches the server as close_notify"
+parts = ["transport"]
+walk = false
+
 [[question]]
 id = "github-media-type-assertions"
 text = """Removing the fake GitHub's charset switch reaches three assertions, and the request approves one. Approved: skein/tests/fake-peers/tests/forge/github.rs, `page.header(b"content-type")`, bare text/html. Not counted when the question was asked: (1) the next assertion of that same test, `conversion.header(b"content-type")`, bare application/json; (2) the_peers_server_names_a_bare_media_type in skein-fake-forge-github/src/tests/inline.rs, which pins the switch itself and can't hold without it. The decision's own words, "github.com's spelling, with `; charset=utf-8`, everywhere", need both to go, but "no other does" says they don't move, so the two lines can't both stand. Options: (a) recommended: both follow the decision: (1) reads `application/json; charset=utf-8`, (2) is deleted, since an_app_request_is_answered_whole already pins the one spelling. (b) only text/html moves to the long form and Json stays bare on Server: the switch stays in another form, against "everywhere", and the machine and setup stories that read the long JSON form need one. The task github-media-type stops with a Question until this has an answer: it moves neither on its own."""
@@ -83,3 +96,8 @@ parts = ["github-media-type"]
 id = "wrong-kind-meaning"
 text = """What does a restored secret of the wrong kind mean in temper? The request says: make temper stop if the design says the engine stops; if the design is silent, stop and ask. It is silent. jig/docs/design/protocol/service.md, 11.1 says "`InvalidSecret`, a restored secret of the wrong kind: what that means is the owner's", and temper's design names no meaning: credentials.md, 5 stops the engine on "a failure of jig's secrets' store itself", and here the store answered correctly. The nearest rules lean both ways: jig's protocol/store.md, 7.1 stops on a row that doesn't decode, while skein/docs/design/oauth.md, 6.4 fails only the grant and lets a sign-in replace it. By reading, not yet by a run, temper's accounts child aborts and the engine runs on with no owner told. Options: (a) recommended: temper stops, as jig does, since the store holds what the account's row says it should not. One sentence joins credentials.md, 5; about three lines and a test join temper-service, in files no other draft is changing. It stops on every path that reaches Component::secret, not only a restore. (b) a failure of that one source: the grant fails and a sign-in replaces it, which needs design and more code, so a new task. (c) keep today's behaviour and write that down: the child stays aborted with the engine running. The task temper-wrong-kind reproduces it, then stops with a Question until this has an answer. A real store Corrupt on an accounts write has the same fate today; that is a separate gap, left as it is, and named here for the user."""
 parts = ["temper-wrong-kind"]
+
+[[question]]
+id = "link-role"
+text = """Where does skein-link sit? skein/docs/design/draft/component-kit.md, 6.2 says a "component kit" role would change the code's rules and is the user's to decide, naming the shared transport as a later member. D016 needs a crate on lib, io and TLS, and neither io nor a machine may hold it. What this plan builds by default: the crate takes the existing protocol layer row of programming-model.md, 4, which allows lib, io and machines, so no rule changes and 6.2 stays open (skein/docs/design/link.md, 2). (a) recommended: that stands. (b) the kit role lands instead: only the role's wording changes, in a later small task, with the crate as it is. Nothing waits on the answer."""
+parts = ["transport"]
