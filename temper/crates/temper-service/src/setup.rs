@@ -1,6 +1,7 @@
 //! Durable setup needs and held manifest pages (protocol/forge.md, 2.6).
 pub(crate) mod diagnostics;
 pub(crate) mod lifecycle;
+pub(crate) mod making;
 pub(crate) mod public;
 mod routes;
 pub(crate) use routes::{MANIFEST_SCRIPT_HASH, MANIFEST_STYLE_HASH, PAGE_STYLE_HASH, busy};
@@ -321,7 +322,7 @@ impl Layer {
     pub(crate) fn lifecycle_ready(&self, engine: &crate::engine::Engine) -> bool {
         !self.closing
             && self.component.is_some()
-            && self.lifecycle.ready(&self.runs, self.env.limits.runs, &engine.domain)
+            && (self.lifecycle.ready(&self.runs, self.env.limits.runs, &engine.domain) || making::ready(engine))
     }
     /// A served page stays available for reload, until its own clock/count evicts it.
     pub(crate) fn page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
@@ -517,6 +518,8 @@ pub(crate) fn request(engine: &mut crate::engine::Engine, run: Token) {
             .insert(
                 run,
                 Run {
+                    making: None,
+                    words: None,
                     first: None,
                     forge: number,
                     kind,
@@ -660,6 +663,10 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                         engine.setup.down(host::Request::Answer { run, answer: host::Answer::Read(value) });
                     }
                     host::Need::Write { item, bytes } => {
+                        if item == skein_forge_setup::item::Item::Copying {
+                            making::copying(engine, run);
+                            continue;
+                        }
                         lifecycle::keep(
                             engine,
                             forge,
@@ -672,7 +679,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             }
             host::Event::Done { run, outcome } => lifecycle::done(engine, run, outcome),
             host::Event::Stop { run, failure } => lifecycle::stopped(engine, run, failure),
-            host::Event::Said { .. } => {}
+            host::Event::Said { run, words } => making::said(engine, run, words),
             host::Event::Closed => engine.setup.closed = true,
         }
         if engine.end.is_some() {
@@ -804,7 +811,10 @@ fn read_item(
             return None; // A caller's admin read never falls back to records or adoptions.
         }
     }
-    if item == skein_forge_setup::item::Item::Pasted || item == skein_forge_setup::item::Item::Copying {
+    if item == skein_forge_setup::item::Item::Copying {
+        return making::read(engine, run);
+    }
+    if item == skein_forge_setup::item::Item::Pasted {
         return None;
     }
     let item = item_record(item).expect("record item");

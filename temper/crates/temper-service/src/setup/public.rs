@@ -101,6 +101,8 @@ pub(crate) fn admin_connect(
         .insert(
             run,
             super::lifecycle::Run {
+                making: None,
+                words: None,
                 forge,
                 first,
                 kind: super::lifecycle::Kind::AdminReconcile,
