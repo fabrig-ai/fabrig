@@ -651,7 +651,7 @@ fn press_default(root: &mut Domain) -> Queue<Request> {
     event(root, Event::Act { action: Action::Pages(Act::MakeDefault) })
 }
 fn default_answer(root: &mut Domain, outcome: jig_client::Outcome) -> Queue<Request> {
-    let key = root.pages().default_project().making.expect("pending Default");
+    let key = root.pages().default_project().making.expect("pending first project");
     let mut out = Queue::uncapped();
     crate::route::told(root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut out);
     out
@@ -671,7 +671,7 @@ fn ready_makes_default_once_per_press_with_its_own_key() {
             assert_eq!(
                 request,
                 jig_client::Ask::Jig(Box::new(c::Ask::MakeProject {
-                    name: c::Text::new(b"Default".as_slice().into(), 64).unwrap(),
+                    name: c::Text::new(b"Hello".as_slice().into(), 64).unwrap(),
                     policy: 1,
                 }))
             );
@@ -717,7 +717,7 @@ fn default_name_taken_opens_only_the_persons_default() {
         if own_default {
             let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
             frame.projects.get_mut(0).unwrap().name =
-                c::DocumentText::complete(c::Text::new(b"Default".as_slice().into(), 64).unwrap());
+                c::DocumentText::complete(c::Text::new(b"Hello".as_slice().into(), 64).unwrap());
             deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
         }
         press_default(&mut root);
@@ -754,13 +754,13 @@ fn made_name(out: &mut Queue<Request>) -> Option<Box<[u8]>> {
 #[test]
 fn ready_makes_the_first_project_as_named() {
     let (mut root, me) = ready_default();
-    assert_eq!(root.pages().default_project().name.as_ref(), b"Default");
+    assert_eq!(root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())), b"Hello");
     assert!(name_default(&mut root, b"  Shop ").is_empty());
     let mut out = press_default(&mut root);
     assert_eq!(made_name(&mut out).as_deref(), Some(b"Shop".as_slice()));
     // While it is out, the name stays as asked.
     name_default(&mut root, b"Other");
-    assert_eq!(root.pages().default_project().asked(), b"Shop");
+    assert_eq!(root.pages().default_project().asked(&pages::welcome::offered(root.pages().welcome_first())), b"Shop");
     // Taken, it opens the person's project of that name.
     let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
     frame.projects.get_mut(0).unwrap().name =
@@ -787,7 +787,7 @@ fn ready_asks_for_a_name_before_making_anything() {
     assert!(!root.pages().default_project().unnamed);
     // jig's name bound holds the field: a longer name leaves it as it was.
     name_default(&mut root, &[b'x'; 65]);
-    assert_eq!(root.pages().default_project().name.as_ref(), b"S");
+    assert_eq!(root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())), b"S");
     assert_eq!(made_name(&mut press_default(&mut root)).as_deref(), Some(b"S".as_slice()));
 }
 #[test]
@@ -822,4 +822,50 @@ fn default_is_refused_until_both_forge_and_model_are_done() {
     rows(&mut root, forges.unwrap(), 3);
     assert!(press_default(&mut root).is_empty());
     assert_eq!(root.pages().default_project().attempt, 0);
+}
+
+#[test]
+fn ready_offers_the_first_repository_name_within_jigs_bound() {
+    const NAME_BYTES: usize = 64; // jig's project name bound.
+    let at_bound = [b'A'; NAME_BYTES];
+    let over_bound = [b'a'; NAME_BYTES + 1];
+    for (name, expected) in [
+        (b"hello".as_slice(), b"Hello".as_slice()),
+        ("éa".as_bytes(), "éa".as_bytes()),
+        (b"".as_slice(), b"My project".as_slice()),
+        (at_bound.as_slice(), at_bound.as_slice()),
+        (over_bound.as_slice(), b"My project".as_slice()),
+    ] {
+        let first = pages::welcome::First { forge: 3, org: b"work".as_slice().into(), name: name.into() };
+        assert_eq!(pages::welcome::offered(Some(&first)).as_ref(), expected);
+    }
+    assert_eq!(pages::welcome::offered(None).as_ref(), b"My project");
+}
+fn shown_name(root: &Domain) -> Box<[u8]> {
+    root.pages().default_project().shown(&pages::welcome::offered(root.pages().welcome_first())).into()
+}
+#[test]
+fn ready_follows_first_repository_rows_until_the_person_writes() {
+    let (mut root, _, _, forges) = opened(true, Step::Ready);
+    assert_eq!(shown_name(&root).as_ref(), b"My project");
+    forge_rows(&mut root, forges.unwrap(), Some(3), false);
+    assert_eq!(
+        root.pages().welcome_first(),
+        Some(&pages::welcome::First { forge: 3, org: b"work".as_slice().into(), name: b"hello".as_slice().into() })
+    );
+    assert_eq!(shown_name(&root).as_ref(), b"Hello");
+    forge_rows(&mut root, forges.unwrap(), Some(3), true);
+    assert_eq!(shown_name(&root).as_ref(), b"My project");
+}
+#[test]
+fn ready_keeps_written_and_emptied_names_across_new_rows() {
+    for written in [b"Shop".as_slice(), b"".as_slice(), b"My project".as_slice()] {
+        let (mut root, _, _, forges) = opened(true, Step::Ready);
+        name_default(&mut root, written);
+        forge_rows(&mut root, forges.unwrap(), Some(3), false);
+        assert_eq!(shown_name(&root).as_ref(), written);
+        go(&mut root, Step::Model { way: None });
+        go(&mut root, Step::Ready);
+        assert_eq!(shown_name(&root).as_ref(), written);
+    }
 }

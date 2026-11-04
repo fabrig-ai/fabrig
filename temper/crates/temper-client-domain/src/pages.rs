@@ -44,6 +44,7 @@ pub struct Pages {
     accounts_open: bool,
     welcome: Option<welcome::Welcome>,
     default_project: welcome::DefaultProject,
+    pub(crate) welcome_first: Option<welcome::First>,
     pub(crate) welcome_decision: Option<welcome::FirstRun>,
     party: Option<u64>,
     next: u64,
@@ -187,6 +188,7 @@ impl Pages {
             accounts_open: false,
             welcome: None,
             default_project: welcome::DefaultProject::new(),
+            welcome_first: None,
             welcome_decision: None,
             party: None,
             next: 1,
@@ -219,6 +221,10 @@ impl Pages {
     #[must_use]
     pub const fn default_project(&self) -> &welcome::DefaultProject {
         &self.default_project
+    }
+    #[must_use]
+    pub const fn welcome_first(&self) -> Option<&welcome::First> {
+        self.welcome_first.as_ref()
     }
     pub(crate) fn decide_welcome(&mut self) {
         if let Some(welcome) = &mut self.welcome {
@@ -457,7 +463,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if state.making.is_none()
                 && let Ok(words) = jig_client::contract::Text::new(words, welcome::NAME_BYTES)
             {
-                state.name = words.into_bytes();
+                state.written = Some(words.into_bytes());
                 state.unnamed = false;
             }
         }
@@ -1155,7 +1161,9 @@ fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
         Some(welcome::FirstRun::Whole | welcome::FirstRun::Unfinished { step: crate::Step::Ready }) => {}
         Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) | None => return,
     }
-    let Ok(asked) = jig_client::contract::Text::new(pages.default_project.asked().into(), welcome::NAME_BYTES) else {
+    let offered = welcome::offered(pages.welcome_first());
+    let Ok(asked) = jig_client::contract::Text::new(pages.default_project.asked(&offered).into(), welcome::NAME_BYTES)
+    else {
         return;
     };
     if asked.bytes().is_empty() {
@@ -1202,6 +1210,7 @@ fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue
         | Told::Ended { .. }
         | Told::Page { .. } => return false,
     };
+    let offered = welcome::offered(pages.welcome_first());
     pages.default_project.making = None;
     match outcome {
         jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
@@ -1215,7 +1224,7 @@ fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue
                 && let Some(me) = pages.me(client)
             {
                 for row in &me.projects {
-                    if row.name.bytes() == pages.default_project.asked() {
+                    if row.name.bytes() == pages.default_project.asked(&offered) {
                         pages.default_project.project = Some(row.project);
                         break;
                     }
