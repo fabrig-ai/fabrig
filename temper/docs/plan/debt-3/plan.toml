@@ -47,3 +47,16 @@ id = 3
 story = "skein's whole-buffer JSON reads go through one slice-fed driver or skein_json::parse, skein-oauth's Json among them, with the refusals they gave"
 parts = ["skein-json-feed"]
 walk = false
+
+[[part]]
+id = "smith-lifecycles"
+title = "smith D002: Domain, Stages and HostIo hold each lifecycle as its own state enum"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 5.4"
+
+[[slice]]
+id = 4
+story = "the local Domain's delivery and chat states, the agent service's run end and HostIo's close each read as one state enum with its own transitions and follow, with behaviour and stored formats unchanged"
+parts = ["smith-lifecycles"]
+walk = false

@@ -24,20 +24,30 @@ the standing rules every task names.
    - `tasks/skein-world-pumps.md`, medium, ~40 minutes, needs the driver: four test sites.
    - `tasks/skein-feed-paid.md`, docs, medium, ~10 minutes, needs those four and
      `temper-json-pumps`: the Measure reads 19, and the item and its row go.
-4. **smith-lifecycles** (smith D002): designed in this cut, added with its specs. It is in the
-   plan before the cut ends, as the request asks.
+4. **smith-lifecycles** (smith D002; `skein/docs/foundation/programming-model.md, 5.4`), slice 4.
+   - `tasks/smith-domain-delivery-save.md`, high, ~150 minutes, needs nothing: `Domain`'s four
+     delivery fields become `Delivering`; 27 fields to 24, 9 `Option` to 5.
+   - `tasks/smith-domain-chat-states.md`, high, ~70 minutes, needs the first: `closing_last` and
+     `transcript` move into the chat's states; 22 fields, 3 `Option`.
+   - `tasks/smith-stages-machines.md`, high, ~110 minutes, needs nothing: `Line`, `Admission`,
+     `Opening` and `Roots`, and `Teardown` holds the first failure; 55 fields to 44, 3 `bool` to
+     1, 13 `Option` to 6.
+   - `HostIo` follows, with the task that closes the item, once its designer's batch holds.
 
 ## Critical path
 
-So far: `skein-feed-driver` → `skein-forge-pumps` → `skein-feed-paid` (~60 + 90 + 10 = ~160
-implementer-minutes). `jig-ui-callers` (~70) and `temper-json-pumps` (~50) run alone.
+So far: `smith-domain-delivery-save` → `smith-domain-chat-states` (~150 + 70 = ~220
+implementer-minutes); `skein-feed-driver` → `skein-forge-pumps` → `skein-feed-paid` (~160) and
+`smith-stages-machines` (~110) run beside it; `jig-ui-callers` (~70) and `temper-json-pumps` (~50)
+alone.
 
 ## Overlaps
 
 Checked against the brief's `Drafts beside this one`, 2026-11-04: no task touches a file another
 draft is changing. `fabrig-scale` changes `temper-settings-form/src/lib.rs` and
 `temper-engine-smith/src/tests/settings.rs`, not `json.rs` or `tests.rs`, and nothing in skein's
-JSON readers.
+JSON readers. `fabrig-scale` also changes `smith-agent-service/src/profile.rs` and its tests,
+which `smith-stages-machines` leaves out of its files.
 
 ## Calls made
 
@@ -64,6 +74,19 @@ JSON readers.
 - **`skein-oauth`'s `Json` stays a token list, on `Feed`.** The Paid when allows the driver.
   `Document::member` is first-wins where oauth refuses a repeated field, so a Document walk would
   need oauth's own lookup in six helpers, and would move the `string_bytes` check past the parse.
+- **Two of `Domain`'s aborts become what the design says,** the one departure from "behaviour
+  unchanged". The state machine cannot hold a stale `delivery_owner`, so an unknown delivery
+  settles at the next `Load`, as `smith/docs/design/protocol/hosts.md`, 5.5 says, where the base
+  aborts. A `DeliverySaved` landing after `StoreFailed` is ignored, as `turn_saved` ignores its
+  late terminal: a store fault can cause it, so 5.4 allows no `unreachable!` for that cell. Each
+  has a test that aborts at base.
+- **`Stages` adds one variant to an exported enum,** `Teardown::LiveUnsent`, an addition the
+  request allows: nothing outside the crate names `Teardown` or receives one. `delivery` goes
+  (it was `outcome.change` held twice).
+- **Fields that stay,** because each means the same in every state: on `Domain`, `choice`,
+  `effort`, `answer_wall`, `interactive`; on `Stages`, `events`, `program`, `input`, `output`,
+  `signals`, `product_exit`, `usage_unread`. The Paid when forbids a field meaningful in some
+  states only, not every `Option`.
 - **Left out of the item:** two test kits (`skein-forge-conformance`, `skein-throwaway-forgejo`)
   pump a `Collector`, not a tokenizer, and `skein-llm`'s `openai/tests.rs` likewise; `Feed` owns a
   tokenizer, and the Paid when does not name them. They stay.
