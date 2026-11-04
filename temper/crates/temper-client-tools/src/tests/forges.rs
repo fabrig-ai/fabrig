@@ -17,6 +17,7 @@ pub(super) fn row(connection: C) -> Row {
         kind: Kind::Forgejo,
         mode: Mode::Owned,
         connection,
+        fetched: None,
         offer: Offer::Offered,
         first: None,
         installations: Box::new([]),
