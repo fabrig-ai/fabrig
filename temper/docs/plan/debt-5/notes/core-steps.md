@@ -74,4 +74,7 @@ Pre-approved, each with its default:
 - A world fixture that set a race or a restart cut by the same-decision activation is retimed to the
   later decision, every assertion kept and listed in the report; that is this change, not a story moving.
   A refusal, step or wake that no timing can reach is still a stop and ask.
+- `release` in temper's `forge_routes/reviews.rs` checks the core's release and the activation's forge reset
+  as two ordered commits, and `temper/docs/design/domain/forge.md`, 8.3 says so: a release's reset came with
+  the same-decision activation, and `Why::Released` stays saved on a `Due` task until it activates.
 - Over budget is red, as ever; a new cost here goes to the report with measurements.

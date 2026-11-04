@@ -10,11 +10,13 @@ files = [
   "jig/examples/ops/domain/src/route.rs",
   "jig/testing/jig-test-domain/src/**",
   "temper/crates/temper-engine-domain/src/route/now.rs",
+  "temper/docs/design/domain/forge.md",
   "temper/docs/design/domain/root.md",
   "temper/tests/engine/domain/src/escalation.rs",
   "temper/tests/engine/domain/src/forge_routes.rs",
   "temper/tests/engine/domain/tests/suite/escalation.rs",
   "temper/tests/engine/domain/tests/suite/forge_routes.rs",
+  "temper/tests/engine/domain/tests/suite/forge_routes/**",
 ]
 effort = "high"
 minutes = 100
@@ -33,6 +35,7 @@ Acceptance:
 - `lifecycle::activate` holds no `out`, and a `Person` task, a recurring template and a task activated while stopping do not enter `due`.
 - A new step test in `jig-domain-core` covers: a due agent task waits in `due` until `take_due`; a `Person` task and a recurring template are not kept; nothing enters `due` while stopping.
 - `temper/docs/design/domain/root.md`, 4.1 no longer lists an activation that comes ready of itself.
+- `temper/docs/design/domain/forge.md`, 8.3 says a released change's hold goes at its task's activation, not in the decision that releases the task.
 - What `temper/docs/plan/debt-5/notes/core-steps.md` calls `What runs` passes.
 
 ## Inputs
@@ -48,7 +51,7 @@ Acceptance:
 - This departs from a branch staying in its tree: the variant's removal is one atomic change, and those lines of temper are named here.
 - Tests of `jig-domain-core`, `jig-test-domain` and temper's root that saw `Now::Activate`: as the note's pre-approved list says. At base they are `tests/jobs.rs`, `tests/runs/notes_room.rs`, `tests/start/runs.rs`, `tests/windows.rs`, `tests/brief_documents.rs` and `jig-test-domain/src/tests/link.rs`.
 - The four world files in `files`, and any other fixture of a `What runs` package, as `## Answers` below says.
-- Design: `temper/docs/design/domain/root.md`, 4.1, the words named in step 4, nothing else. `jig/docs/design/domain/root.status.md` stays: `core-prepare-agent` closes it.
+- Design: `temper/docs/design/domain/root.md`, 4.1, the words named in step 4, and `temper/docs/design/domain/forge.md`, 8.3, the words `## Answers` names, nothing else. `jig/docs/design/domain/root.status.md` stays: `core-prepare-agent` closes it.
 - `Event::Activate` keeps `context` and `ready`.
 
 ## Steps
@@ -105,3 +108,23 @@ The measure; each story's count that moved, old and new; any story whose order m
 3. Your last run left 638 tests of the fourth command unobserved. Run the whole of `What runs` to the end with `--no-fail-fast`, and read every failure before changing anything. Another fixture in a `What runs` package that set a race or a cut by the same-decision activation is treated like the two above, without asking: assertions stay, and the report lists each one. A count moves only as the note says. A story whose visible order or outcome changes for any other reason is still a question. A memory ceiling or a test budget that goes red is the user's: report the measurements and raise nothing.
 
 Report the root cause of (2) and which case held.
+
+2026-11-04. May `release` in `forge_routes/reviews.rs` verify the core release and the forge reset in two ordered commits, or must production work keep them atomic? Two ordered commits; no production work. Commit `31d288e462` stands: continue from it.
+
+The same-commit assertion stood on `temper/docs/design/domain/forge.md`, 8.3, "in the same decision", so this is a design line and not only a fixture's: it goes too. That line came second to `jig/docs/design/domain/root.md`, 3 (the root's whole part in an activation is `take_due`, however the task came due), and to the later decision this plan already chose. Keeping both atomic would have the root act on a release before its activation, which is the arm this task removes. The release stays safe across the gap, read at this answer's base: `due_reason` is saved with the release, a message's wake and `wake_procedure` overwrite it only from `Idle` and a narrowing only with an attempt, so a `Due` task keeps `Why::Released` until it activates. A not-ready or over-budget activation already took this two-commit path before this change.
+
+1. In `temper/docs/design/domain/forge.md`, 8.3, `` Released, the change's own hold goes with its task's, in the same decision, and it asks `` becomes `` Released, the change's own hold goes at its task's activation, which runs after the release commits (jig's `domain/root.md`, 3), and it asks ``. Rewrap the paragraph as little as you can. No other design text moves.
+
+2. In `release`, keep the first inspection and its selection. Then:
+   - assert that `change_row` is still `Held` at that first cohort;
+   - tick until a pending cohort holds the forge row of the existing assertion, inspecting pending before each tick, and fail with the same panic details if it never comes;
+   - keep that assertion's whole predicate: not `Held`, `gate_failures` empty, `released.is_some()`. Its message becomes `the task's activation clears the change's hold and review tries`, and the comment says the release commits first and the reset is inspected before it is durable or any forge read answers.
+   That is one helper, so the fourteen `reviews.rs:785` cases should need no other change. Any of them that still fails is read as one of the six below.
+
+3. Add one world test in `reviews.rs`: restart between the two commits. Once the release is durable and `change_row` is still `Held`, `restart_same`, and the change still resets and asks afresh, as `a_released_change_asks_its_review_afresh` does. It pins what step 1 now says. If the world cannot stop between the two commits, say so in the report and drop this test; do not add a production hook for it. If it stops there and the reset is lost, that is a fault of this change: a question, naming the code.
+
+4. The note's `What runs` rule is widened by this one case and no other: an assertion that two rows share a commit only because the activation shared the decision may become an ordered check of the same two rows, with every field it checked kept. Listed in the report, each one. A design sentence behind such an assertion is a question.
+
+5. The six others (`early_start.rs:66`, `goal_branch.rs:417`, `goal_landing.rs:332`, `goal_landing.rs:58`, `landing.rs:731`, `repairs.rs:117`) are not answered here: no one has read why they fail. Read each first, then apply `## Answers`' earlier (2) and (3) to it: a fixture that set a race by the same-decision activation is retimed with its assertions kept; a lost step, wake or slot is this change's fault, fixed in the files it owns with a step test, and anything needing other production code is a question. `goal_branch.rs:417` (a writer slot not freed), `goal_landing.rs:332` (held with `BranchMoved`) and `repairs.rs:117` (a different refusal) read as more than timing: do not retime them until you can name the race. Ask one question for all that remain, after the full fourth command has run to its end; do not stop at the first.
+
+Report each `release` assertion's old and new form, the restart test's result, and the cause and verdict of each of the six.
