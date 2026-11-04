@@ -1,0 +1,3 @@
+draft = "bugs-skein"
+repo = "fabrig"
+sources = ["skein/docs/plan/bugs-skein/inputs/bugs-skein.md", "AGENTS.md"]
