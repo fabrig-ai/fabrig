@@ -445,6 +445,20 @@ fn prepared_source(scratch: &Scratch) -> (Directories, Prepared) {
 }
 
 #[test]
+fn reservations_avoid_every_port_the_peer_check_refuses() {
+    let scratch = Scratch::new("ordinary-ports");
+    let (_source, first) = prepared_source(&scratch);
+    let document = read_json(&first.directories.document());
+    let machine = &document["application"]["machine"];
+    let ports = ordinary_ports(&first.directories, &first.bytes).expect("ports");
+    for listen in [&machine["owned"]["listen"], &machine["fake"]["listen"]] {
+        let socket = listen["socket"].as_str().expect("socket");
+        let port = socket.parse::<SocketAddr>().expect("address").port();
+        assert!(ports.contains(&port), "{socket}");
+    }
+}
+
+#[test]
 fn reuse_atomically_replaces_bundle_and_preserves_every_other_edit() {
     use std::io::Read;
     let scratch = Scratch::new("reuse-override");
