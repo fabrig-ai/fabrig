@@ -250,6 +250,7 @@ fn every_connection_decodes_into_the_forges_words() {
             )
             .unwrap();
         let row = Row {
+            makings: Box::new([]),
             number,
             kind: k,
             mode: m,
@@ -288,6 +289,7 @@ fn every_connection_decodes_into_the_forges_words() {
 #[test]
 fn the_offer_drives_the_manual_words_and_setup_actions() {
     let mut row = Row {
+        makings: Box::new([]),
         number: 3,
         kind: Kind::Forgejo,
         mode: Mode::Owned,
