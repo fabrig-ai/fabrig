@@ -19,7 +19,7 @@ use skein_lib::{Env, Queue, Token};
 use crate::Limits;
 use crate::boundary::{Event, Failure, Op, Refusal, Request, Row};
 use crate::frame;
-use crate::map::KvMap;
+use crate::map::{KvMap, Queued};
 use crate::snapshot;
 
 const IO_OWNER: Token = Token::new(0x4b56);
@@ -115,6 +115,7 @@ pub struct Store {
     map: KvMap,
     queue: Queue<Pending>,
     queued_bytes: u64,
+    admitted: Queued,
     active: Vec<Pending>,
     segments: Vec<Box<[u8]>>,
     segment_index: usize,
@@ -143,6 +144,7 @@ impl Store {
             map: KvMap::new(limits),
             queue: Queue::with_capacity(limits.queued),
             queued_bytes: 0,
+            admitted: Queued::new(),
             active: Vec::new(),
             segments: Vec::new(),
             segment_index: 0,
@@ -232,18 +234,6 @@ impl Store {
         self.last.checked_add(active)?.checked_add(u64::from(self.queue.len()))?.checked_add(1)
     }
 
-    fn all_ops(&self, extra: &[Op]) -> Vec<Op> {
-        let mut ops = Vec::new();
-        for pending in &self.active {
-            ops.extend_from_slice(&pending.ops);
-        }
-        for pending in &self.queue {
-            ops.extend_from_slice(&pending.ops);
-        }
-        ops.extend_from_slice(extra);
-        ops
-    }
-
     fn start_batch(&mut self, limits: &Limits, below: &mut Queue<file::Request>) {
         let Phase::Ready { file, offset } = self.phase else {
             return;
@@ -302,6 +292,7 @@ impl Store {
             above.push(Event::Failed { owner: pending.owner, number: pending.number });
         }
         self.queued_bytes = 0;
+        self.admitted.clear();
         match mem::replace(&mut self.phase, Phase::Closed) {
             Phase::Ready { file, .. } | Phase::Writing { file, .. } | Phase::Syncing { file, .. } => {
                 self.phase = Phase::RecoveryClosing;
@@ -568,14 +559,17 @@ pub fn down(
                 above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
                 return;
             };
-            let all = store.all_ops(&ops);
-            if let Err(refusal) = store.map.check(&all, &env.limits) {
+            let total = store.queued_bytes.checked_add(skein_lib::len_u64(bytes.len()));
+            if total.is_none_or(|total| total > env.limits.queued_bytes) {
+                let refusal = match store.admitted.check(&store.map, &ops, &env.limits) {
+                    Ok(..) => Refusal::Busy,
+                    Err(refusal) => refusal,
+                };
                 above.push(Event::Refused { owner, refusal });
                 return;
             }
-            let total = store.queued_bytes.checked_add(skein_lib::len_u64(bytes.len()));
-            if total.is_none_or(|total| total > env.limits.queued_bytes) {
-                above.push(Event::Refused { owner, refusal: Refusal::Busy });
+            if let Err(refusal) = store.admitted.admit(&store.map, &ops, &env.limits) {
+                above.push(Event::Refused { owner, refusal });
                 return;
             }
             store.queued_bytes = total.expect("checked queue bytes");
@@ -876,6 +870,9 @@ pub fn up(
                 store.last = pending.number;
                 bytes = bytes.checked_add(skein_lib::len_u64(pending.frame.len())).expect("batch size fits u64");
                 above.push(Event::Committed { owner: pending.owner, number: pending.number });
+            }
+            if store.active.is_empty() && store.queue.is_empty() {
+                store.admitted.clear();
             }
             let offset = offset.checked_add(bytes).expect("segment offset fits u64");
             store.log_bytes = store.log_bytes.checked_add(bytes).expect("log bytes fit u64");
