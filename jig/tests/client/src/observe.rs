@@ -545,14 +545,9 @@ mod tests {
                     depth: 4,
                     text_per_node: 64,
                     text_bytes: 256,
-                    drawing_bytes: 0,
-                    styles_per_node: 0,
                     patches: 32,
-                    bindings: 0,
-                    slots: 0,
                     markdown_depth: 1,
-                    scene_marks: 0,
-                    scene_bytes: 0,
+                    ..skein_ui::Limits::EMPTY
                 };
                 let mut builder = skein_ui::Builder::new(&limits);
                 builder.open(Role::Item);
@@ -670,14 +665,9 @@ mod tests {
             depth: 4,
             text_per_node: 64,
             text_bytes: 1024,
-            drawing_bytes: 0,
-            styles_per_node: 0,
             patches: 128,
-            bindings: 0,
-            slots: 0,
             markdown_depth: 1,
-            scene_marks: 0,
-            scene_bytes: 0,
+            ..skein_ui::Limits::EMPTY
         };
         let mut view = View::new(&limits);
         let mut builder = view.builder();
@@ -707,14 +697,9 @@ mod tests {
             depth: 4,
             text_per_node: 64,
             text_bytes: 1024,
-            drawing_bytes: 0,
-            styles_per_node: 0,
             patches: 128,
-            bindings: 0,
-            slots: 0,
             markdown_depth: 1,
-            scene_marks: 0,
-            scene_bytes: 0,
+            ..skein_ui::Limits::EMPTY
         };
         let mut view = View::new(&limits);
         let mut builder = view.builder();

@@ -106,14 +106,11 @@ fn limits_for(client: &crate::tests::fixtures::Profile, words: &Words) -> Limits
         depth: f.depth,
         text_per_node: f.text_per_node,
         text_bytes: f.text_bytes,
-        drawing_bytes: 0,
         styles_per_node: 2,
-        patches: 0,
         bindings: f.bindings,
         slots: f.slots,
         markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     }
 }
 fn build(value: &PersonTask, words: &Words, cap: Limits) -> Tree {
