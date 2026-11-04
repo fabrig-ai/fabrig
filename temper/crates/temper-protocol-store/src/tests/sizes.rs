@@ -79,10 +79,7 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
         let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("row length"));
         row.encode(&mut writer).expect("measured room");
         let encoded = writer.finish();
-        assert_eq!(
-            Some(u64::try_from(encoded.len()).expect("encoded length")),
-            crate::v11::IssueRow::encoded_bound(&limits)
-        );
+        assert_eq!(Some(skein_lib::len_u64(encoded.len())), crate::v11::IssueRow::encoded_bound(&limits));
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
         let decoded =
@@ -214,7 +211,7 @@ fn largest_forge_record_fits_the_application_ceiling() {
     });
     let encoded = records::encode(&row);
     let forge_bound = w::Forge::encoded_bound(limits).expect("forge bound");
-    assert_eq!(u64::try_from(encoded.len()).expect("row length"), forge_bound + 3);
+    assert_eq!(skein_lib::len_u64(encoded.len()), forge_bound + 3);
     assert!(forge_bound + 3 <= w::Row::encoded_bound(limits).expect("application bound"));
     assert_eq!(records::decode(&encoded, &bounds), Ok(row.clone()));
     let mut payload = 0_u64;

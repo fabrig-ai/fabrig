@@ -302,7 +302,7 @@ impl Face {
         self.reply_status(service, b"200 OK", body);
     }
     fn reply_status(&mut self, service: &mut crate::Service, status: &[u8], body: &[u8]) {
-        let length = skein_lib::Decimal::of(u64::try_from(body.len()).unwrap());
+        let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
         let head = b"HTTP/1.1 ";
         let content = b"\r\nContent-Length: ";
         let mut writer = skein_lib::Writer::new(
@@ -655,8 +655,7 @@ fn stopped_connection_text_has_a_fixed_bound() {
     reasons.push(Stopped::KeyRefused).unwrap();
     for why in &reasons {
         assert!(
-            u64::try_from(lifecycle::stopped_text(*why).len()).unwrap()
-                <= temper_engine_domain_forge::STOPPED_TEXT_BYTES
+            skein_lib::len_u64(lifecycle::stopped_text(*why).len()) <= temper_engine_domain_forge::STOPPED_TEXT_BYTES
         );
     }
 }
