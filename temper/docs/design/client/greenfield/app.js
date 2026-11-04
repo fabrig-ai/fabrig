@@ -833,11 +833,11 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     return `<dialog class="sheet" id="repo-sheet" aria-labelledby="repo-title"><form method="dialog" data-repo-form="${ctx}" data-pick="empty">
       <div class="sheet-head"><h2 id="repo-title">${welcome ? 'Forgejo on this machine' : `Add a repository to ${esc(P().name)}`}</h2><p class="muted">${welcome ? 'temper starts it here and connects to it; you connect your model meanwhile.' : 'Made or copied on your Forgejo, then in this project at once.'}</p></div>
       <fieldset><legend>${welcome ? 'Start it with' : 'A repository'}</legend>
-        ${opt('empty', 'An empty repository', `A README and a starter CI check${welcome ? `, in ${esc(FR.project.name)} once you open it` : ''}.`, true)}
+        ${opt('empty', 'An empty repository', 'A README and a starter CI check.', true)}
         <div class="option-more more-empty fields"><div><label for="fj-org">Organization</label><input class="text" id="fj-org" value="${esc(FR.forgejo.org)}" autocomplete="off"></div><div><label for="fj-repo">Name</label><input class="text" id="fj-repo" value="${esc(FR.forgejo.repo)}" autocomplete="off"></div></div>
         ${opt('copy', 'Copies of public repositories', 'Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.', false)}
         <div class="option-more more-copy"><label for="fj-copies">Their addresses, one per line</label><textarea class="text addresses" id="fj-copies" rows="3" placeholder="${esc(FR.forgejo.copyHint)}" spellcheck="false"></textarea></div>
-        ${welcome ? opt('none', 'Nothing for now', `${esc(FR.project.name)} opens with no repository. Make or copy one later from its home, or adopt one you push yourself.`, false) : ''}
+        ${welcome ? opt('none', 'Nothing for now', `${esc(FR.project.name)} opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself.`, false) : ''}
       </fieldset>
       <p class="sheet-error" id="repo-error" role="alert" hidden></p>
       <div class="foot"><button type="button" class="btn quiet" data-close>Cancel</button><button type="submit" class="btn primary" autofocus>${welcome ? 'Run on this machine' : 'Add it'}</button></div>
