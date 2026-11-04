@@ -15,7 +15,7 @@ three live stories red at their last run pass now and the live refresh
 story's expectation on a fresh record (`testing.md`), the `--account`
 flag (`shell.md`, `testing.md`) and `smith-agent-shell` in the gate's
 wasm32 clippy, which it fails (`shell.md`), and the benchmarks'
-calibrations and arms, with four departures (`benchmarks.md`).
+calibrations and arms, with three departures (`benchmarks.md`).
 Two domain worlds call protocol crates (`testing.md`), and the local domain composes
 person-facing text, which the designer is to decide on (`domain/host.md`).
 `domain/session.md`, `protocol/channel.md`, `protocol/charter.md`,
