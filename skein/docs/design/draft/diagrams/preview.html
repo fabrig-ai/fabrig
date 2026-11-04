@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flows: acceptance cases</title>
+<style>
+body { margin: 0; padding: 40px 32px 80px; background: #ffffff; color: #18181b; font: 15.5px/1.7 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif; }
+main { max-width: 700px; margin: 0 auto; }
+h1 { margin: 0 0 4px; font-size: 26px; font-weight: 500; }
+h2 { margin: 32px 0 4px; font-size: 17px; font-weight: 600; }
+.file { margin: 0 0 10px; font: 12px 'IBM Plex Mono', ui-monospace, monospace; color: #6b6b73; }
+figure { margin: 0; overflow-x: auto; }
+figure > svg { display: block; outline: 1px dashed #e7e7e3; }
+.skein-ui-flow-box { fill: #f7f7f5; stroke: #d4d4cf; }
+.skein-ui-flow-box.skein-ui-flow-strong { fill: #18181b; stroke: #18181b; }
+.skein-ui-flow-name { fill: #18181b; font: 500 13px 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif; }
+.skein-ui-flow-name.skein-ui-flow-strong { fill: #ffffff; }
+.skein-ui-flow-caption { fill: #5b5b63; font: 400 12px 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif; }
+.skein-ui-flow-arrow { fill: none; stroke: #6b6b73; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<main>
+<h1>Flows: acceptance cases</h1>
+<p>Each scene exactly as skein-ui's web mapping must print it for its case and box (<code>../diagrams.md</code>, section 8), styled with temper's look, as the look request <code>configure-chat-draft</code> draws it. The dashed outline is the box.</p>
+<section><h2>How work reaches main, left to right</h2><p class="file">how-hello-works.640.svg, a box 640 pixels wide</p><figure><svg aria-hidden="true" width="640" height="74" viewBox="0 0 640 74"><rect x="1" y="1" width="137" height="44" rx="8" class="skein-ui-flow-box"></rect><text x="69" y="28" text-anchor="middle" class="skein-ui-flow-name">Design draft</text><text x="69" y="67" text-anchor="middle" class="skein-ui-flow-caption">you write it</text><path d="M 142 23 L 162 23 M 156 18 L 162 23 L 156 28" class="skein-ui-flow-arrow"></path><rect x="166" y="1" width="137" height="44" rx="8" class="skein-ui-flow-box"></rect><text x="234" y="28" text-anchor="middle" class="skein-ui-flow-name">Goal</text><text x="234" y="67" text-anchor="middle" class="skein-ui-flow-caption">you start it</text><path d="M 307 23 L 327 23 M 321 18 L 327 23 L 321 28" class="skein-ui-flow-arrow"></path><rect x="331" y="1" width="137" height="44" rx="8" class="skein-ui-flow-box"></rect><text x="399" y="28" text-anchor="middle" class="skein-ui-flow-name">Checked changes</text><text x="399" y="67" text-anchor="middle" class="skein-ui-flow-caption">CI and a review</text><path d="M 472 23 L 492 23 M 486 18 L 492 23 L 486 28" class="skein-ui-flow-arrow"></path><rect x="496" y="1" width="137" height="44" rx="8" class="skein-ui-flow-box skein-ui-flow-strong"></rect><text x="564" y="28" text-anchor="middle" class="skein-ui-flow-name skein-ui-flow-strong">main</text><text x="564" y="67" text-anchor="middle" class="skein-ui-flow-caption">the merge queue</text></svg></figure></section>
+<section><h2>How work reaches main, top to bottom: left to right does not fit</h2><p class="file">how-hello-works.600.svg, a box 600 pixels wide</p><figure><svg aria-hidden="true" width="600" height="228" viewBox="0 0 600 228"><rect x="1" y="1" width="160" height="40" rx="8" class="skein-ui-flow-box"></rect><text x="81" y="26" text-anchor="middle" class="skein-ui-flow-name">Design draft</text><text x="177" y="26" text-anchor="start" class="skein-ui-flow-caption">you write it</text><path d="M 81 45 L 81 59 M 76 53 L 81 59 L 86 53" class="skein-ui-flow-arrow"></path><rect x="1" y="63" width="160" height="40" rx="8" class="skein-ui-flow-box"></rect><text x="81" y="88" text-anchor="middle" class="skein-ui-flow-name">Goal</text><text x="177" y="88" text-anchor="start" class="skein-ui-flow-caption">you start it</text><path d="M 81 107 L 81 121 M 76 115 L 81 121 L 86 115" class="skein-ui-flow-arrow"></path><rect x="1" y="125" width="160" height="40" rx="8" class="skein-ui-flow-box"></rect><text x="81" y="150" text-anchor="middle" class="skein-ui-flow-name">Checked changes</text><text x="177" y="150" text-anchor="start" class="skein-ui-flow-caption">CI and a review</text><path d="M 81 169 L 81 183 M 76 177 L 81 183 L 86 177" class="skein-ui-flow-arrow"></path><rect x="1" y="187" width="160" height="40" rx="8" class="skein-ui-flow-box skein-ui-flow-strong"></rect><text x="81" y="212" text-anchor="middle" class="skein-ui-flow-name skein-ui-flow-strong">main</text><text x="177" y="212" text-anchor="start" class="skein-ui-flow-caption">the merge queue</text></svg></figure></section>
+<section><h2>A review, top to bottom as written</h2><p class="file">review.400.svg, a box 400 pixels wide</p><figure><svg aria-hidden="true" width="400" height="166" viewBox="0 0 400 166"><rect x="1" y="1" width="174" height="40" rx="8" class="skein-ui-flow-box"></rect><text x="88" y="26" text-anchor="middle" class="skein-ui-flow-name">A change pushed</text><path d="M 88 45 L 88 59 M 83 53 L 88 59 L 93 53" class="skein-ui-flow-arrow"></path><rect x="1" y="63" width="174" height="40" rx="8" class="skein-ui-flow-box"></rect><text x="88" y="88" text-anchor="middle" class="skein-ui-flow-name">A review by an agent</text><path d="M 88 107 L 88 121 M 83 115 L 88 121 L 93 115" class="skein-ui-flow-arrow"></path><rect x="1" y="125" width="174" height="40" rx="8" class="skein-ui-flow-box skein-ui-flow-strong"></rect><text x="88" y="150" text-anchor="middle" class="skein-ui-flow-name skein-ui-flow-strong">Landed</text></svg></figure></section>
+</main>
+</body>
+</html>
