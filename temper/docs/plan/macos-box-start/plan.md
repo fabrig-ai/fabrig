@@ -15,7 +15,7 @@ run there.
   `SO_ACCEPTCONN` either; `sys/socket.h` has it only as a bit of `so_options`.
 - **What fd 4 is.** The first of `held`: `temper init`'s reservation for the clients' port, made by
   `Io::port` (`temper/crates/temper/src/init.rs`) on a fresh box. A plain listening TCP socket:
-  nothing about it differs. Fd 3 was the kernel's kqueue, opened first and closed since.
+  nothing about it differs. Fd 3 is most likely `Io`'s kqueue, opened just before it (read, not seen).
 - **The request's counter-evidence doesn't hold.** It says skein's listener tests ran green on macos-26
   on 10-23. `listener_at`, `SO_ACCEPTCONN` and those tests came in `7a255a4b5e`, on 2026-10-24. The last
   green the repository records is run 40019066645, on `19cbc77b12` of 2026-10-23. The workflow still ran
@@ -55,8 +55,14 @@ variant forces.
 
 ## Overlaps
 
-No other draft's listed files are touched. `temper/crates/temper/src/lib.rs` and `box_command.rs` are in
-no other draft's list here, and `skein/docs/design/shell.md` and its status neither. Nothing unavoidable.
+None known. The brief's file lists name none of these tasks' files, nor `skein/docs/design/shell.md` or
+its status. The three queued drafts (reference-walks, v0.1.0-ladder, configuring-walks) list no files, so
+they can't be checked.
+
+## Read and left
+
+Darwin's spawn was read as far as the box's children: a given listener goes above every target before
+its `dup2`, and nothing there is a sure red. So no third task on speculation: the run decides what joins.
 
 ## Proving it
 
