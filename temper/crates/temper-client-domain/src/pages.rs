@@ -14,6 +14,7 @@ pub mod chats;
 pub mod choice;
 pub mod connect_model;
 pub mod delegation;
+pub mod home;
 pub mod inbox;
 pub mod switcher;
 pub mod task;
@@ -25,12 +26,14 @@ pub(crate) enum PlaygroundChoice {
     Waiting,
 }
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
 pub struct Pages {
     address: Address,
     project: Option<u32>,
     watching: bool,
     shown: u64,
     pub(crate) inbox: Option<inbox::Inbox>,
+    pub home: Option<home::Home>,
     chats: Option<chats::Chats>,
     chat: Option<chat::Chat>,
     task: Option<task::Task>,
@@ -178,6 +181,7 @@ impl Pages {
             watching: false,
             shown: 0,
             inbox: None,
+            home: None,
             chats: None,
             chat: None,
             task: None,
@@ -289,6 +293,10 @@ impl Pages {
         self.inbox.as_ref()
     }
     #[must_use]
+    pub const fn home(&self) -> Option<&home::Home> {
+        self.home.as_ref()
+    }
+    #[must_use]
     pub const fn chats(&self) -> Option<&chats::Chats> {
         self.chats.as_ref()
     }
@@ -396,6 +404,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Left => {
             pages.switcher.close();
+            if let Some(home) = pages.home.take() {
+                home.leave(out);
+            }
+            if let Some(chats) = pages.chats.take() {
+                pages.next = chats.leave(out);
+            }
             leave_conversations(pages, out);
             pages.accounts.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
@@ -417,8 +431,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
         Event::Act { act: Act::FirstChat } => {
             let me = pages.me(client);
+            let project = conversation_project(pages);
             if let Some(chats) = &mut pages.chats {
-                chats.first_chat(env, me, pages.project, &pages.choice, &mut pages.serial, out);
+                chats.first_chat(env, me, project, &pages.choice, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
@@ -529,14 +544,20 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         };
     pages.accounts.configure(owner, &mut pages.next, out);
     let me = pages.me(client);
+    let project = conversation_project(pages);
     if let Some(chats) = &mut pages.chats {
-        chats.configure(me, pages.project, &env.limits, out);
+        chats.configure(me, project, &env.limits, out);
     }
     choice::refresh(pages, client);
     redirect_chat(pages, client, out);
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if let Some(home) = &pages.home
+        && home.told(&told)
+    {
+        return true;
+    }
     if default_told(pages, env, client, &told, out) || adoption_told(pages, env, client, &told) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
@@ -627,6 +648,10 @@ fn plan_filter(pages: &Pages, filter: PlanFilter, out: &mut Queue<Request>) {
     }
 }
 
+fn conversation_project(pages: &Pages) -> Option<u32> {
+    if let Address::Home { project } = pages.address { Some(project) } else { pages.project }
+}
+
 fn contains(me: &Me, project: Option<u32>) -> bool {
     for row in &me.projects {
         if Some(row.project) == project {
@@ -636,6 +661,7 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
     false
 }
 
+#[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
     pages.switcher.went(&address);
     if let (Address::Chats { .. }, Address::Chats { filter, .. }, Some(page)) =
@@ -654,6 +680,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         return;
     }
     if (!pages.accounts_open
+        && pages.home.is_none()
         && pages.inbox.is_none()
         && pages.chats.is_none()
         && pages.chat.is_none()
@@ -684,6 +711,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Address::Welcome { .. } = address {
             pages.welcome = Some(welcome::Welcome::new());
         }
+        if let Some(home) = pages.home.take() {
+            home.leave(out);
+        }
         if let Some(inbox) = pages.inbox.take() {
             pages.next = inbox.leave(out);
         }
@@ -698,6 +728,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         if let Address::Chat { task } = address {
             pages.chat = Some(chat::Chat::new(task, pages.next, &env.limits, out));
+        }
+        if let Address::Home { .. } = address {
+            pages.home = Some(home::Home::new(pages.next, out));
+            pages.next = pages.next.checked_add(1).expect("page handles fit");
+            pages.chats = Some(chats::Chats::new(pages.next));
         }
         if let Address::Chats { filter, .. } = address {
             let mut page = chats::Chats::new(pages.next);
