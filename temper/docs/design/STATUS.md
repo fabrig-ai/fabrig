@@ -65,7 +65,9 @@ bug (`domain/root.md`). The case library's
 purpose is retired, the fake git program drives skein's JSON tokenizer
 over a whole body by hand and the ladder has no twin past B1 and no live
 story but B0's (`domain/testing.md`), and the `welcome-set-up`
-journey waits on a new walk (`client/journeys.md`). Six hand-written
+journey waits on a new walk (`client/journeys.md`). The forge's connect
+refusals that ctl renders name no remedy (`protocol/documentation.md`).
+Six hand-written
 widenings stand beside skein's `len_u64` and `usize_of`, two of them in
 the worker's steps (`README.md`). Of the drafts, the reference
 drafts' statuses hold two departures their cuts decided, a foreman's
