@@ -26,7 +26,7 @@ pub mod clients;
 pub mod family;
 pub mod identities;
 pub mod program_sources;
-pub mod server;
+pub use jig_protocol_engine_clients_http::server;
 pub mod translate;
 pub mod values;
 mod worker;
