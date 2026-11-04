@@ -87,3 +87,14 @@ Acceptance:
 ## Report
 
 As the implementer's text asks; name any story given the welcome.
+
+## Rebase (2026-11-04, step merge, foreman serve-without-box/welcome-inbox/foreman-1)
+
+Combine the welcome deployment guard with main’s Ready-page imports.
+The merge conflicts in `temper/crates/temper-client-view/src/pages/welcome.rs`.
+Main’s `f2af118844` (“welcome: Ready names the first project and the account alone”) changes the adjacent imports.
+Resolve by keeping `use alloc::boxed::Box;` and `skein_ui::{Builder, Role, Run, State, phrases::Hole}` together with this branch’s `forge::{deployment, forges::Connection}` import.
+Keep this branch’s early `deployment::Answer { welcome: true, .. }` guard in `main`, including `b.close()` before returning.
+Preserve main’s Ready rendering, account checklist and first-project form.
+Retain the automatically merged domain guard, frame guard, tests and status update.
+Run the spec’s required checks after resolving the conflict.
