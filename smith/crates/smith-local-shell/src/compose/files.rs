@@ -1,7 +1,7 @@
 //! Exec's durable result file (shell.md, sections 4.2–4.3).
 //! The file owner holds teardown until its whole-file write and closes end.
 //! It knows the output path and kernel terminals, not the run's outcome.
-use super::{Refused, host, root};
+use super::{Refused, cleanup::EphemeralCleanup, host, root};
 use crate::command::Usage;
 use skein_io::{file, file_layer, kernel};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
@@ -130,9 +130,9 @@ impl Files {
         if self.created {
             let path = self.temporary.as_ref().expect("private directory created");
             let mut cleanup =
-                ResultFile::empty_directory(path, self.store_root.take(), self.parent_root.take(), self.timeout);
+                EphemeralCleanup::new(path, self.store_root.take(), self.parent_root.take(), self.timeout);
             let _exit = skein_shell::drive(kernel, clock, &mut cleanup);
-            if let Some(Failure::Write(error) | Failure::Close(error)) = cleanup.failure() {
+            if let Some(error) = cleanup.failure() {
                 eprintln!("smith: warning: ephemeral directory {}: {error:?}", path.display());
             }
         }
@@ -149,7 +149,7 @@ fn ephemeral_base(runtime: Option<OsString>, temporary: Option<OsString>) -> Pat
         .map_or_else(|| PathBuf::from("/tmp"), PathBuf::from)
 }
 
-fn check_path(path: &Path) -> Result<(), Refused> {
+pub(super) fn check_path(path: &Path) -> Result<(), Refused> {
     if path.as_os_str().len() >= usize::try_from(PATH_BYTES).expect("path bound fits") {
         return Err(Refused::Usage(Usage("a product file path exceeds 4095 bytes".into())));
     }
@@ -160,8 +160,6 @@ fn check_path(path: &Path) -> Result<(), Refused> {
 enum State {
     Waiting,
     Saving,
-    StoreRoot,
-    Directory,
     Closing,
     Closed,
 }
@@ -177,7 +175,7 @@ pub(crate) enum Failure {
 /// The product's whole result write and the directory close it owes.
 pub(crate) struct ResultFile {
     io: file_layer::FileIo,
-    directory: Option<Token>,
+    directory: Token,
     name: Box<[u8]>,
     path: PathBuf,
     request: Option<file::Request>,
@@ -189,28 +187,7 @@ pub(crate) struct ResultFile {
 }
 
 impl ResultFile {
-    pub(super) fn write_startup(
-        path: &Path,
-        bytes: Box<[u8]>,
-        timeout: Duration,
-        seed: u64,
-        kernel: &mut Kernel,
-        clock: &Clock,
-    ) -> Result<(), Refused> {
-        check_path(path)?;
-        let maximum = u32::try_from(bytes.len()).expect("bounded generated configuration").max(1);
-        let mut file = Self::open(path, maximum, timeout, seed)?;
-        file.begin(bytes);
-        let _exit = skein_shell::drive(kernel, clock, &mut file);
-        match file.failure() {
-            None => Ok(()),
-            Some(Failure::Write(why) | Failure::Close(why)) => Err(Refused::Local(crate::startup::Failure::Host {
-                detail: format!("generated agent configuration: {why:?}"),
-            })),
-        }
-    }
-
-    fn new(io: file_layer::FileIo, directory: Option<Token>, path: &Path) -> Self {
+    fn new(io: file_layer::FileIo, directory: Token, path: &Path) -> Self {
         Self {
             io,
             directory,
@@ -230,50 +207,7 @@ impl ResultFile {
         let mut io = file_layer::FileIo::with_whole_limit(2, 4096, 1, maximum, timeout);
         let directory = io.adopt_root(root(parent)?).expect("one result directory");
         io.seed_randomness(seed);
-        Ok(Self::new(io, Some(directory), path))
-    }
-
-    fn empty_directory(path: &Path, store: Option<kernel::Fd>, parent: Option<kernel::Fd>, timeout: Duration) -> Self {
-        let mut io = file_layer::FileIo::with_whole_limit(2, 4096, 1, 1, timeout);
-        let parent = match parent {
-            Some(parent) => Ok(parent),
-            None => skein_shell::open_root(path.parent().expect("private parent")).map_err(kernel::Error::Other),
-        };
-        let mut failure = None;
-        let directory = match parent {
-            Ok(parent) => Some(io.adopt_root(parent).expect("private parent slot")),
-            Err(error) => {
-                failure = Some(Failure::Close(error));
-                None
-            }
-        };
-        let store = store.map(|root| io.adopt_root(root).expect("unfinished store slot"));
-        let mut cleanup = Self::new(io, directory, path);
-        cleanup.failure = failure;
-        match store {
-            Some(file) => {
-                cleanup.state = State::StoreRoot;
-                cleanup.request = Some(file::Request::Close { owner: Token::new(1), file });
-            }
-            None if directory.is_some() => {
-                cleanup.state = State::Directory;
-                cleanup.request = Some(cleanup.remove_directory());
-            }
-            None => cleanup.state = State::Closed,
-        }
-        cleanup
-    }
-
-    fn remove_directory(&self) -> file::Request {
-        file::Request::Remove {
-            owner: Token::new(1),
-            root: self
-                .io
-                .descriptor(self.directory.expect("private parent retained"))
-                .expect("private parent descriptor"),
-            name: self.name.clone(),
-            directory: true,
-        }
+        Ok(Self::new(io, directory, path))
     }
 
     pub(crate) fn begin(&mut self, text: Box<[u8]>) {
@@ -281,7 +215,7 @@ impl ResultFile {
         self.state = State::Saving;
         self.request = Some(file::Request::Store {
             owner: Token::new(1),
-            root: self.directory.expect("result directory retained"),
+            root: self.directory,
             path: self.name.clone(),
             bytes: text,
             expected: file::Expect::Any,
@@ -305,7 +239,7 @@ impl ResultFile {
                     file_layer::cancel(&mut self.io, Token::new(1), &mut self.submissions);
                 }
             }
-            State::Waiting | State::StoreRoot | State::Directory | State::Closing | State::Closed => {}
+            State::Waiting | State::Closing | State::Closed => {}
         }
     }
 
@@ -324,12 +258,6 @@ impl ResultFile {
             State::Saving => {
                 self.failure = Some(Failure::Write(error));
                 self.state = State::Closing;
-            }
-            State::StoreRoot | State::Directory => {
-                if self.failure.is_none() {
-                    self.failure = Some(Failure::Close(error));
-                }
-                self.state = if self.directory.is_some() { State::Closing } else { State::Closed };
             }
             State::Closing => {
                 if self.failure.is_none() {
@@ -352,19 +280,12 @@ impl Host for ResultFile {
         }
         while let Some(event) = self.events.pop() {
             match event {
-                file::Event::Stored { .. } | file::Event::Removed { .. } => self.state = State::Closing,
-                file::Event::Closed { .. } if self.state == State::StoreRoot => {
-                    if self.directory.is_some() {
-                        self.state = State::Directory;
-                        self.request = Some(self.remove_directory());
-                    } else {
-                        self.state = State::Closed;
-                    }
-                }
+                file::Event::Stored { .. } => self.state = State::Closing,
                 file::Event::Closed { .. } => self.state = State::Closed,
                 file::Event::Failed { error, .. } => self.failed(error),
                 file::Event::Cancelled { .. } => self.failed(kernel::Error::Cancelled),
-                file::Event::Locked { .. }
+                file::Event::Removed { .. }
+                | file::Event::Locked { .. }
                 | file::Event::Busy { .. }
                 | file::Event::Made { .. }
                 | file::Event::Refused { .. }
@@ -384,10 +305,8 @@ impl Host for ResultFile {
         }
         if self.io.takes() {
             let request = self.request.take().or_else(|| {
-                (self.state == State::Closing).then(|| file::Request::Close {
-                    owner: Token::new(2),
-                    file: self.directory.expect("directory retained"),
-                })
+                (self.state == State::Closing)
+                    .then(|| file::Request::Close { owner: Token::new(2), file: self.directory })
             });
             if let Some(request) = request {
                 file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
@@ -434,7 +353,7 @@ mod tests {
         let mut io = file_layer::FileIo::with_whole_limit(2, 4096, 1, 4096, Duration::from_secs(1));
         let directory = io.adopt_root(kernel::Fd::new(41)).unwrap();
         io.seed_randomness(1);
-        ResultFile::new(io, Some(directory), Path::new("answer.txt"))
+        ResultFile::new(io, directory, Path::new("answer.txt"))
     }
 
     fn complete(file: &mut ResultFile, submit: kernel::Submit, result: Result<kernel::Done, kernel::Error>) {
@@ -513,36 +432,5 @@ mod tests {
         file.begin(vec![b'x'; 4096].into_boxed_slice());
         file.iterate(Time::ZERO, Wall::from_nanos(0));
         assert_eq!(file.operations(), 4);
-    }
-
-    #[test]
-    fn startup_cleanup_closes_a_captured_store_even_when_its_parent_cannot_open() {
-        let path = Path::new("/dev/null/private");
-        let mut cleanup = ResultFile::empty_directory(path, Some(kernel::Fd::new(41)), None, Duration::from_secs(1));
-        cleanup.iterate(Time::ZERO, Wall::from_nanos(0));
-        let closing = cleanup.submissions.pop().unwrap();
-        assert!(matches!(closing.kind, kernel::Op::Close { fd } if fd == kernel::Fd::new(41)));
-        complete(&mut cleanup, closing, Ok(kernel::Done::Nothing));
-        assert!(cleanup.is_empty());
-        assert!(matches!(cleanup.failure(), Some(Failure::Close(kernel::Error::Other(20)))));
-    }
-
-    #[test]
-    fn startup_private_cleanup_settles_after_a_long_path_removal_fails() {
-        let path = PathBuf::from(format!("{}private", "p/".repeat(2000)));
-        let mut cleanup = ResultFile::empty_directory(
-            &path,
-            Some(kernel::Fd::new(41)),
-            Some(kernel::Fd::new(42)),
-            Duration::from_secs(1),
-        );
-        cleanup.iterate(Time::ZERO, Wall::from_nanos(0));
-        let closing = cleanup.submissions.pop().unwrap();
-        complete(&mut cleanup, closing, Ok(kernel::Done::Nothing));
-        let removing = cleanup.submissions.pop().unwrap();
-        complete(&mut cleanup, removing, Err(kernel::Error::NotEmpty));
-        let closing = cleanup.submissions.pop().unwrap();
-        complete(&mut cleanup, closing, Ok(kernel::Done::Nothing));
-        assert!(cleanup.is_empty());
     }
 }

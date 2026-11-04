@@ -297,10 +297,9 @@ fn directories(working: &Working, limits: &Limits) -> Outcome {
             .push(Entry { name: skein_lib::bytes::copy_of(name), kind: Kind::Directory })
             .expect("checked entry cap");
     }
-    let more = u64::try_from(
+    let more = skein_lib::len_u64(
         names.len().checked_sub(usize::try_from(entries.len()).expect("entry count")).expect("kept prefix"),
-    )
-    .expect("admitted count");
+    );
     Outcome::Listed { entries: entries.into_boxed(), more }
 }
 
@@ -342,7 +341,7 @@ fn admit(kit: &Kit, call: Call, deadline: Time, env: &Env<Limits>) -> Result<Adm
                 if filter.len() > usize::try_from(limits.tool_payload).expect("u32 fits usize") {
                     return Err(Outcome::TooLarge {
                         what: crate::SizePart::ListGlob,
-                        size: u64::try_from(filter.len()).unwrap_or(u64::MAX),
+                        size: skein_lib::len_u64(filter.len()),
                         bound: limits.tool_payload,
                     });
                 }
@@ -466,7 +465,7 @@ fn passable(bytes: &[u8]) -> Result<(), Outcome> {
 
 /// Refuses `content` if it is larger than one piece.
 fn fits(content: &[u8], limits: &Limits) -> Result<(), Outcome> {
-    let size = u64::try_from(content.len()).unwrap_or(u64::MAX);
+    let size = skein_lib::len_u64(content.len());
     if size > u64::from(limits.tool_payload) {
         return Err(Outcome::TooLarge { what: crate::SizePart::WriteContent, size, bound: limits.tool_payload });
     }
@@ -484,28 +483,20 @@ fn replacements_fit(edits: &[Replacement], limits: &Limits) -> Result<(), Outcom
     if edits.is_empty() {
         return Err(Outcome::EditFailed { edit: 1, why: Mismatch::NoMatch });
     }
-    let cells = u64::try_from(edits.len()).or(Err(Outcome::TooLarge {
-        what: crate::SizePart::EditItems,
-        size: u64::MAX,
-        bound: limits.tool_payload,
-    }))?;
+    let cells = skein_lib::len_u64(edits.len());
     let mut old = 0_u64;
     let mut new = 0_u64;
     for replacement in edits {
-        old = old
-            .checked_add(u64::try_from(replacement.old.len()).or(Err(Outcome::TooLarge {
-                what: crate::SizePart::EditOld,
-                size: u64::MAX,
-                bound: limits.tool_payload,
-            }))?)
-            .ok_or(Outcome::TooLarge { what: crate::SizePart::EditOld, size: u64::MAX, bound: limits.tool_payload })?;
-        new = new
-            .checked_add(u64::try_from(replacement.new.len()).or(Err(Outcome::TooLarge {
-                what: crate::SizePart::EditNew,
-                size: u64::MAX,
-                bound: limits.tool_payload,
-            }))?)
-            .ok_or(Outcome::TooLarge { what: crate::SizePart::EditNew, size: u64::MAX, bound: limits.tool_payload })?;
+        old = old.checked_add(skein_lib::len_u64(replacement.old.len())).ok_or(Outcome::TooLarge {
+            what: crate::SizePart::EditOld,
+            size: u64::MAX,
+            bound: limits.tool_payload,
+        })?;
+        new = new.checked_add(skein_lib::len_u64(replacement.new.len())).ok_or(Outcome::TooLarge {
+            what: crate::SizePart::EditNew,
+            size: u64::MAX,
+            bound: limits.tool_payload,
+        })?;
     }
     let size = old.max(new).max(cells);
     if size > u64::from(limits.tool_payload) {

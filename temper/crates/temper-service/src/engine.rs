@@ -252,15 +252,15 @@ impl Engine {
         }
     }
     pub(crate) fn next_deadline(&self) -> Option<Time> {
-        let mut next = crate::accounts::earliest(self.store.next_deadline(), self.workers.next_deadline());
+        let mut next = skein_lib::earliest(self.store.next_deadline(), self.workers.next_deadline());
         if self.end.is_none() {
-            next = crate::accounts::earliest(next, self.domain.next_deadline(&self.env));
-            next = crate::accounts::earliest(next, self.values.accounts.next_expiry());
+            next = skein_lib::earliest(next, self.domain.next_deadline(&self.env));
+            next = skein_lib::earliest(next, self.values.accounts.next_expiry());
         }
-        next = crate::accounts::earliest(next, self.setup.next_deadline());
-        next = crate::accounts::earliest(next, self.clients.next_deadline());
-        next = crate::accounts::earliest(next, self.forge.component.next_deadline());
-        crate::accounts::earliest(
+        next = skein_lib::earliest(next, self.setup.next_deadline());
+        next = skein_lib::earliest(next, self.clients.next_deadline());
+        next = skein_lib::earliest(next, self.forge.component.next_deadline());
+        skein_lib::earliest(
             next,
             match &self.accounts {
                 Some(accounts) => accounts.next_deadline(),
@@ -280,7 +280,7 @@ impl Engine {
             || (self.store.opened || self.end.is_some()) && self.workers.work_pending(now)
             || effects
                 && match &self.accounts {
-                    Some(accounts) => accounts.work_pending(now),
+                    Some(accounts) => accounts.work_pending(now, true),
                     None => false,
                 };
         if self.end.is_some() || !self.store.opened {
@@ -364,7 +364,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         return;
     }
     if let Some(accounts) = &mut engine.accounts {
-        accounts.iterate(now, wall, &mut engine.values, &mut engine.events, &mut engine.store);
+        crate::accounts::iterate(accounts, now, wall, &mut engine.values, &mut engine.events, &mut engine.store);
     }
     crate::forge::gone::advance(engine);
     crate::forge::records::advance(engine);

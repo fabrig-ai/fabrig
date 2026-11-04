@@ -1,7 +1,8 @@
 use super::{app, wall};
 use crate::{
-    installations::{self, Kind, Reach},
-    service::{self, Account, Config, Limits, Outcome, Request, Response, Row, Service},
+    fixture,
+    installations::{self, Reach},
+    service::{self, Config, Limits, Outcome, Request, Response, Service},
 };
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as fake, api as a};
@@ -11,7 +12,7 @@ use skein_forge::github::{
     document::{Document, Kind as DocumentKind, Row as DocumentRow},
     request::Method,
 };
-use skein_json::{tokenizer, writer};
+use skein_json::tokenizer;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
 
 pub const VIEWER: &[u8] = br#"{"query":"query { viewer { login databaseId } }"}"#;
@@ -28,71 +29,15 @@ pub fn listed(ids: &[u32]) -> Reach {
     }
     Reach::Listed(rows)
 }
+/// Shared step scenario (skein/docs/design/fake-forge.md, 10.6).
 pub fn config() -> Config {
-    let mut repositories = List::with_capacity(3);
-    // Deliberately not in id order: the service owns the listing's order.
-    for (id, name, organization, private) in
-        [(4, b"tools".as_slice(), false, false), (2, b"widgets", true, true), (6, b"absent", true, false)]
-    {
-        repositories
-            .push(Row { id, owner: boxed(b"acme"), owner_id: 22, organization, name: boxed(name), private })
-            .expect("fixture rows");
-    }
-    let mut accounts = List::with_capacity(2);
-    for (login, id, organization) in [(b"acme".as_slice(), 22, true), (b"alice".as_slice(), 31, false)] {
-        accounts.push(Account { login: boxed(login), id, organization }).expect("fixture accounts");
-    }
-    Config {
-        rate_quota: 5000,
-        rate_window: Duration::from_secs(3600),
-        token_life: installations::TOKEN_LIFE,
-        deliveries: crate::delivery::Config::standard(),
-        base: boxed(b"http://127.0.0.1:3000"),
-        blob: boxed(b"http://logs.example.test"),
-        third_origin: None,
-        blob_redirect: None,
-        app: app(),
-        app_facts: service::AppFacts::Complete,
-        shown: service::Shown::Ruleset,
-        ruleset_id: 17,
-        pull_requests_only: false,
-        required_signatures: false,
-        tokens: List::with_capacity(0),
-        faults: crate::Faults { reset: 0, drop: 0, server_error: 0 },
-        bot: BOT,
-        hook: boxed(b"https://hook.test/start"),
-        repositories,
-        accounts,
-        person: boxed(b"alice"),
-    }
+    fixture::config(fixture::repositories())
 }
 pub fn limits() -> Limits {
-    Limits {
-        deliveries: crate::delivery::Limits { entries: 64, payload_bytes: 32768 },
-        http: skein_http::server::Limits {
-            head: 4096,
-            headers: 16,
-            body: 4096,
-            read: 1024,
-            response: 16384,
-            send: 1024,
-        },
-        github: github::limits::Limits {
-            json: tokenizer::Limits { depth: 10, string: 4096, number: 32, chunk: 128, length: 8192 },
-            writer: writer::Limits { depth: 10, length: 8192 },
-            string_bytes: 256,
-            body_bytes: 4096,
-            inner: 8,
-            target_bytes: 1024,
-        },
-        installations: installations::Limits { installations: 3, tokens: 4, listed: 2 },
-        pages: crate::pages::Limits { states: 3, manifest_bytes: 2048 },
-        page: 2,
-        body: 4096,
-        response: 8192,
-        blob_records: 16,
-        git_records: 16,
-    }
+    let mut limits = fixture::limits();
+    limits.github.inner = 8;
+    limits.installations.tokens = 4;
+    limits
 }
 pub fn authorization(key: &[u8], issued: u64, expires: u64) -> Secret {
     authorization_for(7, key, issued, expires)
@@ -189,7 +134,7 @@ impl Harness {
             );
         }
         let mut service = Service::new(config, &limits, 5).expect("valid fixture config");
-        seed_installations(&mut service);
+        fixture::install_three(&mut service);
         let jwt = authorization(app().key, 1000, 1600);
         Self {
             drain_timers: true,
@@ -467,7 +412,7 @@ pub fn converted_with_installations() -> Harness {
     // These installation tests start after this App acquired the fixture's
     // three installations, independently of the preceding App's records.
     h.service.installations = installations::Installations::new(&h.limits.installations, 5);
-    seed_installations(&mut h.service);
+    fixture::install_three(&mut h.service);
     h
 }
 pub fn page_refusal(h: &Harness, answer: crate::pages::Answer, status: u16, message: &[u8]) {
@@ -490,65 +435,5 @@ pub fn page_refusal(h: &Harness, answer: crate::pages::Answer, status: u16, mess
 }
 
 pub fn domain_config() -> fake::Config {
-    fake::Config {
-        limits: fake::Limits {
-            repositories: 2,
-            users: 3,
-            bypassing_users: 4,
-            labels: 1,
-            items: 1,
-            comments: 1,
-            dependencies: 1,
-            reviews: 1,
-            branches: 4,
-            commits: 8,
-            files: 1,
-            statuses: 1,
-            contexts: 1,
-            workflows: 0,
-            workflow_runs: 0,
-            pages: 1,
-            name_bytes: 64,
-            title_bytes: 64,
-            body_bytes: 128,
-            content_bytes: 128,
-            page_size: 2,
-            calls: 2,
-            hooks: 4,
-            observations: 64,
-        },
-        latency_min: Duration::ZERO,
-        latency_max: Duration::ZERO,
-        settle_min: Duration::from_secs(2),
-        settle_max: Duration::from_secs(2),
-        late: 0,
-        late_min: Duration::ZERO,
-        late_max: Duration::ZERO,
-        unavailable: 0,
-        timeouts: 0,
-        landing: 0,
-        land_min: Duration::ZERO,
-        land_max: Duration::ZERO,
-        rate_limit: 0,
-        rate_window: Duration::from_secs(10),
-        ci: 3,
-        setup_faults: 0,
-        lost: 0,
-        hook_min: Duration::ZERO,
-        hook_max: Duration::ZERO,
-        hooks_late: 0,
-        hooks_lost: 0,
-        resolution: Duration::from_secs(1),
-        skew: fake::Skew::None,
-        status_updates: false,
-        edit_updates: false,
-    }
-}
-
-fn seed_installations(service: &mut Service) {
-    let store = service.installations_mut();
-    assert_eq!(store.install(22, b"acme", Kind::Organization, listed(&[2, 4]), wall(1000)), Ok(1));
-    assert_eq!(store.install(23, b"example", Kind::User, Reach::All, wall(1001)), Ok(2));
-    assert_eq!(store.install(24, b"other", Kind::User, Reach::All, wall(1002)), Ok(3));
-    assert!(store.suspend(3, true), "third installation exists");
+    fixture::domain_config()
 }

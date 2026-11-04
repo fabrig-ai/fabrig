@@ -228,7 +228,7 @@ impl Backend {
                     below,
                 ),
                 Err(crate::mcp::Refused::Schema { tool }) => {
-                    let detail = crate::mcp::json::join(&[b"smith: MCP tool input schema is not an object: ", &tool]);
+                    let detail = skein_lib::bytes::concat(&[b"smith: MCP tool input schema is not an object: ", &tool]);
                     self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
                 }
             }

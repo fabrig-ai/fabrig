@@ -89,8 +89,9 @@ pub use settings::{Base, Fallback, Origin, Reason, Refusal, Resolved, Setting, S
 pub use settings::{arguments, environment};
 #[cfg(unix)]
 pub use startup::{
-    DirectoryAccess, OutputKind, RootBounds, Roots, RootsRefusal, Trust, Unread, directory_access, effective_user,
-    make_root, open_append, open_root, prepare_output, process_id, read_file, read_private_file, read_trust_roots,
+    DirectoryAccess, OutputKind, RootBounds, Roots, RootsRefusal, STORE_OPERATIONS, StartupStore, StoreDirectory,
+    Stored, Trust, Unread, Unstored, directory_access, effective_user, make_root, open_append, open_root,
+    prepare_output, process_id, read_file, read_private_file, read_trust_roots, store_file,
 };
 #[cfg(unix)]
 pub use system::wait_readable;

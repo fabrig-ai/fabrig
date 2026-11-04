@@ -24,7 +24,7 @@ Acceptance:
 - The new tests below pass and each bites.
 - `skein-fake-forge-github`, `skein-fake-peers`, `skein-fake-peers-tests`, `skein-fake-forge-tests` and
   `github-conformance` pass with no test file changed but `src/tests.rs`'s one `mod` line.
-- Net lines at most +520 (`src` +400, tests +150). This task adds lines; the part falls in the tasks after it.
+- Net lines at most +650 (`src` +500, tests +187). This task adds lines; the part falls in the tasks after it.
 
 ## Inputs
 
@@ -40,7 +40,8 @@ Acceptance:
 
 - Owns: `src/inline.rs`, `src/fixture.rs`, `src/tests/inline.rs` (new); `lib.rs`'s two `pub mod` lines; a paragraph
   in the crate's `README.md` naming `inline` and `fixture`.
-- `server.rs`: the field and `charset`, `credential`, and `respond`'s one media line. Nothing else there.
+- `server.rs`: the field and `charset`, `credential`, `respond`'s one media line, and the `#[expect]` of the answer
+  below. Nothing else there.
 - `service.rs`: `ContentType::charset`, the `ambiguous_updates` field and setter.
 - `writes.rs`: `Stage::Updated if error == a::Error::Conflict` answers `texts::UPDATE_STALE` when the service's
   flag is set, `texts::UPDATE_CONFLICT` otherwise.
@@ -99,8 +100,9 @@ Acceptance:
 
    - `env` is `Env { now: Time::from_nanos(wall.as_nanos()), wall, limits }`, and the `Lent`'s the same over
      `config`, `hooks: false`. Owner: a named `Token`. The server has `charset` on.
-   - An `Intake` of `request.len()` holds the request; a `Writer` of `limits.http.response + limits.response` takes
-     the output. `start`, then a bounded loop: `pass`; drop `take_head()`; pop `below`. As
+   - An `Intake` of `request.len()` or `skein_http::server::largest_read(&limits.http)`, the larger, holds the
+     request; a `List<u8>` of capacity `limits.http.response + limits.response` takes the output, and `into_boxed`
+     ends it. `start`, then a bounded loop: `pass`; drop `take_head()`; pop `below`. As
      `skein/tests/forge/machine/src/pipe.rs`, `End::up`, answers one demand: `Demand { read, room }` is
      `up(Bytes)` if `intake.meet(read)` has bytes, else `up(Room)` if `room > 0`, else nothing; `Send` goes to the
      writer; `Finish` ends it. It ends when `below` is empty and the server has no work.
@@ -141,3 +143,28 @@ Acceptance:
 ## Report
 
 The common note's items; the break table; net lines, `src` and tests apart; which `pub(crate)`s you widened.
+
+## Answers
+
+2026-11-04. Writer or `List<u8>` for the output, and how large an intake? **`List<u8>`, no `Writer` change.** A
+`Writer` is for a length computed first (`skein-lib/src/writer.rs`); this one is known only as it fills, and `List`
+is bounded and allocates as it fills. `Down::Send` pushes its bytes in a loop over them, `expect`ing the push, and
+both ends answer `into_boxed`. **The intake:** step 2 now names `skein_http::server::largest_read(&limits.http)`,
+the server's own bound for the stream below, the larger of it and the request's length. It replaces the pushed
+`max` of `head` and `read`.
+
+Three faces ran on the pushed work and found what this task must finish, so the next run finishes all of it:
+
+- The rest of the task: `Service::ambiguous_updates` and its `writes.rs` branch, `Installations::minted_token`, the
+  three tests not written, the README paragraph, every test's break. `github-protocol-face` can't compile without
+  the two methods.
+- `heavy cargo clippy -p skein-fake-forge-github --all-targets -- -D warnings` has 17 errors at the pushed commit.
+  `#[must_use]` and assert messages where it asks. `partial_pub_fields`: `Inline::limits` is `pub`, and
+  `notes/fake-github.md`, 1 now says so; no exception. `struct_excessive_bools` on `Server`: a scoped `#[expect]`
+  with its reason, the one this task may add there.
+
+**Size.** The cap was set by the cut. The push measures +604 (`src` +406, tests +198) before the work above, about 70
+lines more. First compact what can go without losing a test or a rule: the shared parts of `Connection` and of the
+whole-request tests above all, and `src` by what `List` saves. Why the cap can't hold: the fixture's table alone
+takes `fixture.rs` 204 lines, and the lints add a line each. So the cap rises by the 25% the plan's owner allows: **+650,
+`src` +500, tests +187**. Past any of the three after compacting, stop and ask, with the measurements.

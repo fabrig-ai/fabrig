@@ -76,7 +76,7 @@ pub(crate) fn done_bytes(done: &crate::tools::Done) -> u64 {
 }
 
 pub(crate) fn bytes(value: &[u8]) -> u64 {
-    u64::try_from(value.len()).unwrap_or(u64::MAX)
+    skein_lib::len_u64(value.len())
 }
 
 fn fixed(count: usize, size: usize) -> u64 {

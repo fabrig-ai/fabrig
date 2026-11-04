@@ -329,8 +329,8 @@ impl Clients {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        crate::accounts::earliest(
-            crate::accounts::earliest(self.component.next_deadline(), self.server.next_deadline()),
+        skein_lib::earliest(
+            skein_lib::earliest(self.component.next_deadline(), self.server.next_deadline()),
             match &self.google {
                 Some(google) => google.next_deadline(),
                 None => None,

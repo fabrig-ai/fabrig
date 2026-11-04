@@ -57,6 +57,18 @@
   - 8.11: a dependent's landing holding its dependency's pushed head in
     g's ancestry is unobserved in stories, the fake forge squashing
     merges (skein's `fake-forge.md`, 2.2).
+  - 8.11: what a step short of message room leaves for the next. A
+    question's `Stands` is taken, foreman, asked or held
+    (`temper-engine-domain-forge-change/src/boundary.rs`, and the store's
+    `Stands`), so nothing holds reasons awaiting passing up, whose stored
+    ceiling is not in the schema, or a foreman's words awaiting passing
+    down. With no room `relay`
+    (`temper-engine-domain-forge-change/src/relay.rs`) leaves the question
+    as it stood and wakes the change, while the step's commit takes the
+    foreman's verdict from the inbox (jig's `domain/tasks.md`, 8.2), so the
+    question waits on an ended foreman. A question released past the bound
+    at such a step meets the spent allowance again at the next: the release
+    is that step's alone, and `next_act` holds the change.
   - 8.11: a repair's or a resolution's question, relayed as a producer's
     is (`temper-engine-domain/src/route/forge_route/relay.rs`,
     `asking_delegate`), is unobserved in stories: every relay story's

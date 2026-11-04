@@ -113,7 +113,7 @@ fn an_accepted_init_uses_the_completion_head_deadline() {
 fn private_diagnostics_redact_known_private_values() {
     let backend = backend();
     let secret = mcp::secret_text(backend.names.mcp.expose().try_into().expect("bounded test fixture"));
-    let bytes = mcp::json::join(&[b"stderr ", &secret, b" ", &backend.run_path(b"mcp.json"), b" tail"]);
+    let bytes = skein_lib::bytes::concat(&[b"stderr ", &secret, b" ", &backend.run_path(b"mcp.json"), b" tail"]);
     let text = backend.private_diagnostic(&bytes);
     assert!(skein_lib::bytes::find(&text, &secret).is_none());
     assert!(skein_lib::bytes::find(&text, &backend.names.run).is_none());

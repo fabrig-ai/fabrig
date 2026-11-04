@@ -572,7 +572,7 @@ const IDENTITY: [u8; 16] = [227, 220, 92, 103, 122, 9, 131, 161, 162, 47, 205, 1
 fn kernel_operations_are_routed_back_to_their_owner() {
     use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
     use skein_lib::{Queue, Token};
-    let mut kernel = crate::accounts::Kernel::new(4);
+    let mut kernel = skein_io::kernel::Routes::new(4);
     let mut sockets = Queue::with_capacity(2);
     sockets.push(Submit { op: Token::new(1), kind: Op::Close { fd: Fd::new(6) } });
     let mut output = Queue::with_capacity(4);

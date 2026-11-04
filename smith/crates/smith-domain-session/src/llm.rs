@@ -286,23 +286,23 @@ impl Prompt {
 
         let mut bytes = u64::try_from(size_of::<Self>())
             .ok()?
-            .checked_add(u64::try_from(self.model.len()).ok()?)?
-            .checked_add(u64::try_from(self.system.len()).ok()?)?
+            .checked_add(skein_lib::len_u64(self.model.len()))?
+            .checked_add(skein_lib::len_u64(self.system.len()))?
             .checked_add(
-                u64::try_from(size_of::<Descriptor>()).ok()?.checked_mul(u64::try_from(self.delegated.len()).ok()?)?,
+                u64::try_from(size_of::<Descriptor>()).ok()?.checked_mul(skein_lib::len_u64(self.delegated.len()))?,
             )?
             .checked_add(
-                u64::try_from(size_of::<Message>()).ok()?.checked_mul(u64::try_from(self.messages.len()).ok()?)?,
+                u64::try_from(size_of::<Message>()).ok()?.checked_mul(skein_lib::len_u64(self.messages.len()))?,
             )?;
         bytes = bytes.checked_add(self.namespace.owned_bytes()?)?.checked_add(self.protocol_allowance)?;
         if let Some(effort) = &self.effort {
-            bytes = bytes.checked_add(u64::try_from(effort.len()).ok()?)?;
+            bytes = bytes.checked_add(skein_lib::len_u64(effort.len()))?;
         }
         match &self.choice {
             ToolChoice::Auto | ToolChoice::None => {}
             ToolChoice::Only(tickets) => {
                 bytes = bytes.checked_add(
-                    u64::try_from(tickets.len()).ok()?.checked_mul(u64::try_from(size_of::<Token>()).ok()?)?,
+                    skein_lib::len_u64(tickets.len()).checked_mul(u64::try_from(size_of::<Token>()).ok()?)?,
                 )?;
             }
         }

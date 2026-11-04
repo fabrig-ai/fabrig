@@ -116,7 +116,7 @@ fn receipt_bytes(receipts: &[run::Receipt]) -> Result<u64, StoreError> {
 }
 
 fn add_bytes(total: u64, bytes: &[u8]) -> Result<u64, StoreError> {
-    total.checked_add(u64::try_from(bytes.len()).or(Err(StoreError::TooLarge))?).ok_or(StoreError::TooLarge)
+    total.checked_add(skein_lib::len_u64(bytes.len())).ok_or(StoreError::TooLarge)
 }
 
 fn count(length: usize) -> Result<u32, StoreError> {

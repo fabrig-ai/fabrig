@@ -853,6 +853,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-fake-parties",
+ "jig-fake-store",
  "jig-fake-workers",
  "jig-protocol-charter",
  "jig-protocol-config",
@@ -1283,10 +1284,12 @@ name = "jig-protocol-accounts"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
+ "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
  "skein-http",
  "skein-io",
+ "skein-kv",
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
@@ -1453,6 +1456,21 @@ dependencies = [
  "jig-client-domain",
  "skein-lib",
  "smith-transcript",
+]
+
+[[package]]
+name = "jig-protocol-worker-agents"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-host",
+ "skein-io",
+ "skein-lib",
+ "smith-channel",
+ "smith-domain-run",
+ "smith-host-domain",
+ "smith-host-protocol",
+ "smith-protocol-channel",
+ "smith-protocol-program",
 ]
 
 [[package]]
@@ -1685,6 +1703,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-tools",
+ "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "jig-test-connector",
@@ -1699,12 +1718,10 @@ dependencies = [
  "skein-json",
  "skein-kv",
  "skein-lib",
- "skein-oauth",
  "skein-oauth-accounts",
  "skein-world",
  "smith-channel",
  "smith-charter",
- "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
  "smith-host-protocol",
@@ -5016,6 +5033,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-transcript",
+ "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "skein-channel",

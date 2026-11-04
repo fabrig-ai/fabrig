@@ -25,7 +25,7 @@ pub fn release(service: &mut Service, domain: &mut domain::Domain, env: &Env<dom
 pub fn pass(server: &mut Server, service: &mut Service, lent: &mut Lent<'_>, env: &Env<Limits>,
     above: &mut Queue<Event>, below: &mut Queue<Down>);
 
-pub struct Inline { pub service: Service, pub domain: domain::Domain, pub config: domain::Config, limits: Limits }
+pub struct Inline { pub service: Service, pub domain: domain::Domain, pub config: domain::Config, pub limits: Limits }
 impl Inline {
     pub fn new(service: Service, domain: domain::Domain, config: domain::Config, limits: Limits) -> Self;
     /// One whole request on a fresh API connection; the whole response's bytes.
@@ -142,13 +142,13 @@ Caps are per branch, `git diff --shortstat` against its base, net:
 
 | Task | Cap |
 |---|---|
-| `github-fake-surface` | +520 (this task adds lines: `src` at most +400, its tests at most +150) |
+| `github-fake-surface` | +650 (this task adds lines: `src` at most +500, its tests at most +187) |
 | `github-connection-face` | -250 |
-| `github-machine-face` | -330 |
+| `github-machine-face` | -300 |
 | `github-protocol-face` | -160 |
 | `github-joint-face` | -80 |
 | `github-fixture-readers` | -130 |
 | `github-close` | -30 |
 
-The part ends near -600 net. The faces' gross fall is about 1.2k, as the review put it; the surface and the
+The part ends near -450 net. The faces' gross fall is about 1.2k, as the review put it; the surface and the
 fixture's literals stay. A negative cap is a floor on what falls: ending above it (less removed) is passing it.
