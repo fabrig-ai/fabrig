@@ -458,7 +458,7 @@ fn change_accepts_a_second_change_within_the_chats_task_allotment() {
 #[test]
 fn change_refuses_oversized_words_as_a_delegate_spec() {
     let (mut world, chat) = chat_world(true);
-    let words = vec![b'x'; usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize") + 1];
+    let words = vec![b'x'; skein_lib::usize_of(world.env.limits.tasks.spec_bytes) + 1];
     assert!(
         matches!(change(&mut world, &chat, 93, None, &words), engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Spec)
     );

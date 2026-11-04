@@ -278,7 +278,7 @@ impl Joint {
                         turn: 1,
                         retry: 0,
                         kind: jig_domain_host::LiveKind::Text,
-                        offset: u64::try_from(reply.words.len()).expect("scripted reply length fits"),
+                        offset: skein_lib::len_u64(reply.words.len()),
                         bytes: (*bytes).into(),
                     },
                 },
