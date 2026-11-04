@@ -156,7 +156,7 @@ impl Backend {
                             Some(value) => document.token(value)?.kind == Kind::True,
                             None => false,
                         };
-                        if !self.reply_room(u64::try_from(text.len()).ok()?) {
+                        if !self.reply_room(skein_lib::len_u64(text.len())) {
                             return None;
                         }
                         self.ledger.get_mut(slot)?.answer =

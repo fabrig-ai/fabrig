@@ -37,7 +37,7 @@ pub(super) fn sub_agent(
     out: &mut Queue<Request>,
 ) {
     let Asking { call, deadline, name: _ } = made;
-    if u64::try_from(wanted.brief.len()).unwrap_or(u64::MAX) > env.limits.host_part {
+    if skein_lib::len_u64(wanted.brief.len()) > env.limits.host_part {
         out.push(Request::Return {
             spent: 0,
             call,

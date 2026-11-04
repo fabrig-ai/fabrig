@@ -309,7 +309,7 @@ fn cut_text(text: Box<[u8]>, cap: u64) -> Box<[u8]> {
             kept = kept.checked_sub(1).expect("positive prefix");
         }
     }
-    let omitted = u64::try_from(text.len().checked_sub(kept).expect("prefix within text")).expect("bounded omission");
+    let omitted = skein_lib::len_u64(text.len().checked_sub(kept).expect("prefix within text"));
     let decimal = Decimal::of(omitted);
     let length = kept.checked_add(decimal.as_bytes().len()).expect("marker count").checked_add(17).expect("marker");
     let mut writer = Writer::new(length);
