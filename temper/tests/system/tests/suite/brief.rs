@@ -28,7 +28,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
         descriptions: Box::new([None]),
         models: Box::new([world::charter().policy.model]),
     };
-    let stock = temper_service::stock::defaults(&llm);
+    let stock = temper_service::stock::defaults(&llm, chat.root.env.limits.tasks.result_bytes);
     let coder = stock.charters.iter().find(|charter| charter.number == 2).expect("stock coder");
     repair.charter = coder.number;
     repair.run.policy = coder.policy.clone();

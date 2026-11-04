@@ -378,7 +378,7 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
     use jig_client::contract::{Setting, SettingEdit, SettingItem, SettingSet, SettingValue};
     use jig_domain_core::settings;
-    let stock = temper_service::stock::defaults(&engine.llm);
+    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     jig_protocol_config::pass(&mut engine, stock).expect("stock settings");
     let config = jig_protocol_config::core(&engine, [0; 16], 1);
     let limits = &engine.limits.core;

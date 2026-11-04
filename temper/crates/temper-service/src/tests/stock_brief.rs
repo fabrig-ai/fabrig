@@ -30,9 +30,13 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     assignment.run.sources = Box::new([None, None]);
     assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
     assignment.run.authority.tools = jig_domain_tasks::Tools(
-        crate::stock::defaults(&engine.llm).rules.ceiling.tools.0 & assignment.run.policy.tools.0,
+        crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0
+            & assignment.run.policy.tools.0,
     );
-    assert_eq!(crate::stock::defaults(&engine.llm).rules.ceiling.tools.0, 1 | 2 | 4 | 512 | 1024);
+    assert_eq!(
+        crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0,
+        1 | 2 | 4 | 512 | 1024
+    );
     assignment.run.ended_by =
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
     assignment.run.contract = if open {

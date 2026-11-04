@@ -197,7 +197,7 @@ pub fn agent_profile() -> smith_agent_service::profile::Profile {
     profile.declared.read_window = 256;
     profile.declared.conversations = 1;
     profile.declared.calls_per_response = 1;
-    profile.policy.max_turns = 16;
+    profile.policy.max_turns = 800;
     profile.policy.check_timeout = Duration::from_secs(5);
     let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
     profile.policy.inbox = hub.held.max(hub.inbox);
@@ -281,8 +281,8 @@ pub fn agent() -> temper_service::settings::Agent {
             output: 512,
         }]),
         turns: agent_profile().policy.max_turns,
-        spend: 100,
-        time: Duration::from_secs(300),
+        spend: 256,
+        time: Duration::from_secs(28_800),
         waiting: Duration::from_secs(60),
         checks: Duration::from_secs(5),
         message_bytes: 1024,
@@ -364,7 +364,7 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
         document["world_settings"] = world_document()["world_settings"].clone();
     }
     let engine = settings::configuration(&document);
-    let mut defaults = temper_service::stock::defaults(&engine.llm);
+    let mut defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     // The playground's scripted model plays the stock chat; the configuring agent needs a real one (configuration.md, 13.4).
     defaults.charters = defaults.charters.into_vec().into_iter().filter(|charter| charter.number != 3).collect();
     defaults.templates = defaults.templates.into_vec().into_iter().filter(|template| template.number != 3).collect();

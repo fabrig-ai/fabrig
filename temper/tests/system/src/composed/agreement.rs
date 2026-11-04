@@ -15,7 +15,10 @@ pub(super) fn config(seed: u64) -> engine::Config {
         descriptions: Box::new([None]),
         models: config.core.settings.models.clone(),
     };
-    config.core.defaults = temper_service::stock::defaults(&llm);
+    config.core.defaults = temper_service::stock::defaults(
+        &llm,
+        temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
+    );
     config.core.connectors = Box::new([1]);
     let mut policy = config.core.defaults.policies.get(&1).expect("stock policy").clone();
     let mut roles = policy.policy.roles.to_vec();

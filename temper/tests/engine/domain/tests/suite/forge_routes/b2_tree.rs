@@ -36,7 +36,7 @@ fn defaults() -> jig_domain_core::settings::Defaults {
         descriptions: Box::new([None]),
         models: Box::new([model()]),
     };
-    temper_service::stock::defaults(&llm)
+    temper_service::stock::defaults(&llm, box_limits().tasks.result_bytes)
 }
 
 fn world_with(defaults: &jig_domain_core::settings::Defaults) -> (World, engine::Assignment) {
@@ -56,10 +56,10 @@ fn started_world_with_words(
     const SLOTS: u32 = 2;
     world.adopt();
     let mut bounds = protocol::bounds();
-    bounds.turns = 16;
+    bounds.turns = 800;
     bounds.models = Box::new([host::ModelBound { name: model().name, window: model().window, output: model().output }]);
     bounds.spend = defaults.rules.maximum_run_spend;
-    bounds.time = defaults.charters[0].policy.time;
+    bounds.time = Duration::from_secs(28_800);
     bounds.message_bytes = world.env.limits.tasks.message_bytes.max(world.env.limits.tasks.result_bytes);
     bounds.inbox = world.env.limits.tasks.run_inbox;
     world.send(engine::Event::Worker(engine::WorkerInput::Link {
@@ -941,18 +941,39 @@ fn an_agreed_goal_finishing_before_asking_is_parked_then_woken_and_asks() {
 
 #[test]
 fn an_agreed_goal_asks_in_its_reserve_turn() {
+    use jig_domain_core::settings as s;
     use skein_fake_llm_domain::api::{Line, Script};
     use smith_agent_world::{Settings, fixture};
 
     let (mut world, chat) = stock_world();
+    // This story reaches the reserve with a short run, within the fake's 32-turn script bound.
+    let mut short = defaults().charters[0].clone();
+    short.policy.turns = 8;
+    world.send(engine::Event::Party(engine::PartyInput::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(300)),
+        sign_in: world.signed_in.expect("deployment owner"),
+        key: [30; 16],
+        digest: [30; 32],
+        change: Box::new(s::Change {
+            against: 1,
+            items: Box::new([s::Item {
+                setting: s::Setting::Charter(1),
+                edit: s::Edit::Set(s::Value::Charter(Box::new(short))),
+            }]),
+            running: s::Running::Stays,
+        }),
+        kinds: Box::new([]),
+    }));
+    world.until(Until::Ready);
     let task = goal(&mut world, &chat, false);
     advance(&mut world);
     let work = admitted(&world, task);
     let mut charter = temper_engine_smith::charter(&work);
+    assert_eq!(charter.budget.turns, 8);
     let mut settings = Settings::calm(713);
     settings.limits.run.host_tools = u32::try_from(charter.grants.host_tools.len()).expect("stock tool count");
     settings.limits.run.brief_sections = u32::try_from(charter.brief.sections.len()).expect("stock sections");
-    // The fake provider supplies the model binding; stock turns and reserve stay unchanged.
+    // The fake provider supplies the model binding; the configured turns and reserve stay unchanged.
     charter.llm = smith_agent_world::scripted_charter(&settings).llm;
     charter.models = Box::new([]);
     let input = format!(

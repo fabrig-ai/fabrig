@@ -25,9 +25,9 @@ pub enum Given {
     Own { jig: Defaults, forge: Box<[temper_engine_domain_forge::settings::Stock]> },
 }
 impl Given {
-    pub(crate) fn defaults(&self, llm: &jig_protocol_config::Llm) -> Option<Defaults> {
+    pub(crate) fn defaults(&self, llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
         match self {
-            Self::Stock => checked(llm),
+            Self::Stock => checked(llm, result_bytes),
             Self::Own { jig: own, .. } => {
                 let mut policies = Map::with_capacity(own.policies.len());
                 for (number, policy) in &own.policies {
@@ -159,16 +159,16 @@ fn grant_floors(grants: &[authority::Grant], limits: &authority::Limits, setting
 /// # Panics
 /// If `llm` offers no model or its budgets overflow; startup checks both before calling this.
 #[must_use]
-pub fn defaults(llm: &jig_protocol_config::Llm) -> Defaults {
-    checked(llm).expect("startup checked the default model and its stock budgets")
+pub fn defaults(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Defaults {
+    checked(llm, result_bytes).expect("startup checked the default model and its stock budgets")
 }
 
 /// Checked stock construction lets startup refuse unrepresentable model-based budgets.
-pub(crate) fn checked(llm: &jig_protocol_config::Llm) -> Option<Defaults> {
+pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
     llm.models.first()?;
     let mut charters = Box::new([
-        charter(1, 8, include_bytes!("stock/chat.txt"), llm),
-        charter(2, 16, include_bytes!("stock/coding.txt"), llm),
+        charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), llm),
+        charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), llm),
         configuring_charter(llm),
         reviewer(llm),
         foreman(llm),
@@ -177,16 +177,15 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm) -> Option<Defaults> {
     // Its existing admission helper keeps the stock on that same rounding rule.
     let minimum_run = jig_domain_core::reserve_floor(&charters.first()?.policy)?;
     let mut run = minimum_run.checked_mul(2)?; // K starts at 4C.
-    // Keep K's coarse-price floor at the chat's eight turns, four units each.
-    // A 16-turn coder is bounded by that spend; at init prices (C = 1057,
-    // K = 4228) its 16 turns fit (protocol/configuration.md, 13.4).
+    // K's floor is four units for each of the chat's 64 run turns, 256 units.
     run = run.max(u64::from(charters.first()?.policy.turns).checked_mul(4)?);
     let chat_spend = run.checked_mul(24)?;
-    let ceiling_spend = run.checked_mul(48)?;
+    // Eighty chats or goals funded at once from one pool.
+    let ceiling_spend = chat_spend.checked_mul(80)?;
     for charter in charters.iter_mut() {
         charter.spend = run;
     }
-    let templates = Box::new([chat(), goal(), configuring()]);
+    let templates = Box::new([chat(result_bytes), goal(result_bytes), configuring(result_bytes)]);
     let mut policies = Map::with_capacity(1);
     let mut role_authority = ceiling(ceiling_spend);
     role_authority.budget.spend = chat_spend;
@@ -228,7 +227,16 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm) -> Option<Defaults> {
     })
 }
 
-fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_config::Llm) -> Charter {
+// Chat and configuring charter rows (temper/docs/design/protocol/configuration.md, 13.4).
+const CHAT_TURNS: u32 = 64;
+// Chat and configuring charter rows: one hour (temper/docs/design/protocol/configuration.md, 13.4).
+const CHAT_TIME: Duration = Duration::from_secs(3_600);
+// Coding, reviewer and foreman rows (temper/docs/design/protocol/configuration.md, 13.4).
+const WORK_TURNS: u32 = 800;
+// Coding, reviewer and foreman rows: eight hours (temper/docs/design/protocol/configuration.md, 13.4).
+const WORK_TIME: Duration = Duration::from_secs(28_800);
+
+fn charter(number: u32, turns: u32, time: Duration, instructions: &[u8], llm: &jig_protocol_config::Llm) -> Charter {
     let model = llm.models.first().expect("parsed llm offers at least one model").clone();
     let mut alternatives = List::with_capacity(u32::try_from(llm.models.len().saturating_sub(1)).expect("model count"));
     for alternative in llm.models.iter().skip(1) {
@@ -247,7 +255,7 @@ fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_conf
             waiting: Duration::from_millis(10_000),
             resume: true,
             turns,
-            time: Duration::from_millis(120_000),
+            time,
             reserve_turns: 1,
             reserve_time: Duration::from_millis(60_000),
             inspect: true,
@@ -267,19 +275,19 @@ fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_conf
     }
 }
 fn configuring_charter(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(3, 8, include_bytes!("stock/configuring.txt"), llm);
+    let mut value = charter(3, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/configuring.txt"), llm);
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
 fn reviewer(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(4, 16, include_bytes!("stock/review.txt"), llm);
+    let mut value = charter(4, WORK_TURNS, WORK_TIME, include_bytes!("stock/review.txt"), llm);
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
 fn foreman(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(6, 16, include_bytes!("stock/foreman.txt"), llm);
+    let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), llm);
     value.policy.modify = false;
     value.policy.agents = false;
     value
@@ -316,21 +324,21 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
             ]),
-            tasks: 18,
-            depth: 4,
+            tasks: 384,
+            depth: 32,
         },
         budget: authority::Budget { spend: ceiling_spend, deadline: None },
         notes: authority::Scopes(0),
         note_resources: Box::default(),
     }
 }
-fn chat() -> Template {
+fn chat(result_bytes: u32) -> Template {
     Template {
         resources: Box::new([]),
         number: 1,
         name: bytes::copy_of(b"chat"),
         executor: TemplateExecutor::Charter(1),
-        contract: Contract::Report { words: 32 },
+        contract: Contract::Report { words: result_bytes },
         shallower: 1,
         budget: TemplateBudget::AsAllowed { cap: None },
         deadline: TemplateDeadline::None,
@@ -341,16 +349,21 @@ fn chat() -> Template {
         llm: None,
     }
 }
-fn configuring() -> Template {
-    Template { number: 3, name: bytes::copy_of(b"configuring"), executor: TemplateExecutor::Charter(3), ..chat() }
+fn configuring(result_bytes: u32) -> Template {
+    Template {
+        number: 3,
+        name: bytes::copy_of(b"configuring"),
+        executor: TemplateExecutor::Charter(3),
+        ..chat(result_bytes)
+    }
 }
-fn goal() -> Template {
+fn goal(result_bytes: u32) -> Template {
     Template {
         resources: Box::new([]),
         number: 2,
         name: bytes::copy_of(b"goal"),
         executor: TemplateExecutor::Chosen,
-        contract: Contract::Report { words: 32 },
+        contract: Contract::Report { words: result_bytes },
         shallower: 1,
         budget: TemplateBudget::Given,
         deadline: TemplateDeadline::Given,

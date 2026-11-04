@@ -1638,3 +1638,13 @@ fn capacity_overrides_name_the_failed_dependency() {
         assert_eq!(text.lines().count(), 1, "unrelated init overrides must not be accused: {text}");
     }
 }
+
+#[test]
+fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
+    let mut problems = Problems::empty();
+    problems.push(
+        Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch_bytes"),
+        What::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 },
+    );
+    assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
+}

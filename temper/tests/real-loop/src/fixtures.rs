@@ -481,7 +481,7 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     let mut values = deployment.clone();
     values["world_settings"] = flags.clone();
     let engine = crate::settings::configuration(&values);
-    let mut defaults = temper_service::stock::defaults(&engine.llm);
+    let mut defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let stock_period_spend = defaults.rules.period_spend;
     // Charter 1 also produces finite changes in this world; the Smith boundary keeps Open chats inspecting.
     defaults.charters[0].policy.modify = true;

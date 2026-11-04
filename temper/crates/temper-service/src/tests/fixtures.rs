@@ -97,7 +97,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         jig_protocol_config::Defaults::Passed,
     )
     .unwrap();
-    let defaults = crate::stock::defaults(&jig.llm);
+    let defaults = crate::stock::defaults(&jig.llm, jig.limits.core.tasks.result_bytes);
     jig_protocol_config::pass(&mut jig, defaults).unwrap();
     jig
 }
@@ -954,9 +954,9 @@ pub fn signed_worker() -> crate::Service {
                         window: 8192,
                         output: 1024,
                     }]),
-                    turns: 16,
+                    turns: 800,
                     spend: 1000,
-                    time: skein_lib::Duration::from_millis(131_072),
+                    time: skein_lib::Duration::from_secs(28_800),
                     waiting: skein_lib::Duration::from_secs(60),
                     checks: skein_lib::Duration::from_secs(1),
                     message_bytes: 512,

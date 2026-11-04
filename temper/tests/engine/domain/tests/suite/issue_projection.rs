@@ -56,7 +56,7 @@ fn defaults() -> jig_domain_core::settings::Defaults {
         descriptions: Box::new([None]),
         models: Box::new([model()]),
     };
-    let mut defaults = temper_service::stock::defaults(&llm);
+    let mut defaults = temper_service::stock::defaults(&llm, OP_BYTES);
     defaults.rules.period_spend = SPEND;
     defaults.rules.ceiling.budget.spend = SPEND;
     for charter in &mut defaults.charters {
