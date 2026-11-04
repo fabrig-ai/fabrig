@@ -69,3 +69,15 @@ Rebase onto the current landing trunk and resolve this file as follows:
 - Preserve trunk’s section 11 entry recording 356 shared distinct lines against the bound of 200.
 - Preserve the other remaining gaps and set the date to the rebase day.
 Keep the task’s `Undecoded` implementation unchanged for this conflict.
+
+## Rebase (2026-11-04, step merge, foreman debt-10/undecoded/foreman-2)
+
+resolve the status conflict by retaining both completed-gap deletions.
+The merge conflicts only in `jig/docs/design/protocol/service.status.md`.
+Rebase onto the current landing trunk.
+Task commit `513f22c271` removes the 11.2 `route::Invalid` gap.
+Trunk commit `83e7de431b` removes the adjacent 11.4 bundle gap because D005 is complete.
+Resolve by removing both entries; this supersedes the earlier Rebase instruction to preserve 11.4.
+Preserve the remaining gaps, including 11/11.5 and the section 11 measurement of 356 shared distinct lines against 200.
+Set the status date to the rebase day.
+Keep the task’s `Undecoded` implementation unchanged.
