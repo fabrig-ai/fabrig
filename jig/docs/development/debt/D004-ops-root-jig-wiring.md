@@ -4,7 +4,7 @@
 - **Where:** `examples/ops/domain/src`, `testing/jig-test-domain/src/lib.rs`, `testing/jig-test-domain/src/routes.rs`
 - **Seen:** 2026-10-31 at `c30cf6a03`, in the jig code-quality review (T4, T2, A12 F1, F2, F4, A11 F3, F4, F5; order of work, item 11)
 - **Seen:** 2026-10-31 at `1b5c98834`, in the quality run's debt list (item 11, "roots that decide")
-- **Checked:** 2026-11-03 at `41d63da8c3`
+- **Checked:** 2026-11-04 at `e2fd13de21`
 - **Value:** high (`ops` becomes a template an application can copy)
 - **Size:** L
 - **Status:** open
@@ -15,7 +15,8 @@
 
 - `ops`'s domain is 3,836 non-test lines (4,011 before the quality run; the review aimed at about 2,000); `route.rs` alone is 1,446.
 - It keeps its own classifier of host events (`admission.rs`, `Class`), decodes delegate JSON and assembles alert words; `jig/docs/design/examples.status.md` and `jig/docs/design/domain/root.status.md` record this as a departure.
-- The test application's root has another shape: `lib.rs` 1,370 lines against `ops`'s 38, plus `routes.rs` 1,310, with the same `Now` arms (D001).
+- The test application's root has another shape: `lib.rs` 1,370 lines against `ops`'s 38, plus `routes.rs` 1,310, with the same `Now` arms.
+- `ops`'s and the test root's fixed answers to `Now::BriefCorePlanned`, and `ops`'s to `Now::WorkspaceRequest`, are this item's: they build a plan from the core's limits and answer with empty holds.
 
 ## Why it matters
 
@@ -24,6 +25,6 @@ every root. A root that is half jig wiring cannot be copied, and each copy drift
 
 ## What pays it back
 
-After D001: a jig "engine link" part owning payloads, host calls, assignment, brief and
+A jig "engine link" part owning payloads, host calls, assignment, brief and
 turn backoff maps; a link or core classifier for host events; the test root rebuilt in
 `ops`'s shape. The status files' departures close with it.

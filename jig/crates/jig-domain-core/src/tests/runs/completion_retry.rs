@@ -44,7 +44,6 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::AcceptedTurn { .. }
                 | Now::RefusedPayload { .. }
                 | Now::Activate { .. }
-                | Now::PrepareAgent { .. }
                 | Now::StartPreparation { .. }
                 | Now::SeenConversation { .. }
                 | Now::LoadEndedRead { .. }

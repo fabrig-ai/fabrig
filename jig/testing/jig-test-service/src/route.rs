@@ -268,7 +268,6 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         | core::Now::AcceptedTurn { .. }
         | core::Now::RefusedPayload { .. }
         | core::Now::Activate { .. }
-        | core::Now::PrepareAgent { .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
