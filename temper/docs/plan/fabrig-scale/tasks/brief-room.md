@@ -100,3 +100,24 @@ Rebase `8b46110efc` onto the landing’s current integration tip.
 - `temper/docs/design/protocol/configuration.status.md` overlaps `8baca21f39`. Keep its November 4 date and removal of the obsolete init/default-sizing gap, then remove “its tools leave out the control family,” from the remaining stock entry. Preserve the separate host-family enforcement gap and other status text.
 Keep the automatic merges in `limits.rs` and `tests/stock.rs`, preserving integration’s unrelated changes and this task’s limits and pins.
 Run the spec’s focused stock tests first, then its remaining acceptance checks, through `heavy`.
+
+## Answers
+
+2026-11-04. Q: integration's `stock/chat.txt` grew 24 bytes, so charter 1's room is 362,876, not the
+Rebase section's 362,900: rederive and lower the brief to 360,275, or have the owner shorten the
+instructions?
+
+Rederive. `brief_bytes` is *derived* (Goal; contracts K8), and the Rebase section's 362,900 and
+360,299 were that derivation's result on an older base, not figures to hold: this answer replaces
+them, and every other instruction of that section stands. `chat.txt` stays as integration has it.
+
+- Keep the derivation: min(395,520, room - 1,472 - 1,129), at 1,129 of margin, with the task
+  section 131,584 (the whole 131,072-byte spec and 512). At base `83b60d6e20` that is
+  min(395,520, 362,876 - 1,472 - 1,129) = 360,275, and charter 1's non-brief bytes are 37,259.
+- Set the figures from what the tests measure on the base you run on: `limits.rs`'s `brief_bytes`
+  and its comment; `tests/limits.rs` (`brief_bytes`, `result_bytes`); `stock_brief.rs`'s room and
+  all six charters' pairs (only charter 1's first pair has been measured; the others ran no
+  assertion, so take them from the test, and a charter holding `chat.txt` moves by the same 24).
+  The same applies if the base has moved again: follow the derivation, without asking.
+- Only the aggregate falls: the reviews section gives up the bytes, the task and pull sections
+  stay whole. Stop and ask only as "Owns and may change" says, when a whole spec no longer fits.
