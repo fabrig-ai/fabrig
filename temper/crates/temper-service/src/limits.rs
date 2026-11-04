@@ -379,8 +379,8 @@ const CLIENTS: Clients = Clients {
     // Bytes of a bundle in all, read into memory at start.
     bundle_bytes: 16 << 20,
 };
-/// The standalone process's socket admission.
-pub const SOCKETS: u32 = 64;
+/// The standalone process's socket admission holds standard's owned example with both listeners and a sign-in.
+pub const SOCKETS: u32 = 128;
 
 /// Constant profile values in each owner's limits.
 #[must_use]

@@ -2453,18 +2453,17 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
 /// Effective box limits, read through the shipped init template.
 #[must_use]
 pub fn box_limits() -> engine::Limits {
-    let jig = box_profile();
-    let temper = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let (jig, temper) = box_profiles();
     temper_service::limits::engine(&jig, &temper).expect("coherent box limits")
 }
 
 /// The store join allowance from the same init template projection as `box_limits`.
 #[must_use]
 pub fn box_joins() -> u32 {
-    box_profile().store.joins
+    box_profiles().0.store.joins
 }
 
-fn box_profile() -> jig_protocol_config::Limits {
+fn box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
     use jig_protocol_config as config;
     let document = config::document(
         include_bytes!("../../../../crates/temper-init/template/temper.json"),
@@ -2477,5 +2476,21 @@ fn box_profile() -> jig_protocol_config::Limits {
     let at = engine.member(&document, b"limits").expect("engine limits");
     let parsed = config::overrides::parse(&document, at, &config::Path::root().member(b"engine").member(b"limits"));
     assert!(parsed.problems.is_empty(), "init limits: {:?}", parsed.problems);
-    parsed.limits
+    let application = root.member(&document, b"application").expect("application member");
+    let mut application = config::read::Object::new(&document, application).expect("application object");
+    let at = application.member(&document, b"limits").expect("application limits");
+    let mut limits = config::read::Object::new(&document, at).expect("application limits object");
+    let at = limits.member(&document, b"overrides").expect("application overrides");
+    let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
+    let end = config::read::after(&document, at).expect("application overrides end");
+    let mut temper = temper_service::limits::profile(temper_service::limits::Profile::Standard);
+    for index in at..end {
+        let token = document.token(index).expect("application override token");
+        let Some(name) = document.text(token) else { continue };
+        let Some(value_at) = overrides.member(&document, name) else { continue };
+        let value = config::read::integer(&document, value_at, u64::MAX).expect("numeric application override");
+        temper_service::limits::apply(&mut temper, name, value)
+            .unwrap_or_else(|what| panic!("init application override {}: {what:?}", String::from_utf8_lossy(name)));
+    }
+    (parsed.limits, temper)
 }

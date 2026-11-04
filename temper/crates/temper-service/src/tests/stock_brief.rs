@@ -74,10 +74,10 @@ fn workspace(writable: bool) -> run::Workspace {
 fn every_stock_charter_admits_its_whole_maximal_brief() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    assert_eq!(limits.host_part, 51_717);
-    assert_eq!(limits.room, 125_634);
-    assert_eq!(limits.offer_bytes, 25_859);
-    assert_eq!(configuration.service.limits.channel.bodies.turn_body, 1_662_042);
+    assert_eq!(limits.host_part, 400_135);
+    assert_eq!(limits.room, 822_476);
+    assert_eq!(limits.offer_bytes, 200_068);
+    assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
     for (number, open) in [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false)] {
         let assignment = assignment(number, open, 14_592);
         let mut charter = temper_engine_smith::charter(&assignment);
@@ -343,7 +343,7 @@ fn measure_turn(number: u32) {
         measured.held(),
         measured.peak()
     );
-    if limits.run.host_part == 51_717 {
+    if limits.run.host_part == 400_135 {
         assert_eq!(turns, 1, "stock charter {number} reaches a first turn: {refused:?}");
     }
 }

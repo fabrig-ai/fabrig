@@ -1015,7 +1015,9 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     const IORING_MAX_ENTRIES: u32 = 32_768;
     let input = fixtures::owned_worker_alone_document();
     let directories = config::Directories::working();
-    let agent = fixtures::owned_worker_agent();
+    let mut agent = fixtures::owned_worker_agent();
+    agent.host_limits.message_bytes = 10_662;
+    agent.host_limits.messages = 82;
     let part = crate::startup::worker_part(&input, &directories).unwrap();
     let operations = crate::system::worker_alone_operations(
         &part.worker.jig.limits.io,
@@ -1596,24 +1598,19 @@ fn landing_configuration_reads_goal_tiers_and_optional_spans() {
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
     for (member, value, causes) in [
-        (b"tasks.tasks".as_slice(), 64, &["tasks.tasks", "64", "people.inbox_tasks", "128"][..]),
+        (b"tasks.tasks".as_slice(), 129, &["tasks.tasks", "129", "people.inbox_tasks", "258"][..]),
         (b"tasks.project_tasks", 64, &[][..]),
         (
             b"tasks.batch",
             1025,
             &["tasks.batch", "1025", "TaskInterests.result_followups", "1024", "schema ceiling", "reduce"],
         ),
-        (
-            b"tasks.batch_bytes",
-            1_048_576,
-            &["tasks.batch", "TaskRecord", "2539901", "2166900", "profile ceiling", "reduce"],
-        ),
-        (b"tasks.delegates", 8, &["tasks.delegates", "8", "people.operations", "9"]),
-        (b"tasks.delegates", 16, &["tasks.delegates", "16", "people.operations", "17"]),
+        (b"tasks.delegates", 81, &["tasks.delegates", "81", "people.operations", "82"]),
+        (b"tasks.delegates", 82, &["tasks.delegates", "82", "people.operations", "83"]),
         (b"documents.lines", 8, &[][..]),
         (b"tasks.tree_tasks", 128, &[][..]),
-        (b"tasks.message_bytes", 131_072, &["tasks.message_bytes", "131072", "tasks.inbox_bytes", "131072"]),
-        (b"authority.grants", 15, &["authority.grants", "15", "notes.scopes", "18"]),
+        (b"tasks.message_bytes", 874_121, &["tasks.message_bytes", "874121", "tasks.inbox_bytes", "874121"]),
+        (b"authority.grants", 30, &["authority.grants", "30", "notes.scopes", "33"]),
     ] {
         let document = super::stock::limited(&initial, member, value);
         if causes.is_empty() {

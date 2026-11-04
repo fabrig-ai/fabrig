@@ -759,7 +759,7 @@ have one, an engine alone none. Each:
     sockets left once the clients' listener and the forge's connections
     are counted. The sockets are temper's own, a constant of
     `temper-service`'s limits module that its io check takes in place
-    of the sum of jig's engine's and worker's, and `small`'s hold a
+    of the sum of jig's engine's and worker's, and hold, under `standard`, a
     document with both listeners and a sign-in, as the owned example has (setup.md,
     8.1);
   - the channel's (channel.md, section 8): each of temper's largest
