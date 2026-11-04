@@ -14,7 +14,7 @@
 
 AGENTS.md (section 2) asks for comments that say what is true now, with
 no history, and for public code that names no session. temper's code
-names the pre-fab pipeline's tasks 22 times, as promises or as history:
+names the former pipeline's tasks 22 times, as promises or as history:
 
 - "temper-15 replaces them with records" (`temper-service/src/forge.rs`),
   "temper-15 removes the forge files" (`temper-forge-setup-shell/src/reconcile.rs`, twice),
