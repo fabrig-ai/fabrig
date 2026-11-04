@@ -58,8 +58,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
   reason and what lets it run: for its budget, more budget, then a
   release; a release alone holds it again.
 - **The period spent:** nothing more in the project is funded until
-  the next period opens, or until it is raised. `project fund PROJECT AMOUNT` raises the project's
-  period spend, and the open period's budget with it. A person's chats
+  the next period opens, or until `project fund PROJECT AMOUNT` raises it. A person's chats
   are funded from their pool, which their role's period spend sizes and
   which reserves from the period, so raise the role's next: `project
   fund PROJECT AMOUNT --role ROLE`. A cut keeps each budget at what it
@@ -84,8 +83,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
 - **ctl:** `task show` shows a task's spend, its budget and its
   funding; `me` prints what is left of your pool in each project;
   `project show` prints a project's open period and each pool in it,
-  with what each has left; `project fund` raises the project's period
-  spend or a role's; `settings show` reads the rules' run cap and floor, a charter's
+  with what each has left; `settings show` reads the rules' run cap and floor, a charter's
   turns, and policy 1's period spend, which a new project takes;
   `settings apply` changes policy 1; `proposal decide` accepts a
   proposal that widens a task's authority; `task amend` changes a
@@ -156,5 +154,4 @@ role depth - 1: the root consumes one task and one depth level. Thus
   reserved stays its own. Restarting past the next start opens one
   period from then: `temper help weekly-budget`.
 - ctl changes a project's own policy in its spends alone (`project
-  fund`); `settings show` reads policy 1, which only new projects
-  copy.
+  fund`).
