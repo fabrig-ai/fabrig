@@ -39,3 +39,42 @@ id = 2
 story = "a store whose map churns in place keeps its log within twice its map, or 64 KiB, far below snapshot_after"
 parts = ["snapshot-bound"]
 walk = false
+
+[[part]]
+id = "recover-stream"
+title = "skein-kv: recovery applies the snapshot a chunk and the log a frame at a time"
+mode = "direct"
+needs = []
+design = "skein/docs/design/kv.md, 3"
+
+[[part]]
+id = "recover-count"
+title = "skein-kv: restarts count what they replay; a crash's leftover segments go with the next snapshot"
+mode = "direct"
+needs = []
+design = "skein/docs/design/kv.md, 5"
+
+[[part]]
+id = "status"
+title = "skein: kv's status files, once the store pays for what it holds"
+mode = "direct"
+needs = []
+design = "skein/docs/design/kv.md, 9"
+
+[[slice]]
+id = 3
+story = "a restart's transient heap stays within a read and a frame or snapshot chunk, whatever the retained log's length"
+parts = ["recover-stream"]
+walk = false
+
+[[slice]]
+id = 4
+story = "a store restarted or crashed again and again keeps its log within its bound, and no segment outlives the snapshot after it"
+parts = ["recover-count"]
+walk = false
+
+[[slice]]
+id = 5
+story = "kv's status says what of the store still lags"
+parts = ["status"]
+walk = false
