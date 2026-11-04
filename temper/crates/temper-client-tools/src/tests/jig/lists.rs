@@ -388,8 +388,14 @@ fn proposal_page() -> c::ReadResult {
         c::ProposalKey { proposer: c::Proposer::Task(41), number: 8 },
         c::ProposalKey { proposer: c::Proposer::Party(73), number: 17 },
     ] {
-        rows.push(crate::tests::documents::entry(c::ObjectKey::Proposal(key), fixtures::PROJECT, 0, skein_lib::Wall::EPOCH, None))
-            .expect("two proposal rows");
+        rows.push(crate::tests::documents::entry(
+            c::ObjectKey::Proposal(key),
+            fixtures::PROJECT,
+            0,
+            skein_lib::Wall::EPOCH,
+            None,
+        ))
+        .expect("two proposal rows");
     }
     c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
         cut: false,
