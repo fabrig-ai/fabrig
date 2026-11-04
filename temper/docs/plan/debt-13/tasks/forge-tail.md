@@ -23,7 +23,7 @@ Acceptance:
 - A log read keeps the same bytes, the same `dropped` and the same phases: `heavy cargo nextest run -p
   skein-forge-connection`, `-p skein-lib`, `-p skein-fake-peers-tests --test forge` (find the test binary's name)
   and `-p github-conformance` pass.
-- `grow.rs` ends at most 100 lines (136 at base).
+- `grow.rs` ends at most 118 lines (136 at base).
 
 ## Inputs
 
@@ -96,3 +96,11 @@ Acceptance:
 
 What changed, the commit, what ran with counts, the rule broken and what failed, and the net lines, production and
 tests apart.
+
+## Answers
+
+2026-11-04. **Raise `grow.rs`'s cap from 100 to 118, or authorize restructuring `Grow` or `FailureEnd`?** Raise it to
+118, the measured size, 18% over the estimate and inside the 25% an answer call may give. The 100 could not hold with
+the protected code: `Grow`, `Full` and the imports take 60 lines and `FailureEnd` 18, which leaves 22 for a struct and
+five methods that take 40. `Grow` and `FailureEnd` stay as they are. The work pushed at `74dd5bad82`, at 118 lines,
+meets the acceptance above: a next run checks that and changes nothing.
