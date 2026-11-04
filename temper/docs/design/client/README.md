@@ -4721,3 +4721,13 @@ own tests:
   Ready opens the person's project of that name and makes no other
   name, the reading the draft's status records while the user is
   away.
+
+- **Whether `owned` asks the box** (`../draft/serve-without-box.status.md`):
+  the draft offers Forgejo on this machine from the forges' rows, and a
+  first run's store keeps none. Default: the deployment's read says
+  `owned` (4.6), the document's member and the box both, so that
+  `temper serve` on a box's document draws no card its `SetUp` would
+  refuse. The user's to decide: keep it; have `owned` read the document
+  alone, the card then refused "not under the box"; or have the engine
+  list an offered owned row from the machine at a first run, which
+  changes what `forges` answers and what a first run's store reads as.
