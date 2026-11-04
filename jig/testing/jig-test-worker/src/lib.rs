@@ -13,7 +13,7 @@ pub mod translate;
 mod workspace;
 
 pub use admission::{Class, class};
-pub use boundary::{Encodable, Encoded, Event, Invalid, Request};
+pub use boundary::{Encodable, Encoded, Event, Request};
 pub use domain::{Domain, fire, step};
 pub use limits::{Limits, WATERMARK, valid};
 pub use workspace::Content;

@@ -1,6 +1,6 @@
 //! The worker routes each child output before returning (hosts.md, section 4).
 use crate::{
-    Encodable, Encoded, Event, Invalid, Limits, Request,
+    Encodable, Encoded, Event, Limits, Request,
     hand_out::{Finish, Pending},
     translate,
     workspace::Workspace,
@@ -228,7 +228,7 @@ fn parent(domain: &mut Domain, env: &Env<Limits>, event: smith::parent::Event) {
     agent(domain, env, smith::Input::Parent(event));
 }
 
-fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<Box<smith::Start>, Invalid>) {
+fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<Box<smith::Start>, host::Undecoded>) {
     let Some(hosting) = domain.hub.hosting(owner) else { return };
     if hosting.phase != host::Phase::Starting {
         hub(domain, env, HubEvent::Agent(FromAgent::Gone { owner, detail: Box::new([]) }));
@@ -238,9 +238,9 @@ fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<B
         Ok(start) => parent(domain, env, smith::parent::Event::Spawn { client: owner, start: *start }),
         Err(invalid) => {
             let why: &[u8] = match invalid {
-                Invalid::Charter => b"charter",
-                Invalid::Transcript => b"transcript",
-                Invalid::CallName => b"call name",
+                host::Undecoded::Charter | host::Undecoded::Evidence => b"charter",
+                host::Undecoded::Transcript => b"transcript",
+                host::Undecoded::CallName => b"call name",
             };
             hub(
                 domain,
