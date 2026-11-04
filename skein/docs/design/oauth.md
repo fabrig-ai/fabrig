@@ -493,8 +493,9 @@ through an issuer.
   (llm-connection.md, 1): a step machine with its own state, limits, worst
   case and most outputs per entry point, which its owner routes io's events
   to by the tokens it gave (programming-model.md, 4.2). It depends on lib,
-  io's vocabulary, `skein-http`, `skein-tls` and the client of sections 1 to
-  5. It knows no service's domain, account names or policy.
+  io's vocabulary, `skein-http`, `skein-tls`, `skein-link` (link.md) and the
+  client of sections 1 to 5. It knows no service's domain, account names or
+  policy.
 - **Its owner** reports its earliest deadline and fires its deadlines where
   it fires its own, and seeds its cryptographic generator (lib.md,
   section 8), from which each sign-in's state, verifier and nonce are drawn

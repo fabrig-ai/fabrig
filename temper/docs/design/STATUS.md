@@ -61,7 +61,8 @@ the box's group file holds a forge's kind alone
 (`protocol/setup.md`, `protocol/forge.md`, `protocol/README.md`) and
 where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
-box (`domain/forge.md`) and a project's Delete (`client/README.md`);
+box (`domain/forge.md`), a project's Delete (`client/README.md`) and
+a restored secret of the wrong kind (`protocol/credentials.md`);
 public reading still lacks a deployment's proxy configuration and
 figures, and its negative walk plays the proxy's own rules against
 scripted upstreams rather than temper's service
