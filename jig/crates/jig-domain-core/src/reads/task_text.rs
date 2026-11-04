@@ -87,7 +87,8 @@ pub(super) fn answer(
     }
 }
 
-fn report(row: &tasks::TaskRecord) -> Option<&[u8]> {
+/// Extract kept report words without deciding who may read them.
+pub(super) fn report(row: &tasks::TaskRecord) -> Option<&[u8]> {
     let result = match &row.phase {
         tasks::Phase::Ended(tasks::Ending::Done(result) | tasks::Ending::Cancelled { result: Some(result), .. }) => {
             result
