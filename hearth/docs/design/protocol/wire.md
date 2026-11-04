@@ -1007,7 +1007,7 @@ wire, not in traits: another backend is another daemon speaking it.
   connector:** its world (`jig/docs/design/domain/connectors.md`, section 15) can use the
   same fake hearth behind it, and the same fake machine below.
 
-## 11. What is open
+## 11. Open questions
 
 - **Machine identity:** a credential issued at bootstrap or a client
   certificate (5.3); it depends on skein's TLS client certificates and

@@ -516,7 +516,7 @@ backoff), a timeout, a full pool.
   real runs (hearth/docs/design/domain/testing.md, 4.5), and the VM tier runs the whole loop on a
   real development host (hearth/docs/design/domain/testing.md, 7.6).
 
-## 11. What is open
+## 11. Open questions
 
 - **Whether `incus copy` carries the VM's variables** (`qemu.nvram`),
   without which a stub-only disk has nothing to boot (hearth/docs/design/domain/testing.md, 7.4);

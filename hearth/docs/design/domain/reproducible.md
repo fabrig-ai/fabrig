@@ -489,7 +489,7 @@ built, not reproduced      two digests; an open finding names the differing path
 - **diffoscope only on differences,** bounded per finding.
 - **Nothing on the run side** but a comparison of facts.
 
-## 8. What is open
+## 8. Open questions
 
 - **`SOURCE_DATE_EPOCH` through mmdebstrap:** whether mmdebstrap passes
   it to apt, dpkg and the maintainer scripts in directory mode, or

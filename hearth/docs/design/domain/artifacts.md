@@ -744,7 +744,7 @@ system world with render, store and build beside it (2.3).
   toolchain's packages) and runs in the slower suite. Nothing here needs
   root, so nothing runs in VMs.
 
-## 9. What is open
+## 9. Open questions
 
 - **Credentials for private repositories:** it depends on hearth/docs/design/protocol/wire.md (5.3)
   and the plane's secret store.
