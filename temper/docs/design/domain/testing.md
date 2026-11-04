@@ -2157,7 +2157,7 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   made cheaper at the cause the profile shows, or moved only where their
   checks belong under 8.1, by named steps. A change after which the real
   loop's sum is at 15 s or past it puts the ceiling to the user, with
-  its measurements (the repository's `AGENTS.md`, section 6); until the
+  its measurements (the repository's `AGENTS.md`, section 5); until the
   user moves it, the 15 s stands.
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run

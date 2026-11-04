@@ -2,8 +2,6 @@
 # (tests/boundary/tests/outward.rs). A file not listed holds none; each count may only fall.
 # Raising a count or adding a file needs a `# Raised: <who, why>` line directly above its entry.
 
-AGENTS.md 24
-DESIGN.md 1
 jig/docs/development/debt/reviews/2026-10-31-jig-quality-run.md 4
 jig/scripts/live-sign-in.sh 1
 jig/tests/client-browser/src/lib.rs 1
@@ -11,7 +9,6 @@ jig/tests/client-wire/tests/suite/placed_holds.rs 1
 jig/tests/codec-families.rs 1
 jig/tests/protocol-accounts/tests/suite/drift.rs 1
 jig/tests/worker-wire/tests/suite/drift.rs 1
-skein/AGENTS.md 1
 skein/crates/skein-llm/README.md 2
 skein/docs/design/fake-forge.md 1
 skein/docs/development/debt/reviews/2026-10-31-skein-areas.md 1

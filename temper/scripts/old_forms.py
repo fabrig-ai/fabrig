@@ -23,7 +23,7 @@ BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
     "# Uses of the old forms (skein's docs/foundation/programming-model.md, 6.3): each count may only fall.\n"
     '# Lower them with `python3 -I -B scripts/old_forms.py --write`; '
-    'only the director raises one, recorded in a `# Raised:` line.\n'
+    'a count rises only with a `# Raised:` line saying who and why.\n'
 )
 RULE = (
     "Uses of the old forms may only fall (skein's docs/foundation/programming-model.md, 6.3): "
