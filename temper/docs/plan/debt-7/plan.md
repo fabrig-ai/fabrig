@@ -20,7 +20,9 @@ task names. This file grows with each release; what is here so far is what has b
    - `tasks/skein-kernel-routes.md`, medium, ~30 minutes, needs nothing: `skein_io::kernel::Routes`.
    - The accounts' host, the worker's side and the clients' side are being written.
 
-3. **skein D029:** being cut.
+3. **fake-github** (`skein/docs/design/fake-forge.md, 10.6`), slice 3. `notes/fake-github.md` holds its contracts.
+   - `tasks/github-fake-surface.md`, high, ~100 minutes, needs nothing: what the four faces build on, additions only.
+   - The faces' tasks follow.
 
 ## What the cut decided
 
