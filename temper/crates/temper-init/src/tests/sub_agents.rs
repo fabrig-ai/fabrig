@@ -9,11 +9,11 @@ use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Message, Part, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
-use smith_agent_world::{CompletionTerminal, Job, Settings, World, fixture, scripted_charter};
+use smith_agent_world::{CompletionObservation, CompletionTerminal, Job, Settings, World, fixture, scripted_charter};
 use smith_domain::run;
 
-// The recorded parent response has two inspect-only calls, each with this allowance.
-const CHILDREN: usize = 2;
+// The recorded parent response has three adjacent inspect-only calls, each with this allowance.
+const CHILDREN: usize = 3;
 const CHILD_TURNS: u32 = 3;
 const CHILD_SECONDS: u32 = 30;
 // The shared world installs fake-1, fake-2 and fake-3.
@@ -21,9 +21,12 @@ const FAKE_MODELS: u64 = 3;
 const FAKE_MODEL_BYTES: usize = b"fake-1".len();
 // Each child reads and replies; the parent delegates and finishes.
 const COMPLETIONS: usize = CHILDREN * 2 + 2;
-const FILES: [(&str, &[u8]); CHILDREN] =
-    [("src/main.rs", b"fn main() {}"), ("README.md", b"A small example application.")];
-const REPORT: &str = "src/main.rs defines main; README.md describes the application.";
+const FILES: [(&str, &[u8]); CHILDREN] = [
+    ("src/main.rs", b"fn main() {}"),
+    ("README.md", b"A small example application."),
+    ("Cargo.toml", b"[package]\nname = \"example\""),
+];
+const REPORT: &str = "src/main.rs defines main; README.md describes the application; Cargo.toml names the package.";
 
 fn call(name: &[u8], arguments: &Value) -> Line {
     Line::Call { name: name.into(), arguments: serde_json::to_vec(arguments).expect("call JSON").into() }
@@ -34,7 +37,7 @@ fn calls(lines: Box<[Line]>) -> Turn {
 }
 
 fn scripts() -> Box<[Script]> {
-    let [first, second] = FILES.map(|(path, finding)| Script {
+    let [first, second, third] = FILES.map(|(path, finding)| Script {
         cue: path.as_bytes().into(),
         turns: Box::new([
             calls(Box::new([call(b"read", &json!({"path": path}))])),
@@ -63,6 +66,7 @@ fn scripts() -> Box<[Script]> {
         },
         first,
         second,
+        third,
     ])
 }
 
@@ -76,6 +80,10 @@ fn settings(mut document: Value) -> Settings {
         endpoint.as_object_mut().expect("endpoint").remove("server_name");
     }
     let configuration = smith_agent_shell::config::from_value(document).expect("stock profile derives");
+    assert!(
+        configuration.service.limits.llm.receiving.max_completion_blocks > 6,
+        "stock profile must admit more than six completion items"
+    );
     let mut settings = Settings {
         limits: configuration.service.limits.domain,
         budget: configuration.service.limits.domain.run.budget,
@@ -138,7 +146,7 @@ fn check_results(world: &World) -> bool {
     };
     assert_eq!(report.text.as_ref(), REPORT.as_bytes());
     assert_eq!(world.completions().len(), COMPLETIONS);
-    let parent = world.prompts().last().expect("parent receives both findings");
+    let parent = world.prompts().last().expect("parent receives all three findings");
     for (_, finding) in FILES {
         assert!(output_contains(&parent.messages, finding), "child finding reaches parent");
         // The domain world's typed adapter renders owned read results with Debug.
@@ -155,22 +163,33 @@ fn check_results(world: &World) -> bool {
             panic!("successful completion: {completion:?}");
         };
     }
-    let first = &world.completions()[1];
-    let second = world
-        .completions()
-        .iter()
-        .find(|completion| completion.owner != first.owner && completion.owner != world.completions()[0].owner)
-        .expect("second child");
-    second.started < first.terminal.expect("first child read settled").0
+    children_overlap(world)
+}
+
+fn children_overlap(world: &World) -> bool {
+    let parent = world.completions()[0].owner;
+    let mut children = Vec::new();
+    for completion in world.completions() {
+        if completion.owner != parent
+            && !children.iter().any(|child: &&CompletionObservation| child.owner == completion.owner)
+        {
+            children.push(completion);
+        }
+    }
+    assert_eq!(children.len(), CHILDREN, "three distinct children");
+    let latest_start = children.iter().map(|child| child.started).max().expect("children started");
+    let earliest_end =
+        children.iter().map(|child| child.terminal.expect("child read settled").0).min().expect("children settled");
+    latest_start < earliest_end
 }
 
 #[test]
-fn stock_profile_runs_two_inspect_only_children_side_by_side() {
+fn stock_profile_runs_three_inspect_only_children_side_by_side() {
     let generated = crate::files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("init files");
     let mut world = world(parse(content(&generated, b"agent.json")));
     let before = world.disk().tree(b"work");
     world.run(10_000);
     let overlap = check_results(&world);
     assert_eq!(world.disk().tree(b"work"), before, "inspect-only checkout is unchanged");
-    assert!(overlap, "both children start before either completes");
+    assert!(overlap, "all three children start before any completes");
 }
