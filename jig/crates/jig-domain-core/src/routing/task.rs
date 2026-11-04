@@ -405,7 +405,7 @@ fn tag_tasks(
         tasks::Request::Timer { task, subscription } => notices::timer(core, env, task, subscription, pending),
         tasks::Request::Close { task, ending } => lifecycle::close(core, task, ending, out),
         tasks::Request::Release { task, ending } => lifecycle::release(core, env, task, ending, pending, out),
-        tasks::Request::Activate { context } => lifecycle::activate(core, context, out),
+        tasks::Request::Activate { context } => lifecycle::activate(core, context),
     }
 }
 

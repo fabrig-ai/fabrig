@@ -82,7 +82,6 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::AnswerPayload { .. }
         | core::Now::AcceptedTurn { .. }
         | core::Now::RefusedPayload { .. }
-        | core::Now::Activate { .. }
         | core::Now::PrepareAgent { .. }
         | core::Now::StartPreparation { .. }
         | core::Now::SeenConversation { .. }

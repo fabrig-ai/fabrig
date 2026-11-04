@@ -254,7 +254,6 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::AnswerPayload { .. }
         | core::Now::AcceptedTurn { .. }
         | core::Now::RefusedPayload { .. }
-        | core::Now::Activate { .. }
         | core::Now::PrepareAgent { .. }
         | core::Now::StartPreparation { .. }
         | core::Now::SeenConversation { .. }

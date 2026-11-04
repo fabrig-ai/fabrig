@@ -1,7 +1,7 @@
 //! Recurring batches, ended tasks, and connector cleanup
 //! (jig/docs/design/domain/engine.md, 4.4).
 
-use crate::{Ask, Core, CoreKey, Held, Key, Limits, Now, Request, Write};
+use crate::{Ask, Core, CoreKey, Held, Key, Limits, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
@@ -181,11 +181,20 @@ pub(crate) fn release(
     }
 }
 
-pub(crate) fn activate(core: &mut Core, context: Box<tasks::RunContext>, out: &mut Queue<Request>) {
+/// A task that comes due waits for the root's `take_due` (domain/root.md, 3).
+pub(crate) fn activate(core: &mut Core, context: Box<tasks::RunContext>) {
     if core.pending_note_briefs.get(&context.task) == Some(&crate::routing::NoteBrief::Activation) {
         let _pending = core.pending_note_briefs.remove(&context.task);
         crate::routing::children::remember_due(core, context);
         return;
     }
-    out.push(Request::Now(Box::new(Now::Activate { context })));
+    if core.stopping() || core.tasks.recurring_template(context.task).is_some() {
+        return;
+    }
+    match context.executor {
+        tasks::Executor::Person(_) => {}
+        tasks::Executor::Job { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Agent { .. } => {
+            crate::routing::children::remember_due(core, context);
+        }
+    }
 }

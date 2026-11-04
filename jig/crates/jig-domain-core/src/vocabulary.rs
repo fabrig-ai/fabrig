@@ -336,8 +336,6 @@ pub enum Now {
     AcceptedTurn { payload: Token, task: u64, attempt: u64, turn: u32, accepted: tasks::Accepted },
     /// Inspect a root-owned host payload after the task child refuses it.
     RefusedPayload { request: Token, problem: tasks::Problem },
-    /// Ask the root for its current readiness before a due activation route.
-    Activate { context: Box<tasks::RunContext> },
     /// Reserve the root's transcript read slot for an admitted agent run.
     PrepareAgent { context: Box<tasks::RunContext>, load_transcript: bool },
     /// Load the current transcript window in key order from its first turn.
