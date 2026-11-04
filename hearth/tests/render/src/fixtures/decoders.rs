@@ -10,20 +10,21 @@ pub fn root() -> PathBuf {
 }
 #[must_use]
 pub fn source(world: &str, file: &str) -> String {
-    fs::read_to_string(root().join("tests").join(world).join("tests").join(file)).expect("seeded sweep source")
+    fs::read_to_string(root().join("tests").join(world).join("tests").join("suite").join("fuzzy").join(file))
+        .expect("seeded sweep source")
 }
 #[must_use]
 pub fn fuzzy_files() -> Vec<(String, String)> {
     let mut files = Vec::new();
     for world in fs::read_dir(root().join("tests")).expect("world directories") {
         let world = world.expect("world");
-        let directory = world.path().join("tests");
+        let directory = world.path().join("tests").join("suite").join("fuzzy");
         if !directory.is_dir() {
             continue;
         }
         for file in fs::read_dir(directory).expect("world tests") {
             let name = file.expect("test file").file_name().into_string().expect("UTF-8 file name");
-            if name.starts_with("fuzzy_") && Path::new(&name).extension().is_some_and(|extension| extension == "rs") {
+            if Path::new(&name).extension().is_some_and(|extension| extension == "rs") {
                 files.push((world.file_name().into_string().expect("world name"), name));
             }
         }

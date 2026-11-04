@@ -1,9 +1,6 @@
 use hearth_builder_world::{fixtures, simulated};
-use skein_heap::Counting;
-#[path = "../src/fixtures/bounds.rs"]
+#[path = "../../src/fixtures/bounds.rs"]
 mod bounds;
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn the_builder_holds_no_more_than_its_ceiling_at_every_iteration() {

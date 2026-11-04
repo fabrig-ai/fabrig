@@ -2,9 +2,7 @@ use hearth_git_world::{
     fixtures::{self, SMALL},
     world,
 };
-use skein_heap::{Counting, Meter};
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_heap::Meter;
 #[test]
 fn each_decoder_at_its_limits_holds_no_more_than_its_ceiling() {
     const CEILING: u64 = 1_900;
