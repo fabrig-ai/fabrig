@@ -61,7 +61,7 @@ fn opened_reaches_the_component_only_when_marked() {
 fn a_held_event_leaves_first_and_is_work_until_it_does() {
     let mut host = machine();
     host.hold(domain::Event::Component(domain::FromComponent::Closed));
-    assert!(host.held() && !host.is_empty() && host.work_pending(Time::ZERO, false));
+    assert!(host.held() && !host.idle() && host.work_pending(Time::ZERO, false));
     host.effects.push(Effect::InvalidSecret);
     assert_eq!(begin(&mut host, false, &mut Queue::uncapped()), 2);
     let mut table = Table::new(1, 32);

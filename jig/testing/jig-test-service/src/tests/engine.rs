@@ -59,7 +59,7 @@ fn the_restart_asks_one_load_at_a_time() {
         ]
     );
     assert!(fixtures::engine(&mut service).domain.ready());
-    assert!(fixtures::engine(&mut service).store.host.component.mark_durable());
+    assert!(fixtures::engine(&mut service).store.host.mark_durable());
 }
 
 #[test]
@@ -669,7 +669,7 @@ fn a_refused_start_page_keeps_its_phase_and_cause() {
     );
     let engine = fixtures::engine(&mut service);
     assert!(!engine.domain.ready());
-    assert!(!engine.store.host.component.mark_durable());
+    assert!(!engine.store.host.mark_durable());
 }
 #[test]
 fn a_core_fit_refusal_keeps_its_phase_and_cause() {
