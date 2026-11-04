@@ -258,7 +258,9 @@ fn end_answer(outcome: &jig_client::Outcome, limits: Limits) -> Option<EndAnswer
         w::Outcome::EndRefused(why) => match why.into_parts().why {
             w::EndRefusal::NotOffered => Some(EndAnswer::NotOffered),
         },
-        w::Outcome::Adopted(_)
+        w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
+        | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
         | w::Outcome::ForgeRefused(_)
         | w::Outcome::Unknown
@@ -344,6 +346,8 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
         | w::Outcome::ConnectRefused(_)
         | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
+        | w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
         | w::Outcome::ForgeRefused(_)

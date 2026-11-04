@@ -108,7 +108,9 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
             w::ForgeReason::PrefixOccupied => forge::Reason::PrefixOccupied,
         }),
         w::Outcome::Unknown => forge::Answer::Unknown,
-        w::Outcome::Page(_)
+        w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
+        | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
         | w::Outcome::Connecting
@@ -204,7 +206,9 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
             w::SetUpRefusal::Invalid => R::Invalid,
         }),
         w::Outcome::Unknown => O::Unknown,
-        w::Outcome::Page(_)
+        w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
+        | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
         | w::Outcome::Connecting

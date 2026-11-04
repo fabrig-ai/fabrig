@@ -434,6 +434,7 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
         w::ForgeRow::new(
             &l,
             w::ForgeRowParts {
+                makings: skein_lib::List::with_capacity(0),
                 number: 3,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Managed,

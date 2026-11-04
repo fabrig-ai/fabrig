@@ -1,5 +1,6 @@
 //! Version, bounds and total outcome round trips (client/README.md, 4.6).
 mod fixtures;
+mod source;
 use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
@@ -55,6 +56,7 @@ fn each_outcome_round_trips_unchanged() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one expected literal pins every wire bound to its source")]
 fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(
         fixtures::limits(),
@@ -82,6 +84,14 @@ fn limits_take_each_bound_from_its_source_field() {
             adoption_name: 16,
             forge_row_web_some: crate::ADDRESS_BYTES,
             forge_row_repositories: 16,
+            forge_row_makings: crate::MAKINGS,
+            make_copy_address: 512,
+            make_repository_org: 16,
+            make_repository_name: 16,
+            making_made_branch: 16,
+            making_failed_words: 256,
+            repository_making_org: 16,
+            repository_making_name: 16,
             reached_name: 16,
             page_rows: 100,
             install_back_some: 512,
@@ -289,6 +299,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
                 v1::ForgeRow::new(
                     &limits,
                     v1::ForgeRowParts {
+                        makings: List::with_capacity(0),
                         number: *number,
                         kind: v1::Kind::Forgejo,
                         mode: v1::Mode::Owned,
@@ -321,6 +332,7 @@ fn each_forge_offer_round_trips() {
         let row = v1::ForgeRow::new(
             &limits,
             v1::ForgeRowParts {
+                makings: List::with_capacity(0),
                 number,
                 kind: v1::Kind::Forgejo,
                 mode: v1::Mode::Owned,
@@ -415,6 +427,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         let row = v1::ForgeRow::new(
             &v1::CEILINGS,
             v1::ForgeRowParts {
+                makings: List::with_capacity(0),
                 number: 1,
                 kind: v1::Kind::Github,
                 mode: v1::Mode::Connected,
@@ -455,6 +468,7 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
         v1::ForgeRow::new(
             &limits,
             v1::ForgeRowParts {
+                makings: List::with_capacity(0),
                 number: 17,
                 kind: v1::Kind::Github,
                 mode: v1::Mode::Fake,
@@ -520,6 +534,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     let row = v1::ForgeRow::new(
                         &limits,
                         v1::ForgeRowParts {
+                            makings: List::with_capacity(0),
                             number: u16::MAX,
                             kind: kind.clone(),
                             mode: mode.clone(),
@@ -687,6 +702,7 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
             .unwrap();
     }
     v1::ForgeRowParts {
+        makings: List::with_capacity(0),
         number: 1,
         kind: v1::Kind::Github,
         mode: v1::Mode::Connected,
@@ -709,8 +725,9 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
 // Encode the fields explicitly to feed invalid lengths to the receiving boundary.
 fn installation_row_bytes(parts: v1::ForgeRowParts, why: &[u8]) -> Box<[u8]> {
     // Number (2), four enum tags, first tag, list length (4), end tag, why length (4),
-    // app tag, web tag, repositories length (4), owned tag, admin bool, typed stop tag, read-only bool.
-    let mut size = why.len().checked_add(26).unwrap();
+    // app tag, web tag, repositories length (4), owned tag, admin bool, typed stop tag, read-only bool,
+    // makings length (4).
+    let mut size = why.len().checked_add(30).unwrap();
     for installation in &parts.installations {
         size = size.checked_add(usize::try_from(installation.measure()).unwrap()).unwrap();
     }
@@ -733,6 +750,7 @@ fn installation_row_bytes(parts: v1::ForgeRowParts, why: &[u8]) -> Box<[u8]> {
     writer.put(&0_u32.to_be_bytes()).unwrap(); // no adoptions
     writer.put(&[0]).unwrap(); // no owned details
     writer.put(&[0, 0, 0]).unwrap(); // admin false, no typed stop, read-only false
+    writer.put(&0_u32.to_be_bytes()).unwrap(); // no repository makings
     writer.finish()
 }
 #[test]
@@ -1211,3 +1229,85 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
     let trailing = trailing.finish();
     assert!(wire::decode_proposal_items_answer(&trailing, &w::CEILINGS).is_none());
 }
+
+#[test]
+fn repository_makings_round_trip_at_the_bound_and_refuse_one_more() {
+    let limits = fixtures::limits();
+    let making = v1::RepositoryMaking::new(
+        &limits,
+        v1::RepositoryMakingParts {
+            org: filled(MAKING_FIELD_BYTES),
+            name: filled(MAKING_FIELD_BYTES),
+            from: v1::MakeFrom::Copy(
+                v1::MakeCopy::new(&limits, v1::MakeCopyParts { address: filled(COPY_ADDRESS_BYTES) }).unwrap(),
+            ),
+            into: Some(v1::MakeInto::new(&limits, v1::MakeIntoParts { project: u32::MAX, home: true }).unwrap()),
+            state: v1::MakingState::Made(
+                v1::MakingMade::new(&limits, v1::MakingMadeParts { id: u64::MAX, branch: filled(MAKING_FIELD_BYTES) })
+                    .unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    for (count, accepted) in [(crate::MAKINGS, true), (crate::MAKINGS + 1, false)] {
+        let mut parts = installation_row(0, 0);
+        parts.makings = List::with_capacity(count);
+        for _ in 0..count {
+            parts.makings.push(making.clone()).unwrap();
+        }
+        let row = v1::ForgeRow::new(&limits, parts);
+        assert_eq!(row.is_ok(), accepted);
+        if let Ok(row) = row {
+            let mut rows = List::with_capacity(1);
+            rows.push(row).unwrap();
+            let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows }).unwrap();
+            let encoded = crate::forges(&record);
+            assert_eq!(crate::decode_forges(&encoded, &limits), Some(record));
+            let mut smaller = limits;
+            smaller.forge_row_makings = crate::MAKINGS - 1;
+            assert_eq!(crate::decode_forges(&encoded, &smaller), None);
+        }
+    }
+}
+
+#[test]
+fn make_repository_names_and_address_take_their_wire_bounds() {
+    let limits = fixtures::limits();
+    assert_eq!(
+        v1::MakeCopy::new(&limits, v1::MakeCopyParts { address: filled(COPY_ADDRESS_BYTES + 1) }).unwrap_err(),
+        v1::Problem { path: v1::Path::MakeCopyAddress, reason: skein_codec::Reason::Bound }
+    );
+    for (org_bytes, name_bytes, accepted) in [
+        (MAKING_FIELD_BYTES, MAKING_FIELD_BYTES, true),
+        (MAKING_FIELD_BYTES + 1, MAKING_FIELD_BYTES, false),
+        (MAKING_FIELD_BYTES, MAKING_FIELD_BYTES + 1, false),
+    ] {
+        // Construct at the schema ceilings to check the receiving side as well.
+        let copy = v1::MakeCopy::new(&v1::CEILINGS, v1::MakeCopyParts { address: filled(COPY_ADDRESS_BYTES) }).unwrap();
+        for from in [v1::MakeFrom::Empty, v1::MakeFrom::Copy(copy)] {
+            for into in [None, Some(v1::MakeInto::new(&limits, v1::MakeIntoParts { project: 1, home: true }).unwrap())]
+            {
+                let parts = v1::MakeRepositoryParts {
+                    forge: u16::MAX,
+                    org: filled(org_bytes),
+                    name: filled(name_bytes),
+                    from: from.clone(),
+                    into,
+                };
+                assert_eq!(v1::MakeRepository::new(&limits, parts.clone()).is_ok(), accepted);
+                let request = v1::MakeRepository::new(&v1::CEILINGS, parts).unwrap();
+                let record = v1::Requesting::new(
+                    &v1::CEILINGS,
+                    v1::RequestingParts { request: v1::Request::MakeRepository(request) },
+                )
+                .unwrap();
+                let bytes = crate::requesting(&record);
+                assert_eq!(crate::decode_requesting(&bytes, &limits).is_some(), accepted);
+            }
+        }
+    }
+}
+
+// fixtures::BOUNDS.field_bytes, and T3's schema bound on MakeCopy.address.
+const MAKING_FIELD_BYTES: usize = 16;
+const COPY_ADDRESS_BYTES: usize = 512;

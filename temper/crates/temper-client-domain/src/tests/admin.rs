@@ -28,6 +28,7 @@ fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            makings: List::with_capacity(0),
             number: FORGE,
             kind: w::Kind::Forgejo,
             mode: w::Mode::Managed,

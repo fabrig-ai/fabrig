@@ -26,6 +26,7 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::Return(_)
             | w::Request::SetUp(_)
             | w::Request::RemoveForge(_)
+            | w::Request::MakeRepository(_)
             | w::Request::StartPlayground
             | w::Request::EndPlayground => {
                 panic!("expected adoption")

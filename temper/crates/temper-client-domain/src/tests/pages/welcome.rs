@@ -112,6 +112,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                 w::ForgeRow::new(
                     &limits,
                     w::ForgeRowParts {
+                        makings: List::with_capacity(0),
                         number,
                         kind: w::Kind::Forgejo,
                         mode: if number == wire::FORGE { w::Mode::Fake } else { w::Mode::Connected },
@@ -518,6 +519,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        makings: List::with_capacity(0),
                         number: 3,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
