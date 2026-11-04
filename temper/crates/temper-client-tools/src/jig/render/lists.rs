@@ -236,7 +236,9 @@ pub(super) fn inboxes(reading: &Reading, limits: &crate::jig::Limits, book: &Phr
         match page {
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => {
                 for row in page.rows.as_slice().iter().take(usize::try_from(rows).expect("rows fit")) {
-                    owner_inbox_row(row, book, out);
+                    if !titled_proposal(row, reading, out) {
+                        owner_inbox_row(row, book, out);
+                    }
                     if let c::InboxObject::Question { message } = row.object {
                         question(reading, (row.task.number(), message), out);
                     }
@@ -253,6 +255,21 @@ pub(super) fn inboxes(reading: &Reading, limits: &crate::jig::Limits, book: &Phr
     }
     next(&reading.called.call, 3, inbox_cursor(reading, rows).as_ref(), out);
 }
+fn titled_proposal(row: &c::InboxEntry, reading: &Reading, out: &mut Text) -> bool {
+    let c::InboxObject::Proposal { proposer, number } = row.object else { return false };
+    let key = c::ProposalKey { proposer, number };
+    let Some(Some(reason)) = reading.proposals.get(&key) else { return false };
+    super::document::settings::proposal_text(key, out);
+    out.put(b" \xc2\xb7 proposal \xc2\xb7 ");
+    let title = match skein_lib::bytes::find(reason.bytes(), b"\n") {
+        Some(end) => reason.bytes().get(..end).expect("first line"),
+        None => reason.bytes(),
+    };
+    out.words(title);
+    out.put(b"\n");
+    true
+}
+
 pub(super) fn updates_fit(reading: &Reading, rows: u32) -> bool {
     let needs = match reading.pages.get(&1) {
         Some(page) => inbox_page(page).0,

@@ -168,7 +168,7 @@ impl Engine {
         let components = self.store.work_pending(now)
             || (self.store.opened || self.end.is_some())
                 && (match &self.accounts {
-                    Some(accounts) => accounts.work_pending(now, self.store.host.component.mark_durable()),
+                    Some(accounts) => accounts.work_pending(now, self.store.host.mark_durable()),
                     None => false,
                 } || match &self.workers {
                     Some(workers) => workers.host.work_pending(now),
@@ -196,7 +196,7 @@ impl Engine {
             || (due && (!self.blocked || !self.held.is_empty()))
     }
     fn event_pending(&self) -> bool {
-        if self.domain.ready() || self.store.host.component.mark_durable() {
+        if self.domain.ready() || self.store.host.mark_durable() {
             return !self.events.is_empty();
         }
         for event in &self.events {

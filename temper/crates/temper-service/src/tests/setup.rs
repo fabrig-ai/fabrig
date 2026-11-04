@@ -813,7 +813,7 @@ fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &
     );
     let answer = store.host.above.pop();
     let Some(StoreEvent::Kept { owner: found }) = answer else {
-        panic!("durable seed: {answer:?}, marked: {}", store.host.component.mark_durable());
+        panic!("durable seed: {answer:?}, marked: {}", store.host.mark_durable());
     };
     assert_eq!(found, owner);
 }
@@ -1792,7 +1792,7 @@ fn setup_reconciliation_waits_for_the_mark() {
     for _ in 0..PASSES {
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
     }
-    assert!(engine.store.host.component.mark_durable());
+    assert!(engine.store.host.mark_durable());
     assert!(engine.setup.lifecycle.startup_restored());
     assert!(engine.setup.component.is_some());
     assert!(engine.setup.runs.is_empty(), "the handover read precedes reconciliation");

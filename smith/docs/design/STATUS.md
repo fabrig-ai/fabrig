@@ -20,7 +20,10 @@ which the designer is to decide on (`domain/host.md`). Two step
 crates drive skein's JSON tokenizer over a whole buffer by hand
 (`domain/tools.md`, `protocol/events.md`), and two hand copies of
 skein's io check lack its operation table's ceiling
-(`protocol/limits.md`). `domain/session.md`, `protocol/channel.md`,
+(`protocol/limits.md`). The system text keeps "checkout" for the
+workspace (`domain/run.md`), and two effective limits keep `adapter`
+in their names (`protocol/limits.md`). `domain/session.md`,
+`protocol/channel.md`,
 `protocol/charter.md`, `protocol/llm.md` and
 `protocol/transcript.md` have no gap. smith has no drafts.
 

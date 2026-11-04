@@ -48,9 +48,9 @@ and says so. A service that works on a forge writes no connection code.
 
 - **`skein-forge-connection`** depends on lib, io's vocabulary,
   skein-http (client, and server for the listener), skein-tls's client,
-  skein-json and `skein-forge`. It knows no service's configuration,
-  files or domain. One component serves every forge its owner hands
-  it, at start or while it runs (3.1).
+  `skein-link`, skein-json and `skein-forge`. It knows no service's
+  configuration, files or domain. One component serves every forge its
+  owner hands it, at start or while it runs (3.1).
 - **The owner's protocol layer:**
   - gives io its own tokens for the component's entities, keeping the
     component's token in each, so io's events reach the component that

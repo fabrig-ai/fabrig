@@ -11,12 +11,10 @@ use skein_lib::{
 };
 use skein_shell::{Clock, Config, Kernel, Trust, Wait};
 use skein_tls::client as tls;
-use std::{
-    fs,
-    io::{self, Read as _, Write as _},
-    net::ToSocketAddrs,
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
-};
+use std::fs;
+use std::io::{self, Read as _, Write as _};
+use std::net::ToSocketAddrs;
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use temper_forge_setup::{
     fetch::{self, Event, Failure, Fetch, Request},
     setup::Origin,
@@ -112,11 +110,11 @@ pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Resu
         assert_eq!(out.len(), 1, "one fetch request per event");
         let answer = match out.pop().expect("one fetch request") {
             Request::Hash { file } => hash(&file).map(Event::Hashed),
-            Request::Get { origin, path } => {
+            Request::Get { origin, path, authorization } => {
                 if let Some(mut old) = connection.take() {
                     old.close();
                 }
-                match Connection::new(limits, &config, &origin, &path) {
+                match Connection::new(limits, &config, &origin, &path, authorization) {
                     Ok(next) => {
                         connection = Some(next);
                         connection.as_mut().expect("new connection").answer()
@@ -141,6 +139,15 @@ pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Resu
                     .and_then(|_| file.write_all(&bytes))
                     .map(|()| Event::Done)
                     .map_err(|why| file_error(&part_path, &why))
+            }
+            Request::Extract { archive, member, part, bound } => {
+                part_file = None;
+                open(&part).map(|mut file| {
+                    let extraction = crate::process::extract(&archive, &member, &mut file, bound);
+                    part_file = Some(file);
+                    part_path = part;
+                    Event::Extracted(extraction)
+                })
             }
             Request::Finish { part, file } => {
                 let handle = part_file.take().expect("finish follows Open");
@@ -188,6 +195,7 @@ impl Connection {
         config: &skein_tls::Config,
         origin: &Origin,
         path: &[u8],
+        authorization: Option<Box<[u8]>>,
     ) -> Result<Self, Failed> {
         let url = fetch::url(origin, path);
         let fail = |why| Failed::Transport { url: url.clone(), why };
@@ -208,6 +216,13 @@ impl Connection {
         if origin.port != 443 {
             authority.extend_from_slice(format!(":{}", origin.port).as_bytes());
         }
+        let mut headers = vec![
+            skein_http::Header { name: b"Host".as_slice().into(), value: authority.into_boxed_slice() },
+            skein_http::Header { name: b"User-Agent".as_slice().into(), value: b"temper".as_slice().into() },
+        ];
+        if let Some(value) = authorization {
+            headers.push(skein_http::Header { name: b"Authorization".as_slice().into(), value });
+        }
         let mut connection = Self {
             io: Io::new(limits),
             limits: *limits,
@@ -227,10 +242,7 @@ impl Connection {
             call: Some(http::Call {
                 method: skein_http::Method::Get,
                 target: path.into(),
-                headers: Box::new([
-                    skein_http::Header { name: b"Host".as_slice().into(), value: authority.into_boxed_slice() },
-                    skein_http::Header { name: b"User-Agent".as_slice().into(), value: b"temper".as_slice().into() },
-                ]),
+                headers: headers.into_boxed_slice(),
                 body: http::Body::None,
                 close: true,
             }),
@@ -330,6 +342,7 @@ impl Connection {
                 http::Event::Response(response) => {
                     self.result = Some(Ok(Event::Answered {
                         status: response.status,
+                        location: response.header(b"location").map(Into::into),
                         length: match response.framing {
                             http::Framing::Length(n) => Some(n),
                             http::Framing::Empty => Some(0),

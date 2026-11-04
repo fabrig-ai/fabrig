@@ -1,0 +1,10 @@
+HTTP/1.1 200 OK
+Cache-Control: max-age=0, private, must-revalidate
+Content-Type: application/json;charset=utf-8
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Date: Wed, 01 Jan 2020 00:00:00 GMT
+Connection: close
+Content-Length: 596
+
+{"permission":"write","role_name":"write","user":{"id":9,"login":"alice","login_name":"","source_id":0,"full_name":"","email":"alice@example.invalid","avatar_url":"http://127.0.0.1:3000/avatars/43fcab1f4245d31e85b194dc2836a67d","html_url":"http://127.0.0.1:3000/alice","language":"","is_admin":false,"last_login":"0001-01-01T00:00:00Z","created":"2020-01-01T00:00:13+05:30","restricted":false,"active":false,"prohibit_login":false,"location":"","pronouns":"","website":"","description":"","visibility":"public","followers_count":0,"following_count":0,"starred_repos_count":0,"username":"alice"}}

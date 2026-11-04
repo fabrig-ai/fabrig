@@ -462,7 +462,7 @@ fn admin_record_files_and_directories_are_owner_only() {
             break;
         }
     }
-    assert!(store.host.component.mark_durable());
+    assert!(store.host.mark_durable());
     store.secrets(
         Token::new(901),
         fixtures::application_request(

@@ -76,7 +76,24 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
     })
 }
 pub(crate) fn render(to: ReplyTo, answer: &engine::CallAnswer, tool: &[u8], max_bytes: u32) -> engine::Event {
-    let (body, error) = temper_engine_smith::answer_for_tool(answer, tool, max_bytes).into_parts();
+    rendered(to, temper_engine_smith::answer_for_tool(answer, tool, max_bytes))
+}
+/// Preserve the proposing task's identity in host feedback.
+pub(crate) fn render_for_task(
+    to: ReplyTo,
+    answer: &engine::CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    task: u64,
+) -> engine::Event {
+    if let engine::CallAnswer::Proposed { .. } = answer {
+        rendered(to, temper_engine_smith::answer_for_task(answer, tool, max_bytes, task))
+    } else {
+        render(to, answer, tool, max_bytes)
+    }
+}
+fn rendered(to: ReplyTo, answer: smith_domain_run::HostAnswer) -> engine::Event {
+    let (body, error) = answer.into_parts();
     engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
         to,
         answer: core::SettledAnswer::Host { error, body },

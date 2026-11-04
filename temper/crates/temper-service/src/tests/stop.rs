@@ -28,7 +28,7 @@ fn a_drain_closes_accounts_then_the_store() {
         }
     }
     assert_eq!(service.end(), Some(&End::Drained));
-    assert!(service.engine.as_ref().expect("engine").accounts.as_ref().unwrap().is_empty());
+    assert!(service.engine.as_ref().expect("engine").accounts.as_ref().unwrap().idle());
     assert!(service.engine.as_ref().expect("engine").store.closed());
 }
 #[test]
@@ -348,7 +348,7 @@ fn missing_forge_links_panic_before_startup_wires() {
     assert_eq!(service.end(), None, "no startup refusal");
     let engine = service.engine.as_ref().expect("linking engine");
     assert_eq!(engine.domain.start_stop(), None, "no startup refusal recorded");
-    assert!(!engine.store.host.component.mark_durable(), "no start wires before link");
+    assert!(!engine.store.host.mark_durable(), "no start wires before link");
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption before link");
     assert!(!engine.domain.ready(), "no decisions before link");
 }

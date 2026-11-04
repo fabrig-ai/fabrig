@@ -2055,6 +2055,8 @@ fn an_owned_forgejo_signs_its_member_in_through_temper() {
     scratch.remove();
 }
 
+// The capture witness uses Linux's abstract Unix sockets.
+#[cfg(target_os = "linux")]
 #[test]
 fn a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart()
  {
