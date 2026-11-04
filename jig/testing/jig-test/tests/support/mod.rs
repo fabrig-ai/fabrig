@@ -319,6 +319,7 @@ impl Referee<Process> for Judge {
         self.ended
     }
 }
+#[expect(clippy::disallowed_methods, reason = "the test run selects its live profile from NEXTEST_PROFILE")]
 pub fn run(
     directory: &Path,
     script: Script,

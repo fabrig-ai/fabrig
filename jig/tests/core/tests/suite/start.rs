@@ -193,10 +193,6 @@ fn an_empty_start_store_seeds_before_opening() {
         let core::Request::Write(core::Write::Save(record)) = h.out.pop().expect("seed write") else {
             panic!("seed emits only saved rows")
         };
-        #[expect(
-            clippy::wildcard_enum_match_arm,
-            reason = "seed commits contain only configured people and settings rows"
-        )]
         match record {
             core::Record::People(people::Stored::Deletion { .. } | people::Stored::Policy { .. }) => policy = true,
             core::Record::People(people::Stored::Roles { project, .. }) => {
