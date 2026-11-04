@@ -21,3 +21,16 @@ id = 1
 story = "temper's hand-written code widens with len_u64 and usize_of and hands a child step its limits with env.with, both measures at 0"
 parts = ["temper-forms"]
 walk = false
+
+[[part]]
+id = "smith-bench-adapters"
+title = "smith D010: the benchmark runner names no agent; each step is a method of its adapter"
+mode = "direct"
+needs = []
+design = "smith/docs/design/benchmarks.md, 6"
+
+[[slice]]
+id = 2
+story = "a benchmark attempt runs through one supervisor and one runner whose observation, archives and source selection are methods of the agent adapters, replays included"
+parts = ["smith-bench-adapters"]
+walk = false
