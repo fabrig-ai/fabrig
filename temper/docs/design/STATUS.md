@@ -139,6 +139,7 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
