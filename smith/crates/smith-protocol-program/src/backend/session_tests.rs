@@ -77,7 +77,7 @@ fn a_new_window_stops_the_old_session() {
         _ => false,
     }));
     backend.line(&env(0), br#"{"type":"result","is_error":true}"#, &mut up, &mut below);
-    backend.flush(&mut below);
+
     assert!(below.iter().any(|effect| match effect {
         Below::Io(io::Request::Close { entity }) => *entity == Token::new(31),
         _ => false,
@@ -169,7 +169,7 @@ fn a_compaction_s_text_is_its_summary() {
     assert_eq!(completion.usage.output_tokens, Some(3));
     let llm::Said::Text { text, .. } = &completion.content[0] else { panic!("text") };
     assert_eq!(text.as_ref(), b"short summary");
-    backend.flush(&mut below);
+
     assert!(below.iter().any(|effect| match effect {
         Below::Io(io::Request::Close { entity }) => *entity == Token::new(31),
         _ => false,
@@ -189,15 +189,16 @@ fn the_program_s_own_compaction_passes() {
 
 #[test]
 fn a_pending_window_keeps_the_stop_grace() {
+    let mut below = Queue::with_capacity(64);
     let mut backend = backend();
     fixtures::initialized(&mut backend);
-    backend.startup.switch(&mut backend.io);
+    backend.startup.switch(&mut backend.server_up, &mut below);
     fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
     fixtures::attach_pipes(Pipes { input: Some(Token::new(31)), ..backend.process.pipes() }, &mut backend);
     backend.turns.result = true;
     backend.stopping.begin(stopping::Action::Close, Some(env(1).now));
     let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     assert_eq!(backend.stopping.next_deadline(), Some(env(1).now));
     assert!(below.is_empty(), "pending window starts nothing until the stopped invocation settles");

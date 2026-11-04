@@ -2,6 +2,7 @@
 
 2026-11-04. Where skein's code lags or departs from [forge-connection.md](forge-connection.md).
 
+- **Not yet:** 8.1: `skein-forge-connection/src/connection.rs` holds its own transport and sends no `close_notify` on a graceful close, which link.md, 3.3 asks for.
 - **Departs:** 8: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive

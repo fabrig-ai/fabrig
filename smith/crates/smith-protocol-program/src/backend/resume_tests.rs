@@ -69,6 +69,7 @@ fn a_missing_session_is_gone() {
 
 #[test]
 fn a_park_while_waiting_interrupts() {
+    let mut below = Queue::with_capacity(64);
     let mut backend = launchable();
     fixtures::initialized(&mut backend);
     fixtures::attach_process(Some(backend.token(Owner::Program)), &mut backend);
@@ -91,15 +92,16 @@ fn a_park_while_waiting_interrupts() {
                 .into(),
             ),
         },
-        &mut backend.io,
+        &mut backend.server_up,
+        &mut below,
     );
-    let call = server.up().expect("held RPC");
+    let call = backend.server_up.pop().expect("held RPC");
     backend.calls.push(call).expect("call room");
-    backend.match_calls();
+    backend.match_calls(&mut below);
     assert!(backend.ledger.get(0).expect("held call").rpc.is_some());
     fixtures::clear_completion(&mut backend);
     let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+
     backend.close(&env(0), &mut up, &mut below);
     for effect in &below {
         if let Below::Io(io::Request::Signal { signal: kernel::Signal::Interrupt, .. }) = effect {

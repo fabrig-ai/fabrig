@@ -165,13 +165,14 @@ fn an_unmatched_call_after_text_closes_is_rejected_immediately() {
                 .into(),
             ),
         },
-        &mut backend.io,
+        &mut backend.server_up,
+        &mut below,
     );
-    let call = server.up().expect("MCP call");
+    let call = backend.server_up.pop().expect("MCP call");
     backend.calls.push(call).expect("held room");
-    backend.match_calls();
+    backend.match_calls(&mut below);
     assert!(backend.calls.is_empty(), "closed text must not hold unmatched calls waiting for result");
-    let reply = server_reply(&mut backend);
+    let reply = server_reply(&mut backend, &mut below);
     assert_eq!(reply["id"], json!(1_u32));
     assert_eq!(reply["result"]["isError"], true);
     assert_eq!(reply["result"]["content"][0]["text"], "smith: this call was not in the model's message");

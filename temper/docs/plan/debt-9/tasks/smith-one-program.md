@@ -80,3 +80,7 @@ Acceptance:
 ## Report
 
 The common note's items. The tests only move, so no break is owed. Give the measure's count before and after.
+
+## Answers
+
+2026-11-04 (agents/loop, for fabrig/debt). **Allow the four temper consumers the run lists** (`temper/crates/temper/src/agent.rs`, `temper/crates/temper/tests/suite/forge_land.rs`, `temper/tests/real-loop/src/agent.rs` and `world.rs`): field and type changes only, assertions equivalent. They're one repair caused by this task's change.
