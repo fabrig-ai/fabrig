@@ -111,7 +111,7 @@ fn a_resumed_start_forwards_saved_turns_from_an_unconfigured_endpoint() {
         .expect("saved history");
     assert_eq!(decoded.endpoint, None);
     assert_eq!(decoded.turns[0].endpoint, None);
-    let owned = decoded.owned_bytes().expect("decoded ownership") + u64::try_from(piece.len()).expect("piece size");
+    let owned = decoded.owned_bytes().expect("decoded ownership") + skein_lib::len_u64(piece.len());
     assert!(Transcript::from_saved(decoded.clone(), piece.clone(), owned - 1).is_none());
     let transcript = Transcript::from_saved(decoded, piece.clone(), owned).expect("exact ownership bound");
     assert_eq!(transcript.owned_bytes(), owned);

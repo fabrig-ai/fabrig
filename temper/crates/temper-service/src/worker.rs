@@ -240,8 +240,10 @@ impl Worker {
             let _request = self.out.pop();
         }
         self.link_down(self.env.now, link::Event::Abort);
-        if let Some(at) = self.sources.next_deadline() {
-            self.sources.fire(at, &mut self.events, &mut self.io);
+        if let Some(at) = self.sources.next_deadline()
+            && let Some((owner, answer)) = self.sources.fire(at, &mut self.io)
+        {
+            self.events.push(root::Event::SourceAnswered { owner, answer });
         }
         for (entity, _) in &self.entities {
             self.io.push(io::Request::Abort { entity: *entity });
@@ -257,7 +259,7 @@ impl Worker {
         if self.git.component.accepts(event) {
             return true;
         }
-        match crate::workers::owner(event) {
+        match event.owner() {
             Some(owner) => {
                 self.sources.owns(owner)
                     || owner == Token::new(self.prefix)
@@ -328,9 +330,11 @@ impl Worker {
             self.git_drain();
             return;
         }
-        let owner = crate::workers::owner(&event).expect("routed owner");
+        let owner = event.owner().expect("routed owner");
         if self.sources.owns(owner) {
-            self.sources.from_io(event, &mut self.events, &mut self.io);
+            if let Some((owner, answer)) = self.sources.from_io(event, &mut self.io) {
+                self.events.push(root::Event::SourceAnswered { owner, answer });
+            }
             return;
         }
         if owner == Token::new(self.prefix) {
@@ -537,16 +541,17 @@ impl Worker {
                 let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
                 self.next = self.next.checked_add(1).expect("source owner sequence");
                 assert!(self.next < (1_u64 << 48_u32), "worker owner range");
-                self.sources.start(
+                if let Some((owner, answer)) = self.sources.start(
                     owner,
                     io_owner,
                     name,
                     operation,
                     self.directory.expect("worker root"),
                     deadline,
-                    &mut self.events,
                     &mut self.io,
-                );
+                ) {
+                    self.events.push(root::Event::SourceAnswered { owner, answer });
+                }
             }
             root::Request::SourceFault => self.link_down(self.env.now, link::Event::SourceFault),
             root::Request::Hello(hello) => {
@@ -604,7 +609,7 @@ impl Worker {
                 root::step(&mut self.root, &self.env, root::Event::Encoded { owner, encoded }, &mut self.out);
             }
             root::Request::Fact { owner, body } => {
-                let activity = worker_route::activity(&body, &self.agent);
+                let activity = worker_route::activity(&body, &self.agent.limits);
                 root::step(&mut self.root, &self.env, root::Event::Activity { owner, activity }, &mut self.out);
             }
         }
@@ -717,7 +722,9 @@ impl Worker {
         self.env.now = now;
         self.env.wall = wall;
         self.jobs_fire(now, false);
-        self.sources.fire(now, &mut self.events, &mut self.io);
+        if let Some((owner, answer)) = self.sources.fire(now, &mut self.io) {
+            self.events.push(root::Event::SourceAnswered { owner, answer });
+        }
         self.started = true;
         if !self.git.started && !self.stopping {
             self.git.started = true;

@@ -347,9 +347,9 @@ impl Peer {
         let mut bytes = 0_u64;
         for tool in &self.offered.host_tools {
             bytes = bytes
-                .checked_add(u64::try_from(tool.name.len()).ok()?)?
-                .checked_add(u64::try_from(tool.description.len()).ok()?)?
-                .checked_add(u64::try_from(tool.schema.len()).ok()?)?;
+                .checked_add(skein_lib::len_u64(tool.name.len()))?
+                .checked_add(skein_lib::len_u64(tool.description.len()))?
+                .checked_add(skein_lib::len_u64(tool.schema.len()))?;
         }
         Some(bytes)
     }

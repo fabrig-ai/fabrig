@@ -22,7 +22,7 @@ pub struct Service {
     pub(crate) completions: Queue<Complete>,
     pub(crate) submissions: Queue<Submit>,
     raw_submissions: Queue<Submit>,
-    kernel: accounts::Kernel,
+    kernel: skein_io::kernel::Routes,
     pub(crate) told: Queue<io::Event>,
     box_pipe: Option<BoxPipe>,
     signals: Option<Token>,
@@ -71,16 +71,16 @@ impl Service {
             engine: match &self.engine {
                 Some(engine) => Some(WaitEngine {
                     restart: engine.domain.start_phase(),
-                    mark_durable: engine.store.component.mark_durable(),
+                    mark_durable: engine.store.host.component.mark_durable(),
                     store_closed: engine.store.closed(),
                     clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
-                    workers: WaitOwner { closed: engine.workers.closed(), io: engine.workers.io.len() },
+                    workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
                     setup: WaitOwner { closed: engine.setup.closed, io: engine.setup.io.len() },
                     setup_above: engine.setup.above.len(),
                     forge: WaitOwner { closed: engine.forge.closed, io: engine.forge.io.len() },
                     forge_above: engine.forge.above.len(),
                     accounts: match &engine.accounts {
-                        Some(accounts) => Some(accounts.wait_state()),
+                        Some(accounts) => Some(accounts::wait_state(accounts, engine.env.now)),
                         None => None,
                     },
                 }),
@@ -266,7 +266,7 @@ impl Service {
             raw_submissions: Queue::with_capacity(operations),
             told: Queue::uncapped(),
             // Live routes and completed targets awaiting cancel publication use the same credit.
-            kernel: accounts::Kernel::new(operations),
+            kernel: skein_io::kernel::Routes::new(operations),
             box_pipe: None,
             signals: None,
             signals_closing: false,
@@ -306,7 +306,7 @@ impl Service {
             submissions: Queue::with_capacity(queue),
             raw_submissions: Queue::with_capacity(operations),
             told: Queue::uncapped(),
-            kernel: accounts::Kernel::new(operations),
+            kernel: skein_io::kernel::Routes::new(operations),
             box_pipe: None,
             signals: None,
             signals_closing: false,
@@ -363,7 +363,7 @@ impl Service {
     /// Earliest deadline of the root and its children.
     #[must_use]
     pub fn next_policy_deadline(&self) -> Option<Time> {
-        accounts::earliest(
+        skein_lib::earliest(
             match &self.engine {
                 Some(engine) => engine.next_deadline(),
                 None => None,
@@ -473,7 +473,7 @@ impl Service {
     fn worker_runs(&self) -> bool {
         match &self.engine {
             Some(engine) => {
-                engine.end.is_some() || engine.store.opened && engine.workers.opened() && engine.clients.opened()
+                engine.end.is_some() || engine.store.opened && engine.workers.host.opened() && engine.clients.opened()
             }
             None => true,
         }
@@ -561,7 +561,7 @@ impl Service {
     /// Root, component and I/O deadlines on the injected clock.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        accounts::earliest(self.next_policy_deadline(), self.io.next_deadline())
+        skein_lib::earliest(self.next_policy_deadline(), self.io.next_deadline())
     }
     /// Maximum simultaneous kernel operations, for the shell's ring.
     #[must_use]
@@ -585,7 +585,7 @@ impl Service {
                         && engine.forge.io.is_empty()
                         && engine.forge.above.is_empty()
                         && engine.store.closed()
-                        && engine.workers.closed()
+                        && engine.workers.host.closed()
                         && engine.clients.closed
                         && engine.clients.io.is_empty()
                         && match &engine.accounts {
@@ -632,11 +632,11 @@ impl Service {
                     let request = engine.clients.io.pop().expect("client io requests");
                     io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
                 }
-                for _ in 0..engine.workers.io.len() {
+                for _ in 0..engine.workers.host.io.len() {
                     if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions || !self.io.takes() {
                         break;
                     }
-                    let request = engine.workers.io.pop().expect("worker io requests");
+                    let request = engine.workers.host.io.pop().expect("worker io requests");
                     io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
                 }
             }
@@ -718,7 +718,14 @@ fn accounts_driver(
     if settings.jig.llm.providers.is_empty() {
         return Ok(None);
     }
-    Ok(Some(accounts::Accounts::new(ACCOUNT_APPLICATION.into(), &settings.jig, seeds, runtime, secrets)?))
+    Ok(Some(accounts::Accounts::new(
+        ACCOUNT_APPLICATION.into(),
+        &settings.jig,
+        &seeds.crypto,
+        &seeds.installation,
+        runtime,
+        secrets,
+    )?))
 }
 /// Drive store terminals, account events, one root input and released outputs.
 pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
@@ -929,13 +936,13 @@ fn route_events(service: &mut Service) {
             } else if !engine.workers.up(service.io_env.now, event, &mut engine.events) && engine.end.is_none() {
                 engine.end = Some(End::Stopped(Stop::Listener {
                     listener: crate::Listening::Workers,
-                    address: engine.workers.listener_address(owner),
+                    address: engine.workers.host.listener_address(owner),
                     error,
                 }));
             }
             for (listener, addr) in [
                 (crate::Listening::Clients, engine.clients.listening.take()),
-                (crate::Listening::Workers, engine.workers.listening.take()),
+                (crate::Listening::Workers, engine.workers.host.listening.take()),
             ] {
                 if let Some(addr) = addr {
                     engine

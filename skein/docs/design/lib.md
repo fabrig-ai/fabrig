@@ -170,7 +170,9 @@ where it holds it.
 
 - **Owned bytes** are a `Box<[u8]>` allocated at its final length.
   `bytes::copy_of` copies one, for data a domain keeps and also sends;
-  `bytes::zeroed` makes one for the side below to fill, a receive buffer.
+  `bytes::concat` copies parts, in order, into one box of their summed
+  length; `bytes::zeroed` makes one for the side below to fill, a receive
+  buffer.
   The byte search (`bytes::find`, `find_from`, `count`) runs in linear
   time and allocates nothing. `bytes::is_utf8` says whether bytes are UTF-8,
   and `bytes::utf8_prefix` cuts valid UTF-8 at a character boundary at or

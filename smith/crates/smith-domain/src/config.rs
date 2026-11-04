@@ -47,7 +47,7 @@ impl ConfiguredModel {
             }
             bytes = bytes
                 .checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?
-                .checked_add(u64::try_from(effort.len()).ok()?)?;
+                .checked_add(skein_lib::len_u64(effort.len()))?;
         }
         Some(bytes)
     }
@@ -121,10 +121,8 @@ impl Config {
                     return false;
                 }
             }
-            let owned = match u64::try_from(program.name.len()) {
-                Ok(length) => length.checked_add(u64::try_from(size_of::<Program>()).expect("program cell")),
-                Err(_) => return false,
-            };
+            let owned = skein_lib::len_u64(program.name.len())
+                .checked_add(u64::try_from(size_of::<Program>()).expect("program cell"));
             let Some(owned) = owned else {
                 return false;
             };

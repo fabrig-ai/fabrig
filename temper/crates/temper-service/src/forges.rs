@@ -99,7 +99,7 @@ impl<'a> Iterator for Iter<'a> {
 
 /// Record-driven runtime membership (temper/docs/design/protocol/forge.md, 2.2).
 pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_domain_forge::ForgeRecord) {
-    if !engine.store.component.mark_durable() {
+    if !engine.store.host.component.mark_durable() {
         engine.forge_records.pending.push(record);
         return;
     }

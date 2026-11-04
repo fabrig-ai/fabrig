@@ -3,17 +3,6 @@
 2026-11-04. Where smith's code lags or departs from [shell.md](shell.md).
 
 - **Not yet:**
-  - 2.5: the gate's wasm32 list (`.config/gate/wasm32.txt`) leaves out
-    `smith-agent-shell`, and no listed package reaches it on wasm32,
-    so the gate's wasm32 clippy does not lint it. Outside the gate,
-    `smith-agent-shell` fails that clippy, warnings denied, first with
-    `unused_imports` at
-    `smith/crates/smith-agent-shell/src/config/native.rs:10`: in
-    `src/config/`, what only its `cfg(unix)` code reads is unused on
-    wasm32: the import `skein_tls as tls` (`native.rs:10`), the
-    parameter `errors` (`native.rs:31`), the constant `CERTIFICATES`
-    (`native.rs:74`), `TrustDocument`'s fields (`document.rs:185`) and
-    those of `EndpointTransport::Tls` (`endpoints.rs:39`).
   - 4, 5.2: the `--account` flag and the `account` setting.
     `smith-local-shell/src/command.rs` parses no `--account`, and
     `settings/schema.rs` has no `account` key, so 4.1's refusal that
@@ -22,9 +11,20 @@
     `account = 'anthropic'` and `[accounts.anthropic]` with `variable =
     'ANTHROPIC_API_KEY'` (`smith-local-shell/src/presets.rs`), where no
     preset names one.
-- **Departs:** 4.5: `smith login` tells the sign-in deadline from
-  other time-outs by the clock alone, because
-  `skein_oauth::Failure::TimedOut` does not say which deadline passed:
-  a redirect taken in the deadline's last `request_time` (20 s) whose
-  code exchange is not answered before the deadline ends with the
-  browser's words, though the browser answered.
+- **Departs:**
+  - 2.5: in `smith/crates/smith-agent-shell/src/config/`,
+    `TrustDocument`'s fields, `EndpointTransport::Tls`'s and the
+    parameter `errors` of `endpoints`, which only the `cfg(unix)` trust
+    loading reads, stay on every target under expectations scoped to
+    `not(unix)`, not behind that `cfg` as the user's request of
+    2026-11-04 asks of unix-only items, because fencing the fields
+    would have wasm32 refuse, under `deny_unknown_fields`, keys it
+    decodes, `tls::Name::new` is a portable check, and a call's
+    argument takes no `cfg`, with `Decoded::resolve`, which passes
+    `errors`, public on every target.
+  - 4.5: `smith login` tells the sign-in deadline from other time-outs
+    by the clock alone, because `skein_oauth::Failure::TimedOut` does
+    not say which deadline passed: a redirect taken in the deadline's
+    last `request_time` (20 s) whose code exchange is not answered
+    before the deadline ends with the browser's words, though the
+    browser answered.

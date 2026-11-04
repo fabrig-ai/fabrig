@@ -1,11 +1,14 @@
 //! Accounts effects routed through the reference service.
 use super::*;
 use crate::tests::fixtures;
+use alloc::boxed::Box;
+use jig_domain_accounts as domain;
+use skein_lib::{List, Secret};
 fn finish_start(service: &mut crate::Service) {
     for _ in 0_u32..64 {
         fixtures::turn(service);
         if fixtures::engine(service).domain.ready() {
-            assert!(fixtures::engine(service).store.component.mark_durable());
+            assert!(fixtures::engine(service).store.host.component.mark_durable());
             return;
         }
     }
@@ -13,20 +16,20 @@ fn finish_start(service: &mut crate::Service) {
 }
 
 fn carry_llm_key(engine: &mut crate::Engine, value: &[u8]) -> u64 {
-    let _later = engine.store.secrets(
+    let _later = engine.store.host.secrets(
         Token::new(123),
         store::Secrets::Carry { kind: jig_protocol_store::CarriedKind::Key, value: Secret::new(value.into()) },
     );
     // The start's mark may still have a terminal here. Preserve unrelated
     // answers and take only this explicit carry's terminal.
-    for _ in 0..engine.store.above.len() {
-        let event = engine.store.above.pop().expect("store answer");
+    for _ in 0..engine.store.host.above.len() {
+        let event = engine.store.host.above.pop().expect("store answer");
         if let store::Event::Carried { owner, number } = &event
             && *owner == Token::new(123)
         {
             return *number;
         }
-        engine.store.above.push(event);
+        engine.store.host.above.push(event);
     }
     panic!("carried LLM key")
 }
@@ -35,7 +38,7 @@ fn pump_accounts(accounts: &mut Accounts, engine: &mut crate::Engine) -> List<do
     let mut heard = List::with_capacity(64);
     for _ in 0_u32..32 {
         crate::store::answer(engine);
-        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+        iterate(accounts, Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
         while let Some(event) = events.pop() {
             if let root::Event::Core(core::Event::Account(domain::Event::Component(event))) = event {
                 heard.push(event).expect("bounded component events");
@@ -64,8 +67,10 @@ fn llm_key_work_reaches_the_store_and_the_workers_table_through_the_service() {
     pump_accounts(&mut accounts, engine);
     assert!(engine.values.accounts.value(7, 1, Time::from_nanos(1)).is_none());
     assert!(engine.values.accounts.value(7, 2, Time::from_nanos(1)).is_none());
-    let Some(store::Event::Secret { value: None, .. }) =
-        engine.store.secrets(Token::new(123), store::Secrets::Get { owner: store::SecretOwner::Source, number: 7 })
+    let Some(store::Event::Secret { value: None, .. }) = engine
+        .store
+        .host
+        .secrets(Token::new(123), store::Secrets::Get { owner: store::SecretOwner::Source, number: 7 })
     else {
         panic!("removed LLM key value")
     };
@@ -81,7 +86,7 @@ fn service_restart_restores_an_llm_key_before_want_and_sweeps_only_unnamed_sourc
     pump_accounts(&mut accounts, engine);
     engine.values.accounts.remove(7);
     let carried_orphan = carry_llm_key(engine, b"orphaned-carried-value");
-    let _later = engine.store.secrets(
+    let _later = engine.store.host.secrets(
         Token::new(123),
         store::Secrets::Keep {
             owner: store::SecretOwner::Source,
@@ -89,7 +94,7 @@ fn service_restart_restores_an_llm_key_before_want_and_sweeps_only_unnamed_sourc
             value: jig_protocol_store::SecretValue::Record(Secret::new(b"orphaned-source-value".as_slice().into())),
         },
     );
-    while engine.store.above.pop().is_some() {}
+    while engine.store.host.above.pop().is_some() {}
     let mut fresh_service = fixtures::started(&fixtures::accounts_document());
     let mut restarted = fixtures::engine(&mut fresh_service).accounts.take().expect("new component");
     restarted.request(domain::Request::Signing(domain::Signing::Restore {
@@ -119,7 +124,7 @@ fn service_restart_restores_an_llm_key_before_want_and_sweeps_only_unnamed_sourc
         (store::SecretOwner::Application, carried_orphan, true),
     ] {
         let Some(store::Event::Secret { value, .. }) =
-            engine.store.secrets(Token::new(123), store::Secrets::Get { owner, number })
+            engine.store.host.secrets(Token::new(123), store::Secrets::Get { owner, number })
         else {
             panic!("stored value")
         };
@@ -155,8 +160,9 @@ fn a_restored_sources_wrong_kind_stops_the_engine() {
         let mut accounts = engine.accounts.take().expect("accounts runtime");
         engine
             .store
+            .host
             .secrets(Token::new(123), store::Secrets::Keep { owner: store::SecretOwner::Source, number: 7, value });
-        while engine.store.above.pop().is_some() {}
+        while engine.store.host.above.pop().is_some() {}
         accounts.request(domain::Request::Signing(domain::Signing::Restore { source: 7, provider: 1, kind }));
         pump_accounts(&mut accounts, engine);
         crate::store::answer(engine);

@@ -206,7 +206,7 @@ fn a_sign_in_digest_and_expiry_are_kept_in_secrets() {
     });
     clients.secrets_step(&mut store);
     store.iterate();
-    let Some(jig_protocol_store::Event::Kept { owner }) = store.above.pop() else { panic!("digest kept") };
+    let Some(jig_protocol_store::Event::Kept { owner }) = store.host.above.pop() else { panic!("digest kept") };
     assert_eq!(owner, Token::new(crate::tokens::CLIENTS + 1));
     let Some(jig_protocol_store::Event::Secret {
         value: Some(jig_protocol_store::SecretValue::Digest { expiry, digest }),
@@ -586,18 +586,18 @@ fn secret_asks_in_flight_each_get_their_own_terminal() {
         clients.secrets_step(&mut store);
         assert!(clients.secrets.is_empty(), "each ask issues while all earlier terminals wait");
         store.iterate();
-        let terminal = store.above.pop().expect("one store terminal per erase");
+        let terminal = store.host.above.pop().expect("one store terminal per erase");
         let jig_protocol_store::Event::Erased { owner: routed } = &terminal else { panic!("erase terminal") };
         assert_eq!(*routed, Token::new(crate::tokens::CLIENTS + 1 + u64::from(number)), "distinct routing tokens");
-        assert!(store.above.is_empty(), "exactly one terminal");
+        assert!(store.host.above.is_empty(), "exactly one terminal");
         delayed.push((owner, terminal)).unwrap();
     }
     assert_eq!(store.secret_requests, ASKS, "all requests are in flight together");
     assert!(clients.secret_terminals.as_ref().unwrap().is_empty(), "no terminal delivered early");
     for (owner, terminal) in delayed.into_boxed().into_iter().rev() {
-        store.secrets.push(terminal);
+        store.host.secrets.push(terminal);
         clients.secrets_step(&mut store);
-        assert!(store.secrets.is_empty(), "the reversed terminal is consumed");
+        assert!(store.host.secrets.is_empty(), "the reversed terminal is consumed");
         let trace = clients.secret_terminals.as_mut().unwrap();
         assert_eq!(trace.pop(), Some(owner), "each terminal keeps its original owner");
         assert!(trace.is_empty(), "one terminal per owner");

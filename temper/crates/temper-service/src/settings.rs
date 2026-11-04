@@ -71,11 +71,7 @@ pub struct Author {
     pub email: Box<[u8]>,
 }
 
-/// The private files jig's parts name, by path, as jig's reference takes them.
-#[derive(Debug)]
-pub struct Files {
-    pub entries: List<(Box<[u8]>, Secret)>,
-}
+pub use jig_protocol_config::Files;
 
 /// The seeds the shell draws at start, as jig's reference takes them.
 #[derive(Debug)]

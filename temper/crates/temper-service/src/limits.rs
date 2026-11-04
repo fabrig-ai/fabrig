@@ -539,6 +539,7 @@ pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
             send: jig.clients_http.send,
         },
         stall: Duration::from_secs(30),
+        peer_end: crate::server::PeerEnd::Connection,
     }
 }
 

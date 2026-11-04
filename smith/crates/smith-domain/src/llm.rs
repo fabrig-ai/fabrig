@@ -284,7 +284,7 @@ impl Decoded {
                 | Problem::JobsFull { .. }
                 | Problem::UnknownJob { .. } => 0,
                 Problem::Missing { field } | Problem::WrongType { field } | Problem::BadValue { field } => {
-                    u64::try_from(field.len()).ok()?
+                    skein_lib::len_u64(field.len())
                 }
             },
         };

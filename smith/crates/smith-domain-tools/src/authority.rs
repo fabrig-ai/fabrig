@@ -32,7 +32,7 @@ impl Authority {
         match self.repos.len() {
             0 | 1 => Some(0),
             _ => match self.cwd.first() {
-                Some(name) => u64::try_from(name.as_bytes().len()).ok(),
+                Some(name) => Some(skein_lib::len_u64(name.as_bytes().len())),
                 None => Some(0),
             },
         }

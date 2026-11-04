@@ -111,7 +111,7 @@ pub(super) fn charter(context_bytes: u64) -> Charter {
         let remaining = u64::try_from(count - section).expect("bounded Section suffix count fits u64");
         let title = bytes(remainder / remaining / 3);
         let text = bytes(remainder / remaining - skein_lib::len_u64(title.len()));
-        remainder -= u64::try_from(title.len() + text.len()).expect("bounded Section payloads fit u64");
+        remainder -= skein_lib::len_u64(title.len() + text.len());
         sections.push(run::Section { title, text });
     }
     assert_eq!(remainder, 0, "unchanged aggregate filler owns every byte");

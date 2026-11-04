@@ -28,7 +28,11 @@ pub(super) fn collect(bytes: &[u8], depth: u32, tokens: u32) -> Option<skein_jso
 
 pub(super) fn text_message(text: &[u8], maximum: u32) -> Option<Box<[u8]>> {
     let quoted = json::quote(text, maximum)?;
-    let bytes = json::join(&[b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":", &quoted, b"}}\n"]);
+    let bytes = skein_lib::bytes::concat(&[
+        b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":",
+        &quoted,
+        b"}}\n",
+    ]);
     if bytes.len() > usize::try_from(maximum).ok()? {
         return None;
     }
@@ -110,7 +114,7 @@ pub(super) fn user_message(prompt: &llm::Prompt, maximum: u32) -> Option<Box<[u8
     let length = measure.measured().ok()?;
     let mut write = Encoder::write(length, &limits);
     user(&mut write, prompt);
-    Some(json::join(&[&write.finish(), b"\n"]))
+    Some(skein_lib::bytes::concat(&[&write.finish(), b"\n"]))
 }
 
 fn user(json: &mut Encoder, prompt: &llm::Prompt) {
@@ -163,7 +167,7 @@ pub(super) fn interrupt_request(sequence: u64, maximum: u32) -> Option<Box<[u8]>
     let length = measure.measured().ok()?;
     let mut write = Encoder::write(length, &limits);
     interrupt(&mut write, &id);
-    Some(json::join(&[&write.finish(), b"\n"]))
+    Some(skein_lib::bytes::concat(&[&write.finish(), b"\n"]))
 }
 
 fn interrupt(json: &mut Encoder, id: &[u8]) {

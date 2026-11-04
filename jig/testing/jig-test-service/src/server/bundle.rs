@@ -1,11 +1,23 @@
 //! Bundle routing and bounded reply chunks (skein's ui-web.md, 4.4).
-use super::{Answer, Connection, policy};
+use super::{Limits, Routed, Server};
 use alloc::boxed::Box;
 use skein_http::{Header, Method, server as http};
 use skein_lib::{
-    List, Map, bytes,
-    stream::{Down, Read},
+    List, Map, Queue, Token, bytes,
+    stream::{Down, Read, Up},
 };
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Which part answers a request head (protocol/service.md, 7).
+pub enum Answer {
+    Mount,
+    File,
+    Page,
+    NotModified,
+    Root,
+    NotFound,
+    NotAllowed,
+}
 
 /// One digest-directory file, typed by the closed extension list.
 #[derive(Debug)]
@@ -22,7 +34,7 @@ pub struct Bundle {
     pub files: Map<Box<[u8]>, File>,
 }
 #[derive(Debug)]
-pub(super) struct Reply {
+struct Reply {
     answer: Answer,
     path: Box<[u8]>,
     offset: usize,
@@ -112,72 +124,124 @@ pub(super) fn route(bundle: Option<&Bundle>, call: &http::Call) -> Answer {
 fn field(headers: &mut List<Header>, name: &[u8], value: &[u8]) {
     headers.push(Header { name: bytes::copy_of(name), value: bytes::copy_of(value) }).expect("answer fields");
 }
-pub(super) fn start(bundle: Option<&Bundle>, head: &http::Call, answer: Answer, conn: &mut Connection, send: u32) {
-    let reply = Reply { answer, path: bytes::copy_of(target(head)), offset: 0 };
-    let mut headers = List::with_capacity(3);
-    let mut length = 0;
-    let status = match answer {
-        Answer::Page | Answer::File | Answer::Root => {
-            let bundle = bundle.expect("routed bundle");
-            let kind = match answer {
-                Answer::File | Answer::Root => bundle.file(&reply.path).expect("routed file").kind,
-                Answer::Page => b"text/html; charset=utf-8",
-                Answer::Mount | Answer::NotModified | Answer::NotFound | Answer::NotAllowed => {
-                    unreachable!("content answer")
-                }
-            };
-            field(&mut headers, b"Content-Type", kind);
-            length = bundle.content(&reply).len();
-            200
-        }
-        Answer::NotModified => 304,
-        Answer::NotFound => 404,
-        Answer::NotAllowed => 405,
-        Answer::Mount => unreachable!("mount answers itself"),
-    };
-    match answer {
-        Answer::File => field(&mut headers, b"Cache-Control", b"public, max-age=31536000, immutable"),
-        Answer::Page | Answer::Root | Answer::NotModified => {
-            field(&mut headers, b"Cache-Control", b"no-cache");
-            field(&mut headers, b"ETag", &bundle.expect("revalidated bundle").etag);
-        }
-        Answer::Mount | Answer::NotFound | Answer::NotAllowed => {}
+/// The test application's answers to calls the mapping doesn't claim (protocol/service.md, 7).
+#[derive(Debug)]
+pub struct Pages {
+    bundle: Option<Bundle>,
+    replies: Map<Token, Reply>,
+    send: u32,
+}
+impl Pages {
+    #[must_use]
+    pub fn new(limits: &Limits) -> Self {
+        Self { bundle: None, replies: Map::with_capacity(limits.connections), send: limits.http.send }
     }
-    let mut response = http::Response {
-        status,
-        headers: headers.into_boxed(),
-        body: if status == 304 {
-            http::Body::None
+    /// The bundle the startup read; none serves no browser.
+    pub fn serve(&mut self, bundle: Bundle) {
+        self.bundle = Some(bundle);
+    }
+    #[must_use]
+    pub fn route(&self, head: &http::Call) -> Answer {
+        route(self.bundle.as_ref(), head)
+    }
+    /// Starts the answer to a call `route` gave no `Mount`.
+    pub fn call(
+        &mut self,
+        server: &mut Server,
+        call: Token,
+        head: &http::Call,
+        answer: Answer,
+        out: &mut Queue<Routed>,
+    ) {
+        let bundle = self.bundle.as_ref();
+        let reply = Reply { answer, path: bytes::copy_of(target(head)), offset: 0 };
+        let mut headers = List::with_capacity(3);
+        let mut length = 0;
+        let status = match answer {
+            Answer::Page | Answer::File | Answer::Root => {
+                let bundle = bundle.expect("routed bundle");
+                let kind = match answer {
+                    Answer::File | Answer::Root => bundle.file(&reply.path).expect("routed file").kind,
+                    Answer::Page => b"text/html; charset=utf-8",
+                    Answer::Mount | Answer::NotModified | Answer::NotFound | Answer::NotAllowed => {
+                        unreachable!("content answer")
+                    }
+                };
+                field(&mut headers, b"Content-Type", kind);
+                length = bundle.content(&reply).len();
+                200
+            }
+            Answer::NotModified => 304,
+            Answer::NotFound => 404,
+            Answer::NotAllowed => 405,
+            Answer::Mount => unreachable!("mount answers itself"),
+        };
+        match answer {
+            Answer::File => field(&mut headers, b"Cache-Control", b"public, max-age=31536000, immutable"),
+            Answer::Page | Answer::Root | Answer::NotModified => {
+                field(&mut headers, b"Cache-Control", b"no-cache");
+                field(&mut headers, b"ETag", &bundle.expect("revalidated bundle").etag);
+            }
+            Answer::Mount | Answer::NotFound | Answer::NotAllowed => {}
+        }
+        let response = http::Response {
+            status,
+            headers: headers.into_boxed(),
+            body: if status == 304 {
+                http::Body::None
+            } else {
+                http::Body::Length(u64::try_from(length).expect("bounded file"))
+            },
+            close: false,
+        };
+        server.answer(call, http::Request::Discard, out);
+        server.answer(call, http::Request::Respond(response), out);
+        if length != 0 {
+            self.demand(server, call, length, out);
+        }
+        self.replies.insert(call, reply).expect("bounded server calls");
+    }
+    fn demand(&self, server: &mut Server, call: Token, left: usize, out: &mut Queue<Routed>) {
+        let room = self.send.min(u32::try_from(left).expect("bounded file"));
+        let demand = http::Request::Reply(Down::Demand { read: Read::Nothing, room });
+        server.answer(call, demand, out);
+    }
+    fn send(&mut self, server: &mut Server, call: Token, out: &mut Queue<Routed>) {
+        let reply = self.replies.get_mut(&call).expect("own reply");
+        let body = self.bundle.as_ref().expect("body's bundle").content(reply);
+        let end = reply.offset.saturating_add(skein_lib::length::usize_of(self.send)).min(body.len());
+        let bytes = bytes::copy_of(body.get(reply.offset..end).expect("reply slice"));
+        reply.offset = end;
+        let left = body.len().checked_sub(end).expect("reply cursor");
+        server.answer(call, http::Request::Reply(Down::Send(bytes)), out);
+        if left == 0 {
+            server.answer(call, http::Request::Reply(Down::Finish), out);
         } else {
-            http::Body::Length(u64::try_from(length).expect("bounded file"))
-        },
-        close: false,
-    };
-    policy::add(&mut response);
-    conn.requests.push(http::Request::Discard);
-    conn.requests.push(http::Request::Respond(response));
-    if length != 0 {
-        demand(conn, length, send);
+            self.demand(server, call, left, out);
+        }
     }
-    conn.reply = Some(reply);
-}
-fn demand(conn: &mut Connection, left: usize, send: u32) {
-    conn.requests.push(http::Request::Reply(Down::Demand {
-        read: Read::Nothing,
-        room: send.min(u32::try_from(left).expect("bounded file")),
-    }));
-}
-pub(super) fn send(bundle: &Bundle, conn: &mut Connection, send: u32) {
-    let reply = conn.reply.as_mut().expect("own reply");
-    let body = bundle.content(reply);
-    let end = reply.offset.saturating_add(skein_lib::length::usize_of(send)).min(body.len());
-    let bytes = bytes::copy_of(body.get(reply.offset..end).expect("reply slice"));
-    reply.offset = end;
-    let left = body.len().checked_sub(end).expect("reply cursor");
-    conn.requests.push(http::Request::Reply(Down::Send(bytes)));
-    if left == 0 {
-        conn.requests.push(http::Request::Reply(Down::Finish));
-    } else {
-        demand(conn, left, send);
+    #[must_use]
+    pub fn owns(&self, call: Token) -> bool {
+        self.replies.get(&call).is_some()
+    }
+    /// One event of a call being answered.
+    pub fn event(&mut self, server: &mut Server, call: Token, event: http::Event, out: &mut Queue<Routed>) {
+        match event {
+            http::Event::Reply(Up::Room) => self.send(server, call, out),
+            http::Event::Done(_) | http::Event::Ended => {
+                self.replies.remove(&call);
+                server.done(call, out);
+            }
+            http::Event::Refused(_)
+            | http::Event::Failed(_)
+            | http::Event::Closed
+            | http::Event::Reply(Up::Failed(_))
+            | http::Event::Body(Up::Failed(_)) => {
+                self.replies.remove(&call);
+                server.abandon(call, out);
+            }
+            http::Event::Body(_) | http::Event::Reply(_) => {}
+            http::Event::Call(_) => unreachable!("a head is routed, not an event"),
+        }
     }
 }

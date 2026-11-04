@@ -1,4 +1,4 @@
-//! The accounts component links its child, store and skein's drivers.
+//! The accounts component links its child, store, configuration and skein's drivers.
 const MANIFEST: &str = include_str!("../../../crates/jig-protocol-accounts/Cargo.toml");
 
 fn breaches(source: &str) -> Vec<String> {
@@ -16,6 +16,8 @@ fn breaches(source: &str) -> Vec<String> {
                 "skein-io",
                 "jig-domain-accounts",
                 "jig-protocol-store",
+                "jig-protocol-config",
+                "skein-kv",
             ]
             .contains(&name.as_str())
         })
@@ -23,7 +25,7 @@ fn breaches(source: &str) -> Vec<String> {
 }
 
 #[test]
-fn the_accounts_component_links_only_its_child_store_and_skein() {
+fn the_accounts_part_links_only_its_child_store_configuration_and_skein() {
     let failures = breaches(MANIFEST);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

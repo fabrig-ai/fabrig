@@ -27,6 +27,5 @@ an error), and the next file writes a fifth.
 
 ## What pays it back
 
-`bytes::concat` and a `Measure` in lib (or one in skein-http for the
-three writers), then delete the copies. smith's private byte `join` then
-goes too, as smith's `smith/docs/development/debt/D016-retyped-primitives.md`.
+`skein_lib::bytes::concat` is the one concatenation: delete the copies onto it, each overflow answer
+with them. Then a `Measure` in lib (or one in skein-http for the three writers), and delete those.

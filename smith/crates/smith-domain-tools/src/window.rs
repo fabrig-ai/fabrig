@@ -73,8 +73,7 @@ pub(crate) fn read(content: Box<[u8]>, span: Span) -> ReadResult {
     let after = skipped.checked_add(taken).expect("returned lines fit file count");
     let next = if after < total { Next::Line(after.checked_add(1).expect("next line within file")) } else { Next::End };
     let first = skipped.checked_add(1).expect("admitted one-based offset fits u32");
-    let omitted_bytes = u64::try_from(rest.len().checked_sub(end).expect("selected window within remaining file"))
-        .expect("bounded file bytes fit u64");
+    let omitted_bytes = skein_lib::len_u64(rest.len().checked_sub(end).expect("selected window within remaining file"));
     let content = if start == 0 && end == content.len() {
         content
     } else {

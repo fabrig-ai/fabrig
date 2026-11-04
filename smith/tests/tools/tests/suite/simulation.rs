@@ -1459,7 +1459,7 @@ fn a_kept_output_asked_for_is_split_between_head_and_tail_and_its_clamp_is_said(
                 exit: tools::Exit::Code { code: 101 },
                 head: log[..head].into(),
                 tail: log[log.len() - tail..].into(),
-                dropped: u64::try_from(log.len() - head - tail).expect("omitted output count fits"),
+                dropped: skein_lib::len_u64(log.len() - head - tail),
                 timeout: tools::TimeoutClamp::Within,
                 output: clamp
             }
