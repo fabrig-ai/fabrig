@@ -1,3 +1,24 @@
 draft = "repository-copies-1"
 repo = "fabrig"
 sources = ["temper/docs/plan/repository-copies-1/inputs/request.md", "temper/docs/design/draft/repository-copies.md", "temper/docs/design/draft/repository-copies.status.md", "AGENTS.md", "DESIGN.md"]
+
+# The foundation of temper/docs/design/draft/repository-copies.md, its section 10, step 1. Released in
+# batches: skein's dialect first, then its plan, its facts and the fake, then temper. plan.md says what
+# the cut decided.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "forgejo-requests"
+title = "Migrate and DeleteRepository in skein's Forgejo dialect"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-setup.md, 4.3"
+
+[[slice]]
+id = 1
+story = "skein's dialect can ask Forgejo for a copy and can delete what a copy cut short left"
+parts = ["forgejo-requests"]
+walk = false
