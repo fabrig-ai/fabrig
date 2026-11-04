@@ -164,7 +164,7 @@ impl Connection {
     #[expect(clippy::manual_map, reason = "the programming model excludes closures")]
     pub fn at_origin(forge: &Forge, origin: Option<u32>, l: &Limits, shared: Shared, deadline: Time) -> Self {
         let configured = match origin {
-            Some(at) => Some(forge.log_origins.get(at).expect("configured log origin")),
+            Some(origin) => Some(forge.log_origins.get(origin).expect("configured log origin")),
             None => None,
         };
         let tls = match (&forge.transport, configured) {
@@ -221,7 +221,7 @@ impl Connection {
     }
     fn host(&self, forge: &Forge) -> Box<[u8]> {
         match self.origin {
-            Some(at) => crate::settings::log_host(forge.log_origins.get(at).expect("configured origin")),
+            Some(origin) => crate::settings::log_host(forge.log_origins.get(origin).expect("configured origin")),
             None => crate::settings::host(forge).expect("checked forge host"),
         }
     }

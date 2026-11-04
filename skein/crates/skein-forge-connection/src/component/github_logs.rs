@@ -1,5 +1,5 @@
 //! A call follows a job log once to a configured, separately pooled origin (4.5).
-use super::{Component, Waiting, github_calls::github_plan};
+use super::{Common, ForgeEntry, Waiting, github_calls::github_plan};
 use crate::{Event, Fact, Limits};
 use skein_forge::{
     api,
@@ -10,10 +10,12 @@ use skein_forge::{
 };
 use skein_lib::{Env, Id, Queue, Token};
 
-impl Component {
+impl Common {
+    #[expect(clippy::too_many_arguments, reason = "a redirected call carries its forge entry and log exchange")]
     pub(super) fn follow_github_log(
         &mut self,
         holder: (Token, Id<Waiting>),
+        entry: &mut ForgeEntry,
         redirect: Redirect,
         retention: Retention,
         env: &Env<Limits>,
@@ -22,15 +24,7 @@ impl Component {
     ) {
         let (call, id) = holder;
         let number = self.waiting.get(id).expect("call").repository.forge;
-        let mut position = None;
-        for at in 0..self.forges.len() {
-            if self.forges.get(at).expect("forge").base.forge.number == number {
-                position = Some(at);
-                break;
-            }
-        }
-        let at = position.expect("call forge");
-        let forge = &self.forges.get(at).expect("forge").base.forge;
+        let forge = &entry.base.forge;
         let mut matched = None;
         for index in 0..forge.log_origins.len() {
             if forge.log_origins.get(index).expect("origin").origin.same(&redirect.origin) {
@@ -45,7 +39,7 @@ impl Component {
         }
         self.release_github_call(id, env, io);
         let Some(index) = matched else {
-            let gh = &mut self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state;
+            let gh = &mut entry.github_mut().expect("GitHub").state;
             let mut said = false;
             for origin in &gh.said_origins {
                 if origin.same(&redirect.origin) {

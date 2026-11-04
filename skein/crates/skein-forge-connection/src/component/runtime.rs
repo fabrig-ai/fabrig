@@ -1,24 +1,24 @@
 //! Runtime forge membership (skein/docs/design/forge-connection.md, 3.1).
-use super::{Component, Event, ForgeEntry, Limits};
+use super::{Component, Event, ForgeEntry, Limits, find};
 use crate::settings::Forge;
 use skein_forge::api;
 use skein_lib::{Env, Queue};
 
 impl Component {
     pub(super) fn add(&mut self, env: &Env<Limits>, forge: Forge) {
-        for configured in &self.forges {
-            if configured.base.forge.number == forge.number {
-                return;
-            }
+        let Self { forges, common } = self;
+        if find(forges, forge.number).is_some() {
+            return;
         }
-        if self.forges.len() >= env.limits.forges
-            || crate::limits::check_added(&env.limits, &self.shared, &self.owner, &forge).is_err()
+        if forges.len() >= env.limits.forges
+            || crate::limits::check_added(&env.limits, &common.shared, &common.owner, &forge).is_err()
         {
             return;
         }
-        self.forges.push(ForgeEntry::new(forge, &env.limits)).expect("forge room checked");
+        forges.push(ForgeEntry::new(forge, &env.limits)).expect("forge room checked");
     }
 
+    #[expect(clippy::disallowed_methods, reason = "swap_remove needs the local position of the configured forge")]
     pub(super) fn remove(
         &mut self,
         env: &Env<Limits>,
@@ -26,14 +26,8 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
-        let mut position = None;
-        for at in 0..self.forges.len() {
-            if self.forges.get(at).expect("forge").base.forge.number == number {
-                position = Some(at);
-                break;
-            }
-        }
-        let Some(at) = position else { return };
+        let Self { forges, common } = self;
+        let Some(position) = forges.iter().position(|entry| entry.base.forge.number == number) else { return };
         // Discard this forge's queued notifications before returning its terminals.
         for _ in 0..up.len() {
             let event = up.pop().expect("queued notification");
@@ -51,24 +45,24 @@ impl Component {
             }
         }
         // Each pass removes one of the bounded live calls belonging to this forge.
-        for _ in 0..self.calls.len() {
+        for _ in 0..common.calls.len() {
             let mut next = None;
-            for (call, id) in &self.calls {
-                if self.waiting.get(*id).expect("indexed call").repository.forge == number {
+            for (call, id) in &common.calls {
+                if common.waiting.get(*id).expect("indexed call").repository.forge == number {
                     next = Some((*call, *id));
                     break;
                 }
             }
             let Some((call, id)) = next else { break };
-            self.finish(call, id, Err(api::Error::Unavailable), up);
+            common.finish(call, id, Err(api::Error::Unavailable), up);
         }
-        for (_, id) in &self.connections {
-            let c = self.connection_slab.get_mut(*id).expect("indexed connection");
+        for (_, id) in &common.connections {
+            let c = common.connection_slab.get_mut(*id).expect("indexed connection");
             if c.forge == number {
                 c.membership = crate::connection::Membership::Removed;
                 c.abort(env, io);
             }
         }
-        let _removed = self.forges.swap_remove(at).expect("configured forge");
+        let _removed = forges.swap_remove(u32::try_from(position).expect("forge position")).expect("configured forge");
     }
 }
