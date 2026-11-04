@@ -1,0 +1,8 @@
+POST /api/v1/repos/migrate HTTP/1.1
+Host: 127.0.0.1:3000
+Authorization: token MASKED
+Content-Type: application/json
+Content-Length: 264
+Connection: close
+
+{"clone_addr":"http://127.0.0.1:3001/fixture/source.git","repo_owner":"copies","repo_name":"unencrypted","service":"git","private":true,"mirror":false,"issues":false,"labels":false,"milestones":false,"pull_requests":false,"releases":false,"wiki":false,"lfs":false}
