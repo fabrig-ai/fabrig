@@ -1051,7 +1051,7 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
 const CHAT_HOLDS_ITS_SLOT: Duration = support::WITHIN.saturating_mul(2);
 
 // A lost link heals: a stall past the 1 s silence loses it. The worker's contact
-// grace, graces.grace_ms 1000 (temper-service worker_settings.rs:145; jig 8f1acb2
+// grace, graces.grace_ms 1000 (temper-service worker_settings.rs:145;
 // worker-link component.rs:629), outlasts two redials (125–250 ms, doubling:
 // backoff.rs:16; profile/small.rs:239); a re-hello clears it (component.rs:455).
 // The engine keeps that channel's attempts adrift for fleet.grace_ms 3000
@@ -1074,10 +1074,10 @@ fn a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another() {
 
 // protocol/README.md, 15.6: heal within fleet grace, then fence a surviving run.
 // Continue follows the connected:false read immediately. CLOCK_MONOTONIC keeps
-// advancing during STOP (skein f5f8b3e, skein-shell clock.rs:17), but w1 arms its
-// contact grace only on detecting its own loss after CONT (jig e7a93cd,
-// jig-protocol-worker-link component.rs:169, :622). Its first redial is 125–250 ms
-// (backoff.rs:15; jig-protocol-config profile/small.rs:239); its re-hello must
+// advancing during STOP (skein-shell clock.rs:17), but w1 arms its contact
+// grace only on detecting its own loss after CONT (jig-protocol-worker-link
+// component.rs:169, :622). Its first redial is 125–250 ms (backoff.rs:15;
+// jig-protocol-config profile/small.rs:239); its re-hello must
 // reach the engine within the 3000 ms fleet grace (jig-domain-fleet
 // attempt.rs:505). This is a margin, checked by the unchanged attempt below.
 #[test]
@@ -1085,7 +1085,7 @@ fn a_worker_hung_past_the_grace_is_fenced_and_links_again() {
     cluster_chats("cluster_hung", ClusterStory::Hung);
 }
 
-// Jig admits only with an available placement (e7a93cd, jig-domain-core
+// Jig admits only with an available placement (jig-domain-core
 // routing/run_preparation.rs:466–492, run_choice.rs:73–77): the second task
 // is due, unclaimed and unplaced; no attempt exists to be placed twice.
 #[test]
@@ -1585,7 +1585,7 @@ impl ClusterChatJudge {
                 }
             }
             ClusterChatStage::FenceCheck => {
-                // Jig e7a93cd: w1's hello listing b1 gets Cancel while b2 is
+                // w1's hello listing b1 gets Cancel while b2 is
                 // claimed (jig-domain-fleet attempt.rs:1030). Cancel ends b1's
                 // run, completing its held reply turn; w1 sends that turn and
                 // its terminal answer. The engine acknowledges the answer and

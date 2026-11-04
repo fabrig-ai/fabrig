@@ -672,8 +672,7 @@ fn only_settled_account_statuses_have_the_done_style() {
     }
 }
 #[cfg(target_pointer_width = "64")]
-#[path = "../../../../testing/memory_literal.rs"]
-mod memory_literal;
+use temper_fixtures::memory_literal;
 
 fn owner_root() -> (d::Domain, Token) {
     let (root, deployment, _) = owner_root_with_accounts();

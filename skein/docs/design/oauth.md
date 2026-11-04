@@ -980,6 +980,10 @@ accounts component nor its listener requires a sum of heap prices.
   redirect.
 - **Device authorization,** for a person whose browser is on another
   machine, beside the pasted redirect (6.5): whether it joins the client.
+- **A confidential redirect's authority.** Its `https` URI is read by its
+  scheme alone, so `https://` and `https://a@b` are admitted where an
+  endpoint's are refused (section 1), and the issuer matches it against its
+  registration. Default: so; whether it takes an endpoint's reading.
 - **A credential helper,** a program that prints a token, as another source
   of access-only records beside handing them in.
 - **The fake issuer's signing in a simulated world.** ring's RSA signing

@@ -1,0 +1,3 @@
+# Ordinary Rust: documents, transcripts and a local browser shared by client tests and worlds.
+disallowed-types = []
+disallowed-methods = []

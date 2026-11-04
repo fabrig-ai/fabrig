@@ -1,13 +1,13 @@
 //! Delivery-log documents use the pushed payload encoder (forge-github.md, 9.3).
 use super::{delivery, output_limits};
 use crate::{
-    forgejo::time,
     github::{
         delivery::Delivery,
         guid,
         limits::{DEPTH, Limits},
         log::Row,
     },
+    time,
 };
 use skein_json::{tokenizer, writer::Encoder};
 use skein_lib::{Overflow, Writer};

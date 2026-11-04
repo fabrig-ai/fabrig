@@ -427,3 +427,7 @@ suite and budget are `../../protocol/browser.md`'s, section 15.
   also run with people in front, or only the stories about people.
 - **Coverage of the roots' arms,** as for the engine's root
   (`../../domain/testing.md`, section 10).
+- **Stories on one front:** a story that needs a document the shared
+  stories cannot seed runs on the scripted front alone, so the joint
+  world does not check it. Whether one is worth what seeding its
+  document costs. Default: they stay.

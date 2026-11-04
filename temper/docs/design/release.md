@@ -121,9 +121,9 @@ it is `draft/first-release.md`'s, the user's; macOS is
 
 ## 6. Proved on a fresh machine
 
-- **The walk is rung A's** (`draft/v0.1.0.md`, 2.1), its brief's
-  scenario from the help's install step, with the downloaded file in
-  place of a build: downloaded, its checksum checked, installed as the
+- **The walk is rung A's** (`draft/v0.1.0.md`, 2.1), its story's steps
+  (`../development/acceptance.md`, section 5) from the help's install
+  step, with the downloaded file in place of a build: downloaded, its checksum checked, installed as the
   help's download path says, then the help followed as written. The
   walk `box`'s install step gains that path beside the checkout's once
   a release's download exists (`protocol/documentation.md`).

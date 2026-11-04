@@ -1,11 +1,12 @@
 //! One review comment scratch row; long bodies are read through.
 use super::{Malformed, walk::Node};
 use crate::{
-    forgejo::{document::Body, id::unsigned},
     github::document::{self, Row},
+    text::Body,
 };
 use alloc::boxed::Box;
 use skein_json::Token;
+use skein_lib::bytes;
 
 #[derive(Debug)]
 pub(super) struct State {
@@ -48,7 +49,7 @@ impl State {
         }
         match token {
             Token::Number(text) => {
-                let value = unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                let value = bytes::decimal(&text).ok_or(Malformed::Range { field: key })?;
                 if node == Node::RemarkUser {
                     self.remark.author = value;
                 } else if key == b"id" {
@@ -97,7 +98,7 @@ impl State {
     fn review_scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match token {
             Token::Number(text) => {
-                let value = unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                let value = bytes::decimal(&text).ok_or(Malformed::Range { field: key })?;
                 if node == Node::ReviewUser {
                     self.review.author = value;
                 } else {
@@ -119,8 +120,7 @@ impl State {
                 }
                 b"body" => self.review.body = Body::Kept(text),
                 b"submitted_at" => {
-                    self.review.submitted =
-                        Some(crate::forgejo::time::read(&text).ok_or(Malformed::Time { field: key })?);
+                    self.review.submitted = Some(crate::time::read(&text).ok_or(Malformed::Time { field: key })?);
                 }
                 b"author_association" => {
                     self.review.official =

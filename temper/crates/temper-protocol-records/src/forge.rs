@@ -137,7 +137,7 @@ pub enum NotConnected {
     },
 }
 // The requested diagnostic vocabulary is a format boundary, not a step effect.
-#[expect(clippy::disallowed_macros, reason = "temper-01 requires Display for operator diagnostics")]
+#[expect(clippy::disallowed_macros, reason = "operator diagnostics need Display")]
 #[expect(clippy::disallowed_methods, reason = "operator diagnostic formats a configuration-validated host")]
 impl core::fmt::Display for NotConnected {
     fn fmt(&self, out: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

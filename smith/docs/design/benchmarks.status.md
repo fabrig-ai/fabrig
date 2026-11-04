@@ -25,6 +25,10 @@
     (`benchmarks/src/agent/mod.rs`, `Provider::Codex`, and every suite's
     `provider = "codex"`), where the design names smith's preset,
     `openai`; the code keeps the earlier name.
+  - 6: `benchmarks/src/run.rs` names an agent once, where the user's
+    request of 11-04 asked it to name none: `Request`'s `logins`, which
+    each adapter reads, is stored as `codex_home`, since that request
+    kept stored formats as they are.
   - 7, 10: smith's `anthropic` endpoint runs on the `claude` program
     account (`agents/smith/accounts.toml`), not on a key; no reason is
     recorded.

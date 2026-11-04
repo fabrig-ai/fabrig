@@ -968,7 +968,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
         api::Answer::Runs { .. } | api::Answer::Run(_) | api::Answer::Commits { .. } | api::Answer::Tree { .. } => {
             unreachable!("agent forge reads do not request Actions or trees")
         }
-        api::Answer::Queued => unreachable!("temper-12 gives merge queue answers meaning"),
+        api::Answer::Queued => unreachable!("agent forge reads do not request a merge"),
         api::Answer::Done => text.add(b"Done")?,
     }
     Ok(())
