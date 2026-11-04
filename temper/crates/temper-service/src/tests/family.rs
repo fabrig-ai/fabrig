@@ -1045,6 +1045,37 @@ fn configured_forge_rows() -> forge::Forges {
     }
 }
 #[test]
+fn a_row_s_fetched_reaches_the_wire() {
+    const OWNED: u16 = 1;
+    for (binary, expected_binary, total) in [
+        (forge::SetUpBinary::Forgejo, w::SetUpBinary::Forgejo, Some(100)),
+        (forge::SetUpBinary::Runner, w::SetUpBinary::Runner, None),
+        (forge::SetUpBinary::Forgejo, w::SetUpBinary::Forgejo, None),
+        (forge::SetUpBinary::Runner, w::SetUpBinary::Runner, Some(100)),
+    ] {
+        let mut row = forge_row(
+            OWNED,
+            forge::Kind::Forgejo,
+            forge::Mode::Owned,
+            forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) },
+            forge::Offer::Offered,
+        );
+        row.fetched = Some(forge::SetUpFetched { binary, done: 10, total });
+        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, &w::CEILINGS).unwrap();
+        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
+        let w::Connection::SettingUp(setup) = rows.forges().get(0).unwrap().connection() else { panic!("setting up") };
+        assert_eq!(setup.step(), &Some(w::SetUpStep::Fetch));
+        assert_eq!(
+            setup.fetched(),
+            &Some(
+                w::SetUpFetched::new(&w::CEILINGS, w::SetUpFetchedParts { binary: expected_binary, done: 10, total })
+                    .unwrap()
+            )
+        );
+    }
+}
+
+#[test]
 fn forges_encode_the_domains_rows_without_settings() {
     let value = configured_forge_rows();
     for (failed, expected) in [
