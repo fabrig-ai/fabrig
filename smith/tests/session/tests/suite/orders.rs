@@ -368,7 +368,9 @@ fn reverse_read_terminals_preserve_write_isolation_and_result_order() {
         let calls: Vec<_> = messages[1]
             .content
             .iter()
-            .filter_map(|block| if let llm::Block::ToolCall(llm::ToolCall { id, .. }) = block { Some(id) } else { None })
+            .filter_map(
+                |block| if let llm::Block::ToolCall(llm::ToolCall { id, .. }) = block { Some(id) } else { None },
+            )
             .collect();
         let results = &messages[2].content;
         assert_eq!(results.len(), CALLS);

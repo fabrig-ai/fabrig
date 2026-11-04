@@ -6,7 +6,9 @@ use std::mem::size_of;
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_world::domain::heap::{Measured, Meter};
-use smith_domain_session::llm::{Block, Completion, Decoded, Descriptor, Endpoint, Failure, Problem, Stop, Usage};
+use smith_domain_session::llm::{
+    Block, Completion, Decoded, Descriptor, Endpoint, Failure, Problem, Stop, ToolCall, Usage,
+};
 use smith_domain_session::{Budget, Domain, Event, Limits, MAX_PARALLEL, Request, Spec};
 use smith_domain_tools::{
     Authority, Budget as ToolBudget, Call, Directory, Done, Effect, Grants, Name, Part, Path, Version,
@@ -194,7 +196,7 @@ fn observe_fill(out: &mut Queue<Request>, observed: &mut [Seen]) -> Option<Asked
                 assert_eq!(row.used, row.recorded, "every accepted completion emits concrete history");
                 for message in &turn.messages {
                     for block in &message.content {
-                        if let Block::ToolCall(smith_domain_session::llm::ToolCall { call, .. }) = block {
+                        if let Block::ToolCall(ToolCall { call, .. }) = block {
                             assert_eq!(*call, Decoded::Historical, "emitted copies retain no live authority");
                         }
                     }
@@ -229,6 +231,7 @@ fn observe_fill(out: &mut Queue<Request>, observed: &mut [Seen]) -> Option<Asked
 /// fills the maximum payload that can still fund the next provider credit. Credits reserve
 /// space without allocating; emitted concrete Turn/prompt/yield copies belong to
 /// their receivers and are dropped under the shared meter's handoff convention.
+#[expect(clippy::too_many_lines, reason = "tool-call literals keep each payload-pressure route together")]
 fn fill(original: &Limits, route: Route, full_service: bool, bound: u64) {
     let pressure = original.history_bytes;
     let block = size(size_of::<Block>());
@@ -272,8 +275,13 @@ fn fill(original: &Limits, route: Route, full_service: bool, bound: u64) {
             Route::Tool => {
                 let path = Path { absolute: false, parts: Box::new([Part::Name { name: name() }]) };
                 let call = Decoded::Owned { call: Call::Read { path, offset: 1, window: ToolBudget::Default } };
-                let content =
-                    Box::new([Block::ToolCall(smith_domain_session::llm::ToolCall { id: bytes(1), name: bytes(1), input: bytes(1), call, replay: None })]);
+                let content = Box::new([Block::ToolCall(ToolCall {
+                    id: bytes(1),
+                    name: bytes(1),
+                    input: bytes(1),
+                    call,
+                    replay: None,
+                })]);
                 let completion = received(content, Stop::ToolUse);
                 let Some(Asked::Io { owner: op }) = step(Event::Completed { owner, completion }) else {
                     panic!("the original maximum read has full reserved receiving space");
@@ -286,8 +294,13 @@ fn fill(original: &Limits, route: Route, full_service: bool, bound: u64) {
             }
             Route::Invalid => {
                 let call = Decoded::Invalid { descriptor: None, problem: Problem::Missing { field: bytes(field) } };
-                let content =
-                    Box::new([Block::ToolCall(smith_domain_session::llm::ToolCall { id: bytes(1), name: bytes(1), input: bytes(1), call, replay: None })]);
+                let content = Box::new([Block::ToolCall(ToolCall {
+                    id: bytes(1),
+                    name: bytes(1),
+                    input: bytes(1),
+                    call,
+                    replay: None,
+                })]);
                 let completion = received(content, Stop::ToolUse);
                 let Some(Asked::Complete { .. }) = step(Event::Completed { owner, completion }) else {
                     panic!("the original maximum problem and exact repeated answer fit");
@@ -565,7 +578,7 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
             reasoning_dropped: Box::default(),
             content: Box::new([
                 Block::Opaque { bytes: bytes(1) },
-                Block::ToolCall(smith_domain_session::llm::ToolCall {
+                Block::ToolCall(ToolCall {
                     id: bytes(1),
                     name: bytes(1),
                     input: bytes(1),
@@ -704,7 +717,7 @@ fn an_oversized_waking_result_tail_is_refused_before_cloning_provider_ids() {
     for call in 0..calls {
         let mut id = bytes(id_bytes).into_vec();
         id[..4].copy_from_slice(&call.to_le_bytes());
-        tail.push(Block::ToolCall(smith_domain_session::llm::ToolCall {
+        tail.push(Block::ToolCall(ToolCall {
             id: id.into(),
             name: bytes(1),
             input: bytes(1),
@@ -831,7 +844,9 @@ fn memory_seen(out: &mut Queue<Request>) -> MemorySeen {
                 for message in &turn.messages {
                     for block in &message.content {
                         match block {
-                            Block::ToolCall(smith_domain_session::llm::ToolCall { call, .. }) => assert_eq!(*call, Decoded::Historical),
+                            Block::ToolCall(ToolCall { call, .. }) => {
+                                assert_eq!(*call, Decoded::Historical);
+                            }
                             Block::ToolResult {
                                 result:
                                     smith_domain_session::llm::Returned::Owned {
@@ -915,7 +930,7 @@ fn measured_resume(
 fn read_completion(width: u32) -> Completion {
     let mut blocks = Vec::with_capacity(usize::try_from(width).expect("bounded width"));
     for number in 0..width {
-        blocks.push(Block::ToolCall(smith_domain_session::llm::ToolCall {
+        blocks.push(Block::ToolCall(ToolCall {
             id: Box::new([b'a' + u8::try_from(number).expect("at most eight")]),
             name: bytes(1),
             input: bytes(1),
@@ -1205,7 +1220,7 @@ fn the_original_maximum_parallel_width_has_live_result_rights() {
 fn missing_completion(field: u64) -> Completion {
     Completion {
         reasoning_dropped: Box::default(),
-        content: Box::new([Block::ToolCall(smith_domain_session::llm::ToolCall {
+        content: Box::new([Block::ToolCall(ToolCall {
             id: bytes(1),
             name: bytes(1),
             input: bytes(1),

@@ -15,7 +15,10 @@ fn concrete_turns_resume_verbatim_without_local_tickets() {
     let prompt = &resumed.prompts[0];
     assert_eq!(prompt.endpoint, llm::Endpoint(7));
     assert_eq!(prompt.messages[1].content[0], llm::Block::Opaque { bytes: recorded::OPAQUE.into() });
-    assert!(matches!(prompt.messages[1].content[1], llm::Block::ToolCall(llm::ToolCall { call: llm::Decoded::Historical, .. })));
+    assert!(matches!(
+        prompt.messages[1].content[1],
+        llm::Block::ToolCall(llm::ToolCall { call: llm::Decoded::Historical, .. })
+    ));
     assert_eq!(prompt.messages[2].content[0], old.turns[0].messages[2].content[0]);
     assert_eq!(
         prompt.messages.last().expect("the scenario supplied a value").content[0],
@@ -261,7 +264,9 @@ fn committed_call_results_after_a_yield_are_restored_without_tickets() {
         .expect("saved assistant")
         .content
         .iter()
-        .position(|block| matches!(block, llm::Block::ToolCall(llm::ToolCall { id, .. }) if id.as_ref() == b"provider-call"))
+        .position(
+            |block| matches!(block, llm::Block::ToolCall(llm::ToolCall { id, .. }) if id.as_ref() == b"provider-call"),
+        )
         .expect("saved call");
     let sequence = tail.sequence;
     let mut opened = opening(Some(history), 100);
@@ -1124,18 +1129,20 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
         let mut spec = opening(None, 100);
         spec.spec.delegated = Box::new([llm::Descriptor { ticket: Token::new(19), effect: Effect::Write }]);
         first.open(spec);
-        let make = |id: &[u8], name: &[u8]| llm::Block::ToolCall(llm::ToolCall {
-            id: id.into(),
-            name: name.into(),
-            input: bytes(b"{}"),
-            replay: None,
-            call: llm::Decoded::Delegated {
-                descriptor: Token::new(19),
-                source: session::ToolSource::Run,
-                ticket: Token::new(19),
-                effect: Effect::Write,
-            },
-        });
+        let make = |id: &[u8], name: &[u8]| {
+            llm::Block::ToolCall(llm::ToolCall {
+                id: id.into(),
+                name: name.into(),
+                input: bytes(b"{}"),
+                replay: None,
+                call: llm::Decoded::Delegated {
+                    descriptor: Token::new(19),
+                    source: session::ToolSource::Run,
+                    ticket: Token::new(19),
+                    effect: Effect::Write,
+                },
+            })
+        };
         let mut content = Vec::new();
         if earlier {
             content.push(make(b"earlier", b"finish"));
@@ -1196,18 +1203,20 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
 fn a_generic_yield_with_two_unstarted_wait_calls_restores_both_as_not_run() {
     let mut first = Scripted::new(31);
     first.open(opening(None, 100));
-    let content = [b"one".as_slice(), b"two"].map(|id| llm::Block::ToolCall(llm::ToolCall {
-        id: id.into(),
-        name: bytes(b"wait"),
-        input: bytes(b"{}"),
-        call: llm::Decoded::Delegated {
-            descriptor: Token::new(991),
-            source: session::ToolSource::Run,
-            ticket: Token::new(991),
-            effect: smith_domain_tools::Effect::Write,
-        },
-        replay: None,
-    }));
+    let content = [b"one".as_slice(), b"two"].map(|id| {
+        llm::Block::ToolCall(llm::ToolCall {
+            id: id.into(),
+            name: bytes(b"wait"),
+            input: bytes(b"{}"),
+            call: llm::Decoded::Delegated {
+                descriptor: Token::new(991),
+                source: session::ToolSource::Run,
+                ticket: Token::new(991),
+                effect: smith_domain_tools::Effect::Write,
+            },
+            replay: None,
+        })
+    });
     first.complete(Box::new(content), llm::Stop::EndTurn, llm::Usage::ZERO);
     assert!(first.delegated.is_empty(), "the generic yield starts neither call");
     first.close();

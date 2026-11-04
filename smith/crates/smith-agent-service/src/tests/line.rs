@@ -36,22 +36,24 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
     }
     session::reserve_completion(&mut domain, session_owner.unwrap(), 0, 0, 1024).unwrap();
     let content = (0..calls)
-        .map(|index| session::llm::Block::ToolCall(session::llm::ToolCall {
-            id: Box::new([b'a'.checked_add(index).unwrap()]),
-            name: b"read".as_slice().into(),
-            input: br#"{"path":"file"}"#.as_slice().into(),
-            call: session::llm::Decoded::Owned {
-                call: tools::Call::Read {
-                    path: tools::Path {
-                        absolute: false,
-                        parts: Box::new([tools::Part::Name { name: named(b"file") }]),
+        .map(|index| {
+            session::llm::Block::ToolCall(session::llm::ToolCall {
+                id: Box::new([b'a'.checked_add(index).unwrap()]),
+                name: b"read".as_slice().into(),
+                input: br#"{"path":"file"}"#.as_slice().into(),
+                call: session::llm::Decoded::Owned {
+                    call: tools::Call::Read {
+                        path: tools::Path {
+                            absolute: false,
+                            parts: Box::new([tools::Part::Name { name: named(b"file") }]),
+                        },
+                        offset: 1,
+                        window: tools::Budget::Default,
                     },
-                    offset: 1,
-                    window: tools::Budget::Default,
                 },
-            },
-            replay: None,
-        }))
+                replay: None,
+            })
+        })
         .collect();
     session::step(
         &mut domain,
