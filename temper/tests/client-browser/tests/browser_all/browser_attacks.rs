@@ -20,7 +20,8 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
     let live = Find::exactly_named(Role::Button, b"Sign out");
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let mut steps = vec![
-        see(live.clone()),
+        // The printed link signs in at the welcome, whose frame holds its steps and no "Sign out".
+        see(Find::exactly_named(Role::List, b"Steps")),
         Step::Visit { origin: 1, path: b"/framing".as_slice().into() },
         Step::Trouble { words: b"frame-ancestors".as_slice().into(), within: WITHIN },
         Step::Person(PersonStep::Gone { find: live.clone(), within: ABSENT }),

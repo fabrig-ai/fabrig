@@ -22,7 +22,7 @@ use temper_client_domain::{
 
 /// "Run temper on a server" (temper/docs/help/server.md), on GitHub: the
 /// browser serves no help pages (the look request welcome-forgejo-card).
-const DEPLOYMENT: &[u8] = b"https://github.com/fabrig-ai/fabrig/blob/main/temper/docs/help/server.md";
+pub(crate) const DEPLOYMENT: &[u8] = b"https://github.com/fabrig-ai/fabrig/blob/main/temper/docs/help/server.md";
 
 #[derive(Clone, Copy)]
 pub(crate) enum Place {
@@ -291,42 +291,45 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
     }
     b.close();
 }
-/// The welcome's Forge step: GitHub's card, then one Forgejo card, whose
-/// button sets one up on this machine at once, its first repository
-/// `work/hello` asked of no one, and whose link shows how to connect a
-/// deployment (`temper/docs/design/client/forge.md`, 5.4).
+/// The welcome's Forge step: Forgejo's card, the default, whose button sets
+/// one up on this machine at once, its first repository `work/hello` asked of
+/// no one, then GitHub's (`temper/docs/design/client/forge.md`, 5.4).
 fn welcome_choices(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBindings, kinds: &[connect::Choice]) {
-    if kinds.contains(&connect::Choice::GitHub) {
-        flow::choice_card(b, &w.say(Word::ConnectGitHub, &[]));
-        text(b, w, Role::Paragraph, Word::ForgeGitHubDescription);
-        text(b, w, Role::Paragraph, Word::ForgeGitHubTime);
-        app_control(b, root, w, forge, 0, Word::ForgeConnectGitHub, Some(Place::Welcome.address(None)));
-        b.close();
-    }
     let owned = kinds.contains(&connect::Choice::Owned);
-    if !owned && !kinds.contains(&connect::Choice::Managed) {
-        return;
-    }
-    let note = w.say(if owned { Word::ForgeHereTime } else { Word::ForgeElsewhereTime }, &[]);
-    flow::choice_card(b, &w.say(Word::WelcomeForgejo, &[]));
-    text(b, w, Role::Paragraph, Word::WelcomeForgejoDescription);
-    b.open(Role::Paragraph);
-    b.style(look::FLOW_MUTED);
-    b.name(&note);
-    b.text(Run::Plain, &note);
-    b.close();
-    b.open(Role::Slot);
-    b.style(look::FLOW_ACTIONS);
     if owned {
+        let note = w.say(Word::ForgeHereTime, &[]);
+        flow::choice_card(b, &w.say(Word::WelcomeForgejo, &[]));
+        text(b, w, Role::Paragraph, Word::WelcomeForgejoDescription);
+        b.open(Role::Paragraph);
+        b.style(look::FLOW_MUTED);
+        b.name(&note);
+        b.text(Run::Plain, &note);
+        b.close();
+        b.open(Role::Slot);
+        b.style(look::FLOW_ACTIONS);
         let run = w.say(Word::WelcomeForgejoRun, &[]);
         flow::control(
             b,
-            Control::Button { name: &run, to: forge.insert(Meaning::Forges(forge::forges::Act::SetUpOwnedAtOnce)) },
+            Control::PrimaryButton {
+                name: &run,
+                to: forge.insert(Meaning::Forges(forge::forges::Act::SetUpOwnedAtOnce)),
+            },
         );
+        b.close();
+        b.close();
     }
-    flow::control(b, Control::External { name: &w.say(Word::WelcomeForgejoDeployment, &[]), address: DEPLOYMENT });
-    b.close();
-    b.close();
+    if kinds.contains(&connect::Choice::GitHub) {
+        flow::choice_card(b, &w.say(Word::ConnectGitHub, &[]));
+        text(b, w, Role::Paragraph, Word::ForgeGitHubDescription);
+        let time = w.say(Word::ForgeGitHubTime, &[]);
+        b.open(Role::Paragraph);
+        b.style(look::FLOW_MUTED);
+        b.name(&time);
+        b.text(Run::Plain, &time);
+        b.close();
+        app_control(b, root, w, forge, 0, Word::ForgeConnectGitHub, Some(Place::Welcome.address(None)));
+        b.close();
+    }
 }
 pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
     flow::card(b, &w.say(Word::ForgeNotFinished, &[]));
@@ -439,7 +442,8 @@ pub(crate) fn app_control(
     back: Option<Address>,
 ) {
     // The first installation is primary on Forges too; another account is maintenance.
-    let primary = word != Word::ForgeInstallAnother;
+    // On the welcome, GitHub's card stands beside Forgejo's, the default (forge.md, 5.4).
+    let primary = word != Word::ForgeInstallAnother && back != Some(Place::Welcome.address(None));
     let pending = root.forge().app();
     let busy = match pending {
         Some(pending) => pending.answer.is_none(),
@@ -845,34 +849,46 @@ pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a 
 }
 /// The welcome's Model step says what Forge did (client/README.md, 3.5).
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
-    let done = temper_client_domain::pages::welcome::forge_connected(row);
     let forge = name(w, row, root);
+    // Done, the line is the forge's name, then, quieter, who temper is on it
+    // and its first repository, or its connection (client/README.md, 3.5).
+    if temper_client_domain::pages::welcome::forge_connected(row) {
+        let detail = match (&row.connection, welcome_target(root, row)) {
+            (Connection::Connected { login, .. }, Some((org, repository))) => w.say(
+                Word::WelcomeForgeDoneDetail,
+                &[Hole::Name(copy_of(login)), Hole::Name(forge::words::full_name(org, repository))],
+            ),
+            _ => forge::words::forge_connection(row),
+        };
+        b.open(Role::Paragraph);
+        b.style(look::FLOW_DONE);
+        b.name(&crate::accounts::words::join(&[&forge, b" \xc2\xb7 ", &detail]));
+        b.text(Run::Plain, "✓".as_bytes());
+        b.open(Role::Text);
+        b.run(Run::Strong, &forge);
+        b.close();
+        b.text(Run::Plain, b"\xc2\xb7");
+        b.text(Run::Plain, &detail);
+        b.close();
+        return;
+    }
     let line = if let Some((org, repository)) = welcome_target(root, row) {
-        let repository = forge::words::full_name(org, repository);
-        if done {
-            w.say(Word::WelcomeForgeDone, &[Hole::Name(forge), Hole::Name(repository)])
-        } else {
-            w.say(
-                Word::WelcomeForgeLine,
-                &[Hole::Name(forge), Hole::Name(forge::words::forge_connection(row)), Hole::Name(repository)],
-            )
-        }
+        w.say(
+            Word::WelcomeForgeLine,
+            &[
+                Hole::Name(forge),
+                Hole::Name(forge::words::forge_connection(row)),
+                Hole::Name(forge::words::full_name(org, repository)),
+            ],
+        )
     } else {
         w.say(Word::ForgeStatus, &[Hole::Name(forge), Hole::Name(forge::words::forge_connection(row))])
     };
     b.open(Role::Paragraph);
-    if done {
-        b.style(look::FLOW_DONE);
-    }
     b.name(&line);
-    if done {
-        b.text(Run::Plain, "✓ ".as_bytes());
-    }
     b.text(Run::Plain, &line);
     b.close();
-    if !done {
-        each_step(b, root, w, row);
-    }
+    each_step(b, root, w, row);
 }
 pub(crate) fn each_step(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     b.open(Role::Disclosure);

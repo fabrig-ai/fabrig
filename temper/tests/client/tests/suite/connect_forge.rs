@@ -190,7 +190,11 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
     assert_eq!(root.person().pages().address(), &model_address);
     assert!(!front.engine_adopted(OWNED, 42));
     let made = view(&root);
-    let line = node(&made, Role::Paragraph, "Forgejo on this machine · work/hello".as_bytes());
+    let line = node(
+        &made,
+        Role::Paragraph,
+        "Forgejo on this machine · connected as temper · work/hello made, in no project yet".as_bytes(),
+    );
     let line = made.tree().nodes().iter().find(|n| n.id == line).expect("forge line");
     assert!(line.styles.as_slice().contains(&temper_client_view::look::FLOW_DONE));
     assert!(!made.tree().nodes().iter().any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Each step")));
