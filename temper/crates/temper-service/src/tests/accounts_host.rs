@@ -7,9 +7,14 @@
 )]
 use super::*;
 use crate::tests::fixtures;
+use alloc::boxed::Box;
+use jig_domain_accounts as domain;
 use jig_protocol_accounts::table;
+use jig_protocol_config as config;
 use skein_fake_oauth as fake;
-use skein_lib::{Duration, bytes};
+use skein_lib::{Duration, List, Secret, bytes};
+use skein_oauth as oauth;
+use skein_oauth_accounts as driver;
 
 // temper/docs/design/protocol/credentials.md, 3; skein/docs/design/oauth.md, 6.5.
 // The host runs over scripted streams; the independent issuer checks OAuth.
@@ -144,7 +149,8 @@ impl SignInWorld {
         while let Some(event) = engine.store.above.pop() {
             engine.store.sources.push(event);
         }
-        self.accounts.iterate(
+        iterate(
+            &mut self.accounts,
             self.now,
             Wall::from_nanos(self.now.as_nanos()),
             &mut engine.values,
@@ -239,7 +245,7 @@ impl SignInWorld {
         for _ in 0_u32..512 {
             self.turn();
         }
-        assert!(!self.accounts.work_pending(self.now), "the host settles at the supplied instant");
+        assert!(!self.accounts.work_pending(self.now, true), "the host settles at the supplied instant");
     }
 
     fn approve(&mut self, source: u32) -> Box<[u8]> {
@@ -297,7 +303,7 @@ impl SignInWorld {
         else {
             panic!("no carried address remains")
         };
-        assert!(!self.accounts.work_pending(self.now));
+        assert!(!self.accounts.work_pending(self.now, true));
     }
 
     fn grant_plan(&mut self) {
@@ -340,7 +346,7 @@ impl SignInWorld {
     }
 
     fn nothing_held(&self) {
-        assert!(!self.accounts.work_pending(self.now));
+        assert!(!self.accounts.work_pending(self.now, true));
         assert!(self.accounts.io.is_empty());
         assert!(self.sockets.iter().all(|peer| peer.closed));
         assert_eq!(usize::try_from(self.closed_listeners).unwrap(), self.listeners.len());
@@ -562,6 +568,9 @@ fn held_address(engine: &mut crate::engine::Engine) -> u64 {
         },
     )
 }
+fn pass(accounts: &mut Accounts, engine: &mut crate::engine::Engine, events: &mut Queue<root::Event>) {
+    iterate(accounts, Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, events, &mut engine.store);
+}
 fn pump_accounts(accounts: &mut Accounts, engine: &mut crate::engine::Engine) -> List<domain::FromComponent> {
     let mut events = Queue::with_capacity(64);
     let mut heard = List::with_capacity(64);
@@ -569,7 +578,7 @@ fn pump_accounts(accounts: &mut Accounts, engine: &mut crate::engine::Engine) ->
         while let Some(event) = engine.store.above.pop() {
             engine.store.sources.push(event);
         }
-        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+        pass(accounts, engine, &mut events);
         while let Some(event) = events.pop() {
             if let root::Event::Account(domain::Event::Component(event)) = event {
                 heard.push(event).expect("bounded component events");
@@ -615,10 +624,10 @@ fn a_full_root_queue_retains_the_accounts_event_until_room_returns() {
         while let Some(event) = engine.store.above.pop() {
             engine.store.sources.push(event);
         }
-        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+        pass(&mut accounts, engine, &mut events);
     }
     assert!(events.is_empty());
-    assert!(accounts.pending.is_some());
+    assert!(accounts.held());
     assert!(
         engine.values.accounts.value(7, 1, Time::from_nanos(1)).is_some(),
         "the delivery projection precedes its notification"
@@ -626,7 +635,7 @@ fn a_full_root_queue_retains_the_accounts_event_until_room_returns() {
     let heard = pump_accounts(&mut accounts, engine);
     assert_eq!(heard.len(), 1, "room releases the one retained grant");
     assert!(has_llm_key_grant(&heard, 1));
-    assert!(accounts.pending.is_none());
+    assert!(!accounts.held());
 }
 
 #[test]
@@ -701,7 +710,7 @@ fn aborting_does_not_submit_an_llm_key_adoption_to_the_closing_store() {
     let carried = carry_llm_key(engine, b"aborted-llm-key");
     accounts.request(domain::Request::Signing(domain::Signing::Keep { source: 7, carried, replaces: false }));
     let mut events = Queue::with_capacity(64);
-    accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+    pass(&mut accounts, engine, &mut events);
     assert!(engine.values.accounts.value(7, 1, Time::from_nanos(1)).is_none(), "key has not been lent");
     accounts.abort();
     let heard = pump_accounts(&mut accounts, engine);
@@ -752,13 +761,15 @@ fn registered() -> (config::Engine, AccountsRuntime) {
     origins.push(driver::Origin { uri: b"http://127.0.0.1:7102".as_slice().into(), endpoint: endpoint() }).unwrap();
     let mut providers = List::with_capacity(1);
     providers.push((3, endpoint(), origins)).unwrap();
-    (config, AccountsRuntime { providers })
+    (config, AccountsRuntime { providers, trust: None })
 }
 fn host(config: &config::Engine, runtime: AccountsRuntime) -> Accounts {
+    let seeds = fixtures::seeds();
     Accounts::new(
         crate::system::ACCOUNT_APPLICATION.into(),
         config,
-        &fixtures::seeds(),
+        &seeds.crypto,
+        &seeds.installation,
         Some(runtime),
         &config.limits.store.secrets,
     )
@@ -820,12 +831,14 @@ fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
 }
 #[test]
 fn missing_registration_runtime_is_refused_before_start() {
+    let seeds = fixtures::seeds();
     let (config, _) = registered();
     assert!(
         Accounts::new(
             crate::system::ACCOUNT_APPLICATION.into(),
             &config,
-            &fixtures::seeds(),
+            &seeds.crypto,
+            &seeds.installation,
             None,
             &config.limits.store.secrets
         )
@@ -885,7 +898,7 @@ fn pump_move_events(accounts: &mut Accounts, engine: &mut crate::engine::Engine)
         while let Some(event) = engine.store.above.pop() {
             engine.store.sources.push(event);
         }
-        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+        pass(accounts, engine, &mut events);
     }
     events
 }
@@ -1090,7 +1103,7 @@ fn a_finish_whose_held_address_is_gone_is_refused_not_waiting() {
         panic!("a finish whose held value is gone is refused");
     };
     assert!(events.is_empty());
-    assert!(!accounts.work_pending(Time::from_nanos(1)));
+    assert!(!accounts.work_pending(Time::from_nanos(1), true));
 }
 
 #[test]
@@ -1103,7 +1116,7 @@ fn aborting_drops_a_finish_in_flight() {
     let carried = held_address(engine);
     accounts.request(domain::Request::Signing(domain::Signing::Redirected { source: 71, carried }));
     let mut events = Queue::uncapped();
-    accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+    pass(&mut accounts, engine, &mut events);
     assert!(events.is_empty(), "the held address is read before the finish answers");
     accounts.abort();
     let mut events = pump_move_events(&mut accounts, engine);
@@ -1133,13 +1146,7 @@ fn a_restored_sources_other_kind_fails_the_read() {
         let mut events = Queue::uncapped();
         // The request, read and corruption travel through the public component boundary.
         for _ in 0_u32..4 {
-            accounts.iterate(
-                Time::from_nanos(1),
-                Wall::from_nanos(1),
-                &mut engine.values,
-                &mut events,
-                &mut engine.store,
-            );
+            pass(&mut accounts, engine, &mut events);
         }
         let mut failed = false;
         while let Some(event) = engine.store.above.pop() {
@@ -1148,6 +1155,6 @@ fn a_restored_sources_other_kind_fails_the_read() {
             }
         }
         assert!(failed, "the wrong kind follows the failed-read path");
-        assert!(accounts.component.is_empty());
+        assert!(accounts.component().is_empty());
     }
 }
