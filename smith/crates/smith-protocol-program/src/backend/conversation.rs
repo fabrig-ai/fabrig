@@ -77,7 +77,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let Some(document) = stream::collect(bytes, self.settings.adapter.client.depth, self.settings.stream_tokens)
+        let Some(document) = stream::collect(bytes, self.settings.translation.client.depth, self.settings.stream_tokens)
         else {
             self.fail_program(env, b"smith: the program stream does not decode", up, below);
             return;
@@ -112,7 +112,7 @@ impl Backend {
                 },
                 None => None,
             },
-            Some(b"assistant") => match self.turns.assistant(&document, self.settings.adapter.client.answer) {
+            Some(b"assistant") => match self.turns.assistant(&document, self.settings.translation.client.answer) {
                 Some(_) => Some(()),
                 None => None,
             },
@@ -130,7 +130,7 @@ impl Backend {
                 let structured = self.result_contract();
                 let completed = match json::field(&document, 0, b"structured_output") {
                     Some(index) if structured => {
-                        match json::outcome_input(&document, index, self.settings.adapter.client.answer) {
+                        match json::outcome_input(&document, index, self.settings.translation.client.answer) {
                             Some(input) => self.turns.structured(input),
                             None => None,
                         }
@@ -292,7 +292,7 @@ impl Backend {
                         llm::Decoded::Builtin { .. } => {}
                         llm::Decoded::Owned { .. } | llm::Decoded::Served { .. } | llm::Decoded::Invalid { .. } => {
                             *call =
-                                decode_call(id, name, input, prompt, outcome, deliver.as_ref(), &self.settings.adapter);
+                                decode_call(id, name, input, prompt, outcome, deliver.as_ref(), &self.settings.translation);
                         }
                     }
                     decoded = match call.owned_bytes() {
@@ -388,8 +388,8 @@ impl Backend {
                         &self.ledger,
                         &tool,
                         &input,
-                        self.settings.adapter.client.depth,
-                        self.settings.adapter.stated.call_input_bytes,
+                        self.settings.translation.client.depth,
+                        self.settings.translation.stated.call_input_bytes,
                     ) {
                         Some(index) => self.ledger.get_mut(index).expect("matched call").rpc = Some(call),
                         None if self.turns.accepting_calls() => {

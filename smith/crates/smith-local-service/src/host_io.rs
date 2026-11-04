@@ -943,12 +943,12 @@ mod tests {
         // Consume the store terminal, dispatch Fault + Domain, then the marker.
         const DISPATCH_PASSES: u32 = 3;
         let config = crate::tests::config();
-        let mut adapter = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
-        adapter.adopt_store(kernel::Fd::new(10)).expect("store root");
-        adapter.adopt_delivery_roots(Box::new([kernel::Fd::new(11)]), Box::new([]));
+        let mut host_io = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("host_io");
+        host_io.adopt_store(kernel::Fd::new(10)).expect("store root");
+        host_io.adopt_delivery_roots(Box::new([kernel::Fd::new(11)]), Box::new([]));
         let mut events = Queue::uncapped();
-        start_store_load(&mut adapter, Time::ZERO, &mut events);
-        adapter.start_markers(
+        start_store_load(&mut host_io, Time::ZERO, &mut events);
+        host_io.start_markers(
             MARKER_OWNER,
             0,
             Box::new([Box::from(b"source.rs".as_slice())]),
@@ -958,29 +958,29 @@ mod tests {
         // The file driver releases its serial slot when it queues a terminal.
         // Accumulate both completed requests before the next markers_up pass;
         // the chat handoff is now uncapped (protocol/limits.md, section 3.8).
-        match adapter.file_requests.pop().expect("store load") {
+        match host_io.file_requests.pop().expect("store load") {
             (file::Request::Load { owner: STORE_OWNER, path, .. }, _) => {
                 assert_eq!(path.as_ref(), b"format");
             }
             other => panic!("store's first file request: {other:?}"),
         }
-        adapter.file_events.push(file::Event::Failed {
+        host_io.file_events.push(file::Event::Failed {
             owner: STORE_OWNER,
             error: kernel::Error::Permission,
             committed: false,
             residue: None,
         });
-        match adapter.file_requests.pop().expect("marker load") {
+        match host_io.file_requests.pop().expect("marker load") {
             (file::Request::Load { owner: MARKER_OWNER, .. }, _) => {}
             other => panic!("marker's file request: {other:?}"),
         }
-        adapter.file_events.push(file::Event::Loaded { owner: MARKER_OWNER, bytes: b"clean\n".as_slice().into() });
+        host_io.file_events.push(file::Event::Loaded { owner: MARKER_OWNER, bytes: b"clean\n".as_slice().into() });
 
         // Collect both terminals in dispatch order across the bounded passes.
         // The assertion is about the chat's stream, not queue room.
         let mut terminals = Vec::new();
         for _ in 0..DISPATCH_PASSES {
-            adapter.markers_up(Time::ZERO, &mut events);
+            host_io.markers_up(Time::ZERO, &mut events);
             while let Some(event) = events.pop() {
                 terminals.push(event);
             }
@@ -992,15 +992,15 @@ mod tests {
         else {
             panic!("the store answer must reach the chat before the later marker terminal: {terminals:?}");
         };
-        assert!(adapter.file_events.is_empty(), "both file terminals settle once");
-        assert!(adapter.store_io.store_actions.is_empty(), "the store answer settles once");
-        assert!(adapter.delivery.inspection.idle(), "the inspection settles once");
+        assert!(host_io.file_events.is_empty(), "both file terminals settle once");
+        assert!(host_io.store_io.store_actions.is_empty(), "the store answer settles once");
+        assert!(host_io.delivery.inspection.idle(), "the inspection settles once");
     }
 
-    fn start_store_load(adapter: &mut HostIo, now: Time, events: &mut Queue<local::Event>) {
-        adapter.store_request(local_protocol::StoreRequest::Load);
-        adapter.markers_up(now, events);
-        adapter.markers_up(now, events);
+    fn start_store_load(host_io: &mut HostIo, now: Time, events: &mut Queue<local::Event>) {
+        host_io.store_request(local_protocol::StoreRequest::Load);
+        host_io.markers_up(now, events);
+        host_io.markers_up(now, events);
     }
 
     // Two completed loads must both fit the dispatch work bound, so only
@@ -1010,7 +1010,7 @@ mod tests {
     const ORDER_STEPS: u32 = 64;
 
     struct FileOrderWorld {
-        adapter: HostIo,
+        host_io: HostIo,
         sim: skein_sim::Sim,
         pid: skein_sim::Pid,
         machine: skein_fake_machine::Machine,
@@ -1027,18 +1027,18 @@ mod tests {
             let pid = sim.spawn_process();
             let store = sim.root(pid, skein_sim::Handle::new(root.raw()));
             let workspace = sim.root(pid, skein_sim::Handle::new(workspace.raw()));
-            let mut adapter = adapter(ORDER_TERMINALS, KERNEL_QUEUE);
-            adapter.adopt_store(store).expect("store root");
-            adapter.adopt_delivery_roots(Box::new([workspace]), Box::new([]));
-            Self { adapter, sim, pid, machine }
+            let mut host_io = host_io(ORDER_TERMINALS, KERNEL_QUEUE);
+            host_io.adopt_store(store).expect("store root");
+            host_io.adopt_delivery_roots(Box::new([workspace]), Box::new([]));
+            Self { host_io, sim, pid, machine }
         }
 
-        // Complete real adapter file IO while its parent holds terminal dispatch.
+        // Complete real host_io file IO while its parent holds terminal dispatch.
         fn kernel_step(&mut self) {
-            let env = self.adapter.at(self.sim.now(), self.sim.wall());
-            self.sim.reap(self.pid, self.adapter.completions());
-            self.adapter.io_up(&env);
-            self.adapter.down(
+            let env = self.host_io.at(self.sim.now(), self.sim.wall());
+            self.sim.reap(self.pid, self.host_io.completions());
+            self.host_io.io_up(&env);
+            self.host_io.down(
                 &env,
                 &mut Queue::uncapped(),
                 &mut None,
@@ -1046,7 +1046,7 @@ mod tests {
                 &mut Queue::uncapped(),
                 &mut None,
             );
-            self.sim.submit(self.pid, &mut self.adapter.submissions);
+            self.sim.submit(self.pid, &mut self.host_io.submissions);
             skein_fake_machine::serve(&mut self.machine, &mut self.sim);
             if self.sim.ready(self.pid) == 0 {
                 self.sim.advance();
@@ -1056,7 +1056,7 @@ mod tests {
         fn complete_files(&mut self) {
             for _ in 0..ORDER_STEPS {
                 self.kernel_step();
-                if self.adapter.file_events.len() == ORDER_TERMINALS {
+                if self.host_io.file_events.len() == ORDER_TERMINALS {
                     return;
                 }
             }
@@ -1064,11 +1064,11 @@ mod tests {
         }
 
         fn close(&mut self, events: &mut Queue<local::Event>) {
-            self.adapter.close();
+            self.host_io.close();
             for _ in 0..ORDER_STEPS {
-                self.adapter.markers_up(self.sim.now(), events);
+                self.host_io.markers_up(self.sim.now(), events);
                 self.kernel_step();
-                if self.adapter.closed() {
+                if self.host_io.closed() {
                     assert_eq!(self.machine.open_handles(), 0, "all adopted roots close");
                     return;
                 }
@@ -1084,8 +1084,8 @@ mod tests {
         const MARKER_OWNER: Token = Token::new(7);
         let mut world = FileOrderWorld::new(SEED);
         let mut events = Queue::uncapped();
-        start_store_load(&mut world.adapter, world.sim.now(), &mut events);
-        world.adapter.start_markers(
+        start_store_load(&mut world.host_io, world.sim.now(), &mut events);
+        world.host_io.start_markers(
             MARKER_OWNER,
             0,
             Box::new([Box::from(b"source.rs".as_slice())]),
@@ -1093,8 +1093,8 @@ mod tests {
             &mut events,
         );
         world.complete_files();
-        assert!(world.adapter.files.takes(), "both file operations have returned their credit");
-        let mut pending = world.adapter.file_events.iter();
+        assert!(world.host_io.files.takes(), "both file operations have returned their credit");
+        let mut pending = world.host_io.file_events.iter();
         assert_eq!(
             pending.next(),
             Some(&file::Event::Failed {
@@ -1110,11 +1110,11 @@ mod tests {
         );
         // The first pass consumes the failed load but must retain the marker
         // behind the actions that will publish the store's failure.
-        world.adapter.markers_up(world.sim.now(), &mut events);
+        world.host_io.markers_up(world.sim.now(), &mut events);
         assert!(events.is_empty(), "the marker cannot pass the undispatched store answer");
-        assert!(!world.adapter.store_actions_dispatched());
-        assert_eq!(world.adapter.file_events.len(), 1, "the gate retains the completed marker");
-        world.adapter.markers_up(world.sim.now(), &mut events);
+        assert!(!world.host_io.store_actions_dispatched());
+        assert_eq!(world.host_io.file_events.len(), 1, "the gate retains the completed marker");
+        world.host_io.markers_up(world.sim.now(), &mut events);
         let Some(local::Event::StoreFailed { turn: None, reason: local::StoreFailure::Read }) = events.pop() else {
             panic!("the chat must see the store's read failure first");
         };
@@ -1124,9 +1124,9 @@ mod tests {
             panic!("the chat must see the marker result after the store failure");
         };
         assert!(events.is_empty(), "both requests have exactly one chat terminal");
-        assert!(world.adapter.file_events.is_empty());
-        assert!(world.adapter.store_io.store_actions.is_empty());
-        assert!(world.adapter.delivery.inspection.idle());
+        assert!(world.host_io.file_events.is_empty());
+        assert!(world.host_io.store_io.store_actions.is_empty());
+        assert!(world.host_io.delivery.inspection.idle());
         world.close(&mut events);
         assert!(events.is_empty(), "closing adds no request terminal");
     }
@@ -1137,11 +1137,11 @@ mod tests {
     const BURST: u32 = 2;
     const KERNEL_QUEUE: u32 = 1;
 
-    fn adapter(queue: u32, sockets: u32) -> HostIo {
+    fn host_io(queue: u32, sockets: u32) -> HostIo {
         let mut config = crate::tests::config();
         config.limits.process.queue = queue;
         config.limits.process.io.sockets = sockets;
-        HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter")
+        HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("host_io")
     }
 
     fn close_submission(number: u64) -> kernel::Submit {
@@ -1149,29 +1149,29 @@ mod tests {
     }
 
     #[test]
-    fn a_process_adapter_drains_more_io_terminals_than_its_queue_in_one_burst() {
-        let mut adapter = adapter(ROUTING_QUEUE, BURST);
-        let env = adapter.at(Time::ZERO, Wall::EPOCH);
+    fn a_host_io_drains_more_io_terminals_than_its_queue_in_one_burst() {
+        let mut host_io = host_io(ROUTING_QUEUE, BURST);
+        let env = host_io.at(Time::ZERO, Wall::EPOCH);
         let mut expected = Queue::with_capacity(BURST);
         for number in 0..BURST {
-            let owner = adapter
+            let owner = host_io
                 .io
                 .adopt_write_pipe(kernel::Fd::new(i32::try_from(number).expect("fixture descriptor")), None)
                 .expect("one socket per pipe");
             io::down(
-                &mut adapter.io,
+                &mut host_io.io,
                 &env,
                 io::Request::Stream {
                     stream: owner,
                     down: stream::Down::Demand { read: stream::Read::Nothing, room: 1 },
                 },
-                &mut adapter.io_submissions,
+                &mut host_io.io_submissions,
             );
             expected.push(io::Event::Stream { owner, up: stream::Up::Room });
         }
-        adapter.io.reclaim();
-        adapter.io_up(&env);
-        assert_eq!(adapter.io_events.len(), BURST, "one metered IO pass exceeds the internal queue estimate");
+        host_io.io.reclaim();
+        host_io.io_up(&env);
+        assert_eq!(host_io.io_events.len(), BURST, "one metered IO pass exceeds the internal queue estimate");
         let config = crate::tests::config();
         let mut terminal = local_protocol::Terminal::new(local_protocol::TerminalLimits {
             line_bytes: config.limits.local.line_bytes,
@@ -1182,21 +1182,21 @@ mod tests {
         let mut terminal_events = Queue::uncapped();
         let mut local_events = Queue::with_capacity(ROUTING_QUEUE);
         for remaining in [1, 0] {
-            adapter.up(&env, &mut host_events, &mut terminal, &mut terminal_events, &mut local_events, &mut None);
-            assert_eq!(adapter.io_events.len(), remaining, "each drain keeps its queue work bound");
+            host_io.up(&env, &mut host_events, &mut terminal, &mut terminal_events, &mut local_events, &mut None);
+            assert_eq!(host_io.io_events.len(), remaining, "each drain keeps its queue work bound");
             for _ in 0..ROUTING_QUEUE {
-                let Some(event) = adapter.shell_events.pop() else { break };
+                let Some(event) = host_io.shell_events.pop() else { break };
                 assert_eq!(Some(event), expected.pop(), "every IO terminal reaches the shell in order");
             }
         }
         assert!(expected.is_empty(), "no terminal lost within the bounded iterations");
-        assert!(adapter.io_events.is_empty());
-        assert!(adapter.shell_events.is_empty());
+        assert!(host_io.io_events.is_empty());
+        assert!(host_io.shell_events.is_empty());
     }
 
-    fn requests_down(adapter: &mut HostIo) {
-        let env = adapter.at(Time::ZERO, Wall::EPOCH);
-        adapter.down(
+    fn requests_down(host_io: &mut HostIo) {
+        let env = host_io.at(Time::ZERO, Wall::EPOCH);
+        host_io.down(
             &env,
             &mut Queue::uncapped(),
             &mut None,
@@ -1215,28 +1215,28 @@ mod tests {
         // stderr read, window and channel opening exceed the queue together.
         const QUEUE: u32 = 2;
         const PIPES: u32 = 4;
-        let mut adapter = adapter(QUEUE, PIPES);
-        let env = adapter.at(Time::ZERO, Wall::EPOCH);
-        let input = adapter.io.adopt_write_pipe(kernel::Fd::new(10), None).unwrap();
-        let output = adapter.io.adopt_read_pipe(kernel::Fd::new(11)).unwrap();
-        let error = adapter.io.adopt_read_pipe(kernel::Fd::new(12)).unwrap();
-        let terminal = adapter.io.adopt_read_pipe(kernel::Fd::new(13)).unwrap();
+        let mut host_io = host_io(QUEUE, PIPES);
+        let env = host_io.at(Time::ZERO, Wall::EPOCH);
+        let input = host_io.io.adopt_write_pipe(kernel::Fd::new(10), None).unwrap();
+        let output = host_io.io.adopt_read_pipe(kernel::Fd::new(11)).unwrap();
+        let error = host_io.io.adopt_read_pipe(kernel::Fd::new(12)).unwrap();
+        let terminal = host_io.io.adopt_read_pipe(kernel::Fd::new(13)).unwrap();
         // Adopted read pipes prefetch independently of their producer demands.
-        adapter.io.reclaim();
-        adapter.io_up(&env);
-        while adapter.io_submissions.pop().is_some() {}
-        adapter.terminal_input.adopted(terminal, false, &mut adapter.io_requests);
-        adapter.read_window();
+        host_io.io.reclaim();
+        host_io.io_up(&env);
+        while host_io.io_submissions.pop().is_some() {}
+        host_io.terminal_input.adopted(terminal, false, &mut host_io.io_requests);
+        host_io.read_window();
         // Filling IO's one refusal slot holds its credit independently
         // of the service handoff. No kernel operation is required to release it.
         io::down(
-            &mut adapter.io,
+            &mut host_io.io,
             &env,
             io::Request::Connect {
                 owner: Token::new(90),
                 addr: io::Addr::Ip(core::net::SocketAddr::from(([127, 0, 0, 1], 1_u16))),
             },
-            &mut adapter.io_submissions,
+            &mut host_io.io_submissions,
         );
         let _check = ProgramSource::new(
             Token::new(91),
@@ -1247,19 +1247,19 @@ mod tests {
             kernel::Fd::new(3),
             b".".as_slice().into(),
             Time::ZERO.saturating_add(Duration::from_secs(60)),
-            adapter.limits.detail_bytes,
-            &mut adapter.io_requests,
+            host_io.limits.detail_bytes,
+            &mut host_io.io_requests,
         )
         .unwrap();
         let mut process = protocol::Process::new(
             Token::new(7),
-            &adapter.limits.channel,
-            adapter.limits.detail_bytes,
-            adapter.endpoints.clone(),
+            &host_io.limits.channel,
+            host_io.limits.detail_bytes,
+            host_io.endpoints.clone(),
         )
         .unwrap();
         process.spawn(
-            adapter.launch.clone(),
+            host_io.launch.clone(),
             Time::ZERO.saturating_add(Duration::from_secs(60)),
             &mut Queue::uncapped(),
         );
@@ -1270,11 +1270,11 @@ mod tests {
                 child: Token::new(8),
                 pipes: Box::new([input, output, error]),
             },
-            &mut adapter.process_events,
-            &mut adapter.io_requests,
+            &mut host_io.process_events,
+            &mut host_io.io_requests,
         );
-        adapter.child.spawned(process);
-        adapter
+        host_io.child.spawned(process);
+        host_io
     }
 
     #[test]
@@ -1283,12 +1283,12 @@ mod tests {
         const BURST_REQUESTS: u32 = 5;
         // Two refusals each emit Failed/Closed; the channel gets one grant.
         const IO_TERMINALS: u32 = 5;
-        let mut adapter = internal_io_burst();
-        let env = adapter.at(Time::ZERO, Wall::EPOCH);
-        requests_down(&mut adapter);
-        assert!(!adapter.io.takes(), "only IO refusal credit holds the burst");
+        let mut host_io = internal_io_burst();
+        let env = host_io.at(Time::ZERO, Wall::EPOCH);
+        requests_down(&mut host_io);
+        assert!(!host_io.io.takes(), "only IO refusal credit holds the burst");
         let mut burst = List::with_capacity(BURST_REQUESTS);
-        for request in &adapter.io_requests {
+        for request in &host_io.io_requests {
             burst.push(request).unwrap();
         }
         let [
@@ -1302,23 +1302,23 @@ mod tests {
             panic!("all three producers enqueue in FIFO order: {burst:?}");
         };
         assert_eq!(*owner, Token::new(91), "the check starts the burst");
-        assert!(adapter.io_submissions.is_empty(), "no request crosses exhausted IO credit");
+        assert!(host_io.io_submissions.is_empty(), "no request crosses exhausted IO credit");
 
         // The full entity table also refuses the check. One pass takes that
         // spawn, the next stderr and window, and the last both channel requests.
         for remaining in [4, 2, 0] {
-            adapter.io_up(&env);
-            requests_down(&mut adapter);
-            assert_eq!(adapter.io_requests.len(), remaining, "IO credit and the work bound alone pace FIFO drains");
+            host_io.io_up(&env);
+            requests_down(&mut host_io);
+            assert_eq!(host_io.io_requests.len(), remaining, "IO credit and the work bound alone pace FIFO drains");
         }
-        adapter.io_up(&env);
-        let Some(kernel::Submit { kind: kernel::Op::Window { fd }, .. }) = adapter.submissions.pop() else {
+        host_io.io_up(&env);
+        let Some(kernel::Submit { kind: kernel::Op::Window { fd }, .. }) = host_io.submissions.pop() else {
             panic!("the window request reaches IO after the check refusal");
         };
         assert_eq!(fd, kernel::Fd::new(13));
-        assert!(adapter.submissions.is_empty(), "only the window needs a new kernel operation");
+        assert!(host_io.submissions.is_empty(), "only the window needs a new kernel operation");
         let mut events = List::with_capacity(IO_TERMINALS);
-        for event in &adapter.io_events {
+        for event in &host_io.io_events {
             events.push(event).unwrap();
         }
         let [
@@ -1339,28 +1339,28 @@ mod tests {
 
     #[test]
     fn the_kernel_edge_stays_capped_at_its_queue() {
-        let mut adapter = adapter(KERNEL_QUEUE, KERNEL_QUEUE);
-        adapter.submissions.push(close_submission(10));
-        adapter.io_submissions.push(close_submission(11));
-        adapter.io_submissions.push(close_submission(12));
-        adapter.file_submissions.push(close_submission(13));
-        adapter.flush_submissions();
-        assert_eq!(adapter.submissions.capacity(), KERNEL_QUEUE);
-        assert_eq!(adapter.completions.capacity(), KERNEL_QUEUE);
-        assert_eq!(adapter.submissions.len(), KERNEL_QUEUE);
-        assert_eq!(adapter.io_submissions.len(), 2, "full edge holds IO");
-        assert_eq!(adapter.file_submissions.len(), 1, "full edge holds files");
-        assert!(adapter.operations.is_empty(), "no route crosses the full kernel edge");
-        adapter.submissions.pop().expect("shell drains the occupied edge");
+        let mut host_io = host_io(KERNEL_QUEUE, KERNEL_QUEUE);
+        host_io.submissions.push(close_submission(10));
+        host_io.io_submissions.push(close_submission(11));
+        host_io.io_submissions.push(close_submission(12));
+        host_io.file_submissions.push(close_submission(13));
+        host_io.flush_submissions();
+        assert_eq!(host_io.submissions.capacity(), KERNEL_QUEUE);
+        assert_eq!(host_io.completions.capacity(), KERNEL_QUEUE);
+        assert_eq!(host_io.submissions.len(), KERNEL_QUEUE);
+        assert_eq!(host_io.io_submissions.len(), 2, "full edge holds IO");
+        assert_eq!(host_io.file_submissions.len(), 1, "full edge holds files");
+        assert!(host_io.operations.is_empty(), "no route crosses the full kernel edge");
+        host_io.submissions.pop().expect("shell drains the occupied edge");
         for original in [11, 12, 13] {
-            adapter.flush_submissions();
-            assert_eq!(adapter.submissions.len(), KERNEL_QUEUE, "only one submission crosses returned credit");
-            let submit = adapter.submissions.pop().expect("shell takes the routed submission");
-            adapter.flush_submissions();
-            assert!(adapter.submissions.is_empty(), "the operation table also waits for completion credit");
+            host_io.flush_submissions();
+            assert_eq!(host_io.submissions.len(), KERNEL_QUEUE, "only one submission crosses returned credit");
+            let submit = host_io.submissions.pop().expect("shell takes the routed submission");
+            host_io.flush_submissions();
+            assert!(host_io.submissions.is_empty(), "the operation table also waits for completion credit");
             // Model the route retirement performed by reap, without sending
             // these synthetic operations into the real IO/file machines.
-            match adapter.operations.remove(&submit.op).expect("one route per kernel operation") {
+            match host_io.operations.remove(&submit.op).expect("one route per kernel operation") {
                 Operation::Io(token) => {
                     assert!(original == 11 || original == 12, "IO retains priority over files");
                     assert_eq!(token, Token::new(original));
@@ -1372,65 +1372,65 @@ mod tests {
                 Operation::ProgramRoot => panic!("fixture has no program root"),
             }
         }
-        assert!(adapter.io_submissions.is_empty());
-        assert!(adapter.file_submissions.is_empty());
-        assert!(adapter.operations.is_empty());
+        assert!(host_io.io_submissions.is_empty());
+        assert!(host_io.file_submissions.is_empty());
+        assert!(host_io.operations.is_empty());
     }
 
     #[test]
     fn the_process_backlog_counts_only_internal_handoffs() {
-        let mut adapter = adapter(KERNEL_QUEUE, KERNEL_QUEUE);
-        adapter.submissions.push(close_submission(1));
-        adapter.completions.push(kernel::Complete {
+        let mut host_io = host_io(KERNEL_QUEUE, KERNEL_QUEUE);
+        host_io.submissions.push(close_submission(1));
+        host_io.completions.push(kernel::Complete {
             op: Token::new(1),
             kind: kernel::Op::Close { fd: kernel::Fd::new(90) },
             result: Ok(kernel::Done::Nothing),
         });
-        adapter.shell_events.push(io::Event::Resized);
-        adapter.operations.insert(Token::new(1), Operation::Io(Token::new(1))).expect("one edge route");
-        assert_eq!(adapter.backlog(), 0, "kernel and shell edges are outside the backlog");
-        adapter.io_events.push(io::Event::Resized);
-        adapter.io_submissions.push(close_submission(2));
-        adapter.file_requests.push((file::Request::Close { owner: Token::new(1), file: Token::new(2) }, Time::ZERO));
-        adapter.file_events.push(file::Event::Closed { owner: Token::new(1) });
-        adapter.file_submissions.push(close_submission(3));
-        adapter.store_io.store_requests.push(local_protocol::StoreRequest::Load);
-        adapter.store_io.store_actions.push(local_protocol::Action::Closed);
-        adapter.process_events.push(protocol::ProcessEvent::Exited { agent: Token::new(1), exit: None });
-        adapter.io_requests.push(io::Request::Close { entity: Token::new(1) });
+        host_io.shell_events.push(io::Event::Resized);
+        host_io.operations.insert(Token::new(1), Operation::Io(Token::new(1))).expect("one edge route");
+        assert_eq!(host_io.backlog(), 0, "kernel and shell edges are outside the backlog");
+        host_io.io_events.push(io::Event::Resized);
+        host_io.io_submissions.push(close_submission(2));
+        host_io.file_requests.push((file::Request::Close { owner: Token::new(1), file: Token::new(2) }, Time::ZERO));
+        host_io.file_events.push(file::Event::Closed { owner: Token::new(1) });
+        host_io.file_submissions.push(close_submission(3));
+        host_io.store_io.store_requests.push(local_protocol::StoreRequest::Load);
+        host_io.store_io.store_actions.push(local_protocol::Action::Closed);
+        host_io.process_events.push(protocol::ProcessEvent::Exited { agent: Token::new(1), exit: None });
+        host_io.io_requests.push(io::Request::Close { entity: Token::new(1) });
         // Each of the nine internal handoffs holds one entry.
-        assert_eq!(adapter.backlog(), 9);
+        assert_eq!(host_io.backlog(), 9);
     }
 
-    fn prefetched_adapter(owner: Token) -> HostIo {
+    fn prefetched_host_io(owner: Token) -> HostIo {
         let config = crate::tests::config();
-        let mut adapter = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
-        adapter.child.spawned(
+        let mut host_io = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("host_io");
+        host_io.child.spawned(
             protocol::Process::new(
                 owner,
-                &adapter.limits.channel,
-                adapter.limits.detail_bytes,
-                adapter.endpoints.clone(),
+                &host_io.limits.channel,
+                host_io.limits.detail_bytes,
+                host_io.endpoints.clone(),
             )
             .unwrap(),
         );
-        adapter
+        host_io
             .process_events
             .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });
-        adapter.process_events.push(protocol::ProcessEvent::Channel {
+        host_io.process_events.push(protocol::ProcessEvent::Channel {
             agent: owner,
             event: Box::new(protocol::Received::Message {
                 message: smith_host_domain::Up::Fact { body: b"first".as_slice().into() },
             }),
         });
-        adapter.process_events.push(protocol::ProcessEvent::Exited { agent: owner, exit: None });
-        adapter.process_events.push(protocol::ProcessEvent::Channel {
+        host_io.process_events.push(protocol::ProcessEvent::Exited { agent: owner, exit: None });
+        host_io.process_events.push(protocol::ProcessEvent::Channel {
             agent: owner,
             event: Box::new(protocol::Received::Message {
                 message: smith_host_domain::Up::Fact { body: b"second".as_slice().into() },
             }),
         });
-        adapter
+        host_io
     }
 
     fn take_exit(events: &mut Queue<host::Input>) {
@@ -1445,17 +1445,17 @@ mod tests {
     #[test]
     fn a_write_failure_does_not_spend_the_hosts_pending_read() {
         let owner = Token::new(7);
-        let mut adapter = prefetched_adapter(owner);
+        let mut host_io = prefetched_host_io(owner);
         let mut events = Queue::with_capacity(1);
-        adapter.drain_process(&mut events);
+        host_io.drain_process(&mut events);
         take_exit(&mut events);
         assert!(events.is_empty(), "no record without a held Read");
-        assert!(!adapter.work_pending(Time::ZERO), "prefetched records wait without spinning");
+        assert!(!host_io.work_pending(Time::ZERO), "prefetched records wait without spinning");
         for text in [b"first".as_slice(), b"second".as_slice()] {
             // This fixture tests the outer terminal ledger with already queued events,
             // below request forwarding: a real Read requires an opened Process.
-            adapter.child.hold();
-            adapter.drain_process(&mut events);
+            host_io.child.hold();
+            host_io.drain_process(&mut events);
             match events.pop().expect("one read terminal") {
                 host::Input::Process(host::process::Event::Received {
                     owner: seen,
@@ -1468,13 +1468,13 @@ mod tests {
             }
             assert!(events.is_empty(), "one terminal per Read");
         }
-        assert!(adapter.process_events.is_empty());
-        adapter.child.hold();
-        adapter
+        assert!(host_io.process_events.is_empty());
+        host_io.child.hold();
+        host_io
             .process_events
             .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });
-        adapter.drain_process(&mut events);
-        assert!(adapter.child.read_held(), "an independent write failure leaves the read owed");
+        host_io.drain_process(&mut events);
+        assert!(host_io.child.read_held(), "an independent write failure leaves the read owed");
         assert!(events.is_empty());
     }
 }

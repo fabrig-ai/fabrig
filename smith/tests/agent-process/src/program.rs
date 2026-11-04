@@ -108,7 +108,7 @@ impl Delegate for Proc {
 fn configuration(case: Case) -> smith_agent_service::Config {
     let mut config = if matches!(case, Case::Events | Case::Transcript) {
         let mut limits = crate::limits();
-        limits.llm.adapter.client.request = 1_048_576;
+        limits.llm.translation.client.request = 1_048_576;
         crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits)
     } else {
         crate::configuration()

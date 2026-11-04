@@ -90,7 +90,7 @@ impl Backend {
                     owner,
                     root: snapshot.place.root,
                     path: path.into(),
-                    max: self.settings.adapter.stated.file_bytes,
+                    max: self.settings.translation.stated.file_bytes,
                     no_follow: false,
                 },
                 deadline: snapshot.deadline,

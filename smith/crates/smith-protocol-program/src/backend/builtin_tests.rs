@@ -245,7 +245,7 @@ fn a_served_sub_agent_is_listed_inspect_only() {
     prompt.served = Box::new([llm::Served::SubAgent]);
     let direct = protocol::schemas_for_contract(
         prompt,
-        &backend.settings.adapter.stated,
+        &backend.settings.translation.stated,
         outcome,
         deliver.as_ref(),
         backend.settings.contract_bytes,
@@ -309,7 +309,7 @@ fn the_server_keeps_only_remove_when_modify_is_granted() {
         prompt.served = Box::new([llm::Served::Finish, llm::Served::Wait]);
         let expected = protocol::schemas_for_contract(
             prompt,
-            &backend.settings.adapter.stated,
+            &backend.settings.translation.stated,
             &smith_domain::run::outcome::OutcomeSpec {
                 change: None,
                 verdicts: Box::default(),

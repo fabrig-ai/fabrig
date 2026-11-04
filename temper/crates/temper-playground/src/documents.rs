@@ -273,7 +273,7 @@ pub fn agent_configuration() -> smith_agent_service::Config {
     config.channel_endpoints = channel::endpoints();
     let (destinations, _) = config.llm_endpoints.into_parts();
     let mut destination = destinations.into_boxed().into_vec().pop().expect("one LLM endpoint");
-    destination.limits = config.limits.llm.adapter.client;
+    destination.limits = config.limits.llm.translation.client;
     config.llm_endpoints = smith_protocol_llm::Endpoints::new(
         Box::new([smith_protocol_llm::ConfiguredEndpoint {
             name: smith_domain::llm::Endpoint(0),

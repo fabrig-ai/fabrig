@@ -81,7 +81,7 @@ pub(super) fn backend_with_line_bytes(line_bytes: u32) -> Backend {
             relay: b"/agent".as_slice().into(),
             environment: Box::default(),
             mcp: mcp::Limits { calls: 4, unauthenticated: Time::from_nanos(1000), ..mcp::fixture::SMALL },
-            adapter: limits.adapter,
+            translation: limits.translation,
             receiving: limits.receiving,
             stream_tokens: Settings::stream_tokens(line_bytes),
             prompt_bytes: 4096,

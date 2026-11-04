@@ -63,7 +63,7 @@ pub(super) fn build_endpoints(
     let mut names = std::collections::BTreeSet::new();
     let mut numbers = std::collections::BTreeSet::new();
     for (mut endpoint, declared) in endpoints.into_iter().zip(&declarations.endpoints) {
-        let mut client = service::profile::endpoint_client(profile, declared, limits.llm.adapter.client.history_items)
+        let mut client = service::profile::endpoint_client(profile, declared, limits.llm.translation.client.history_items)
             .map_err(ConfigurationRefusal::Profile)?;
         if endpoint.name.is_empty()
             || endpoint.name.len()

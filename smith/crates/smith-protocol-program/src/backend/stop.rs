@@ -115,7 +115,7 @@ impl Backend {
             Some(Complete { prompt, observation, .. }) => tail::render_observed(
                 prompt,
                 &self.ledger,
-                &self.settings.adapter,
+                &self.settings.translation,
                 self.settings.input_bytes,
                 prefix,
                 observation.is_some(),
@@ -291,7 +291,7 @@ impl Backend {
             }
             Some(super::stopping::Action::Finish) => {
                 let closed = self.turns.closed;
-                self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
+                self.turns = turns::Turns::new(&self.settings.receiving, self.settings.translation.client.answer);
                 self.turns.closed = closed;
                 self.send_input(below);
             }

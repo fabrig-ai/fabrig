@@ -138,7 +138,7 @@ pub struct Settings {
     pub relay: Box<[u8]>,
     pub environment: Box<[Box<[u8]>]>,
     pub mcp: mcp::Limits,
-    pub adapter: protocol::Limits,
+    pub translation: protocol::Limits,
     pub receiving: protocol::Receiving,
     /// JSON records retained from one complete program stream document.
     pub stream_tokens: u32,
@@ -255,7 +255,7 @@ impl Backend {
         let failure_bytes = settings.receiving.max_failure_bytes;
         let line = List::with_capacity(settings.line_bytes);
         let calls = List::with_capacity(u32::from(settings.mcp.calls));
-        let turns = turns::Turns::new(&settings.receiving, settings.adapter.client.answer);
+        let turns = turns::Turns::new(&settings.receiving, settings.translation.client.answer);
         let ledger = List::with_capacity(settings.ledger_slots().expect("call ledger"));
         let delta_carry = redaction::carries(&settings);
         let measure_capacity = measures::capacity(&settings).expect("measure capacity");
@@ -554,7 +554,7 @@ impl Backend {
                                 call.answer = Some(match result {
                                     Returned::Text { text, error, .. }
                                         if text.len()
-                                            <= usize::try_from(self.settings.adapter.rendered_result)
+                                            <= usize::try_from(self.settings.translation.rendered_result)
                                                 .expect("result ceiling") =>
                                     {
                                         if *error {

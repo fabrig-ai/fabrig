@@ -33,7 +33,7 @@ pub fn receiving(client: &client::Limits, decoded_call_bytes: u64) -> Option<Rec
 #[must_use]
 pub fn component(translation: Limits, idle_keep: Duration) -> Option<ComponentLimits> {
     Some(ComponentLimits {
-        adapter: translation,
+        translation: translation,
         connection: skein_llm_connection::Limits {
             memory: 1 << 40,
             endpoints: 1,

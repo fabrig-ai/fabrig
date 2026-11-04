@@ -123,7 +123,7 @@ fn the_wind_down_sends_answers_before_the_note() {
             llm::Block::Text { text: b"finish now".as_slice().into(), replay: None },
         ]),
     }]);
-    let tail = tail::render(&mut prompt, &backend.ledger, &backend.settings.adapter, 4096).unwrap();
+    let tail = tail::render(&mut prompt, &backend.ledger, &backend.settings.translation, 4096).unwrap();
     let decoded: serde_json::Value = serde_json::from_slice(&tail).unwrap();
     assert_eq!(decoded["message"]["content"], "result of call: answer\nfinish now\n");
 }
@@ -345,11 +345,11 @@ fn a_tail_checks_its_exact_encoded_length() {
         ]);
         let length = u32::try_from(encoded.len()).unwrap();
         assert!(
-            tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.adapter, length - 1, prefix, true)
+            tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.translation, length - 1, prefix, true)
                 .is_none()
         );
         let rendered =
-            tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.adapter, length, prefix, true)
+            tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.translation, length, prefix, true)
                 .unwrap();
         assert_eq!(rendered.line, encoded);
         assert_eq!(rendered.text.as_deref(), Some(expected.as_slice()));
@@ -365,7 +365,7 @@ fn a_tail_refuses_invalid_utf8_before_encoding() {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: Box::new([255]), replay: None }]),
     }]);
-    assert!(tail::render(&mut prompt, &backend.ledger, &backend.settings.adapter, 4096).is_none());
+    assert!(tail::render(&mut prompt, &backend.ledger, &backend.settings.translation, 4096).is_none());
 }
 
 #[test]
@@ -393,7 +393,7 @@ fn a_tail_moves_served_results_after_the_last_assistant() {
             ]),
         },
     ]);
-    let line = tail::render(&mut prompt, &backend.ledger, &backend.settings.adapter, 4096).unwrap();
+    let line = tail::render(&mut prompt, &backend.ledger, &backend.settings.translation, 4096).unwrap();
     let decoded: serde_json::Value = serde_json::from_slice(&line).unwrap();
     assert_eq!(decoded["message"]["content"], "result of Read: new reply\nfinish now\n");
 }

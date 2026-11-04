@@ -149,7 +149,7 @@ fn an_open_launch_has_no_result_schema() {
 #[test]
 fn a_host_message_uses_input_room_not_tool_reply_room() {
     let mut backend = running();
-    backend.settings.adapter.rendered_result = 4;
+    backend.settings.translation.rendered_result = 4;
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     reply(&mut backend, &mut up, &mut below);

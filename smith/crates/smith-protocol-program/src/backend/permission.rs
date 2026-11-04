@@ -71,8 +71,8 @@ impl Backend {
                         && super::calls::equal(
                             &held.input,
                             input,
-                            self.settings.adapter.client.depth,
-                            self.settings.adapter.stated.call_input_bytes,
+                            self.settings.translation.client.depth,
+                            self.settings.translation.stated.call_input_bytes,
                         )
                 }
             };

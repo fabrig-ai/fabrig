@@ -14,17 +14,17 @@ fn backend_edges(settings: &Settings) -> Option<()> {
     settings.path_bytes.checked_mul(2)?.checked_add(1)?;
     settings.ledger_slots()?;
     measures::capacity(settings)?;
-    settings.adapter.client.tools.checked_add(u32::try_from(super::policy::BUILTINS.len()).ok()?.checked_add(1)?)?;
+    settings.translation.client.tools.checked_add(u32::try_from(super::policy::BUILTINS.len()).ok()?.checked_add(1)?)?;
     super::redaction::capacity(settings)?;
-    let input = settings.adapter.stated.call_input_bytes;
+    let input = settings.translation.stated.call_input_bytes;
     // Probe the individual document/collector/writer edges, without their
     // enclosing retained and transient heap accounting.
     document_bound(settings.stream_tokens, settings.line_bytes)?;
     document_bound(input, settings.mcp.message_bytes)?;
     document_bound(input, input)?;
-    stream_edges(input, settings.adapter.client.depth, input)?;
-    stream_edges(settings.mcp.message_bytes, settings.adapter.client.depth, input)?;
-    stream_edges(settings.line_bytes, settings.adapter.client.depth, settings.stream_tokens)?;
+    stream_edges(input, settings.translation.client.depth, input)?;
+    stream_edges(settings.mcp.message_bytes, settings.translation.client.depth, input)?;
+    stream_edges(settings.line_bytes, settings.translation.client.depth, settings.stream_tokens)?;
     writer_bound(8, settings.input_bytes)?;
     for bound in [settings.mcp.message_bytes, settings.mcp.schema_bytes] {
         bound.checked_add(2)?;
