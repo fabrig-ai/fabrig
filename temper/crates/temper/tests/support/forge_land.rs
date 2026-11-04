@@ -1,4 +1,5 @@
 //! A person's change on the owned forge, signed in with `ChatGPT` (domain/testing.md, 2.6–2.7).
+pub mod conversation;
 use super::{Process, sign_in};
 use skein_fake_llm_domain::api::{self, Finish, Line, Script, Turn};
 use skein_fake_peers::oauth;
@@ -1594,11 +1595,8 @@ struct LiveJudge<'a> {
     return_at: Option<usize>,
     phase: LivePhase,
     snapshot: Option<String>,
-    replies: std::collections::BTreeMap<u64, serde_json::Value>,
+    conversation: conversation::Evidence,
     ended: Option<EndedDelegates>,
-    tools: std::collections::BTreeSet<String>,
-    ended_at: Option<u64>,
-    pages: usize,
     evidence: &'a std::cell::Cell<Option<LiveEvidence>>,
     deadline: super::patience::Patience,
     poll: skein_lib::Time,
@@ -1681,14 +1679,12 @@ impl LiveJudge<'_> {
             LivePhase::Snapshot => {
                 let ended = live_json(&calls.ends()[self.found_at])?;
                 require(ended["met"] == true, "change ended within its watch")?;
-                self.ended_at = Some(
-                    ended["task"]["chip"]["details"]["owner"]["details"]["ended_at"]
-                        .as_u64()
-                        .ok_or("change ended timestamp missing")?,
-                );
+                let ended_at = ended["task"]["chip"]["details"]["owner"]["details"]["ended_at"]
+                    .as_u64()
+                    .ok_or("change ended timestamp missing")?;
                 self.snapshot = Some(last["digest"].as_str().ok_or("chat digest missing")?.to_owned());
 
-                self.pages = 0;
+                self.conversation = conversation::Evidence::new(self.tasks.chat, ended_at);
                 self.queue(&["chat", "show", &chat, "--json"]);
                 self.phase = LivePhase::Pages;
             }
@@ -1854,15 +1850,9 @@ impl LiveJudge<'_> {
     }
     fn read_page(&mut self, _calls: &super::ctl::Calls, last: &serde_json::Value) -> Result<(), String> {
         let chat = self.tasks.chat.to_string();
-        self.pages += 1;
-        require(self.pages <= 32, "bounded conversation pages")?;
-        let activity = &last["activity"];
-        require(activity["cut"] == false, "whole activity page")?;
-        self.tools.extend(successful_tools(activity));
-        self.replies.extend(replies_after(activity, self.ended_at.ok_or("change end missing")?)?);
-        if let Some(before) = activity["before"]["value"].as_str() {
-            self.queue(&["chat", "show", &chat, "--before", before, "--json"]);
-        } else if self.replies.is_empty() {
+        if let Some(words) = self.conversation.read(last)? {
+            self.pending.push_back(words);
+        } else if self.conversation.replies.is_empty() {
             self.queue(&[
                 "task",
                 "show",
@@ -1929,10 +1919,10 @@ impl LiveJudge<'_> {
             require_closed_roots(&last, &self.roots)?;
         }
         let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change);
-        require(self.tools.contains("change"), "the chat's committed change call succeeded")?;
+        require(self.conversation.tools.contains("change"), "the chat's committed change call succeeded")?;
         let delegates = self.ended.take().ok_or("ended delegate reader missing")?.whole();
         require(delegates[0].contains(&self.tasks.change), "change task belongs to the chat that called change")?;
-        require(!self.tools.contains("delegate"), "no raw delegate started the task")?;
+        require(!self.conversation.tools.contains("delegate"), "no raw delegate started the task")?;
         let mut tasks = vec![self.tasks.chat, self.tasks.change];
         tasks.extend(&delegates[1]);
         tasks.sort_unstable();
@@ -1958,7 +1948,7 @@ impl LiveJudge<'_> {
             baseline: self.baseline.clone(),
             roots: self.roots.clone(),
             forge,
-            replies: std::mem::take(&mut self.replies),
+            replies: std::mem::take(&mut self.conversation.replies),
             delegates,
         }));
         Ok(())
@@ -2457,11 +2447,8 @@ pub fn run_live(
         phase: plan.starting_phase(),
         plan,
         snapshot: None,
-        replies: std::collections::BTreeMap::new(),
+        conversation: conversation::Evidence::new(0, 0),
         ended: None,
-        tools: std::collections::BTreeSet::new(),
-        ended_at: None,
-        pages: 0,
         evidence: &evidence,
         deadline: live_deadline(budget, &binary),
         poll: clock.now().now,
