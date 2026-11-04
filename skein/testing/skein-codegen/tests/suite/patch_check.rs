@@ -3,9 +3,12 @@
 #[cfg(test)]
 mod tests {
 
+    use core::panic::AssertUnwindSafe;
     use skein_codegen::diff::Version;
     use skein_codegen::patch::{Error, Finding, Landed, check};
+    use skein_scratch::Scratch;
     use std::fs;
+    use std::panic::catch_unwind;
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
@@ -13,11 +16,10 @@ mod tests {
     const V2: &str = "family shelf 2\nrecord Book { id: u8, score: u32 }\nenum State { ready }\n";
     const PATCH: &str = "patch 1\nowner shop 1\n\nfamily shelf 1 to 2\nadd Book.score u32 7\n";
 
-    fn crate_files(name: &str, files: &[(&str, &str)]) -> PathBuf {
-        let root = std::env::temp_dir().join(format!("skein-patch-check-{}-{name}", std::process::id()));
-        fs::create_dir(&root).expect("unique scratch crate");
+    fn crate_files(name: &str, files: &[(&str, &str)]) -> Scratch {
+        let root = Scratch::new(&format!("patch-check-{name}"));
         for (path, text) in files {
-            let path = root.join(path);
+            let path = root.path().join(path);
             fs::create_dir_all(path.parent().expect("file parent")).expect("directories");
             fs::write(path, text).expect("fixture file");
         }
@@ -32,13 +34,29 @@ mod tests {
 
     fn findings(name: &str, files: &[(&str, &str)], landed: &Landed, expected: &[Finding]) {
         let root = crate_files(name, files);
-        assert_eq!(check(&root, landed), Ok(expected.to_vec()));
-        assert_files(&root, files);
-        fs::remove_dir_all(root).expect("remove scratch crate");
+        assert_eq!(check(root.path(), landed), Ok(expected.to_vec()));
+        assert_files(root.path(), files);
     }
 
     fn base(files: &[(&str, &str)]) -> Landed {
         Landed::new(files.iter().map(|(path, text)| (PathBuf::from(path), text.as_bytes().to_vec())).collect())
+    }
+
+    #[test]
+    fn a_failed_check_leaves_no_crate_behind() {
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            findings("leak", &[("schema/shelf-v1.schema", V1)], &Landed::none(), &[]);
+        }));
+        assert!(result.is_err(), "the unexpected finding must fail the check");
+        let pid = format!("-{}-", std::process::id());
+        for entry in fs::read_dir(std::env::temp_dir()).expect("temporary directory") {
+            let name = entry.expect("temporary entry").file_name();
+            let name = name.to_string_lossy();
+            assert!(
+                !(name.contains("patch-check") && name.contains(&pid) && name.contains("leak")),
+                "failed check left scratch crate behind: {name}"
+            );
+        }
     }
 
     #[test]
@@ -50,9 +68,8 @@ mod tests {
             ("patches/0001.patch", PATCH),
         ];
         let root = crate_files("clean", &files);
-        assert_eq!(check(&root, &base(&files)), Ok(Vec::new()));
-        assert_files(&root, &files);
-        fs::remove_dir_all(root).expect("remove scratch crate");
+        assert_eq!(check(root.path(), &base(&files)), Ok(Vec::new()));
+        assert_files(root.path(), &files);
     }
 
     #[test]
@@ -170,9 +187,8 @@ mod tests {
         const RENAMED: &str = "family shelf 1\nrecord Book { key: u8 }\nenum State { ready }\n";
         let files = [("schema/shelf-v1.schema", RENAMED), ("schema/kept/shelf-v1.schema", RENAMED)];
         let root = crate_files("refresh-exempt", &files);
-        assert_eq!(check(&root, &base(&[("schema/kept/shelf-v1.schema", V1)])), Ok(Vec::new()));
-        assert_files(&root, &files);
-        fs::remove_dir_all(root).expect("remove scratch crate");
+        assert_eq!(check(root.path(), &base(&[("schema/kept/shelf-v1.schema", V1)])), Ok(Vec::new()));
+        assert_files(root.path(), &files);
     }
 
     #[test]
@@ -202,12 +218,11 @@ mod tests {
             "asked",
             &[("schema/kept/shelf-v1.schema", V1), ("schema/kept/shelf-v2.schema", V2), ("patches/0001.patch", ASKED)],
         );
-        let result = check(&root, &Landed::none()).expect("the crate reads");
+        let result = check(root.path(), &Landed::none()).expect("the crate reads");
         assert_eq!(
             result,
             [Finding::Unplanned { patch: 1, family: "shelf".into(), error: "line 5 at 61..62: Asked".into() }]
         );
-        fs::remove_dir_all(root).expect("remove scratch crate");
     }
 
     #[test]
@@ -223,10 +238,9 @@ mod tests {
     #[test]
     fn a_crate_the_check_cannot_read_is_its_error_not_a_finding() {
         let root = crate_files("read-error", &[("schema/shelf-v1.schema", "invalid")]);
-        let error = check(&root, &Landed::none()).expect_err("schema read failed");
+        let error = check(root.path(), &Landed::none()).expect_err("schema read failed");
         let Error::Schema { path, .. } = error else { unreachable!("a schema that does not parse") };
         assert_eq!(path, Path::new("schema/shelf-v1.schema"));
-        fs::remove_dir_all(root).expect("remove scratch crate");
     }
 
     #[test]
@@ -276,10 +290,10 @@ mod tests {
     #[test]
     fn binary_reads_crate_relative_base_and_returns_all_exit_codes() {
         let root = crate_files("binary", &[("nested/owner/schema/shelf-v1.schema", V1)]);
-        git(&root, &["init", "--quiet"]);
-        git(&root, &["add", "."]);
+        git(root.path(), &["init", "--quiet"]);
+        git(root.path(), &["add", "."]);
         git(
-            &root,
+            root.path(),
             &[
                 "-c",
                 "user.name=Fixture",
@@ -293,7 +307,7 @@ mod tests {
                 "baseline",
             ],
         );
-        let owner = root.join("nested/owner");
+        let owner = root.path().join("nested/owner");
         let output = Command::new(skein_scratch::paths::binary("skein-codegen"))
             .arg("patch")
             .arg(&owner)
@@ -302,9 +316,9 @@ mod tests {
             .expect("binary baseline");
         assert_eq!(output.status.code(), Some(0_i32));
         assert_eq!(String::from_utf8(output.stdout).expect("report utf8"), "shelf: kept version 1, its first\n");
-        git(&root, &["add", "."]);
+        git(root.path(), &["add", "."]);
         git(
-            &root,
+            root.path(),
             &[
                 "-c",
                 "user.name=Fixture",
@@ -351,6 +365,5 @@ mod tests {
             String::from_utf8(output.stderr).expect("utf8").contains("schema/shelf-v2.schema"),
             "read error printed"
         );
-        fs::remove_dir_all(root).expect("remove scratch git");
     }
 }
