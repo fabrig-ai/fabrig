@@ -83,6 +83,28 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-model-forge-fetching",
+        heading: "Connect a model",
+        parts: &[
+            Part::Named { role: Role::Progress, name: "Fetching Forgejo" },
+            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+            Part::Text { text: "42%" },
+            Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 42%" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-forge-fetching-bytes",
+        heading: "Connect a model",
+        parts: &[
+            Part::Named { role: Role::Progress, name: "Fetching Forgejo" },
+            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+            Part::Text { text: "41 MB" },
+            Part::Text { text: "Fetching Forgejo 17.0.0 and its runner 13.2.0 · 41 MB" },
+        ],
+    },
+    Holds {
         name: "welcome-model-forge-done",
         heading: "Connect a model",
         parts: &[

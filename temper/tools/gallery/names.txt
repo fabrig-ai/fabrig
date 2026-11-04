@@ -12,6 +12,8 @@ welcome-forge-choose
 welcome-forge-details
 welcome-model-choose
 welcome-model-forge-under-way
+welcome-model-forge-fetching
+welcome-model-forge-fetching-bytes
 welcome-model-forge-done
 welcome-model-forge-failed
 welcome-model-key-details

@@ -374,7 +374,7 @@ fn forges(world: World) -> Box<[u8]> {
         )
         .expect("forge row");
     }
-    if let FirstRun { step: step @ (6..=9 | 23) } = world {
+    if let FirstRun { step: step @ (6..=9 | 23..=25) } = world {
         let mut repositories = List::with_capacity(1);
         if step == 7 {
             repositories
@@ -408,6 +408,26 @@ fn forges(world: World) -> Box<[u8]> {
                 w::SettingUp::new(&limits, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
                     .expect("preparing"),
             ),
+            24 | 25 => w::Connection::SettingUp(
+                w::SettingUp::new(
+                    &limits,
+                    w::SettingUpParts {
+                        step: Some(w::SetUpStep::Fetch),
+                        fetched: Some(
+                            w::SetUpFetched::new(
+                                &limits,
+                                w::SetUpFetchedParts {
+                                    binary: w::SetUpBinary::Forgejo,
+                                    done: if step == 24 { 42_000_000 } else { 41_000_000 },
+                                    total: if step == 24 { Some(100_000_000) } else { None },
+                                },
+                            )
+                            .expect("fetch progress"),
+                        ),
+                    },
+                )
+                .expect("fetching"),
+            ),
             7 => w::Connection::Connected(
                 w::Connected::new(&limits, w::ConnectedParts { id: 2, login: b"temper".as_slice().into() })
                     .expect("connected"),
@@ -425,7 +445,7 @@ fn forges(world: World) -> Box<[u8]> {
                     mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
                     connection,
                     offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
-                    first: if step == 6 || step == 7 || step == 9 {
+                    first: if matches!(step, 6 | 7 | 9 | 24 | 25) {
                         Some(
                             w::FirstRepository::new(
                                 &limits,
@@ -2534,7 +2554,7 @@ pub(super) fn now(w: World) -> Wall {
             3 => 4,
             4 => 6,
             5 => 15,
-            6 | 9 => 16,
+            6 | 9 | 24 | 25 => 16,
             7 | 8 => 19,
             _ => unreachable!("mockup first-run step"),
         },
