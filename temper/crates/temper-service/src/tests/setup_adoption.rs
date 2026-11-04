@@ -18,7 +18,6 @@ fn fake_configured(hooks: bool) -> fixtures::ConfiguredEngine {
             forge: 1,
             directory: b"/data/forge".as_slice().into(),
             bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.test".as_slice().into() },
-            orgs: Box::new([]),
             asked: false,
             mode: Mode::Fake(Fake {
                 listen: ([127, 0, 0, 1], 9).into(),

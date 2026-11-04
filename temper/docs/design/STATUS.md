@@ -68,7 +68,10 @@ purpose is retired (`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
 drafts' statuses hold two departures their cuts decided, a foreman's
 LLM choice and a red of a goal branch's tier that wakes its goal only
-when new (`draft/reference-code-production.md`); the others record what the design carries of
+when new, and a lag, the coordinator's decide, propose, subscribe and
+recall families, which the reference's profile does not grant and
+configuring's stage 1 follows (`draft/reference-code-production.md`);
+the others record what the design carries of
 them and where it lags or departs. `README.md`, `domain/README.md` and
 `protocol/llm.md` have no gap.
 

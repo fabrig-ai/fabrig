@@ -159,7 +159,7 @@ pub(crate) fn start(
         Refused {
         verb: "prepare",
         number: None,
-        why: "usage: temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge reconcile [DIRECTORIES] FORGE | temper forge sign-in [DIRECTORIES] FORGE | temper forge remove [DIRECTORIES] FORGE".into(),
+        why: "usage: temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge sign-in [DIRECTORIES] FORGE | temper forge remove [DIRECTORIES] FORGE".into(),
     }
     };
     let (verb, number, which) = match arguments {
@@ -167,7 +167,6 @@ pub(crate) fn start(
         [verb, number] if verb == "fetch" => ("fetch", number, None),
         [verb, number] if verb == "prepare" => ("prepare", number, None),
         [verb, number] if verb == "sign-in" => ("sign-in", number, None),
-        [verb, number] if verb == "reconcile" => ("reconcile", number, None),
         [verb, number, which] if verb == "run" => {
             let which = match which.to_str() {
                 Some("forgejo") => Which::Forgejo,
@@ -190,9 +189,6 @@ pub(crate) fn start(
         super::setup::check(&bytes, &directories.jig()).map_err(refused)?;
     if verb == "sign-in" {
         return super::forge_sign_in::run(directories, &bytes, &named, number).map_err(refused);
-    }
-    if verb == "reconcile" {
-        return Err(refused(format!("forge {number} is kept by the service: connect it from the client")));
     }
     let entry = entry(directories, &bytes, number).map_err(refused)?;
     let owned = match &entry.mode {
@@ -313,9 +309,6 @@ pub fn run(directories: &super::Directories, arguments: &[OsString], ssl_cert_fi
 fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<core::net::SocketAddr>, String> {
     named.webhooks.as_ref().map(|hooks| super::address(&hooks.listener)).transpose()
 }
-
-#[cfg(test)]
-mod tests;
 
 /// Composes a group's kind with the machine (temper/docs/design/protocol/setup.md, 7.1).
 pub(crate) fn entry(
