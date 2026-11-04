@@ -1,0 +1,48 @@
+draft = "hearth-docs"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-docs/inputs/request.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "family"
+title = "hearth is a tree in every README, with no separate repository left"
+mode = "direct"
+needs = []
+design = "hearth/docs/plan/hearth-docs/inputs/request.md, 4"
+
+[[slice]]
+id = 1
+story = "every tree's README shows hearth as a tree of the repository, and no link leads to a repository about to go"
+parts = ["family"]
+walk = false
+
+[[part]]
+id = "citations"
+title = "hearth's code and documents cite by the path from the repository root"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/README.md, 6"
+
+[[slice]]
+id = 2
+story = "a citation in hearth reads as anywhere else in the repository, and what hearth prints is unchanged"
+parts = ["citations"]
+walk = false
+
+[[part]]
+id = "names"
+title = "no private name in hearth's current files, by reserved names"
+mode = "direct"
+needs = []
+design = "hearth/docs/plan/hearth-docs/inputs/request.md, 1"
+
+[[slice]]
+id = 3
+story = "hearth's fixtures and documents read as one example under reserved names, and every test passes with only names and digests moved"
+parts = ["names"]
+walk = false
