@@ -119,3 +119,67 @@ fn a_waiting_cancel_goes_before_the_messages_that_waited_for_the_run() {
     }
     assert!(service.stages.domain_events.is_empty());
 }
+
+#[test]
+fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
+    fn start() -> Box<smith_protocol_translate::DecodedStart> {
+        Box::new(smith_protocol_translate::DecodedStart {
+            live: None,
+            identity: None,
+            messages: Box::default(),
+            activation: 1,
+            charter: charter(&smith_agent_world::Settings::calm(1)),
+            mounts: Some(Box::new([
+                smith_protocol_translate::Mount {
+                    name: Box::from(b"first".as_slice()), path: Box::from(b"/first".as_slice()),
+                    writable: true, git: true, conflicts: Box::default(),
+                },
+                smith_protocol_translate::Mount {
+                    name: Box::from(b"second".as_slice()), path: Box::from(b"/second".as_slice()),
+                    writable: false, git: false, conflicts: Box::default(),
+                },
+            ])),
+            transcript: None,
+            answered: Box::default(),
+            grants: Box::default(),
+            window: domain::Window { turns: 8, bytes: 4096 },
+        })
+    }
+    let mut agent = service();
+    let decoded = start();
+    let expected = decoded.charter.outcome.clone();
+    channel_event(&mut agent.stages, &mut agent.frame, channel::Heard::Start { start: decoded });
+    assert_eq!(agent.root_to_open(), Some(b"/first".as_slice()));
+    assert!(agent.stages.domain_events.is_empty());
+    agent.root_opened(Ok(kernel::Fd::new(90)), Box::from(b"/host/first".as_slice()));
+    assert_eq!(agent.root_to_open(), Some(b"/second".as_slice()));
+    assert!(agent.stages.domain_events.is_empty());
+    agent.root_opened(Ok(kernel::Fd::new(91)), Box::from(b"/host/second".as_slice()));
+    assert!(agent.root_to_open().is_none());
+    assert_eq!(agent.stages.opening.outcome(), &expected);
+    match agent.stages.domain_events.pop().expect("all mounts enter with Start") {
+        domain::Event::Start(start) => {
+            let workspace = start.workspace.expect("attached workspace");
+            assert_eq!(workspace.directories.len(), 2);
+            for (directory, (name, host, writable)) in workspace.directories.iter().zip([
+                (b"first".as_slice(), b"/host/first".as_slice(), true),
+                (b"second".as_slice(), b"/host/second".as_slice(), false),
+            ]) {
+                assert_eq!(directory.name.as_ref(), name);
+                assert_eq!(directory.host.as_ref(), host);
+                assert_eq!(directory.writable, writable);
+                assert_eq!(directory.git, writable);
+            }
+        }
+        other => panic!("Start: {other:?}"),
+    }
+    assert!(agent.stages.domain_events.is_empty());
+    let mut refused = service();
+    channel_event(&mut refused.stages, &mut refused.frame, channel::Heard::Start { start: start() });
+    refused.root_opened(Err(()), Box::default());
+    assert!(refused.root_to_open().is_none());
+    match refused.stages.teardown {
+        Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
+        other => panic!("refused Start passed Live: {other:?}"),
+    }
+}

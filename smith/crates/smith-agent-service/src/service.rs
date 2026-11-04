@@ -11,6 +11,7 @@ mod admission;
 mod down;
 mod effects;
 mod face;
+mod opening;
 pub(crate) mod link;
 mod readiness;
 mod request;
@@ -209,11 +210,7 @@ pub(crate) struct Stages {
     admission: admission::Admission,
     run_started: Time,
     pub(crate) line: crate::terminal::Line,
-    outcome: Option<run::outcome::OutcomeSpec>,
-    delivery: Option<run::outcome::ChangeSpec>,
-    pending_start: Option<Box<smith_protocol_translate::DecodedStart>>,
-    directories: List<run::Directory>,
-    root_index: u32,
+    opening: opening::Opening,
     pipe_routes: Map<Token, Token>,
     roots: List<Token>,
     root_close_next: u32,
@@ -392,13 +389,7 @@ impl Service {
     /// The next host-supplied mount path that the shell must open as a root.
     #[must_use]
     pub fn root_to_open(&self) -> Option<&[u8]> {
-        let start = self.stages.pending_start.as_ref()?;
-        let mounts = start.mounts.as_ref()?;
-        let index = usize::try_from(self.stages.root_index).ok()?;
-        match mounts.get(index) {
-            Some(mount) => Some(&mount.path),
-            None => None,
-        }
+        self.stages.opening.next_mount()
     }
 
     /// Receiving ceiling for absolute host metadata at root attachment.
@@ -415,25 +406,8 @@ impl Service {
                 Some(token) => {
                     self.stages.roots.push(token).expect("root count was checked before opening");
                     self.stages.root_close_next = self.stages.roots.len();
-                    let start = self.stages.pending_start.as_ref().expect("a root belongs to a pending Start");
-                    let mounts = start.mounts.as_ref().expect("a requested root belongs to a workspace");
-                    let index = usize::try_from(self.stages.root_index).expect("root index fits usize");
-                    let mount = mounts.get(index).expect("one mount requested at a time");
-                    self.stages
-                        .directories
-                        .push(run::Directory {
-                            host,
-                            name: mount.name.clone(),
-                            root: token,
-                            writable: mount.writable,
-                            git: mount.git,
-                            conflicts: mount.conflicts.clone(),
-                        })
-                        .expect("root count was checked before opening");
-                    self.stages.root_index = self.stages.root_index.checked_add(1).expect("bounded mount count");
-                    if self.root_to_open().is_none() {
-                        self.stages.start_ready(&mut self.frame);
-                    }
+                    self.stages.opening.attached(host, token);
+                    opening::follow(&mut self.stages, &mut self.frame);
                 }
                 None => self.stages.refuse_start(&mut self.frame, run::Invalid::Workspace),
             },

@@ -43,8 +43,7 @@ impl Effects {
 
     /// Configure the result shapes used by completion tool schemas.
     pub fn contract(&mut self, outcome: run::outcome::OutcomeSpec) {
-        self.stages.delivery.clone_from(&outcome.change);
-        self.stages.outcome = Some(outcome);
+        self.stages.opening.contract(outcome);
     }
 
     /// Adopt opened workspace roots and replace the host's opaque names with file tokens.

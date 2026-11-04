@@ -341,17 +341,11 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
                 service.refuse_start(frame, run::Invalid::Workspace);
                 return;
             }
-            let empty = match &start.mounts {
-                Some(mounts) => mounts.is_empty(),
-                None => true,
-            };
             if let Some(events) = &mut service.events {
                 events.starting(start.activation, skein_lib::len_u64(start.messages.len()), &start.charter);
             }
-            service.pending_start = Some(start);
-            if empty {
-                service.start_ready(frame);
-            }
+            service.opening.attach(start, service.limits.machine.roots);
+            super::opening::follow(service, frame);
         }
         channel::Heard::Message { finish_requested, name, label, text } => {
             if let Some(run) = service.admission.run() {

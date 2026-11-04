@@ -208,11 +208,7 @@ impl Stages {
                 admission: super::admission::Admission::Waiting,
                 run_started: Time::ZERO,
                 line: crate::terminal::Line::Quiet,
-                outcome: None,
-                delivery: None,
-                pending_start: None,
-                directories: List::with_capacity(limits.machine.roots),
-                root_index: 0,
+                opening: super::opening::Opening::Idle,
                 pipe_routes: Map::with_capacity(limits.machine.processes.checked_mul(2).ok_or(ConfigError::Limits)?),
                 roots: List::with_capacity(limits.machine.roots),
                 root_close_next: 0,
@@ -233,7 +229,7 @@ impl Stages {
     }
 
     pub(super) fn refuse_start(&mut self, frame: &mut Frame, reason: run::Invalid) {
-        self.pending_start = None;
+        self.opening.refuse();
         let token = self.next_send();
         let answer = run::Answer::Refused(run::Refusal::Invalid(reason));
         crate::terminal::remember(self, &answer, Box::default(), self.domain_env.now);
@@ -254,19 +250,14 @@ impl Stages {
     }
 
     pub(super) fn start_ready(&mut self, frame: &mut Frame) {
-        let start = self.pending_start.take().expect("all roots opened for pending Start");
+        let (start, directories) = self.opening.take();
         let workspace = match start.mounts {
-            Some(_) => Some(run::Workspace {
-                directories: core::mem::replace(&mut self.directories, List::with_capacity(self.limits.machine.roots))
-                    .into_boxed(),
-            }),
+            Some(_) => Some(run::Workspace { directories: directories.into_boxed() }),
             None => None,
         };
         if let Some(ref workspace) = workspace {
             self.machine.workspace(workspace);
         }
-        self.outcome = Some(start.charter.outcome.clone());
-        self.delivery.clone_from(&start.charter.outcome.change);
         if self.llm.bind_grants(&start.charter).is_err() {
             self.refuse_start(frame, run::Invalid::Grants);
             return;
@@ -290,6 +281,7 @@ impl Stages {
                 .expect("grant count was checked at Start");
         }
         self.run_started = self.domain_env.now;
+        self.opening.contract(start.charter.outcome.clone());
         self.domain_events.push(domain::Event::Start(domain::Start {
             messages: start.messages,
             reply_to: ReplyTo::new(START_REPLY),
