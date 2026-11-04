@@ -31,7 +31,7 @@ pub fn pull_address(
     for part in parts {
         length = length.checked_add(part.len())?;
     }
-    if length > usize::try_from(PULL_ADDRESS_BYTES).expect("u32 fits usize") {
+    if length > skein_lib::usize_of(PULL_ADDRESS_BYTES) {
         return None;
     }
     let mut writer = Writer::new(length);

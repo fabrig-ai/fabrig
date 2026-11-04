@@ -1950,18 +1950,17 @@ fn hex(bytes: &[u8]) -> Box<[u8]> {
     out.into_boxed()
 }
 pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
-    let mut bytes = u64::try_from(row.landing.members.len())
-        .ok()?
+    let mut bytes = skein_lib::len_u64(row.landing.members.len())
         .checked_mul(u64::try_from(size_of::<policy::Member>()).ok()?)?
         .checked_add(
-            u64::try_from(row.asks.len()).ok()?.checked_mul(u64::try_from(size_of::<Option<change::Ask>>()).ok()?)?,
+            skein_lib::len_u64(row.asks.len()).checked_mul(u64::try_from(size_of::<Option<change::Ask>>()).ok()?)?,
         )?
         .checked_add(
-            u64::try_from(row.entries.len()).ok()?.checked_mul(u64::try_from(size_of::<LandingEntry>()).ok()?)?,
+            skein_lib::len_u64(row.entries.len()).checked_mul(u64::try_from(size_of::<LandingEntry>()).ok()?)?,
         )?;
     for member in &row.landing.members {
         bytes = bytes.checked_add(
-            u64::try_from(member.gates.len()).ok()?.checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
+            skein_lib::len_u64(member.gates.len()).checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
         )?;
     }
     if let policy::Phase::Held { .. } = row.landing.phase {
@@ -1973,7 +1972,7 @@ pub(crate) fn receipt_bytes(key: &ReceiptKey, receipt: &Receipt) -> Option<u64> 
     let name = match &key.check {
         Check::Gate(name) | Check::Tier(name) => name,
     };
-    let mut held = u64::try_from(name.len()).ok()?.checked_add(u64::try_from(receipt.run.url.len()).ok()?)?;
+    let mut held = skein_lib::len_u64(name.len()).checked_add(skein_lib::len_u64(receipt.run.url.len()))?;
     if let Some(failures) = &receipt.failures {
         held = held.checked_add(crate::tiers::failures_bytes(failures)?)?;
     }

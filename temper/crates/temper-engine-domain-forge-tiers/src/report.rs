@@ -55,7 +55,7 @@ fn line(failures: &mut Failures, line: &[u8], limits: Limits) {
 }
 
 fn index(value: u32) -> usize {
-    usize::try_from(value).expect("u32 fits usize")
+    skein_lib::usize_of(value)
 }
 
 fn insert(failures: &mut Failures, test: TestId, limits: Limits) {

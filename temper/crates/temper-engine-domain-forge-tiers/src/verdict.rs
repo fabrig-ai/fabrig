@@ -204,7 +204,7 @@ fn blame(record: &Record, run: &Run, failing: Failures, flakes: Box<[TestId]>, s
 
 fn own(finding: &mut Finding, landing: u32, failing: Failures) {
     if !none(&failing) {
-        let blame = finding.blamed.get_mut(usize::try_from(landing).expect("u32 fits usize"));
+        let blame = finding.blamed.get_mut(skein_lib::usize_of(landing));
         *blame.expect("a probe names a landing in its range") = Blame::Owns(failing);
     }
 }

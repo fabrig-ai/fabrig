@@ -128,11 +128,11 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
 }
 
 fn admitted(landing: &Landing, facts: &Facts, limits: &Limits) {
-    assert!(landing.members.len() <= usize::try_from(limits.members).expect("u32 fits usize"), "members admitted");
+    assert!(landing.members.len() <= skein_lib::usize_of(limits.members), "members admitted");
     assert!(landing.members.len() <= usize::from(u16::MAX).saturating_add(1), "member positions fit u16");
     assert_eq!(landing.members.len(), facts.members.len(), "one fact per member");
     for (member, fresh) in landing.members.iter().zip(&facts.members) {
-        assert!(member.gates.len() <= usize::try_from(limits.gates).expect("u32 fits usize"), "gates admitted");
+        assert!(member.gates.len() <= skein_lib::usize_of(limits.gates), "gates admitted");
         assert!(member.gates.len() <= usize::from(u16::MAX).saturating_add(1), "gate positions fit u16");
         assert_eq!(member.gates.len(), fresh.gates.len(), "one fact per gate");
     }
