@@ -1,11 +1,12 @@
 //! Source inputs for the decoder sweep inventory.
+use skein_scratch::paths;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 #[must_use]
 pub fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    paths::tree()
 }
 #[must_use]
 pub fn source(world: &str, file: &str) -> String {

@@ -1,4 +1,5 @@
 //! Reviewed repository goldens and independently written file witnesses (domain/render.md, 9.2).
+use skein_scratch::paths;
 use std::{
     ffi::OsStr,
     fmt::Write,
@@ -52,14 +53,14 @@ pub fn bless() -> bool {
 }
 #[must_use]
 pub fn load(name: &str) -> Golden {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(name);
+    let root = paths::tree().join("tests/render").join(name);
     load_from(name, &root)
 }
 #[must_use]
 pub fn load_from(name: &str, files: &Path) -> Golden {
     let mut tree = Vec::new();
     leaves(files, files, &mut tree);
-    Golden { name: name.to_owned(), tree, root: Path::new(env!("CARGO_MANIFEST_DIR")).join(name) }
+    Golden { name: name.to_owned(), tree, root: paths::tree().join("tests/render").join(name) }
 }
 fn leaves(root: &Path, directory: &Path, out: &mut Vec<Leaf>) {
     let mut entries: Vec<_> =

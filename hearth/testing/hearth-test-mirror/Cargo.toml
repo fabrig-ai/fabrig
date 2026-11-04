@@ -6,7 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[dev-dependencies]
+[dependencies]
 skein-scratch.workspace = true
 
 [lints.rust]

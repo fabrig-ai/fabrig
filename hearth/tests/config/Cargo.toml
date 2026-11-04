@@ -13,6 +13,7 @@ skein-json.workspace = true
 skein-world.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-heap.workspace = true
 
 [lints.rust]

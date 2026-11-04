@@ -1,4 +1,5 @@
 use crate::{CACHE, Mirror, Pin};
+use skein_scratch::paths;
 use std::{fs, path::Path};
 
 pub const PIN: &[u8] = b"# a pin\narchive 20261016T091523Z\nsuite forky\narchitecture amd64\ncomponents main\n\
@@ -39,7 +40,7 @@ pub fn request(proxy: &crate::Proxy, head: &str) -> Vec<u8> {
 }
 
 pub fn repository(name: &str) -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../repos").join(name)
+    paths::tree().join("testing/repos").join(name)
 }
 pub fn files(root: &Path) -> Vec<String> {
     let mut pending = vec![root.to_path_buf()];
