@@ -328,7 +328,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Adopt { .. } => return None,
+        Address::Home { .. } | Address::Settings { .. } | Address::Adopt { .. } => return None,
     };
     let task = match task {
         Some(task) => format!("&task=T{task}"),
@@ -356,6 +356,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => String::new(),
     };
     let way = if let Address::ConnectModel { way: Some(way) } = sample.address {

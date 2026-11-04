@@ -336,7 +336,12 @@ pub fn me_handle() -> Handle {
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Started => started(pages, out),
-        Event::Went { address } => went(pages, env, address, out),
+        Event::Went { address } => {
+            went(pages, env, address, out);
+            if let Some(project) = address_project(&pages.address) {
+                choose_project(pages, client, project);
+            }
+        }
         Event::SignInAddress { value } => {
             if let Some(me) = accounts::current_me(client) {
                 if let Some(page) = &mut pages.connect_model {
@@ -460,7 +465,23 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             choose_project(pages, client, project);
             out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
         }
-        Event::Act { act: Act::Project { project } } => choose_project(pages, client, project),
+        Event::Act { act: Act::Project { project } } => {
+            choose_project(pages, client, project);
+            match &pages.address {
+                Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
+                Address::Settings { .. } => out.push(Request::Show { address: Address::Settings { project } }),
+                Address::Inbox { .. }
+                | Address::Chats { .. }
+                | Address::Accounts
+                | Address::Forges
+                | Address::ConnectForge { .. }
+                | Address::ConnectModel { .. }
+                | Address::Welcome { .. }
+                | Address::Chat { .. }
+                | Address::Task { .. }
+                | Address::Adopt { .. } => {}
+            }
+        }
         Event::Act { act: Act::SignOut } => out.push(Request::Client(jig_client::Event::SignOut)),
         Event::Act { act: Act::Go { address } } => out.push(Request::Show { address }),
         Event::Told { told: Told::Changed { handle } } if handle == me_handle() => me_changed(pages, client, out),
@@ -687,6 +708,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Welcome { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
+            | Address::Home { .. }
+            | Address::Settings { .. }
             | Address::Adopt { .. } => None,
         };
         page.request.return_from(source);
@@ -910,6 +933,22 @@ fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contra
     }
 }
 
+fn address_project(address: &Address) -> Option<u32> {
+    match address {
+        Address::Home { project } | Address::Settings { project } => Some(*project),
+        Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Adopt { .. } => None,
+    }
+}
+
 fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
     if let Some(me) = pages.me(client) {
         for row in &me.projects {
@@ -1010,6 +1049,9 @@ pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
             None => None,
         };
     }
+    if let Some(project) = address_project(&pages.address) {
+        choose_project(pages, client, project);
+    }
 }
 // jig ends every pending read at a credential boundary and replays none
 // (jig's `client/domain/client.md`, 7): a page that has read nothing yet asks
@@ -1087,6 +1129,8 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => return,
     }
     page.request.return_from(None);

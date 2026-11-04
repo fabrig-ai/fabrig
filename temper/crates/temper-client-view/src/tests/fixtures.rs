@@ -315,6 +315,8 @@ pub(super) fn root_at_with_forges(
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Inbox { .. }
+        | temper_client_domain::Address::Home { .. }
+        | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Adopt { .. }
         | temper_client_domain::Address::Chat { .. }
         | temper_client_domain::Address::Task { .. }
