@@ -3,7 +3,7 @@ id = "stock-scale"
 part = "stock"
 kind = "feature"
 needs = ["brief-room"]
-files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/startup.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/docs/help/budget.md", "temper/docs/help/configure.md", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/proof_live.rs", "jig/crates/jig-domain-core/src/tests/funding/settings.rs", "temper/docs/design/protocol/configuration.status.md"]
+files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/startup.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/docs/help/budget.md", "temper/docs/help/configure.md", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/proof_live.rs", "jig/crates/jig-domain-core/src/tests/funding/settings.rs", "temper/docs/design/protocol/configuration.status.md", "temper/crates/temper-service/src/tests/fixtures/agent.rs", "temper/crates/temper-service/src/tests/fixtures/startup.rs", "temper/crates/temper-service/src/tests/fixtures.rs", "temper/crates/temper-playground/src/documents.rs", "temper/tests/engine/domain/src/protocol.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -138,3 +138,38 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, with every test figure you changed.
+
+## Answers
+
+### 2026-11-04: may this task raise the test agents' advertised bounds so the stock's runs are admitted?
+
+Yes, option A. A fixture's `jig_domain_host::Bounds` is what its agent offers, not a stock
+figure; `admission` and the fleet's `fits` (`jig/crates/jig-domain-fleet/src/needs.rs`) compare
+it with the stock's charters, so acceptance cannot hold while it offers less. The task's
+acceptance needs it, and no other task owns it. This widens "Owns and may change" as follows:
+
+- **What moves:** only what an agent offers, and only in a fixture that fails on the stock
+  (a startup refusal `What::Admission`, or a stock run no worker fits): `turns` 800; `time`
+  28,800 s; `spend` the required figure the refusal names, at least the K of that world's
+  models. Nothing else of a fixture: not its `waiting`, `checks`, `message_bytes`, `inbox`,
+  carriers or model bounds, and no stock figure.
+- **Known sites:** `temper-service/src/tests/fixtures/agent.rs`, the agent `startup_agent` and
+  `worker_agent` derive from (turns 16, 300 s, spend 100); `tests/fixtures/startup.rs`'s
+  `owned_worker_agent`; `tests/fixtures.rs`'s linked worker (near 950); and
+  `temper-playground/src/documents.rs`, whose `documents::agent()` starts stock worlds:
+  `agent_profile`'s `policy.max_turns` 800 (no carrier derives from `max_turns`) and its
+  `Bounds`' `spend` and `time`. Further sites are found by running the packages of acceptance,
+  and `temper-playground`'s tests; `temper/tests/engine/domain/src/protocol.rs`'s `bounds()` is
+  the likely next one, for the worlds that start from the stock.
+- **What stays:** a fixture whose world brings its own charters (`temper/tests/engine/domain/src/walking.rs`'s,
+  for one) and passes as it is; a test that sets a bound to assert a refusal
+  (`jig/crates/jig-domain-fleet/src/tests/needs.rs`). jig is not touched: it names no stock.
+- **A test that asserts an offered figure** from a raised fixture changes that figure only; list
+  every raised bound and changed figure in the report.
+- **Budgets:** a test that now drives a stock run to its 64 or 800 turns, or past its CPU budget
+  or timeout, gets no raised budget and no lowered stock. It sets its own charter through a
+  settings change where it means a short run; otherwise, stop and ask with the measurements.
+- **Still a question:** a failure that no offered bound repairs (a carrier, a store row, a hub
+  limit refusing the stock's figures). The production agent needs no change:
+  `temper/crates/temper/src/agent.rs` offers the profile's policy (`max_turns` 800, spend and
+  time at smith's defaults of 1,000,000,000 and 24 h).
