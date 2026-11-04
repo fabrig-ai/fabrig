@@ -131,6 +131,15 @@ fn a_held_login_return_hook_is_idempotent_and_refuses_unsafe_metadata_without_re
     symlink("missing", &account).expect("fixture link");
     assert!(!run().status.success(), "a link never counts as a returned record");
     fs::remove_file(&account).expect("remove fixture link");
+    scratch.remove();
+    assert_held_record_export();
+}
+
+fn assert_held_record_export() {
+    let scratch = support::Scratch::startup("held-login-export");
+    let root = scratch.path();
+    let account = root.join("synthetic-record");
+    let run = || std::process::Command::new(root.join("give-back")).output().expect("return hook");
     let stub = root.join("ctl-stub's path");
     support::write_private(
         &stub,
