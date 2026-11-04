@@ -335,6 +335,9 @@ button.plain { padding: 0; border: 0; background: none; font: inherit; color: in
 .setup-main { width: 100%; max-width: 680px; margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; gap: 32px; }
 .setup-head { display: flex; flex-direction: column; gap: 12px; }
 .choices-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+/* Each card's text and acts share rows across the grid, so the cards' first buttons line up. */
+.choices-grid .choice { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 18px; }
+.choices-grid .choice > .acts { align-self: start; align-items: center; }
 .choices-list { display: flex; flex-direction: column; gap: 12px; }
 .choice, .panel, .away-note { padding: 22px; border-radius: 12px; background: var(--surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
 .choice { display: flex; flex-direction: column; justify-content: space-between; gap: 18px; }

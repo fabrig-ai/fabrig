@@ -730,28 +730,16 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
         </div>
         <p class="facts">Tried the playground first? Set up whenever you like; the playground then steps aside.</p>`;
     } else if (at === 'forge') {
-      const which = params.get('forge');
       if (f && f.kind === 'github' && !f.done) {
-        body = `${head('Where your code lives')}<div class="away-note"><span class="spin" aria-hidden="true"></span><div><p><b>On GitHub, in this tab</b></p><p class="muted">You name temper’s App, choose the account it goes on and the repositories it may use, and GitHub sends this tab back here.</p><p class="mock-inline">Mockup: GitHub’s own pages are skipped; back in a moment.</p></div></div>`;
+        body = `${head('Connect a forge')}<div class="away-note"><span class="spin" aria-hidden="true"></span><div><p><b>On GitHub, in this tab</b></p><p class="muted">You name temper’s App, choose the account it goes on and the repositories it may use, and GitHub sends this tab back here.</p><p class="mock-inline">Mockup: GitHub’s own pages are skipped; back in a moment.</p></div></div>`;
       } else if (f) {
-        body = `${head('Where your code lives', 'One forge is enough to begin; add others later, from Settings.')}${forgeStatus(f)}<div class="acts"><a class="btn primary" href="welcome.html?at=${m?.ready ? 'ready' : 'model'}">Continue</a></div>${foot}`;
-      } else if (which === 'forgejo') {
-        const fj = FR.forgejo;
-        body = `${head('Forgejo on this machine')}
-          <section class="panel">
-            <p>temper box downloads Forgejo ${esc(fj.versions.forgejo)} and its runner, starts them, and makes a sample repository with a README and a CI workflow. No restart.</p>
-            <div class="fields"><label class="field-v"><span>Organization</span><input class="text" id="fj-org" value="${esc(fj.org)}"></label><label class="field-v"><span>Repository</span><input class="text" id="fj-repo" value="${esc(fj.repo)}"></label></div>
-            <ul class="notes"><li>Its CI jobs run on this machine, as you, with no isolation.</li><li>Forgejo stops when temper box stops. Its repositories stay in temper’s data directory.</li></ul>
-            <div class="acts"><button type="button" class="btn primary" data-forgejo>Set up Forgejo here</button><a class="btn quiet" href="welcome.html?at=forge">All forges</a></div>
-            <p class="facts">About a minute. You choose your model meanwhile.</p>
-          </section>${foot}`;
+        body = `${head('Connect a forge', 'One forge is enough to begin; add others later, from Settings.')}${forgeStatus(f)}<div class="acts"><a class="btn primary" href="welcome.html?at=${m?.ready ? 'ready' : 'model'}">Continue</a></div>${foot}`;
       } else {
-        body = `${head('Where your code lives', 'Agents push branches there, and temper lands what is checked.')}
-          <div class="choices-list">
-            ${choice('GitHub', 'Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.', 'On GitHub, in this tab · about two minutes', '<button type="button" class="btn" data-github>Connect GitHub</button>')}
-            ${choice('Forgejo on this machine', 'A forge of your own, run by temper box. No account needed; it starts with a sample repository.', 'Here · about a minute', '<a class="btn" href="welcome.html?at=forge&amp;forge=forgejo">Set it up</a>')}
-          </div>
-          <details class="more" id="fj-elsewhere"><summary>A Forgejo of your own, elsewhere</summary><p>temper connects to it as its admin, or with its bot’s tokens. That takes a change to temper’s configuration and a restart; the help’s “Connecting a forge” has the steps.</p></details>${foot}`;
+        body = `${head('Connect a forge', 'Where your code lives: you tell temper what you want, agents push and land code.')}
+          <div class="choices-grid">
+            ${choice('GitHub', 'Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.', 'In this tab, on GitHub · about two minutes', '<button type="button" class="btn" data-github>Connect GitHub</button>')}
+            ${choice('Forgejo', 'A forge of your own. temper can start it and manage it, or you can connect your own deployment.', 'Here · about a minute', '<button type="button" class="btn" data-forgejo>Run on this machine</button><button type="button" class="link plain" data-later-note="Connecting your own Forgejo: its address, then temper connects as its admin or with its bot’s tokens. Not drawn yet.">Or connect your deployment</button>')}
+          </div>${foot}`;
       }
     } else if (at === 'model') {
       const way = params.get('way');
