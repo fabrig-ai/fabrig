@@ -128,3 +128,13 @@ Pre-approved:
 
 As the implementer's text says, and also: the Measure over `skein` and over all three trees;
 the test counts of each command.
+
+## Answers
+
+- 2026-11-04. Q: the whole Measure reads 33, not 32, because the base holds 8 temper literals,
+  not 7; accept 33 or change temper? A: accept 33 (skein 0, jig 25, temper 8). The spec's 32
+  miscounted temper at this base (`git` at `1f7d25d0ac` holds 8, among them
+  `temper-client-view/src/limits.rs`); this task leaves temper's literals unchanged, as the
+  request says, and they are paid in a later round. The acceptance that binds is the Measure
+  over `skein` printing nothing, which the run met. No temper change; nothing more to do but
+  report the 33.
