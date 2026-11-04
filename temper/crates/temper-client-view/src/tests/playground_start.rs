@@ -37,7 +37,7 @@ fn the_start_draws_the_pane_before_the_composer_choice_and_suggestions() {
     assert_eq!(paragraphs, 1, "repository alone");
     let mut after = 0;
     for (role, name) in [
-        (Role::Banner, b"".as_slice()),
+        (Role::Navigation, b"Shop".as_slice()),
         (Role::Main, b""),
         (Role::Complementary, b"Project"),
         (Role::Paragraph, b"New chat"),
