@@ -20,6 +20,9 @@ pub struct World {
     pub env: Env<Limits>,
     pub above: Queue<Event>,
     pub below: Queue<file::Request>,
+    /// `file::Request::ReadAt`s the store sent below, and the sum of their `max`.
+    pub asked_reads: u64,
+    pub asked_bytes: u64,
     file_events: Queue<file::Event>,
     subs: Queue<Submit>,
     completions: Queue<Complete>,
@@ -48,6 +51,8 @@ impl World {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::with_capacity(128),
             below: Queue::with_capacity(128),
+            asked_reads: 0,
+            asked_bytes: 0,
             file_events: Queue::with_capacity(128),
             subs: Queue::with_capacity(128),
             completions: Queue::with_capacity(128),
@@ -91,6 +96,10 @@ impl World {
         if self.io.takes()
             && let Some(request) = self.below.pop()
         {
+            if let file::Request::ReadAt { max, .. } = &request {
+                self.asked_reads += 1;
+                self.asked_bytes += u64::from(*max);
+            }
             file_layer::down(&mut self.io, self.env.now, request, &mut self.file_events, &mut self.subs);
             progress = true;
         }
