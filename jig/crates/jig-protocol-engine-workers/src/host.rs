@@ -122,7 +122,8 @@ impl Workers {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        !self.io.is_empty() || !self.out.is_empty() || matches!(self.next_deadline(), Some(deadline) if deadline <= now)
+        let deadline = self.next_deadline();
+        !self.io.is_empty() || !self.out.is_empty() || (deadline.is_some() && deadline <= Some(now))
     }
     #[must_use]
     pub fn ending(&self) -> Option<Closing> {
