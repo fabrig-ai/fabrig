@@ -234,7 +234,7 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     );
     assert_eq!(chat.run.policy.model, box_model());
     assert_eq!(chat.run.budget, K);
-    assert_eq!(driver.task(chat.task).expect("chat").numbers.budget, 24 * K);
+    assert_eq!(driver.task(chat.task).expect("chat").numbers.budget, 16 * K);
     (driver, chat)
 }
 

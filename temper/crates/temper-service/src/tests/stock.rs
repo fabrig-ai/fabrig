@@ -610,7 +610,7 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
             assert_eq!(charter.spend, k, "{row}");
         }
         let policy = &stock.policies.get(&1).expect("policy 1").policy;
-        assert_eq!(policy.roles[0].authority.budget.spend, 24 * k, "{row}");
+        assert_eq!(policy.roles[0].authority.budget.spend, 16 * k, "{row}");
         for spend in [
             stock.rules.ceiling.budget.spend,
             stock.rules.period_spend,
@@ -619,6 +619,30 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
             policy.roles[0].period_spend,
         ] {
             assert_eq!(spend, 48 * k, "{row}");
+        }
+    }
+}
+
+#[test]
+fn the_stock_funds_three_chats_in_one_period() {
+    let mut engine = engine(&generated());
+    let init = engine.llm.models[0].clone();
+    let mut cheap = init.clone();
+    cheap.window = 1501;
+    cheap.output = 503;
+    cheap.input_price = 1;
+    cheap.cached_price = 2;
+    cheap.cache_write_price = Some(3);
+    cheap.output_price = 4;
+    cheap.price_unit = 1000;
+    for (row, model) in [("init", init), ("cheap with costliest prices and rounding", cheap)] {
+        engine.llm.models[0] = model;
+        let stock = crate::stock::defaults(&engine.llm);
+        let policy = &stock.policies.get(&1).expect("policy 1").policy;
+        let chat = policy.roles[0].authority.budget.spend;
+        for period in [policy.period_spend, policy.roles[0].period_spend, stock.rules.period_spend] {
+            assert!(3 * chat <= period, "{row}: three open chats fit the period");
+            assert!(4 * chat > period, "{row}: a fourth open chat exceeds the period");
         }
     }
 }
