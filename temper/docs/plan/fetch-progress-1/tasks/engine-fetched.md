@@ -3,7 +3,7 @@ id = "engine-fetched"
 part = "row"
 kind = "interface"
 needs = []
-files = ["temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/crates/temper-engine-domain-forge/src/tests.rs", "temper/crates/temper-engine-domain-forge/src/tests/connect.rs"]
+files = ["temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/crates/temper-engine-domain-forge/src/tests.rs", "temper/crates/temper-engine-domain-forge/src/tests/connect.rs", "temper/crates/temper-engine-domain/src/admission.rs"]
 effort = "high"
 minutes = 35
 +++
@@ -32,7 +32,7 @@ Acceptance:
 
 Owns the files in the header. `Connection::SettingUp { step }` does not change; that is the contract's point.
 
-May also change, for what the compiler requires: `crate::Row`'s literals in `temper-engine-domain-forge`, `temper-engine-domain` and `temper-service`, `fetched: None` or the field's copy; nothing else there. `temper-service/src/route.rs` lists the events it routes and ends in `unreachable!`: leave it, `link-fetched` adds the arm.
+May also change, for what the compiler requires: `crate::Row`'s literals in `temper-engine-domain-forge`, `temper-engine-domain` and `temper-service`, `fetched: None` or the field's copy; and in `temper-engine-domain/src/admission.rs`, `completes`'s one arm; nothing else there. `temper-service/src/route.rs` lists the events it routes and ends in `unreachable!`: leave it, `link-fetched` adds the arm.
 
 Pre-approved: the domain asks one set up at a time, so one slot for one forge is enough; a field of `ConnectionState` is as good. Your call, named in the report. `decision.rs` measures `Row` with `size_of`, so it moves by itself; if a test there pins the size, update its number and say so.
 
@@ -46,3 +46,9 @@ Pre-approved: the domain asks one set up at a time, so one slot for one forge is
 ## Report
 
 As the implementer's text has it, with where it keeps the line, and each rule broken for a new test and the failure seen.
+
+## Answers
+
+2026-11-04. Permit the compiler-required `Fetched` arm in `temper-engine-domain/src/admission.rs`, or leave it to a follow-up?
+
+Permit it; this task owns it, since its own consumer check cannot pass without it, and `link-fetched` needs a building root. Add `| forge::Event::Fetched { .. }` beside `forge::Event::Connection { .. }` in `completes`, in the arm returning `true`: a `fetched` line advances a set up the root already admitted, as a `step` line does, so it is taken at any backlog (`temper/docs/design/domain/root.md`, 4). That one arm and nothing else there; `route.rs` stays `link-fetched`'s. Then run the consumer check, the final check of the direct dependents the last run named, and the root's and the service's clippy and focused tests left unobserved.
