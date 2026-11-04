@@ -66,18 +66,17 @@ held revisions and pending proposals. Exit 1 means a ctl error, such as
 
 ## 2. Write a settings file from the value
 
-Read the whole value, edit it, then set it whole.
+Read, edit and set the whole value.
 
 ```
 temper ctl DIR settings show charter 1 --json | jq '{items: [{setting: .setting, set: (.value | .instructions = "Answer in one short paragraph.\n")}]}' > FILE
 ```
 
-Expect: no output; `FILE` holds an `items` array setting charter 1's
-whole value with new instructions. If empty, read stderr and retry the
-read. A file holds at most 1024 items, one per setting. Replace `set`
+Expect: no output; `FILE` holds charter 1's whole value with new instructions
+in `items`. If empty, read stderr and retry. At most 1024 items, one per setting. Replace `set`
 with `"edit": "removed"` or `"edit": "reset"` to remove or reset one.
 
-Other settings read the same way:
+Other settings:
 
 ```
 temper ctl DIR settings show landing-rule 1 --json
@@ -98,14 +97,12 @@ landing requirements:
 ]}
 ```
 
-A project-policy item accepts only `set`, no `number`, at most once per
-file; it may share a file with other settings. Edit `set` before sending. Its spends
-resize the project's open period and parties' pools immediately; policy 1
-sets only future projects' starting values.
+A project-policy item takes only `set`, no `number`, once per file, beside
+other settings. Edit before sending. Spends resize its open period and parties'
+pools at once; policy 1 sets future projects' starting values.
 
-For example, set project-policy `period_spend` 8200000 beside rules
-`period_spend` 8300000; `project show PROJECT` confirms the open period's
-budget is 8200000.
+Set project-policy `period_spend` 8200000 beside rules `period_spend` 8300000;
+`project show PROJECT` confirms the period budget is 8200000.
 
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
 A proposal's temper items, with their whole values or their removed or
@@ -113,18 +110,17 @@ reset edits, are included in `proposal show PROPOSAL`.
 
 ### Authority for the reference charters
 
-Installing charters alone grants no task authority. Widen the rules ceiling,
-policy 1's ceiling and the creator-role authority before starting a reference
-goal. Fresh coordinator runs use notes for earlier results and Left lists.
+Installing charters alone grants no task authority. Widen the rules ceiling, policy 1's ceiling and the creator-role authority before starting a reference goal.
+Notes retain results and Left lists across fresh runs.
 
-The families needed are delegate 1, message 2, control 4 (`amend`, `cancel`,
-`release`), decide 8 (`decide`, `decide_escalation`), propose 16, subscribe 32
-(`subscribe`, `subscribe_forge`), note 128, recall 256 and forge reads 512.
-Stock tools 1543 include settings 1024; adding the missing bits gives tools 1983.
-Note writes also need goal and project note scopes, bits 1 and 2: notes 3.
+Required: delegate 1, message 2, control 4 (`amend`, `cancel`, `release`),
+decide 8 (`decide`, `decide_escalation`), propose 16, subscribe 32
+(`subscribe`, `subscribe_forge`), note 128, recall 256, forge reads 512.
+Stock tools 1543 include settings 1024; widening gives tools 1983.
+Writes need goal and project note scopes, bits 1 and 2: notes 3.
 
-`ROLE`: numeric creator role (stock owner 0). `PROJECT`: existing project's
-number. These edits preserve budgets, grants, other fields and granted bits:
+`ROLE`: creator role (stock owner 0). `PROJECT`: existing project number.
+Preserve budgets, grants, other fields and granted bits:
 
 ```sh
 temper ctl DIR settings show rules --json > reference-rules.json
@@ -152,23 +148,21 @@ jq -s '{items: map({setting, set: .value})}' reference-rules.json reference-poli
 jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-input.json > FILE
 ```
 
-Expect: widened rules and policy 1 in `FILE`. Delegation explicitly adds
+Expect: widened rules and policy 1 in `FILE`, retaining executors and adding
 coordinator charter 5, designer charter 7, foreman charter 6, change procedure 2,
-merge job 3 and person role 0, retaining the existing executors. Install the
-charters first; their own tools must offer these families too. Size tasks,
-depth and spend separately (temper help budget).
+merge job 3 and person role 0. Install charters first, offering these families.
+Size tasks, depth and spend (temper help budget).
 
 Policy 1 affects future projects. Existing projects need project-policy.
-If the project's current policy still equals the policy 1 just read:
+If its current policy equals policy 1 just read:
 
 ```sh
 jq --argjson project PROJECT '{items: [{setting: {kind: "project-policy", project: $project}, set: .value}]}' reference-policy.json > reference-project.json
 ```
 
-For a customized project, instead put its saved whole current `project-policy`
-settings item in `reference-project.json`, inside `{"items": [...]}`. Preserve
-its current budgets, grants, permissions, templates and other fields.
-Widen its ceiling and creator role, then combine the items:
+For a customized project, use its saved whole current `project-policy` settings item
+in `reference-project.json` as `{"items": [...]}`, preserving all fields.
+Widen its ceiling and creator role; combine:
 
 ```sh
 jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-project.json > reference-project-settings.json
@@ -176,10 +170,9 @@ jq -s '{items: [.[].items[]]}' FILE reference-project-settings.json > reference-
 mv reference-settings.json FILE
 ```
 
-Apply through step 3 as owner of both scopes. Refused families need their bit
-at task, project and deployment; notes also need scope bits. Existing tasks
-do not gain widened authority automatically; moving revisions only changes
-charters. Instead, amend or allot their authority explicitly, or start anew.
+Apply through step 3 as owner of both scopes. Tools need their bits at task,
+project and deployment; notes also need scope bits. Existing tasks do not gain widened authority automatically; moving revisions only changes charters.
+Instead, amend or allot their authority explicitly, or start anew.
 
 ## 3. Apply it, or propose it
 
@@ -283,7 +276,7 @@ temper ctl DIR proposal show PROPOSAL
 temper ctl DIR proposal decide PROPOSAL accept --running stays --key KEY
 ```
 
-Use a different KEY for each act.
+Use a new KEY for each act.
 
 Expect: `proposed restoring revision REVISION as proposal PROPOSAL to role K`;
 `left out: SETTING` names omitted deleted-project items. Inspect before
