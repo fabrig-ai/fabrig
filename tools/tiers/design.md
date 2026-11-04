@@ -63,13 +63,13 @@ An optional `env` names a test environment variable (uppercase ASCII with
 `_TEST_` in its name). After building the binary, set that variable to its
 absolute `target_directory/debug/BINARY` path, replacing any inherited value.
 Variable names are unique within a pair. `process-temper` sets
-`TEMPER_TEST_CLAUDE` this way for its two program-login tests. The temper
-adapter and smith's adapter both call `smith_fake_claude::main()`.
+`TEMPER_TEST_CLAUDE` this way for its two program-login tests, with
+`smith-fake-claude`'s `fake-claude`, the one adapter both trees run.
 
 After any bundle step, build each listed binary in order with
 `cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
 servers in the table above are native list entries. `process-temper` also
-lists `temper-fake-claude`'s `fake-claude`: temper's
+lists `smith-fake-claude`'s `fake-claude`: temper's
 fake-backend tests execute that adapter as the `temper` binary's sibling.
 A failed binary build returns 2 and starts no later step.
 
