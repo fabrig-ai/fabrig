@@ -486,7 +486,7 @@ fn the_welcome_frame_is_the_brand_the_box_line_and_the_steps() {
             .contains(&crate::look::WELCOME_INTRO)
     );
     assert!(f::find(tree, Role::Button, b"Sign out").is_none());
-    assert!(f::banner_statuses(tree).is_empty());
+    assert!(f::frame_statuses(tree).is_empty());
     let banner = tree.nodes().iter().position(|n| n.role == Role::Banner).unwrap();
     let banner = &tree.nodes()[banner..banner + usize::try_from(tree.nodes()[banner].size).unwrap()];
     let line = banner.iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_BOX_LINE)).unwrap();

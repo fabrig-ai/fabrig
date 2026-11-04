@@ -556,10 +556,10 @@ pub fn navigation_link_names(view: &crate::View) -> Box<[Box<[u8]>]> {
     }
     names.into_boxed()
 }
-pub fn banner_statuses(tree: &skein_ui::Tree) -> Box<[Box<[u8]>]> {
+pub fn frame_statuses(tree: &skein_ui::Tree) -> Box<[Box<[u8]>]> {
     let mut names = List::with_capacity(tree.len());
     for (index, node) in tree.nodes().iter().enumerate() {
-        if node.role == skein_ui::Role::Banner {
+        if node.role == skein_ui::Role::Banner || node.styles.as_slice().contains(&crate::look::RAIL) {
             let end = index.checked_add(usize::try_from(node.size).expect("banner fits")).expect("banner end fits");
             for child in &tree.nodes()[index..end] {
                 if child.role == skein_ui::Role::Status
@@ -1670,4 +1670,23 @@ pub fn pair(
     roots.push(first).expect("first root");
     roots.push(second).expect("second root");
     roots.into_boxed()
+}
+
+/// A signed-in root with no project, for the banner's own tests.
+pub fn no_project_root() -> temper_client_domain::Domain {
+    let (mut root, watch) = root_with_watch(None);
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    me.projects.clear();
+    deliver_me(&mut root, watch, me);
+    root
+}
+pub fn deliver_me(root: &mut temper_client_domain::Domain, watch: Token, me: c::Me) {
+    root_event(
+        root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+            },
+        },
+    );
 }
