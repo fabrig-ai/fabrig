@@ -8,23 +8,6 @@ use skein_ui::Role;
 use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Tier, WITHIN, first_chat};
 
 #[test]
-fn a_non_page_address_opens_the_inbox_at_slash() {
-    let tier = Tier::new("non-page-address");
-    let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
-    let mut script = Script::new(Box::new([
-        see(Find::exactly_named(Role::Link, b"Set up temper")),
-        Step::Person(PersonStep::Go { address: Box::from(b"/chats".as_slice()) }),
-        see(tier.states().live),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") }),
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
-        Step::Person(PersonStep::Go { address: Box::from(b"/nowhere".as_slice()) }),
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
-        Step::Address(Box::from(b"/".as_slice())),
-    ]));
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
-}
-
-#[test]
 fn enter_starts_one_chat_keeping_a_shift_enter_break() {
     let tier = Tier::new("composer").with_model();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
@@ -95,6 +78,9 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         see(Find::exactly_named(Role::Button, b"All")),
         Step::Address(b"/chats?at=start".as_slice().into()),
         pressed(1),
+        Step::Person(PersonStep::Go { address: b"/nowhere".as_slice().into() }),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
+        Step::Address(b"/".as_slice().into()),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
