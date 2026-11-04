@@ -81,10 +81,6 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             domain.answer_parts.remove(&request);
             crate::link::route(domain, jig_domain_hub_link::Event::RefusedPayload { request, problem });
         }
-        core::Now::Activate { context } => {
-            let ready = domain.ready() && crate::domain::within_budget(domain, &env.limits);
-            domain.work.push(Work::Core(core::Event::Activate { context, ready }));
-        }
         core::Now::PrepareAgent { context, load_transcript } => {
             let (transcript_waiter, busy) = if load_transcript {
                 match domain.archive_reads.insert(Some(Read::Transcript { task: context.task })) {

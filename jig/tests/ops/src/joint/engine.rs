@@ -369,7 +369,6 @@ impl Application for OpsApplication {
                 | core::Now::AnswerPayload { .. }
                 | core::Now::AcceptedTurn { .. }
                 | core::Now::RefusedPayload { .. }
-                | core::Now::Activate { .. }
                 | core::Now::PrepareAgent { .. }
                 | core::Now::StartPreparation { .. }
                 | core::Now::SeenConversation { .. }

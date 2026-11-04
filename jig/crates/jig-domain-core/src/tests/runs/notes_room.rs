@@ -46,17 +46,6 @@ fn load(out: &[Request]) -> Option<Token> {
     None
 }
 
-fn activates(out: &[Request]) -> bool {
-    for request in out {
-        if let Request::Now(now) = request
-            && let Now::Activate { .. } = now.as_ref()
-        {
-            return true;
-        }
-    }
-    false
-}
-
 fn prepares(out: &[Request]) -> bool {
     for request in out {
         if let Request::Now(now) = request
@@ -66,6 +55,52 @@ fn prepares(out: &[Request]) -> bool {
         }
     }
     false
+}
+
+#[test]
+fn a_due_agent_waits_for_take_due_and_person_templates_and_stopping_stay_out() {
+    let (mut core, limits) = ready();
+    let mut child = Queue::uncapped();
+    child.push(tasks::Request::Activate { context: core.tasks.run_context(FIRST).expect("due agent") });
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    assert!(crate::routing::task::tag_task_outputs(&mut core, &env, child).is_empty());
+    assert_eq!(core.due.len(), 1);
+    assert!(core.contexts.is_empty());
+    assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
+    let context = core.take_due().expect("the root takes the waiting agent");
+    assert_eq!(context.task, FIRST);
+    assert!(core.due.is_empty());
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
+    assert!(prepares(&out));
+
+    let mut person = core.tasks.run_context(SECOND).expect("context for person activation");
+    person.executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
+    let mut child = Queue::uncapped();
+    child.push(tasks::Request::Activate { context: person });
+    assert!(crate::routing::task::tag_task_outputs(&mut core, &env, child).is_empty());
+    assert!(core.due.is_empty());
+
+    let mut template = core.tasks.task(SECOND).unwrap().clone();
+    template.executor = tasks::Executor::Procedure { connector: RECURRING, code: 1 };
+    template.recurring = Some(Box::new(tasks::RecurringState {
+        template: tasks::RecurringTemplate { key: 1, batch: Box::new([]), overlap: tasks::RecurringOverlap::Skip },
+        last_batch: Box::new([]),
+        last_period: 0,
+        pending_period: None,
+    }));
+    fixtures::restore(&mut core, &limits, Box::new([template]));
+    let mut child = Queue::uncapped();
+    child.push(tasks::Request::Activate { context: core.tasks.run_context(SECOND).expect("recurring template") });
+    assert!(crate::routing::task::tag_task_outputs(&mut core, &env, child).is_empty());
+    assert!(core.due.is_empty());
+
+    let (mut core, limits) = ready();
+    watch_outputs(&mut core, &limits, Event::Stopping);
+    assert!(core.stopping());
+    let mut child = Queue::uncapped();
+    child.push(tasks::Request::Activate { context: core.tasks.run_context(FIRST).expect("task while stopping") });
+    assert!(crate::routing::task::tag_task_outputs(&mut core, &env, child).is_empty());
+    assert!(core.due.is_empty());
 }
 
 fn planned(out: &[Request]) -> List<u64> {
@@ -120,7 +155,7 @@ fn refused_notes_room_returns_due_without_a_replacement_load() {
     let runs = core.counters.deployment().runs;
     let out = failed(&mut core, &limits, owner);
     assert!(load(&out).is_none());
-    assert!(!activates(&out));
+    assert!(!prepares(&out));
     let row = core.tasks.task(FIRST).expect("deferred task");
     assert_eq!(before.phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
@@ -177,11 +212,14 @@ fn a_busy_notes_operation_still_releases_its_waiting_brief() {
 }
 
 #[test]
-fn ordinary_preparation_waiting_keeps_its_existing_activation_route() {
+fn ordinary_preparation_waiting_keeps_the_task_due() {
     let (mut core, limits, _) = preparing();
     let out = watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::PreparationWaiting { task: FIRST }));
-    assert!(activates(&out));
-    assert!(core.due.is_empty());
+    assert!(!prepares(&out));
+    let context = core.take_due().expect("ordinary preparation waiting keeps a due task");
+    assert_eq!(context.task, FIRST);
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
+    assert!(prepares(&out));
 }
 
 #[test]
