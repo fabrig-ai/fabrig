@@ -50,22 +50,7 @@ fn outputs(
             }
             link::Request::AssignedJob { channel, job } => {
                 assert!(channel == Token::new(0), "ops engine's permanent link");
-                Released::Host(host::Event::Down(host::LinkDown::AssignJob {
-                    job: host::JobAssignment {
-                        run: Token::new(job.task),
-                        attempt: Token::new(job.attempt),
-                        kind: job.kind,
-                        spec: job.spec,
-                        deadline: job.deadline,
-                        workspace: match job.workspace {
-                            Some(_) => {
-                                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
-                            }
-                            None => None,
-                        },
-                        grants: job.grants,
-                    },
-                }))
+                Released::Host(host::Event::Down(host::LinkDown::AssignJob { job: link::job_assignment(job) }))
             }
             link::Request::ReadResult { payload, outcome } => {
                 now(domain, Output::ReadResult { payload, outcome });
@@ -74,7 +59,7 @@ fn outputs(
             link::Request::Relayed { channel, run, attempt, call, answer } => {
                 assert!(channel == Token::new(0), "ops engine's permanent link");
                 let answer = match answer {
-                    Some(call) => crate::assemble::host_answer(call.answer),
+                    Some(call) => link::settled_answer(call.answer).expect("engine charter has no delivery tool"),
                     None => host::Relayed::Busy,
                 };
                 Released::Host(host::Event::Down(host::LinkDown::Relayed { run, attempt, call, answer }))

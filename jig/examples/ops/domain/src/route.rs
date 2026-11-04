@@ -1291,26 +1291,18 @@ fn core_now(
             now(domain, Output::CoreLoad(value));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => {
-            work.push(Work::Core(core::Event::Brief(jig_domain_brief::GatherEvent::Plan {
-                brief: Token::new(task),
-                budget: env.limits.core.brief.brief_bytes,
-                deadline: env.now.saturating_add(env.limits.policy.brief_timeout),
-                sections: sections.into_boxed(),
-            })));
+            work.push(Work::Core(jig_domain_hub_link::brief_plan(
+                task,
+                sections,
+                env.limits.core.brief.brief_bytes,
+                env.now.saturating_add(env.limits.policy.brief_timeout),
+            )));
         }
         core::Now::CompleteBrief { brief, order } => {
-            domain.hub_link.keep_brief(brief.raw(), order);
-            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), ready: true }));
+            work.push(Work::Core(domain.hub_link.complete_brief(brief, order)));
         }
         core::Now::WorkspaceRequest { task, attempt, .. } => {
-            work.push(Work::Core(core::Event::WorkspacePrepared {
-                task,
-                attempt,
-                holds: Box::new([]),
-                workspace: None,
-                credentials: Box::new([]),
-                writes: Some(Box::new([])),
-            }));
+            work.push(Work::Core(jig_domain_hub_link::no_workspace(task, attempt)));
         }
         core::Now::RunPrepared {
             live,
