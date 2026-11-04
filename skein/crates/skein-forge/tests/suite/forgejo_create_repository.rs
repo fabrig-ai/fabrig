@@ -83,7 +83,7 @@ fn repository_creation_preserves_not_allowed_403() {
 #[expect(clippy::disallowed_methods, reason = "the fixture mutation removes one literal JSON field at a time")]
 fn repository_creation_requires_each_adoption_and_clone_field() {
     let fields = [
-        (br#""id":1,"#.as_slice(), b"id".as_slice()),
+        (br#""id":12,"#.as_slice(), b"id".as_slice()),
         (br#""full_name":"creation/starter","#.as_slice(), b"full_name".as_slice()),
         (br#""default_branch":"main","#.as_slice(), b"default_branch".as_slice()),
         (br#""clone_url":"http://127.0.0.1:3000/creation/starter.git","#.as_slice(), b"clone_url".as_slice()),

@@ -5,4 +5,4 @@ Content-Type: application/json
 Content-Length: 204
 Connection: close
 
-{"username":"scope-user-without","email":"scope-without@example.invalid","full_name":"scope:bot","password":"0000000000000000000000000000000000000000000000000000000000000003","must_change_password":false}
+{"username":"scope-user-without","email":"scope-without@example.invalid","full_name":"scope:bot","password":"0000000000000000000000000000000000000000000000000000000000000012","must_change_password":false}
