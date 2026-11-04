@@ -54,7 +54,6 @@ fn nothing_follows_the_sockets_close() {
     world.close(true);
     late_stream(&mut world);
     assert_eq!(world.trace.get(close + 1..), Some([].as_slice()));
-    assert_eq!(world.link.socket(), None);
     assert_eq!(world.link.pump(&mut world.below), Moved::Nothing);
 }
 
@@ -140,7 +139,6 @@ fn a_close_before_connecting() {
             world.close(true);
         }
         world.link.connecting(SOCKET, &mut world.below);
-        assert_eq!(world.link.socket(), Some(SOCKET));
         assert_eq!(world.link.connected(&world.env), Start::Closing);
         world.settle();
         assert_eq!(world.trace, [expected]);

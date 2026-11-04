@@ -71,10 +71,6 @@ impl Link {
     pub fn encrypted(&self) -> bool {
         self.tls.is_some()
     }
-    #[must_use]
-    pub fn socket(&self) -> Option<Token> {
-        self.socket
-    }
     pub fn connecting(&mut self, socket: Token, below: &mut Queue<io::Request>) {
         match self.ending {
             Ending::Closed => return,
