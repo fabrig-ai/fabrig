@@ -8,7 +8,7 @@ pub const READ: Tool = Tool {
     name: b"forge list",
     line: b"Read the deployment's forges",
     prints:
-        b"A line per forge, `forge N`, its kind, mode and connection, its App and installations, then `digest: forges`",
+        b"A line per forge, `forge N`, its kind, mode and connection, its App, installations and repositories being made, then `digest: forges`",
     result: b"forges",
     forms: &[&[
         flag(b"since", b"DIGEST", Kind::Digest, Optional, b"Wait until it differs from the read that printed DIGEST"),
@@ -768,6 +768,11 @@ pub(crate) fn fire(state: &mut Forges, client: &Client, env: &Env<Limits>, out: 
 pub(crate) fn holds(rows: &[Row], condition: &[u8]) -> bool {
     if condition == b"settled" {
         for row in rows {
+            for making in &row.makings {
+                if !crate::making::settled(making) {
+                    return false;
+                }
+            }
             if !settled(&row.connection) {
                 return false;
             }
@@ -822,11 +827,11 @@ pub(crate) fn holds(rows: &[Row], condition: &[u8]) -> bool {
     false
 }
 
-// Seven containers at most: wait result, row document, forges array, row,
-// installations array, installation, account. Reads and digests omit the wait
-// result, but share its bound so every encoding of the rows stays in step.
-const ROWS_JSON_DEPTH: u32 = 7;
+// Ten containers include a wait result and a making failure's refused reason.
+// Reads and digests share the wait's bound.
+const ROWS_JSON_DEPTH: u32 = 10;
 
+#[expect(clippy::too_many_lines, reason = "one forge row keeps its public fields together; client/tools.md, 5.5")]
 fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
     out.object_start();
     out.key(b"forges");
@@ -919,6 +924,12 @@ fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
             Some(first) => first_json(first, out),
             None => out.null(),
         }
+        out.key(b"makings");
+        out.array_start();
+        for making in &row.makings {
+            crate::making::encode(making, out);
+        }
+        out.array_end();
         out.object_end();
     }
     out.array_end();
@@ -988,6 +999,10 @@ fn text_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, ou
                     out.put(b" ");
                     out.number(installation.id);
                 }
+            }
+            for making in &row.makings {
+                out.put(b"\n  ");
+                out.put(&crate::making::phrase(making));
             }
             out.put(b"\n");
         }

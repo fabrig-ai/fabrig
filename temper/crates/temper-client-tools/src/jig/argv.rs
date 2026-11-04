@@ -340,7 +340,7 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
     check_watch(tool, call)?;
     Ok(())
 }
-/// Defaults are added only to waiting reads; a bare read has no timer.
+/// Defaults are added only to calls that wait; a bare read has no timer.
 pub(crate) fn defaults(args: &[Argument], values: &mut [Option<Values>], limits: &Limits) {
     let mut waiting = false;
     for (arg, value) in args.iter().zip(values.iter()) {

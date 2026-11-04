@@ -95,6 +95,8 @@ temper ctl DIR task show TASK --tree
 temper ctl DIR task message TASK TEXT --key KEY
 ```
 
+`repository make` and `repository copy` answer `kept`; `--until adopted` waits for adoption, exits 1 on failure or 2 on timeout, and `forge list` shows their rows.
+
 **Waits.** A read of one subject waits when given `--since DIGEST`,
 the digest a read of it printed, or `--until CONDITION`, or both:
 `--since` returns once the subject differs from that read; `--until`
@@ -116,7 +118,7 @@ both do. `--until changed` returns at the subject's next change.
 - `task list`, without `--after` or `--ended`: none;
 - `account list`: `usable`, an account your work may use; `settled`,
   no sign-in or check you asked still in progress;
-- `forge list`: `settled`, no set up, connect or install in progress;
+- `forge list`: `settled`, no set up, connect, install or repository making in progress;
   `connected:FORGE`; `made:FORGE`, its first repository made;
 - `change show TASK`: `pull`, `ci:pending`, `ci:passed`, `ci:failed`,
   `held`, `landed`, `cleared`.

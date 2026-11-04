@@ -12,6 +12,7 @@ pub mod jig;
 pub mod key;
 mod landing;
 pub mod limits;
+mod making;
 pub mod recovery;
 pub mod root;
 mod settings;

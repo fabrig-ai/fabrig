@@ -26,7 +26,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"hold", line: b"Placed holds: lift one you may lift" },
     Group { name: b"change", line: b"Changes: read a change's way to landing" },
     Group { name: b"landing", line: b"Landings: read one or a project's landings" },
-    Group { name: b"repository", line: b"Repositories: adopt one into a project" },
+    Group { name: b"repository", line: b"Repositories: make, copy or adopt one into a project" },
     Group {
         name: b"forge",
         line: b"Forges: read them, set one up, connect it, accept an installation, read what it reaches",
@@ -107,6 +107,8 @@ pub const TOOLS: &[&Tool] = &[
     &rows::GOAL_START,
     &rows::RESTORE,
     &rows::PROJECT_AMEND,
+    &crate::making::MAKE,
+    &crate::making::COPY,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())

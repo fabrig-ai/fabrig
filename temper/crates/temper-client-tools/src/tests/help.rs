@@ -2,6 +2,8 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(65), "help_repository_make"),
+    (Some(66), "help_repository_copy"),
     (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),
     (Some(jig::rows::GOAL_START_AT), "help_goal_start"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
@@ -241,6 +243,8 @@ const USAGES: &[&[u8]] = &[
     b"goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
     b"revision restore REVISION [REASON] --key KEY\n",
     b"project amend PROJECT --visibility public|private --key KEY\n",
+    b"repository make --project PROJECT [--forge FORGE] ORG/NAME [--no-home] [--until CONDITION] [--timeout DURATION] --key KEY\n",
+    b"repository copy --project PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home] [--until CONDITION] [--timeout DURATION] --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

@@ -150,7 +150,7 @@ fn every_state_renders_as_text_and_structured_json() {
         let document = concat(&[
             br#"{"forges":[{"number":3,"kind":"forgejo","read_only":false,"mode":"owned","offer":"offered","#,
             fields,
-            br#","installations":[],"ended":null,"first":null}]}"#,
+            br#","installations":[],"ended":null,"first":null,"makings":[]}]}"#,
         ]);
         let digest = jig::digest::Digest::of(&document).hex();
         let expected = concat(&[
