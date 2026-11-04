@@ -73,7 +73,8 @@ temper ctl DIR settings show charter 1 --json | jq '{items: [{setting: .setting,
 ```
 
 Expect: no output; `FILE` holds charter 1's whole value with new instructions
-in `items`. If empty, read stderr and retry. At most 1024 items, one per setting. Replace `set`
+in `items`. If empty, read stderr and retry. At most 1024 items, one per setting.
+Replace `set`
 with `"edit": "removed"` or `"edit": "reset"` to remove or reset one.
 
 Other settings:
@@ -102,7 +103,7 @@ other settings. Edit before sending. Spends resize its open period and parties'
 pools at once; policy 1 sets future projects' starting values.
 
 Set project-policy `period_spend` 8200000 beside rules `period_spend` 8300000;
-`project show PROJECT` confirms the period budget is 8200000.
+`project show PROJECT` confirms the open period's budget is 8200000.
 
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
 A proposal's temper items, with their whole values or their removed or
@@ -110,7 +111,8 @@ reset edits, are included in `proposal show PROPOSAL`.
 
 ### Authority for the reference charters
 
-Installing charters alone grants no task authority. Widen the rules ceiling, policy 1's ceiling and the creator-role authority before starting a reference goal.
+Installing charters alone grants no task authority. Widen the rules ceiling,
+policy 1's ceiling and the creator-role authority before starting a reference goal.
 Notes retain results and Left lists across fresh runs.
 
 Required: delegate 1, message 2, control 4 (`amend`, `cancel`, `release`),
@@ -171,7 +173,8 @@ mv reference-settings.json FILE
 ```
 
 Apply through step 3 as owner of both scopes. Tools need their bits at task,
-project and deployment; notes also need scope bits. Existing tasks do not gain widened authority automatically; moving revisions only changes charters.
+project and deployment; notes also need scope bits. Existing tasks do not gain
+widened authority automatically; moving revisions only changes charters.
 Instead, amend or allot their authority explicitly, or start anew.
 
 ## 3. Apply it, or propose it
