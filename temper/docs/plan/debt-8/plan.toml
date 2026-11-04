@@ -1,0 +1,3 @@
+draft = "debt-8"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-8/inputs/request.md", "temper/docs/plan/debt-8/inputs/held-core-prepare-agent.md", "jig/docs/development/debt/D001-roots-sequence-core-steps.md"]
