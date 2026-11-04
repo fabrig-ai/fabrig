@@ -353,3 +353,41 @@ fn a_buffer_price_fits_the_largest_capacity() {
     // A byte buffer's u32 capacity cannot overflow its u64 price.
     assert_eq!(Buffer::price(u32::MAX), Some(u64::from(u32::MAX)));
 }
+
+#[test]
+fn removing_a_list_item_moves_the_last_and_keeps_capacity() {
+    // Three items distinguish first, middle, last and the first absent position.
+    const ITEMS: [u8; 3] = [3, 7, 11];
+    const CAPACITY: u32 = 3;
+    for (index, removed, remaining) in [
+        (0, Some(3), &[11, 7][..]),
+        (1, Some(7), &[3, 11][..]),
+        (2, Some(11), &[3, 7][..]),
+        (3, None, &[3, 7, 11][..]),
+        (u32::MAX, None, &[3, 7, 11][..]),
+    ] {
+        let mut list = List::from_boxed(Box::new(ITEMS));
+        let buffer = list.as_slice().as_ptr();
+        assert_eq!(list.swap_remove(index), removed, "position {index}");
+        assert_eq!(list.as_slice(), remaining, "position {index}");
+        assert_eq!(list.capacity(), CAPACITY, "position {index}");
+        assert_eq!(list.as_slice().as_ptr(), buffer, "the grown buffer stays");
+        if removed.is_some() {
+            assert_eq!(list.push(13), Ok(()), "removing makes room");
+            assert_eq!(list.as_slice().as_ptr(), buffer, "refilling allocates nothing");
+        }
+        assert_eq!(list.push(17), Err(17), "the cap holds");
+    }
+    assert_eq!(List::<u8>::with_capacity(CAPACITY).swap_remove(0), None);
+}
+
+#[test]
+fn list_items_change_in_place_in_push_order() {
+    let mut list = List::from_boxed(Box::new([3_u8, 7, 11]));
+    for (item, value) in list.iter_mut().zip([5, 9, 13]) {
+        *item = value;
+    }
+    assert_eq!(list.as_slice(), &[5, 9, 13]);
+    list.clear();
+    assert_eq!(list.iter_mut().next(), None);
+}

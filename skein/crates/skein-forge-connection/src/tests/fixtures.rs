@@ -846,7 +846,8 @@ pub fn hook_head(body: &[u8], event: Option<&[u8]>, signature: &[u8]) -> Box<[u8
 #[derive(Debug)]
 pub struct HookHarness {
     connection: crate::hooks::connection::Hooked,
-    settings: Settings,
+    forges: List<crate::component::entry::ForgeEntry>,
+    word: Box<[u8]>,
     env: Env<Limits>,
     wire: skein_world::stream::Wire,
     closed: bool,
@@ -855,9 +856,15 @@ pub struct HookHarness {
 }
 pub fn hook() -> HookHarness {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
+    let settings = hook_settings();
+    let mut forges = List::with_capacity(env.limits.forges);
+    for forge in settings.forges.into_boxed() {
+        forges.push(crate::component::entry::ForgeEntry::new(forge, &env.limits)).expect("fixture forges");
+    }
     HookHarness {
         connection: crate::hooks::connection::Hooked::new(skein_lib::Token::new(100), &env),
-        settings: hook_settings(),
+        forges,
+        word: settings.word,
         env,
         wire: skein_world::stream::Wire::new(1),
         closed: false,
@@ -892,7 +899,7 @@ impl HookHarness {
         let mut up = Queue::with_capacity(16);
         let mut io = Queue::with_capacity(16);
         for _ in 0_u32..1024 {
-            self.connection.pump(skein_lib::Token::new(1), &self.env, &self.settings, &mut up, &mut io);
+            self.connection.pump(skein_lib::Token::new(1), &self.env, &self.forges, &self.word, &mut up, &mut io);
             for _ in 0..io.len() {
                 match io.pop().expect("queued request") {
                     skein_io::Request::Stream { down, .. } => {

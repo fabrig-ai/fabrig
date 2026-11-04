@@ -48,7 +48,7 @@ fn forgejo_starts_leave_the_github_reserved_slot_free() {
     let mut io = Queue::uncapped();
     c.begin(&env, &mut up, &mut io);
     assert_eq!(c.call_connections(), limits.connections);
-    assert!(c.own_tokens.get(GITHUB_AT).expect("GitHub slot").is_some());
+    assert!(c.forges.get(GITHUB_AT).expect("forge").base.own.is_some());
     assert_eq!(c.connections.len(), 3);
 }
 
@@ -162,7 +162,7 @@ fn call_401_coalesces_an_already_running_contents_renewal() {
 #[test]
 fn renewal_local_signing_refusal_stops_invalid_key() {
     let mut h = github_ready();
-    h.component.settings.forges.get_mut(0).expect("forge").access.as_mut().expect("access").credential =
+    h.component.forges.get_mut(0).expect("forge").base.forge.access.as_mut().expect("access").credential =
         skein_forge::credential::Credential::App { id: 7, key: skein_lib::Secret::new(Box::from([0; 64])) };
     h.component.test_github_mut().jwt.forget();
     let revision = revision(&h);

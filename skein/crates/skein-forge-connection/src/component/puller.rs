@@ -26,22 +26,18 @@ impl Component {
         }
     }
     pub(super) fn github_log_active(&self, at: u32) -> bool {
-        match self.own_plans.get(at).expect("forge plan") {
+        match &self.forges.get(at).expect("forge").github().expect("GitHub").plan {
             Some(OwnPlan::GitHubLogPage(_) | OwnPlan::GitHubLogDelivery(_)) => true,
-            Some(
-                OwnPlan::Forgejo(_)
-                | OwnPlan::GitHubInstallations(_)
-                | OwnPlan::GitHubMinting(_)
-                | OwnPlan::GitHubIdentity(_),
-            )
-            | None => false,
+            Some(OwnPlan::GitHubInstallations(_) | OwnPlan::GitHubMinting(_) | OwnPlan::GitHubIdentity(_)) | None => {
+                false
+            }
         }
     }
     pub(super) fn github_log_selected(&self, at: u32) -> bool {
-        if !super::ready(*self.starts.get(at).expect("forge start")) {
+        if !super::ready(self.forges.get(at).expect("forge").base.start) {
             return false;
         }
-        let gh = self.github.get(at).expect("forge slot").as_ref().expect("GitHub state");
+        let gh = &self.forges.get(at).expect("forge").github().expect("GitHub").state;
         let reading = match gh.read {
             Read::Reading(_) | Read::Changes(_) => true,
             Read::Idle | Read::Waiting { .. } => false,
@@ -53,8 +49,8 @@ impl Component {
         !reading && !working && gh.puller.wants_request()
     }
     pub(super) fn github_log_local(&mut self, at: u32, env: &Env<Limits>, up: &mut Queue<Event>) -> bool {
-        let gh = self.github.get_mut(at).expect("forge slot").as_mut().expect("GitHub state");
-        let forge = self.settings.forges.get(at).expect("forge").number;
+        let forge = self.forges.get(at).expect("forge").base.forge.number;
+        let gh = &mut self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state;
         match gh.puller.local(env) {
             Action::Idle => false,
             Action::Progress => true,
@@ -75,27 +71,23 @@ impl Component {
         }
     }
     pub(super) fn github_log_failed(&mut self, at: u32, env: &Env<Limits>) {
-        let delivery = match self.own_plans.get(at).expect("forge plan") {
+        let delivery = match &self.forges.get(at).expect("forge").github().expect("GitHub").plan {
             Some(OwnPlan::GitHubLogDelivery(_)) => true,
             Some(OwnPlan::GitHubLogPage(_)) => false,
-            Some(
-                OwnPlan::Forgejo(_)
-                | OwnPlan::GitHubInstallations(_)
-                | OwnPlan::GitHubMinting(_)
-                | OwnPlan::GitHubIdentity(_),
-            )
-            | None => unreachable!("active log read"),
+            Some(OwnPlan::GitHubInstallations(_) | OwnPlan::GitHubMinting(_) | OwnPlan::GitHubIdentity(_)) | None => {
+                unreachable!("active log read")
+            }
         };
-        let gh = self.github.get_mut(at).expect("forge slot").as_mut().expect("GitHub state");
+        let gh = &mut self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state;
         if delivery {
             gh.puller.reading();
         } else {
             gh.puller.finish(env, false);
         }
-        *self.own_plans.get_mut(at).expect("forge plan") = None;
+        self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").plan = None;
     }
     pub(super) fn github_log_error(&mut self, at: u32, env: &Env<Limits>, up: &mut Queue<Event>) {
-        let gh = self.github.get_mut(at).expect("forge slot").as_mut().expect("GitHub state");
+        let gh = &mut self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state;
         if gh.status == Some(401) {
             self.github_stop(at, Stopped::KeyRefused, up);
         } else {
@@ -108,22 +100,22 @@ impl Component {
         answer: Result<github::log::Logged, api::Error>,
         up: &mut Queue<Event>,
     ) {
-        self.github.get_mut(at).expect("forge slot").as_mut().expect("GitHub state").puller.reading();
+        self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state.puller.reading();
         match answer {
             Ok(logged) => self.github_logged(at, logged, up),
             Err(_) => {
-                if self.github.get(at).expect("forge slot").as_ref().expect("GitHub state").status == Some(401) {
+                if self.forges.get(at).expect("forge").github().expect("GitHub").state.status == Some(401) {
                     self.github_stop(at, Stopped::KeyRefused, up);
                 }
             }
         }
     }
     pub(super) fn github_logged(&mut self, at: u32, logged: github::log::Logged, up: &mut Queue<Event>) {
-        let forge = self.settings.forges.get(at).expect("forge").number;
+        let forge = self.forges.get(at).expect("forge").base.forge.number;
         match &logged.delivery {
             Delivery::Installation { installation, account, change } => {
                 if *change == github::delivery::Change::Repositories {
-                    let gh = self.github.get(at).expect("forge slot").as_ref().expect("GitHub state");
+                    let gh = &self.forges.get(at).expect("forge").github().expect("GitHub").state;
                     let account = match gh.rows.get(installation) {
                         Some(row) => row.account.clone(),
                         None => Account { id: account.id, login: account.login.clone() },
@@ -146,7 +138,7 @@ impl Component {
             | Delivery::Ci { .. }
             | Delivery::Other => {}
         }
-        if let Some(hint) = github::delivery::hint(forge, &self.settings.word, &logged.delivery) {
+        if let Some(hint) = github::delivery::hint(forge, &self.owner.word, &logged.delivery) {
             if let Some(path) = logged.repository
                 && let Some(row) = self.github_tables.repository(hint.repository)
             {
@@ -159,8 +151,8 @@ impl Component {
                     self.github_tables.drop_repository(hint.repository);
                 }
             }
-            let source = *self.own_tokens.get(at).expect("forge token");
-            let gh = self.github.get_mut(at).expect("forge slot").as_mut().expect("GitHub state");
+            let source = self.forges.get(at).expect("forge").base.own;
+            let gh = &mut self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state;
             gh.puller.source = source;
             gh.puller.hold(hint);
         }

@@ -64,8 +64,8 @@ impl Component {
             }
             let forge = waiting.repository.forge;
             let mut at = None;
-            for n in 0..self.settings.forges.len() {
-                if self.settings.forges.get(n).expect("forge").number == forge {
+            for n in 0..self.forges.len() {
+                if self.forges.get(n).expect("forge").base.forge.number == forge {
                     at = Some(n);
                     break;
                 }
@@ -84,7 +84,7 @@ impl Component {
                     continue;
                 }
                 if waiting.plan.is_none() {
-                    match *self.starts.get(at).expect("forge start") {
+                    match self.forges.get(at).expect("forge").base.start {
                         Start::Unconnected | Start::Stopped(_) => {
                             self.finish(call, id, Err(api::Error::NotConnected), up);
                             continue;
@@ -99,7 +99,7 @@ impl Component {
                     }
                 }
             }
-            if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::GitHub {
+            if self.forges.get(at).expect("forge").base.forge.kind == crate::settings::Kind::GitHub {
                 self.drive_github_call((call, id), at, env, up, io);
                 continue;
             }
@@ -141,7 +141,7 @@ impl Component {
             return true;
         }
         let forge = waiting.repository.forge;
-        let cap = match *self.starts.get(at).expect("start") {
+        let cap = match self.forges.get(at).expect("forge").base.start {
             Start::Ready { cap } => cap,
             Start::Listing { .. }
             | Start::Minting { .. }
@@ -161,9 +161,9 @@ impl Component {
         for (owner, connection) in &self.connections {
             let c = self.connection_slab.get(*connection).expect("indexed connection");
             let mut reserved = false;
-            for n in 0..self.own_tokens.len() {
-                if self.own_tokens.get(n) == Some(&Some(*owner))
-                    && self.settings.forges.get(n).expect("forge").kind == crate::settings::Kind::GitHub
+            for n in 0..self.forges.len() {
+                if self.forges.get(n).expect("forge").base.own == Some(*owner)
+                    && self.forges.get(n).expect("forge").base.forge.kind == crate::settings::Kind::GitHub
                 {
                     reserved = true;
                 }
@@ -177,8 +177,8 @@ impl Component {
                     break;
                 }
                 let mut start = false;
-                for start_token in &self.own_tokens {
-                    if *start_token == Some(*owner) {
+                for entry in &self.forges {
+                    if entry.base.own == Some(*owner) {
                         start = true;
                     }
                 }
@@ -201,8 +201,8 @@ impl Component {
             return false;
         }
         let token = token.expect("selected connection");
-        if self.own_tokens.get(at) == Some(&Some(token)) {
-            *self.own_tokens.get_mut(at).expect("forge slot") = None;
+        if self.forges.get(at).expect("forge").base.own == Some(token) {
+            self.forges.get_mut(at).expect("forge").base.own = None;
         }
         let _old = self.holders.insert(token, call).expect("one holder per connection");
         let waiting = self.waiting.get_mut(id).expect("indexed call");
@@ -210,7 +210,7 @@ impl Component {
         if waiting.plan.is_some() {
             return true;
         }
-        if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::GitHub {
+        if self.forges.get(at).expect("forge").base.forge.kind == crate::settings::Kind::GitHub {
             return self.begin_github_call(call, id, env, up, io);
         }
         let op = waiting.op.take().expect("waiting operation");
@@ -219,7 +219,7 @@ impl Component {
         let step = match &mut plan {
             CallPlan::Forgejo(plan) => plan.begin(
                 bounds(waiting.page_size, &env.limits, &self.shared),
-                &self.settings.word,
+                &self.owner.word,
                 &mut self.forgejo_tables,
             ),
             CallPlan::GitHub(_) => unreachable!("Forgejo admission"),
@@ -267,7 +267,7 @@ impl Component {
                 if let Some(request) = plan.pending() {
                     c.deadline = Some(deadline);
                     c.raw_room(plan.raw_room(self.shared.answer_bytes));
-                    let forge = self.settings.forges.get(at).expect("forge");
+                    let forge = &self.forges.get(at).expect("forge").base.forge;
                     let authorization = skein_forge::forgejo::credential::authorization(
                         &forge.access.as_ref().expect("held access").credential,
                     )
@@ -275,7 +275,7 @@ impl Component {
                     match c.start(
                         env,
                         forge,
-                        &self.settings.user_agent,
+                        &self.owner.user_agent,
                         Exchange::Forgejo { request: request.request, range: request.range, authorization },
                     ) {
                         Ok(()) => {
@@ -305,7 +305,7 @@ impl Component {
                         let step = plan.heard(
                             heard,
                             bounds(waiting.page_size, &env.limits, &self.shared),
-                            &self.settings.word,
+                            &self.owner.word,
                             &mut self.forgejo_tables,
                         );
                         (step, plan.take_cut())

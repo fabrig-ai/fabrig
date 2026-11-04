@@ -3,13 +3,15 @@ use crate::{
     boundary::{Answered, Event, Request},
     connection::{self, Connection, Exchange, Phase},
     limits::{self, Limits, Shared, Unusable},
-    settings::Settings,
+    settings::{Owner, Settings},
     start,
     start::Start,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, Lifecycle, List, Map, Queue, Slab, Time, Token, earliest};
 mod calls;
+pub(crate) mod entry;
+use entry::{Dialect, ForgeEntry};
 mod github;
 mod github_calls;
 mod github_logs;
@@ -34,8 +36,8 @@ pub(crate) enum CallPlan {
     GitHub(skein_forge::github::plans::plan::Plan),
 }
 #[derive(Debug)]
+#[expect(clippy::enum_variant_names, reason = "the GitHub own plans retain their shared names")]
 pub(crate) enum OwnPlan {
-    Forgejo(skein_forge::forgejo::plans::start::Plan),
     GitHubInstallations(skein_forge::github::plans::start::Installations),
     GitHubMinting(skein_forge::github::plans::start::Minting),
     GitHubIdentity(skein_forge::github::plans::start::Identity),
@@ -102,9 +104,8 @@ pub(crate) struct Held {
 #[derive(Debug)]
 pub struct Component {
     hooks: crate::hooks::Hooks,
-    settings: Settings,
-    starts: List<Start>,
-    github: List<Option<Box<crate::installations::GitHub>>>,
+    forges: List<ForgeEntry>,
+    owner: Owner,
     forgejo_tables: Tables,
     github_tables: skein_forge::github::plans::tables::Tables,
     waiting: Slab<Waiting>,
@@ -116,44 +117,21 @@ pub struct Component {
     shared: Shared,
     connections: Map<Token, Id<Connection>>,
     connection_slab: Slab<Connection>,
-    own_tokens: List<Option<Token>>,
-    own_plans: List<Option<OwnPlan>>,
     next_token: u64,
     wake: Option<Time>,
 }
 impl Component {
-    pub fn new(mut settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
+    pub fn new(settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
         limits::check(limits, shared, &settings)?;
-        let mut github = List::with_capacity(limits.forges);
         let mut forges = List::with_capacity(limits.forges);
         for forge in settings.forges.into_boxed() {
-            forges.push(forge).expect("checked forge count");
+            forges.push(ForgeEntry::new(forge, limits)).expect("checked forge count");
         }
-        settings.forges = forges;
-        let mut starts = List::with_capacity(limits.forges);
-        let mut own_tokens = List::with_capacity(limits.forges);
-        let mut own_plans = List::with_capacity(limits.forges);
-        for forge in &settings.forges {
-            let state =
-                if forge.access.is_some() { initial(forge.kind, limits.start_backoff) } else { Start::Unconnected };
-            let state_github = match forge.kind {
-                crate::settings::Kind::Forgejo => None,
-                crate::settings::Kind::GitHub => {
-                    let mut github = crate::installations::GitHub::new(limits.installations);
-                    github.said_origins = Queue::with_capacity(limits.log_origins);
-                    Some(Box::new(github))
-                }
-            };
-            github.push(state_github).expect("checked forge count");
-            starts.push(state).expect("checked forge count");
-            own_tokens.push(None).expect("checked forge count");
-            own_plans.push(None).expect("checked forge count");
-        }
+        let owner = Owner { webhooks: settings.webhooks, word: settings.word, user_agent: settings.user_agent };
         Ok(Self {
             hooks: crate::hooks::Hooks::new(limits),
-            settings,
-            starts,
-            github,
+            forges,
+            owner,
             forgejo_tables: Tables::new(
                 if limits.forges > 0 { limits.repositories } else { 0 },
                 if limits.forges > 0 { limits.users } else { 0 },
@@ -175,16 +153,14 @@ impl Component {
             connection_slab: Slab::with_capacity(
                 limits.connections.checked_add(limits.forges).expect("checked connections"),
             ),
-            own_tokens,
-            own_plans,
             next_token: 1,
             wake: None,
         })
     }
     #[cfg(test)]
     pub(crate) fn test_calls_ready(&mut self) {
-        *self.starts.get_mut(0).expect("fixture start") = Start::Ready { cap: skein_forge::github::pin::PAGE_CAP };
-        self.settings.forges.get_mut(0).expect("forge").access = Some(crate::tests::fixtures::app_access(
+        self.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: skein_forge::github::pin::PAGE_CAP };
+        self.forges.get_mut(0).expect("forge").base.forge.access = Some(crate::tests::fixtures::app_access(
             skein_fake_forge_github::keys::KEYS.first().expect("test key"),
             7,
             9,
@@ -196,11 +172,11 @@ impl Component {
     }
     #[cfg(test)]
     pub(crate) fn test_github(&self) -> &crate::installations::GitHub {
-        self.github.get(0).expect("fixture forge").as_ref().expect("GitHub fixture")
+        &self.forges.get(0).expect("forge").github().expect("GitHub").state
     }
     #[cfg(test)]
     pub(crate) fn test_github_mut(&mut self) -> &mut crate::installations::GitHub {
-        self.github.get_mut(0).expect("fixture forge").as_mut().expect("GitHub fixture")
+        &mut self.forges.get_mut(0).expect("forge").github_mut().expect("GitHub").state
     }
     #[cfg(test)]
     pub(crate) fn test_local(&mut self, env: &Env<Limits>, up: &mut Queue<Event>) {
@@ -216,13 +192,12 @@ impl Component {
         if self.lifecycle != Lifecycle::Live {
             return;
         }
-        if let Some(settings) = &self.settings.webhooks {
+        if let Some(settings) = &self.owner.webhooks {
             self.hooks.begin(settings, io);
         }
-        for at in 0..self.starts.len() {
-            if self.settings.forges.get(at).expect("configured forge").access.is_some() {
-                *self.starts.get_mut(at).expect("configured start") =
-                    initial(self.settings.forges.get(at).expect("forge").kind, env.limits.start_backoff);
+        for entry in self.forges.iter_mut() {
+            if entry.base.forge.access.is_some() {
+                entry.base.start = initial(entry.base.forge.kind, env.limits.start_backoff);
             }
         }
         self.drive(env, up, io);
@@ -309,8 +284,8 @@ impl Component {
             Request::Offer => {
                 self.hooks.offer();
                 self.offer_pullers();
-                if self.settings.webhooks.is_some() {
-                    self.hooks.drive(env, &self.settings, up, io);
+                if self.owner.webhooks.is_some() {
+                    self.hooks.drive(env, &self.forges, &self.owner.word, up, io);
                 }
                 for _ in 0..self.held.len() {
                     let mut next = None;
@@ -361,12 +336,15 @@ impl Component {
         }
         self.held = Map::with_capacity(self.held.capacity());
         self.holders = Map::with_capacity(self.holders.capacity());
-        for at in 0..self.starts.len() {
-            self.settings.forges.get_mut(at).expect("forge").access = None;
-            if let Some(github) = self.github.get_mut(at).expect("forge slot") {
-                github.forget();
+        for entry in self.forges.iter_mut() {
+            entry.base.forge.access = None;
+            match &mut entry.dialect {
+                Dialect::Forgejo { plan } => *plan = None,
+                Dialect::GitHub(github) => {
+                    github.state.forget();
+                    github.plan = None;
+                }
             }
-            *self.own_plans.get_mut(at).expect("forge plan") = None;
         }
     }
     /// A close that does not wait (programming-model.md, 5.2), once the calls are ended
@@ -378,40 +356,30 @@ impl Component {
         self.drive(env, up, io);
     }
     fn offer_pullers(&mut self) {
-        for at in 0..self.github.len() {
-            if let Some(gh) = self.github.get_mut(at).expect("forge slot") {
-                gh.puller.offer();
+        for entry in self.forges.iter_mut() {
+            if let Some(gh) = entry.github_mut() {
+                gh.state.puller.offer();
             }
         }
     }
     fn refused_hint(&mut self, hint: crate::hooks::Hinted) {
-        let mut puller = None;
-        for at in 0..self.github.len() {
-            let source = match self.github.get(at).expect("forge slot") {
-                Some(gh) => gh.puller.source,
-                None => None,
-            };
-            if source == Some(hint.connection)
-                && hint.hint.repository.forge == self.settings.forges.get(at).expect("forge").number
+        for entry in self.forges.iter_mut() {
+            if entry.base.forge.number == hint.hint.repository.forge
+                && let Some(gh) = entry.github_mut()
+                && gh.state.puller.source == Some(hint.connection)
             {
-                puller = Some(at);
-                break;
+                gh.state.puller.refused(hint.hint);
+                return;
             }
         }
-        if let Some(at) = puller {
-            if let Some(gh) = self.github.get_mut(at).expect("forge slot") {
-                gh.puller.refused(hint.hint);
-            }
-        } else {
-            self.hooks.refused(hint);
-        }
+        self.hooks.refused(hint);
     }
     fn installations(&mut self, forge: u16, accepted: &[u64]) {
-        for at in 0..self.settings.forges.len() {
-            if self.settings.forges.get(at).expect("forge").number == forge
-                && let Some(github) = self.github.get_mut(at).expect("forge slot")
+        for entry in self.forges.iter_mut() {
+            if entry.base.forge.number == forge
+                && let Some(github) = entry.github_mut()
             {
-                github.accept(accepted);
+                github.state.accept(accepted);
             }
         }
     }
@@ -424,8 +392,8 @@ impl Component {
         io: &mut Queue<skein_io::Request>,
     ) {
         let mut position = None;
-        for at in 0..self.settings.forges.len() {
-            if self.settings.forges.get(at).expect("configured forge").number == number {
+        for at in 0..self.forges.len() {
+            if self.forges.get(at).expect("forge").base.forge.number == number {
                 position = Some(at);
                 break;
             }
@@ -433,8 +401,10 @@ impl Component {
         let Some(at) = position else {
             return;
         };
-        let forge = self.settings.forges.get_mut(at).expect("configured forge");
-        let mut checked = limits::access(&env.limits, forge.kind, self.settings.webhooks.is_some(), &access);
+        let entry = self.forges.get_mut(at).expect("forge");
+        let base = &mut entry.base;
+        let forge = &mut base.forge;
+        let mut checked = limits::access(&env.limits, forge.kind, self.owner.webhooks.is_some(), &access);
         if checked.is_ok()
             && let Some(held) = &forge.access
             && held.user != access.user
@@ -447,25 +417,28 @@ impl Component {
                 call.revoked = true;
             }
         }
-        if let Some(token) = self.own_tokens.get_mut(at).expect("configured slot").take()
+        if let Some(token) = base.own.take()
             && let Some(id) = self.connections.get(&token)
         {
             let c = self.connection_slab.get_mut(*id).expect("start connection");
             c.close(env, c.in_flight(), io);
         }
-        *self.own_plans.get_mut(at).expect("configured plan") = None;
-        if let Some(github) = self.github.get_mut(at).expect("forge slot") {
-            github.forget();
+        match &mut entry.dialect {
+            Dialect::Forgejo { plan } => *plan = None,
+            Dialect::GitHub(github) => {
+                github.state.forget();
+                github.plan = None;
+            }
         }
         match checked {
             Ok(()) => {
                 forge.access = Some(access);
-                *self.starts.get_mut(at).expect("configured start") = initial(forge.kind, env.limits.start_backoff);
+                base.start = initial(forge.kind, env.limits.start_backoff);
             }
             Err(value) => {
                 forge.access = None;
                 let why = crate::Stopped::Invalid { value };
-                *self.starts.get_mut(at).expect("configured start") = Start::Stopped(why);
+                base.start = Start::Stopped(why);
                 up.push(Event::Stopped { forge: number, why });
             }
         }
@@ -559,14 +532,15 @@ impl Component {
         self.drive(env, up, io);
     }
     fn own_closed(&mut self, owner: Token, closing: bool, env: &Env<Limits>, up: &mut Queue<Event>) {
-        for at in 0..self.own_tokens.len() {
-            if self.own_tokens.get(at) == Some(&Some(owner)) {
-                *self.own_tokens.get_mut(at).expect("configured forge") = None;
-                if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::Forgejo {
-                    *self.own_plans.get_mut(at).expect("configured forge") = None;
+        for at in 0..self.forges.len() {
+            if self.forges.get(at).expect("forge").base.own == Some(owner) {
+                self.forges.get_mut(at).expect("forge").base.own = None;
+                match &mut self.forges.get_mut(at).expect("forge").dialect {
+                    Dialect::Forgejo { plan } => *plan = None,
+                    Dialect::GitHub(_) => {}
                 }
                 if self.lifecycle == Lifecycle::Live && !closing {
-                    match self.settings.forges.get(at).expect("forge").kind {
+                    match self.forges.get(at).expect("forge").base.forge.kind {
                         crate::settings::Kind::Forgejo => {
                             self.start_heard(at, skein_forge::forgejo::plans::start::Heard::Unanswered, env, up);
                         }
@@ -602,9 +576,11 @@ impl Component {
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut next = earliest(self.wake, self.hooks.deadline());
-        for gh in self.github.iter().flatten() {
-            next = earliest(next, gh.puller.due);
-            next = earliest(next, gh.deadline());
+        for entry in &self.forges {
+            if let Some(gh) = entry.github() {
+                next = earliest(next, gh.state.puller.due);
+                next = earliest(next, gh.state.deadline());
+            }
         }
         for (_, id) in &self.connections {
             let c = self.connection_slab.get(*id).expect("indexed connection");
@@ -612,8 +588,8 @@ impl Component {
             next = earliest(next, c.link.next_deadline());
         }
         if self.lifecycle == Lifecycle::Live {
-            for state in &self.starts {
-                if let Some((until, _)) = backoff(*state) {
+            for entry in &self.forges {
+                if let Some((until, _)) = backoff(entry.base.start) {
                     next = earliest(next, Some(until));
                 }
             }
@@ -630,31 +606,31 @@ impl Component {
         env: &Env<Limits>,
         up: &mut Queue<Event>,
     ) {
-        let forge = self.settings.forges.get_mut(at).expect("configured forge");
-        let state = self.starts.get_mut(at).expect("configured start");
-        let previous = *state;
-        *state = start::heard(previous, heard, forge.access.as_ref().expect("held access").user, env.now, &env.limits);
-        if start_read(*state) == Some(Read::ApiSettings)
-            && *state != previous
-            && let Some(Some(token)) = self.own_tokens.get(at)
-            && let Some(id) = self.connections.get(token)
+        let base = &mut self.forges.get_mut(at).expect("forge").base;
+        let previous = base.start;
+        base.start =
+            start::heard(previous, heard, base.forge.access.as_ref().expect("held access").user, env.now, &env.limits);
+        if start_read(base.start) == Some(Read::ApiSettings)
+            && base.start != previous
+            && let Some(token) = base.own
+            && let Some(id) = self.connections.get(&token)
             && let Some(c) = self.connection_slab.get_mut(*id)
         {
             c.deadline = Some(env.now.saturating_add(env.limits.deadline));
         }
-        if let Some(reason) = stopped(*state)
-            && *state != previous
+        if let Some(reason) = stopped(base.start)
+            && base.start != previous
         {
-            forge.access = None;
-            up.push(Event::Stopped { forge: forge.number, why: reason });
-        } else if ready(*state) && *state != previous {
-            up.push(Event::Connected { forge: forge.number });
+            base.forge.access = None;
+            up.push(Event::Stopped { forge: base.forge.number, why: reason });
+        } else if ready(base.start) && base.start != previous {
+            up.push(Event::Connected { forge: base.forge.number });
         }
     }
     fn drive_own(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
         self.wake = None;
-        for at in 0..self.starts.len() {
-            if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::GitHub {
+        for at in 0..self.forges.len() {
+            if self.forges.get(at).expect("forge").base.forge.kind == crate::settings::Kind::GitHub {
                 self.drive_github(at, env, up, io);
                 continue;
             }
@@ -662,14 +638,15 @@ impl Component {
         }
     }
     fn drive_forgejo(&mut self, at: u32, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        let state = self.starts.get_mut(at).expect("configured start");
+        let base = &mut self.forges.get_mut(at).expect("forge").base;
+        let state = &mut base.start;
         if let Some((until, next)) = backoff(*state)
             && until <= env.now
             && self.lifecycle == Lifecycle::Live
         {
             *state = Start::Checking { next };
         }
-        let mut token = *self.own_tokens.get(at).expect("configured slot");
+        let mut token = base.own;
         if self.lifecycle == Lifecycle::Live
             && token.is_none()
             && start_read(*state).is_some()
@@ -682,16 +659,22 @@ impl Component {
             return;
         };
         for _ in 0..64_u32 {
+            let entry = self.forges.get_mut(at).expect("forge");
+            let base = &mut entry.base;
+            let plan = match &mut entry.dialect {
+                Dialect::Forgejo { plan } => plan,
+                Dialect::GitHub(_) => return,
+            };
             let c = self
                 .connection_slab
                 .get_mut(*self.connections.get(&token).expect("indexed token"))
                 .expect("indexed connection");
             if self.lifecycle != Lifecycle::Live {
-                *self.own_plans.get_mut(at).expect("configured forge") = None;
+                *plan = None;
                 c.close(env, c.in_flight(), io);
                 break;
             }
-            let state = *self.starts.get(at).expect("configured start");
+            let state = base.start;
             if let Some(deadline) = c.deadline
                 && deadline <= env.now
             {
@@ -704,13 +687,10 @@ impl Component {
             if c.phase == Phase::Idle
                 && let Some(read) = start_read(state)
             {
-                let holder = self.own_plans.get_mut(at).expect("configured forge");
-                if holder.is_none() {
-                    *holder = Some(OwnPlan::Forgejo(skein_forge::forgejo::plans::start::Plan::new(read)));
+                if plan.is_none() {
+                    *plan = Some(skein_forge::forgejo::plans::start::Plan::new(read));
                 }
-                let plan = holder.as_mut().expect("active start read");
-                let forge = self.settings.forges.get(at).expect("configured forge");
-                send_start(c, env, forge, &self.settings.user_agent, plan);
+                send_start(c, env, &base.forge, &self.owner.user_agent, plan.as_mut().expect("active start read"));
             }
             c.pump(env, io);
             if let Some(heard) = c.heard() {
@@ -718,18 +698,8 @@ impl Component {
                     connection::Heard::Forgejo(heard) => heard,
                     connection::Heard::GitHub(_) => unreachable!("Forgejo start has a Forgejo connection"),
                 };
-                let plan = self.own_plans.get_mut(at).expect("configured forge");
-                let step = match plan {
-                    Some(OwnPlan::Forgejo(plan)) => plan.heard(heard),
-                    Some(
-                        OwnPlan::GitHubInstallations(_)
-                        | OwnPlan::GitHubMinting(_)
-                        | OwnPlan::GitHubIdentity(_)
-                        | OwnPlan::GitHubLogPage(_)
-                        | OwnPlan::GitHubLogDelivery(_),
-                    ) => {
-                        unreachable!("Forgejo own plan")
-                    }
+                let step = match plan.as_mut() {
+                    Some(plan) => plan.heard(heard),
                     None => None,
                 };
                 if let Some(skein_forge::forgejo::plans::start::Step::Done(heard)) = step {
@@ -740,8 +710,8 @@ impl Component {
                     .connection_slab
                     .get_mut(*self.connections.get(&token).expect("indexed token"))
                     .expect("indexed connection");
-                if backoff(*self.starts.get(at).expect("configured start")).is_some()
-                    || stopped(*self.starts.get(at).expect("configured start")).is_some()
+                if backoff(self.forges.get(at).expect("forge").base.start).is_some()
+                    || stopped(self.forges.get(at).expect("forge").base.start).is_some()
                 {
                     c.close(env, true, io);
                 }
@@ -764,8 +734,8 @@ impl Component {
                 c.abort(env, io);
             }
         }
-        if self.settings.webhooks.is_some() {
-            self.hooks.drive(env, &self.settings, up, io);
+        if self.owner.webhooks.is_some() {
+            self.hooks.drive(env, &self.forges, &self.owner.word, up, io);
         }
         self.drive_own(env, up, io);
         self.drive_calls(env, up, io);
@@ -787,10 +757,8 @@ impl Component {
                 continue;
             }
             let mut reserved = false;
-            for at in 0..self.own_tokens.len() {
-                if self.own_tokens.get(at) == Some(&Some(*owner))
-                    && self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::GitHub
-                {
+            for entry in &self.forges {
+                if entry.base.own == Some(*owner) && entry.base.forge.kind == crate::settings::Kind::GitHub {
                     reserved = true;
                 }
             }
@@ -813,7 +781,7 @@ impl Component {
         assert!(self.next_token < 1_u64.checked_shl(59).expect("token prefix"), "connection token prefix");
         let owner = Token::new(self.next_token);
         self.next_token = self.next_token.checked_add(1).expect("connection token space");
-        let forge = self.settings.forges.get(at).expect("configured forge");
+        let forge = &self.forges.get(at).expect("forge").base.forge;
         self.connection_slab.reclaim();
         let id = self
             .connection_slab
@@ -835,13 +803,16 @@ impl Component {
     }
     fn open_own(&mut self, at: u32, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) -> Token {
         let owner = self.open_call(at, env, io);
-        *self.own_tokens.get_mut(at).expect("configured slot") = Some(owner);
-        let plan = self.own_plans.get_mut(at).expect("configured forge");
-        if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::Forgejo {
-            *plan = None;
-        }
-        if let Some(read) = start_read(*self.starts.get(at).expect("configured start")) {
-            *plan = Some(OwnPlan::Forgejo(skein_forge::forgejo::plans::start::Plan::new(read)));
+        let entry = self.forges.get_mut(at).expect("forge");
+        entry.base.own = Some(owner);
+        match &mut entry.dialect {
+            Dialect::Forgejo { plan } => {
+                *plan = None;
+                if let Some(read) = start_read(entry.base.start) {
+                    *plan = Some(skein_forge::forgejo::plans::start::Plan::new(read));
+                }
+            }
+            Dialect::GitHub(_) => {}
         }
         owner
     }
@@ -864,9 +835,9 @@ impl Component {
     /// The pure start, in configured forge order.
     #[must_use]
     pub fn start(&self, forge: u16) -> Option<Start> {
-        for (at, settings) in self.settings.forges.as_slice().iter().enumerate() {
-            if settings.number == forge {
-                return self.starts.as_slice().get(at).copied();
+        for entry in &self.forges {
+            if entry.base.forge.number == forge {
+                return Some(entry.base.start);
             }
         }
         None
@@ -878,18 +849,9 @@ fn send_start(
     env: &Env<Limits>,
     forge: &crate::settings::Forge,
     user_agent: &[u8],
-    plan: &mut OwnPlan,
+    plan: &mut skein_forge::forgejo::plans::start::Plan,
 ) {
-    let step = match plan {
-        OwnPlan::Forgejo(plan) => plan.begin(),
-        OwnPlan::GitHubInstallations(_)
-        | OwnPlan::GitHubMinting(_)
-        | OwnPlan::GitHubIdentity(_)
-        | OwnPlan::GitHubLogPage(_)
-        | OwnPlan::GitHubLogDelivery(_) => {
-            unreachable!("Forgejo sender")
-        }
-    };
+    let step = plan.begin();
     let skein_forge::forgejo::plans::start::Step::Send(exchange) = step else {
         unreachable!("a new start plan sends its read");
     };
