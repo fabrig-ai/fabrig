@@ -321,3 +321,27 @@ fewer, so **+148**. The surface, the sketches' bodies, the tests and their asser
 
 Then finish what the size stop left: the two breaks of `## Report`, and step 7's clippy and nextest runs, each count
 checked. The report gives the net lines against +150.
+
+2026-11-04. Q: `jig/clippy.toml` bans `core::matches`, and no scoped `expect` suppresses it: may `work_pending` use the
+macro-free expression instead of the guarded `matches!` the answer above prescribed?
+
+Yes. That answer's body was wrong: it can't pass step 7's clippy. `work_pending` is the run's expression, the same rule,
+reading the deadline once; it replaces the `matches!`, and takes the one line more:
+
+```rust
+#[must_use]
+pub fn work_pending(&self, now: Time) -> bool {
+    let deadline = self.next_deadline();
+    !self.io.is_empty() || !self.out.is_empty() || (deadline.is_some() && deadline <= Some(now))
+}
+```
+
+A trial of it under the repository's `rustfmt.toml` leaves it on those lines. The run's
+`#[expect(clippy::partial_pub_fields, reason = "...")]` on `host::Workers` stands. Add one commit on the branch; keep
+`7c4dc8d9c0`, `f14318b15b` and everything else. The cap stays **+150**, the most the plan owner's answer lets an answer
+call raise it: the branch measured +149, so this meets it exactly. Measure with `git diff --shortstat
+$(git merge-base HEAD origin/debt-7/integration) HEAD`, since the trunk has moved. Past +150, compact or ask; don't
+cross it.
+
+Then finish: step 7's clippy, then its nextest, each count checked; the two breaks of `## Report` stand as already
+reported. The report gives the net lines against +150.
