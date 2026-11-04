@@ -6,8 +6,8 @@ an agent that you want a dashboard like the one I pointed [at] and it
 configures temper to show that dashboard in the client. Sort of "UI as
 data" approach with some flexible palette of options/widgets can be
 used to expose engine data (possibly with custom calculations. LUA?)".
-The page pointed at is https://status.fabrig.ai, a status page of
-agents' (`docs/design/status-page.md` there).
+The page pointed at is https://status.fabrig.ai, a status page whose
+description is the test's input (section 9).
 It takes `configuring.md` from the settings to the client's pages, on
 the settings jig has since designed (jig's `domain/engine.md`, section
 17). It crosses jig and temper on purpose; an owner splits it. Nothing
@@ -55,9 +55,9 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
 - **Read-only, and never wider.** A panel leads to temper's own pages
   and acts on nothing; a dashboard shows only what the viewer's role in
   its scope may read, judged by the metrics' owners (4.3).
-- **Its test:** given agents' `status-page.md`, the agent proposes a
-  dashboard; what it cannot show is the list of facts temper does not
-  keep (section 9).
+- **Its test:** given `status-page.md`, a description of status.fabrig.ai's
+  page, the agent proposes a dashboard; what it cannot show is the list
+  of facts temper does not keep (section 9).
 
 ## 2. Where it fits
 
@@ -194,10 +194,9 @@ caption:
   bins spaced by ratio, 128 by default, so that a quantile is within
   about 5% of the true value; a window's quantile merges its buckets'
   bins. The panel says "about 4 min", never a precision it lacks.
-- **The projection is the status page's pace** (agents'
-  `docs/design/status-page.md`, 2.2): the rise over the look-back, then
-  either full before the period's end, at when, or what is left at its
-  end.
+- **The projection is the status page's pace:** the rise over the
+  look-back, then either full before the period's end, at when, or what
+  is left at its end.
 
 ## 5. Dashboards
 
@@ -367,11 +366,12 @@ wasm32 (`../playground.md`). Default: none.
   work ends; a metric removed while a dashboard shows it is refused; a
   restart keeps the buckets; a member without a role in the deployment
   is refused its dashboards; the fake person reads a chart's words.
-- **The status page as a golden.** agents' `status-page.md` goes through
-  a real model as the person's description, and the proposal is scored
-  against a dashboard made by hand, within the gaps below. A walk, run
-  when the agent's instructions or the documentation change, not in the
-  gate (`configuring.md`, section 8).
+- **The status page as a golden.** `status-page.md`, the description of
+  status.fabrig.ai's page, goes through a real model as the person's
+  description, and the proposal is scored against a dashboard made by
+  hand, within the gaps below. A walk, run when the agent's instructions
+  or the documentation change, not in the gate (`configuring.md`,
+  section 8).
 - **What it maps to:**
 
   | The status page | temper's dashboard | Gap |

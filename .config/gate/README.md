@@ -1,0 +1,91 @@
+# What a branch passes to land
+
+fabrig asks these checks of a branch before it lands on main (the gate), and of
+main after each landing (the after-landing tier). A red is a red whoever runs the
+check. Commands start at the checkout root; a caller may wrap each in its own
+build command.
+
+## The gate
+
+A landing check checks the branch merged onto main: every check below, with
+nothing slower than the fuzzy suite (`skein/docs/design/testing.md`, 6;
+`skein/docs/foundation/testing-strategy.md`, 8).
+
+1. **Format:** `cargo fmt --all --check`. Rule: the root `rustfmt.toml`.
+2. **Clippy, warnings denied:** `cargo clippy --workspace --all-targets -- -D warnings`.
+   For a selection, replace `--workspace` with a `-p` for each package the change
+   reaches and each in `.config/gate/always.txt`. Rules: `skein/clippy.toml`,
+   `smith/clippy.toml`, `jig/clippy.toml`, `temper/clippy.toml`, `tests/clippy.toml`
+   and `AGENTS.md`, 2 (a lint exception is a scoped `#[expect]`).
+3. **The wasm32 clippy:** `cargo clippy --target wasm32-unknown-unknown -p PKG ... -- -D warnings`,
+   with a `-p` for each package in `.config/gate/wasm32.txt`.
+   Rule: `skein/docs/design/testing.md`, 10, “Checked in the gate”.
+4. **The gate's nextest profiles:** `cargo nextest run --profile default` (focused)
+   and `cargo nextest run --profile fuzzy`, defined by `.config/nextest.toml`.
+   Rules: `skein/docs/foundation/testing-strategy.md`, 8 and 8.1: each tree's CPU
+   budget, over budget is red, starved is a warning. Slow-tier profiles never run
+   in the gate.
+5. **The old-forms counts:** `(cd TREE && python3 -I -B scripts/old_forms.py)` for
+   each tree the branch touches; add `--write` to lower counts for what it removed.
+   Counts only fall (`AGENTS.md`, 1; `tools/old_forms/README.md`).
+6. **Citations:** `python3 -I -B tools/citations/citations.py --all`, at 0 broken.
+   Rules: `DESIGN.md`, 4; `tools/citations/README.md`.
+7. **The outward check:** `cargo nextest run -p fabrig-boundary`, included in
+   `default`. Rule: `tests/boundary/tests/outward.rs`'s module doc and `AGENTS.md`, 2;
+   inventory: `tests/boundary/outward.txt`, whose counts only fall and whose header
+   requires a `# Raised: <who, why>` line for a raised count.
+
+## The gate's lists
+
+Each list has one entry per line; `#` starts a comment line.
+
+- **`.config/gate/always.txt`:** package names whose tests read other packages'
+  files by path, so changes outside their dependencies can break them. A gate
+  selecting the packages a change reaches runs these too. The branch adding such
+  a test adds its package; adding a line runs that package's tests for every change.
+- **`.config/gate/read-by-tests.txt`:** checkout-root globs of Markdown compiled
+  into or read by tests (`AGENTS.md`, 2). A matching change changes test inputs and
+  runs their tests as for code; Markdown matching no glob runs none. The branch
+  making a test read Markdown adds its glob; adding a line makes changes to
+  matching files run the tests.
+- **`.config/gate/wasm32.txt`:** package names for item 3. The branch making a
+  package's wasm32 clippy pass with warnings denied adds it; the trees' status
+  files name portable packages still left out. Adding a line adds that package to
+  item 3's command (`skein/docs/design/testing.md`, 10).
+
+## After landing
+
+- **The slow tiers:** `tools/tiers/run TREE TIER [-- NEXTEST_ARGS...]` runs a tree's
+  tier with its prerequisites; `tools/tiers/run --cpu DIR TREE TIER [-- NEXTEST_ARGS...]`
+  accounts it against `tools/tiers/budgets.toml`. The hyphenated profiles in
+  `.config/nextest.toml` are `browser-skein`, `live-skein`, `live-smith`, `live-jig`,
+  `browser-jig`, `process-temper`, `live-temper` and `browser-temper`. Never in the
+  gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
+  `skein/docs/foundation/testing-strategy.md`, 8.1.
+- **The after-landing tier:** after each landing on main,
+  `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing.md`, 2.3),
+  and `tools/tiers/run temper live -- --run-ignored only` runs `live-temper`'s
+  owned-forge landing pair (`temper/docs/design/domain/testing.md`, 2.7).
+  The inputs for `live-smith` are `SMITH_LIVE`, the directory holding smith's
+  ChatGPT record and Claude Code's login (smith's section 2.3); for `live-temper`,
+  `TEMPER_LIVE_ACCOUNT` (a held ChatGPT record), `TEMPER_LIVE_CLAUDE` (Claude Code's
+  login), `claude` on `PATH`, `TEMPER_LIVE_STORE` and a private `TMPDIR` (temper's
+  section 2.7). No API key is among these inputs.
+- **What red means:** a failure observed after landing is red; repair starts in
+  the lowest tier that shows it (`skein/docs/foundation/testing-strategy.md`, 9).
+  Over a CPU budget is red; past the wall hard limit is starved, a warning; tests
+  the run did not reach are unobserved, never passed
+  (`skein/docs/foundation/testing-strategy.md`, 8.1). A caller reads the verdict
+  and its `unobserved` attempts through `tools/tiers/design.md`, 10, with summary
+  semantics in 7.3.
+
+## The repository's hooks and fixture readers
+
+- **`.temper/pre-pr`:** the format check and each tree's old-forms counts at
+  delivery (`temper/docs/design/protocol/configuration.md`, 13.9;
+  `smith/docs/design/domain/run.md`, 8.1).
+- **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
+  (`temper/docs/design/protocol/tooling.md`, 4.1).
+- **`.config/fixture-readers.toml`:** the readers and generators of every tracked
+  `**/fixtures/**` file (`tools/tiers/design.md`, 9;
+  `skein/docs/foundation/testing-strategy.md`, 8).

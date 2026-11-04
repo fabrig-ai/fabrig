@@ -1,4 +1,6 @@
-# The browser shell is ordinary Rust (ui-web.md, 3.1), with one thread.
+# The test application's browser host shell is ordinary Rust (jig/AGENTS.md).
+# It takes replay bans instead of the inherited jig/clippy.toml step-code subset;
+# the platform part supplies clocks to its one inbox loop.
 disallowed-types = [
     { path = "std::time::Instant", reason = "the platform part supplies clocks" },
     { path = "std::time::SystemTime", reason = "the platform part supplies clocks" },

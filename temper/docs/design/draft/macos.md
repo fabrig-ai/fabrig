@@ -3,9 +3,8 @@
 Draft, 2026-10-22. What it takes for temper to build, pass its suites
 and run its first-run demo on macOS. It records a session with the user
 on 2026-10-22, which started from a survey of what stands between temper
-and macOS (`~/src/rust/tmp/macos-survey-2026-10-22.md`, every claim
-with its file and line). It crosses skein, smith, jig and temper on
-purpose; an owner splits it.
+and macOS (every claim with its file and line). It crosses skein,
+smith, jig and temper on purpose; an owner splits it.
 
 macOS is a person's own machine: development, and a first look at
 temper. Linux stays the platform of record: the gate, deployments,

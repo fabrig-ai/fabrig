@@ -41,7 +41,7 @@ fn each_closed_policy_edit_is_one_durable_keyed_request_and_replays_without_spli
             answer: Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: 1 })),
             changes: vec![],
         });
-        let mut engine = Engine::new(setup, position as u64 + 300).unwrap();
+        let mut engine = Engine::new(setup, position as u64 + 300).expect("valid script");
         send(&mut engine, 0, 11, 1, 1, ask.clone());
         send(&mut engine, 1, 12, 1, 2, ask.clone());
         assert!(engine.commits().is_empty());

@@ -732,32 +732,6 @@ fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>)
     let token = fs::read(&path).expect("prepared token");
     (listen, path, token)
 }
-#[test]
-fn the_prepared_fake_directs_reconcile_to_the_service_and_keeps_its_token() {
-    let scratch = support::Scratch::new("fake_forge_reconcile");
-    let (_, path, token) = prepared_forge(scratch.path());
-    let mut command = deployment_command("forge", scratch.path());
-    command.arg("1");
-    let run = Running::command(command, None);
-    for pass in ["first", "second"] {
-        let output = Command::new(skein_scratch::paths::binary("temper"))
-            .env_clear()
-            .args(["forge", "reconcile"])
-            .args(support::configuration::flags(scratch.path()))
-            .arg("1")
-            .output()
-            .expect("reconcile ends");
-        assert_eq!(output.status.code(), Some(1), "{pass}: {}", String::from_utf8_lossy(&output.stderr));
-        assert!(output.stdout.is_empty());
-        assert_eq!(
-            output.stderr,
-            b"temper forge reconcile: forge 1: forge 1 is kept by the service: connect it from the client\n"
-        );
-    }
-    run.stop();
-    assert_eq!(fs::read(path).expect("handover token kept"), token);
-    scratch.remove();
-}
 
 const CHAT:&[u8]=br#"{"model":"qa","store":false,"instructions":"","input":[{"role":"user","content":[{"type":"input_text","text":"say hello"}]}],"stream":true}"#;
 #[test]

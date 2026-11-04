@@ -83,7 +83,6 @@ debt it says what a reviewer checks.
 | [D021](D021-forgejo-plan-states.md) | Forgejo's plans keep a `Stage` beside bags of fields, and measure answers twice | complexity | medium | M | open |
 | [D022](D022-oauth-states.md) | The oauth client and accounts keep lifecycles in flags and parallel lists | complexity | medium | M | open |
 | [D023](D023-llm-client-states.md) | skein-llm's client and llm-connection's call use data-less states | complexity | medium | M | open |
-| [D024](D024-echo-template-flags.md) | The echo example, the template applications copy, keeps its stop in flags | complexity | high | S | open |
 | [D025](D025-request-table-in-lib.md) | lib's `RequestTable` is a component with one consumer | coupling | low | S | open |
 | [D026](D026-crate-tests-directories.md) | Three crates keep a `tests/` directory under `crates/` | tests | medium | S | open |
 | [D027](D027-step-test-layouts.md) | Step tests follow several layouts, some through `#[path]` | tests | low | M | open |

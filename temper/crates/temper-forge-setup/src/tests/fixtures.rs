@@ -22,18 +22,10 @@ pub fn setup() -> Setup {
                 forge: 1,
                 directory: b"forge-1".as_slice().into(),
                 bot: bot.clone(),
-                orgs: Box::new([b"acme".as_slice().into()]),
                 mode: Mode::Managed { admin_token: Some(b"secrets/forgejo-admin".as_slice().into()) },
                 asked: false,
             },
-            Entry {
-                forge: 2,
-                directory: b"forge-2".as_slice().into(),
-                bot,
-                orgs: Box::new([]),
-                mode: Mode::Owned(owned()),
-                asked: false,
-            },
+            Entry { forge: 2, directory: b"forge-2".as_slice().into(), bot, mode: Mode::Owned(owned()), asked: false },
         ]),
     }
 }
@@ -47,7 +39,6 @@ pub fn fake_setup() -> Setup {
             forge: 3,
             directory: b"demo/forge".as_slice().into(),
             bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.invalid".as_slice().into() },
-            orgs: Box::new([]),
             asked: false,
             mode: Mode::Fake(Fake {
                 listen: ([127, 0, 0, 1], 8369).into(),

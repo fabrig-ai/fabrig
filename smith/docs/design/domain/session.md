@@ -128,7 +128,10 @@ child domain `smith-domain-session`, whose own child is the tools domain
   not-run result as an ordinary continuation, unless the opener answers
   it as the session opens, as a run answers the `wait` it withheld when
   it parked; answers the history does not hold go to the LLM as text in
-  the waking prompt (run.md, section 6).
+  the waking prompt (run.md, section 6). The opener names in its opening
+  the one call it may have withheld, by its tool's name, and the session
+  restores that call alone as withheld: it knows none of its opener's
+  tools by name.
 - **Refused transcripts.** Another version, a malformed, unresolved or
   oversized history are distinct refusals; the run treats every one as
   a transient failure (run.md, section 6).

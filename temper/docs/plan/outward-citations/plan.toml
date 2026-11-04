@@ -1,0 +1,32 @@
+draft = "outward-citations"
+repo = "fabrig"
+sources = ["temper/docs/plan/outward-citations/inputs/request.md"]
+
+# The citation checker loses its outside-repository exception (inputs/request.md): hearth's
+# documents stay unchecked, any other repository's are refused. Two direct tasks at once, no
+# needs: the checker with its tests, README and allow.txt; the wording of the 16 lines it then
+# shows (notes/findings.md). plan.md says why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "checker"
+title = "tools/citations: hearth's documents alone excused, another repository's refused; DESIGN.md and tools/ read, docs/plan/ left out"
+mode = "direct"
+needs = []
+design = "tools/citations/README.md"
+
+[[part]]
+id = "wording"
+title = "The 16 citations of documents kept outside the repository, said in fabrig's own words"
+mode = "direct"
+needs = []
+design = "AGENTS.md, 2"
+
+[[slice]]
+id = 1
+story = "`python3 -I -B tools/citations/citations.py --all` reads 0 with the stricter checker: no citation of another repository's document but hearth's, and none excused by allow.txt as a record kept outside the repository"
+parts = ["checker", "wording"]
+walk = false
