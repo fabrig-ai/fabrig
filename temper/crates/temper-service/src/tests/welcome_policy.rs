@@ -347,6 +347,6 @@ fn the_template_machine_gives_the_domain_its_places() {
     assert_eq!(machine.github.api.host.as_ref(), b"api.github.com");
     assert_eq!(machine.github.api.port, 443);
     assert_eq!(machine.github.api.tls.as_deref(), Some(b"api.github.com".as_slice()));
-    assert_eq!(machine.github.git.as_ref(), b"https://github.com/");
+    assert_eq!(machine.github.git.as_ref(), b"https://github.com");
     assert_eq!(machine.github.web.as_deref(), Some(b"https://github.com".as_slice()));
 }

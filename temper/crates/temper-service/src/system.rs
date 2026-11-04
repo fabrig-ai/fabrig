@@ -1094,6 +1094,9 @@ pub(crate) fn playground_config(
     }
 }
 
+/// github.com's remotes' base (temper/docs/design/protocol/configuration.md, 3).
+pub(crate) const GITHUB_REMOTE: &[u8] = b"https://github.com";
+
 /// Machine places passed to the root (temper/docs/design/protocol/configuration.md, 3).
 #[expect(clippy::manual_map, reason = "the configuration boundary uses explicit matches")]
 pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
@@ -1121,7 +1124,7 @@ pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> 
                 port: 443,
                 tls: Some(skein_lib::bytes::copy_of(b"api.github.com")),
             },
-            git: skein_lib::bytes::copy_of(b"https://github.com/"),
+            git: skein_lib::bytes::copy_of(GITHUB_REMOTE),
             web: Some(skein_lib::bytes::copy_of(b"https://github.com")),
         },
     };
