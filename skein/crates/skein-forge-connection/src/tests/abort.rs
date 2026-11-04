@@ -96,6 +96,27 @@ fn abort_after_close_turns_the_graceful_close_into_an_abort() {
 }
 
 #[test]
+fn a_call_after_the_close_is_answered_unavailable() {
+    let mut h = fixtures::known();
+    h.run(Duration::ZERO);
+    for (call, request) in [(1, Request::Close), (2, Request::Abort)] {
+        h.send(request);
+        h.call(call, fixtures::REPO, Op::Read(Read::Settings));
+        let Some(Event::Answered(answer)) = h.up.pop() else {
+            panic!("a late call must be answered before io settles");
+        };
+        assert_eq!(
+            answer,
+            Answered { call: Token::new(call), cost: 0, free: 0, rate: None, result: Err(api::Error::Unavailable) }
+        );
+        assert!(h.up.is_empty(), "one terminal per late call");
+    }
+    h.run(Duration::ZERO);
+    assert!(h.closed, "closed once io settled");
+    assert!(h.answers.is_empty(), "no second answer after io settles");
+}
+
+#[test]
 fn close_after_abort_changes_nothing() {
     let mut h = fixtures::known();
     h.call(1, fixtures::REPO, Op::Read(Read::Settings));

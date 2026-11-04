@@ -28,5 +28,3 @@
   only GitHub's own connections, and `component/calls.rs`'s `assign`
   reserves only GitHub's own connection from call reuse, so Forgejo's
   own connection still shares the calls' pool; no reason is recorded.
-- **Not yet:** 8.5: `skein-forge-connection/src/component.rs`'s `down` drops a
-  `Call` while Closing or Aborting, with no terminal.

@@ -69,7 +69,7 @@ pub enum Request {
     Connect { forge: u16, access: Access },
     /// Replaces the bounded set of accepted installations (forge-connection.md, 4.4).
     Installations { forge: u16, accepted: Box<[u64]> },
-    /// The root's `Request::Forge`: ended by exactly one `Event::Answered`.
+    /// The root's `Request::Forge`: one `Event::Answered`; while ending, `Unavailable` at no cost.
     Call { call: Token, repository: api::Repository, op: api::Op },
     /// An answer the root's admission did not take (`try_step`'s `Err`): held, offered
     /// again at the next `Offer`; at most one per call.
@@ -82,7 +82,7 @@ pub enum Request {
     /// The root admits again: held answers awaiting an offer go up again.
     Offer,
     /// After the root's drain: calls in flight end with their connections and no answer
-    /// goes up; `Event::Closed` answers it.
+    /// goes up; later calls end `Unavailable` at no cost until `Event::Closed` answers it.
     Close,
     /// A close that does not wait (programming-model.md, 5.2): each call still open ends
     /// at once with its one `Event::Answered`, as at its deadline, and every connection
