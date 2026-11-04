@@ -4,7 +4,7 @@ use skein_ui::Role;
 
 #[test]
 fn the_frame_carries_its_tokens() {
-    let view = fixtures::page_view(&fixtures::inbox_root());
+    let view = fixtures::page_view(&fixtures::no_project_root());
     for (role, token) in [(Role::Banner, BANNER), (Role::Navigation, NAVIGATION)] {
         assert_eq!(fixtures::styles(view.tree(), role).as_ref(), [Box::from([token])], "{role:?}");
     }
@@ -39,6 +39,13 @@ const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (MODEL_DESCRIPTION, b"temper-model-description"),
     (MODEL_FACT, b"temper-model-fact"),
     (MODEL_SIGN_IN, b"temper-model-sign-in"),
+];
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
+    (RAIL, b"temper-rail"),
+    (RAIL_NAV, b"temper-rail-nav"),
+    (RAIL_NEW, b"temper-rail-new"),
+    (RAIL_FOOT, b"temper-rail-foot"),
+    (TABBAR, b"temper-tabbar"),
 ];
 #[test]
 fn each_style_or_region_is_named_under_temper() {
@@ -138,7 +145,7 @@ fn each_style_or_region_is_named_under_temper() {
         (ENDED, b"temper-ended"),
         (MENU, b"temper-menu"),
     ];
-    for (style, name) in named.into_iter().chain(FLOW_NAMES) {
+    for (style, name) in named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES) {
         assert_eq!(NAMES.style(style), Some(name));
     }
     assert_eq!(NAMES.region(crate::frame::link_region()), Some(&b"temper-link"[..]));
@@ -181,7 +188,7 @@ fn the_chat_structure_tokens_stay_on_their_roles() {
         (ROWS, Role::List),
         (ROW, Role::Item),
         (ENTRY, Role::Slot),
-        (CORNER, Role::Slot),
+        (RAIL_FOOT, Role::Slot),
         (TIME, Role::Paragraph),
         (HINT, Role::Paragraph),
     ] {

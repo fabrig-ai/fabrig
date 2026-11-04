@@ -510,6 +510,19 @@ fn party_proposal_visible(core: &Core, party: u64, proposer: u64, project: u32) 
         && (party == proposer || core.people.role(party, project).is_some())
 }
 
+fn proposal_reason(reason: &[u8], action: &ProposalAction, limits: &Limits) -> Text {
+    let bytes = match action {
+        ProposalAction::Settings { .. } => limits.people.words,
+        ProposalAction::Batch(_)
+        | ProposalAction::Effect { .. }
+        | ProposalAction::ProcedureEffect { .. }
+        | ProposalAction::Amend { .. }
+        | ProposalAction::Widen { .. }
+        | ProposalAction::Release { .. } => limits.documents.text_bytes,
+    };
+    super::small::text(reason, bytes)
+}
+
 pub(super) fn proposal(
     core: &Core,
     limits: &Limits,
@@ -532,13 +545,7 @@ pub(super) fn proposal(
                 | tasks::ProposalState::Rejected { .. }
                 | tasks::ProposalState::Withdrawn => return Err(Missing::Ended),
             };
-            (
-                value.project,
-                super::small::text(&value.reason, limits.documents.text_bytes),
-                made,
-                value.as_holder,
-                waiting,
-            )
+            (value.project, proposal_reason(&value.reason, &made, limits), made, value.as_holder, waiting)
         }
         Proposer::Party(person) => {
             let value = core.tasks.person_proposal(person, number).ok_or(Missing::Ended)?;
@@ -557,7 +564,7 @@ pub(super) fn proposal(
             let (action, kind) = reviewed_party_action(core, limits, party, &value)?;
             (
                 value.project,
-                super::small::text(&value.reason, limits.documents.text_bytes),
+                proposal_reason(&value.reason, &action, limits),
                 action,
                 kind != tasks::ProposalKind::Settings,
                 ProposalWaiting { holder: tasks::ProposalHolder::Policy { project: value.project, kind }, since },

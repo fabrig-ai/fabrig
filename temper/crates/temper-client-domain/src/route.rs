@@ -172,6 +172,8 @@ pub(crate) fn route_forge(
                     | Address::Welcome { .. }
                     | Address::Chat { .. }
                     | Address::Task { .. }
+                    | Address::Home { .. }
+                    | Address::Settings { .. }
                     | Address::Adopt { .. } => continue,
                 };
                 out.push(Request::Show { address, replace: true });
@@ -390,7 +392,12 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
     consumed
 }
 
+#[expect(clippy::manual_map, reason = "step code reads the first repository without closures")]
 fn playground_facts(root: &mut Domain) {
+    root.pages.welcome_first = match forge::listed::unadopted_first(root.forges()) {
+        Some((forge, org, name)) => Some(crate::pages::welcome::First { forge, org: org.into(), name: name.into() }),
+        None => None,
+    };
     root.pages.welcome_decision = crate::pages::welcome::decision(root);
     root.pages.playground_provider = root.forge.playground_provider();
     crate::pages::project_changed(&mut root.pages, &root.client);

@@ -85,9 +85,12 @@ fn temper_open_adopts_a_repository_by_commands() {
     let mut typist = support::terminal::Typist::new(open, serve, link);
     typist.wait_for(b"== Inbox == Live", support::WITHIN);
     typist.wait_for(b"All goals (pressed)\n", support::WITHIN);
+    typist.type_on(b"Settings", b"");
+    typist.wait_for(b"== Settings for ", support::WITHIN);
     typist.type_on(b"Forges", b"");
     typist.wait_for(b"forge 1 \xc2\xb7 Forgejo \xc2\xb7 Connected as temper", support::WITHIN);
-    // Adopt from the observed forge; old Inbox output cannot acknowledge a return there.
+    typist.type_on(b"Settings", b"");
+    typist.wait_for(b"== Settings for ", support::WITHIN);
     typist.type_on(b"Adopt a repository", b"");
     for (control, words, printed) in [
         (b"Owner: (empty)".as_slice(), b"acme".as_slice(), b"Owner: acme".as_slice()),

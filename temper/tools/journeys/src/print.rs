@@ -42,7 +42,8 @@ pub fn pages(marks: &[Mark]) -> Vec<Printed> {
             let end = value + html[value..].find('"').expect("a node attribute has a closing quote") + 1;
             html.replace_range(start..end, "");
         }
-        let title = escape(&skein_ui_web::title::text(&mark.heading, b"temper"));
+        let heading = if mark.html.contains("temper-main temper-home") { b"Home".as_slice() } else { &mark.heading };
+        let title = escape(&skein_ui_web::title::text(heading, b"temper"));
         let mut document = format!(
             "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title>"
         );
@@ -92,3 +93,20 @@ pub fn beside(journeys: &Path) -> io::Result<()> {
 
 /// The pages' script, written beside the journeys.
 pub const SCRIPT: &str = include_str!("../journey.js");
+
+#[cfg(test)]
+mod home_tests {
+    #[test]
+    fn home_title_keeps_the_page_name_when_the_headline_counts_steps() {
+        for heading in ["Two things left to begin with.", "Hello is ready for work."] {
+            let mark = super::Mark {
+                html: "<div><main class=\"temper-main temper-home\"><h1>Headline</h1></main></div>".to_owned(),
+                heading: heading.as_bytes().to_vec(),
+                acted: Vec::new(),
+                lead: super::Lead::Press,
+            };
+            let printed = super::pages(&[mark]);
+            assert!(printed[0].document.contains("<title\n>Home · temper</title"));
+        }
+    }
+}

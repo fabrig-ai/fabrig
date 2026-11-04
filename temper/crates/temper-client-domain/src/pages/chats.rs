@@ -245,6 +245,26 @@ impl Chats {
             | Told::Page { .. } => false,
         }
     }
+    pub(super) fn asked(&self, client: &Client, project: u32) -> bool {
+        let Some(query) = self.query else { return false };
+        if query.project != Some(project) {
+            return false;
+        }
+        if let Some(live) = self.live(client)
+            && (!live.rows.is_empty() || live.more)
+        {
+            return true;
+        }
+        if let Some(page) = &self.page {
+            if !page.live.is_empty() || page.live_after.is_some() {
+                return true;
+            }
+            if let EndedGroup::Rows { rows, after, .. } = &page.ended {
+                return !rows.is_empty() || after.is_some();
+            }
+        }
+        false
+    }
     #[must_use]
     pub fn live<'a>(&self, client: &'a Client) -> Option<&'a c::Tasks> {
         if let Some(Latest::Jig(Delivery::Tasks(tasks))) = client.document(self.live)?.latest {
