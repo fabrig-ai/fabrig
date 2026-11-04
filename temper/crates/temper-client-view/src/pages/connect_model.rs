@@ -300,6 +300,8 @@ fn welcome(root: &Domain) -> bool {
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => false,
     }
 }

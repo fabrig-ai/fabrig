@@ -8,6 +8,7 @@ pub(crate) mod fixtures;
 mod forge_page;
 mod forges;
 mod frame;
+mod home;
 mod inbox;
 mod look;
 mod playground;
