@@ -102,6 +102,25 @@ pub fn id() -> u32 {
     std::process::id()
 }
 
+/// The effective user's login from the system command (protocol/setup.md, 8.2).
+/// Kept on every platform so Linux tests compare macOS's lookup with passwd's.
+pub fn login_id() -> Result<Box<[u8]>, String> {
+    let output = Command::new("/usr/bin/id")
+        .arg("-un")
+        .stdin(Stdio::null())
+        .env_clear()
+        .output()
+        .map_err(|why| format!("user: /usr/bin/id -un: {why}"))?;
+    if !output.status.success() {
+        return Err(format!("user: /usr/bin/id -un: {}", output.status));
+    }
+    let name = output.stdout.strip_suffix(b"\n").ok_or("user: /usr/bin/id -un: missing line feed")?;
+    if name.is_empty() || name.contains(&b'\n') {
+        return Err("user: /usr/bin/id -un: expected one login line".into());
+    }
+    Ok(name.into())
+}
+
 /// Streams one archive member into a preopened part file, bounded and hashed.
 pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> Extraction {
     use std::io::{Read as _, Write as _};
