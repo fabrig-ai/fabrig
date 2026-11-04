@@ -307,6 +307,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
         Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
         Act::SetupWrite { field, text } => forges::write(side, limits, field, text),
+        Act::CopiesWrite { text } => forges::write_copies(side, limits, text),
         Act::Adopt => {
             let Some(_party) = side.party else {
                 return;
