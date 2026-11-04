@@ -358,8 +358,12 @@ impl Store {
         below.push(file::Request::Create { owner: IO_OWNER, root: self.root(), name, mode: 0o600 });
     }
 
-    fn next_log(&mut self, below: &mut Queue<file::Request>) {
+    fn next_log(&mut self, below: &mut Queue<file::Request>, limits: &Limits) {
         let Some(name) = self.segments.get(self.segment_index).cloned() else {
+            if self.log_bytes >= limits.snapshot_bound(self.map.live()) {
+                // Recovery creates the snapshot's starting segment without another rollover.
+                self.snapshot_start = Some(self.last.checked_add(1).expect("commit number did not overflow"));
+            }
             self.finish_recovery(below);
             return;
         };
@@ -368,7 +372,7 @@ impl Store {
         below.push(file::Request::OpenRead { owner: IO_OWNER, root: self.root(), name });
     }
 
-    fn start_recovery(&mut self, below: &mut Queue<file::Request>) {
+    fn start_recovery(&mut self, below: &mut Queue<file::Request>, limits: &Limits) {
         if self.has_snapshot {
             self.phase = Phase::OpeningSnapshot;
             below.push(file::Request::OpenRead {
@@ -377,7 +381,7 @@ impl Store {
                 name: Box::from(&b"snapshot"[..]),
             });
         } else {
-            self.next_log(below);
+            self.next_log(below, limits);
         }
     }
 
@@ -452,6 +456,7 @@ impl Store {
             let used = self.map.check(&decoded.ops, limits).map_err(|_| Failure::Full)?;
             self.map.apply(&decoded.ops, used);
             self.last = decoded.number;
+            self.log_bytes = self.log_bytes.checked_add(skein_lib::len_u64(length)).expect("log bytes fit u64");
             at = end;
         }
         // Keep only the unapplied suffix between reads, moving it once per
@@ -699,10 +704,10 @@ pub fn up(
                     directory: false,
                 });
             } else {
-                store.start_recovery(below);
+                store.start_recovery(below, &env.limits);
             }
         }
-        (Phase::RemovingTempOnOpen, file::Event::Removed { .. }) => store.start_recovery(below),
+        (Phase::RemovingTempOnOpen, file::Event::Removed { .. }) => store.start_recovery(below, &env.limits),
         (Phase::OpeningSnapshot, file::Event::Opened { file, len, .. }) => {
             if len == 0 {
                 open_failed_file(store, file, Failure::Corrupt, below);
@@ -747,13 +752,18 @@ pub fn up(
                     return;
                 }
                 let start = start.expect("the snapshot ends with a checked trailer");
-                store.segments.retain(|name| log_number(name).is_some_and(|number| number >= start));
-                store.segment_index = 0;
+                store.segment_index = store
+                    .segments
+                    .iter()
+                    .position(|name| log_number(name).is_some_and(|number| number >= start))
+                    .unwrap_or(store.segments.len());
                 store.phase = Phase::ClosingSnapshot;
                 below.push(file::Request::Close { owner: IO_OWNER, file });
             }
         }
-        (Phase::ClosingSnapshot | Phase::ClosingRecovered, file::Event::Closed { .. }) => store.next_log(below),
+        (Phase::ClosingSnapshot | Phase::ClosingRecovered, file::Event::Closed { .. }) => {
+            store.next_log(below, &env.limits);
+        }
         (Phase::OpeningLog { name }, file::Event::Opened { file, len, .. }) => {
             let cap = env.limits.segment.saturating_add(env.limits.queued_bytes);
             if len > cap {
