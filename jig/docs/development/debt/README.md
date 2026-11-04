@@ -55,7 +55,6 @@ IDs run from `D001` and are never reused:
 
 | ID | Title | Kind | Value | Size | Status |
 |---|---|---|---|---|---|
-| [D001](D001-roots-sequence-core-steps.md) | Every root echoes the core's own steps back to it | coupling | high | M | open |
 | [D002](D002-core-untyped-continuations.md) | The core's continuations are bare numbers | complexity | high | L | open |
 | [D003](D003-core-one-object.md) | The core is one object of 83 fields spread over 50 files | complexity | medium | L | open |
 | [D004](D004-ops-root-jig-wiring.md) | The reference root is half jig wiring, and the test root copies it | coupling | high | L | open |

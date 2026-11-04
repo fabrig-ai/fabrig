@@ -31,4 +31,4 @@ for it, every map that holds a continuation needs its own fallback and its own
 
 The flight slab's id as the only reply token, holding the continuation's data per kind;
 the claim and procedure holdings moved into it; public `Event` split from the core's
-internal `Work`. Goes with D001 and helps D003 and D017.
+internal `Work`. Helps D003 and D017.
