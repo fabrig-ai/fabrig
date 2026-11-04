@@ -1213,3 +1213,222 @@ fn setup_refuses_missing_or_ambiguous_adopted_projects() {
         assert!(project_number(&me, "hello").is_err(), "{me}");
     }
 }
+
+fn referee_me() -> jig_client::contract::Me {
+    use jig_client::contract as c;
+    use skein_lib::List;
+    let words = c::DocumentText::complete(c::Text::new(b"Person".as_slice().into(), 6).expect("name"));
+    c::Me {
+        party: c::MeParty { number: 1, kind: c::PartyKind::Person, login: words.clone(), name: words },
+        projects: List::with_capacity(0),
+        providers: List::with_capacity(0),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 256,
+        needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
+        needs_total: 0,
+        updates: c::Count { value: 0, limited: false },
+        results_seen: 0,
+        cut: false,
+        retention: skein_lib::Duration::from_secs(60),
+        deployment_role: None,
+    }
+}
+
+fn referee_json(argv: &[&str], page: &jig_client::contract::ActivityPage) -> Value {
+    use jig_client::{Event, Up};
+    use skein_lib::{Env, List, Queue, Time, Wall};
+    use temper_client_tools::{jig::call::Parsed, root};
+    let mut tools = temper_client_tools::limits::tools();
+    tools.rows = 1; // One row fills a page so the referee follows its cursor.
+    let limits = root::Limits::new(temper_client_tools::limits::client(), tools);
+    let mut root = root::Root::unlinked(&limits, 1).expect("client limits");
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let words: Vec<_> = argv.iter().map(|word| word.as_bytes()).collect();
+    let Parsed::Call { call, .. } = temper_client_tools::table::parse(&words).expect("read argv") else {
+        panic!("read call")
+    };
+    let mut pending = std::collections::VecDeque::from([
+        root::Event::Client { event: Event::StartUnlinked { kept: List::with_capacity(0) } },
+        root::Event::Client { event: Event::SignIn { with: jig_client::With::Transport } },
+        root::Event::Client { event: Event::Up { up: Up::Served { served: true, versions: None } } },
+        root::Event::Call { number: 1, call, json: true, value: None },
+    ]);
+    for _ in 0..32 {
+        let event = pending.pop_front().expect("read still pending");
+        let mut out = Queue::uncapped();
+        root::step(&mut root, &env, event, &mut out);
+        while let Some(request) = out.pop() {
+            if let root::Request::Printed { printed, .. } = request {
+                assert_eq!(printed.status, 0);
+                return serde_json::from_slice(&printed.stdout).expect("rendered JSON");
+            }
+            let Some(up) = referee_response(request, page) else { continue };
+            pending.push_back(root::Event::Client { event: Event::Up { up } });
+        }
+    }
+    panic!("read did not settle")
+}
+
+fn referee_response(
+    request: temper_client_tools::root::Request,
+    page: &jig_client::contract::ActivityPage,
+) -> Option<jig_client::Up> {
+    use jig_client::{Down, UnlinkedRequest, Up, contract as c};
+    let temper_client_tools::root::Request::Unlinked { request: UnlinkedRequest::Down { down } } = request else {
+        return None;
+    };
+    Some(match down {
+        Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
+            Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(referee_me()))) }
+        }
+        Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded },
+        Down::Read { read, .. } => Up::ReadDone {
+            read,
+            result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(page.clone())))),
+        },
+        Down::Save { .. } | Down::Erase { .. } | Down::Send { .. } | Down::Continue { .. } | Down::Close { .. } => {
+            return None;
+        }
+    })
+}
+
+fn referee_turn() -> jig_client::contract::TurnRead {
+    use jig_client::contract as c;
+    use skein_lib::List;
+    let text = |bytes: &[u8]| c::Text::new(bytes.into(), 128).expect("bounded text");
+    let mut blocks = List::with_capacity(4);
+    for (number, tool, failed, outcome) in [
+        (1, b"change".as_slice(), false, Some(b"created".as_slice())),
+        (2, b"delegate".as_slice(), true, Some(b"refused".as_slice())),
+        (3, b"delegate".as_slice(), false, None),
+    ] {
+        blocks
+            .push(c::Block::Call(c::Call {
+                number,
+                tool: text(tool),
+                input: text(b"request"),
+                outcome: outcome.map(text),
+                failed,
+                objects: List::with_capacity(0),
+                parts: List::with_capacity(0),
+            }))
+            .expect("three calls");
+    }
+    blocks.push(c::Block::Text(text(b"The change landed."))).expect("reply");
+    let mut messages = List::with_capacity(1);
+    messages.push(c::Message { speaker: c::Speaker::Assistant, blocks }).expect("assistant");
+    c::TurnRead::Decoded(c::Turn {
+        messages,
+        used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+        spent: 0,
+        read_through: None,
+        cut: false,
+    })
+}
+
+fn referee_activity() -> jig_client::contract::ActivityPage {
+    use jig_client::contract as c;
+    use skein_lib::{List, Wall};
+    let turn = referee_turn();
+    let name = c::TurnName { attempt: 1, number: 1 };
+    let mut rows = List::with_capacity(1);
+    rows.push(c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: 41,
+            position: 1,
+            at: Wall::EPOCH,
+            line: c::Activity::Turn { reply: 1, attempt: 1, turn: 1, read: None },
+        }),
+        decoded: Some(c::ArchivedTurn { task: 41, name, cumulative: 0, read: None, at: Wall::EPOCH, turn }),
+    })
+    .expect("one archived turn");
+    c::ActivityPage { cut: false, rows, before: None, after: None }
+}
+
+#[test]
+fn a_landing_referee_reads_committed_tools_beyond_the_conversation() {
+    use support::forge_land::conversation::Evidence;
+    let mut page = referee_activity();
+    page.before = Some(jig_client::contract::Cursor::new(Box::from([0x11]), 1).expect("cursor"));
+    let chat = referee_json(&["chat", "show", "41", "--json"], &page);
+    assert!(
+        chat.pointer("/activity/rows/0/event/owner/decoded/turn/decoded/messages/0/blocks/0/call/outcome")
+            .expect("call")
+            .is_null()
+    );
+    let mut evidence = Evidence::new(41, 0);
+    assert_eq!(evidence.read(&chat).expect("conversation page"), Some(read_before("chat", "show")));
+    assert!(evidence.tools.is_empty(), "conversation payload omission proves no successful call");
+    page.before = None;
+    let chat = referee_json(&["chat", "show", "41", "--before", "11", "--json"], &page);
+    let detail = evidence.read(&chat).expect("conversation complete").expect("missing detail fetch");
+    assert_eq!(detail, ["task", "activity", "41", "--json"]);
+    page.before = Some(jig_client::contract::Cursor::new(Box::from([0x11]), 1).expect("cursor"));
+    let argv: Vec<_> = detail.iter().map(String::as_str).collect();
+    let activity = referee_json(&argv, &page);
+    assert_eq!(evidence.read(&activity).expect("detail page"), Some(read_before("task", "activity")));
+    assert_eq!(evidence.tools, BTreeSet::from(["change".to_owned()]), "failed and unfinished delegates do not count");
+    page.before = None;
+    let row = page.rows.get_mut(0).expect("activity row");
+    row.source.line =
+        jig_client::contract::Activity::RunEnded { attempt: 1, end: jig_client::contract::RunEnd::Parked, spent: 0 };
+    row.decoded = None;
+    let activity = referee_json(&["task", "activity", "41", "--before", "11", "--json"], &page);
+    assert_eq!(evidence.read(&activity), Ok(None));
+    assert_eq!(evidence.replies.len(), 1, "reply survives the detail reads");
+}
+
+fn read_before(group: &str, verb: &str) -> Vec<String> {
+    [group, verb, "41", "--json", "--before", "11"].map(str::to_owned).to_vec()
+}
+
+#[test]
+fn a_landing_referee_keeps_a_successful_raw_delegate_in_its_evidence() {
+    let mut evidence = support::forge_land::conversation::Evidence::new(41, 0);
+    let mut page = referee_activity();
+    let chat = referee_json(&["chat", "show", "41", "--json"], &page);
+    assert!(evidence.read(&chat).expect("conversation read").is_some());
+    let turn = &mut page.rows.get_mut(0).expect("turn").decoded.as_mut().expect("archive").turn;
+    let jig_client::contract::TurnRead::Decoded(turn) = turn else { panic!("decoded") };
+    let block = turn.messages.get_mut(0).expect("assistant").blocks.get_mut(1).expect("delegate");
+    let jig_client::contract::Block::Call(call) = block else { panic!("call") };
+    call.failed = false;
+    let activity = referee_json(&["task", "activity", "41", "--json"], &page);
+    assert_eq!(evidence.read(&activity), Ok(None));
+    assert_eq!(evidence.tools, BTreeSet::from(["change".to_owned(), "delegate".to_owned()]));
+}
+
+#[test]
+fn a_landing_referee_requires_whole_bounded_activity() {
+    use jig_client::contract as c;
+    use support::forge_land::conversation::Evidence;
+    let chat = referee_json(&["chat", "show", "41", "--json"], &referee_activity());
+    for defect in ["page", "turn", "undecodable"] {
+        let mut evidence = Evidence::new(41, 0);
+        assert!(evidence.read(&chat).expect("conversation").is_some());
+        let mut page = referee_activity();
+        if defect == "page" {
+            page.cut = true;
+        } else {
+            let turn = &mut page.rows.get_mut(0).expect("row").decoded.as_mut().expect("archive").turn;
+            if defect == "undecodable" {
+                *turn = c::TurnRead::Undecodable { why: c::TurnProblem::Malformed };
+            } else {
+                let c::TurnRead::Decoded(turn) = turn else { panic!("decoded") };
+                turn.cut = true;
+            }
+        }
+        let detail = referee_json(&["task", "activity", "41", "--json"], &page);
+        assert!(evidence.read(&detail).is_err(), "reject incomplete {defect}");
+    }
+    let mut evidence = Evidence::new(41, 0);
+    assert!(evidence.read(&chat).expect("conversation").is_some());
+    let mut page = referee_activity();
+    page.before = Some(c::Cursor::new(Box::from([0x11]), 1).expect("cursor"));
+    let detail = referee_json(&["task", "activity", "41", "--json"], &page);
+    for _ in 0..32 {
+        assert!(evidence.read(&detail).expect("within page bound").is_some());
+    }
+    assert_eq!(evidence.read(&detail), Err("bounded conversation evidence pages".to_owned()));
+}
