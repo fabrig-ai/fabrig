@@ -27,6 +27,13 @@ A change is a task that writes one repository's branch and lands it: its pull re
   Next is `questions: ROUTE · TAKEN of LIMIT taken`, then each open
   question with its asker, number, first line and where it stands;
   with route `none` and nothing taken, `questions: none`.
+- **Landing-rule approvals:** text and JSON show each enforcing rule's
+  role, freshness, required count, counted people and review heads, and
+  remaining count. Reviews not read yet and incomplete reviews differ
+  from a complete read with zero qualifying approvals. A forge account
+  mapped to no person is shown without counting it as an approval.
+  While approvals wait, `next` directs you to the pull request to review.
+  Removing a rule removes its requirement from the panel.
 - **Its result** names the merge commit, tier verdict, pull request and
   address, and `Landed: pull request #N merged into BASE as SHORT.`.
   With repairs, `repairs: N:` lists reasons and successful reports by
