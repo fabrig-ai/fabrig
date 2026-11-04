@@ -254,10 +254,6 @@ fn store(engine: &mut Engine, request: root::StoreRequest) {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one exhaustive dispatcher routes worker requests and their committed deliveries"
-)]
 fn worker(engine: &mut Engine, request: root::WorkerRequest) {
     match request {
         root::WorkerRequest::Host(request) => match *request {
@@ -320,35 +316,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                 jig_protocol_engine_workers::Event::NotAdmitted { channel, text: b"not admitted".as_slice().into() },
                 &mut engine.events,
             ),
-            root::Delivery::Host(delivery) => match *delivery {
-                root::HostDelivery::Settings { to, answer, application, from, requested } => {
-                    let (body, error) = temper_engine_smith::settings_answer(
-                        &answer,
-                        from,
-                        requested,
-                        engine.domain.models(),
-                        application.as_ref(),
-                    )
-                    .into_parts();
-                    engine.events.push(root::Event::Worker(root::WorkerInput::RenderedHostCall {
-                        to,
-                        answer: jig_domain_core::SettledAnswer::Host { error, body },
-                    }));
-                }
-                root::HostDelivery::Render { to, answer, tool, .. } => render_host(engine, to, &answer, &tool),
-                root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
-                    engine.env.now,
-                    channel,
-                    jig_domain_host::LinkDown::Relayed {
-                        run: skein_lib::Token::new(task),
-                        attempt: skein_lib::Token::new(attempt),
-                        call: name,
-                        answer: crate::tools::settled(call.answer),
-                    },
-                    &engine.values,
-                    &mut engine.events,
-                ),
-            },
+            root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
             root::Delivery::PlaygroundNote { .. }
             | root::Delivery::Procedure { .. }
             | root::Delivery::Application { .. }
@@ -386,10 +354,44 @@ fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Op
     crate::family::forges(engine.forge.origins.rows(forges), &temper_client_protocol_wire::v1::CEILINGS)
 }
 
-fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallAnswer, tool: &[u8]) {
+fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
+    match delivery {
+        root::HostDelivery::Settings { to, answer, application, from, requested } => {
+            let (body, error) = temper_engine_smith::settings_answer(
+                &answer,
+                from,
+                requested,
+                engine.domain.models(),
+                application.as_ref(),
+            )
+            .into_parts();
+            engine.events.push(root::Event::Worker(root::WorkerInput::RenderedHostCall {
+                to,
+                answer: jig_domain_core::SettledAnswer::Host { error, body },
+            }));
+        }
+        root::HostDelivery::Render { to, answer, tool, key, .. } => {
+            render_host(engine, to, &answer, &tool, key.task);
+        }
+        root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
+            engine.env.now,
+            channel,
+            jig_domain_host::LinkDown::Relayed {
+                run: skein_lib::Token::new(task),
+                attempt: skein_lib::Token::new(attempt),
+                call: name,
+                answer: crate::tools::settled(call.answer),
+            },
+            &engine.values,
+            &mut engine.events,
+        ),
+    }
+}
+
+fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallAnswer, tool: &[u8], task: u64) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
-    engine.events.push(crate::tools::render(to, answer, tool, bytes));
+    engine.events.push(crate::tools::render_for_task(to, answer, tool, bytes, task));
 }
 
 /// A job uses the same repository translation as an agent (temper/docs/design/domain/worker.md, 4.4).
