@@ -7,7 +7,7 @@ use skein_io::file;
 use skein_io::kernel::{Error, Fd};
 use skein_lib::{Env, Queue, Token};
 
-use super::{Dir, IO_OWNER, Log, Phase, State, Step, Store, announce_recovered, commits_failed, log_number};
+use super::{Dir, IO_OWNER, Log, Phase, Repair, State, Step, Store, announce_recovered, commits_failed, log_number};
 use crate::Limits;
 use crate::boundary::Row;
 use crate::snapshot;
@@ -312,12 +312,12 @@ fn renamed(start: u64) -> Compaction {
 }
 
 fn directory_synced(store: &mut Store, dir: &mut Dir, start: u64, step: &mut Step<'_>) -> Compaction {
-    dir.has_snapshot = true;
-    if dir.repairing {
-        dir.repairing = false;
-        store.repair_required = false;
-        dir.recovered = true;
-        announce_recovered(dir, store.last, step.above);
+    match store.repair {
+        Repair::Clean => {}
+        Repair::Required => {
+            store.repair = Repair::Clean;
+            announce_recovered(dir, store.last, step.above);
+        }
     }
     Compaction::RemoveOld { start }
 }
