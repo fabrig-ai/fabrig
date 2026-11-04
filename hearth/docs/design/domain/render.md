@@ -1,0 +1,1477 @@
+# Render
+
+Provisional, 2026-10-09, revised 2026-10-18. How hearth turns a revision
+of an IaC repository and a target into a spec: what render reads and how
+it reads it, its pipeline, the spec's parts and their digests, package
+resolution, the rendered diff of a change, its errors, its crates and
+how it is tested. The format it reads is protocol/format.md. Milestone M1 builds
+it, with the client's `render` and `diff` (client/README.md, section 3). Open
+questions are in section 10.
+
+## 1. In one page
+
+- **Render is a pure function of a revision and a target,** exports
+  included. It reads nothing but the revision: no secrets, no machine, no
+  clock, no network. Any hearth renders any target, in full, in
+  milliseconds, so nothing about a spec is remembered but its digests.
+- **The revision is read through git,** a tool behind a protocol machine
+  (`hearth-protocol-git`): one listing, then the blobs render needs, every
+  size bounded before a byte is read.
+- **Eight steps:** decode, compose and merge, validate, evaluate exports,
+  evaluate conditions, render files, detect collisions, assemble. The
+  protocol layer decodes JSON and templates into typed values and
+  instruction sequences; the domain never parses.
+- **A spec is parts with digests.** Output parts (packages, software,
+  config) enter layer keys; slot parts (data, secrets, boot) never do;
+  checks, exports and live are the others; meta names the target. Each
+  digest is SHA-256 over domain/store.md's canonical encoding.
+- **Resolution is the one slow step,** and it is remembered.
+  `mmdebstrap --simulate --mode=chrootless` resolves a packages part to a
+  pinned closure (each package's name, version, architecture, archive
+  path, SHA-256 and size), unprivileged, once per key; the closure is a
+  record in the store.
+- **The rendered diff is what a change's reviewers read:** per target and
+  per part, typed, then printed, with the targets it touches and the
+  layers each must rebuild. Who posts it is open.
+- **Errors are values,** each with its kind, its file, line and column in
+  the revision, and its target and task. Render collects every
+  independent error, not just the first.
+- **Tested from day 0:** golden repositories of hearth's own, the merge
+  laws and determinism as properties, every decoder fuzzed, the template
+  engine held to MiniJinja, and fakes of git and mmdebstrap kept honest
+  by conformance. os's goldens inspire cases; they are not an oracle.
+
+## 2. Inputs
+
+### 2.1 What render reads
+
+- **A repository:** a git directory, of two kinds:
+  - **a local one,** which `hearth render` and `hearth diff` name with
+    `--repo`, or find around the current directory (client/README.md,
+    3.5): the client renders it in its own process, with
+    its own user's access, and never hands the path to a daemon
+    (client/README.md, section 3);
+  - **the builder's own clone,** `@hearth.store/repo/`, which the
+    daemon's builder fetches and renders in jobs its steward gives it,
+    and the only repository the daemon renders (protocol/wire.md, section 4;
+    domain/steward.md, 3.3).
+- **A revision:** a commit id, or a ref name that render resolves to a
+  commit id once, first. Everything after names the commit.
+- **Targets:** one, several, or every target of the revision.
+- **Nothing else.** No overlay, no workspace, no environment variable, no
+  file outside the revision. Resolution alone reads more: the store's
+  records and the archive (section 5).
+
+### 2.2 Git as a tool
+
+```
+git --git-dir=<repository> rev-parse --verify --quiet <revision>^{commit}
+git --git-dir=<repository> ls-tree -r -l -z --full-tree <commit>
+git --git-dir=<repository> cat-file --batch
+git --git-dir=/dev/null diff --no-index --no-color --no-ext-diff --no-textconv --diff-algorithm=myers
+    --unified=3 -- <store>/cache/<before> <store>/cache/<after>                  a changed file's hunks (6.1)
+```
+
+- **git is `/usr/bin/git`,** Debian's, spawned by its path: skein's
+  `Spawn` searches no `PATH`. The builder's tools are named by fixed
+  paths, as mmdebstrap's is (5.2); in M1 nothing configures them
+  (client/README.md, 3.5).
+- **The environment is given whole:** `LC_ALL=C`, `GIT_CONFIG_NOSYSTEM=1`,
+  `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_NO_REPLACE_OBJECTS=1`,
+  `GIT_TERMINAL_PROMPT=0`, and `HOME=/dev/null`. No user's or
+  system's configuration changes what git prints, and a replace ref
+  cannot change a blob behind a commit id. Every file git looks for
+  under `HOME` (`.gitconfig`, `.config/git/attributes`) lies beneath a
+  file that is not a directory, so git finds none and says nothing, and
+  there is no directory to make or keep empty.
+- **The revision is checked before it reaches git,** as a guard, not a
+  parse: 1 to 255 bytes of `[A-Za-z0-9._/-]`, never starting with `-`.
+  git resolves what passes as it always does: a commit id of 40 or 64
+  hex digits, an abbreviated or uppercase one, a ref name. `rev-parse`
+  exiting 1 means the revision names no commit, whatever it printed
+  (`a..b` prints two lines).
+- **`ls-tree` gives the listing:** one record per entry, `<mode> <type>
+  <oid> <size>\t<path>\0`, the size right-aligned in at least seven
+  columns and `-` for a submodule, whose type is `commit`. Modes `100644`
+  and `100755` are files (the
+  second executable), `120000` a symbolic link whose blob is its target,
+  `160000` a submodule, which is an error under a path render reads.
+- **`cat-file --batch` gives blobs,** one process per `Read` (8.2):
+  render writes `<oid>\n` for each of the `Read`'s blobs, closing git's
+  input after the last, and reads, for each in turn, `<oid> <type>
+  <size>\n`, the bytes, and `\n`. The header's size must equal the
+  listing's and fit the blob's kind (2.3) before render demands the
+  body. `<oid> missing\n` answers an object the repository lacks: a
+  `tool` error of what needs that blob, and the batch reads on.
+- **`git diff --no-index` gives hunks,** for the diff alone (6.1): it
+  runs outside any repository, on two cache files. Wherever its working
+  directory lies, in a work tree too, `--git-dir=/dev/null` names no
+  repository, so git discovers none, and no work tree's configuration or
+  attributes (`diff.interHunkContext`, `core.autocrlf`, a `-diff`) change
+  what it prints. It exits 1 when the files differ, as they do when
+  their digests do. Its output is unified: the headers before the first
+  `@@`, which are skipped, then hunks; a file git takes for binary
+  prints one `Binary files … differ` line and no hunk. Anything else
+  fails that file's hunks: an exit of 0, an exit of 1 with neither a
+  hunk nor that line (git's answer when it cannot read a file), an exit
+  past 1 or a signal. The change stands without its hunks, and its
+  target has a `tool` error, so the diff exits 75 (client/README.md,
+  3.3).
+- **A failed git command is a `tool` error** with its exit and the tail
+  of its standard error: the last 20 lines, each cut at 160 bytes with
+  no marker, as mmdebstrap's (5.5). Output git should not give is one
+  too. git runs with no deadline in M1: it reads a local repository,
+  which answers or fails, and the person may interrupt the client; a
+  daemon's render is bounded by its job's deadline (domain/steward.md, 5.2).
+- **`hearth-protocol-git` builds the vectors and parses the outputs** into
+  typed records; the domain sees a listing, decoded documents and
+  templates, the digests of static files and a diff's hunks as lines,
+  never git's text (README, section 4.2).
+
+### 2.3 Bounds
+
+Render's limits are configured (`programming-model.md`, section 7); these
+are the defaults. M1's client, the one builder of M1, runs on the
+defaults alone (client/README.md, 3.5).
+
+| Limit | Default |
+|---|---|
+| entries in a revision's listing; the bytes of all its paths | 16,384; 4 MiB |
+| a path | 4,096 bytes |
+| a JSON document; its depth; keys in an object | 256 KiB; 32; 4,096 |
+| a template; an expression, wherever it stands (a `task.json` string, a template's tag or `{{ }}`, an interpolation) | 256 KiB; 4 KiB |
+| a static file, or a `file` setting's target: streamed to the cache, never held | 64 MiB |
+| JSON documents, declarations and templates decoded from one revision, counted as they are held | 16 MiB |
+| targets in a revision; tasks; settings in a task | 1,024; 1,024; 512 |
+| nesting of statements in a template; of an expression | 32; 64 |
+| entries one `task.json`'s declarations expand to for one target, an `if` that is false making none | 65,536 |
+| loop iterations in one evaluation | 1,048,576 |
+| values one evaluation makes; the exports of one environment | 16 MiB; 16 MiB |
+| one target's composed settings; its validated settings; its expanded entries | 16 MiB each |
+| the specs one command holds, with the sizes of the files they name and their resolutions' closures, a diff's two sides together | 16 MiB |
+| a rendered file, held until it is in the cache; bytes rendered for one target | 16 MiB; 256 MiB |
+| errors kept from one command, a diff's two sides together | 256, and 16 MiB of the bytes they carry; then a count |
+
+- **A level of nesting** is, in an expression, each `(`, a list's or an
+  index's `[`, a filter's `(`, a `not`, and an `if` or an `else` still
+  open: each place protocol/format.md, 7.4's grammar nests. In a template it is
+  an open `if` or `for`. The level past the limit is refused where it
+  opens.
+- **One evaluation** is one expression's, or one template's run for one
+  target. The values it makes count a string's bytes, and 32 bytes for
+  each element of a list or entry of a map; a list it makes nests at
+  most 64 deep. Composed and validated settings, expanded entries,
+  exports, specs and closures count alike, a record as a map of its
+  fields.
+- **What is decoded counts as it is held,** not by its file's bytes: a
+  document's or a declaration's values as values count, a key's bytes as
+  a string's, and a template the bytes of the text and names it holds,
+  32 bytes for each instruction and operation, and 4 bytes for each of
+  its lines, whose first bytes it keeps (8.3): every line, a comment's
+  among them. The document, declaration or template whose count passes
+  the 16 MiB fails the render at its path.
+- **What a limit fails** is what holds the excess. The listing's limits,
+  the 16 MiB of decoded documents and templates, and the 1,025th target
+  or task fail the render: no target renders, and the error is the
+  revision's, at the path at fault. A document, a template, an
+  expression or a static file past its limit, or a task past its
+  settings, fails what needs that file (3.1). A limit met while
+  composing, validating, expanding, evaluating or rendering a target, or
+  holding its spec, fails that target (in a diff, on that side). One met
+  while reading the revision is `decode`; any other is `evaluation`
+  (7.2).
+
+### 2.4 The builder's clone and its fetch
+
+- **The clone is bare, at `@hearth.store/repo/`,** a name of no digest
+  shape that domain/store.md's scan knows (domain/store.md, section 2). It is made once,
+  `git init --bare --quiet <store>/repo`, and read with 2.2's commands.
+- **The fetch** is the one git command that reaches the network, as
+  `apt-helper` is build's (domain/build.md, 10.2). The builder runs it in a
+  `fetch` job from its steward (domain/steward.md, 3.3). Its argument vector,
+  with the repository's URL and the branch the machine follows, which
+  the job carries from the steward's desired revision (protocol/wire.md, 4.1):
+
+  ```
+  git --git-dir=<store>/repo fetch --quiet --no-tags --no-recurse-submodules --prune
+      <url> +refs/heads/<branch>:refs/hearth/<branch>
+  ```
+
+  A desired commit must then be reachable from `refs/hearth/<branch>`;
+  render resolves it there, or a commit imported from a bundle from its
+  own `refs/hearth-dev/<commit>` (protocol/wire.md, 4.1; domain/development.md, 6.2).
+- **Its environment is 2.2's,** given whole, plus the credential's one
+  variable. The URL never carries a credential.
+- **The read credential is the builder's own,** never a secret of the
+  secret store: a forge token or a deploy key kept in the store under
+  `credentials/`, 0700, user `hearth`, imported at bootstrap
+  (domain/machine.md, section 8), and given to git by a fixed variable:
+  - over HTTPS, `GIT_ASKPASS=/usr/local/lib/hearth/askpass`, a program the
+    hearth task ships that prints `hearth` for a username and the token
+    in `<store>/credentials/token` for a password;
+  - over SSH, `GIT_SSH_COMMAND=ssh -F /dev/null -i <store>/credentials/deploy_key
+    -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+    -o UserKnownHostsFile=<store>/credentials/known_hosts`.
+- **Bounded:** the deadline the steward sets on the `fetch` job
+  (domain/steward.md, 5.2), and the store's free space; git's progress is not
+  parsed, only its exit and the tail of its errors.
+
+## 3. The pipeline
+
+```
+revision ──git──▶ 1 decode ──▶ 2 compose ──▶ 3 validate ──▶ 4 exports ──▶ 5 conditions
+                                                                              │
+                  spec ◀── 8 assemble ◀── 7 collisions ◀── 6 files ◀──────────┘
+```
+
+Step 1 and discovery run once per revision; the rest once per target,
+and step 4 reads other targets of the same environment. A target's
+settings are composed when it renders, and another target's task or
+placement when step 4 reads it, and none is kept past its use (8.4).
+
+### 3.1 Decode
+
+- **The listing classifies every path** (protocol/format.md, section 2): a
+  configuration document (`fleet.json`, `envs/*.json`,
+  `hosts/<base>/*.json`), a declaration (`tasks/*/task.json`), a template
+  (`*.j2`), a static file under `tasks/*/tree/`, or a file outside the
+  four roots, read only if a `file` setting names it. A path under the
+  four roots that protocol/format.md, section 2 does not allow is a `repository`
+  error: in `envs/`, anything but an `<env>.json`; directly in
+  `hosts/<base>/`, a `.json` that is neither of its documents (a file
+  deeper there, or not `.json`, is another file); a file directly in
+  `hosts/` or `tasks/`; a link where a document or a declaration must
+  be; and any submodule. An absent `fleet.json` or `<base>.json` is an
+  empty layer.
+- **The domain asks for blobs by kind,** and the protocol layer decodes
+  each before it goes up:
+  - JSON through skein's tokenizer into `hearth-protocol-config`, which
+    refuses duplicate keys, non-integer numbers and U+0000, drops
+    `_note`, and gives typed values, each with its line and column, from
+    the position the tokenizer gives each token (README, 8.1);
+  - a declaration into its fixed shape (protocol/format.md, 5.1), its `if` and
+    `for_each` fields and its interpolated strings passed through
+    `hearth-protocol-template`;
+  - a template through `hearth-protocol-template` into a flat sequence of
+    instructions (8.3);
+  - a static file, or a file a `file` setting names, is never decoded
+    and never held: the protocol layer streams its blob from `cat-file`
+    into the store's cache by SHA-256 (domain/store.md, section 2), hashing as
+    the bytes pass with lib's SHA-256 (asked of skein: README, 8.1), and
+    the domain receives its object id, size and digest.
+- **A decode error fails what depends on the file,** not the revision:
+  the targets that have a broken task, or that compose a broken document;
+  only the limits of the whole revision fail it all (2.3). A repository
+  error fails the targets of its task or base alike; one of neither (a
+  stray file in `envs/`, or directly in `hosts/` or `tasks/`) fails no
+  target, and is the revision's error all the same.
+- **Errors of the revision print whatever targets are asked.** Step 1
+  and discovery read every document and declaration, so their errors
+  print with any command; an error of a target prints only when that
+  target is asked, and a task's templates are read only when an asked
+  target has the task (3.3). While a `hosts/` document is refused, a
+  named target that discovery cannot find is left out under that error,
+  which gives exit 2, not 64's unknown target (client/README.md, 3.3).
+
+### 3.2 Compose and merge
+
+- **Discovery** makes the targets from the listing and the bases'
+  `members` (protocol/format.md, section 3): base, member, environment, name. Two
+  targets of one name are an error.
+- **Each target's layers** are merged in order (protocol/format.md, 3.2) by
+  RFC 7386 (protocol/format.md, 4.1): task defaults, fleet, base, member,
+  environment, base in the environment, its member.
+- **Presence** comes from the base, member and base-env layers alone
+  (protocol/format.md, 3.3), and the `hearth` task is added to every target but
+  a container (protocol/format.md, 5.12); the composed settings are restricted to
+  the present tasks.
+- **Every value keeps its provenance:** the layer, file, line and column
+  that set it, so a later error names the right file. An object's is the
+  layer that made it (RFC 7386's `result = target`), not a later one that
+  patched its members, and each member keeps its own.
+
+### 3.3 Validate
+
+- **Once per revision, each declaration is checked against itself:** its
+  schema is well formed and its defaults have their types. **For each
+  task an asked target has,** every
+  `settings.<name>`, `tasks.<task>.<setting>` and `exports.<task>` that its
+  templates and expressions name is declared (protocol/format.md, 6.4); its
+  templates are used and its scripts declared.
+- **Per target, the composed settings are checked against the schemas:**
+  undeclared settings and fields, types, enums, ranges, required
+  settings, `target` and `file` references (protocol/format.md, 6.5). Defaults are
+  filled at every depth (protocol/format.md, 6.3). `debian` and `placement` are
+  checked against their fixed schemas.
+- **Owners of what persists have fixed ids.** Once the declarations are
+  concrete (3.5), every owner and group of a data path, a secret file or
+  an identity file must be a declared user or group with a fixed `uid`
+  or `gid`, package users included; a download's must be `root` or such
+  a package user or group (protocol/format.md, 5.6 and 10.1). Anything else is
+  refused: the packages layer is rebuilt from scratch, and an id a
+  postinst took could move under data that keeps the old one.
+
+### 3.4 Exports
+
+- **For each task whose exports a task of this target reads,** render
+  composes every target of the environment that has that task, validates
+  that task's settings there, and evaluates its exports
+  (protocol/format.md, section 8). Each target's exports are computed once per
+  revision and shared by all their readers.
+- **Placements are read the same way:** `target.containers` holds the
+  environment's targets placed on this one (protocol/format.md, 3.5). A
+  container's `on` must name a target of its environment that is not a
+  container; a build environment has none (protocol/format.md, 3.4). The
+  containers placed on one host must have id ranges that overlap
+  neither each other nor the builder's [M5] (protocol/format.md, 3.5).
+- **No cycle is possible:** exports depend only on their own task's
+  settings and on `target` (protocol/format.md, 8.1).
+- **An error in another target's exports fails this render too,** naming
+  both targets: a spec never reads a guess. A target's exports come from
+  its exporting task's validated settings and `target` alone
+  (protocol/format.md, 8.1), so what else fails on it (another task, its own
+  `requires`, its files) leaves them as they are, and its readers
+  render. When they cannot be computed (a document the exporter composes
+  is broken, the task's settings fail validation, an export's expression
+  fails, or a refused `hosts/` document hides which targets have the
+  task, 3.1), each reader fails with an `exported` error (7.2). A
+  container's placement is read alike: each entry of `target.containers`
+  holds the fields of the container's `target.placement`, and a container
+  whose placement cannot be composed fails its host.
+- **A container reads of its host its placement alone:** that `on` names
+  a target of its environment that is not a container (protocol/format.md, 3.4).
+  Its context holds nothing else of the host (protocol/format.md, 7.7), and its
+  data part none of the host's policies (4.3). So what else fails on the
+  host (a task that does not exist, `hearth` among them when
+  `tasks/hearth/` is absent; a declaration or a file of its tasks; its
+  settings, its guards, its entries) leaves its containers as they are,
+  and they render. A host whose placement cannot be composed fails each
+  container placed on it:
+  - while a document the host composes is refused, by its decode, the
+    listing or a rule of composition (3.1, 7.2), the container is left
+    out under that error, which prints whatever targets are asked, once
+    and without a target (7.1);
+  - a host whose documents are not refused but compose no placement
+    gives each container asked a `composition` error at its `on` (7.2),
+    beside the host's own when the host is asked too.
+
+### 3.5 Conditions
+
+- **`requires` first** (protocol/format.md, 5.9): a false guard is an error with
+  its message.
+- **Then every declaration entry:** `for_each` expanded, `if` evaluated
+  for each element, keys and string fields interpolated, typed fields
+  evaluated (protocol/format.md, 5.2). The result is each task's concrete
+  declarations: packages, preseeds, modules, downloads, file entries,
+  users, groups, presets, tmpfiles lines, data, secrets, identity, boot
+  parameters, scripts.
+
+### 3.6 Files
+
+- **Every file of the tree is produced and digested:** a static file of
+  `tree/` and a `copy` by the digest step 1 gave it; a template of
+  `tree/` or `templates/` by evaluating it in the task's context
+  (protocol/format.md, 7.7); a link by its target. `customize.sh` and
+  `software.sh` fragments likewise.
+- **A rendered file is written to the store's cache by digest** as soon
+  as it is complete, and dropped from memory: a target holds one rendered
+  file at a time.
+- **Each output is bounded** (2.3), and an undefined value, a type error
+  or an exceeded limit is an error at the template's line.
+- **Render adds what tasks may not write themselves:** `/etc/subuid` and
+  `/etc/subgid` from the users' subordinate ranges, a `tmpfiles` line of
+  type `d` for each data entry's mode and owners (protocol/format.md, 5.6 and
+  5.7), and the initramfs configuration (4.2). `/etc/subuid` and
+  `/etc/subgid` are one text, subuid(5)'s `<user>:<start>:<count>` line
+  for each user with a range, by name: two files `0644 root:root` in
+  the config part's tree, and neither when no user has a range.
+
+### 3.7 Collisions
+
+Render compares the concrete declarations of all the target's tasks:
+
+| What | Rule |
+|---|---|
+| a path in the file tree | one task only, even with identical content |
+| a data name, within the target and across classes; a data path | one task only |
+| a secret's or identity's path | one task only, and never a path of the tree |
+| a path in the tree under a data path | never: the mount would hide it |
+| a download's path | one task only; never equal to, beneath or over another's, a path of the tree, or a secret's or identity's path; never under a data path |
+| users, groups (a sysusers user's own group among them: protocol/format.md, 5.6), presets, tmpfiles lines, preseeds, boot parameters | several tasks only identically |
+| a path a `live` entry covers | several entries, of one task or several: their consumers are a union (protocol/format.md, 5.14) |
+| a uid or gid; a subordinate range | one user or group; ranges never overlap |
+| packages, initramfs modules | a union |
+
+- **Identically** is field for field, once defaults are filled: a
+  default one task writes out and another leaves out is the same value.
+  Positions and the tasks themselves are not compared.
+- **Paths collide when one is the other or lies beneath it:** a tree
+  file beneath a tar download's path, two data paths nested, a download
+  under a data path, which the mount would hide. Two claims of one task
+  collide as two tasks' do.
+
+A collision is an error that names both tasks and both lines. os
+overwrote silently, in alphabetical order of task.
+
+### 3.8 Assemble
+
+- **Each part's record** (section 4) is built from the concrete
+  declarations and the produced files, sorted as protocol/format.md, 4.3 says,
+  encoded canonically and digested.
+- **Render also gives the resolution key** (5.1), and the layer keys when
+  the store already holds that key's resolution (4.5). When it does not,
+  the key is needed, and the layer keys are unknown until it is resolved
+  (5.7).
+- **The live part maps each covered path to its consumers,** from every
+  task's `live` entries (protocol/format.md, 5.14): the eligibility input that
+  only a spec holds. Render decides nothing about a change: the builder
+  pairs two specs' live parts with two outputs' tree files when it plans
+  a trial, in a `plan live` job (domain/slots.md, 6.7; domain/steward.md, 3.3).
+- **The output is the spec.** Every file it names is in the store's
+  cache by digest, static files from step 1 and rendered ones from
+  step 6, where a build finds them. Specs are never stored: a builder
+  renders again when it needs one, as a new builder does for a `build`
+  job whose render an earlier one answered (domain/steward.md, 3.3).
+
+### 3.9 Checks and probes [M5]
+
+- **A task's checks are evaluated as its other declarations** (step 5):
+  their fields may read settings, and their rendered form, every value
+  resolved, enters the checks part (domain/operating.md, 2.2).
+- **A probe with `from` is exported.** Render puts it into its task's
+  exports, rendered, with the target it probes; in step 4 each target of
+  the environment that has the task `from` names reads those probes and
+  renders them into its own checks part (domain/operating.md, 2.6). A change to
+  one probe changes the probed target's and its probers' parts, and no
+  other.
+- **Refused at render:** a `blessing` check with `from`; a `from` that
+  no target of the environment has; a command check whose `user` is
+  `root`, or is neither `nobody`, a sysusers user nor a package user a
+  task of the target declares (protocol/format.md, 5.6; domain/operating.md, 2.2;
+  domain/activator.md, section 5).
+
+### 3.10 Costs
+
+- **A revision is decoded once** and shared by all its targets. Decoded
+  documents, templates and static files' digests are kept by git object
+  id, so the next revision, a diff's second side among them (8.4),
+  decodes only the blobs that changed. Object ids name contents, so this
+  memory changes no result.
+- **A target's render** composes its layers, validates, evaluates and
+  hashes its files: for the fleet's targets, milliseconds each.
+  Rendering every target of two revisions, as a diff does (section 6), is
+  cheap enough to do on every change.
+
+### 3.11 What changes from os
+
+- **Always in full.** os's `manifest` wrote a spec directory and reused
+  its previous output as the resolution cache; hearth keeps only digests
+  and records.
+- **No overlay, no workspace, no `--resolved`:** every input is in the
+  revision, and tests use fake mmdebstrap (9.6).
+- **Collisions, undeclared settings and undefined values are errors**
+  where os overwrote, ignored or printed nothing.
+- **Every part has a digest;** os had a hash for packages alone, and
+  deploy hashed the etc tree without modes or links.
+
+## 4. The spec: parts and digests
+
+### 4.1 The parts
+
+| Part | Kind | Holds | Enters |
+|---|---|---|---|
+| `packages` | output | sources, the request, the variant, preseeds, the initramfs, apt's options | the packages key, and the resolution key |
+| `software` | output | downloads by digest and where each is placed; artifacts by key [M6]; `software.sh` | the software key |
+| `config` | output | the file tree; users; presets; tmpfiles; `customize.sh` | the config key |
+| `data` | slot | data entries, each a directory in a class, bound at its path; each class's snapshot and backup policies | no key |
+| `secrets` | slot | secret files, password secrets and identity items, by name | no key |
+| `boot` | slot | the kernel's command-line parameters; a container's parameters instead [M5] | no key |
+| `checks` [M5] | other | the target's checks (domain/operating.md, section 2) | no key |
+| `live` | other | the consumers of the target's paths, for live changes (protocol/format.md, 5.14) | no key; read by the builder to plan a live trial |
+| `exports` | other | what this target publishes to its environment | no key; read by other targets' renders |
+| `meta` | | target, base, member, environment, placement | no key |
+
+- **Every part M1 builds is in every spec,** an empty one too: the keys
+  and the spec digest need each part's digest (4.5). A part with nothing
+  in it is its record with each field empty, a field left out only when
+  it is optional and absent (domain/store.md, 3.1), so no part is ever lacking.
+  A part a later milestone adds is left out until then. Parts are
+  printed in this table's order.
+
+### 4.2 Output parts
+
+```
+packages
+  sources
+    suite              string                          forky
+    architecture       string                          amd64
+    components         set of component, in fixed order main contrib non-free non-free-firmware
+    archive            timestamp                       20261001T030405Z
+    updates            bool
+    security           timestamp; absent when the pocket is off
+  request              set of package names
+  variant              apt for metal and vm; container for a container, until M5 settles it (protocol/format.md, section 13)
+  preseeds             map question → { owner, type, value }
+  initramfs            { modules: set of names, microcode: none | generic }; absent for a container
+  apt                  { install_recommends }
+  seeds                users: map name → { uid, gid }; groups: map name → { gid }
+
+software
+  downloads            map path → { sha256, owner, group, file { mode } | tar { strip } }      protocol/format.md, 10.1
+  artifacts [M6]       map path → { pinned { key } | head { recipe, listing digest } }
+  scripts              list of { task, order, content digest }        software.sh, in order
+
+config
+  tree                 map path → one of
+                         file       { content digest, mode, owner, group }
+                         link       { target, owner, group }
+                         directory  { mode, owner, group }
+  groups               map name → { gid? } | package
+  users                map name → { uid?, group, gecos, home, shell } | package
+  members              set of (user, group)
+  presets              map unit → enable | disable
+  tmpfiles             map path → { type, mode?, owner?, group?, age?, argument? }
+  scripts              list of { task, order, content digest }        customize.sh, in order
+```
+
+- **The variant is a function of placement,** never a task
+  (protocol/format.md, 3.4): os chose it from a `container` task in render and
+  from the target's kind in deploy, which disagreed. A container's
+  variant changes its resolution key (5.1), so a host and its container
+  never share a packages layer. Until M5 settles what mmdebstrap is
+  given, `container` is a placeholder: it enters the key, but render asks
+  no resolution for it, so its packages key stays needed, with
+  `--resolve` too, and that is no error (5.7).
+- **A container's packages part has no initramfs,** and render refuses
+  a task's module on it, as it refuses a boot parameter (protocol/format.md, 3.4;
+  7.2): with no kernel there is nothing to configure.
+- **The initramfs configuration is render's,** written as
+  `tiny-initramfs.conf` from the part's two fields: `AUTO_MODULES=no`
+  always, `INCLUDE_MODULES` from `modules`, and `MICROCODE=no` or
+  `generic` from `microcode` (domain/machine.md, 7.1; domain/build.md, 5.5). Render
+  derives `microcode` from placement's kind, `none` on a VM and `generic`
+  on metal; placement enters no key, so the part must carry the choice
+  for the build to know it. Nothing a task writes can set `yes` for
+  either. Render writes the text into the cache, as a rendered file
+  (3.6), and the spec names its content digest beside the part, outside
+  the part's digest, which the two fields already make; build copies it
+  from there into its inputs (domain/build.md, 5.4).
+- **`seeds` are the fixed ids build writes into `/etc/passwd` and
+  `/etc/group`** in mmdebstrap's extract hook, before any package is
+  configured (domain/build.md, 5.5): every package user and group, and every
+  owner of a data path, a secret or an identity file, with its uid and
+  gid (3.3). They change what the packages layer builds (adduser keeps a
+  user it finds), so they belong to its key; they do not change what apt
+  resolves, so not to the resolution's.
+- **`install_recommends` is the part's one option.** hearth's fixed apt
+  and dpkg options (`Check-Valid-Until "false"`, `force-confold`, and the
+  rest domain/build.md, 5.4 passes) are constants of the encoding's version
+  (domain/store.md, 3.2): changing one changes every key, and no part carries
+  them.
+- **A download's owners** are `root`, or a package user or group with a
+  fixed id: software is placed before any sysusers user exists, and
+  render refuses any other owner (protocol/format.md, 10.1).
+- **A pinned artifact is its key** (domain/artifacts.md, 7.1); its repository,
+  commit and recipe ride beside the part, outside its digest, as how to
+  make it. **A head artifact is its recipe and its sources' listing**
+  at the revision: the SHA-256 of the `ls-tree` records of the paths the
+  recipe selects in `artifacts.json` (domain/artifacts.md, 3.2), from render's
+  own listing. Its resolved key never enters the part (4.5).
+- **A download is what it is, not where it comes from.** Its URL stays
+  outside the digest, as a fetch hint beside the part (map from SHA-256
+  to URL), so moving a release to a mirror rebuilds nothing. Its name
+  stays out too; the path keys it. Two downloads of one SHA-256 give the
+  hint the URL of the first by path; a URL is text, kept as written.
+- **Owners are names** in every part; build resolves them in the layer
+  (protocol/format.md, 5.5). Those of data, secrets, identity and software have
+  fixed ids (3.3).
+- **A package user or group** is a name only (protocol/format.md, 5.6): build
+  writes no sysusers line for it, and the activator confirms it in the
+  slot's `/etc/passwd` or `/etc/group` at prepare (domain/slots.md, 5.7).
+- **Each data entry adds a `tmpfiles` line** of type `d` with its mode
+  and owners (protocol/format.md, 5.7), so they are applied at boot in the running
+  slot (domain/machine.md, 3.4).
+
+### 4.3 Slot parts
+
+```
+data
+  entries              map name → { class: core | data | cache, path }
+  policies             map class (core, data) → { snapshots? { every, keep } [M5],
+                         backup? { every, keep, peer, recipient } [M6] }
+secrets
+  files                map secret name → { path, mode, owner, group }
+  passwords            map user → secret name
+  identity             map item → { kind, algorithm?, path, public_path?, mode, owner, group }
+boot                   { mutable, params }: mutable from placement (domain/development.md, section 4);
+                         params the kernel's command-line parameters, a list in order; for a container,
+                         empty in M1, and from M5 its own parameters instead:
+                         { ids, binds: map path → { source, read_only }, capabilities, network, bridge? }
+```
+
+- **Slot parts never enter a layer key:** changing one makes a new slot of
+  the same output (domain/slots.md, section 5).
+- **A container's slot parts are its own,** placed by its host's
+  activator into the container's slot on the host [M5] (domain/slots.md, 12.1).
+  Its `boot` part holds no command line, since it has no kernel, but
+  the parameters its placement gives nspawn (protocol/format.md, 3.5): what
+  starts the slot, as a host's command line is, so a change to them
+  prepares a new slot of the same output.
+- **The data part's entries are the tasks' `data` entries,** a name, a
+  class and a path each (protocol/format.md, 5.7); mode and owners go to the
+  config part's tmpfiles lines instead (4.2). **Its policies are the
+  `hearth` task's `snapshots` and `backups` settings** (protocol/format.md, 5.12),
+  by class, a backup's peer and recipient read from the `backup_peer`
+  task's exports (protocol/format.md, 8.7). A host carries every class's policy
+  its settings give, used or not, since its containers' classes follow
+  them; a container's data part carries none (domain/slots.md, 12.1).
+- **The secrets part holds names, never values.** Beside secret files it
+  carries password secrets and identity items, the two other things the
+  activator writes into a slot from the secret store
+  (protocol/format.md, section 9; domain/slots.md, 5.4).
+
+### 4.4 Other parts and meta
+
+```
+checks                 from M3, the units whose failure does not block a bless (protocol/format.md, 5.13);
+                       [M5] the target's checks, and the probes it runs for others (3.9; domain/operating.md, section 2)
+live                   map path → list of { task, unit?, action }, in path order, each path's consumers
+                       by task, then unit (none first), then action; a path ending in `/` covers its
+                       subtree (protocol/format.md, 5.14)
+exports                map task → map name → value, empty when no task exports, every integer in a value
+                       at any depth as its decimal text (4.6); and [M5] the task's probes with `from`, rendered
+meta                   { target, base, member?, environment, placement { kind, firmware?, hardware?, on?, and a container's parameters [M5] } }
+```
+
+- **Exports have a digest** so a target's own diff shows what it
+  publishes; a change to one reaches its readers through their own parts,
+  whose content changes.
+- **Meta enters no key:** two targets whose output parts agree share an
+  output, whatever their names.
+- **The live part enters no key, not even the prepare key:** how a
+  change is applied is not what a slot holds, so a change to `live`
+  entries alone builds and prepares nothing.
+
+### 4.5 Keys
+
+```
+part digest        = H("part:<name>", the part's record)
+resolution key     = H("resolution", sources, request, variant, apt)                 5.1
+resolution digest  = H("closure", list [ list [ name, architecture, version, sha256 ] … ])  5.4
+packages key       = H("packages", resolution digest, packages part digest)
+software key       = H("software", packages key, software part digest
+                         [, M6: the resolved key of each head artifact, by path])
+config key         = H("config", software key, config part digest)                   the output's name
+spec digest        = H("spec", map part name → part digest, meta's among them)
+```
+
+- **The packages key takes the closure's digest,** not the resolution's
+  key. Two builders that resolved one key to different closures (another
+  apt, say) then name their layers differently, and a key never names two
+  sets of installed packages.
+- **A head artifact's resolved key enters the software key,** as the
+  closure's digest enters the packages key: the part holds only what the
+  revision says, so render stays a function of it, and the key is
+  remembered by the listing's digest (domain/artifacts.md, 7.2) [M6].
+- **The output is the config layer,** and its key is the output's name
+  (domain/store.md, section 4).
+- **The spec digest** answers "did anything change for this target";
+  the revision's commit id rides beside it, outside every digest, so two
+  commits that render the same give the same digests.
+
+### 4.6 What render needs from the canonical encoding
+
+domain/store.md, section 3 defines the encoding and H. Render relies on it for:
+
+- **one injective encoding of typed records:** integers at fixed width,
+  byte strings and lists with their lengths, booleans as kinds of their
+  own, enumerations as their variants' names, optional fields left out
+  when absent, sets as sorted lists, maps sorted by key bytes, and a
+  record's fields as a map of its field names (domain/store.md, 3.1);
+- **a tag per kind of record,** distinct between part digests and keys,
+  with a version, so equal bytes of two kinds never share a digest and a
+  change of encoding changes every key;
+- **H as SHA-256 over the tag and the encoding,** computable in the
+  domain (`no_std`), with a digest a fixed 32 bytes inside other records.
+
+The encoding has no signed integers. An integer setting may be negative,
+so every integer in an export's value, at any depth, enters as its
+decimal text; every other integer in a part (ids, modes, orders, sizes)
+is unsigned.
+
+A field's name in the encoding is its JSON name: a two-word field is
+snake case in both (`content_digest`, `install_recommends`,
+`public_path`), where the blocks above may write it as two words.
+
+## 5. Resolution
+
+### 5.1 The key
+
+```
+resolution key = H("resolution", sources, request, variant, apt)
+```
+
+- **It covers everything that changes what apt resolves:** the sources
+  (suite, architecture, components, snapshot timestamps, pockets), the
+  requested packages, the bootstrap variant, and `install_recommends`;
+  hearth's fixed options change it through the encoding's version (4.2).
+- **It leaves out what does not:** preseeds, the initramfs, the seeds,
+  the proxy and where the bytes come from.
+
+### 5.2 The invocation
+
+```
+mmdebstrap --verbose --simulate --mode=chrootless
+  --variant=<variant>               the part's: apt for metal and vm; never a container's in M1 (5.7)
+  --architectures=<architecture>    the sources'
+  --include=<names, comma-joined>   the request, sorted; split, and none when it is empty
+  --aptopt=Acquire::Check-Valid-Until "false"
+  --aptopt=APT::Install-Recommends "<true | false>"    the part's install_recommends
+  [--aptopt=Acquire::http::Proxy "<the builder's proxy>"]
+  --skip=cleanup/apt/lists
+  <suite> <scratch>/root <scratch>/sources.list
+```
+
+with `<scratch>/sources.list` encoded from the sources:
+
+```
+deb http://snapshot.debian.org/archive/debian/20261001T030405Z/ forky main contrib non-free-firmware
+```
+
+one line for each pocket on, each with the sources' components in their
+fixed order (4.2): the suite's own; then `<suite>-updates` from the same
+archive when `updates` is on; then `<suite>-security` from
+`http://snapshot.debian.org/archive/debian-security/<security>/` when
+`security` is set.
+
+- **The request is split** into `--include` arguments of at most 64 KiB
+  each, as domain/build.md, 5.4 splits the closure: Linux caps one argument at
+  128 KiB, and mmdebstrap joins its `--include`s in order. An empty
+  request passes none.
+
+- **Unprivileged, with no namespace:** chrootless simulate needs no
+  subordinate ids, where mmdebstrap's automatic mode would pick unshare
+  and need them.
+- **`--verbose`** makes apt print its `Inst` lines; **`--skip=cleanup/apt/lists`**
+  keeps the indices apt fetched, which 5.3 reads.
+- **The scratch directory** is new and empty for each run,
+  `staging/<resolution key>/` in the store (domain/store.md, 2.1), so that its
+  indices move into the cache by a rename; it is removed after. One
+  resolution runs at a time (5.5), and the store's lock keeps other
+  builders out (domain/store.md, 8.2).
+- **mmdebstrap is `/usr/bin/mmdebstrap`,** spawned by its path, as git
+  is (2.2).
+- **apt checks each `InRelease` with the host's keys,** those
+  mmdebstrap gives it by default (`/etc/apt/trusted.gpg.d/`, the host's
+  `debian-archive-keyring`), with no `--keyring`: a builder resolves
+  what its host trusts, and the keys are in no key (5.1). A host that
+  lacks them fails the run, an error of kind `tool` (7.2).
+- **The environment is given whole:** `LC_ALL=C`,
+  `PATH=/usr/sbin:/usr/bin:/sbin:/bin` for the tools mmdebstrap and apt
+  run, and `TMPDIR` the scratch directory.
+- **The proxy is the builder's configuration,** never in a key (5.1):
+  none by default, and none in M1 (client/README.md, 3.5); an
+  apt-cacher-ng where the builder has one (domain/build.md, 5.2); the local
+  mirror in the test tiers, which serves the fixed URLs above
+  (domain/testing.md, 6.2).
+
+### 5.3 What it yields
+
+- **`Inst` lines give the closure's names:** `Inst <name> [<old>]
+  (<version> <origins> [<architecture>])` gives the name, the version and
+  the architecture of each package apt would install. Under `--verbose`
+  they come on standard error (mmdebstrap 1.5.7, apt 3.0.3), and
+  `hearth-protocol-mmdebstrap` reads both pipes as they fill. A line may
+  go on after `])` with apt's list of broken packages, ` [<names>]` or
+  ` []`; the reader takes the triple and ignores the rest. Each triple
+  comes twice, as mmdebstrap simulates the download and then the
+  install: equal triples are one package. The closure's bound counts
+  packages (domain/store.md, 6.1: 8,192), so the reader takes at most twice as
+  many `Inst` lines.
+- **The `Packages` indices give the rest.** `hearth-protocol-mmdebstrap`
+  reads every `*_Packages` file under `<scratch>/root/var/lib/apt/lists/`
+  in bounded chunks, stanza by stanza (at most 1 MiB a stanza: trixie's
+  `librust-winapi-dev` has 76,338 bytes), and sends up each stanza's
+  `Package`, `Version`, `Architecture`, `Filename`, `Size` and `SHA256`,
+  holding no other field. The indices are what apt verified against the
+  signed `InRelease`, so their digests can be trusted. apt keeps them
+  decompressed (mmdebstrap 1.5.7, apt 3.0.3), each named by its URI
+  without the scheme, `_` for `/`; the reader takes the files ending
+  `_InRelease` and `_Packages` and skips every other name (`lock`,
+  `partial/`).
+- **Output the tool should not give is a fault of the tool:** a malformed
+  `Inst` line, a pipe that breaks, a stanza past its bound, or a
+  `_Packages` or `_InRelease` list that no source line names, that is
+  compressed, or that a source line names and is missing, is a `tool`
+  error, operational (7.2), as git's malformed output is (2.2).
+- **The domain matches them:** each `Inst` triple must match a stanza;
+  several stanzas may match (one per index that holds the package) and
+  must agree on size and digest. A triple with no stanza, or stanzas
+  that disagree, is a `resolution` error, operational: the indices read
+  are not those apt resolved from. The package's source is the first
+  matching index's line, in the order of the sources; its URI is that
+  line's archive followed by `Filename`.
+- **The indices are kept.** Debian, and so snapshot.debian.org,
+  publishes no uncompressed `Packages` file; `InRelease` lists the
+  uncompressed file's size and SHA-256 so that apt can check it after
+  decompressing. apt's lists hold the decompressed, verified files.
+  Before the scratch directory is removed, each source line's
+  `InRelease` and each `Packages` file moves into the store's cache by
+  SHA-256 (domain/store.md, 6.4): the protocol layer hashes each in the pass
+  that reads its stanzas, and the domain then has it synced and renamed
+  from the scratch directory to `cache/<sha256>`, with no copy, and
+  recorded (domain/store.md, 6.5 and 6.8). The record names them by those
+  digests. domain/build.md's local repository serves them at plain paths
+  (domain/build.md, 5.3), so the build reads the indices apt verified, offline.
+- **The closure** is, per package: name, architecture, version, source,
+  archive filename, size and SHA-256, sorted by name, then architecture.
+  It is what domain/build.md's fetch step needs to fetch each `.deb` by digest
+  into its cache.
+- **Every requested package must be in the closure;** one that is not
+  (apt installs another that provides it, or replaces it) is a
+  `resolution` error, configuration: the request names a package apt
+  does not install.
+
+### 5.4 The record
+
+```
+resolution record                                                            domain/store.md, 6.4
+  key           the resolution key                                           5.1
+  inputs        sources, request, variant, apt: the key's values (5.1), as the packages part holds them
+  sources       per source line: uri, suite, components;
+                  its indices in the cache, each [ path, size, sha256 ]: InRelease first, then each
+                  Packages index, at the path, size and sha256 of its InRelease entry
+  closure       per package: name, architecture, version, source, filename, size, sha256
+  digest        H("closure", list [ list [ name, architecture, version, sha256 ] … ]),
+                  in the closure's order (5.3)                               the resolution digest, 4.5
+  made          { at, apt, mmdebstrap, costs: { fetched, took } }            outside the digest
+```
+
+- **A record of the store,** found by its key (domain/store.md, 6.4), and
+  pinned by the layers whose keys use its digest (domain/store.md, section 7).
+  Before the store holds layers, in M1, it holds these records alone.
+- **The digest covers what is installed,** not where it came from: a
+  package's archive and filename stay outside it.
+- **An index's InRelease entry** is the line that lists its path in the
+  suite's directory, `dists/<suite>/` (`main/binary-amd64/Packages`),
+  with the size and SHA-256 of the decompressed file, which apt checked
+  and the record repeats; so a cached index is tied to the signed
+  `InRelease` beside it, whose own path there is `InRelease`. render
+  reads no field of `InRelease`: the size and SHA-256 recorded are those
+  of the protocol layer's pass over the file (5.3), which equal the
+  entry's because apt checked the file against it.
+- **`made` is outside the digest** and says how the record came to be:
+  `at`, the wall time when it is recorded; `took`, the run's duration
+  from the spawn to the last index read; `fetched`, the bytes apt
+  reports on its `Fetched <n> <unit> in <time>` line, in its units (`kB`
+  is 1,000 bytes) and as apt rounds them, or 0 when it prints none. A
+  simulate run prints neither tool's version, so `apt` and `mmdebstrap`
+  are empty in M1; M2 records them from each tool's `--version`.
+- **Once recorded, a key's closure does not change** on that builder:
+  render reuses it until the record is collected. Re-resolving the same
+  key later, with another apt, may give another closure, and so another
+  packages key (4.5).
+
+### 5.5 Failures and costs
+
+- **A failed run gives a tail** of at most 20 lines, each cut at 160
+  bytes with no marker, chosen by domain/build.md 10.1's lists, deny before
+  allow, with each indented line that follows a kept line kept with it.
+  Resolution adds to them: the tail keeps apt's verdict on the request
+  whole, `The following packages have unmet dependencies:` and `However
+  the following packages replace it:` with their indented lines, and
+  denies mmdebstrap 1.5.7's own framing of apt's failure, `E: setup
+  failed: `, `E: apt-get update … failed: process exited with` and `W:
+  hooklistener errored out`. apt 3.0.3 under mmdebstrap prints `E:` and
+  `W:`, not `Error:`. These lists are the contract, held to recordings
+  of real runs (9.6).
+- **The tail gives the cause,** taken over every kept line with its
+  indented lines, before the cut to 20:
+
+  | Cause | Lines | Kind, class |
+  |---|---|---|
+  | a package apt does not know | `Unable to locate package <name>`; `Package '<name>' has no installation candidate` | `resolution`, configuration, naming the package |
+  | dependencies apt cannot satisfy | `Unable to correct problems`, or the unmet-dependencies line, named by its first indented line's `<name> :` | `resolution`, configuration, naming the package |
+  | a suite, component or architecture the archive does not have | an `Err:` or `Failed to fetch` the archive answered `404  Not Found` (snapshot.debian.org prints `NOT FOUND`), or apt's `does not have a Release file` | `resolution`, configuration, naming the source line: snapshot.debian.org never changes a timestamp's archive, so the same revision fails again |
+  | a fetch with no answer, or a broken one | any other `Err:` or `Failed to fetch`: `Could not connect`, `Unable to connect`, `Could not resolve`, `Temporary failure resolving`, a timeout, a hash or size mismatch, a 5xx answer | `tool`, operational |
+  | no space | `No space left on device` | `tool`, operational (protocol/wire.md, 4.4) |
+  | none of these | | `tool`, configuration |
+
+  An operational cause on any kept line outranks every configuration
+  one: a fetch that failed leaves apt without the lists it would have
+  found the package in. Then the first configuration cause decides.
+- **Timeouts:** 60 s without output ends a run, as in os; the domain
+  sets an overall deadline (10 minutes by default). Both, and a spawn
+  that fails, are `tool`, operational.
+- **render never retries.** An operational error tells its caller that
+  the same revision may resolve later: the client exits 75
+  (client/README.md, 3.3) and the steward backs off (protocol/wire.md, 4.4).
+- **No marker within a run goes up:** render reports a resolution as it
+  starts and as it ends (client/README.md, 3.2), and none of
+  mmdebstrap's stages.
+- **One resolution at a time per builder:** snapshot.debian.org is fetched
+  serially. A run took 9 to 15 s, mostly `apt-get update`.
+- **Its costs are facts:** each run's `took` and `fetched` (5.4) go up
+  as costs (README, section 5).
+
+### 5.6 What changes from os
+
+- **The key covers the architecture, the variant and apt's options.**
+  os's covered the sources text and the names alone, so changing the
+  architecture or adding a `container` task reused a stale resolution.
+- **`--architectures` is passed;** os resolved for the build host's.
+- **It yields digests and URIs,** not only versions, so build fetches by
+  digest.
+- **The cache is a record in the store,** not the previous spec's
+  `versions.json`, and there is no `--resolved` injection.
+
+### 5.7 When render resolves
+
+- **Render never resolves of its own accord.** It gives the resolution
+  key and asks the store for its record (8.2); a key the store does not
+  hold is needed, and the spec says so (3.8, 9.2). No mmdebstrap runs,
+  and nothing reaches the network.
+- **A container's packages key stays needed in M1:** its variant is a
+  placeholder until M5 (4.2), so render asks no resolution for it,
+  `--resolve` resolves none, and the spec says needed, with no error.
+  Its other parts render, and its host reads its placement (3.4).
+- **The client resolves on request.** `hearth render --resolve` and
+  `hearth diff --resolve` (client/README.md, 3.1) resolve each needed key, one at
+  a time (5.5), and record each closure before they print: render's
+  targets' keys, and for a diff the keys of the targets whose
+  resolution key changed, on both sides, so that its packages change
+  lists what was added, removed and moved (6.1). A target that one side
+  alone has resolves nothing.
+- **A resolution that fails stops no other.** The keys go in the order of
+  their first holder, the targets in name order, and every key is tried.
+  A key that fails is the error of each target that holds it (7.2), with
+  no place (7.1), operational or configuration as 5.5 classifies it;
+  each keeps its spec, with that key needed. In a diff the target's
+  change stands, its resolution `new key`, and the error prints after
+  the changes (6.1).
+- **A build resolves what its plan needs** (domain/build.md, 4.1) [M2], and the
+  daemon's builder resolves for its jobs as they need it (domain/steward.md,
+  3.3) [M3].
+
+## 6. The rendered diff
+
+### 6.1 Typed
+
+```
+diff
+  from, to             commit ids
+  targets              map target → change
+change
+  added { spec digest } | removed | same
+  | changed { parts: list of part change, rebuild }
+  | failed { side: from | to | both, errors }
+part change
+  packages             request: added, removed; sources, variant, preseeds, initramfs, apt: before, after;
+                       seeds: users and groups added, removed, changed, by name;
+                       resolution: same | new key | new key, resolved: added, removed, versions changed
+  software             downloads and artifacts added, removed, changed, by path; scripts changed
+  config               tree entries added, removed, changed { path, before, after };
+                       groups, users, members, presets, tmpfiles: added, removed, changed, by key;
+                       scripts changed
+  data                 entries added, removed, changed, by name
+  secrets              names added, removed, changed; never a value
+  boot                 before, after
+  live                 paths added, removed, changed
+  exports              task.name: before, after
+  checks [M5]
+  meta                 base, member, environment, placement: each before, after, when it changed
+rebuild
+  from packages { resolution: known | needed } | from software | from config | slot only | nothing
+```
+
+- **A changed file carries its two digests and sizes, and its hunks.**
+  The domain asks for them (8.2) when both sides are under 1 MiB: git
+  computes them from the two contents in the store's cache (2.2), with
+  three lines of context, and `hearth-protocol-git` hands up at most 200
+  lines a file, with the count of those left out, or that the file is
+  binary. The lines count from the first `@@`, each `@@` line among them,
+  as 6.3 prints them, and each is one of a hunk's header, context,
+  removed, added, or `\ No newline at end of file`, kept and counted
+  like the others. The domain holds one target's hunks at a time, as it
+  hands its change up. Step code computes no text diff. The hunks are
+  part of the typed diff, so its JSON carries them (client/README.md, 3.2), and a client that
+  cannot read the daemon's store [M3] receives them with the rest.
+- **Secrets show names and places,** never values, since render has none.
+- **`failed` is a target whose spec did not render** on a side that has
+  it: `from` or `to`, or `both` when each side has it and neither
+  rendered. Its errors are those sides' (7.1, `side`), and print after
+  the changes. A failed target counts among the diff's targets, neither
+  as changed nor as unchanged. A resolution that fails leaves the spec
+  rendered, so its change stands (5.7).
+- **Every part's change says what moved its digest:** a live-only change
+  rebuilds `nothing` (4.4), as does a change to meta, and no changed
+  target shows an empty list of part changes.
+
+### 6.2 Targets touched and costs
+
+- **A change touches the targets whose spec digest differs,** and those
+  it adds or removes. A change to a task touches every target that has
+  it; a change to an export, every reader in that environment; a change
+  to `envs/lab.json`, no production target.
+- **Rebuild** is the lowest layer whose key changed: from packages (and
+  whether the new resolution is known), from software, from config. A
+  change to data, secrets or boot alone is a new slot of the same output.
+  A change to exports alone builds nothing on the exporting target.
+- **Time,** when the builder has built the target before, is its last
+  recorded cost for each layer to rebuild. Whether activation needs a
+  reboot is known only after the build, from the kernel's and the
+  initramfs's digests (domain/slots.md, section 6), and whether it can be live,
+  from the two outputs' tree files and the live parts (domain/slots.md, 6.7).
+
+### 6.3 Printed
+
+A commit changes ion-prod's public endpoint, in `hosts/ion/ion-prod.json`:
+
+```
+$ hearth diff main HEAD
+carbon-prod                                         rebuild from config
+  config   ~ /etc/systemd/network/wg0.netdev        0644 root:root
+               @@ -9,5 +9,5 @@ ListenPort=51820
+                [WireGuardPeer]
+                PublicKey=m3NY8…=
+                AllowedIPs=10.0.0.1/32
+               -Endpoint=194.164.162.157:51820
+               +Endpoint=194.164.162.158:51820
+                PersistentKeepalive=25
+ion-prod                                            nothing to build
+  exports  ~ vpn.endpoint   "194.164.162.157" → "194.164.162.158"
+
+2 of 11 targets change; 9 are unchanged.
+```
+
+- The client prints it as text, or as JSON for agents
+  (client/README.md, section 3). The typed diff is the same either way.
+- The coupling is visible: carbon-prod changes because it reads ion-prod's
+  exports, and carbon-lab does not, because exports stay in their
+  environment.
+- **Hunks print as git gives them,** three lines of context and each
+  `@@` line with git's own context after it (protocol/format.md, 8.6's template
+  rendered for carbon-prod). A failed target prints `failed (from)`,
+  `failed (to)` or `failed (both)` where the rebuild goes, and its errors
+  print after the changes.
+
+### 6.4 Who posts it
+
+- **Open** (README, section 9): the lab, CI or temper's gate could post it
+  at a change's head, as a status is; and how a change that touches many
+  targets is shown, folded by identical part changes or not, follows from
+  who reads it.
+
+## 7. Errors
+
+### 7.1 The record
+
+```
+error
+  kind        one of 7.2, with its own typed fields
+  class       configuration | operational
+  at          { path, line, column } in the revision, when there is one
+  also        a second place: a collision's later task in name order, the layer that set a value
+  target      the target, when the error is a target's
+  task        the task, when it is a task's
+  side        from | to, in a diff: the revision the error is of
+```
+
+- **Configuration errors** mean the revision is wrong and must change.
+  **Operational errors** mean a tool or a resource failed (git, mmdebstrap,
+  the network, a timeout) and the same revision may succeed later.
+- **Render collects every independent error:** a broken document fails
+  the targets that compose it, a broken task the targets that have it,
+  and the rest goes on. A target asked that does not render always has
+  an error printed for it: its own, or the revision's error it is left
+  out under (3.1, 3.4). Errors are sorted by path, line, column and
+  target, then side, those with no place after those with one, by
+  target; and bounded (2.3), one bound over a command's answer, a diff's
+  two sides together. The errors kept are the longest start of that
+  order that holds at most 256 errors and 16 MiB of the bytes they carry,
+  every string of every field counted; the rest are counted, not kept,
+  and still decide the exit code (client/README.md, 3.3).
+- **One fault gives one error, where render stops reading:**
+  - a document or a declaration gives its first fault, and the targets
+    it fails print it once, without a target;
+  - each setting is validated on its own: every setting at fault gives
+    its error, and one at fault enters no value;
+  - a schema fault stops the target before its guards: no guard is
+    evaluated, and nothing renders;
+  - every guard of a target is evaluated and each false one prints; a
+    false guard stops its target's entries and files;
+  - every file of a target renders, each giving its first fault.
+- **An error's place is where the fault is read,** and an absent thing's
+  is where its owner is: a missing setting at the key that gives its
+  task to the target, a missing field at its object's `{`, a bad read
+  at the read, and a template's fault at its own line and column.
+- **In a JSON string or key,** a fault of what is written, which skein's
+  tokenizer finds (`Escape`, `Surrogate`, `Utf8`, `Control`,
+  `StringTooLong`), is where the tokenizer places it: the first byte of
+  the character or the escape at fault (skein's json.md, 3.6). A fault
+  of the text decoded, which hearth finds once the tokenizer has read
+  the string (U+0000, a name out of form, an expression's syntax), is
+  at its opening quote: a decoded string keeps no escapes, so its bytes
+  have no column of their own.
+
+### 7.2 Kinds
+
+| Kind | Examples |
+|---|---|
+| decode | not JSON, a duplicate key, a fraction, invalid UTF-8, a `null` inside a list, a document or a declaration not of its shape as written (a key, a name, a JSON form, or a value outside an entry that protocol/format.md bounds itself, such as `doc`'s one line or a script's `order`: protocol/format.md, 5.1, 5.2 and 5.8), a key of a later milestone (protocol/format.md, 2.2), a template's syntax, an unknown filter; a limit met while reading the revision: its listing's, a file's, the decoded documents', declarations' and templates', the 1,025th target or task, a task's 513th setting (2.3) |
+| repository | a document out of place, an environment that does not exist, a directory named out of form, a path that is not UTF-8, a submodule, a stray file in a task, two sources for one destination, a `.j2` link or a bare `.j2` |
+| composition | two targets of one name, a target's name past 63 bytes, a task that does not exist, `null` for a task in a default (the `hearth` task's is `reserved`), `placement` in a base, `null` for `placement` or `members`, `members` in `fleet.json` or `envs/`, a target with no placement, a container's `on` that names a container, a target of another environment or one with no placement (3.4); [M5] a container's parameters on another kind, or an id range that overlaps another's (protocol/format.md, 3.5) |
+| schema | an undeclared setting, a wrong type, a missing required setting, an undeclared read, a bad default, an entry's field out of its kind's form once evaluated, such as a tmpfiles type or a boot parameter's `order` (protocol/format.md, 5.2), a value of a later milestone (protocol/format.md, 2.2) |
+| evaluation | an undefined value used, a type error in an expression, an overflow, a `for_each` that is not a map or list; a limit met while composing, validating, expanding, evaluating or rendering a target, or holding its spec (2.3) |
+| exported | another target's exports that this one reads cannot be computed (3.4): `target` is the reader, the kind names the exporter and its task, `at` is the cause's place, and the class is the cause's |
+| guard | a false `requires`, with its message |
+| reserved | a command-line key, a path, a unit name, a drop-in that sorts after `zz-hearth-watchdog.conf`, a tmpfiles line, an initramfs setting or a preseed that hearth reserves; anything but a directory above a reserved path, and a tmpfiles path with a glob or a specifier; a `live` entry render can tell is never live; a secret or identity file `hearth` could read, or one whose `mode` has a bit outside `0770`; `null` for the `hearth` task, in any layer; an initramfs module, a boot parameter or the `hearth` task on a container; [M5] a host's preset that enables one of its containers' nspawn units (protocol/format.md, 3.4, 5.11, 5.12, 5.14 and 9.3; domain/build.md, 7.3, 7.4 and 9.2; domain/slots.md, 5.5; domain/machine.md, 6.2) |
+| ids | an owner of a data path, a secret or an identity file without a fixed id; a download owned by anyone but `root` or a package user with a fixed id; a package user with one of `uid` and `gid` alone (3.3; protocol/format.md, 5.6 and 10.1) |
+| checks [M5] | a `blessing` check with `from`, a `from` no target has, a command's `user` that is `root`, or neither `nobody`, a sysusers user nor a declared package user (3.9) |
+| collision | one path from two tasks, two users that differ, a key a declaration makes twice |
+| resolution | configuration: a package apt does not know, dependencies apt cannot satisfy, a suite the archive does not have (5.5), a requested package apt does not install (5.3); a closure past 8,192 packages, or a record past its bounds (domain/store.md, 6.1). Operational: an `Inst` triple with no stanza, stanzas that disagree (5.3) |
+| tool | git or mmdebstrap failed, timed out, could not start or gave output it should not (2.2, 5.3), or a resource failed, as 5.5 says: operational; mmdebstrap's failure of no cause 5.5 knows: configuration |
+| store | a store full at a limit, or whose upkeep failed (domain/store.md, 8.1): operational, the call's, naming the store and the limit and count or the step. A store that cannot be opened, or is another uid's or another range's (domain/store.md, 6.6), is no error of the answer: nothing renders, and the client says so at startup (client/README.md, 3.2) |
+
+### 7.3 Printed
+
+```
+hosts/ion/ion-prod.json:4:5: ion-prod: vpn: undeclared setting "adress"; vpn declares address, endpoint, hub, port, public_key
+tasks/mail/tree/etc/postfix/main.cf.j2:60:42: mail: exports.mail is not in mail's reads
+tasks/hardening/task.json:9:7: rhi-prod: /etc/ssh/sshd_config.d/local.conf is given by hardening and by ssh (tasks/ssh/tree/etc/ssh/sshd_config.d/local.conf.j2)
+tasks/boot/task.json:22:7: carbon-lab: boot: requires modules: no initramfs modules for this hardware
+tasks/users/task.json:14:9: rhi-prod: users: the key "ops" is made twice (tasks/users/task.json:9:9)
+```
+
+- **An undeclared setting lists the declared ones,** so an agent fixes a
+  typo in one step; a task with none says so, `motd declares no
+  settings`.
+- **`also` prints as a place,** in parentheses after the message:
+  `path:line:column`, or the path alone when the place is a whole file,
+  as a file of the tree is.
+- **What an error echoes is quoted:** a key or a value from the revision
+  prints between `"`, with `\"`, `\\` and `\n` for those bytes and
+  `\xNN` for every other control byte, so an error is one line whatever
+  the revision holds.
+- **What would fail later fails here.** Every path, key and line that a
+  build's scan, the activator or the boot would refuse, and that render
+  can see in the declarations, render refuses first, at its line:
+
+  ```
+  tasks/serial/task.json:12:7: rhi-prod: boot: "rootwait" is reserved: tiny-initramfs would wait for ever for a missing root (domain/machine.md, 6.2)
+  tasks/web/task.json:30:9: mail-prod: web: /etc/ssl/private/mx1.key is a secret's path; declare it under secrets (protocol/format.md, 9.1)
+  ```
+- **The errors left out are counted:** the text prints `<n> more errors`
+  (`1 more error`) after the last one kept, and JSON's `outcome` record
+  carries `left_out` (client/README.md, 3.2).
+
+## 8. Layers and crates
+
+### 8.1 The crates
+
+```
+hearth-domain-builder            the builder's root: routes between its children
+├── hearth-domain-render         configuration to spec; resolution's decisions; the diff        M1
+└── hearth-domain-store          M1: resolutions and cache files' records; M2: the rest         M1, M2
+
+hearth-protocol-builder          the builder's protocol layer: routes its machines, translates to render's types
+├── hearth-protocol-git          git's argument vectors; ls-tree, cat-file and diff records       M1
+├── hearth-protocol-tree         M1: the frame, 3.1's decoder, records of kinds 1, 4 and 5        M1, M2
+├── hearth-protocol-config       strict JSON to typed documents and declarations, with positions  M1
+├── hearth-protocol-template     template and expression text to instruction sequences            M1
+└── hearth-protocol-mmdebstrap   simulate's argument vector; Inst lines; Packages stanzas; tails  M1
+```
+
+- **`hearth-domain-render`** holds, as modules: the revision's decoded
+  documents; composition and RFC 7386; validation; evaluation; exports;
+  collisions; parts and digests; resolution's keys, records and closures;
+  the diff. It depends on lib and nothing else.
+- **The machines depend on lib only** (`programming-model.md`, 4), but
+  for `hearth-protocol-config`, which composes skein's JSON tokenizer and
+  depends on `skein-json` too, as skein's `skein-llm` does (skein's
+  `llm.md`). `hearth-protocol-config` cannot call the template machine,
+  so it hands up a declaration's expression strings as text with their
+  positions, and `hearth-protocol-builder` passes each through
+  `hearth-protocol-template` before translating the whole declaration
+  into render's types.
+- **The client runs the same domain in-process** when no daemon
+  answers, or for a local repository (README, 4.1; client/README.md, 3.5); in
+  the daemon, the builder's root takes the steward's jobs through
+  `hearth-protocol-jobs` (domain/steward.md, section 3).
+- **The client prints with `hearth-client-protocol-records`'s
+  printer** (client/README.md, 3.2), a machine that writes the spec,
+  the diff and the errors as text and as JSON lines: M1 brings forward that crate's records of render
+  and diff and their printer, and M3 adds the rest. Which crate of the
+  client routes the builder's answers to it is the plan's, within
+  README.md, 4.2's roles.
+
+### 8.2 What crosses
+
+```
+render → protocol                                      protocol → render
+List { repository, revision }                          Listed { commit, entries: path, mode, oid, size }
+Read { commit, blobs: (oid, as) }                      Read { oid, a document | a declaration | a template | a link's target }
+  as: document | declaration | template | link | cached  Cached { oid, size, sha256 }: streamed into the cache
+Keep { sha256, bytes }: a rendered file                Kept { sha256 }
+Resolve { key, sources, request, variant, apt }        Resolved { key, closure, indices, versions, cost }
+Hunks { before: sha256, after: sha256 }                Hunks { lines: (kind, text), left out, binary }: kind is header, context, removed, added or no newline (6.1)
+every request                                          Failed { request, class, at, tail }
+```
+
+- **Resolution records** go through the builder's root to the store and
+  back (domain/store.md, section 6): render asks for a key and records a new
+  closure; it never touches a file. In M1 the store's domain is
+  `hearth-domain-store`'s first part: resolutions and cache files' records
+  alone, over `hearth-protocol-tree`'s frame and its kinds 1, 4 and 5
+  (domain/store.md, 2.4 and 6.1); M2 grows both.
+- **Every request gets one terminal event** (`programming-model.md`,
+  5.2), and a resolution's deadline is render's to set; git's commands
+  have none (2.2).
+
+### 8.3 Evaluation without recursion
+
+- **Step code has no recursion and no unbounded loop**
+  (`programming-model.md`, section 3), so nothing is evaluated as a tree:
+  - `hearth-protocol-template` gives an expression as a flat sequence of
+    operations in postfix order, with forward jumps for `and`, `or` and
+    `… if … else …`; the domain evaluates it on a value stack whose depth
+    the expression limit bounds;
+  - a template is a flat sequence of instructions (emit text, emit an
+    expression, branch, enter and advance a loop, assign), evaluated by a
+    `for` over a range bounded by the iteration limit, with a
+    `lib::Stack` of loop frames bounded by the nesting limit. Beside its
+    instructions, it keeps the offset of each line's first byte, which
+    places a fault at its own line and column (7.1) without reading the
+    blob again (3.10), and which its count includes (2.3);
+  - merging walks two values with an explicit stack bounded by JSON's
+    depth.
+
+### 8.4 Limits and the worst case
+
+- **Render's limits are 2.3's,** and its worst case
+  (`programming-model.md`, 6.3) is what it holds at once at those
+  limits: the revision's listing (16,384 entries, 4 MiB of paths), with
+  an object id, size and digest per static file; its decoded documents,
+  declarations and templates (16 MiB, counted as they are held); the
+  tasks each target has, by index; the exports of one environment
+  (16 MiB); one target's composed settings, validated settings and
+  expanded entries (16 MiB each); one evaluation's values (16 MiB); one
+  rendered file (16 MiB); the command's specs, with their files' sizes
+  and their closures (16 MiB); and the errors it keeps (256, and 16 MiB
+  of the bytes they carry).
+- **It holds no other target's settings** (section 3). Of a resolution
+  record, a render holds the closure's digest, which its layer keys take
+  (4.5), and a diff the closures it compares (5.7, 6.1). A diff renders
+  its sides in turn, and keeps of the first only its specs, closures and
+  errors, and, until the second's listing, its decoded blobs (below).
+- **A diff's second side decodes only the blobs that changed** (3.10).
+  When its listing arrives, it keeps of the first side's decoded
+  documents, declarations, templates and links' targets, and of its
+  static files' digests, those of the blobs that listing names, by object
+  id and as what they were read; the rest go. It reads only the others,
+  a blob the first refused among them. It gives what a render of its
+  revision alone gives, within the same 16 MiB: each document,
+  declaration and template counts in its own 16 MiB (2.3) in that
+  render's order, kept or read; when what it holds would pass the 16 MiB,
+  the kept blobs not yet counted go first, and one it then needs is read
+  again. So a diff's peak holds one revision's decoded data, as a
+  render's does.
+- **Each layer's formula is its peak:** what the layer holds at once at
+  its limits, not the sum of every maximum it reaches in turn. The
+  counting allocator holds the live heap within it at every iteration
+  (`programming-model.md`, 6.3).
+- **The builder's worst case is 6.3's sum** over its layers at their
+  limits, and the defaults keep it within 1 GiB, which a test holds. The
+  protocol's machines take 2.3's limits, the listing's, a document's and
+  a template's among them, and the store's bounds (domain/store.md, 6.1); the
+  client's printer (client/README.md, 3.2) prints a record of at most
+  16 MiB, its line endings included, and refuses a longer one, which
+  fails the command. In M1 nothing configures the client's memory
+  (client/README.md, 3.5), so its shell checks the sum against none; the
+  daemon's builder checks it against its share of its ceiling
+  (domain/steward.md, 5.3) [M3].
+  Static files and rendered files live in the store's cache, never in
+  the domain, so a small VM's builder renders what a large one does.
+
+## 9. Its world
+
+### 9.1 Worlds
+
+- **Render's domain world** runs `hearth-domain-render` under a scripted
+  parent that plays the protocol layer: it delivers typed documents,
+  declarations and templates as the machines would, in an order and at a
+  pace drawn from the seed, and plays the store's records. It checks
+  every world's invariants (`testing-strategy.md`, section 6).
+- **Machine worlds** run each protocol machine against recordings of the
+  real tool, cut at random: `ls-tree` and `cat-file` streams, `Inst`
+  lines, `Packages` indices, failure tails (`testing-strategy.md`, 2.4).
+- **The builder's system world** runs render with the fakes of git and
+  mmdebstrap on the fake machine (domain/testing.md, sections 3 and 4).
+
+### 9.2 Golden repositories
+
+- **hearth's own:** `tests/render/<name>/`, each a repository's files and
+  the expected printed spec of each target (`expected/<target>`), or the
+  expected errors. The fake git serves a directory; one test in the real
+  tier builds a real repository from it and renders through real git.
+- **The repositories:** `fleet` (a miniature of the fleet: x1-prod,
+  rhi-prod, ion-prod, carbon-prod, carbon-lab, chat-prod), `merge`
+  (presence, defaults, removal, maps, lists), `templates` (each
+  statement, filter and whitespace rule), `exports` (the VPN, the mail
+  pair, two environments), `cluster` (stoa's members), `errors` (one case
+  per kind of 7.2 that a repository causes; `tool` and `resolution` are
+  builder-world cases, with git or mmdebstrap's fake failing, 9.6),
+  `resolution` (a target whose resolution the store holds, from a
+  recorded closure, printed with its `keys` line).
+- **The printed spec** is the client's stable text form:
+
+  ```
+  target       x1-prod   base x1   environment prod
+  placement    metal efi 7th-gen
+  spec         9a0c5e1f2b3d
+  packages     part 4be1c0d2a7f1   resolution 0c7d9e41c0d2 needed
+    sources    forky amd64 main contrib non-free-firmware 20261001T030405Z
+    request    btrfs-progs ca-certificates dbus efibootmgr firmware-intel-sound …
+    variant    apt
+    preseed    locales/default_environment_locale select en_US.UTF-8
+    initramfs  btrfs nvme
+  config       part e7c2a0d95b13
+    /etc/hostname            file 0644 root:root 3f1c2ab07e44
+    /etc/localtime           link root:root /usr/share/zoneinfo/Europe/Lisbon
+    tmpfiles   /var/log/journal d 2755 root systemd-journal
+  data         part 51aa0c7d9e41
+    journal    /var/log/journal
+  ```
+
+  Digests and keys are cut to 12 hex digits, as every table of the
+  client's is (client/README.md, 3.2); its JSON gives them whole. A link
+  prints its target, and an empty file the digest of no bytes
+  (`e3b0c44298fc`), as any file prints its own. With the
+  resolution in the store, its line reads `resolution 0c7d9e41c0d2
+  known`, and a last line gives the layer keys: `keys  packages …
+  software … config …`.
+
+- **`HEARTH_BLESS=1` rewrites the expected files and still fails,** so a
+  blessed change is always reviewed (os's practice).
+
+### 9.3 Properties
+
+Over generated repositories, valid by construction and then mutated:
+
+- **Determinism:** one revision renders to the same digests in every
+  world, whatever the seed's order of blob arrival and chunking: render's
+  world over seeds, the protocol world's pipes cut at every byte, the
+  simulated client, and real git, each compared by the whole digests
+  the JSON form prints.
+- **Representation:** reordering a JSON object's members, reformatting
+  whitespace or editing a `_note` changes no digest.
+- **RFC 7386's laws:** `merge(t, {}) = t`; `merge(merge(t, p), p) =
+  merge(t, p)`; a non-object patch replaces; a key the patch lacks keeps
+  its value; no result holds `null`.
+- **Locality:** changing a setting in one target's own document that no
+  export reads changes that target's spec alone; one that an export
+  reads changes the exporting target and the targets of its environment
+  that read it, and no other; changing a production file never changes
+  a lab spec.
+- **Order:** the order in which render takes tasks and targets changes
+  nothing; a collision names the same pair, the task first in name order
+  at `at` and the other at `also` (7.1), whichever task arrives first.
+- **Digests:** two different records of a part give different digests
+  over generated pairs; the encoding's own laws are domain/store.md's
+  (section 11).
+
+### 9.4 Fuzzed decoders
+
+- **Every decoder is fuzzed** on its own (`testing-strategy.md`, 2.4):
+  configuration documents and declarations; templates and expressions;
+  `ls-tree` and `cat-file` streams; `Inst` lines and `Packages` stanzas;
+  and what render hands the store and its tools, store names and
+  argument vectors, swept in the builder's world.
+  Corpora start from the golden repositories and the recordings.
+
+### 9.5 MiniJinja as an oracle
+
+- **Test code is ordinary Rust,** so it may run MiniJinja 2 with
+  `trim_blocks`, `lstrip_blocks` and `keep_trailing_newline` on, strict
+  undefined, and hearth's own filters registered.
+- **Generated templates of the subset** render byte for byte the same in
+  both. Where hearth differs on purpose (undefined, `first` on an empty
+  list), the generator avoids it and the difference is listed in the
+  test. hearth keeps protocol/format.md 7.4's precedence, which binds `~` below
+  `+ -` and `is` below the comparisons, where MiniJinja binds `~` above
+  them and `is` with the filters: both are listed, and the generator
+  parenthesizes a `~` beside `+ -` and an operand of `is` that is not a
+  lookup chain.
+
+### 9.6 Resolution's fakes and conformance
+
+- **`hearth-fake-mmdebstrap`** resolves against the fake machine's
+  package universe and writes `Inst` lines and `Packages` indices of the
+  real shape (domain/testing.md, section 4).
+- **Conformance** runs real `mmdebstrap --simulate --mode=chrootless`
+  against the test tier's local mirror, and the fake against the same
+  universe, and compares closures (domain/testing.md, section 5). Its runs are
+  recorded, and the recordings replace os's hand-written logs.
+
+### 9.7 os's goldens
+
+- **Inspiration, not an oracle.** os's fixtures (conditions, fan-out,
+  accumulation, secrets, components, forky's sources, the full host and
+  container) are rewritten in hearth's format where the case still
+  exists. Their expected output is hearth's, reviewed; it is never
+  compared with os's, which strips final newlines and records no modes.
+
+### 9.8 Budgets
+
+- **Rendering every target of the miniature fleet, and a diff of two
+  revisions,** are domain-world scenarios. Their budgets are counts, the
+  requests a run makes, asserted against 3.10's costs; their time is an aim,
+  1 s (0.5 s before the user's doubling of 10-22, provisional) a scenario,
+  reported and never failed on (domain/testing.md, 9.3). The suites' budgets
+  are domain/testing.md's (section 9).
+
+## 10. What is open
+
+- **A decompressor for the indices:** after a chrootless simulate run,
+  `--skip=cleanup/apt/lists` leaves `InRelease` and the decompressed
+  `Packages` files in the scratch directory, as the recordings show
+  (9.6), and M1 refuses a compressed one (5.3). One is needed only if an
+  apt keeps them compressed (`Acquire::GzipIndexes`), and skein has
+  none; it depends on such an apt.
+- **The `Inst` line with several origins** (`(2.41-12 Debian:13.1/stable,
+  Debian-Security:13/stable-security [amd64])`), to verify against
+  recordings.
+- **Chrootless or unshare for resolution:** os and the bash fleet
+  resolved chrootless and built unshare; a reason for preferring unshare
+  was found once, in experiments, and not recorded. A conformance
+  scenario compares the closures of both modes (domain/testing.md, 5.2), and
+  domain/build.md, 5.7 refuses any build whose installed set differs from its
+  closure. If the modes ever disagree, resolution moves to unshare, and
+  render then needs the builder's subordinate range. A lead, from
+  mmdebstrap 1.5.7's code: chrootless installs the essential set with
+  `dpkg --force-depends` from outside and the rest with an outside
+  `apt-get install`, while unshare and root skip that last apt step for
+  `--variant=custom`, so the two may diverge for containers' variant.
+- **apt's version and solver:** recorded beside the closure from M2
+  (5.4), not keyed.
+  Whether a new apt should re-resolve depends on how often closures
+  differ in practice, which the costs and conformance will show.
+- **A foreign architecture** with chrootless simulate, to verify; it
+  depends on the first non-amd64 target.
+- **Who posts the rendered diff,** and how a change that touches many
+  targets is shown (README, section 9).
+- **The defaults of 2.3 and the printer's bounds on hunks,** to set from
+  the first measurements of the fleet.
+- **Classifying mmdebstrap's failures:** 5.5's table was checked against
+  runs of mmdebstrap 1.5.7 and apt 3.0.3 for a package apt does not
+  know, one with no installation candidate, dependencies apt cannot
+  satisfy, a snapshot timestamp before the archive and an unreachable
+  proxy. A hash mismatch, a full disk and a 5xx answer have no recording
+  yet; theirs will confirm or correct it.
+- **Keeping decoded documents across revisions** within one builder's
+  life, a pass and its linger (domain/steward.md, 4.1): what a pass's later
+  renders, a diff's two revisions or the bless's render, would save,
+  against the builder's memory, bounded by a limit to set.
+- **Fetching a single commit** rather than a branch, which needs the
+  forge to allow fetching an object by id; it depends on the forges the
+  fleet uses.

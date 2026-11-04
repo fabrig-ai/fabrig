@@ -202,7 +202,7 @@ fn due_job_with_holds(holds: Box<[tasks::Name]>) -> (Core, Limits) {
 fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connectors() {
     let (mut core, limits) = due_job();
     let context = core.tasks.run_context(1).expect("due job");
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
     let mut attempt = None;
     for request in out {
         match request {
@@ -284,7 +284,7 @@ fn a_due_job_is_remembered_until_decisions_open_and_preparation_is_ready() {
         let (mut core, limits) = due_job();
         core.opened = opened;
         let context = core.tasks.run_context(1).expect("due job");
-        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: !opened });
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: !opened, busy: false });
         assert!(out.is_empty());
         assert_eq!(core.due.len(), 1);
         assert!(core.due_ready());
@@ -299,7 +299,7 @@ fn a_due_job_is_remembered_until_decisions_open_and_preparation_is_ready() {
 fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application() {
     let (mut core, limits) = due_job();
     let context = core.tasks.run_context(1).expect("due job");
-    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
     let attempt = core.workspace_flight(1).expect("workspace flight").1;
     drop(watch_outputs(
         &mut core,
@@ -317,7 +317,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
     assert!(!core.proofs.contains_key(&1));
     // The root delivers the new activation from PreparationWaiting.
     let context = core.tasks.run_context(1).expect("waiting job context");
-    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
     assert_eq!(core.due.len(), 1);
     assert!(!core.due_ready());
     drop(watch_outputs(
@@ -326,7 +326,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
         Event::Account(accounts::Event::Credential { number: 7, generation: 1, valid: Duration::from_secs(60) }),
     ));
     let context = core.take_due().expect("credential releases due job");
-    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
     let next = core.workspace_flight(1).expect("new workspace flight").1;
     assert!(next > attempt);
     let out = watch_outputs(
@@ -389,7 +389,7 @@ fn a_job_claims_the_names_its_root_prepared() {
     let checked = tasks::Name { connector: 1, path: Box::new([Box::from(b"authority".as_slice())]) };
     let (mut core, limits) = due_job_with_holds(Box::new([held.clone()]));
     let context = core.tasks.run_context(1).expect("due job");
-    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
     let attempt = core.workspace_flight(1).expect("workspace request").1;
     let out = watch_outputs(
         &mut core,
@@ -425,4 +425,27 @@ fn a_job_claims_the_names_its_root_prepared() {
         }
     }
     assert_eq!(writers.as_slice(), [held], "the prepared names are deduplicated");
+}
+
+#[test]
+fn a_busy_root_activates_a_job_as_a_root_with_read_room_does() {
+    for busy in [false, true] {
+        let (mut core, limits) = due_job();
+        let context = core.tasks.run_context(1).expect("due job");
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy });
+        assert_eq!(core.tasks.task(1).expect("job").phase, tasks::Phase::Active(tasks::Active::Preparing));
+        assert!(core.due.is_empty());
+        assert!(core.transcripts.is_empty());
+        let mut workspaces = 0_u32;
+        for request in out {
+            if let Request::Now(now) = request {
+                let Now::WorkspaceRequest { task: 1, context, .. } = *now else {
+                    panic!("only job workspace preparation leaves activation");
+                };
+                assert_eq!(context.executor, tasks::Executor::Job { kind: 7 });
+                workspaces += 1;
+            }
+        }
+        assert_eq!(workspaces, 1);
+    }
 }

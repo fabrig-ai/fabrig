@@ -8,7 +8,7 @@ import sys
 
 
 BASELINES = {f'{tree}/scripts/old-forms.txt'
-             for tree in ('skein', 'smith', 'jig', 'temper')}
+             for tree in ('skein', 'smith', 'jig', 'temper', 'hearth')}
 ROW = re.compile(rb'(\S+)([ \t]+)([0-9]+)([ \t]*(?:\r?\n)?)')
 
 

@@ -1307,6 +1307,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ProjectGoal(_)
             | Work::AgreedGoal(_)
             | Work::Activate(_)
+            | Work::Due { .. }
             | Work::EscalationLoaded { .. }
             | Work::EscalationFailed { .. }
             | Work::ProposalLoaded { .. }
@@ -4406,14 +4407,14 @@ pub(crate) fn outputs(
             forge::Request::ProjectionFailed { goal } => {
                 projection_failed(domain, goal, domain.core.tasks.task(goal).is_none());
             }
-            forge::Request::Drift { task, .. } => {
+            forge::Request::Drift { task, resource } => {
                 if domain.forge.change(task).is_some() {
                     // domain/forge.md, 8.5: let the procedure retain its precise
                     // hold and current step before holding the task. A generic
                     // hold here prevents its pending wake from running.
                     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
                 } else {
-                    domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Drift }));
+                    holds::drift(domain, task, &resource);
                 }
             }
             forge::Request::TierRun { repository, tier, number, tip } => {

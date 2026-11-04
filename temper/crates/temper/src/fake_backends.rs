@@ -445,7 +445,7 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
     let executable = fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.mode() & 0o111 != 0);
     if !executable {
         return Err(format!(
-            "{}: missing or nonexecutable adapter; provision it with cargo build -p temper-fake-claude",
+            "{}: missing or nonexecutable adapter; provision it with cargo build -p smith-fake-claude --bin fake-claude",
             path.display()
         ));
     }

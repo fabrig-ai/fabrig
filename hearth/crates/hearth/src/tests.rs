@@ -1,0 +1,233 @@
+mod fixtures;
+use crate::{
+    Call, Form, argv,
+    records::startup::{Misuse, Opened, Startup},
+};
+use fixtures::words;
+use std::{ffi::OsStr, path::Path};
+
+#[test]
+fn render_s_options_become_the_call_and_its_form() {
+    let invocation = argv::invocation(
+        &words(&["render", "x1-prod", "x2-prod", "--at", "main", "--repo", "/", "--store", "/store", "--json"]),
+        None,
+        None,
+        Path::new("/"),
+    )
+    .expect("invocation");
+    assert_eq!(
+        invocation.call,
+        Call::Render {
+            resolve: false,
+            repository: b"/".as_slice().into(),
+            revision: b"main".as_slice().into(),
+            targets: Box::new([b"x1-prod".as_slice().into(), b"x2-prod".as_slice().into()])
+        },
+        "options and targets"
+    );
+    assert_eq!(invocation.form, Form::JsonLines, "json form");
+    assert_eq!(invocation.store, Path::new("/store"), "explicit store");
+}
+const MISUSES: &[(&[&str], Misuse, &[u8])] = &[
+    (&["bogus"], Misuse::Command, b"bogus"),
+    (&["diff"], Misuse::Value, b"diff"),
+    (&["render", "--bogus"], Misuse::Option, b"--bogus"),
+    (&["render", "--at"], Misuse::Value, b"--at"),
+    (&["build"], Misuse::Value, b"build"),
+    (&["build", "x1-prod", "x2-prod"], Misuse::Option, b"x2-prod"),
+    (&["build", "x1-prod", "--resolve"], Misuse::Option, b"--resolve"),
+    (&["build", "--target", "x1-prod"], Misuse::Option, b"--target"),
+];
+#[test]
+fn an_unknown_command_or_option_is_usage() {
+    for &(args, misuse, word) in MISUSES {
+        assert_eq!(
+            argv::invocation(&words(args), None, None, Path::new("/")),
+            Err(Startup::Usage { misuse, word: word.into() }),
+            "{args:?}"
+        );
+    }
+}
+const JSON_ARGS: &[&[&str]] = &[&["render", "--json", "--bogus"], &["render", "--bogus", "--json"]];
+#[test]
+fn json_anywhere_in_argv_gives_the_refusal_its_form() {
+    for args in JSON_ARGS {
+        assert_eq!(argv::form(&words(args)), Form::JsonLines, "{args:?}");
+    }
+}
+#[test]
+fn a_malformed_revision_is_usage_before_the_loop() {
+    assert_eq!(
+        argv::invocation(&words(&["render", "--at", "-x"]), None, None, Path::new("/")),
+        Err(Startup::Usage { misuse: Misuse::Revision, word: b"-x".as_slice().into() }),
+        "revision guard"
+    );
+}
+const STORES: &[(Option<&str>, Option<&str>, &str)] =
+    &[(Some("/xdg"), Some("/home"), "/xdg/hearth/store"), (None, Some("/home"), "/home/.cache/hearth/store")];
+#[test]
+fn the_store_is_xdg_cache_home_s_then_home_s_cache() {
+    for &(xdg, home, store) in STORES {
+        let invocation = argv::invocation(
+            &words(&["render", "--repo", "/"]),
+            xdg.map(OsStr::new),
+            home.map(OsStr::new),
+            Path::new("/"),
+        )
+        .expect("default store");
+        assert_eq!(invocation.store, Path::new(store), "{xdg:?} {home:?}");
+    }
+}
+const UNSET: &[(&str, &str)] = &[("", "/home"), ("relative", "/home")];
+#[test]
+fn an_empty_or_relative_variable_counts_as_unset() {
+    for &(xdg, home) in UNSET {
+        let invocation = argv::invocation(
+            &words(&["render", "--repo", "/"]),
+            Some(OsStr::new(xdg)),
+            Some(OsStr::new(home)),
+            Path::new("/"),
+        )
+        .expect("home fallback");
+        assert_eq!(invocation.store, Path::new("/home/.cache/hearth/store"), "{xdg:?}");
+    }
+}
+const NO_STORE: &[(Option<&str>, Option<&str>)] =
+    &[(None, None), (Some(""), Some("relative")), (Some("relative"), Some(""))];
+#[test]
+fn with_neither_variable_the_store_is_unopened() {
+    for &(xdg, home) in NO_STORE {
+        assert_eq!(
+            argv::invocation(&words(&["render"]), xdg.map(OsStr::new), home.map(OsStr::new), Path::new("/")),
+            Err(Startup::Unopened {
+                what: Opened::Store,
+                path: None,
+                error: b"neither XDG_CACHE_HOME nor HOME is absolute".as_slice().into()
+            }),
+            "{xdg:?} {home:?}"
+        );
+    }
+}
+#[test]
+fn a_work_tree_s_repository_is_its_dot_git() {
+    use std::os::unix::ffi::OsStrExt;
+    let scratch = skein_scratch::Scratch::new("argv-repository");
+    std::fs::create_dir(scratch.path().join(".git")).expect("git directory");
+    let invocation = argv::invocation(&words(&["render", "--store", "/store"]), None, None, scratch.path())
+        .expect("repository found");
+    let Call::Render { repository, .. } = invocation.call else { panic!("render call") };
+    assert_eq!(
+        Path::new(OsStr::from_bytes(&repository)).strip_prefix(scratch.path()).expect("inside scratch"),
+        Path::new(".git"),
+        "git directory"
+    );
+}
+#[test]
+fn two_seeds_drawn_at_startup_differ() {
+    assert_ne!(crate::seed().expect("seed"), crate::seed().expect("another seed"), "fresh generator seeds");
+}
+
+#[test]
+fn the_revision_defaults_to_head() {
+    let invocation =
+        argv::invocation(&words(&["render", "--repo", "/", "--store", "/store"]), None, None, Path::new("/"))
+            .expect("invocation");
+    let Call::Render { resolve: false, revision, .. } = invocation.call else { panic!("render call") };
+    assert_eq!(&*revision, b"HEAD", "default revision");
+}
+
+#[test]
+fn diffs_revisions_and_each_target_become_the_call() {
+    let invocation = argv::invocation(
+        &words(&[
+            "diff", "main", "HEAD", "--target", "x1-prod", "--target", "x2-prod", "--repo", "/", "--store", "/store",
+        ]),
+        None,
+        None,
+        Path::new("/"),
+    )
+    .expect("diff");
+    assert_eq!(
+        invocation.call,
+        Call::Diff {
+            resolve: false,
+            repository: b"/".as_slice().into(),
+            from: b"main".as_slice().into(),
+            to: b"HEAD".as_slice().into(),
+            targets: Box::new([b"x1-prod".as_slice().into(), b"x2-prod".as_slice().into()]),
+        }
+    );
+}
+const BAD_DIFF_REVISIONS: &[(&[&str], &[u8])] =
+    &[(&["diff", "-bad", "HEAD"], b"-bad"), (&["diff", "HEAD", "bad ref"], b"bad ref")];
+#[test]
+fn a_malformed_from_or_to_is_usage_before_the_loop() {
+    for &(args, revision) in BAD_DIFF_REVISIONS {
+        assert_eq!(
+            argv::invocation(&words(args), None, None, Path::new("/")),
+            Err(Startup::Usage { misuse: Misuse::Revision, word: revision.into() }),
+            "{args:?}"
+        );
+    }
+}
+
+#[test]
+fn render_takes_resolve() {
+    let invocation = argv::invocation(
+        &words(&["render", "--resolve", "--repo", "/", "--store", "/store"]),
+        None,
+        None,
+        Path::new("/"),
+    )
+    .expect("render");
+    assert_eq!(
+        invocation.call,
+        Call::Render {
+            resolve: true,
+            repository: b"/".as_slice().into(),
+            revision: b"HEAD".as_slice().into(),
+            targets: Box::new([])
+        }
+    );
+}
+
+#[test]
+fn diff_takes_resolve_as_render_does() {
+    let invocation = argv::invocation(
+        &words(&["diff", "main", "HEAD", "--resolve", "--repo", "/", "--store", "/store"]),
+        None,
+        None,
+        Path::new("/"),
+    )
+    .expect("diff");
+    assert_eq!(
+        invocation.call,
+        Call::Diff {
+            resolve: true,
+            repository: b"/".as_slice().into(),
+            from: b"main".as_slice().into(),
+            to: b"HEAD".as_slice().into(),
+            targets: Box::new([])
+        }
+    );
+}
+
+#[test]
+fn build_takes_one_target_and_render_s_options() {
+    let invocation = argv::invocation(
+        &words(&["build", "x1-prod", "--at", "main", "--repo", "/", "--store", "/store", "--json"]),
+        None,
+        None,
+        Path::new("/"),
+    )
+    .expect("build");
+    assert_eq!(
+        invocation.call,
+        Call::Build {
+            repository: b"/".as_slice().into(),
+            revision: b"main".as_slice().into(),
+            target: b"x1-prod".as_slice().into()
+        }
+    );
+    assert_eq!((invocation.form, invocation.store.as_path()), (Form::JsonLines, Path::new("/store")));
+}
