@@ -45,9 +45,8 @@ impl Opening {
     }
 
     pub(super) fn attached(&mut self, host: Box<[u8]>, root: Token) {
-        let state = mem::replace(self, Self::Idle);
-        *self = match state {
-            Self::Attaching { start, mut directories } => {
+        match self {
+            Self::Attaching { start, directories } => {
                 let mounts = start.mounts.as_ref().expect("a requested root belongs to a workspace");
                 let index = usize::try_from(directories.len()).expect("root index fits usize");
                 let mount = mounts.get(index).expect("one mount requested at a time");
@@ -61,10 +60,9 @@ impl Opening {
                         conflicts: mount.conflicts.clone(),
                     })
                     .expect("root count was checked before opening");
-                Self::Attaching { start, directories }
             }
             Self::Idle | Self::Started { .. } => unreachable!("a root belongs to a pending Start"),
-        };
+        }
     }
 
     pub(super) fn take(&mut self) -> (Box<DecodedStart>, List<run::Directory>) {
