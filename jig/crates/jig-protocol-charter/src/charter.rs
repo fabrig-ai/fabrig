@@ -111,6 +111,10 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
         models.push(model(candidate)).ok()?;
     }
     let outcome = outcome(charter.contract)?;
+    let deliver = match charter.mode {
+        run::Mode::Finite => outcome.change.clone(),
+        run::Mode::Open => None,
+    };
     Some(run::Charter {
         mode: charter.mode,
         resume: charter.resumes,
@@ -123,15 +127,12 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
         },
         grants: run::charter::Grants {
             wait: charter.wait,
-            deliver: match charter.mode {
-                run::Mode::Finite => outcome.change.clone(),
-                run::Mode::Open => None,
-            },
             tools: run::charter::Tools {
                 inspect: charter.workspace.inspect,
-                modify: charter.workspace.modify,
+                modify: charter.workspace.modify && deliver.is_some(),
                 shell: charter.workspace.shell,
             },
+            deliver,
             agents: charter.agents,
             host_tools: tools.into_boxed(),
         },
