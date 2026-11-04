@@ -1,13 +1,11 @@
 //! The store's transitions (skein/docs/design/kv.md, 2–5).
 //! At most one file request is outstanding.
 
-#![expect(
-    clippy::disallowed_types,
-    reason = "commit queues, segments, and snapshot chunks are bounded by the store limits"
-)]
-#![expect(clippy::disallowed_methods, reason = "pure bounded admission and recovery scans have no hidden effects")]
-
 use alloc::boxed::Box;
+#[expect(
+    clippy::disallowed_types,
+    reason = "segments follow directory listings; recovery holds at most Limits::commit plus Limits::chunk"
+)]
 use alloc::vec::Vec;
 use core::mem;
 use skein_io::file;
@@ -37,25 +35,69 @@ struct Pending {
 #[derive(Debug)]
 enum Phase {
     Listing,
-    OpeningLog { name: Box<[u8]>, next: usize },
-    ReadingLog { file: Token, len: u64, at: u64, bytes: Vec<u8>, next: usize },
-    ClosingRecovered { next: usize },
-    RemovingTail { name: Box<[u8]> },
-    Creating { name: Box<[u8]> },
-    Announcing { file: Token },
-    Ready { file: Token, offset: u64 },
-    Writing { file: Token, offset: u64 },
-    Syncing { file: Token, offset: u64 },
+    OpeningLog {
+        name: Box<[u8]>,
+        next: usize,
+    },
+    ReadingLog {
+        file: Token,
+        len: u64,
+        at: u64,
+        #[expect(
+            clippy::disallowed_types,
+            reason = "replay retains at most Limits::commit plus one Limits::chunk read"
+        )]
+        bytes: Vec<u8>,
+        next: usize,
+    },
+    ClosingRecovered {
+        next: usize,
+    },
+    RemovingTail {
+        name: Box<[u8]>,
+    },
+    Creating {
+        name: Box<[u8]>,
+    },
+    Announcing {
+        file: Token,
+    },
+    Ready {
+        log: Log,
+    },
+    Writing {
+        log: Log,
+        batch: Queue<Pending>,
+    },
+    Syncing {
+        log: Log,
+        batch: Queue<Pending>,
+    },
     Closing,
     RecoveryClosing,
     RolloverClosing,
-    SnapIo { log: Log },
-    SnapshotFailureClosing { log: Log },
-    OpenFailureClosing { failure: Failure },
+    SnapIo {
+        log: Log,
+    },
+    SnapshotFailureClosing {
+        log: Log,
+    },
+    OpenFailureClosing {
+        failure: Failure,
+    },
     OpeningSnapshot,
-    ReadingSnapshot { file: Token, len: u64, at: u64, reader: snapshot::Reader },
-    ClosingSnapshot { next: usize },
-    RemovingTempOnOpen { snapshot: bool },
+    ReadingSnapshot {
+        file: Token,
+        len: u64,
+        at: u64,
+        reader: snapshot::Reader,
+    },
+    ClosingSnapshot {
+        next: usize,
+    },
+    RemovingTempOnOpen {
+        snapshot: bool,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -95,7 +137,10 @@ struct Dir {
     root: Fd,
     serving: Serving,
     close_owner: Option<Token>,
-    active: Vec<Pending>,
+    #[expect(
+        clippy::disallowed_types,
+        reason = "segment names hold the bounded directory listing plus logs since the snapshot's start"
+    )]
     segments: Vec<Box<[u8]>>,
     compaction: Compaction,
     log_bytes: u64,
@@ -117,12 +162,15 @@ enum Repair {
 }
 
 impl Dir {
+    #[expect(
+        clippy::disallowed_types,
+        reason = "segment names hold the bounded directory listing plus logs since the snapshot's start"
+    )]
     fn new(root: Fd, owner: Token) -> Dir {
         Dir {
             root,
             serving: Serving::Opening { owner },
             close_owner: None,
-            active: Vec::new(),
             segments: Vec::new(),
             compaction: Compaction::Idle,
             log_bytes: 0,
@@ -219,39 +267,51 @@ impl Store {
         self.map.len() == 0
     }
 
-    fn next_number(&self, dir: &Dir) -> Option<u64> {
-        let active = u64::try_from(dir.active.len()).ok()?;
-        self.last.checked_add(active)?.checked_add(u64::from(self.queue.len()))?.checked_add(1)
+    fn next_number(&self, phase: &Phase) -> Option<u64> {
+        let in_flight = match phase {
+            Phase::Writing { batch, .. } | Phase::Syncing { batch, .. } => u64::from(batch.len()),
+            Phase::Listing
+            | Phase::OpeningLog { .. }
+            | Phase::ReadingLog { .. }
+            | Phase::ClosingRecovered { .. }
+            | Phase::RemovingTail { .. }
+            | Phase::Creating { .. }
+            | Phase::Announcing { .. }
+            | Phase::Ready { .. }
+            | Phase::Closing
+            | Phase::RecoveryClosing
+            | Phase::RolloverClosing
+            | Phase::SnapIo { .. }
+            | Phase::SnapshotFailureClosing { .. }
+            | Phase::OpenFailureClosing { .. }
+            | Phase::OpeningSnapshot
+            | Phase::ReadingSnapshot { .. }
+            | Phase::ClosingSnapshot { .. }
+            | Phase::RemovingTempOnOpen { .. } => 0,
+        };
+        self.last.checked_add(in_flight)?.checked_add(u64::from(self.queue.len()))?.checked_add(1)
     }
 
-    fn start_batch(
-        &mut self,
-        mut dir: Dir,
-        file: Token,
-        offset: u64,
-        limits: &Limits,
-        below: &mut Queue<file::Request>,
-    ) -> State {
+    fn start_batch(&mut self, dir: Dir, log: Log, limits: &Limits, below: &mut Queue<file::Request>) -> State {
         if self.queue.is_empty() {
-            return dir.at(Phase::Ready { file, offset });
+            return dir.at(Phase::Ready { log });
         }
+        let Log { file, offset } = log;
         if offset >= limits.segment {
             below.push(file::Request::Close { owner: IO_OWNER, file });
             return dir.at(Phase::RolloverClosing);
         }
-        while let Some(pending) = self.queue.pop() {
-            self.queued_bytes = self
-                .queued_bytes
-                .checked_sub(skein_lib::len_u64(pending.frame.len()))
-                .expect("queued bytes account for every frame");
-            dir.active.push(pending);
+        let mut batch = Queue::with_capacity(limits.queued);
+        let total = usize::try_from(self.queued_bytes).expect("batch bytes fit usize");
+        let mut bytes = skein_lib::Writer::new(total);
+        for _ in 0..self.queue.len() {
+            let pending = self.queue.pop().expect("the batch takes the queue's initial length");
+            bytes.put(&pending.frame).expect("batch allocation holds every queued frame");
+            batch.push(pending);
         }
-        let mut bytes = Vec::new();
-        for pending in &dir.active {
-            bytes.extend_from_slice(&pending.frame);
-        }
-        below.push(file::Request::WriteAt { owner: IO_OWNER, file, offset, bytes: bytes.into_boxed_slice() });
-        dir.at(Phase::Writing { file, offset })
+        self.queued_bytes = 0;
+        below.push(file::Request::WriteAt { owner: IO_OWNER, file, offset, bytes: bytes.finish() });
+        dir.at(Phase::Writing { log, batch })
     }
 
     fn recover(&mut self, mut dir: Dir, below: &mut Queue<file::Request>, limits: &Limits) -> State {
@@ -271,12 +331,18 @@ impl Store {
             Repair::Required => dir.compaction = Compaction::Due { start: next },
         }
         let name = segment_name(next);
-        if dir.segments.iter().any(|entry| entry.as_ref() == name.as_ref()) {
-            below.push(file::Request::Remove { owner: IO_OWNER, root: dir.root, name: name.clone(), directory: false });
-            dir.at(Phase::RemovingTail { name })
-        } else {
-            create_segment(dir, name, below)
+        for entry in &dir.segments {
+            if entry.as_ref() == name.as_ref() {
+                below.push(file::Request::Remove {
+                    owner: IO_OWNER,
+                    root: dir.root,
+                    name: name.clone(),
+                    directory: false,
+                });
+                return dir.at(Phase::RemovingTail { name });
+            }
         }
+        create_segment(dir, name, below)
     }
 
     fn next_log(&mut self, mut dir: Dir, next: usize, below: &mut Queue<file::Request>, limits: &Limits) -> State {
@@ -318,7 +384,9 @@ impl Store {
                 snapshot::Part::Rows { rows } => {
                     for row in rows {
                         let op = Op::Put { key: row.key, value: row.value };
-                        let used = self.map.check(core::slice::from_ref(&op), limits).map_err(|_| Failure::Full)?;
+                        let Ok(used) = self.map.check(core::slice::from_ref(&op), limits) else {
+                            return Err(Failure::Full);
+                        };
                         self.map.apply(core::slice::from_ref(&op), used);
                     }
                 }
@@ -328,9 +396,14 @@ impl Store {
         Ok(())
     }
 
+    #[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one Limits::chunk read")]
     fn replay(&mut self, dir: &mut Dir, bytes: &mut Vec<u8>, limits: &Limits) -> Result<bool, Failure> {
         let mut at: usize = 0;
-        while at < bytes.len() {
+        // Each complete frame consumes bytes; an incomplete frame ends the pass.
+        for _ in 0..bytes.len() {
+            if at == bytes.len() {
+                break;
+            }
             let Some(head_end) = at.checked_add(usize::try_from(frame::HEADER).expect("frame header fits usize"))
             else {
                 return Ok(false);
@@ -354,7 +427,9 @@ impl Store {
             if decoded.number != self.last.checked_add(1).ok_or(Failure::Corrupt)? {
                 return Ok(false);
             }
-            let used = self.map.check(&decoded.ops, limits).map_err(|_| Failure::Full)?;
+            let Ok(used) = self.map.check(&decoded.ops, limits) else {
+                return Err(Failure::Full);
+            };
             self.map.apply(&decoded.ops, used);
             self.last = decoded.number;
             dir.log_bytes = dir.log_bytes.checked_add(skein_lib::len_u64(length)).expect("log bytes fit u64");
@@ -363,7 +438,7 @@ impl Store {
         // Keep only the unapplied suffix between reads, moving it once per
         // read rather than once per frame; the applied allocation is released.
         if at != 0 {
-            *bytes = bytes.get(at..).expect("replay ended within its bytes").to_vec();
+            *bytes = bytes.split_off(at);
         }
         Ok(true)
     }
@@ -372,9 +447,7 @@ impl Store {
 fn segment_name(number: u64) -> Box<[u8]> {
     let mut name = *b"log-00000000000000000000";
     let mut number = number;
-    let mut pos = name.len();
-    while pos > 4 {
-        pos = pos.checked_sub(1).expect("position is positive");
+    for pos in (4..name.len()).rev() {
         let digit = u8::try_from(number % 10).expect("decimal digit fits byte");
         *name.get_mut(pos).expect("position is inside segment name") =
             b'0'.checked_add(digit).expect("digit fits ASCII");
@@ -494,7 +567,7 @@ fn available(dir: &Dir, phase: &Phase) -> bool {
 
 fn begin_batch(store: &mut Store, dir: Dir, phase: Phase, step: &mut Step<'_>) -> State {
     match phase {
-        Phase::Ready { file, offset } => store.start_batch(dir, file, offset, &step.env.limits, step.below),
+        Phase::Ready { log } => store.start_batch(dir, log, &step.env.limits, step.below),
         phase @ (Phase::Listing
         | Phase::OpeningLog { .. }
         | Phase::ReadingLog { .. }
@@ -527,29 +600,11 @@ fn commit_disk(store: &mut Store, dir: Dir, phase: Phase, owner: Token, ops: Box
         above.push(Event::Refused { owner, refusal: Refusal::Busy });
         return dir.at(phase);
     }
-    let Some(number) = store.next_number(&dir) else {
+    let Some(number) = store.next_number(&phase) else {
         above.push(Event::Refused { owner, refusal: Refusal::Full });
         return dir.at(phase);
     };
-    if ops.len() > usize::try_from(env.limits.ops).expect("u32 fits usize") {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
-        return dir.at(phase);
-    }
-    if ops.iter().any(|op| {
-        op.key().len() > usize::try_from(env.limits.key).expect("key limit fits usize")
-            || match op {
-                Op::Put { value, .. } => {
-                    value.len() > usize::try_from(env.limits.value).expect("value limit fits usize")
-                }
-                Op::Erase { .. } => false,
-            }
-    }) {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
-        return dir.at(phase);
-    }
-    if frame::encoded_len(&ops)
-        .is_none_or(|size| size > usize::try_from(env.limits.commit).expect("commit limit fits usize"))
-    {
+    if too_large(&ops, &env.limits) {
         above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
         return dir.at(phase);
     }
@@ -558,7 +613,10 @@ fn commit_disk(store: &mut Store, dir: Dir, phase: Phase, owner: Token, ops: Box
         return dir.at(phase);
     };
     let total = store.queued_bytes.checked_add(skein_lib::len_u64(bytes.len()));
-    if total.is_none_or(|total| total > env.limits.queued_bytes) {
+    if match total {
+        Some(total) => total > env.limits.queued_bytes,
+        None => true,
+    } {
         let refusal = match store.admitted.check(&store.map, &ops, &env.limits) {
             Ok(..) => Refusal::Busy,
             Err(refusal) => refusal,
@@ -575,6 +633,7 @@ fn commit_disk(store: &mut Store, dir: Dir, phase: Phase, owner: Token, ops: Box
     begin_batch(store, dir, phase, step)
 }
 
+#[expect(clippy::manual_map, reason = "the subset uses explicit Option arms for a copy of at most Limits::value bytes")]
 fn get(store: &Store, owner: Token, key: Box<[u8]>, available: bool, step: &mut Step<'_>) {
     let Step { env, above, below: _ } = step;
     if key.len() > usize::try_from(env.limits.key).expect("key limit fits") {
@@ -585,7 +644,11 @@ fn get(store: &Store, owner: Token, key: Box<[u8]>, available: bool, step: &mut 
         above.push(Event::Refused { owner, refusal: Refusal::Unavailable });
         return;
     }
-    above.push(Event::Got { owner, value: store.map.get(&key).map(Box::from) });
+    let value = match store.map.get(&key) {
+        Some(value) => Some(Box::from(value)),
+        None => None,
+    };
+    above.push(Event::Got { owner, value });
 }
 
 fn load(store: &Store, owner: Token, range: Range, max: Page, available: bool, step: &mut Step<'_>) {
@@ -599,8 +662,13 @@ fn load(store: &Store, owner: Token, range: Range, max: Page, available: bool, s
         return;
     }
     if range.start.len() > usize::try_from(env.limits.key).expect("key limit fits")
-        || range.end.as_ref().is_some_and(|end| end.len() > usize::try_from(env.limits.key).expect("key limit fits"))
-        || range.end.as_ref().is_some_and(|end| end.as_ref() < range.start.as_ref())
+        || match &range.end {
+            Some(end) => {
+                end.len() > usize::try_from(env.limits.key).expect("key limit fits")
+                    || end.as_ref() < range.start.as_ref()
+            }
+            None => false,
+        }
     {
         above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
         return;
@@ -618,12 +686,12 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
     }
     dir.close_owner = Some(owner);
     match phase {
-        Phase::Ready { file, offset } => {
+        Phase::Ready { log } => {
             if dir.compaction.is_idle() && store.queue.is_empty() {
-                step.below.push(file::Request::Close { owner: IO_OWNER, file });
+                step.below.push(file::Request::Close { owner: IO_OWNER, file: log.file });
                 dir.at(Phase::Closing)
             } else {
-                dir.at(Phase::Ready { file, offset })
+                dir.at(Phase::Ready { log })
             }
         }
         phase @ (Phase::Listing
@@ -648,24 +716,33 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
     }
 }
 
+fn too_large(ops: &[Op], limits: &Limits) -> bool {
+    if ops.len() > usize::try_from(limits.ops).expect("u32 fits usize") {
+        return true;
+    }
+    for op in ops {
+        if op.key().len() > usize::try_from(limits.key).expect("key limit fits usize") {
+            return true;
+        }
+        match op {
+            Op::Put { value, .. } if value.len() > usize::try_from(limits.value).expect("value limit fits usize") => {
+                return true;
+            }
+            Op::Put { .. } | Op::Erase { .. } => {}
+        }
+    }
+    match frame::encoded_len(ops) {
+        Some(size) => size > usize::try_from(limits.commit).expect("commit limit fits usize"),
+        None => true,
+    }
+}
+
 fn commit_memory(store: &mut Store, limits: &Limits, owner: Token, ops: Box<[Op]>, above: &mut Queue<Event>) {
     let Some(number) = store.last.checked_add(1) else {
         above.push(Event::Refused { owner, refusal: Refusal::Full });
         return;
     };
-    if ops.iter().any(|op| {
-        op.key().len() > usize::try_from(limits.key).expect("key limit fits usize")
-            || match op {
-                Op::Put { value, .. } => value.len() > usize::try_from(limits.value).expect("value limit fits usize"),
-                Op::Erase { .. } => false,
-            }
-    }) || frame::encoded_len(&ops)
-        .is_none_or(|size| size > usize::try_from(limits.commit).expect("commit limit fits usize"))
-    {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
-        return;
-    }
-    if ops.len() > usize::try_from(limits.ops).expect("u32 fits usize") {
+    if too_large(&ops, limits) {
         above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
         return;
     }
@@ -769,16 +846,16 @@ pub fn up(
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::Writing { file, offset } => match event {
-                Done::Finished => batch_written(dir, file, offset, step.below),
-                Done::Failed { .. } => commits_failed(store, dir, Some(file), &mut step),
+            Phase::Writing { log, batch } => match event {
+                Done::Finished => batch_written(dir, log, batch, step.below),
+                Done::Failed { .. } => commits_failed(store, dir, Some(log.file), batch, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::Syncing { file, offset } => match event {
-                Done::Finished => batch_synced(store, dir, file, offset, &mut step),
-                Done::Failed { .. } => commits_failed(store, dir, Some(file), &mut step),
+            Phase::Syncing { log, batch } => match event {
+                Done::Finished => batch_synced(store, dir, log, batch, &mut step),
+                Done::Failed { .. } => commits_failed(store, dir, Some(log.file), batch, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
@@ -797,13 +874,15 @@ pub fn up(
             },
             Phase::RolloverClosing => match event {
                 Done::Finished => rollover_closed(store, dir, &mut step),
-                Done::Failed { .. } => commits_failed(store, dir, None, &mut step),
+                Done::Failed { .. } => commits_failed(store, dir, None, Queue::with_capacity(0), &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
             Phase::SnapshotFailureClosing { log } => match event {
-                Done::Finished | Done::Failed { .. } => commits_failed(store, dir, Some(log.file), &mut step),
+                Done::Finished | Done::Failed { .. } => {
+                    commits_failed(store, dir, Some(log.file), Queue::with_capacity(0), &mut step)
+                }
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
@@ -893,7 +972,12 @@ fn snapshot_read(
 ) -> State {
     let ReadAt { file, len, at } = source;
     let next = at.checked_add(skein_lib::len_u64(read.len()));
-    if read.is_empty() || next.is_none_or(|next| next > len) {
+    if read.is_empty()
+        || match next {
+            Some(next) => next > len,
+            None => true,
+        }
+    {
         return open_failed_file(dir, file, Failure::Corrupt, step.below);
     }
     if let Err(failure) = store.apply_snapshot(&mut reader, &read, &step.env.limits) {
@@ -912,11 +996,16 @@ fn snapshot_read(
         let Some(start) = reader.finish() else {
             return open_failed_file(dir, file, Failure::Corrupt, step.below);
         };
-        let next = dir
-            .segments
-            .iter()
-            .position(|name| log_number(name).is_some_and(|number| number >= start))
-            .unwrap_or(dir.segments.len());
+        let mut next = dir.segments.len();
+        for (index, name) in dir.segments.iter().enumerate() {
+            match log_number(name) {
+                Some(number) if number >= start => {
+                    next = index;
+                    break;
+                }
+                Some(_) | None => {}
+            }
+        }
         step.below.push(file::Request::Close { owner: IO_OWNER, file });
         dir.at(Phase::ClosingSnapshot { next })
     }
@@ -926,6 +1015,10 @@ fn recovered_file_closed(store: &mut Store, dir: Dir, next: usize, step: &mut St
     store.next_log(dir, next, step.below, &step.env.limits)
 }
 
+#[expect(
+    clippy::disallowed_types,
+    reason = "the recovery frame buffer grows only to Limits::commit plus Limits::chunk"
+)]
 fn log_opened(store: &mut Store, dir: Dir, name: Box<[u8]>, next: usize, source: ReadAt, step: &mut Step<'_>) -> State {
     let ReadAt { file, len, at } = source;
     let cap = step.env.limits.segment.saturating_add(step.env.limits.queued_bytes);
@@ -955,6 +1048,7 @@ fn log_opened(store: &mut Store, dir: Dir, name: Box<[u8]>, next: usize, source:
     }
 }
 
+#[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one Limits::chunk read")]
 fn log_read(
     store: &mut Store,
     mut dir: Dir,
@@ -966,7 +1060,12 @@ fn log_read(
 ) -> State {
     let ReadAt { file, len, at } = source;
     let end = at.checked_add(skein_lib::len_u64(read.len()));
-    if read.is_empty() || end.is_none_or(|end| end > len) {
+    if read.is_empty()
+        || match end {
+            Some(end) => end > len,
+            None => true,
+        }
+    {
         return open_failed_file(dir, file, Failure::Corrupt, step.below);
     }
     bytes.reserve_exact(read.len());
@@ -1021,39 +1120,46 @@ fn segment_announced(store: &mut Store, mut dir: Dir, file: Token, step: &mut St
         Repair::Clean => announce_recovered(&mut dir, store.last, step.above),
         Repair::Required => {}
     }
-    follow_ready(store, dir, file, 0, step)
+    follow_ready(store, dir, Log { file, offset: 0 }, step)
 }
 
-fn batch_written(dir: Dir, file: Token, offset: u64, below: &mut Queue<file::Request>) -> State {
-    below.push(file::Request::Sync { owner: IO_OWNER, file });
-    dir.at(Phase::Syncing { file, offset })
+fn batch_written(dir: Dir, log: Log, batch: Queue<Pending>, below: &mut Queue<file::Request>) -> State {
+    below.push(file::Request::Sync { owner: IO_OWNER, file: log.file });
+    dir.at(Phase::Syncing { log, batch })
 }
 
-fn batch_synced(store: &mut Store, mut dir: Dir, file: Token, offset: u64, step: &mut Step<'_>) -> State {
+fn batch_synced(
+    store: &mut Store,
+    mut dir: Dir,
+    mut log: Log,
+    mut batch: Queue<Pending>,
+    step: &mut Step<'_>,
+) -> State {
     let mut bytes: u64 = 0;
-    for pending in dir.active.drain(..) {
+    for _ in 0..batch.len() {
+        let pending = batch.pop().expect("the batch has its initial length");
         let used = store.map.check(&pending.ops, &step.env.limits).expect("a queued commit passed admission");
         store.map.apply(&pending.ops, used);
         store.last = pending.number;
         bytes = bytes.checked_add(skein_lib::len_u64(pending.frame.len())).expect("batch size fits u64");
         step.above.push(Event::Committed { owner: pending.owner, number: pending.number });
     }
-    if dir.active.is_empty() && store.queue.is_empty() {
+    if store.queue.is_empty() {
         store.admitted.clear();
     }
-    let offset = offset.checked_add(bytes).expect("segment offset fits u64");
+    log.offset = log.offset.checked_add(bytes).expect("segment offset fits u64");
     dir.log_bytes = dir.log_bytes.checked_add(bytes).expect("log bytes fit u64");
-    follow_ready(store, dir, file, offset, step)
+    follow_ready(store, dir, log, step)
 }
 
-fn follow_ready(store: &mut Store, dir: Dir, file: Token, offset: u64, step: &mut Step<'_>) -> State {
+fn follow_ready(store: &mut Store, dir: Dir, log: Log, step: &mut Step<'_>) -> State {
     if !store.queue.is_empty() {
-        store.start_batch(dir, file, offset, &step.env.limits, step.below)
+        store.start_batch(dir, log, &step.env.limits, step.below)
     } else if dir.close_owner.is_some() && dir.compaction.is_idle() {
-        step.below.push(file::Request::Close { owner: IO_OWNER, file });
+        step.below.push(file::Request::Close { owner: IO_OWNER, file: log.file });
         dir.at(Phase::Closing)
     } else {
-        dir.at(Phase::Ready { file, offset })
+        dir.at(Phase::Ready { log })
     }
 }
 
@@ -1073,16 +1179,24 @@ fn rollover_closed(store: &mut Store, dir: Dir, step: &mut Step<'_>) -> State {
     create_segment(dir, segment_name(next), step.below)
 }
 
-fn commits_failed(store: &mut Store, mut dir: Dir, file: Option<Token>, step: &mut Step<'_>) -> State {
+fn commits_failed(
+    store: &mut Store,
+    mut dir: Dir,
+    file: Option<Token>,
+    mut batch: Queue<Pending>,
+    step: &mut Step<'_>,
+) -> State {
     store.repair = Repair::Required;
     dir.serving = match dir.serving {
         Serving::Yes | Serving::Recovering => Serving::Recovering,
         state @ Serving::Opening { .. } => state,
     };
-    for pending in dir.active.drain(..) {
+    for _ in 0..batch.len() {
+        let pending = batch.pop().expect("the batch has its initial length");
         step.above.push(Event::Failed { owner: pending.owner, number: pending.number });
     }
-    while let Some(pending) = store.queue.pop() {
+    for _ in 0..store.queue.len() {
+        let pending = store.queue.pop().expect("the queue has its initial length");
         step.above.push(Event::Failed { owner: pending.owner, number: pending.number });
     }
     store.queued_bytes = 0;
@@ -1160,7 +1274,7 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
     store.state = match state {
         state @ (State::Closed | State::Memory) => state,
         State::Open { dir, phase } => match phase {
-            Phase::Ready { file, offset } => compaction::fire_ready(dir, Log { file, offset }, store, env, below),
+            Phase::Ready { log } => compaction::fire_ready(dir, log, store, env, below),
             phase @ (Phase::Listing
             | Phase::OpeningLog { .. }
             | Phase::ReadingLog { .. }
