@@ -229,6 +229,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | Page | Path |
   |---|---|
   | `Inbox { filter }` | `/`, and its filter's query |
+  | `Home { project }` | `/projects/<project>` |
+  | `Settings { project }` | `/projects/<project>/settings` |
   | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |

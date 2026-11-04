@@ -1,3 +1,31 @@
 draft = "look-round-3"
 repo = "fabrig"
 sources = ["temper/docs/plan/look-round-3/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/first-run-projects.md", "temper/docs/design/draft/first-run-projects.status.md", "AGENTS.md", "DESIGN.md"]
+
+# The design batch and the first tasks go first (inputs/request.md, How the cut shapes it): Ready's
+# name and adoption, then the frame, then Home, then the reprint, the recording and the account.
+# temper-client-view takes one writer at a time, so its tasks chain; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "ready-name"
+title = "Ready offers the first repository's name in capital, or My project"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "project-addresses"
+title = "Home's and Settings' addresses, opening the project they name, with plain pages"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.3"
+
+[[slice]]
+id = 1
+story = "Ready offers Hello, and /projects/1 and its settings open project 1"
+parts = ["ready-name", "project-addresses"]
+walk = false
