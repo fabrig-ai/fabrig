@@ -2825,3 +2825,28 @@ fn revision_show_large_temper_values_name_a_working_historical_read() {
         assert!(core::str::from_utf8(&answer.stdout).unwrap().contains("\"ci\":false"));
     }
 }
+
+#[test]
+fn proposal_show_prints_the_whole_settings_reason_in_text_and_json() {
+    for bytes in [900, 649] {
+        let mut reason = String::from("temper enforces: review every change. your agents follow: keep reports short. ");
+        let effect = " Running work keeps its current instructions until an owner moves it.";
+        reason.push_str(&"x".repeat(bytes - reason.len() - effect.len()));
+        reason.push_str(effect);
+        for json in [false, true] {
+            let mut proposal = review_proposal(None);
+            let c::ReadValue::Proposal(value) = &mut proposal else { panic!("proposal") };
+            value.reason = c::DocumentText::complete(words(&reason));
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
+            serve_review(&mut root, call, proposal);
+            let answer = root.answer(call).expect("proposal shown");
+            assert_eq!(answer.status, 0);
+            let printed = core::str::from_utf8(&answer.stdout).expect("UTF-8 proposal");
+            assert!(printed.contains(&reason), "whole reason: {printed}");
+            if json {
+                assert!(printed.contains("\"cut\":false"), "{printed}");
+            }
+        }
+    }
+}

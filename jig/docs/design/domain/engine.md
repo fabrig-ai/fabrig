@@ -2282,7 +2282,10 @@ adds no slot (decided 2026-11-03).
   settings family (7.3), which reads the settings and proposes a set;
   never a procedure. A proposal names its revision, its items and its
   reason, as a change does, and leaves to its accepter whether running
-  work moves.
+  work moves. The reason is bounded by `people.words` bytes for both a
+  party and a run. A run past that bound is refused with the words limit
+  and may shorten its reason and propose again. The pending review shows
+  every admitted reason whole, independently of the document snippet bound.
 - **In the deployment's scope.** No task's authority covers settings,
   so a proposal of settings waits for parties from the start: the
   deployment's owners for the deployment's items, and a project's owners
