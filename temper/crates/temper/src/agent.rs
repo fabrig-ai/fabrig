@@ -38,12 +38,10 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
         .checked_sub(u32::try_from(temper_worker_domain::SEPARATOR).expect("message separator fits u32"))
         .ok_or("agent message_bytes: too small for the rendered separator")?;
     let programs = configuration
-        .programs
+        .program
         .into_iter()
-        .map(|(name, program)| service::settings::Program {
-            adapter: match name {
-                smith_agent_shell::config::ProgramName::ClaudeCode => service::settings::Adapter::ClaudeCode,
-            },
+        .map(|program| service::settings::Program {
+            adapter: service::settings::Adapter::ClaudeCode,
             path: program.path.as_os_str().as_bytes().into(),
             directory: program.directory.as_os_str().as_bytes().into(),
         })
@@ -56,7 +54,7 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
         limits: protocol,
         host_limits,
         bounds: jig_domain_host::Bounds {
-            program_endpoints: configuration.endpoint_programs.keys().copied().collect::<Vec<_>>().into_boxed_slice(),
+            program_endpoints: configuration.program_endpoints.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
             models: models.into_boxed_slice(),
             turns: policy.max_turns,
             spend: policy.max_spend,
