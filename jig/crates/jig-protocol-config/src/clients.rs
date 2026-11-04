@@ -198,6 +198,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         (b"core.settings.alternatives".as_slice(), core.settings.alternatives, wire.charter_alternatives),
         (b"core.run_bytes".as_slice(), core.run_bytes, wire.charter_instructions),
         (b"documents.text_bytes".as_slice(), core.documents.text_bytes, wire.document_text_bytes),
+        (b"people.words".as_slice(), core.people.words, wire.document_text_bytes),
         (b"documents.rows".as_slice(), core.documents.rows, wire.revisions_page_rows),
         (b"documents.lines".as_slice(), core.documents.lines, wire.revision_row_items),
     ] {
@@ -223,6 +224,22 @@ mod settings_tests {
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 1, "one past: {name:?}: {problems:?}");
         assert_eq!(problems.problems.get(0).unwrap().path, Path::root().member(b"limits").member(name));
+    }
+    #[test]
+    fn settings_proposal_reasons_fit_the_wire() {
+        let mut limits = crate::profile(crate::Profile::Small);
+        limits.clients.wire.document_text_bytes = limits.core.people.words;
+        limits.core.documents.text_bytes = 128;
+        let mut problems = Problems::empty();
+        check_settings(&limits, &mut problems);
+        assert!(problems.is_empty(), "at ceiling: {problems:?}");
+        limits.core.people.words += 1;
+        check_settings(&limits, &mut problems);
+        assert_eq!(problems.problems.len(), 1);
+        assert_eq!(
+            problems.problems.get(0).expect("one problem").path,
+            Path::root().member(b"limits").member(b"people.words")
+        );
     }
     #[test]
     fn pending_settings_fit_the_wire_inventory() {
