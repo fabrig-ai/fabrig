@@ -2,10 +2,10 @@
 
 2026-11-04. Where the design lags or departs from [to-begin.md](to-begin.md).
 
-- **Design lags:**
-  - 2, 3: `../client/README.md`, 3.5: a project has no Home among the pages, its first page being its chats page; nothing draws "To begin" or its steps. The look requests `project-home` and `project-home-onboarding` draw them (`../client/journeys.md`, 7).
-  - 4: `../client/README.md`, 3.5: no page computes the steps from the project's home repository, its adoption, its chats and the settings' changes.
 - **Design departs:**
+  - 2: "Connected and the landing's line wait for "To begin" to go": `../client/README.md`, 3.5: Home has no Connected at all, the user's decision in the look request `home-drops-connected`, and no landing's line while no client is given that fact (`../client/README.md`, 11).
+  - 2: "Gone": "its intro what changed since the person last looked": `../client/README.md`, 3.5: the kicker is the day and time and the headline counts what needs the person, since no client is given when they last looked and nothing writes that intro; section 11 there holds the question.
+  - 3: "By turn, it names temper's landing turn": `../client/README.md`, 3.5: the second step has the merge queue's words on every project, since no client is given a project's `by`; section 11 there holds the question.
   - 5: "erased with its project or its party": `../protocol/store.md`, section 2 erases a `Dismissed` row with its project alone, because jig erases no party and tells a connector of none, so there is nothing to erase it with; decided by the cut `to-begin-store`, for the user to confirm (`../protocol/store.md`, section 7).
 - **Open:**
   - 7: every new project with steps left shows "To begin", or the welcome's alone.

@@ -15,6 +15,14 @@
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
+  3.5, Home: the view draws To begin as numbered steps above Connected on
+  every Home, its headline counting them, and nothing of Home on any
+  project: no card, "Optional" tag or "Skip" (`Dismiss` has no sender,
+  and `dismissed` no reader), no rule for when it shows, no link to
+  `Accounts` after the lede, no Needs you or Chats, and Connected and
+  its rename still drawn; `configured` and `chat_asked` in
+  `temper-client-domain`'s `pages/home.rs` do not tell a configuring
+  chat from another.
   3.5, 11: a project's creation age and its repository's first CI run
   are not supplied to Home. Its kicker uses the current day and time,
   and its repository step describes checked changes landing through
