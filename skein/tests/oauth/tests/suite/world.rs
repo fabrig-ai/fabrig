@@ -2,9 +2,72 @@ use skein_fake_oauth as fake;
 use skein_lib::{Duration, bytes};
 use skein_oauth as oauth;
 use skein_oauth_world::{
-    boxed, client_limits, client_step, documents, error, failure, fake_limits, fake_step, http, issuer, issuer_for,
-    planned, record, redirected, registration, response, sign_in, success, terms, time, visit, wall,
+    begin, boxed, client_limits, client_step, documents, error, failure, fake_limits, fake_step, http, issuer,
+    issuer_for, openid_registration, planned, record, redirected, registration, response, sign_in, success, terms,
+    time, visit, wall,
 };
+
+#[test]
+fn a_start_outside_idle_is_refused_at_once() {
+    let registration = registration(true);
+    let (mut client, mut issuer) = planned(&registration, success(b"access", Some(b"refresh"), 0));
+    let url = visit(&mut client, registration, None, None);
+    let deadline = client.next_deadline();
+    match begin(&mut client, openid_registration(), 1) {
+        Some(oauth::Request::Failed { failure: oauth::Failure::Limit }) => {}
+        None => panic!("SignIn refusal expected, client_step returned None"),
+        Some(_) => panic!("SignIn must fail with Limit"),
+    }
+    let prior = oauth::decode_record(SAVED_RECORD, &documents()).expect("current record");
+    match client_step(
+        &mut client,
+        oauth::Event::Refresh {
+            registration: self::registration(true),
+            prior: prior.refresh_state().expect("refreshable"),
+            now: time(1),
+        },
+    ) {
+        Some(oauth::Request::Failed { failure: oauth::Failure::Limit }) => {}
+        None => panic!("Refresh refusal expected, client_step returned None"),
+        Some(_) => panic!("Refresh must fail with Limit"),
+    }
+    match client_step(
+        &mut client,
+        oauth::Event::Revoke {
+            registration: self::registration(true),
+            prior: prior.refresh_state().expect("refreshable"),
+            now: time(1),
+        },
+    ) {
+        Some(oauth::Request::Revoked { confirmed: false }) => {}
+        None => panic!("Revoke refusal expected, client_step returned None"),
+        Some(_) => panic!("Revoke must be unconfirmed"),
+    }
+    assert!(!client.is_done());
+    assert_eq!(client.next_deadline(), deadline);
+
+    let event = redirected(&mut issuer, url);
+    let request = http(client_step(&mut client, event));
+    let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(2), wall: wall(100) }));
+    let saved = record(client_step(&mut client, oauth::Event::Http(answer)));
+    assert_eq!(saved.key, 7);
+    assert_eq!(saved.generation, 1);
+    assert_eq!(saved.access_token.as_ref(), b"access");
+    assert!(client.is_done());
+
+    match begin(&mut client, openid_registration(), 3) {
+        Some(oauth::Request::Failed { failure: oauth::Failure::Limit }) => {}
+        None => panic!("Done must refuse SignIn, client_step returned None"),
+        Some(_) => panic!("SignIn in Done must fail with Limit"),
+    }
+    assert!(client.is_done());
+    assert!(client_step(&mut client, oauth::Event::Reset).is_none());
+    assert!(!client.is_done());
+    match begin(&mut client, openid_registration(), 3) {
+        Some(oauth::Request::Http(_)) => {}
+        Some(_) | None => panic!("SignIn after Reset must be taken"),
+    }
+}
 
 #[test]
 fn a_localhost_registration_signs_in_through_its_exact_redirect() {
