@@ -17,7 +17,7 @@ fn the_listener_opens_before_the_restart_begins() {
     waiting_workers(engine);
     engine::iterate(engine, Time::ZERO, Wall::EPOCH);
     assert!(engine.begin);
-    assert!(engine.store.above.is_empty());
+    assert!(engine.store.host.above.is_empty());
     take_listener(engine);
     listening(engine);
     before_restart_is_not_ready(engine);
@@ -29,7 +29,7 @@ fn the_listener_opens_before_the_restart_begins() {
     ));
     engine::iterate(engine, Time::ZERO, Wall::EPOCH);
     assert!(!engine.begin);
-    let Some(jig_protocol_store::Event::Page { items, next, .. }) = engine.store.above.pop() else {
+    let Some(jig_protocol_store::Event::Page { items, next, .. }) = engine.store.host.above.pop() else {
         panic!("restart load completed by the real store")
     };
     assert_eq!(items.len(), 0);
@@ -414,7 +414,7 @@ fn before_restart_is_not_ready(engine: &mut crate::Engine) {
     engine::iterate(engine, Time::ZERO, Wall::EPOCH);
     peer.pump(engine);
     assert!(engine.begin, "the unopened worker listener still prevents restart");
-    assert!(engine.store.above.is_empty(), "the refused sign-in made no commit");
+    assert!(engine.store.host.above.is_empty(), "the refused sign-in made no commit");
     let value = w::SignInAnswer::decode(
         &engine.clients.as_ref().expect("clients").env.limits.wire,
         &mut skein_lib::Reader::new(response_body(&peer)),
@@ -437,7 +437,7 @@ fn restore_people(engine: &mut crate::Engine) {
 }
 
 fn withhold_store(engine: &mut crate::Engine, held: &mut skein_lib::Queue<jig_protocol_store::Event>) {
-    while let Some(event) = engine.store.above.pop() {
+    while let Some(event) = engine.store.host.above.pop() {
         held.push(event);
     }
 }
@@ -473,7 +473,7 @@ fn sign_in_is_not_ready_until_restart_decisions_open() {
     assert!(!held.is_empty(), "store completions remain withheld");
     assert_eq!(sign_in_answer(engine, &peer), w::SignInAnswer::NotReady);
     while let Some(event) = held.pop() {
-        engine.store.above.push(event);
+        engine.store.host.above.push(event);
     }
     decisions_open(engine);
     let mut peer = Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
@@ -646,6 +646,7 @@ fn a_kept_digest_reaches_the_store_s_secrets() {
     engine::iterate(engine, Time::ZERO, Wall::EPOCH);
     let answer = engine
         .store
+        .host
         .secrets(Token::new(77), Secrets::Get { owner: jig_protocol_store::SecretOwner::SignIn, number: 41 });
     let Some(Event::Secret { owner, value: Some(value) }) = answer else {
         panic!("same-pass stored digest get: {answer:?}")

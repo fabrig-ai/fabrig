@@ -18,19 +18,19 @@ pub(super) fn iterate(
     events: &mut Queue<root::Event>,
     store: &mut crate::store::Store,
 ) {
-    let marked = store.component.mark_durable();
-    let count = accounts.begin(now, wall, marked, store.installation, &mut store.sources);
+    let marked = store.host.component.mark_durable();
+    let count = accounts.begin(now, wall, marked, store.installation, &mut store.host.sources);
     for _ in 0..count {
         match accounts.output(&mut values.accounts) {
             Some(Output::Account(event)) => events.push(root::Event::Core(core::Event::Account(event))),
             Some(Output::Store { exchange, request }) => {
                 if let Some(event) =
-                    store.secrets(crate::tokens::token(crate::tokens::ACCOUNTS, exchange.raw()), request)
+                    store.host.secrets(crate::tokens::token(crate::tokens::ACCOUNTS, exchange.raw()), request)
                 {
                     accounts.answer(event);
                 }
             }
-            Some(Output::InvalidSecret) => store.above.push(store::Event::PageRefused {
+            Some(Output::InvalidSecret) => store.host.above.push(store::Event::PageRefused {
                 owner: Token::new(0),
                 failure: store::restore::Failure {
                     cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),

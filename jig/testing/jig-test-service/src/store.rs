@@ -161,16 +161,16 @@ pub(super) fn request(engine: &mut crate::Engine, out: StoreOut) {
 }
 pub(super) fn answer(engine: &mut crate::Engine) {
     if engine.end.is_some() {
-        for _ in 0..engine.store.above.len() {
-            let _late = engine.store.above.pop();
+        for _ in 0..engine.store.host.above.len() {
+            let _late = engine.store.host.above.pop();
         }
         for _ in 0..engine.store.routed.len() {
             let _late = engine.store.routed.pop();
         }
         return;
     }
-    for _ in 0..engine.store.above.len() {
-        let event = engine.store.above.pop().expect("store terminals");
+    for _ in 0..engine.store.host.above.len() {
+        let event = engine.store.host.above.pop().expect("store terminals");
         match event {
             protocol::Event::Opened { installation, pending, .. } => {
                 engine.store.installation = installation;
@@ -186,6 +186,7 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             protocol::Event::OpenRefused { why, .. } => {
                 let failure = engine
                     .store
+                    .host
                     .component
                     .start_open_failure()
                     .cloned()
@@ -203,9 +204,9 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             | protocol::Event::Secret { owner, .. }
             | protocol::Event::SecretsLoaded { owner, .. }) => {
                 if crate::accounts::owns(owner) {
-                    engine.store.sources.push(event);
+                    engine.store.host.sources.push(event);
                 } else {
-                    engine.store.secrets.push(event);
+                    engine.store.host.secrets.push(event);
                 }
             }
             protocol::Event::Corrupt { .. } => {
@@ -269,7 +270,7 @@ fn answer_routed(engine: &mut crate::Engine) {
                 engine.blocked = false;
                 engine.step(event);
             }
-            Up::Ask(request) => engine.store.ask(request),
+            Up::Ask(request) => engine.store.host.ask(request),
         }
         if engine.domain.start_failure().is_some() || engine.domain.start_page_failure().is_some() {
             crate::stop::invalid_restore(engine);
