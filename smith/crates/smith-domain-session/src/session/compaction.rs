@@ -131,12 +131,8 @@ pub(super) fn instruction_bytes(conversation: &Conversation) -> usize {
     if !conversation.compaction.asking() {
         return conversation.summary.len();
     }
-    match conversation.transcript.last().expect("summary message").content.first().expect("summary block") {
-        Block::Text { text, .. } => text.len(),
-        Block::Refusal { .. } | Block::ToolCall(_) | Block::ToolResult { .. } | Block::Opaque { .. } => {
-            unreachable!("summary instruction is text")
-        }
-    }
+    conversation.transcript.last().expect("summary message").content.first().expect("summary block")
+        .text().expect("summary instruction is text").len()
 }
 
 pub(super) fn window_limit(conversation: &Conversation, evidence: Evidence, attempts: u32) -> End {
@@ -358,29 +354,19 @@ pub(super) fn accept(
 fn summary_text(content: &[Block]) -> Box<[u8]> {
     let mut length = 0_usize;
     let mut parts = 0_usize;
-    for block in content {
-        match block {
-            Block::Text { text, .. } => {
-                length = length.checked_add(text.len()).expect("bounded summary text");
-                parts = parts.checked_add(1).expect("bounded summary blocks");
-            }
-            Block::Refusal { .. } | Block::ToolCall(_) | Block::ToolResult { .. } | Block::Opaque { .. } => {}
-        }
+    for text in content.iter().filter_map(Block::text) {
+        length = length.checked_add(text.len()).expect("bounded summary text");
+        parts = parts.checked_add(1).expect("bounded summary blocks");
     }
     let separators = parts.saturating_sub(1).checked_mul(2).expect("bounded summary separators");
     let mut written = Writer::new(length.checked_add(separators).expect("bounded joined summary"));
     let mut first = true;
-    for block in content {
-        match block {
-            Block::Text { text, .. } => {
-                if !first {
-                    written.put(b"\n\n").expect("measured separator");
-                }
-                written.put(text).expect("measured text");
-                first = false;
-            }
-            Block::Refusal { .. } | Block::ToolCall(_) | Block::ToolResult { .. } | Block::Opaque { .. } => {}
+    for text in content.iter().filter_map(Block::text) {
+        if !first {
+            written.put(b"\n\n").expect("measured separator");
         }
+        written.put(text).expect("measured text");
+        first = false;
     }
     written.finish()
 }
@@ -452,19 +438,13 @@ pub(super) fn restore(
     }
     for message in &first.messages {
         if message.role == Role::User {
-            match message.content.first() {
-                Some(Block::Text { text, .. }) => {
-                    *bytes = bytes
-                        .checked_sub(skein_lib::len_u64(conversation.task.len()))
-                        .ok_or(crate::record::Refusal::TooLarge)?
-                        .checked_add(skein_lib::len_u64(text.len()))
-                        .ok_or(crate::record::Refusal::TooLarge)?;
-                    conversation.task.clone_from(text);
-                }
-                Some(
-                    Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. },
-                )
-                | None => {}
+            if let Some(text) = message.content.first().and_then(Block::text) {
+                *bytes = bytes
+                    .checked_sub(skein_lib::len_u64(conversation.task.len()))
+                    .ok_or(crate::record::Refusal::TooLarge)?
+                    .checked_add(skein_lib::len_u64(text.len()))
+                    .ok_or(crate::record::Refusal::TooLarge)?;
+                conversation.task = skein_lib::bytes::copy_of(text);
             }
             break;
         }
@@ -472,14 +452,8 @@ pub(super) fn restore(
     match first.kind {
         crate::record::Kind::Window(_) if transcript.turns.len() == 1 => {
             conversation.window = Window::fresh(1, first.usage.output_tokens.unwrap_or(u64::from(conversation.output)));
-            match first.messages.first().expect("one window message").content.get(2) {
-                Some(Block::Text { text, .. }) => {
-                    conversation.window.summary_bytes = skein_lib::len_u64(text.len());
-                }
-                Some(
-                    Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. },
-                )
-                | None => {}
+            if let Some(text) = first.messages.first().expect("one window message").content.get(2).and_then(Block::text) {
+                conversation.window.summary_bytes = skein_lib::len_u64(text.len());
             }
         }
         crate::record::Kind::First(_) | crate::record::Kind::Window(_) | crate::record::Kind::Ordinary => {
@@ -546,7 +520,10 @@ fn portable(block: Block) -> Option<Block> {
         Block::Opaque { .. } => None,
         Block::Text { text, .. } => Some(Block::Text { text, replay: None }),
         Block::Refusal { text, .. } => Some(Block::Refusal { text, replay: None }),
-        Block::ToolCall(crate::llm::ToolCall { id, name, input, call, .. }) => Some(Block::ToolCall(crate::llm::ToolCall { id, name, input, call, replay: None })),
+        Block::ToolCall(mut call) => {
+            call.replay = None;
+            Some(Block::ToolCall(call))
+        }
         Block::ToolResult { id, result } => {
             let result = match result {
                 crate::llm::Returned::Text { text, error, .. } => {
