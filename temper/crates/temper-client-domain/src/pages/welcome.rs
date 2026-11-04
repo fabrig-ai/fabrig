@@ -24,9 +24,10 @@ pub enum FirstRun {
     Unfinished { step: crate::Step },
     Whole,
 }
-/// None while the session's playground, forge or account facts are missing.
+/// None while the session's deployment, playground, forge or account facts are missing.
 #[must_use]
 pub fn decision(root: &Domain) -> Option<FirstRun> {
+    root.forge().deployment()?;
     let me = accounts::current_me(root.client())?;
     if !root.forge().playground_answered() {
         return None;
@@ -94,6 +95,9 @@ pub enum Ended {
 /// A real account alone keeps the playground offered (3.5).
 #[must_use]
 pub fn playground_offered(root: &Domain) -> Option<bool> {
+    if !root.forge().deployment()?.welcome {
+        return Some(false);
+    }
     if !root.forge().playground_answered() {
         return None;
     }
