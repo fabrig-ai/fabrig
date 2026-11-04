@@ -159,7 +159,7 @@ fake person. What waits is in section 18, and what is open in section
 | status, alert, log | words that change as the application runs, said when it suits; said at once; entries oldest first, whose end a shell keeps in view while the person has not scrolled away |
 | tree, tree item | a tree of items; one item, with its children |
 | tabs, tab | a set of tabs; one tab, current while its content shows |
-| progress | how far a piece of work has gone, its text saying it |
+| progress | how far a piece of work has gone, its text saying it, and a fraction where its end is known (3.2) |
 | time | a time or a span, its text in its owner's words |
 | code, quote, separator | text kept as written; quoted text; a break between groups |
 | figure | a named group shown together, as a picture and its caption |
@@ -207,11 +207,24 @@ is named, so completed there waits for a design of its own.
 | a position | item, row, tree item | its place in the whole collection, from 1 |
 | spans | cell, column header, row header | the rows and the columns it spans, 1 each by default |
 | a sort | column header | ascending or descending |
+| a fraction | progress | done of total, two whole numbers, done at most total and total above zero; with none, the work's end is not known |
 | a source | image | a picture or an address (3.5) |
 | a drawing | drawing | its kind and its data (3.5) |
 
 Each but completed is found in the semantic or accessibility APIs of
 two platforms (4.1); section 16 maps each onto the web, iOS and Android.
+
+A fraction is `Fraction { done, total }`, both `u64`, in its owner's
+numbers: bytes, steps, items, as its domain counts them. skein-ui never
+divides them for the tree; a shell that needs a ratio makes it, checked,
+from the two (section 16). A progress with no fraction is indeterminate,
+work whose end is not known, and a shell draws or says it so. Its text
+stays the value's words, written by its owner from its phrasebook
+(section 9): the percentage, the bytes or the step. The fraction is the
+platform's number, never a person's only way to know, and the bar's
+width repeats the words for sight (`ui-web.md`, section 12). A meter, a
+value in a known range (a disk's use), still waits (4.2): progress is
+how far a piece of work has gone toward its end.
 
 ### 3.3 Owners
 
@@ -234,7 +247,10 @@ two platforms (4.1); section 16 maps each onto the web, iOS and Android.
 
 - **Text runs:** plain, emphasis, strong, code and a link run; bytes a
   shell writes as text, never reads as markup, and shows as U+FFFD where
-  they are not UTF-8.
+  they are not UTF-8. A progress's text is runs of its own, as a text
+  node's are, and no text child: a platform's progress bar presents no
+  children, so a shell gives it to the platform as the value's words
+  (16.1, 16.2 and 16.3).
 - **A value** is `Value { text, written }`: the field's text, and its
   owner's count of its own writes to it. A matched field whose count did
   not move gets no value patch, whatever its text (section 7): what the
@@ -327,9 +343,14 @@ two platforms (4.1); section 16 maps each onto the web, iOS and Android.
 - **The builder** owns the tree it builds: open, close, text and runs, a
   name, a description, a placeholder, a state, a style token, a region name, a value
   and its entry kind, a focus request, a count, a position, spans, a
-  sort, an address, a key, a binding, a shortcut, a source, a drawing, a
-  slot; one node a call, no macros. Each call changes the innermost open
-  node, and an attribute off its roles (3.2) is an assertion.
+  sort, a fraction, an address, a key, a binding, a shortcut, a source,
+  a drawing, a slot; one node a call, no macros. Each call changes the
+  innermost open node, and an attribute off its roles (3.2) is an
+  assertion. Runs belong to a text node or a progress.
+- **A fraction** is asserted as it is given: on a progress, done at most
+  total, total above zero. A progress closed with a fraction and no runs
+  of its own is an assertion too: a fraction with no words is its
+  owner's bug (3.2).
 - **Building past the tree's capacity is an assertion:** the capacity
   comes from limits its owner derived (section 15), so overflowing it is
   the view's bug.
@@ -465,6 +486,11 @@ two platforms (4.1); section 16 maps each onto the web, iOS and Android.
   carries.
 - **Never replaced while it can be updated,** so the platform keeps
   focus, caret, selection, composition and scroll across a patch.
+- **A progress that moves** is an attribute patch for its fraction and a
+  text patch for its words, on the node it was, so a screen reader that
+  follows it hears the new words. Its owner sets the pace: a view builds
+  when its state's count moves, so an owner that changes its fraction
+  once per whole percent sends no more patches than that.
 - **A focus request** travels with the attributes: a node inserted with
   one, or an attribute patch bringing a count the shell did not hold,
   asks the shell to move the focus to it once the turn's patches are
@@ -906,6 +932,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | a value, a focus request | `value`; `focus()` |
 | a count, a position | `aria-setsize`, `aria-posinset`; on a table and its rows, `aria-rowcount`, `aria-rowindex` |
 | spans, a sort | `rowspan`, `colspan`; `aria-sort` |
+| a fraction | `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, read with its text's `aria-valuetext`; `data-progress`, the whole percent (ui-web.md, sections 6 and 12) |
 | a shortcut | `aria-keyshortcuts`; Escape, the `<dialog>`'s `cancel` event, or in a form its `keydown` |
 | a region name, style tokens | `data-region`; classes |
 
@@ -956,6 +983,7 @@ vocabulary maps, not how such a shell is built. Traits are
 | a shortcut | `UIKeyCommand` with `.command` or `.alternate`; `.keyboardShortcut(_:modifiers:)` |
 | Escape | `accessibilityPerformEscape()` on the dialog's view, `UIKeyCommand.inputEscape`; `.accessibilityAction(.escape)`, `.keyboardShortcut(.cancelAction)` |
 | a source | a picture from the application's assets (`UIImage(named:)`); an address the shell loads |
+| a fraction | `UIProgressView.progress` from done over total, its text as `accessibilityValue`; `ProgressView(value:total:)`; with none, the indeterminate view |
 
 **What an iOS shell does itself:** its layout; its navigation chrome
 (what the banner and navigation hold placed in a navigation bar or a tab
@@ -1014,6 +1042,7 @@ semantics.
 | a shortcut | `onKeyShortcut` | `Modifier.onKeyEvent` |
 | Escape | the back gesture (`OnBackPressedDispatcher`); a dialog's dismissal | `BackHandler`; `Dialog(onDismissRequest = …)` |
 | a source | a picture from the application's resources; an address the shell loads | `painterResource`; the shell's loader |
+| a fraction | `RangeInfo` of a float range, 0 to 1, from done over total, and `ProgressBar`'s own scaled to its integer range; its text by `setStateDescription`; with none, the indeterminate view | `progressBarRangeInfo` of the same range; `stateDescription` |
 
 **What an Android shell does itself:** its layout; its navigation chrome
 (a top app bar, a navigation bar or rail, a back stack made from

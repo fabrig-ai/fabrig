@@ -433,7 +433,9 @@ fn forge_fetch_command() {
         }
         let result = command.env("SSL_CERT_FILE", &root).current_dir(scratch.path()).output().expect("fetch command");
         assert_eq!(result.status.code(), Some(1), "{row}");
-        assert!(result.stdout.is_empty(), "{row}");
+        let expected_stdout =
+            if row == "digest" { "fetched forgejo 0 of 3 bytes\nfetched forgejo 3 of 3 bytes\n" } else { "" };
+        assert_eq!(result.stdout, expected_stdout.as_bytes(), "{row}");
         if let Some(peer) = &mut server {
             peer.check();
         }
@@ -473,7 +475,7 @@ fn forge_fetch_command() {
             _ => unreachable!(),
         };
         assert_eq!(result.status.code(), Some(1), "{row}");
-        assert!(result.stdout.is_empty(), "{row}");
+        assert_eq!(result.stdout, expected_stdout.as_bytes(), "{row}");
         assert_eq!(String::from_utf8_lossy(&result.stderr), expected, "{row}");
         assert!(!file.with_file_name("forgejo.part").exists(), "{row}");
         if row == "present" {

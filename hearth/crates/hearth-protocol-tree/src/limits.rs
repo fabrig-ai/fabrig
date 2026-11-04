@@ -1,4 +1,4 @@
-//! The configured record bounds (domain/store.md, 6.1).
+//! The configured record bounds (hearth/docs/design/domain/store.md, 6.1).
 
 use crate::{
     decode,
@@ -64,7 +64,7 @@ pub struct CacheFileLimits {
     pub path: u32,
     pub oid: u32,
 }
-/// domain/store.md, 6.1's defaults and the plan's decoder bounds.
+/// hearth/docs/design/domain/store.md, 6.1's defaults and the plan's decoder bounds.
 pub const SHIPPED: Limits = Limits {
     depth: 8,
     key: 64,
@@ -84,7 +84,7 @@ pub const SHIPPED: Limits = Limits {
 };
 
 /// What a read holds beside its returned record, including a failed read's
-/// partial record (programming-model.md, 6.3). Returns `None` past the
+/// partial record (skein/docs/foundation/programming-model.md, 6.3). Returns `None` past the
 /// encoder's depth, or past a u64 for a resolution.
 #[must_use]
 pub fn worst_case(kind: Kind, limits: &Limits) -> Option<u64> {
@@ -109,7 +109,7 @@ const fn key(kind: Kind, limits: &Limits) -> u32 {
     }
 }
 
-/// The most heap a decoded record holds (domain/store.md, 6.1), for its owner's
+/// The most heap a decoded record holds (hearth/docs/design/domain/store.md, 6.1), for its owner's
 /// worst case. Returns `None` past the encoder's depth, or past a u64 for
 /// a resolution. Boxed bytes together fit within the body's bound; a tree
 /// file's, within an item's.

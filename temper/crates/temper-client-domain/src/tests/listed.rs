@@ -30,6 +30,7 @@ fn row(number: u16, repositories: Box<[Adoption]>) -> Row {
         app: None,
         web: None,
         owned: None,
+        fetched: None,
         admin: false,
         ended_stop: None,
     }

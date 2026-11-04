@@ -3,7 +3,7 @@ const JSON: &[(ChangedPart, &str)] = &[
     (
         ChangedPart::Secrets,
         concat!(
-            r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"secrets","secrets":{"files":[{"key":"new","kind":"added"},{"key":"gone","kind":"removed"},{"key":"key","kind":"changed"}],"passwords":[{"key":"free","kind":"changed"}],"identity":[{"key":"ssh","kind":"changed"}]}}],"rebuild":{"kind":"nothing"}}}"#,
+            r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"secrets","secrets":{"files":[{"key":"new","kind":"added"},{"key":"gone","kind":"removed"},{"key":"key","kind":"changed"}],"passwords":[{"key":"alice","kind":"changed"}],"identity":[{"key":"ssh","kind":"changed"}]}}],"rebuild":{"kind":"nothing"}}}"#,
             "\n"
         ),
     ),
@@ -40,7 +40,7 @@ const TEXT: &[(ChangedPart, &str)] = &[
         ChangedPart::Secrets,
         concat!(
             "ion-prod                                            nothing to build\n",
-            "  secrets  + secret new\n  secrets  - secret gone\n  secrets  ~ secret key\n  secrets  ~ password free\n  secrets  ~ identity ssh\n"
+            "  secrets  + secret new\n  secrets  - secret gone\n  secrets  ~ secret key\n  secrets  ~ password alice\n  secrets  ~ identity ssh\n"
         ),
     ),
     (

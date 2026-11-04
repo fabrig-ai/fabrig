@@ -1,4 +1,4 @@
-//! Canonical resolution and closure hashes (domain/store.md, 6.4).
+//! Canonical resolution and closure hashes (hearth/docs/design/domain/store.md, 6.4).
 use crate::vocabulary::{Closed, Inputs};
 use hearth_lib::{encode::Digest, hash::H};
 #[must_use]
@@ -88,7 +88,7 @@ pub(super) fn record(
             } else if event == Event::Room
                 && store.scan.index.len().saturating_add(RESOLUTION_INDICES) > env.limits.cache_files
             {
-                // domain/store.md, 6.1: eight source lines, sixteen indices each.
+                // hearth/docs/design/domain/store.md, 6.1: eight source lines, sixteen indices each.
                 Some(Decline::Full { limit: Limit::CacheFiles, most: env.limits.cache_files })
             } else {
                 None

@@ -339,7 +339,9 @@ fn model_names_the_first_repository_while_forgejo_sets_up() {
         &mut root,
         watch,
         forge::rows(
-            w::Connection::SettingUp(w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: None }).unwrap()),
+            w::Connection::SettingUp(
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: None, fetched: None }).unwrap(),
+            ),
             w::Offer::Offered,
         ),
     );
@@ -1299,7 +1301,7 @@ fn welcomes_five_steps_use_the_owned_pins_without_a_future_login() {
     ] {
         for (step, expected) in [(w::SetUpStep::Fetch, fetching), (w::SetUpStep::Prepare, fetched)] {
             let connection = w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step) }).unwrap(),
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step), fetched: None }).unwrap(),
             );
             let root =
                 f::forge_root(Address::Welcome { step: Step::Ready }, forge::pinned_rows(connection, pins, runner));
@@ -1322,7 +1324,11 @@ fn ready_offers_forgejo_sign_in_only_when_its_owned_forge_is_connected() {
         (
             forge::pinned_rows(
                 w::Connection::SettingUp(
-                    w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch) }).unwrap(),
+                    w::SettingUp::new(
+                        &w::CEILINGS,
+                        w::SettingUpParts { step: Some(w::SetUpStep::Fetch), fetched: None },
+                    )
+                    .unwrap(),
                 ),
                 true,
                 true,

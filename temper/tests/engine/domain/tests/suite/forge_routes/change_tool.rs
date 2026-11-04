@@ -543,7 +543,8 @@ fn change_with_half_the_remainder_at_minimum_is_refused_as_funding() {
     );
 }
 
-fn several_repositories() -> (World, engine::Assignment) {
+/// A chat whose project has two owned readable adoptions.
+pub(super) fn several_repositories() -> (World, engine::Assignment) {
     let mut world = World::configured(true, true);
     world.adopt();
     world.until(Until::Ready);

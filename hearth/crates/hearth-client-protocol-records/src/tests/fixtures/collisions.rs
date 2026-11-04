@@ -16,14 +16,14 @@ pub fn path_collision() -> Error {
         task: None,
     }
 }
-// A declared account id inside protocol/format.md 5.6's bounds.
+// A declared account id inside hearth/docs/design/protocol/format.md 5.6's bounds.
 pub const COLLISION_UID: u32 = 1_000;
 pub fn shared_uid_collision() -> Error {
     let mut error = path_collision();
     error.kind = Kind::Collision(Collision::Shared {
         id: crate::errors::Id::Uid,
         value: COLLISION_UID,
-        first: copy_of(b"free"),
+        first: copy_of(b"alice"),
         second: copy_of(b"ci"),
     });
     error
@@ -32,7 +32,7 @@ pub fn range_collision() -> Error {
     let mut error = path_collision();
     error.kind = Kind::Collision(Collision::Overlap {
         subject: Subject::Range,
-        first: copy_of(b"free"),
+        first: copy_of(b"alice"),
         second: copy_of(b"ci"),
     });
     error

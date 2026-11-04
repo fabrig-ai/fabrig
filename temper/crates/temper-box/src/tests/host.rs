@@ -1594,3 +1594,166 @@ fn debug_of_the_settings_shows_the_environments_count_never_its_entries() {
     assert_eq!(settings_debug, expected);
     assert!(service_debug.contains(&expected));
 }
+
+// protocol/setup.md, 7.2: fetch progress belongs to the pipe and private log.
+const FETCH_LINE: &[u8] = b"fetched forgejo 1 of 2 bytes\n";
+const FETCH_STDERR: &[u8] = b"download refused\n";
+fn fetch_harness(echo: crate::host::Echo, buffer: u32, items: &[skein_fake_machine::Item]) -> Harness {
+    Harness::configured_echo(super::fixtures::fetching_steps(), items, true, buffer, &crate::limits::small(), echo)
+}
+fn asked_fetch() -> Harness {
+    let mut h = fetch_harness(crate::host::Echo::None, skein_sim::Config::calm().buffer, &[]);
+    h.run_until_idle();
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    h
+}
+fn finish_child(h: &mut Harness, name: &[u8], code: u8) {
+    let pid = h.hosted.get(h.child_index(name)).unwrap().pid;
+    h.sim.finish_service(pid, Exit::Code(code));
+    h.run_until_idle();
+}
+fn fetch_log(h: &mut Harness) -> Box<[u8]> {
+    let root = h.machine.reopen_root(0);
+    let fd = h.machine.open(root, b"box/logs/fetch-3.log", skein_fake_machine::How::Read).unwrap();
+    let log = h.machine.read(fd, 0, 65_536).unwrap().into_boxed_slice();
+    h.machine.close(fd);
+    h.machine.close(root);
+    log
+}
+fn stop_fetch_box(h: &mut Harness) {
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+fn receive_replies(h: &mut Harness, expected: &[u8]) {
+    let mut received = List::with_capacity(u32::try_from(expected.len()).unwrap());
+    for _ in 0..expected.len() {
+        if usize::try_from(received.len()).unwrap() == expected.len() {
+            break;
+        }
+        let remaining = u32::try_from(expected.len()).unwrap().checked_sub(received.len()).unwrap();
+        for byte in h.read_reply(remaining) {
+            received.push(byte).unwrap();
+        }
+        assert_eq!(received.as_slice(), expected.get(..usize::try_from(received.len()).unwrap()).unwrap());
+        h.run_until_idle();
+    }
+    assert_eq!(received.as_slice(), expected);
+}
+#[test]
+fn an_asked_fetch_relays_its_lines_between_its_steps() {
+    let mut h = asked_fetch();
+    let child = h.child_index(b"fetch 3");
+    h.write_stdout(child, FETCH_LINE);
+    h.write_stdout(child, b"fetched runner 7 bytes\n");
+    finish_child(&mut h, b"fetch 3", 0);
+    assert_eq!(
+        h.reply_bytes().as_ref(),
+        b"step 3 fetch\nfetched 3 forgejo 1 2\nfetched 3 runner 7 none\nstep 3 prepare\nstep 3 run\nstarted 3\n"
+    );
+    let log = fetch_log(&mut h);
+    assert!(Harness::contains(&log, FETCH_LINE));
+    assert!(Harness::contains(&log, b"fetched runner 7 bytes\n"));
+    stop_fetch_box(&mut h);
+}
+#[test]
+fn no_terminal_shows_a_fetch_line() {
+    use crate::host::Echo;
+    // A normal log and a refused log each run with the default and --echo steps.
+    for (echo, refused) in [(Echo::None, false), (Echo::Steps, false), (Echo::None, true), (Echo::Steps, true)] {
+        let mut h = fetch_harness(echo, skein_sim::Config::calm().buffer, &[]);
+        if refused {
+            h.refuse_log = Some(bytes::copy_of(b"fetch-3.log"));
+        }
+        h.run_until_idle();
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        let child = h.child_index(b"fetch 3");
+        h.write_stdout(child, FETCH_LINE);
+        h.write_child(child, 2, FETCH_STDERR);
+        h.run_until_idle();
+        finish_child(&mut h, b"fetch 3", 7);
+        let terminal = h.terminal_bytes();
+        assert!(!Harness::contains(&terminal, b"fetched"), "{echo:?}, refused {refused}");
+        assert!(Harness::contains(&terminal, FETCH_STDERR));
+        if echo == Echo::None && !refused {
+            assert!(Harness::contains(
+                &terminal,
+                b"    fetch 3: download refused\n    Log: /data/box/logs/fetch-3.log\n"
+            ));
+        }
+        if !refused {
+            assert!(Harness::contains(&fetch_log(&mut h), FETCH_LINE));
+        }
+        stop_fetch_box(&mut h);
+    }
+}
+#[test]
+fn a_fetch_line_left_in_the_pipe_goes_no_further() {
+    let mut h = asked_fetch();
+    let child = h.child_index(b"fetch 3");
+    h.write_child(child, 1, FETCH_LINE);
+    finish_child(&mut h, b"fetch 3", 0);
+    assert_eq!(h.reply_bytes().as_ref(), b"step 3 fetch\nstep 3 prepare\nstep 3 run\nstarted 3\n");
+    assert!(!Harness::contains(&h.terminal_bytes(), b"fetched"));
+    assert!(!Harness::contains(&h.stderr(), b"unknown line"));
+    assert!(Harness::contains(&fetch_log(&mut h), FETCH_LINE));
+    stop_fetch_box(&mut h);
+}
+#[test]
+fn a_line_it_cannot_read_is_named() {
+    let mut h = asked_fetch();
+    let child = h.child_index(b"fetch 3");
+    let unknown = b"fetched forgejo 3 of 2 bytes\n";
+    h.write_stdout(child, unknown);
+    assert!(Harness::contains(&h.stderr(), b"box: fetch: unknown line\n"));
+    assert_eq!(h.reply_bytes().as_ref(), b"step 3 fetch\n");
+    assert!(Harness::contains(&fetch_log(&mut h), unknown));
+    stop_fetch_box(&mut h);
+}
+#[test]
+fn a_started_group_s_fetch_line_is_named_and_dropped() {
+    let mut h = asked_fetch();
+    finish_child(&mut h, b"fetch 3", 0);
+    finish_child(&mut h, b"forgejo 3", 1);
+    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff));
+    h.run_until_idle();
+    let child = h.child_index(b"fetch 3");
+    h.write_stdout(child, FETCH_LINE);
+    assert!(Harness::contains(&h.stderr(), b"box: fetch: unknown line\n"));
+    assert!(!Harness::contains(&h.reply_bytes(), b"fetched"));
+    assert!(Harness::contains(&fetch_log(&mut h), FETCH_LINE));
+    stop_fetch_box(&mut h);
+}
+#[test]
+fn a_stalled_pipe_keeps_the_latest_and_every_reply() {
+    // Three group steps give five reply slots (host::reply_entries).
+    // Sixteen progress lines exceed that queue while an eight-byte pipe stalls.
+    const PROGRESS_LINES: u64 = 16;
+    const PIPE_BYTES: u32 = 8;
+    let mut h = fetch_harness(crate::host::Echo::None, PIPE_BYTES, &[]);
+    h.run_until_idle();
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    let child = h.child_index(b"fetch 3");
+    for done in 1..=PROGRESS_LINES {
+        let line = crate::lines::joined(&[b"fetched runner ", skein_lib::Decimal::of(done).as_bytes(), b" bytes\n"]);
+        h.write_stdout(child, &line);
+    }
+    receive_replies(&mut h, b"step 3 fetch\nfetched 3 runner 16 none\n");
+    // The first new figure is in flight; only the latest waits behind it.
+    for done in PROGRESS_LINES + 1..=PROGRESS_LINES * 2 {
+        let line = crate::lines::joined(&[b"fetched runner ", skein_lib::Decimal::of(done).as_bytes(), b" bytes\n"]);
+        h.write_stdout(child, &line);
+    }
+    finish_child(&mut h, b"fetch 3", 7);
+    receive_replies(&mut h, b"fetched 3 runner 17 none\nfailed 3 fetch 3 exited 7\n");
+    h.ask(b"stop 3\n");
+    h.run_until_idle();
+    receive_replies(&mut h, b"stopped 3\n");
+    assert!(Harness::contains(&fetch_log(&mut h), b"fetched runner 32 bytes\n"));
+    stop_fetch_box(&mut h);
+}

@@ -9,7 +9,7 @@
   "host": {},
   "locale": {},
   "boot": { "params": { "audit": { "param": "audit=0" } } },
-  "users": { "accounts": { "free": { "uid": 1000, "groups": ["sudo"], "password": "users/free.passwd" } } },
+  "users": { "accounts": { "alice": { "uid": 1000, "groups": ["sudo"], "password": "users/alice.passwd" } } },
   "wifi": {},
-  "desktop": { "user": "free" }
+  "desktop": { "user": "alice" }
 }

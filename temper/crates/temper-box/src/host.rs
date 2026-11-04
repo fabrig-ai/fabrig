@@ -5,7 +5,7 @@ use crate::{
     limits::{Limits, Unfit},
     lines::{self, Lines, Output},
     logs::{Logs, Piece},
-    machine::{Input, Machine, Order, Outcome, Said},
+    machine::{Input, Machine, Order, Outcome, Relay, Said},
     pipe::{self, Command, Line, Reader},
     ready::Ready,
     records::Records,
@@ -21,7 +21,7 @@ use skein_lib::{
     Decimal, Duration, Env, List, Queue, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
-use temper_forge_setup::{Kind, Step, Steps};
+use temper_forge_setup::{Kind, Stage, Step, Steps, fetch::Fetched};
 /// Which diagnostic lines also reach the terminal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Echo {
@@ -137,6 +137,7 @@ enum ReadPhase {
 struct Control {
     read: Token,
     sink: Sink,
+    fetched: Option<Box<[u8]>>,
     reader: Reader,
     reading: bool,
     read_phase: ReadPhase,
@@ -488,6 +489,7 @@ impl Service {
                     self.control = Some(Control {
                         read: *pipes.get(2).expect("serve requests pipe"),
                         sink: Sink::new(*pipes.get(3).expect("serve answers pipe"), self.reply_entries),
+                        fetched: None,
                         reader: Reader::new(self.line_bytes),
                         reading: false,
                         read_phase: ReadPhase::Open,
@@ -655,6 +657,7 @@ impl Service {
             }
             Order::Say { said } => {
                 if let Some(control) = &mut self.control {
+                    control.fetched = None;
                     let line = match said {
                         Said::Step { step } => {
                             let asked = self.steps.get(step).expect("step").asked.expect("asked step");
@@ -831,6 +834,7 @@ impl Service {
             }
         }
     }
+    #[expect(clippy::too_many_lines, reason = "Child admission and its fetch output share one per-step pass.")]
     fn children(&mut self) {
         self.withdrawn();
         let failure = self.failure;
@@ -841,6 +845,13 @@ impl Service {
                 break;
             }
             self.child_ready(step);
+            let notice_room = self.notice_room();
+            let mut unknown = None;
+            let placed = self.steps.get(step).expect("child step");
+            let fetch = match placed.asked {
+                Some(asked) if asked.stage == Stage::Fetch => Some(asked),
+                Some(_) | None => None,
+            };
             let state = self.children.get_mut(step).expect("child step");
             let description = &self.steps.get(step).expect("step state").step;
             for (fd, pipe) in state.pipes.iter_mut().enumerate() {
@@ -851,13 +862,33 @@ impl Service {
                     Some((fact, _)) => plain && terminal::tail_step(fact) == Some(step),
                 };
                 let quiet = !plain && self.settings.echo == Echo::None && !self.logs.failed(step);
-                let diagnostic_ready = plain || self.logs.takes();
+                let diagnostic_ready = (plain || self.logs.takes()) && (fd != 0 || fetch.is_none() || notice_room);
                 if diagnostic_ready
                     && (quiet || terminal_available && self.terminal.takes(entries) || self.terminal.failed())
                     && let Some(output) = pipe.lines.take(description.name())
                 {
                     match output {
-                        Output::Piece { bytes, wall } => self.logs.put(Piece { step, bytes, wall }),
+                        Output::Piece { bytes, wall } => {
+                            let mut log_only = false;
+                            if fd == 0
+                                && let Some(asked) = fetch
+                            {
+                                match (Fetched::read(&bytes), self.machine.relay(step)) {
+                                    (Some(fetched), Relay::Send) => {
+                                        if let Some(control) = &mut self.control {
+                                            control.fetched = Some(pipe::fetched(asked.forge, fetched));
+                                        }
+                                        log_only = true;
+                                    }
+                                    (Some(_), Relay::Exited) => log_only = true,
+                                    (Some(_), Relay::Unasked)
+                                    | (None, Relay::Send | Relay::Unasked | Relay::Exited) => {
+                                        unknown = Some(wall);
+                                    }
+                                }
+                            }
+                            self.logs.put(Piece { step, bytes, wall, log_only });
+                        }
                         Output::Line { bytes, wall } if plain && !self.terminal.failed() => {
                             self.terminal.block(self.formatter.block(bytes, wall)).expect("atomic block room");
                             self.formatter.admitted_block();
@@ -928,6 +959,9 @@ impl Service {
                     },
                 });
             }
+            if let Some(wall) = unknown {
+                self.notice(self.formatter.notice(b"box: fetch: unknown line\n", wall));
+            }
         }
     }
     fn notice_room(&self) -> bool {
@@ -969,14 +1003,15 @@ impl Service {
             self.notice(self.formatter.notice(&notice, self.env.wall));
         }
         if self.logs.completed() {
-            let echo = self.settings.echo == Echo::Steps || self.logs.failed(self.logs_step());
+            let echo =
+                !self.logs.log_only() && (self.settings.echo == Echo::Steps || self.logs.failed(self.logs_step()));
             if (!echo || self.notice_room())
                 && let Some(piece) = self.logs.take()
             {
                 let name = self.steps.get(piece.step).expect("log step").step.name();
                 if echo {
                     self.notice(Item { target: Target::Stderr, bytes: piece.echo(name) });
-                } else if !self.logs.failed(piece.step) {
+                } else if !piece.log_only && !self.logs.failed(piece.step) {
                     self.children.get_mut(piece.step).expect("log step").tail.push(piece.echo(name));
                 }
             }
@@ -1075,6 +1110,11 @@ impl Service {
             control.reading = true;
         }
         if let Some(control) = &mut self.control {
+            if control.sink.drained()
+                && let Some(fetched) = control.fetched.take()
+            {
+                control.sink.push(fetched).expect("drained sink holds one fetch line");
+            }
             control.sink.tick(false, &mut self.requests);
             control.sink.flush(self.env.limits.output, &mut self.requests);
         }
@@ -1369,7 +1409,9 @@ impl skein_shell::Host for Service {
             || self.logs.has_notice() && self.notice_room()
             || !self.deferred.is_empty() && self.failure.is_none() && (self.terminal.takes(1) || self.terminal.failed())
             || self.logs.completed()
-                && (self.settings.echo == Echo::None && !self.logs.failed(self.logs_step()) || self.notice_room())
+                && (self.logs.log_only()
+                    || self.settings.echo == Echo::None && !self.logs.failed(self.logs_step())
+                    || self.notice_room())
         {
             return true;
         }
@@ -1378,7 +1420,8 @@ impl skein_shell::Host for Service {
         }
         if let Some(control) = &self.control
             && self.requests.room() >= 5
-            && (control.sink.pending()
+            && (control.fetched.is_some() && control.sink.drained()
+                || control.sink.pending()
                 || control.sink.needs_flush()
                 || self.can_read_control()
                 || (control.line.is_some() && self.control_ready()))
@@ -1405,12 +1448,17 @@ impl skein_shell::Host for Service {
             let description = &self.steps.get(step).expect("step state").step;
             for (fd, pipe) in state.pipes.iter().enumerate() {
                 let plain = fd == 0 && lines::route(&self.settings.serve, description.name(), 1);
+                let fetch = match self.steps.get(step).expect("step").asked {
+                    Some(asked) => asked.stage == Stage::Fetch,
+                    None => false,
+                };
                 let entries = if plain { self.formatter.block_entries() } else { 1 };
                 let quiet = !plain && self.settings.echo == Echo::None && !self.logs.failed(step);
                 let visible = self.terminal_available(step, plain);
                 if self.requests.room() >= 8
                     && (plain || self.logs.takes())
                     && ((pipe.lines.ready()
+                        && (fd != 0 || !fetch || self.notice_room())
                         && (quiet || visible && self.terminal.takes(entries) || self.terminal.failed()))
                         || (pipe.lines.wants_read()
                             && !pipe.reading
