@@ -1,4 +1,4 @@
-//! Complete watch admission and timed retry (temper/docs/design/domain/forge.md, 5.1).
+//! Complete watch admission and timed retry (temper/docs/design/domain/forge.md, 5.1 and 8.5).
 use super::{
     ChangeRow, Domain, Env, Limits, Name, PendingStep, Request, StepStage, Stored, What, Writer, child, child_env,
     drain, emit, participating, to_client, valid_name,
@@ -181,6 +181,33 @@ pub(super) fn writers(d: &mut Domain, env: &Env<Limits>) {
             );
         }
     }
+    let mut entries = List::with_capacity(env.limits.entries);
+    for (_, row) in &d.entries {
+        if !row.held
+            && let skein_forge_client::Condition::Merge { .. } = &row.entry.effect.condition
+        {
+            entries.push(row.entry.clone()).expect("bounded outbox");
+        }
+    }
+    for entry in &entries {
+        merge_writer(d, env, entry, true);
+    }
+}
+
+/// Keep a merge's held base visible as written until its outcome confirms the head.
+pub(super) fn merge_writer(d: &mut Domain, env: &Env<Limits>, entry: &skein_forge_client::Entry, taken: bool) {
+    let skein_forge_client::Condition::Merge { base } = &entry.effect.condition else { return };
+    let resource = Resource { repository: entry.repository, what: skein_forge_client::What::Branch(base.clone()) };
+    let Some(name) = super::from_client(&resource, &env.limits) else { return };
+    if !d.holds.contains_key(&name) {
+        return;
+    }
+    skein_forge_client::step(
+        &mut d.client,
+        &child_env(env),
+        skein_forge_client::Event::Writer { resource, taken },
+        &mut d.client_out,
+    );
 }
 
 pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

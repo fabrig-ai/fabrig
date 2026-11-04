@@ -1,5 +1,5 @@
 //! Retained accounts of procedure decisions and resource holds
-//! (temper/docs/design/domain/forge.md, 8.4 and 11).
+//! (temper/docs/design/domain/forge.md, 8.4, 8.5 and 11).
 use super::{
     Domain, EffectDescription, Env, Limits, List, ProcedureStep, StepEnd, Work, append, append_change_replies,
     authority, decimal, forge, tasks,
@@ -130,11 +130,15 @@ pub(super) fn effect(words: &mut List<u8>, description: &EffectDescription) {
 }
 
 pub(super) fn recovery(domain: &Domain, task: u64, words: &mut List<u8>) {
+    let revision = domain.core.tasks.task(task).expect("held procedure").revisions.hold.saturating_add(1);
+    append_recovery(task, revision, words);
+}
+
+fn append_recovery(task: u64, revision: u64, words: &mut List<u8>) {
     let mut tail = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
     append(&mut tail, b"; resolve this reason, then task release ");
     append(&mut tail, &decimal(task));
     append(&mut tail, b" --hold ");
-    let revision = domain.core.tasks.task(task).expect("held procedure").revisions.hold.saturating_add(1);
     append(&mut tail, &decimal(revision));
     append(&mut tail, b"; or task cancel ");
     append(&mut tail, &decimal(task));
@@ -177,6 +181,56 @@ pub(super) fn taken_words(domain: &Domain, resource: &forge::Name, by: u64) -> B
     append(&mut words, b" is taken by holder ");
     append(&mut words, &decimal(by));
     words.into_boxed()
+}
+
+/// Retain the resource and its recorded observation in the goal's drift account.
+pub(super) fn drift(domain: &mut Domain, task: u64, resource: &forge::Name) {
+    let recorded = match domain.forge.hold(resource) {
+        Some(hold) => hold.drift.as_ref(),
+        None => None,
+    };
+    let words = drift_words(domain, resource, recorded);
+    hold_as(domain, task, tasks::Hold::Drift, words.as_slice());
+}
+
+fn drift_words(domain: &Domain, resource: &forge::Name, recorded: Option<&forge::Drift>) -> List<u8> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append(&mut words, b"Resource drift");
+    if let Some(drift) = recorded {
+        append(&mut words, b" at ");
+        append(&mut words, &decimal(drift.at.as_nanos()));
+        append(&mut words, b" ns since Unix epoch: ");
+        drift_change(&mut words, &drift.change);
+    }
+    append(&mut words, b"; ");
+    resource_words(domain, resource, &mut words);
+    words
+}
+
+fn drift_change(words: &mut List<u8>, change: &forge::DriftChange) {
+    match change {
+        forge::DriftChange::Branch { expected, observed } => {
+            append(words, b"expected ");
+            append(words, &super::commit_text(expected));
+            match observed {
+                Some(head) => {
+                    append(words, b", observed ");
+                    append(words, &super::commit_text(head));
+                }
+                None => append(words, b", observed deletion"),
+            }
+        }
+        forge::DriftChange::PullClosed { number } => {
+            append(words, b"pull request closed: ");
+            append(words, &decimal(*number));
+        }
+        forge::DriftChange::Retargeted { before, after, .. } => {
+            append(words, b"retargeted from ");
+            append(words, before);
+            append(words, b" to ");
+            append(words, after);
+        }
+    }
 }
 
 pub(super) fn make_words(domain: &Domain, resource: &forge::Name, reason: &[u8]) -> Box<[u8]> {
@@ -302,6 +356,38 @@ mod tests {
                 b"g7".as_slice().into(),
             ])),
         }
+    }
+
+    #[test]
+    fn a_long_resource_keeps_both_heads_in_the_drift_account() {
+        let (domain, _, _) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
+        let mut resource = goal_branch();
+        let branch = [b'x'; 240];
+        resource.what = forge::What::Branch(Box::new([branch.as_slice().into()]));
+        let expected = [0xab; 32];
+        let observed = [0xcd; 32];
+        let recorded = forge::Drift {
+            at: skein_lib::Wall::from_nanos(u64::MAX),
+            change: forge::DriftChange::Branch { expected, observed: Some(observed) },
+        };
+        let mut words = drift_words(&domain, &resource, Some(&recorded));
+        append_recovery(u64::MAX, u64::MAX, &mut words);
+        for text in [
+            super::super::commit_text(&expected),
+            super::super::commit_text(&observed),
+            b"18446744073709551615".as_slice().into(),
+            b"branch ".as_slice().into(),
+        ] {
+            let mut found = false;
+            for part in words.as_slice().windows(text.len()) {
+                if part == text.as_ref() {
+                    found = true;
+                    break;
+                }
+            }
+            assert!(found, "whole field {text:?} in {words:?}");
+        }
+        assert!(words.len() <= tasks::HOLD_ACCOUNT_BYTES);
     }
 
     #[test]
