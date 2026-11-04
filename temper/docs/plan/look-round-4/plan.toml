@@ -28,3 +28,156 @@ id = 1
 story = "Home knows what needs the person in its project, and the stylesheet can draw it"
 parts = ["home-needs", "everyday-look"]
 walk = false
+
+[[part]]
+id = "home-everyday"
+title = "Home on any project: the headline by what needs the person, Needs you and Chats"
+mode = "direct"
+needs = ["home-needs", "everyday-look"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "account-everyday"
+title = "project-home-everyday's render check and account"
+mode = "direct"
+needs = ["home-everyday"]
+design = "temper/docs/design/client/journeys.md, 7"
+
+[[slice]]
+id = 2
+story = "a project at work shows what needs the person and its chats on Home"
+parts = ["home-everyday", "account-everyday"]
+walk = false
+
+[[part]]
+id = "to-begin-facts"
+title = "To begin's steps computed, when it shows, and Skip sent"
+mode = "direct"
+needs = ["home-needs"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "to-begin-story"
+title = "Skip across the real engine, on every device"
+mode = "direct"
+needs = ["to-begin-facts"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "to-begin-card"
+title = "To begin, a card with Skip, shown as the draft says"
+mode = "direct"
+needs = ["home-everyday", "to-begin-facts"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "account-onboarding"
+title = "project-home-onboarding's render check and account"
+mode = "direct"
+needs = ["to-begin-card", "to-begin-story"]
+design = "temper/docs/design/client/journeys.md, 7"
+
+[[slice]]
+id = 3
+story = "a new project's Home opens with To begin, and Skip holds on every device"
+parts = ["to-begin-facts", "to-begin-story", "to-begin-card", "account-onboarding"]
+walk = false
+
+[[part]]
+id = "more-accounts"
+title = "the shorter lede and the link to Accounts, with their account"
+mode = "direct"
+needs = ["account-onboarding"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "drops-connected"
+title = "Home drops Connected, with its account"
+mode = "direct"
+needs = ["more-accounts"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 4
+story = "Home says what more accounts offer, and no longer lists what is connected"
+parts = ["more-accounts", "drops-connected"]
+walk = false
+
+[[part]]
+id = "configure-address"
+title = "Configure's address, and the chat's start from it"
+mode = "direct"
+needs = ["to-begin-card"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "configure-page"
+title = "the configuring chat's page, opened by every offer"
+mode = "direct"
+needs = ["configure-address", "drops-connected"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "configuring-chat"
+title = "a configuring chat keeps the layout, and is tagged in Chats"
+mode = "direct"
+needs = ["configure-page"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "account-configure"
+title = "configure-chat-in-settings' render check and account"
+mode = "direct"
+needs = ["configuring-chat"]
+design = "temper/docs/design/client/journeys.md, 7"
+
+[[slice]]
+id = 5
+story = "Tell temper how you work opens its own page under Settings, empty until the person's words"
+parts = ["configure-address", "configure-page", "configuring-chat", "account-configure"]
+walk = false
+
+[[part]]
+id = "record-landing"
+title = "project-landing recorded again, or what stops it"
+mode = "direct"
+needs = ["account-configure"]
+design = "temper/docs/design/client/journeys.md, 9"
+
+[[part]]
+id = "playground-line"
+title = "what holds of ready/look-fixes/playground-pane"
+mode = "direct"
+needs = ["account-configure"]
+design = "temper/docs/design/client/README.md, 4.8"
+
+[[slice]]
+id = 6
+story = "the welcome's Home is recorded, and the earlier round's playground fix lands"
+parts = ["record-landing", "playground-line"]
+walk = false
+
+[[question]]
+id = "home-what-changed"
+parts = ["home-everyday"]
+text = """The request project-home-everyday draws Home's intro as what changed since the person last looked: "you last looked an hour ago" in the kicker, what landed in the headline, a lede and a byline ("Written by T3's agent, 4 min ago"). No client is given when a person last looked (jig keeps positions, not times), and nothing writes that intro; the message itself leaves the writer open. Each is a new fact of a protocol or a stored one, so yours (temper/docs/design/draft/look-requests.md, 6). Default taken, and no task waits: the kicker is the day and time, the headline counts what needs the person in the project, no lede and no byline. Options: (a, recommended) keep the default now, and draft the intro's writer with the status agent, since the landed line and the last look need it anyway; (b) a stored last-look time alone, a party's own, as Dismissed is, as a follow-up plan."""
+
+[[question]]
+id = "home-answers"
+parts = ["home-everyday"]
+text = """The request draws a question on Home with its context, choices with one recommended, "Reply" and "Later", then a green line with "Undo" once answered. jig's question carries words alone, nothing recommends a choice, and no request retracts an answer: each is an upstream change to jig's contract, so yours (temper/docs/design/client/README.md, 11, The mockups' question card). Default taken, and no task waits: the card shows the asked task's link, its kind, age and words, with "Reply" going to the project's inbox, which answers in words; "Answer" on a phone and "Answer in a row" go there too; no "Later", no green line, no "Undo". Options: (a, recommended) keep the default until jig's question form carries choices, then land the card whole with its own draft; (b) answer in words in place on Home now, a text field the request doesn't draw, with the client's existing acts."""
+
+[[question]]
+id = "home-landing-line"
+parts = ["home-everyday"]
+text = """The request ends Home with "Landing: main last moved 1 h ago · nothing queued", and "Landing: nothing has landed yet" on a new project. No client is given a project's landing branch's last move or its queue's depth: the landings panel lists turns alone, since a queue's merge makes no landing task, so neither sentence can be said honestly. It is a new fact of the forge's client protocol, so yours. Default taken, and no task waits: Home draws no such line; its rule is in the stylesheet. Options: (a, recommended) a draft for a project's landing fact in temper's client wire, then the line; (b) drop the line from Home for good."""
+
+[[question]]
+id = "home-goals"
+parts = ["home-everyday"]
+text = """The request says that with goals on, as the default configuration may have them, Home shows Goals instead of Chats, each a row with its id, progress and state. The default configuration is still yours to settle, no fact tells a client that goals are on, and the private Board isn't built. Default taken, and no task waits: Home always shows Chats. Options: (a, recommended) settle it with the default configuration, then a plan of its own; (b) treat a project whose `me` offers the goal template as goals on, which every stock project does, so every Home would show Goals."""
+
+[[question]]
+id = "to-begin-landing-by"
+parts = ["to-begin-card"]
+text = """to-begin.md, 3 has the second step name temper's landing turn for a project landing by turn. No client is given a project's `by` (temper/docs/design/domain/landing.md, 13.1: it is the document's `landing` member until it is a setting). Giving it is a new fact of a protocol, so yours. Default taken, and no task waits: the step has the merge queue's words on every project, recorded as Design departs in to-begin.status.md. Options: (a, recommended) keep the default until kind 4 is a setting the `settings` document shows, which needs no protocol of Home's own; (b) add `by` to the forges' rows."""

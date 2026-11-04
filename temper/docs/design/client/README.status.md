@@ -23,6 +23,12 @@
   its rename still drawn; `configured` and `chat_asked` in
   `temper-client-domain`'s `pages/home.rs` do not tell a configuring
   chat from another.
+  3.5, The first chat, The configuring chat's page: no `Configure {
+  project }`: the offers start the chat at once, its first message
+  `FIRST_CHAT_WORDS`, and a configuring chat draws as any chat, with no
+  tag in `Chats`.
+  3.5, 4.8, 5.1, 5.6: the playground's line shows on every page while
+  it runs (`temper-client-view`'s `root.rs`).
   3.5, 11: a project's creation age and its repository's first CI run
   are not supplied to Home. Its kicker uses the current day and time,
   and its repository step describes checked changes landing through
