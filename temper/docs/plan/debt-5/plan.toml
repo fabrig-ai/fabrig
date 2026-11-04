@@ -1,3 +1,23 @@
 draft = "debt-5"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-5/inputs/request.md", "temper/docs/plan/debt-5/inputs/smith-lifecycles-review.md", "jig/docs/development/debt/D001-roots-sequence-core-steps.md", "skein/docs/development/debt/D010-github-on-forgejo-modules.md", "temper/docs/development/debt/D007-docs-guide-kind.md", "temper/docs/development/debt/D008-pipeline-names-in-code.md", "temper/docs/development/debt/D009-interim-account-counts.md", "temper/docs/development/debt/D010-path-shared-fixtures.md"]
+
+# Four debt parts, one per tree (inputs/request.md), which read none of each other's code but for
+# the root's vocabulary of jig D001. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "temper-items"
+title = "temper D007, D008, D009 and D010: four small items, one task each"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/documentation.md, 2.2"
+
+[[slice]]
+id = 1
+story = "temper's client reads jig's account counts, its fixtures live in a test kit crate, its comments say what holds now, and temper-docs keeps only the design's page kinds"
+parts = ["temper-items"]
+walk = false
