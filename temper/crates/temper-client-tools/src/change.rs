@@ -494,10 +494,7 @@ fn task_ended(
             return Some(missing(watch.task, watch.called.json));
         }
     } else if watch.final_panel {
-        return Some(match watch.last.as_deref() {
-            Some(panel) => print(Some(panel), watch.called.json, Some(false), b"ended", &env.limits, &watch.holds),
-            None => missing(watch.task, watch.called.json),
-        });
+        return if watch.last.is_some() { delivered(watch, env) } else { Some(missing(watch.task, watch.called.json)) };
     } else {
         watch.final_panel = true;
         if watch.panel.is_none() {
