@@ -1471,8 +1471,7 @@ section 10.
   hearth asks of skein (hearth/docs/design/README.md, 8.1; `skein/docs/design/lib.md`, 5.1). Each
   process's `state_digest` and the fake machine's are read at the end of
   a run, and after every iteration when a world asks (
-  `skein/docs/design/testing.md`, section 5). Until skein has it, replay compares the
-  trace and the fake's digest.
+  `skein/docs/design/testing.md`, section 5).
 - **Transition coverage:** `cargo llvm-cov` over both suites lists the
   handlers never reached; each is a missing scenario.
 - **Fuzzing:** each machine and decoder alone; step functions fed
@@ -1600,7 +1599,7 @@ before M2 begins. M2 is the largest step for the fakes, since a build
 touches everything; M3, the MVP, adds the machine's lower half and the
 VM tier its one real machine relies on.
 
-## 11. What is open
+## 11. Open questions
 
 - **When the generic half moves, and its name in skein** (3.11): it
   depends on when temper builds its machine.
@@ -1639,13 +1638,11 @@ VM tier its one real machine relies on.
   as idle-machine figures (`skein/docs/foundation/testing-strategy.md`,
   8.1). It depends on the user's ruling on the measurements.
 - **The conformance tier's budget and its runs** (5.5, 9.2):
-  `tools/tiers/budgets.toml` has no `conformance-hearth` entry, and the
-  tier runs by hand. Whether it takes a budget and a place after landing
+  whether it takes a budget and a place after landing
   depends on the user, and on a runner holding its prerequisites (6.4).
-- **The fail-stop check:** `hearth/scripts/fail_stop.py` keeps to
-  hearth's packages, and no gate runs it. Over the workspace it names two
-  of temper's binaries, `temper-stage-one` and `playground-serve`.
-  Whether the gate takes it depends on those two.
+- **The fail-stop check:** whether the gate takes
+  `hearth/scripts/fail_stop.py` over the workspace depends on two of
+  temper's binaries, `temper-stage-one` and `playground-serve`.
 - **The newer model:** `worst_case` and `MAX_OUT` stay in hearth as
   allowed old forms, which may only fall
   (`skein/docs/foundation/programming-model.md`, 6.3). Moving to the
