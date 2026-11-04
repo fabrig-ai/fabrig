@@ -261,7 +261,7 @@ impl Turns {
         self.assistant_events = self.assistant_events.checked_add(1).ok_or(Rejection::Overflow)?;
         let value = json::field(document, 0, b"message").ok_or(Rejection::Malformed)?;
         let id = json::text_in(document, json::field(document, value, b"id")).ok_or(Rejection::Malformed)?;
-        // smith/docs/design/protocol/programs.md 5.5: an assistant ID without message_start is an
+        // An assistant ID without message_start is an
         // atomic program-authored message. Framed IDs still wait for stop
         // and every block, including when the full content precedes stop.
         if let Some(message) = &self.message

@@ -1,4 +1,4 @@
-//! Redacted stream refusals (smith/docs/design/protocol/programs.md, 5.6).
+//! Redacted stream refusals.
 //! Keeps only adapter-owned labels and counts, never program payloads.
 
 use alloc::boxed::Box;
