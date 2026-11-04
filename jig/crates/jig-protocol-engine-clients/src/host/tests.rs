@@ -23,8 +23,7 @@ fn public_names_are_kept_as_a_key_without_an_expiry() {
 
 #[test]
 fn endings_leave_in_commit_order_behind_their_own_commit() {
-    const COMMITS: u32 = 2; // Two scripted commits, each ending two sign-ins.
-    let mut endings = Endings::new(COMMITS);
+    let mut endings = Endings::new(2);
     for (commit, sign_in) in [(58, 43), (58, 44), (57, 41), (57, 42)] {
         endings.ended(commit, sign_in);
     }

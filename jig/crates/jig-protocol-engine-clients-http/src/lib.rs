@@ -274,16 +274,7 @@ pub fn claims(settings: &Settings, call: &http::Call) -> bool {
 #[must_use]
 pub fn printed_link(address: ::core::net::SocketAddr, path: &[u8]) -> Box<[u8]> {
     let host = kit::host::address_text(address).expect("bound listener address");
-    let parts: [&[u8]; 3] = [b"http://", &host, path];
-    let mut length = 0_usize;
-    for part in parts {
-        length = length.checked_add(part.len()).expect("short printed URL");
-    }
-    let mut out = skein_lib::Writer::new(length);
-    for part in parts {
-        out.put(part).expect("measured URL");
-    }
-    out.finish()
+    skein_lib::bytes::concat(&[b"http://", &host, path])
 }
 #[must_use]
 pub fn link_path(settings: &Settings, secret: &Secret) -> Box<[u8]> {

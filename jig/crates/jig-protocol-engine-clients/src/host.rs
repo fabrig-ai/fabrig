@@ -1,14 +1,13 @@
 //! The clients' side of a service (jig/docs/design/protocol/service.md, 11.6).
 use crate as kit;
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core as domain;
 use jig_domain_people as people;
 use jig_protocol_store as store;
 use skein_lib::{List, Map, Token, Wall};
 const HOST_BYTES: u32 = 64;
 
-/// What a secrets request in flight was for: a kept value's owner, or the
-/// exchange whose carried value the store numbers itself.
+/// What a request in flight was for: a kept value's owner, or the exchange whose carried value the store numbers.
 #[derive(Clone, Copy, Debug)]
 enum Asked {
     Owner(kit::SecretOwner),
@@ -46,25 +45,21 @@ impl Bridge {
             Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Kept { owner } => kit::SecretsAnswer::Kept { owner: self.owner(owner) },
             Event::Erased { owner } => kit::SecretsAnswer::Erased { owner: self.owner(owner) },
-            Event::Carried { owner, number } => {
-                kit::SecretsAnswer::Carried { exchange: self.carry(owner), number: Some(number) }
-            }
+            Event::Carried { owner, number } => match self.owners.remove(&owner).expect("secret carry owner") {
+                Asked::Carry(exchange) => kit::SecretsAnswer::Carried { exchange, number: Some(number) },
+                Asked::Owner(_) => unreachable!("the store answers Carried only to a carry"),
+            },
             Event::Stale { owner } => match self.owners.remove(&owner).expect("secret stale owner") {
                 Asked::Carry(exchange) => kit::SecretsAnswer::Carried { exchange, number: None },
                 Asked::Owner(_) => kit::SecretsAnswer::Failed,
             },
             Event::Secret { owner, value } => {
                 let owner = self.owner(owner);
-                let value = match value {
-                    Some(value) => match kept(value) {
-                        Some(value) => Some(value),
-                        None => {
-                            return kit::SecretsAnswer::Failed;
-                        }
-                    },
-                    None => None,
+                let Some(value) = value else {
+                    return kit::SecretsAnswer::Got { owner, value: None };
                 };
-                kit::SecretsAnswer::Got { owner, value }
+                let Some(value) = kept(value) else { return kit::SecretsAnswer::Failed };
+                kit::SecretsAnswer::Got { owner, value: Some(value) }
             }
             Event::SecretsLoaded { .. }
             | Event::Switched { .. }
@@ -88,12 +83,6 @@ impl Bridge {
         match self.owners.remove(&token).expect("secret request owner") {
             Asked::Owner(owner) => owner,
             Asked::Carry(_) => unreachable!("the store answers a carry Carried or Stale"),
-        }
-    }
-    fn carry(&mut self, token: Token) -> Token {
-        match self.owners.remove(&token).expect("secret carry owner") {
-            Asked::Carry(exchange) => exchange,
-            Asked::Owner(_) => unreachable!("the store answers Carried only to a carry"),
         }
     }
 }
@@ -131,8 +120,7 @@ fn secret_request(request: kit::SecretsRequest) -> (Asked, store::Secrets) {
         }
     }
 }
-/// Where the store keeps an owner's value; a carried value is the
-/// application's, under the number the store drew (store.md 9).
+/// Where the store keeps an owner's value; a carried one is the application's, under the store's number (store.md, 9).
 #[must_use]
 pub fn place(owner: kit::SecretOwner) -> (store::SecretOwner, u64) {
     use store::SecretOwner;
@@ -210,9 +198,8 @@ impl Endings {
     pub fn waiting(&self) -> u32 {
         let mut count = 0_u32;
         for (_, ending) in &self.commits {
-            count = count
-                .checked_add(ending.numbers.len().checked_sub(ending.next).expect("ending index"))
-                .expect("bounded sign-in endings");
+            let left = ending.numbers.len().checked_sub(ending.next).expect("ending index");
+            count = count.checked_add(left).expect("bounded sign-in endings");
         }
         count
     }
@@ -234,10 +221,10 @@ impl Endings {
 }
 /// The sign-in a core key's erasure ends.
 #[must_use]
-pub fn ending(key: &core::Key) -> Option<u64> {
+pub fn ending(key: &domain::Key) -> Option<u64> {
     match key {
-        core::Key::People(people::Key::SignIn(number)) => Some(*number),
-        core::Key::People(
+        domain::Key::People(people::Key::SignIn(number)) => Some(*number),
+        domain::Key::People(
             people::Key::Person(..)
             | people::Key::ReadResults { .. }
             | people::Key::EndedRead { .. }
@@ -249,30 +236,21 @@ pub fn ending(key: &core::Key) -> Option<u64> {
             | people::Key::Acted(..)
             | people::Key::Answer(..),
         )
-        | core::Key::Core(..)
-        | core::Key::Tasks(..)
-        | core::Key::Notes(..)
-        | core::Key::Accounts(..) => None,
+        | domain::Key::Core(..)
+        | domain::Key::Tasks(..)
+        | domain::Key::Notes(..)
+        | domain::Key::Accounts(..) => None,
     }
 }
 /// jig's own client protocol, then the application's family.
 #[must_use]
 pub fn served(application: kit::Served) -> List<kit::Served> {
-    let mut served = List::with_capacity(2);
-    served
-        .push(kit::Served {
-            family: None,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        })
-        .expect("two served families");
-    served.push(application).expect("two served families");
-    served
+    use jig_client_protocol_wire::VERSION;
+    List::from_boxed(Box::new([kit::Served { family: None, first: VERSION, last: VERSION }, application]))
 }
 /// A bound address as text, `None` for a non-loopback IPv6 one.
 #[must_use]
 pub fn address_text(address: ::core::net::SocketAddr) -> Option<Box<[u8]>> {
-    use ::core;
     let mut text = skein_lib::Intake::with_capacity(HOST_BYTES);
     match address.ip() {
         core::net::IpAddr::V4(ip) => {
@@ -283,12 +261,8 @@ pub fn address_text(address: ::core::net::SocketAddr) -> Option<Box<[u8]>> {
                 text.append(skein_lib::Decimal::of(u64::from(*octet)).as_bytes()).ok()?;
             }
         }
-        core::net::IpAddr::V6(ip) => {
-            if !ip.is_loopback() {
-                return None;
-            }
-            text.append(b"[::1]").ok()?;
-        }
+        core::net::IpAddr::V6(ip) if ip.is_loopback() => text.append(b"[::1]").ok()?,
+        core::net::IpAddr::V6(_) => return None,
     }
     text.append(b":").ok()?;
     text.append(skein_lib::Decimal::of(u64::from(address.port())).as_bytes()).ok()?;

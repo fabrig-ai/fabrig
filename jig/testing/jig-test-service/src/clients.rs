@@ -1,6 +1,7 @@
 //! The clients child and secret-free root handoffs (client.md, 2 and 8; service.md, 3).
 use crate::{Seeds, family};
 use alloc::boxed::Box;
+use jig_client_test_protocol_wire::VERSION;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_config::{self as config, Path, Problems, What};
@@ -133,11 +134,7 @@ impl Clients {
         };
         let application = config::clients::Application {
             link,
-            served: kit::host::served(kit::Served {
-                family: Some(1),
-                first: jig_client_test_protocol_wire::VERSION,
-                last: jig_client_test_protocol_wire::VERSION,
-            }),
+            served: kit::host::served(kit::Served { family: Some(1), first: VERSION, last: VERSION }),
             public: List::with_capacity(0),
             moved_bytes: jig_protocol_accounts::moved::bound(&config.limits.driver.client.document),
         };
