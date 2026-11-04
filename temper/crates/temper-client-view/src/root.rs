@@ -54,7 +54,11 @@ impl View {
             render: skein_ui::View::new(&limits.tree),
             forge: forge::bindings::Bindings::new(limits.tree.bindings, domain.forge.checks, forge),
             pages: crate::frame::Bindings::new(limits.tree.bindings),
-            accounts: crate::accounts::Bindings::new(domain.accounts, domain.client.domain.rows),
+            accounts: crate::accounts::Bindings::new(
+                domain.client.domain.accounts,
+                domain.row_uses,
+                domain.client.domain.rows,
+            ),
             forge_words,
             limits: *limits,
             rows: domain.client.domain.rows,

@@ -216,19 +216,19 @@ pub(super) fn press(view: &mut crate::View, root: &mut d::Domain, role: Role, na
     }
 }
 fn shown(doc: c::Accounts) -> String {
-    shown_at(doc, fixtures::limits().accounts)
+    shown_at(doc, fixtures::limits().client.domain.accounts)
 }
-fn shown_at(doc: c::Accounts, counts: d::limits::AccountLimits) -> String {
+fn shown_at(doc: c::Accounts, counts: jig_client::AccountCounts) -> String {
     let (mut root, watch) = fixtures::account_root();
     deliver(&mut root, watch, doc);
     let mut view = bounded_view(counts);
     String::from_utf8(fixtures::text(fixtures::build(&mut view, &root)).into_vec()).unwrap()
 }
-fn bounded_view(counts: d::limits::AccountLimits) -> crate::View {
+fn bounded_view(counts: jig_client::AccountCounts) -> crate::View {
     let mut domain = fixtures::limits();
-    domain.accounts = counts;
     let words = fixtures::words();
     let bounds = crate::Limits::of(&domain, &words).unwrap();
+    domain.client.domain.accounts = counts;
     crate::View::new(&bounds, &domain, words, fixtures::FORGE)
 }
 #[test]
@@ -270,9 +270,9 @@ fn a_sign_in_without_an_account_row_stays_visible_at_page_level() {
 #[test]
 fn a_sign_in_in_an_omitted_row_stays_visible_without_duplicating_drawn_rows() {
     let doc = document(1);
-    let counts = fixtures::limits().accounts;
+    let counts = fixtures::limits().client.domain.accounts;
     assert_eq!(shown_at(doc.clone(), counts).matches("Sign-in in progress: source 1").count(), 1);
-    let shown = shown_at(doc, d::limits::AccountLimits { accounts: 0, ..counts });
+    let shown = shown_at(doc, jig_client::AccountCounts { accounts: 0, ..counts });
     assert!(shown.contains("Sign-in in progress: source 1 · LLM provider 17 · Person 73"));
 }
 #[test]
@@ -850,19 +850,19 @@ fn an_empty_deployment_leaves_out_its_section() {
 }
 #[test]
 fn accounts_past_the_count_are_named() {
-    let mut counts = fixtures::limits().accounts;
+    let mut counts = fixtures::limits().client.domain.accounts;
     counts.accounts = 2;
     assert!(shown_at(document(3), counts).contains("Accounts left out: 1"));
 }
 #[test]
 fn sources_past_the_count_are_named() {
-    let mut counts = fixtures::limits().accounts;
+    let mut counts = fixtures::limits().client.domain.accounts;
     counts.sources = 2;
     assert!(shown_at(document(3), counts).contains("Sources left out: 1"));
 }
 #[test]
 fn sign_ins_past_the_count_are_named() {
-    let mut counts = fixtures::limits().accounts;
+    let mut counts = fixtures::limits().client.domain.accounts;
     counts.sign_ins = 2;
     assert!(shown_at(document(3), counts).contains("Sign-ins left out: 1"));
 }
@@ -882,14 +882,15 @@ fn each_source_row_offers_its_rank_control() {
     let (mut root, watch) = fixtures::account_root();
     deliver(&mut root, watch, doc);
     action(&mut root, A::KeyFor { row: Row { holder: c::AskAccountHolder::Own, account: 1 }, source: None });
-    let mut view = bounded_view(fixtures::limits().accounts);
+    let mut view = bounded_view(fixtures::limits().client.domain.accounts);
     let tree = fixtures::build(&mut view, &root);
     assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some(b"Move source up")).count(), 16 * 8);
 }
 #[test]
 fn bindings_at_capacity_refuse_another_control() {
-    let counts = fixtures::limits().accounts;
-    let mut bindings = crate::accounts::Bindings::new(counts, fixtures::limits().client.domain.rows);
+    let counts = fixtures::limits().client.domain.accounts;
+    let mut bindings =
+        crate::accounts::Bindings::new(counts, fixtures::limits().row_uses, fixtures::limits().client.domain.rows);
     for _ in 0..crate::accounts::binding_capacity(&counts, fixtures::limits().client.domain.rows) {
         assert!(bindings.insert(crate::accounts::Meaning::Key).is_some());
     }
@@ -931,7 +932,7 @@ fn deployment_accounts_past_the_count_are_named() {
     }
     doc.accounts = rows;
     deliver_deployment(&mut root, watch, doc);
-    let mut counts = fixtures::limits().accounts;
+    let mut counts = fixtures::limits().client.domain.accounts;
     counts.accounts = 2;
     let mut view = bounded_view(counts);
     let tree = fixtures::build(&mut view, &root);
@@ -1330,7 +1331,7 @@ fn an_accounts_rows_sign_in_offers_the_paste() {
 fn account_order(doc: c::Accounts) -> Vec<u32> {
     let (mut root, watch) = fixtures::account_root();
     deliver(&mut root, watch, doc);
-    let mut view = bounded_view(fixtures::limits().accounts);
+    let mut view = bounded_view(fixtures::limits().client.domain.accounts);
     fixtures::build(&mut view, &root);
     let ids: Vec<_> = view
         .tree()

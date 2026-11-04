@@ -52,11 +52,7 @@ pub fn limits() -> Limits {
             exchanges: 8,
         };
 
-        Limits {
-            forge: forge::Limits { field_bytes: 256, checks: 8 },
-            client,
-            accounts: temper_client_domain::limits::AccountLimits { accounts: 16, sources: 8, uses: 8, sign_ins: 4 },
-        }
+        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
     }
 }
 pub fn words() -> crate::words::Words {
