@@ -79,7 +79,6 @@ IDs run from `D001` and are never reused:
 | [D025](D025-store-codec-domain-rules.md) | The store codec applies domain rules | coupling | medium | M | open |
 | [D026](D026-engine-clients-project-mismatch.md) | The clients' protocol layer answers a people rule itself | coupling | low | S | open |
 | [D027](D027-engine-clients-cursor-format.md) | The owner cursors are a hand-rolled byte format with no schema | primitives | medium | S | open |
-| [D028](D028-scripted-engine-reimplements-core.md) | The scripted engine re-implements the core's rules | tests | medium | M | open |
 | [D029](D029-protocol-front-one-identity.md) | The protocol front's fixture authenticates one party, so six stories are ignored | tests | medium | M | open |
 | [D030](D030-conformance-not-drop-in.md) | The conformance kit's `Application` trait is wide | tests | medium | M | open |
 | [D031](D031-worlds-as-kits.md) | Worlds are used as kits by other packages | tests | medium | M | open |
