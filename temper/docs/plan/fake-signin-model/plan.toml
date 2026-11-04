@@ -1,0 +1,3 @@
+draft = "fake-signin-model"
+repo = "fabrig"
+sources = ["temper/docs/plan/fake-signin-model/inputs/request.md", "temper/docs/design/client/journeys/project-landing/README.md", "AGENTS.md", "DESIGN.md"]
