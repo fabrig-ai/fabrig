@@ -73,7 +73,7 @@ impl Run {
     }
     fn over(call: Call, shared: Shared, fault: Option<crate::fixtures::Fault>, seed: u64) -> Self {
         let limits = hearth::limits().domain;
-        let mut stage = Stage::new(limits, builder::MAX_OUT, 16);
+        let mut stage = Stage::uncapped(limits);
         stage.push(Event::Call { reply_to: ReplyTo::new(Token::new(1)), call: call.clone() });
         Self {
             answers: Vec::new(),
@@ -126,11 +126,9 @@ impl Run {
             }
             if let Some(event) = self.stage.next_event() {
                 builder::step(&mut self.builder, &self.stage.env, event, &mut self.stage.out);
-            } else if self.builder.work_pending() && self.stage.has_room() {
+            } else if self.builder.work_pending() {
                 builder::resume(&mut self.builder, &self.stage.env, &mut self.stage.out);
-            } else if builder::next_deadline(&self.builder).is_some_and(|at| at <= self.stage.env.now)
-                && self.stage.has_room()
-            {
+            } else if builder::next_deadline(&self.builder).is_some_and(|at| at <= self.stage.env.now) {
                 builder::fire(&mut self.builder, &self.stage.env, &mut self.stage.out);
             }
             if let Some(request) = self.stage.out.pop() {

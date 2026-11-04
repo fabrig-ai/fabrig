@@ -148,7 +148,7 @@ impl Host for Client {
     fn work_pending(&self, now: Time) -> bool {
         self.service.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.service.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -166,9 +166,6 @@ impl Host for Client {
     }
     fn operations(&self) -> u32 {
         service::operations(&self.limits).expect("shipped io operation count fits")
-    }
-    fn worst_case(&self) -> u64 {
-        service::worst_case(&self.limits).expect("configured builder worst case fits")
     }
     fn drain(&mut self) {
         if let Some(bytes) = self.service.take_startup() {
