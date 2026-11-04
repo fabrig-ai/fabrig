@@ -366,7 +366,10 @@ impl Node {
         }
     }
 
-    pub(crate) fn text_bytes(&self) -> u32 {
+    /// The bytes the builder charges this node against `Limits::text_per_node`
+    /// (ui.md, section 15).
+    #[must_use]
+    pub fn text_bytes(&self) -> u32 {
         let mut bytes = 0_u32;
         if let Some(name) = &self.name {
             bytes = length(name);
