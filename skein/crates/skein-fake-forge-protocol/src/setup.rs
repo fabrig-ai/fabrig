@@ -12,6 +12,7 @@ mod accounts;
 mod collaborators;
 mod creation;
 mod hooks;
+pub(crate) mod migrate;
 mod reads;
 mod repo_hooks;
 pub use repo_hooks::{RepositoryHook, RepositoryHooks};
@@ -50,6 +51,7 @@ pub struct Store {
     collaborators: List<collaborators::Collaborator>,
     /// Repository hooks made by setup, in creation id order.
     repo_hooks: List<RepositoryHook>,
+    pub(crate) repository_high: u32,
     next_repo_hook: u64,
     next_org: u64,
     next_team: u64,
@@ -71,6 +73,7 @@ impl Store {
             private: List::with_capacity(cap),
             collaborators: List::with_capacity(cap),
             repo_hooks: List::with_capacity(cap),
+            repository_high: 0,
             next_repo_hook: 1,
             next_org: 1,
             next_team: 1,
@@ -150,7 +153,6 @@ impl Store {
     }
     pub(crate) fn answer(&mut self, request: &Request, user: u64, config: &Config, limits: &Limits) -> Option<Reply> {
         match request {
-            Request::Migrate { .. } | Request::DeleteRepository { .. } => Some(refusal(404, b"", limits)),
             Request::RepoSearch { page } => Some(self.search(config, user, *page, limits)),
             Request::RepositoryById { id } => {
                 let caller = self.user(user)?;
@@ -200,7 +202,9 @@ impl Store {
                     refusal(403, b"user should be the site admin", limits)
                 })
             }
-            Request::ApiSettings
+            Request::Migrate { .. }
+            | Request::DeleteRepository { .. }
+            | Request::ApiSettings
             | Request::Repository { .. }
             | Request::UserRepos { .. }
             | Request::UserSearch { .. }
@@ -263,7 +267,6 @@ impl Store {
             Request::DeleteToken { login, id } => self.delete_token(login, *id, limits),
             Request::Org { name } => self.read_org(name, limits),
             Request::CreateOrg { person, name } => self.create_org(person, name, limits),
-            Request::Migrate { .. } | Request::DeleteRepository { .. } => refusal(404, b"", limits),
             Request::CreateRepository { .. } | Request::CreateFile { .. } => full(limits),
             Request::Teams { org, page } => self.list_teams(org, *page, config, limits),
             Request::CreateTeam { org, spec } => self.create_team(org, spec, limits),
@@ -274,7 +277,9 @@ impl Store {
             Request::CreateOrgHook { org, hook } => self.create_hook(org, hook, limits),
             Request::EditOrgHook { org, id, hook } => self.edit_hook(org, *id, hook, limits),
             Request::DeleteOrgHook { org, id } => self.remove_hook(org, *id, limits),
-            Request::User
+            Request::Migrate { .. }
+            | Request::DeleteRepository { .. }
+            | Request::User
             | Request::ApiSettings
             | Request::RepositoryById { .. }
             | Request::Repository { .. }

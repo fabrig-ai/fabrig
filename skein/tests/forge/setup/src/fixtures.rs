@@ -48,6 +48,7 @@ pub fn config_with_cap(cap: u32) -> Config {
         repositories: List::with_capacity(0),
         max_response_items: cap,
         default_paging_num: 30,
+        sources: Box::new([]),
         faults: Faults { reset: 0, drop: 0, server_error: 0 },
     }
 }
