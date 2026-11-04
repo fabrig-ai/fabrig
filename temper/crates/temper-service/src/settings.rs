@@ -32,9 +32,6 @@ pub struct Forge {
     pub web: Option<Box<[u8]>>,
     /// The pasted GitHub App, its hook and installations belong to another owner.
     pub app_read_only: bool,
-    /// The API token, read from its private file: the forge component's alone.
-    pub api_token: Option<Secret>,
-    pub webhook_secret: Option<Secret>,
     /// The forge user the API token belongs to: the forge writer.
     pub user: u64,
     /// The number of this forge's git identity.

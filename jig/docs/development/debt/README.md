@@ -72,7 +72,6 @@ IDs run from `D001` and are never reused:
 | [D015](D015-exhaustive-lists.md) | Long or-pattern lists stand where a classifier on the type would do | complexity | medium | M | open |
 | [D016](D016-positional-payloads.md) | Event payloads travel as positional arguments | complexity | medium | M | open |
 | [D017](D017-unreachable-re-narrowing.md) | `unreachable!` re-narrows values the types could carry | complexity | medium | M | open |
-| [D018](D018-native-shell-unlinked-panics.md) | The native shell panics on requests only the unlinked client makes | coupling | medium | S | open |
 | [D019](D019-lint-config-copied.md) | jig's test crates and shells copy one lint block, which no shared table holds | lints | medium | S | open |
 | [D020](D020-inner-allow-guard.md) | Nothing stops an inner `#![allow]` from coming back | lints | low | S | open |
 | [D021](D021-phrases-listed-five-times.md) | Each of the view's phrases is listed four or five times | duplication | medium | M | open |

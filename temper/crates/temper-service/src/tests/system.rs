@@ -435,16 +435,13 @@ fn a_new_webhook_after_idle_gets_its_whole_delivery_period() {
     let mut service = fixtures::ready();
     let config = fixtures::engine();
     let mut found = jig_protocol_config::Problems::empty();
-    let mut settings = crate::forge::settings(
+    let settings = crate::forge::settings(
         &fixtures::forges(),
         fixtures::forge_runtime(),
         Some(skein_forge_connection::hooks::Webhooks { listener: fixtures::http::address() }),
         &mut found,
     )
     .unwrap();
-    for at in 0..settings.forges.len() {
-        settings.forges.get_mut(at).unwrap().access = None;
-    }
     let layer = &mut service.engine.as_mut().unwrap().forge;
     layer.component = skein_forge_connection::Component::new(
         settings,

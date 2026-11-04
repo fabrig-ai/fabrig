@@ -34,7 +34,6 @@ pub(crate) struct Layer {
     public: Map<Token, public::Caller>,
     backs: Queue<public::ReturnTo>,
     pastes: Map<u64, u16>,
-    file_api: Map<u16, Secret>,
     erases: Map<Token, u16>,
     lifecycle: lifecycle::Lifecycle,
     writes: Map<Token, Write>,
@@ -187,7 +186,6 @@ impl Layer {
             public: Map::with_capacity(limits.runs),
             backs: Queue::with_capacity(limits.states),
             pastes: Map::with_capacity(limits.forges),
-            file_api: Map::with_capacity(limits.forges),
             erases: Map::with_capacity(limits.forges),
             lifecycle: lifecycle::Lifecycle::new(limits.forges, installations),
             writes: Map::with_capacity(limits.runs.checked_add(limits.forges).expect("setup writes")),
@@ -240,7 +238,6 @@ impl Layer {
         self.held = Queue::with_capacity(self.env.limits.forges);
         self.backs = Queue::with_capacity(self.env.limits.states);
         self.public = Map::with_capacity(self.env.limits.runs);
-        self.file_api = Map::with_capacity(self.env.limits.forges);
         self.staged = Map::with_capacity(self.env.limits.runs);
         if self.component.is_some() {
             self.down(host::Request::Close);
@@ -364,7 +361,6 @@ pub(crate) fn forget(engine: &mut crate::engine::Engine, forge: u16) {
     let layer = &mut engine.setup;
     layer.served.remove(&forge);
     layer.unserved.remove(&forge);
-    layer.file_api.remove(&forge);
     layer.lifecycle.forget(forge);
     if let Some(runtime) = &mut layer.runtime {
         runtime.forget(forge);
@@ -770,14 +766,6 @@ fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
     }
 }
 
-/// Connected Forgejo's legacy file input remains a host-local credential.
-fn file_api_token(engine: &crate::engine::Engine, forge: u16) -> Option<&[u8]> {
-    match engine.setup.file_api.get(&forge) {
-        Some(value) => Some(value.expose()),
-        None => None,
-    }
-}
-
 #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 fn read_item(
     engine: &crate::engine::Engine,
@@ -833,11 +821,6 @@ fn read_item(
             Some(rows) => rows.get(item).ok(),
             None => None,
         },
-    };
-    let value = match value {
-        Some(value) => Some(value),
-        None if item == Item::ApiToken => file_api_token(engine, forge),
-        None => None,
     };
     match value {
         Some(bytes) => Some(Secret::new(Box::from(bytes))),

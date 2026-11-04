@@ -64,7 +64,6 @@ checks.
 | D002 | Three crates pump the JSON tokenizer by hand beside `skein_json::parse` | duplication | medium | S | open |
 | D003 | Lengths and counts are widened with `try_from` beside skein-lib's helpers | primitives | low | M | open |
 | D004 | `Env` is rebuilt by hand where `env.with(limits)` says it | primitives | low | S | open |
-| D005 | The Forgejo file credentials live on for test fixtures | dead code | medium | M | open |
 | D007 | `temper-docs` keeps a page kind no page has | dead code | low | S | open |
 | D008 | Code names the old pipeline's tasks and rulings | naming | low | S | open |
 | D009 | The client keeps interim account counts beside jig's | duplication | low | S | open |

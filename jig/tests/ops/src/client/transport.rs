@@ -154,7 +154,7 @@ impl Front<Ops> for Scripted {
         self.shell.push((client, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedIn } }));
     }
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
-        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
             panic!("unlinked client transport")
         };
         let party = self.parties[&client];

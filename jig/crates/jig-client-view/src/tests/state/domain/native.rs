@@ -33,7 +33,7 @@ fn a_page_reads_its_documents_from_the_client_by_handle() {
     changed.party.name =
         jig_client::contract::DocumentText::complete(crate::tests::state::domain::objects::text(b"fresh client name"));
     let mut out = Queue::uncapped();
-    fixture.client.step(
+    fixture.client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
         jig_client::Event::Up {

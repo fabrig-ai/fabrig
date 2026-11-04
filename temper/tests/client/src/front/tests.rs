@@ -58,8 +58,8 @@ fn flush(front: &mut Joint, root: &mut crate::app::Root, env: &Env<client::Limit
     while let Some(request) = out.pop() {
         if matches!(
             &request,
-            Request::Client {
-                request: jig_client::Request::Down {
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open {
                         subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
                         ..
@@ -167,8 +167,8 @@ fn an_unconfigured_model_is_answered_immediately() {
     let attempt = Token::new(91);
     front.request(
         CLIENT,
-        Request::Client {
-            request: jig_client::Request::Down {
+        Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send {
                     attempt,
                     key: [31; 16],
@@ -305,8 +305,8 @@ fn the_joint_world_delivers_the_components_owner_documents() {
     ] {
         front.request(
             CLIENT,
-            Request::Client {
-                request: jig_client::Request::Down {
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open {
                         watch: Token::new(number),
                         subject: jig_client::Watchable::Jig(subject),

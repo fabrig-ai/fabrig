@@ -27,8 +27,8 @@ fn carrying(attempt: Token, value: &Secret) -> Request {
             revision: jig_client::contract::Revision { value: 0 },
             value: 42,
         });
-    Request::Client {
-        request: jig_client::Request::Down {
+    Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Send {
                 attempt,
                 key: [77; 16],

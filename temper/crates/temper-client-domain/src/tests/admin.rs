@@ -125,8 +125,8 @@ fn the_token_is_secret_and_carried_once_with_the_first_ask() {
     let mut count = 0_u32;
     while let Some(request) = out.pop() {
         assert!(skein_lib::bytes::find(format!("{request:?}").as_bytes(), TOKEN).is_none());
-        if let Request::Client {
-            request: jig_client::Request::Down { down: Down::Send { request, value: Some(value), .. } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, value: Some(value), .. } },
         } = request
         {
             count += 1;
@@ -213,8 +213,8 @@ fn connecting_then_ready_makes_no_project_and_adopts_nothing() {
     let mut out = deliver(&mut root, watch, row(true, connected(), None, Some(first())));
     let mut projects = 0_u32;
     while let Some(request) = out.pop() {
-        if let Request::Client {
-            request: jig_client::Request::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } },
         } = request
         {
             let c::Ask::MakeProject { name, policy } = *ask else { panic!("MakeProject") };
@@ -290,7 +290,9 @@ fn an_admin_connection_advances_only_the_named_welcome_forge() {
                 assert!(*replace);
                 moves += 1;
             }
-            if let Request::Client { request: jig_client::Request::Down { down: Down::Send { .. } } } = request {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { .. } } } =
+                request
+            {
                 panic!("connecting a forge sends no adoption or project request");
             }
         }
@@ -311,9 +313,11 @@ fn a_managed_forgejo_sends_connect_new_managed_with_its_place() {
     let mut out = act(&mut root, forge::Act::Forges(forge::forges::Act::Managed { place: place.clone() }));
     let mut found = false;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down { down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. } },
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. },
+                },
         } = request
         {
             let w::Request::Connect(connect) =

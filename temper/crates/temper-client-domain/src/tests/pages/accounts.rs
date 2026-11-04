@@ -159,8 +159,8 @@ pub(super) fn sends(mut out: Queue<Request>) -> Queue<Sent> {
         if let Request::Client { request: jig_client::Request::Save { .. } } = &request {
             panic!("a value is never saved");
         }
-        if let Request::Client {
-            request: jig_client::Request::Down { down: Down::Send { attempt, key, request, value } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, key, request, value } },
         } = request
         {
             sent.push((attempt, key, request, value));
@@ -230,7 +230,9 @@ fn account_availability_returns_after_signing_in_with_fresh_deliveries() {
     let mut me = None;
     let mut accounts = None;
     while let Some(request) = opened.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Open { watch, subject } } } = request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
+        } = request
         {
             if subject == jig_client::Watchable::Jig(c::Subject::Me) {
                 me = Some(watch);

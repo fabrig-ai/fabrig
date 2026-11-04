@@ -29,8 +29,9 @@ pub fn key(object: ObjectKey) -> CardKey {
 }
 #[must_use]
 pub fn sent(request: &Request) -> Option<Sent> {
-    let Request::Client {
-        request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, key: k, request: ask, .. } },
+    let Request::Unlinked {
+        request:
+            jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, key: k, request: ask, .. } },
     } = request
     else {
         return None;
@@ -525,8 +526,8 @@ mod tests {
     const TASK: u64 = 8;
 
     fn send(ask: jig_client::Ask) -> jig_client_test_domain::Request {
-        jig_client_test_domain::Request::Client {
-            request: jig_client::Request::Down {
+        jig_client_test_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send { attempt: ATTEMPT, key: REQUEST_KEY, request: ask, value: None },
             },
         }
