@@ -65,7 +65,7 @@ pub(super) fn template(entry: &Page) -> Result<(), String> {
                     heading.strip_prefix(&format!("{}. ", n + 1)).is_some_and(|rest| !rest.is_empty())
                 })
         }
-        Kind::Index | Kind::Reference | Kind::Guide => true,
+        Kind::Index | Kind::Reference => true,
     };
     if !valid {
         return Err(refused(entry, &format!("{} headings in template order", entry.kind.word()), 1));
@@ -103,7 +103,7 @@ pub(super) fn links(entry: &Page) -> Result<(), String> {
 pub(super) fn written(entry: &Page) -> bool {
     match entry.kind {
         Kind::Index | Kind::Concept | Kind::Walk | Kind::Recipe => true,
-        Kind::Reference | Kind::Guide => false,
+        Kind::Reference => false,
     }
 }
 
