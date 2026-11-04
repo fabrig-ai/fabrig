@@ -2,7 +2,7 @@
 
 2026-11-04. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.6: the deployment's read, `deployment`: not in `temper-client-protocol-wire`'s schema, and neither served nor read. 3.4, 3.5: `Welcome` reads no fact of the document: it shows wherever a person lands on it. 3.4, 5.5: the composer's supplied default, jig's
+- **Not yet:** 3.4, 3.5: `Welcome` reads no fact of the document: it shows wherever a person lands on it. 3.4, 5.5: the composer's supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:

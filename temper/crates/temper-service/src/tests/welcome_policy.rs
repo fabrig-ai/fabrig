@@ -90,7 +90,11 @@ fn generated() -> (engine::Config, engine::Limits) {
             forge,
             identities,
             forges,
-            playground: crate::system::playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
+            playground: crate::system::playground_config(
+                settings.demo.as_ref(),
+                settings.welcome,
+                settings.limits.setup.deadline,
+            ),
             landings: settings.landings,
             under_box: false,
         },
