@@ -951,7 +951,7 @@ fn exhausted_stale_outcome_numbers_refuse_before_changing_settings() {
 
 // Synthetic reasons cover the reported sizes; they are not transcript quotations.
 fn review_reason(bytes: usize) -> String {
-    let mut reason = String::from("temper enforces: review every change. your agents follow: keep reports short. ");
+    let mut reason = String::from("engine enforces: review every change. your agents follow: keep reports short. ");
     let effect = " Running work keeps its current instructions until an owner moves it.";
     reason.push_str(&"x".repeat(bytes - reason.len() - effect.len()));
     reason.push_str(effect);
