@@ -22,11 +22,15 @@ pub use value::{Entry, Operand, Value};
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     let depth = limits.depth.saturating_add(limits.nesting);
     // Walks and binding copies run one at a time, above the persistent stacks.
-    let scratch = Stack::<walk::Frame<'_>>::worst_case(depth)?
-        .max(Stack::<escape::Frame<'_>>::worst_case(depth)?)
-        .max(Stack::<(core::slice::Iter<'_, Operand<'_>>, List<Operand<'_>>, u32)>::worst_case(limits.nesting)?);
-    Stack::<Operand<'_>>::worst_case(limits.expression)?
-        .checked_add(Stack::<(usize, u32)>::worst_case(limits.nesting)?)?
+    let scratch = Stack::<walk::Frame<'_>>::price(depth)?.max(Stack::<escape::Frame<'_>>::price(depth)?).max(Stack::<(
+        core::slice::Iter<'_, Operand<'_>>,
+        List<Operand<'_>>,
+        u32,
+    )>::price(
+        limits.nesting,
+    )?);
+    Stack::<Operand<'_>>::price(limits.expression)?
+        .checked_add(Stack::<(usize, u32)>::price(limits.nesting)?)?
         .checked_add(scratch)?
         // List construction can hold the reverse stack and its output together;
         // shrinking a List can likewise retain its old allocation briefly.

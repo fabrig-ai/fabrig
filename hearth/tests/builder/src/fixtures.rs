@@ -368,8 +368,8 @@ impl Host for Holding {
     fn work_pending(&self, now: skein_lib::Time) -> bool {
         self.client.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
-        self.client.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<skein_lib::Time> {
+        self.client.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<skein_lib::Time> {
         self.client.next_policy_deadline()
@@ -382,9 +382,6 @@ impl Host for Holding {
     }
     fn operations(&self) -> u32 {
         self.client.operations()
-    }
-    fn worst_case(&self) -> u64 {
-        self.client.worst_case()
     }
     fn drain(&mut self) {
         if let Some(bytes) = self.client.take_startup() {

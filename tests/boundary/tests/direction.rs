@@ -1,7 +1,8 @@
 //! The trees' dependencies point one way (AGENTS.md, 1): skein names none
-//! of smith, jig or temper, smith names neither jig nor temper, and jig
-//! never names temper. The check reads the workspace's manifests: the
-//! members the root `Cargo.toml` lists, and each member's package name and
+//! of smith, jig, temper or hearth, smith names neither jig nor temper, jig
+//! never names temper, and hearth names skein alone. Nothing names hearth.
+//! The check reads the workspace's manifests: the members the root
+//! `Cargo.toml` lists, and each member's package name and
 //! every dependency table (normal, target, dev and build), an inherited
 //! entry through the root's `[workspace.dependencies]`, a renamed one by its
 //! package. A line it does not read is a failure, never a skip.
@@ -9,9 +10,15 @@
 use std::collections::BTreeMap;
 use std::fs;
 
-/// The trees, upstream first: a package may name its own tree's packages
-/// and those of the trees before it.
-const TREES: [&str; 4] = ["skein", "smith", "jig", "temper"];
+/// The trees, and the trees each one's packages may name besides its own:
+/// skein to temper in a line, and hearth on skein alone, which nothing names.
+const TREES: [(&str, &[&str]); 5] = [
+    ("skein", &[]),
+    ("smith", &["skein"]),
+    ("jig", &["skein", "smith"]),
+    ("temper", &["skein", "smith", "jig"]),
+    ("hearth", &["skein"]),
+];
 
 /// A member: its directory from the root, its package's name and the
 /// packages it depends on, in any table.
@@ -30,10 +37,10 @@ struct Entry<'a> {
     inherits: bool,
 }
 
-/// The tree that holds `directory`, by its place in [`TREES`].
-fn tree(directory: &str) -> Option<(usize, &'static str)> {
+/// The row of [`TREES`] for the tree that holds `directory`.
+fn tree(directory: &str) -> Option<(&'static str, &'static [&'static str])> {
     let first = directory.split('/').next()?;
-    TREES.iter().copied().enumerate().find(|(_, tree)| *tree == first)
+    TREES.iter().copied().find(|(tree, _)| *tree == first)
 }
 
 /// The quoted text at the start of `value`.
@@ -152,16 +159,17 @@ where
     members(root)?.iter().map(|directory| member(directory, &manifest(directory)?, &inherited)).collect()
 }
 
-/// Each dependency of a tree's package on a package of a tree after it.
+/// Each dependency on another tree's package that its row does not name.
 fn breaches(members: &[Member]) -> Vec<String> {
-    let trees: BTreeMap<&str, (usize, &str)> =
-        members.iter().filter_map(|member| Some((member.name.as_str(), tree(&member.directory)?))).collect();
+    let trees: BTreeMap<&str, &str> =
+        members.iter().filter_map(|member| Some((member.name.as_str(), tree(&member.directory)?.0))).collect();
     let mut breaches = Vec::new();
     for member in members {
-        let Some((own, _)) = tree(&member.directory) else { continue };
+        let Some((own, allowed)) = tree(&member.directory) else { continue };
         for dependency in &member.dependencies {
-            if let Some(&(theirs, name)) = trees.get(dependency.as_str())
-                && theirs > own
+            if let Some(&name) = trees.get(dependency.as_str())
+                && name != own
+                && !allowed.contains(&name)
             {
                 breaches
                     .push(format!("{} ({}) depends on {dependency}, a {name} package", member.name, member.directory));
@@ -187,25 +195,26 @@ fn workspace() -> Vec<Member> {
 #[test]
 fn the_trees_depend_upstream_only() {
     let members = workspace();
-    for (place, name) in TREES.iter().copied().enumerate() {
+    for (name, allowed) in TREES {
         let upstream = members
             .iter()
-            .filter(|member| tree(&member.directory).is_some_and(|(own, _)| own == place))
+            .filter(|member| tree(&member.directory).is_some_and(|(own, _)| own == name))
             .flat_map(|member| &member.dependencies)
             .filter(|dependency| {
                 members.iter().any(|other| {
-                    other.name == **dependency && tree(&other.directory).is_some_and(|(theirs, _)| theirs < place)
+                    other.name == **dependency
+                        && tree(&other.directory).is_some_and(|(theirs, _)| allowed.contains(&theirs))
                 })
             })
             .count();
-        assert!(place == 0 || upstream > 0, "the check reads {name}'s dependencies on the trees before it");
+        assert!(allowed.is_empty() || upstream > 0, "the check reads {name}'s dependencies on the trees it may name");
         assert!(
-            members.iter().any(|member| tree(&member.directory).is_some_and(|(own, _)| own == place)),
+            members.iter().any(|member| tree(&member.directory).is_some_and(|(own, _)| own == name)),
             "the check reads {name}'s members"
         );
     }
     let breaches = breaches(&members);
-    assert!(breaches.is_empty(), "dependencies against the trees' order:\n{}", breaches.join("\n"));
+    assert!(breaches.is_empty(), "dependencies against the trees' direction:\n{}", breaches.join("\n"));
 }
 
 const ROOT: &str = r#"
@@ -216,6 +225,7 @@ members = [
     "jig/c",
     "temper/d",
     "tests/e",
+    "hearth/f",
 ]
 
 [workspace.dependencies]
@@ -223,6 +233,7 @@ skein-a = { path = "skein/a" }
 smith-b = { path = "smith/b" }
 jig-c = { path = "jig/c" }
 renamed = { package = "temper-d", path = "temper/d" }
+hearth-f = { path = "hearth/f" }
 "#;
 
 fn fixture(manifests: &[(&str, &str)]) -> Result<Vec<Member>, String> {
@@ -251,6 +262,7 @@ fn a_dependency_on_a_later_tree_is_a_breach_in_any_table() {
              own = { path = \"../../skein/a\", package = \"skein-a\" }\n",
         ),
         ("tests/e", "[package]\nname = \"e\"\n[dependencies]\nrenamed.workspace = true\n"),
+        ("hearth/f", "[package]\nname = \"hearth-f\"\n"),
     ])
     .expect("the fixture reads");
     assert_eq!(
@@ -259,6 +271,35 @@ fn a_dependency_on_a_later_tree_is_a_breach_in_any_table() {
             "skein-a (skein/a) depends on smith-b, a smith package",
             "smith-b (smith/b) depends on jig-c, a jig package",
             "jig-c (jig/c) depends on temper-d, a temper package",
+        ]
+    );
+}
+
+#[test]
+fn hearth_names_skein_alone_and_nothing_names_hearth() {
+    let members = fixture(&[
+        ("skein/a", "[package]\nname = \"skein-a\"\n[dependencies]\nhearth-f.workspace = true\n"),
+        ("smith/b", "[package]\nname = \"smith-b\"\n[dependencies]\nhearth-f.workspace = true\n"),
+        ("jig/c", "[package]\nname = \"jig-c\"\n[dependencies]\nhearth-f.workspace = true\n"),
+        ("temper/d", "[package]\nname = \"temper-d\"\n[dependencies]\nhearth-f.workspace = true\n"),
+        ("tests/e", "[package]\nname = \"e\"\n"),
+        (
+            "hearth/f",
+            "[package]\nname = \"hearth-f\"\n[dependencies]\nskein-a.workspace = true\n\
+             smith-b.workspace = true\njig-c.workspace = true\nrenamed.workspace = true\n",
+        ),
+    ])
+    .expect("the fixture reads");
+    assert_eq!(
+        breaches(&members),
+        [
+            "skein-a (skein/a) depends on hearth-f, a hearth package",
+            "smith-b (smith/b) depends on hearth-f, a hearth package",
+            "jig-c (jig/c) depends on hearth-f, a hearth package",
+            "temper-d (temper/d) depends on hearth-f, a hearth package",
+            "hearth-f (hearth/f) depends on smith-b, a smith package",
+            "hearth-f (hearth/f) depends on jig-c, a jig package",
+            "hearth-f (hearth/f) depends on temper-d, a temper package",
         ]
     );
 }
@@ -278,6 +319,7 @@ fn a_line_the_check_does_not_read_fails_it() {
             ("jig/c", "[package]\nname = \"jig-c\"\n"),
             ("temper/d", "[package]\nname = \"temper-d\"\n"),
             ("tests/e", "[package]\nname = \"e\"\n"),
+            ("hearth/f", "[package]\nname = \"hearth-f\"\n"),
         ];
         let failure = fixture(&members).expect_err("the fixture fails");
         assert!(failure.contains(why), "{source:?}: {failure}");

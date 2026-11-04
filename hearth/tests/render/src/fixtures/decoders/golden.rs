@@ -1,4 +1,5 @@
 //! The reviewed repositories as decoder corpora, shared by the two parser worlds.
+use skein_scratch::paths;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -10,7 +11,7 @@ const REPOSITORIES: &[&str] = &["merge", "templates", "fleet", "cluster", "expor
 /// Read source files only, excluding expectations, rendered witnesses and links.
 #[must_use]
 pub fn corpus(extension: &str) -> Vec<(PathBuf, Vec<u8>)> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../render");
+    let root = paths::tree().join("tests/render");
     let mut files = Vec::new();
     for name in REPOSITORIES {
         visit(&root.join(name), extension, &mut files);
