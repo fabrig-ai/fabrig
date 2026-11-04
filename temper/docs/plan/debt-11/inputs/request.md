@@ -43,7 +43,10 @@ sites. So:
 1. **A few named profiles** (step, harness, binary, as skein's D036 proposes), one written definition
    each, and a gate check in `tools/` that holds every package in the four trees to one of them. A
    manifest keeps its block, but the check makes it identical to its profile's. The check runs in the
-   queue's precheck alongside `tools/citations/citations.py`. It should stay small: no new dependencies.
+   queue's precheck alongside `tools/citations/citations.py`, wired in by agents/loop after this plan lands,
+   not here. Its shape: one command run from the repository's root, Python under `-I -B`, no Cargo, no new
+   dependencies, exit 0 or 1, naming the offending manifest on failure, under a few seconds, and passing
+   at this plan's end.
 2. **Move every manifest onto a profile.** No lint gets stricter or looser by accident: list in the
    report each lint whose level changes for any crate. A crate's real exception is a scoped
    `#[expect(..., reason = ...)]`. No manifest allows a `disallowed_*` lint.
