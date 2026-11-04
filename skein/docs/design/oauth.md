@@ -326,6 +326,14 @@ it is never replayed by the machine. A retry of a sign-in code exchange is
 permitted only if the prior request was proved unsent. The caller can start
 another sign-in after a failure with a new state and verifier.
 
+A start in any state but Idle is refused in that step and changes nothing:
+the exchange it found goes on, its terminal still to come, and Done still
+waits for its reset. A refused `SignIn` or `Refresh` emits `Failed` with
+`Limit`, a refused `Revoke` emits `Revoked`, unconfirmed. The caller
+dispatches each step's output before the next, so a terminal in a start's
+own output answers that start, and no caller is left waiting on a start the
+client did not take.
+
 An `Http` demand names its method: a POST, or a GET for the issuer's
 metadata and keys, which carries no secret and may be retried as any
 transient failure is. A `Revoke` takes the record whose refresh token it
