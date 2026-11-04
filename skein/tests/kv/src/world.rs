@@ -23,6 +23,8 @@ pub struct World {
     /// `file::Request::ReadAt`s the store sent below, and the sum of their `max`.
     pub asked_reads: u64,
     pub asked_bytes: u64,
+    /// The largest `max` of a `ReadAt` the store sent below.
+    pub asked_most: u32,
     file_events: Queue<file::Event>,
     subs: Queue<Submit>,
     completions: Queue<Complete>,
@@ -63,6 +65,7 @@ impl World {
             below: Queue::with_capacity(128),
             asked_reads: 0,
             asked_bytes: 0,
+            asked_most: 0,
             file_events: Queue::with_capacity(128),
             subs: Queue::with_capacity(128),
             completions: Queue::with_capacity(128),
@@ -124,6 +127,7 @@ impl World {
             if let file::Request::ReadAt { max, .. } = &request {
                 self.asked_reads += 1;
                 self.asked_bytes += u64::from(*max);
+                self.asked_most = self.asked_most.max(*max);
             }
             file_layer::down(&mut self.io, self.env.now, request, &mut self.file_events, &mut self.subs);
             progress = true;
