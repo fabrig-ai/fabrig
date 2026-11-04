@@ -423,7 +423,16 @@ open is section 9.
   and the configuration directory holds the program's session, the
   program starts with `--resume` and that session, and the start's
   messages, and the answers the transcript lacks, go in as user
-  messages.
+  messages. A restored activation's first user message also carries its
+  current system text: the instructions, freshly prepared brief sections
+  and activation budget, marked as superseding their earlier versions
+  while keeping the conversation history. This refresh is explicit in
+  the input, alongside the system file supplied at launch; resuming does
+  not rely on the program replacing saved context from that file. The
+  refresh and tail share the escaped input byte ceiling and, when
+  captured, the prompt observation. A retry after the same invocation's
+  input was recorded sends only the tail; messages within a live
+  activation keep their existing context.
 - **Otherwise the conversation is carried over:** a transcript whose
   window ran on another backend, account or program source, or whose
   program session is gone, on another host or removed, opens a new
