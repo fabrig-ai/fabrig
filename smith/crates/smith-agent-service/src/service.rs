@@ -352,7 +352,7 @@ impl Service {
     }
 
     /// Drain one owner and bounded `Fault::Program` for the operator's stderr log,
-    /// independently of capture and the main answer (smith/docs/design/protocol/agent.md, section 6).
+    /// independently of capture and the main answer.
     /// The owner token correlates it with this process's conversation events.
     pub fn pop_program_diagnostic(&mut self) -> Option<(Token, run::Fault)> {
         self.frame.program_diagnostics.pop()
