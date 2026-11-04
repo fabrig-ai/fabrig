@@ -277,7 +277,7 @@ pub(super) fn page(
     }
     // Joined setting reads share the last bit; inbox question details use slot 6.
     reading.pending &= !1u8.checked_shl(local.min(7)).expect("fixed read slot");
-    if reading.called.call.tool == 3 && local == 7 {
+    if (reading.called.call.tool == 3 || reading.called.call.tool == rows::TASK_TEXT_AT) && local == 7 {
         super::specification::accept(&mut reading, &page);
         complete(runner, client, env, reading, out);
         return;
