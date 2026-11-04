@@ -649,8 +649,7 @@ fn signing_document() -> jig_client::contract::Accounts {
 fn ready_waits_for_the_accounts_document_before_drawing_a_model_line() {
     let (root, _) = ready_model_fixture();
     let view = f::page_view(&root);
-    let words = String::from_utf8_lossy(&f::text(view.tree())).into_owned();
-    assert!(!words.contains("Model:"));
+    assert!(!view.tree().nodes().iter().any(|n| n.name.as_deref().is_some_and(|name| name.starts_with(b"Model "))));
     assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
 }
 #[test]
@@ -658,7 +657,7 @@ fn ready_names_an_own_sign_in_under_way_without_a_connect_act() {
     let (mut root, watch) = ready_model_fixture();
     super::accounts::deliver(&mut root, watch, signing_document());
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "Model: ChatGPT · signing in");
+    node(view.tree(), Role::Paragraph, "Model ChatGPT · signing in");
     assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
 }
 #[test]
@@ -668,7 +667,7 @@ fn ready_does_not_name_another_holders_sign_in() {
     doc.signing.get_mut(0).unwrap().holder = jig_client::contract::AccountHolder::Deployment;
     super::accounts::deliver(&mut root, watch, doc);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Slot, "Model: none yet");
+    node(view.tree(), Role::Slot, "Model none yet");
     node(view.tree(), Role::Link, "Connect a model");
 }
 #[test]
@@ -680,7 +679,7 @@ fn ready_names_a_usable_account_before_a_sign_in_under_way() {
         super::accounts::card_document(b"openai", b"alice@example.com", jig_client::contract::AccountKind::SignIn),
     );
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "Model: ChatGPT · alice@example.com · OpenAI · held by Pat");
+    node(view.tree(), Role::Paragraph, "Model ChatGPT plan · alice@example.com");
     assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
 }
 
@@ -706,7 +705,7 @@ fn configured_model_fixture(address: Address) -> d::Domain {
 fn ready_names_the_configured_model_without_an_account_row() {
     let root = configured_model_fixture(Address::Welcome { step: Step::Ready });
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "Model: the default model");
+    node(view.tree(), Role::Paragraph, "Model the default model");
     assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
 }
 
@@ -742,7 +741,7 @@ fn ready_names_the_new_chat_templates_model_and_effort() {
     let document = configured_model_document();
     super::accounts::deliver(&mut root, accounts_watch.unwrap(), document);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "Model: configured-model · high");
+    node(view.tree(), Role::Paragraph, "Model configured-model · high");
 }
 
 #[test]
@@ -812,27 +811,33 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
     f::welcome_account(&mut root, account);
     let view = f::page_view(&root);
     node(view.tree(), Role::Heading { level: 1 }, "Almost ready");
+    let wait = "Your first project can be created once your forge and model are ready.";
     forge::words_in_order(
         view.tree(),
         &[
-            "Model:",
-            "Forge: Forgejo on this machine",
-            "Project: Default",
-            "Open Default",
-            "It opens once your forge and model are ready.",
+            wait,
+            "Model ",
+            "Forge Forgejo on this machine",
+            "Your first project",
+            "Create your project",
+            "Rename it whenever you like.",
         ],
     );
-    let after = node(view.tree(), Role::Paragraph, "It opens once your forge and model are ready.");
-    let after = view.tree().nodes().iter().find(|n| n.id == after).unwrap();
-    assert!(after.styles.as_slice().contains(&crate::look::WELCOME_AFTER));
-    assert!(after.styles.as_slice().contains(&crate::look::WELCOME_TINY));
+    let lead = node(view.tree(), Role::Paragraph, wait);
+    let lead = view.tree().nodes().iter().find(|n| n.id == lead).unwrap();
+    assert!(lead.styles.as_slice().contains(&crate::look::WELCOME_LEAD));
     let disclosure = node(view.tree(), Role::Disclosure, "Each step");
     assert!(
         !view.tree().nodes().iter().find(|n| n.id == disclosure).unwrap().states.as_slice().contains(&State::Expanded)
     );
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_CARD)));
-    let open = node(view.tree(), Role::Button, "Open Default");
+    let open = node(view.tree(), Role::Button, "Create your project");
     assert!(view.tree().nodes().iter().find(|n| n.id == open).unwrap().states.as_slice().contains(&State::Disabled));
+    // Its name is written while the rest gets ready; Enter makes nothing yet.
+    let field = node(view.tree(), Role::TextField, "Your first project");
+    let field = view.tree().nodes().iter().find(|n| n.id == field).unwrap();
+    assert!(!field.states.as_slice().contains(&State::Disabled));
+    assert!(!field.states.as_slice().contains(&State::SubmitsOnEnter));
 }
 
 #[test]
@@ -984,29 +989,24 @@ fn managed_forgejo_ready_uses_the_default_checklist() {
     *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
     let root = ready_root(rows);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Heading { level: 1 }, "Almost ready");
+    node(view.tree(), Role::Heading { level: 1 }, "Ready");
     forge::words_in_order(
         view.tree(),
-        &["Forge: Forgejo, connected as temper", "Model:", "Project: Default", "Open Default"],
+        &["Forge Forgejo · connected as temper", "Model ", "Your first project", "Create your project"],
     );
-    assert_eq!(press(&root, Role::Button, "Open Default"), d::Action::Pages(pages::Act::MakeDefault));
+    assert_eq!(press(&root, Role::Button, "Create your project"), d::Action::Pages(pages::Act::MakeDefault));
 }
 #[test]
 fn github_ready_has_the_same_checklist_and_project_control_as_owned_forgejo() {
     for (rows, heading, forge_line, project_line) in [
-        (github_adopted_rows(), "Almost ready", "Forge: GitHub, connected as my-app[bot]", "Project: Default"),
-        (
-            owned_adopted_rows(),
-            "Almost ready",
-            "Forge: Forgejo on this machine, connected as temper",
-            "Project: Default",
-        ),
+        (github_adopted_rows(), "Ready", "Forge GitHub · connected as my-app[bot]", "Your first project"),
+        (owned_adopted_rows(), "Ready", "Forge Forgejo on this machine · connected as temper", "Your first project"),
     ] {
         let root = ready_root(rows);
         let view = f::page_view(&root);
         node(view.tree(), Role::Heading { level: 1 }, heading);
-        forge::words_in_order(view.tree(), &[forge_line, "Model:", project_line, "Open Default"]);
-        assert_eq!(press(&root, Role::Button, "Open Default"), d::Action::Pages(pages::Act::MakeDefault));
+        forge::words_in_order(view.tree(), &[forge_line, "Model ", project_line, "Create your project"]);
+        assert_eq!(press(&root, Role::Button, "Create your project"), d::Action::Pages(pages::Act::MakeDefault));
         assert!(
             f::find(view.tree(), Role::Link, "Open on GitHub ↗".as_bytes()).is_none(),
             "no repository web address in the row"
@@ -1021,17 +1021,17 @@ fn ready_ending(end: jig_client::contract::AccountEnd, message: &str, key: bool)
     doc.last_end = Some(c::AccountLastEnd { source: 43, end });
     super::accounts::deliver(&mut root, watch, doc);
     let view = f::page_view(&root);
-    forge::words_in_order(view.tree(), &["Model: none yet", "Connect a model", message, "Continue with ChatGPT"]);
+    forge::words_in_order(view.tree(), &["Model none yet", "Connect a model", message, "Continue with ChatGPT"]);
     let tree = view.tree();
     let nodes = tree.nodes();
-    let line = nodes.iter().position(|n| n.name.as_deref() == Some(b"Model: none yet")).unwrap();
+    let line = nodes.iter().position(|n| n.name.as_deref() == Some(b"Model none yet")).unwrap();
     let line_end = line.checked_add(usize::try_from(nodes[line].size).unwrap()).unwrap();
     assert!(
         nodes[line.checked_add(1).unwrap()..line_end]
             .iter()
             .any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Connect a model"))
     );
-    assert!(f::node_text(tree, line).starts_with("Model: none yet · ".as_bytes()));
+    assert!(f::node_text(tree, line).starts_with("Model none yet · ".as_bytes()));
     let ending = line_end;
     assert_eq!(nodes[ending].role, Role::Slot);
     assert!(nodes[ending].styles.as_slice().contains(&crate::look::WELCOME_END));
@@ -1248,7 +1248,7 @@ fn ready_offers_forgejo_sign_in_only_when_its_owned_forge_is_connected() {
                     crate::href(&mut view, link).as_deref(),
                     Some(b"http://127.0.0.1:3000/user/oauth2/temper".as_slice())
                 );
-                forge::words_in_order(view.tree(), &["Open Default", "Open Forgejo ↗"]);
+                forge::words_in_order(view.tree(), &["Forge ", "Open Forgejo ↗", "Model ", "Create your project"]);
             }
         }
     }
@@ -1267,7 +1267,7 @@ fn ready_offers_connect_a_model_as_a_terminal_command() {
         &view.limits().tree,
         control,
         b"Connect a model",
-        "Model: none yet · ".as_bytes(),
+        "Model none yet · ".as_bytes(),
     );
     assert_eq!(
         crate::act(&mut view, node, first),
@@ -1321,7 +1321,7 @@ fn ready_making_and_its_endings_keep_one_retry_act() {
     for refused in [true, false] {
         let mut root = ready_root(owned_adopted_rows());
         let mut view = f::page_view(&root);
-        let id = node(view.tree(), Role::Button, "Open Default");
+        let id = node(view.tree(), Role::Button, "Create your project");
         let action = crate::act(&mut view, id, Act::Press).unwrap();
         let mut out = skein_lib::Queue::uncapped();
         d::step(
@@ -1340,9 +1340,10 @@ fn ready_making_and_its_endings_keep_one_retry_act() {
             }
         }
         let view = f::page_view(&root);
-        let id = node(view.tree(), Role::Button, "Open Default");
+        let id = node(view.tree(), Role::Button, "Creating Default…");
         assert!(view.tree().disabled(id));
-        node(view.tree(), Role::Status, "Making Default…");
+        let field = node(view.tree(), Role::TextField, "Your first project");
+        assert!(view.tree().disabled(field));
         if refused {
             f::root_event(
                 &mut root,
@@ -1369,16 +1370,53 @@ fn ready_making_and_its_endings_keep_one_retry_act() {
             );
         }
         let mut view = f::page_view(&root);
-        let id = node(view.tree(), Role::Button, "Open Default");
+        let id = node(view.tree(), Role::Button, "Create your project");
         assert!(!view.tree().disabled(id));
         assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::MakeDefault)));
         let text = f::text(view.tree());
         let text = core::str::from_utf8(&text).unwrap();
         if refused {
-            assert!(text.contains("Default was not made: "));
+            assert!(text.contains("Your project was not made: "));
             assert!(text.contains("Another project has that name"));
         } else {
-            assert!(text.contains("It is not known whether Default was made."));
+            assert!(text.contains("It is not known whether your project was made."));
         }
     }
+}
+
+#[test]
+fn ready_names_its_first_project_in_a_form() {
+    let mut root = ready_root(owned_adopted_rows());
+    let mut view = f::page_view(&root);
+    let tree = view.tree();
+    node(tree, Role::Paragraph, "Everything is connected. Create your first project and start working.");
+    let form = node(tree, Role::Form, "Your first project");
+    let form = tree.nodes().iter().position(|n| n.id == form).unwrap();
+    assert!(tree.nodes()[form].styles.as_slice().contains(&crate::look::WELCOME_PROJECT));
+    let end = form.checked_add(usize::try_from(tree.nodes()[form].size).unwrap()).unwrap();
+    let inside = &tree.nodes()[form..end];
+    let field = inside.iter().find(|n| n.role == Role::TextField).unwrap();
+    assert_eq!(field.name.as_deref(), Some(b"Your first project".as_slice()));
+    assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"Default");
+    assert!(field.states.as_slice().contains(&State::SubmitsOnEnter));
+    let field = field.id;
+    for name in ["Create your project", "Rename it whenever you like."] {
+        assert!(inside.iter().any(|n| n.name.as_deref() == Some(name.as_bytes())), "{name} in the form");
+    }
+    // Writing names it; Enter is Create.
+    assert_eq!(
+        crate::act(&mut view, field, Act::Input { value: b"Shop".as_slice().into() }),
+        Some(d::Action::Pages(pages::Act::DefaultName { words: b"Shop".as_slice().into() }))
+    );
+    assert_eq!(crate::act(&mut view, field, Act::Submit), Some(d::Action::Pages(pages::Act::MakeDefault)));
+    // No name: Create says so, and makes nothing.
+    f::root_event(
+        &mut root,
+        d::Event::Act { action: d::Action::Pages(pages::Act::DefaultName { words: b" ".as_slice().into() }) },
+    );
+    f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(pages::Act::MakeDefault) });
+    let view = f::page_view(&root);
+    node(view.tree(), Role::Alert, "A name for it: Default, or one of yours.");
+    let field = node(view.tree(), Role::TextField, "Your first project");
+    assert!(view.tree().nodes().iter().find(|n| n.id == field).unwrap().states.as_slice().contains(&State::Invalid));
 }

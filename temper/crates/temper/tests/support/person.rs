@@ -104,11 +104,12 @@ pub fn welcome_sign_in() -> Script {
             Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Model { way: None } } },
             Step::See { find: Find::exactly_named(Role::Button, b"Continue with ChatGPT"), within: START_WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"Continue with ChatGPT") },
-            Step::See { find: Find::named(Role::Paragraph, b"Model: ChatGPT"), within: START_WITHIN },
+            Step::See { find: Find::named(Role::Paragraph, b"Model ChatGPT plan"), within: START_WITHIN },
         ]),
     }
 }
-/// The same account's source is still signed in after a healthy service restart.
+/// The same account's source is still signed in after a healthy service restart,
+/// its card found by words of its heading.
 #[must_use]
 pub fn kept_chatgpt_account(heading: &[u8]) -> Script {
     use skein_ui::Role;
@@ -116,7 +117,7 @@ pub fn kept_chatgpt_account(heading: &[u8]) -> Script {
         begin: Begin::Token,
         steps: Box::new([
             Step::Go { address: Address::Accounts },
-            Step::See { find: Find::exactly_named(Role::Disclosure, heading), within: START_WITHIN },
+            Step::See { find: Find::named(Role::Disclosure, heading), within: START_WITHIN },
             chatgpt_source_ready(heading),
         ]),
     }
@@ -139,7 +140,8 @@ pub fn signed_in_account(signing: &[u8], name: &[u8]) -> Script {
         ]),
     }
 }
-/// Read the state in the sign-in source's own Item, inside the exact account card.
+/// Read the state in the sign-in source's own Item, inside the account card
+/// whose heading holds these words.
 /// The source kind and state are separate nodes (client/README.md, 5.5).
 #[must_use]
 pub fn chatgpt_source_ready(heading: &[u8]) -> Step<Address> {
@@ -147,7 +149,7 @@ pub fn chatgpt_source_ready(heading: &[u8]) -> Step<Address> {
     // TreeFace reads disclosure contents even while the native shell folds them.
     Step::See {
         find: Find::exactly_named(Role::Status, b"Ready").within(Box::new([
-            Target::ExactRole { role: Role::Disclosure, name: heading.into() },
+            Target::Role { role: Role::Disclosure, name: heading.into() },
             Target::Role { role: Role::Item, name: b"ChatGPT sign-in".as_slice().into() },
         ])),
         within: START_WITHIN,

@@ -336,35 +336,24 @@ fn the_welcomes_ready_names_the_forge_and_the_model() {
         f::forge_root_accounts(Address::Welcome { step: Step::Ready }, rows(connected(), w::Offer::Offered));
     f::welcome_account(&mut root, accounts);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Heading { level: 1 }, b"Almost ready");
-    node(view.tree(), Role::Paragraph, b"Forge: Forgejo on this machine, connected as temper");
+    node(view.tree(), Role::Heading { level: 1 }, b"Ready");
+    node(view.tree(), Role::Paragraph, "Forge Forgejo on this machine · connected as temper".as_bytes());
     let steps = view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_STEP));
     for step in steps {
         assert!(step.styles.as_slice().contains(&crate::look::FLOW_DONE));
         assert!(!step.states.as_slice().contains(&State::Current));
     }
-    let account_view = f::page_view(&{
-        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
-        root
-    });
-    let heading = account_view
-        .tree()
-        .nodes()
-        .iter()
-        .find(|n| n.role == Role::Heading { level: 3 })
-        .unwrap()
-        .name
-        .as_deref()
-        .unwrap();
-    let model = [b"Model: ".as_slice(), heading].concat();
-    node(view.tree(), Role::Paragraph, &model);
+    // The account by its kind and who it is; the model is chosen elsewhere
+    // (choice's tests name each kind).
+    let account = crate::pages::accounts::first_usable_short(&root, &f::words()).unwrap();
+    node(view.tree(), Role::Paragraph, &[b"Model ".as_slice(), &account].concat());
 }
 #[test]
 fn ready_without_a_forge_or_model_offers_the_two_steps() {
     let root = f::welcome_root(Step::Ready, false);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, b"Forge: none yet");
-    node(view.tree(), Role::Slot, b"Model: none yet");
+    node(view.tree(), Role::Paragraph, b"Forge none yet");
+    node(view.tree(), Role::Slot, b"Model none yet");
     node(view.tree(), Role::Link, b"Connect a forge");
     node(view.tree(), Role::Link, b"Connect a model");
 }
@@ -374,7 +363,7 @@ fn the_welcomes_ready_follows_a_forge_under_way() {
     let root =
         f::forge_root(Address::Welcome { step: Step::Ready }, rows(w::Connection::Connecting, w::Offer::Offered));
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "Forge: Forgejo on this machine · Connecting".as_bytes());
+    node(view.tree(), Role::Paragraph, "Forge Forgejo on this machine · Connecting".as_bytes());
     node(view.tree(), Role::Disclosure, b"Each step");
     assert!(f::find(view.tree(), Role::Link, b"Adopt a repository").is_none());
 }

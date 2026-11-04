@@ -154,9 +154,7 @@ pub enum Word {
     ForgeOnForgesTail,
     ForgeStatus,
     WelcomeForgeConnected,
-    WelcomeForgeStatus,
     WelcomeForgeLine,
-    WelcomeModelAccount,
     WelcomeModelSigningIn,
     ForgeConfigCode,
     ForgeIdentityCode,
@@ -698,6 +696,11 @@ pub enum Word {
     WelcomeForgejoNothingDetail,
     WelcomeForgejoNotYet,
     WelcomeForgejoName,
+    WelcomeReadyLead,
+    WelcomeCreateProject,
+    WelcomeRenameLater,
+    WelcomeDefaultUnnamed,
+    WelcomePlanAccount,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -746,9 +749,11 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // add six phrases and ten segments; its ticked forge line's old phrase, one phrase
 // and five segments, is gone (client/README.md, 3.5).
 // The welcome's Forgejo sheet adds twelve literal phrases and segments (3.5).
-const PHRASES: u32 = 1262;
-const SEGMENTS: u32 = 2163;
-const ALL: [Word; 667] = [
+// Ready's first project adds four literal phrases and one of a hole; its
+// checklist's forge status and model account phrases are gone (3.5).
+const PHRASES: u32 = 1265;
+const SEGMENTS: u32 = 2162;
+const ALL: [Word; 670] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -887,9 +892,7 @@ const ALL: [Word; 667] = [
     Word::ForgeOnForgesTail,
     Word::ForgeStatus,
     Word::WelcomeForgeConnected,
-    Word::WelcomeForgeStatus,
     Word::WelcomeForgeLine,
-    Word::WelcomeModelAccount,
     Word::WelcomeModelSigningIn,
     Word::ForgeConfigCode,
     Word::ForgeIdentityCode,
@@ -1416,6 +1419,11 @@ const ALL: [Word; 667] = [
     Word::WelcomeForgejoNothingDetail,
     Word::WelcomeForgejoNotYet,
     Word::WelcomeForgejoName,
+    Word::WelcomeReadyLead,
+    Word::WelcomeCreateProject,
+    Word::WelcomeRenameLater,
+    Word::WelcomeDefaultUnnamed,
+    Word::WelcomePlanAccount,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
@@ -1560,9 +1568,7 @@ impl Word {
             Self::ForgeOnForgesTail => 1706,
             Self::ForgeStatus => 1707,
             Self::WelcomeForgeConnected => 1708,
-            Self::WelcomeForgeStatus => 1709,
             Self::WelcomeForgeLine => 1835,
-            Self::WelcomeModelAccount => 1710,
             Self::WelcomeModelSigningIn => 1832,
             Self::ForgeConfigCode => 1711,
             Self::ForgeIdentityCode => 1712,
@@ -2087,6 +2093,11 @@ impl Word {
             Self::WelcomeForgejoNothingDetail => 3041,
             Self::WelcomeForgejoNotYet => 3042,
             Self::WelcomeForgejoName => 3043,
+            Self::WelcomeReadyLead => 3044,
+            Self::WelcomeCreateProject => 3045,
+            Self::WelcomeRenameLater => 3046,
+            Self::WelcomeDefaultUnnamed => 3047,
+            Self::WelcomePlanAccount => 3048,
 
             Self::ItsTasksNoneYet => 1251,
             Self::ItsTasksNone => 1252,
@@ -2454,6 +2465,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgejoNothingDetail => (&[b"Your first project opens with no repository. Make or copy one later from temper\xe2\x80\x99s UI, or adopt one you push yourself."], &[]),
         Word::WelcomeForgejoNotYet => (&[b"Not available yet: for now, Forgejo starts with an empty repository."], &[]),
         Word::WelcomeForgejoName => (&[b"Name"], &[]),
+        Word::WelcomeReadyLead => (&[b"Everything is connected. Create your first project and start working."], &[]),
+        Word::WelcomeCreateProject => (&[b"Create your project"], &[]),
+        Word::WelcomeRenameLater => (&[b"Rename it whenever you like."], &[]),
+        Word::WelcomeDefaultUnnamed => (&[b"A name for it: Default, or one of yours."], &[]),
+        Word::WelcomePlanAccount => (&[b"", b" plan"], &[Name]),
         Word::WelcomeContinue => (&[b"Continue"], &[]),
         Word::WelcomeModelPlan => {
             (&[b"Your ", b" plan: sign in, and temper\xe2\x80\x99s agents use its included usage."], &[Name])
@@ -2533,11 +2549,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SetupInto => (&[b"", b""], &[Name]),
         Word::AccountSources => (&[b"Its sources in order: a run takes the first usable one."], &[]),
         Word::SetupIn => (&[b"In ", b", on ", b"."], &[Name, Name]),
-        Word::WelcomeDefaultProject => (&[b"Project: ", b""], &[Name]),
-        Word::WelcomeDefaultWait => (&[b"It opens once your forge and model are ready."], &[]),
-        Word::WelcomeMakingDefault => (&[b"Making Default\xe2\x80\xa6"], &[]),
-        Word::WelcomeDefaultRefused => (&[b"Default was not made: "], &[]),
-        Word::WelcomeDefaultUnknown => (&[b"It is not known whether Default was made."], &[]),
+        Word::WelcomeDefaultProject => (&[b"Your first project"], &[]),
+        Word::WelcomeDefaultWait => (&[b"Your first project can be created once your forge and model are ready."], &[]),
+        Word::WelcomeMakingDefault => (&[b"Creating ", b"\xe2\x80\xa6"], &[Name]),
+        Word::WelcomeDefaultRefused => (&[b"Your project was not made: "], &[]),
+        Word::WelcomeDefaultUnknown => (&[b"It is not known whether your project was made."], &[]),
         Word::NoRepositoryYet => (&[b"No repository yet"], &[]),
         Word::ForgeMadeRepository => (&[b"Made ", b"."], &[Name]),
         Word::SetupOpen => (&[b"Open ", b""], &[Name]),
@@ -2547,11 +2563,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeOnForges => (&[b"", b" is on the "], &[Name]),
         Word::ForgeOnForgesTail => (&[b" page, with its details."], &[]),
         Word::ForgeStatus => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
-        Word::WelcomeForgeConnected => (&[b"Forge: ", b", connected as ", b""], &[Name, Name]),
+        Word::WelcomeForgeConnected => (&[b"", b" \xc2\xb7 connected as ", b""], &[Name, Name]),
         Word::WelcomeForgeLine => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
-        Word::WelcomeForgeStatus => (&[b"Forge: ", b" \xc2\xb7 ", b""], &[Name, Name]),
-        Word::WelcomeModelAccount => (&[b"Model: ", b""], &[Name]),
-        Word::WelcomeModelSigningIn => (&[b"Model: ", b" \xc2\xb7 signing in"], &[Name]),
+        Word::WelcomeModelSigningIn => (&[b"", b" \xc2\xb7 signing in"], &[Name]),
         Word::ForgeConfigCode => (&[b"{\n  \"number\": ", b",\n  \"kind\": \"forgejo\",\n  \"api\": {\"host\": \"forge.example\", \"port\": 443},\n  \"transport\": {\"tls\": {\n    \"server_name\": \"forge.example\", \"trust\": null\n  }},\n  \"git\": \"https://forge.example\",\n  \"web\": null,\n  \"log_origins\": null\n}"], &[Number]),
         Word::ForgeIdentityCode => (&[b"{\n  \"number\": ", b", \"forge\": ", b", \"login\": null,\n  \"author\": {\n    \"name\": \"temper\",\n    \"email\": \"temper-bot@forge.example\"\n  }\n}"], &[Number, Number]),
         Word::ForgeSetupCode => (&[b"{\n  \"forge\": ", b",\n  \"bot\": {\"login\": \"temper\", \"email\": \"temper-bot@forge.example\"},\n  \"mode\": \"managed\"\n}"], &[Number]),
@@ -2620,8 +2634,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeProgress => (&[b"Each step"], &[]),
         Word::ForgeAdopt => (&[b"Adopt a repository"], &[]),
         Word::ForgeView => (&[b"View"], &[]),
-        Word::WelcomeNoForge => (&[b"Forge: none yet"], &[]),
-        Word::WelcomeNoModel => (&[b"Model: none yet"], &[]),
+        Word::WelcomeNoForge => (&[b"none yet"], &[]),
+        Word::WelcomeNoModel => (&[b"none yet"], &[]),
         Word::FlowDone => (&[b"done"], &[]),
         Word::FlowUnderWay => (&[b"under way"], &[]),
         Word::FlowFailed => (&[b"failed"], &[]),

@@ -176,8 +176,8 @@ fn setting_up_forgejo_here_from_the_welcome() {
             d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Ready }) },
         );
         let ready = view(&root);
-        node(&ready, Role::Heading { level: 1 }, b"Almost ready");
-        node(&ready, Role::Button, b"Open Default");
+        node(&ready, Role::Heading { level: 1 }, b"Ready");
+        node(&ready, Role::Button, b"Create your project");
         assert_eq!(front.applications_admitted(), before, "revisiting Ready adopts nothing");
     }
 }

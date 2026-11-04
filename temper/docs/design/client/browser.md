@@ -478,9 +478,17 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   fields under it, indented, small bold labels over 38 px inputs, the
   addresses a monospace text area; its foot, under a hairline, the
   quiet "Cancel" and the primary Run at its right (the user's mockup,
-  2026-11-04). At 760 px and under, the cards stack, the steps but the
-  current one keep their circles alone, and the gutters are 16 px in
-  the top bar and 20 px in the main. Each act keeps a focus ring.
+  2026-11-04). Ready's checklist is a column of lines between
+  hairlines, each with its mark in a 24 px circle, ticked green once
+  done, its name in ink at 500 and what it says muted, "Open Forgejo ↗"
+  at the forge line's right; under it, the first project's form, its
+  small bold label over a 300 px field, 40 px high, and "Create your
+  project" at the field's right, "Rename it whenever you like." muted
+  under them. At 760 px and under, the cards stack, the steps but the
+  current one keep their circles alone, the forge line's link goes
+  under its words, Ready's field and act stack, the act 48 px high and
+  full width, and the gutters are 16 px in the top bar and 20 px in
+  the main. Each act keeps a focus ring.
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
   `temper.css`, whose variables and rules it builds on: what the task
   pages add to the look, as `task.html` draws it in the terminal

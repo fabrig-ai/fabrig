@@ -1320,6 +1320,27 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-welcome .temper-welcome-status > p > span:first-child { color: var(--gf-good); font-weight: 600; }
 #app > .temper-welcome .temper-welcome-status > p > span:nth-child(n+3) { color: var(--gf-muted); }
 #app > .temper-welcome .temper-welcome-status strong { font-weight: 500; }
+/* Ready, as the greenfield mockup draws it: the checklist's lines, each
+   with its mark in a circle and a hairline under it, then the first
+   project's form. */
+#app > .temper-welcome .temper-welcome-checklist { display: flex; flex-direction: column; gap: 0; margin: 0 0 32px; padding: 0; border-top: 1px solid var(--gf-line); font-size: 15px; }
+#app > .temper-welcome .temper-welcome-checklist > li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li::before { content: '' / ''; position: static; grid-column: 1; grid-row: 1; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; line-height: 1; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li.temper-flow-done::before { content: '✓' / ''; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
+#app > .temper-welcome .temper-welcome-checklist > li > * { grid-column: 2 / -1; margin: 0; }
+#app > .temper-welcome .temper-welcome-checklist > li > :first-child { grid-column: 2; grid-row: 1; }
+#app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 3; grid-row: 1; font-size: 14.5px; }
+#app > .temper-welcome .temper-welcome-checklist > li :is(p, .temper-account-line) { line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-checklist > li strong { font-weight: 500; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-checklist .temper-welcome-end { margin-left: 0; }
+#app > .temper-welcome form.temper-welcome-project { display: grid; grid-template-columns: minmax(0, 300px) auto; justify-content: start; align-items: center; gap: 8px; margin: 0 0 32px; }
+#app > .temper-welcome .temper-welcome-project > label { grid-column: 1 / -1; font: 600 14px/1.6 var(--gf-sans); color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-project > input { box-sizing: border-box; width: 100%; min-height: 40px; margin: 0; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
+#app > .temper-welcome .temper-welcome-project > input:disabled { background: #fafaf9; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-project > button { margin: 0; }
+#app > .temper-welcome .temper-welcome-project > button:disabled { opacity: .45; cursor: default; }
+#app > .temper-welcome .temper-welcome-project > :is([role=alert], p) { grid-column: 1 / -1; margin: 0; }
+#app > .temper-welcome .temper-welcome-project > [role=alert] { color: #b42318; font-size: 14px; }
 /* Forgejo on this machine's sheet over the Forge step: what it starts with, the chosen
    one's own fields under it, then Cancel and Run. The generic dialog's look is undone. */
 #app > .temper-welcome dialog.temper-welcome-sheet { width: min(620px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 24px 26px; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); font: 400 15px/1.6 var(--gf-sans); letter-spacing: normal; }
@@ -1366,4 +1387,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-welcome .temper-welcome-status { margin-bottom: 24px; }
   #app > .temper-welcome .temper-welcome-status > p > span:nth-child(3) { display: none; }
   #app > .temper-welcome .temper-welcome-status > p > span:nth-child(4) { flex-basis: 100%; padding-left: 22px; }
+  #app > .temper-welcome .temper-welcome-checklist { margin-bottom: 24px; }
+  #app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 2 / -1; grid-row: auto; justify-self: start; }
+  #app > .temper-welcome form.temper-welcome-project { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
+  #app > .temper-welcome .temper-welcome-project > button { justify-content: center; min-height: 48px; font-size: 15.5px; }
 }

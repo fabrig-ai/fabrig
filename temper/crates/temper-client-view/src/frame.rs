@@ -72,6 +72,8 @@ impl Bindings {
                     (Act::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Submit) => {
                         Act::Switcher(switcher::Act::Create)
                     }
+                    (Act::DefaultName { .. }, skein_ui::Act::Input { value }) => Act::DefaultName { words: value },
+                    (Act::DefaultName { .. }, skein_ui::Act::Submit) => Act::MakeDefault,
                     (Act::ChatWords { .. }, skein_ui::Act::Submit) => Act::StartChat,
                     (Act::MessageWords { .. }, skein_ui::Act::Submit) => Act::Send,
                     (meaning, skein_ui::Act::Press) => meaning.clone(),

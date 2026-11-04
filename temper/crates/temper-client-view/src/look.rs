@@ -346,6 +346,9 @@ pub const WELCOME_OPTION: Style = Style { owner: owner(), token: 169 };
 pub const WELCOME_OPTION_MORE: Style = Style { owner: owner(), token: 170 };
 /// The sheet's foot: Cancel, then Run on this machine.
 pub const WELCOME_SHEET_FOOT: Style = Style { owner: owner(), token: 171 };
+/// Ready's first project: its name's field, Create, and "Rename it
+/// whenever you like.".
+pub const WELCOME_PROJECT: Style = Style { owner: owner(), token: 172 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
@@ -534,6 +537,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-option",
         b"temper-welcome-option-more",
         b"temper-welcome-sheet-foot",
+        b"temper-welcome-project",
     ],
     regions: &[b"temper-link"],
 };

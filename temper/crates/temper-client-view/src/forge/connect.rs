@@ -230,7 +230,7 @@ pub(crate) fn welcome(
             match connect::step(Some(Choice::Forge(row.number)), root.forges(), connect::playground(root.forge())) {
                 Shown::Details(_) => admin_details(b, root, w, forge, row),
                 Shown::Ready(_) => {
-                    status(b, root, w, row, false);
+                    status(b, root, w, row);
                     link(
                         b,
                         w,
@@ -245,7 +245,7 @@ pub(crate) fn welcome(
         } else if row.kind == Kind::GitHub && !forge::forges::accepted(row) {
             setting_up(b, root, w, forge, row);
         } else {
-            status(b, root, w, row, false);
+            status(b, root, w, row);
             first_line(b, root, w, row);
             if connect::failed(row) {
                 progress_in(b, Some(root), w, row);
@@ -942,13 +942,12 @@ pub(crate) fn adopt(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
         link(b, w, bindings, Word::ForgeAdopt, Address::Adopt { project });
     }
 }
-pub(crate) fn status(b: &mut Builder, root: &Domain, w: &Words, row: &Row, ready: bool) {
-    let word = if ready { Word::WelcomeForgeStatus } else { Word::ForgeStatus };
-    crate::cards::text(
-        b,
-        Role::Paragraph,
-        &w.say(word, &[Hole::Name(name(w, row, root)), Hole::Name(forge::words::forge_connection(row))]),
-    );
+pub(crate) fn status(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
+    crate::cards::text(b, Role::Paragraph, &status_words(root, w, row));
+}
+/// "FORGE · CONNECTION", as Forges and Ready's checklist say it.
+pub(crate) fn status_words(root: &Domain, w: &Words, row: &Row) -> Box<[u8]> {
+    w.say(Word::ForgeStatus, &[Hole::Name(name(w, row, root)), Hole::Name(forge::words::forge_connection(row))])
 }
 /// First repository facts, with the pending setup as fallback (client/README.md, 3.5).
 pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a [u8], &'a [u8])> {
