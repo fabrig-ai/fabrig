@@ -22,7 +22,14 @@ task names. This file grows with each release; what is here so far is what has b
 
 3. **fake-github** (`skein/docs/design/fake-forge.md, 10.6`), slice 3. `notes/fake-github.md` holds its contracts.
    - `tasks/github-fake-surface.md`, high, ~100 minutes, needs nothing: what the four faces build on, additions only.
-   - The faces' tasks follow.
+   - `tasks/github-connection-face.md`, high, ~50 minutes, needs the surface: the step harness's face.
+   - `tasks/github-machine-face.md`, high, ~100 minutes, needs the surface: the machine world's.
+   - `tasks/github-protocol-face.md`, high, ~120 minutes, needs the surface: the protocol world's.
+   - `tasks/github-fixture-readers.md`, medium, ~50 minutes, needs the surface: the fixture's other readers.
+   - `tasks/github-joint-face.md`, high, ~90 minutes, needs `github-machine-face`: the joint world's.
+   - `tasks/github-close.md`, medium, ~15 minutes, needs the five: pays D029.
+
+   Each face's task has its net-lines cap. Their sum with the surface's +520 is at most -430.
 
 ## What the cut decided
 
@@ -61,9 +68,21 @@ task names. This file grows with each release; what is here so far is what has b
 - **D001's and D005's facts have moved.** The measure reads 1,388, not 1,369, and `Resources`' `Debug` is now hidden
   in both copies. `service-items` corrects what survives.
 
+- **D029's fixture is built once in skein, not across trees.** temper's four fixture builders stay: the item is
+  skein's and they speak no HTTP. A scenario's own tables, such as the conformance's, stay its own too.
+- **D029 ends near -600 lines, not the review's -1.2k.** The faces' gross fall is about that, but the surface and the
+  fixture's literals stay in the fake.
+- **Two things change below D029's tests, which none reads:** the joint world meets rate fields and `ETag`, so
+  `Answered.rate` becomes `Some` and a log poll may answer `304`; the protocol world sends real media types and
+  `Location`. Each face's spec checks its suite files unchanged, its counts equal to base, and a run compared with
+  base. A seeded sweep going red stops and asks.
+- **One test helper line moves:** `github_peer.rs`'s `request` gains a `Host` line, since the real server refuses a
+  request without one. No assertion moves. `notes/fake-github.md` states this departure from the common note.
+
 ## Critical path
 
-So far: `skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`.
+So far: `skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`;
+`github-fake-surface`, `github-machine-face`, `github-joint-face`, `github-close`.
 
 ## Overlaps
 

@@ -51,3 +51,8 @@ id = 3
 story = "the forge component's harness and its machine, joint and protocol worlds meet the fake's own Server, with their stories' outcomes unchanged and the faces gone"
 parts = ["fake-github"]
 walk = false
+
+[[question]]
+id = "github-media-type"
+text = """The fake GitHub answers one media type two ways after this plan. The machine and setup worlds' stories (github_peer.rs, github_convert.rs) read `; charset=utf-8`, as github.com sends, and skein/tests/fake-peers/tests/forge/github.rs reads bare `text/html` from Peer::github, so one Server can't satisfy both without a switch. Which holds? (a) what this plan builds by default: both stay, Server keeps a charset switch only Inline turns on, and no assertion moves, since the request keeps tests' outcomes unchanged. (b) recommended for later: github.com's spelling everywhere, which removes the switch and moves one assertion in skein/tests/fake-peers. Nothing waits on the answer; (b) is a small later change."""
+parts = ["fake-github"]
