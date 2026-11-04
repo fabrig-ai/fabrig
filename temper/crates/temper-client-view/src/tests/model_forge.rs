@@ -13,7 +13,8 @@ use temper_client_protocol_wire::v1 as w;
 fn underway() -> skein_lib::List<w::ForgeRow> {
     forge::first_rows(
         w::Connection::SettingUp(
-            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch) }).unwrap(),
+            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch), fetched: None })
+                .unwrap(),
         ),
         w::FirstState::Making,
     )
@@ -222,7 +223,9 @@ fn the_bar_sits_between_the_line_and_each_step() {
     }
 }
 fn setting_up(step: w::SetUpStep) -> w::Connection {
-    w::Connection::SettingUp(w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step) }).unwrap())
+    w::Connection::SettingUp(
+        w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step), fetched: None }).unwrap(),
+    )
 }
 #[test]
 fn done_failed_and_a_waiting_github_have_no_bar() {
