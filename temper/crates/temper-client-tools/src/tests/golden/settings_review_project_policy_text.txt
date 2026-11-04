@@ -1,3 +1,15 @@
 proposal p73/7 · settings · against revision 5, newest 5
 more time
+temper enforces
+  project-policy 1 · value (now and proposed below)
+your agents follow
+  no changes
+Effect
+New work follows this from the moment it is accepted. Nothing restarts.
+--running stays (default): let running tasks finish on their revision.
+--running moves: move compatible tasks at their next run; a live run continues until it ends.
+Conversations move at their next run when compatible, with either choice.
+Tasks whose charter is removed or whose model is no longer allowed retain their revision.
+Authority remains current: rules, project policy and the authority chain apply even to tasks retaining a charter revision.
+settings:
 project-policy 1 · set · now {"escalation_role":1,"ceiling":{"models":{"named":["6d6f64656c"]},"tools":3,"grants":[{"connector":1,"kind":2,"pattern":{"segments":["612f62","ff"],"last":{"open":"6c617374"}}}],"delegation":{"kinds":[{"charter":3}],"tasks":4,"depth":5},"spend":600,"deadline":700,"notes":1,"note_resources":[{"connector":1,"pattern":{"segments":[],"last":{"exact":"656e64"}}}]},"projections":[{"connector":1,"kind":2,"pattern":{"segments":["612f62","ff"],"last":{"open":"6c617374"}}}],"period_spend":2000,"roles":[{"number":1,"authority":{"models":{"named":["6d6f64656c"]},"tools":3,"grants":[{"connector":1,"kind":2,"pattern":{"segments":["612f62","ff"],"last":{"open":"6c617374"}}}],"delegation":{"kinds":[{"charter":3}],"tasks":4,"depth":5},"spend":600,"deadline":700,"notes":1,"note_resources":[{"connector":1,"pattern":{"segments":[],"last":{"exact":"656e64"}}}]},"period_spend":1000,"requests":3,"decides":1}],"requirements":[],"permissions":[{"connector":1,"permission":2,"role":1}],"templates":[{"template":4,"executor":null,"budget":{"amount":500},"deadline":"given","priority":null}]} · would be {"escalation_role":1,"ceiling":{"models":{"named":["6d6f64656c"]},"tools":3,"grants":[{"connector":1,"kind":2,"pattern":{"segments":["612f62","ff"],"last":{"open":"6c617374"}}}],"delegation":{"kinds":[{"charter":3}],"tasks":4,"depth":5},"spend":600,"deadline":700,"notes":1,"note_resources":[{"connector":1,"pattern":{"segments":[],"last":{"exact":"656e64"}}}]},"projections":[{"connector":1,"kind":2,"pattern":{"segments":["612f62","ff"],"last":{"open":"6c617374"}}}],"period_spend":3000,"roles":[{"number":1,"authority":{"models":{"named":["6d6f64656c"]},"tools":3,"grants":[{"connector":1,"kind":2,"pattern":{"segments":["612f62","ff"],"last":{"open":"6c617374"}}}],"delegation":{"kinds":[{"charter":3}],"tasks":4,"depth":5},"spend":600,"deadline":700,"notes":1,"note_resources":[{"connector":1,"pattern":{"segments":[],"last":{"exact":"656e64"}}}]},"period_spend":1000,"requests":3,"decides":1}],"requirements":[],"permissions":[{"connector":1,"permission":2,"role":1}],"templates":[{"template":4,"executor":null,"budget":{"amount":500},"deadline":"given","priority":null}]}

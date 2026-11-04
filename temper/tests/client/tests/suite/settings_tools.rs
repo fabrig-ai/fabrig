@@ -392,3 +392,111 @@ fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
         "{refused:?}"
     );
 }
+
+fn review_file(world: &mut ClientWorld, agent: ClientId) -> String {
+    let (setting, mut charter) = show_value(world, agent, &KINDS[0]);
+    let c::SettingValue::Charter(value) = &mut charter else { panic!("charter") };
+    value.instructions = c::Text::new(INSTRUCTIONS.into(), WHOLE_SETTING_BYTES).expect("instructions");
+    value.waiting = skein_lib::Duration::from_secs(2);
+    let charter = value_json(setting, charter);
+    let (setting, mut rules) = show_value(world, agent, &KINDS[3]);
+    change_one_member(setting, &mut rules);
+    let rules = value_json(setting, rules);
+    let kind =
+        SettingWalk { selector: r#"{"kind":"charter","number":3}"#, name: "charter 3", show: &[b"charter", b"3"] };
+    let (setting, mut instructions) = show_value(world, agent, &kind);
+    change_one_member(setting, &mut instructions);
+    let instructions = value_json(setting, instructions);
+    format!(
+        r#"{{"items":[{{"setting":{{"kind":"charter","number":1}},"set":{charter}}},{{"setting":{{"kind":"rules"}},"set":{rules}}},{{"setting":{{"kind":"charter","number":3}},"set":{instructions}}}]}}"#
+    )
+}
+
+fn assert_review_effect(review: &str) {
+    for words in [
+        "New work follows this from the moment it is accepted. Nothing restarts.",
+        "--running stays",
+        "--running moves",
+        "Conversations move at their next run",
+        "charter is removed",
+        "model is no longer allowed",
+        "retain their revision",
+        "Authority remains current",
+    ] {
+        assert!(review.contains(words), "missing {words}: {review}");
+    }
+}
+
+#[test]
+fn proposal_review_groups_changes_and_explains_running_work() {
+    let mut world = fixtures::configuring_world(fixtures::SEED, false);
+    let agent = fixtures::configuring_agent(&mut world);
+    call(
+        &mut world,
+        agent,
+        &[
+            b"chat",
+            b"start",
+            b"--project",
+            b"1",
+            b"--template",
+            b"3",
+            b"Wait for my settings review",
+            b"--key",
+            b"review-chat",
+        ],
+    );
+    assert!(!world.front().assignments.is_empty(), "scripted host keeps the chat live");
+    let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(inventory.contains("revision 1"), "{inventory}");
+    assert!(inventory.contains("live tasks: 1"), "{inventory}");
+    let file = review_file(&mut world, agent);
+    let proposal = submit_file(&mut world, agent, &file);
+    let review = call(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
+    assert_review_groups(&review);
+    assert!(review.contains("against revision 1, newest 1"), "{review}");
+    assert!(review.contains("Review every kind together"), "{review}");
+    assert!(review.contains("revision 1: 1 live tasks"), "{review}");
+    assert!(review.contains("\"waiting\":2000") && review.contains("Follow the project's new policy."), "{review}");
+    assert!(review.contains(" · now ") && review.contains(" · would be "), "{review}");
+    assert_review_effect(&review);
+    let json = call(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes(), b"--json"]);
+    assert_review_json(&json);
+    assert_review_effect(&json);
+}
+
+fn assert_review_groups(review: &str) {
+    let (_, enforced) = review.split_once("temper enforces\n").expect("product enforcement group");
+    let (enforced, followed) = enforced.split_once("your agents follow\n").expect("product instructions group");
+    let followed = followed.split_once("Effect\n").expect("running-work effect").0;
+    assert!(enforced.contains("charter 1") && enforced.contains("rules"), "{review}");
+    assert!(!enforced.contains("charter 3"), "instructions alone are followed: {review}");
+    assert!(followed.contains("charter 1") && followed.contains("charter 3"), "{review}");
+    assert!(followed.contains("instructions") && !followed.contains("rules"), "{review}");
+}
+
+fn assert_review_json(json: &str) {
+    for fact in [
+        "\"against\":1",
+        "\"newest\":1",
+        "\"enforces\":[",
+        "\"your_agents_follow\":[",
+        "\"held_revisions\":[{\"revision\":1,\"live_tasks\":1}]",
+        "\"restarts\":false",
+        "\"authority\":\"current\"",
+        "\"running_choices\":[\"stays\",\"moves\"]",
+        "\"reason\":",
+        "Review every kind together",
+        "\"now\":",
+        "\"would_be\":",
+    ] {
+        assert!(json.contains(fact), "missing {fact}: {json}");
+    }
+    let enforced = json.split_once("\"enforces\":[").expect("enforced array").1;
+    let (enforced, followed) = enforced.split_once("\"your_agents_follow\":[").expect("followed array");
+    let followed = followed.split_once("\"effect\":").expect("effect object").0;
+    assert!(enforced.contains("\"kind\":\"rules\"") && enforced.contains("\"number\":1"), "{json}");
+    assert!(!enforced.contains("\"number\":3"), "{json}");
+    assert!(followed.contains("\"number\":1") && followed.contains("\"number\":3"), "{json}");
+    assert!(!followed.contains("\"kind\":\"rules\""), "{json}");
+}
