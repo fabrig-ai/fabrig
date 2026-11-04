@@ -428,7 +428,6 @@ pub(crate) fn ready(state: &mut Forges, client: &Client, env: &Env<Limits>, out:
         send(state, client, env, called, out);
     }
 }
-#[expect(clippy::manual_map, reason = "the domain matches without closures")]
 fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     if lifecycle::owns(&called.call) {
         lifecycle::send(state, env, called, out);
@@ -690,7 +689,6 @@ fn rows(client: &Client, handle: Handle, limits: &Limits) -> Option<Box<[Row]>> 
     let Latest::Family(record) = client.document(handle)?.latest? else { return None };
     domain::rows(record, &limits.domain.forge)
 }
-#[expect(clippy::manual_map, reason = "the domain matches without closures")]
 fn changed(state: &mut Forges, client: &Client, env: &Env<Limits>, handle: Handle, out: &mut Queue<Out>) {
     let Some(doc) = client.document(handle) else { return };
     if doc.state != State::Live {

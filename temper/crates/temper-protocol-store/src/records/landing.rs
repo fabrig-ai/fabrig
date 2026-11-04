@@ -199,7 +199,6 @@ fn decode_ask(ask: w::LandingAsk) -> change::Ask {
         }
     }
 }
-#[expect(clippy::manual_map, reason = "the foundation uses explicit option matches without closures")]
 pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
     let mut members = List::with_capacity(u32::try_from(row.landing.members.len()).expect(FITS));
     for member in &row.landing.members {
@@ -252,7 +251,6 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
     }
     w::LandingRow::new(&w::CEILINGS, w::LandingRowParts { landing, asks, entries }).expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "the foundation uses explicit option matches without closures")]
 pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
     let w::LandingRowParts { landing, asks, entries } = row.into_parts();
     let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs } = landing.into_parts();
@@ -308,7 +306,6 @@ pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w
     let receipt = encode_receipt_value(receipt);
     w::ReceiptRow::new(&w::CEILINGS, w::ReceiptRowParts { key, receipt }).expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit options")]
 pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
     let run = w::ReceiptRun::new(
         &w::CEILINGS,

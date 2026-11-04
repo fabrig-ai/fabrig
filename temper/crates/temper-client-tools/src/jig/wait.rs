@@ -43,7 +43,6 @@ struct TaskDocument {
     why: Box<[u8]>,
 }
 impl Wait {
-    #[expect(clippy::manual_map, reason = "the domain matches without closures")]
     fn answers(&self, digest: Digest, holds: Option<bool>) -> bool {
         let verdict = match self.until {
             Some(_) => Some(holds == Some(true)),
@@ -446,7 +445,6 @@ fn page(
     true
 }
 
-#[expect(clippy::manual_map, reason = "the domain matches without closures")]
 fn terminal_page(
     runner: &mut Runner,
     client: &Client,

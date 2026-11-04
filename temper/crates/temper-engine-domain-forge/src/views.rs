@@ -109,7 +109,6 @@ impl Domain {
         }
         None
     }
-    #[expect(clippy::manual_map, reason = "the foundation uses explicit matches without closures")]
     fn landing_view(&self, task: u64) -> Option<LandingView> {
         let row = &self.landing.rows.get(&task)?.landing;
         let mut members = List::with_capacity(self.landing.limits.landing_members);
