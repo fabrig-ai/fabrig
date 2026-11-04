@@ -7,7 +7,12 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
+skein-playground.workspace = true
+skein-ui-web.workspace = true
 temper-fake.workspace = true
 temper-fake-git-hosted.workspace = true
 temper-fake-git.workspace = true
@@ -51,7 +56,11 @@ temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-engine-smith.workspace = true
 temper-service.workspace = true
+temper-forge-setup.workspace = true
 temper-worker-protocol-git.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen.workspace = true
 
 [dev-dependencies]
 temper-worker-checkout-world.workspace = true

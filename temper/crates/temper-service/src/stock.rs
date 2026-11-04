@@ -180,7 +180,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm) -> Option<Defaults> {
     // A 16-turn coder is bounded by that spend; at init prices (C = 1057,
     // K = 4228) its 16 turns fit (protocol/configuration.md, 13.4).
     run = run.max(u64::from(charters.first()?.policy.turns).checked_mul(4)?);
-    let chat_spend = run.checked_mul(24)?;
+    let chat_spend = run.checked_mul(16)?;
     let ceiling_spend = run.checked_mul(48)?;
     for charter in charters.iter_mut() {
         charter.spend = run;

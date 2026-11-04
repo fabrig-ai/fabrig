@@ -1,6 +1,6 @@
 # Status
 
-2026-11-03. Where jig's code lags or departs from its design, from the
+2026-11-04. Where jig's code lags or departs from its design, from the
 status files below. Agents in a host's own process are the widest gap:
 no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
@@ -26,7 +26,7 @@ is offered in no project's document (`client/domain/contract.md`).
 Public reading's remaining departure is the public index's memory fit
 check (`protocol/configuration.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
-`client/domain/contract.md`, `domain/people.md`, `domain/root.md`, `examples.md`,
+`client/domain/contract.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `examples.md`,
 `protocol/README.md`, `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
 `domain/providers.md`, `client/domain/README.md` and
 `protocol/browser.md` have no gap of their own. jig has no drafts.
