@@ -2424,6 +2424,13 @@ Each is a box obligation, recorded present or lacking with what the
 pass saw. A lacking one ends the walk before the chat, a finding against
 the box, never the agent.
 
+The walk's bounds, the user's (2026-11-04): the box's limits are the
+reference's profile whole, as above, its spends and times the box's; the
+pass takes at most 3 hours of wall time from the box's start to the
+stage's verdict, the configuring chat at most 40 of the person's
+messages, and the judge one session at Opus 5.5, high, within 30
+minutes.
+
 #### 6.5.3 The evidence
 
 After the acceptance, the pass collects what the check reads into one
@@ -2605,13 +2612,6 @@ scripts/proof-live.sh               the live tier
 - **The machine's git in the process tier.** Default: whatever git the
   test host has, 2.41 or later, which ../protocol/git.md's start refuses below
   (../protocol/git.md, section 3); transcripts are of 2.53.
-- **Stage 1's figures** (6.5): the box's limits and the walk's bounds,
-  which are the user's (`../draft/configuring.status.md`). Default: the
-  box's limits the reference's profile whole (6.5.2), its spends and
-  times the box's; the pass at most 3 hours of wall time from the box's
-  start to the stage's verdict, the configuring chat at most 40 of the
-  person's messages, and the judge one session at Opus 5.5, high,
-  within 30 minutes.
 
 ## 11. Later
 
