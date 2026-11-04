@@ -32,14 +32,19 @@ the standing rules every task names.
    - `tasks/smith-stages-machines.md`, high, ~110 minutes, needs nothing: `Line`, `Admission`,
      `Opening` and `Roots`, and `Teardown` holds the first failure; 55 fields to 44, 3 `bool` to
      1, 13 `Option` to 6.
-   - `HostIo` follows, with the task that closes the item, once its designer's batch holds.
+   - `tasks/smith-hostio-close.md`, high, ~130 minutes, needs nothing: `Close`, `TerminalInput`
+     with `WindowRead`, `Signals` and `Child`; 34 fields to 30, 10 `bool` or `Option` to 3.
+   - `tasks/smith-hostio-inspection.md`, high, ~60 minutes, needs the last: `DeliveryIo`'s file
+     inspection becomes `Inspection`; 10 fields to 6.
+   - `tasks/smith-lifecycles-paid.md`, docs, medium, ~15 minutes, needs the owners' last tasks:
+     the Paid when is read on the trunk, and the item, its row and D003's and D012's mentions go.
 
 ## Critical path
 
-So far: `smith-domain-delivery-save` → `smith-domain-chat-states` (~150 + 70 = ~220
-implementer-minutes); `skein-feed-driver` → `skein-forge-pumps` → `skein-feed-paid` (~160) and
-`smith-stages-machines` (~110) run beside it; `jig-ui-callers` (~70) and `temper-json-pumps` (~50)
-alone.
+`smith-domain-delivery-save` → `smith-domain-chat-states` → `smith-lifecycles-paid` (~150 + 70 +
+15 = ~235 implementer-minutes). Beside it: `smith-hostio-close` → `smith-hostio-inspection` (~190),
+`smith-stages-machines` (~110), and `skein-feed-driver` → `skein-forge-pumps` → `skein-feed-paid`
+(~160). `jig-ui-callers` (~70) and `temper-json-pumps` (~50) run alone.
 
 ## Overlaps
 
@@ -47,7 +52,9 @@ Checked against the brief's `Drafts beside this one`, 2026-11-04: no task touche
 draft is changing. `fabrig-scale` changes `temper-settings-form/src/lib.rs` and
 `temper-engine-smith/src/tests/settings.rs`, not `json.rs` or `tests.rs`, and nothing in skein's
 JSON readers. `fabrig-scale` also changes `smith-agent-service/src/profile.rs` and its tests,
-which `smith-stages-machines` leaves out of its files.
+which `smith-stages-machines` leaves out of its files. Each smith owner's tasks hold one crate,
+so the three chains share no file. smith D003 (the route table) is not this plan's;
+`smith-hostio-close` leaves `operations` and the routing alone.
 
 ## Calls made
 
@@ -87,6 +94,12 @@ which `smith-stages-machines` leaves out of its files.
   `effort`, `answer_wall`, `interactive`; on `Stages`, `events`, `program`, `input`, `output`,
   `signals`, `product_exit`, `usage_unread`. The Paid when forbids a field meaningful in some
   states only, not every `Option`.
+- **`DeliveryIo` counts as `HostIo`:** it has no method but `new`, so its fields are the hub's
+  under another name, and three of them mean nothing outside a capture. So
+  `smith-hostio-inspection` is in. `git` and `store` stay: each `Option` is its slot's whole state.
+- **`follow` where a state implies an effect:** `Line`, `Signals` and `Inspection` have none, since
+  5.4's `follow` exists to carry such effects and they have none; `Child`'s is `drain_process`. The
+  closing task reads the Paid when so.
 - **Left out of the item:** two test kits (`skein-forge-conformance`, `skein-throwaway-forgejo`)
   pump a `Collector`, not a tokenizer, and `skein-llm`'s `openai/tests.rs` likewise; `Feed` owns a
   tokenizer, and the Paid when does not name them. They stay.
