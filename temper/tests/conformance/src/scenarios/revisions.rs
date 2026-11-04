@@ -82,6 +82,7 @@ pub(super) fn run_amend(world: &mut World) {
         AMEND_CALL,
         2,
         engine::Tool::Amend {
+            keep_parameters: false,
             target: target(world),
             revision: 0,
             amendment: tasks::Amendment {

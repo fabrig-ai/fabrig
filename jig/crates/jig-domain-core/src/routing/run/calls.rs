@@ -633,7 +633,7 @@ pub(crate) fn named_action(
         NamedAction::Control { target, control } => {
             return super::controls::control(core, work, ReplyTo::new(token), key, target, control);
         }
-        NamedAction::Amend { target, revision, amendment } => {
+        NamedAction::Amend { keep_parameters, target, revision, amendment } => {
             return named_amend(
                 core,
                 env,
@@ -642,7 +642,7 @@ pub(crate) fn named_action(
                 key,
                 target,
                 revision,
-                amendment,
+                keep_spec_parameters(core, target, amendment, keep_parameters),
                 crate::routing::party::amendment_reads::Evidence::new(&env.limits.tasks),
             );
         }
@@ -885,4 +885,15 @@ pub(crate) fn named_amend(
         amendment,
     })));
     out
+}
+
+/// Resolve host omission before the whole amendment is admitted (domain/tasks.md, 7).
+fn keep_spec_parameters(core: &Core, target: u64, mut amendment: tasks::Amendment, keep: bool) -> tasks::Amendment {
+    if keep
+        && let Some(spec) = &mut amendment.spec
+        && let Some(current) = core.tasks.task(target)
+    {
+        spec.parameters.clone_from(&current.spec.parameters);
+    }
+    amendment
 }

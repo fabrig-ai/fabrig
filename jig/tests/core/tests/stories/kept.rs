@@ -10,7 +10,12 @@ fn amend_dependency(world: &mut World, parent: (u64, u64), target: u64, dependen
     world.send(root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(9100)),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 10, position: 0 },
-        action: core::NamedAction::Amend { target, revision: live_row(world, target).revisions.spec, amendment },
+        action: core::NamedAction::Amend {
+            keep_parameters: false,
+            target,
+            revision: live_row(world, target).revisions.spec,
+            amendment,
+        },
     }));
     assert_eq!(live_row(world, target).waiting_on.as_ref(), [dependency]);
 }
