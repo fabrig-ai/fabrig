@@ -25,7 +25,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
-            "policy":{"max_turns":16,"group_stop":10,"inbox":8,"unacknowledged":8,"check_timeout":60000}},
+            "policy":{"max_turns":800,"group_stop":10,"inbox":8,"unacknowledged":8,"check_timeout":60000}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":UNREACHED,"transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
             "connect":1000,"handshake":1000,
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn the_browser_fixture_admits_every_stock_charter() {
         let directory = std::path::Path::new("/fixture");
-        let (_, bytes) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let (agent, bytes) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
         let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
         let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
         let document = jig_protocol_config::document(
@@ -268,6 +268,11 @@ mod tests {
         .expect("engine document");
         let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
             .expect("stock engine");
+        let agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
+        let turns = agent["profile"]["policy"]["max_turns"].as_u64().expect("agent turn allowance");
+        for charter in &engine.charters {
+            assert!(u64::from(charter.policy.turns) <= turns, "charter {} exceeds agent turns", charter.number);
+        }
         assert_eq!(engine.charters.len(), 5);
         assert_eq!(usize::try_from(engine.limits.core.documents.lines).expect("line capacity"), engine.charters.len());
     }
