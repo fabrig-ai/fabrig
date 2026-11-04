@@ -1,0 +1,37 @@
+draft = "execution-own"
+repo = "fabrig"
+sources = ["temper/docs/plan/execution-own/inputs/request.md"]
+
+# The temper drafts say what, not who runs it (inputs/request.md), in two direct tasks in a chain:
+# tests/boundary/outward.txt's entries can leave only once their files hold no names, and they
+# are adjacent lines, so one task takes them all, last. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "notes-and-example"
+title = "notes.md keeps N1 to N24 with reasons of their own; dashboards.md's example is a neutral project's page"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/notes.md, 4"
+
+[[slice]]
+id = 1
+story = "notes.md holds the choices and their reasons with no run evidence and no pipeline, every citation of its old sections 2 and 3 is gone, and dashboards.md's test input is an example project's data"
+parts = ["notes-and-example"]
+walk = false
+
+[[part]]
+id = "execution-lines"
+title = "the execution files say what each milestone delivers, not who runs it; two status lines; six entries leave the outward inventory"
+mode = "direct"
+needs = ["notes-and-example"]
+design = "temper/docs/design/draft/reference-case.execution.md, 2"
+
+[[slice]]
+id = 2
+story = "no file under temper/docs/design/ is left in tests/boundary/outward.txt, the check is green and tools/citations/citations.py --all is at 0"
+parts = ["execution-lines"]
+walk = false

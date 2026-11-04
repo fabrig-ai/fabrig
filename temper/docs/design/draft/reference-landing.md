@@ -4,9 +4,8 @@ Draft, 2026-11-02. How the reference lands what code production made: a
 goal's branch into main as one change, the few small changes around it,
 and their verification after landing. Code production is
 `reference-code-production.md`; `reference-case.md` walks both;
-`notes.md` holds the evidence and the reasons, cited by section and by
-number (N1 to N24), and where each item of the landing model it drops
-goes (`notes.md`, section 6).
+`notes.md` holds the reasons, cited by number (N1 to N24), and where
+each item of the landing model it drops goes (`notes.md`, section 6).
 
 Unqualified, `forge.md`, `landing.md`, `after-landing.md` and
 `findings.md` are temper's `../domain/` documents; jig's are named as
@@ -128,9 +127,8 @@ why, and the hold escalates to its coordinator (jig's
   section 9): L and the small changes, ordered by priority, then by when
   each became ready.
 - **One at a time is enough.** Few changes land into main, and most are
-  large and checked whole. The evidence agrees: of 131 batches through
-  the queue it records, 129 carried one branch, and none was ever
-  bisected (`notes.md`, 2.2).
+  large and checked whole. A batch would rarely carry a second change,
+  and bisecting one would have nothing to do.
 - **Main's own CI red** pauses the queue and makes one repair, a change
   into main, first in the queue (`forge.md`, section 9). Where tiers
   judge main, they do instead, and the queue never pauses for them.
@@ -144,9 +142,9 @@ g meets main twice: along the way, by catch-up changes into it that its
 coordinator makes as main's landings touch the goal's open work (N6,
 `reference-code-production.md`, section 11); and at the end, when L is
 first and lacks main's tip, by the forge's update, a conflict going to
-the merge job and a resolution. The first keeps the second small: the
-evidence's one catch-up left to the end met 23 conflicts and took 56
-minutes by hand (`notes.md`, 2.2).
+the merge job and a resolution. The first keeps the second small: a
+catch-up left to the end meets every conflict at once, by hand, when
+the goal is otherwise done.
 
 ## 6. After landing
 
@@ -200,10 +198,9 @@ entry, a Later section) carries that edit itself.
 
 ## 9. What has not yet run unattended
 
-From the evidence (`notes.md`, 2.2): a catch-up with main, a
-plan stopped by its bounds, a goal's branch landed with a red after
-landing routed to a repair. Each was done by hand when it happened.
-They are this reference's first stories:
+Three things have no unattended run behind them: a catch-up with main,
+a plan stopped by its bounds, a goal's branch landed with a red after
+landing routed to a repair. They are this reference's first stories:
 
 - a goal's landing whose update into main conflicts, settled by the
   merge job and a resolution on g;
@@ -240,7 +237,7 @@ They are this reference's first stories:
 ## 12. Open questions
 
 - **A whole-goal review as a gate,** at xhigh, before L queues? The
-  evidence had none; a project may add one by its rules.
+  reference has none; a project may add one by its rules.
 - **Pause main's queue while a goal's landing is red?** The default lets
   others land; a project that lands one goal at a time may prefer to
   stop until the repair lands.
