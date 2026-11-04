@@ -358,7 +358,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         jig_protocol_config::Defaults::Passed,
     )
     .expect("the program provider passes ordinary engine admission");
-    assert_eq!(admitted.limits.core.documents.lines, 8, "init capacity also carries all three provider offers");
+    assert_eq!(admitted.limits.core.documents.lines, 3, "the rewrite carries all three provider offers");
     let effective = json(&docs.temper);
     let effective_agent = json(&docs.agent);
     let llm = &effective["engine"]["llm"];

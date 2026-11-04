@@ -499,7 +499,8 @@ pub struct Dependents {
 /// A tracked goal with two report delegates; the first has spent, the second waits for it.
 pub fn goal_with_dependent_delegates(front: &mut Joint) -> Dependents {
     use temper_engine_domain_world::fixtures::report_delegate;
-    *front = Joint::with_delegates(SEED, &domain_limits(), DEPENDENT_DELEGATES);
+    let limits = domain_limits();
+    *front = Joint::with_delegates(SEED, &limits, DEPENDENT_DELEGATES, limits.client.domain.rows);
     let goal = make_goal_with_delegation(front, false, Some(DEPENDENT_DELEGATES));
     let driver = &mut front.engine;
     let parent = driver.last_assignment();

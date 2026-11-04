@@ -16,6 +16,8 @@ pub const GOAL_REPORT: &[u8] = b"The export's first milestone landed";
 const GOAL_PROGRESS: &[u8] = b"Plan the export's first milestone";
 // B2: one survey followed by two implementation tasks.
 const DELEGATES: u32 = 3;
+// The third ended delegate falls beyond the plan's first page.
+const PAGE_ROWS: u32 = 2;
 const ADVISOR_CALL: u64 = 1301;
 const FIRST_CALL: u64 = 1302;
 const SECOND_CALL: u64 = 1303;
@@ -38,7 +40,7 @@ pub struct Planned {
 /// with authority for three delegates delegates one report task, which runs a
 /// turn and reports. The goal's next run is out, with no call yet.
 pub fn advisor_reported(front: &mut Joint) -> Advised {
-    *front = Joint::with_delegates(SEED, &domain_limits(), DELEGATES);
+    *front = Joint::with_delegates(SEED, &domain_limits(), DELEGATES, PAGE_ROWS);
     let goal = make_goal_with_delegation(front, false, Some(DELEGATES));
     delegate_turn(front, goal, None, GOAL_PROGRESS);
     let advisor = delegate(front, goal, ADVISOR_CALL, FIRST_POSITION, ADVISOR_BRIEF, Box::new([]));

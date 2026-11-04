@@ -76,15 +76,16 @@ pub fn call(name: &[u8], arguments: &[u8]) -> Turn {
 }
 
 /// Worker capacities for stock inboxes and the recorded repository reads.
-pub(super) fn worker_limits() -> worker::Limits {
+pub(super) fn worker_limits(engine: &engine::Limits) -> worker::Limits {
     let mut limits = super::worker_limits();
-    limits.bounds.message_bytes = 4096;
-    limits.bounds.inbox = 8;
-    limits.host.inbox = 8;
-    limits.host.held = 8;
-    limits.agent.messages = 8;
-    limits.host.event_bytes = 4096;
-    limits.agent.message_bytes = 8192;
+    limits.bounds.message_bytes = engine.tasks.message_bytes.max(4096);
+    limits.bounds.inbox = engine.tasks.run_inbox.max(8);
+    limits.host.inbox = limits.bounds.inbox;
+    limits.host.held = limits.bounds.inbox;
+    limits.agent.messages = limits.bounds.inbox;
+    limits.host.event_bytes = u64::from(limits.bounds.message_bytes);
+    // The worker adds two separator bytes to each host event.
+    limits.agent.message_bytes = (limits.host.event_bytes + 2).max(8192);
     limits.reply_bytes = 8192;
     limits
 }
