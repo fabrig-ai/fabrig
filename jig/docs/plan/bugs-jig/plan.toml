@@ -1,0 +1,3 @@
+draft = "bugs-jig"
+repo = "fabrig"
+sources = ["jig/docs/plan/bugs-jig/inputs/bugs-jig.md", "AGENTS.md"]
