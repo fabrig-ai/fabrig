@@ -422,6 +422,10 @@ fn document_bounds(good: limits::Limits) {
     relaxed_depth.json.depth = limits::DEPTH.saturating_add(1);
     assert_eq!(
         decode(Kind::BranchRows, br#"[{"name":"a","unknown":[[[[[[[[[]]]]]]]]]}]"#, 7, &relaxed_depth).1,
+        Ok(Document::Rows)
+    );
+    assert_eq!(
+        decode(Kind::BranchRows, br#"[{"name":"a","unknown":[[[[[[[[[[]]]]]]]]]]}]"#, 7, &relaxed_depth).1,
         Err(Malformed::Json(skein_json::tokenizer::Error::TooDeep))
     );
     // An unknown string longer than the retention limit is checked without being kept.
