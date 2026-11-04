@@ -380,23 +380,26 @@ impl Connection {
     /// Routes at most a fixed number of child-machine movements. Remaining work stays owned.
     pub fn pump(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
         for _ in 0_u32..64 {
-            match self.link.pump(io) {
-                Moved::Sent => {
-                    if self.request.is_some() {
-                        self.written = true;
-                        self.phase =
-                            if self.upload.is_some() { Phase::Sending { written: true } } else { Phase::Reading };
+            let held = self.answer_pending() || self.phase == Phase::Closed;
+            if !held || self.closing {
+                match self.link.pump(io) {
+                    Moved::Sent => {
+                        if self.request.is_some() {
+                            self.written = true;
+                            self.phase =
+                                if self.upload.is_some() { Phase::Sending { written: true } } else { Phase::Reading };
+                        }
+                        continue;
                     }
-                    continue;
+                    Moved::Above(event) => {
+                        self.link_event(env, event);
+                        continue;
+                    }
+                    Moved::Within => continue,
+                    Moved::Nothing => {}
                 }
-                Moved::Above(event) => {
-                    self.link_event(env, event);
-                    continue;
-                }
-                Moved::Within => continue,
-                Moved::Nothing => {}
             }
-            if self.answer_pending() || self.closing || self.phase == Phase::Closed {
+            if held {
                 break;
             }
             if let Some(down) = self.http_down.pop() {
