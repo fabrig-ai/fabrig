@@ -142,7 +142,7 @@ pub(crate) const DOCUMENT_KINDS: u16 = 16;
 
 fn document_source(document: &Document) -> Option<forge::BriefDocument> {
     let [prefix, host, owner, name, branch, segments @ ..] = document.name.segments.as_ref() else { return None };
-    if document.connector != 0 || prefix.as_ref() != b"forge" || branch.as_ref() != b"branch" || segments.is_empty() {
+    if prefix.as_ref() != b"forge" || branch.as_ref() != b"branch" || segments.is_empty() {
         return None;
     }
     let mut bytes = segments.len().checked_sub(1).expect("branch has a segment");
@@ -211,7 +211,11 @@ fn bind_documents(
     }
     let mut titles = List::with_capacity(domain.limits.tasks.charter_documents);
     for (index, planned) in documents.into_iter().enumerate() {
-        let source = document_source(&planned.document);
+        let source = if planned.document.connector == domain.config.forge_connector {
+            document_source(&planned.document)
+        } else {
+            None
+        };
         let title = document_title(&planned.document, source.as_ref());
         titles.push(title.clone()).expect("charter document limit");
         let token = domain
