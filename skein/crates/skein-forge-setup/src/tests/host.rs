@@ -894,8 +894,11 @@ const ADMIN_BODY: &[u8] = br#"{"id":1,"login":"kit-admin","is_admin":true,"full_
 const BOT_BODY: &[u8] = br#"{"id":42,"login":"kit","is_admin":false,"full_name":"kit:bot"}"#;
 const SETTINGS_BODY: &[u8] = br#"{"max_response_items":4,"default_paging_num":30}"#;
 impl World {
-    #[expect(clippy::disallowed_macros, reason = "the HTTP fixture frames its body's length")]
     fn reply(&mut self, body: &[u8]) {
+        self.reply_status(200, body);
+    }
+    #[expect(clippy::disallowed_macros, reason = "the HTTP fixture frames its status and body's length")]
+    fn reply_status(&mut self, status: u16, body: &[u8]) -> u32 {
         use skein_lib::{
             Intake,
             stream::{Down, Up},
@@ -904,7 +907,7 @@ impl World {
         self.event(skein_io::Event::Connecting { owner, socket: owner });
         self.event(skein_io::Event::Connected { owner });
         let mut intake = Intake::with_capacity(limits().body_bytes_in);
-        let head = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len());
+        let head = format!("HTTP/1.1 {status} Reply\r\nContent-Length: {}\r\n\r\n", body.len());
         intake.append(head.as_bytes()).unwrap();
         intake.append(body).unwrap();
         for _ in 0_u32..4096 {
@@ -920,7 +923,7 @@ impl World {
                 Some(skein_io::Request::Close { entity }) => {
                     assert_eq!(entity, owner);
                     self.event(skein_io::Event::Closed { owner });
-                    return;
+                    return intake.len();
                 }
                 Some(other) => panic!("unexpected io: {other:?}"),
                 None => self.host.fire(&self.env, &mut self.up, &mut self.io),
@@ -1459,6 +1462,8 @@ fn copy() -> Plan {
 #[test]
 fn copy_selects_its_own_deadline_from_admission_time() {
     let forge = forge(1);
+    assert_eq!(crate::host::run::deadline_why(&copy()), Why::TimedOut);
+    assert_eq!(crate::host::run::deadline_why(&check()), Why::Down);
     assert_eq!(
         crate::host::run::deadline(&forge, &copy(), Time::ZERO),
         Time::ZERO.saturating_add(Duration::from_secs(1800))
@@ -1513,4 +1518,215 @@ fn the_host_asserts_copy_admission_before_starting() {
         *from = b"http://source.invalid/owner/repo".as_slice().into();
     }
     World::new().plan(1, plan);
+}
+
+fn repository_stop(why: Why) -> Event {
+    Event::Stop {
+        run: Token::new(1),
+        failure: Failure { forge: 1, step: Stage::Repository, subject: b"first/copied".as_slice().into(), why },
+    }
+}
+
+impl World {
+    fn absent_repository(&mut self, plan: Plan) {
+        self.plan(1, plan);
+        read(self, Item::AdminToken);
+        self.answer(1, Answer::Read(Some(fixtures::secret(fixtures::ADMIN))));
+        self.reply(ADMIN_BODY);
+        self.reply(br#"{"id":1,"name":"first"}"#);
+        self.reply_status(404, b"");
+    }
+
+    fn migrate(&mut self) {
+        self.absent_repository(copy());
+        assert_eq!(
+            self.up.pop(),
+            Some(Event::Need {
+                run: Token::new(1),
+                need: Need::Write { item: Item::Copying, bytes: fixtures::secret(&[1]) },
+            })
+        );
+        self.answer(1, Answer::Written);
+        assert!(self.up.is_empty());
+    }
+}
+
+#[test]
+fn a_refused_migrate_says_forgejos_message_before_its_stop() {
+    let mut w = World::new();
+    w.migrate();
+    w.reply_status(422, br#"{"message":"source is private"}"#);
+    assert_eq!(w.up.pop(), Some(Event::Said { run: Token::new(1), words: b"source is private".as_slice().into() }));
+    assert_eq!(w.up.pop(), Some(repository_stop(Why::Refused(422))));
+    assert!(w.up.is_empty());
+}
+
+#[test]
+fn a_refused_migrate_with_no_message_says_nothing() {
+    for body in [b"".as_slice(), b"not JSON", br#"{"url":"help"}"#, br#"{"message":""}"#] {
+        let mut w = World::new();
+        w.migrate();
+        w.reply_status(422, body);
+        assert_eq!(w.up.pop(), Some(repository_stop(Why::Refused(422))));
+        assert!(w.up.is_empty());
+    }
+}
+
+#[test]
+fn a_refused_migrates_words_are_cut_at_a_character() {
+    let mut w = World::new();
+    let cap = usize::try_from(w.env.limits.string_bytes).expect("string cap");
+    for prefix_length in [cap - 3, cap - 1] {
+        let mut prefix = skein_lib::bytes::zeroed(prefix_length);
+        prefix.fill(b'a');
+        let body = skein_lib::bytes::concat(&[br#"{"message":""#, &prefix, "界extra\"}".as_bytes()]);
+        w.migrate();
+        w.reply_status(422, &body);
+        let expected =
+            if prefix_length == cap - 3 { skein_lib::bytes::concat(&[&prefix, "界".as_bytes()]) } else { prefix };
+        assert_eq!(w.up.pop(), Some(Event::Said { run: Token::new(1), words: expected }));
+        assert_eq!(w.up.pop(), Some(repository_stop(Why::Refused(422))));
+        assert!(w.up.is_empty());
+    }
+}
+
+#[test]
+fn a_401_says_nothing() {
+    let mut w = World::new();
+    w.migrate();
+    let body = br#"{"message":"a token must stay private"}"#;
+    let unread = w.reply_status(401, body);
+    assert_eq!(usize::try_from(unread).expect("small body"), body.len(), "a 401's body is not read");
+    assert_eq!(w.up.pop(), Some(repository_stop(Why::Refused(401))));
+    assert!(w.up.is_empty());
+}
+
+#[test]
+fn no_other_refusal_says_anything() {
+    let mut w = World::new();
+    w.absent_repository(Plan::Create {
+        forge: 1,
+        org: b"first".as_slice().into(),
+        repository: b"copied".as_slice().into(),
+        files: Box::new([]),
+    });
+    let body = br#"{"message":"refused creation"}"#;
+    let unread = w.reply_status(422, body);
+    assert_eq!(usize::try_from(unread).expect("small body"), body.len());
+    assert_eq!(w.up.pop(), Some(repository_stop(Why::Refused(422))));
+    assert!(w.up.is_empty());
+}
+
+#[test]
+fn a_copy_past_its_deadline_stops_timed_out() {
+    let mut settings = settings(&[1]);
+    forgejo_mut(&mut settings).limits.copy_deadline = Duration::from_secs(180);
+    let mut w = World::with(limits(), settings);
+    w.migrate();
+    let owner = w.connect();
+    let socket = Token::new(100);
+    w.event(skein_io::Event::Connecting { owner, socket });
+    w.event(skein_io::Event::Connected { owner });
+    w.io.clear();
+    w.fire(179_999);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    w.fire(180_000);
+    assert_eq!(w.up.pop(), Some(repository_stop(Why::TimedOut)));
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    w.event(skein_io::Event::Closed { owner });
+    assert!(w.up.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+
+#[test]
+fn a_removed_forges_copy_stops_down() {
+    for request in [Request::Remove { forge: 1 }, Request::Abort] {
+        let mut w = World::new();
+        w.migrate();
+        let owner = w.connect();
+        let socket = Token::new(100);
+        w.event(skein_io::Event::Connecting { owner, socket });
+        w.event(skein_io::Event::Connected { owner });
+        w.io.clear();
+        w.down(request);
+        assert_eq!(w.up.pop(), Some(repository_stop(Why::Down)));
+        assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+        assert!(w.up.is_empty());
+        assert!(w.io.is_empty());
+    }
+}
+
+#[expect(clippy::disallowed_macros, reason = "the HTTP fixture frames its status and body's length")]
+fn refused_connection(status: u16, body: &[u8]) -> (crate::reconcile::Reply, Option<Box<[u8]>>, u32) {
+    use skein_forge::forgejo::request::{Repo, Request};
+    use skein_lib::{
+        Intake,
+        stream::{Down, Up},
+    };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
+    let mut connection = crate::host::connection::Connection::new(
+        Token::new(1),
+        &forge(1),
+        b"kit",
+        &Request::Migrate {
+            at: Repo { owner: b"first".as_slice().into(), name: b"copied".as_slice().into() },
+            from: b"https://source.invalid/owner/repo".as_slice().into(),
+        }
+        .into(),
+        &fixtures::secret(fixtures::ADMIN),
+        &env.limits,
+    )
+    .expect("migrate connection");
+    let mut io = Queue::uncapped();
+    connection.link.connecting(Token::new(10), &mut io);
+    connection.connect(&env);
+    let mut intake = Intake::with_capacity(env.limits.body_bytes_in);
+    let head = format!("HTTP/1.1 {status} Reply\r\nContent-Length: {}\r\n\r\n", body.len());
+    intake.append(head.as_bytes()).unwrap();
+    intake.append(body).unwrap();
+    for _ in 0_u32..4096 {
+        connection.pump(&env, &mut io);
+        if let Some(reply) = connection.result.take() {
+            return (reply, connection.words.take(), intake.len());
+        }
+        match io.pop() {
+            Some(skein_io::Request::Stream { down: Down::Demand { read, room }, .. }) => {
+                if room > 0 {
+                    connection.stream(&env, Up::Room);
+                } else if let Some(bytes) = intake.meet(read) {
+                    connection.stream(&env, Up::Bytes(bytes));
+                }
+            }
+            Some(skein_io::Request::Stream { down: Down::Send(_) | Down::Finish, .. }) | None => (),
+            Some(other) => panic!("unexpected io: {other:?}"),
+        }
+    }
+    panic!("migrate refusal did not settle");
+}
+
+#[test]
+fn a_migrate_connection_preserves_its_status_with_optional_bounded_words() {
+    let cap = usize::try_from(limits().string_bytes).expect("string cap");
+    let mut prefix = skein_lib::bytes::zeroed(cap - 1);
+    prefix.fill(b'a');
+    let long = skein_lib::bytes::concat(&[br#"{"message":""#, &prefix, "界extra\"}".as_bytes()]);
+    for (status, body, words) in [
+        (422, br#"{"message":"private source"}"#.as_slice(), Some(b"private source".as_slice())),
+        (422, b"", None),
+        (422, b"not JSON", None),
+        (422, br#"{"url":"help"}"#, None),
+        (422, br#"{"message":"text"} trailing"#, None),
+        (422, long.as_ref(), Some(prefix.as_ref())),
+        (401, br#"{"message":"a token must stay private"}"#, None),
+    ] {
+        let (reply, said, unread) = refused_connection(status, body);
+        assert_eq!(reply, crate::reconcile::Reply::Status(status));
+        assert_eq!(said.as_deref(), words);
+        if status == 401 {
+            assert_eq!(usize::try_from(unread).expect("small body"), body.len(), "a 401's body is not read");
+        }
+    }
 }
