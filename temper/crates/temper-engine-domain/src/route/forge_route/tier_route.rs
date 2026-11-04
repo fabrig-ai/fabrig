@@ -208,7 +208,7 @@ fn projection_needed(domain: &Domain, task: u64) -> bool {
 
 // Each verdict line holds one whole escaped ID and its retained change read.
 fn report_words(words: &[u8], bound: u32) -> Box<[u8]> {
-    let room = usize::try_from(bound).expect("u32 fits usize");
+    let room = skein_lib::usize_of(bound);
     if words.len() <= room {
         return Box::from(words);
     }
@@ -250,7 +250,7 @@ fn fit_report(lines: &[&[u8]], bound: u32) -> Box<[u8]> {
         size = size.checked_add(line.len()).expect("bounded report");
     }
     let mut summary = *lines.first().expect("verdict summary");
-    if size > usize::try_from(bound).expect("u32 fits usize")
+    if size > skein_lib::usize_of(bound)
         && let Some(at) = skein_lib::bytes::find(summary, b": red,")
     {
         let end = at.checked_add(b": red".len()).expect("summary cursor");
@@ -283,7 +283,7 @@ fn report_remainder(lines: &[&[u8]]) -> Box<[u8]> {
             continuation = reference;
         }
     }
-    let count = skein_lib::Decimal::of(u64::try_from(lines.len()).expect("bounded failures"));
+    let count = skein_lib::Decimal::of(skein_lib::len_u64(lines.len()));
     let mut result = List::uncapped();
     let suffix: &[u8] = if !many && lines.len() == 1 { b" more failing test" } else { b" more failing tests" };
     for part in [b"and ".as_slice(), if many { b"many" } else { count.as_bytes() }, suffix, continuation] {

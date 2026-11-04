@@ -183,7 +183,7 @@ fn finishing_frees_retained_text_without_any_watcher() {
     let mut out = Queue::with_capacity(1);
     jig_domain_views::step(
         &mut domain.core.views,
-        &Env { now: env.now, wall: env.wall, limits: crate::VIEWS },
+        &env.with(crate::VIEWS),
         jig_domain_views::Event::Text {
             run,
             turn: jig_domain_views::TurnName { attempt: 1, turn: 1, retry: 0 },
@@ -225,12 +225,12 @@ fn watch_root((mut domain, env): (Domain, Env<Limits>)) -> (Domain, Env<Limits>)
     ] {
         people::step(
             &mut domain.core.people,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.people },
+            &env.with(env.limits.people),
             people::Event::Restore { record },
             &mut out,
         );
     }
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
+    let people_env = env.with(env.limits.people);
     assert!(domain.core.people.start_link(&people_env));
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));

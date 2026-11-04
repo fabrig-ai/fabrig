@@ -187,7 +187,7 @@ fn abandonment_drops_every_document_row_and_its_titles() {
     let mut gathering = Queue::uncapped();
     brief::gather_step(
         &mut domain.core.brief,
-        &Env { now: env.now, wall: env.wall, limits: crate::limits::brief_limits(&env.limits.brief) },
+        &env.with(crate::limits::brief_limits(&env.limits.brief)),
         brief::GatherEvent::Plan {
             brief: Token::new(8),
             budget: env.limits.brief.brief_bytes,
