@@ -29,5 +29,5 @@ every new reply variant adds an arm to every plan of the other dialect.
 ## What pays it back
 
 A `plan` vocabulary module, a `forgejo/` directory beside `github/`, a
-`Reply` per dialect, and an admin sub-machine. It goes better after
-D010.
+`Reply` per dialect, and an admin sub-machine. The neutral pieces sit at
+skein-forge's root (`skein/docs/design/forge.md`, 4.4).

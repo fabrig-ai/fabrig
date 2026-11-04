@@ -35,5 +35,6 @@ the dead arms.
 
 Nest the enums: `Request::Setup(setup::Request)` and its siblings,
 `Node::App(app::Node)` as `Protection` already is, and decoders and
-plans as enums of per-family state. Mechanical, one family per task,
-after D010 settles where the neutral pieces live.
+plans as enums of per-family state. Mechanical, one family per task.
+The neutral pieces sit at skein-forge's root (`skein/docs/design/forge.md`,
+4.4).
