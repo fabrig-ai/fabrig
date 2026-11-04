@@ -855,8 +855,8 @@ keeps (`../protocol/configuration.md`, section 2).
     user, 2026-10-26), not the offered `me.providers` ways.
   - *Forge* is `ConnectForge`'s Choose and Details (`forge.md`, 5.4),
     its Choose two cards, Forgejo's first, the default, whose one way,
-    "Run on this machine", sets Forgejo on this machine up at once,
-    then GitHub's (`forge.md`, 5.4); a Forgejo deployment of the
+    "Run on this machine", opens Forgejo's sheet (below), then GitHub's
+    (`forge.md`, 5.4); a Forgejo deployment of the
     person's own is connected from the forges page, not here (the user,
     2026-11-04). Its choice is in the welcome's address (`browser.md`,
     2.3);
@@ -867,15 +867,35 @@ keeps (`../protocol/configuration.md`, section 2).
     instead": no way to leave set up half done but the brand's link to
     Chats (the user, 2026-11-04). The step connects a forge and
     nothing more, on every kind: it adopts no repository and asks no
-    project's name (`../draft/first-run-projects.md`, 4). "Run on this
-    machine" sends, with no Details, the `SetUp` that makes the forge
-    (`forge.md`, 5.4), its first repository `work/hello`, asked of no
-    one (the user, 2026-11-03: a repository is made later, from the
-    project), made unadopted (`../protocol/setup.md`, 6.7). Refused,
-    the refusal shows under the button, in the set up's words (4.6);
-    while a set up is pending, or the page is out of date, the button
-    is disabled. Once the `SetUp` is accepted,
-    the welcome moves on to Model, the set up running on.
+    project's name (`../draft/first-run-projects.md`, 4).
+    *Forgejo's sheet* (the user, 2026-11-04) is Forgejo on this
+    machine's Details on the welcome: a modal sheet over Choose, at its
+    address (`browser.md`, 2.3), headed "Forgejo on this machine", with
+    "temper starts it here and connects to it; you connect your model
+    meanwhile."; then what it starts with, "Start it with", three
+    choices, each a card with its line, the chosen one's own fields
+    under it:
+    - "An empty repository", "A README and a starter CI check.", the
+      default, its Organization and Name `work` and `hello` until
+      written;
+    - "Copies of public repositories", "Copied into your Forgejo from
+      GitHub or another git host, to play around with. Nothing is sent
+      back.", its addresses "one per line", `github.com/owner/name`;
+    - "Nothing for now", "Your first project opens with no repository.
+      Make or copy one later from temper’s UI, or adopt one you push
+      yourself.".
+
+    Its foot is "Cancel", also Escape, back to Choose, then the primary
+    "Run on this machine". Run, on an empty repository, sends the
+    `SetUp` that makes the forge (`forge.md`, 5.4) with the names
+    written, an empty one required in the set up's words (4.6), the
+    repository made unadopted (`../protocol/setup.md`, 6.7). Copies and
+    nothing are not made yet: Run then says "Not available yet: for
+    now, Forgejo starts with an empty repository." and sends nothing.
+    Refused, the refusal shows above the foot, in the set up's words
+    (4.6); while a set up is pending, or the page is out of date, Run
+    is disabled. Once the `SetUp` is accepted, the welcome moves on to
+    Model, the set up running on.
     *A forge cut short:* a forge of the person's kept and not finished,
     not connected, or on GitHub connected with no accepted
     installation, is no choice. Forge's Choose shows it in their place
@@ -2499,8 +2519,9 @@ repository, and the cues the playground's, copied in from its read:
   with nothing to connect.", and under them "Tried the playground
   first? Set up whenever you like; the playground then steps aside.";
   Forge's cards are Forgejo's, "A forge of your own: temper starts it
-  on this machine and manages it.", with "Run on this machine" alone,
-  then GitHub's; Model's lead is "temper’s agents run on a plan you
+  on this machine and manages it. You can import existing repositories
+  into it, from GitHub or elsewhere.", with "Run on this machine"
+  alone, which opens Forgejo's sheet, then GitHub's; Model's lead is "temper’s agents run on a plan you
   sign in to.", its cards the plans alone, each with its muted line;
   the forge's ticked line reads "✓ FORGE · connected as LOGIN ·
   ORG/NAME made, in no project yet"; and the foot has no "Later" (3.5,

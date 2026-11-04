@@ -455,21 +455,30 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
   1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
   name in the signal colour (#c2410c). The banner is a top bar, 22 px
-  by 32 px, the brand, temper box's line in 13 px muted words, its
-  "temper box" ink and bold, and the steps at its right, each a
-  numbered 22 px circle, the current one filled ink, a done one
-  ticked green, joined by short hairlines; at 1100 px and under,
-  temper box's line takes its own row under them. The main is one
-  680 px column: the tagline above the level-1 heading (32 px, 500),
+  by 32 px, the brand, temper box's line in 14 px muted words, its
+  "temper box" ink and bold, and the steps at its right in 14.5 px
+  words, each a numbered 24 px circle, the current one filled ink, a
+  done one ticked green, joined by short hairlines; at 1100 px and
+  under, temper box's line takes its own row under them. The main is
+  one 680 px column: the tagline (14 px) above the level-1 heading
+  (32 px, 500),
   the lead (17 px), then the choices as cards side by side, white on
   paper, 12 px corners, their acts at their foot so that their
   buttons line up; the default card, the one holding the
   step's primary act, is outlined in ink. A primary act is a filled
   ink button, a secondary one a white bordered button, a quiet one
-  underlined words. The muted lines under the cards and the foot,
-  "‹ Back" at the left and the playground alternative at the right,
-  are muted underlined words; the forge's line on Model is a pale
-  green box. At 760 px and under, the cards stack, the steps but the
+  underlined words. The muted line under the cards is 14.5 px; the
+  foot, "‹ Back" at the left and the playground alternative at the
+  right, is muted underlined words; the forge's line on Model is a
+  pale green box. Forgejo's sheet is a native modal dialog, 620 px
+  wide, white, 14 px corners, over a dimmed page: its heading 19 px,
+  its line 14 px muted; "Start it with" its fieldset's legend; each
+  choice a bordered card, 10 px corners, that picks its choice
+  wherever pressed, the chosen one outlined in ink; the chosen one's
+  fields under it, indented, small bold labels over 38 px inputs, the
+  addresses a monospace text area; its foot, under a hairline, the
+  quiet "Cancel" and the primary Run at its right (the user's mockup,
+  2026-11-04). At 760 px and under, the cards stack, the steps but the
   current one keep their circles alone, and the gutters are 16 px in
   the top bar and 20 px in the main. Each act keeps a focus ring.
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after

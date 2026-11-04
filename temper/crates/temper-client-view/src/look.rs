@@ -331,9 +331,27 @@ pub const PROJECT_NEW: Style = Style { owner: owner(), token: 162 };
 pub const PROJECT_RENAME_FORM: Style = Style { owner: owner(), token: 163 };
 /// The welcome's temper box line, in its top bar (temper/docs/design/client/README.md, 3.5).
 pub const WELCOME_BOX_LINE: Style = Style { owner: owner(), token: 164 };
-/// Native browser elements for the admin group and Model’s definition list.
+/// The welcome's sheet for Forgejo on this machine, a modal dialog over the
+/// Forge step (temper/docs/design/client/README.md, 3.5).
+pub const WELCOME_SHEET: Style = Style { owner: owner(), token: 165 };
+/// The sheet's heading and its line under it.
+pub const WELCOME_SHEET_HEAD: Style = Style { owner: owner(), token: 166 };
+/// What Forgejo starts with: the sheet's choices, a fieldset.
+pub const WELCOME_START: Style = Style { owner: owner(), token: 167 };
+/// The choices' legend.
+pub const WELCOME_LEGEND: Style = Style { owner: owner(), token: 168 };
+/// One choice as a card: its button, its name and its line.
+pub const WELCOME_OPTION: Style = Style { owner: owner(), token: 169 };
+/// The chosen one's own fields, under it.
+pub const WELCOME_OPTION_MORE: Style = Style { owner: owner(), token: 170 };
+/// The sheet's foot: Cancel, then Run on this machine.
+pub const WELCOME_SHEET_FOOT: Style = Style { owner: owner(), token: 171 };
+/// Native browser elements for the admin group, Model’s definition list and
+/// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
+    (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
+    (owner(), skein_ui::Role::Heading { level: 3 }, WELCOME_LEGEND, "legend"),
     (owner(), skein_ui::Role::Slot, MODEL_FACTS, "dl"),
     (owner(), skein_ui::Role::Term, MODEL_FACT, "dt"),
     (owner(), skein_ui::Role::Description, MODEL_FACT, "dd"),
@@ -509,6 +527,13 @@ pub const NAMES: Names<'static> = Names {
         b"temper-project-new",
         b"temper-project-rename-form",
         b"temper-welcome-box-line",
+        b"temper-welcome-sheet",
+        b"temper-welcome-sheet-head",
+        b"temper-welcome-start",
+        b"temper-welcome-legend",
+        b"temper-welcome-option",
+        b"temper-welcome-option-more",
+        b"temper-welcome-sheet-foot",
     ],
     regions: &[b"temper-link"],
 };

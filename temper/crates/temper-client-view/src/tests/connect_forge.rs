@@ -447,10 +447,10 @@ fn drive(root: &mut d::Domain, event: d::Event) -> skein_lib::Queue<d::Request> 
     d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits }, event, &mut out);
     out
 }
-fn act(root: &mut d::Domain, act: d::forge::Act) -> skein_lib::Queue<d::Request> {
+pub(super) fn act(root: &mut d::Domain, act: d::forge::Act) -> skein_lib::Queue<d::Request> {
     drive(root, d::Event::Act { action: d::Action::Forge(act) })
 }
-fn attempt(mut out: skein_lib::Queue<d::Request>) -> skein_lib::Token {
+pub(super) fn attempt(mut out: skein_lib::Queue<d::Request>) -> skein_lib::Token {
     while let Some(request) = out.pop() {
         if let d::Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
@@ -461,7 +461,7 @@ fn attempt(mut out: skein_lib::Queue<d::Request>) -> skein_lib::Token {
     }
     panic!("request sent")
 }
-fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: w::Outcome) {
+pub(super) fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: w::Outcome) {
     f::root_event(root, answer_event(attempt, outcome));
 }
 fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event {

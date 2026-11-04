@@ -28,19 +28,172 @@ fn the_forge_step_shows_choices_after_reset() {
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert_eq!(choice_cards(view.tree()), [b"Forgejo".as_slice(), b"GitHub"]);
         let github = node(view.tree(), Role::Button, "Connect GitHub");
-        let run = node(view.tree(), Role::Button, "Run on this machine");
+        let run = node(view.tree(), Role::Link, "Run on this machine");
         assert!(styled(view.tree(), run, crate::look::FLOW_PRIMARY));
         assert!(!styled(view.tree(), github, crate::look::FLOW_PRIMARY));
-        node(view.tree(), Role::Paragraph, "A forge of your own: temper starts it on this machine and manages it.");
+        node(view.tree(), Role::Paragraph, FORGEJO_CARD);
         node(view.tree(), Role::Paragraph, "In this tab, on GitHub · about two minutes");
         assert!(f::find(view.tree(), Role::Link, b"Or connect your deployment").is_none());
+        assert!(f::find(view.tree(), Role::Dialog, b"Forgejo on this machine").is_none());
     }
-    let mut view = f::browser_page_view(&root);
-    let run = node(view.tree(), Role::Button, "Run on this machine");
-    assert_eq!(
-        crate::act(&mut view, run, Act::Press),
-        Some(d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::SetUpOwnedAtOnce)))
+    assert_eq!(press(&root, Role::Link, "Run on this machine"), d::Action::Pages(pages::Act::Go { address: SHEET }));
+}
+
+const FORGEJO_CARD: &str = "A forge of your own: temper starts it on this machine and manages it. \
+    You can import existing repositories into it, from GitHub or elsewhere.";
+const SHEET: Address = Address::Welcome { step: Step::Forge { forge: Some(d::Choice::Owned) } };
+fn sheet_root() -> d::Domain {
+    f::forge_root(SHEET, skein_lib::List::with_capacity(0))
+}
+fn sheet(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
+    let dialog = tree.nodes().iter().position(|n| n.role == Role::Dialog).expect("the sheet");
+    let size = usize::try_from(tree.nodes()[dialog].size).unwrap();
+    &tree.nodes()[dialog..dialog.checked_add(size).unwrap()]
+}
+fn named(nodes: &[skein_ui::Node], role: Role) -> Vec<&[u8]> {
+    nodes.iter().filter(|n| n.role == role).map(|n| n.name.as_deref().unwrap()).collect()
+}
+fn start(root: &mut d::Domain, start: d::forge::forges::Start) {
+    f::root_event(
+        root,
+        d::Event::Act { action: d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::Start(start))) },
     );
+}
+
+#[test]
+fn the_sheet_opens_over_the_forge_choices() {
+    let root = sheet_root();
+    assert_eq!(d::address::print(root.pages().address()).as_ref(), b"/welcome?at=forge&forge=owned");
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(choice_cards(view.tree()), [b"Forgejo".as_slice(), b"GitHub"]);
+        assert_eq!(skein_ui::outline::check(view.tree()), None);
+        let nodes = sheet(view.tree());
+        assert!(nodes[0].styles.as_slice().contains(&crate::look::WELCOME_SHEET));
+        assert_eq!(nodes[0].name.as_deref(), Some(b"Forgejo on this machine".as_slice()));
+        assert_eq!(named(nodes, Role::Heading { level: 2 }), [b"Forgejo on this machine".as_slice()]);
+        assert_eq!(named(nodes, Role::Heading { level: 3 }), [b"Start it with".as_slice()]);
+        assert_eq!(
+            named(nodes, Role::Paragraph),
+            [
+                b"temper starts it here and connects to it; you connect your model meanwhile.".as_slice(),
+                b"A README and a starter CI check.",
+                b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.",
+                "Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself."
+                    .as_bytes(),
+            ]
+        );
+        assert_eq!(
+            named(nodes, Role::Choice),
+            [b"An empty repository".as_slice(), b"Copies of public repositories", b"Nothing for now"]
+        );
+        let chosen: Vec<_> = nodes
+            .iter()
+            .filter(|n| n.role == Role::Choice && n.states.as_slice().contains(&State::Selected))
+            .map(|n| n.name.as_deref().unwrap())
+            .collect();
+        assert_eq!(chosen, [b"An empty repository".as_slice()]);
+        assert_eq!(named(nodes, Role::TextField), [b"Organization".as_slice(), b"Name"]);
+        let values: Vec<_> = nodes
+            .iter()
+            .filter(|n| n.role == Role::TextField)
+            .map(|n| n.value.as_ref().unwrap().text.as_ref())
+            .collect();
+        assert_eq!(values, [b"work".as_slice(), b"hello"]);
+        assert!(named(nodes, Role::TextArea).is_empty());
+        assert!(named(nodes, Role::Alert).is_empty());
+        assert_eq!(named(nodes, Role::Button), [b"Cancel".as_slice(), b"Run on this machine"]);
+        let cancel = nodes.iter().find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Cancel")).unwrap();
+        assert_eq!(cancel.shortcut, Some(skein_ui::Shortcut::ESCAPE));
+        let run = nodes.iter().find(|n| n.name.as_deref() == Some(b"Run on this machine")).unwrap();
+        assert!(run.styles.as_slice().contains(&crate::look::FLOW_PRIMARY));
+    }
+    assert_eq!(
+        press(&root, Role::Button, "Cancel"),
+        d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Forge { forge: None } } })
+    );
+    assert_eq!(
+        press(&root, Role::Button, "Run on this machine"),
+        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::RunOwned))
+    );
+    let mut pending = sheet_root();
+    f::root_event(
+        &mut pending,
+        d::Event::Act { action: d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::RunOwned)) },
+    );
+    assert!(pending.forge().set_up().is_some_and(|last| last.progress.is_some()));
+    let view = f::page_view(&pending);
+    let run = sheet(view.tree()).iter().find(|n| n.name.as_deref() == Some(b"Run on this machine")).unwrap();
+    assert!(run.states.as_slice().contains(&State::Disabled), "a pending set up disables Run");
+    let mut view = f::page_view(&root);
+    let copies = node(view.tree(), Role::Choice, "Copies of public repositories");
+    assert_eq!(
+        crate::act(&mut view, copies, Act::Toggle),
+        Some(d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::Start(d::forge::forges::Start::Copies))))
+    );
+}
+
+#[test]
+fn the_sheet_shows_a_new_forges_refusal_above_its_foot() {
+    let mut root = sheet_root();
+    let token = forge::attempt(forge::act(&mut root, d::forge::Act::Forges(d::forge::forges::Act::RunOwned)));
+    forge::answer(
+        &mut root,
+        token,
+        w::Outcome::SetUpRefused(
+            w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap(),
+        ),
+    );
+    let view = f::page_view(&root);
+    let nodes = sheet(view.tree());
+    let refusal = d::forge::words::set_up_refusal(d::forge::forges::SetUpRefusal::Busy);
+    assert_eq!(named(nodes, Role::Alert), [refusal]);
+    let alert = nodes.iter().position(|n| n.role == Role::Alert).unwrap();
+    let foot = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_SHEET_FOOT)).unwrap();
+    assert!(alert < foot);
+    let run = nodes.iter().find(|n| n.name.as_deref() == Some(b"Run on this machine")).unwrap();
+    assert!(!run.states.as_slice().contains(&State::Disabled), "a refused set up may run again");
+}
+#[test]
+fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
+    let mut root = sheet_root();
+    start(&mut root, d::forge::forges::Start::Copies);
+    let mut view = f::page_view(&root);
+    let nodes = sheet(view.tree());
+    assert!(named(nodes, Role::TextField).is_empty());
+    assert_eq!(named(nodes, Role::TextArea), [b"Their addresses, one per line".as_slice()]);
+    let area = nodes.iter().find(|n| n.role == Role::TextArea).unwrap();
+    assert_eq!(area.placeholder.as_deref(), Some(b"github.com/owner/name".as_slice()));
+    let area = area.id;
+    assert_eq!(
+        crate::act(&mut view, area, Act::Input { value: Box::from(b"github.com/a/b".as_slice()) }),
+        Some(d::Action::Forge(d::forge::Act::CopiesWrite { text: Box::from(b"github.com/a/b".as_slice()) }))
+    );
+    f::root_event(
+        &mut root,
+        d::Event::Act {
+            action: d::Action::Forge(d::forge::Act::CopiesWrite { text: Box::from(b"github.com/a/b".as_slice()) }),
+        },
+    );
+    f::root_event(
+        &mut root,
+        d::Event::Act { action: d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::RunOwned)) },
+    );
+    let view = f::page_view(&root);
+    let nodes = sheet(view.tree());
+    assert_eq!(
+        nodes.iter().find(|n| n.role == Role::TextArea).unwrap().value.as_ref().unwrap().text.as_ref(),
+        b"github.com/a/b"
+    );
+    assert_eq!(
+        named(nodes, Role::Alert),
+        [b"Not available yet: for now, Forgejo starts with an empty repository.".as_slice()]
+    );
+    start(&mut root, d::forge::forges::Start::Nothing);
+    let view = f::page_view(&root);
+    let nodes = sheet(view.tree());
+    assert!(named(nodes, Role::Alert).is_empty());
+    assert!(named(nodes, Role::TextArea).is_empty());
+    assert!(named(nodes, Role::TextField).is_empty());
 }
 
 fn model_view(rows: skein_lib::List<w::ForgeRow>) -> crate::View {

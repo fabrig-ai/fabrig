@@ -9,13 +9,13 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
-use skein_ui::{Builder, Role, Run, State, phrases::Hole};
+use skein_ui::{Builder, Role, Run, Shortcut, State, phrases::Hole};
 use temper_client_domain::{
     Address, Choice, Domain, Step,
     forge::{
         self,
         connect::{self, Name, Shown},
-        forges::{Connection, FirstState, Kind, Mode, Offer, Row, SetUpAnswer, SetUpOutcome, SetupField},
+        forges::{Connection, FirstState, Kind, Mode, Offer, Row, SetUpAnswer, SetUpOutcome, SetupField, Start},
     },
     pages::Act,
 };
@@ -159,17 +159,25 @@ pub(crate) fn body(
             match choice {
                 Choice::Managed => managed(b, root, w, forge),
                 Choice::Owned => {
-                    flow::details(b, &w.say(Word::ConnectOwned, &[]));
-                    flow::control(b, Control::External { name: &w.say(Word::ForgeShowHow, &[]), address: DEPLOYMENT });
-                    setup_fields(b, root, w, forge, 0);
-                    flow::control(
-                        b,
-                        Control::PrimaryButton {
-                            name: &w.say(Word::ForgeSetUp, &[]),
-                            to: forge.insert(Meaning::Forges(forge::forges::Act::SetUpOwned)),
-                        },
-                    );
-                    b.close();
+                    if let Place::Welcome = place {
+                        choose(b, root, w, bindings, forge, place);
+                        sheet(b, root, w, bindings, forge);
+                    } else {
+                        flow::details(b, &w.say(Word::ConnectOwned, &[]));
+                        flow::control(
+                            b,
+                            Control::External { name: &w.say(Word::ForgeShowHow, &[]), address: DEPLOYMENT },
+                        );
+                        setup_fields(b, root, w, forge, 0);
+                        flow::control(
+                            b,
+                            Control::PrimaryButton {
+                                name: &w.say(Word::ForgeSetUp, &[]),
+                                to: forge.insert(Meaning::Forges(forge::forges::Act::SetUpOwned)),
+                            },
+                        );
+                        b.close();
+                    }
                 }
                 Choice::GitHub => flow::control(
                     b,
@@ -253,7 +261,7 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
     b.style(look::FLOW_CHOICES);
     let kinds = connect::choices(connect::records(root.forges()), connect::playground(root.forge()), true);
     if let Place::Welcome = place {
-        welcome_choices(b, root, w, forge, &kinds);
+        welcome_choices(b, root, w, bindings, forge, &kinds);
         b.close();
         return;
     }
@@ -291,10 +299,16 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
     }
     b.close();
 }
-/// The welcome's Forge step: Forgejo's card, the default, whose button sets
-/// one up on this machine at once, its first repository `work/hello` asked of
-/// no one, then GitHub's (`temper/docs/design/client/forge.md`, 5.4).
-fn welcome_choices(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBindings, kinds: &[connect::Choice]) {
+/// The welcome's Forge step: Forgejo's card, the default, whose button opens
+/// its sheet, then GitHub's (`temper/docs/design/client/forge.md`, 5.4).
+fn welcome_choices(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    forge: &mut ForgeBindings,
+    kinds: &[connect::Choice],
+) {
     let owned = kinds.contains(&connect::Choice::Owned);
     if owned {
         let note = w.say(Word::ForgeHereTime, &[]);
@@ -310,9 +324,9 @@ fn welcome_choices(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeB
         let run = w.say(Word::WelcomeForgejoRun, &[]);
         flow::control(
             b,
-            Control::PrimaryButton {
+            Control::PrimaryLink {
                 name: &run,
-                to: forge.insert(Meaning::Forges(forge::forges::Act::SetUpOwnedAtOnce)),
+                to: bindings.insert(Act::Go { address: Place::Welcome.address(Some(Choice::Owned)) }),
             },
         );
         b.close();
@@ -330,6 +344,102 @@ fn welcome_choices(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeB
         app_control(b, root, w, forge, 0, Word::ForgeConnectGitHub, Some(Place::Welcome.address(None)));
         b.close();
     }
+}
+/// The welcome's sheet over the Forge step: what Forgejo on this machine
+/// starts with, the chosen one's own fields under it, then Cancel and Run.
+/// Only an empty repository is made yet; the others say so on Run
+/// (`temper/docs/design/client/README.md`, 3.5).
+fn sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings) {
+    let draft = root.forge().setup_form();
+    b.open(Role::Dialog);
+    b.style(look::WELCOME_SHEET);
+    b.name(&w.say(Word::ConnectOwned, &[]));
+    b.open(Role::Slot);
+    b.style(look::WELCOME_SHEET_HEAD);
+    text(b, w, Role::Heading { level: 2 }, Word::ConnectOwned);
+    text(b, w, Role::Paragraph, Word::WelcomeForgejoLead);
+    b.close();
+    let start_with = w.say(Word::WelcomeForgejoStartWith, &[]);
+    b.open(Role::ChoiceGroup);
+    b.style(look::WELCOME_START);
+    b.name(&start_with);
+    b.open(Role::Heading { level: 3 });
+    b.style(look::WELCOME_LEGEND);
+    b.name(&start_with);
+    b.text(Run::Plain, &start_with);
+    b.close();
+    for (start, name, detail) in [
+        (Start::Empty, Word::WelcomeForgejoEmpty, Word::WelcomeForgejoEmptyDetail),
+        (Start::Copies, Word::WelcomeForgejoCopies, Word::WelcomeForgejoCopiesDetail),
+        (Start::Nothing, Word::WelcomeForgejoNothing, Word::WelcomeForgejoNothingDetail),
+    ] {
+        b.open(Role::Slot);
+        b.style(look::WELCOME_OPTION);
+        b.open(Role::Choice);
+        b.name(&w.say(name, &[]));
+        if draft.start == start {
+            b.state(State::Selected);
+        }
+        b.bind(forge.insert(Meaning::Forges(forge::forges::Act::Start(start))));
+        b.close();
+        text(b, w, Role::Paragraph, detail);
+        b.close();
+        if draft.start != start {
+            continue;
+        }
+        match start {
+            Start::Empty => {
+                b.open(Role::Slot);
+                b.style(look::WELCOME_OPTION_MORE);
+                for (field, word) in [
+                    (SetupField::Organization, Word::SetupOrganization),
+                    (SetupField::Repository, Word::WelcomeForgejoName),
+                ] {
+                    setup_field(b, root, w, forge, field, word, 0, None);
+                }
+                b.close();
+            }
+            Start::Copies => {
+                let addresses = w.say(Word::WelcomeForgejoAddresses, &[]);
+                b.open(Role::Slot);
+                b.style(look::WELCOME_OPTION_MORE);
+                crate::cards::text(b, Role::Paragraph, &addresses);
+                b.open(Role::TextArea);
+                b.name(&addresses);
+                b.placeholder(&w.say(Word::WelcomeForgejoAddressHint, &[]));
+                b.value(&draft.copies, draft.copies_written);
+                b.bind(forge.insert(Meaning::Copies));
+                b.close();
+                b.close();
+            }
+            Start::Nothing => {}
+        }
+    }
+    b.close();
+    if draft.not_yet {
+        text(b, w, Role::Alert, Word::WelcomeForgejoNotYet);
+    }
+    // A new forge's refusal has no record to name.
+    setup_refusal(b, root, w, None);
+    b.open(Role::Slot);
+    b.style(look::WELCOME_SHEET_FOOT);
+    let cancel = w.say(Word::Cancel, &[]);
+    b.open(Role::Button);
+    b.name(&cancel);
+    b.bind(bindings.insert(Act::Go { address: Place::Welcome.address(None) }));
+    b.shortcut(Shortcut::ESCAPE);
+    b.close();
+    let run = w.say(Word::WelcomeForgejoRun, &[]);
+    flow::control(
+        b,
+        if setup_disabled(root) {
+            Control::PrimaryDisabled { name: &run }
+        } else {
+            Control::PrimaryButton { name: &run, to: forge.insert(Meaning::Forges(forge::forges::Act::RunOwned)) }
+        },
+    );
+    b.close();
+    b.close();
 }
 pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
     flow::card(b, &w.say(Word::ForgeNotFinished, &[]));
@@ -578,7 +688,7 @@ pub(crate) fn setup_control(
             if primary { Control::PrimaryButton { name: &name, to } } else { Control::Button { name: &name, to } },
         );
     }
-    setup_refusal(b, root, w, number);
+    setup_refusal(b, root, w, Some(number));
 }
 fn setup_disabled(root: &Domain) -> bool {
     let pending = match root.forge().set_up() {
@@ -587,9 +697,9 @@ fn setup_disabled(root: &Domain) -> bool {
     };
     pending || root.forge().served() == forge::Served::OutOfDate
 }
-fn setup_refusal(b: &mut Builder, root: &Domain, w: &Words, number: u16) {
+fn setup_refusal(b: &mut Builder, root: &Domain, w: &Words, number: Option<u16>) {
     if let Some(last) = root.forge().set_up()
-        && last.forge == Some(number)
+        && last.forge == number
         && let Some(answer) = &last.answer
     {
         match answer {
@@ -903,10 +1013,11 @@ fn setup_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeB
     for (field, word) in
         [(SetupField::Organization, Word::SetupOrganization), (SetupField::Repository, Word::SetupRepository)]
     {
-        setup_field(b, root, w, bindings, field, word, number);
+        setup_field(b, root, w, bindings, field, word, number, Some(look::FLOW_FIELD));
     }
     b.close();
 }
+#[expect(clippy::too_many_arguments, reason = "the set up's form and the welcome's sheet share one field")]
 fn setup_field(
     b: &mut Builder,
     root: &Domain,
@@ -915,6 +1026,7 @@ fn setup_field(
     field: SetupField,
     word: Word,
     number: u16,
+    style: Option<skein_ui::Style>,
 ) {
     let draft = root.forge().setup_form();
     let invalid = match root.forge().set_up() {
@@ -924,7 +1036,9 @@ fn setup_field(
         Some(_) | None => false,
     };
     b.open(Role::Slot);
-    b.style(look::FLOW_FIELD);
+    if let Some(style) = style {
+        b.style(style);
+    }
     b.open(Role::TextField);
     b.name(&w.say(word, &[]));
     b.value(draft.text(field), draft.written(field));

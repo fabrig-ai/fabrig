@@ -174,7 +174,7 @@ fn accepted_owned_setup_keeps_its_target_on_model_before_box_status_arrives() {
     h::event(
         &mut front,
         &mut root,
-        Temper::went(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(1)) } }),
+        Temper::went(Address::Welcome { step: Step::Forge { forge: Some(Choice::Owned) } }),
     );
     act(&mut front, &mut root, skein_ui::Role::Button, b"Run on this machine", skein_ui::Act::Press);
     let (forge, request) = front.set_ups()[0];

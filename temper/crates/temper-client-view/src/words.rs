@@ -686,6 +686,18 @@ pub enum Word {
     WelcomeModelSignInTime,
     WelcomeModelProgramTime,
     WelcomeForgeDoneDetail,
+    WelcomeForgejoLead,
+    WelcomeForgejoStartWith,
+    WelcomeForgejoEmpty,
+    WelcomeForgejoEmptyDetail,
+    WelcomeForgejoCopies,
+    WelcomeForgejoCopiesDetail,
+    WelcomeForgejoAddresses,
+    WelcomeForgejoAddressHint,
+    WelcomeForgejoNothing,
+    WelcomeForgejoNothingDetail,
+    WelcomeForgejoNotYet,
+    WelcomeForgejoName,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -733,9 +745,10 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The welcome's temper box line, its Model cards' notes and its forge line's detail
 // add six phrases and ten segments; its ticked forge line's old phrase, one phrase
 // and five segments, is gone (client/README.md, 3.5).
-const PHRASES: u32 = 1250;
-const SEGMENTS: u32 = 2151;
-const ALL: [Word; 655] = [
+// The welcome's Forgejo sheet adds twelve literal phrases and segments (3.5).
+const PHRASES: u32 = 1262;
+const SEGMENTS: u32 = 2163;
+const ALL: [Word; 667] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -1391,6 +1404,18 @@ const ALL: [Word; 655] = [
     Word::WelcomeModelSignInTime,
     Word::WelcomeModelProgramTime,
     Word::WelcomeForgeDoneDetail,
+    Word::WelcomeForgejoLead,
+    Word::WelcomeForgejoStartWith,
+    Word::WelcomeForgejoEmpty,
+    Word::WelcomeForgejoEmptyDetail,
+    Word::WelcomeForgejoCopies,
+    Word::WelcomeForgejoCopiesDetail,
+    Word::WelcomeForgejoAddresses,
+    Word::WelcomeForgejoAddressHint,
+    Word::WelcomeForgejoNothing,
+    Word::WelcomeForgejoNothingDetail,
+    Word::WelcomeForgejoNotYet,
+    Word::WelcomeForgejoName,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
@@ -2050,6 +2075,18 @@ impl Word {
             Self::WelcomeModelSignInTime => 3029,
             Self::WelcomeModelProgramTime => 3030,
             Self::WelcomeForgeDoneDetail => 3031,
+            Self::WelcomeForgejoLead => 3032,
+            Self::WelcomeForgejoStartWith => 3033,
+            Self::WelcomeForgejoEmpty => 3034,
+            Self::WelcomeForgejoEmptyDetail => 3035,
+            Self::WelcomeForgejoCopies => 3036,
+            Self::WelcomeForgejoCopiesDetail => 3037,
+            Self::WelcomeForgejoAddresses => 3038,
+            Self::WelcomeForgejoAddressHint => 3039,
+            Self::WelcomeForgejoNothing => 3040,
+            Self::WelcomeForgejoNothingDetail => 3041,
+            Self::WelcomeForgejoNotYet => 3042,
+            Self::WelcomeForgejoName => 3043,
 
             Self::ItsTasksNoneYet => 1251,
             Self::ItsTasksNone => 1252,
@@ -2400,8 +2437,23 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GitHubReadReload => (&[b"Reload this page to try again."], &[]),
         Word::GitHubRepositories => (&[b"Repositories"], &[]),
         Word::WelcomeForgejo => (&[b"Forgejo"], &[]),
-        Word::WelcomeForgejoDescription => (&[b"A forge of your own: temper starts it on this machine and manages it."], &[]),
+        Word::WelcomeForgejoDescription => (
+            &[b"A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."],
+            &[],
+        ),
         Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
+        Word::WelcomeForgejoLead => (&[b"temper starts it here and connects to it; you connect your model meanwhile."], &[]),
+        Word::WelcomeForgejoStartWith => (&[b"Start it with"], &[]),
+        Word::WelcomeForgejoEmpty => (&[b"An empty repository"], &[]),
+        Word::WelcomeForgejoEmptyDetail => (&[b"A README and a starter CI check."], &[]),
+        Word::WelcomeForgejoCopies => (&[b"Copies of public repositories"], &[]),
+        Word::WelcomeForgejoCopiesDetail => (&[b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
+        Word::WelcomeForgejoAddresses => (&[b"Their addresses, one per line"], &[]),
+        Word::WelcomeForgejoAddressHint => (&[b"github.com/owner/name"], &[]),
+        Word::WelcomeForgejoNothing => (&[b"Nothing for now"], &[]),
+        Word::WelcomeForgejoNothingDetail => (&[b"Your first project opens with no repository. Make or copy one later from temper\xe2\x80\x99s UI, or adopt one you push yourself."], &[]),
+        Word::WelcomeForgejoNotYet => (&[b"Not available yet: for now, Forgejo starts with an empty repository."], &[]),
+        Word::WelcomeForgejoName => (&[b"Name"], &[]),
         Word::WelcomeContinue => (&[b"Continue"], &[]),
         Word::WelcomeModelPlan => {
             (&[b"Your ", b" plan: sign in, and temper\xe2\x80\x99s agents use its included usage."], &[Name])

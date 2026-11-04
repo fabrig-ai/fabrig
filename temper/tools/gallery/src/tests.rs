@@ -241,7 +241,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::Region, name: "Forgejo" },
-            Part::Named { role: Role::Button, name: "Run on this machine" },
+            Part::Named { role: Role::Link, name: "Run on this machine" },
             Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Button, name: "Connect GitHub" },
         ],
@@ -250,9 +250,11 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-forge-details",
         heading: "Connect a forge",
         parts: &[
-            Part::Named { role: Role::Button, name: "Set up a Forgejo here" },
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "An empty repository" },
             Part::Named { role: Role::TextField, name: "Organization" },
-            Part::Named { role: Role::TextField, name: "Repository" },
+            Part::Named { role: Role::TextField, name: "Name" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
         ],
     },
     Holds {
@@ -996,7 +998,7 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     use temper_client_view::look;
     for (name, expected) in [
         ("welcome-forge-choose", vec!["Run on this machine"]),
-        ("welcome-forge-details", vec!["Set up a Forgejo here"]),
+        ("welcome-forge-details", vec!["Run on this machine", "Run on this machine"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
         ("github-app-details", vec!["GitHub"]),
         ("github-install", vec!["Install on GitHub"]),
@@ -1016,7 +1018,11 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         assert_eq!(primary, expected, "{name}");
         if name == "welcome-forge-details" {
             assert_eq!(
-                view.tree().nodes().iter().filter(|node| node.styles.as_slice().contains(&look::FLOW_PAIR)).count(),
+                view.tree()
+                    .nodes()
+                    .iter()
+                    .filter(|node| node.styles.as_slice().contains(&look::WELCOME_OPTION_MORE))
+                    .count(),
                 1
             );
         }

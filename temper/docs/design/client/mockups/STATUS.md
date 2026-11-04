@@ -43,7 +43,9 @@ Where the client does otherwise:
   frame holds temper box's line and the steps, and no person's name or
   "Sign out"; "Set up temper" is the first card and the default;
   Forge's Forgejo card comes first with "Run on this machine" alone,
-  no "Or connect your deployment"; Model's cards hold the plans alone,
+  no "Or connect your deployment", which opens Forgejo's sheet, what
+  it starts with, an empty repository by default, as the user's
+  greenfield mock draws it; Model's cards hold the plans alone,
   no key; the forge's ticked line says who temper is on it and that
   its first repository is in no project yet; the foot has no "Later";
   and the words of the cards and leads are the client's. The mockup is
