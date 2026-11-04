@@ -20,6 +20,8 @@ files = [
   "temper/crates/temper-service/src/stock.rs",
   "temper/crates/temper-service/src/tests/stock.rs",
   "temper/tests/engine/domain/tests/suite/settings/b2.rs",
+  "temper/tests/engine/domain/tests/suite/settings.rs",
+  "temper/tests/engine/domain/tests/suite/forge_routes/b2_tree.rs",
   "temper/docs/design/protocol/configuration.md",
   "temper/docs/help/budget.md",
   "Cargo.lock",
@@ -663,3 +665,45 @@ stay, and the next run starts from them.
 - Then the checks once each, as the answers list them: the package's tests and clippy,
   `temper-playground`'s, the settings tests, the stock and docs tests. Report the walk's CPU
   against 3 s, and push.
+
+2026-11-04. **Two 7K coordinators fund only a 3K change, and 8K each is refused: reshape `settings::b2`'s
+story to one coordinator, or reconsider the engine's half-remaining allocation?** Reshape it. The
+previous answer's 7K was wrong: it forgot that `change` gives half of what is left
+(`temper/docs/design/domain/agent.md`, 4.3.1; `change_batch`, `forge_route.rs`, ~2508), so a 5K change
+needs an 11K coordinator and no equal pair fits 16K. This answer overrides that item. The allocation
+stays: the half is the design's, and nothing here needs it moved. The test follows 13.4's sizing, "a
+chat 16K, its run, an advisor and a coordinator". What it loses is covered elsewhere: rung B2's own
+tree, a goal with its advisor and two changes one after the other, is walked under the stock by
+`forge_routes::b2_tree`, and run 14's focused run shows that walk passing at 16K (718 passed; its one
+failure is the sizing assertion after the walk, below).
+
+- `temper/tests/engine/domain/tests/suite/settings/b2.rs`, `story` alone; `repair_change` and
+  `changes_without_settings_or_message` stay as they are:
+  - one delegate, `D1` at `11 * K` as it stands, alone in the batch; `D2`, its dependency, `made[1]`
+    and the assertions that D2 waits and runs go;
+  - the question, its answer, `repair_change(&mut driver, &first, 46)` and `D1`'s `finish` stay;
+  - the last loop waits for `Ended(first.task)`, with its assertion's words naming D1;
+  - `store.header().tasks` is 8 ("chat, advisor, coordinator, procedure and four workers");
+    `spent_below` is `6 * K` ("the advisor and the five-agent coordinator tree settle full K
+    charges"); `run_reserved` stays `K`;
+  - the first line says "The stock funds a chat's advisor and a coordinator's change at init's
+    default model prices"; `B2_WRITES` stays.
+- `temper/tests/engine/domain/tests/suite/settings.rs` (~363), this one line and its call: the test
+  becomes `a_stock_chat_funds_an_advisor_and_a_change_with_two_repairs`.
+- `temper/tests/engine/domain/tests/suite/forge_routes/b2_tree.rs`,
+  `b2s_tree_admits_every_run_under_the_stock` (~414): this is the same stock change's fallout, known
+  since run 14, so it is repaired here, overriding the earlier answers' `## Left` for this test. Its
+  walk stays. `WORK_RUNS` becomes 7 and `CHANGE_RUNS` 3, and its comment says "a goal has half of a
+  16K chat, and each change half of what the goal has left (domain/agent.md, 4.3.1): its three runs,
+  a producer, a repair and a review". By the figures, 7.5K is the goal's and about 3.2K each change's.
+  If either assertion still fails, report the test's printed budgets under `## Left` and go on: this
+  test does not block the task.
+- `temper/docs/design/protocol/configuration.md`, 13.4, after "the ceilings and the periods 48K, three
+  chats open in one period": add "; a goal, half a chat, holds 7K and each change it makes 3K, so that a
+  change whose runs each spent a whole K is held for its budget at its fourth". No value moves. Run
+  `tools/citations/citations.py` before pushing.
+- If a count in `story` differs from the above, the walk's value is taken and named in the report;
+  that is no question. An admission refused at 11K is: 14K is left, so that would be a new fact.
+- The checks, once each: `heavy cargo nextest run -p temper-engine-domain-world -E 'test(/settings/) or
+  test(/b2s_tree_admits/)'`, then the rest as the previous answer lists them. Report the walk's CPU
+  against 3 s, and push. What it says stays left stays left.
