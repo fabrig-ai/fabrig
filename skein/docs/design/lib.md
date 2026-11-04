@@ -155,8 +155,9 @@ where it holds it.
   digest alike, however each was reached. A `Slab` hashes all the slots
   it holds in index order, free ones included.
 - **Not state, so no `Hash`:** `Env<L>`, which a step is handed and does
-  not keep (programming-model.md, section 3), and `stream::Held`, a buffer
-  served as a stream's side below, which the step that makes it reads. A
+  not keep (programming-model.md, section 3), and `stream::Held` and
+  `stream::Slice`, a buffer served as a stream's side below, which the
+  step that makes it reads. A
   service that keeps its layers' envs beside them, as the echo's does,
   digests its domains' state without them: the times are the trace's. A
   state that keeps a `Held` past its step hashes, by hand, what of it is
@@ -405,6 +406,12 @@ cap.
   (`ends_partway`): a side below that fills its own intake from another
   stream, as the HTTP client does a body's, then reads a byte at a time,
   so that it never reads past a delimiter its next bytes complete.
+
+A **complete buffer** is its own side below. `stream::Held` owns one and
+`stream::Slice` borrows one; both answer a demand at once, in the same
+step, as an intake would meet it, and answer `End` once what is left can
+never meet a demand. Neither asks anything of room: the data is read, not
+written. A `Slice` copies only each delivery, never the whole buffer.
 
 ### 7.1 Independent output reservations
 

@@ -14,10 +14,18 @@ use smith_local_protocol as local_protocol;
 
 use crate::StartValues;
 
+mod child;
+mod close;
 mod delivery;
+mod signals;
 mod store;
+mod terminal;
+use child::Child;
+use close::Close;
 use delivery::DeliveryIo;
+use signals::Signals;
 use store::StoreIo;
+use terminal::{TerminalInput, WindowRead};
 
 pub use smith_protocol_program::Launch;
 
@@ -39,20 +47,6 @@ enum Operation {
 }
 
 #[derive(Debug)]
-struct Closing {
-    roots: u32,
-    shutdown_pending: bool,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum WindowRead {
-    Idle,
-    Requested,
-    Pending,
-    Again,
-}
-
-#[derive(Debug)]
 pub(crate) struct HostIo {
     pub(crate) live: crate::live::Live,
     limits: ProcessLimits,
@@ -62,7 +56,7 @@ pub(crate) struct HostIo {
     io: io::Io,
     shell_output: Option<Token>,
     shell_events: Queue<io::Event>,
-    process: Option<protocol::Process>,
+    child: Child,
     delivery: DeliveryIo,
     store_io: StoreIo,
     files: file_layer::FileIo,
@@ -79,15 +73,11 @@ pub(crate) struct HostIo {
     submissions: Queue<kernel::Submit>,
     completions: Queue<kernel::Complete>,
     send: u64,
-    reading: bool,
     failed: bool,
-    terminal_input: Option<Token>,
-    terminal_reading: local::Reading,
+    terminal_input: TerminalInput,
     window_read: WindowRead,
-    signals: Option<Token>,
-    closing: Option<Closing>,
-    signal_operation: Option<Token>,
-    close_root_pending: bool,
+    signals: Signals,
+    close: Close,
 }
 
 /// IO table capacities and the selected process channel's framing edges.
@@ -134,7 +124,7 @@ impl HostIo {
             limits: *limits,
             launch,
             endpoints,
-            process: None,
+            child: Child::Absent,
             delivery: DeliveryIo::new(),
             store_io: StoreIo::new(),
             files,
@@ -151,15 +141,11 @@ impl HostIo {
             submissions: Queue::with_capacity(limits.queue),
             completions: Queue::with_capacity(limits.queue),
             send: 1,
-            reading: false,
             failed: false,
-            terminal_input: None,
-            terminal_reading: local::Reading::Open,
+            terminal_input: TerminalInput::Absent,
             window_read: WindowRead::Idle,
-            signals: None,
-            closing: None,
-            signal_operation: None,
-            close_root_pending: false,
+            signals: Signals::Absent,
+            close: Close::Open,
         })
     }
 
@@ -211,42 +197,37 @@ impl HostIo {
     ) -> Result<(), kernel::Fd> {
         if let Some(input) = input {
             let stream = self.io.adopt_read_pipe(input)?;
-            self.terminal_input = Some(stream);
-            if read_input {
-                self.io_requests.push(io::Request::Stream {
-                    stream,
-                    down: stream::Down::Demand { read: stream::Read::Fill(1), room: 0 },
-                });
-            }
+            self.adopted_input(stream, read_input);
         }
         let signal = self.io.adopt_signals(signals)?;
-        self.signals = Some(signal);
+        self.signals.adopted(signal);
         Ok(())
     }
 
+    fn spawned(&mut self, process: protocol::Process) {
+        self.child.spawned(process);
+    }
+
+    fn adopted_input(&mut self, stream: Token, read_input: bool) {
+        self.terminal_input.adopted(stream, read_input, &mut self.io_requests);
+    }
+
+    fn hold_read(&mut self) {
+        self.child.hold();
+    }
+
+    fn read_held(&self) -> bool {
+        self.child.read_held()
+    }
+
     pub(crate) fn read_window(&mut self) {
-        if self.closing.is_none() && self.terminal_input.is_some() {
-            self.window_read = match self.window_read {
-                WindowRead::Idle | WindowRead::Requested => WindowRead::Requested,
-                WindowRead::Pending | WindowRead::Again => WindowRead::Again,
-            };
+        if self.terminal_input.open().is_some() {
+            self.window_read.asked();
         }
     }
 
     pub(crate) fn input(&mut self, reading: local::Reading) {
-        if self.terminal_reading == reading {
-            return;
-        }
-        self.terminal_reading = reading;
-        if self.closing.is_none()
-            && let Some(stream) = self.terminal_input
-        {
-            let read = match reading {
-                local::Reading::Open => stream::Read::Fill(1),
-                local::Reading::Held => stream::Read::Nothing,
-            };
-            self.io_requests.push(io::Request::Stream { stream, down: stream::Down::Demand { read, room: 0 } });
-        }
+        self.terminal_input.reading(reading, &mut self.io_requests);
     }
 
     pub(crate) fn at(&self, now: Time, wall: Wall) -> Env<io::Limits> {
@@ -279,41 +260,23 @@ impl HostIo {
     }
 
     pub(crate) fn close(&mut self) {
-        if self.closing.is_some() {
-            return;
-        }
-        self.cancel_programs();
-        self.closing = Some(Closing {
-            roots: u32::try_from(self.file_roots.len()).expect("admitted root count"),
-            shutdown_pending: false,
-        });
-        if let Some(entity) = self.terminal_input {
-            self.io_requests.push(io::Request::Close { entity });
-        }
-    }
-
-    fn closing_roots(&self) -> u32 {
-        match &self.closing {
-            Some(closing) => closing.roots,
-            None => 0,
+        let roots = u32::try_from(self.file_roots.len()).expect("admitted root count");
+        if self.close.begin(roots) {
+            self.cancel_programs();
+            self.terminal_input.close(&mut self.io_requests);
         }
     }
 
     pub(crate) fn signal_streams(&self) -> u32 {
-        u32::from(self.signals.is_some())
+        self.signals.streams()
     }
 
     pub(crate) fn close_signals(&mut self) {
-        if let Some(entity) = self.signals {
-            self.io_requests.push(io::Request::Close { entity });
-        }
+        self.signals.close(&mut self.io_requests);
     }
 
     pub(crate) fn take_shutdown(&mut self) -> bool {
-        match &mut self.closing {
-            Some(closing) => core::mem::replace(&mut closing.shutdown_pending, false),
-            None => false,
-        }
+        self.close.take_shutdown()
     }
 
     pub(crate) fn abort_stream(&mut self, trace: &mut Option<crate::stream::Spawned>) {
@@ -323,9 +286,7 @@ impl HostIo {
     }
 
     pub(crate) fn abort(&mut self) {
-        if let Some(entity) = self.terminal_input {
-            self.io_requests.push(io::Request::Abort { entity });
-        }
+        self.terminal_input.abort(&mut self.io_requests);
     }
 
     pub(crate) fn closed(&self) -> bool {
@@ -333,19 +294,19 @@ impl HostIo {
     }
 
     pub(crate) fn settled(&self, streams: u32) -> bool {
-        self.closing.is_some()
+        self.close.closing()
             && match &self.programs {
                 Some(checks) => checks.closed(),
                 None => true,
             }
-            && self.closing_roots() == 0
+            && self.close.roots_left() == 0
             && self.io.sockets() == streams
             && self.store_io.store.is_none()
             && self.store_io.store_requests.is_empty()
             && self.store_io.store_actions.is_empty()
             && self.files.takes()
             && self.files.open_files() == 0
-            && self.operations.len() == u32::from(self.signal_operation.is_some())
+            && self.operations.len() == self.signals.reads()
             && self.file_requests.is_empty()
             && self.file_events.is_empty()
             && self.io_requests.is_empty()
@@ -365,9 +326,9 @@ impl HostIo {
             Some(git) => git.next_deadline(),
             None => None,
         };
-        let process_deadline = match &self.process {
-            Some(process) => process.next_deadline(),
-            None => None,
+        let process_deadline = match &self.child {
+            Child::Spawned { process, .. } => process.next_deadline(),
+            Child::Absent => None,
         };
         let mut next: Option<Time> = None;
         for deadline in [
@@ -393,7 +354,7 @@ impl HostIo {
 
     pub(crate) fn work_pending(&self, now: Time) -> bool {
         match &self.programs {
-            Some(checks) if checks.work_pending(now, self.closing.is_some()) => return true,
+            Some(checks) if checks.work_pending(now, self.close.closing()) => return true,
             Some(_) | None => {}
         }
         self.io.is_ready()
@@ -401,7 +362,7 @@ impl HostIo {
             || !self.io_events.is_empty()
             || !self.shell_events.is_empty()
             || !self.io_requests.is_empty()
-            || self.window_read == WindowRead::Requested
+            || self.window_read.requested()
             || self.process_work_pending()
             || !self.completions.is_empty()
             || (self.store_actions_dispatched() && !self.file_events.is_empty())
@@ -415,7 +376,7 @@ impl HostIo {
             || !self.io_submissions.is_empty()
             || !self.file_submissions.is_empty()
             || self.files.is_due(now)
-            || (self.closing_roots() > 0 && self.files.takes() && !self.close_root_pending)
+            || (self.close.root_due() && self.files.takes())
     }
 
     pub(crate) const fn failed(&self) -> bool {
@@ -425,9 +386,7 @@ impl HostIo {
     fn reap(&mut self, env: &Env<io::Limits>) {
         for _ in 0..self.completions.capacity() {
             let Some(complete) = self.completions.pop() else { break };
-            if self.signal_operation == Some(complete.op) {
-                self.signal_operation = None;
-            }
+            self.signals.completed(complete.op);
             let route = self.operations.remove(&complete.op).expect("one route per submitted kernel operation");
             match route {
                 Operation::ProgramRoot => self.programs.as_mut().expect("program root close").root_closed(),
@@ -526,36 +485,26 @@ impl HostIo {
             match event {
                 io::Event::Resized => self.shell_events.push(io::Event::Resized),
                 event @ io::Event::Window { .. } => {
-                    self.window_read = match self.window_read {
-                        WindowRead::Again => WindowRead::Requested,
-                        WindowRead::Idle | WindowRead::Requested | WindowRead::Pending => WindowRead::Idle,
-                    };
+                    self.window_read.answered();
                     self.shell_events.push(event);
                 }
                 io::Event::Shutdown { .. } => {
-                    if let Some(closing) = &mut self.closing {
-                        closing.shutdown_pending = true;
-                    } else {
+                    if !self.close.shutdown() {
                         terminal.interrupt(terminal_events);
                     }
                 }
-                io::Event::Stream { owner, up } if Some(owner) == self.terminal_input => match up {
+                io::Event::Stream { owner, up } if self.terminal_input.owns(owner) => match up {
                     stream::Up::Bytes(bytes) => {
                         for byte in bytes {
                             terminal.feed(byte, terminal_events);
                         }
-                        if self.closing.is_none() && self.terminal_reading == local::Reading::Open {
-                            self.io_requests.push(io::Request::Stream {
-                                stream: owner,
-                                down: stream::Down::Demand { read: stream::Read::Fill(1), room: 0 },
-                            });
-                        }
+                        self.terminal_input.bytes(&mut self.io_requests);
                     }
                     stream::Up::End | stream::Up::Failed(_) => terminal.closed(terminal_events),
                     stream::Up::Room => unreachable!("read-only terminal asks for no output room"),
                 },
-                io::Event::Closed { owner } if Some(owner) == self.terminal_input => self.terminal_input = None,
-                io::Event::Closed { owner } if Some(owner) == self.signals => self.signals = None,
+                io::Event::Closed { owner } if self.terminal_input.owns(owner) => self.terminal_input.closed(),
+                io::Event::Closed { owner } if self.signals.owns(owner) => self.signals.closed(),
                 other @ (io::Event::Listening { .. }
                 | io::Event::Accepted { .. }
                 | io::Event::Connecting { .. }
@@ -566,9 +515,11 @@ impl HostIo {
                 | io::Event::Exited { .. }
                 | io::Event::Usage { .. }
                 | io::Event::Failed { .. }
-                | io::Event::Closed { .. }) => match &mut self.process {
-                    Some(process) => process.from_io(now, other, &mut self.process_events, &mut self.io_requests),
-                    None => self.shell_events.push(other),
+                | io::Event::Closed { .. }) => match &mut self.child {
+                    Child::Spawned { process, .. } => {
+                        process.from_io(now, other, &mut self.process_events, &mut self.io_requests);
+                    }
+                    Child::Absent => self.shell_events.push(other),
                 },
             }
         }
@@ -582,8 +533,9 @@ impl HostIo {
         if git_done {
             self.delivery.git = None;
         }
-        if let Some(process) = &mut self.process {
-            process.fire(now, &mut self.process_events, &mut self.io_requests);
+        match &mut self.child {
+            Child::Spawned { process, .. } => process.fire(now, &mut self.process_events, &mut self.io_requests),
+            Child::Absent => {}
         }
         self.drain_process(host_events);
     }
@@ -610,7 +562,7 @@ impl HostIo {
 
     fn process_work_pending(&self) -> bool {
         for event in &self.process_events {
-            if self.reading || !read_terminal(event) {
+            if self.read_held() || !read_terminal(event) {
                 return true;
             }
         }
@@ -637,11 +589,11 @@ impl HostIo {
                 | protocol::ProcessEvent::Reaped { .. } => {}
             }
             if read_terminal(&event) {
-                if !self.reading {
+                if !self.read_held() {
                     self.process_events.push(event);
                     continue;
                 }
-                self.reading = false;
+                self.child.answered();
             }
             host_events.push(to_host_event(event, &mut self.live));
         }
@@ -657,15 +609,7 @@ impl HostIo {
         trace: &mut Option<crate::stream::Spawned>,
     ) {
         let now = env.now;
-        if self.window_read == WindowRead::Requested {
-            self.window_read = WindowRead::Idle;
-            if self.closing.is_none()
-                && let Some(stream) = self.terminal_input
-            {
-                self.window_read = WindowRead::Pending;
-                self.io_requests.push(io::Request::Window { owner: stream, stream });
-            }
-        }
+        self.window_read.follow(self.terminal_input.open(), &mut self.io_requests);
         if let Some(trace) = trace {
             if self.settled(trace.producer.streams().checked_add(self.signal_streams()).expect("bounded signal stream"))
             {
@@ -677,11 +621,14 @@ impl HostIo {
             let Some(request) = requests.pop() else { break };
             self.request(request, start_values, grant_values, host_events);
         }
-        if let Some(process) = &mut self.process {
-            for _ in 0..self.limits.queue {
-                let Some(request) = process.next_channel_down() else { break };
-                process.channel_down(request, &mut self.io_requests);
+        match &mut self.child {
+            Child::Spawned { process, .. } => {
+                for _ in 0..self.limits.queue {
+                    let Some(request) = process.next_channel_down() else { break };
+                    process.channel_down(request, &mut self.io_requests);
+                }
             }
+            Child::Absent => {}
         }
         for _ in 0..self.limits.queue {
             if !self.io.takes() {
@@ -701,32 +648,7 @@ impl HostIo {
                 &mut self.file_submissions,
             );
         }
-        if self.closing_roots() > 0 && !self.close_root_pending && self.files.takes() {
-            let position = self.closing_roots().checked_sub(1).expect("positive roots to close");
-            self.closing.as_mut().expect("closing roots").roots = position;
-            let root =
-                *self.file_roots.get(usize::try_from(position).expect("root position fits")).expect("adopted root");
-            self.close_root_pending = true;
-            file_layer::down(
-                &mut self.files,
-                now,
-                file::Request::Close { owner: Token::new(u64::MAX), file: root },
-                &mut self.file_events,
-                &mut self.file_submissions,
-            );
-        }
-        if self.closing.is_some() && self.submissions.room() > 0 && self.operations.len() < self.operations.capacity() {
-            let root = match &mut self.programs {
-                Some(checks) => checks.closing_root(),
-                None => None,
-            };
-            if let Some(fd) = root {
-                let op = Token::new(self.next_operation);
-                self.next_operation = self.next_operation.checked_add(1).expect("root close operation");
-                self.operations.insert(op, Operation::ProgramRoot).expect("root close route");
-                self.submissions.push(kernel::Submit { op, kind: kernel::Op::Close { fd } });
-            }
-        }
+        self.follow_close(now);
         self.flush_submissions();
         self.io.reclaim();
     }
@@ -770,8 +692,7 @@ impl HostIo {
             other => other,
         };
         if let kernel::Op::ReadSignal { .. } = &kind {
-            assert!(self.signal_operation.is_none(), "one retained signal read");
-            self.signal_operation = Some(global);
+            self.signals.reading(global);
         }
         let route = if file { Operation::File(submit.op) } else { Operation::Io(submit.op) };
         self.operations.insert(global, route).expect("reserved kernel route");
@@ -801,12 +722,15 @@ impl HostIo {
                     return;
                 };
                 process.spawn(self.launch.clone(), deadline, &mut self.io_requests);
-                self.process = Some(process);
+                self.spawned(process);
             }
             host::process::Request::Send { owner, message, .. } => {
                 let send_token = Token::new(self.send);
                 self.send = self.send.checked_add(1).expect("bounded send tokens");
-                let process = self.process.as_mut().expect("Spawn precedes Send");
+                let process = match &mut self.child {
+                    Child::Spawned { process, .. } => process,
+                    Child::Absent => unreachable!("Spawn precedes Send"),
+                };
                 let sent = match message {
                     host::Down::Start { start, window } => {
                         let asked = match start.live {
@@ -860,16 +784,18 @@ impl HostIo {
                     host::Signal::Terminate => kernel::Signal::Terminate,
                     host::Signal::Kill => kernel::Signal::Kill,
                 };
-                self.process.as_ref().expect("spawned child").signal(signal, &mut self.io_requests);
+                match &mut self.child {
+                    Child::Spawned { process, .. } => process.signal(signal, &mut self.io_requests),
+                    Child::Absent => unreachable!("Spawn precedes Signal"),
+                }
                 host_events.push(host::Input::Process(host::process::Event::Signalled { owner }));
             }
             host::process::Request::Read { .. } => {
-                assert!(!self.reading, "one host read at a time");
-                self.reading = true;
-                self.process
-                    .as_mut()
-                    .expect("Spawn precedes Read")
-                    .read(&mut self.process_events, &mut self.io_requests);
+                self.hold_read();
+                match &mut self.child {
+                    Child::Spawned { process, .. } => process.read(&mut self.process_events, &mut self.io_requests),
+                    Child::Absent => unreachable!("Spawn precedes Read"),
+                }
             }
             host::process::Request::Wait { .. } | host::process::Request::Reap { .. } => {}
         }
@@ -996,6 +922,17 @@ mod tests {
     use skein_lib::List;
 
     #[test]
+    fn a_capture_of_a_directory_with_no_root_ends_unknown_and_idle() {
+        let config = crate::tests::config();
+        let mut hub = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("hub");
+        let mut directories = List::with_capacity(1);
+        directories.push(0).expect("one directory");
+        hub.capture_plain(directories, Time::from_nanos(1_000_000_000));
+        assert_eq!(hub.take_capture_done(), Some(false));
+        assert!(hub.delivery.inspection.idle());
+    }
+
+    #[test]
     fn invalid_limits_are_refused() {
         let base = crate::tests::config().limits.process.io;
         assert!(native_io_valid(&base));
@@ -1082,7 +1019,7 @@ mod tests {
         };
         assert!(adapter.file_events.is_empty(), "both file terminals settle once");
         assert!(adapter.store_io.store_actions.is_empty(), "the store answer settles once");
-        assert!(adapter.delivery.markers.is_none(), "the inspection settles once");
+        assert!(adapter.delivery.inspection.idle(), "the inspection settles once");
     }
 
     fn start_store_load(adapter: &mut HostIo, now: Time, events: &mut Queue<local::Event>) {
@@ -1214,7 +1151,7 @@ mod tests {
         assert!(events.is_empty(), "both requests have exactly one chat terminal");
         assert!(world.adapter.file_events.is_empty());
         assert!(world.adapter.store_io.store_actions.is_empty());
-        assert!(world.adapter.delivery.markers.is_none());
+        assert!(world.adapter.delivery.inspection.idle());
         world.close(&mut events);
         assert!(events.is_empty(), "closing adds no request terminal");
     }
@@ -1313,7 +1250,7 @@ mod tests {
         adapter.io.reclaim();
         adapter.io_up(&env);
         while adapter.io_submissions.pop().is_some() {}
-        adapter.terminal_input = Some(terminal);
+        adapter.adopted_input(terminal, false);
         adapter.read_window();
         // Filling IO's one refusal slot holds its credit independently
         // of the service handoff. No kernel operation is required to release it.
@@ -1361,7 +1298,7 @@ mod tests {
             &mut adapter.process_events,
             &mut adapter.io_requests,
         );
-        adapter.process = Some(process);
+        adapter.spawned(process);
         adapter
     }
 
@@ -1493,6 +1430,15 @@ mod tests {
     fn prefetched_adapter(owner: Token) -> HostIo {
         let config = crate::tests::config();
         let mut adapter = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
+        adapter.spawned(
+            protocol::Process::new(
+                owner,
+                &adapter.limits.channel,
+                adapter.limits.detail_bytes,
+                adapter.endpoints.clone(),
+            )
+            .unwrap(),
+        );
         adapter
             .process_events
             .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });
@@ -1532,8 +1478,8 @@ mod tests {
         assert!(!adapter.work_pending(Time::ZERO), "prefetched records wait without spinning");
         for text in [b"first".as_slice(), b"second".as_slice()] {
             // This fixture tests the outer terminal ledger with already queued events,
-            // below request forwarding: a real Read now also requires an opened Process.
-            adapter.reading = true;
+            // below request forwarding: a real Read requires an opened Process.
+            adapter.hold_read();
             adapter.drain_process(&mut events);
             match events.pop().expect("one read terminal") {
                 host::Input::Process(host::process::Event::Received {
@@ -1548,12 +1494,12 @@ mod tests {
             assert!(events.is_empty(), "one terminal per Read");
         }
         assert!(adapter.process_events.is_empty());
-        adapter.reading = true;
+        adapter.hold_read();
         adapter
             .process_events
             .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });
         adapter.drain_process(&mut events);
-        assert!(adapter.reading, "an independent write failure leaves the read owed");
+        assert!(adapter.read_held(), "an independent write failure leaves the read owed");
         assert!(events.is_empty());
     }
 }

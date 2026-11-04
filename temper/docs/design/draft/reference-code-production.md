@@ -8,8 +8,7 @@ project develops itself through temper: one repository, a person who
 writes design drafts, designers who turn them into design, coding agents
 who make the code meet it. How the goal lands is `reference-landing.md`;
 `reference-case.md` walks both on one small goal; `notes.md` holds the
-evidence and the reasons for each choice, N1 to N24, cited here by
-number.
+reasons for each choice, N1 to N24, cited here by number.
 
 Unqualified, `forge.md`, `landing.md`, `after-landing.md`, `agent.md`
 and `worker.md` are temper's `../domain/` documents; jig's and smith's
@@ -505,7 +504,8 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
   bounded by the result's bytes (N21). A plan section in g, which the
   close-out removes, would carry any size and show in the branch's
   history, at the cost of a file that is not the project's. The report
-  fits the run's largest family (eleven changes); revisit past that.
+  fits a family of eleven changes, the largest the reference sizes for
+  (N21); revisit past that.
 - **Should G catch up and repair along the way by judgement or by rule?**
   G decides both on news, which costs a wake at xhigh each (N11) and
   lets it choose a moment and an owner. A rule (a catch-up every span, a
@@ -513,8 +513,8 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
   to make the changes.
 - **Should g's tier blame merges,** bisecting to the change whose merge
   brought a failure and naming it in the news, rather than leave G to
-  triage? Triage matched the evidence; blame would need the tier's
-  verdict machinery inside a goal.
+  triage? Triage costs a wake and no machinery; blame would need the
+  tier's verdict machinery inside a goal.
 - **Should a kept change start before its dependency's first push,** from
   the design alone? The rule waits for a push, so the producer builds on
   code rather than on a description of it.

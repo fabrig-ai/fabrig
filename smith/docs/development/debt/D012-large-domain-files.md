@@ -15,7 +15,7 @@
 The review counted nine production files over 1,500 lines. Five remain:
 `session.rs` (2,516, from 3,788), `run.rs` (1,907), `smith-events`'
 `read.rs` (1,625) and `write.rs` (1,612), and the local host's `host_io.rs`
-(1,559). The last three belong to D001, D002 and D003. This item is the two
+(1,505). The last three belong to D001 and D003. This item is the two
 domain files. `session.rs` keeps 72 top-level functions beside its nine
 submodules in `session/`; `run.rs` keeps 62 beside its five in `run/`.
 

@@ -61,7 +61,6 @@ it says what a reviewer checks.
 | ID | title | kind | value | size | status |
 |---|---|---|---|---|---|
 | [D001](D001-events-hand-kept-records.md) | smith-events keeps every record in four hand-written hierarchies | duplication | medium | L | open |
-| [D002](D002-lifecycles-in-flags.md) | Three owners still hold lifecycles in flags and `Option`s | complexity | medium | M | open |
 | [D003](D003-host-io-route-table.md) | The local host routes io completions through its own table | primitives | low | M | open |
 | [D005](D005-block-walks.md) | Every walk of a message destructures `Block` again | duplication | low | S | open |
 | [D006](D006-backend-two-effect-paths.md) | The program backend's effects leave by two paths | primitives | low | S | open |

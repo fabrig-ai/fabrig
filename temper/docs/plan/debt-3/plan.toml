@@ -1,0 +1,62 @@
+draft = "debt-3"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-3/inputs/request.md", "smith/docs/development/debt/D002-lifecycles-in-flags.md", "skein/docs/development/debt/D001-json-whole-buffer-reads.md", "temper/docs/development/debt/D002-json-pumps.md", "jig/docs/development/debt/D022-ui-limits-literals.md", "jig/docs/development/debt/D023-view-tests-text-bytes.md"]
+
+# Four debt items' parts, one per tree (inputs/request.md), which read none of each other's
+# code, so each starts as soon as its tasks are written. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "temper-json-pumps"
+title = "temper D002: three crates call skein_json::parse"
+mode = "direct"
+needs = []
+design = "skein/docs/design/json.md, 5.3"
+
+[[slice]]
+id = 1
+story = "temper's settings form, client tools and smith engine read whole JSON buffers through skein_json::parse, with the refusals they gave"
+parts = ["temper-json-pumps"]
+walk = false
+
+[[part]]
+id = "jig-ui-callers"
+title = "jig D022 and D023: jig's Limits sit on Limits::EMPTY, and the view's tests read Node::text_bytes"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 15"
+
+[[slice]]
+id = 2
+story = "jig writes only the skein_ui::Limits fields it means, and its view's size tests read a node's bytes from skein-ui"
+parts = ["jig-ui-callers"]
+walk = false
+
+[[part]]
+id = "skein-json-feed"
+title = "skein D001: skein-json's Feed drives whole-buffer reads, and no step crate pumps by hand"
+mode = "direct"
+needs = []
+design = "skein/docs/design/json.md, 5.3"
+
+[[slice]]
+id = 3
+story = "skein's whole-buffer JSON reads go through one slice-fed driver or skein_json::parse, skein-oauth's Json among them, with the refusals they gave"
+parts = ["skein-json-feed"]
+walk = false
+
+[[part]]
+id = "smith-lifecycles"
+title = "smith D002: Domain, Stages and HostIo hold each lifecycle as its own state enum"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 5.4"
+
+[[slice]]
+id = 4
+story = "the local Domain's delivery and chat states, the agent service's run end and HostIo's close each read as one state enum with its own transitions and follow, with behaviour and stored formats unchanged"
+parts = ["smith-lifecycles"]
+walk = false

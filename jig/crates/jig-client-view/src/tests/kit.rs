@@ -61,14 +61,12 @@ pub(crate) fn limits() -> skein_ui::Limits {
         depth: 10,
         text_per_node: 1024,
         text_bytes: 16384,
-        drawing_bytes: 0,
         styles_per_node: 2,
         patches: 1536,
         bindings: 64,
         slots: 8,
         markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     }
 }
 

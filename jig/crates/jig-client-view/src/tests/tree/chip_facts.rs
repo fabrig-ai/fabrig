@@ -98,5 +98,5 @@ fn task_overview_expands_whole_metadata_but_nested_verdict_chips_stay_brief() {
     assert_eq!(inner.phase, Phase::Ended);
     assert_eq!(inner.title.whole(), None);
     let bound = crate::tests::render_limits(&CLIENT, words()).unwrap();
-    assert!(tree.nodes().iter().all(|node| crate::tests::text_bytes(node) <= bound.text_per_node));
+    assert!(tree.nodes().iter().all(|node| node.text_bytes() <= bound.text_per_node));
 }

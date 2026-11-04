@@ -484,11 +484,12 @@ impl Harness {
     pub fn decoded(&self, request: &Request) -> Decoded {
         let limits = &self.env.limits.documents;
         let mut decoder = client::decoder(request, limits).expect("document decoder");
-        let mut pump = Pump::new(&self.body(), limits);
+        let body = self.body();
+        let mut feed = skein_json::tokenizer::Feed::new(&body, &limits.json);
         let mut rows = List::with_capacity(limits.inner);
         let mut demand = client::first(&decoder);
         loop {
-            let event = pump.next(demand);
+            let event = feed.answer(demand);
             match client::step(&mut decoder, limits, &event) {
                 Step::Demand(next) => demand = next,
                 Step::Row(row, next) => {
@@ -565,60 +566,14 @@ pub fn deliver(
 ) -> Result<skein_forge::forgejo::delivery::Delivery, skein_forge::forgejo::decode::Malformed> {
     use skein_forge::forgejo::client::delivery::{self, Step};
     let mut decoder = delivery::decoder(header, limits).expect("known delivery");
-    let mut pump = Pump::new(body, limits);
+    let mut feed = skein_json::tokenizer::Feed::new(body, &limits.json);
     let mut demand = delivery::first(&decoder);
     loop {
-        let event = pump.next(demand);
+        let event = feed.answer(demand);
         match delivery::step(&mut decoder, limits, &event) {
             Step::Demand(next) => demand = next,
             Step::Done(value) => return Ok(value),
             Step::Malformed(error) => return Err(error),
         }
-    }
-}
-struct Pump {
-    env: Env<skein_json::tokenizer::Limits>,
-    tokenizer: skein_json::tokenizer::Tokenizer,
-    above: Queue<skein_json::tokenizer::Event>,
-    below: Queue<Down>,
-    intake: Intake,
-    remaining: usize,
-}
-impl Pump {
-    fn new(body: &[u8], limits: &skein_forge::forgejo::limits::Limits) -> Self {
-        let mut intake = Intake::with_capacity(
-            u32::try_from(body.len()).expect("test bytes").max(skein_json::tokenizer::largest_demand(&limits.json)),
-        );
-        intake.append(body).expect("test input");
-        Self {
-            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json },
-            tokenizer: skein_json::tokenizer::Tokenizer::new(&limits.json),
-            above: Queue::with_capacity(1),
-            below: Queue::with_capacity(1),
-            intake,
-            remaining: body.len().saturating_mul(4).saturating_add(32),
-        }
-    }
-    fn next(&mut self, demand: skein_json::tokenizer::Request) -> skein_json::tokenizer::Event {
-        skein_json::tokenizer::down(&mut self.tokenizer, &self.env, demand, &mut self.above, &mut self.below);
-        while self.remaining > 0 {
-            self.remaining = self.remaining.saturating_sub(1);
-            if let Some(event) = self.above.pop() {
-                return event;
-            }
-            match self.below.pop().expect("tokenizer demand") {
-                Down::Demand { read, room: 0 } => {
-                    let up = match self.intake.meet(read) {
-                        Some(bytes) => Up::Bytes(bytes),
-                        None => Up::End,
-                    };
-                    skein_json::tokenizer::up(&mut self.tokenizer, &self.env, up, &mut self.above, &mut self.below);
-                }
-                other @ (Down::Demand { .. } | Down::Send(_) | Down::Finish) => {
-                    panic!("unexpected stream demand {other:?}")
-                }
-            }
-        }
-        panic!("decoder exhausted the input step bound")
     }
 }

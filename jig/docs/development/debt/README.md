@@ -75,8 +75,6 @@ IDs run from `D001` and are never reused:
 | [D019](D019-lint-config-copied.md) | jig's test crates and shells copy one lint block, which no shared table holds | lints | medium | S | open |
 | [D020](D020-inner-allow-guard.md) | Nothing stops an inner `#![allow]` from coming back | lints | low | S | open |
 | [D021](D021-phrases-listed-five-times.md) | Each of the view's phrases is listed four or five times | duplication | medium | M | open |
-| [D022](D022-ui-limits-literals.md) | skein-ui's `Limits` is written out by hand 25 times | duplication | low | S | open |
-| [D023](D023-view-tests-text-bytes.md) | The view's tests re-implement skein-ui's node accounting | tests | low | S | open |
 | [D024](D024-view-section-context.md) | The view passes a section's context through a field set around calls | coupling | low | S | open |
 | [D025](D025-store-codec-domain-rules.md) | The store codec applies domain rules | coupling | medium | M | open |
 | [D026](D026-engine-clients-project-mismatch.md) | The clients' protocol layer answers a people rule itself | coupling | low | S | open |

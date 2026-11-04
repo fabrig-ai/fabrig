@@ -2,10 +2,7 @@
 use alloc::boxed::Box;
 use skein_forge::github::limits::Limits;
 use skein_json::{Token, tokenizer};
-use skein_lib::{
-    Env, Intake, List, Queue, Time, Wall, bytes,
-    stream::{Down, Up},
-};
+use skein_lib::{List, bytes};
 
 use skein_forge::github::document::Access;
 pub use skein_forge::github::document::Permission;
@@ -290,38 +287,17 @@ fn validate(tokens: &List<Token>, limits: &Limits) -> Option<()> {
 }
 pub(crate) fn tokenize(input: &[u8], limits: &Limits) -> Option<List<Token>> {
     let bound = u32::try_from(input.len()).ok()?;
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut machine = tokenizer::Tokenizer::new(&limits.json);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut intake = Intake::with_capacity(bound.max(tokenizer::largest_demand(&limits.json)));
-    intake.append(input).ok()?;
+    let mut feed = tokenizer::Feed::new(input, &limits.json);
     let mut tokens = List::with_capacity(bound);
-    tokenizer::down(&mut machine, &env, tokenizer::Request::Next, &mut above, &mut below);
-    let ticks = input.len().checked_mul(8)?.checked_add(64)?;
-    for _tick in 0..ticks {
-        match above.pop() {
-            Some(tokenizer::Event::Token(token)) => {
-                tokens.push(token).ok()?;
-                tokenizer::down(&mut machine, &env, tokenizer::Request::Next, &mut above, &mut below);
-            }
-            Some(tokenizer::Event::Done) => return Some(tokens),
-            Some(
-                tokenizer::Event::Failed(_)
-                | tokenizer::Event::Long(_)
-                | tokenizer::Event::Skipped(_)
-                | tokenizer::Event::Closed,
-            ) => return None,
-            None => {
-                let Some(Down::Demand { read, room: 0 }) = below.pop() else {
-                    return None;
-                };
-                let delivery = match intake.meet(read) {
-                    Some(bytes) => Up::Bytes(bytes),
-                    None => Up::End,
-                };
-                tokenizer::up(&mut machine, &env, delivery, &mut above, &mut below);
-            }
+    // Every token reads a byte, so the end comes within one answer more.
+    for _answer in 0..=input.len() {
+        match feed.answer(tokenizer::Request::Next) {
+            tokenizer::Event::Token(token) => tokens.push(token).ok()?,
+            tokenizer::Event::Done => return Some(tokens),
+            tokenizer::Event::Failed(_)
+            | tokenizer::Event::Long(_)
+            | tokenizer::Event::Skipped(_)
+            | tokenizer::Event::Closed => return None,
         }
     }
     None
