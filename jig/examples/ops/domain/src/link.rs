@@ -66,14 +66,7 @@ fn outputs(
             }
             link::Request::Message { channel, run, attempt, word } => {
                 assert!(channel == Token::new(0), "ops engine's permanent link");
-                Released::Host(host::Event::Down(host::LinkDown::Message {
-                    run,
-                    attempt,
-                    name: Token::new(word.number),
-                    sender: word.from.sender(),
-                    finish_requested: word.finish_requested(),
-                    words: jig_protocol_tools::words(&word),
-                }))
+                Released::Host(host::Event::Down(jig_protocol_charter::message(run, attempt, &word)))
             }
             link::Request::ConnectorCall { to, run, attempt, call } => {
                 now(domain, Output::Now(jig_domain_core::Now::Call { to, run, attempt, call }));
