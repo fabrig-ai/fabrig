@@ -1,0 +1,3 @@
+draft = "debt-7"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-7/inputs/request.md", "jig/docs/development/debt/D005-accounts-host-copied.md", "temper/docs/development/debt/D001-reference-service-copy.md", "skein/docs/development/debt/D029-fake-github-http-faces.md", "smith/docs/development/debt/D009-startup-writers.md", "smith/docs/development/debt/D014-unused-dependencies.md", "smith/docs/development/debt/D016-retyped-primitives.md", "smith/docs/development/debt/D019-channel-component-twins.md"]
