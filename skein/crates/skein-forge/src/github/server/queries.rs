@@ -3,12 +3,8 @@ use super::{Limits, document};
 use crate::forgejo::id::unsigned;
 use alloc::boxed::Box;
 use skein_json::{
-    Token,
-    tokenizer::{self, Event},
-};
-use skein_lib::{
-    Env, Intake, List, Queue, Time, Wall,
-    stream::{Down, Up},
+    Document,
+    document::{self as json_document, Compact, Kind},
 };
 
 /// The two query documents understood by the fake.
@@ -24,40 +20,34 @@ pub enum Graphql {
 /// JSON envelope whitespace and member order do not change query identity.
 #[must_use]
 pub fn graphql_body(body: &[u8], limits: &Limits) -> Option<Graphql> {
-    let tokens = tokens(body, limits)?;
-    let mut tokens = tokens.iter();
-    if tokens.next()? != &Token::ObjectStart {
-        return None;
-    }
+    let document = parsed(body, limits)?;
+    let mut walk = Walk { document: &document, at: 0 };
+    walk.expect(Kind::ObjectStart)?;
     let mut query = None;
     let mut variables = None;
     for _field in 0..2_u32 {
-        if tokens.as_slice().first()? == &Token::ObjectEnd {
+        if walk.peek()?.kind == Kind::ObjectEnd {
             break;
         }
-        let Token::Key(key) = tokens.next()? else {
-            return None;
-        };
-        match key.as_ref() {
+        let key = walk.text(Kind::Key)?;
+        match key {
             b"query" => {
                 if query.is_some() {
                     return None;
                 }
-                let Token::String(text) = tokens.next()? else {
-                    return None;
-                };
-                query = Some(text.as_ref());
+                query = Some(walk.text(Kind::String)?);
             }
             b"variables" => {
                 if variables.is_some() {
                     return None;
                 }
-                variables = Some(read_variables(&mut tokens, limits)?);
+                variables = Some(read_variables(&mut walk, limits)?);
             }
             _ => return None,
         }
     }
-    if tokens.next()? != &Token::ObjectEnd || tokens.next().is_some() {
+    walk.expect(Kind::ObjectEnd)?;
+    if walk.peek().is_some() {
         return None;
     }
     match query? {
@@ -75,75 +65,64 @@ struct Variables {
     name: Box<[u8]>,
     number: u64,
 }
-fn read_variables(tokens: &mut core::slice::Iter<'_, Token>, limits: &Limits) -> Option<Variables> {
-    if tokens.next()? != &Token::ObjectStart {
-        return None;
-    }
+fn read_variables(walk: &mut Walk<'_>, limits: &Limits) -> Option<Variables> {
+    walk.expect(Kind::ObjectStart)?;
     let mut owner = None;
     let mut name = None;
     let mut number = None;
     for _field in 0..3_u32 {
-        let Token::Key(key) = tokens.next()? else {
-            return None;
-        };
-        match key.as_ref() {
-            b"owner" if owner.is_none() => owner = Some(string(tokens.next()?, limits)?),
-            b"name" if name.is_none() => name = Some(string(tokens.next()?, limits)?),
+        let key = walk.text(Kind::Key)?;
+        match key {
+            b"owner" if owner.is_none() => owner = Some(string(walk, limits)?),
+            b"name" if name.is_none() => name = Some(string(walk, limits)?),
             b"number" if number.is_none() => {
-                let Token::Number(text) = tokens.next()? else {
-                    return None;
-                };
-                number = Some(unsigned(text)?);
+                number = Some(unsigned(walk.text(Kind::Number)?)?);
             }
             _ => return None,
         }
     }
-    if tokens.next()? != &Token::ObjectEnd {
-        return None;
-    }
+    walk.expect(Kind::ObjectEnd)?;
     Some(Variables { owner: owner?, name: name?, number: number? })
 }
-fn string(token: &Token, limits: &Limits) -> Option<Box<[u8]>> {
-    let Token::String(text) = token else {
-        return None;
-    };
+fn string(walk: &mut Walk<'_>, limits: &Limits) -> Option<Box<[u8]>> {
+    let text = walk.text(Kind::String)?;
     if text.is_empty() || u64::try_from(text.len()).ok()? > u64::from(limits.string_bytes) {
         return None;
     }
-    Some(text.clone())
+    Some(Box::from(text))
 }
-fn tokens(body: &[u8], limits: &Limits) -> Option<List<Token>> {
+fn parsed(body: &[u8], limits: &Limits) -> Option<Document> {
     if u64::try_from(body.len()).ok()? > u64::from(limits.body_bytes) {
         return None;
     }
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&limits.json);
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    let mut tokens = List::with_capacity(16);
-    let mut intake =
-        Intake::with_capacity(u32::try_from(body.len()).ok()?.max(tokenizer::largest_demand(&limits.json)));
-    intake.append(body).ok()?;
-    tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _tick in 0..body.len().checked_mul(8)?.checked_add(64)? {
-        if let Some(event) = above.pop() {
-            match event {
-                Event::Token(token) => tokens.push(token).ok()?,
-                Event::Done => return Some(tokens),
-                Event::Long(_) | Event::Skipped(_) | Event::Failed(_) | Event::Closed => return None,
-            }
-            tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-        } else {
-            let read = match below.pop()? {
-                Down::Demand { read, room: 0 } => read,
-                Down::Demand { .. } | Down::Send(_) | Down::Finish => return None,
-            };
-            let event = match intake.meet(read) {
-                Some(bytes) => Up::Bytes(bytes),
-                None => Up::End,
-            };
-            tokenizer::up(&mut tokenizer, &env, event, &mut above, &mut below);
-        }
+    skein_json::parse(body, &limits.json, &json_document::Limits { tokens: 16, text: limits.body_bytes }).ok()
+}
+
+#[derive(Debug)]
+struct Walk<'a> {
+    document: &'a Document,
+    at: u32,
+}
+impl<'a> Walk<'a> {
+    fn peek(&self) -> Option<&'a Compact> {
+        self.document.token(self.at)
     }
-    None
+    fn next(&mut self) -> Option<&'a Compact> {
+        let record = self.peek()?;
+        self.at = self.at.checked_add(1)?;
+        Some(record)
+    }
+    fn expect(&mut self, kind: Kind) -> Option<()> {
+        if self.next()?.kind != kind {
+            return None;
+        }
+        Some(())
+    }
+    fn text(&mut self, kind: Kind) -> Option<&'a [u8]> {
+        let record = self.next()?;
+        if record.kind != kind {
+            return None;
+        }
+        self.document.text(record)
+    }
 }

@@ -18,7 +18,7 @@
     sets no bound. The browser tier's figures.
   - 9: Story A's walk
     in the one-process world, ignored (4). The wasm32 builds in the gate:
-    fab's gate list (`.config/gate/wasm32.txt`) omits
+    the gate's list (`.config/gate/wasm32.txt`) omits
     `temper-playground`, so no gate proves both of 3's product crates
     on wasm32. `temper-playground`'s wasm32 clippy fails, with warnings
     denied, in smith's and temper's crates alone: unmet
@@ -28,8 +28,3 @@
     and `smith-agent-shell`'s items left unused on wasm32 (smith's
     `shell.md`, 2.5, and its status).
   - 10: the bar.
-- **Departs:** `AGENTS.md`, 1: 9's entry above calls the gate's list by
-  the pipeline's name, the one name this file holds
-  (`tests/boundary/outward.txt`). The playground-browser plan, unlanded,
-  rewrites that entry and its version keeps the name: the word changes
-  there, or once it lands.

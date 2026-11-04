@@ -60,7 +60,6 @@ debt it says what a reviewer checks.
 
 | ID | title | kind | value | size | status |
 |---|---|---|---|---|---|
-| [D001](D001-json-whole-buffer-reads.md) | Whole-buffer JSON reads are hand-driven, with no slice-fed driver | primitives | high | M | open |
 | [D002](D002-index-and-length-widening.md) | Index and length conversions are written by hand beside lib's helpers | primitives | medium | M | open |
 | [D003](D003-env-rewraps.md) | `Env` is rebuilt by hand where `Env::with` does it | primitives | medium | S | open |
 | [D004](D004-utf8-checks.md) | UTF-8 is checked by a hand loop in codec and by `from_utf8` under expects | duplication | low | S | open |

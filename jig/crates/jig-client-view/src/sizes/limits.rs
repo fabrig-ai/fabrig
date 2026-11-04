@@ -108,8 +108,6 @@ pub fn envelope(
         // Markdown list path. Dependency regions are siblings, not nested.
         depth: client.rows.checked_add(33)?.checked_add(slot_depth)?,
         text_per_node,
-        text_bytes: 0,
-        drawing_bytes: 0,
         styles_per_node: 2,
         // At most one remove per old node and one structural plus three
         // attribute edits per new node (diff.rs).
@@ -118,8 +116,7 @@ pub fn envelope(
         bindings: nodes,
         slots: nodes,
         markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     })
 }
 

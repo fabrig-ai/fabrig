@@ -15,7 +15,3 @@
   `welcome-ready-under-way` and `welcome-ready-adopted` are states the
   gallery holds (`tools/gallery/names.txt`, `tools/gallery/src/samples.rs`)
   that the table does not list.
-  `AGENTS.md`, 1: 4.3's entry above calls the gate's list by the
-  pipeline's name, the one name this file holds
-  (`tests/boundary/outward.txt`). The playground-browser plan, unlanded,
-  rewrites that entry and drops the name, so its lines are left to it.

@@ -6,8 +6,9 @@ an agent that you want a dashboard like the one I pointed [at] and it
 configures temper to show that dashboard in the client. Sort of "UI as
 data" approach with some flexible palette of options/widgets can be
 used to expose engine data (possibly with custom calculations. LUA?)".
-The page pointed at is https://status.fabrig.ai, a status page whose
-description is the test's input (section 9).
+This draft's example of such a page is an example project's status
+page: a team running agents on hosts of its own. The page's description
+is the test's input (section 9).
 It takes `configuring.md` from the settings to the client's pages, on
 the settings jig has since designed (jig's `domain/engine.md`, section
 17). It crosses jig and temper on purpose; an owner splits it. Nothing
@@ -15,8 +16,8 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
 
 ## 1. In one page
 
-- **The person describes a page; temper shows it.** "A page like
-  status.fabrig.ai for my deployment", in their words or by pointing at
+- **The person describes a page; temper shows it.** "A page like our
+  status page for my deployment", in their words or by pointing at
   one. The configuring agent asks what matters, then proposes a
   dashboard; an owner accepts it on the review page, and it is one of
   the client's pages from then on (section 6).
@@ -55,9 +56,9 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
 - **Read-only, and never wider.** A panel leads to temper's own pages
   and acts on nothing; a dashboard shows only what the viewer's role in
   its scope may read, judged by the metrics' owners (4.3).
-- **Its test:** given `status-page.md`, a description of status.fabrig.ai's
-  page, the agent proposes a dashboard; what it cannot show is the list
-  of facts temper does not keep (section 9).
+- **Its test:** given `status-page.md`, the example project's description
+  of its status page, the agent proposes a dashboard; what it cannot
+  show is the list of facts temper does not keep (section 9).
 
 ## 2. Where it fits
 
@@ -194,7 +195,7 @@ caption:
   bins spaced by ratio, 128 by default, so that a quantile is within
   about 5% of the true value; a window's quantile merges its buckets'
   bins. The panel says "about 4 min", never a precision it lacks.
-- **The projection is the status page's pace:** the rise over the
+- **The projection is the example page's pace:** the rise over the
   look-back, then either full before the period's end, at when, or what
   is left at its end.
 
@@ -227,13 +228,13 @@ drawn by `temper-client-view`:
 
 | Panel | Shows | In skein-ui |
 |---|---|---|
-| tile | one number and a line under it: "Missions 26 · 18 active, 8 paused" | a region: its heading, its text |
+| tile | one number and a line under it: "Goals 26 · 18 active, 8 paused" | a region: its heading, its text |
 | table | a grouped metric's rows, a column per metric | a table, its column headers the metrics' names |
 | chart | a series over its window | a drawing, its words a sentence of its extremes and its last bucket, with the table beside it in a disclosure, "As a table" |
 | use | a sum or a gauge against its bound, with its projection: "63% of the week's budget · runs out Thursday" | text; a drawing of the bar where a shell draws |
 | cards | a tile per group: a host, a project, an account | a list, an item per group |
 | lines | a task query's live tasks, as the board's lines (jig's `client/domain/contract.md`, 6.1) | a list of temper's task lines, each leading to its task's page |
-| warning | a threshold crossed: "hetzner3: no free slots for 20 min" | an alert, said at once |
+| warning | a threshold crossed: "host-3: no free slots for 20 min" | an alert, said at once |
 | link | one of temper's pages: the inbox, a project's board, the changes, Accounts, How work runs | a link |
 
 - **It grows by skein-ui's rule:** a panel two dashboards need, which
@@ -322,9 +323,8 @@ Effect
 The user asked about custom calculations, perhaps in Lua. The answer
 here is a closed set of operations first, for four reasons:
 
-- **The status page fits them.** Every number on status.fabrig.ai is a
-  count, a sum, a rate, a ratio, a quantile, a latest or a projection
-  (section 9).
+- **The example page fits them.** Every number on it is a count, a sum,
+  a rate, a ratio, a quantile, a latest or a projection (section 9).
 - **An owner accepts what they understand.** "p90 of gate time per
   repository, the last 7 days" can be said back on the review page;
   the meaning of a script cannot, which is `configuring.md`'s premise.
@@ -366,27 +366,27 @@ wasm32 (`../playground.md`). Default: none.
   work ends; a metric removed while a dashboard shows it is refused; a
   restart keeps the buckets; a member without a role in the deployment
   is refused its dashboards; the fake person reads a chart's words.
-- **The status page as a golden.** `status-page.md`, the description of
-  status.fabrig.ai's page, goes through a real model as the person's
-  description, and the proposal is scored against a dashboard made by
-  hand, within the gaps below. A walk, run when the agent's instructions
-  or the documentation change, not in the gate (`configuring.md`,
-  section 8).
+- **The example page as a golden.** `status-page.md`, the example
+  project's description of its status page, is the test's data. It goes
+  through a real model as the person's description, and the proposal is
+  scored against a dashboard made by hand, within the gaps below. A
+  walk, run when the agent's instructions or the documentation change,
+  not in the gate (`configuring.md`, section 8).
 - **What it maps to:**
 
-  | The status page | temper's dashboard | Gap |
+  | The example's page | temper's dashboard | Gap |
   |---|---|---|
-  | missions: active, paused, ended this week | goals by phase; ended goals by project | none |
-  | what each mission runs now, its last activity | live tasks by charter under each goal; a task line's last activity | none |
+  | goals: active, paused, ended this week | goals by phase; ended goals by project | none |
+  | what each goal runs now, its last activity | live tasks by charter under each goal; a task line's last activity | none |
   | agents by role, busy | live agent tasks by charter and phase class | none |
-  | waiting on the user | what waits on people, from `me`'s counts | the forge's issues and their labels are not read back |
-  | the director's post, 24 h | messages to a party, by kind of sender | a source of jig's to add: inbox entries made |
+  | waiting on a person | what waits on people, from `me`'s counts | the forge's issues and their labels are not read back |
+  | the lead agent's messages, 24 h | messages to a party, by kind of sender | a source of jig's to add: inbox entries made |
   | landings per hour, recent outcomes | changes ended, by outcome; a rate | a landing's own time: its change's ended time stands in |
-  | land gates: count, failures, median, p90, by repository | gate tasks ended: count, ratio failed, quantiles, by repository | none |
+  | gates: count, failures, median, p90, by repository | gate tasks ended: count, ratio failed, quantiles, by repository | none |
   | gate steps (fmt, clippy, tests) | none | CI's steps are not kept, and CI is forgotten at a restart |
-  | builds by kind, heavy's queue | runs' wait for a host slot | heavy is fabrig's build tooling, not temper's |
+  | builds by kind, the build queue | runs' wait for a host slot | the project's build tool is its own: temper does not read its queue |
   | machines: load, memory, disk | hosts: connected, slots used and free | hosts report no load, memory or disk |
-  | implementer runs by model and effort: duration | runs ended by model and effort: count, quantiles | none |
+  | coding runs by model and effort: duration | runs ended by model and effort: count, quantiles | none |
   | their tokens and cache hits | none | token counts stay in smith's turns |
   | subscriptions: use and pace | budgets: spend against each period's budget, its projection; accounts by state | a provider's plan use, beyond limited |
 
@@ -400,7 +400,7 @@ wasm32 (`../playground.md`). Default: none.
    operations, buckets, its kind, its subject), the library a connector
    folds with, and the check of references widened to settings. Then
    temper's: the forge's metrics, the dashboard kind and its child.
-2. **Mockups:** the Dashboards page, a dashboard of the status page's
+2. **Mockups:** the Dashboards page, a dashboard of the example page's
    panels, and the review with its preview.
 3. **The code,** jig's, then temper's: the metrics, the dashboards
    child, the panels in `temper-client-view`.
@@ -419,9 +419,10 @@ wasm32 (`../playground.md`). Default: none.
   the open one lost at a crash. Default: in the decision.
 - **Windows past a week,** for a month's trends. Default: a week; longer
   by coarser buckets, within the same bound.
-- **Public dashboards,** a page for anyone as status.fabrig.ai is,
-  holding no names. Default: later, the public-reading draft's question
-  (on its branch `draft-public-reading`): a printed page of a dashboard.
+- **Public dashboards,** a page for anyone, as the example's status page
+  is, holding no names. Default: later, the public-reading draft's
+  question (on its branch `draft-public-reading`): a printed page of a
+  dashboard.
 - **Warnings that reach a person,** a threshold crossed as an entry in
   an inbox. Default: later; a warning panel only.
 - **A run's own dashboard,** proposed by an agent for the goal it owns

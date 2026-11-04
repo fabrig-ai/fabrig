@@ -346,13 +346,7 @@ pub fn requirements(limits: &ConnectorLimits, words: &Words) -> Option<skein_ui:
         depth: 12,
         text_per_node: phrase,
         text_bytes: nodes.checked_mul(phrase)?,
-        drawing_bytes: 0,
-        styles_per_node: 0,
         patches: nodes.checked_mul(5)?,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 0,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     })
 }

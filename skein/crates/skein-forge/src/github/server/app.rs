@@ -8,10 +8,7 @@ use super::{document, output_limits};
 use crate::forgejo::{id::unsigned, time};
 use alloc::boxed::Box;
 use skein_json::{tokenizer, writer::Encoder};
-use skein_lib::{
-    Env, Intake, Overflow, Queue, Time, Wall, Writer,
-    stream::{Down, Up},
-};
+use skein_lib::{Overflow, Writer};
 
 pub(super) fn route(method: Method, path: &[u8], page: Option<u32>, size: Option<u32>) -> Option<Request> {
     match (method, path) {
@@ -66,39 +63,20 @@ pub fn hook_url(body: &[u8], limits: &Limits) -> Option<Box<[u8]>> {
     if body.len() > usize::try_from(limits.body_bytes).ok()? {
         return None;
     }
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&limits.json);
+    let mut feed = tokenizer::Feed::new(body, &limits.json);
     let mut decoder = decode::decoder(document::Kind::HookConfig, limits);
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    let capacity = u32::try_from(body.len()).ok()?.max(tokenizer::largest_demand(&limits.json));
-    let mut intake = Intake::with_capacity(capacity);
-    intake.append(body).ok()?;
-    tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _tick in 0..body.len().saturating_mul(8).saturating_add(64) {
-        if let Some(event) = above.pop() {
-            let (demand, step) = decoder.step(event);
-            match step {
-                decode::Step::Demand => {}
-                decode::Step::Done(document) => {
-                    let document::Document::HookConfig(hook) = document else {
-                        return None;
-                    };
-                    return Some(hook.url);
-                }
-                decode::Step::Row(_) | decode::Step::Malformed(_) => return None,
+    let mut request = tokenizer::Request::Next;
+    for _answer in 0..=body.len() {
+        let (demand, step) = decoder.step(feed.answer(request));
+        match step {
+            decode::Step::Demand => request = demand,
+            decode::Step::Done(document) => {
+                let document::Document::HookConfig(hook) = document else {
+                    return None;
+                };
+                return Some(hook.url);
             }
-            tokenizer::down(&mut tokenizer, &env, demand, &mut above, &mut below);
-        } else {
-            let read = match below.pop()? {
-                Down::Demand { read, room: 0 } => read,
-                Down::Demand { .. } | Down::Send(_) | Down::Finish => return None,
-            };
-            let delivery = match intake.meet(read) {
-                Some(bytes) => Up::Bytes(bytes),
-                None => Up::End,
-            };
-            tokenizer::up(&mut tokenizer, &env, delivery, &mut above, &mut below);
+            decode::Step::Row(_) | decode::Step::Malformed(_) => return None,
         }
     }
     None

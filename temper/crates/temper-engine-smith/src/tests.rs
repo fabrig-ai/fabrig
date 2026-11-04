@@ -1914,6 +1914,7 @@ fn change_repository_refusals_render_the_three_choices() {
 
 mod brief_fit;
 mod docs;
+mod json;
 mod reference;
 mod room;
 
