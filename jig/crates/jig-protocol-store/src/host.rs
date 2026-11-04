@@ -1,5 +1,6 @@
 //! The store's three single-flight file drivers, adoption and close
 //! (jig/docs/design/protocol/store.md, 13; jig/docs/design/protocol/service.md, 11.5).
+use crate::Below;
 use skein_io::{
     file,
     file_layer::{self, FileIo},
@@ -267,7 +268,7 @@ fn seed(drivers: &mut [Driver; 3], value: u64) -> crate::Seeded {
 }
 
 pub struct Drivers {
-    below: crate::Below,
+    below: Below,
     drivers: [Driver; 3],
     submitted: Queue<Submission>,
     adopted: bool,
@@ -288,11 +289,7 @@ impl Drivers {
         let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let seeded = seed(&mut drivers, value);
         Self {
-            below: crate::Below {
-                store: Queue::uncapped(),
-                secrets: Queue::uncapped(),
-                transcripts: Queue::uncapped(),
-            },
+            below: Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() },
             drivers,
             submitted: Queue::with_capacity(KERNEL_HANDOFF_ENTRIES),
             adopted: false,
