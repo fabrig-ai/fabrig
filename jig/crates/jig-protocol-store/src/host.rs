@@ -204,12 +204,16 @@ impl Lane {
     }
 }
 /// An untagged kernel record and the driver that owns it.
-#[derive(Debug)]
 pub struct Submission {
     pub lane: Lane,
     pub submit: Submit,
 }
 
+impl core::fmt::Debug for Submission {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Submission").field("lane", &self.lane).field("op", &self.submit.op).finish_non_exhaustive()
+    }
+}
 /// One single-flight file driver and its owned handles.
 #[derive(Debug)]
 struct Driver {
@@ -264,7 +268,6 @@ fn seed(drivers: &mut [Driver; 3], value: u64) -> crate::Seeded {
     crate::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], value)
 }
 
-#[derive(Debug)]
 pub struct Host {
     below: crate::Below,
     drivers: [Driver; 3],
@@ -275,6 +278,11 @@ pub struct Host {
     installation: [u8; 16],
     closing: bool,
     seeded: crate::Seeded,
+}
+impl core::fmt::Debug for Host {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("Host").field(&self.submitted.len()).finish()
+    }
 }
 impl Host {
     #[must_use]

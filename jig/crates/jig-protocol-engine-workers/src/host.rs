@@ -43,7 +43,6 @@ pub enum Seen {
     },
 }
 
-#[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the owner reads io, the bound address and the component")]
 pub struct Workers {
     /// Bound address awaiting the owner's report.
@@ -58,6 +57,19 @@ pub struct Workers {
     opened: bool,
     ending: Option<Closing>,
     component_closed: bool,
+}
+impl core::fmt::Debug for Workers {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Workers")
+            .field("listening", &self.listening)
+            .field("opened", &self.opened)
+            .field("ending", &self.ending)
+            .field("io", &self.io.len())
+            .field("out", &self.out.len())
+            .field("sockets", &self.sockets.len())
+            .field("listeners", &self.listeners.len())
+            .finish_non_exhaustive()
+    }
 }
 /// A problem at `engine.hosts`.
 #[must_use]
