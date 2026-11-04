@@ -61,6 +61,19 @@ story = "smith's configuration, program backend and session say each thing once,
 parts = ["smith-one-program", "smith-backend-effects", "smith-block-walks"]
 walk = false
 
+[[part]]
+id = "smith-names"
+title = "smith D013: the run's failure, the local host's hub and the LLM's limits say what the design says"
+mode = "direct"
+needs = ["smith-block-walks", "smith-backend-effects"]
+design = "smith/docs/design/domain/README.md, 3"
+
+[[slice]]
+id = 4
+story = "a reviewer reads RunFailure in the run as in the host, no adapter for the hub or the limits, and checkout only for git's"
+parts = ["smith-names"]
+walk = false
+
 [[question]]
 id = "github-media-type-assertions"
 text = """Removing the fake GitHub's charset switch reaches three assertions, and the request approves one. Approved: skein/tests/fake-peers/tests/forge/github.rs, `page.header(b"content-type")`, bare text/html. Not counted when the question was asked: (1) the next assertion of that same test, `conversion.header(b"content-type")`, bare application/json; (2) the_peers_server_names_a_bare_media_type in skein-fake-forge-github/src/tests/inline.rs, which pins the switch itself and can't hold without it. The decision's own words, "github.com's spelling, with `; charset=utf-8`, everywhere", need both to go, but "no other does" says they don't move, so the two lines can't both stand. Options: (a) recommended: both follow the decision: (1) reads `application/json; charset=utf-8`, (2) is deleted, since an_app_request_is_answered_whole already pins the one spelling. (b) only text/html moves to the long form and Json stays bare on Server: the switch stays in another form, against "everywhere", and the machine and setup stories that read the long JSON form need one. The task github-media-type stops with a Question until this has an answer: it moves neither on its own."""

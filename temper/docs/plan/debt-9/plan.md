@@ -10,10 +10,10 @@ stands in the report until every part is here.
 - **smith-one-program** (D008): `tasks/smith-one-program.md`, medium, ~50 minutes, needs nothing.
 - **smith-backend-effects** (D006): `tasks/smith-backend-effects.md`, high, ~100 minutes, needs nothing.
 - **smith-block-walks** (D005): `tasks/smith-block-walks.md`, high, ~180 minutes, needs nothing.
+- **smith-names** (D013): `tasks/smith-names.md`, medium, ~90 minutes, needs D005 and D006.
 
 ## Still to come
 
-- **smith-names** (D013), after D005 and D006.
 - **transport** (D016): the design note, one `Link`, the four components on it.
 
 ## Questions for the user
@@ -39,6 +39,12 @@ it to go on: this isn't a task waiting on fab, it's a task that may end early.
 - **D005's measure empties on the shape change alone,** so the spec's acceptance also reads the field patterns left.
 - **temper's fix, if the answer is to stop, compares one token,** so a real `Corrupt` on an accounts write stays as
   it is: that's a wider gap than the request names.
+
+- **D013 leaves three uses standing, and names them:** the rendered prompt's "## Checkout" text is what the LLM
+  reads, and the effective limits' `adapter.tool_bytes` and `adapter.history_bytes` are reported names, so each would
+  be a visible change the request doesn't allow. `limits.llm.adapter` becomes `translation`, the word its doc and
+  `fixture.rs` already use.
+- **D013 runs last in smith** because it renames across crates D005 and D006 own.
 
 ## Overlaps
 
