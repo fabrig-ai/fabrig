@@ -16,8 +16,7 @@
     `temper/docs/development/playground-memory.md` measures the world's
     native heap, by process, at its first step and its start alone, and
     sets no bound. The browser tier's figures.
-  - 9: the native walk through the web client's host:
-    `tests/playground` checks story A's calm start alone. Story A's walk
+  - 9: Story A's walk
     in the one-process world, ignored (4). The wasm32 builds in the gate:
     fab's gate list (`.config/gate/wasm32.txt`) omits
     `temper-playground`, so no gate proves both of 3's product crates
@@ -27,8 +26,7 @@
     (`smith/crates/smith-local-service/src/credentials.rs:27`) and on
     `Stored` (`temper/crates/temper-engine-domain-forge/src/boundary.rs:1024`),
     and `smith-agent-shell`'s items left unused on wasm32 (smith's
-    `shell.md`, 2.5, and its status). A log replayed, and the browser
-    tier's walk.
+    `shell.md`, 2.5, and its status).
   - 10: the bar.
 - **Departs:** `AGENTS.md`, 1: 9's entry above calls the gate's list by
   the pipeline's name, the one name this file holds
