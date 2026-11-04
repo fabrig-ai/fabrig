@@ -19,21 +19,13 @@ A change is a task that writes one repository's branch and lands it: its pull re
   (`foreman`, `up`, or `none`, the default: how its producer's questions go).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
-- **Its panel,** as `change show` prints it: `change TASK ·
-  OWNER/NAME on forge FORGE · BRANCH into BASE`, its pull request and
-  its address, `step:` and the step, `way: turn · landing task N`
-  for landing by turn, its CI, gates, and
-  its repairs, resolutions and updates used against their limits.
-  Next is `questions: ROUTE · TAKEN of LIMIT taken`, then each open
-  question with its asker, number, first line and where it stands;
-  with route `none` and nothing taken, `questions: none`.
-- **Landing-rule approvals:** text and JSON show each enforcing rule's
-  role, freshness, required count, counted people and review heads, and
-  remaining count. Reviews not read yet and incomplete reviews differ
-  from a complete read with zero qualifying approvals. A forge account
-  mapped to no person is shown without counting it as an approval.
-  While approvals wait, `next` directs you to the pull request to review.
-  Removing a rule removes its requirement from the panel.
+- **Its panel:** task, repository, branch, base, pull URL, step, CI,
+  gates, repair/update/resolution limits; `way: turn · landing task N`;
+  questions' route, count, asker, number, line and standing.
+- **Approvals:** rule, role, freshness, required/remaining counts, people
+  and review heads; unread and incomplete differ from zero counted.
+  Unmapped accounts do not count. An approval wait's `next` points to
+  the pull request.
 - **Its result** names the merge commit, tier verdict, pull request and
   address, and `Landed: pull request #N merged into BASE as SHORT.`.
   With repairs, `repairs: N:` lists reasons and successful reports by
