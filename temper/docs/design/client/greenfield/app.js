@@ -796,13 +796,8 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
         <div class="acts"><button type="button" class="btn primary" data-make${ready && !making ? '' : ' disabled'}>${making ? `Making ${esc(FR.project.name)}…` : `Open ${esc(FR.project.name)}`}</button></div>
         ${ready ? '' : `<p class="facts">${f && !f.done ? 'Forgejo is still setting up; this page moves on by itself.' : 'It opens once your forge and model are ready.'}</p>`}${foot}`;
     }
-    if (['side', 'top'].includes(params.get('note'))) { S.note = params.get('note'); save(); }
     const server = '<a class="link" href="#" data-later-note="temper help server: a long-lived deployment, the engine behind a proxy and its workers on another host. Opens in a new tab.">Run temper on a server ↗</a>';
-    if (S.note === 'top') {
-      return `<div class="setup"><header class="setup-top"><a class="brand" href="welcome.html">temper</a><p class="box-line"><b>temper box</b> · on this machine, to try it · more later, from Settings · ${server}</p>${steps}</header><main class="setup-main">${body}</main></div>`;
-    }
-    const note = `<aside class="box-note" aria-label="About temper box"><p class="box-note-title">temper box</p><p>Runs temper, its forge and its model on this machine, to try it.</p><p>More forges, accounts and API keys can be added later, from temper’s Settings.</p><p>${server}</p></aside>`;
-    return `<div class="setup"><header class="setup-top"><a class="brand" href="welcome.html">temper</a>${steps}</header><div class="setup-body"><main class="setup-main">${body}</main>${note}</div></div>`;
+    return `<div class="setup"><header class="setup-top"><a class="brand" href="welcome.html">temper</a><p class="box-line"><b>temper box</b> · on this machine, to try it · more later, from Settings · ${server}</p>${steps}</header><main class="setup-main">${body}</main></div>`;
   }
   function forgeSteps(f) {
     return `<details class="each" id="forge-steps"><summary>Each step</summary><ol>${FR.forgejo.steps.map((s, i) => `<li class="${i < f.i ? 'done' : i === f.i ? 'current' : ''}">${esc(i < f.i ? s.done : s.doing)}</li>`).join('')}</ol></details>`;
