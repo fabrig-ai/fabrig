@@ -58,8 +58,8 @@ Each list has one entry per line; `#` starts a comment line.
   tier with its prerequisites; `tools/tiers/run --cpu DIR TREE TIER [-- NEXTEST_ARGS...]`
   accounts it against `tools/tiers/budgets.toml`. The hyphenated profiles in
   `.config/nextest.toml` are `browser-skein`, `live-skein`, `live-smith`, `live-jig`,
-  `browser-jig`, `process-temper`, `live-temper` and `browser-temper`. Never in the
-  gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
+  `browser-jig`, `process-temper`, `live-temper`, `browser-temper` and
+  `conformance-hearth`. Never in the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
   `skein/docs/foundation/testing-strategy.md`, 8.1.
 - **The after-landing tier:** after each landing on main,
   `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing.md`, 2.3),

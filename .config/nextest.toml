@@ -18,8 +18,8 @@
 #   fabrig: package(=fabrig-boundary)
 #
 # The tier profiles are browser-skein, live-skein; live-smith; live-jig,
-# browser-jig; and
-# process-temper, live-temper, browser-temper. Each keeps its tree's
+# browser-jig; process-temper, live-temper, browser-temper; and
+# conformance-hearth. Each keeps its tree's
 # own budget.
 #
 # Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
@@ -176,3 +176,12 @@ default-filter = "(package(=temper-client-browser-world) & binary(/^browser_/)) 
 global-timeout = "120s"
 slow-timeout = { period = "40s" }
 test-threads = 1
+
+# The conformance tier, outside the gate (hearth/docs/design/domain/testing.md, 2.8);
+# HEARTH_RECORD=1 captures.
+[profile.conformance-hearth]
+default-filter = "(binary(/^conformance_/) | binary(/^recorded_/)) & package(/^hearth(-|$)/)"
+global-timeout = "4m"
+slow-timeout = { period = "60s", terminate-after = 2 }
+retries = 0
+fail-fast = false
