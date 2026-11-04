@@ -56,7 +56,8 @@ Compatible detail, in `skein/docs/design/kv.md`, with **Not yet** entries in
 | recover-count | `kv-recover-count`: restarts count what they replay; leftovers removed | kv-recover-stream, kv-snapshot-bound | 2 |
 | status | `kv-status`: kv.status.md once built | every task | 2 |
 
-Batch 2 is written and released by this call after batch 1.
+Both batches are released; the plan is whole: kv.md's sections 3, 5, 7 and 9 as this cut
+wrote them are each built by a task above, and the status task closes their entries.
 
 ## Critical path
 
