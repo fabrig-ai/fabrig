@@ -629,3 +629,37 @@ since `ed8b1f0760` gave exchanges `cache=` and `keep=`).
   regression replay one world.
 - The rest is as the previous answer says: report the walk's CPU against 3 s and push. What the
   report lists under `## Left` stays left.
+
+2026-11-04. **Four runs without landing again (runs 13 to 16): go on, or rethink the task?** Go on;
+the task stays as it is, with one narrow repair added, because its own checks cannot pass without it.
+These runs are no loop either. Each one settled what its answer asked: the 3 s guide, the CPU split,
+the startup fixture's question, the visitor regression's bridge exchange. Run 16 has the walk, the
+kept log's byte comparison and its replay passing. The branch's pushed commits (to `7212ac038a`)
+stay, and the next run starts from them.
+
+- **The startup fixture:** migrate it as the previous answer says (the full log's header, its first
+  twelve inputs, then `cut`). Then run `temper-playground`'s package to its end.
+- **`settings::b2`'s story is this task's to repair.** `a_stock_chat_funds_two_dependent_changes_with_two_repairs_each`
+  (`temper/tests/engine/domain/tests/suite/settings/b2.rs`, `story`, ~400) fails "coordinators
+  admitted". It fails because of this task's stock change, in a file this task owns, and it is one
+  of the checks the stock answer added. The stock answer's "reported under `## Left`, not chased"
+  covered tests outside these files; this answer overrides it for this test. The design now sizes a
+  chat at 16K for "its run, an advisor and a coordinator"
+  (`temper/docs/design/protocol/configuration.md`, 13.4). So two dependent coordinators of 11K each
+  no longer fit, and the test follows the design: in `story` alone, `D1` and `D2` each get
+  `7 * K`, that is (16K − the chat's run K − the advisor's K) / 2. That still funds each one's own
+  run and its 5K change. Nothing else in the test changes: the dependency, the question, the
+  repairs, the landing and `repair_change`'s `5 * K`. If 7K is refused, take the smallest equal
+  spend that is admitted with both within 16K, give the refusal and the value in the report, and
+  go on. If no equal spend within 16K is admitted, that is a question with the typed refusal. No
+  stock value or design line moves. Then run `heavy cargo nextest run -p temper-engine-domain-world
+  -E 'test(/settings/)'` to its end. Any other test there that held 24K is repaired the same way
+  only if it is in `b2.rs`; anywhere else it goes under `## Left`.
+- **What stays left:** `public::a_store_written_before_public_reading_reads_every_project_private`
+  ("delivery document: TooLarge", `temper/tests/one-process/src/referee/client.rs`, ~216), the
+  one-process `story_a.rs` stall, and the wasm32 expectations. These are outside this task's files
+  and its changes, so they stay under `## Left` and the trunk's end check takes them. Do not run
+  them again.
+- Then the checks once each, as the answers list them: the package's tests and clippy,
+  `temper-playground`'s, the settings tests, the stock and docs tests. Report the walk's CPU
+  against 3 s, and push.
