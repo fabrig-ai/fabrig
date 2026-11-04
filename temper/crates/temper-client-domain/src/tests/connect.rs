@@ -479,6 +479,7 @@ fn deliver_first_record(
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                makings: List::with_capacity(0),
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,
@@ -733,6 +734,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                makings: List::with_capacity(0),
                 number: 2,
                 kind: w::Kind::Github,
                 mode: w::Mode::Connected,
@@ -1066,6 +1068,7 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
             w::ForgeRow::new(
                 &w::CEILINGS,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     number: 9,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,

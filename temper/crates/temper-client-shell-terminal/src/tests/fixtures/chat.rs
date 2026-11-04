@@ -348,6 +348,7 @@ fn demo_forges() -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: skein_lib::List::with_capacity(0),
                     number: 1,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,

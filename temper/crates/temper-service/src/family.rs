@@ -163,7 +163,8 @@ pub fn to_root(
                             }
                             forge::Ask::Install { forge: value.forge, back: value.back }
                         }
-                        w::Request::Reachable(_)
+                        w::Request::MakeRepository(_)
+                        | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
@@ -231,6 +232,9 @@ pub fn to_root(
                             page: value.page,
                         }),
                     }));
+                }
+                w::Request::MakeRepository(_) => {
+                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
                 }
                 w::Request::Adopt(value) => value,
             };
@@ -826,6 +830,7 @@ pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
                 w::ForgeRow::new(
                     limits,
                     w::ForgeRowParts {
+                        makings: List::with_capacity(0),
                         number: row.number,
                         read_only: row.read_only,
                         kind: match row.kind {

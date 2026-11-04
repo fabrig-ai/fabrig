@@ -1064,6 +1064,7 @@ fn expected_forge_row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            makings: List::with_capacity(0),
             number,
             kind,
             mode,

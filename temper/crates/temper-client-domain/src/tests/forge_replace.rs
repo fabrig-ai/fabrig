@@ -30,6 +30,7 @@ fn row(kind: w::Kind, mode: w::Mode, connection: w::Connection, ended: bool) -> 
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            makings: List::with_capacity(0),
             number: FORGE,
             kind,
             mode,
