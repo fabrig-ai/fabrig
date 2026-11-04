@@ -12,8 +12,9 @@ The jig bugs the debt backfill routed (`inputs/bugs-jig.md`), cut for fab by one
 | `charter-rail` | 3 | `rail-jig`, then `rail-temper` | released |
 | `close-grace` | 1 | `close-grace` | released |
 | `closed-project` | 9 | `creation-closed-project`, `notes-drop-entries` | released |
+| `config-fallback` | 5 | `config-no-profile` | released |
 
-Bug 5 and three of bug 9's hazards are under survey. The dropped bugs are below.
+All eight tasks are released; the dropped bugs are below.
 
 ## Design written by this cut
 
@@ -23,6 +24,7 @@ Bug 5 and three of bug 9's hazards are under survey. The dropped bugs are below.
 - `jig/docs/design/protocol/client.md`, 3: the link's refusal of a chip that lacks what its phase
   names, which the code already does.
 - `jig/docs/design/examples.md`, 7.3: an environment's close has the grace `ops` configures for it.
+- `jig/docs/design/protocol/configuration.md`, 6: a document that resolves no profile.
 
 ### Decisions
 
@@ -52,6 +54,17 @@ Bug 5 and three of bug 9's hazards are under survey. The dropped bugs are below.
   - the token nibbles: `17850c5ddc`;
   - the `Recipient::Roles` bound: the frame and object paths each price what they allocate;
   - the catalogue clone per row: `b1f80ab430`.
+- **Dropped, no failing scenario:** every fix here carries a test that fails on the old code, and
+  none can for these:
+  - project 0 as the sentinel: no write path makes a project 0, and each path into `task_line`
+    guards closure itself;
+  - people tokens and flight handles: every crossing audited translates, so it is a sharp edge;
+  - authority's model mapping: true and pinned by a test, and no production path composes the two
+    mappings on an omitted value.
+- **Bug 5 partly held:** a named profile already keeps its bounds, so only a document that resolves
+  no profile cascades. It is checked against Standard, the largest; refusing at the limits problem
+  alone would hide the document's unrelated problems.
+- **The two live hazards are code bugs, not design:** `people.md`, 5.2 already says both.
 
 ## Overlaps
 
@@ -59,7 +72,10 @@ Bug 5 and three of bug 9's hazards are under survey. The dropped bugs are below.
   glob of debt-3's `jig-ui-callers`.
 - `temper/docs/design/domain/agent.md` is also edited on `fabrig-scale/integration`, in other
   hunks than 4.3.
+- `jig/docs/design/protocol/configuration.md`, 6 and `jig-protocol-config/src/overrides.rs` and
+  `src/tests/overrides.rs` are also changed on `fabrig-scale/integration`, in other hunks.
 
 ## Critical path
 
-Each part stands alone; `rail-jig` then `rail-temper` is the longest so far.
+Each part stands alone; `rail-jig` then `rail-temper` is the longest, at about 55 implementer-minutes.
+The plan is 265 implementer-minutes in all.
