@@ -109,6 +109,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                 w::ForgeRow::new(
                     &limits,
                     w::ForgeRowParts {
+                        host: b"git.example:3000".as_slice().into(),
                         number,
                         kind: w::Kind::Forgejo,
                         mode: if number == wire::FORGE { w::Mode::Fake } else { w::Mode::Connected },
@@ -515,6 +516,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        host: b"git.example:3000".as_slice().into(),
                         number: 3,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,

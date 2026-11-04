@@ -72,13 +72,13 @@ fn a_markdown_table_builds_the_golden_page() {
     const INPUT: &[u8] = include_bytes!("../../../skein-ui/src/tests/markdown/13.md");
     const PARENTS: u32 = 2; // page and main above the reader.
     const DEPTH: u32 = 5 + PARENTS; // ui.md, 10: five reader levels.
-    let bytes = u32::try_from(INPUT.len()).unwrap();
-    let nodes = skein_ui::markdown::max_nodes(bytes).unwrap() + PARENTS;
+    let bytes = u32::try_from(INPUT.len()).expect("fixture markdown length fits u32");
+    let nodes = skein_ui::markdown::max_nodes(bytes).expect("fixture markdown node bound fits") + PARENTS;
     let limits = skein_ui::Limits {
         nodes,
         depth: DEPTH,
-        text_per_node: skein_ui::markdown::max_text_bytes(bytes).unwrap(),
-        text_bytes: skein_ui::markdown::max_text_bytes(bytes).unwrap(),
+        text_per_node: skein_ui::markdown::max_text_bytes(bytes).expect("fixture markdown text bound fits"),
+        text_bytes: skein_ui::markdown::max_text_bytes(bytes).expect("fixture markdown text bound fits"),
         patches: nodes * 4, // ui.md, 7: at most four patches per node.
         markdown_depth: 1,
         ..LIMITS
@@ -93,7 +93,7 @@ fn a_markdown_table_builds_the_golden_page() {
     view.finish(builder, 0, &mut out);
     let mut patches = Vec::new();
     for _patch in 0..out.len() {
-        patches.push(out.pop().unwrap());
+        patches.push(out.pop().expect("one patch per remaining queue entry"));
     }
     page.apply(&patches, &mut Vec::new());
     assert_eq!(page.html(), include_str!("golden/markdown-table.html").trim_end());
@@ -222,7 +222,17 @@ fn an_attribute_patch_keeps_a_tag_it_can_update() {
         .iter()
         .map(|op| match op {
             Op::Attributes { .. } => "attributes",
-            _ => "other",
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. } => "other",
         })
         .collect();
     assert_eq!(kinds, ["attributes"]);
@@ -251,7 +261,17 @@ fn a_changed_tag_replaces_the_element() {
         .iter()
         .map(|op| match op {
             Op::Replace { .. } => "replace",
-            _ => "other",
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Attributes { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. } => "other",
         })
         .collect();
     assert_eq!(kinds, ["replace"]);
@@ -585,7 +605,17 @@ fn a_component_patch_receives_the_new_value() {
         .iter()
         .filter_map(|op| match op {
             Op::Component { node, made, .. } => Some((*node, made.value.as_ref().map(|value| value.text.as_ref()))),
-            _ => None,
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Attributes { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. } => None,
         })
         .collect();
     assert_eq!(values, vec![(COMPONENT_BODY, Some(b"New".as_slice()))]);
@@ -639,7 +669,9 @@ fn keyed_tree_children_insert_move_update_and_remove_through_groups() {
     ];
     let mut snapshots = String::new();
     for (revision, children) in stages.iter().enumerate() {
-        let patches = fixtures::patches(&mut view, u64::try_from(revision).unwrap(), |b| nested_tree(b, children));
+        let patches = fixtures::patches(&mut view, u64::try_from(revision).expect("fixture revision fits u64"), |b| {
+            nested_tree(b, children);
+        });
         let mut ops = Vec::new();
         page.apply(&patches, &mut ops);
         let html = page.html();
@@ -653,7 +685,10 @@ fn keyed_tree_children_insert_move_update_and_remove_through_groups() {
             1 | 2 => assert!(ops.iter().any(|op| matches!(op, Op::Insert { parent: NodeId(4), .. }))),
             3 => {
                 assert!(ops.iter().any(|op| matches!(op, Op::Move { parent: NodeId(4), .. })));
-                assert!(html.find("Two").unwrap() < html.find("One").unwrap());
+                assert!(
+                    html.find("Two").expect("second tree item is rendered")
+                        < html.find("One").expect("first tree item is rendered")
+                );
             }
             4 => assert!(ops.iter().any(|op| matches!(op, Op::Attributes { node: NodeId(6), .. }))),
             5 | 6 => assert!(ops.iter().any(|op| matches!(op, Op::Remove { .. }))),
@@ -690,7 +725,7 @@ fn a_field_name_patch_adds_changes_and_removes_its_visible_label() {
     for (revision, name) in
         [None, Some(b"Title".as_slice()), Some(b"Changed & <name>".as_slice()), None].iter().enumerate()
     {
-        let patches = fixtures::patches(&mut view, u64::try_from(revision).unwrap(), |b| {
+        let patches = fixtures::patches(&mut view, u64::try_from(revision).expect("fixture revision fits u64"), |b| {
             main(b);
             b.open(Role::TextField);
             if let Some(name) = name {
@@ -793,7 +828,17 @@ fn completion_attributes_keep_the_items_children_before_its_description() {
                 assert_eq!(*node, ITEM);
                 assert_eq!(crate::dom::print(element), expected_own);
             }
-            _ => unreachable!("only completion changed"),
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. } => unreachable!("only completion changed"),
         }
         assert_eq!(page.html(), expected_page);
     }
@@ -825,7 +870,17 @@ fn setting_then_clearing_a_placeholder_updates_its_attributes() {
                 assert_eq!(*node, FIELD);
                 assert_eq!(crate::dom::print(element), expected);
             }
-            _ => unreachable!("only the placeholder changed"),
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. } => unreachable!("only the placeholder changed"),
         }
     }
 }
@@ -868,7 +923,17 @@ fn disclosure_attribute_patches_keep_the_summary_before_its_children() {
                 assert_eq!(*node, NodeId(3));
                 assert_eq!(crate::dom::print(element), expected_summary);
             }
-            op => panic!("expected disclosure attributes, got {op:?}"),
+            op @ (Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. }) => panic!("expected disclosure attributes, got {op:?}"),
         }
     }
 }

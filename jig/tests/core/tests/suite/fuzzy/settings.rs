@@ -182,6 +182,7 @@ fn draw_change(
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the test run selects replay seeds and their count from the environment")]
 fn random_small_settings_changes_and_stale_requests_survive_restarts() {
     let count =
         std::env::var("JIG_CORE_SETTINGS_SEEDS").ok().map_or(24, |value| value.parse::<u64>().expect("seed count"));
@@ -327,6 +328,7 @@ fn proposal_sets_agree(world: &mut jig_core_world::world::World, signed: u64) {
     }
 }
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the test run selects replay seeds and their count from the environment")]
 fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agreement() {
     const SEEDS: u64 = 8;
     const STEPS: u8 = 32;

@@ -9,7 +9,6 @@ use skein_lib::{Duration, Wall};
 /// Choose the first ready change, lower priority first (domain/forge.md, 9),
 /// with task number as a stable final tie.
 #[must_use]
-#[expect(clippy::manual_map, reason = "the strict subset forbids closures")]
 pub fn first(ready: &[Ready], window: Duration, now: Wall) -> Option<u64> {
     let mut selected: Option<Ready> = None;
     for candidate in ready {

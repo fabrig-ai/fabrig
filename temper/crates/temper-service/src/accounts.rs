@@ -19,7 +19,7 @@ pub(crate) fn iterate(
     events: &mut Queue<root::Event>,
     store: &mut crate::store::Store,
 ) {
-    let marked = store.host.component.mark_durable();
+    let marked = store.host.mark_durable();
     let count = accounts.begin(now, wall, marked, store.installation, &mut store.host.sources);
     for _ in 0..count {
         match accounts.output(&mut values.accounts) {
@@ -48,7 +48,7 @@ pub(crate) fn wait_state(accounts: &Accounts, now: Time) -> crate::diagnostics::
         effects: accounts.effects(),
         pending: accounts.held(),
         io: accounts.io.len(),
-        empty: accounts.is_empty(),
+        empty: accounts.idle(),
     }
 }
 

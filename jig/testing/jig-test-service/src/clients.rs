@@ -238,7 +238,7 @@ impl Clients {
             && let Some(address) = addr.socket()
         {
             let mut hosts = List::with_capacity(1);
-            hosts.push(kit::host::address_text(address).expect("bound listener address")).expect("one listener host");
+            hosts.push(http::address_text(address).expect("bound listener address")).expect("one listener host");
             self.mount.down(&self.mount_env, http::Event::Listening { hosts });
         }
         self.server.up(event, &mut self.server_out);
@@ -524,7 +524,7 @@ impl Clients {
         self.advance_secrets(store);
     }
     fn advance_secrets(&mut self, store: &mut crate::store::Store) {
-        if self.public_names.is_some() && store.host.component.mark_durable() {
+        if self.public_names.is_some() && store.host.mark_durable() {
             self.public_names = None;
             self.secrets.push(kit::SecretsRequest::Get { owner: kit::SecretOwner::PublicNames });
         }

@@ -1,3 +1,4 @@
+mod debug;
 mod fixtures;
 mod opening;
 mod translate;

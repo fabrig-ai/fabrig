@@ -7,7 +7,7 @@ fn an_unread_closed_tail_continues_the_brief_without_counting() {
     let mut proof = RunProof::claimed(1, 1, 1, None, jig_domain_fleet::HostKind::Worker);
     proof.window = Some(CurrentWindow { attempt: 1, turn: 1, closed: true });
     core.proofs.insert(1, proof).unwrap();
-    core.begin_transcript(1, 1);
+    core.begin_transcript(1, 1, Some((1, 1)));
     core.contexts.insert(1, core.tasks.run_context(1).unwrap()).unwrap();
     core.transcripts.get_mut(&1).unwrap().append_text(Some(b"partial text".as_slice().into()), 128);
     let mut work = Queue::with_capacity(2);

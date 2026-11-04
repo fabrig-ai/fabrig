@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 use super::{FITS, names, w};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};

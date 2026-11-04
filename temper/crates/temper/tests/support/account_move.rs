@@ -339,6 +339,10 @@ fn rotation() -> skein_fake_oauth::Plan {
     }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the fake peers' world serves the synchronous account-transfer driver on a scoped thread"
+)]
 pub fn run(directory: &Path) {
     let peer = sign_in::plan_peer(Box::new([skein_fake_llm_domain::api::Script {
         cue: Box::default(),

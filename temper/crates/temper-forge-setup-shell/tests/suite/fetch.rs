@@ -14,7 +14,7 @@ use std::{
     thread,
 };
 use temper_forge_setup::{
-    fetch::{Failure, Fetch, Pin},
+    fetch::{Bottle, Failure, Fetch, Pin},
     setup::Origin,
 };
 use temper_forge_setup_shell::fetch::{self, Failed};
@@ -35,7 +35,7 @@ fn pem(root: &[u8]) -> Vec<u8> {
         .into_bytes()
 }
 #[expect(clippy::disallowed_methods, reason = "the local TLS file server is a real socket peer on its own test thread")]
-fn server(listener: TcpListener, response: &'static [u8]) -> thread::JoinHandle<Result<Vec<u8>, Starved>> {
+fn server(listener: TcpListener, response: Vec<u8>) -> thread::JoinHandle<Result<Vec<u8>, Starved>> {
     thread::spawn(move || {
         let (socket, _) = listener.accept().expect("fetch fixture");
         let mut deadline = Deadline::arm("the setup fetch peer's request", skein_lib::Duration::from_secs(2));
@@ -66,7 +66,7 @@ fn server(listener: TcpListener, response: &'static [u8]) -> thread::JoinHandle<
         let mut deadline = Deadline::arm("the setup fetch peer's response", skein_lib::Duration::from_secs(2));
         deadline.watch_process(std::process::id());
         tls.sock.set_write_timeout(Some(support::timeout(&deadline))).expect("fetch write timeout");
-        if let Err(why) = tls.write_all(response).and_then(|()| tls.flush()) {
+        if let Err(why) = tls.write_all(&response).and_then(|()| tls.flush()) {
             if matches!(why.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) && deadline.passed()
             {
                 return Err(support::expired(&deadline));
@@ -113,7 +113,7 @@ fn local_tls_fetch() {
         let address = listener.local_addr().expect("fetch fixture");
         let mut unused_listener = Some(listener);
         let server = if initial.is_none() {
-            Some(server(unused_listener.take().expect("fetch listener"), response))
+            Some(server(unused_listener.take().expect("fetch listener"), response.to_vec()))
         } else {
             None
         };
@@ -127,6 +127,7 @@ fn local_tls_fetch() {
                     path: b"/binary".as_slice().into(),
                     digest: sha(b"abc"),
                     file: file.as_os_str().as_bytes().into(),
+                    bottle: None,
                 }]),
                 bound,
             ),
@@ -188,4 +189,270 @@ fn check_outcome(expected: &str, result: Result<(), Failed>, name: &str, url: &s
         }
         _ => unreachable!(),
     }
+}
+
+fn tarball(scratch: &support::Scratch, binary: &[u8]) -> Vec<u8> {
+    use std::process::{Command, Stdio};
+    let keg = scratch.path().join("keg");
+    fs::create_dir_all(keg.join("bin")).expect("bottle fixture");
+    fs::write(keg.join("bin/member"), binary).expect("bottle fixture");
+    fs::write(keg.join("bin/empty"), []).expect("bottle fixture");
+    let archive = scratch.path().join("bottle.tar.gz");
+    let status = Command::new("/usr/bin/tar")
+        .arg("-czf")
+        .arg(&archive)
+        .arg("-C")
+        .arg(keg)
+        .args(["bin/member", "bin/empty"])
+        .env_clear()
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .expect("make bottle fixture");
+    assert!(status.success(), "make bottle fixture: {status}");
+    fs::read(archive).expect("bottle fixture")
+}
+#[derive(Clone, Copy, Debug)]
+enum BottleOutcome {
+    Ok,
+    Digest,
+    Bytes,
+    Extraction,
+    Redirect,
+    Gone,
+}
+fn bottle_outcome(result: Result<(), Failed>, expected: BottleOutcome, name: &str) {
+    match (result, expected) {
+        (Ok(()), BottleOutcome::Ok)
+        | (Err(Failed::Refused(Failure::Digest { .. })), BottleOutcome::Digest)
+        | (Err(Failed::Refused(Failure::Bytes { .. })), BottleOutcome::Bytes)
+        | (Err(Failed::Refused(Failure::Extraction { .. })), BottleOutcome::Extraction)
+        | (Err(Failed::Refused(Failure::Redirect { .. })), BottleOutcome::Redirect)
+        | (Err(Failed::Refused(Failure::Gone { .. })), BottleOutcome::Gone) => {}
+        (got, want) => panic!("{name}: wanted {want:?}, got {got:?}"),
+    }
+}
+fn body_response(body: &[u8], chunked: bool) -> Vec<u8> {
+    if chunked {
+        let mut response =
+            format!("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:x}\r\n", body.len())
+                .into_bytes();
+        response.extend_from_slice(body);
+        response.extend_from_slice(b"\r\n0\r\n\r\n");
+        response
+    } else {
+        let mut response =
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).into_bytes();
+        response.extend_from_slice(body);
+        response
+    }
+}
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table of bottle fetches over two TLS peers")]
+fn local_tls_bottle_fetch() {
+    // Two host chunks, compressing below the extraction bound, exercise both reads.
+    const BINARY_BYTES: usize = 32_768;
+    let scratch = support::Scratch::new("bottle-fetch");
+    let binary = vec![b'x'; BINARY_BYTES];
+    let archive = tarball(&scratch, &binary);
+    let good = body_response(&archive, false);
+    let roots = scratch.path().join("root.pem");
+    fs::write(&roots, pem(pki::ROOT)).expect("bottle fixture");
+    for (name, response, archive_digest, binary_digest, member, bound, token, leftover, expected) in [
+        (
+            "right",
+            good.clone(),
+            sha(&archive),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            false,
+            BottleOutcome::Ok,
+        ),
+        (
+            "mirror",
+            good.clone(),
+            sha(&archive),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64,
+            false,
+            false,
+            BottleOutcome::Ok,
+        ),
+        (
+            "leftover",
+            good.clone(),
+            sha(&archive),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            true,
+            BottleOutcome::Ok,
+        ),
+        (
+            "archive digest",
+            good.clone(),
+            sha(b"wrong"),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            false,
+            BottleOutcome::Digest,
+        ),
+        (
+            "binary digest",
+            good.clone(),
+            sha(&archive),
+            sha(b"wrong"),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            false,
+            BottleOutcome::Digest,
+        ),
+        (
+            "archive length",
+            good.clone(),
+            sha(&archive),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            archive.len() as u64 - 1,
+            true,
+            false,
+            BottleOutcome::Bytes,
+        ),
+        (
+            "archive stream",
+            body_response(&archive, true),
+            sha(&archive),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            archive.len() as u64 - 1,
+            true,
+            false,
+            BottleOutcome::Bytes,
+        ),
+        (
+            "extraction bound",
+            good.clone(),
+            sha(&archive),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64 - 1,
+            true,
+            false,
+            BottleOutcome::Bytes,
+        ),
+        (
+            "missing member",
+            good.clone(),
+            sha(&archive),
+            sha(&binary),
+            b"bin/missing".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            false,
+            BottleOutcome::Extraction,
+        ),
+        (
+            "empty member",
+            good.clone(),
+            sha(&archive),
+            sha(b""),
+            b"bin/empty".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            false,
+            BottleOutcome::Extraction,
+        ),
+        (
+            "corrupt archive",
+            body_response(b"broken", false),
+            sha(b"broken"),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            false,
+            BottleOutcome::Extraction,
+        ),
+        (
+            "second redirect",
+            b"HTTP/1.1 307 Again\r\nLocation: https://storage.test/object\r\nContent-Length: 0\r\n\r\n".to_vec(),
+            sha(&archive),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            false,
+            BottleOutcome::Redirect,
+        ),
+        (
+            "gone",
+            b"HTTP/1.1 404 Missing\r\nContent-Length: 0\r\n\r\n".to_vec(),
+            sha(&archive),
+            sha(&binary),
+            b"bin/member".as_slice(),
+            BINARY_BYTES as u64,
+            true,
+            false,
+            BottleOutcome::Gone,
+        ),
+    ] {
+        let cache = scratch.path().join(name);
+        fs::create_dir_all(&cache).expect("bottle fixture");
+        let file = cache.join("binary");
+        let part = cache.join("binary.part");
+        let archive_file = cache.join("binary.archive");
+        if leftover {
+            let longer = vec![b'z'; BINARY_BYTES + 1];
+            fs::write(&part, &longer).expect("bottle fixture");
+            fs::write(&archive_file, longer).expect("bottle fixture");
+        }
+        let first = TcpListener::bind("127.0.0.1:0").expect("bottle fixture");
+        let second = TcpListener::bind("127.0.0.1:0").expect("bottle fixture");
+        let first_port = first.local_addr().expect("bottle fixture").port();
+        let second_port = second.local_addr().expect("bottle fixture").port();
+        let second = server(second, response);
+        let first = server(first, format!("HTTP/1.1 307 Redirect\r\nLocation: https://127.0.0.1:{second_port}/object?signature=a%2Fb\r\nContent-Length: 0\r\n\r\n").into_bytes());
+        let result = fetch::run(
+            &support::io(),
+            &skein_shell::Trust::Machine { ssl_cert_file: Some(roots.clone()) },
+            Fetch::new(
+                Box::new([Pin {
+                    origin: Origin { host: b"127.0.0.1".as_slice().into(), port: first_port },
+                    path: b"/bottle".as_slice().into(),
+                    digest: binary_digest,
+                    file: file.as_os_str().as_bytes().into(),
+                    bottle: Some(Bottle { digest: archive_digest, member: member.into(), token }),
+                }]),
+                bound,
+            ),
+        );
+        let first = first.join().expect("bottle peer").unwrap_or_else(|starved| starved.pass());
+        let second = second.join().expect("bottle peer").unwrap_or_else(|starved| starved.pass());
+        bottle_outcome(result, expected, name);
+        let authorization = if token { "Authorization: Bearer QQ==\r\n" } else { "" };
+        assert_eq!(first, format!("GET /bottle HTTP/1.1\r\nHost: 127.0.0.1:{first_port}\r\nUser-Agent: temper\r\n{authorization}Connection: close\r\n\r\n").as_bytes(), "{name}");
+        assert_eq!(second, format!("GET /object?signature=a%2Fb HTTP/1.1\r\nHost: 127.0.0.1:{second_port}\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n").as_bytes(), "{name}");
+        match expected {
+            BottleOutcome::Ok => {
+                assert_eq!(fs::read(&file).expect("cached binary"), binary, "{name}");
+                assert_eq!(fs::metadata(&file).expect("cached binary").permissions().mode() & 0o777, 0o755, "{name}");
+            }
+            BottleOutcome::Digest
+            | BottleOutcome::Bytes
+            | BottleOutcome::Extraction
+            | BottleOutcome::Redirect
+            | BottleOutcome::Gone => assert!(!file.exists(), "{name}"),
+        }
+        assert!(!part.exists(), "{name}: part removed");
+        assert!(!archive_file.exists(), "{name}: archive removed");
+    }
+    scratch.remove();
 }

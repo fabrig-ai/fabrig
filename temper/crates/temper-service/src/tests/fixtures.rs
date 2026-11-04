@@ -1189,7 +1189,7 @@ pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domai
 }
 
 pub fn mark_store(store: &mut crate::store::Store) {
-    if store.host.component.mark_durable() {
+    if store.host.mark_durable() {
         return;
     }
     commit(store, 1, Box::new([temper_engine_domain::Write::Wires]));
@@ -1495,7 +1495,7 @@ fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed:
     };
     let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
     let secret_requests = engine.store.secret_requests;
-    let original = if engine.store.host.component.mark_durable() {
+    let original = if engine.store.host.mark_durable() {
         None
     } else {
         // Seed secrets through Keep without changing the main store's startup state.

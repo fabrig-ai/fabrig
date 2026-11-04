@@ -633,7 +633,6 @@ fn lower_eof_with_a_buffered_provider_terminal_closes_without_another_next() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "focused controls inspect failures and their selected caps")]
 fn non_json_errors_keep_their_status_and_exact_error_body_bound() {
     for status in [401, 429, 503] {
         let body = b"upstream failed";
@@ -802,7 +801,6 @@ fn a_zero_error_body_policy_is_still_named_at_admission() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "focused controls inspect failures and their selected caps")]
 fn receiving_caps_admit_the_edge_and_refuse_one_over_by_name() {
     use skein_llm::{Cap, Json};
     let documents = [skein_llm_world::TEXT_ADDED, skein_llm_world::TEXT_DELTA, skein_llm_world::TEXT_DONE, TERMINAL];
@@ -883,7 +881,6 @@ fn receiving_caps_admit_the_edge_and_refuse_one_over_by_name() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "focused controls inspect failures and their selected caps")]
 fn header_fields_and_sse_fields_keep_their_own_exact_bounds() {
     use skein_llm::Cap;
     let document = TERMINAL;

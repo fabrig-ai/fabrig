@@ -760,8 +760,7 @@ fn either_start_refusal_cause_assembles_an_invalid_end() {
 #[test]
 fn a_loaded_transcript_passes_its_protocol_rendered_text_to_the_brief() {
     let (mut domain, env) = fixture();
-    domain.core.begin_transcript(1, 1);
-    domain.core.transcripts.get_mut(&1).unwrap().window = Some((1, 1));
+    domain.core.begin_transcript(1, 1, Some((1, 1)));
     step(
         &mut domain,
         &env,

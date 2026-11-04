@@ -273,8 +273,8 @@ impl Engine {
         )
     }
     pub(crate) fn work_pending(&self, now: Time) -> bool {
-        let effects = self.store.host.component.mark_durable() || self.end.is_some();
-        let secrets_ready = self.end.is_none() && self.store.host.component.mark_durable();
+        let effects = self.store.host.mark_durable() || self.end.is_some();
+        let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
         let components = (self.store.opened || self.end.is_some())
             && self.clients.work_pending_with_secrets(now, secrets_ready)
             || effects && self.setup.work_pending(now)
@@ -372,16 +372,16 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     }
     crate::forge::gone::advance(engine);
     crate::forge::records::advance(engine);
-    if engine.store.host.component.mark_durable()
+    if engine.store.host.mark_durable()
         && (!engine.forge_records.loading() || engine.end.is_some() || stop::requested(engine))
     {
         engine.forge.iterate(now, wall);
     }
     // Reconcile must observe the root's restored repositories.
-    if !engine.begin && engine.store.host.component.mark_durable() && engine.forge_records.done() {
+    if !engine.begin && engine.store.host.mark_durable() && engine.forge_records.done() {
         crate::setup::lifecycle::restored(engine);
     }
-    if engine.store.host.component.mark_durable() {
+    if engine.store.host.mark_durable() {
         crate::setup::advance(engine);
     }
     forge_pass(engine);
@@ -426,7 +426,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     }
     // Public restore runs before secrets. Once marked, finish secret bootstrap
     // before releasing the script into adoption and fresh forge reads.
-    if engine.store.host.component.mark_durable() && !engine.forge_records.done() && !stop::requested(engine) {
+    if engine.store.host.mark_durable() && !engine.forge_records.done() && !stop::requested(engine) {
         return;
     }
     input_pass(engine, now);
@@ -476,7 +476,6 @@ fn input_pass(engine: &mut Engine, now: Time) {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
 fn completes_pending(engine: &Engine) -> Option<bool> {
     match engine.pending.as_deref() {
         Some(event) => Some(root::completes(event)),
@@ -485,7 +484,7 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
 }
 fn clients_pass(engine: &mut Engine) {
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
-    if engine.end.is_none() && engine.store.host.component.mark_durable() {
+    if engine.end.is_none() && engine.store.host.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);
     }
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);

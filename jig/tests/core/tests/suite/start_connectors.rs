@@ -84,10 +84,6 @@ impl Harness {
             })
             .collect();
         for row in &mut rows {
-            #[expect(
-                clippy::wildcard_enum_match_arm,
-                reason = "only the durable effect counter and holder are changed in the sampled core store"
-            )]
             match row {
                 core::Record::Core(core::CoreRecord::Deployment(header)) => header.connector_rows = ENTRY,
                 core::Record::Tasks(tasks::Stored::Live(row)) if row.number == task => {
@@ -234,10 +230,6 @@ impl Harness {
             let mut out = Queue::uncapped();
             connector::step(&mut self.connector, &self.connector_env, event, &mut out);
             for _ in 0..out.len() {
-                #[expect(
-                    clippy::wildcard_enum_match_arm,
-                    reason = "the direct start fixture exercises only restore, fresh read and outbox outputs"
-                )]
                 match out.pop().expect("connector output") {
                     connector::Request::Resource { project, resource } => {
                         let role = match resource.role {

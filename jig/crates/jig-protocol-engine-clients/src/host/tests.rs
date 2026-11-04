@@ -28,8 +28,13 @@ fn endings_leave_in_commit_order_behind_their_own_commit() {
         endings.ended(commit, sign_in);
     }
     assert_eq!(endings.next(), None, "each ending waits for its own durable commit");
+    endings.committed(57);
+    for sign_in in [41, 42] {
+        assert_eq!(endings.next(), Some(sign_in), "endings leave in commit order");
+    }
+    assert_eq!(endings.next(), None, "58's endings stay behind their own commit");
     endings.committed(58);
-    for sign_in in [41, 42, 43, 44] {
+    for sign_in in [43, 44] {
         assert_eq!(endings.next(), Some(sign_in), "endings leave in commit order");
     }
     assert_eq!(endings.next(), None, "each ending leaves once");

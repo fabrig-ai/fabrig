@@ -31,7 +31,6 @@ pub(super) fn ask(request: w::Request, limits: &Limits) -> Option<Ask> {
         record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
     })
 }
-#[expect(clippy::manual_map, reason = "the domain matches without closures")]
 pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     if called.value.is_some() || jig::argv::check(crate::table::TOOLS, &called.call, &env.limits.tools).is_err() {
         let printed = render::failure(b"invalid forge call", called.json, 1);

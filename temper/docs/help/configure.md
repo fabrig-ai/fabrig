@@ -167,7 +167,10 @@ temper ctl DIR proposal decide PROPOSAL accept --running stays --key KEY
 ```
 
 Expect: `revision` and the new revision's number, which is `NEWEST`
-from now on; or `proposed: PROPOSAL, to ` and who decides, then
+from now on; or `proposed: PROPOSAL, to the deployment's owners` for this
+charter. A project's items name `project PROJECT's owners`; a file touching
+several scopes names their owners and says `one person must own every
+affected scope`. Then expect
 `proposal PROPOSAL · settings · against revision NEWEST, newest
 NEWEST` and a line per item, `charter 1 · set · now {...} (default) ·
 would be {...}`, each value whole; the owner's decision prints `done:

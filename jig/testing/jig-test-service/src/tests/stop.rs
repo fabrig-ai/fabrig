@@ -60,7 +60,7 @@ fn the_store_closes_last() {
     assert_eq!(service.end(), None, "components have not reported closed");
     settle(&mut service);
     assert_eq!(service.end(), Some(&End::Drained));
-    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").is_empty());
+    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").idle());
     assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.closed());
 }
 
@@ -72,7 +72,7 @@ fn a_second_shutdown_aborts_each_component() {
     fixtures::turn(&mut service);
     assert_eq!(service.end(), Some(&End::Aborted));
     settle(&mut service);
-    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").is_empty());
+    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").idle());
     assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.closed());
 }
 
@@ -243,10 +243,9 @@ fn the_service_fires_wall_expiry_before_the_original_elapsed_alarm() {
 #[test]
 fn a_lost_listener_changes_nothing_for_the_reference() {
     let mut service = components();
-    let engine = fixtures::engine(&mut service);
     let owner = crate::tokens::token(crate::tokens::WORKER_LISTENERS, 0);
-    let workers = engine.workers.as_mut().expect("workers");
-    assert!(workers.up(skein_lib::Time::ZERO, skein_io::Event::Closed { owner }, &mut engine.events));
-    assert_eq!(workers.host.ending(), None);
+    service.told.push(skein_io::Event::Closed { owner });
+    crate::route_events(&mut service, skein_lib::Time::ZERO);
+    assert_eq!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.ending(), None);
     assert_eq!(service.end(), None);
 }

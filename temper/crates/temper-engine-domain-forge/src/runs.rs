@@ -216,7 +216,6 @@ fn conclusion(value: Option<api::Conclusion>) -> Option<policy::Conclusion> {
     }
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "the foundation uses explicit option matches without closures")]
 pub fn verdict(run: &api::Run, candidate: api::Commit) -> policy::Verdict {
     let mut jobs = List::with_capacity(u32::try_from(run.jobs.len()).expect("bounded jobs"));
     for job in &run.jobs {

@@ -1,4 +1,4 @@
-GET /api/v1/repos/first-creation/starter/raw/dir/first.txt?ref=0000000000000000000000000000000000000002 HTTP/1.1
+GET /api/v1/repos/first-creation/starter/raw/dir/first.txt?ref=0000000000000000000000000000000000000019 HTTP/1.1
 Host: 127.0.0.1:3000
 Authorization: token MASKED
 Connection: close

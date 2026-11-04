@@ -1,4 +1,4 @@
-//! The default HTTP mapping's engine end (protocol/client.md, 17.2 and 17.4).
+//! The default HTTP mapping's engine end (protocol/client.md, 17.2 and 17.4; protocol/service.md, 11.6).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
 use skein_http::server as http;
 use skein_lib::{Env, List, Map, Queue, Secret, Time, Token};
+pub mod bundle;
 mod call;
 mod credential;
 pub use credential::{cleared, cookie};
@@ -270,10 +271,32 @@ pub fn claims(settings: &Settings, call: &http::Call) -> bool {
         && !(call.method == skein_http::Method::Get
             && (path == b"/v1/sign-in/link" || path.starts_with(b"/v1/sign-in/link?")))
 }
+const HOST_BYTES: u32 = 64;
+
+/// A bound address as text, `None` for a non-loopback IPv6 one.
+#[must_use]
+pub fn address_text(address: ::core::net::SocketAddr) -> Option<Box<[u8]>> {
+    let mut text = skein_lib::Intake::with_capacity(HOST_BYTES);
+    match address.ip() {
+        core::net::IpAddr::V4(ip) => {
+            for (at, octet) in ip.octets().iter().enumerate() {
+                if at != 0 {
+                    text.append(b".").ok()?;
+                }
+                text.append(skein_lib::Decimal::of(u64::from(*octet)).as_bytes()).ok()?;
+            }
+        }
+        core::net::IpAddr::V6(ip) if ip.is_loopback() => text.append(b"[::1]").ok()?,
+        core::net::IpAddr::V6(_) => return None,
+    }
+    text.append(b":").ok()?;
+    text.append(skein_lib::Decimal::of(u64::from(address.port())).as_bytes()).ok()?;
+    text.meet(skein_lib::stream::Read::Fill(text.len()))
+}
 /// The sign-in URL for a bound address, with the path `link_path` gave.
 #[must_use]
 pub fn printed_link(address: ::core::net::SocketAddr, path: &[u8]) -> Box<[u8]> {
-    let host = kit::host::address_text(address).expect("bound listener address");
+    let host = address_text(address).expect("bound listener address");
     skein_lib::bytes::concat(&[b"http://", &host, path])
 }
 #[must_use]

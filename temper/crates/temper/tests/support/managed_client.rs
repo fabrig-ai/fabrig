@@ -77,6 +77,7 @@ impl Referee<NativeClient> for Person {
     }
 }
 
+#[expect(clippy::disallowed_methods, reason = "the sitting supplies the fake client's mode through its environment")]
 pub fn run() {
     let mode = std::env::var("TEMPER_MANAGED_CLIENT").expect("fake sitting client mode");
     assert!(matches!(mode.as_str(), "sign-in" | "adopt"));

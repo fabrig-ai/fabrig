@@ -48,14 +48,19 @@ fn a_service_whose_operations_cannot_close_a_conversation_is_refused() {
 
 #[test]
 fn a_link_on_a_non_loopback_listener_refuses_the_start() {
-    let document = fixtures::with_server_listener(br#"{"socket":"192.0.2.1:7100"}"#);
-    let found = crate::startup::parse(&document).expect_err("off-loopback link");
-    assert_eq!(
-        *fixtures::paths(&found),
-        [fixtures::path(&[b"application", b"server", b"listener"]), fixtures::path(&[b"engine", b"clients", b"link"]),]
-    );
-    for problem in &found.problems {
-        assert_eq!(problem.what, What::Plaintext);
+    for listener in [br#"{"socket":"[::]:7100"}"#.as_slice(), br#"{"socket":"192.0.2.1:7100"}"#] {
+        let document = fixtures::with_server_listener(listener);
+        let found = crate::startup::parse(&document).expect_err("off-loopback link");
+        assert_eq!(
+            *fixtures::paths(&found),
+            [
+                fixtures::path(&[b"application", b"server", b"listener"]),
+                fixtures::path(&[b"engine", b"clients", b"link"]),
+            ]
+        );
+        for problem in &found.problems {
+            assert_eq!(problem.what, What::Plaintext);
+        }
     }
 }
 

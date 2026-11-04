@@ -9,7 +9,6 @@ pub struct Proved {
 
 /// The landing that takes a free project's turn.
 #[must_use]
-#[expect(clippy::manual_map, reason = "the subset uses explicit matches, not closures")]
 pub fn first(proved: &[Proved]) -> Option<u64> {
     let mut selected: Option<Proved> = None;
     for candidate in proved {

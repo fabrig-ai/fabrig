@@ -18,7 +18,7 @@ fn preparing() -> (Core, Limits) {
     context.dependencies = Box::new([DEPENDENCY]);
     context.spec.inputs = Box::new([INPUT]);
     core.contexts.insert(PREPARING, context).unwrap();
-    core.begin_transcript(PREPARING, 0);
+    core.begin_transcript(PREPARING, 0, None);
     (core, limits)
 }
 
