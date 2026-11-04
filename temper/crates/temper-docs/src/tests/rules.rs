@@ -301,3 +301,32 @@ fn a_head_refuses_wrong_fields_and_tests_each_byte_bound_on_both_sides() {
     head(&Page { summary: "Fix ture.", ..fixture(Kind::Index, "# Fixture\n\nKind: index\n\nFix\nture.\n") })
         .expect("joined summary");
 }
+
+#[test]
+fn deployment_explains_tool_payload_and_its_dependencies() {
+    let text = find(b"deployment").expect("deployment help").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for requirement in [
+        "profile.declared.tool_payload",
+        "per piece",
+        "4,487",
+        "10,662",
+        "input-answer",
+        "99876",
+        "65536",
+        "8194",
+        "8192",
+        "checkout.message_bytes",
+        "hub.event_bytes",
+        "hub.turn_bytes",
+        "hub.turn_queue_bytes",
+        "hub.transcript_bytes",
+        "core.resume_bytes",
+        "root.journal.transcript_bytes",
+        "root.loads",
+        "stop",
+        "restart",
+    ] {
+        assert!(text.contains(requirement), "deployment help must name {requirement}");
+    }
+}
