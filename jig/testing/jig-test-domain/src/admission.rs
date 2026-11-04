@@ -2,54 +2,20 @@
 use crate::{Domain, Event, Limits, step};
 use alloc::boxed::Box;
 use jig_domain_core as core;
-use jig_domain_host as host;
 use jig_test_connector as connector;
 use skein_lib::Env;
 
-/// How the root takes an event (programming-model.md, 7.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Class {
-    /// Finishes or advances admitted work, taken at any backlog.
-    Admitted,
-    /// New work, handed back unchanged at the watermark.
-    New,
-    /// Its admitted part is stepped; its new part waits at the watermark.
-    Mixed,
-}
+pub use jig_domain_link::Class;
 
 /// Class an event by its variant and payload alone.
 #[must_use]
 pub fn class(event: &Event) -> Class {
     match event {
-        Event::Core(event) => {
-            if event.new_work() {
-                Class::New
-            } else {
-                Class::Admitted
-            }
-        }
-        Event::Timer(timer) => {
-            if timer.new_work() {
-                Class::New
-            } else {
-                Class::Admitted
-            }
-        }
+        Event::Core(event) => Class::of(event.new_work()),
+        Event::Timer(timer) => Class::of(timer.new_work()),
         Event::Link { link, .. } => match link {
             crate::link::Event::Hello { .. } | crate::link::Event::Lost => Class::Admitted,
-            crate::link::Event::Up(record) => match record {
-                host::LinkUp::Call { .. } => Class::New,
-                host::LinkUp::Piece { .. }
-                | host::LinkUp::Logins { .. }
-                | host::LinkUp::SignedOut { .. }
-                | host::LinkUp::Activity { .. }
-                | host::LinkUp::Unauthorized { .. }
-                | host::LinkUp::Limited { .. }
-                | host::LinkUp::AccountRefused { .. }
-                | host::LinkUp::Turn { .. }
-                | host::LinkUp::JobAnswer { .. }
-                | host::LinkUp::Answer { .. } => Class::Admitted,
-            },
+            crate::link::Event::Up(record) => Class::of(record.new_work()),
         },
         Event::Connector { event, .. } => connector_class(event),
         Event::WriterRead { event, .. } => match event {
@@ -345,11 +311,12 @@ mod tests {
     use super::try_step;
     use crate::{Event, tests::fixtures};
     use jig_domain_core as core;
+    use jig_domain_host::LinkUp as Up;
     use jig_domain_people as people;
     use skein_lib::{ReplyTo, Token};
 
     #[test]
-    fn new_work_waits_at_the_watermark_and_its_commit_answer_is_taken() {
+    fn link_calls_are_new_work_and_new_work_waits_at_the_watermark() {
         let env = fixtures::env();
         let mut domain = fixtures::domain();
         fixtures::fill_to_watermark(&mut domain, &env);
@@ -370,6 +337,9 @@ mod tests {
         assert_eq!(words.as_ref(), b"kept");
         try_step(&mut domain, &env, Event::Committed { number: 1, fill: 0 }).expect("commit answers are taken");
         try_step(&mut domain, &env, event).expect("the same input enters below the watermark");
+        let (run, call, deadline) = (Token::new(1), Box::<[u8]>::default(), skein_lib::Duration::ZERO);
+        let up = Up::Call { run, attempt: run, tool: call.clone(), input: call.clone(), call, writes: false, deadline };
+        assert_eq!(super::class(&Event::Link { channel: run, link: crate::link::Event::Up(up) }), super::Class::New);
     }
 }
 
