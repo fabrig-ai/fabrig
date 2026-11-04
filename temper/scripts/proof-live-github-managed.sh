@@ -12,6 +12,19 @@ case ${1:-} in live|fake|fake-wide) mode=$1 ;; *) printf '%s\n' 'usage: proof-li
 port=${2:-8765}
 case $port in ''|*[!0-9]*) exit 2 ;; esac
 [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || exit 2
+# Connect makes the App under the person's own account (protocol/setup.md, 17.2), so a live
+# sitting says whose: the relay admits that login's conversion alone. No default.
+if [ "$mode" = live ]; then
+    person=${TEMPER_MANAGED_PERSON:-}
+    case $person in
+        ''|-*|*[!A-Za-z0-9-]*)
+            printf '%s\n' 'live needs TEMPER_MANAGED_PERSON, the GitHub login that makes the App' >&2
+            exit 2
+            ;;
+    esac
+else
+    person=managed-person
+fi
 export CARGO_NET_OFFLINE=true TEMPER_BUNDLE=none
 export CARGO_TARGET_DIR="$HOME/src/rust/tmp/owners/github-managed/target" NEXTEST_DOUBLE_SPAWN=0
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github-managed.XXXXXX")")
@@ -86,7 +99,7 @@ if [ "$mode" = live ]; then
         --noscript 'temper needs WebAssembly and scripts.' --out "$scratch/bundle" > "$scratch/bundle.log" 2>&1
 fi
 # A background job's stdin is /dev/null when job control is off (POSIX): keep the person's on fd 3.
-python3 scripts/proof-live-github-managed.py "$mode" "$port" "$scratch" "$evidence" <&3 3<&- &
+python3 scripts/proof-live-github-managed.py "$mode" "$port" "$scratch" "$evidence" "$person" <&3 3<&- &
 runner=$!
 wait "$runner"
 runner=
