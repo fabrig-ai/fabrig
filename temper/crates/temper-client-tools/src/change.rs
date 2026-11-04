@@ -37,7 +37,7 @@ pub const READ: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 6,
-    notes: b"While landing-rule approval is outstanding, it prints each requirement,\ncounted people and review heads, the remaining count and any unmapped\nreviews, then points to the pull request for review. Unread and incomplete\nevidence are named separately from zero qualifying approvals.\nOtherwise, until it lands, it prints `next: temper ctl DIR change show TASK\n--until landed`, or, while a task is held, `next: temper ctl DIR\ntask show N`; while verifying or red, `next: temper ctl DIR change show TASK\n--until cleared`; landed, its merge commit. A wait for its landing ends\nat a hold, `not met: held` (exit 3). A task with no change fails,\n`no change panel for task N` (exit 2). The forge holds its diff,\nreviews and logs: read them there.\n",
+    notes: b"While landing-rule approval is outstanding, it prints each requirement,\ncounted people and review heads, the remaining count and any unmapped\nreviews, then points to the pull request for review. Unread and incomplete\nevidence are named separately from zero qualifying approvals.\nOtherwise, until it lands, it prints `next: temper ctl DIR change show TASK\n--until landed`, or, while a task is held, `next: temper ctl DIR\ntask show N`; while verifying or red, `next: temper ctl DIR change show TASK\n--until cleared`; landed, its merge commit. Successful no-change completion\nprints `result: completed, no change` and `next: temper ctl DIR task show N`\nfor its report. An unmet wait ends with `not met: ended`,\n`not met: ended: cancelled` or `not met: ended: failed` (exit 3).\nA wait for landing ends at a hold, `not met: held` (exit 3).\nA task without a panel prints `no change panel for task N` (exit 2).\nThe forge holds its diff, reviews and logs: read them there.\n",
 };
 #[derive(Debug)]
 pub(crate) struct Changes {
@@ -97,9 +97,11 @@ struct Watching {
     serial: u32,
     started: bool,
 }
+/// Task completion and recovery details rendered beside the forge's panel.
 #[derive(Debug)]
 pub(crate) struct Holds {
     own: Option<Held>,
+    completion: Completion,
     run: Option<Box<[u8]>>,
 }
 #[derive(Debug)]
@@ -109,7 +111,7 @@ struct Held {
 }
 impl Holds {
     pub(crate) fn new() -> Self {
-        Self { own: None, run: None }
+        Self { own: None, run: None, completion: Completion::Unknown }
     }
     fn task(&mut self, task: &c::Task) {
         self.own = if task.chip.phase == c::Phase::Held && task.hold.is_some() {
@@ -327,29 +329,57 @@ fn panel_ended(watch: &mut Watching, out: &mut Queue<Out>) {
         read_task(watch, out);
     }
 }
-fn has_change(task: &c::Task, result: Option<&c::Result>) -> bool {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Completion {
+    Unknown,
+    Change,
+    NoChange,
+}
+fn completion(task: &c::Task, result: Option<&c::Result>) -> Completion {
+    if !terminal(task) || task.chip.phase == c::Phase::Cancelled || task.chip.phase == c::Phase::Failed {
+        return Completion::Unknown;
+    }
     let result = match result {
         Some(result) => Some(result),
         None => match &task.result {
             Some(c::TaskResult::Document(result)) => Some(result.as_ref()),
-            _ => None,
+            Some(c::TaskResult::Ending(ending)) => return chip_completion(ending),
+            None => None,
         },
     };
-    let Some(result) = result else { return false };
-    let value = match &result.ending {
-        c::Ending::Task(ending) => match ending.as_ref() {
-            c::ChipEnding::Done(value) => Some(value),
-            c::ChipEnding::Failed(_) | c::ChipEnding::Cancelled { .. } => None,
+    let Some(result) = result else { return Completion::Unknown };
+    match &result.ending {
+        c::Ending::Task(ending) => chip_completion(ending),
+        c::Ending::Done => match &result.value {
+            Some(value) => result_completion(value),
+            None => Completion::Unknown,
         },
-        c::Ending::Done => result.value.as_ref(),
         c::Ending::Failed { .. }
         | c::Ending::Cancelled { .. }
         | c::Ending::Withdrawn { .. }
         | c::Ending::Decided { .. }
-        | c::Ending::Deleted => None,
-    };
-    let Some(c::ResultValue::Change { part, .. }) = value else { return false };
-    part.connector == wire::FORGE
+        | c::Ending::Deleted => Completion::Unknown,
+    }
+}
+fn chip_completion(ending: &c::ChipEnding) -> Completion {
+    match ending {
+        c::ChipEnding::Done(value) => result_completion(value),
+        c::ChipEnding::Failed(_) | c::ChipEnding::Cancelled { .. } => Completion::Unknown,
+    }
+}
+fn result_completion(value: &c::ResultValue) -> Completion {
+    match value {
+        c::ResultValue::Change { part, .. } if part.connector == wire::FORGE => Completion::Change,
+        c::ResultValue::Report(_) => Completion::NoChange,
+        c::ResultValue::Change { .. }
+        | c::ResultValue::OwnerVerdict { .. }
+        | c::ResultValue::Verdict { .. }
+        | c::ResultValue::Connector { .. }
+        | c::ResultValue::Choice { .. }
+        | c::ResultValue::Approved { .. }
+        | c::ResultValue::Failure(_)
+        | c::ResultValue::Words(_) => Completion::Unknown,
+    }
 }
 fn terminal(task: &c::Task) -> bool {
     match task.chip.phase {
@@ -391,6 +421,43 @@ fn task_read(
     }
     watch.task_state = TaskState::Known;
     watch.holds.task(task);
+    watch.holds.completion = completion(task, result);
+    if let Some(printed) = unregistered(watch, task) {
+        return Some(printed);
+    }
+    // The first task read supplies the project; a read remains a read once.
+    if watch.project.is_none() {
+        watch.project = Some(task.project);
+        open_panel(watch, env, out);
+    }
+    if watch.waiting {
+        if terminal(task) {
+            if let Some(printed) = task_ended(watch, task, result, env, out) {
+                return Some(printed);
+            }
+        } else {
+            watch.activity = Some(task.activity);
+            if watch.task_watch.is_none() {
+                watch_task(watch, out);
+            }
+        }
+    }
+    continue_panel(watch, env, out)
+}
+fn continue_panel(watch: &mut Watching, env: &Env<Limits>, out: &mut Queue<Out>) -> Option<jig::Printed> {
+    if watch.final_panel {
+        return None;
+    }
+    if let Some(panel) = watch.last.as_deref() {
+        if let Some(run) = panel.runs() {
+            read_run(watch, *run, out);
+        } else {
+            return delivered(watch, env);
+        }
+    }
+    None
+}
+fn unregistered(watch: &Watching, task: &c::Task) -> Option<jig::Printed> {
     if watch.panel_state == PanelState::Missing {
         if task.chip.phase == c::Phase::Held
             && let c::TaskContractDocument::Change { connector: wire::FORGE, kind: 1, .. } = task.result_contract
@@ -408,53 +475,33 @@ fn task_read(
             return Some(missing(watch.task, watch.called.json));
         }
     }
-    // The first task read supplies the project; a read remains a read once.
-    if watch.project.is_none() {
-        watch.project = Some(task.project);
-        open_panel(watch, env, out);
-    }
-    if watch.waiting && terminal(task) {
-        if !has_change(task, result) {
-            let why = ending(task, result);
-            watch.ended = Some(why);
-            if watch.last.is_some() {
-                return Some(print(
-                    watch.last.as_deref(),
-                    watch.called.json,
-                    Some(false),
-                    why,
-                    &env.limits,
-                    &watch.holds,
-                ));
-            }
-            if watch.panel.is_none() {
-                return Some(missing(watch.task, watch.called.json));
-            }
-        } else if watch.final_panel {
-            return Some(match watch.last.as_deref() {
-                Some(panel) => print(Some(panel), watch.called.json, Some(false), b"ended", &env.limits, &watch.holds),
-                None => missing(watch.task, watch.called.json),
-            });
-        } else {
-            watch.final_panel = true;
-            if watch.panel.is_none() {
-                open_panel(watch, env, out);
-            }
+    None
+}
+fn task_ended(
+    watch: &mut Watching,
+    task: &c::Task,
+    result: Option<&c::Result>,
+    env: &Env<Limits>,
+    out: &mut Queue<Out>,
+) -> Option<jig::Printed> {
+    if watch.holds.completion != Completion::Change {
+        let why = ending(task, result);
+        watch.ended = Some(why);
+        if watch.last.is_some() {
+            return Some(print(watch.last.as_deref(), watch.called.json, Some(false), why, &env.limits, &watch.holds));
         }
-    } else if watch.waiting {
-        watch.activity = Some(task.activity);
-        if watch.task_watch.is_none() {
-            watch_task(watch, out);
+        if watch.panel.is_none() {
+            return Some(missing(watch.task, watch.called.json));
         }
-    }
-    if watch.final_panel {
-        return None;
-    }
-    if let Some(panel) = watch.last.as_deref() {
-        if let Some(run) = panel.runs() {
-            read_run(watch, *run, out);
-        } else {
-            return delivered(watch, env);
+    } else if watch.final_panel {
+        return Some(match watch.last.as_deref() {
+            Some(panel) => print(Some(panel), watch.called.json, Some(false), b"ended", &env.limits, &watch.holds),
+            None => missing(watch.task, watch.called.json),
+        });
+    } else {
+        watch.final_panel = true;
+        if watch.panel.is_none() {
+            open_panel(watch, env, out);
         }
     }
     None
@@ -715,7 +762,7 @@ pub(crate) fn told(state: &mut Changes, client: &Client, env: &Env<Limits>, told
     }
 }
 fn delivered(watch: &mut Watching, env: &Env<Limits>) -> Option<jig::Printed> {
-    if watch.task_state == TaskState::Unknown {
+    if watch.task_state == TaskState::Unknown || (watch.read.active() && watch.run_read.is_none()) {
         return None;
     }
     let panel = watch.last.as_deref().expect("delivered panel");
@@ -1116,6 +1163,10 @@ fn encode_approvals(panel: &w::ChangePanel, out: &mut Encoder) {
     out.array_end();
 }
 fn encode_holds(holds: &Holds, out: &mut Encoder) {
+    if holds.completion == Completion::NoChange {
+        out.key(b"result");
+        out.string(b"completed, no change");
+    }
     if let Some(held) = &holds.own {
         out.key(b"task_hold");
         out.object_start();
@@ -1165,87 +1216,11 @@ fn text(
     out: &mut Text,
 ) {
     if let Some(panel) = panel {
-        out.put(b"change ");
-        out.number(panel.task());
-        out.put(b" \xc2\xb7 ");
-        out.put(panel.owner());
-        out.put(b"/");
-        out.put(panel.name());
-        out.put(b" on forge ");
-        out.number(u64::from(panel.forge()));
-        out.put(b" \xc2\xb7 ");
-        out.put(panel.branch());
-        out.put(b" into ");
-        out.put(panel.landing());
-        out.put(b"\n");
-        if let Some(pull) = panel.pull() {
-            out.put(b"pull request #");
-            out.number(pull.number());
-            if !pull.address().is_empty() {
-                out.put(b" \xc2\xb7 ");
-                out.put(pull.address());
-            }
-            out.put(b"\n");
+        text_heading(panel, out);
+        if holds.completion == Completion::NoChange {
+            out.put(b"result: completed, no change\n");
         }
-        out.put(b"step: ");
-        out.put(step(panel.step()));
-        if let w::Step::Landed(landed) = panel.step() {
-            out.put(b" \xc2\xb7 merge commit ");
-            out.put(&hex(landed.merge()));
-        }
-        let uncleared = if let w::Step::Cleared(value) = panel.step() { value.uncleared() } else { false };
-        if !uncleared {
-            for line in tier_lines(panel.step()) {
-                out.put(b" \xc2\xb7 ");
-                out.put(line);
-            }
-        }
-        out.put(b"\n");
-        if progress(panel.step()) == Progress::Verifying || progress(panel.step()) == Progress::Cleared {
-            out.put(b"merge commit ");
-            out.put(&hex(landed(panel.step()).expect("landed step")));
-            out.put(b"\n");
-        }
-        if uncleared {
-            for line in tier_lines(panel.step()) {
-                out.put(b"tier: ");
-                out.put(line);
-                out.put(b"\n");
-            }
-        }
-        text_way(panel, out);
-        if let Some(hold) = panel.hold() {
-            out.put(b"held: ");
-            if let w::Hold::Authority(value) = hold {
-                out.put(value.reason());
-            } else {
-                out.put(phrase(words::hold(hold)));
-            }
-            out.put(b" at ");
-            out.put(step(panel.step()));
-            out.put(b"\n");
-        }
-        text_holds(panel, holds, out);
-        if let Some(queue) = words::queue(panel.step()) {
-            out.put(b"queued: place ");
-            out.number(u64::from(queue.place));
-            for (i, task) in queue.ahead.iter().enumerate() {
-                out.put(if i == 0 { b", behind task " } else { b", task " });
-                out.number(*task);
-            }
-            out.put(b"\n");
-        }
-        if let w::Step::Repairing(_) = panel.step() {
-            let (word, arguments) = words::line(panel);
-            out.put(b"repair: ");
-            for (candidate, literals, _) in &forge::words::CHANGES {
-                if *candidate == word {
-                    crate::forge::literals_text(literals, &arguments, out);
-                    break;
-                }
-            }
-            out.put(b"\n");
-        }
+        text_state(panel, holds, out);
         text_checks(panel, out);
         text_questions(panel.questions(), out);
         if let Some(digest) = digest {
@@ -1273,10 +1248,103 @@ fn approval_wait(panel: &w::ChangePanel) -> bool {
     }
     false
 }
+fn text_heading(panel: &w::ChangePanel, out: &mut Text) {
+    out.put(b"change ");
+    out.number(panel.task());
+    out.put(b" \xc2\xb7 ");
+    out.put(panel.owner());
+    out.put(b"/");
+    out.put(panel.name());
+    out.put(b" on forge ");
+    out.number(u64::from(panel.forge()));
+    out.put(b" \xc2\xb7 ");
+    out.put(panel.branch());
+    out.put(b" into ");
+    out.put(panel.landing());
+    out.put(b"\n");
+    text_pull(panel, out);
+    out.put(b"step: ");
+    out.put(step(panel.step()));
+    if let w::Step::Landed(landed) = panel.step() {
+        out.put(b" \xc2\xb7 merge commit ");
+        out.put(&hex(landed.merge()));
+    }
+    let uncleared = if let w::Step::Cleared(value) = panel.step() { value.uncleared() } else { false };
+    if !uncleared {
+        for line in tier_lines(panel.step()) {
+            out.put(b" \xc2\xb7 ");
+            out.put(line);
+        }
+    }
+    out.put(b"\n");
+    if progress(panel.step()) == Progress::Verifying || progress(panel.step()) == Progress::Cleared {
+        out.put(b"merge commit ");
+        out.put(&hex(landed(panel.step()).expect("landed step")));
+        out.put(b"\n");
+    }
+    if uncleared {
+        for line in tier_lines(panel.step()) {
+            out.put(b"tier: ");
+            out.put(line);
+            out.put(b"\n");
+        }
+    }
+}
+
+fn text_pull(panel: &w::ChangePanel, out: &mut Text) {
+    if let Some(pull) = panel.pull() {
+        out.put(b"pull request #");
+        out.number(pull.number());
+        if !pull.address().is_empty() {
+            out.put(b" \xc2\xb7 ");
+            out.put(pull.address());
+        }
+        out.put(b"\n");
+    }
+}
+
+fn text_state(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
+    text_way(panel, out);
+    if let Some(hold) = panel.hold() {
+        out.put(b"held: ");
+        if let w::Hold::Authority(value) = hold {
+            out.put(value.reason());
+        } else {
+            out.put(phrase(words::hold(hold)));
+        }
+        out.put(b" at ");
+        out.put(step(panel.step()));
+        out.put(b"\n");
+    }
+    text_holds(panel, holds, out);
+    if let Some(queue) = words::queue(panel.step()) {
+        out.put(b"queued: place ");
+        out.number(u64::from(queue.place));
+        for (i, task) in queue.ahead.iter().enumerate() {
+            out.put(if i == 0 { b", behind task " } else { b", task " });
+            out.number(*task);
+        }
+        out.put(b"\n");
+    }
+    if let w::Step::Repairing(_) = panel.step() {
+        let (word, arguments) = words::line(panel);
+        out.put(b"repair: ");
+        for (candidate, literals, _) in &forge::words::CHANGES {
+            if *candidate == word {
+                crate::forge::literals_text(literals, &arguments, out);
+                break;
+            }
+        }
+        out.put(b"\n");
+    }
+}
+
 fn text_next(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
-    if holds.own.is_some() || holds.run.is_some() {
+    let ended = holds.completion == Completion::NoChange || *panel.step() == w::Step::Ended;
+    if ended || holds.own.is_some() || holds.run.is_some() {
+        let task = if ended || holds.own.is_some() { panel.task() } else { panel.runs().expect("held delegate") };
         out.put(b"next: temper ctl DIR task show ");
-        out.number(if holds.own.is_some() { panel.task() } else { panel.runs().expect("held delegate") });
+        out.number(task);
         out.put(b"\n");
     } else if approval_wait(panel) && progress(panel.step()) == Progress::Before {
         out.put(b"next: review the pull request");

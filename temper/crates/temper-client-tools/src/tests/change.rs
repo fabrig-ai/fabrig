@@ -121,6 +121,76 @@ fn end_panel(root: &mut f::Harness, call: u32, end: c::WatchEnd) {
     let subject = change::subject(2, 1, &root.limits);
     root.end(call, &subject, end);
 }
+const EMPTY_SEARCH: &[u8] = b"No change: widget already shows an empty search state when no results match.";
+fn no_change_task() -> c::Task {
+    let mut task = task(true, false);
+    let Some(c::TaskResult::Document(result)) = &mut task.result else { panic!("terminal result") };
+    result.value = Some(c::ResultValue::Report(f::document_text(EMPTY_SEARCH)));
+    task
+}
+fn no_change_result() -> c::ReadResult {
+    let mut task = no_change_task();
+    let Some(c::TaskResult::Document(result)) = task.result.take() else { panic!("terminal result") };
+    c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
+        key: c::ObjectKey::Task(2),
+        value: c::EndedValue::Task { document: Box::new(task), result },
+        at: None,
+        by: None,
+    })))
+}
+fn no_change_panel(step: w::Step) -> w::ChangePanel {
+    let mut parts = panel(step).into_parts();
+    parts.head = None;
+    parts.pull = None;
+    parts.ci = w::Ci::Unknown;
+    w::ChangePanel::new(&w::CEILINGS, parts).unwrap()
+}
+#[test]
+fn a_no_change_completion_names_its_result_and_report() {
+    for initial in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["change", "show", "2", "--until", "landed"]);
+        root.serve(call, if initial { no_change_result() } else { f::task_result(task(false, false)) });
+        if initial {
+            deliver_panel(&mut root, no_change_panel(w::Step::Ended));
+        } else {
+            deliver_panel(&mut root, no_change_panel(w::Step::Producing));
+            assert!(root.answer(call).is_none());
+            root.pending_reads.push(call);
+            root.deliver_subject(
+                &client::Watchable::Jig(c::Subject::Task { task: 2 }),
+                c::Delivery::Task(Box::new(no_change_task())),
+            );
+            deliver_panel(&mut root, no_change_panel(w::Step::Ended));
+            assert!(root.answer(call).is_none(), "the final task read supplies completion details");
+            root.serve(call, f::task_result(no_change_task()));
+        }
+        let answer = root.answer(call).expect("completion ends an unmet landing wait");
+        assert_eq!(answer.status, 3);
+        contains(&answer.stdout, b"not met: ended\n");
+        contains(&answer.stdout, b"result: completed, no change\n");
+        contains(&answer.stdout, b"next: temper ctl DIR task show 2\n");
+        let call = root.submit(&["change", "show", "2"]);
+        root.serve(call, f::task_result(no_change_task()));
+        deliver_panel(&mut root, no_change_panel(w::Step::Ended));
+        let answer = root.answer(call).expect("retained panel read");
+        assert_eq!(answer.status, 0);
+        contains(&answer.stdout, b"step: ended\n");
+        contains(&answer.stdout, b"result: completed, no change\n");
+        contains(&answer.stdout, b"next: temper ctl DIR task show 2\n");
+        let call = root.submit(&["change", "show", "2", "--json"]);
+        root.serve(call, no_change_result());
+        deliver_panel(&mut root, no_change_panel(w::Step::Ended));
+        let answer = root.answer(call).expect("completion in JSON");
+        assert_eq!(answer.status, 0);
+        contains(&answer.stdout, br#""result":"completed, no change""#);
+        let call = root.submit(&["task", "show", "2"]);
+        root.serve(call, no_change_result());
+        let answer = root.answer(call).expect("direct retained report");
+        assert_eq!(answer.status, 0);
+        contains(&answer.stdout, EMPTY_SEARCH);
+    }
+}
 #[test]
 fn change_calls_round_trip_and_reject_other_conditions() {
     for argv in [
