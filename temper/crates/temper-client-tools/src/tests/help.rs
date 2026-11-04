@@ -189,7 +189,7 @@ const USAGES: &[&[u8]] = &[
     b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
     b"task message TASK TEXT --key KEY\n",
     b"chat close TASK [--move TASK]... [--reason TEXT] --key KEY\n",
-    b"task answer TASK QUESTION TEXT [--key KEY]\n",
+    b"task answer TASK QUESTION TEXT [--key KEY]\ntask answer TASK --rev REV CHOICE TEXT [--key KEY]\ntask answer TASK --rev REV TEXT [--key KEY]\ntask answer TASK --rev REV --approve STATE [TEXT] [--key KEY]\ntask answer TASK --rev REV --cannot REASON [--key KEY]\n",
     b"proposal decide PROPOSAL accept|reject|pass-up [REASON] [--running stays|moves] [--key KEY]\n",
     b"task release TASK --hold REV [--again] [--key KEY]\n",
     b"task stop TASK [--key KEY]\n",
@@ -245,6 +245,8 @@ const USAGES: &[&[u8]] = &[
     b"project amend PROJECT --visibility public|private --key KEY\n",
     b"repository make --project PROJECT [--forge FORGE] ORG/NAME [--no-home] [--until CONDITION] [--timeout DURATION] --key KEY\n",
     b"repository copy --project PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home] [--until CONDITION] [--timeout DURATION] --key KEY\n",
+    b"task take TASK [--key KEY]\n",
+    b"task hand-back TASK [--key KEY]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -453,8 +455,12 @@ fn the_project_reference_is_what_the_table_renders() {
 }
 
 #[test]
-fn the_chat_reference_is_what_the_table_renders() {
-    reference_matches(b"chat", b"ctl-chat");
+fn the_task_chat_and_inbox_references_are_what_the_table_renders() {
+    for (group, page) in
+        [(b"chat".as_slice(), b"ctl-chat".as_slice()), (b"task", b"ctl-task"), (b"inbox", b"ctl-inbox")]
+    {
+        reference_matches(group, page);
+    }
 }
 #[test]
 fn the_account_reference_is_what_the_table_renders() {

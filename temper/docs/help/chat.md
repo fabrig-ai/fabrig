@@ -36,8 +36,11 @@ A chat is a conversation between a party and an agent in a project: an untracked
   built there. Production errors still hold the change for recovery.
   A change task, the chat's delegate, writes the change, opens its pull
   request and lands it; the chat hears its result (temper help task). Until a
-  delegate reports, the chat says it is started, nothing more. When
-  the change holds, the chat tells the party why, in the hold's words,
+  delegate reports, the chat says it is started, nothing more. If the change
+  finishes successfully without changes, the chat tells the party that nothing
+  changed and explains why using the delegate's conclusion, without claiming
+  landing, implementation or tests. When the change holds, the chat tells the
+  party why, in the hold's words,
   and that the party decides: release it or cancel it (temper help
   change).
 - **Work agreed first.** Asked to agree a plan before anything is

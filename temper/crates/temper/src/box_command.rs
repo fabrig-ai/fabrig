@@ -55,11 +55,7 @@ pub(crate) fn run_configuration(
     let opened = (|| {
         let inherited = skein_shell::inherited_listeners().map_err(super::listeners_refusal)?;
         owned.extend(inherited.iter().map(|(fd, _)| *fd));
-        let held = held
-            .into_iter()
-            .map(|(fd, _)| skein_shell::listener_at(fd).map(|address| (fd, address)))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(super::listeners_refusal)?;
+        let held = held_listeners(held)?;
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
         let environment = std::env::vars_os()
@@ -107,6 +103,14 @@ pub(crate) fn run_configuration(
         }
     };
     Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut service))
+}
+
+/// Checks the listeners the box holds itself, which it was never given.
+pub(super) fn held_listeners(held: Vec<(Fd, std::num::NonZeroU16)>) -> Result<Vec<(Fd, std::net::SocketAddr)>, String> {
+    held.into_iter()
+        .map(|(fd, _)| skein_shell::listener_at(fd).map(|address| (fd, address)))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(super::held_refusal)
 }
 
 fn open_listeners(

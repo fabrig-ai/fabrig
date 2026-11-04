@@ -195,6 +195,13 @@ pub enum Tool {
     Subscribe { kind: tasks::SubscriptionKind },
     /// Subscribe this task to typed connector news, with overlap paths for landings.
     SubscribeForge { topic: forge::Topic, own_change: Option<u64>, paths: Box<[Box<[u8]>]> },
+    /// Resolve an owner/name or the project's sole readable adoption before subscribing.
+    SubscribeNamedForge {
+        repository: Option<Box<[u8]>>,
+        topic: forge::Topic,
+        own_change: Option<u64>,
+        paths: Box<[Box<[u8]>]>,
+    },
     /// Remove one current interest by its root-issued number.
     Unsubscribe { subscription: u64 },
     /// Root-normalized whole-batch shape refusal after bounded ingress.

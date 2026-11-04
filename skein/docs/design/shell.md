@@ -412,10 +412,21 @@ kit's functions, each before startup's step 7, through the kernel as
     a bound on startup's work before the service's limits exist; io's
     adoption then holds each to the service's sockets), a descriptor not
     open, or one that is not a listening TCP socket.
+  - **A call that fails names itself:** `ListenersRefusal::Check` holds
+    the descriptor, the call (`ListenerCheck`: `fstat`, `SO_TYPE`,
+    `SO_ACCEPTCONN` or `getsockname`) and its errno. `Kernel` holds the
+    close-on-exec update's.
+  - **On macOS no socket says it is listening.** XNU's `getsockopt` has
+    no case for `SO_ACCEPTCONN` (`bsd/kern/uipc_socket.c`,
+    `sogetoptlock`), so it answers `ENOPROTOOPT` for every socket, and
+    there that answer passes: a stream socket that never listened is
+    taken, and its first accept fails.
 - **`listener_at(fd) -> Result<SocketAddr, ListenersRefusal>`,** the same check
   of one descriptor, which it leaves as it is: for a command that hands
   its listener on across its exec, as temper's `forge run` hands
-  Forgejo's.
+  Forgejo's, and for a parent that checks what it holds. The refusal
+  says nothing of where the descriptor came from: `LISTEN_FDS` is the
+  caller's word, for a descriptor it was given.
 - **`open_listener(addr, backlog) -> Result<(Fd, SocketAddr), Error>`**
   makes, binds and listens, as io's `Listen` does, and answers the
   address bound, without accepting: a parent holds it, adopted, to give
@@ -1045,6 +1056,9 @@ and changes no code above io:
   the shell restores the modes before the process stops and sets them
   again when it continues, which takes a signal the shell handles while
   the loop runs (6.3).
+- **Listening, on macOS** (6.6): whether anything reads it another way,
+  such as `TCP_CONNECTION_INFO`'s state. Default: no; only a parent's
+  mistake reaches it, and that shows at the first accept.
 
 ## 11. Not built yet
 

@@ -304,9 +304,11 @@ forge's `read_branch` for its head, then `read_file`. It calls `change`
 with the person's request and only what it read, never describing code
 it has not read. Repository changes go through `change`, never through
 writes to the chat's workspace. After delegation the chat says only that
-work started; it claims no addition, fix or completion until the delegate's
-`Landed` result names its pull request and merge commit. For a fix, if the named fault is absent, it changes
-nothing and says what the code has. The stock coder likewise writes
+work started until the delegate reports. When a change reports successful
+`NoChange`, the chat tells the person that nothing changed and explains why
+using the delegate's conclusion, without claiming landing, implementation
+or tests. For a fix, if the named fault is absent, it changes nothing and
+says what the code has. The stock coder likewise writes
 nothing and finishes with the successful `no_change` verdict saying what the code has when the
 named fault is absent, never adding a feature in a fix's place. Where
 the change's words describe the code otherwise than it is, the coder

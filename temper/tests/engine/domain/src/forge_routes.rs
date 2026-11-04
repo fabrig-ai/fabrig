@@ -119,6 +119,8 @@ pub struct World {
 #[derive(Clone, Copy, Default)]
 #[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
+    /// Tool families granted by the deployment and project for this story.
+    pub tools: Option<u64>,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
     pub across: bool,
@@ -290,6 +292,7 @@ impl World {
     ) -> Self {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
+            tools,
             brief,
             stall,
             spec_bytes,
@@ -447,7 +450,7 @@ impl World {
                     // after the run reserves its capped allowance at claim.
                     rules.maximum_run_spend = 60;
                 }
-                rules.ceiling.tools = authority::Tools(1023);
+                rules.ceiling.tools = authority::Tools(tools.unwrap_or(1023));
                 let grants: Box<[authority::Grant]> = if with_change {
                     Box::new([
                         grant.clone(),
@@ -513,7 +516,7 @@ impl World {
                     rules.ceiling.delegation.depth = 4;
                 }
                 let mut policy = config.core.seed_projects[0].policy.policy.clone();
-                policy.ceiling.tools = authority::Tools(1023);
+                policy.ceiling.tools = authority::Tools(tools.unwrap_or(1023));
                 policy.ceiling.grants.clone_from(&rules.ceiling.grants);
                 policy.projections.clone_from(&rules.ceiling.grants);
                 if approval.is_some() || agent_gate || owner_gate {
@@ -523,7 +526,7 @@ impl World {
                     member.number = 2;
                     policy.roles = Box::new([policy.roles[0].clone(), maintainer, member]);
                 }
-                policy.roles[0].authority.tools = authority::Tools(1023);
+                policy.roles[0].authority.tools = authority::Tools(tools.unwrap_or(1023));
                 policy.roles[0].authority.grants.clone_from(&grants);
                 if with_change {
                     policy.ceiling.delegation = rules.ceiling.delegation.clone();

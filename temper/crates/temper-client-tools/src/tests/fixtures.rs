@@ -59,6 +59,12 @@ pub(crate) fn owned(words: &[&str]) -> Box<[Box<[u8]>]> {
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["repository", "make", "--project", "shop", "team/widget", "--key", "make"],
     &["repository", "copy", "--project", "shop", "source.invalid/team/widget", "--key", "copy"],
+    &["task", "answer", "41", "--rev", "7", "1", "blue"],
+    &["task", "answer", "41", "--rev", "7", "words"],
+    &["task", "answer", "41", "--rev", "7", "--approve", "00ff", "approved"],
+    &["task", "answer", "41", "--rev", "7", "--cannot", "no access"],
+    &["task", "take", "41"],
+    &["task", "hand-back", "41"],
     &["project", "amend", "shop", "--visibility", "public", "--key", "visibility"],
     &[
         "goal",
@@ -643,6 +649,8 @@ impl Harness {
                 | 6
                 | 9..=15
                 | crate::jig::rows::TASK_DECIDE_AT
+                | crate::jig::rows::TAKE_AT
+                | crate::jig::rows::HAND_BACK_AT
                 | 31
                 | crate::jig::rows::SETTINGS_AT
                 | crate::jig::rows::SETTING_AT
@@ -808,7 +816,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 77;
+pub(super) const TOOL_FORMS: u32 = 83;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

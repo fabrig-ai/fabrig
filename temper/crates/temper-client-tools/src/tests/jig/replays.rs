@@ -21,24 +21,22 @@ fn ended_task() -> c::ReadResult {
     f::ended_task_result(task, c::Ending::Done)
 }
 fn retired(call: &call::Call) -> c::ReadResult {
+    if call.tool == rows::TAKE_AT || call.tool == rows::HAND_BACK_AT || (call.tool == rows::ANSWER_AT && call.form != 0)
+    {
+        let mut person = f::person_document();
+        person.acts = List::with_capacity(0);
+        return ended(
+            c::ObjectKey::PersonTask(f::TASK),
+            c::EndedValue::PersonTask { document: Box::new(person), result: ended_result() },
+        );
+    }
     if call.tool == rows::ANSWER_AT {
         let c::ReadResult::Value(c::ReadValue::Question(question)) = f::act_document(call) else { panic!("question") };
         let mut question = *question;
         question.acts = List::with_capacity(0);
         return ended(
             c::ObjectKey::Question { task: f::TASK, message: 3 },
-            c::EndedValue::Question {
-                question,
-                answer: None,
-                ending: Some(Box::new(c::Result {
-                    task: f::ended_task(c::Phase::Done).chip,
-                    ending: c::Ending::Done,
-                    value: None,
-                    at: None,
-                    details: None,
-                    acts: List::with_capacity(0),
-                })),
-            },
+            c::EndedValue::Question { question, answer: None, ending: Some(ended_result()) },
         );
     }
     if call.tool == rows::TASK_DECIDE_AT {
@@ -74,6 +72,31 @@ fn retired(call: &call::Call) -> c::ReadResult {
         );
     }
     ended_task()
+}
+fn ended_result() -> Box<c::Result> {
+    Box::new(c::Result {
+        task: f::ended_task(c::Phase::Done).chip,
+        ending: c::Ending::Done,
+        value: None,
+        at: None,
+        details: None,
+        acts: List::with_capacity(0),
+    })
+}
+const PERSON_CALLS: &[&[&str]] = &[
+    &["task", "take", "41", "--key", "take"],
+    &["task", "hand-back", "41", "--key", "hand-back"],
+    &["task", "answer", "41", "--rev", "7", "1", "blue", "--key", "choice"],
+    &["task", "answer", "41", "--rev", "7", "words", "--key", "words"],
+    &["task", "answer", "41", "--rev", "7", "--approve", "00ff", "approved", "--key", "approval"],
+    &["task", "answer", "41", "--rev", "7", "--approve", "", "--key", "empty-state"],
+    &["task", "answer", "41", "--rev", "7", "--cannot", "no access", "--key", "cannot"],
+];
+#[test]
+fn person_acts_replay_after_their_subject_retires() {
+    for argv in PERSON_CALLS {
+        replay(argv);
+    }
 }
 fn serve(root: &mut f::Harness, number: u32, document: c::ReadResult) {
     root.serve(number, document);
@@ -315,7 +338,7 @@ fn every_other_act_replays_its_first_outcome_in_text_and_json() {
 #[test]
 fn replay_cases_cover_every_keyed_verb_in_the_tools_table() {
     let mut covered = Vec::new();
-    for argv in DIRECT_CALLS.iter().chain(f::ACT_CALLS.iter()) {
+    for argv in DIRECT_CALLS.iter().chain(f::ACT_CALLS.iter()).chain(PERSON_CALLS.iter()) {
         covered.push(f::call(argv).tool);
     }
     covered.push(rows::AMEND_AT);
