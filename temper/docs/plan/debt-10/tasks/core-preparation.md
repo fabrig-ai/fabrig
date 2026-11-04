@@ -3,7 +3,7 @@ id = "core-preparation"
 part = "tidying"
 kind = "feature"
 needs = []
-files = ["jig/crates/jig-domain-core/src/routing/run/preparation.rs", "jig/crates/jig-domain-core/src/runs/state.rs", "jig/crates/jig-domain-core/src/tests/runs/notes_room.rs", "jig/crates/jig-domain-core/src/tests/start.rs", "jig/crates/jig-domain-core/src/tests/runs/**", "jig/tests/core/tests/suite/restart.rs", "jig/tests/core/tests/suite/runs.rs", "temper/crates/temper-engine-domain/src/archive.rs", "temper/crates/temper-service/src/tests/store_route.rs"]
+files = ["jig/crates/jig-domain-core/src/routing/run/preparation.rs", "jig/crates/jig-domain-core/src/runs/state.rs", "jig/crates/jig-domain-core/src/tests/runs/notes_room.rs", "jig/crates/jig-domain-core/src/tests/start.rs", "jig/crates/jig-domain-core/src/tests/runs/**", "jig/tests/core/tests/suite/restart.rs", "jig/tests/core/tests/suite/runs.rs", "jig/examples/ops/domain/src/tests.rs", "temper/crates/temper-engine-domain/src/archive.rs", "temper/crates/temper-service/src/tests/store_route.rs"]
 effort = "medium"
 minutes = 40
 +++
@@ -40,6 +40,7 @@ both product callers overwrite it (`prepare_agent` with `from`, `transcript_unre
 - Owns: `routing/run/preparation.rs`, `runs/state.rs`, `tests/runs/notes_room.rs`.
 - `begin_transcript` is `pub`, and tests in other crates call it. The new argument is pre-approved: the request asks
   for it. May change, the call alone: `jig-domain-core`'s tests, `jig/tests/core/tests/suite/{restart,runs}.rs`,
+  `jig/examples/ops/domain/src/tests.rs` (as `## Answers` says),
   `temper/crates/temper-engine-domain/src/archive.rs`, `temper/crates/temper-service/src/tests/store_route.rs`. At each,
   pass what `begin_transcript` derived there: `None` where the test holds no proof with a window, otherwise that
   proof's `(attempt, turn)`.
@@ -51,12 +52,22 @@ both product callers overwrite it (`prepare_agent` with `from`, `transcript_unre
 
 1. A1, then `heavy cargo nextest run -p jig-domain-core --lib -E 'test(notes_room)'`.
 2. A2: the argument, its two product callers, then the test callers. `heavy cargo check -p jig-domain-core -p
-   jig-core-world -p temper-engine-domain -p temper-service --tests` while errors last.
+   jig-core-world -p jig-ops-domain -p temper-engine-domain -p temper-service --tests` while errors last.
 3. A4.
-4. `heavy cargo nextest run -p jig-domain-core -p jig-core-world`, `-p temper-engine-domain --lib -E 'test(archive)'`,
+4. `heavy cargo nextest run -p jig-domain-core -p jig-core-world`, `-p jig-ops-domain --lib -E
+   'test(a_loaded_transcript_passes_its_protocol_rendered_text_to_the_brief)'`, `-p temper-engine-domain --lib -E 'test(archive)'`,
    `-p temper-service --lib -E 'test(store_route)'`. fmt, clippy, old forms, citations. Commit, push:
    one commit per finding.
 
 ## Report
 
 As the implementer's text says, with the net lines. A1 and A2 pin no new rule; A4 moves a row.
+
+## Answers
+
+2026-11-04. **May A2 change the `begin_transcript` call in `jig/examples/ops/domain/src/tests.rs`?** Yes: the file was
+missed from the list of callers, and A2 cannot compile without it. Keep A1's pushed commit. In
+`a_loaded_transcript_passes_its_protocol_rendered_text_to_the_brief` the call becomes
+`domain.core.begin_transcript(1, 1, Some((1, 1)))` and the `.window = Some((1, 1))` assignment on the next line goes:
+`begin_transcript` only stores `window`, so the transcript is the same, and the test no longer overwrites what the
+call was given. Nothing else in that file changes; no assertion changes. Then go on with A2 and A4.
