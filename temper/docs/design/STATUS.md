@@ -53,11 +53,9 @@ box's group file holds a forge's kind alone (`protocol/setup.md`,
 is an unrecorded copy of jig's reference service (`protocol/README.md`),
 and lags in a removal without the box (`domain/forge.md`) and a
 project's Delete (`client/README.md`); public reading still lacks a
-deployment's proxy configuration and figures, and the negative walk's
-real-service checks (`protocol/sign-in.md`). The browser walk's project-link checks expect
-an identifier label where the view shows the project's name; public
-pages show project names and task titles where the browser design says
-none (`client/browser.md`); a connected Forgejo, its connect with its bot's
+deployment's proxy configuration and figures, and its negative walk
+plays the proxy's own rules against scripted upstreams rather than
+temper's service (`protocol/sign-in.md`); a connected Forgejo, its connect with its bot's
 tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
 (`protocol/setup.md`); with `application.machine.github` null, GitHub's
