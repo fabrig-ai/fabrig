@@ -115,6 +115,8 @@ pub enum Row {
     Remark(Remark),
     Review(Review),
     Commit(api::Commit),
+    /// One oldest-first range entry, including its parents and message.
+    CommitMessage(api::CommitMessage),
     File(File),
 }
 /// GitHub's message and bounded error messages.

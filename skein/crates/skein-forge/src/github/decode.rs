@@ -10,6 +10,7 @@ use skein_json::{Token, tokenizer};
 use skein_lib::{List, bytes};
 mod app;
 mod checks;
+mod commits;
 pub(crate) mod delivery;
 mod files;
 mod issues;
@@ -45,6 +46,8 @@ pub struct Decoder {
     collaborator: document::Collaborator,
     reviews: reviews::State,
     files: files::State,
+    commits: commits::State,
+    commit_range: bool,
     protection: protection::State,
     repository: document::Repository,
     branch: document::Branch,
@@ -75,6 +78,8 @@ pub fn decoder(kind: Kind, limits: &Limits) -> Decoder {
         collaborator: people::collaborator(),
         reviews: reviews::State::new(),
         files: files::State::new(limits.inner),
+        commits: commits::State::new(0),
+        commit_range: false,
         protection: protection::State::new(limits.inner),
         repository: document::Repository {
             id: 0,
@@ -113,6 +118,15 @@ pub fn merge_base_decoder(limits: &Limits) -> Decoder {
     result.walk = Walk::merge_base(limits);
     result
 }
+/// Starts a comparison decoder retaining only commit messages and range completeness.
+#[must_use]
+pub fn commits_decoder(limits: &Limits) -> Decoder {
+    let mut result = decoder(Kind::Compare, limits);
+    result.walk = Walk::commits(limits);
+    result.commits = commits::State::new(limits.inner);
+    result.commit_range = true;
+    result
+}
 /// The document a request's 2xx answer decodes as, or `None` when it is no
 /// document: a raw body, an empty answer, or a read whose decoder is not built.
 /// An answer at 300 or above decodes as `Kind::Error`, whatever the request.
@@ -143,7 +157,7 @@ pub fn kind(request: &Request) -> Option<Kind> {
         Request::CheckRuns { .. } => Kind::CheckRuns,
         Request::Job { .. } => Kind::Job,
         Request::PullFiles { .. } => Kind::FileRows,
-        Request::Compare { .. } => Kind::Compare,
+        Request::Compare { .. } | Request::Commits { .. } => Kind::Compare,
         Request::Reviews { .. } => Kind::ReviewRows,
         Request::ReviewComments { .. } => Kind::RemarkRows,
         Request::Collaborators { .. } => Kind::CollaboratorRows,
@@ -311,6 +325,11 @@ impl Decoder {
                     return Ok((tokenizer::Request::Next, Step::Row(row)));
                 }
             }
+            Move::End(Node::Range(node)) => {
+                if let Some(row) = self.commits.end(node)? {
+                    return Ok((tokenizer::Request::Next, Step::Row(row)));
+                }
+            }
             Move::End(Node::Protection(node)) => {
                 if let Some(row) = self.protection.end(node)? {
                     return Ok((tokenizer::Request::Next, Step::Row(row)));
@@ -400,7 +419,11 @@ impl Decoder {
                     Kind::Ruleset => Document::Ruleset(self.protection.ruleset()),
                     Kind::ClassicProtection => Document::ClassicProtection(self.protection.classic()),
                     Kind::Job => Document::Job(self.checks.job()),
-                    Kind::Compare => Document::Compare(self.files.document()),
+                    Kind::Compare => Document::Compare(if self.commit_range {
+                        self.commits.document()
+                    } else {
+                        self.files.document()
+                    }),
                     Kind::User => Document::User(self.user.clone()),
                     Kind::Permission => Document::Permission(self.permission),
                     Kind::Id => Document::Id(self.result),
@@ -436,6 +459,7 @@ impl Decoder {
     #[expect(clippy::too_many_lines, reason = "the dispatcher exhaustively routes every document field")]
     fn scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match (node, key, token) {
+            (Node::Range(node), key, token) => return self.commits.scalar(node, key, token),
             (Node::Protection(node), key, token) => return self.protection.scalar(node, key, token),
             (
                 node @ (Node::LogRows | Node::LogRow | Node::LogDelivery | Node::LogRequest | Node::LogHeaders),

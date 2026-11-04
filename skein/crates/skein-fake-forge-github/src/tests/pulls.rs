@@ -10,6 +10,50 @@ use skein_forge::{
 };
 
 #[test]
+fn github_fake_commit_ranges_preserve_order_and_pages() {
+    let mut h = r::harness();
+    let (_, first) = r::pull(&mut h);
+    let mut ids = skein_lib::List::with_capacity(3);
+    ids.push(first).unwrap();
+    for message in [b"second".as_slice(), b"third"] {
+        let parent = *ids.as_slice().last().unwrap();
+        let id =
+            skein_fake_forge_domain::commit_tree(&mut h.domain, &h.env.limits, parent, None, Box::new([]), message)
+                .unwrap();
+        ids.push(id).unwrap();
+    }
+    r::call(
+        &mut h,
+        a::Op::Git(a::Git::Push {
+            branch: f::boxed(b"feature"),
+            commit: *ids.as_slice().last().unwrap(),
+            expected: None,
+        }),
+    );
+    let token = r::token(&mut h);
+    let before = r::object(h.first);
+    let after = r::object(*ids.as_slice().last().unwrap());
+    for (page, expected, more) in [(1, &ids.as_slice()[..2], true), (2, &ids.as_slice()[2..], false)] {
+        let api::Answer::Commits { commits, more: found } =
+            r::read(&mut h, &token, api::Read::Commits { before, after, page }).unwrap()
+        else {
+            panic!("commit range")
+        };
+        assert_eq!(found, more);
+        assert_eq!(commits.len(), expected.len());
+        for (found, expected) in commits.iter().zip(expected) {
+            assert_eq!(found.id, r::object(*expected));
+        }
+        assert!(!commits[0].message.is_empty());
+        assert_eq!(commits[0].parents.len(), 1);
+    }
+    assert_eq!(
+        r::read(&mut h, &token, api::Read::Commits { before: after, after: before, page: 1 }).unwrap(),
+        api::Answer::Commits { commits: Box::new([]), more: false }
+    );
+}
+
+#[test]
 fn github_fake_pull_and_pull_for_drive_complete_plans() {
     let mut h = r::harness();
     let (number, commit) = r::pull(&mut h);

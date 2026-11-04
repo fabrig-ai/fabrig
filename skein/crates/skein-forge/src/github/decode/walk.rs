@@ -48,6 +48,7 @@ pub(super) enum Node {
     RemarkRows,
     ReviewRows,
     Compare,
+    Range(super::commits::Node),
     MergeBaseOnly,
     EntryRows,
     Entry,
@@ -205,6 +206,39 @@ fn pull_fields(node: PullNode) -> &'static [Field] {
         PullNode::Nodes => &[],
     }
 }
+fn range_fields(node: super::commits::Node) -> &'static [Field] {
+    use super::commits::Node as C;
+    match node {
+        C::Comparison => {
+            const {
+                &[
+                    field(b"total_commits", Read::Number),
+                    field(b"commits", Read::Container(Role::Document(Node::Range(C::Rows)))),
+                ]
+            }
+        }
+        C::Commit => {
+            const {
+                &[
+                    field(b"sha", Read::Text),
+                    field(b"parents", Read::Container(Role::Document(Node::Range(C::Parents)))),
+                    field(b"commit", Read::Container(Role::Document(Node::Range(C::Message)))),
+                ]
+            }
+        }
+        C::Message => const { &[field(b"message", Read::Body)] },
+        C::Parent => const { &[field(b"sha", Read::Text)] },
+        C::Rows | C::Parents => &[],
+    }
+}
+fn range_element(node: super::commits::Node) -> Option<Role> {
+    use super::commits::Node as C;
+    match node {
+        C::Rows => Some(Role::Document(Node::Range(C::Commit))),
+        C::Parents => Some(Role::Document(Node::Range(C::Parent))),
+        C::Comparison | C::Commit | C::Message | C::Parent => None,
+    }
+}
 fn issue_fields() -> &'static [Field] {
     const {
         &[
@@ -262,6 +296,7 @@ fn document_fields(node: Node) -> &'static [Field] {
         }
         Node::LogHeaders => const { &[field(b"X-GitHub-Event", Read::Text), field(b"X-GitHub-Delivery", Read::Text)] },
         Node::PullGraphql(node) => pull_fields(node),
+        Node::Range(node) => range_fields(node),
         Node::Compare => {
             const {
                 &[
@@ -524,6 +559,7 @@ fn element(role: Role) -> Option<Role> {
         Role::Payload(_) => return None,
     };
     match node {
+        Node::Range(node) => range_element(node),
         Node::Protection(node) => protection::element(node),
         Node::JobSteps => Some(Role::Document(Node::JobStep)),
         Node::LogRows => Some(Role::Document(Node::LogRow)),
@@ -708,6 +744,9 @@ impl Walk {
         let mut walk = Self::root(Role::Document(node), limits);
         walk.enqueue = kind == document::Kind::Enqueue;
         walk
+    }
+    pub(super) fn commits(limits: &Limits) -> Self {
+        Self::root(Role::Document(Node::Range(super::commits::Node::Comparison)), limits)
     }
     pub(super) fn merge_base(limits: &Limits) -> Self {
         Self::root(Role::Document(Node::MergeBaseOnly), limits)
