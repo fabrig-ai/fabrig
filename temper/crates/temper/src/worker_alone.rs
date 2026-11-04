@@ -25,11 +25,9 @@ pub(super) fn prepare(
     let mut service = service::startup::worker_alone(part, &files, &agent, runtime, seed)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if let Some(program) = agent.programs.first() {
-        let resources = service::program_sources::Resources::configured(
-            program,
-            configuration.service.environment.command_entries(),
-        )
-        .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
+        let resources =
+            service::program_sources::configured(program, configuration.service.environment.command_entries())
+                .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
         service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
     }
     Ok(service)

@@ -1542,10 +1542,7 @@ fn exact_read_batch_limits(content: &[Block], short: bool) -> Limits {
     for block in content {
         let Block::ToolCall { id, .. } = block else { panic!("fixture calls") };
         held = held
-            .checked_add(
-                u64::try_from(size_of::<Block>().checked_add(id.len()).expect("result skeleton"))
-                    .expect("skeleton fits"),
-            )
+            .checked_add(skein_lib::len_u64(size_of::<Block>().checked_add(id.len()).expect("result skeleton")))
             .expect("both result skeletons");
     }
     let bytes = initial_bytes()

@@ -165,7 +165,7 @@ pub(super) fn connect_server(backend: &mut Backend) {
     let secret = mcp::secret_text(&[7; 32]);
     server.from_io(
         env(0).now,
-        io::Event::Stream { owner, up: skein_lib::stream::Up::Bytes(mcp::json::join(&[&secret, b"\n"])) },
+        io::Event::Stream { owner, up: skein_lib::stream::Up::Bytes(skein_lib::bytes::concat(&[&secret, b"\n"])) },
         &mut io,
     );
     let right = io

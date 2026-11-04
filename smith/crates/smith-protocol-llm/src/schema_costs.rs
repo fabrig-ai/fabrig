@@ -81,8 +81,9 @@ pub fn schema_costs() -> Result<SchemaCosts, Error> {
     })
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "retains the private accounting signature across its callers")]
 fn length(bytes: &[u8]) -> Result<u64, Error> {
-    u64::try_from(bytes.len()).or(Err(Error::Limit))
+    Ok(skein_lib::len_u64(bytes.len()))
 }
 
 fn escaped() -> Result<[u8; 256], Error> {

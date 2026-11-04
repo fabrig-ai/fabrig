@@ -37,6 +37,7 @@ smith-channel.workspace = true
 smith-host-protocol = { workspace = true, features = ["fixture"] }
 smith-local-protocol = { workspace = true, features = ["fixture"] }
 
+# The crate's tests turn on its own fixture feature.
 smith-local-service = { path = ".", features = ["fixture"] }
 smith-local-domain = { workspace = true, features = ["fixture"] }
 skein-fake-oauth.workspace = true

@@ -25,7 +25,7 @@ fn request(
     version: bool,
     body: &[u8],
 ) -> Vec<u8> {
-    let mut bytes = format!("{method} {target} HTTP/1.1\r\n").into_bytes();
+    let mut bytes = format!("{method} {target} HTTP/1.1\r\nHost: github.test\r\n").into_bytes();
     if agent {
         bytes.extend_from_slice(b"User-Agent: kit/0.0.0\r\n");
     }

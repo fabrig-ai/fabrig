@@ -5,6 +5,7 @@ use skein_oauth_accounts as driver;
 
 pub(super) fn resolve(engine: &config::Engine) -> Result<service::AccountsRuntime, String> {
     let mut runtime = service::AccountsRuntime {
+        trust: None,
         providers: List::with_capacity(u32::try_from(engine.llm.providers.len()).expect("provider count")),
     };
     for provider in &engine.llm.providers {

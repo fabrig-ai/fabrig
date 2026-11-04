@@ -231,6 +231,7 @@ members = [
     "jig/crates/jig-protocol-engine-workers",
     "jig/tests/engine-workers",
     "jig/crates/jig-protocol-worker-link",
+    "jig/crates/jig-protocol-worker-agents",
     "jig/tests/worker-link",
     "jig/tests/channel",
     "temper/crates/temper-settings-form",
@@ -422,6 +423,7 @@ jig-test-worker = { path = "jig/testing/jig-test-worker" }
 jig-protocol-engine-workers = { path = "jig/crates/jig-protocol-engine-workers" }
 jig-protocol-accounts = { path = "jig/crates/jig-protocol-accounts" }
 jig-protocol-worker-link = { path = "jig/crates/jig-protocol-worker-link" }
+jig-protocol-worker-agents = { path = "jig/crates/jig-protocol-worker-agents" }
 jig-protocol-worker-wire = { path = "jig/crates/jig-protocol-worker-wire" }
 jig-client-protocol-wire = { path = "jig/crates/jig-client-protocol-wire" }
 jig-protocol-config = { path = "jig/crates/jig-protocol-config" }

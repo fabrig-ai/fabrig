@@ -25,7 +25,7 @@ fn incomplete_and_admin_bundles_stop_before_any_plan() {
         let value = records::encode_pasted(items.as_slice()).unwrap();
         let digest = skein_lib::sha256::digest(value.expose());
         engine.store.secrets(Token::new(901), fixtures::application_request(records::CARRIED, value));
-        assert!(engine.store.above.pop().is_some());
+        assert!(engine.store.host.above.pop().is_some());
         public::tokens_connect(
             engine,
             1,
@@ -133,7 +133,7 @@ pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
             }))),
         ]),
     );
-    assert!(store.above.pop().is_some());
+    assert!(store.host.above.pop().is_some());
     let mut service =
         crate::Service::engine(empty_settings(), &fixtures::seeds(), None, List::with_capacity(0)).unwrap();
     service.engine.as_mut().unwrap().store = store;
@@ -257,11 +257,11 @@ fn turn(service: &mut crate::Service, forge: &mut Forge, tokens: &Tokens, trace:
         crate::engine::answer(engine);
         trace.scan(engine, tokens);
         // Keep the next completion across one service pass so every durable boundary is observed.
-        let mut held = core::mem::replace(&mut engine.store.above, Queue::with_capacity(64));
+        let mut held = core::mem::replace(&mut engine.store.host.above, Queue::with_capacity(64));
         crate::engine::iterate(engine, engine.env.now, Wall::EPOCH);
         trace.scan(engine, tokens);
         while let Some(event) = held.pop() {
-            engine.store.above.push(event);
+            engine.store.host.above.push(event);
         }
     }
     forge.service.reclaim();
@@ -570,7 +570,7 @@ fn changed_digest_and_other_bundle_version_stop_before_any_plan() {
             digest[0] ^= 1;
         }
         engine.store.secrets(Token::new(901), fixtures::application_request(records::CARRIED, value));
-        assert!(engine.store.above.pop().is_some());
+        assert!(engine.store.host.above.pop().is_some());
         public::tokens_connect(
             engine,
             1,

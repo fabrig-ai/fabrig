@@ -814,7 +814,7 @@ impl Text {
     fn put(&mut self, bytes: &[u8]) {
         self.len = self.len.saturating_add(bytes.len());
         if self.host {
-            self.add_host(u64::try_from(bytes.len()).unwrap_or(u64::MAX));
+            self.add_host(skein_lib::len_u64(bytes.len()));
         }
         if let Some(writer) = &mut self.writer {
             writer.put(bytes).expect("a text is written as it was measured");

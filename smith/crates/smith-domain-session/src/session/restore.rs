@@ -553,10 +553,7 @@ pub(super) fn next_result(blocks: &[Block], next: &mut u32) -> Result<Option<u32
 
 pub(super) fn recorded_shape(message: &Message, limits: &Limits) -> Result<(), crate::record::Refusal> {
     let fixed = match u64::try_from(size_of::<Block>()).ok() {
-        Some(block) => match u64::try_from(message.content.len()).ok() {
-            Some(count) => block.checked_mul(count),
-            None => None,
-        },
+        Some(block) => block.checked_mul(skein_lib::len_u64(message.content.len())),
         None => None,
     };
     match fixed {

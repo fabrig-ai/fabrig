@@ -5,15 +5,18 @@ use skein_lib::{Queue, Time, Token};
 
 const CANARY: &[u8] = b"canary-7f3a9c";
 
-fn resources() -> crate::program_sources::Resources {
+fn resources() -> crate::sources::Resources {
     let bytes = b"API_KEY=".len().checked_add(CANARY.len()).expect("entry length fits");
     let mut entry = skein_lib::Writer::new(bytes);
     entry.put(b"API_KEY=").expect("environment key fits");
     entry.put(CANARY).expect("canary fits");
-    crate::program_sources::Resources::from_paths(
-        Box::from(b"/private/logins".as_slice()),
-        Box::from(b"/private/program".as_slice()),
+    crate::sources::Resources::new(
+        smith_protocol_program::Programs {
+            directory: Box::from(b"/private/logins".as_slice()),
+            claude: Box::from(b"/private/program".as_slice()),
+        },
         Box::new([entry.finish()]),
+        1024,
     )
     .expect("explicit command resources fit")
 }
@@ -30,7 +33,7 @@ fn program_resources_debug_shows_only_counts() {
 
 #[test]
 fn a_configured_component_formats_without_the_environment() {
-    let mut component = crate::program_sources::Component::new(64);
+    let mut component = crate::sources::Component::new(64);
     component.configure(resources()).expect("idle component accepts resources");
     let debug = alloc::fmt::format(format_args!("{component:?}"));
     assert!(skein_lib::bytes::find(debug.as_bytes(), CANARY).is_none());
@@ -41,7 +44,7 @@ fn a_configured_component_formats_without_the_environment() {
 
 #[test]
 fn a_stored_name_smith_refuses_answers_unconfigured() {
-    let mut component = crate::program_sources::Component::new(64);
+    let mut component = crate::sources::Component::new(64);
     component.configure(resources()).expect("idle component accepts resources");
     let name = jig::SourceName::from_stored(b"Upper-Case").expect("stored name fits");
     let owner = Token::new(1);
@@ -62,15 +65,12 @@ fn a_stored_name_smith_refuses_answers_unconfigured() {
             }),
         ),
     ] {
-        let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
-        component.start(owner, io_owner, name, operation, Fd::new(9), Time::ZERO, &mut above, &mut below);
-        let jig::Event::SourceAnswered { owner: answered, answer } = above.pop().expect("source answer") else {
-            panic!("expected a source answer");
-        };
+        let (answered, answer) = component
+            .start(owner, io_owner, name, operation, Fd::new(9), Time::ZERO, &mut below)
+            .expect("source answer");
         assert_eq!(answered, owner);
         assert_eq!(answer, expected);
-        assert!(above.is_empty());
         assert!(below.is_empty());
         assert!(component.settled());
     }

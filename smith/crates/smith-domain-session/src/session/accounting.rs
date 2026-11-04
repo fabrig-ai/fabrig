@@ -256,7 +256,7 @@ pub(super) fn receive_result(conversation: &mut Conversation, credit: u64, resul
 /// message.
 pub(super) fn spec_cost(model: &[u8], system: &[u8], delegated: &[Descriptor], content: &[Block]) -> Option<u64> {
     let descriptor = u64::try_from(size_of::<Descriptor>()).ok()?;
-    let delegated = descriptor.checked_mul(u64::try_from(delegated.len()).ok()?)?;
+    let delegated = descriptor.checked_mul(skein_lib::len_u64(delegated.len()))?;
     len(model)?.checked_add(len(system)?)?.checked_add(delegated)?.checked_add(content_cost(content)?)
 }
 
@@ -365,14 +365,14 @@ pub(super) fn outcome_cost(outcome: &Outcome) -> Option<u64> {
         | Outcome::ReadOnly { path } => path.owned_bytes(),
         Outcome::Read { content, .. } => len(content),
         Outcome::Listed { entries, more: _ } => {
-            let mut cost = u64::try_from(size_of::<Entry>()).ok()?.checked_mul(u64::try_from(entries.len()).ok()?)?;
+            let mut cost = u64::try_from(size_of::<Entry>()).ok()?.checked_mul(skein_lib::len_u64(entries.len()))?;
             for entry in entries {
                 cost = cost.checked_add(len(entry.name.as_ref())?)?;
             }
             Some(cost)
         }
         Outcome::Found { hits, more: _, timed_out: _ } => {
-            let mut cost = u64::try_from(size_of::<tools::Hit>()).ok()?.checked_mul(u64::try_from(hits.len()).ok()?)?;
+            let mut cost = u64::try_from(size_of::<tools::Hit>()).ok()?.checked_mul(skein_lib::len_u64(hits.len()))?;
             for hit in hits {
                 cost = cost.checked_add(len(&hit.path)?)?.checked_add(len(&hit.text)?)?;
             }
@@ -383,7 +383,7 @@ pub(super) fn outcome_cost(outcome: &Outcome) -> Option<u64> {
         }
         Outcome::EditFailed { edit: _, why } => match why {
             tools::Mismatch::Ambiguous { count: _, lines } => {
-                u64::try_from(size_of::<u32>()).ok()?.checked_mul(u64::try_from(lines.len()).ok()?)
+                u64::try_from(size_of::<u32>()).ok()?.checked_mul(skein_lib::len_u64(lines.len()))
             }
             tools::Mismatch::NoMatch | tools::Mismatch::Unchanged => Some(0),
         },
@@ -421,8 +421,9 @@ pub(super) fn problem_cost(problem: &Problem) -> Option<u64> {
     }
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "retains the private accounting signature across its callers")]
 pub(super) fn len(bytes: &[u8]) -> Option<u64> {
-    u64::try_from(bytes.len()).ok()
+    Some(skein_lib::len_u64(bytes.len()))
 }
 
 /// A count for a fact, which saturates rather than fails: facts decide

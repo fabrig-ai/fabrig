@@ -139,7 +139,7 @@ impl Store {
             | Terminal::Committed(_)
             | Terminal::Fault(_)) => return malformed(record, super::event_fault(record, event), out),
         };
-        records.total = match records.total.checked_add(u64::try_from(bytes.len()).expect("file bytes fit")) {
+        records.total = match records.total.checked_add(skein_lib::len_u64(bytes.len())) {
             Some(total) if total <= u64::from(self.limits.file_bytes) => total,
             Some(_) | None => return malformed(record, StoreFault::TooLarge { file: record }, out),
         };

@@ -469,29 +469,29 @@ impl Call {
             Call::Read { path, offset: _, window: _ } | Call::Remove { path } => owned_path(path),
             Call::List { path, depth: _, glob } => {
                 let filter = match glob {
-                    Some(filter) => owned_len(filter)?,
+                    Some(filter) => owned_len(filter),
                     None => 0,
                 };
                 owned_path(path)?.checked_add(filter)
             }
             Call::Search { path, pattern, glob } => {
                 let glob = match glob {
-                    Some(glob) => owned_len(glob)?,
+                    Some(glob) => owned_len(glob),
                     None => 0,
                 };
-                owned_path(path)?.checked_add(owned_len(pattern)?)?.checked_add(glob)
+                owned_path(path)?.checked_add(owned_len(pattern))?.checked_add(glob)
             }
-            Call::Write { path, content } => owned_path(path)?.checked_add(owned_len(content)?),
+            Call::Write { path, content } => owned_path(path)?.checked_add(owned_len(content)),
             Call::Edit { path, edits } => {
                 let mut cost = owned_path(path)?.checked_add(
-                    u64::try_from(size_of::<Replacement>()).ok()?.checked_mul(u64::try_from(edits.len()).ok()?)?,
+                    u64::try_from(size_of::<Replacement>()).ok()?.checked_mul(skein_lib::len_u64(edits.len()))?,
                 )?;
                 for replacement in edits {
-                    cost = cost.checked_add(owned_len(&replacement.old)?)?.checked_add(owned_len(&replacement.new)?)?;
+                    cost = cost.checked_add(owned_len(&replacement.old))?.checked_add(owned_len(&replacement.new))?;
                 }
                 Some(cost)
             }
-            Call::Shell { command, .. } => owned_len(command),
+            Call::Shell { command, .. } => Some(owned_len(command)),
             Call::Job { .. } => Some(0),
         };
         u64::try_from(size_of::<Self>()).ok()?.checked_add(payload?)
@@ -499,17 +499,17 @@ impl Call {
 }
 
 fn owned_path(path: &Path) -> Option<u64> {
-    let parts = u64::try_from(size_of::<Part>()).ok()?.checked_mul(u64::try_from(path.parts.len()).ok()?)?;
+    let parts = u64::try_from(size_of::<Part>()).ok()?.checked_mul(skein_lib::len_u64(path.parts.len()))?;
     let mut cost = parts;
     for part in &path.parts {
         match part {
-            Part::Name { name } => cost = cost.checked_add(owned_len(name.as_bytes())?)?,
+            Part::Name { name } => cost = cost.checked_add(owned_len(name.as_bytes()))?,
             Part::Current | Part::Parent => {}
         }
     }
     Some(cost)
 }
 
-fn owned_len(bytes: &[u8]) -> Option<u64> {
-    u64::try_from(bytes.len()).ok()
+fn owned_len(bytes: &[u8]) -> u64 {
+    skein_lib::len_u64(bytes.len())
 }

@@ -32,9 +32,11 @@ pub enum Event {
     Closed,
 }
 #[expect(missing_debug_implementations, reason = "HTTP heads and body intake can contain credentials")]
+#[expect(clippy::struct_excessive_bools, reason = "connection flags track independent HTTP and listener facts")]
 pub struct Server {
     owner: Token,
     blob: bool,
+    charset: bool,
     first_byte: bool,
     issue_write: bool,
     state: State,
@@ -57,6 +59,7 @@ impl Server {
         Ok(Self {
             owner,
             blob: false,
+            charset: false,
             first_byte: false,
             issue_write: false,
             state: State::New,
@@ -78,10 +81,20 @@ impl Server {
         server.blob = true;
         Ok(server)
     }
-    /// Takes the head with every Authorization value removed.
-    fn head_pending(&self) -> bool {
+    pub(crate) fn charset(mut self) -> Self {
+        self.charset = true;
+        self
+    }
+    /// The request in hand's Authorization value, until it is dispatched. A world's tally reads it beside
+    /// `take_head`, which blanks the head's own.
+    #[must_use]
+    pub fn credential(&self) -> Option<&[u8]> {
+        self.call.as_ref()?.header(b"authorization")
+    }
+    pub(crate) fn head_pending(&self) -> bool {
         self.head.is_some()
     }
+    /// Takes the head with every Authorization value removed.
     pub fn take_head(&mut self) -> Option<http::Call> {
         self.head.take()
     }
@@ -624,7 +637,14 @@ fn respond(server: &mut Server, limits: &Limits, mut reply: Response, mut locati
     let length = if bodyless { 0 } else { skein_lib::len_u64(reply.body.len()) };
     if length > 0 {
         headers
-            .push(Header { name: bytes::copy_of(b"Content-Type"), value: bytes::copy_of(reply.content_type.bytes()) })
+            .push(Header {
+                name: bytes::copy_of(b"Content-Type"),
+                value: bytes::copy_of(if server.charset {
+                    reply.content_type.charset()
+                } else {
+                    reply.content_type.bytes()
+                }),
+            })
             .expect("media slot");
     }
     server.state = State::Streaming;

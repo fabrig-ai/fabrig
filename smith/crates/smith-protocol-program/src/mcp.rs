@@ -505,13 +505,19 @@ impl Server {
                 if updated_input.len() <= usize::try_from(bound).expect("u32 fits usize")
                     && json::collect(&updated_input).is_some()
                 {
-                    Some(json::join(&[b"{\"behavior\":\"allow\",\"updatedInput\":", &updated_input, b"}"]))
+                    Some(skein_lib::bytes::concat(&[
+                        b"{\"behavior\":\"allow\",\"updatedInput\":",
+                        &updated_input,
+                        b"}",
+                    ]))
                 } else {
                     None
                 }
             }
             Verdict::Deny { message } => match json::quote(&message, bound) {
-                Some(message) => Some(json::join(&[b"{\"behavior\":\"deny\",\"message\":", &message, b"}"])),
+                Some(message) => {
+                    Some(skein_lib::bytes::concat(&[b"{\"behavior\":\"deny\",\"message\":", &message, b"}"]))
+                }
                 None => None,
             },
         };
