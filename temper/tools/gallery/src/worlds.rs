@@ -521,14 +521,13 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
                 branch: Box::from(branch),
                 landing: Box::from(b"main".as_slice()),
                 head: Some(head),
-                pull: Some(
-                    w::Pull::new(&l, w::PullParts { number: pull_number, address: Box::from(pull_address) })
-                        .expect("pull"),
-                ),
+                pull: Some(gallery_pull(&l, pull_number, pull_address)),
                 step,
                 hold: None,
                 runs: None,
                 ci: w::Ci::Passed,
+                approvals: List::with_capacity(0),
+                unmapped_reviews: List::with_capacity(0),
                 gates: List::with_capacity(0),
                 repairs: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("repairs"),
                 resolutions: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("resolutions"),
@@ -546,6 +545,14 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         )
         .expect("change panel"),
     )
+}
+fn gallery_pull(
+    limits: &temper_client_protocol_wire::v1::Limits,
+    number: u64,
+    address: &[u8],
+) -> temper_client_protocol_wire::v1::Pull {
+    use temper_client_protocol_wire::v1 as w;
+    w::Pull::new(limits, w::PullParts { number, address: Box::from(address) }).expect("pull")
 }
 fn deployment_read(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};

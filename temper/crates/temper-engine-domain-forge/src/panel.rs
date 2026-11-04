@@ -69,6 +69,44 @@ pub enum PanelStands {
     Asked,
     Held,
 }
+/// Last judged reviews, unsaved and bound to the merge head (domain/forge.md, 8.7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ReviewFacts {
+    pub head: Option<[u8; 32]>,
+    pub reviews_complete: bool,
+    pub reviewers: Box<[crate::Reviewer]>,
+    pub unmapped: Box<[UnmappedReview]>,
+}
+/// A forge account without a verified project person; its display name grants nothing.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct UnmappedReview {
+    pub account: u64,
+    pub head: [u8; 32],
+    pub verdict: skein_forge::api::Verdict,
+}
+/// Whether the current head's reviews have been read whole.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ReviewRead {
+    /// No judged reviews at the current head, including after restart.
+    Unread,
+    /// Reviews were read only in part.
+    Incomplete,
+    /// The current head's review set was read whole.
+    Complete,
+}
+/// One enforcing landing rule's approval requirement and its counted reviews.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PanelApproval {
+    pub scope: u32,
+    pub rule: u32,
+    pub role: u32,
+    pub freshness: crate::JudgeFreshness,
+    pub required: u32,
+    pub read: ReviewRead,
+    pub counted: Box<[crate::Reviewer]>,
+    pub remaining: Option<u32>,
+    pub refused: bool,
+}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Panel {
     pub way: change::Way,
@@ -86,12 +124,24 @@ pub struct Panel {
     pub runs: Option<u64>,
     pub ci: change::Status,
     pub gates: Box<[PanelGate]>,
+    pub approvals: Box<[PanelApproval]>,
+    pub unmapped_reviews: Box<[UnmappedReview]>,
     pub repairs: PanelUsed,
     pub resolutions: PanelUsed,
     pub updates: PanelUsed,
     pub questions: PanelQuestions,
 }
 impl Panel {
+    /// Heap bytes owned by the approval explanation, charged at document admission.
+    #[must_use]
+    pub fn approval_bytes(&self) -> usize {
+        let mut bytes =
+            size_of_val(self.approvals.as_ref()).saturating_add(size_of_val(self.unmapped_reviews.as_ref()));
+        for approval in &self.approvals {
+            bytes = bytes.saturating_add(size_of_val(approval.counted.as_ref()));
+        }
+        bytes
+    }
     #[must_use]
     pub fn within(&self) -> bool {
         let names = skein_lib::usize_of(PANEL_NAME_BYTES);
@@ -100,6 +150,8 @@ impl Panel {
             && self.branch.len() <= names
             && self.landing.len() <= names
             && self.gates.len() <= skein_lib::usize_of(PANEL_GATES)
+            && approvals_within(&self.approvals)
+            && self.unmapped_reviews.len() <= 256
             && self.questions.open.len() <= 8
             && question_lines_within(&self.questions.open)
             && match &self.step {
@@ -225,29 +277,6 @@ impl Domain {
             change::State::Held { .. } => unreachable!("held steps unwrapped"),
         };
         let head = row.change.last_head;
-        let mut gates = List::with_capacity(PANEL_GATES);
-        for gate in &row.change.gates {
-            let mut verdict = change::Status::Unknown;
-            for report in &row.verdicts {
-                if gate.number == report.number
-                    && head.is_some()
-                    && (Some(report.head) == head
-                        || (gate.freshness == change::Freshness::Clean && row.change.clean.contains(&report.head)))
-                {
-                    verdict = worse(verdict, report.status);
-                }
-            }
-            // A gate whose review runs at the current head is pending until it reports.
-            if let Some((_, change::Delegate::Gate { number, head: asked })) = row.delegate
-                && number == gate.number
-                && Some(asked) == head
-            {
-                verdict = worse(verdict, change::Status::Pending);
-            }
-            gates
-                .push(PanelGate { number: gate.number, kind: gate.kind, blocking: gate.blocking, verdict })
-                .expect("admitted panel gates");
-        }
         let read = if row.terminal() { row.ci.as_ref() } else { self.panel_ci.get(&task) };
         let ci = match read {
             Some(read) if Some(read.head) == head => read.status,
@@ -289,7 +318,9 @@ impl Domain {
                 None => None,
             },
             ci,
-            gates: gates.into_boxed(),
+            gates: panel_gates(row, head),
+            approvals: self.panel_approvals(row),
+            unmapped_reviews: self.panel_unmapped(row),
             repairs: PanelUsed { used: row.change.repairs, limit: limits.change_policy.repairs },
             resolutions: PanelUsed { used: row.change.resolutions, limit: limits.change_policy.resolutions },
             updates: PanelUsed { used: row.change.updates, limit: limits.change_policy.updates },
@@ -302,6 +333,32 @@ impl Domain {
         assert!(panel.within(), "admitted change fits the panel");
         Some(panel)
     }
+}
+fn panel_gates(row: &ChangeRow, head: Option<[u8; 32]>) -> Box<[PanelGate]> {
+    let mut gates = List::with_capacity(PANEL_GATES);
+    for gate in &row.change.gates {
+        let mut verdict = change::Status::Unknown;
+        for report in &row.verdicts {
+            if gate.number == report.number
+                && head.is_some()
+                && (Some(report.head) == head
+                    || (gate.freshness == change::Freshness::Clean && row.change.clean.contains(&report.head)))
+            {
+                verdict = worse(verdict, report.status);
+            }
+        }
+        // A gate whose review runs at the current head is pending until it reports.
+        if let Some((_, change::Delegate::Gate { number, head: asked })) = row.delegate
+            && number == gate.number
+            && Some(asked) == head
+        {
+            verdict = worse(verdict, change::Status::Pending);
+        }
+        gates
+            .push(PanelGate { number: gate.number, kind: gate.kind, blocking: gate.blocking, verdict })
+            .expect("admitted panel gates");
+    }
+    gates.into_boxed()
 }
 fn worse(a: change::Status, b: change::Status) -> change::Status {
     use change::Status::{Failed, Passed, Pending, Unknown};
@@ -437,4 +494,16 @@ fn tier_blame(blame: &temper_engine_domain_forge_tiers::Blame) -> Box<[u8]> {
         }
     }
     line.into_boxed()
+}
+
+fn approvals_within(approvals: &[PanelApproval]) -> bool {
+    if approvals.len() > 8192 {
+        return false;
+    }
+    for approval in approvals {
+        if approval.counted.len() > 256 {
+            return false;
+        }
+    }
+    true
 }

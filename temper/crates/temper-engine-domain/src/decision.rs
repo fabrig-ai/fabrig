@@ -443,9 +443,8 @@ impl Decision {
                     .saturating_add(panel.name.len())
                     .saturating_add(panel.branch.len())
                     .saturating_add(panel.landing.len())
-                    .saturating_add(
-                        panel.gates.len().saturating_mul(size_of::<temper_engine_domain_forge::PanelGate>()),
-                    );
+                    .saturating_add(panel.approval_bytes())
+                    .saturating_add(size_of_val(panel.gates.as_ref()));
                 if let temper_engine_domain_forge::PanelStep::Queued { ahead, .. } = &panel.step {
                     owned = owned.saturating_add(ahead.len().saturating_mul(size_of::<u64>()));
                 }

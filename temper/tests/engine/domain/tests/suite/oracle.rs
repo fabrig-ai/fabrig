@@ -102,6 +102,8 @@ fn live_ci_is_rebuilt_but_terminal_ci_and_task_identity_are_durable() {
         runs: None,
         ci: Status::Pending,
         gates: Box::new([]),
+        approvals: Box::new([]),
+        unmapped_reviews: Box::new([]),
         repairs: PanelUsed { used: 0, limit: 3 },
         resolutions: PanelUsed { used: 0, limit: 3 },
         updates: PanelUsed { used: 0, limit: 3 },
