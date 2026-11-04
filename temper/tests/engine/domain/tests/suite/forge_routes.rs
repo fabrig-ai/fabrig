@@ -20,6 +20,9 @@ use temper_engine_domain_world::{protocol, walking};
 
 use temper_engine_forge_world::{self as forge_world, translate};
 
+#[path = "forge_routes/approval_identity.rs"]
+mod approval_identity;
+
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
 #[path = "forge_routes/resource_admission.rs"]
