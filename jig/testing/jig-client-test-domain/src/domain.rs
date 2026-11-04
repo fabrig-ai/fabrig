@@ -81,8 +81,14 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     first::fire(&mut root.first, &env.with(env.limits.first), &mut child);
     route::route_first(root, env, &mut child, out);
     let mut client = Queue::uncapped();
-    root.client.fire(env.now, env.wall, &mut client);
-    route::route_client(root, env, &mut client, out);
+    let mut unlinked = Queue::uncapped();
+    if root.unlinked {
+        root.client.fire_unlinked(env.now, env.wall, &mut unlinked);
+        route::route_unlinked(root, env, &mut unlinked, out);
+    } else {
+        root.client.fire(env.now, env.wall, &mut client);
+        route::route_client(root, env, &mut client, out);
+    }
     children_first(out);
 }
 #[must_use]
@@ -121,7 +127,7 @@ fn children_first(out: &mut Queue<Request>) {
     for _ in 0..out.len() {
         let request = out.pop().expect("counted root output");
         match request {
-            Request::Client { .. } => client.push(request),
+            Request::Client { .. } | Request::Unlinked { .. } => client.push(request),
             request @ (Request::Save { .. }
             | Request::Erase { .. }
             | Request::First(_)

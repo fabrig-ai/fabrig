@@ -74,7 +74,7 @@ fn the_reference_ui_s_records_leave_before_the_step_s_exchanges() {
     let mut stored = false;
     for row in rows {
         match row {
-            Request::Client { .. } => exchange = true,
+            Request::Client { .. } | Request::Unlinked { .. } => exchange = true,
             Request::Save { .. } | Request::Erase { .. } => {
                 assert!(!exchange, "child records precede transport work");
                 stored = true;
