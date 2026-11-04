@@ -12,7 +12,7 @@ pub(crate) struct Peer {
     consumed: usize,
     demand: Demand,
     pub reset: bool,
-    tls: Option<Server>,
+    pub tls: Option<Server>,
     cut: Option<crate::tls::HandshakeCut>,
     pub flight_length: Option<usize>,
     pub failure: Option<bool>,
