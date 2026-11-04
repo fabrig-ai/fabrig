@@ -274,20 +274,11 @@ pub(super) fn held(content: &[Block], calls: u32, choice: &ToolChoice, names: Op
         if !chosen(choice, block) {
             cost = cost.checked_add(choice_bytes(names))?;
         }
-        match block {
-            Block::ToolCall(crate::llm::ToolCall { id, name: _, input: _, call: Decoded::Invalid { problem, .. }, .. }) => {
-                cost = cost.checked_add(len(id)?)?.checked_add(problem_cost(problem)?)?;
-            }
-            Block::ToolCall(crate::llm::ToolCall {
-                id,
-                name: _,
-                input: _,
-                call: Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Historical,
-                ..
-            }) => {
-                cost = cost.checked_add(len(id)?)?;
-            }
-            Block::Opaque { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::ToolResult { .. } => {}
+        let Some(call) = block.tool_call() else { continue };
+        cost = cost.checked_add(len(&call.id)?)?;
+        match &call.call {
+            Decoded::Invalid { problem, .. } => cost = cost.checked_add(problem_cost(problem)?)?,
+            Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Historical => {}
         }
     }
     Some(cost)
@@ -314,18 +305,18 @@ pub(super) fn payload_cost(block: &Block) -> Option<u64> {
             len(text)?.checked_add(replay_cost(replay.as_ref())?)
         }
         Block::Opaque { bytes } => len(bytes),
-        Block::ToolCall(crate::llm::ToolCall { id, name, input, call, replay }) => {
+        Block::ToolCall(call) => {
             // A delegated call is the opener's to hold.
-            let decoded = match call {
+            let decoded = match &call.call {
                 Decoded::Owned { call } => call_cost(call)?,
                 Decoded::Builtin { .. } | Decoded::Delegated { .. } | Decoded::Historical => 0,
                 Decoded::Invalid { problem, .. } => problem_cost(problem)?,
             };
-            len(id)?
-                .checked_add(len(name)?)?
-                .checked_add(len(input)?)?
+            len(&call.id)?
+                .checked_add(len(&call.name)?)?
+                .checked_add(len(&call.input)?)?
                 .checked_add(decoded)?
-                .checked_add(replay_cost(replay.as_ref())?)
+                .checked_add(replay_cost(call.replay.as_ref())?)
         }
         Block::ToolResult { id, result } => len(id)?.checked_add(returned_cost(result)?),
     }
