@@ -1,6 +1,6 @@
 # Status
 
-2026-11-03. Where jig's code lags or departs from its design, from the
+2026-11-04. Where jig's code lags or departs from its design, from the
 status files below. Agents in a host's own process are the widest gap:
 no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
@@ -14,7 +14,9 @@ application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, and the
 core world's restore stories are ignored (`domain/engine.md`,
-`domain/connectors.md`).
+`domain/connectors.md`). A start does not check an application's declared
+kinds against its limits, and a project's deletion as a whole has no price
+against `journal.writes` (`domain/engine.md`).
 Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,
 markers, a drain and a conversation's questions lag (`domain/people.md`,
 `domain/tasks.md`, `domain/engine.md`, `client/domain/contract.md`); of
@@ -26,7 +28,7 @@ is offered in no project's document (`client/domain/contract.md`).
 Public reading's remaining departure is the public index's memory fit
 check (`protocol/configuration.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
-`client/domain/contract.md`, `domain/people.md`, `domain/root.md`, `examples.md`,
+`client/domain/contract.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`, `examples.md`,
 `protocol/README.md`, `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
 `domain/providers.md`, `client/domain/README.md` and
 `protocol/browser.md` have no gap of their own. jig has no drafts.

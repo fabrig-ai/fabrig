@@ -1,6 +1,6 @@
 # contract: status
 
-2026-11-03. Where jig's code lags or departs from [contract.md](contract.md).
+2026-11-04. Where jig's code lags or departs from [contract.md](contract.md).
 
 - **Departs:** 4: answers give typed lacking facts, how an object ended,
   and who decided it and how; the client wire carries these fields, but

@@ -6,7 +6,9 @@ milestone stands in the code (`README.md`). After landing is built for
 a repository's tiers, a goal branch's own tier, their verdicts, a red's
 news to its goal, a repair naming its red and a change living to
 cleared; a red of no goal's, trailers, what the forge shows and the
-landing log are not (`domain/after-landing.md`, `protocol/store.md`), nor are
+landing log are not (`domain/after-landing.md`, `protocol/store.md`), and a
+red range's probes walk its landings in order rather than bisect them
+(`domain/after-landing.md`); nor are
 findings, whole (`domain/findings.md`, with their families in
 `protocol/store.md` and their groups in `client/tools.md`). The worker
 runs temper's merge kind, and the merge job settles a change's conflict
@@ -23,7 +25,8 @@ forge's world tells none of their stories (`domain/forge.md`,
 for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story asks
-from a repair or a resolution (`domain/forge.md`), and neither a
+from a repair or a resolution and a step short of message room loses a
+foreman's verdict (`domain/forge.md`), and neither a
 project's question route nor the foremen's charter is a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
@@ -32,7 +35,10 @@ the joined client world are ignored (`protocol/configuration.md`,
 in the stock and the reference pages it reads are built, but its runs
 cannot read a project's own policy (`domain/agent.md`), and a charter's
 `tools` decides only whether its runs are offered the settings family
-(`protocol/configuration.md`). The
+(`protocol/configuration.md`). The limits' check leaves temper's kinds out
+of the settings answer's bound (`domain/root.md`), and a change's refusal
+omits what authority it lacked and which model its charter refused
+(`domain/agent.md`). The
 reference is one profile a box is set up with, but on a small box a
 result's bytes, a batch and the live delegates stay below the sizes it
 is designed for, and the case's repository carries no CI or tiers'
@@ -62,7 +68,7 @@ tokens and a forge's Replace are built, but for the real loop's story
 remotes come out malformed (`protocol/configuration.md`). The case library's
 purpose is retired (`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
-drafts' statuses hold two departures their cuts decided, a foreman's
+drafts' statuses hold two departures decided 2026-11-03, a foreman's
 LLM choice and a red of a goal branch's tier that wakes its goal only
 when new, and a lag, the coordinator's decide, propose, subscribe and
 recall families, which the reference's profile does not grant and
