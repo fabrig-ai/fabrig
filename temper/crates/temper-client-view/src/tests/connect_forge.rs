@@ -174,7 +174,7 @@ fn welcome_offers_run_on_this_machine_from_the_deployment() {
     for owned in [false, true] {
         let root = deployment_root(Address::Welcome { step: Step::Forge { forge: None } }, owned);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            assert_eq!(f::find(view.tree(), Role::Button, b"Run on this machine").is_some(), owned);
+            assert_eq!(f::find(view.tree(), Role::Link, b"Run on this machine").is_some(), owned);
             node(view.tree(), Role::Button, b"Connect GitHub");
         }
     }
