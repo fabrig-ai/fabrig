@@ -12,6 +12,7 @@ pub use credential::{cleared, cookie};
 mod dispatch;
 mod guards;
 mod public;
+pub mod server;
 mod stream;
 pub use public::public_path;
 #[derive(Debug)]

@@ -157,7 +157,7 @@ impl Service {
         }
         let engine = self.engine.as_mut().ok_or(Refused)?;
         let clients = engine.clients.as_mut().ok_or(Refused)?;
-        clients.server.serve(bundle);
+        clients.pages.serve(bundle);
         Ok(())
     }
     /// Adopt the deployment directory opened by the caller before driving startup.
