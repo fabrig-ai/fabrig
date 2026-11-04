@@ -292,8 +292,13 @@ impl World {
                 let mut out = Queue::uncapped();
                 let mut unlinked = Queue::uncapped();
                 match &mut self.machine {
-                    Machine::Client(machine) if self.unlinked => machine.fire_unlinked(now, Wall::EPOCH, &mut unlinked),
-                    Machine::Client(machine) => machine.fire(now, Wall::EPOCH, &mut out),
+                    Machine::Client(machine) => {
+                        if self.unlinked {
+                            machine.fire_unlinked(now, Wall::EPOCH, &mut unlinked);
+                        } else {
+                            machine.fire(now, Wall::EPOCH, &mut out);
+                        }
+                    }
                     Machine::Root(machine, limits) => {
                         let env = Env { now, wall: Wall::EPOCH, limits: **limits };
                         let mut root_out = Queue::uncapped();
@@ -333,14 +338,14 @@ impl World {
         match &mut self.machine {
             Machine::Client(machine) => {
                 let mut out = Queue::uncapped();
+                let mut unlinked = Queue::uncapped();
                 if self.unlinked {
-                    let mut unlinked = Queue::uncapped();
                     machine.step_unlinked(self.now, Wall::EPOCH, event, &mut unlinked);
-                    self.unlinked_outputs(&mut unlinked);
                 } else {
                     machine.step(self.now, Wall::EPOCH, event, &mut out);
-                    self.outputs(&mut out);
                 }
+                self.outputs(&mut out);
+                self.unlinked_outputs(&mut unlinked);
                 let Machine::Client(machine) = &mut self.machine else { unreachable!("client mode") };
                 machine.reclaim();
             }
@@ -403,15 +408,26 @@ impl World {
         }
     }
 
+    fn told(&mut self, told: Told) {
+        match &told {
+            Told::Page { handle, .. } => self.readers.end(*handle),
+            Told::Answered { key, .. } => self.requests.end(*key),
+            Told::Link { .. }
+            | Told::Pending { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. }
+            | Told::Changed { .. }
+            | Told::Text { .. }
+            | Told::Ended { .. } => {}
+        }
+        self.push(Edge::Told(told));
+    }
+
     fn unlinked_outputs(&mut self, out: &mut Queue<client::UnlinkedRequest>) {
         while let Some(request) = out.pop() {
             match request {
+                client::UnlinkedRequest::Told { told } => self.told(told),
                 client::UnlinkedRequest::Down { down } => self.down(down),
-                client::UnlinkedRequest::Told { told } => {
-                    let mut linked = Queue::uncapped();
-                    linked.push(client::Request::Told { told });
-                    self.outputs(&mut linked);
-                }
                 other @ (client::UnlinkedRequest::SignOut | client::UnlinkedRequest::Authorized(_)) => {
                     panic!("unexpected client duty: {other:?}")
                 }
@@ -424,20 +440,7 @@ impl World {
             match request {
                 client::Request::OpenStream { .. } => self.push(Edge::OpenStream),
                 client::Request::CloseStream => self.push(Edge::CloseStream),
-                client::Request::Told { told } => {
-                    match &told {
-                        Told::Page { handle, .. } => self.readers.end(*handle),
-                        Told::Answered { key, .. } => self.requests.end(*key),
-                        Told::Link { .. }
-                        | Told::Pending { .. }
-                        | Told::Kept { .. }
-                        | Told::Dropped { .. }
-                        | Told::Changed { .. }
-                        | Told::Text { .. }
-                        | Told::Ended { .. } => {}
-                    }
-                    self.push(Edge::Told(told));
-                }
+                client::Request::Told { told } => self.told(told),
                 client::Request::Save { records } => {
                     let mut saves = Vec::new();
                     for record in records.into_boxed() {

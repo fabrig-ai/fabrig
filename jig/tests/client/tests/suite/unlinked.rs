@@ -1,4 +1,4 @@
-use jig_client::{Client, Event, Link, UnlinkedRequest as Request};
+use jig_client::{Client, Event, Link, UnlinkedRequest};
 use jig_client_world::{Front, Test, harness::ClientId, joint::Joint};
 use skein_lib::{Duration, List, Queue, Time, Wall};
 const PARTY: u64 = 1;
@@ -27,12 +27,12 @@ fn limits() -> jig_client::Limits {
     }
 }
 
-fn drain(client: &mut Client, front: &mut Joint, out: &mut Queue<Request>) {
+fn drain(client: &mut Client, front: &mut Joint, out: &mut Queue<UnlinkedRequest>) {
     while let Some(request) = out.pop() {
         match request {
-            Request::Down { down } => front.down(CLIENT, NOW, WALL, down).expect("Jig transport operation"),
-            Request::Told { .. } | Request::Authorized(_) => {}
-            Request::SignOut => panic!("unlinked client emits domain operations"),
+            UnlinkedRequest::Down { down } => front.down(CLIENT, NOW, WALL, down).expect("Jig transport operation"),
+            UnlinkedRequest::Told { .. } | UnlinkedRequest::Authorized(_) => {}
+            UnlinkedRequest::SignOut => panic!("unlinked client emits domain operations"),
         }
     }
     client.reclaim();
@@ -111,7 +111,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
         let mut sent = None;
         while let Some(request) = out.pop() {
             match request {
-                Request::Down { down: Down::Send { attempt, key: actual, request, value: Some(value) } } => {
+                UnlinkedRequest::Down { down: Down::Send { attempt, key: actual, request, value: Some(value) } } => {
                     assert_eq!(actual, name);
                     assert_eq!(value.expose(), bytes);
                     let jig_client::Ask::Jig(ask) = request else { panic!("jig ask") };
@@ -125,10 +125,11 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
                     assert_eq!(digest, sha256::digest(bytes));
                     assert!(sent.replace(attempt).is_none());
                 }
-                Request::Told { told: Told::Pending { .. } } => {}
-                other @ (Request::Told { .. } | Request::Down { .. } | Request::SignOut | Request::Authorized(_)) => {
-                    panic!("carried account key must not be saved: {other:?}")
-                }
+                UnlinkedRequest::Told { told: Told::Pending { .. } } => {}
+                other @ (UnlinkedRequest::Told { .. }
+                | UnlinkedRequest::Down { .. }
+                | UnlinkedRequest::SignOut
+                | UnlinkedRequest::Authorized(_)) => panic!("carried account key must not be saved: {other:?}"),
             }
         }
         let attempt = sent.expect("sent once");
@@ -142,7 +143,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
         );
         let mut lost = false;
         while let Some(request) = out.pop() {
-            if matches!(request, Request::Told { told: Told::Answered { outcome: Outcome::Lost, .. } }) {
+            if matches!(request, UnlinkedRequest::Told { told: Told::Answered { outcome: Outcome::Lost, .. } }) {
                 lost = true;
             }
         }
@@ -150,7 +151,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
         assert!(client.pending(key).is_none());
         client.fire_unlinked(NOW.saturating_add(Duration::from_secs(1)), WALL, &mut out);
         while let Some(request) = out.pop() {
-            assert!(!matches!(request, Request::Down { down: Down::Send { .. } | Down::Save { .. } }));
+            assert!(!matches!(request, UnlinkedRequest::Down { down: Down::Send { .. } | Down::Save { .. } }));
         }
     }
 }
