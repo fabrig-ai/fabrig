@@ -29,8 +29,7 @@ use chat_machine::{
     send_line, state_saved, store_failed, turn_saved,
 };
 pub(crate) use chat_machine::{closed, select_chat};
-use delivery::{InPlace, begin_delivery, deliver_to_agent, delivery_saved, plain_status};
-use reconcile::{Reconcile, reconcile_next};
+use delivery::{Delivering, begin_delivery, delivery_saved, plain_status, reconcile_intent, save_failed};
 
 /// One local chat and its inline or spawned agent behind the parent face.
 #[derive(Debug)]
@@ -48,10 +47,7 @@ pub struct Domain {
     pub(crate) chat: Chat,
     transcript: Option<smith_host_domain::Transcript>,
     records: Map<agent::run::CallName, DeliveryRecord>,
-    delivery: Option<InPlace>,
-    saving: Option<DeliveryRecord>,
-    delivery_owner: Option<Token>,
-    reconciling: Option<Reconcile>,
+    delivering: Delivering,
     pub(crate) lines: Lines,
     run_messages: Queue<host::Message>,
     pub(crate) turns: Turns,
@@ -164,10 +160,7 @@ impl Domain {
             ending: crate::end::End::new(),
             transcript: None,
             records: Map::with_capacity(limits.smith.run.answered_calls),
-            delivery: None,
-            saving: None,
-            delivery_owner: None,
-            reconciling: None,
+            delivering: Delivering::Idle,
             lines,
             run_messages: Queue::with_capacity(limits.smith.run.messages.saturating_add(1)),
             turns: Turns::new(limits.unsaved),
@@ -671,8 +664,6 @@ pub(crate) fn observe(domain: &mut Domain, fact: Fact) {
 fn git_result(domain: &mut Domain, env: &Env<Limits>, owner: Token, result: GitResult, out: &mut Queue<Request>) {
     if domain.chat.phase.is_starting() && domain.chat.starting().survey != HeadSurvey::Complete {
         head_result(domain, env, owner, result, out);
-    } else if domain.reconciling.is_some() {
-        reconcile::reconcile_git(domain, env, owner, result, out);
     } else {
         delivery::git_result(domain, env, owner, result, out);
     }
@@ -714,8 +705,6 @@ impl Domain {
         domain.child.started(Token::new(1));
         domain
     }
-
-
 }
 
 #[cfg(test)]

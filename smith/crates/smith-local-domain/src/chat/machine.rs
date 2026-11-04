@@ -3,9 +3,8 @@
 //! the pending head request and the answer's store/child settlement barrier.
 use super::{
     Agent, AgentFailure, Box, Chat, ChatState, Child, Config, DeliveryRecord, DeliveryState, Domain, Env, ExitStatus,
-    Fact, Failure, GitOp, GitResult, HeadSurvey, Limits, List, Live, Map, Notice, Queue, Reconcile, Request, RunStart,
-    Starting, State, StoreFailure, Token, Undelivered, agent, command, deliver_to_agent, host, mem, observe, parent,
-    reconcile_next,
+    Fact, Failure, GitOp, GitResult, HeadSurvey, Limits, List, Live, Map, Notice, Queue, Request, RunStart, Starting,
+    State, StoreFailure, Token, Undelivered, agent, command, host, mem, observe, parent, reconcile_intent, save_failed,
 };
 use crate::credentials::Grants;
 
@@ -85,7 +84,7 @@ pub(crate) fn select_chat(
         || domain.chat.state_pending()
         || !domain.turns.unsaved.is_empty()
         || !domain.lines.is_empty()
-        || domain.saving.is_some()
+        || domain.delivering.saving()
     {
         Some(crate::ChatRefusal::Busy)
     } else {
@@ -187,8 +186,7 @@ pub(super) fn resume_loading(domain: &mut Domain, env: &Env<Limits>, out: &mut Q
     for (_, record) in &domain.records {
         match &record.state {
             DeliveryState::Intent(_) => {
-                domain.reconciling = Some(Reconcile::new(record.clone()));
-                reconcile_next(domain, env, out);
+                reconcile_intent(domain, env, record.clone(), out);
                 return;
             }
             DeliveryState::Answer(_) => {}
@@ -689,30 +687,7 @@ pub(super) fn store_failed(
     domain.chat.close_input();
     domain.turns.unsaved = Queue::with_capacity(env.limits.unsaved);
     out.push(Request::Notice { notice: Notice::Failure(Failure::Store { turn, reason }) });
-    if let Some(record) = domain.saving.take() {
-        let owner = domain.delivery_owner.take();
-        match &record.state {
-            DeliveryState::Answer(agent::run::Delivery::Delivered(_)) => {
-                out.push(Request::Notice { notice: Notice::Failure(Failure::DeliveryUnsaved) });
-            }
-            DeliveryState::Intent(_)
-            | DeliveryState::Answer(
-                agent::run::Delivery::Nothing
-                | agent::run::Delivery::Refused(_)
-                | agent::run::Delivery::Failed(_)
-                | agent::run::Delivery::Stale,
-            ) => {}
-        }
-        let delivery = match record.state {
-            DeliveryState::Intent(_) => {
-                agent::run::Delivery::Failed(agent::run::DeliveryFailure::new(0, agent::run::DeliveryReason::Broken))
-            }
-            DeliveryState::Answer(delivery) => delivery,
-        };
-        if let Some(owner) = owner {
-            deliver_to_agent(domain, env, owner, delivery);
-        }
-    }
+    save_failed(domain, env, out);
     if let Some(run) = domain.child.run() {
         command(&mut domain.agent, env.now, env.wall, parent::Event::Drop { agent: run });
         end_chat(domain);
