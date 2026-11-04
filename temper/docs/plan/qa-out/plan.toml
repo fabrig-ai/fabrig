@@ -1,0 +1,3 @@
+draft = "qa-out"
+repo = "fabrig"
+sources = ["temper/docs/plan/qa-out/inputs/request.md"]
