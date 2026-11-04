@@ -555,7 +555,7 @@ fn github_peer_serves_the_manifest_and_conversion_pages() {
     let mut world = World::new(f::SEED);
     let page = world.manifest();
     assert_eq!(page.status, 200);
-    assert_eq!(page.header(b"content-type"), Some(b"text/html".as_slice()));
+    assert_eq!(page.header(b"content-type"), Some(b"text/html; charset=utf-8".as_slice()));
     assert!(bytes::find(&page.body, b"Create GitHub App").is_some());
     let conversion = world.convert();
     assert_eq!(conversion.status, 201);
