@@ -29,7 +29,7 @@ fn world_with_owner(identity: people::IdentityKey) -> World {
         &walking::models()[0],
         &temper_engine_domain_world::forge_routes::box_limits(),
     )
-    .with_owner_identity(identity.clone());
+    .with_settings_owner(&identity);
     forge_with_only_temper(&mut world);
     world.until(Until::Ready);
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
@@ -61,7 +61,7 @@ fn world_with_owner(identity: people::IdentityKey) -> World {
 }
 
 fn forge_with_only_temper(world: &mut World) {
-    // Only temper is returned at adoption; the box's person joins the forge later.
+    // Only temper is returned at adoption; the deployment owner is a separate identity.
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     fake::repository(
         &mut world.fake,
