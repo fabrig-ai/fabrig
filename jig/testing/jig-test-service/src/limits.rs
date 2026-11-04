@@ -90,6 +90,7 @@ pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
         clients: jig.clients,
         clients_http: jig.clients_http,
         server: crate::server::Limits {
+            peer_end: crate::server::PeerEnd::Call,
             connections: match name {
                 Profile::Small => 8,
                 Profile::Standard => 16,
