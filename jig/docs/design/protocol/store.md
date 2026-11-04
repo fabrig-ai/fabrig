@@ -2179,8 +2179,9 @@ was made (`../domain/tasks.md`, section 3):
   12) and one for transcripts, so a turn's sync never queues behind a
   store's write, nor a store's behind a turn's.
 - **The worst case** is both stores' (skein's `kv.md`, section 7: each
-  map's budget, its queued commits and its buffers of a chunk), the
-  component's buffers and tables, and the three drivers' (skein's
+  map's budget, its queued commits and its buffers, which follow its
+  chunk target and the largest row it holds), the component's buffers
+  and tables, and the three drivers' (skein's
   `io.md`, section 5). Patching's peak (10.2:
   one map open, one machine per kept family within its own map's record
   room, the walk's page and commit buffers at the larger of the two
@@ -2451,7 +2452,14 @@ intervals, and its indexes, by the rules of section 12.
   - a gate holding each patch's `after` to at least the pin it lands
     on (10.3);
   - a copy made by the file system (a reflink, or btrfs's snapshot:
-    skein's `io.md`, section 5) in place of one written file by file.
+    skein's `io.md`, section 5) in place of one written file by file;
+  - what a patch's working buffers pay (10.2): the copy reads and writes
+    a file in pieces of skein-kv's `Limits::chunk`, the row ceiling, not
+    its chunk target (skein's `kv.md`, 5 and 7), and the switch's digest
+    check reads `active` into a buffer of the drivers' whole read, which
+    that ceiling sets (`host::max_read`). So a patch pays about 60 MB on
+    standard however small its rows; a deployment's budgets meet this
+    (skein's `kv.md`, section 12).
 - **The header by its own level's text.** A jig behind decodes the header
   by the binary's core text, which every store holds until jig's first patch
   moves the core; that patch brings the kept text's decode with it.

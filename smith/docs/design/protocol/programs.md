@@ -323,7 +323,9 @@ open is section 9.
   position, its usage as the program reported it, and the run's spend.
   The program may send one message as several assistant records, one
   per content block, under one message id: they are one completion, its
-  blocks in order and its usage counted once.
+  blocks in order and its usage counted once. A framed message waits for
+  `message_stop` and all its announced assistant blocks; a boundary before
+  either is a program failure.
   A built-in tool's call is a call with its name and input as the model
   wrote them, and its result is text the program wrote. The program's
   opaque blocks, its thinking and their signatures, are not kept: no
@@ -338,7 +340,13 @@ open is section 9.
   turn's `structured_output.outcome`, taken as a `finish` call's input and
   judged by the same contract, ends the run as an accepted `finish`
   does on the direct backend (domain/run.md, 7.2), the agent closing
-  the program's input. Such a run is not offered `finish` over MCP, so
+  the program's input. A complete message holding `StructuredOutput` keeps
+  its position when another message starts before the turn's `result`.
+  It waits within the bounded completion backlog until that result supplies
+  the finish input, which replaces the call in its block position in that
+  same completion. No extra completion is synthesized for that call.
+  Following messages retain their own blocks and single-counted usage,
+  and cannot pass the held outcome. Such a run is not offered `finish` over MCP, so
   the model has one way to end, never two. A run with no result
   contract, such as an Open run's, is offered `finish` over MCP as on
   the direct backend. A turn with neither is a model that named no
@@ -370,7 +378,11 @@ open is section 9.
   program's, naming the program, with its detail, and no notice.
 - **A program that exits** before its `result`, or whose stream does not
   decode, fails the run the same way, with its exit and its standard
-  error's tail.
+  error's tail. A rejected stream record also names its recognized record
+  kind and the failed grammar, assembly, correlation or receiving condition.
+  Unknown kinds are named as unknown, without copying their value or any
+  message contents. This bounded reason distinguishes a full completion
+  backlog from an invalid record.
 
 ### 5.7 The budget, the clock and a cancel
 
@@ -423,7 +435,16 @@ open is section 9.
   and the configuration directory holds the program's session, the
   program starts with `--resume` and that session, and the start's
   messages, and the answers the transcript lacks, go in as user
-  messages.
+  messages. A restored activation's first user message also carries its
+  current system text: the instructions, freshly prepared brief sections
+  and activation budget, marked as superseding their earlier versions
+  while keeping the conversation history. This refresh is explicit in
+  the input, alongside the system file supplied at launch; resuming does
+  not rely on the program replacing saved context from that file. The
+  refresh and tail share the escaped input byte ceiling and, when
+  captured, the prompt observation. A retry after the same invocation's
+  input was recorded sends only the tail; messages within a live
+  activation keep their existing context.
 - **Otherwise the conversation is carried over:** a transcript whose
   window ran on another backend, account or program source, or whose
   program session is gone, on another host or removed, opens a new
@@ -534,7 +555,13 @@ backend.
   | inspect | `--tools Read,Glob,Grep`, each call asking at the prompt (5.4) |
   | served tools: none | the agent's server for it lists the prompt tool alone: no host tool, no `finish`, `deliver`, `wait` or `remove`, and no `sub_agent`, since a child opens no children |
   | no result contract | no `--json-schema`: its answer is its last text |
-  | session | `--session-id` derived as 5.8 says from its own conversation, never resumed |
+  | session | `--session-id` derived as 5.8 says from its own conversation and activation, never resumed |
+
+  The child's initial user message includes the activation number, rendered
+  in bounded decimal text. A later activation may reuse a child ordinal
+  (domain/run.md, section 15), but its first message differs, so its
+  program session is fresh. Main keeps its first message and resumes as
+  5.8 says.
 
   Its stream is told as its conversation's, as main's is (5.5): its
   `system/init` checked, each assistant message a completion of the
@@ -684,7 +711,10 @@ conditions. smith keeps each as a rule of its own:
     each a program of its own, running side by side and each answering
     with its report; a call asking a child to write, answered invalid;
     a child's final turn; and children stopped with their run.
-    A child's script is cued by its brief.
+    A child's script is cued by its brief. A follow-up while main is alive
+    uses that process; after main parks, its transcript is restored on the
+    same fake filesystem and main resumes while its children start fresh,
+    at either a named LLM's effort or main's default effort.
 - **The live suite** runs the real program on a source signed in once
   (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
   prompt tool's shape, `system/init`'s tools and capabilities, a

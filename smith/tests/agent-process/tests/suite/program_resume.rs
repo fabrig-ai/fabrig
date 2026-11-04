@@ -240,3 +240,97 @@ fn a_gone_session_is_carried_over() {
     );
     assert!(run.run_directories.is_empty());
 }
+
+fn document_charter(instructions: &[u8], document: Option<&[u8]>) -> Box<[u8]> {
+    smith_agent_process_world::wire::edit_charter(&crate::opening::charter(), |parts| {
+        parts.resume = true;
+        parts.instructions = instructions.into();
+        parts.brief = skein_lib::List::with_capacity(2);
+        parts
+            .brief
+            .push(
+                smith_charter::Section::new(
+                    &smith_charter::CEILINGS,
+                    smith_charter::SectionParts {
+                        title: b"Request".as_slice().into(),
+                        body: b"Quote the last line of your instructions and the current rules document."
+                            .as_slice()
+                            .into(),
+                    },
+                )
+                .expect("question"),
+            )
+            .expect("request section");
+        if let Some(body) = document {
+            parts
+                .brief
+                .push(
+                    smith_charter::Section::new(
+                        &smith_charter::CEILINGS,
+                        smith_charter::SectionParts {
+                            title: b"Document rules.md".as_slice().into(),
+                            body: body.into(),
+                        },
+                    )
+                    .expect("document"),
+                )
+                .expect("one document");
+        }
+    })
+}
+
+fn parked_chat(run: &program_world::Run) {
+    assert!(
+        matches!(run.answer().expect("answer").result(), RunResult::Parked),
+        "{:?} {}",
+        run.answer(),
+        String::from_utf8_lossy(&run.errors)
+    );
+}
+
+#[test]
+fn a_resumed_chat_receives_changed_instructions_and_the_current_document() {
+    let current = document_charter(b"End every reply with the word ZINC.", Some(b"head new: use SILVER."));
+    let reply = Story {
+        asked: vec![smith_fake_claude::Script {
+            cue: "End every reply with the word ZINC.".into(),
+            turns: vec![Turn::new(vec![Step::Text("head new: use SILVER. ZINC".into())])],
+        }],
+        turns: vec![Turn::new(vec![Step::Text("I still have the old instructions.".into())])],
+        ..Story::default()
+    };
+    for document in [None, Some(b"head old: use COPPER.".as_slice())] {
+        let before = document_charter(b"End every reply with the word COPPER.", document);
+        let old = program_world::open(&Story::default(), &before, &[]);
+        parked_chat(&old);
+        let history = program_world::from_frames(&old.frames);
+        let resumed = program_world::open_with_window(&reply, &current, &[], Some(&history));
+        parked_chat(&resumed);
+        let print = resumed.invocations.iter().find(|call| call.arguments[0] == "-p").expect("resume");
+        let first = old.invocations.iter().find(|call| call.arguments[0] == "-p").expect("first");
+        assert_eq!(session_argument(print, "--resume"), session_argument(first, "--session-id"));
+        let text = resumed.received[0]["message"]["content"].as_str().expect("activation text");
+        assert!(text.contains("End every reply with the word ZINC."), "{text}");
+        assert!(text.contains("## Document rules.md\n\nhead new: use SILVER."), "{text}");
+        assert!(!text.contains("COPPER"), "old history stays in the saved session");
+        assert!(
+            program_world::from_frames(&resumed.frames).iter().any(|turn| skein_lib::bytes::find(
+                turn,
+                b"head new: use SILVER. ZINC"
+            )
+            .is_some()),
+            "refreshed reply"
+        );
+    }
+    let fresh_story = Story { cued: reply.asked.clone(), ..reply };
+    let fresh = program_world::open(&fresh_story, &current, &[]);
+    parked_chat(&fresh);
+    assert!(
+        program_world::from_frames(&fresh.frames).iter().any(|turn| skein_lib::bytes::find(
+            turn,
+            b"head new: use SILVER. ZINC"
+        )
+        .is_some()),
+        "fresh reply"
+    );
+}

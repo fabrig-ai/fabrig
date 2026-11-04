@@ -10,6 +10,7 @@ mod open;
 mod real;
 mod recovery;
 mod store;
+mod target;
 
 mod fuzzy {
     mod map;

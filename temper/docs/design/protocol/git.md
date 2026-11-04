@@ -188,7 +188,7 @@ pipes      stdin (written, then closed), stdout, stderr
   `Broken`, naming the program, without running it. The component keeps
   the last such program it checked and its answer, one at a time, and
   checks a different one afresh. The component is tested against git
-  2.53 (section 9).
+  2.47 (section 9).
 
 ## 4. Each operation
 
@@ -559,7 +559,7 @@ variable of the worker's own process reaches git.
   identity's value, a failed spawn of the first, a named program that
   fails its version, Make's file operations) ends `Failed { fault }`,
   but for no program, whose diagnostic names the host (section 3).
-- **The messages are git 2.53's** in the C locale, as the transcripts of
+- **The messages are git 2.47's** in the C locale, as the transcripts of
   section 9 record them; a version that words them otherwise classifies
   them `Broken`, which the domain retries as transient and the process
   tier shows.
@@ -652,7 +652,7 @@ checks this document's contract:
     the same, a version below 2.41 failing the operation unrun; and no
     program, each invocation failing 128, naming the host, with nothing
     spawned.
-- **Transcripts** of real git 2.53, captured once, outside the suites, by
+- **Transcripts** of real git 2.47, captured once, outside the suites, by
   `tools/git-transcripts`: every invocation of section 4, and every
   failure of section 6 (a missing repository, branch and commit, a wrong
   token, no permission, a protected branch, a refused connection),
@@ -706,6 +706,6 @@ checks this document's contract:
   come with the workspace's items.
 - **Git LFS.** Default: not supported; no filter is configured, so a
   repository's large files stay pointer files in its working tree.
-- **Another git's messages.** Default: classified against 2.53's, from
+- **Another git's messages.** Default: classified against 2.47's, from
   2.41 on; a version that words a failure otherwise reads `Broken` until
   its transcripts are captured.

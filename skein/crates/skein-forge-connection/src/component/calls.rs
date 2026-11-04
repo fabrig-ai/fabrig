@@ -118,10 +118,10 @@ impl Component {
                 || c.phase == Phase::Closed
             {
                 c.close(env, c.in_flight(), io);
-                if c.ready() {
+                if c.link.has_work() {
                     c.pump(env, io);
                 }
-                if c.ready() {
+                if c.link.has_work() {
                     self.wake = Some(env.now);
                 }
             }

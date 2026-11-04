@@ -1646,3 +1646,68 @@ pub fn forge_connecting(
     let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
     assert_eq!(answer, w::Outcome::Connecting);
 }
+
+/// Parse the shipped agent with inert destinations and selected payload/output quantities.
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_types,
+    reason = "ordinary fixture code embeds the shipped profile and returns the shell's text diagnostic"
+)]
+pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
+    let bytes = include_str!("../../../temper-init/template/agent.json")
+        .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
+        .replace("\"output\": 8192", &format!("\"output\": {output}"))
+        .replace("$llm", "127.0.0.1:8370")
+        .replace("\"$programs\"", "{}")
+        .replace("api.openai.com:443", "127.0.0.1:8372")
+        .replace("\"transport\": \"tls\"", "\"transport\": \"plaintext\"")
+        .replace("\"server_name\": \"api.openai.com\",", "");
+    smith_agent_shell::config::parse(bytes.as_bytes())
+}
+
+/// The startup agent derived from the shell configuration, including its hello.
+#[expect(clippy::disallowed_methods, reason = "ordinary fixture code traverses the parsed model declarations")]
+pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> settings::Agent {
+    let limits = config.service.limits;
+    let host_limits = smith_local_service::profile::host_limits(&config.profile, &limits).unwrap();
+    let mut protocol = smith_host_protocol::Limits {
+        bodies: limits.channel.bodies,
+        charter: limits.channel.charter,
+        transcript: limits.channel.transcript,
+        endpoints: limits.channel.endpoints,
+        channel: limits.channel.channel,
+        start_bytes: limits.channel.start_bytes,
+        calls: host_limits.calls,
+    };
+    protocol.channel.output_bytes = smith_host_protocol::output_bytes(&protocol).unwrap();
+    settings::Agent {
+        run_limits: limits.domain.run,
+        tool_payload: config.profile.declared.tool_payload,
+        programs: Box::default(),
+        endpoints: config.service.channel_endpoints,
+        limits: protocol,
+        host_limits,
+        bounds: jig_domain_host::Bounds {
+            models: config
+                .declarations
+                .endpoints
+                .iter()
+                .flat_map(|endpoint| endpoint.models.iter())
+                .map(|model| jig_domain_host::ModelBound {
+                    name: model.name.clone(),
+                    window: model.window,
+                    output: model.output,
+                })
+                .collect(),
+            program_endpoints: Box::default(),
+            turns: config.profile.policy.max_turns,
+            spend: config.profile.policy.max_spend,
+            time: config.profile.policy.max_time,
+            waiting: config.profile.policy.max_waiting,
+            checks: config.profile.policy.check_timeout,
+            message_bytes: limits.domain.run.message_bytes.checked_sub(2).unwrap(),
+            inbox: config.profile.policy.inbox,
+            unacknowledged: config.profile.policy.unacknowledged,
+        },
+    }
+}

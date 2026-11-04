@@ -5,7 +5,8 @@ there today, why it matters, and what pays it back.
 
 - **One file per item,** `Dnnn-<slug>.md`. IDs start at `D001` and are
   never reused.
-- **The branch that pays an item deletes its file,** and its row below.
+- **The highest ID used is D019.** The branch that adds an item raises it, so a paid ID isn't handed out again.
+- **The branch that pays an item deletes its file;** there is no row to delete.
   Git keeps the history.
 - **An item we choose to keep** stays, with status `kept` and its reason,
   so a later review does not find it again.
@@ -58,13 +59,5 @@ it says what a reviewer checks.
 
 ## Index
 
-| ID | title | kind | value | size | status |
-|---|---|---|---|---|---|
-| [D001](D001-events-hand-kept-records.md) | smith-events keeps every record in four hand-written hierarchies | duplication | medium | L | open |
-| [D003](D003-host-io-route-table.md) | The local host routes io completions through its own table | primitives | low | M | open |
-| [D007](D007-tools-namespace.md) | The tools serve a namespace no run produces | complexity | low | M | open |
-| [D011](D011-bench-string-errors.md) | The benchmarks carry failures as strings | other | low | M | open |
-| [D012](D012-large-domain-files.md) | `session.rs` and `run.rs` are too large to read | complexity | low | M | open |
-| [D015](D015-path-modules.md) | Code is shared between targets by `#[path]` | tests | low | M | open |
-| [D017](D017-domain-worlds-on-protocols.md) | Two domain worlds call protocol crates | coupling | low | S | open |
-| [D018](D018-domain-formats-text.md) | The local domain composes person-facing text | coupling | low | S | open |
+`python3 -I -B tools/debt/debt.py smith` prints it, from the repository's root, from each item file's
+title, kind, value, size and status; with no tree, all five (`tools/debt/README.md`).

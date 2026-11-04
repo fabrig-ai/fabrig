@@ -457,11 +457,7 @@ impl Web {
 }
 
 fn link_env(env: &Env<Limits>) -> Env<link::Limits> {
-    Env {
-        now: env.now,
-        wall: env.wall,
-        limits: link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout },
-    }
+    env.with(link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout })
 }
 
 fn retry_after(response: &http::Response) -> Duration {

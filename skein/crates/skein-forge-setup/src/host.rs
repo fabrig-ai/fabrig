@@ -310,14 +310,7 @@ impl Host {
         for _ in 0_u32..256 {
             let mut connection = None;
             for (token, c) in &self.connections {
-                if c.ready()
-                    || c.result.is_some()
-                    || c.closed
-                    || match c.link.next_deadline() {
-                        Some(at) => at <= env.now,
-                        None => false,
-                    }
-                {
+                if c.ready() || c.result.is_some() || c.closed || c.link.due(env.now) {
                     connection = Some(*token);
                     break;
                 }
@@ -375,14 +368,7 @@ impl Host {
     }
     fn ready(&self, now: Time) -> bool {
         for (_, c) in &self.connections {
-            if c.ready()
-                || c.result.is_some()
-                || c.closed
-                || match c.link.next_deadline() {
-                    Some(at) => at <= now,
-                    None => false,
-                }
-            {
+            if c.ready() || c.result.is_some() || c.closed || c.link.due(now) {
                 return true;
             }
         }

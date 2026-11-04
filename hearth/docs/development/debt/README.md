@@ -5,7 +5,8 @@ there today, why it matters, and what pays it back.
 
 - **One file per item,** `Dnnn-<slug>.md`. IDs start at `D001` and are
   never reused.
-- **The branch that pays an item deletes its file,** and its row below.
+- **The highest ID used is D013.** The branch that adds an item raises it, so a paid ID isn't handed out again.
+- **The branch that pays an item deletes its file;** there is no row to delete.
   Git keeps the history.
 - **An item we choose to keep** stays, with status `kept` and its reason,
   so a later review does not find it again.
@@ -57,17 +58,5 @@ it says what a reviewer checks.
 
 ## Index
 
-| ID | title | kind | value | size | status |
-|---|---|---|---|---|---|
-| [D001](D001-room-checks-and-max-out.md) | The service and its machines pace work by room checks and `MAX_OUT` | complexity | high | L | open |
-| [D002](D002-process-worst-case.md) | The builder sums a process-wide worst case nothing runs, in formulas under the old name | complexity | high | M | open |
-| [D003](D003-memory-tests-on-formulas.md) | Memory tests hold peaks to formulas, not to ceilings | tests | medium | M | open |
-| [D004](D004-service-drives-io-by-hand.md) | The service drives io and files by hand, doubling every operation token | primitives | medium | S | open |
-| [D005](D005-private-hex-decimal-octal.md) | hex, decimal and octal digits are written by hand across the crates | duplication | low | S | open |
-| [D006](D006-lifecycles-in-flags.md) | Lifecycles of the builder's protocol layer and store are spread over flags | complexity | medium | M | open |
-| [D007](D007-two-process-fakes.md) | mmdebstrap's fake is written twice, as a fake-machine process and as a hosted one | duplication | low | S | open |
-| [D008](D008-path-modules.md) | Test modules are reached by `#[path]` | tests | low | S | open |
-| [D009](D009-worlds-as-kits.md) | World crates are used as kits by other test crates | tests | low | M | open |
-| [D011](D011-ratchet-counts-two-forms.md) | hearth's ratchet counts two forms, and counts what the others exempt | other | medium | S | open |
-| [D012](D012-render-test-shapes.md) | Test shapes the render run left | tests | low | S | open |
-| [D013](D013-records-three-times.md) | A record's shape is written up to three times, with hand translations both ways | duplication | low | L | open |
+`python3 -I -B tools/debt/debt.py hearth` prints it, from the repository's root, from each item file's
+title, kind, value, size and status; with no tree, all five (`tools/debt/README.md`).
