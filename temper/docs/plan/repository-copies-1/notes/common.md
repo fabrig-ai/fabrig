@@ -23,6 +23,8 @@ Every task of this plan names this note.
   and 9). No page, view, word, gallery sample or CSS changes for this plan.
 - **Test worlds:** a crate's `src/tests/` and its tree's `tests/...`. Fakes, never real services. Each
   test is one thread and one loop, and a seed replays (`AGENTS.md`, 2).
+- **Seeding a source (`fake-box`):** if a second branch cannot be seeded without a new helper in skein's
+  domain, seed the default branch alone, and say so in the report.
 - **A budget or timeout of a test is the user's**
   (`skein/docs/foundation/testing-strategy.md`, 8.1): no task raises one.
 - **Beside this plan:** `macos-cheap` moved the Forgejo pin and holds
