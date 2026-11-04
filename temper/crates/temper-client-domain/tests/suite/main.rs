@@ -1,6 +1,4 @@
-#[path = "../../../../testing/client_documents.rs"]
-#[expect(dead_code, reason = "shared document fixtures also supply the other client suites")]
-mod documents;
+use temper_fixtures::client_documents as documents;
 
 mod change;
 mod task_pages;

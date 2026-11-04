@@ -1,12 +1,11 @@
 //! Root stories for temper/docs/design/domain/after-landing.md, 3–6 and 12.
 use super::*;
-#[path = "tier_task_show.rs"]
-pub(super) mod task_show;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_tiers as policy;
 use temper_engine_domain_world::tier_runs::{
     self, LANDING_TICKS, RUN_TICKS, SEED, Tier, change, merge, produce_delegated, restart_cut, task, tier, until,
 };
+pub(super) use temper_engine_domain_world::tier_task_show as task_show;
 
 fn chat_world(turn: bool, options: Tier) -> (World, engine::Assignment) {
     start_chat(tier_runs::world(turn, options))
