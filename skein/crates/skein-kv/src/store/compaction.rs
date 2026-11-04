@@ -242,12 +242,6 @@ fn remove_old(start: u64, dir: &mut Dir, below: &mut Queue<file::Request>) -> Co
     }
     let Some(index) = old else { return cleanup_sync_directory(dir.root, below) };
     let name = dir.segments.remove(index);
-    // Recreating an empty tail can leave its listed and created names in segments.
-    for index in (0..dir.segments.len()).rev() {
-        if dir.segments.get(index).expect("index is within segments").as_ref() == name.as_ref() {
-            let _name = dir.segments.remove(index);
-        }
-    }
     below.push(file::Request::Remove { owner: IO_OWNER, root: dir.root, name, directory: false });
     Compaction::RemoveOld { start }
 }

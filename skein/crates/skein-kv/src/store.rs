@@ -324,12 +324,12 @@ impl Store {
             Repair::Required => dir.compaction = Compaction::Due { start: next },
         }
         let name = segment_name(next);
-        for entry in &dir.segments {
+        for (index, entry) in dir.segments.iter().enumerate() {
             if entry.as_ref() == name.as_ref() {
                 step.below.push(file::Request::Remove {
                     owner: IO_OWNER,
                     root: dir.root,
-                    name: name.clone(),
+                    name: dir.segments.remove(index),
                     directory: false,
                 });
                 return dir.at(Phase::RemovingTail { name });
