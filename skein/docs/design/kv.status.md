@@ -2,16 +2,24 @@
 
 2026-11-04. Where skein's code lags or departs from [kv.md](kv.md).
 
-- **Not yet:** 9: the model-map referee across simulated-disk commits,
-  loads, snapshots and crash recovery, commits racing every snapshot
-  chunk, and the recovered value check over the real ring. In
-  `skein/tests/kv/tests/suite/fuzzy/map.rs`,
-  `generated_commits_and_pages_match_the_model` uses `Store::memory`;
-  `store.rs` has commit and snapshot crash cuts, and `disk.rs`'s cuts
-  read a model back by `Get`, never a load, with no commit racing them;
-  `commits_race_fuzzy_snapshot_chunks` races a commit only after the
-  first chunk; `real.rs`'s `commit_and_recover` checks the reopened number,
-  without reading the value; no reason is recorded.
+- **Not yet:**
+  - 9: the model-map referee across simulated-disk commits,
+    loads, snapshots and crash recovery, commits racing every snapshot
+    chunk, and the recovered value check over the real ring. In
+    `skein/tests/kv/tests/suite/fuzzy/map.rs`,
+    `generated_commits_and_pages_match_the_model` uses `Store::memory`;
+    `store.rs` has commit and snapshot crash cuts, and `disk.rs`'s cuts
+    read a model back by `Get`, never a load, with no commit racing them;
+    `commits_race_fuzzy_snapshot_chunks` races a commit only after the
+    first chunk; `real.rs`'s `commit_and_recover` checks the reopened number,
+    without reading the value; no reason is recorded.
+  - 5, 7: `CHUNK_TARGET`: a snapshot packs its chunks to `Limits::chunk`,
+    which sets a snapshot step's transient too, and a chunk's encoding is
+    built twice.
+  - 3, 7: a recovery read asks up to `Limits::chunk`, not the target, and
+    a frame longer than a read grows `ReadingLog`'s `bytes` a read at a
+    time, not once.
+  - 9: the checks of "What it pays for" under a large `Limits::chunk`.
 - **Departs:**
   - 4: a failed create or directory sync on a rollover ends the store as a
     failed start does: `skein-kv/src/store.rs`'s `Creating` and `Announcing`
