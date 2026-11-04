@@ -1,5 +1,5 @@
 use crate::tests::fixtures;
-use jig_client::contract as c;
+use jig_client::{Readout, contract as c};
 #[test]
 fn a_list_prints_its_rows_then_its_continuation() {
     let mut root = fixtures::signed_in(fixtures::PARTY);
@@ -379,5 +379,83 @@ fn an_inbox_answer_is_acknowledged_in_task_activity() {
         assert!(
             skein_lib::bytes::find(&answer.stdout, b"10 \xc2\xb7 You answered question 2 in your inbox\n").is_some()
         );
+    }
+}
+
+fn proposal_page() -> c::ReadResult {
+    let mut rows = skein_lib::List::with_capacity(2);
+    for key in [
+        c::ProposalKey { proposer: c::Proposer::Task(41), number: 8 },
+        c::ProposalKey { proposer: c::Proposer::Party(73), number: 17 },
+    ] {
+        rows.push(crate::tests::documents::entry(c::ObjectKey::Proposal(key), fixtures::PROJECT, 0, skein_lib::Wall::EPOCH, None))
+            .expect("two proposal rows");
+    }
+    c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+        cut: false,
+        rows,
+        before: None,
+        after: Some(fixtures::cursor()),
+        selection: None,
+    })))
+}
+
+fn proposal_result(reason: &[u8]) -> c::ReadResult {
+    let c::ReadValue::Proposal(mut proposal) = fixtures::proposal(c::Proposer::Task(41), &[]) else {
+        panic!("proposal fixture")
+    };
+    proposal.key.number = 8;
+    proposal.reason = fixtures::document_text(reason);
+    c::ReadResult::Value(c::ReadValue::Proposal(proposal))
+}
+
+#[test]
+fn long_inbox_proposal_titles_keep_utf8_row_keys_and_the_continuation_within_the_output_bound() {
+    let (mut root, call) = fixtures::read_call(&["inbox", "--kind", "proposals"]);
+    root.limits.tools.text = 256;
+    let limit = root.limits.tools.text;
+    let mut reason = "λ".repeat(usize::try_from(limit).expect("text bound"));
+    reason.push_str("\nReview details");
+    root.serve(call, proposal_page());
+    root.serve(call, proposal_result(reason.as_bytes()));
+    root.serve(call, c::ReadResult::None(c::ReadNone::Unknown));
+    let answer = root.answer(call).expect("bounded inbox");
+    assert_eq!(answer.status, 0);
+    assert!(answer.stdout.len() <= usize::try_from(limit).expect("text bound"));
+    #[expect(clippy::disallowed_methods, reason = "this test validates the title cuts at a UTF-8 boundary")]
+    let printed = core::str::from_utf8(&answer.stdout).expect("title cuts at a character");
+    assert!(printed.starts_with("t41/8 · proposal · λ"), "{printed}");
+    assert!(printed.contains("\np73/17 · proposal\n"), "{printed}");
+    assert!(printed.contains("inbox --kind proposals --after 001122"), "{printed}");
+    assert!(printed.contains("bytes left"), "{printed}");
+    assert!(!printed.contains("Review details"));
+}
+
+#[test]
+fn inbox_proposal_titles_are_serial_and_unavailable_documents_keep_their_rows() {
+    for unavailable in [
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
+        Readout::Limit,
+        Readout::Jig(c::ReadResult::Value(fixtures::proposal(c::Proposer::Task(99), &[]))),
+    ] {
+        let (mut root, call) = fixtures::read_call(&["inbox", "--kind", "proposals"]);
+        root.serve(call, proposal_page());
+        let key = c::ProposalKey { proposer: c::Proposer::Task(41), number: 8 };
+        assert_eq!(root.reads.get(&call).expect("first detail").1, c::Read::Proposal { proposal: key });
+        if let Some(reads) = root.extra_reads.get(&call) {
+            assert!(reads.is_empty(), "one detail at a time");
+        }
+        root.serve(call, proposal_result(b"Give chats more time\nThe review follows"));
+        let second = c::ProposalKey { proposer: c::Proposer::Party(73), number: 17 };
+        assert_eq!(root.reads.get(&call).expect("second detail").1, c::Read::Proposal { proposal: second });
+        root.serve_readout(call, unavailable);
+        let answer = root.answer(call).expect("unavailable detail finishes the inbox");
+        assert_eq!(answer.status, 0);
+        assert!(
+            answer.stdout.starts_with("t41/8 · proposal · Give chats more time\np73/17 · proposal\n".as_bytes()),
+            "{answer:?}"
+        );
+        assert!(skein_lib::bytes::find(&answer.stdout, b"The review follows").is_none());
+        assert!(skein_lib::bytes::find(&answer.stdout, b"inbox --kind proposals --after 001122").is_some());
     }
 }
