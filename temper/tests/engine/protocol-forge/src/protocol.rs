@@ -465,7 +465,11 @@ impl Protocol {
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }
-                top::Request::ApplicationDone { .. } | top::Request::MarkedForges | top::Request::Marked { .. } => {}
+                top::Request::MakingCopied { .. }
+                | top::Request::MakingAct { .. }
+                | top::Request::ApplicationDone { .. }
+                | top::Request::MarkedForges
+                | top::Request::Marked { .. } => {}
                 top::Request::ApplicationAgain { .. } => panic!("application capacity available"),
                 top::Request::Adopted { reply_to, result } => {
                     let outcome = match &result {

@@ -4,7 +4,7 @@
 //! A requester's confirmed branch moves become its change's new head
 //! (temper/docs/design/domain/forge.md, 8.5).
 use alloc::boxed::Box;
-use skein_lib::{Duration, Env, List, Map, Queue, Token};
+use skein_lib::{Duration, Env, List, Map, Queue, Set, Token};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_issues as issues;
 
@@ -146,6 +146,7 @@ pub struct Domain {
     pub(crate) playground_due: Option<skein_lib::Time>,
     pub(crate) playground_request: Option<Token>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
+    pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) connections: Map<u16, ConnectionState>,
     pub(crate) first: Map<u16, crate::First>,
@@ -387,7 +388,7 @@ impl Domain {
             out.push(Request::ApplicationDone { request, token });
         }
     }
-    /// Volatile setup answer or retained adoption outcome for this request.
+    /// Volatile setup answer or retained application outcome for this request.
     #[must_use]
     pub fn application_answer(&self, token: Token) -> Option<crate::Answered> {
         if let Some(answer) = self.connect.answers.get(&token) {
@@ -400,7 +401,15 @@ impl Domain {
             return Some(crate::Answered::SetUp(*answer));
         }
         match self.application_outcome(token) {
-            Some(outcome) => Some(crate::Answered::Adopt(outcome.clone())),
+            Some(crate::ApplicationOutcome::MakeKept) => Some(crate::Answered::Make(crate::MakeAnswer::Kept)),
+            Some(crate::ApplicationOutcome::MakeRefused(why)) => {
+                Some(crate::Answered::Make(crate::MakeAnswer::Refused(*why)))
+            }
+            Some(
+                outcome @ (crate::ApplicationOutcome::Adopted(_)
+                | crate::ApplicationOutcome::CoreRefused(_)
+                | crate::ApplicationOutcome::ForgeRefused(_)),
+            ) => Some(crate::Answered::Adopt(outcome.clone())),
             None => None,
         }
     }
@@ -563,6 +572,7 @@ impl Domain {
             playground_request: None,
             bindings: Map::with_capacity(l.bindings),
             repository_makings: Map::with_capacity(l.makings),
+            making_acts: Set::with_capacity(l.makings),
             connections: Map::with_capacity(l.forges),
             first: Map::with_capacity(l.forges),
             ended: Map::with_capacity(l.forges),
@@ -1238,9 +1248,27 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             crate::Ask::StartPlayground => crate::playground::start(d, env.now, request, token, out),
             crate::Ask::EndPlayground => crate::playground::end(d, request, token, out),
+            ask @ crate::Ask::MakeRepository { .. } => {
+                if let Some(value) = carried {
+                    out.push(Request::CarriedUnused { number: value.number });
+                }
+                crate::making::admit(d, env, request, token, retention, role, ask, out);
+            }
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             ask @ crate::Ask::SetUp { .. } => make::setup(d, env, request, token, retention, ask, carried, out),
         },
+        Event::MakingStarted { key } => crate::making::started(d, key, out),
+        Event::MakingCopying { key } => crate::making::copying(d, key, out),
+        Event::MakingMade { key, id, branch } => crate::making::made(d, key, id, branch, out),
+        Event::MakingStopped { key, failed } => crate::making::stopped(d, key, failed, out),
+        Event::MakingAdopt { key } => crate::making::adopt(d, key, out),
+        Event::MakingAsked { request, adoption, repository } => {
+            adoption::making_asked(d, env, request, adoption, repository, out);
+        }
+        Event::MakingActed { key, outcome } => crate::making::acted(d, key, outcome, out),
+        Event::MakingAgain { key } => {
+            d.making_acts.remove(&key);
+        }
         Event::ApplicationAnswered { request, outcome } => adoption::answered(d, env, request, outcome, out),
         Event::ForgetProjection { goal } => {
             if let Some(row) = d.issues.get(&goal)
@@ -6041,21 +6069,10 @@ pub(crate) fn keep_panel_ci(d: &mut Domain, task: u64, read: change::Ci, out: &m
 // Admission mirrors skein's Create grammar without an io dependency in this domain.
 // The tests pin both grammars to the same boundary cases (protocol/setup.md, 6.7).
 fn setup_login(name: &[u8]) -> bool {
-    !name.is_empty()
-        && name.len() <= 40
-        && name.first().expect("nonempty login").is_ascii_alphanumeric()
-        && setup_characters(name)
+    temper_client_protocol_wire::source::org(name)
 }
 fn setup_repository(name: &[u8]) -> bool {
-    !name.is_empty() && name.len() <= 100 && name != b"." && name != b".." && setup_characters(name)
-}
-fn setup_characters(name: &[u8]) -> bool {
-    for byte in name {
-        if !byte.is_ascii_alphanumeric() && !b"._-".contains(byte) {
-            return false;
-        }
-    }
-    true
+    temper_client_protocol_wire::source::repository(name)
 }
 
 /// Pack a repository's complete forge identity (domain/forge.md, section 4).

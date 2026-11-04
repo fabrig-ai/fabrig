@@ -164,6 +164,13 @@ pub struct Adoption {
 /// A FORGE request admitted by the core (client/README.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Ask {
+    MakeRepository {
+        forge: u16,
+        org: Box<[u8]>,
+        name: Box<[u8]>,
+        from: crate::MakeFrom,
+        into: Option<crate::MakeInto>,
+    },
     Adopt(Adoption),
     SetUp {
         forge: Making,
@@ -227,9 +234,10 @@ pub enum AppWay {
     Manifest,
     Pasted,
 }
-/// A retained application answer; only adoption outcomes are durable.
+/// A retained application answer; adoption and making outcomes are durable.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Answered {
+    Make(MakeAnswer),
     Adopt(ApplicationOutcome),
     SetUp(SetUpAnswer),
     RemoveForge(RemoveAnswer),
@@ -239,6 +247,12 @@ pub enum Answered {
     Install(InstallAnswer),
     Accept(AcceptAnswer),
     Reachable(ReachableAnswer),
+}
+/// Making admission (temper/docs/design/domain/forge.md, 4.5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MakeAnswer {
+    Kept,
+    Refused(crate::MakeRefusal),
 }
 /// Public forge admission refusals (client/README.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1229,6 +1243,36 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    MakingStarted {
+        key: crate::MakingKey,
+    },
+    MakingCopying {
+        key: crate::MakingKey,
+    },
+    MakingMade {
+        key: crate::MakingKey,
+        id: u64,
+        branch: Box<[u8]>,
+    },
+    MakingStopped {
+        key: crate::MakingKey,
+        failed: crate::MakingFailed,
+    },
+    MakingAdopt {
+        key: crate::MakingKey,
+    },
+    MakingAsked {
+        request: Token,
+        adoption: Adoption,
+        repository: skein_forge::api::Repository,
+    },
+    MakingActed {
+        key: crate::MakingKey,
+        outcome: Option<crate::MakingFailed>,
+    },
+    MakingAgain {
+        key: crate::MakingKey,
+    },
     /// A due step saved these specification words on its own task.
     TierWords {
         task: u64,
@@ -1676,6 +1720,15 @@ pub enum Event {
     reason = "Save carries the change row and its producer report; changing the request boundary is separate"
 )]
 pub enum Request {
+    MakingCopied {
+        key: crate::MakingKey,
+    },
+    MakingAct {
+        key: crate::MakingKey,
+        act: [u8; 16],
+        adoption: Adoption,
+        repository: skein_forge::api::Repository,
+    },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
     TierRun {
         repository: skein_forge::api::Repository,

@@ -598,6 +598,20 @@ pub fn answer(
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
         Some(root::ApplicationAnswer::Returning) => w::Outcome::Returning,
+        Some(root::ApplicationAnswer::Make(answer)) => match answer {
+            forge::MakeAnswer::Kept => w::Outcome::MakeKept,
+            forge::MakeAnswer::Refused(why) => {
+                let why = match why {
+                    forge::MakeRefusal::NoSuchForge => w::MakeRefusal::NoSuchForge,
+                    forge::MakeRefusal::NotOffered => w::MakeRefusal::NotOffered,
+                    forge::MakeRefusal::NotOwner => w::MakeRefusal::NotOwner,
+                    forge::MakeRefusal::Invalid => w::MakeRefusal::Invalid,
+                    forge::MakeRefusal::HomeHeld => w::MakeRefusal::HomeHeld,
+                    forge::MakeRefusal::Full => w::MakeRefusal::Full,
+                };
+                w::Outcome::MakeRefused(w::MakeRefused::new(limits, w::MakeRefusedParts { why }).ok()?)
+            }
+        },
         Some(temper_engine_domain::ApplicationAnswer::Adopt(
             forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
         )) => return None,
