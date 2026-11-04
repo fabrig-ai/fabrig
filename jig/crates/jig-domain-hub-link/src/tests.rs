@@ -491,3 +491,78 @@ fn a_job_terminal_releases_its_assignment_and_keeps_a_newer_attempts() {
         assert_eq!(link.jobs.len(), u32::from(attempt != ATTEMPT.raw()));
     }
 }
+
+#[test]
+fn core_now_translates_the_links_six_outputs_without_changing_fields() {
+    const PAYLOAD: Token = Token::new(5);
+    const TURN: u32 = 7;
+    let Event::Relayed { channel, run, attempt, call, answer } = now(core::Now::Relayed {
+        channel: CHANNEL,
+        run: RUN,
+        attempt: ATTEMPT,
+        call: Box::from(&b"call"[..]),
+        answer: PAYLOAD,
+    })
+    .expect("relayed belongs to the link") else {
+        panic!("relayed event")
+    };
+    assert_eq!((channel, run, attempt, answer), (CHANNEL, RUN, ATTEMPT, PAYLOAD));
+    assert_eq!(call.as_ref(), b"call");
+    let Event::DropPayload { payload } =
+        now(core::Now::DropPayload { payload: PAYLOAD }).expect("drop payload belongs to the link")
+    else {
+        panic!("drop payload event")
+    };
+    assert_eq!(payload, PAYLOAD);
+    let Event::TurnPayload { run, attempt, turn, body } =
+        now(core::Now::TurnPayload { run: RUN, attempt: ATTEMPT, turn: TURN, body: PAYLOAD })
+            .expect("turn payload belongs to the link")
+    else {
+        panic!("turn payload event")
+    };
+    assert_eq!((run, attempt, turn, body), (RUN, ATTEMPT, TURN, PAYLOAD));
+    let Event::AnswerPayload { run, attempt, payload } =
+        now(core::Now::AnswerPayload { run: RUN, attempt: ATTEMPT, payload: PAYLOAD })
+            .expect("answer payload belongs to the link")
+    else {
+        panic!("answer payload event")
+    };
+    assert_eq!((run, attempt, payload), (RUN, ATTEMPT, PAYLOAD));
+    let Event::AcceptedTurn { payload, task, attempt, turn, accepted } = now(core::Now::AcceptedTurn {
+        payload: PAYLOAD,
+        task: RUN.raw(),
+        attempt: ATTEMPT.raw(),
+        turn: TURN,
+        accepted: tasks::Accepted::Already,
+    })
+    .expect("accepted turn belongs to the link") else {
+        panic!("accepted turn event")
+    };
+    assert_eq!(
+        (payload, task, attempt, turn, accepted),
+        (PAYLOAD, RUN.raw(), ATTEMPT.raw(), TURN, tasks::Accepted::Already)
+    );
+    let problem = tasks::Problem::live_delegates(RUN.raw(), &[ATTEMPT.raw()]);
+    let Event::RefusedPayload { request, problem: returned } =
+        now(core::Now::RefusedPayload { request: PAYLOAD, problem: problem.clone() })
+            .expect("refused payload belongs to the link")
+    else {
+        panic!("refused payload event")
+    };
+    assert_eq!((request, returned), (PAYLOAD, problem));
+}
+
+#[test]
+fn core_now_returns_a_roots_output_without_consuming_its_bytes() {
+    let call: Box<[u8]> = Box::from(&b"root call"[..]);
+    let bytes = call.as_ptr();
+    let core::Now::RelayBusy { channel, run, attempt, call } =
+        now(core::Now::RelayBusy { channel: CHANNEL, run: RUN, attempt: ATTEMPT, call })
+            .expect_err("relay busy stays with the root")
+    else {
+        panic!("unchanged root output")
+    };
+    assert_eq!((channel, run, attempt), (CHANNEL, RUN, ATTEMPT));
+    assert_eq!(call.as_ref(), b"root call");
+    assert_eq!(call.as_ptr(), bytes);
+}

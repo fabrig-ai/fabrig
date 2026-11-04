@@ -398,6 +398,17 @@ fn route_now(
     now: core::Now,
     work: &mut Queue<Work>,
 ) {
+    let now = match jig_domain_hub_link::now(now) {
+        Ok(jig_domain_hub_link::Event::AnswerPayload { run, attempt, payload }) => {
+            crate::link::answer(domain, run, attempt, payload, work);
+            return;
+        }
+        Ok(event) => {
+            crate::link::route(domain, env.now, event, work);
+            return;
+        }
+        Err(value) => value,
+    };
     match now {
         core::Now::RelayBusy { channel, run, attempt, call } => {
             domain.hub_link.forget_call(&call);
@@ -408,12 +419,6 @@ fn route_now(
             assert!(domain.journal.now(delivery).is_ok(), "reserved busy answer room");
         }
         core::Now::CallBusy { to } | core::Now::NoteBusy { to, .. } => crate::stopping::call(domain, to, work),
-        core::Now::Relayed { channel, run, attempt, call, answer } => crate::link::route(
-            domain,
-            env.now,
-            jig_domain_hub_link::Event::Relayed { channel, run, attempt, call, answer },
-            work,
-        ),
         core::Now::DropCall { call } => {
             domain.hub_link.forget_call(&call.name);
             domain.now.push(crate::Request::Now(core::Now::DropCall { call }));
@@ -483,30 +488,17 @@ fn route_now(
             drop(domain.hub_link.take_brief(task));
             drop(domain.workspace_writes.remove(&task));
         }
-        core::Now::DropPayload { payload } => {
-            drop(domain.hub_link.take_payload(payload));
-        }
-        core::Now::TurnPayload { run, attempt, turn, body } => crate::link::route(
-            domain,
-            env.now,
-            jig_domain_hub_link::Event::TurnPayload { run, attempt, turn, body },
-            work,
-        ),
-        core::Now::AnswerPayload { run, attempt, payload } => crate::link::answer(domain, run, attempt, payload, work),
-        core::Now::AcceptedTurn { payload, task, attempt, turn, accepted } => crate::link::route(
-            domain,
-            env.now,
-            jig_domain_hub_link::Event::AcceptedTurn { payload, task, attempt, turn, accepted },
-            work,
-        ),
-        core::Now::RefusedPayload { request, problem } => {
-            crate::link::route(domain, env.now, jig_domain_hub_link::Event::RefusedPayload { request, problem }, work);
-        }
         core::Now::RestoreRefused => {
             assert!(domain.start_stopped(), "a refused restore has stopped the core");
         }
 
-        other @ (core::Now::SeenConversation { .. }
+        other @ (core::Now::Relayed { .. }
+        | core::Now::DropPayload { .. }
+        | core::Now::TurnPayload { .. }
+        | core::Now::AnswerPayload { .. }
+        | core::Now::AcceptedTurn { .. }
+        | core::Now::RefusedPayload { .. }
+        | core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
         | core::Now::EndedPersonTask { .. }
         | core::Now::EndedTask { .. }
