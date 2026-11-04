@@ -3,9 +3,6 @@ use hearth_accounts_world::{
     world,
 };
 use hearth_protocol_accounts::{read, worst_case};
-use skein_heap::Counting;
-#[global_allocator]
-static HEAP: Counting = Counting;
 #[test]
 fn a_read_at_its_limits_holds_no_more_than_its_worst_case() {
     for file in FILES {
