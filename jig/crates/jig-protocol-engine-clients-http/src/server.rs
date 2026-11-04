@@ -22,7 +22,7 @@ pub struct Limits {
 pub enum PeerEnd {
     /// Ends the connection, and the owner hears it closed.
     Connection,
-    /// Leaves the connection; the owner hears the call's `Ended`.
+    /// Leaves the connection: the response goes on, and the owner hears the call end with it.
     Call,
 }
 pub enum Routed {
@@ -69,7 +69,7 @@ impl core::fmt::Debug for Server {
             .field("listener", &self.listener)
             .field("phase", &self.phase)
             .field("connections", &self.connections.len())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 // A head holds cookies and a response Set-Cookie; show only the variant and call.
