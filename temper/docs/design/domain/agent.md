@@ -546,9 +546,12 @@ by it (8.2); a goal is where the work is planned, so an advisor asked
 for elsewhere leaves the work to be planned in a chat's reply. So one
 fact of the calling run, whether the root built it as a goal, decides
 both. For a tracked goal whose spec marks the work to be agreed (8.2),
-the root first refuses `goal` with `agree` or without `advisor` with
-"this work is to be agreed: ask your requester your plan with message,
-as a question, and wait". An advisor without `agree` remains admitted.
+while it has not asked its requester or a requester question remains
+unanswered, the root first refuses `goal` with `agree` or without
+`advisor` with "this work is to be agreed: ask your requester your plan
+with message, as a question, and wait". Once the requester has answered and no requester
+question remains pending, the ordinary refusal below points to `change`.
+An advisor without `agree` remains admitted.
 Otherwise the root refuses a goal's `goal` without `advisor` (a goal starts
 an advisor alone: set `advisor`, or make the change with `change`), and
 any other run's `goal` with `advisor` set (to change a repository, call
