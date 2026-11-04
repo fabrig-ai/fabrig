@@ -118,7 +118,7 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep running; send background output to a file.
+Keep running; log background output.
 The sign-in link follows `Open this link in a browser on this machine.`
 
 Expect: real, `Logs: DATA/box/logs/`. Fake,
@@ -147,10 +147,12 @@ temper ctl DIR me
 
 Expect: `party 1 · owner · Owner`; `me` lists no project yet.
 
-After step 4, check `project show PROJECT`; resize with temper help weekly-budget.
+Policy 1 sizes future projects; `project-policy` immediately resizes the
+open period and parties' pools (temper help configure). After setup:
+`project show PROJECT`; funding: temper help weekly-budget.
 
-If not: `temper ctl: the sign-in link was refused` (exit 1): spent or
-expired. Use the new link after `A fresh sign-in link:`.
+If not: sign-in refused (exit 1). Use the new link
+after `A fresh sign-in link:`.
 
 ## 4. Set up Forgejo on this machine
 
@@ -217,9 +219,9 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
-`program-login` signs Claude Code into `PROGRAMS/NAME` here.
-For an existing login, set `PROGRAMS` to its parent and `NAME` to its
-name; skip `program-login`. Only one box uses it at a time.
+`program-login` signs in at `PROGRAMS/NAME`.
+For an existing login: parent as `PROGRAMS`, name as `NAME`; skip
+`program-login`. One box at a time.
 
 ```
 temper ctl DIR account list --until usable
@@ -298,8 +300,8 @@ If not: `account export: not signed in` (exit 2): add a key where needed.
 at TIME` (exit 2): no room for the move's answers; nothing moved.
 Keep the box running and export again after TIME.
 `temper ctl: unsent` (exit 1): busy engine, nothing moved; export later.
-Other failures: keep running; the account stays, the move cancels at
-its deadline. Export afterward.
+Other failures: keep running; the account stays. Export after the move's
+deadline.
 
 ## Clean up
 
