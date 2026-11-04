@@ -1,0 +1,237 @@
+use super::File;
+use hearth_lib::encode::Item;
+use hearth_protocol_tree::resolution::{Costs, Inputs, Line, Made, Package, Resolution};
+use skein_lib::{Duration, Wall};
+pub const TEST_MIN_RESOLUTION: hearth_lib::encode::Digest = hearth_lib::encode::Digest([
+    0x21, 0xe9, 0xa0, 0x2f, 0xeb, 0x65, 0x48, 0x83, 0xef, 0x05, 0x1d, 0x24, 0x7c, 0xb1, 0x4d, 0xb8, 0x78, 0xe0, 0x4c,
+    0x03, 0xc2, 0xf7, 0x67, 0x5c, 0x78, 0x4a, 0x67, 0x9e, 0xa0, 0x95, 0x6d, 0x5d,
+]);
+pub const TEST_MIN_KEY: &str = "21e9a02feb654883ef051d247cb14db878e04c03c2f7675c784a679ea0956d5d";
+pub const TEST_MIN_KEYS_LINE: &str = "keys         packages d018a0eea488   software f60610453970   config 8c9bf06f6262";
+pub const TEST_MIN_DIGEST: hearth_lib::encode::Digest = hearth_lib::encode::Digest([
+    0x90, 0x8a, 0x3b, 0x8a, 0x1d, 0xdd, 0x78, 0x10, 0x0f, 0x9f, 0x44, 0xb2, 0xd3, 0xe6, 0xb3, 0xf4, 0xed, 0xfd, 0x65,
+    0xb2, 0x26, 0xdf, 0x34, 0x8e, 0x50, 0x21, 0xb5, 0xd6, 0xd3, 0x7f, 0x63, 0x8b,
+]);
+pub const TEST_REPOSITORY: &[File] = &[
+    file("envs/boot.json", include_bytes!("../../../../testing/repos/test/envs/boot.json")),
+    file("envs/min.json", include_bytes!("../../../../testing/repos/test/envs/min.json")),
+    file("fleet.json", include_bytes!("../../../../testing/repos/test/fleet.json")),
+    file("hosts/test/test-min.json", include_bytes!("../../../../testing/repos/test/hosts/test/test-min.json")),
+    file("hosts/test/test.json", include_bytes!("../../../../testing/repos/test/hosts/test/test.json")),
+    file("hosts/test/test-boot.json", include_bytes!("../../../../testing/repos/test/hosts/test/test-boot.json")),
+    file("tasks/hearth/task.json", include_bytes!("../../../../testing/repos/test/tasks/hearth/task.json")),
+    file("tasks/boot/task.json", include_bytes!("../../../../testing/repos/test/tasks/boot/task.json")),
+];
+const fn file(path: &'static str, body: &'static [u8]) -> File {
+    File { path, body, mode: 0o644 }
+}
+#[must_use]
+pub fn test_min_recorded() -> Resolution {
+    Resolution {
+        key: TEST_MIN_RESOLUTION,
+        digest: TEST_MIN_DIGEST,
+        inputs: Inputs {
+            apt: Box::new([Item::Map(1), text(b"install_recommends"), Item::False]),
+            request: Box::new([Item::List(0)]),
+            variant: Box::new([text(b"apt")]),
+            sources: Box::new([
+                Item::Map(5),
+                text(b"architecture"),
+                text(b"amd64"),
+                text(b"archive"),
+                text(b"20261017T143929Z"),
+                text(b"components"),
+                Item::List(1),
+                text(b"main"),
+                text(b"suite"),
+                text(b"forky"),
+                text(b"updates"),
+                Item::False,
+            ]),
+        },
+        closure: Box::new([Package {
+            name: b"apt".as_slice().into(),
+            architecture: b"amd64".as_slice().into(),
+            version: b"3.3.3".as_slice().into(),
+            source: 0,
+            filename: b"pool/main/a/apt/apt_3.3.3_amd64.deb".as_slice().into(),
+            size: 1_567_912,
+            sha256: hearth_lib::encode::Digest([
+                0xc9, 0xc5, 0x69, 0x7b, 0x1b, 0xfa, 0x54, 0xd5, 0x70, 0x63, 0x72, 0x49, 0xb7, 0x8a, 0xee, 0xd3, 0x75,
+                0x51, 0x01, 0x4f, 0xdf, 0xb6, 0x6d, 0xc4, 0x33, 0x48, 0x27, 0xf7, 0xc9, 0xb5, 0x47, 0x16,
+            ]),
+        }]),
+        sources: Box::new([Line {
+            uri: b"http://snapshot.debian.org/archive/debian/20261017T143929Z/".as_slice().into(),
+            suite: b"forky".as_slice().into(),
+            components: Box::new([b"main".as_slice().into()]),
+            indices: Box::new([]),
+        }]),
+        made: Made {
+            at: Wall::EPOCH,
+            apt: b"".as_slice().into(),
+            mmdebstrap: b"".as_slice().into(),
+            costs: Costs { fetched: 0, took: Duration::ZERO },
+        },
+    }
+}
+fn text(bytes: &[u8]) -> Item {
+    Item::Bytes(bytes.into())
+}
+#[must_use]
+pub fn spec_packages_digests(bytes: &[u8]) -> Vec<String> {
+    String::from_utf8_lossy(bytes)
+        .lines()
+        .filter(|line| line.contains("\"record\":\"spec\"") || line.contains("\"name\":\"packages\""))
+        .map(|line| {
+            line.split_once("\"digest\":\"").expect("digest field").1.split_once('"').expect("digest text").0.to_owned()
+        })
+        .collect()
+}
+
+#[must_use]
+pub fn recorded_test_min(label: &str) -> super::Repository {
+    let repository = super::Repository::make(label, TEST_REPOSITORY);
+    record_test_min(&repository);
+    repository
+}
+pub fn record_test_min(repository: &super::Repository) {
+    super::lay(&repository.scratch().path().join("store"), &[super::Laid::Resolution(test_min_recorded())]);
+}
+
+#[must_use]
+pub fn dead_proxy() -> Box<[u8]> {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("loopback port");
+    format!("http://{}", listener.local_addr().expect("bound address")).into_bytes().into()
+}
+
+use super::{Call, Form, Release, Rendered, Repository};
+use std::os::unix::ffi::OsStrExt;
+pub(super) fn call_at(repository: &Repository, at: &str, targets: &[&[u8]], resolve: bool) -> Call {
+    Call::Render {
+        resolve,
+        repository: repository.work_tree.join(".git").as_os_str().as_bytes().into(),
+        revision: at.as_bytes().into(),
+        targets: targets.iter().map(|target| Box::<[u8]>::from(*target)).collect(),
+    }
+}
+#[must_use]
+pub fn resolve(repository: &Repository, targets: &[&[u8]], form: Form, proxy: &[u8]) -> Rendered {
+    super::run_holding(
+        repository,
+        call_at(repository, "HEAD", targets, true),
+        form,
+        None,
+        &hearth::limits(),
+        Release::After(skein_lib::Duration::ZERO),
+        Some(proxy.into()),
+    )
+    .rendered
+}
+
+#[must_use]
+pub fn unknown_package_repository() -> Repository {
+    let repository = Repository::make("unknown-package", TEST_REPOSITORY);
+    drop(repository.next(
+        &[
+            File { path: "tasks/absent/task.json", body: br#"{"packages":{"hearth-absent":{}}}"#, mode: 0o644 },
+            File { path: "hosts/test/test-min.json", body: br#"{"absent":{}}"#, mode: 0o644 },
+        ],
+        &[],
+    ));
+    repository
+}
+
+#[must_use]
+pub fn mirror() -> hearth_test_mirror::Mirror {
+    hearth_test_mirror::Mirror::find(&hearth_test_mirror::Pin::committed()).expect("fetched pinned mirror")
+}
+#[must_use]
+pub fn resolved_test_min(label: &str) -> (Repository, Rendered) {
+    let repository = Repository::make(label, TEST_REPOSITORY);
+    let proxy = hearth_test_mirror::Proxy::serve(&mirror()).expect("loopback proxy");
+    let rendered = resolve(&repository, &[b"test-min"], Form::Text, proxy.url().as_bytes());
+    (repository, rendered)
+}
+#[must_use]
+pub fn read_test_min(repository: &Repository) -> Resolution {
+    let bytes =
+        std::fs::read(repository.scratch().path().join("store/resolutions").join(format!("{TEST_MIN_KEY}.record")))
+            .expect("recorded resolution");
+    hearth_protocol_tree::resolution::read(&bytes, &hearth_protocol_tree::limits::SHIPPED).expect("resolution record")
+}
+#[must_use]
+pub fn recorded_closure() -> Box<[Package]> {
+    let recording = hearth_recordings::all("mmdebstrap")
+        .into_iter()
+        .find(|(name, _)| name.as_ref() == "test-min")
+        .expect("test-min recording")
+        .1;
+    let bytes = recording.stanzas.expect("recorded installed stanzas");
+    let stanzas = std::str::from_utf8(&bytes).expect("stanza UTF-8");
+    let mut packages = Vec::new();
+    for stanza in stanzas.split("\n\n").filter(|stanza| !stanza.is_empty()) {
+        let field =
+            |name: &str| stanza.lines().find_map(|line| line.strip_prefix(name)).expect("recorded package field");
+        let mut sha256 = [0; 32];
+        for (byte, pair) in sha256.iter_mut().zip(field("SHA256: ").as_bytes().chunks_exact(2)) {
+            *byte = u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("digest byte");
+        }
+        packages.push(Package {
+            name: field("Package: ").as_bytes().into(),
+            architecture: field("Architecture: ").as_bytes().into(),
+            version: field("Version: ").as_bytes().into(),
+            filename: field("Filename: ").as_bytes().into(),
+            size: field("Size: ").parse().expect("package size"),
+            sha256: hearth_lib::encode::Digest(sha256),
+            source: 0,
+        });
+    }
+    packages.sort_by(|left, right| (&left.name, &left.architecture).cmp(&(&right.name, &right.architecture)));
+    packages.into_boxed_slice()
+}
+
+#[must_use]
+pub fn failed_test_min(label: &str) -> (Repository, Rendered) {
+    let repository = Repository::make(label, TEST_REPOSITORY);
+    let rendered = resolve(&repository, &[b"test-min"], Form::Text, &dead_proxy());
+    (repository, rendered)
+}
+#[must_use]
+pub fn mirror_indices() -> [(&'static [u8], [u8; 32]); 2] {
+    let mirror = mirror();
+    let mut release = [0; 32];
+    for (byte, pair) in release.iter_mut().zip(mirror.pin().digest.as_bytes().chunks_exact(2)) {
+        *byte = u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("digest");
+    }
+    [
+        (b"InRelease", release),
+        (
+            b"main/binary-amd64/Packages",
+            skein_lib::sha256::digest(&std::fs::read(mirror.index("main")).expect("mirror index")),
+        ),
+    ]
+}
+#[must_use]
+pub fn cached_index(
+    repository: &Repository,
+    digest: [u8; 32],
+) -> (std::path::PathBuf, hearth_protocol_tree::cache_file::CacheFile) {
+    let name = hex_digest(digest);
+    let cache = repository.scratch().path().join("store/cache");
+    let bytes = std::fs::read(cache.join(format!("{name}.record"))).expect("cache record");
+    (
+        cache.join(name),
+        hearth_protocol_tree::cache_file::read(&bytes, &hearth_protocol_tree::limits::SHIPPED).expect("kind 5"),
+    )
+}
+
+#[must_use]
+pub fn hex_digest(digest: [u8; 32]) -> String {
+    use std::fmt::Write;
+    let mut name = String::new();
+    for byte in digest {
+        write!(&mut name, "{byte:02x}").expect("hex name");
+    }
+    name
+}
