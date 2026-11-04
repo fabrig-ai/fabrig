@@ -44,6 +44,50 @@ pub(super) fn declarations() -> Configuration {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::print_stderr,
+    reason = "The profile regression prints its measured turn bound for the startup limits report"
+)]
+fn forty_eight_calls_per_response_derive_with_two_models() {
+    // smith/docs/design/protocol/limits.md, section 4: turn-in-channel.
+    const TURN_BODY_CEILING: u32 = 33_554_432;
+    let mut selected = standard();
+    selected.declared.tool_payload = 10_662;
+    selected.declared.read_window = 256;
+    selected.declared.conversations = 26;
+    selected.declared.calls_per_response = 48;
+    selected.declared.memory = 2_147_483_648;
+    selected.policy.max_turns = 800;
+    selected.policy.check_timeout = Duration::from_millis(60_000);
+    selected.policy.group_stop = Duration::from_millis(10);
+    selected.policy.inbox = 8;
+    selected.policy.unacknowledged = 8;
+    let mut configuration = declarations();
+    configuration.endpoints = Box::new([configuration.endpoints[0].clone(), configuration.endpoints[0].clone()]);
+    for (endpoint, (number, name, window, reasoning_item)) in configuration
+        .endpoints
+        .iter_mut()
+        .zip([(1, b"gpt-6-luna".as_slice(), 1_048_576, 65_536), (3, b"demo".as_slice(), 177_523, 2_048)])
+    {
+        endpoint.number = number;
+        endpoint.connect = Duration::from_millis(10_000);
+        endpoint.handshake = Duration::from_millis(10_000);
+        let model = &mut endpoint.models[0];
+        model.name = name.into();
+        model.window = window;
+        model.output = 8_192;
+        model.reasoning_item = reasoning_item;
+        model.head = Duration::from_millis(60_000);
+        model.idle = Duration::from_millis(30_000);
+    }
+    let limits = super::derive(&selected, &configuration).expect("two-model profile derives");
+    let turn = limits.channel.bodies.turn_body;
+    assert!(turn <= TURN_BODY_CEILING);
+    eprintln!("T {turn}");
+}
+
+#[test]
 fn a_turn_holds_a_reasoning_block_at_the_completions_share() {
     use smith_transcript::{Opaque, OpaqueParts};
     let selected = standard();
@@ -594,11 +638,11 @@ fn transcript_blocks_hold_the_largest_completion_or_name_the_ceiling() {
     let profile = profile();
     let limits = super::derive(&profile, &declarations()).expect("coherent declarations");
     assert!(limits.channel.transcript.message_blocks >= limits.domain.session.completion_blocks);
-    let refusal = validate::calls_in_transcript(65, 64).expect_err("one beyond the vocabulary");
+    let refusal = validate::calls_in_transcript(129, 128).expect_err("one beyond the vocabulary");
     assert_eq!(refusal.check(), Some(Check::CallsInTranscript));
     assert_eq!(
         words(&refusal).as_ref(),
-        b"calls-in-transcript: session.message_blocks=65 items; transcript.message_blocks=64 items"
+        b"calls-in-transcript: session.message_blocks=129 items; transcript.message_blocks=128 items"
     );
 }
 

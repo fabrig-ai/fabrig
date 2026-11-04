@@ -103,36 +103,27 @@ pub(super) fn read_wall(value: Option<u64>) -> Option<Wall> {
 }
 pub(super) fn name(value: &domain::Name, limits: &wire::Limits) -> Result<wire::Name, wire::Problem> {
     let domain::Name { connector, path } = value;
-    let mut members = List::with_capacity(limits.name_path);
+    let members = super::pieces::segments(path, limits, limits.name_path, wire::Path::NamePath)?;
     let mut bytes = 0_usize;
     for segment in path {
         bytes = bytes.saturating_add(segment.len());
-        let segment = wire::Segment::new(limits, wire::SegmentParts { bytes: segment.clone() })?;
-        if members.push(segment).is_err() {
-            return Err(name_problem());
-        }
     }
     if bytes > skein_lib::length::usize_of(limits.segment_bytes) {
-        return Err(name_problem());
+        return Err(problem(wire::Path::NamePath));
     }
     wire::Name::new(limits, wire::NameParts { connector: *connector, path: members })
 }
 pub(super) fn read_name(value: wire::Name, limits: &wire::Limits) -> Result<domain::Name, wire::Problem> {
     let wire::NameParts { connector, path } = value.into_parts();
-    let mut members = List::with_capacity(path.len());
+    let path = super::pieces::read_segments(path, limits, wire::Path::NamePath)?;
     let mut bytes = 0_usize;
-    for segment in path.into_boxed() {
-        let wire::SegmentParts { bytes: segment } = segment.into_parts();
+    for segment in &path {
         bytes = bytes.saturating_add(segment.len());
-        members.push(segment).expect("same number of segments");
     }
     if bytes > skein_lib::length::usize_of(limits.segment_bytes) {
-        return Err(name_problem());
+        return Err(problem(wire::Path::NamePath));
     }
-    Ok(domain::Name { connector, path: members.into_boxed() })
-}
-fn name_problem() -> wire::Problem {
-    wire::Problem { path: wire::Path::NamePath, reason: skein_codec::Reason::Bound }
+    Ok(domain::Name { connector, path })
 }
 
 /// Translate a tasks party.
@@ -391,16 +382,12 @@ pub fn spec(value: &domain::Spec, limits: &wire::Limits) -> Result<wire::Spec, w
         }
         None => None,
     };
-    let mut members = List::with_capacity(limits.spec_parameters);
+    let members = super::pieces::parameters(parameters, limits, limits.spec_parameters, wire::Path::SpecParameters)?;
     let mut bytes = words.len();
     for item in parameters {
         match item {
             domain::Parameter::Bytes { value, .. } => bytes = bytes.saturating_add(value.len()),
             domain::Parameter::Number { .. } | domain::Parameter::Resource { .. } => {}
-        }
-        let item = parameter(item, limits)?;
-        if members.push(item).is_err() {
-            return Err(problem(wire::Path::SpecParameters));
         }
     }
     if bytes > skein_lib::length::usize_of(limits.spec_words) {
@@ -431,15 +418,13 @@ pub fn read_spec(value: wire::Spec, limits: &wire::Limits) -> Result<domain::Spe
         }
         None => None,
     };
-    let mut members = List::with_capacity(parameters.len());
+    let members = super::pieces::read_parameters(parameters, limits, wire::Path::SpecParameters)?;
     let mut bytes = words.len();
-    for item in parameters.into_boxed() {
-        let item = read_parameter(item);
-        match &item {
+    for item in &members {
+        match item {
             domain::Parameter::Bytes { value, .. } => bytes = bytes.saturating_add(value.len()),
             domain::Parameter::Number { .. } | domain::Parameter::Resource { .. } => {}
         }
-        members.push(item).expect("same number of parameters");
     }
     if bytes > skein_lib::length::usize_of(limits.spec_words) {
         return Err(problem(wire::Path::SpecWords));
@@ -448,7 +433,7 @@ pub fn read_spec(value: wire::Spec, limits: &wire::Limits) -> Result<domain::Spe
     for input in inputs.into_boxed() {
         references.push(input.into_parts().value).expect("same number of inputs");
     }
-    Ok(domain::Spec { job, asks, words, parameters: members.into_boxed(), inputs: references.into_boxed() })
+    Ok(domain::Spec { job, asks, words, parameters: members, inputs: references.into_boxed() })
 }
 /// Translate a connector part and its opaque key.
 pub fn part(value: &domain::Part, limits: &wire::Limits) -> Result<wire::Part, wire::Problem> {
@@ -458,14 +443,15 @@ pub fn part(value: &domain::Part, limits: &wire::Limits) -> Result<wire::Part, w
             wire::PartKey::Number(wire::Number::new(limits, wire::NumberParts { value: *value })?)
         }
         domain::PartKey::Path(path) => {
-            let mut members = List::with_capacity(limits.part_path_segments);
+            let members = super::pieces::part_segments(
+                path.as_slice(),
+                limits,
+                limits.part_path_segments,
+                wire::Path::PartPathSegments,
+            )?;
             let mut bytes = 0_usize;
             for segment in path {
                 bytes = bytes.saturating_add(segment.len());
-                let segment = wire::PartSegment::new(limits, wire::PartSegmentParts { bytes: segment.clone() })?;
-                if members.push(segment).is_err() {
-                    return Err(problem(wire::Path::PartPathSegments));
-                }
             }
             if bytes > skein_lib::length::usize_of(limits.part_segment_bytes) {
                 return Err(problem(wire::Path::PartPathSegments));
@@ -481,11 +467,11 @@ pub fn read_part(value: wire::Part, limits: &wire::Limits) -> Result<domain::Par
     let key = match key {
         wire::PartKey::Number(value) => domain::PartKey::Number(value.into_parts().value),
         wire::PartKey::Path(value) => {
-            let mut bytes = 0_usize;
             let segments = value.into_parts().segments;
-            let mut members = List::with_capacity(segments.len());
-            for segment in segments.into_boxed() {
-                let segment = segment.into_parts().bytes;
+            let segments = super::pieces::read_part_segments(segments, limits, wire::Path::PartPathSegments)?;
+            let mut members = List::with_capacity(u32::try_from(segments.len()).expect("bounded path"));
+            let mut bytes = 0_usize;
+            for segment in segments {
                 bytes = bytes.saturating_add(segment.len());
                 members.push(segment).expect("same number of segments");
             }
@@ -609,28 +595,14 @@ pub fn authority(
     check_authority(value, limits)?;
     let domain::Authority { tools, models, grants, delegation, budget, notes, note_resources } = value;
     let models = super::models::selector(*models, moved);
-    let mut translated_grants = List::with_capacity(limits.authority_grants);
-    for grant in grants {
-        let domain::Grant { connector, kind, pattern: value } = grant;
-        let grant = wire::Grant::new(
-            limits,
-            wire::GrantParts { connector: *connector, kind: *kind, pattern: pattern(value, limits)? },
-        )?;
-        if translated_grants.push(grant).is_err() {
-            return Err(problem(wire::Path::AuthorityGrants));
-        }
-    }
-    let mut resources = List::with_capacity(limits.authority_note_resources);
-    for scope in note_resources {
-        let domain::ResourceScope { connector, pattern: value } = scope;
-        let scope = wire::ResourceScope::new(
-            limits,
-            wire::ResourceScopeParts { connector: *connector, pattern: pattern(value, limits)? },
-        )?;
-        if resources.push(scope).is_err() {
-            return Err(problem(wire::Path::AuthorityNoteResources));
-        }
-    }
+    let translated_grants =
+        super::pieces::grants(grants, limits, limits.authority_grants, wire::Path::AuthorityGrants)?;
+    let resources = super::pieces::scopes(
+        note_resources,
+        limits,
+        limits.authority_note_resources,
+        wire::Path::AuthorityNoteResources,
+    )?;
     let domain::Delegation { kinds, tasks, depth } = delegation;
     let mut executors = List::with_capacity(limits.delegation_kinds);
     for kind in kinds {
@@ -659,20 +631,8 @@ pub fn authority(
 /// Read authority, checking bytes shared by grants and note resources.
 pub fn read_authority(value: wire::Authority, limits: &wire::Limits) -> Result<domain::Authority, wire::Problem> {
     let wire::AuthorityParts { tools, models, grants, delegation, budget, notes, note_resources } = value.into_parts();
-    let mut translated_grants = List::with_capacity(grants.len());
-    for grant in grants.into_boxed() {
-        let wire::GrantParts { connector, kind, pattern } = grant.into_parts();
-        translated_grants
-            .push(domain::Grant { connector, kind, pattern: read_pattern(pattern) })
-            .expect("same number of grants");
-    }
-    let mut resources = List::with_capacity(note_resources.len());
-    for scope in note_resources.into_boxed() {
-        let wire::ResourceScopeParts { connector, pattern } = scope.into_parts();
-        resources
-            .push(domain::ResourceScope { connector, pattern: read_pattern(pattern) })
-            .expect("same number of resources");
-    }
+    let translated_grants = super::pieces::read_grants(grants, limits, wire::Path::AuthorityGrants)?;
+    let resources = super::pieces::read_scopes(note_resources, limits, wire::Path::AuthorityNoteResources)?;
     let wire::DelegationParts { kinds, tasks, depth } = delegation.into_parts();
     let mut executors = List::with_capacity(kinds.len());
     for kind in kinds.into_boxed() {
@@ -682,11 +642,11 @@ pub fn read_authority(value: wire::Authority, limits: &wire::Limits) -> Result<d
     let value = domain::Authority {
         tools: domain::Tools(tools.into_parts().bits),
         models: domain::Models::from_parts(models.bits(), models.all()),
-        grants: translated_grants.into_boxed(),
+        grants: translated_grants,
         delegation: domain::Delegation { kinds: executors.into_boxed(), tasks, depth },
         budget: domain::Budget { spend, deadline: read_wall(deadline) },
         notes: domain::Scopes(notes.into_parts().bits),
-        note_resources: resources.into_boxed(),
+        note_resources: resources,
     };
     check_authority(&value, limits)?;
     Ok(value)

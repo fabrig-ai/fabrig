@@ -199,14 +199,18 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   sum. The client reads no configuration: its only inputs are its two
   arguments (`../protocol/configuration.md`, section 9).
 
-Both shells receive eight entries in a document's short lists,
-including creating's complete charter and procedure lists: the
-browser's client bounds, a constant of `temper-client-shell-web`, are
-the terminal's. This covers `temper init` and the owned example's
-`documents.lines` eight; it is a receiving capacity, independent of how
-many rows a screen shows. A list longer than a client receives makes
-its document undecodable there, and jig's link drops its stream on
-such a record: every watch ends, and the page reads Offline and Behind.
+The native terminal, the browser and `temper ctl` receive sixteen entries
+in a document's short lists, including creating's complete charter and
+procedure lists, sixteen in an authority's grants and delegation kinds,
+and eighty live delegates in a chat's close. This covers `temper init`'s
+and the owned example's `standard` profile: its `documents.lines`
+sixteen, its grants and executors sixteen, its `tasks.delegates` eighty
+(`../protocol/configuration.md`, 13.4); a settings file and the
+configuring agent's settings form take as many grants and kinds. Each is
+a receiving capacity, independent of how many rows a screen shows. A list
+longer than a client receives makes its document undecodable there, and
+jig's link drops its stream on such a record: every watch ends, and the
+page reads Offline and Behind.
 
 ## 3. The client root
 
@@ -777,10 +781,17 @@ keeps (`../protocol/configuration.md`, section 2).
   `/welcome?at=forge`, `model` or `ready` (`browser.md`, 2.3); its
   words are its mockup's (5.6).
   - *Its frame* is temper's brand link to Chats (named "temper chats"),
-    the person's name and "Sign out" alone: no project, navigation or
-    link state, and no accounts' banner (5.1); the playground's line,
-    while the playground runs or resets, as on every page (4.8, 5.6).
-    Each step's heading is the page's level-1 heading.
+    temper box's line and the steps alone: no person's name or "Sign
+    out", no project, navigation or link state, and no accounts' banner
+    (5.1); the playground's line, while the playground runs or resets,
+    as on every page (4.8, 5.6). temper box's line says what this
+    temper is for, in fixed words: "**temper box** · on this machine,
+    to try it · more later, from Settings · Run temper on a server ↗",
+    the last an external link to temper's help on running a server
+    (`temper/docs/help/server.md`), the welcome being a quick way to
+    try temper, not a deployment's wizard (the user, 2026-11-04). The
+    steps (5.2, A flow's parts) are the frame's, at its end. Each
+    step's heading is the page's level-1 heading.
   - *The store's state* is judged at its Welcome step, once each time
     the page opens, when its facts are in, from the forges the store
     keeps, the accounts and `me`'s projects (`../protocol/setup.md`,
@@ -835,18 +846,26 @@ keeps (`../protocol/configuration.md`, section 2).
     once its read names it, which the start's acts make
     (`../protocol/setup.md`, 8.4); until then the chats page shows the
     playground's start under way, as in that project.
-    *"Set up temper"* opens its Forge step. Its card names the forge
-    and the model in short, in fixed words, as its mockup does: "Your
-    forge: GitHub or Forgejo" and "Your model: ChatGPT or Claude", the
-    forges and the plans v0.1.0 supports (the user, 2026-10-26), not
-    the offered `me.providers` ways.
+    *"Set up temper"* opens its Forge step. Its card comes first, the
+    default, its button the step's one primary act, the playground's
+    card after it, its button secondary (the user, 2026-11-04). It
+    names the forge and the model in short, in fixed words: "Your
+    forge: a Forgejo temper runs for you, or GitHub. Your model:
+    ChatGPT or Claude.", the forges and the plans v0.1.0 supports (the
+    user, 2026-10-26), not the offered `me.providers` ways.
   - *Forge* is `ConnectForge`'s Choose and Details (`forge.md`, 5.4),
-    its Choose two cards, GitHub's and one Forgejo card whose "Run on
-    this machine" sets Forgejo on this machine up at once (`forge.md`,
-    5.4), its choice in the welcome's address (`browser.md`, 2.3);
+    its Choose two cards, Forgejo's first, the default, whose one way,
+    "Run on this machine", sets Forgejo on this machine up at once,
+    then GitHub's (`forge.md`, 5.4); a Forgejo deployment of the
+    person's own is connected from the forges page, not here (the user,
+    2026-11-04). Its choice is in the welcome's address (`browser.md`,
+    2.3);
     inside a choice, the foot's one "‹
     Back" returns to Forge's Choose. The welcome has no "‹ All
-    forges"; `ConnectForge` keeps it. The step connects a forge and
+    forges"; `ConnectForge` keeps it. Its foot, on Forge and Model, is
+    "‹ Back" and, while the playground is offered, "Try the playground
+    instead": no way to leave set up half done but the brand's link to
+    Chats (the user, 2026-11-04). The step connects a forge and
     nothing more, on every kind: it adopts no repository and asks no
     project's name (`../draft/first-run-projects.md`, 4). "Run on this
     machine" sends, with no Details, the `SetUp` that makes the forge
@@ -890,22 +909,23 @@ keeps (`../protocol/configuration.md`, section 2).
     later, from the project's "Adopt a repository" (4.4).
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
     (above), its way in the welcome's address (`browser.md`, 2.3).
-    Its ways sit directly under the lead, with neither the standalone
+    Its lead is "temper’s agents run on a plan you sign in to.". Its
+    ways sit directly under the lead, with neither the standalone
     Choose container nor its holder controls, as two cards, one for each
-    plan its card names (the user, 2026-11-03): "ChatGPT", for the
-    `openai` provider, "Your ChatGPT plan: sign in, and temper’s agents
-    use its included usage.", then, while the provider offers keys, the
-    muted "Or paste a key from OpenAI’s platform, billed to its
-    organization.", its buttons "Continue with ChatGPT" and the quiet
-    link "Use an OpenAI API key"; and "Claude", for `anthropic`, "Your
-    Claude subscription, through Claude Code on each host temper’s
-    agents run on.", with "Use your Claude subscription", and a key's
-    line and link while the provider offers keys. A provider with a key
-    alone reads its key's description with its key's link. No other
-    provider's ways are on the welcome, the box's fake model among
-    them, and no card offers "This browser isn't on temper's computer
-    ›"; with neither provider offered, the step shows Choose's cards as
-    `ConnectModel` does. Entering from a deployment
+    plan its card names (the user, 2026-11-03), the plan alone, no key
+    (the user, 2026-11-04: a key is added from the accounts page):
+    "ChatGPT", for the `openai` provider, "Your ChatGPT plan: sign in,
+    and temper’s agents use its included usage.", the muted "Sign in,
+    in this tab · about a minute", and "Continue with ChatGPT", the
+    default, the step's one primary act; and "Claude", for `anthropic`,
+    "Your Claude subscription, through Claude Code on each host
+    temper’s agents run on.", the muted "A command in a terminal, on
+    each host", and the secondary link "Use your Claude subscription".
+    A provider offering neither its sign-in nor its program has no
+    card. No other provider's ways are on the welcome, the box's fake
+    model among them, and no card offers "This browser isn't on
+    temper's computer ›"; with neither provider's plan offered, the
+    step shows Choose's cards as `ConnectModel` does. Entering from a deployment
     chooser resets the holder to the person's own. Inside a way, "‹ All
     ways" and the foot's "‹ Back" both return to Model Choose; on Choose
     the foot's returns to Forge. Standalone `ConnectModel` keeps its
@@ -920,11 +940,16 @@ keeps (`../protocol/configuration.md`, section 2).
     says what Forge did: while it sets up or connects, "FORGE ·
     CONNECTION · ORG/NAME", ORG/NAME its first repository, and a disclosure, "Each
     step", holding `ConnectForge`'s Setting up steps; once connected,
-    as *The store's state* says, ticked, "✓ FORGE · ORG/NAME", its
-    first repository made. A forge with no first repository, GitHub's
+    as *The store's state* says, ticked, "✓ FORGE · connected as LOGIN
+    · ORG/NAME made, in no project yet", its first repository made,
+    LOGIN temper's on the forge (`forge.md`, 5.4). A forge with no first repository, GitHub's
     or a Forgejo connected with its bot's tokens, reads "FORGE ·
     CONNECTION" while it connects, and once connected, ticked, "✓ FORGE
-    · CONNECTION". The line names no project; a set up or a first repository that failed keeps all
+    · CONNECTION". Ticked, FORGE is strong and the rest quieter, the
+    tick, FORGE, the dot and the rest each a node of their own, for the
+    look; the line's name is its words without the tick. The line
+    names no project but to say its first repository is in none yet,
+    as Ready adopts nothing; a set up or a first repository that failed keeps all
     five steps, with its failed step marked ✕, preceding steps done
     and later steps to come, followed by "STEP failed: WHY"
     (`forge.md`, 5.4). With no failed step named, nothing is marked and
@@ -1873,7 +1898,8 @@ client removes no account and closes no chat of its own.
     which a browser folds
     behind its ☰ at phone width alone (`browser.md`, 2.5) and the
     terminal and the fake person find whole; on `Welcome`, temper's
-    name, the person's name and "Sign out" alone (3.5, The welcome);
+    name, temper box's line and the welcome's steps alone (3.5, The
+    welcome);
   - *the accounts' banner,* while no account the person's work may use
     is usable (the `accounts` watch; jig's
     `client/domain/contract.md`, 7.1), but in the playground's project
@@ -2024,7 +2050,7 @@ client removes no account and closes no chat of its own.
     ("done", "under way", "failed", or none for one to come);
   - *a card,* the step's one card, holding the rest.
   A flow's page builds its main from them; the welcome's own steps are
-  the same list.
+  the same list, in its frame (3.5, The welcome).
 - **Bindings:** writing a field, choosing a role, toggling home or ci,
   choosing a picker's installation or row, its "Next" and "First page",
   pressing Adopt, each of the forges' page's actions, and going to
@@ -2463,6 +2489,24 @@ repository, and the cues the playground's, copied in from its read:
   "Adopt a repository"; and the chats page of a project with no
   repository says "No repository yet", with "Adopt a repository"
   (3.5).
+  *Where it departs from its mockup, since 2026-11-04* (the user's
+  greenfield pass; the mockup is not edited): the frame holds temper
+  box's line and the steps, and no person's name or "Sign out"; the
+  Welcome step's "Set up temper" card comes first and is the default,
+  its words "Your forge: a Forgejo temper runs for you, or GitHub. Your
+  model: ChatGPT or Claude.", the playground's card after it, "A
+  scripted model and a forge, built in. A taste of how temper feels,
+  with nothing to connect.", and under them "Tried the playground
+  first? Set up whenever you like; the playground then steps aside.";
+  Forge's cards are Forgejo's, "A forge of your own: temper starts it
+  on this machine and manages it.", with "Run on this machine" alone,
+  then GitHub's; Model's lead is "temper’s agents run on a plan you
+  sign in to.", its cards the plans alone, each with its muted line;
+  the forge's ticked line reads "✓ FORGE · connected as LOGIN ·
+  ORG/NAME made, in no project yet"; and the foot has no "Later" (3.5,
+  The welcome).
+  *Its look* is the welcome's own, scoped to its frame (`browser.md`,
+  2.5, The welcome's look).
 - **Not drawn:** the mockup's placeholder, "Try a suggested request…"
   (section 11).
 

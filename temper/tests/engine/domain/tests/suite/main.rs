@@ -13,6 +13,7 @@ mod budget;
 mod configuring;
 mod document_limits;
 mod escalation;
+mod fabrig_scale;
 mod forge_routes;
 mod host_calls;
 mod issue_projection;

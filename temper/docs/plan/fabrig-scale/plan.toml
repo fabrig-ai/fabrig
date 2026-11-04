@@ -1,0 +1,142 @@
+draft = "fabrig-scale"
+repo = "fabrig"
+sources = ["temper/docs/plan/fabrig-scale/inputs/request.md", "AGENTS.md"]
+# Released (fabrig/qa, 11-04 ~08:30Z): the combined footprint check passed at 4059f9ff9e.
+ready = true
+
+# temper's defaults sized for fabrig's own development with 5x headroom (inputs/request.md).
+# Released in batches: first the independent ceilings and the override refusal; then jig's
+# rows and standard profile (a designer's family), temper's application profile, init's
+# documents, the stock, the pinned tests and the resource gate's measurement (plan.md).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "refusal"
+title = "jig: a broken relation between two configured limits names its source and dependency, not 'invalid override' on every override"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/configuration.md, 6"
+
+[[part]]
+id = "ceilings"
+title = "the codec ceilings that cap a turn of smith's, 48 calls in one response and 80 questions on a change, raised in place"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/store.md, 8.1"
+
+[[slice]]
+id = 1
+story = "an override past a relation is refused naming the relation; smith derives an agent of 48 calls per response and 26 conversations whose turns the store and the worker wire carry; a change's question bound can be 80"
+parts = ["refusal", "ceilings"]
+walk = false
+
+[[question]]
+id = "realistic-defaults"
+text = """Draft realistic-defaults (cut in flight, inputs committed 17:24Z) is an earlier edition of this one: the same why and the same files (temper-init's documents, temper-service's stock and limits, temper's setup.md 8.1 and configuration.md 13.4, 13.8, 13.9, the pinned tests), with smaller figures (tree 256, live tasks 64, 400 turns, 32 chats at once) and no store format change. Both plans write the same design sections and code with different figures, so whichever lands second meets conflicts on every file. Default taken: this plan is cut as if it supersedes realistic-defaults; nothing here waits on the answer. Options: (a, recommended) retire realistic-defaults; (b) let realistic-defaults land first and this plan raise its figures, its conflicts repaired by catch-ups."""
+parts = ["refusal", "ceilings"]
+
+[[part]]
+id = "forge-scale"
+title = "temper: the application's standard profile, the forge's work of a project of fabrig's scale"
+mode = "direct"
+needs = ["ceilings", "refusal"]
+design = "temper/docs/design/protocol/configuration.md, 7"
+
+[[slice]]
+id = 2
+story = "a document names temper's standard application profile, whose forge follows 128 changes, holds and tasks and lets a change ask 80 questions; a broken relation in init's document is named through temper's start"
+parts = ["forge-scale"]
+walk = false
+
+[[question]]
+id = "message-room"
+text = """The draft asks a 128 kB message and a 256 kB report. smith offers a run a message within the agent's tool payload (two bytes less), and the fleet holds the agent to the engine's message bound at its hello; the payload is bounded by the model's declared output (skein-llm: a call's decoded input within the answer, six bytes a payload byte), so at init's models' 8,192-token output the agent takes about 10,660 bytes, and a jig result is at most a message. A 128 kB call needs an output of about 98,500 tokens; and a message of 256 kB is past what one offer holds even at gpt-6-luna's 1M-token window (about 200 kB: a quarter of the room after smith's part). Default taken: jig's standard profile holds 262,144 (so a deployment with larger models uses it), and init's box overrides message and result to its agent's message, about 10,660 bytes (twice the median report seen, below the largest, 46 kB); the stock's templates take the deployment's result bound. Options: (a, recommended) a follow-up draft gives smith's messages and host answers their own bound, an offer's (smith's protocol/limits.md 13 leaves it open), so a box's results reach about 200 kB at luna's window while a call stays within the payload; (b) declare init's models' output larger, where the provider allows it, raising every agent figure with T and the budgets' C; (c) keep the default."""
+parts = ["forge-scale"]
+
+[[question]]
+id = "brief-room"
+text = """The draft asks a run's brief of 1 MB (fab's largest 200 kB, median 55 kB). smith renders a run's brief in its host part, half of the room left in the smallest configured window at its 4/5 threshold; init's scripted model's window (177,523 tokens) sizes it at 51,717 bytes today. Default taken: init's scripted model takes gpt-6-luna's window (1,048,576), so the host part is about 400,000 bytes, which holds the stock's tools with the control family and a brief whose task section is a whole 128 kB spec, about 350 kB in all (six times fab's median brief, past its largest). A 1 MB brief needs a window of about 2.7M tokens or a larger share of it for the host. Options: (a, recommended) keep the default; a follow-up asks smith's room split (smith's protocol/limits.md 13, "A window's halves") with measurements; (b) declare a larger window for a model whose provider has one."""
+parts = ["forge-scale"]
+
+[[part]]
+id = "clients"
+title = "what a client receives from a fabrig-scale box: sixteen grants, kinds and short-list entries, eighty live delegates, an inbox entry 33 goals deep"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 2"
+
+[[slice]]
+id = 3
+story = "temper ctl, the terminal and the configuring agent's settings form decode the stock's policy with sixteen grants and kinds; a chat with more live delegates than its document's lines is served and closed; an inbox entry 33 goals deep reaches every client"
+parts = ["clients"]
+walk = false
+
+[[part]]
+id = "jig-rows"
+title = "jig: tasks-v9 priced as store.md 5.1 says (pieces by the domain's byte limits, a batch's bytes, no batch inside a batch), its ceilings and core-v6's raised for the draft's figures"
+mode = "direct"
+needs = ["refusal", "ceilings"]
+design = "jig/docs/design/protocol/store.md, 5.1"
+
+[[slice]]
+id = 4
+story = "a batch past its bytes is refused naming them; the largest task row is a sum of byte bounds, linear in every limit; the store's ceilings take 80 delegates, 82 messages, a 128 KiB spec and a 256 KiB result"
+parts = ["jig-rows"]
+walk = false
+
+[[part]]
+id = "jig-standard"
+title = "jig: the standard profile raised to fabrig's development with 5x headroom, its store sized by the largest task row"
+mode = "direct"
+needs = ["jig-rows"]
+design = "jig/docs/design/protocol/configuration.md, 6"
+
+[[part]]
+id = "box"
+title = "temper: init's document and the owned example on the standard profiles, their agent at 800 turns, 48 calls and 26 conversations, T and its carriers"
+mode = "direct"
+needs = ["jig-standard", "forge-scale", "ceilings", "clients"]
+design = "temper/docs/design/protocol/setup.md, 8.1"
+
+[[slice]]
+id = 5
+story = "a document from temper init names the standard profiles with only the overrides that differ, starts, and its agent of 48 calls per response passes smith's derivation with T and its carriers within the store's page"
+parts = ["jig-standard", "box"]
+walk = false
+
+[[part]]
+id = "room"
+title = "temper: the stock's goal offered change's plan form (the control family), a run's brief holding a whole spec"
+mode = "direct"
+needs = ["box"]
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[part]]
+id = "stock"
+title = "temper: the stock's charters at 64 and 800 turns, its delegation 384 tasks 32 deep, its pool funding 80 chats or goals at once"
+mode = "direct"
+needs = ["room"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "reference"
+title = "temper: the reference's files set only what the box does not hold"
+mode = "direct"
+needs = ["stock"]
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[part]]
+id = "gate"
+title = "temper: a fresh box runs fabrig-scale work with no override, its memory and disk measured"
+mode = "direct"
+needs = ["stock", "reference"]
+design = "temper/docs/design/protocol/setup.md, 8.3"
+
+[[slice]]
+id = 6
+story = "a fresh box from temper init, with no override, starts; its me lists the stock charters at 64 and 800 turns; its pool funds 80 chats at once and one goal's tree takes 384 tasks; the reference applies its charters and template alone; the box's memory and disk are measured within the user's gate"
+parts = ["room", "stock", "reference", "gate"]
+walk = true

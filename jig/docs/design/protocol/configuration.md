@@ -399,13 +399,37 @@ host's half reports it (`llm.md`, 5.5).
   as module documentation and constants, never in the design.
 - **A profile** is a named set of every limit jig's children and
   components take, consistent with one another: a small one for one
-  person's machine, a standard one for a team. A deployment names a
-  profile and overrides any limit by its name.
+  person's machine, and a standard one for a project of fabrig's scale.
+  A deployment names a profile and overrides any limit by its name.
   Small's store page byte ceiling admits an application's page floor
   derived from the largest shipped ordinary transcript's full frame
-  (`store.md`, 5.4). The ceiling is accounting alone: page rows, chunks,
-  decoder capacity, queues and read slots keep their own bounds; the
-  number and its derivation live beside `STORE_KV` in the profile.
+  (`store.md`, 5.4); standard's admits the frame of smith's largest
+  turn (`store.md`, 8.1), so any turn smith admits is stored. The
+  ceiling is accounting alone: page rows, chunks, decoder capacity,
+  queues and read slots keep their own bounds; the number and its
+  derivation live beside `STORE_KV` in the profile.
+- **Standard holds fabrig's own development** as its agents run it,
+  with five times the largest figure seen there: live tasks in the
+  deployment and in a project, live goals, a goal's tree over its life
+  and its depth, a task's live delegates, the tasks one batch makes, the
+  messages a task's inbox keeps (a result from each live delegate, a
+  question and an answer) and a run's inbox takes, a spec's bytes, and a
+  message's and a result's, a message at least a result, since a
+  parent's inbox holds a result as a message. What those figures couple
+  moves with them, the least that passes the checks below: the inbox's
+  bytes, a result's room for each live delegate and a message's for a
+  question and an answer; the people child's operations per request and
+  its inboxes; the notes' scopes over the grants; the hub's inbox with
+  the run's; a document's lines, which hold every charter and executor a
+  creating offer names; the funders, pools, waiters and exemptions with
+  the live tasks; and a batch's bytes, which hold five times the largest
+  plan seen, every task of it at the largest spec seen. Its store's
+  value, page and chunk are what those limits make of the largest row
+  (`store.md`, 5.4), since the store's formats change in place before
+  the first release (`store.md`, section 5); its map's budget, journal
+  and routes are a team's as they were. Its machine's concurrency (hub,
+  fleet and worker slots, workers, clients' streams and calls) is a
+  team's, which a deployment sets for its own machine.
 - **Stream overrides carry their calls.** `clients.streams`,
   `clients.exchanges`, `clients_http.streams` and `clients_http.calls`
   are positive scalar overrides. When any is overridden, both carriers
@@ -567,6 +591,28 @@ names its source and the dependency to raise, without labeling unrelated
 overrides invalid. Raising a dependency still requires the resulting
 profile to pass every admission check.
 
+The relations are every "at least" between two configured limits that the
+core's and its children's admission holds, checked in this order, each
+naming its source first and its dependency second: the two above and
+`project_goals`'; `people.operations` within `tasks.tasks`;
+`authority.grants` plus three within `notes.scopes`;
+`tasks.message_bytes` within `tasks.inbox_bytes`; `tasks.run_inbox` and
+`people.inbox_entries` within `tasks.inbox_messages`; `tasks.exemptions`
+within `tasks.tasks`; `fleet.configured_workers` plus one within
+`people.program_hosts` and `accounts.program_hosts`;
+`fleet.worker_name_bytes` within `people.program_host_name_bytes`;
+`accounts.program_names` within `fleet.program_sources`;
+`authority.roles` within `documents.roles`; the inbox's waiting room,
+twice `tasks.inbox_messages` with `authority.roles` and four, within
+`people.inbox_recipients`; and the accounts' credentials with their
+accounts, up to the models' 64, within `fleet.grants` and
+`authority.accounts`. The first three are checked whatever their
+figures, so a zero `people.operations` is refused as `tasks.delegates`
+needing `people.operations` of at least its count plus one. After them a
+relation with a zero on either side is not checked: a zero is a bound,
+refused as an override past its family's bound, as are the settings'
+equalities (`tasks.revisions` and the versions with `core.settings`'s).
+
 The **effective store codec envelope** bounds the framed byte collections
 people-v14 derives from `core.policy_bytes` and `people.amendment_bytes`,
 as well as its independent fields. Configuration checks it after overrides
@@ -690,7 +736,9 @@ the same capacities even when every run slot is occupied.
   that work: a refused start, saying which, or the work's runs failing
   as not offered. A removed charter is answered: it lives while tasks
   hold it (section 8).
-- **Profiles' numbers,** from the first deployments' measurements.
+- **Profiles' numbers** beyond fabrig's development, which sizes
+  standard's work (section 6): small's, and each profile's machine
+  concurrency, from the first deployments' measurements.
 - **A configuration's format version,** once a deployment's configuration
   must survive a release that changes it.
 

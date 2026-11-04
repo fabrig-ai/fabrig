@@ -956,9 +956,11 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     }
     assert!(held <= bound);
     assert!(roots > u64::try_from(size_of_val(contexts.get(0).unwrap().goals.as_slice())).unwrap());
+    let delegates = List::<LiveDelegate>::price(limits.tasks.delegates).unwrap()
+        + u64::from(limits.tasks.delegates) * chip_heap_bound(&limits.documents).unwrap();
     assert_eq!(
         document_with_context_bound(&limits, &core.kinds),
-        Some(document_bound(&limits.documents).unwrap() + bound + TEMPLATE_ENVELOPES + SETTINGS_DOCUMENT)
+        Some(document_bound(&limits.documents).unwrap() + delegates + bound + TEMPLATE_ENVELOPES + SETTINGS_DOCUMENT)
     );
     assert!(
         crate::reads::answer_bound(&limits, &core.kinds).unwrap()

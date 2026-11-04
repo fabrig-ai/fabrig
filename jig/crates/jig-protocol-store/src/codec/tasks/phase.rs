@@ -539,7 +539,7 @@ pub(super) fn read_references(source: List<wire::Number>) -> Box<[u64]> {
     }
     members.into_boxed()
 }
-fn member(
+pub(super) fn member(
     source: &domain::New,
     limits: &wire::Limits,
     moved: Option<&[u64; 64]>,
@@ -597,7 +597,7 @@ fn member(
         },
     )
 }
-fn read_member(source: wire::Member, limits: &wire::Limits) -> Result<domain::New, wire::Problem> {
+pub(super) fn read_member(source: wire::Member, limits: &wire::Limits) -> Result<domain::New, wire::Problem> {
     let wire::MemberParts {
         label,
         flags,
@@ -672,16 +672,13 @@ pub fn template(
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::RecurringTemplate, wire::Problem> {
     let domain::RecurringTemplate { key, batch, overlap: rule } = source;
-    let mut members = List::with_capacity(limits.recurring_template_batch);
-    for item in batch {
-        if item.recurring.is_some() {
-            return Err(problem(wire::Path::CreationRecurring));
-        }
-        let item = member(item, limits, moved)?;
-        if members.push(item).is_err() {
-            return Err(problem(wire::Path::RecurringTemplateBatch));
-        }
-    }
+    let members = super::pieces::members(
+        batch,
+        limits,
+        limits.recurring_template_batch,
+        wire::Path::RecurringTemplateBatch,
+        moved,
+    )?;
     wire::RecurringTemplate::new(
         limits,
         wire::RecurringTemplateParts { key: *key, batch: members, overlap: overlap(rule)? },
@@ -693,11 +690,8 @@ pub fn read_template(
     limits: &wire::Limits,
 ) -> Result<domain::RecurringTemplate, wire::Problem> {
     let wire::RecurringTemplateParts { key, batch, overlap } = source.into_parts();
-    let mut members = List::with_capacity(batch.len());
-    for item in batch.into_boxed() {
-        members.push(read_member(item, limits)?).expect("same number of members");
-    }
-    Ok(domain::RecurringTemplate { key, batch: members.into_boxed(), overlap: read_overlap(overlap)? })
+    let members = super::pieces::read_members(batch, limits, wire::Path::RecurringTemplateBatch)?;
+    Ok(domain::RecurringTemplate { key, batch: members, overlap: read_overlap(overlap)? })
 }
 /// Translate a result within its combined byte bound.
 pub fn result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<wire::TaskResult, wire::Problem> {

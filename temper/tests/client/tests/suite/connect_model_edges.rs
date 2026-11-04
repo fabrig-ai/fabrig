@@ -90,7 +90,8 @@ fn welcome_model_keeps_its_frame_when_opening_key_details() {
         vec![
             press(Role::Link, b"Use an API key"),
             see(Role::Button, b"Add key"),
-            see(Role::Link, b"Later"),
+            see(Role::Link, "‹ Back".as_bytes()),
+            gone(Role::Link, b"Later"),
             gone(Role::Link, b"Accounts"),
             gone(Role::Status, b"Live"),
             press(Role::Link, "‹ All ways".as_bytes()),

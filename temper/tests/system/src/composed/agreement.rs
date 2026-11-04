@@ -15,7 +15,10 @@ pub(super) fn config(seed: u64) -> engine::Config {
         descriptions: Box::new([None]),
         models: config.core.settings.models.clone(),
     };
-    config.core.defaults = temper_service::stock::defaults(&llm);
+    config.core.defaults = temper_service::stock::defaults(
+        &llm,
+        temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
+    );
     config.core.connectors = Box::new([1]);
     let mut policy = config.core.defaults.policies.get(&1).expect("stock policy").clone();
     let mut roles = policy.policy.roles.to_vec();
@@ -76,15 +79,21 @@ pub fn call(name: &[u8], arguments: &[u8]) -> Turn {
 }
 
 /// Worker capacities for stock inboxes and the recorded repository reads.
-pub(super) fn worker_limits() -> worker::Limits {
+pub(super) fn worker_limits(engine: &engine::Limits) -> worker::Limits {
     let mut limits = super::worker_limits();
-    limits.bounds.message_bytes = 4096;
-    limits.bounds.inbox = 8;
-    limits.host.inbox = 8;
-    limits.host.held = 8;
-    limits.agent.messages = 8;
-    limits.host.event_bytes = 4096;
-    limits.agent.message_bytes = 8192;
+    limits.bounds.turns = 800;
+    limits.bounds.time = Duration::from_secs(28_800);
+    // Retain the stock chat's 64-turn activation across its resume.
+    limits.host.transcript_bytes = 131_072;
+    limits.agent.transcript_bytes = 131_072;
+    limits.bounds.message_bytes = engine.tasks.message_bytes.max(4096);
+    limits.bounds.inbox = engine.tasks.run_inbox.max(8);
+    limits.host.inbox = limits.bounds.inbox;
+    limits.host.held = limits.bounds.inbox;
+    limits.agent.messages = limits.bounds.inbox;
+    limits.host.event_bytes = u64::from(limits.bounds.message_bytes);
+    // The worker adds two separator bytes to each host event.
+    limits.agent.message_bytes = (limits.host.event_bytes + 2).max(8192);
     limits.reply_bytes = 8192;
     limits
 }
@@ -286,7 +295,7 @@ impl World {
         assert!(spent + row.numbers.spent_below <= row.numbers.budget);
         let prompt = &self.agent().prompts()[0];
         assert_eq!(prompt.choice, skein_fake_llm_domain::api::ToolChoice::Auto);
-        assert!(String::from_utf8_lossy(&prompt.system).contains("At open, you have 8 turns"));
+        assert!(String::from_utf8_lossy(&prompt.system).contains("At open, you have 64 turns"));
         assert!(prompt.messages.iter().flat_map(|message| &message.parts).any(|part| {
             let bytes = match part {
                 skein_fake_llm_domain::api::Part::Text { text } => text.as_ref(),

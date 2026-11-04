@@ -417,20 +417,17 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   main (its focus ring, its visually hidden boxes); and a viewport
   length, which a zoom grows like any other. Dialogs are drawn inside
   main, and scale with it.
-- **Connection flows:** the welcome steps use compact 14 px headings and
-  9 px card corners; its opening introduction keeps its larger heading.
-  Standalone connection cards use 5 px corners. The
+- **Connection flows:** standalone connection cards use 5 px corners;
+  the welcome's steps have a look of their own (The welcome's look,
+  below). The
   current step is ink, its bar and its bold label, never the accent,
   which beside the done steps' green reads as a step gone wrong; the
   accent is for what to press. The view assigns `FLOW_PRIMARY` to
   filled terracotta acts, `FLOW_SECONDARY` to neutral small buttons and
   `FLOW_QUIET` to quiet terracotta links. Connect a forge's choices use
-  three equal columns, the welcome's Forge step's two, as its own cards
-  do, and model choices two, stacking below 760 px. Choice cards keep
+  three equal columns and model choices two, stacking below 760 px. Choice cards keep
   small headings, ink body text, muted metadata and bottom-aligned acts;
-  on the welcome's Forge step a card's quiet link sits beside its
-  button, in a row that wraps under it at phone width, as the
-  welcome's foot keeps its links; details share their padding. `FLOW_PAIR` groups organization/repository
+  details share their padding. `FLOW_PAIR` groups organization/repository
   and the half-width project field, stacking below 760 px. Setup field
   labels are small and muted, and setup notes are a muted bulleted list.
   Setup and Ready repository subtitles are muted and tight beneath their
@@ -439,13 +436,9 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   muted values, 6 px row padding and hairline separators. Its action row
   wraps with an 8 px gap, retaining Continue with ChatGPT (README, 5.5).
   Those list and action styles do not select Accounts or Forges rows.
-  The welcome's phone gutter is 16 px. Progress draws ✓, ●, ✕ and ○ for done,
+  Progress draws ✓, ●, ✕ and ○ for done,
   current, failed and pending; status words remain accessible in the DOM,
-  visually hidden. Back, Later and the playground alternative are quiet
-  text controls without underlines; Back and Later stay together on the
-  left, with only the playground alternative at the right. Back and Later
-  are bold terracotta, and the playground alternative is plain ink. Each
-  keeps a focus ring.
+  visually hidden.
   A managed Forgejo's admin Details' first-repository fields sit in an
   outlined fieldset with "Your first repository" as its legend. The view's
   named Region and heading map to fieldset and legend through `look::ELEMENTS`,
@@ -455,6 +448,30 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   standalone page's holder choice or outer Choose card. Inside a way,
   its single Back returns to Model Choose. The API key details keep the
   full-width card with contents limited to 420 px; failure reasons in flow details are red.
+- **The welcome's look** (the user's greenfield pass, 2026-11-04;
+  `README.md`, 3.5 and 5.6), at its own scale, in `temper.css`'s last
+  block, every rule scoped to the welcome's frame
+  (`#app:has(> .temper-welcome)`), so that no other page changes: IBM
+  Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
+  1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
+  name in the signal colour (#c2410c). The banner is a top bar, 22 px
+  by 32 px, the brand, temper box's line in 13 px muted words, its
+  "temper box" ink and bold, and the steps at its right, each a
+  numbered 22 px circle, the current one filled ink, a done one
+  ticked green, joined by short hairlines; at 1100 px and under,
+  temper box's line takes its own row under them. The main is one
+  680 px column: the tagline above the level-1 heading (32 px, 500),
+  the lead (17 px), then the choices as cards side by side, white on
+  paper, 12 px corners, their acts at their foot so that their
+  buttons line up; the default card, the one holding the
+  step's primary act, is outlined in ink. A primary act is a filled
+  ink button, a secondary one a white bordered button, a quiet one
+  underlined words. The muted lines under the cards and the foot,
+  "‹ Back" at the left and the playground alternative at the right,
+  are muted underlined words; the forge's line on Model is a pale
+  green box. At 760 px and under, the cards stack, the steps but the
+  current one keep their circles alone, and the gutters are 16 px in
+  the top bar and 20 px in the main. Each act keeps a focus ring.
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
   `temper.css`, whose variables and rules it builds on: what the task
   pages add to the look, as `task.html` draws it in the terminal

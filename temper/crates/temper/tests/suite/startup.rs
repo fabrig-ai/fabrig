@@ -131,6 +131,15 @@ fn a_held_login_return_hook_is_idempotent_and_refuses_unsafe_metadata_without_re
     symlink("missing", &account).expect("fixture link");
     assert!(!run().status.success(), "a link never counts as a returned record");
     fs::remove_file(&account).expect("remove fixture link");
+    scratch.remove();
+    assert_held_record_export();
+}
+
+fn assert_held_record_export() {
+    let scratch = support::Scratch::startup("held-login-export");
+    let root = scratch.path();
+    let account = root.join("synthetic-record");
+    let run = || std::process::Command::new(root.join("give-back")).output().expect("return hook");
     let stub = root.join("ctl-stub's path");
     support::write_private(
         &stub,
@@ -556,16 +565,16 @@ fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
     let path = scratch.path().join("temper.json");
     let mut document: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    // The owned agent declares tool_payload 4098; one below refuses, equality prepares.
+    // The owned agent declares tool_payload 10662; one below refuses, equality prepares.
     for (bound, expected) in [
         (
-            4097,
+            10661,
             Some(concat!(
-                "temper serve: workers[0].limits.overrides.core.call_answer_bytes: 4097 bytes, short of the agent's call input (profile.declared.tool_payload), 4098 bytes; raise it to at least 4098 bytes, or omit it to follow the agent's call input\n",
-                "temper serve: workers[0].limits.overrides.core.call_answer_bytes: call input 4098 bytes; wire answer 4097 bytes; smith host_reply_bytes 4098 bytes\n",
+                "temper serve: workers[0].limits.overrides.core.call_answer_bytes: 10661 bytes, short of the agent's call input (profile.declared.tool_payload), 10662 bytes; raise it to at least 10662 bytes, or omit it to follow the agent's call input\n",
+                "temper serve: workers[0].limits.overrides.core.call_answer_bytes: call input 10662 bytes; wire answer 10661 bytes; smith host_reply_bytes 10662 bytes\n",
             )),
         ),
-        (4098, None),
+        (10662, None),
     ] {
         document["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = bound.into();
         support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
@@ -585,9 +594,10 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let original: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("agent fixture")).expect("agent JSON");
     for (member, value, expected) in [
-        ("max_turns", 7, Some("charter 1.turns: needs 8 turns; the agent's profile.policy.max_turns allows 7\n")),
-        ("max_turns", 15, Some("charter 2.turns: needs 16 turns; the agent's profile.policy.max_turns allows 15\n")),
-        ("max_turns", 16, None),
+        ("max_turns", 7, Some("charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 7\n")),
+        ("max_turns", 15, Some("charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 15\n")),
+        ("max_turns", 799, Some("charter 2.turns: needs 800 turns; the agent's profile.policy.max_turns allows 799\n")),
+        ("max_turns", 800, None),
         (
             "check_timeout",
             60001,
@@ -605,17 +615,17 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         ),
         (
             "tool_payload",
-            4097,
+            10661,
             Some(
-                "engine.limits: needs 4096-byte messages (tasks.message_bytes); the agent offers 4095 (tool_payload less 2)\n",
+                "engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 10659 (tool_payload less 2)\n",
             ),
         ),
-        ("tool_payload", 4098, None),
+        ("tool_payload", 10662, None),
         (
             "tool_payload",
             600,
             Some(
-                "engine.limits: needs 4096-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
+                "engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
             ),
         ),
     ] {
@@ -640,7 +650,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
     assert_eq!(
         temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("old tuple refused"),
-        "temper serve: charter 1.turns: needs 8 turns; the agent's profile.policy.max_turns allows 5\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
+        "temper serve: charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 5\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
     );
     scratch.remove();
 }

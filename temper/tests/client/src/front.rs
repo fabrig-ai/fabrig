@@ -426,7 +426,7 @@ impl Joint {
         joint.caller = caller;
         driver.forge = joint.engine.forge.take();
         joint.engine = driver;
-        // The stock configuring charter reserves two minutes; this worker plays it.
+        // The worker offers the stock configuring charter's run bounds.
         let mut hello = temper_engine_domain_world::protocol::hello(fixtures::QUESTION_WORKER, Box::new([]));
         let engine::Event::Worker(engine::WorkerInput::Link {
             link: engine::Link::Hello { hello: offered, .. }, ..
@@ -434,7 +434,8 @@ impl Joint {
         else {
             unreachable!("worker hello")
         };
-        offered.bounds.time = Duration::from_secs(120);
+        offered.bounds.time = Duration::from_secs(3600);
+        offered.bounds.turns = 64;
         offered.bounds.message_bytes = engine_limits.tasks.message_bytes;
         joint.engine.send(hello);
         joint.engine.settle();
@@ -613,7 +614,7 @@ impl Joint {
         Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, 2)
     }
     /// A goal and its delegated authority fit, with bounds chosen by the story.
-    pub(crate) fn with_delegates(seed: u64, limits: &client::Limits, delegates: u32) -> Self {
+    pub(crate) fn with_delegates(seed: u64, limits: &client::Limits, delegates: u32, page_rows: u32) -> Self {
         use jig_domain_authority as authority;
         let tasks = delegates.checked_add(1).expect("goal plus its delegates");
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
@@ -639,6 +640,7 @@ impl Joint {
             config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
             config.core.defaults.rules = domain.rules().clone();
             let mut engine_limits = engine_limits();
+            engine_limits.documents.rows = page_rows;
             engine_limits.tasks.tasks = tasks;
             engine_limits.tasks.project_tasks = tasks;
             engine_limits.tasks.tree_tasks = tasks;

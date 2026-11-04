@@ -204,6 +204,7 @@ fn member(value: &New, limits: &Limits) -> Result<(), RestoreCause> {
 
 fn batch(value: &[New], limits: &Limits) -> Result<(), RestoreCause> {
     count(RestoreBound::Batch, value.len(), limits.batch)?;
+    bound(RestoreBound::Batch, crate::batch_bytes(value).unwrap_or(u64::MAX), u64::from(limits.batch_bytes))?;
     for value in value {
         member(value, limits)?;
     }
