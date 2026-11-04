@@ -458,6 +458,8 @@ fn forgejo_row_bound(request: &request::Request) -> Option<u32> {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Repository { .. }
         | Request::Branch { .. }

@@ -134,6 +134,8 @@ pub(super) fn page_bound(request: &Request) -> Option<u32> {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }

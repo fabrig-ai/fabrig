@@ -67,6 +67,8 @@ pub fn repository(config: &Config, request: &Request) -> Option<Box<[u8]>> {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }
@@ -185,6 +187,8 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }
@@ -397,6 +401,8 @@ fn write(config: &Config, request: &Request) -> Result<Op, a::Error> {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }
