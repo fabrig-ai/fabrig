@@ -1339,6 +1339,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-welcome .temper-welcome-status > .temper-flow-busy::before { width: 100%; opacity: .3; animation: none; }
 }
 
+/* While the fetch says how far it is: the bar filled to its percentage,
+   the percentage at its end. The fill's width is the progress node's
+   value once skein's carries one (fetch-progress draft, section 6). */
+#app > .temper-welcome .temper-welcome-status > .temper-flow-meter { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 6px 0 0 24px; font-size: 13px; line-height: 1.4; color: var(--gf-muted); font-variant-numeric: tabular-nums; }
+#app > .temper-welcome .temper-welcome-status > .temper-flow-meter::before { content: ''; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--gf-ink-2) 0 var(--temper-flow-meter-fill, 0%), var(--gf-line) var(--temper-flow-meter-fill, 0%) 100%); }
+
 /* Ready, as the greenfield mockup draws it: the checklist's lines, each
    with its mark in a circle and a hairline under it, then the first
    project's form. */
