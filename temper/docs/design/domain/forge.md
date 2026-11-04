@@ -155,7 +155,8 @@ temper-engine-domain-forge              the connector's top: resources and holds
 ├── skein-forge                         the vocabulary the top and the client share: calls, answers, errors, hints (skein's forge.md, section 3)
 ├── temper-engine-domain-forge-change   the change procedure and the landing queues: decisions over facts
 ├── temper-engine-domain-forge-landing  the landing by turn: decisions over a landing's state (landing.md)
-└── temper-engine-domain-forge-issues   the goals' issues: what each projects, when to write it
+├── temper-engine-domain-forge-issues   the goals' issues: what each projects, when to write it
+└── temper-engine-domain-forge-tiers    the tiers' verdicts: decisions over a tier's record, its run's report and receipts (after-landing.md)
 ```
 
 - **The top** keeps the forge's resources as the project knows them
@@ -174,9 +175,10 @@ temper-engine-domain-forge              the connector's top: resources and holds
   `skein-forge`'s vocabulary states it, the working set, the request
   budget, and how a write is made once. Its owner, how it is driven and
   what it never knows are skein's `forge-client.md`, sections 2 and 9.
-- **`change` and `issues` are policy:** given a change's state and the
-  facts, or a goal's state, they say what is due. They keep nothing
-  between calls; their states are the top's, committed in the store.
+- **`change`, `issues` and `tiers` are policy:** given a change's state
+  and the facts, a goal's state, or a tier's record and what its run
+  reported, they say what is due. They keep nothing between calls; their
+  states are the top's, committed in the store.
 
 ## 4. Adopting repositories
 

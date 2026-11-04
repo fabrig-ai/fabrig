@@ -65,8 +65,9 @@ is still open is listed in section 12.
   adds its own kinds of object.
 - **Anyone may read a public project,** without signing in, as one
   party fixed in code whose role grants public reads alone: a few typed
-  documents of structure and mechanics, no text, named by opaque
-  identifiers, within a budget behind every signed-in request. Projects
+  documents of structure and mechanics, with no text but tasks' titles
+  and the project's name, named by opaque identifiers, within a budget
+  behind every signed-in request. Projects
   are private until their owners make them public (section 13).
 
 ## 2. Structure
@@ -1081,9 +1082,9 @@ Anyone may read a project its owners have made public, without signing
 in: one party, fixed in code, reads for every visitor, a few documents
 only, within a budget of its own behind every signed-in request. The
 documents are public projections: types of their own, which hold only
-what is added to them, and only structure and mechanics, never text a
-party or an agent could have written. The application adds its own
-beside jig's (13.3). How a public read travels is
+what is added to them, and only structure and mechanics, with tasks'
+titles and the project's name their only text. The application adds
+its own beside jig's (13.3). How a public read travels is
 `../protocol/client.md`, section 19, and over HTTP, 17.5.
 
 ### 13.1 The public party
@@ -1269,10 +1270,11 @@ every signed-in one. Every figure below is the deployment's
 ### 13.6 Its world
 
 In the core's world: a project's owner makes it public, and the public
-party reads its board and a delegate's card, with no text, name or
-internal number in them; a member's `SetVisibility` is refused; a goal
-made beneath a conversation read as a public goal with no parent, the
-conversation never named or counted; a delegate moved out of a goal's
+party reads its board and a delegate's card, with no text but their
+titles and the project's name, and no party's name or internal number,
+in them; a member's `SetVisibility` is refused; a goal made beneath a
+conversation read as a public goal with no parent, the conversation
+never named or counted; a delegate moved out of a goal's
 tree leaving its board, its counts and its card, and one moved in
 joining them; the project made private, and a public read answered
 unknown, as a project never made and a private one are, with the same
