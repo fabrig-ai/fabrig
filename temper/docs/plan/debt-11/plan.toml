@@ -1,0 +1,3 @@
+draft = "debt-11"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-11/inputs/request.md", "jig/docs/development/debt/D019-lint-config-copied.md", "skein/docs/development/debt/D036-lint-blocks-by-hand.md", "temper/docs/development/debt/D011-manual-map-expectations.md", "hearth/docs/development/debt/D010-lint-config-copied.md"]
