@@ -689,17 +689,17 @@ fn ended_row(world: &mut World, person: u64, parent: u64, expected: &ReadRow) ->
 }
 
 #[test]
-fn every_row_of_b2s_tree_reads_whole_on_small() {
+fn every_row_of_b2s_tree_reads_whole_on_standard() {
     let (mut world, chat) = stock_world();
     let tree = tree(&mut world, &chat);
     let joins = temper_engine_domain_world::forge_routes::box_joins();
-    let small = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store.joins;
-    assert_eq!(joins, small);
-    assert_eq!(small, 4, "Small's stock join bound");
+    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).store.joins;
+    assert_eq!(joins, standard);
+    assert_eq!(standard, 16, "Standard's stock join bound");
     assert_eq!(world.store.read_joins(), joins, "the real store uses the box allowance");
     let tasks::Party::Person(person) = record(&world, tree.chat).requester else { panic!("the person's chat") };
     let lines = box_limits().documents.lines;
-    assert_eq!(lines, 8, "the box's document-line bound");
+    assert_eq!(lines, 16, "the box's document-line bound");
     assert_eq!(world.env.limits.documents.lines, lines);
     let lines = usize::try_from(lines).expect("bounded document lines");
     for expected in read_rows(&tree) {
