@@ -1,4 +1,5 @@
 //! Kept forge records and their setup (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
+use super::making::Making;
 use super::{family, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Family, Watchable, contract as c};
@@ -123,6 +124,7 @@ pub struct Owned {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Row {
+    pub makings: Box<[Making]>,
     pub read_only: bool,
     pub number: u16,
     pub kind: Kind,

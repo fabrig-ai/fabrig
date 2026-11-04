@@ -14,6 +14,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 const HERE: u16 = 3;
 fn row(number: u16, kind: Kind, mode: Mode, connection: C, offer: Offer) -> Row {
     Row {
+        makings: Box::new([]),
         number,
         kind,
         mode,
