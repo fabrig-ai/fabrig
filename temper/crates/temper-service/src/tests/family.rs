@@ -50,6 +50,36 @@ fn exchange(family: u16, version: u32, record: Box<[u8]>) -> kit::ToApplication 
     }
 }
 #[test]
+fn forge_list_encodes_the_repository_resource_host() {
+    let (limits, _, _) = fixtures::store_limits();
+    let configured = forge::Configured {
+        number: 3,
+        kind: forge::Kind::Forgejo,
+        mode: forge::Mode::Managed,
+        git: b"https://git.example:3000/git".as_slice().into(),
+        web: Some(b"https://web.example/shop".as_slice().into()),
+        owned: None,
+        admin_connect: false,
+        bot: Box::new([]),
+        read_only: false,
+        asked: false,
+    };
+    let domain = forge::Domain::new(
+        &limits.forge,
+        4,
+        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        &[],
+        &[configured],
+        false,
+    )
+    .unwrap();
+    let bytes = family::forges(domain.forges(), &w::CEILINGS).unwrap();
+    let rows = wire::decode_forges(&bytes, &w::CEILINGS).expect("forge rows");
+    assert_eq!(rows.forges().get(0).unwrap().host(), b"git.example:3000", "resource host missing from wire");
+    assert_eq!(rows.forges().get(0).unwrap().host(), family::host(b"https://git.example:3000/git").as_ref());
+}
+
+#[test]
 fn an_adopt_reaches_the_root_with_its_forges_host() {
     let forges = configured(b"https://forge.example:3000/git");
     let event = family::to_root(
@@ -233,7 +263,6 @@ fn a_git_base_with_a_port_keeps_it_in_the_host() {
         assert_eq!(family::host(git).as_ref(), expected, "{git:?}");
     }
 }
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn encoded(outcome: Option<forge::ApplicationOutcome>) -> w::Outcome {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     let outcome = match outcome {
@@ -714,7 +743,6 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
     }
 }
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn a_panels_pull_address_uses_its_configured_forge_kind_and_base() {
     use crate::settings::Kind;
     for (row, kind, git, web, number, expected) in [
@@ -904,7 +932,6 @@ fn forges_watches_name_the_deployment_subject() {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn setup_outcomes_use_the_family_answer_including_unknown() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     for (outcome, expected) in [
@@ -947,6 +974,7 @@ fn forge_row(
 ) -> forge::Row {
     forge::Row {
         makings: Box::new([]),
+        host: b"git.example:3000".as_slice().into(),
         number,
         kind,
         mode,
@@ -970,6 +998,7 @@ fn configured_forge_rows() -> forge::Forges {
         rows: Box::new([
             forge::Row {
                 makings: Box::new([]),
+                host: b"git.example:3000".as_slice().into(),
                 number: 1,
                 kind: forge::Kind::Forgejo,
                 mode: forge::Mode::Owned,
@@ -1067,6 +1096,7 @@ fn expected_forge_row(
         &w::CEILINGS,
         w::ForgeRowParts {
             makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
             number,
             kind,
             mode,
@@ -1425,6 +1455,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
         forge::Forges {
             rows: Box::new([forge::Row {
                 makings: Box::new([]),
+                host: b"git.example:3000".as_slice().into(),
                 number: 1,
                 kind: forge::Kind::GitHub,
                 mode: forge::Mode::Connected,
@@ -1479,17 +1510,15 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_eleven() {
-    // The pinned jig v15 generated Unknown golden was [9]. All 422 existing
-    // refusal dependency goldens are identical at v16; new tags are appended.
+fn embedded_client_refusals_keep_their_bytes_at_client_thirteen() {
+    // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v19::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 11);
+    assert_eq!(wire::CLIENT_VERSION, 13);
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details() {
     for (forgejo, runner, password, kept) in [
         (64, Some(64), 512, true),
@@ -1501,6 +1530,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
         let value = forge::Forges {
             rows: Box::new([forge::Row {
                 makings: Box::new([]),
+                host: b"git.example:3000".as_slice().into(),
                 number: 1,
                 kind: forge::Kind::Forgejo,
                 mode: forge::Mode::Owned,

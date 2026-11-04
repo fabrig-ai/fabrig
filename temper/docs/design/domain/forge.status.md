@@ -92,7 +92,7 @@
     (`tests/engine/domain/tests/suite/settings/kinds.rs`,
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
-    on, or a project's rule adding an approval.
+    on.
 - **Departs:** 8.11: a change taking `foreman` gives its producing, each
   repair and each resolution half the spend the change may give it,
   keeping the rest for the foremen of that agent's questions, since a

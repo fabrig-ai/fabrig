@@ -91,6 +91,7 @@ fn a_rows_makings_are_delivered_in_order() {
                     &limits,
                     w::ForgeRowParts {
                         number,
+                        host: b"git.example:3000".as_slice().into(),
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Managed,
                         connection: w::Connection::NotConnected,

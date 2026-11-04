@@ -3,7 +3,7 @@
 
 use super::fixtures::{ACCOUNT, ACCOUNT_RESET, assignment, fields, items, refused};
 use super::harness::Harness;
-use crate::{Event, Invalid, Request, agent, host, translate};
+use crate::{Event, Request, agent, host, translate};
 use alloc::boxed::Box;
 use skein_lib::Duration;
 
@@ -16,7 +16,6 @@ fn workspace_items_that_did_not_decode_are_refused_naming_them() {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "explicit option match follows the step subset")]
 fn workspace_items_are_refused_naming_the_item_or_carry_their_program_to_checkout() {
     let mut bound = Box::new([b'x'; 4096]);
     *bound.first_mut().expect("nonempty program") = b'/';
@@ -64,7 +63,7 @@ fn workspace_items_without_a_workstream_are_refused_as_an_invalid_start() {
 fn an_undecodable_call_name_refuses_the_start_as_invalid_naming_it() {
     let mut h = Harness::new();
     let (agent, _) = h.decode(Box::new([]));
-    let rows = h.step(Event::Decoded { agent, start: Err(Invalid::CallName) });
+    let rows = h.step(Event::Decoded { agent, start: Err(host::Undecoded::CallName) });
     assert!(rows.contains(&refused(b"call name")));
 }
 
@@ -72,7 +71,7 @@ fn an_undecodable_call_name_refuses_the_start_as_invalid_naming_it() {
 fn undecodable_delivery_evidence_refuses_the_start_as_invalid_naming_it() {
     let mut h = Harness::new();
     let (agent, _) = h.decode(Box::new([]));
-    let rows = h.step(Event::Decoded { agent, start: Err(Invalid::Evidence) });
+    let rows = h.step(Event::Decoded { agent, start: Err(host::Undecoded::Evidence) });
     assert!(rows.contains(&refused(b"delivery evidence")));
 }
 
@@ -80,7 +79,7 @@ fn undecodable_delivery_evidence_refuses_the_start_as_invalid_naming_it() {
 fn a_start_refused_as_invalid_frees_its_slot_unacknowledged() {
     let mut h = Harness::new();
     let (agent, _) = h.decode(Box::new([]));
-    h.step(Event::Decoded { agent, start: Err(Invalid::Charter) });
+    h.step(Event::Decoded { agent, start: Err(host::Undecoded::Charter) });
     assert_eq!(h.domain.host().hosted(), 0);
 }
 

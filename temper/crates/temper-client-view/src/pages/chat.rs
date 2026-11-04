@@ -182,7 +182,6 @@ pub(crate) struct Speakers {
 }
 
 pub(crate) fn speakers(task: &c::Task, me: Option<&c::Me>) -> Speakers {
-    #[expect(clippy::manual_map, reason = "view code spells out the signed-in person")]
     let person = match me {
         Some(me) => Some(me.party.number),
         None => None,
@@ -293,7 +292,6 @@ fn proposal_wait(b: &mut Builder, words: &Words, times: &mut Times, since: skein
     b.text(Run::Plain, &said);
     b.close();
 }
-#[expect(clippy::manual_map, reason = "step code spells out the supplied end clock")]
 fn end_clock(task: &c::Task, words: &Words, times: &mut Times) -> Option<Box<[u8]>> {
     let at = task.chip.details.details.ended_at;
     match at {

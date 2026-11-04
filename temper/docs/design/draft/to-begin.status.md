@@ -9,4 +9,3 @@
   - 5: `../client/README.md`, 4.6: the `FORGE` records carry no `Dismiss` request and no read of a person's dismissals.
 - **Open:**
   - 7: every new project with steps left shows "To begin", or the welcome's alone.
-  - 7: the kicker, the day and the time, or "made just now", which needs the project's making time kept by jig.

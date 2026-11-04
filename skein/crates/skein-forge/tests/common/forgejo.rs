@@ -426,6 +426,8 @@ pub fn json_cases() -> Vec<(String, Option<Request>)> {
             "setup-org-route-orgs-made",
             "setup-migrate-workflows-runs",
             "setup-team-edit-nameless",
+            "setup-user-repos-alice",
+            "setup-user-repos-bob",
             "status-list-keeps-description-and-target-url",
             "update-rebase-first-commit",
             "update-rebase-second-commit",

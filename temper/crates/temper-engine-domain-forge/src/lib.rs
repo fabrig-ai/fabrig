@@ -12,13 +12,14 @@
 //! (temper/docs/design/client/forge.md, 11).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 
 /// The merge job (temper/docs/design/domain/worker.md, 4.4).
 pub const MERGE_KIND: u32 = 3;
 use alloc::boxed::Box;
 mod address;
-pub use address::{PULL_ADDRESS_BYTES, pull_address};
+pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 mod adoption;
 pub mod boundary;
 mod brief;

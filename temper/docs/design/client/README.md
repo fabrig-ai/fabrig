@@ -1,6 +1,6 @@
 # temper's client
 
-Provisional, 2026-10-14, revised 2026-11-02. temper's client: temper's own
+Provisional, 2026-10-14, revised 2026-11-04. temper's client: temper's own
 presentation on jig's client, `jig-client`. Its crates; its client root,
 which holds `jig-client` and temper's pages, the LLM accounts' and the
 forges' among them; the forge's client family, its words, its one form
@@ -1783,7 +1783,9 @@ for its kind, its user's login and its installations. Its nodes:
   unused; on the wire `Watching`'s `forges`. Its document, `Forges`, a
   `ForgeRow` for each forge the store keeps and has not ended, at most
   `FORGES` (16), in number order, the playground's fake among them while
-  it runs (`../protocol/forge.md`, 2.1): its number (u16); its kind (Forgejo or GitHub); its mode
+  it runs (`../protocol/forge.md`, 2.1): its number (u16); its canonical resource `host` (bytes, at most
+  2,048, from the git authority including its explicit port, the same
+  identity adoption uses); its kind (Forgejo or GitHub); its mode
   (connected, managed, owned or fake); and its connection: not
   connected; not set up; setting up, with its step when the box has
   named one (fetch, prepare or run); set up failed, with its optional step (fetch, prepare, run or connect)
@@ -1836,7 +1838,9 @@ for its kind, its user's login and its installations. Its nodes:
   under the box, or not offered, which is what "Set up a Forgejo here", "Set up again"
   and the words without the box follow (`forge.md`, 5.4). The read of the forges, the
   tools' `forge list` (`tools.md`, 5.5, area 6), is the watch's first
-  document. *The client's forge side watches it once,* for the
+  document. Text prints `host: HOST`, and JSON carries `host` unchanged
+  for a charter document's `forge` (`../protocol/configuration.md`, 13.7).
+  *The client's forge side watches it once,* for the
   session, from when `me` is first delivered while the link is live,
   for every person, so that the engine judges the role: a watch
   refused or ended is kept as such, with no rows, and not opened again
@@ -3468,8 +3472,11 @@ section 5. The pages' look and place are the user's to make (section
   it was made against is its own, and one made against an older is
   withdrawn, never accepted (jig's `domain/engine.md`, 17.6).
 - **What the review page says plainly:** a landing rule naming a role
-  nobody holds, "Nobody holds this role yet: changes wait for an
-  approval nobody can give."; a change of jig's rules that removes the
+  nobody holds cannot be accepted: the refusal names the affected
+  project, role, required and eligible forge-person counts, and asks
+  for known forge people with the role or removal of the approval
+  (`../domain/forge.md`, 8.9). An owner login or display name supplies
+  no forge identity. A change of jig's rules that removes the
   landing's requirements (`../protocol/configuration.md`, 13.3),
   "temper no longer holds landing to its rules: the change procedure
   still waits for them."; a role removed while tasks run it, "2 tasks
@@ -4736,3 +4743,13 @@ own tests:
   Ready opens the person's project of that name and makes no other
   name, the reading the draft's status records while the user is
   away.
+
+- **Whether `owned` asks the box** (`../draft/serve-without-box.status.md`):
+  the draft offers Forgejo on this machine from the forges' rows, and a
+  first run's store keeps none. Default: the deployment's read says
+  `owned` (4.6), the document's member and the box both, so that
+  `temper serve` on a box's document draws no card its `SetUp` would
+  refuse. The user's to decide: keep it; have `owned` read the document
+  alone, the card then refused "not under the box"; or have the engine
+  list an offered owned row from the machine at a first run, which
+  changes what `forges` answers and what a first run's store reads as.

@@ -250,7 +250,6 @@ pub(super) fn root_at_full(
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
     root_at_with_playground(address, limits, project_name, None)
 }
-#[expect(clippy::manual_map, reason = "fixtures use the same closure-free steps as the client")]
 pub(super) fn root_at_with_playground(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -432,7 +431,7 @@ pub(super) fn root_at_with_forges(
             match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read() {
                 w::Read::Deployment => deliver_deployment(&mut root, token, true, true),
                 w::Read::Playground => read = Some(token),
-                w::Read::Setting(_) | w::Read::ProposalItems(_) => {}
+                w::Read::Setting(_) | w::Read::RevisionSetting(_) | w::Read::ProposalItems(_) => {}
             }
         }
     }

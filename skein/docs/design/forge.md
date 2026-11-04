@@ -616,8 +616,8 @@ dialect knowledge it keeps is in the plans it is handed.
 The dialect is pinned to one release of the forge, the one whose
 behaviour the conformance checked.
 
-- **Constants:** `VERSION`, Forgejo's release (17.0.0), and
-  `RUNNER_VERSION`, forgejo-runner's (13.2.0).
+- **Constants:** `VERSION`, Forgejo's release (17.0.1), and
+  `RUNNER_VERSION`, forgejo-runner's (13.2.1).
 - **Checks:** `names_forgejo` is true for the first line of
   `forgejo --version` when it names `VERSION`, ended by nothing, a `+`
   or a space; `names_runner` is true for the first line of
@@ -626,42 +626,66 @@ behaviour the conformance checked.
 - **Readers:** the throwaway Forgejo, the conformance, and a service's
   owned Forgejo check their binaries against the pin (fake-forge.md,
   section 6).
-- **Digests:** the SHA-256 of each release's Linux binary, per
+- **Digests on Linux:** the SHA-256 of each release's Linux binary, per
   architecture, as lowercase hex:
 
   | Constant | Of | Bytes | SHA-256 |
   |---|---|---|---|
-  | `FORGEJO_SHA256_LINUX_AMD64` | `forgejo-17.0.0-linux-amd64` | 122,053,192 | `5a3b07e124ed70b4e46ee3939515f003bd3cc85352257a9a4607a527251042ca` |
-  | `FORGEJO_SHA256_LINUX_ARM64` | `forgejo-17.0.0-linux-arm64` | 113,760,224 | `e5ec437cd6357e8d1b4580cb47ab1daa58a32b33971a63db63446a535d33adb7` |
-  | `RUNNER_SHA256_LINUX_AMD64` | `forgejo-runner-13.2.0-linux-amd64` | 22,290,594 | `fadaec897f5e6641c363f87ecaf75f866f99c81b7097ec6b433e4c48123fcad1` |
-  | `RUNNER_SHA256_LINUX_ARM64` | `forgejo-runner-13.2.0-linux-arm64` | 20,775,074 | `9d3d462ee83e4e629f959faeacceb20eed2f25290bddea402e65ace46a31afd9` |
+  | `FORGEJO_SHA256_LINUX_AMD64` | `forgejo-17.0.1-linux-amd64` | 122,057,320 | `51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f` |
+  | `FORGEJO_SHA256_LINUX_ARM64` | `forgejo-17.0.1-linux-arm64` | 113,764,224 | `1e99403746406e8199efc903ddd1940d5728a60e50241f7aa6c9f2b907bd8ec9` |
+  | `RUNNER_SHA256_LINUX_AMD64` | `forgejo-runner-13.2.1-linux-amd64` | 22,306,978 | `bb369fe1ecb50fdc983c0b1d993f19b0920df6e5864511892b3cdbf16d858b34` |
+  | `RUNNER_SHA256_LINUX_ARM64` | `forgejo-runner-13.2.1-linux-arm64` | 20,840,610 | `eeddb7902f79abe488972f4189fbe3ea02762ee827d1b406b469420bf0d62dd9` |
 
   The sizes are not constants: they are what the digests were taken
   over, and what a fetch's bound must admit.
+- **Digests on macOS:** neither project publishes a darwin build, so
+  the pins are Homebrew's bottles for macOS 15 (`arm64_sequoia`), on
+  arm64 alone, two digests for each binary: the archive's, which is its
+  address, and the binary's inside it, which a file already in place is
+  held to. A bottle is the same version as Linux's release and another
+  build:
+
+  | Constant | Of | Bytes | SHA-256 |
+  |---|---|---|---|
+  | `FORGEJO_BOTTLE_SHA256_MACOS_ARM64` | the bottle of `forgejo` 17.0.1 | 43,841,143 | `19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06` |
+  | `FORGEJO_SHA256_MACOS_ARM64` | its `forgejo/17.0.1/bin/forgejo` | 111,660,034 | `4b6ed0e7e6ef034d298872125f69332e2aad49367435f66c58ee5eb2c5680cf6` |
+  | `RUNNER_BOTTLE_SHA256_MACOS_ARM64` | the bottle of `forgejo-runner` 13.2.1 | 7,960,512 | `0a8cb32f024121e50ebca1840ed2f5650d65d3eb3e183679c0f8f0bc14d6fb48` |
+  | `RUNNER_SHA256_MACOS_ARM64` | its `forgejo-runner/13.2.1/bin/forgejo-runner` | 21,661,778 | `2829f0125068f0ad92f908cb08c4d3c2f458cc22eec15fd675c332823cbece4b` |
+
+  Each binary's load commands name macOS's own libraries alone
+  (`libSystem`, `libresolv`, `CoreFoundation`, `Security`).
 - **Sources:** each binary's release file, named by the constants and
   the architecture:
   - Forgejo's on codeberg.org,
-    `https://codeberg.org/forgejo/forgejo/releases/download/v17.0.0/forgejo-17.0.0-linux-{amd64,arm64}`;
+    `https://codeberg.org/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{amd64,arm64}`;
   - forgejo-runner's on code.forgejo.org,
-    `https://code.forgejo.org/forgejo/runner/releases/download/v13.2.0/forgejo-runner-13.2.0-linux-{amd64,arm64}`.
+    `https://code.forgejo.org/forgejo/runner/releases/download/v13.2.1/forgejo-runner-13.2.1-linux-{amd64,arm64}`.
     Codeberg serves no runner release (404).
 
-  Each answers a single `200` with the file, and no redirect. A fetcher
-  follows none, and takes any other status as the source failing.
+  Each answers a single `200` with the file, and no redirect. A Linux
+  fetcher follows none, and takes any other status as the source
+  failing.
+- **The bottles' sources,** fixed by the archive's digest, never looked
+  up: `https://ghcr.io/v2/homebrew/core/forgejo/blobs/sha256:DIGEST` and
+  `https://ghcr.io/v2/homebrew/core/forgejo-runner/blobs/sha256:DIGEST`.
+  Asked with `Authorization: Bearer QQ==`, the anonymous value Homebrew
+  sends, each answers a `307` to its storage's `https` address, which
+  answers `200` with the archive and is sent no token.
 - **TLS:** with the machine's roots. The digest, not the certificate, is
   what makes the file the pinned one.
 - **An architecture without a digest** is refused: a fetcher names the
   architecture and fetches nothing. The pins are Linux on amd64 and
-  arm64 alone.
+  arm64, and macOS on arm64.
 - **Readers of the digests:** a service that fetches the pinned binaries
   (temper's `forge fetch`) checks each file it streams, and each file it
-  finds already in place, against the digest of its own architecture.
-  skein-forge does no io for this: it holds the constants and a
-  `digest(binary, arch)` that answers the pinned digest, or none for an
-  architecture without one.
+  finds already in place, against the digest of its own platform and
+  architecture. skein-forge does no io for this: it holds the constants
+  and a `digest(binary, platform, arch, form)` that answers the pinned
+  digest, or none where there is no such pin: `Platform` is `Linux` or
+  `Macos`, `Form` is `Binary` or `Archive`, and Linux has no `Archive`.
 - **Moving the pin** moves the digests with it: a new `VERSION` or
-  `RUNNER_VERSION` comes with the new release files' digests, taken as
-  above, in the same change.
+  `RUNNER_VERSION` comes with the new files' digests, all of them, taken
+  as above, in the same change, and only to versions with bottles.
 
 ### 4.4 What the dialects share
 
@@ -1428,8 +1452,8 @@ on. What no run records yet has its own bullet, near the end.
     come whole however many there are (5.2, `Item` and `Remarks`);
   - that a job no runner took has no steps, and that its log, and a log
     Forgejo no longer keeps, answer `404` (5.2, "A failed job's log").
-- **Actions, trees and the turn, recorded** (Forgejo 17.0.0 and runner
-  13.2.0, the conformance's `landings` facts: 24 hold, 7 recorded as
+- **Actions, trees and the turn, recorded** (Forgejo 17.0.1 and runner
+  13.2.1, the conformance's `landings` facts: 24 hold, 7 recorded as
   failing and followed by the dialect and the fake): a dispatch answers
   `204` with no run, `404` for an absent workflow and `400` for an
   absent branch, and runs at the branch's head as it is read; a

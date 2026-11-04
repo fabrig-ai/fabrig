@@ -272,12 +272,6 @@ pub fn to_root(
                 && let Some(reading) = wire::decode_reading(&record, limits)
             {
                 let query = match reading.into_parts().read {
-                    w::Read::Setting(value) => Some(root::ForgeRead::Setting {
-                        kind: value.kind(),
-                        scope: value.scope(),
-                        number: value.number(),
-                    }),
-                    w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
                     w::Read::Deployment => {
                         answer = Some(deployment_answer(deployment, limits));
                         None
@@ -287,6 +281,9 @@ pub fn to_root(
                             answer = Some(playground_answer(row, demo, limits));
                         }
                         None
+                    }
+                    read @ (w::Read::Setting(_) | w::Read::RevisionSetting(_) | w::Read::ProposalItems(_)) => {
+                        forge_settings_query(read)
                     }
                 };
                 if let Some(query) = query {
@@ -553,20 +550,7 @@ fn pull_address(
 /// Keep the authority of an already checked git URL, including its explicit port.
 #[must_use]
 pub fn host(git: &[u8]) -> Box<[u8]> {
-    let Some(start) = skein_lib::bytes::find(git, b"://") else { return Box::default() };
-    let rest = git.get(start.checked_add(3).expect("URL separator")..).expect("separator within URL");
-    let mut first = 0;
-    let mut end = rest.len();
-    for (index, byte) in rest.iter().enumerate() {
-        if *byte == b'/' || *byte == b'?' || *byte == b'#' {
-            end = index;
-            break;
-        }
-        if *byte == b'@' {
-            first = index.checked_add(1).expect("URL authority separator");
-        }
-    }
-    rest.get(first..end).expect("host within URL authority").into()
+    forge::host(git)
 }
 fn role(role: w::Role) -> forge::Role {
     match role {
@@ -791,105 +775,112 @@ fn protection(value: forge::Protection, limits: &w::Limits) -> Option<w::Protect
 pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut forges = List::with_capacity(limits.forges_forges);
     for row in value.rows {
-        let mut repositories = List::with_capacity(limits.forge_row_repositories);
-        for adopted in row.repositories {
-            repositories
-                .push(
-                    w::Adoption::new(
-                        limits,
-                        w::AdoptionParts { owner: adopted.owner, name: adopted.name, project: adopted.project },
-                    )
-                    .ok()?,
-                )
-                .ok()?;
-        }
-        let mut installations = List::with_capacity(limits.forge_row_installations);
-        for (id, installation) in row.installations {
-            let account = match installation.account {
-                Some((id, login)) => Some(w::Account::new(limits, w::AccountParts { id, login }).ok()?),
+        forges.push(forge_row(row, limits)?).ok()?;
+    }
+    Some(wire::forges(&w::Forges::new(limits, w::ForgesParts { forges }).ok()?))
+}
+fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
+    let ended = match row.ended {
+        Some(why) => Some(w::ConnectStopped::new(limits, w::ConnectStoppedParts { why }).ok()?),
+        None => None,
+    };
+    w::ForgeRow::new(
+        limits,
+        w::ForgeRowParts {
+            number: row.number,
+            host: row.host,
+            makings: List::with_capacity(0),
+            read_only: row.read_only,
+            kind: forge_kind(row.kind),
+            mode: forge_mode(row.mode),
+            connection: connection(row.connection, row.failed, limits)?,
+            offer: match row.offer {
+                forge::Offer::NotOffered => w::Offer::NotOffered,
+                forge::Offer::NotUnderTheBox => w::Offer::NotUnderTheBox,
+                forge::Offer::Offered => w::Offer::Offered,
+            },
+            first: match row.first {
+                Some(first) => Some(first_repository(first, limits)?),
                 None => None,
-            };
-            installations
-                .push(
-                    w::Installation::new(
-                        limits,
-                        w::InstallationParts {
-                            id,
-                            account,
-                            suspended: installation.suspended,
-                            stray: installation.stray,
-                        },
-                    )
-                    .ok()?,
-                )
-                .ok()?;
-        }
-        let ended = match row.ended {
-            Some(why) => Some(w::ConnectStopped::new(limits, w::ConnectStoppedParts { why }).ok()?),
-            None => None,
-        };
-        forges
+            },
+            installations: forge_installations(row.installations, limits)?,
+            ended,
+            app: match row.app {
+                Some(forge::AppWay::Manifest) => Some(w::AppWay::Manifest),
+                Some(forge::AppWay::Pasted) => Some(w::AppWay::Pasted),
+                None => None,
+            },
+            web: row.web,
+            repositories: forge_adoptions(row.repositories, limits)?,
+            owned: owned_forge(row.owned, limits),
+            admin: row.admin,
+            ended_stop: match row.ended_stop {
+                Some(stop) => Some(admin_stop(stop, limits)?),
+                None => None,
+            },
+        },
+    )
+    .ok()
+}
+fn forge_adoptions(values: Box<[forge::AdoptedRow]>, limits: &w::Limits) -> Option<List<w::Adoption>> {
+    let mut repositories = List::with_capacity(limits.forge_row_repositories);
+    for adopted in values {
+        repositories
             .push(
-                w::ForgeRow::new(
+                w::Adoption::new(
                     limits,
-                    w::ForgeRowParts {
-                        makings: List::with_capacity(0),
-                        number: row.number,
-                        read_only: row.read_only,
-                        kind: match row.kind {
-                            forge::Kind::Forgejo => w::Kind::Forgejo,
-                            forge::Kind::GitHub => w::Kind::Github,
-                        },
-                        mode: match row.mode {
-                            forge::Mode::Connected => w::Mode::Connected,
-                            forge::Mode::Managed => w::Mode::Managed,
-                            forge::Mode::Owned => w::Mode::Owned,
-                            forge::Mode::Fake => w::Mode::Fake,
-                        },
-                        connection: connection(row.connection, row.failed, limits)?,
-                        offer: match row.offer {
-                            forge::Offer::NotOffered => w::Offer::NotOffered,
-                            forge::Offer::NotUnderTheBox => w::Offer::NotUnderTheBox,
-                            forge::Offer::Offered => w::Offer::Offered,
-                        },
-                        first: match row.first {
-                            Some(first) => Some(first_repository(first, limits)?),
-                            None => None,
-                        },
-                        installations,
-                        ended,
-                        app: match row.app {
-                            Some(forge::AppWay::Manifest) => Some(w::AppWay::Manifest),
-                            Some(forge::AppWay::Pasted) => Some(w::AppWay::Pasted),
-                            None => None,
-                        },
-                        web: row.web,
-                        repositories,
-                        owned: match row.owned {
-                            Some(owned) => w::OwnedForge::new(
-                                limits,
-                                w::OwnedForgeParts {
-                                    forgejo: owned.forgejo,
-                                    runner: owned.runner,
-                                    password: owned.password,
-                                },
-                            )
-                            .ok(),
-                            None => None,
-                        },
-                        admin: row.admin,
-                        ended_stop: match row.ended_stop {
-                            Some(stop) => Some(admin_stop(stop, limits)?),
-                            None => None,
-                        },
-                    },
+                    w::AdoptionParts { owner: adopted.owner, name: adopted.name, project: adopted.project },
                 )
                 .ok()?,
             )
             .ok()?;
     }
-    Some(wire::forges(&w::Forges::new(limits, w::ForgesParts { forges }).ok()?))
+    Some(repositories)
 }
+fn forge_installations(values: Box<[(u64, forge::Installation)]>, limits: &w::Limits) -> Option<List<w::Installation>> {
+    let mut installations = List::with_capacity(limits.forge_row_installations);
+    for (id, installation) in values {
+        let account = match installation.account {
+            Some((id, login)) => Some(w::Account::new(limits, w::AccountParts { id, login }).ok()?),
+            None => None,
+        };
+        installations
+            .push(
+                w::Installation::new(
+                    limits,
+                    w::InstallationParts { id, account, suspended: installation.suspended, stray: installation.stray },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(installations)
+}
+fn owned_forge(owned: Option<forge::Owned>, limits: &w::Limits) -> Option<w::OwnedForge> {
+    match owned {
+        Some(owned) => w::OwnedForge::new(
+            limits,
+            w::OwnedForgeParts { forgejo: owned.forgejo, runner: owned.runner, password: owned.password },
+        )
+        .ok(),
+        None => None,
+    }
+}
+fn forge_kind(kind: forge::Kind) -> w::Kind {
+    match kind {
+        forge::Kind::Forgejo => w::Kind::Forgejo,
+        forge::Kind::GitHub => w::Kind::Github,
+    }
+}
+fn forge_mode(mode: forge::Mode) -> w::Mode {
+    match mode {
+        forge::Mode::Connected => w::Mode::Connected,
+        forge::Mode::Managed => w::Mode::Managed,
+        forge::Mode::Owned => w::Mode::Owned,
+        forge::Mode::Fake => w::Mode::Fake,
+    }
+}
+
 fn connection(
     value: forge::Connection,
     failed: Option<forge::FailedStep>,
@@ -1307,5 +1298,21 @@ pub fn forge_read(answer: root::ForgeReadAnswer, limits: &w::Limits) -> Option<B
             let record = w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items }).ok()?;
             Some(wire::proposal_items_answer(&record))
         }
+    }
+}
+
+fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
+    match read {
+        w::Read::Setting(value) => {
+            Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })
+        }
+        w::Read::RevisionSetting(value) => Some(root::ForgeRead::RevisionSetting {
+            kind: value.kind(),
+            scope: value.scope(),
+            number: value.number(),
+            revision: value.revision(),
+        }),
+        w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+        w::Read::Playground | w::Read::Deployment => None,
     }
 }

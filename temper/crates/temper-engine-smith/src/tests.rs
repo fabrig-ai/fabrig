@@ -1900,7 +1900,6 @@ fn a_delegate_executor_or_grant_denial_suggests_change() {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset constructs optional text without closures")]
 fn change_repository_refusals_render_the_three_choices() {
     struct Case {
         named: Option<&'static [u8]>,

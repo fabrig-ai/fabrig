@@ -125,7 +125,11 @@ fn actions(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mut Vec<F
         commit(f.get(&format!("{R}/branches/actions"))?.root().get("commit").get("id").str().ok_or("actions head")?)?;
     let repo = repository(f)?;
     let checks = h.call(repo, Read::Checks { commit: head }.operation());
-    let job = if let Ok(Answer::Checks(statuses)) = &checks { statuses.iter().find_map(|s| s.job) } else { None };
+    let job = if let Ok(Answer::Checks(statuses)) = &checks {
+        statuses.iter().find(|s| s.check == api::Check::Failed).and_then(|s| s.job)
+    } else {
+        None
+    };
     facts.push(super::fact("component-read-checks", matches!(&checks, Ok(Answer::Checks(s)) if s.len() == 2 && s.iter().any(|s| s.check == api::Check::Passed) && s.iter().any(|s| s.check == api::Check::Failed && s.job.is_some_and(|j| j.head == head))), &checks));
     if let Some(attempt) = job {
         let document = f.get(&format!("{R}/actions/jobs/{}", attempt.job))?;

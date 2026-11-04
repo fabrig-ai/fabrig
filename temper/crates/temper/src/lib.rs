@@ -564,7 +564,7 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
     let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
     let answers = requests + 1;
-    if boxed {
+    if boxed && cfg!(target_os = "linux") {
         for fd in [requests, answers] {
             if !std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok_and(|m| m.file_type().is_fifo()) {
                 return Err(format!("--box: fd {fd} is not an open pipe"));
@@ -612,8 +612,13 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     host.store = store;
     Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut host))
 }
-/// The effective user's passwd login; forge commands preserve lookup refusals.
+/// The effective user's login (protocol/setup.md, 8.2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
+    if cfg!(target_os = "macos") { forge_exec::login_id() } else { login_passwd(user) }
+}
+
+/// The effective user's passwd login; forge commands preserve lookup refusals.
+fn login_passwd(user: u32) -> Result<Box<[u8]>, String> {
     let passwd = skein_shell::read_file(std::path::Path::new("/etc/passwd"), 1 << 20)
         .map_err(|why| format!("user: {}", unread(why)))?;
     for line in passwd.split(|c| *c == b'\n') {

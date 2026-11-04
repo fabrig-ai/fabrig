@@ -442,6 +442,7 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
                     &w::CEILINGS,
                     w::ForgeRowParts {
                         makings: skein_lib::List::with_capacity(0),
+                        host: b"git.example:3000".as_slice().into(),
                         web: web.map(Into::into),
                         repositories: List::with_capacity(0),
                         app: Some(w::AppWay::Pasted),

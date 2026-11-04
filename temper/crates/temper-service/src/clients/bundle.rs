@@ -1,12 +1,11 @@
 //! The browser's bundle, read whole at start, and its closed list of types (client/browser.md, 2.2; skein's
-//! ui-web.md, 4.3 and 4.4). Copied from jig's testing/jig-test-service/src/server/bundle.rs.
+//! ui-web.md, 4.3 and 4.4), composing jig's bundle helpers (jig/docs/design/protocol/service.md, 11.4).
 use super::{Clients, policy};
 use alloc::boxed::Box;
-use skein_http::{Header, Method, server as http};
-use skein_lib::{
-    List, Map, Token, bytes,
-    stream::{Down, Read, Up},
-};
+use jig_protocol_engine_clients_http::bundle::{self, field, target};
+pub use jig_protocol_engine_clients_http::bundle::{File, kind};
+use skein_http::{Method, server as http};
+use skein_lib::{List, Map, Token, bytes, stream::Up};
 
 /// Temper's fixed explanation when configuration names no browser bundle (client/browser.md, 2.2).
 #[expect(clippy::disallowed_macros, reason = "a fixed page compiled in, not data read at run time")]
@@ -14,12 +13,6 @@ pub const NO_BUNDLE_PAGE: &[u8] = include_bytes!("no-bundle.html");
 
 /// A bundle path's bound (jig's testing/jig-test/src/bundle.rs).
 pub const NAME_BYTES: u32 = 1024;
-/// One digest-directory file, typed by the closed list (skein's ui-web.md, 4.4).
-#[derive(Debug)]
-pub struct File {
-    pub kind: &'static [u8],
-    pub bytes: Box<[u8]>,
-}
 /// The bundle read whole at start (client/browser.md, 2.2).
 #[derive(Debug)]
 pub struct Bundle {
@@ -28,35 +21,6 @@ pub struct Bundle {
     pub digest: Box<[u8]>,
     pub files: Map<Box<[u8]>, File>,
 }
-/// A path's type by its extension, from the closed list; `None` off it.
-#[must_use]
-pub fn kind(path: &[u8]) -> Option<&'static [u8]> {
-    let mut dot = None;
-    for (at, byte) in path.iter().enumerate() {
-        if *byte == b'.' {
-            dot = Some(at);
-        }
-        if *byte == b'/' {
-            dot = None;
-        }
-    }
-    let dot = dot?;
-    match path.get(dot.checked_add(1)?..)? {
-        b"html" => Some(b"text/html; charset=utf-8"),
-        b"js" => Some(b"text/javascript"),
-        b"wasm" => Some(b"application/wasm"),
-        b"css" => Some(b"text/css"),
-        b"svg" => Some(b"image/svg+xml"),
-        b"png" => Some(b"image/png"),
-        b"webp" => Some(b"image/webp"),
-        b"ico" => Some(b"image/x-icon"),
-        b"woff2" => Some(b"font/woff2"),
-        b"txt" => Some(b"text/plain; charset=utf-8"),
-        b"webmanifest" => Some(b"application/manifest+json"),
-        _ => None,
-    }
-}
-
 /// How the clients' listener answers a call the mapping does not claim (client/browser.md, 2.2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Answer {
@@ -76,30 +40,9 @@ pub(crate) struct Reply {
     path: Box<[u8]>,
     offset: usize,
 }
-fn target(head: &http::Call) -> &[u8] {
-    match bytes::find(&head.target, b"?") {
-        Some(at) => head.target.get(..at).expect("query position"),
-        None => &head.target,
-    }
-}
 impl Bundle {
     fn file(&self, path: &[u8]) -> Option<&File> {
-        let name = if path == b"/robots.txt" {
-            b"files/robots.txt".as_slice()
-        } else {
-            let rest = path.strip_prefix(b"/bundle/")?;
-            let slash = bytes::find(rest, b"/")?;
-            if rest.get(..slash)? != self.digest.as_ref() {
-                return None;
-            }
-            rest.get(slash.checked_add(1)?..)?
-        };
-        for (path, file) in &self.files {
-            if path.as_ref() == name {
-                return Some(file);
-            }
-        }
-        None
+        bundle::file(&self.files, &self.digest, path)
     }
     fn content(&self, reply: &Reply) -> &[u8] {
         match reply.answer {
@@ -163,9 +106,6 @@ pub(crate) fn route(bundle: Option<&Bundle>, head: &http::Call) -> Answer {
     }
     if path == b"/robots.txt" { Answer::Root } else { Answer::Page }
 }
-fn field(headers: &mut List<Header>, name: &[u8], value: &[u8]) {
-    headers.push(Header { name: bytes::copy_of(name), value: bytes::copy_of(value) }).expect("answer fields");
-}
 impl Clients {
     /// Answers a call the mapping does not claim, and holds the answer until it is sent.
     pub(super) fn serve_call(&mut self, call: Token, head: &http::Call, busy: bool) {
@@ -221,7 +161,7 @@ impl Clients {
         self.server.answer(call, http::Request::Discard, &mut self.server_out);
         self.server.answer(call, http::Request::Respond(response), &mut self.server_out);
         if length != 0 {
-            self.demand(call, length);
+            bundle::demand(&mut self.server, call, length, self.send, &mut self.server_out);
         }
         self.replies.insert(call, reply).expect("bounded server calls");
     }
@@ -254,11 +194,6 @@ impl Clients {
             http::Event::Call(_) => unreachable!("a head is routed, not an event"),
         }
     }
-    fn demand(&mut self, call: Token, left: usize) {
-        let room = self.send.min(u32::try_from(left).expect("bounded file"));
-        let demand = http::Request::Reply(Down::Demand { read: Read::Nothing, room });
-        self.server.answer(call, demand, &mut self.server_out);
-    }
     fn chunk(&mut self, call: Token) {
         let reply = self.replies.get_mut(&call).expect("own reply");
         let body = match reply.answer {
@@ -271,16 +206,7 @@ impl Clients {
             | Answer::NotAllowed
             | Answer::Busy => self.bundle.as_ref().expect("body's bundle").content(reply),
         };
-        let end = reply.offset.saturating_add(usize::try_from(self.send).expect("send fits")).min(body.len());
-        let bytes = bytes::copy_of(body.get(reply.offset..end).expect("reply slice"));
-        let left = body.len().checked_sub(end).expect("reply cursor");
-        reply.offset = end;
-        self.server.answer(call, http::Request::Reply(Down::Send(bytes)), &mut self.server_out);
-        if left == 0 {
-            self.server.answer(call, http::Request::Reply(Down::Finish), &mut self.server_out);
-        } else {
-            self.demand(call, left);
-        }
+        reply.offset = bundle::chunk(&mut self.server, call, body, reply.offset, self.send, &mut self.server_out);
     }
 }
 

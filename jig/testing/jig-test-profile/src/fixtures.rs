@@ -274,6 +274,7 @@ pub fn seeded_project_rows(config: &core::Config) -> Vec<core::Record> {
 }
 
 /// Complete policy rows for worlds that hand-bootstrap rosters before cold restore.
+#[must_use]
 pub fn project_policy_rows(config: &core::Config) -> Vec<root::Record> {
     config
         .seed_projects

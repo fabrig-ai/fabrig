@@ -1639,10 +1639,14 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   stored change's, a removal of a setting already removed, a reset of
   one with no change) the forge answers as the same, which jig records
   as no change of it (jig's `domain/connectors.md`, section 17).
-  Whether a project's policy has an approval's role is not the forge's
-  to know: a rule naming a role nobody holds is accepted, and the
-  review page says so (`../client/README.md`, 5.13); a change it covers
-  waits, as one whose approvers have not yet approved. Kind 3 declares
+  The root also checks a set rule's enforcing approvals against the
+  core's project memberships and known forge user ids, including at
+  proposal acceptance (`../domain/forge.md`, 8.9). For each affected
+  project, too few eligible people refuses the whole change, naming
+  project, role, required and eligible counts with the remedy. A
+  deployment login or display name establishes no forge identity.
+  Later membership changes can leave an accepted rule waiting for
+  eligible approvers. Kind 3 declares
   that its value names one charter (jig's `domain/engine.md`, 17.5): the
   forge says which when it judges or reports it, and jig's check of
   references refuses a change that would leave the forge's charter

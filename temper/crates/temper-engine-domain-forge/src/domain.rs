@@ -280,26 +280,6 @@ impl Domain {
             if self.forge_ended(*forge) {
                 continue;
             }
-            let mut installations = List::with_capacity(self.installations.len());
-            if config.kind == crate::Kind::GitHub {
-                for ((owner, id), installation) in &self.installations {
-                    if owner == forge {
-                        installations.push((*id, installation.clone())).expect("bounded installations");
-                    }
-                }
-            }
-            let mut repositories = List::with_capacity(self.repositories.len());
-            for (repository, adopted) in &self.repositories {
-                if repository.forge == *forge {
-                    repositories
-                        .push(crate::AdoptedRow {
-                            owner: adopted.owner.clone(),
-                            name: adopted.name.clone(),
-                            project: adopted.project,
-                        })
-                        .expect("bounded adopted repositories");
-                }
-            }
             let (ended, ended_stop) = match self.ended.get(forge) {
                 Some((why, stop)) => (Some(why.clone()), *stop),
                 None => (None, None),
@@ -312,6 +292,7 @@ impl Domain {
                 makings: makings.into_boxed(),
                 read_only: config.kind == crate::Kind::GitHub && config.read_only,
                 number: *forge,
+                host: crate::host(&config.git),
                 kind: config.kind,
                 mode: config.mode,
                 connection: self.connection(*forge),
@@ -321,7 +302,7 @@ impl Domain {
                 },
                 offer: self.offer(*forge),
                 first: self.first.get(forge).cloned(),
-                installations: installations.into_boxed(),
+                installations: self.forge_installations(*forge, config.kind),
                 ended,
                 app: match self.connection(*forge) {
                     crate::Connection::Connected { .. } if config.kind == crate::Kind::GitHub => {
@@ -336,7 +317,7 @@ impl Domain {
                     | crate::Connection::Stopped { .. } => None,
                 },
                 web: config.web.clone(),
-                repositories: repositories.into_boxed(),
+                repositories: self.forge_repositories(*forge),
                 owned: config.owned.clone(),
                 admin: config.admin_connect,
                 ended_stop,
@@ -344,6 +325,31 @@ impl Domain {
             .expect("configured forges");
         }
         crate::Forges { rows: rows.into_boxed() }
+    }
+    fn forge_installations(&self, forge: u16, kind: crate::Kind) -> Box<[(u64, crate::Installation)]> {
+        let mut rows = List::with_capacity(self.installations.len());
+        if kind == crate::Kind::GitHub {
+            for ((owner, id), installation) in &self.installations {
+                if *owner == forge {
+                    rows.push((*id, installation.clone())).expect("bounded installations");
+                }
+            }
+        }
+        rows.into_boxed()
+    }
+    fn forge_repositories(&self, forge: u16) -> Box<[crate::AdoptedRow]> {
+        let mut rows = List::with_capacity(self.repositories.len());
+        for (repository, adopted) in &self.repositories {
+            if repository.forge == forge {
+                rows.push(crate::AdoptedRow {
+                    owner: adopted.owner.clone(),
+                    name: adopted.name.clone(),
+                    project: adopted.project,
+                })
+                .expect("bounded adopted repositories");
+            }
+        }
+        rows.into_boxed()
     }
     /// One decision shared by the document and setup admission (domain/forge.md, 4.1).
     #[must_use]
@@ -383,7 +389,6 @@ impl Domain {
     }
     /// Volatile setup answer or retained adoption outcome for this request.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
     pub fn application_answer(&self, token: Token) -> Option<crate::Answered> {
         if let Some(answer) = self.connect.answers.get(&token) {
             return Some(answer.clone());
@@ -920,7 +925,6 @@ impl Domain {
 
     /// The last durable head observed for a named branch.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the strict subset uses a match without a closure")]
     pub fn branch_head(&self, name: &Name) -> Option<skein_forge::api::Commit> {
         match self.heads.get(name) {
             Some(row) => Some(row.commit),
@@ -1749,7 +1753,6 @@ fn settle_merge_writer(d: &mut Domain, env: &Env<Limits>, entry: u64, outcome: s
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
 #[expect(clippy::too_many_lines, reason = "merge outcomes save the landing and its verification together")]
 fn outcome_facts(
     d: &mut Domain,
@@ -3527,7 +3530,6 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
     None
 }
 
-#[expect(clippy::manual_map, reason = "step code uses concrete matches, without callbacks")]
 #[expect(clippy::too_many_lines, reason = "the coherent change snapshot includes question and early-start facts")]
 fn change_facts(
     d: &Domain,
@@ -5143,7 +5145,6 @@ fn wake_head_dependents(
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code has no closures")]
 fn branch_changed(
     d: &mut Domain,
     env: &Env<Limits>,

@@ -119,7 +119,6 @@ fn anthropic_seeded_fragmentation_and_grants_preserve_completion() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the referee extracts only failure terminals")]
 fn randomized_receiving_limits_name_the_cap_and_the_bound_that_was_passed() {
     use skein_llm::Cap;
     for seed in 1..=96 {

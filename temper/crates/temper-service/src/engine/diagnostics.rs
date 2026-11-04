@@ -4,11 +4,10 @@ use crate::diagnostics::{self, EngineEvent};
 use skein_lib::{List, Time};
 
 impl Engine {
-    #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
     pub(crate) fn pending(&self, now: Time) -> diagnostics::Engine {
         let active = self.store.opened || self.end.is_some();
-        let effects = self.store.host.component.mark_durable() || self.end.is_some();
-        let secrets_ready = self.end.is_none() && self.store.host.component.mark_durable();
+        let effects = self.store.host.mark_durable() || self.end.is_some();
+        let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
         let next_deadline = self.next_deadline();
         let mut events = List::with_capacity(self.events.len());
         for event in &self.events {
