@@ -8,7 +8,6 @@ use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_lib::{List, Writer};
 
-#[expect(clippy::manual_map, reason = "step code keeps the optional shown revision explicit")]
 pub(crate) fn prepare(call: &Call, task: &c::Task, me: &c::Me, limits: &Limits) -> Prepared {
     let mut draft = temper_client_domain::amend::Draft::of(task);
     let shown = match number(call, 1) {

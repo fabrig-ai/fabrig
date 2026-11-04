@@ -387,17 +387,14 @@ fn the_chats_words_say_a_delegate_is_started_until_it_reports() {
     let words = include_str!("../stock/chat.txt");
     assert!(
         words
-            .contains("Say only what your tasks have told you; until a delegate reports, it is started, nothing more.")
+            .contains("After calling change, say only that work started until its Landed result names the pull request and merge commit.")
     );
 }
 
 #[test]
 fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
     let words = include_str!("../stock/chat.txt");
-    assert!(
-        words
-            .contains("When the goal reports, tell them what landed, with the pull request and merge commit it names.")
-    );
+    assert!(words.contains("Report the goal's landed pull requests and merge commits."));
     assert!(!words.contains("When the goal reports, tell them what landed."));
     assert!(!words.contains(
         "Report once every change has landed, each as its result says it, naming no check or test it doesn't."
@@ -409,9 +406,24 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
         "the goal names only the checks in the change's result"
     );
     assert!(
-        words.contains("Explain each result by what it says: never say a check or test ran that it doesn't name."),
+        words.contains("Name only checks or tests the result names."),
         "the chat names only the checks in the result it hears"
     );
+    let reporting =
+        words.split("\n\n").find(|paragraph| paragraph.starts_with("Reports:")).expect("shared reporting rules");
+    for rule in [
+        "CI status cannot prove compilation, tests or execution",
+        "even if a producer could not compile or run",
+        "Starter echo checks run no code",
+        "Use result or forge evidence",
+        "else say unknown",
+    ] {
+        assert!(reporting.contains(rule), "missing reporting instruction: {rule}");
+    }
+    for role in ["If your brief says you are a goal", "If neither line is in your brief"] {
+        let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
+        assert!(paragraph.contains("Use Reports."), "{role} must retain reporting rules");
+    }
 }
 
 #[test]
@@ -743,8 +755,8 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
             "Repository changes must go through change; never implement them by writing your chat workspace."
         )
     );
-    assert!(words.contains("After calling change, say only that the work started; never say added, fixed or equivalent until the delegate's Landed result names its pull request and merge commit."));
-    assert!(words.contains("Explain each result by what it says: never say a check or test ran that it doesn't name."));
+    assert!(words.contains("After calling change, say only that work started until its Landed result names the pull request and merge commit."));
+    assert!(words.contains("Name only checks or tests the result names."));
 }
 
 #[test]

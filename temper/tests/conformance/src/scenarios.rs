@@ -141,7 +141,6 @@ impl ScenarioApplication for Temper {
     }
     #[expect(
         clippy::too_many_lines,
-        clippy::wildcard_enum_match_arm,
         clippy::match_wildcard_for_single_variants,
         reason = "the shared actions bind seven stories and select their durable task and outbox facts"
     )]
@@ -645,7 +644,6 @@ impl ScenarioApplication for Temper {
 
 #[expect(
     clippy::too_many_lines,
-    clippy::wildcard_enum_match_arm,
     reason = "one bounded producer fixture specifies its authority and reads task facts for diagnostics"
 )]
 pub(crate) fn change(world: &mut World, completion: u32) -> Result<(), Violation> {

@@ -131,7 +131,6 @@ impl Clients {
         self.server.listening()
     }
     #[expect(clippy::too_many_lines, reason = "startup constructs bounded queues beside the client component")]
-    #[expect(clippy::manual_map, reason = "the programming model uses explicit branches without closures")]
     pub fn new(
         directories: &config::Directories,
         config: &config::Engine,
@@ -751,7 +750,6 @@ impl Clients {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset does not use closures")]
 fn http_settings(public: Option<&crate::startup::application::Origin>) -> http::Settings {
     let public = match public {
         Some(origin) => Some(origin.name.clone()),

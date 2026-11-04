@@ -1101,9 +1101,13 @@ The table grows area by area, each with its stories (section 11).
 
 ### 6.1 Text
 
-A new owner proposal outcome prints the original returned role in the request's
-project. A restored kept line prints its identity alone; read the proposal for
-its present recipient. Replaying the same key retains the original outcome;
+A new settings proposal outcome names the owners of the submitted items:
+`to the deployment's owners` for deployment items, `to project P's owners`
+for a project's. Multiple scopes are listed once each, the deployment first
+then projects by number, followed by `; one person must own every affected
+scope`. Other new owner proposal outcomes print the original returned role
+in the request's project. A restored kept line prints its identity alone;
+read the proposal for its present recipient. Replaying the same key retains the original outcome;
 `settings propose` forwards an optional reason, and `proposal decide`
 on a settings proposal's acceptance sends `--running`'s choice, or stays
 when it is absent, live or repeated, since jig refuses an acceptance of

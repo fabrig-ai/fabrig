@@ -16,7 +16,6 @@ fn workspace_items_that_did_not_decode_are_refused_naming_them() {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "explicit option match follows the step subset")]
 fn workspace_items_are_refused_naming_the_item_or_carry_their_program_to_checkout() {
     let mut bound = Box::new([b'x'; 4096]);
     *bound.first_mut().expect("nonempty program") = b'/';

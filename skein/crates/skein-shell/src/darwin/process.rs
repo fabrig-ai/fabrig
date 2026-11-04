@@ -43,6 +43,10 @@ struct Child {
 }
 // Descriptors are process-wide. Hold the lock across wait/signal so a reap
 // cannot race a signal of a recycled pid, even with separately hosted loops.
+#[expect(
+    clippy::disallowed_types,
+    reason = "process-wide child ownership serializes reaping and signalling across hosted loops (shell.md, 7.5)"
+)]
 static CHILDREN: Mutex<BTreeMap<Fd, Child>> = Mutex::new(BTreeMap::new());
 
 fn fd(raw: i32) -> Result<OwnedFd, i32> {

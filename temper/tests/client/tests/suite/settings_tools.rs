@@ -15,6 +15,8 @@ const CHANGED_SPEND: u64 = 900;
 // Whole policy and charter values fit a review's per-value allowance.
 const WHOLE_SETTING_BYTES: u32 = 4096;
 const INSTRUCTIONS: &[u8] = b"Follow the project's new policy.";
+const SCOPED_OWNERS: &str =
+    "to the deployment's owners and project 1's owners; one person must own every affected scope";
 
 fn configuration() -> engine::Config {
     let mut config = walking::config(fixtures::SEED);
@@ -131,7 +133,7 @@ fn a_settings_file_sets_a_project_policy_through_ctl_proposed_shown_and_accepted
         .trim_end()
         .split_once(", ")
         .expect("proposal and recipient");
-    assert_eq!(recipient, "to role 0 in project 0");
+    assert_eq!(recipient, SCOPED_OWNERS);
     assert!(proposal.starts_with("p1/"), "{proposed}");
     let review = call(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     assert!(
@@ -288,7 +290,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
     }
 }
 
-fn submit_file(world: &mut ClientWorld, agent: ClientId, file: &str) -> String {
+fn submit_file(world: &mut ClientWorld, agent: ClientId, file: &str, owners: &str) -> String {
     let number = fixtures::give_with_file(
         world,
         agent,
@@ -309,7 +311,7 @@ fn submit_file(world: &mut ClientWorld, agent: ClientId, file: &str) -> String {
     let printed = String::from_utf8(printed.stdout.into_vec()).expect("proposal UTF-8");
     let (proposal, recipient) =
         printed.strip_prefix("proposed: ").expect("proposal").trim_end().split_once(", ").expect("recipient");
-    assert_eq!(recipient, "to role 0 in project 0");
+    assert_eq!(recipient, owners);
     proposal.to_owned()
 }
 
@@ -338,7 +340,7 @@ fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
         items.push(format!(r#"{{"setting":{},"set":{}}}"#, kind.selector, value_json(*setting, value.clone())));
     }
     let file = format!(r#"{{"items":[{}]}}"#, items.join(","));
-    let proposal = submit_file(&mut world, agent, &file);
+    let proposal = submit_file(&mut world, agent, &file, SCOPED_OWNERS);
     let review = call(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     for ((kind, (setting, original)), (_, changed)) in KINDS.iter().zip(&originals).zip(&changed) {
         let now = format!("{} · set · now {}", kind.name, value_json(*setting, original.clone()));
@@ -451,7 +453,7 @@ fn proposal_review_groups_changes_and_explains_running_work() {
     assert!(inventory.contains("revision 1"), "{inventory}");
     assert!(inventory.contains("live tasks: 1"), "{inventory}");
     let file = review_file(&mut world, agent);
-    let proposal = submit_file(&mut world, agent, &file);
+    let proposal = submit_file(&mut world, agent, &file, "to the deployment's owners");
     let review = call(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     assert_review_groups(&review);
     assert!(review.contains("against revision 1, newest 1"), "{review}");

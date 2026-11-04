@@ -865,7 +865,6 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
             named_pull = ci_poll::name_pull(&mut world);
         }
         for request in world.take_seen() {
-            #[expect(clippy::wildcard_enum_match_arm, reason = "only this change's scheduler requests drive the story")]
             match request {
                 top::Request::WakeProcedure { task: 51 } => due = true,
                 top::Request::ChangeDecision { task: 51, decision, entry: committed, .. } => {
@@ -1149,10 +1148,6 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
             ci_news = true;
         }
         for request in world.take_seen() {
-            #[expect(
-                clippy::wildcard_enum_match_arm,
-                reason = "only this change's root scheduler requests drive the story"
-            )]
             match request {
                 top::Request::WakeProcedure { task: 51 } => {
                     wakes += 1;

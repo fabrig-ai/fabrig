@@ -223,42 +223,17 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
     })
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "the translation uses explicit matches (programming-model.md, 10)")]
 pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Row]>> {
-    use forge::forges::{Account, Installation, Kind, Mode, Offer, Row};
+    use forge::forges::{Kind, Mode, Offer, Row};
     let record = wire::decode_forges(bytes, limits)?.into_parts();
     let mut rows = List::with_capacity(record.forges.len());
     for row in record.forges.into_boxed() {
         let row = row.into_parts();
         let connection = connection_from(row.connection);
-        let mut installations = List::with_capacity(row.installations.len());
-        for installation in row.installations.into_boxed() {
-            let installation = installation.into_parts();
-            installations
-                .push(Installation {
-                    id: installation.id,
-                    account: match installation.account {
-                        Some(account) => {
-                            let account = account.into_parts();
-                            Some(Account { id: account.id, login: account.login })
-                        }
-                        None => None,
-                    },
-                    suspended: installation.suspended,
-                    stray: installation.stray,
-                })
-                .ok()?;
-        }
-        let mut repositories = List::with_capacity(row.repositories.len());
-        for adopted in row.repositories.into_boxed() {
-            let adopted = adopted.into_parts();
-            repositories
-                .push(forge::forges::Adoption { owner: adopted.owner, name: adopted.name, project: adopted.project })
-                .ok()?;
-        }
         rows.push(Row {
             read_only: row.read_only,
             number: row.number,
+            host: row.host,
             kind: match row.kind {
                 w::Kind::Forgejo => Kind::Forgejo,
                 w::Kind::Github => Kind::GitHub,
@@ -279,7 +254,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
                 Some(first) => Some(first_from(first)),
                 None => None,
             },
-            installations: installations.into_boxed(),
+            installations: installations_from(row.installations)?,
             ended: match row.ended {
                 Some(ended) => Some(ended.into_parts().why),
                 None => None,
@@ -290,7 +265,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
                 None => None,
             },
             web: row.web,
-            repositories: repositories.into_boxed(),
+            repositories: adoptions_from(row.repositories)?,
             owned: match row.owned {
                 Some(owned) => Some(owned_from(owned)),
                 None => None,
@@ -304,6 +279,39 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
         .ok()?;
     }
     Some(rows.into_boxed())
+}
+
+fn installations_from(values: List<w::Installation>) -> Option<Box<[forge::forges::Installation]>> {
+    use forge::forges::{Account, Installation};
+    let mut installations = List::with_capacity(values.len());
+    for installation in values.into_boxed() {
+        let installation = installation.into_parts();
+        installations
+            .push(Installation {
+                id: installation.id,
+                account: match installation.account {
+                    Some(account) => {
+                        let account = account.into_parts();
+                        Some(Account { id: account.id, login: account.login })
+                    }
+                    None => None,
+                },
+                suspended: installation.suspended,
+                stray: installation.stray,
+            })
+            .ok()?;
+    }
+    Some(installations.into_boxed())
+}
+fn adoptions_from(values: List<w::Adoption>) -> Option<Box<[forge::forges::Adoption]>> {
+    let mut repositories = List::with_capacity(values.len());
+    for adopted in values.into_boxed() {
+        let adopted = adopted.into_parts();
+        repositories
+            .push(forge::forges::Adoption { owner: adopted.owner, name: adopted.name, project: adopted.project })
+            .ok()?;
+    }
+    Some(repositories.into_boxed())
 }
 
 fn connection_from(connection: w::Connection) -> forge::forges::Connection {

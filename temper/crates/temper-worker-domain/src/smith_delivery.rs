@@ -56,7 +56,6 @@ pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::CallAnswer) 
     }
 }
 
-#[expect(clippy::manual_map, reason = "explicit option match without closures in step code")]
 pub(crate) fn landings(landings: &[wire::Landing]) -> smith::Delivery {
     let mut receipts = List::with_capacity(u32::try_from(landings.len()).expect("bounded directories"));
     let mut first = None;

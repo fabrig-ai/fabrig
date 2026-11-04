@@ -627,7 +627,6 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project },
     }
 }
-#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
     n::SettingDocument {
         setting: form_setting(v.setting),
@@ -692,7 +691,6 @@ pub fn client_setting_hosts(v: &n::SettingHosts) -> c::SettingHosts {
 pub fn client_setting_item(v: &n::SettingItem) -> c::SettingItem {
     c::SettingItem { setting: client_setting(v.setting), edit: client_setting_edit(&v.edit) }
 }
-#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn form_setting_line(v: &c::SettingLine) -> n::SettingLine {
     n::SettingLine {
         setting: form_setting(v.setting),

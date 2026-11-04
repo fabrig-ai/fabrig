@@ -7,9 +7,14 @@ use skein_fake_llm_domain::api::{Part, Script, Turn};
 const REQUEST: &[u8] = b"Add the line \"Tier walk: first.\" to the end of README.md in widget.";
 const PROHIBITION: &str =
     "Repository changes must go through change; never implement them by writing your chat workspace.";
-const COMPLETION: &str = "After calling change, say only that the work started; never say added, fixed or equivalent until the delegate's Landed result names its pull request and merge commit.";
+const COMPLETION: &str =
+    "After calling change, say only that work started until its Landed result names the pull request and merge commit.";
 
 fn chat(turns: Vec<Turn>) -> World {
+    requested_chat(turns, REQUEST)
+}
+
+fn requested_chat(turns: Vec<Turn>, request: &[u8]) -> World {
     let script = Script { cue: b"Help the person with their work.".as_slice().into(), turns: turns.into_boxed_slice() };
     let mut world = World::configured_with(923, script.clone(), true, agreement::config);
     world.scripts.push_back(script);
@@ -19,7 +24,7 @@ fn chat(turns: Vec<Turn>) -> World {
         400,
         Box::new([
             parties::Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() },
-            parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: REQUEST.into() } },
+            parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: request.into() } },
         ]),
     );
     world
@@ -242,4 +247,128 @@ fn landing_report(world: &mut World) -> String {
         }
     }
     panic!("delegate did not report a landing: {:?}", world.observed);
+}
+
+const EXECUTION_RULES: [&str; 3] = [
+    "CI status cannot prove compilation, tests or execution, even if a producer could not compile or run.",
+    "Starter echo checks run no code.",
+    "Use result or forge evidence; else say unknown.",
+];
+const FALSE_EXECUTION: &[u8] =
+    b"The delegate said it couldn't compile or run anything itself, so the CI check is the only run of the code.";
+const UNAVAILABLE: &str = "Could not compile or run code: compilation and execution were unavailable.";
+const ECHO_WORKFLOW: &[u8] = b"on: [push, pull_request]\njobs:\n  check:\n    runs-on: runner\n    steps:\n      - run: echo \"temper's starter check passed; replace this step with your own checks\"\n";
+
+#[test]
+fn a_stock_chat_distinguishes_starter_ci_from_running_code() {
+    let mut csv = echo_change(
+        requested_chat(Vec::new(), b"Add CSV export to widget"),
+        "Add CSV export to widget",
+        "export.csv",
+        "fruit,count\\n",
+    );
+    let report = landing_report(&mut csv);
+    assert!(report.contains(": build passed\n"), "{report}");
+    let mut dark = requested_chat(Vec::new(), b"Add a dark theme to widget");
+    core::mem::swap(&mut dark.forge, &mut csv.forge);
+    dark.env.now = csv.env.now;
+    let mut dark =
+        echo_change(dark, "Add a dark theme to widget", "theme.css", "body { color: white; background: black; }\\n");
+    let report = landing_report(&mut dark);
+    assert!(report.contains(UNAVAILABLE), "{report}");
+    assert!(report.contains(": build passed\n"), "{report}");
+    assert!(report.contains("Landed: pull request #2 merged into main"), "{report}");
+    reporting_prompt(&mut dark);
+    let head = dark.forge.branch(b"org/repo", b"main").expect("main");
+    assert_eq!(
+        dark.forge.api(
+            b"org/repo",
+            1,
+            fake::Op::Read(fake::Read::File { commit: head, path: b"export.csv".as_slice().into() })
+        ),
+        Ok(fake::Answer::File(b"fruit,count\n".as_slice().into()))
+    );
+    let prompt = dark.agent().prompts().last().expect("reporting turn");
+    let system = String::from_utf8_lossy(&prompt.system);
+    let evidence = prompt
+        .messages
+        .iter()
+        .flat_map(|message| &message.parts)
+        .filter_map(|part| match part {
+            Part::Text { text } | Part::ToolOutput { output: text, .. } => Some(String::from_utf8_lossy(text)),
+            Part::ToolCall { .. } | Part::Opaque { .. } => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(evidence.contains(&report), "the reporting turn must receive the landed result: {evidence}");
+    assert!(evidence.contains("starter check passed"), "the reporting turn retains the inspected echo workflow");
+    for rule in EXECUTION_RULES {
+        assert!(system.contains(rule), "reporting prompt must distinguish check status from execution: {rule}");
+    }
+}
+
+fn echo_change(mut world: World, request: &str, path: &str, content: &str) -> World {
+    if world
+        .forge
+        .api(
+            b"org/repo",
+            1,
+            fake::Op::Read(fake::Read::File {
+                commit: world.forge.branch(b"org/repo", b"main").expect("main"),
+                path: b".forgejo/workflows/ci.yml".as_slice().into(),
+            }),
+        )
+        .is_err()
+    {
+        world.forge.advance(b"org/repo", b"main", b".forgejo/workflows/ci.yml", ECHO_WORKFLOW);
+    }
+    let hex = main_commit(&world);
+    let script = Script {
+        cue: b"Help the person with their work.".as_slice().into(),
+        turns: Box::new([
+            call(b"read_branch", br#"{"branch":"main"}"#),
+            call(
+                b"read_file",
+                format!(r#"{{"head":"{hex}","path":".forgejo/workflows/ci.yml","max_bytes":4096}}"#).as_bytes(),
+            ),
+            call(b"read_file", format!(r#"{{"head":"{hex}","path":"README.md","max_bytes":4096}}"#).as_bytes()),
+            call(
+                b"change",
+                format!(r#"{{"words":"{request}. README.md says The answer is 42. CI only echoes a message."}}"#)
+                    .as_bytes(),
+            ),
+            text_script(b"I started the change.").turns[0].clone(),
+        ]),
+    };
+    world.scripts = super::VecDeque::from([
+        script,
+        Script {
+            cue: b"Read only what the change needs".as_slice().into(),
+            turns: Box::new([
+                call(b"write", format!(r#"{{"path":"{path}","content":"{content}"}}"#).as_bytes()),
+                call(b"finish", format!(r#"{{"title":"{request}","body":"{UNAVAILABLE}"}}"#).as_bytes()),
+            ]),
+        },
+    ]);
+    world
+}
+
+fn reporting_prompt(world: &mut World) {
+    // Deliberately script the observed false reply: the oracle is the supplied instructions and evidence.
+    world.parked.get_mut(&1).expect("parked chat").resume(text_script(FALSE_EXECUTION));
+    world.act(
+        parties::Ask::Say {
+            task: parties::Task::Number(1),
+            words: b"What landed and what ran?".as_slice().into(),
+            release: None,
+        },
+        [42; 16],
+    );
+    for _ in 0..10000 {
+        world.tick();
+        if world.assignment().task == 1 && world.observed.gone == 3 {
+            return;
+        }
+    }
+    panic!("reporting chat did not park: {:?}", world.observed);
 }

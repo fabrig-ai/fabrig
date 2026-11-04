@@ -20,7 +20,6 @@ pub fn repository() -> r::Name {
         path: vec![b"forge".to_vec(), b"forge.example".to_vec(), b"org".to_vec(), b"repo".to_vec()],
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "unexpected native writes fail this scenario binding explicitly")]
 pub fn parts(write: &skein_forge::api::Write) -> (u16, Vec<r::Name>, Option<u64>, u64, u64) {
     let mut name = repository();
     let (kind, condition, target, state) = match write {
@@ -63,7 +62,6 @@ pub fn parts(write: &skein_forge::api::Write) -> (u16, Vec<r::Name>, Option<u64>
     (kind, vec![name], condition, target, state)
 }
 #[must_use]
-#[expect(clippy::wildcard_enum_match_arm, reason = "only named effect call rows identify this outbox entry")]
 pub fn key(store: &Store, entry: &skein_forge_client::Entry) -> EffectKey {
     let call = store.rows.values().find_map(|row| match row {
         root::Record::Core(core::Record::Core(core::CoreRecord::Call(row))) if matches!(row.part, core::CallPart::Effect { entry: n, .. } if n == entry.number) => Some(row.key),
@@ -227,7 +225,6 @@ pub struct EffectEvidence {
 
 /// Follow each durable entry to its named answer or connector erasure. A later
 /// hold cannot relabel a key already observed as settled.
-#[expect(clippy::wildcard_enum_match_arm, reason = "only durable named effect calls supply a connector outcome")]
 pub fn resolved(
     store: &Store,
     snapshot: &mut r::Snapshot,

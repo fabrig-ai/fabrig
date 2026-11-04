@@ -511,7 +511,6 @@ fn the_title_sits_between_the_headers_two_meta_rows_without_a_title_paragraph() 
     assert_eq!(children(&tree, parts[3]).len(), 2);
 }
 #[test]
-#[expect(clippy::manual_map, reason = "the client matches without a closure")]
 fn the_budget_deadline_names_the_utc_date_or_moment_and_none() {
     for (seconds, expected) in [
         (Some(0), b"Jan 1".as_slice()),
@@ -932,7 +931,6 @@ fn a_goal_names_the_result_it_gives() {
     }
 }
 #[test]
-#[expect(clippy::manual_map, reason = "the client matches without a closure")]
 fn an_ended_goal_shows_its_result() {
     for (ending, name, token, said) in [
         (c::Ending::Done, b"Completed".as_slice(), look::STATUS_DONE, Some(b"A **useful** report".as_slice())),

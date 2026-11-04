@@ -43,8 +43,8 @@
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Departs:** 3.5, With no project yet, and 5.3: with no project, the
-  banner's place for it reads "No project yet" followed by the new
+- **Departs:** 3.5, With no project yet, and 5.3: where the document
+  shows the welcome, with no project, the banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s
   `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that
   form and 3.5 leaves the first project to the playground's start or
