@@ -28,7 +28,7 @@ use crate::workspace::{self, Directory, Workspace};
 /// A waking instruction scopes exhaustion to the activation that spent its allowance.
 const RESUME: &[u8] = b"A new activation starts with the fresh bounded turns and wall time in ## Budget. Earlier exhaustion and finish-now instructions are superseded for this activation. Continue the saved work; spending remains bounded by the task\'s remaining funds.";
 
-/// The first user instruction of a Finite main or child conversation.
+/// The first user instruction of a Finite main and the base of a child opening.
 pub(crate) const BEGIN: &[u8] = b"Begin the work your brief describes.";
 
 /// The summary keeps the work ready to continue in a new window.
@@ -188,6 +188,23 @@ fn begin(brief: bool, resumed: bool, messages: Option<Box<[u8]>>) -> Box<[u8]> {
         None if brief => Box::from(BEGIN),
         None => Box::from(b"Begin the work your instructions describe.".as_slice()),
     }
+}
+
+/// Distinguish fresh children across activations with at most twenty decimal digits.
+/// Main's opening and the run's routing affinity remain independent of this text.
+pub(crate) fn child_begin(activation: u64) -> Box<[u8]> {
+    let mut measured = Text::measuring();
+    render_child_begin(&mut measured, activation);
+    let mut text = measured.writing();
+    render_child_begin(&mut text, activation);
+    text.finish()
+}
+
+fn render_child_begin(text: &mut Text, activation: u64) {
+    text.put(BEGIN);
+    text.put(b"\n\nActivation: ");
+    text.put_count(activation);
+    text.put(b".");
 }
 
 fn render_resume(text: &mut Text, messages: Option<&[u8]>) {

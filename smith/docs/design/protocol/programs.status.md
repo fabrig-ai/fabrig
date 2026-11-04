@@ -9,5 +9,6 @@
   2.1.312 is unknown. Its two agent-process probes and the summary
   session's probe passed in the after-landing run at main
   `df41529d3ee1`, whose Claude Code release is unknown. No after-landing
-  run read holds the 5.10 probe of two programs answering at once on
-  one configuration directory (testing.status.md, 2.3).
+  run read holds the 5.10 probes of two programs answering at once or
+  children answering in a later activation on one configuration directory
+  (testing.status.md, 2.3).
