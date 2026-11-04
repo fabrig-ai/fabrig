@@ -1,3 +1,33 @@
 draft = "macos-cheap"
 repo = "fabrig"
 sources = ["temper/docs/plan/macos-cheap/inputs/request.md", "temper/docs/design/draft/macos.md", "temper/docs/design/draft/macos.status.md", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "workflow"
+title = "the macOS workflow compiles every target on the runner, on main, blocking nothing"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.8"
+
+[[part]]
+id = "pins"
+title = "Forgejo 17.0.1 and runner 13.2.1, the versions Homebrew bottles, their macOS digests beside Linux's, held to the conformance"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 4.3"
+
+[[slice]]
+id = 1
+story = "the workflow exists on the trunk, and the pins move to bottled versions the conformance and the story hold on Linux"
+parts = ["workflow", "pins"]
+walk = false
+
+[[question]]
+id = "builders-binaries"
+parts = ["pins"]
+text = """For ops, a machine action this plan needs: the builders hold Forgejo 17.0.0 and runner 13.2.0, and the pin moves to 17.0.1 and 13.2.1, so temper's process and live tiers refuse the old binaries once the plan lands. Install, beside the old ones, .local/opt/forgejo-17.0.1/forgejo (sha256 51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f, from https://codeberg.org/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-amd64) and .local/opt/forgejo-runner-13.2.1/forgejo-runner (sha256 bb369fe1ecb50fdc983c0b1d993f19b0920df6e5864511892b3cdbf16d858b34, from https://code.forgejo.org/forgejo/runner/releases/download/v13.2.1/forgejo-runner-13.2.1-linux-amd64) on every builder, through fleet/versions.toml; then move TEMPER_FORGEJO and TEMPER_FORGEJO_RUNNER in fleet/env when this plan's trunk lands. Installing early is harmless; moving fleet/env before the landing reds the process tier on main. Recommendation: install now, move fleet/env at the landing. No task waits: the gate needs neither binary, and the conformance task fetches its own copies."""
+answer = ""
