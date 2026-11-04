@@ -211,17 +211,34 @@ impl HostIo {
     ) -> Result<(), kernel::Fd> {
         if let Some(input) = input {
             let stream = self.io.adopt_read_pipe(input)?;
-            self.terminal_input = Some(stream);
-            if read_input {
-                self.io_requests.push(io::Request::Stream {
-                    stream,
-                    down: stream::Down::Demand { read: stream::Read::Fill(1), room: 0 },
-                });
-            }
+            self.adopted_input(stream, read_input);
         }
         let signal = self.io.adopt_signals(signals)?;
         self.signals = Some(signal);
         Ok(())
+    }
+
+    fn spawned(&mut self, process: protocol::Process) {
+        self.process = Some(process);
+    }
+
+    fn adopted_input(&mut self, stream: Token, read_input: bool) {
+        self.terminal_input = Some(stream);
+        if read_input {
+            self.io_requests.push(io::Request::Stream {
+                stream,
+                down: stream::Down::Demand { read: stream::Read::Fill(1), room: 0 },
+            });
+        }
+    }
+
+    fn hold_read(&mut self) {
+        assert!(!self.reading, "one host read at a time");
+        self.reading = true;
+    }
+
+    fn read_held(&self) -> bool {
+        self.reading
     }
 
     pub(crate) fn read_window(&mut self) {
@@ -610,7 +627,7 @@ impl HostIo {
 
     fn process_work_pending(&self) -> bool {
         for event in &self.process_events {
-            if self.reading || !read_terminal(event) {
+            if self.read_held() || !read_terminal(event) {
                 return true;
             }
         }
@@ -637,7 +654,7 @@ impl HostIo {
                 | protocol::ProcessEvent::Reaped { .. } => {}
             }
             if read_terminal(&event) {
-                if !self.reading {
+                if !self.read_held() {
                     self.process_events.push(event);
                     continue;
                 }
@@ -801,7 +818,7 @@ impl HostIo {
                     return;
                 };
                 process.spawn(self.launch.clone(), deadline, &mut self.io_requests);
-                self.process = Some(process);
+                self.spawned(process);
             }
             host::process::Request::Send { owner, message, .. } => {
                 let send_token = Token::new(self.send);
@@ -864,8 +881,7 @@ impl HostIo {
                 host_events.push(host::Input::Process(host::process::Event::Signalled { owner }));
             }
             host::process::Request::Read { .. } => {
-                assert!(!self.reading, "one host read at a time");
-                self.reading = true;
+                self.hold_read();
                 self.process
                     .as_mut()
                     .expect("Spawn precedes Read")
@@ -1313,7 +1329,7 @@ mod tests {
         adapter.io.reclaim();
         adapter.io_up(&env);
         while adapter.io_submissions.pop().is_some() {}
-        adapter.terminal_input = Some(terminal);
+        adapter.adopted_input(terminal, false);
         adapter.read_window();
         // Filling IO's one refusal slot holds its credit independently
         // of the service handoff. No kernel operation is required to release it.
@@ -1361,7 +1377,7 @@ mod tests {
             &mut adapter.process_events,
             &mut adapter.io_requests,
         );
-        adapter.process = Some(process);
+        adapter.spawned(process);
         adapter
     }
 
@@ -1493,6 +1509,12 @@ mod tests {
     fn prefetched_adapter(owner: Token) -> HostIo {
         let config = crate::tests::config();
         let mut adapter = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
+        adapter.spawned(protocol::Process::new(
+            owner,
+            &adapter.limits.channel,
+            adapter.limits.detail_bytes,
+            adapter.endpoints.clone(),
+        ).unwrap());
         adapter
             .process_events
             .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });
@@ -1532,8 +1554,8 @@ mod tests {
         assert!(!adapter.work_pending(Time::ZERO), "prefetched records wait without spinning");
         for text in [b"first".as_slice(), b"second".as_slice()] {
             // This fixture tests the outer terminal ledger with already queued events,
-            // below request forwarding: a real Read now also requires an opened Process.
-            adapter.reading = true;
+            // below request forwarding: a real Read requires an opened Process.
+            adapter.hold_read();
             adapter.drain_process(&mut events);
             match events.pop().expect("one read terminal") {
                 host::Input::Process(host::process::Event::Received {
@@ -1548,12 +1570,12 @@ mod tests {
             assert!(events.is_empty(), "one terminal per Read");
         }
         assert!(adapter.process_events.is_empty());
-        adapter.reading = true;
+        adapter.hold_read();
         adapter
             .process_events
             .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });
         adapter.drain_process(&mut events);
-        assert!(adapter.reading, "an independent write failure leaves the read owed");
+        assert!(adapter.read_held(), "an independent write failure leaves the read owed");
         assert!(events.is_empty());
     }
 }
