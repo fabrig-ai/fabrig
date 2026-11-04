@@ -2,7 +2,6 @@
 
 #![expect(clippy::disallowed_types, reason = "returned pages are bounded by Page")]
 #![expect(clippy::disallowed_methods, reason = "pure lookups and bounded admission scans have no hidden effects")]
-#![expect(clippy::arithmetic_side_effects, reason = "the signed delta sums at most the bounded commit queue")]
 
 use crate::{Limits, Op, Page, Range, Refusal, Row};
 use alloc::boxed::Box;
@@ -43,6 +42,13 @@ pub(crate) struct Queued {
     count: u32,
 }
 
+/// What the admitted commits and one more leave: the map's used bytes and entries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Projected {
+    used: u64,
+    count: u32,
+}
+
 impl Queued {
     pub(crate) fn new() -> Queued {
         Queued { charges: Map::uncapped(), used: 0, count: 0 }
@@ -53,9 +59,8 @@ impl Queued {
         self.charges.len()
     }
 
-    /// Admit `ops` after those already admitted, or refuse them and change nothing.
-    pub(crate) fn admit(&mut self, map: &KvMap, ops: &[Op], limits: &Limits, number: u64) -> Result<(), Refusal> {
-        let (used, count) = self.check(map, ops, limits)?;
+    /// Admit `ops`, which `check` projected: they are commit `number`.
+    pub(crate) fn reserve(&mut self, ops: &[Op], projected: Projected, number: u64) {
         for (index, op) in ops.iter().enumerate() {
             if has_later(ops, index, op.key()) {
                 continue;
@@ -64,13 +69,12 @@ impl Queued {
             let previous = self.charges.insert(Box::from(op.key()), Charge { bytes: charge, number });
             assert!(previous.is_ok(), "projected keys are bounded by admitted commits");
         }
-        self.used = used;
-        self.count = count;
-        Ok(())
+        self.used = projected.used;
+        self.count = projected.count;
     }
 
     /// Check admission without reserving charges when the byte queue would refuse it (kv.md, 4).
-    pub(crate) fn check(&self, map: &KvMap, ops: &[Op], limits: &Limits) -> Result<(u64, u32), Refusal> {
+    pub(crate) fn check(&self, map: &KvMap, ops: &[Op], limits: &Limits) -> Result<Projected, Refusal> {
         let (used, count) = if self.charges.is_empty() { (map.used, map.len()) } else { (self.used, self.count) };
         let mut after = i128::from(used);
         let mut count = i128::from(count);
@@ -111,7 +115,7 @@ impl Queued {
         }
         let used = u64::try_from(after).expect("projected bytes fit the budget");
         let count = u32::try_from(count).expect("projected entries fit the map capacity");
-        Ok((used, count))
+        Ok(Projected { used, count })
     }
 
     /// Commit `number` is in the map: forget the keys no later commit touches.
@@ -194,50 +198,14 @@ impl KvMap {
     }
 
     pub(crate) fn check(&self, ops: &[Op], limits: &Limits) -> Result<u64, Refusal> {
-        let mut after = i128::from(self.used);
-        let mut count = i128::from(self.entries.len());
-        for (index, op) in ops.iter().enumerate() {
-            let key = op.key();
-            if key.len() > usize::try_from(limits.key).expect("u32 fits usize") {
-                return Err(Refusal::TooLarge);
-            }
-            if let Op::Put { value, .. } = op
-                && value.len() > usize::try_from(limits.value).expect("u32 fits usize")
-            {
-                return Err(Refusal::TooLarge);
-            }
-            // Only the last operation on a key determines its final charge.
-            if ops.get(index + 1..).expect("index is within ops").iter().any(|later| later.key() == key) {
-                continue;
-            }
-            if let Some(old) = self.entries.get(key) {
-                let charge = ENTRY
-                    .checked_add(skein_lib::len_u64(key.len()))
-                    .and_then(|v| v.checked_add(skein_lib::len_u64(old.len())))
-                    .ok_or(Refusal::Full)?;
-                after -= i128::from(charge);
-                count -= 1;
-            }
-            if let Op::Put { value, .. } = op {
-                let charge = ENTRY
-                    .checked_add(skein_lib::len_u64(key.len()))
-                    .and_then(|v| v.checked_add(skein_lib::len_u64(value.len())))
-                    .ok_or(Refusal::Full)?;
-                after += i128::from(charge);
-                count += 1;
-            }
-        }
-        if after < 0 || after > i128::from(limits.budget) || count > i128::from(self.entries.capacity()) {
-            return Err(Refusal::Full);
-        }
-        u64::try_from(after).map_err(|_| Refusal::Full)
+        Queued::new().check(self, ops, limits).map(|projected| projected.used)
     }
 
     pub(crate) fn apply(&mut self, ops: &[Op], used: u64) {
         // Remove first so an atomic batch whose final map fits is never
         // refused by a transient extra entry. Only each key's last op wins.
         for (index, op) in ops.iter().enumerate() {
-            if ops.get(index + 1..).expect("index is within ops").iter().any(|later| later.key() == op.key()) {
+            if has_later(ops, index, op.key()) {
                 continue;
             }
             if let Some(old) = self.entries.remove(op.key()) {
@@ -246,7 +214,7 @@ impl KvMap {
             }
         }
         for (index, op) in ops.iter().enumerate() {
-            if ops.get(index + 1..).expect("index is within ops").iter().any(|later| later.key() == op.key()) {
+            if has_later(ops, index, op.key()) {
                 continue;
             }
             if let Op::Put { key, value } = op {
