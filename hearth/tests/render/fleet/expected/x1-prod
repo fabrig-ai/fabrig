@@ -1,10 +1,10 @@
 target       x1-prod   base x1   environment prod
 placement    metal efi 7th-gen
-spec         6624a7ac9f54
+spec         2337e43236e4
 boot         part e8ea170ce4ac
   params     audit=0
   mutable    false
-packages     part 1a4c0b27f290   resolution c254dedb41f5 needed
+packages     part 8de22e69fe2c   resolution c254dedb41f5 needed
   sources    forky amd64 main contrib non-free-firmware 20261001T030405Z
   request    btrfs-progs ca-certificates dbus efibootmgr firmware-intel-sound iwd linux-image-amd64 locales sway tiny-initramfs tzdata
   variant    apt
@@ -15,18 +15,18 @@ packages     part 1a4c0b27f290   resolution c254dedb41f5 needed
   initramfs  btrfs nvme
   microcode  generic
   apt        install_recommends false
-  seed       user free 1000 1000
-  seed       group free 1000
+  seed       user alice 1000 1000
+  seed       group alice 1000
   seed       group sudo 27
   seed       group systemd-journal 999
 software     part 656d135b92c3
-config       part b14b66eba027
+config       part d43407375ef6
   groups     sudo package
   groups     systemd-journal package
-  users      free 1000 free /home/free /bin/bash
-  members    free sudo
+  users      alice 1000 alice /home/alice /bin/bash
+  members    alice sudo
   presets    iwd.service enable
-  tmpfiles   /home/free d 0700 free free
+  tmpfiles   /home/alice d 0700 alice alice
   tmpfiles   /var/lib/iwd d 0700 root root
   tmpfiles   /var/log/journal d 2755 root systemd-journal
   scripts    desktop 300 093f272f5341
@@ -34,12 +34,12 @@ config       part b14b66eba027
   /etc/golden/enabled          file 0644 root:root e056a35db086
   /etc/hostname                file 0644 root:root 50313adddde6
   /etc/localtime               link root:root /usr/share/zoneinfo/Europe/Lisbon
-  /usr/local/bin/desktop-user  file 0755 root:root 3aa3afb5cc1f
-data         part f7b04dccabb8
-  home-free  /home/free
+  /usr/local/bin/desktop-user  file 0755 root:root bc38081be323
+data         part 05aab9aa187a
+  home-alice /home/alice
   iwd        /var/lib/iwd
   journal    /var/log/journal
-secrets      part 618b0f2a6c06
-  password   free users/free.passwd
+secrets      part 8314448d8ef0
+  password   alice users/alice.passwd
 live         part 6f1b7fda0c21
 exports      part 970579fd41be

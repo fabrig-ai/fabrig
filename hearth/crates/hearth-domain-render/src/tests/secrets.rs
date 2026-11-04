@@ -47,10 +47,10 @@ fn a_mode_that_is_not_octal_is_malformed() {
 }
 #[test]
 fn a_password_names_a_secret_by_user() {
-    let expansion = fixtures::secret_entry(Map::Users, b"free", &[(Name::Password, b"users/free.passwd")]);
+    let expansion = fixtures::secret_entry(Map::Users, b"alice", &[(Name::Password, b"users/alice.passwd")]);
     assert_eq!(
         secrets::build(&expansion).expect("valid").passwords.as_ref(),
-        &[secrets::Password { user: copy_of(b"free"), secret: copy_of(b"users/free.passwd") }]
+        &[secrets::Password { user: copy_of(b"alice"), secret: copy_of(b"users/alice.passwd") }]
     );
 }
 #[test]

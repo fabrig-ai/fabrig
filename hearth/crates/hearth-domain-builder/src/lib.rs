@@ -1,4 +1,4 @@
-//! One client call, routed through render (domain/render.md, 8.1).
+//! One client call, routed through render (hearth/docs/design/domain/render.md, 8.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -404,7 +404,7 @@ fn store_error(builder: &mut Builder, answer: &store::vocabulary::Answer, out: &
                 StoreStep::Empty => Step::Empty,
                 StoreStep::Keep => Step::Keep,
                 StoreStep::Write => Step::Write,
-                // A layer's question refused ends the build, not the store (domain/build.md, 4.3).
+                // A layer's question refused ends the build, not the store (hearth/docs/design/domain/build.md, 4.3).
                 StoreStep::Stage | StoreStep::Seal | StoreStep::Discard => return,
             };
             StoreFault::Failed { step }

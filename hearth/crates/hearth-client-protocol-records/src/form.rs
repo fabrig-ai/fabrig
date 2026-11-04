@@ -1,4 +1,4 @@
-//! Sized record forms (client/README.md, 3.2).
+//! Sized record forms (hearth/docs/design/client/README.md, 3.2).
 use crate::{
     limits::Limits,
     records::{Record, Type},

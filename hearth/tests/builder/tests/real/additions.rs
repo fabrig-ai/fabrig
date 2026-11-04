@@ -8,8 +8,8 @@ fn hearth_render_lists_subuid_and_subgid() {
     assert_eq!(
         fixtures::lines_starting(&rendered.stdout, &["  /etc/sub"]),
         concat!(
-            "  /etc/subgid              file 0644 root:root 474a6f5bdf9c\n",
-            "  /etc/subuid              file 0644 root:root 474a6f5bdf9c\n"
+            "  /etc/subgid              file 0644 root:root a1c563a310c6\n",
+            "  /etc/subuid              file 0644 root:root a1c563a310c6\n"
         )
     );
 }

@@ -496,3 +496,51 @@ fn a_diff_reaches_four_patches_a_node_less_one() {
     assert_eq!(counts, [0, 0, limits.nodes - 1, limits.nodes, limits.nodes / 2 + 1, limits.nodes / 2]);
     equal(&rows, &new);
 }
+
+#[test]
+fn a_moved_fraction_keeps_its_node_and_patches_its_attribute_and_text() {
+    let mut view = View::new(&LIMITS);
+    let mut out = Queue::with_capacity(LIMITS.patches);
+    for (revision, done, words) in [(0, 42, b"42%"), (1, 43, b"43%")] {
+        let mut b = view.builder();
+        b.open(Role::Progress);
+        b.fraction(crate::Fraction { done, total: 100 });
+        b.run(Run::Plain, words);
+        b.close();
+        view.finish(b, revision, &mut out);
+        if revision == 0 {
+            assert_eq!(out.len(), 1);
+            let inserted = out.pop().expect("initial insertion");
+            match inserted {
+                Patch::Insert { nodes, .. } => assert_eq!(nodes[0].id, NodeId(1)),
+                Patch::Remove { .. }
+                | Patch::Move { .. }
+                | Patch::Text { .. }
+                | Patch::Attribute { .. }
+                | Patch::Value { .. } => unreachable!("first build inserts"),
+            }
+        }
+    }
+    assert_eq!(out.len(), 2);
+    match out.pop().expect("fraction patch") {
+        Patch::Attribute { node, attribute } => {
+            assert_eq!(node, NodeId(1));
+            assert_eq!(attribute.fraction, Some(crate::Fraction { done: 43, total: 100 }));
+        }
+        Patch::Insert { .. } | Patch::Remove { .. } | Patch::Move { .. } | Patch::Text { .. } | Patch::Value { .. } => {
+            unreachable!("fraction changes an attribute")
+        }
+    }
+    match out.pop().expect("words patch") {
+        Patch::Text { node, text } => {
+            assert_eq!(node, NodeId(1));
+            assert_eq!(text.len(), 1);
+            assert_eq!(text[0].text.as_ref(), b"43%");
+        }
+        Patch::Insert { .. }
+        | Patch::Remove { .. }
+        | Patch::Move { .. }
+        | Patch::Attribute { .. }
+        | Patch::Value { .. } => unreachable!("words change text"),
+    }
+}

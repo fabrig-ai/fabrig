@@ -1,6 +1,6 @@
 target       ion-prod   base ion   environment prod
 placement    vm bios ionos
-spec         5382c31aafa1
+spec         134a5a2a2874
 boot         part bc6cab417252
   mutable    false
 packages     part 5f69bb2a41f1   resolution 4ee22520f418 needed
@@ -15,7 +15,7 @@ config       part df45b18483c9
 data         part 2d4765200bab
 secrets      part ac870b5c968e
 live         part 6f1b7fda0c21
-exports      part 5a6c6a420dc6
+exports      part acc85abe39a6
   vpn.address    "10.0.0.1"
-  vpn.endpoint   "194.164.162.157"
+  vpn.endpoint   "203.0.113.157"
 

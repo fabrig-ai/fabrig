@@ -17,7 +17,7 @@ fn a_user_without_fields_gets_5_6s_defaults() {
         fixtures::only(&accounts.users).kind,
         UserKind::Sysusers {
             uid: None,
-            group: b"free".as_slice().into(),
+            group: b"alice".as_slice().into(),
             gecos: Box::new([]),
             home: b"/".as_slice().into(),
             shell: b"/usr/sbin/nologin".as_slice().into(),
@@ -35,7 +35,7 @@ fn a_package_user_takes_only_its_ids() {
 const PACKAGE_FIELDS: &[(Name, &[u8], &[u8])] = &[
     (Name::Group, b"other", b"group"),
     (Name::Gecos, b"User", b"gecos"),
-    (Name::Home, b"/home/free", b"home"),
+    (Name::Home, b"/home/alice", b"home"),
     (Name::Shell, b"/bin/sh", b"shell"),
     (Name::Password, b"secret", b"password"),
 ];
@@ -55,13 +55,13 @@ fn other_package_user_fields_are_undeclared() {
 }
 #[test]
 fn groups_become_sorted_members_once() {
-    let entries = [file(b"free", [strings(Name::Groups, &[b"sudo", b"ops", b"sudo"])])];
+    let entries = [file(b"alice", [strings(Name::Groups, &[b"sudo", b"ops", b"sudo"])])];
     let config = fixture::account_config(&fixture::account_expansion(&[(b"motd", Map::Users, &entries)]));
     assert_eq!(
         config.members.as_ref(),
         [
-            crate::parts::config::Member { user: b"free".as_slice().into(), group: b"ops".as_slice().into() },
-            crate::parts::config::Member { user: b"free".as_slice().into(), group: b"sudo".as_slice().into() }
+            crate::parts::config::Member { user: b"alice".as_slice().into(), group: b"ops".as_slice().into() },
+            crate::parts::config::Member { user: b"alice".as_slice().into(), group: b"sudo".as_slice().into() }
         ]
     );
 }
@@ -69,7 +69,7 @@ const MAPS: &[Map] = &[Map::Users, Map::Groups];
 #[test]
 fn an_unknown_from_lists_the_two_values() {
     for (row, &map) in MAPS.iter().enumerate() {
-        let entries = [file(b"free", [text(Name::From, b"other")])];
+        let entries = [file(b"alice", [text(Name::From, b"other")])];
         let faults = crate::parts::config::accounts(&fixture::account_expansion(&[(b"motd", map, &entries)]))
             .expect_err("unknown source");
         assert_eq!(
@@ -134,7 +134,7 @@ fn a_gecos_home_or_shell_with_a_colon_a_quote_a_backslash_or_a_control_byte_is_m
 }
 #[test]
 fn equal_users_of_two_tasks_collapse() {
-    let users = [file(b"free", [])];
+    let users = [file(b"alice", [])];
     let config = fixture::account_config(&fixture::account_expansion(&[
         (b"one", Map::Users, &users),
         (b"two", Map::Users, &users),
@@ -142,10 +142,10 @@ fn equal_users_of_two_tasks_collapse() {
     assert_eq!(
         config.users.as_ref(),
         [crate::parts::config::User {
-            name: b"free".as_slice().into(),
+            name: b"alice".as_slice().into(),
             kind: crate::parts::config::UserKind::Sysusers {
                 uid: None,
-                group: b"free".as_slice().into(),
+                group: b"alice".as_slice().into(),
                 gecos: Box::new([]),
                 home: b"/".as_slice().into(),
                 shell: b"/usr/sbin/nologin".as_slice().into()
@@ -153,7 +153,7 @@ fn equal_users_of_two_tasks_collapse() {
         }]
     );
 }
-const RELATIVE_PATHS: &[(Name, &[u8])] = &[(Name::Home, b"home/free"), (Name::Shell, b"bin/sh")];
+const RELATIVE_PATHS: &[(Name, &[u8])] = &[(Name::Home, b"home/alice"), (Name::Shell, b"bin/sh")];
 #[test]
 fn a_home_or_shell_must_be_an_absolute_path() {
     for (row, &(name, value)) in RELATIVE_PATHS.iter().enumerate() {
