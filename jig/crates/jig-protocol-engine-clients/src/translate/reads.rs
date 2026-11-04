@@ -165,6 +165,7 @@ fn task_text(value: &reads::TaskText, limits: &w::Limits) -> Result<w::TaskText,
             field: match value.field {
                 reads::TaskTextField::Specification => w::TaskTextField::Specification,
                 reads::TaskTextField::Instructions => w::TaskTextField::Instructions,
+                reads::TaskTextField::Result => w::TaskTextField::Result,
             },
             from: value.from,
             total: value.total,
@@ -201,6 +202,7 @@ fn read_task_text(value: w::ReadTaskText) -> reads::Read {
         field: match value.field() {
             w::TaskTextField::Specification => reads::TaskTextField::Specification,
             w::TaskTextField::Instructions => reads::TaskTextField::Instructions,
+            w::TaskTextField::Result => reads::TaskTextField::Result,
         },
     }
 }
