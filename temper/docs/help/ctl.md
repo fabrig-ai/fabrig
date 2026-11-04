@@ -6,10 +6,9 @@ temper ctl is the command line through which an agent works in a deployment for 
 
 ## What it is
 
-- **A call** is `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`:
-  one tool, then its exit status. A group is a noun (`task`); its verbs
-  are tools (`task show`). Five tools are one word: `me`, `inbox`,
-  `sign-in`, `sign-out`, `pending`.
+- **A call** is `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`.
+  A group (`task`) has tools (`task show`). One-word tools: `me`,
+  `inbox`, `sign-in`, `sign-out`, `pending`.
 - **Help:** `temper ctl help` prints this page, then the groups, a
   line each; `temper ctl help GROUP` the group's tools; `temper ctl
   help GROUP VERB` one tool's usage, arguments and result.
@@ -95,7 +94,7 @@ temper ctl DIR task show TASK --tree
 temper ctl DIR task message TASK TEXT --key KEY
 ```
 
-`repository make` and `repository copy` answer `kept`; `--until adopted` waits for adoption, exits 1 on failure or 2 on timeout, and `forge list` shows their rows.
+`repository make` and `copy` answer `kept`; `--until adopted` waits.
 
 **Waits.** A read of one subject waits when given `--since DIGEST`,
 the digest a read of it printed, or `--until CONDITION`, or both:
@@ -118,7 +117,7 @@ both do. `--until changed` returns at the subject's next change.
 - `task list`, without `--after` or `--ended`: none;
 - `account list`: `usable`, an account your work may use; `settled`,
   no sign-in or check you asked still in progress;
-- `forge list`: `settled`, no set up, connect, install or repository making in progress;
+- `forge list`: `settled`, no set up, connect, install or repository making;
   `connected:FORGE`; `made:FORGE`, its first repository made;
 - `change show TASK`: `pull`, `ci:pending`, `ci:passed`, `ci:failed`,
   `held`, `landed`, `cleared`.
