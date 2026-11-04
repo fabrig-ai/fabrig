@@ -1,4 +1,4 @@
-//! Store progress on standard error (client/README.md, 3.2).
+//! Store progress on standard error (hearth/docs/design/client/README.md, 3.2).
 use crate::form::{json::field, text::Lines};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;

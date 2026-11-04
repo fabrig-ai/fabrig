@@ -385,7 +385,9 @@ fn unprepared_owned_rows_and_managed_rows_have_no_runs_or_password_lines() {
         (w::Mode::Owned, w::Connection::NotSetUp),
         (
             w::Mode::Owned,
-            w::Connection::SettingUp(w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: None }).unwrap()),
+            w::Connection::SettingUp(
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: None, fetched: None }).unwrap(),
+            ),
         ),
         (
             w::Mode::Owned,

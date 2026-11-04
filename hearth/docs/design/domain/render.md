@@ -4,8 +4,8 @@ Provisional, 2026-10-09, revised 2026-10-18. How hearth turns a revision
 of an IaC repository and a target into a spec: what render reads and how
 it reads it, its pipeline, the spec's parts and their digests, package
 resolution, the rendered diff of a change, its errors, its crates and
-how it is tested. The format it reads is protocol/format.md. Milestone M1 builds
-it, with the client's `render` and `diff` (client/README.md, section 3). Open
+how it is tested. The format it reads is hearth/docs/design/protocol/format.md. Milestone M1 builds
+it, with the client's `render` and `diff` (hearth/docs/design/client/README.md, section 3). Open
 questions are in section 10.
 
 ## 1. In one page
@@ -24,7 +24,7 @@ questions are in section 10.
 - **A spec is parts with digests.** Output parts (packages, software,
   config) enter layer keys; slot parts (data, secrets, boot) never do;
   checks, exports and live are the others; meta names the target. Each
-  digest is SHA-256 over domain/store.md's canonical encoding.
+  digest is SHA-256 over hearth/docs/design/domain/store.md's canonical encoding.
 - **Resolution is the one slow step,** and it is remembered.
   `mmdebstrap --simulate --mode=chrootless` resolves a packages part to a
   pinned closure (each package's name, version, architecture, archive
@@ -47,14 +47,14 @@ questions are in section 10.
 
 - **A repository:** a git directory, of two kinds:
   - **a local one,** which `hearth render` and `hearth diff` name with
-    `--repo`, or find around the current directory (client/README.md,
+    `--repo`, or find around the current directory (hearth/docs/design/client/README.md,
     3.5): the client renders it in its own process, with
     its own user's access, and never hands the path to a daemon
-    (client/README.md, section 3);
+    (hearth/docs/design/client/README.md, section 3);
   - **the builder's own clone,** `@hearth.store/repo/`, which the
     daemon's builder fetches and renders in jobs its steward gives it,
-    and the only repository the daemon renders (protocol/wire.md, section 4;
-    domain/steward.md, 3.3).
+    and the only repository the daemon renders (hearth/docs/design/protocol/wire.md, section 4;
+    hearth/docs/design/domain/steward.md, 3.3).
 - **A revision:** a commit id, or a ref name that render resolves to a
   commit id once, first. Everything after names the commit.
 - **Targets:** one, several, or every target of the revision.
@@ -75,7 +75,7 @@ git --git-dir=/dev/null diff --no-index --no-color --no-ext-diff --no-textconv -
 - **git is `/usr/bin/git`,** Debian's, spawned by its path: skein's
   `Spawn` searches no `PATH`. The builder's tools are named by fixed
   paths, as mmdebstrap's is (5.2); in M1 nothing configures them
-  (client/README.md, 3.5).
+  (hearth/docs/design/client/README.md, 3.5).
 - **The environment is given whole:** `LC_ALL=C`, `GIT_CONFIG_NOSYSTEM=1`,
   `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_NO_REPLACE_OBJECTS=1`,
   `GIT_TERMINAL_PROMPT=0`, and `HOME=/dev/null`. No user's or
@@ -115,14 +115,14 @@ git --git-dir=/dev/null diff --no-index --no-color --no-ext-diff --no-textconv -
   fails that file's hunks: an exit of 0, an exit of 1 with neither a
   hunk nor that line (git's answer when it cannot read a file), an exit
   past 1 or a signal. The change stands without its hunks, and its
-  target has a `tool` error, so the diff exits 75 (client/README.md,
+  target has a `tool` error, so the diff exits 75 (hearth/docs/design/client/README.md,
   3.3).
 - **A failed git command is a `tool` error** with its exit and the tail
   of its standard error: the last 20 lines, each cut at 160 bytes with
   no marker, as mmdebstrap's (5.5). Output git should not give is one
   too. git runs with no deadline in M1: it reads a local repository,
   which answers or fails, and the person may interrupt the client; a
-  daemon's render is bounded by its job's deadline (domain/steward.md, 5.2).
+  daemon's render is bounded by its job's deadline (hearth/docs/design/domain/steward.md, 5.2).
 - **`hearth-protocol-git` builds the vectors and parses the outputs** into
   typed records; the domain sees a listing, decoded documents and
   templates, the digests of static files and a diff's hunks as lines,
@@ -130,9 +130,9 @@ git --git-dir=/dev/null diff --no-index --no-color --no-ext-diff --no-textconv -
 
 ### 2.3 Bounds
 
-Render's limits are configured (`programming-model.md`, section 7); these
+Render's limits are configured (`skein/docs/foundation/programming-model.md`, section 7); these
 are the defaults. M1's client, the one builder of M1, runs on the
-defaults alone (client/README.md, 3.5).
+defaults alone (hearth/docs/design/client/README.md, 3.5).
 
 | Limit | Default |
 |---|---|
@@ -154,7 +154,7 @@ defaults alone (client/README.md, 3.5).
 
 - **A level of nesting** is, in an expression, each `(`, a list's or an
   index's `[`, a filter's `(`, a `not`, and an `if` or an `else` still
-  open: each place protocol/format.md, 7.4's grammar nests. In a template it is
+  open: each place hearth/docs/design/protocol/format.md, 7.4's grammar nests. In a template it is
   an open `if` or `for`. The level past the limit is refused where it
   opens.
 - **One evaluation** is one expression's, or one template's run for one
@@ -184,13 +184,13 @@ defaults alone (client/README.md, 3.5).
 ### 2.4 The builder's clone and its fetch
 
 - **The clone is bare, at `@hearth.store/repo/`,** a name of no digest
-  shape that domain/store.md's scan knows (domain/store.md, section 2). It is made once,
+  shape that hearth/docs/design/domain/store.md's scan knows (hearth/docs/design/domain/store.md, section 2). It is made once,
   `git init --bare --quiet <store>/repo`, and read with 2.2's commands.
 - **The fetch** is the one git command that reaches the network, as
-  `apt-helper` is build's (domain/build.md, 10.2). The builder runs it in a
-  `fetch` job from its steward (domain/steward.md, 3.3). Its argument vector,
+  `apt-helper` is build's (hearth/docs/design/domain/build.md, 10.2). The builder runs it in a
+  `fetch` job from its steward (hearth/docs/design/domain/steward.md, 3.3). Its argument vector,
   with the repository's URL and the branch the machine follows, which
-  the job carries from the steward's desired revision (protocol/wire.md, 4.1):
+  the job carries from the steward's desired revision (hearth/docs/design/protocol/wire.md, 4.1):
 
   ```
   git --git-dir=<store>/repo fetch --quiet --no-tags --no-recurse-submodules --prune
@@ -199,13 +199,13 @@ defaults alone (client/README.md, 3.5).
 
   A desired commit must then be reachable from `refs/hearth/<branch>`;
   render resolves it there, or a commit imported from a bundle from its
-  own `refs/hearth-dev/<commit>` (protocol/wire.md, 4.1; domain/development.md, 6.2).
+  own `refs/hearth-dev/<commit>` (hearth/docs/design/protocol/wire.md, 4.1; hearth/docs/design/domain/development.md, 6.2).
 - **Its environment is 2.2's,** given whole, plus the credential's one
   variable. The URL never carries a credential.
 - **The read credential is the builder's own,** never a secret of the
   secret store: a forge token or a deploy key kept in the store under
   `credentials/`, 0700, user `hearth`, imported at bootstrap
-  (domain/machine.md, section 8), and given to git by a fixed variable:
+  (hearth/docs/design/domain/machine.md, section 8), and given to git by a fixed variable:
   - over HTTPS, `GIT_ASKPASS=/usr/local/lib/hearth/askpass`, a program the
     hearth task ships that prints `hearth` for a username and the token
     in `<store>/credentials/token` for a password;
@@ -213,7 +213,7 @@ defaults alone (client/README.md, 3.5).
     -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
     -o UserKnownHostsFile=<store>/credentials/known_hosts`.
 - **Bounded:** the deadline the steward sets on the `fetch` job
-  (domain/steward.md, 5.2), and the store's free space; git's progress is not
+  (hearth/docs/design/domain/steward.md, 5.2), and the store's free space; git's progress is not
   parsed, only its exit and the tail of its errors.
 
 ## 3. The pipeline
@@ -231,12 +231,12 @@ placement when step 4 reads it, and none is kept past its use (8.4).
 
 ### 3.1 Decode
 
-- **The listing classifies every path** (protocol/format.md, section 2): a
+- **The listing classifies every path** (hearth/docs/design/protocol/format.md, section 2): a
   configuration document (`fleet.json`, `envs/*.json`,
   `hosts/<base>/*.json`), a declaration (`tasks/*/task.json`), a template
   (`*.j2`), a static file under `tasks/*/tree/`, or a file outside the
   four roots, read only if a `file` setting names it. A path under the
-  four roots that protocol/format.md, section 2 does not allow is a `repository`
+  four roots that hearth/docs/design/protocol/format.md, section 2 does not allow is a `repository`
   error: in `envs/`, anything but an `<env>.json`; directly in
   `hosts/<base>/`, a `.json` that is neither of its documents (a file
   deeper there, or not `.json`, is another file); a file directly in
@@ -249,14 +249,14 @@ placement when step 4 reads it, and none is kept past its use (8.4).
     refuses duplicate keys, non-integer numbers and U+0000, drops
     `_note`, and gives typed values, each with its line and column, from
     the position the tokenizer gives each token (README, 8.1);
-  - a declaration into its fixed shape (protocol/format.md, 5.1), its `if` and
+  - a declaration into its fixed shape (hearth/docs/design/protocol/format.md, 5.1), its `if` and
     `for_each` fields and its interpolated strings passed through
     `hearth-protocol-template`;
   - a template through `hearth-protocol-template` into a flat sequence of
     instructions (8.3);
   - a static file, or a file a `file` setting names, is never decoded
     and never held: the protocol layer streams its blob from `cat-file`
-    into the store's cache by SHA-256 (domain/store.md, section 2), hashing as
+    into the store's cache by SHA-256 (hearth/docs/design/domain/store.md, section 2), hashing as
     the bytes pass with lib's SHA-256 (asked of skein: README, 8.1), and
     the domain receives its object id, size and digest.
 - **A decode error fails what depends on the file,** not the revision:
@@ -271,19 +271,19 @@ placement when step 4 reads it, and none is kept past its use (8.4).
   target is asked, and a task's templates are read only when an asked
   target has the task (3.3). While a `hosts/` document is refused, a
   named target that discovery cannot find is left out under that error,
-  which gives exit 2, not 64's unknown target (client/README.md, 3.3).
+  which gives exit 2, not 64's unknown target (hearth/docs/design/client/README.md, 3.3).
 
 ### 3.2 Compose and merge
 
 - **Discovery** makes the targets from the listing and the bases'
-  `members` (protocol/format.md, section 3): base, member, environment, name. Two
+  `members` (hearth/docs/design/protocol/format.md, section 3): base, member, environment, name. Two
   targets of one name are an error.
-- **Each target's layers** are merged in order (protocol/format.md, 3.2) by
-  RFC 7386 (protocol/format.md, 4.1): task defaults, fleet, base, member,
+- **Each target's layers** are merged in order (hearth/docs/design/protocol/format.md, 3.2) by
+  RFC 7386 (hearth/docs/design/protocol/format.md, 4.1): task defaults, fleet, base, member,
   environment, base in the environment, its member.
 - **Presence** comes from the base, member and base-env layers alone
-  (protocol/format.md, 3.3), and the `hearth` task is added to every target but
-  a container (protocol/format.md, 5.12); the composed settings are restricted to
+  (hearth/docs/design/protocol/format.md, 3.3), and the `hearth` task is added to every target but
+  a container (hearth/docs/design/protocol/format.md, 5.12); the composed settings are restricted to
   the present tasks.
 - **Every value keeps its provenance:** the layer, file, line and column
   that set it, so a later error names the right file. An object's is the
@@ -296,18 +296,18 @@ placement when step 4 reads it, and none is kept past its use (8.4).
   schema is well formed and its defaults have their types. **For each
   task an asked target has,** every
   `settings.<name>`, `tasks.<task>.<setting>` and `exports.<task>` that its
-  templates and expressions name is declared (protocol/format.md, 6.4); its
+  templates and expressions name is declared (hearth/docs/design/protocol/format.md, 6.4); its
   templates are used and its scripts declared.
 - **Per target, the composed settings are checked against the schemas:**
   undeclared settings and fields, types, enums, ranges, required
-  settings, `target` and `file` references (protocol/format.md, 6.5). Defaults are
-  filled at every depth (protocol/format.md, 6.3). `debian` and `placement` are
+  settings, `target` and `file` references (hearth/docs/design/protocol/format.md, 6.5). Defaults are
+  filled at every depth (hearth/docs/design/protocol/format.md, 6.3). `debian` and `placement` are
   checked against their fixed schemas.
 - **Owners of what persists have fixed ids.** Once the declarations are
   concrete (3.5), every owner and group of a data path, a secret file or
   an identity file must be a declared user or group with a fixed `uid`
   or `gid`, package users included; a download's must be `root` or such
-  a package user or group (protocol/format.md, 5.6 and 10.1). Anything else is
+  a package user or group (hearth/docs/design/protocol/format.md, 5.6 and 10.1). Anything else is
   refused: the packages layer is rebuilt from scratch, and an id a
   postinst took could move under data that keeps the old one.
 
@@ -316,20 +316,20 @@ placement when step 4 reads it, and none is kept past its use (8.4).
 - **For each task whose exports a task of this target reads,** render
   composes every target of the environment that has that task, validates
   that task's settings there, and evaluates its exports
-  (protocol/format.md, section 8). Each target's exports are computed once per
+  (hearth/docs/design/protocol/format.md, section 8). Each target's exports are computed once per
   revision and shared by all their readers.
 - **Placements are read the same way:** `target.containers` holds the
-  environment's targets placed on this one (protocol/format.md, 3.5). A
+  environment's targets placed on this one (hearth/docs/design/protocol/format.md, 3.5). A
   container's `on` must name a target of its environment that is not a
-  container; a build environment has none (protocol/format.md, 3.4). The
+  container; a build environment has none (hearth/docs/design/protocol/format.md, 3.4). The
   containers placed on one host must have id ranges that overlap
-  neither each other nor the builder's [M5] (protocol/format.md, 3.5).
+  neither each other nor the builder's [M5] (hearth/docs/design/protocol/format.md, 3.5).
 - **No cycle is possible:** exports depend only on their own task's
-  settings and on `target` (protocol/format.md, 8.1).
+  settings and on `target` (hearth/docs/design/protocol/format.md, 8.1).
 - **An error in another target's exports fails this render too,** naming
   both targets: a spec never reads a guess. A target's exports come from
   its exporting task's validated settings and `target` alone
-  (protocol/format.md, 8.1), so what else fails on it (another task, its own
+  (hearth/docs/design/protocol/format.md, 8.1), so what else fails on it (another task, its own
   `requires`, its files) leaves them as they are, and its readers
   render. When they cannot be computed (a document the exporter composes
   is broken, the task's settings fail validation, an export's expression
@@ -339,8 +339,8 @@ placement when step 4 reads it, and none is kept past its use (8.4).
   holds the fields of the container's `target.placement`, and a container
   whose placement cannot be composed fails its host.
 - **A container reads of its host its placement alone:** that `on` names
-  a target of its environment that is not a container (protocol/format.md, 3.4).
-  Its context holds nothing else of the host (protocol/format.md, 7.7), and its
+  a target of its environment that is not a container (hearth/docs/design/protocol/format.md, 3.4).
+  Its context holds nothing else of the host (hearth/docs/design/protocol/format.md, 7.7), and its
   data part none of the host's policies (4.3). So what else fails on the
   host (a task that does not exist, `hearth` among them when
   `tasks/hearth/` is absent; a declaration or a file of its tasks; its
@@ -357,11 +357,11 @@ placement when step 4 reads it, and none is kept past its use (8.4).
 
 ### 3.5 Conditions
 
-- **`requires` first** (protocol/format.md, 5.9): a false guard is an error with
+- **`requires` first** (hearth/docs/design/protocol/format.md, 5.9): a false guard is an error with
   its message.
 - **Then every declaration entry:** `for_each` expanded, `if` evaluated
   for each element, keys and string fields interpolated, typed fields
-  evaluated (protocol/format.md, 5.2). The result is each task's concrete
+  evaluated (hearth/docs/design/protocol/format.md, 5.2). The result is each task's concrete
   declarations: packages, preseeds, modules, downloads, file entries,
   users, groups, presets, tmpfiles lines, data, secrets, identity, boot
   parameters, scripts.
@@ -371,7 +371,7 @@ placement when step 4 reads it, and none is kept past its use (8.4).
 - **Every file of the tree is produced and digested:** a static file of
   `tree/` and a `copy` by the digest step 1 gave it; a template of
   `tree/` or `templates/` by evaluating it in the task's context
-  (protocol/format.md, 7.7); a link by its target. `customize.sh` and
+  (hearth/docs/design/protocol/format.md, 7.7); a link by its target. `customize.sh` and
   `software.sh` fragments likewise.
 - **A rendered file is written to the store's cache by digest** as soon
   as it is complete, and dropped from memory: a target holds one rendered
@@ -380,7 +380,7 @@ placement when step 4 reads it, and none is kept past its use (8.4).
   or an exceeded limit is an error at the template's line.
 - **Render adds what tasks may not write themselves:** `/etc/subuid` and
   `/etc/subgid` from the users' subordinate ranges, a `tmpfiles` line of
-  type `d` for each data entry's mode and owners (protocol/format.md, 5.6 and
+  type `d` for each data entry's mode and owners (hearth/docs/design/protocol/format.md, 5.6 and
   5.7), and the initramfs configuration (4.2). `/etc/subuid` and
   `/etc/subgid` are one text, subuid(5)'s `<user>:<start>:<count>` line
   for each user with a range, by name: two files `0644 root:root` in
@@ -397,8 +397,8 @@ Render compares the concrete declarations of all the target's tasks:
 | a secret's or identity's path | one task only, and never a path of the tree |
 | a path in the tree under a data path | never: the mount would hide it |
 | a download's path | one task only; never equal to, beneath or over another's, a path of the tree, or a secret's or identity's path; never under a data path |
-| users, groups (a sysusers user's own group among them: protocol/format.md, 5.6), presets, tmpfiles lines, preseeds, boot parameters | several tasks only identically |
-| a path a `live` entry covers | several entries, of one task or several: their consumers are a union (protocol/format.md, 5.14) |
+| users, groups (a sysusers user's own group among them: hearth/docs/design/protocol/format.md, 5.6), presets, tmpfiles lines, preseeds, boot parameters | several tasks only identically |
+| a path a `live` entry covers | several entries, of one task or several: their consumers are a union (hearth/docs/design/protocol/format.md, 5.14) |
 | a uid or gid; a subordinate range | one user or group; ranges never overlap |
 | packages, initramfs modules | a union |
 
@@ -416,39 +416,39 @@ overwrote silently, in alphabetical order of task.
 ### 3.8 Assemble
 
 - **Each part's record** (section 4) is built from the concrete
-  declarations and the produced files, sorted as protocol/format.md, 4.3 says,
+  declarations and the produced files, sorted as hearth/docs/design/protocol/format.md, 4.3 says,
   encoded canonically and digested.
 - **Render also gives the resolution key** (5.1), and the layer keys when
   the store already holds that key's resolution (4.5). When it does not,
   the key is needed, and the layer keys are unknown until it is resolved
   (5.7).
 - **The live part maps each covered path to its consumers,** from every
-  task's `live` entries (protocol/format.md, 5.14): the eligibility input that
+  task's `live` entries (hearth/docs/design/protocol/format.md, 5.14): the eligibility input that
   only a spec holds. Render decides nothing about a change: the builder
   pairs two specs' live parts with two outputs' tree files when it plans
-  a trial, in a `plan live` job (domain/slots.md, 6.7; domain/steward.md, 3.3).
+  a trial, in a `plan live` job (hearth/docs/design/domain/slots.md, 6.7; hearth/docs/design/domain/steward.md, 3.3).
 - **The output is the spec.** Every file it names is in the store's
   cache by digest, static files from step 1 and rendered ones from
   step 6, where a build finds them. Specs are never stored: a builder
   renders again when it needs one, as a new builder does for a `build`
-  job whose render an earlier one answered (domain/steward.md, 3.3).
+  job whose render an earlier one answered (hearth/docs/design/domain/steward.md, 3.3).
 
 ### 3.9 Checks and probes [M5]
 
 - **A task's checks are evaluated as its other declarations** (step 5):
   their fields may read settings, and their rendered form, every value
-  resolved, enters the checks part (domain/operating.md, 2.2).
+  resolved, enters the checks part (hearth/docs/design/domain/operating.md, 2.2).
 - **A probe with `from` is exported.** Render puts it into its task's
   exports, rendered, with the target it probes; in step 4 each target of
   the environment that has the task `from` names reads those probes and
-  renders them into its own checks part (domain/operating.md, 2.6). A change to
+  renders them into its own checks part (hearth/docs/design/domain/operating.md, 2.6). A change to
   one probe changes the probed target's and its probers' parts, and no
   other.
 - **Refused at render:** a `blessing` check with `from`; a `from` that
   no target of the environment has; a command check whose `user` is
   `root`, or is neither `nobody`, a sysusers user nor a package user a
-  task of the target declares (protocol/format.md, 5.6; domain/operating.md, 2.2;
-  domain/activator.md, section 5).
+  task of the target declares (hearth/docs/design/protocol/format.md, 5.6; hearth/docs/design/domain/operating.md, 2.2;
+  hearth/docs/design/domain/activator.md, section 5).
 
 ### 3.10 Costs
 
@@ -486,15 +486,15 @@ overwrote silently, in alphabetical order of task.
 | `data` | slot | data entries, each a directory in a class, bound at its path; each class's snapshot and backup policies | no key |
 | `secrets` | slot | secret files, password secrets and identity items, by name | no key |
 | `boot` | slot | the kernel's command-line parameters; a container's parameters instead [M5] | no key |
-| `checks` [M5] | other | the target's checks (domain/operating.md, section 2) | no key |
-| `live` | other | the consumers of the target's paths, for live changes (protocol/format.md, 5.14) | no key; read by the builder to plan a live trial |
+| `checks` [M5] | other | the target's checks (hearth/docs/design/domain/operating.md, section 2) | no key |
+| `live` | other | the consumers of the target's paths, for live changes (hearth/docs/design/protocol/format.md, 5.14) | no key; read by the builder to plan a live trial |
 | `exports` | other | what this target publishes to its environment | no key; read by other targets' renders |
 | `meta` | | target, base, member, environment, placement | no key |
 
 - **Every part M1 builds is in every spec,** an empty one too: the keys
   and the spec digest need each part's digest (4.5). A part with nothing
   in it is its record with each field empty, a field left out only when
-  it is optional and absent (domain/store.md, 3.1), so no part is ever lacking.
+  it is optional and absent (hearth/docs/design/domain/store.md, 3.1), so no part is ever lacking.
   A part a later milestone adds is left out until then. Parts are
   printed in this table's order.
 
@@ -535,7 +535,7 @@ config
 ```
 
 - **The variant is a function of placement,** never a task
-  (protocol/format.md, 3.4): os chose it from a `container` task in render and
+  (hearth/docs/design/protocol/format.md, 3.4): os chose it from a `container` task in render and
   from the target's kind in deploy, which disagreed. A container's
   variant changes its resolution key (5.1), so a host and its container
   never share a packages layer. Until M5 settles what mmdebstrap is
@@ -543,39 +543,39 @@ config
   no resolution for it, so its packages key stays needed, with
   `--resolve` too, and that is no error (5.7).
 - **A container's packages part has no initramfs,** and render refuses
-  a task's module on it, as it refuses a boot parameter (protocol/format.md, 3.4;
+  a task's module on it, as it refuses a boot parameter (hearth/docs/design/protocol/format.md, 3.4;
   7.2): with no kernel there is nothing to configure.
 - **The initramfs configuration is render's,** written as
   `tiny-initramfs.conf` from the part's two fields: `AUTO_MODULES=no`
   always, `INCLUDE_MODULES` from `modules`, and `MICROCODE=no` or
-  `generic` from `microcode` (domain/machine.md, 7.1; domain/build.md, 5.5). Render
+  `generic` from `microcode` (hearth/docs/design/domain/machine.md, 7.1; hearth/docs/design/domain/build.md, 5.5). Render
   derives `microcode` from placement's kind, `none` on a VM and `generic`
   on metal; placement enters no key, so the part must carry the choice
   for the build to know it. Nothing a task writes can set `yes` for
   either. Render writes the text into the cache, as a rendered file
   (3.6), and the spec names its content digest beside the part, outside
   the part's digest, which the two fields already make; build copies it
-  from there into its inputs (domain/build.md, 5.4).
+  from there into its inputs (hearth/docs/design/domain/build.md, 5.4).
 - **`seeds` are the fixed ids build writes into `/etc/passwd` and
   `/etc/group`** in mmdebstrap's extract hook, before any package is
-  configured (domain/build.md, 5.5): every package user and group, and every
+  configured (hearth/docs/design/domain/build.md, 5.5): every package user and group, and every
   owner of a data path, a secret or an identity file, with its uid and
   gid (3.3). They change what the packages layer builds (adduser keeps a
   user it finds), so they belong to its key; they do not change what apt
   resolves, so not to the resolution's.
 - **`install_recommends` is the part's one option.** hearth's fixed apt
   and dpkg options (`Check-Valid-Until "false"`, `force-confold`, and the
-  rest domain/build.md, 5.4 passes) are constants of the encoding's version
-  (domain/store.md, 3.2): changing one changes every key, and no part carries
+  rest hearth/docs/design/domain/build.md, 5.4 passes) are constants of the encoding's version
+  (hearth/docs/design/domain/store.md, 3.2): changing one changes every key, and no part carries
   them.
 - **A download's owners** are `root`, or a package user or group with a
   fixed id: software is placed before any sysusers user exists, and
-  render refuses any other owner (protocol/format.md, 10.1).
-- **A pinned artifact is its key** (domain/artifacts.md, 7.1); its repository,
+  render refuses any other owner (hearth/docs/design/protocol/format.md, 10.1).
+- **A pinned artifact is its key** (hearth/docs/design/domain/artifacts.md, 7.1); its repository,
   commit and recipe ride beside the part, outside its digest, as how to
   make it. **A head artifact is its recipe and its sources' listing**
   at the revision: the SHA-256 of the `ls-tree` records of the paths the
-  recipe selects in `artifacts.json` (domain/artifacts.md, 3.2), from render's
+  recipe selects in `artifacts.json` (hearth/docs/design/domain/artifacts.md, 3.2), from render's
   own listing. Its resolved key never enters the part (4.5).
 - **A download is what it is, not where it comes from.** Its URL stays
   outside the digest, as a fetch hint beside the part (map from SHA-256
@@ -583,14 +583,14 @@ config
   stays out too; the path keys it. Two downloads of one SHA-256 give the
   hint the URL of the first by path; a URL is text, kept as written.
 - **Owners are names** in every part; build resolves them in the layer
-  (protocol/format.md, 5.5). Those of data, secrets, identity and software have
+  (hearth/docs/design/protocol/format.md, 5.5). Those of data, secrets, identity and software have
   fixed ids (3.3).
-- **A package user or group** is a name only (protocol/format.md, 5.6): build
+- **A package user or group** is a name only (hearth/docs/design/protocol/format.md, 5.6): build
   writes no sysusers line for it, and the activator confirms it in the
-  slot's `/etc/passwd` or `/etc/group` at prepare (domain/slots.md, 5.7).
+  slot's `/etc/passwd` or `/etc/group` at prepare (hearth/docs/design/domain/slots.md, 5.7).
 - **Each data entry adds a `tmpfiles` line** of type `d` with its mode
-  and owners (protocol/format.md, 5.7), so they are applied at boot in the running
-  slot (domain/machine.md, 3.4).
+  and owners (hearth/docs/design/protocol/format.md, 5.7), so they are applied at boot in the running
+  slot (hearth/docs/design/domain/machine.md, 3.4).
 
 ### 4.3 Slot parts
 
@@ -610,25 +610,25 @@ boot                   { mutable, params }: mutable from placement (domain/devel
 ```
 
 - **Slot parts never enter a layer key:** changing one makes a new slot of
-  the same output (domain/slots.md, section 5).
+  the same output (hearth/docs/design/domain/slots.md, section 5).
 - **A container's slot parts are its own,** placed by its host's
-  activator into the container's slot on the host [M5] (domain/slots.md, 12.1).
+  activator into the container's slot on the host [M5] (hearth/docs/design/domain/slots.md, 12.1).
   Its `boot` part holds no command line, since it has no kernel, but
-  the parameters its placement gives nspawn (protocol/format.md, 3.5): what
+  the parameters its placement gives nspawn (hearth/docs/design/protocol/format.md, 3.5): what
   starts the slot, as a host's command line is, so a change to them
   prepares a new slot of the same output.
 - **The data part's entries are the tasks' `data` entries,** a name, a
-  class and a path each (protocol/format.md, 5.7); mode and owners go to the
+  class and a path each (hearth/docs/design/protocol/format.md, 5.7); mode and owners go to the
   config part's tmpfiles lines instead (4.2). **Its policies are the
-  `hearth` task's `snapshots` and `backups` settings** (protocol/format.md, 5.12),
+  `hearth` task's `snapshots` and `backups` settings** (hearth/docs/design/protocol/format.md, 5.12),
   by class, a backup's peer and recipient read from the `backup_peer`
-  task's exports (protocol/format.md, 8.7). A host carries every class's policy
+  task's exports (hearth/docs/design/protocol/format.md, 8.7). A host carries every class's policy
   its settings give, used or not, since its containers' classes follow
-  them; a container's data part carries none (domain/slots.md, 12.1).
+  them; a container's data part carries none (hearth/docs/design/domain/slots.md, 12.1).
 - **The secrets part holds names, never values.** Beside secret files it
   carries password secrets and identity items, the two other things the
   activator writes into a slot from the secret store
-  (protocol/format.md, section 9; domain/slots.md, 5.4).
+  (hearth/docs/design/protocol/format.md, section 9; hearth/docs/design/domain/slots.md, 5.4).
 
 ### 4.4 Other parts and meta
 
@@ -672,22 +672,22 @@ spec digest        = H("spec", map part name → part digest, meta's among them)
 - **A head artifact's resolved key enters the software key,** as the
   closure's digest enters the packages key: the part holds only what the
   revision says, so render stays a function of it, and the key is
-  remembered by the listing's digest (domain/artifacts.md, 7.2) [M6].
+  remembered by the listing's digest (hearth/docs/design/domain/artifacts.md, 7.2) [M6].
 - **The output is the config layer,** and its key is the output's name
-  (domain/store.md, section 4).
+  (hearth/docs/design/domain/store.md, section 4).
 - **The spec digest** answers "did anything change for this target";
   the revision's commit id rides beside it, outside every digest, so two
   commits that render the same give the same digests.
 
 ### 4.6 What render needs from the canonical encoding
 
-domain/store.md, section 3 defines the encoding and H. Render relies on it for:
+hearth/docs/design/domain/store.md, section 3 defines the encoding and H. Render relies on it for:
 
 - **one injective encoding of typed records:** integers at fixed width,
   byte strings and lists with their lengths, booleans as kinds of their
   own, enumerations as their variants' names, optional fields left out
   when absent, sets as sorted lists, maps sorted by key bytes, and a
-  record's fields as a map of its field names (domain/store.md, 3.1);
+  record's fields as a map of its field names (hearth/docs/design/domain/store.md, 3.1);
 - **a tag per kind of record,** distinct between part digests and keys,
   with a version, so equal bytes of two kinds never share a digest and a
   change of encoding changes every key;
@@ -745,7 +745,7 @@ archive when `updates` is on; then `<suite>-security` from
 `security` is set.
 
 - **The request is split** into `--include` arguments of at most 64 KiB
-  each, as domain/build.md, 5.4 splits the closure: Linux caps one argument at
+  each, as hearth/docs/design/domain/build.md, 5.4 splits the closure: Linux caps one argument at
   128 KiB, and mmdebstrap joins its `--include`s in order. An empty
   request passes none.
 
@@ -755,10 +755,10 @@ archive when `updates` is on; then `<suite>-security` from
 - **`--verbose`** makes apt print its `Inst` lines; **`--skip=cleanup/apt/lists`**
   keeps the indices apt fetched, which 5.3 reads.
 - **The scratch directory** is new and empty for each run,
-  `staging/<resolution key>/` in the store (domain/store.md, 2.1), so that its
+  `staging/<resolution key>/` in the store (hearth/docs/design/domain/store.md, 2.1), so that its
   indices move into the cache by a rename; it is removed after. One
   resolution runs at a time (5.5), and the store's lock keeps other
-  builders out (domain/store.md, 8.2).
+  builders out (hearth/docs/design/domain/store.md, 8.2).
 - **mmdebstrap is `/usr/bin/mmdebstrap`,** spawned by its path, as git
   is (2.2).
 - **apt checks each `InRelease` with the host's keys,** those
@@ -770,10 +770,10 @@ archive when `updates` is on; then `<suite>-security` from
   `PATH=/usr/sbin:/usr/bin:/sbin:/bin` for the tools mmdebstrap and apt
   run, and `TMPDIR` the scratch directory.
 - **The proxy is the builder's configuration,** never in a key (5.1):
-  none by default, and none in M1 (client/README.md, 3.5); an
-  apt-cacher-ng where the builder has one (domain/build.md, 5.2); the local
+  none by default, and none in M1 (hearth/docs/design/client/README.md, 3.5); an
+  apt-cacher-ng where the builder has one (hearth/docs/design/domain/build.md, 5.2); the local
   mirror in the test tiers, which serves the fixed URLs above
-  (domain/testing.md, 6.2).
+  (hearth/docs/design/domain/testing.md, 6.2).
 
 ### 5.3 What it yields
 
@@ -786,7 +786,7 @@ archive when `updates` is on; then `<suite>-security` from
   ` []`; the reader takes the triple and ignores the rest. Each triple
   comes twice, as mmdebstrap simulates the download and then the
   install: equal triples are one package. The closure's bound counts
-  packages (domain/store.md, 6.1: 8,192), so the reader takes at most twice as
+  packages (hearth/docs/design/domain/store.md, 6.1: 8,192), so the reader takes at most twice as
   many `Inst` lines.
 - **The `Packages` indices give the rest.** `hearth-protocol-mmdebstrap`
   reads every `*_Packages` file under `<scratch>/root/var/lib/apt/lists/`
@@ -817,15 +817,15 @@ archive when `updates` is on; then `<suite>-security` from
   decompressing. apt's lists hold the decompressed, verified files.
   Before the scratch directory is removed, each source line's
   `InRelease` and each `Packages` file moves into the store's cache by
-  SHA-256 (domain/store.md, 6.4): the protocol layer hashes each in the pass
+  SHA-256 (hearth/docs/design/domain/store.md, 6.4): the protocol layer hashes each in the pass
   that reads its stanzas, and the domain then has it synced and renamed
   from the scratch directory to `cache/<sha256>`, with no copy, and
-  recorded (domain/store.md, 6.5 and 6.8). The record names them by those
-  digests. domain/build.md's local repository serves them at plain paths
-  (domain/build.md, 5.3), so the build reads the indices apt verified, offline.
+  recorded (hearth/docs/design/domain/store.md, 6.5 and 6.8). The record names them by those
+  digests. hearth/docs/design/domain/build.md's local repository serves them at plain paths
+  (hearth/docs/design/domain/build.md, 5.3), so the build reads the indices apt verified, offline.
 - **The closure** is, per package: name, architecture, version, source,
   archive filename, size and SHA-256, sorted by name, then architecture.
-  It is what domain/build.md's fetch step needs to fetch each `.deb` by digest
+  It is what hearth/docs/design/domain/build.md's fetch step needs to fetch each `.deb` by digest
   into its cache.
 - **Every requested package must be in the closure;** one that is not
   (apt installs another that provides it, or replaces it) is a
@@ -847,8 +847,8 @@ resolution record                                                            dom
   made          { at, apt, mmdebstrap, costs: { fetched, took } }            outside the digest
 ```
 
-- **A record of the store,** found by its key (domain/store.md, 6.4), and
-  pinned by the layers whose keys use its digest (domain/store.md, section 7).
+- **A record of the store,** found by its key (hearth/docs/design/domain/store.md, 6.4), and
+  pinned by the layers whose keys use its digest (hearth/docs/design/domain/store.md, section 7).
   Before the store holds layers, in M1, it holds these records alone.
 - **The digest covers what is installed,** not where it came from: a
   package's archive and filename stay outside it.
@@ -875,7 +875,7 @@ resolution record                                                            dom
 ### 5.5 Failures and costs
 
 - **A failed run gives a tail** of at most 20 lines, each cut at 160
-  bytes with no marker, chosen by domain/build.md 10.1's lists, deny before
+  bytes with no marker, chosen by hearth/docs/design/domain/build.md 10.1's lists, deny before
   allow, with each indented line that follows a kept line kept with it.
   Resolution adds to them: the tail keeps apt's verdict on the request
   whole, `The following packages have unmet dependencies:` and `However
@@ -894,7 +894,7 @@ resolution record                                                            dom
   | dependencies apt cannot satisfy | `Unable to correct problems`, or the unmet-dependencies line, named by its first indented line's `<name> :` | `resolution`, configuration, naming the package |
   | a suite, component or architecture the archive does not have | an `Err:` or `Failed to fetch` the archive answered `404  Not Found` (snapshot.debian.org prints `NOT FOUND`), or apt's `does not have a Release file` | `resolution`, configuration, naming the source line: snapshot.debian.org never changes a timestamp's archive, so the same revision fails again |
   | a fetch with no answer, or a broken one | any other `Err:` or `Failed to fetch`: `Could not connect`, `Unable to connect`, `Could not resolve`, `Temporary failure resolving`, a timeout, a hash or size mismatch, a 5xx answer | `tool`, operational |
-  | no space | `No space left on device` | `tool`, operational (protocol/wire.md, 4.4) |
+  | no space | `No space left on device` | `tool`, operational (hearth/docs/design/protocol/wire.md, 4.4) |
   | none of these | | `tool`, configuration |
 
   An operational cause on any kept line outranks every configuration
@@ -905,9 +905,9 @@ resolution record                                                            dom
   that fails, are `tool`, operational.
 - **render never retries.** An operational error tells its caller that
   the same revision may resolve later: the client exits 75
-  (client/README.md, 3.3) and the steward backs off (protocol/wire.md, 4.4).
+  (hearth/docs/design/client/README.md, 3.3) and the steward backs off (hearth/docs/design/protocol/wire.md, 4.4).
 - **No marker within a run goes up:** render reports a resolution as it
-  starts and as it ends (client/README.md, 3.2), and none of
+  starts and as it ends (hearth/docs/design/client/README.md, 3.2), and none of
   mmdebstrap's stages.
 - **One resolution at a time per builder:** snapshot.debian.org is fetched
   serially. A run took 9 to 15 s, mostly `apt-get update`.
@@ -936,7 +936,7 @@ resolution record                                                            dom
   `--resolve` resolves none, and the spec says needed, with no error.
   Its other parts render, and its host reads its placement (3.4).
 - **The client resolves on request.** `hearth render --resolve` and
-  `hearth diff --resolve` (client/README.md, 3.1) resolve each needed key, one at
+  `hearth diff --resolve` (hearth/docs/design/client/README.md, 3.1) resolve each needed key, one at
   a time (5.5), and record each closure before they print: render's
   targets' keys, and for a diff the keys of the targets whose
   resolution key changed, on both sides, so that its packages change
@@ -949,8 +949,8 @@ resolution record                                                            dom
   each keeps its spec, with that key needed. In a diff the target's
   change stands, its resolution `new key`, and the error prints after
   the changes (6.1).
-- **A build resolves what its plan needs** (domain/build.md, 4.1) [M2], and the
-  daemon's builder resolves for its jobs as they need it (domain/steward.md,
+- **A build resolves what its plan needs** (hearth/docs/design/domain/build.md, 4.1) [M2], and the
+  daemon's builder resolves for its jobs as they need it (hearth/docs/design/domain/steward.md,
   3.3) [M3].
 
 ## 6. The rendered diff
@@ -994,7 +994,7 @@ rebuild
   removed, added, or `\ No newline at end of file`, kept and counted
   like the others. The domain holds one target's hunks at a time, as it
   hands its change up. Step code computes no text diff. The hunks are
-  part of the typed diff, so its JSON carries them (client/README.md, 3.2), and a client that
+  part of the typed diff, so its JSON carries them (hearth/docs/design/client/README.md, 3.2), and a client that
   cannot read the daemon's store [M3] receives them with the rest.
 - **Secrets show names and places,** never values, since render has none.
 - **`failed` is a target whose spec did not render** on a side that has
@@ -1020,8 +1020,8 @@ rebuild
 - **Time,** when the builder has built the target before, is its last
   recorded cost for each layer to rebuild. Whether activation needs a
   reboot is known only after the build, from the kernel's and the
-  initramfs's digests (domain/slots.md, section 6), and whether it can be live,
-  from the two outputs' tree files and the live parts (domain/slots.md, 6.7).
+  initramfs's digests (hearth/docs/design/domain/slots.md, section 6), and whether it can be live,
+  from the two outputs' tree files and the live parts (hearth/docs/design/domain/slots.md, 6.7).
 
 ### 6.3 Printed
 
@@ -1035,22 +1035,22 @@ carbon-prod                                         rebuild from config
                 [WireGuardPeer]
                 PublicKey=m3NY8…=
                 AllowedIPs=10.0.0.1/32
-               -Endpoint=194.164.162.157:51820
-               +Endpoint=194.164.162.158:51820
+               -Endpoint=203.0.113.157:51820
+               +Endpoint=203.0.113.158:51820
                 PersistentKeepalive=25
 ion-prod                                            nothing to build
-  exports  ~ vpn.endpoint   "194.164.162.157" → "194.164.162.158"
+  exports  ~ vpn.endpoint   "203.0.113.157" → "203.0.113.158"
 
 2 of 11 targets change; 9 are unchanged.
 ```
 
 - The client prints it as text, or as JSON for agents
-  (client/README.md, section 3). The typed diff is the same either way.
+  (hearth/docs/design/client/README.md, section 3). The typed diff is the same either way.
 - The coupling is visible: carbon-prod changes because it reads ion-prod's
   exports, and carbon-lab does not, because exports stay in their
   environment.
 - **Hunks print as git gives them,** three lines of context and each
-  `@@` line with git's own context after it (protocol/format.md, 8.6's template
+  `@@` line with git's own context after it (hearth/docs/design/protocol/format.md, 8.6's template
   rendered for carbon-prod). A failed target prints `failed (from)`,
   `failed (to)` or `failed (both)` where the rebuild goes, and its errors
   print after the changes.
@@ -1090,7 +1090,7 @@ error
   two sides together. The errors kept are the longest start of that
   order that holds at most 256 errors and 16 MiB of the bytes they carry,
   every string of every field counted; the rest are counted, not kept,
-  and still decide the exit code (client/README.md, 3.3).
+  and still decide the exit code (hearth/docs/design/client/README.md, 3.3).
 - **One fault gives one error, where render stops reading:**
   - a document or a declaration gives its first fault, and the targets
     it fails print it once, without a target;
@@ -1108,7 +1108,7 @@ error
 - **In a JSON string or key,** a fault of what is written, which skein's
   tokenizer finds (`Escape`, `Surrogate`, `Utf8`, `Control`,
   `StringTooLong`), is where the tokenizer places it: the first byte of
-  the character or the escape at fault (skein's json.md, 3.6). A fault
+  the character or the escape at fault (skein/docs/design/json.md, 3.6). A fault
   of the text decoded, which hearth finds once the tokenizer has read
   the string (U+0000, a name out of form, an expression's syntax), is
   at its opening quote: a decoded string keeps no escapes, so its bytes
@@ -1118,20 +1118,20 @@ error
 
 | Kind | Examples |
 |---|---|
-| decode | not JSON, a duplicate key, a fraction, invalid UTF-8, a `null` inside a list, a document or a declaration not of its shape as written (a key, a name, a JSON form, or a value outside an entry that protocol/format.md bounds itself, such as `doc`'s one line or a script's `order`: protocol/format.md, 5.1, 5.2 and 5.8), a key of a later milestone (protocol/format.md, 2.2), a template's syntax, an unknown filter; a limit met while reading the revision: its listing's, a file's, the decoded documents', declarations' and templates', the 1,025th target or task, a task's 513th setting (2.3) |
+| decode | not JSON, a duplicate key, a fraction, invalid UTF-8, a `null` inside a list, a document or a declaration not of its shape as written (a key, a name, a JSON form, or a value outside an entry that hearth/docs/design/protocol/format.md bounds itself, such as `doc`'s one line or a script's `order`: hearth/docs/design/protocol/format.md, 5.1, 5.2 and 5.8), a key of a later milestone (hearth/docs/design/protocol/format.md, 2.2), a template's syntax, an unknown filter; a limit met while reading the revision: its listing's, a file's, the decoded documents', declarations' and templates', the 1,025th target or task, a task's 513th setting (2.3) |
 | repository | a document out of place, an environment that does not exist, a directory named out of form, a path that is not UTF-8, a submodule, a stray file in a task, two sources for one destination, a `.j2` link or a bare `.j2` |
-| composition | two targets of one name, a target's name past 63 bytes, a task that does not exist, `null` for a task in a default (the `hearth` task's is `reserved`), `placement` in a base, `null` for `placement` or `members`, `members` in `fleet.json` or `envs/`, a target with no placement, a container's `on` that names a container, a target of another environment or one with no placement (3.4); [M5] a container's parameters on another kind, or an id range that overlaps another's (protocol/format.md, 3.5) |
-| schema | an undeclared setting, a wrong type, a missing required setting, an undeclared read, a bad default, an entry's field out of its kind's form once evaluated, such as a tmpfiles type or a boot parameter's `order` (protocol/format.md, 5.2), a value of a later milestone (protocol/format.md, 2.2) |
+| composition | two targets of one name, a target's name past 63 bytes, a task that does not exist, `null` for a task in a default (the `hearth` task's is `reserved`), `placement` in a base, `null` for `placement` or `members`, `members` in `fleet.json` or `envs/`, a target with no placement, a container's `on` that names a container, a target of another environment or one with no placement (3.4); [M5] a container's parameters on another kind, or an id range that overlaps another's (hearth/docs/design/protocol/format.md, 3.5) |
+| schema | an undeclared setting, a wrong type, a missing required setting, an undeclared read, a bad default, an entry's field out of its kind's form once evaluated, such as a tmpfiles type or a boot parameter's `order` (hearth/docs/design/protocol/format.md, 5.2), a value of a later milestone (hearth/docs/design/protocol/format.md, 2.2) |
 | evaluation | an undefined value used, a type error in an expression, an overflow, a `for_each` that is not a map or list; a limit met while composing, validating, expanding, evaluating or rendering a target, or holding its spec (2.3) |
 | exported | another target's exports that this one reads cannot be computed (3.4): `target` is the reader, the kind names the exporter and its task, `at` is the cause's place, and the class is the cause's |
 | guard | a false `requires`, with its message |
-| reserved | a command-line key, a path, a unit name, a drop-in that sorts after `zz-hearth-watchdog.conf`, a tmpfiles line, an initramfs setting or a preseed that hearth reserves; anything but a directory above a reserved path, and a tmpfiles path with a glob or a specifier; a `live` entry render can tell is never live; a secret or identity file `hearth` could read, or one whose `mode` has a bit outside `0770`; `null` for the `hearth` task, in any layer; an initramfs module, a boot parameter or the `hearth` task on a container; [M5] a host's preset that enables one of its containers' nspawn units (protocol/format.md, 3.4, 5.11, 5.12, 5.14 and 9.3; domain/build.md, 7.3, 7.4 and 9.2; domain/slots.md, 5.5; domain/machine.md, 6.2) |
-| ids | an owner of a data path, a secret or an identity file without a fixed id; a download owned by anyone but `root` or a package user with a fixed id; a package user with one of `uid` and `gid` alone (3.3; protocol/format.md, 5.6 and 10.1) |
+| reserved | a command-line key, a path, a unit name, a drop-in that sorts after `zz-hearth-watchdog.conf`, a tmpfiles line, an initramfs setting or a preseed that hearth reserves; anything but a directory above a reserved path, and a tmpfiles path with a glob or a specifier; a `live` entry render can tell is never live; a secret or identity file `hearth` could read, or one whose `mode` has a bit outside `0770`; `null` for the `hearth` task, in any layer; an initramfs module, a boot parameter or the `hearth` task on a container; [M5] a host's preset that enables one of its containers' nspawn units (hearth/docs/design/protocol/format.md, 3.4, 5.11, 5.12, 5.14 and 9.3; hearth/docs/design/domain/build.md, 7.3, 7.4 and 9.2; hearth/docs/design/domain/slots.md, 5.5; hearth/docs/design/domain/machine.md, 6.2) |
+| ids | an owner of a data path, a secret or an identity file without a fixed id; a download owned by anyone but `root` or a package user with a fixed id; a package user with one of `uid` and `gid` alone (3.3; hearth/docs/design/protocol/format.md, 5.6 and 10.1) |
 | checks [M5] | a `blessing` check with `from`, a `from` no target has, a command's `user` that is `root`, or neither `nobody`, a sysusers user nor a declared package user (3.9) |
 | collision | one path from two tasks, two users that differ, a key a declaration makes twice |
-| resolution | configuration: a package apt does not know, dependencies apt cannot satisfy, a suite the archive does not have (5.5), a requested package apt does not install (5.3); a closure past 8,192 packages, or a record past its bounds (domain/store.md, 6.1). Operational: an `Inst` triple with no stanza, stanzas that disagree (5.3) |
+| resolution | configuration: a package apt does not know, dependencies apt cannot satisfy, a suite the archive does not have (5.5), a requested package apt does not install (5.3); a closure past 8,192 packages, or a record past its bounds (hearth/docs/design/domain/store.md, 6.1). Operational: an `Inst` triple with no stanza, stanzas that disagree (5.3) |
 | tool | git or mmdebstrap failed, timed out, could not start or gave output it should not (2.2, 5.3), or a resource failed, as 5.5 says: operational; mmdebstrap's failure of no cause 5.5 knows: configuration |
-| store | a store full at a limit, or whose upkeep failed (domain/store.md, 8.1): operational, the call's, naming the store and the limit and count or the step. A store that cannot be opened, or is another uid's or another range's (domain/store.md, 6.6), is no error of the answer: nothing renders, and the client says so at startup (client/README.md, 3.2) |
+| store | a store full at a limit, or whose upkeep failed (hearth/docs/design/domain/store.md, 8.1): operational, the call's, naming the store and the limit and count or the step. A store that cannot be opened, or is another uid's or another range's (hearth/docs/design/domain/store.md, 6.6), is no error of the answer: nothing renders, and the client says so at startup (hearth/docs/design/client/README.md, 3.2) |
 
 ### 7.3 Printed
 
@@ -1163,7 +1163,7 @@ tasks/users/task.json:14:9: rhi-prod: users: the key "ops" is made twice (tasks/
   ```
 - **The errors left out are counted:** the text prints `<n> more errors`
   (`1 more error`) after the last one kept, and JSON's `outcome` record
-  carries `left_out` (client/README.md, 3.2).
+  carries `left_out` (hearth/docs/design/client/README.md, 3.2).
 
 ## 8. Layers and crates
 
@@ -1186,24 +1186,24 @@ hearth-protocol-builder          the builder's protocol layer: routes its machin
   documents; composition and RFC 7386; validation; evaluation; exports;
   collisions; parts and digests; resolution's keys, records and closures;
   the diff. It depends on lib and nothing else.
-- **The machines depend on lib only** (`programming-model.md`, 4), but
+- **The machines depend on lib only** (`skein/docs/foundation/programming-model.md`, 4), but
   for `hearth-protocol-config`, which composes skein's JSON tokenizer and
-  depends on `skein-json` too, as skein's `skein-llm` does (skein's
-  `llm.md`). `hearth-protocol-config` cannot call the template machine,
+  depends on `skein-json` too, as skein's `skein-llm` does (
+  `skein/docs/design/llm.md`). `hearth-protocol-config` cannot call the template machine,
   so it hands up a declaration's expression strings as text with their
   positions, and `hearth-protocol-builder` passes each through
   `hearth-protocol-template` before translating the whole declaration
   into render's types.
 - **The client runs the same domain in-process** when no daemon
-  answers, or for a local repository (README, 4.1; client/README.md, 3.5); in
+  answers, or for a local repository (README, 4.1; hearth/docs/design/client/README.md, 3.5); in
   the daemon, the builder's root takes the steward's jobs through
-  `hearth-protocol-jobs` (domain/steward.md, section 3).
+  `hearth-protocol-jobs` (hearth/docs/design/domain/steward.md, section 3).
 - **The client prints with `hearth-client-protocol-records`'s
-  printer** (client/README.md, 3.2), a machine that writes the spec,
+  printer** (hearth/docs/design/client/README.md, 3.2), a machine that writes the spec,
   the diff and the errors as text and as JSON lines: M1 brings forward that crate's records of render
   and diff and their printer, and M3 adds the rest. Which crate of the
   client routes the builder's answers to it is the plan's, within
-  README.md, 4.2's roles.
+  hearth/docs/design/README.md, 4.2's roles.
 
 ### 8.2 What crosses
 
@@ -1219,19 +1219,19 @@ every request                                          Failed { request, class, 
 ```
 
 - **Resolution records** go through the builder's root to the store and
-  back (domain/store.md, section 6): render asks for a key and records a new
+  back (hearth/docs/design/domain/store.md, section 6): render asks for a key and records a new
   closure; it never touches a file. In M1 the store's domain is
   `hearth-domain-store`'s first part: resolutions and cache files' records
   alone, over `hearth-protocol-tree`'s frame and its kinds 1, 4 and 5
-  (domain/store.md, 2.4 and 6.1); M2 grows both.
-- **Every request gets one terminal event** (`programming-model.md`,
+  (hearth/docs/design/domain/store.md, 2.4 and 6.1); M2 grows both.
+- **Every request gets one terminal event** (`skein/docs/foundation/programming-model.md`,
   5.2), and a resolution's deadline is render's to set; git's commands
   have none (2.2).
 
 ### 8.3 Evaluation without recursion
 
 - **Step code has no recursion and no unbounded loop**
-  (`programming-model.md`, section 3), so nothing is evaluated as a tree:
+  (`skein/docs/foundation/programming-model.md`, section 3), so nothing is evaluated as a tree:
   - `hearth-protocol-template` gives an expression as a flat sequence of
     operations in postfix order, with forward jumps for `and`, `or` and
     `… if … else …`; the domain evaluates it on a value stack whose depth
@@ -1249,7 +1249,7 @@ every request                                          Failed { request, class, 
 ### 8.4 Limits and the worst case
 
 - **Render's limits are 2.3's,** and its worst case
-  (`programming-model.md`, 6.3) is what it holds at once at those
+  (`skein/docs/foundation/programming-model.md`, 6.3) is what it holds at once at those
   limits: the revision's listing (16,384 entries, 4 MiB of paths), with
   an object id, size and digest per static file; its decoded documents,
   declarations and templates (16 MiB, counted as they are held); the
@@ -1279,17 +1279,17 @@ every request                                          Failed { request, class, 
 - **Each layer's formula is its peak:** what the layer holds at once at
   its limits, not the sum of every maximum it reaches in turn. The
   counting allocator holds the live heap within it at every iteration
-  (`programming-model.md`, 6.3).
+  (`skein/docs/foundation/programming-model.md`, 6.3).
 - **The builder's worst case is 6.3's sum** over its layers at their
   limits, and the defaults keep it within 1 GiB, which a test holds. The
   protocol's machines take 2.3's limits, the listing's, a document's and
-  a template's among them, and the store's bounds (domain/store.md, 6.1); the
-  client's printer (client/README.md, 3.2) prints a record of at most
+  a template's among them, and the store's bounds (hearth/docs/design/domain/store.md, 6.1); the
+  client's printer (hearth/docs/design/client/README.md, 3.2) prints a record of at most
   16 MiB, its line endings included, and refuses a longer one, which
   fails the command. In M1 nothing configures the client's memory
-  (client/README.md, 3.5), so its shell checks the sum against none; the
+  (hearth/docs/design/client/README.md, 3.5), so its shell checks the sum against none; the
   daemon's builder checks it against its share of its ceiling
-  (domain/steward.md, 5.3) [M3].
+  (hearth/docs/design/domain/steward.md, 5.3) [M3].
   Static files and rendered files live in the store's cache, never in
   the domain, so a small VM's builder renders what a large one does.
 
@@ -1301,12 +1301,12 @@ every request                                          Failed { request, class, 
   parent that plays the protocol layer: it delivers typed documents,
   declarations and templates as the machines would, in an order and at a
   pace drawn from the seed, and plays the store's records. It checks
-  every world's invariants (`testing-strategy.md`, section 6).
+  every world's invariants (`skein/docs/foundation/testing-strategy.md`, section 6).
 - **Machine worlds** run each protocol machine against recordings of the
   real tool, cut at random: `ls-tree` and `cat-file` streams, `Inst`
-  lines, `Packages` indices, failure tails (`testing-strategy.md`, 2.4).
+  lines, `Packages` indices, failure tails (`skein/docs/foundation/testing-strategy.md`, 2.4).
 - **The builder's system world** runs render with the fakes of git and
-  mmdebstrap on the fake machine (domain/testing.md, sections 3 and 4).
+  mmdebstrap on the fake machine (hearth/docs/design/domain/testing.md, sections 3 and 4).
 
 ### 9.2 Golden repositories
 
@@ -1344,7 +1344,7 @@ every request                                          Failed { request, class, 
   ```
 
   Digests and keys are cut to 12 hex digits, as every table of the
-  client's is (client/README.md, 3.2); its JSON gives them whole. A link
+  client's is (hearth/docs/design/client/README.md, 3.2); its JSON gives them whole. A link
   prints its target, and an empty file the digest of no bytes
   (`e3b0c44298fc`), as any file prints its own. With the
   resolution in the store, its line reads `resolution 0c7d9e41c0d2
@@ -1377,12 +1377,12 @@ Over generated repositories, valid by construction and then mutated:
   nothing; a collision names the same pair, the task first in name order
   at `at` and the other at `also` (7.1), whichever task arrives first.
 - **Digests:** two different records of a part give different digests
-  over generated pairs; the encoding's own laws are domain/store.md's
+  over generated pairs; the encoding's own laws are hearth/docs/design/domain/store.md's
   (section 11).
 
 ### 9.4 Fuzzed decoders
 
-- **Every decoder is fuzzed** on its own (`testing-strategy.md`, 2.4):
+- **Every decoder is fuzzed** on its own (`skein/docs/foundation/testing-strategy.md`, 2.4):
   configuration documents and declarations; templates and expressions;
   `ls-tree` and `cat-file` streams; `Inst` lines and `Packages` stanzas;
   and what render hands the store and its tools, store names and
@@ -1397,7 +1397,7 @@ Over generated repositories, valid by construction and then mutated:
 - **Generated templates of the subset** render byte for byte the same in
   both. Where hearth differs on purpose (undefined, `first` on an empty
   list), the generator avoids it and the difference is listed in the
-  test. hearth keeps protocol/format.md 7.4's precedence, which binds `~` below
+  test. hearth keeps hearth/docs/design/protocol/format.md 7.4's precedence, which binds `~` below
   `+ -` and `is` below the comparisons, where MiniJinja binds `~` above
   them and `is` with the filters: both are listed, and the generator
   parenthesizes a `~` beside `+ -` and an operand of `is` that is not a
@@ -1407,10 +1407,10 @@ Over generated repositories, valid by construction and then mutated:
 
 - **`hearth-fake-mmdebstrap`** resolves against the fake machine's
   package universe and writes `Inst` lines and `Packages` indices of the
-  real shape (domain/testing.md, section 4).
+  real shape (hearth/docs/design/domain/testing.md, section 4).
 - **Conformance** runs real `mmdebstrap --simulate --mode=chrootless`
   against the test tier's local mirror, and the fake against the same
-  universe, and compares closures (domain/testing.md, section 5). Its runs are
+  universe, and compares closures (hearth/docs/design/domain/testing.md, section 5). Its runs are
   recorded, and the recordings replace os's hand-written logs.
 
 ### 9.7 os's goldens
@@ -1427,25 +1427,25 @@ Over generated repositories, valid by construction and then mutated:
   revisions,** are domain-world scenarios. Their budgets are counts, the
   requests a run makes, asserted against 3.10's costs; their time is an aim,
   1 s (0.5 s before the user's doubling of 10-22, provisional) a scenario,
-  reported and never failed on (domain/testing.md, 9.3). The suites' budgets
-  are domain/testing.md's (section 9).
+  reported and never failed on (hearth/docs/design/domain/testing.md, 9.3). The suites' budgets
+  are hearth/docs/design/domain/testing.md's (section 9).
 
-## 10. What is open
+## 10. Open questions
 
 - **A decompressor for the indices:** after a chrootless simulate run,
   `--skip=cleanup/apt/lists` leaves `InRelease` and the decompressed
   `Packages` files in the scratch directory, as the recordings show
   (9.6), and M1 refuses a compressed one (5.3). One is needed only if an
-  apt keeps them compressed (`Acquire::GzipIndexes`), and skein has
-  none; it depends on such an apt.
+  apt keeps them compressed (`Acquire::GzipIndexes`); it depends on
+  such an apt.
 - **The `Inst` line with several origins** (`(2.41-12 Debian:13.1/stable,
   Debian-Security:13/stable-security [amd64])`), to verify against
   recordings.
 - **Chrootless or unshare for resolution:** os and the bash fleet
   resolved chrootless and built unshare; a reason for preferring unshare
   was found once, in experiments, and not recorded. A conformance
-  scenario compares the closures of both modes (domain/testing.md, 5.2), and
-  domain/build.md, 5.7 refuses any build whose installed set differs from its
+  scenario compares the closures of both modes (hearth/docs/design/domain/testing.md, 5.2), and
+  hearth/docs/design/domain/build.md, 5.7 refuses any build whose installed set differs from its
   closure. If the modes ever disagree, resolution moves to unshare, and
   render then needs the builder's subordinate range. A lead, from
   mmdebstrap 1.5.7's code: chrootless installs the essential set with
@@ -1466,10 +1466,10 @@ Over generated repositories, valid by construction and then mutated:
   runs of mmdebstrap 1.5.7 and apt 3.0.3 for a package apt does not
   know, one with no installation candidate, dependencies apt cannot
   satisfy, a snapshot timestamp before the archive and an unreachable
-  proxy. A hash mismatch, a full disk and a 5xx answer have no recording
-  yet; theirs will confirm or correct it.
+  proxy. Recordings of a hash mismatch, a full disk and a 5xx answer
+  will confirm or correct it.
 - **Keeping decoded documents across revisions** within one builder's
-  life, a pass and its linger (domain/steward.md, 4.1): what a pass's later
+  life, a pass and its linger (hearth/docs/design/domain/steward.md, 4.1): what a pass's later
   renders, a diff's two revisions or the bless's render, would save,
   against the builder's memory, bounded by a limit to set.
 - **Fetching a single commit** rather than a branch, which needs the

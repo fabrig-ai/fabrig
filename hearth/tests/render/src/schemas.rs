@@ -1,4 +1,4 @@
-//! Generated schema arenas and an independent recursive validator (protocol/format.md, 6).
+//! Generated schema arenas and an independent recursive validator (hearth/docs/design/protocol/format.md, 6).
 use hearth_domain_render::{
     compose::{Composed, Composite, Layer, Pair, Provenance},
     errors::{Schema, TypeName},
@@ -134,7 +134,7 @@ fn setting(rng: &mut Rng, declaration: &Declaration, ty: u32) -> Composed {
             Form::Mode => Composite::String(Box::from(if rng.chance(500) { b"644".as_slice() } else { b"0844" })),
             Form::Duration => Composite::String(Box::from(if rng.chance(500) { b"14d".as_slice() } else { b"05s" })),
             Form::Secret => {
-                Composite::String(Box::from(if rng.chance(500) { b"users/free".as_slice() } else { b"Users/free" }))
+                Composite::String(Box::from(if rng.chance(500) { b"users/alice".as_slice() } else { b"Users/alice" }))
             }
             Form::String | Form::Target | Form::File | Form::Enum(_) => {
                 Composite::String(Box::from(if rng.chance(500) { b"a".as_slice() } else { b"xxxx" }))

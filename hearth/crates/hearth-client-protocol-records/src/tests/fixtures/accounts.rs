@@ -18,7 +18,7 @@ pub fn accounts_spec() -> Record {
                 Group { name: b"ops".as_slice().into(), kind: ops() },
             ]),
             users: Box::new([
-                User { name: b"free".as_slice().into(), kind: account_user(1000, b"Free User") },
+                User { name: b"alice".as_slice().into(), kind: account_user(1000, b"Alice User") },
                 User { name: b"postfix".as_slice().into(), kind: UserKind::Package },
             ]),
             members: Box::new([member(b"ops")]),
@@ -39,7 +39,7 @@ pub fn accounts_change() -> Record {
                 tree: Box::new([]),
                 groups: Box::new([GroupKeyed::Removed { key: b"ops".as_slice().into(), value: ops() }]),
                 users: Box::new([UserKeyed::Changed {
-                    key: b"free".as_slice().into(),
+                    key: b"alice".as_slice().into(),
                     before: UserKind::Package,
                     after: account_user(1001, b""),
                 }]),
@@ -52,9 +52,9 @@ pub fn accounts_change() -> Record {
 fn account_user(uid: u32, gecos: &[u8]) -> UserKind {
     UserKind::Sysusers {
         uid: Some(uid),
-        group: b"free".as_slice().into(),
+        group: b"alice".as_slice().into(),
         gecos: gecos.into(),
-        home: b"/home/free".as_slice().into(),
+        home: b"/home/alice".as_slice().into(),
         shell: b"/bin/bash".as_slice().into(),
     }
 }
@@ -62,5 +62,5 @@ fn ops() -> GroupKind {
     GroupKind::Sysusers { gid: Some(1500) }
 }
 fn member(group: &[u8]) -> Member {
-    Member { user: b"free".as_slice().into(), group: group.into() }
+    Member { user: b"alice".as_slice().into(), group: group.into() }
 }

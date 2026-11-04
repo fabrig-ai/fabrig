@@ -145,8 +145,8 @@ pub fn account_names(accounts: &crate::kinds::users::Accounts) -> Box<[&[u8]]> {
 }
 pub fn user_rows(first: &[crate::entries::Made], second: &[crate::entries::Made]) -> Expansion {
     kinds::account_expansion(&[
-        (b"a", Map::Users, &[crate::entries::Concrete { fields: first.into(), ..kinds::file(b"free", []) }]),
-        (b"b", Map::Users, &[crate::entries::Concrete { fields: second.into(), ..kinds::file(b"free", []) }]),
+        (b"a", Map::Users, &[crate::entries::Concrete { fields: first.into(), ..kinds::file(b"alice", []) }]),
+        (b"b", Map::Users, &[crate::entries::Concrete { fields: second.into(), ..kinds::file(b"alice", []) }]),
     ])
 }
 pub fn group_with_user(gid: i64) -> Expansion {
@@ -154,9 +154,9 @@ pub fn group_with_user(gid: i64) -> Expansion {
         kinds::account_expansion(&[(
             b"a",
             Map::Users,
-            &[kinds::file(b"free", [kinds::integer(Name::Uid, ACCOUNT_ID)])],
+            &[kinds::file(b"alice", [kinds::integer(Name::Uid, ACCOUNT_ID)])],
         )]),
-        kinds::account_expansion(&[(b"b", Map::Groups, &[kinds::file(b"free", [kinds::integer(Name::Gid, gid)])])]),
+        kinds::account_expansion(&[(b"b", Map::Groups, &[kinds::file(b"alice", [kinds::integer(Name::Gid, gid)])])]),
     ])
 }
 pub fn id_collisions(accounts: &crate::kinds::users::Accounts) -> Box<[Error]> {
@@ -175,19 +175,19 @@ pub fn ranged(name: &[u8], task: &[u8], base: i64, count: i64) -> crate::kinds::
     *subordinate = Some((u32::try_from(base).expect("fixture base"), u32::try_from(count).expect("fixture count")));
     user
 }
-// An account id inside protocol/format.md 5.6's bounds; its neighbour is the second account's id.
+// An account id inside hearth/docs/design/protocol/format.md 5.6's bounds; its neighbour is the second account's id.
 pub const ACCOUNT_ID: i64 = 1_000;
 pub const ACCOUNT_UID: u32 = 1_000;
-// Ranges begin at protocol/format.md 5.6's lower bound and span one ordinary subuid block.
+// Ranges begin at hearth/docs/design/protocol/format.md 5.6's lower bound and span one ordinary subuid block.
 pub const RANGE_BASE: i64 = kinds::MIN_SUBORDINATE;
 pub const RANGE_COUNT: i64 = RANGE_BASE;
 
 pub fn equal_users() -> Expansion {
     user_rows(&[kinds::integer(Name::Uid, ACCOUNT_ID)], &[kinds::integer(Name::Uid, ACCOUNT_ID)])
 }
-// The smallest count protocol/format.md 5.6 permits for a subordinate range.
+// The smallest count hearth/docs/design/protocol/format.md 5.6 permits for a subordinate range.
 pub const MIN_RANGE_COUNT: i64 = 1;
 
 pub fn first_range() -> crate::kinds::users::User {
-    ranged(b"free", b"a", RANGE_BASE, RANGE_COUNT)
+    ranged(b"alice", b"a", RANGE_BASE, RANGE_COUNT)
 }

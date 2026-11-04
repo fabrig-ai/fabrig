@@ -8,12 +8,12 @@ use crate::{
     revision::declaration::Name,
 };
 use skein_lib::bytes::copy_of;
-const RANGES: &[(&[u8], i64, i64)] = &[(b"free", 165_536, 65_536), (b"ci", 100_000, 65_536)];
+const RANGES: &[(&[u8], i64, i64)] = &[(b"alice", 165_536, 65_536), (b"ci", 100_000, 65_536)];
 #[test]
 fn subordinate_ranges_become_lines_by_user_name() {
     assert_eq!(
         additions::subordinate(&inputs::accounts_with_ranges(RANGES)).expect("two ranges").as_ref(),
-        b"ci:100000:65536\nfree:165536:65536\n",
+        b"alice:165536:65536\nci:100000:65536\n",
         "subuid(5), by name"
     );
 }

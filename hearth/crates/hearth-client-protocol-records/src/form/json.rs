@@ -1,4 +1,4 @@
-//! JSON lines, one measured Encoder document per line (client/README.md, 3.2).
+//! JSON lines, one measured Encoder document per line (hearth/docs/design/client/README.md, 3.2).
 use super::Refusal;
 use crate::{
     CLIENT_VERSION,

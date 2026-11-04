@@ -314,7 +314,7 @@ fn setting_up_marks_the_rows_step() {
         [(None, 0), (Some(w::SetUpStep::Fetch), 0), (Some(w::SetUpStep::Prepare), 1), (Some(w::SetUpStep::Run), 2)]
     {
         let view = f::page_view(&here(w::Connection::SettingUp(
-            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step }).unwrap(),
+            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step, fetched: None }).unwrap(),
         )));
         node(view.tree(), Role::Heading { level: 2 }, b"Setting up Forgejo on this machine");
         assert_eq!(
@@ -1120,19 +1120,22 @@ fn delivered_steps_finish_when_the_first_repository_is_made() {
     for (connection, done) in [
         (
             w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch) }).unwrap(),
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch), fetched: None })
+                    .unwrap(),
             ),
             0,
         ),
         (
             w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare) }).unwrap(),
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
+                    .unwrap(),
             ),
             1,
         ),
         (
             w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Run) }).unwrap(),
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Run), fetched: None })
+                    .unwrap(),
             ),
             2,
         ),
@@ -1167,7 +1170,7 @@ fn delivered_steps_finish_when_the_first_repository_is_made() {
 #[test]
 fn an_unknown_setup_stage_claims_no_specific_current_step() {
     let view = f::page_view(&here(w::Connection::SettingUp(
-        w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: None }).unwrap(),
+        w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: None, fetched: None }).unwrap(),
     )));
     let list = view
         .tree()
@@ -1641,7 +1644,7 @@ fn owned_fetch_steps_draw_both_pins_or_keep_the_unpinned_words() {
     ] {
         for (step, expected) in [(w::SetUpStep::Fetch, fetching), (w::SetUpStep::Prepare, fetched)] {
             let connection = w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step) }).unwrap(),
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step), fetched: None }).unwrap(),
             );
             let root = f::forge_root(
                 Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },

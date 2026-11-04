@@ -1,4 +1,4 @@
-"""Fail-stop in every profile (skein's programming-model.md, 2).
+"""Fail-stop in every profile (skein/docs/foundation/programming-model.md, 2).
 
 The dev profile unwinds, so a panic aborts a process only once
 skein_fail_stop's hook is installed. Every binary of hearth calls
@@ -32,6 +32,6 @@ for package in metadata['packages']:
         if not starts or not all(FIRST.match(text, start) for start in starts):
             missing.append(f"{package['name']} {target['name']}: {target['src_path']}")
 if missing:
-    print("Each binary's main installs skein_fail_stop's hook first (skein's programming-model.md, 2):",
+    print("Each binary's main installs skein_fail_stop's hook first (skein/docs/foundation/programming-model.md, 2):",
           *missing, sep='\n  ', file=sys.stderr)
     sys.exit(1)

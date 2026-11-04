@@ -949,7 +949,7 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
             read_only: row.read_only,
             kind: forge_kind(row.kind),
             mode: forge_mode(row.mode),
-            connection: connection(row.connection, row.failed, limits)?,
+            connection: connection(row.connection, row.failed, row.fetched, limits)?,
             offer: match row.offer {
                 forge::Offer::NotOffered => w::Offer::NotOffered,
                 forge::Offer::NotUnderTheBox => w::Offer::NotUnderTheBox,
@@ -1089,6 +1089,7 @@ fn forge_mode(mode: forge::Mode) -> w::Mode {
 fn connection(
     value: forge::Connection,
     failed: Option<forge::FailedStep>,
+    fetched: Option<forge::SetUpFetched>,
     limits: &w::Limits,
 ) -> Option<w::Connection> {
     Some(match value {
@@ -1098,6 +1099,23 @@ fn connection(
             w::SettingUp::new(
                 limits,
                 w::SettingUpParts {
+                    fetched: match fetched {
+                        None => None,
+                        Some(fetched) => Some(
+                            w::SetUpFetched::new(
+                                limits,
+                                w::SetUpFetchedParts {
+                                    binary: match fetched.binary {
+                                        forge::SetUpBinary::Forgejo => w::SetUpBinary::Forgejo,
+                                        forge::SetUpBinary::Runner => w::SetUpBinary::Runner,
+                                    },
+                                    done: fetched.done,
+                                    total: fetched.total,
+                                },
+                            )
+                            .ok()?,
+                        ),
+                    },
                     step: match step {
                         None => None,
                         Some(forge::SetUpStep::Fetch) => Some(w::SetUpStep::Fetch),

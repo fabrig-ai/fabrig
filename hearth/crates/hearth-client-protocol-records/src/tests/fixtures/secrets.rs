@@ -9,7 +9,7 @@ pub fn secret_record(algorithm: Algorithm) -> Secrets {
             owner: copy_of(b"root"),
             group: copy_of(b"ops"),
         }]),
-        passwords: Box::new([Password { user: copy_of(b"free"), secret: copy_of(b"users/free.passwd") }]),
+        passwords: Box::new([Password { user: copy_of(b"alice"), secret: copy_of(b"users/alice.passwd") }]),
         identity: Box::new([Identity {
             name: copy_of(b"ssh"),
             kind: IdentityKind::SshHostKey { algorithm },

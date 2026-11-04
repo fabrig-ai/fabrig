@@ -82,8 +82,8 @@ pub fn wg0_changed() -> crate::diff::Change {
         (LineKind::Context, b"[WireGuardPeer]"),
         (LineKind::Context, "PublicKey=m3NY8…=".as_bytes()),
         (LineKind::Context, b"AllowedIPs=10.0.0.1/32"),
-        (LineKind::Removed, b"Endpoint=194.164.162.157:51820"),
-        (LineKind::Added, b"Endpoint=194.164.162.158:51820"),
+        (LineKind::Removed, b"Endpoint=203.0.113.157:51820"),
+        (LineKind::Added, b"Endpoint=203.0.113.158:51820"),
         (LineKind::Context, b"PersistentKeepalive=25"),
     ];
     let mut lines = skein_lib::List::with_capacity(7);
@@ -120,7 +120,7 @@ pub const WG0_TEXT: &str = concat!(
     "  config   ~ /etc/systemd/network/wg0.netdev        0644 root:root\n",
     "               @@ -9,5 +9,5 @@ ListenPort=51820\n                [WireGuardPeer]\n",
     "                PublicKey=m3NY8…=\n                AllowedIPs=10.0.0.1/32\n",
-    "               -Endpoint=194.164.162.157:51820\n               +Endpoint=194.164.162.158:51820\n                PersistentKeepalive=25\n",
+    "               -Endpoint=203.0.113.157:51820\n               +Endpoint=203.0.113.158:51820\n                PersistentKeepalive=25\n",
 );
 pub fn tally(targets: u32, changed: u32, unchanged: u32) -> crate::diff::Tally {
     crate::diff::Tally { from: copy_of(b"main"), to: copy_of(b"HEAD"), targets, changed, unchanged }

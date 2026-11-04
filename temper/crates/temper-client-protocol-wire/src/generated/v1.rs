@@ -417,8 +417,20 @@ pub enum Path {
     ModeTag,
     /// The tag of `SetUpStep`.
     SetUpStepTag,
+    /// The tag of `SetUpBinary`.
+    SetUpBinaryTag,
+    /// The `binary` field of `SetUpFetched`.
+    SetUpFetchedBinary,
+    /// The `done` field of `SetUpFetched`.
+    SetUpFetchedDone,
+    /// The `total` field of `SetUpFetched`.
+    SetUpFetchedTotal,
+    /// Bytes after `SetUpFetched`.
+    SetUpFetchedTail,
     /// The `step` field of `SettingUp`.
     SettingUpStep,
+    /// The `fetched` field of `SettingUp`.
+    SettingUpFetched,
     /// Bytes after `SettingUp`.
     SettingUpTail,
     /// The tag of `FailedStep`.
@@ -2779,24 +2791,89 @@ impl SetUpStep {
 
 }
 
+/// `SetUpBinary` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SetUpBinary {
+    /// `forgejo` without a payload.
+    Forgejo,
+    /// `runner` without a payload.
+    Runner,
+}
+
+impl SetUpBinary {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `SetUpFetched`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SetUpFetchedParts {
+    /// The `binary` field.
+    pub binary: SetUpBinary,
+    /// The `done` field.
+    pub done: u64,
+    /// The `total` field.
+    pub total: Option<u64>,
+}
+
+/// `SetUpFetched` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SetUpFetched {
+    binary: SetUpBinary,
+    done: u64,
+    total: Option<u64>,
+}
+
+impl SetUpFetched {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: SetUpFetchedParts) -> Result<Self, Problem> {
+        let SetUpFetchedParts { binary, done, total } = parts;
+        let value = Self { binary, done, total };
+        Ok(value)
+    }
+
+    /// Reads the `binary` field.
+    #[must_use]
+    pub fn binary(&self) -> &SetUpBinary { &self.binary }
+
+    /// Reads the `done` field.
+    #[must_use]
+    pub fn done(&self) -> u64 { self.done }
+
+    /// Reads the `total` field.
+    #[must_use]
+    pub fn total(&self) -> &Option<u64> { &self.total }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SetUpFetchedParts { SetUpFetchedParts { binary: self.binary, done: self.done, total: self.total } }
+
+}
+
 /// Movable fields of `SettingUp`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingUpParts {
     /// The `step` field.
     pub step: Option<SetUpStep>,
+    /// The `fetched` field.
+    pub fetched: Option<SetUpFetched>,
 }
 
 /// `SettingUp` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingUp {
     step: Option<SetUpStep>,
+    fetched: Option<SetUpFetched>,
 }
 
 impl SettingUp {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: SettingUpParts) -> Result<Self, Problem> {
-        let SettingUpParts { step } = parts;
-        let value = Self { step };
+        let SettingUpParts { step, fetched } = parts;
+        let value = Self { step, fetched };
         Ok(value)
     }
 
@@ -2804,9 +2881,13 @@ impl SettingUp {
     #[must_use]
     pub fn step(&self) -> &Option<SetUpStep> { &self.step }
 
+    /// Reads the `fetched` field.
+    #[must_use]
+    pub fn fetched(&self) -> &Option<SetUpFetched> { &self.fetched }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> SettingUpParts { SettingUpParts { step: self.step } }
+    pub fn into_parts(self) -> SettingUpParts { SettingUpParts { step: self.step, fetched: self.fetched } }
 
 }
 
@@ -9327,6 +9408,90 @@ impl SetUpStep {
     }
 }
 
+impl SetUpBinary {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Forgejo | Self::Runner => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Forgejo => writer.put(&[0_u8])?,
+            Self::Runner => writer.put(&[1_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SetUpBinaryTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::SetUpBinaryTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Forgejo,
+            1 => Self::Runner,
+            _ => return Err(Problem { path: Path::SetUpBinaryTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl SetUpFetched {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_binary = &self.binary;
+        size = size.checked_add(field_binary.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_total = &self.total;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_total.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_binary = &self.binary;
+        field_binary.encode(writer)?;
+        let field_done = &self.done;
+        writer.put(&field_done.to_be_bytes())?;
+        let field_total = &self.total;
+        match field_total {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SetUpFetchedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_binary = SetUpBinary::decode_from(limits, reader)?;
+        let decoded_done = reader.u64().ok_or(Problem { path: Path::SetUpFetchedDone, reason: skein_codec::Reason::Short })?;
+        let decoded_total = match reader.u8().ok_or(Problem { path: Path::SetUpFetchedTotal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::SetUpFetchedTotal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::SetUpFetchedTotal, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { binary: decoded_binary, done: decoded_done, total: decoded_total })
+    }
+}
+
 impl SettingUp {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -9337,6 +9502,11 @@ impl SettingUp {
         if let Some(some_0) = field_step {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
+        let field_fetched = &self.fetched;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_fetched {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -9344,6 +9514,14 @@ impl SettingUp {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_step = &self.step;
         match field_step {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_fetched = &self.fetched;
+        match field_fetched {
             Some(some_0) => {
                 writer.put(&[1_u8])?;
         some_0.encode(writer)?;
@@ -9362,7 +9540,8 @@ impl SettingUp {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_step = match reader.u8().ok_or(Problem { path: Path::SettingUpStep, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(SetUpStep::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::SettingUpStep, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { step: decoded_step })
+        let decoded_fetched = match reader.u8().ok_or(Problem { path: Path::SettingUpFetched, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(SetUpFetched::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::SettingUpFetched, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { step: decoded_step, fetched: decoded_fetched })
     }
 }
 
@@ -15793,7 +15972,33 @@ impl SetUpStep {
     }
 }
 
-impl SettingUp {
+impl SetUpBinary {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl SetUpFetched {
     /// Maximum encoded bytes under these limits.
     #[must_use]
     pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -15803,7 +16008,8 @@ impl SettingUp {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(SetUpStep::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(SetUpBinary::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -15816,7 +16022,36 @@ impl SettingUp {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(SetUpStep::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(SetUpBinary::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl SettingUp {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(SetUpStep::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(SetUpFetched::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(SetUpStep::decoded_bound_within(limits)?)?.checked_add(SetUpFetched::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -19247,6 +19482,8 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Kind::encoded_bound_within(limits)?);
     biggest = biggest.max(Mode::encoded_bound_within(limits)?);
     biggest = biggest.max(SetUpStep::encoded_bound_within(limits)?);
+    biggest = biggest.max(SetUpBinary::encoded_bound_within(limits)?);
+    biggest = biggest.max(SetUpFetched::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingUp::encoded_bound_within(limits)?);
     biggest = biggest.max(FailedStep::encoded_bound_within(limits)?);
     biggest = biggest.max(SetUpFailed::encoded_bound_within(limits)?);
@@ -19294,12 +19531,12 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Pull::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingSubject::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingsSubject::encoded_bound_within(limits)?);
-    biggest = biggest.max(Watch::encoded_bound_within(limits)?);
-    biggest = biggest.max(LandingPhase::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Watch::encoded_bound_within(limits)?);
+    biggest = biggest.max(LandingPhase::encoded_bound_within(limits)?);
     biggest = biggest.max(Receipted::encoded_bound_within(limits)?);
     biggest = biggest.max(Dispatched::encoded_bound_within(limits)?);
     biggest = biggest.max(Proof::encoded_bound_within(limits)?);
@@ -19423,6 +19660,8 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Kind::decoded_bound_within(limits)?);
     biggest = biggest.max(Mode::decoded_bound_within(limits)?);
     biggest = biggest.max(SetUpStep::decoded_bound_within(limits)?);
+    biggest = biggest.max(SetUpBinary::decoded_bound_within(limits)?);
+    biggest = biggest.max(SetUpFetched::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingUp::decoded_bound_within(limits)?);
     biggest = biggest.max(FailedStep::decoded_bound_within(limits)?);
     biggest = biggest.max(SetUpFailed::decoded_bound_within(limits)?);
@@ -19470,12 +19709,12 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Pull::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingSubject::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingsSubject::decoded_bound_within(limits)?);
-    biggest = biggest.max(Watch::decoded_bound_within(limits)?);
-    biggest = biggest.max(LandingPhase::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Watch::decoded_bound_within(limits)?);
+    biggest = biggest.max(LandingPhase::decoded_bound_within(limits)?);
     biggest = biggest.max(Receipted::decoded_bound_within(limits)?);
     biggest = biggest.max(Dispatched::decoded_bound_within(limits)?);
     biggest = biggest.max(Proof::decoded_bound_within(limits)?);
@@ -19549,7 +19788,7 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, SetUp, SetUpParts, Return, ReturnParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, ToBegin, ToBeginParts, Dismissal, Dismiss, DismissParts, Dismissals, DismissalsParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Kind, Mode, SetUpStep, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, Read, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Foreman, ForemanParts, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, Path};
+    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, SetUp, SetUpParts, Return, ReturnParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, ToBegin, ToBeginParts, Dismissal, Dismiss, DismissParts, Dismissals, DismissalsParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Kind, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, Read, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Foreman, ForemanParts, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -19602,7 +19841,7 @@ mod golden_tests {
         };
         at && past
     }
-    static GOLDEN_0: [Case; 704] = [
+    static GOLDEN_0: [Case; 710] = [
         ("enum_role_owned_smallest", || { let value = Role::Owned; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_role_owned_full", || { let value = Role::Owned; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_role_adopted_smallest", || { let value = Role::Adopted; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -19755,8 +19994,14 @@ mod golden_tests {
         ("enum_set_up_step_prepare_full", || { let value = SetUpStep::Prepare; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_set_up_step_run_smallest", || { let value = SetUpStep::Run; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_set_up_step_run_full", || { let value = SetUpStep::Run; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_setting_up_smallest", || { let value = SettingUp::new(&CEILINGS, SettingUpParts { step: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingUp::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_setting_up_full", || { let value = SettingUp::new(&CEILINGS, SettingUpParts { step: Some(SetUpStep::Fetch) }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingUp::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_set_up_binary_forgejo_smallest", || { let value = SetUpBinary::Forgejo; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpBinary::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_set_up_binary_forgejo_full", || { let value = SetUpBinary::Forgejo; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpBinary::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_set_up_binary_runner_smallest", || { let value = SetUpBinary::Runner; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpBinary::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_set_up_binary_runner_full", || { let value = SetUpBinary::Runner; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpBinary::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_set_up_fetched_smallest", || { let value = SetUpFetched::new(&CEILINGS, SetUpFetchedParts { binary: SetUpBinary::Forgejo, done: 0_u64, total: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpFetched::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_set_up_fetched_full", || { let value = SetUpFetched::new(&CEILINGS, SetUpFetchedParts { binary: SetUpBinary::Forgejo, done: u64::MAX, total: Some(u64::MAX) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SetUpFetched::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_setting_up_smallest", || { let value = SettingUp::new(&CEILINGS, SettingUpParts { step: None, fetched: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingUp::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_setting_up_full", || { let value = SettingUp::new(&CEILINGS, SettingUpParts { step: Some(SetUpStep::Fetch), fetched: Some(SetUpFetched::new(&CEILINGS, SetUpFetchedParts { binary: SetUpBinary::Forgejo, done: u64::MAX, total: Some(u64::MAX) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 0, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingUp::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_failed_step_fetch_smallest", || { let value = FailedStep::Fetch; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FailedStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_failed_step_fetch_full", || { let value = FailedStep::Fetch; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FailedStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_failed_step_prepare_smallest", || { let value = FailedStep::Prepare; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FailedStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -19775,8 +20020,8 @@ mod golden_tests {
         ("enum_connection_not_connected_full", || { let value = Connection::NotConnected; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_connection_not_set_up_smallest", || { let value = Connection::NotSetUp; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_connection_not_set_up_full", || { let value = Connection::NotSetUp; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_connection_setting_up_smallest", || { let value = Connection::SettingUp(SettingUp::new(&CEILINGS, SettingUpParts { step: None }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_connection_setting_up_full", || { let value = Connection::SettingUp(SettingUp::new(&CEILINGS, SettingUpParts { step: Some(SetUpStep::Fetch) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 1, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_connection_setting_up_smallest", || { let value = Connection::SettingUp(SettingUp::new(&CEILINGS, SettingUpParts { step: None, fetched: None }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_connection_setting_up_full", || { let value = Connection::SettingUp(SettingUp::new(&CEILINGS, SettingUpParts { step: Some(SetUpStep::Fetch), fetched: Some(SetUpFetched::new(&CEILINGS, SetUpFetchedParts { binary: SetUpBinary::Forgejo, done: u64::MAX, total: Some(u64::MAX) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 1, 0, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_connection_set_up_failed_smallest", || { let value = Connection::SetUpFailed(SetUpFailed::new(&CEILINGS, SetUpFailedParts { why: Box::from([].as_slice()), at: None }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_connection_set_up_failed_full", || { let value = Connection::SetUpFailed(SetUpFailed::new(&CEILINGS, SetUpFailedParts { why: Box::from([0_u8, 127_u8, 255_u8].as_slice()), at: Some(FailedStep::Fetch) }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 3, 0, 127, 255, 1, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_connection_connecting_smallest", || { let value = Connection::Connecting; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Connection::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
