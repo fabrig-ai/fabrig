@@ -15,7 +15,6 @@ use jig_client::contract as c;
 use skein_lib::{Queue, Token};
 const PROVIDER: u32 = 17;
 const NAME: [u8; 16] = [97; 16];
-#[expect(clippy::manual_map, reason = "the step-test subset reads optional ways without closures")]
 fn go(root: &mut crate::Domain, way: Option<Way>) {
     let way = match way {
         Some(way) => Some(connect_model::model_way(way)),

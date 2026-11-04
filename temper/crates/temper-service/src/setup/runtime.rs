@@ -48,7 +48,6 @@ impl Runtime {
             initial,
         }
     }
-    #[expect(clippy::manual_map, reason = "the configuration boundary uses explicit matches")]
     pub(super) fn git_program(&self, mode: domain::Mode) -> Option<Box<[u8]>> {
         match mode {
             domain::Mode::Fake => match &self.machine.fake {
@@ -235,7 +234,6 @@ fn direct(source: &crate::settings::Forge) -> Option<core::net::SocketAddr> {
         }
     }
 }
-#[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 fn intent(first: Option<&domain::FirstIntent>) -> Option<lifecycle::Intent> {
     match first {
         Some(first) => Some(lifecycle::Intent {

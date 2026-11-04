@@ -123,7 +123,6 @@ fn filter_control(b: &mut Builder, bindings: &mut Bindings, name: &[u8], filter:
     b.bind(bindings.insert(Act::Filter { filter }));
     b.close();
 }
-#[expect(clippy::manual_map, reason = "view code spells out the optional goal")]
 fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindings: &mut Bindings) {
     b.open(Role::Slot);
     b.style(look::FILTERS);

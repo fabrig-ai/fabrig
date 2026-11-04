@@ -267,7 +267,6 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             root::HostRequest::Dropped { .. } => {}
         },
         root::WorkerRequest::ReadResult { payload, outcome } => {
-            #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
             let change = match engine.domain.change_resource(payload) {
                 Some((connector, kind, resource)) => {
                     Some(temper_engine_smith::ChangeResource { connector, kind, resource })

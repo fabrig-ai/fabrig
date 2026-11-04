@@ -64,7 +64,6 @@ enum BoxOutput {
 impl Service {
     /// Payload-free closure and queue state at the shell's wait boundary.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
     pub fn wait_state(&self) -> crate::diagnostics::Wait {
         use crate::diagnostics::{Wait, WaitEngine, WaitOwner};
         Wait {
@@ -397,7 +396,6 @@ impl Service {
     /// Snapshot current readiness without advancing any component or exposing payloads.
     /// Only diagnostics callers pay for walking and copying the pending event tags.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
     pub fn pending(&self, now: Time) -> crate::diagnostics::Pending {
         crate::diagnostics::Pending {
             work_pending: self.work_pending(now),
@@ -1090,7 +1088,6 @@ impl Service {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 pub(crate) fn playground_config(
     demo: Option<&settings::Demo>,
     deadline: skein_lib::Duration,
@@ -1105,7 +1102,6 @@ pub(crate) fn playground_config(
 pub(crate) const GITHUB_REMOTE: &[u8] = b"https://github.com";
 
 /// Machine places passed to the root (temper/docs/design/protocol/configuration.md, 3).
-#[expect(clippy::manual_map, reason = "the configuration boundary uses explicit matches")]
 pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
     use temper_engine_domain_forge::{Address, Machine, Place};
     let github = match &machine.github {
