@@ -233,6 +233,7 @@ fn route(call: &http::Call) -> Option<Route> {
         R::Branches { .. } => Route::Branches,
         R::PullFiles { .. } => Route::PullFiles,
         R::Compare { .. } => Route::Compare,
+        R::Commits { .. } => Route::Commits,
         R::Raw { .. } => Route::Raw,
         R::RulesForBranch { .. } | R::ClassicProtection { .. } => Route::Protection,
         R::Ruleset { .. } => Route::Protections,

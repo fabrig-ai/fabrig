@@ -6,8 +6,9 @@ each item checked against main.
 
 - **One file per item,** `Dnnn-<slug>.md`. IDs start at `D001`, are
   temper's own, and are never reused.
-- **The branch that pays an item deletes its file,** and its row here;
-  git keeps the history.
+- **The highest ID used is D012.** The branch that adds an item raises it, so a paid ID isn't handed out again.
+- **The branch that pays an item deletes its file;** there is no row to delete.
+  Git keeps the history.
 - **An item we choose to keep** stays, with status `kept` and its reason,
   so that a review does not find it again.
 - **Reviews** add items; a dated review's raw report goes to `reviews/`,
@@ -58,7 +59,5 @@ checks.
 
 ## Index
 
-| ID | title | kind | value | size | status |
-|---|---|---|---|---|---|
-| D001 | temper-service's adapter overlap exceeds the debt measure's bound | duplication | low | M | open |
-| D012 | The forge's domain and route files, and nine more, are too large to read | complexity | medium | L | open |
+`python3 -I -B tools/debt/debt.py temper` prints it, from the repository's root, from each item file's
+title, kind, value, size and status; with no tree, all five (`tools/debt/README.md`).

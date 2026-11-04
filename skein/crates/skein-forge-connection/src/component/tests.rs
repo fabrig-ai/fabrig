@@ -173,3 +173,17 @@ fn renewal_local_signing_refusal_stops_invalid_key() {
     assert_eq!(h.stopped(), Some((fixtures::FORGE, crate::Stopped::Invalid { value: crate::Value::Key })));
     assert_eq!(h.connected_count, 1);
 }
+
+#[test]
+fn an_unheld_failure_does_not_wake_a_closing_connection() {
+    let mut h = fixtures::Harness::ready();
+    h.call(1, fixtures::REPO, api::Op::Read(api::Read::Branch { branch: Box::from(fixtures::BRANCH) }));
+    h.run(skein_lib::Duration::ZERO);
+    h.connected(fixtures::FORGE);
+    fixtures::branch_answers(&mut h, fixtures::FORGE);
+    assert!(h.answered(1).is_some());
+    let owner = *h.component.connections.iter().next_back().expect("idle call connection").0;
+    assert!(!h.component.holders.contains_key(&owner));
+    h.component.up(&h.env, skein_io::Event::Failed { owner, error: skein_io::Error::Reset }, &mut h.up, &mut h.io);
+    assert_ne!(h.component.next_deadline(), Some(h.env.now));
+}

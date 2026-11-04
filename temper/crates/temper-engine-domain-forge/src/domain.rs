@@ -166,6 +166,8 @@ pub struct Domain {
     pulls: Map<Name, PullState>,
     /// Each pull's last mergeable, unsaved: a restart reads it afresh.
     pull_mergeable: Map<Name, bool>,
+    /// Last judged reviews per live change, unsaved: a restart reads them afresh.
+    pub(crate) review_facts: Map<u64, crate::ReviewFacts>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
     pub(crate) entries: Map<u64, Outboxed>,
     pub(crate) flights: Map<(u64, u64), ()>,
@@ -476,6 +478,17 @@ impl Domain {
         }
     }
 
+    /// Retain the last judged reviews for a live change without writing its record.
+    /// Returns whether a watched panel needs a new document.
+    pub fn keep_review_facts(&mut self, task: u64, facts: crate::ReviewFacts) -> bool {
+        let Some(row) = self.changes.get(&task) else { return false };
+        if row.terminal() || self.review_facts.get(&task) == Some(&facts) {
+            return false;
+        }
+        self.review_facts.insert(task, facts).expect("one review read per bounded live change");
+        true
+    }
+
     /// Keep the connector's retry deadline; the root carries no timer policy.
     pub fn wait_change(&mut self, env: &Env<Limits>, task: u64, until: Option<skein_lib::Wall>) {
         let until = match until {
@@ -586,6 +599,7 @@ impl Domain {
             heads: Map::with_capacity(l.client.resources),
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
+            review_facts: Map::with_capacity(l.changes),
             ci: Map::with_capacity(l.subscriptions),
             entries: Map::with_capacity(l.entries),
             flights: Map::with_capacity(l.entries),
@@ -617,10 +631,7 @@ impl Domain {
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
             setting_rows: Map::with_capacity(crate::settings::rows(l).ok_or(skein_forge::api::Error::TooLarge)?),
             setting_stock: None,
-            held_rules: crate::settings::HeldRules {
-                deployment: Box::new([]),
-                projects: Map::with_capacity(l.judge_projects),
-            },
+            held_rules: empty_rules(l),
             held_charters: crate::ForgeCharters { change: 0, review: 0 },
             verifications: Map::with_capacity(l.changes),
             restore_phase: RestorePhase::Cold,
@@ -2988,6 +2999,19 @@ fn status(ci: skein_forge::api::Ci) -> change::Status {
     }
 }
 
+fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> change::Status {
+    match result {
+        Ok(skein_forge::api::Answer::Commits { commits, more: false }) => {
+            if commits.is_empty() {
+                change::Status::Passed
+            } else {
+                change::Status::Failed
+            }
+        }
+        Ok(_) | Err(_) => change::Status::Unknown,
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one bounded fresh-read chain preserves its stage and facts")]
 fn step_read(
     d: &mut Domain,
@@ -3201,18 +3225,10 @@ fn step_read(
             };
             let Some(base_tip) = pending.base_tip else { unreachable!("base read") };
             pending.stage = StepStage::Compare;
-            skein_forge::api::Read::Compare { before: base_tip, after: head }
+            skein_forge::api::Read::Commits { before: head, after: base_tip, page: 1 }
         }
         StepStage::Compare => {
-            match result {
-                Ok(skein_forge::api::Answer::Compare { before, after, contains_before, .. })
-                    if Some(before) == pending.base_tip && Some(after) == pending.branch =>
-                {
-                    pending.contains_base =
-                        if contains_before { change::Status::Passed } else { change::Status::Failed };
-                }
-                Ok(_) | Err(_) => pending.contains_base = change::Status::Unknown,
-            }
+            pending.contains_base = ancestry_status(result);
             if let Some(pull) = &pending.pull {
                 pending.stage = StepStage::Reviews(1);
                 skein_forge::api::Read::Reviews { number: pull.number, page: 1 }
@@ -5952,6 +5968,7 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
     if !row.terminal() {
         return;
     }
+    d.review_facts.remove(&row.task);
     let read = match d.panel_ci.get(&row.task) {
         Some(read) if Some(read.head) == row.change.last_head => Some(*read),
         Some(_) | None => row.ci,
@@ -6378,4 +6395,8 @@ fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip:
         length = sum;
     }
     length <= skein_lib::usize_of(bound)
+}
+
+fn empty_rules(limits: &Limits) -> crate::settings::HeldRules {
+    crate::settings::HeldRules { deployment: Box::new([]), projects: Map::with_capacity(limits.judge_projects) }
 }

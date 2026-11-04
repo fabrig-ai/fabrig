@@ -1649,9 +1649,8 @@ VM tier its one real machine relies on.
 - **The newer model:** `worst_case` and `MAX_OUT` stay in hearth as
   allowed old forms, which may only fall
   (`skein/docs/foundation/programming-model.md`, 6.3). Moving to the
-  model is hearth's debt (`hearth/docs/development/debt/README.md`, D001
-  to D003), and 8.4's memory check and domain/render.md, 8.4 change with
-  it.
+  model is hearth's debt (`hearth/docs/development/debt/`, D001 to D003),
+  and 8.4's memory check and domain/render.md, 8.4 change with it.
 - **Live changes on a real machine:** every item domain/slots.md, section 15
   lists as to verify, run as 7.3's scenarios. Until then the fake
   machine follows the kernel's and systemd's sources (257 to 262) as

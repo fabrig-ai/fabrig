@@ -436,6 +436,7 @@ fn github_app_server_round_trip() {
                 | Request::Branches { .. }
                 | Request::PullFiles { .. }
                 | Request::Compare { .. }
+                | Request::Commits { .. }
                 | Request::Raw { .. }
                 | Request::RulesForBranch { .. }
                 | Request::Ruleset { .. }
@@ -512,6 +513,7 @@ fn write_answer(case: &DocumentCase, out: &mut Writer) -> Result<(), skein_lib::
                     | Row::Run(_)
                     | Row::Issue(_)
                     | Row::Comment(_)
+                    | Row::CommitMessage(_)
                     | Row::Commit(_)
                     | Row::Entry { .. }
                     | Row::File(_)

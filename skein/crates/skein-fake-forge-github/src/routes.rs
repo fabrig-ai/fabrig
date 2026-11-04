@@ -110,6 +110,9 @@ pub(crate) fn decode(method: Method, target: &[u8], limits: &Limits) -> Option<R
         Request::PullFiles { owner, name, number, page, per_page } if page > 0 && per_page > 0 => {
             Route::Token(Token::Read(reads::Read::PullFiles { owner, name, number, page, per_page }))
         }
+        Request::Commits { owner, name, before, after, page, per_page } if page > 0 && per_page > 0 => {
+            Route::Token(Token::Read(reads::Read::Commits { owner, name, before, after, page, per_page }))
+        }
         Request::Compare { owner, name, before, after, per_page } if per_page > 0 => {
             Route::Token(Token::Read(reads::Read::Compare { owner, name, before, after, per_page }))
         }
@@ -206,6 +209,7 @@ pub(crate) fn decode(method: Method, target: &[u8], limits: &Limits) -> Option<R
         | Request::Followed { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::RulesForBranch { .. }
         | Request::Collaborators { .. }
         | Request::Enqueue { .. }

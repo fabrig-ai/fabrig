@@ -152,6 +152,8 @@ pub fn panel_parts() -> v1::ChangePanelParts {
         hold: None,
         runs: None,
         ci: v1::Ci::Unknown,
+        approvals: List::with_capacity(0),
+        unmapped_reviews: List::with_capacity(0),
         gates: gates(0),
         repairs: v1::Used::new(&limits, v1::UsedParts { used: 1, limit: 2 }).expect("repairs"),
         resolutions: v1::Used::new(&limits, v1::UsedParts { used: 3, limit: 4 }).expect("resolutions"),
@@ -334,6 +336,23 @@ pub fn panel_at_bound(field: PanelBound, count: u32) -> Result<v1::ChangePanel, 
             parts.step = v1::Step::Queued(v1::Queued::new(&limits, v1::QueuedParts { place: 1, ahead })?);
         }
         PanelBound::Gates => parts.gates = gates(count),
+        PanelBound::Approvals | PanelBound::Counted => parts.approvals = approval_lines(field, count)?,
+        PanelBound::Unmapped => {
+            parts.unmapped_reviews = List::with_capacity(count);
+            for account in 0..count {
+                parts
+                    .unmapped_reviews
+                    .push(v1::UnmappedReview::new(
+                        &limits,
+                        v1::UnmappedReviewParts {
+                            account: u64::from(account),
+                            head: [1; 32],
+                            verdict: v1::Verdict::Approved,
+                        },
+                    )?)
+                    .expect("review slots");
+            }
+        }
         PanelBound::Owner => {
             parts.owner = field_bytes(count);
         }
@@ -355,6 +374,9 @@ pub enum PanelBound {
     Address,
     Ahead,
     Gates,
+    Approvals,
+    Counted,
+    Unmapped,
     Owner,
     Name,
     Branch,
@@ -447,4 +469,49 @@ fn question_bounds_accept_at_and_refuse_one_past() {
             );
         }
     }
+}
+
+fn approval_lines(field: PanelBound, count: u32) -> Result<List<v1::Approval>, v1::Problem> {
+    let limits = limits();
+    let (lines, reviews) = match field {
+        PanelBound::Counted => (1, count),
+        PanelBound::Address
+        | PanelBound::Ahead
+        | PanelBound::Gates
+        | PanelBound::Approvals
+        | PanelBound::Unmapped
+        | PanelBound::Owner
+        | PanelBound::Name
+        | PanelBound::Branch
+        | PanelBound::Landing => (count, 0),
+    };
+    let mut approvals = List::with_capacity(lines);
+    for number in 0..lines {
+        let mut counted = List::with_capacity(reviews);
+        for person in 0..reviews {
+            counted
+                .push(v1::CountedReview::new(
+                    &limits,
+                    v1::CountedReviewParts { person: u64::from(person), head: [1; 32] },
+                )?)
+                .expect("person slots");
+        }
+        approvals
+            .push(v1::Approval::new(
+                &limits,
+                v1::ApprovalParts {
+                    scope: 0,
+                    number,
+                    role: 0,
+                    freshness: v1::RuleFreshness::Clean,
+                    required: 1,
+                    read: v1::ReviewRead::Complete,
+                    counted,
+                    remaining: Some(1),
+                    refused: false,
+                },
+            )?)
+            .expect("rule slots");
+    }
+    Ok(approvals)
 }
