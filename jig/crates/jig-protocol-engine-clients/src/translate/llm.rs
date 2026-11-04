@@ -213,10 +213,10 @@ pub(crate) fn refused(
         },
         w::Ask::Amend(value) => (None, lacking(value.change().llm().as_ref(), models)),
         w::Ask::Compound(value) => operations(value.operations(), models, limits)?,
+        w::Ask::ChangeSettings(value) => (None, settings_items(value.items(), models, limits)?),
         w::Ask::RemoveProject(_)
         | w::Ask::SetVisibility(_)
         | w::Ask::Rename(_)
-        | w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)
         | w::Ask::MakeProject(_)
