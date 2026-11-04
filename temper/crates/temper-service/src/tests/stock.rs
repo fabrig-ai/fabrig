@@ -924,3 +924,192 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
         );
     }
 }
+
+// temper/docs/design/domain/agent.md, 4.3.1;
+// temper/docs/design/protocol/configuration.md, 13.9.
+fn reference_goal_template() -> jig_domain_core::Template {
+    use settings_form::view as c;
+    let limits = temper_client_tools::limits::form();
+    let decoded =
+        settings_form::file::decode(include_bytes!("../../../../docs/examples/reference/settings.json"), &limits)
+            .expect("reference settings");
+    let mut item = decoded
+        .into_boxed()
+        .into_vec()
+        .into_iter()
+        .find(|item| item.setting == c::Setting::Template(c::SettingNumber { number: 4 }))
+        .expect("reference goal template 4");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) = &mut item.edit else {
+        panic!("reference template")
+    };
+    template.llm = None; // The scripted worker uses the generated model.
+    let mut items = skein_lib::List::with_capacity(1);
+    items.push(item).unwrap();
+    let change = settings_form::wire::wire_change_settings(
+        &c::ChangeSettings { against: 1, items, running: c::Running::Stays },
+        &limits.settings,
+    )
+    .expect("settings wire");
+    let mut items =
+        jig_protocol_engine_clients::translate::settings::items(change.into_parts().items, &[], &limits.settings)
+            .expect("core template")
+            .into_vec();
+    let jig_domain_core::settings::Edit::Set(jig_domain_core::settings::Value::Template(template)) =
+        items.pop().unwrap().edit
+    else {
+        panic!("template value")
+    };
+    *template
+}
+
+fn reference_goal_defaults(engine: &config::Engine) -> jig_domain_core::settings::Defaults {
+    let mut defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    // Only the reference's executors and funding are added: tool ceilings stay stock.
+    for (number, source) in [(5, 0), (7, 1)] {
+        let mut charter = defaults.charters[source].clone();
+        charter.number = number;
+        defaults.charters = [defaults.charters.as_ref(), &[charter]].concat().into();
+    }
+    defaults.templates = [defaults.templates.as_ref(), &[reference_goal_template()]].concat().into();
+    let budget = 2_500_000; // Funds the coordinator, change and designer at stock run caps.
+    defaults.rules.period_spend = budget;
+    let policy = &mut defaults.policies.get_mut(&1).unwrap().policy;
+    policy.period_spend = budget;
+    policy.roles[0].period_spend = budget;
+    for authority in [&mut defaults.rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
+        authority.budget.spend = budget;
+        authority.delegation.kinds = [
+            authority.delegation.kinds.as_ref(),
+            &[jig_domain_authority::Executor::Charter(5), jig_domain_authority::Executor::Charter(7)],
+        ]
+        .concat()
+        .into();
+    }
+    defaults
+}
+
+fn reference_goal_request(
+    world: &temper_engine_domain_world::forge_routes::World,
+    template: &jig_domain_core::Template,
+) -> jig_domain_people::Ask {
+    use jig_domain_people as people;
+    let people::Ask::Create { project, mut batch } = world.chat(1, b"Design S on the goal branch") else {
+        panic!("one goal")
+    };
+    let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("coordinator") };
+    let jig_domain_tasks::Contract::Report { words } = template.contract else { panic!("report") };
+    assert_eq!(template.budget, people::TemplateBudget::Given);
+    assert_eq!(template.deadline, people::TemplateDeadline::Given);
+    let member = &mut batch[0];
+    member.executor = people::TaskExecutor::Agent { charter };
+    member.contract = people::Contract::Report { words };
+    member.budget = people::Budget::Named;
+    member.authority.spend = 2_500_000;
+    member.authority.deadline = Some(skein_lib::Wall::from_nanos(1_800_000_000_000_000_000));
+    member.deadline = people::Deadline::Named;
+    member.tracked = template.tracked;
+    member.label = template.label;
+    member.flags = people::Flags {
+        conversation: template.flags.conversation,
+        listed: template.flags.listed,
+        retention: people::Retention::Kept,
+        ended_by: people::EndedBy::Result,
+    };
+    member.llm = None;
+    member.symbols = template
+        .resources
+        .iter()
+        .map(|symbol| people::Symbol { connector: symbol.connector, symbol: symbol.symbol })
+        .collect();
+    people::Ask::Create { project, batch }
+}
+
+fn reference_goal_world() -> (temper_engine_domain_world::forge_routes::World, temper_engine_domain::Assignment) {
+    use skein_lib::{ReplyTo, Token};
+    use temper_engine_domain as root;
+    use temper_engine_domain_world::{
+        forge_routes::{Until, World},
+        protocol,
+    };
+    let engine = engine(&single_model());
+    let defaults = reference_goal_defaults(&engine);
+    let limits = temper_engine_domain_world::forge_routes::box_limits();
+    let mut world = World::configured_stock_limits(&defaults, &engine.llm.models[0], &limits);
+    world.adopt();
+    let mut event = protocol::hello_slots(Token::new(7), 2, Box::new([]));
+    let root::Event::Worker(root::WorkerInput::Link { link: root::Link::Hello { hello, .. }, .. }) = &mut event else {
+        panic!("hello")
+    };
+    hello.bounds.turns = 800;
+    hello.bounds.time = skein_lib::Duration::from_secs(28_800);
+    hello.bounds.spend = defaults.rules.maximum_run_spend;
+    let model = &engine.llm.models[0];
+    hello.bounds.models = Box::new([jig_domain_host::ModelBound {
+        name: model.name.clone(),
+        window: model.window,
+        output: model.output,
+    }]);
+    hello.bounds.message_bytes = limits.tasks.message_bytes;
+    hello.bounds.inbox = limits.tasks.run_inbox;
+    world.send(event);
+    world.send(root::Event::Party(root::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(1001)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [31; 16],
+        ask: reference_goal_request(&world, defaults.templates.last().unwrap()),
+    }));
+    world.until(Until::Assigned);
+    let goal = world.assigned.last().expect("reference coordinator run").clone();
+    (world, goal)
+}
+
+#[test]
+fn reference_goal_can_plan_changes_into_its_own_branch() {
+    use temper_engine_domain as root;
+    let (mut world, goal) = reference_goal_world();
+    let charter = temper_engine_smith::charter(&goal);
+    let change = charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"change").expect("change offered");
+    let schema = core::str::from_utf8(&change.schema).unwrap();
+    for member in ["landing", "producer", "after", "llm", "questions"] {
+        assert!(schema.contains(&format!("\"{member}\"")), "goal change schema lacks {member}");
+    }
+    let input = smith_domain_run::HostInput::attested(
+        br#"{"name":"S","words":"Write the shared design","landing":"goal","producer":7,"after":[],"questions":"up"}"#
+            .as_slice()
+            .into(),
+    )
+    .unwrap();
+    let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
+        smith_domain_run::CallName { activation: goal.attempt, completion: 1, position: 1 },
+        b"change",
+        &input,
+    )
+    .expect("structured change") else {
+        panic!("change call")
+    };
+    let answer = world.scripted_call(&goal, 94, call.tool);
+    let root::CallAnswer::Delegated(made) = answer else { panic!("S admitted: {answer:?}") };
+    world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+    let key = root::Key::Forge(temper_engine_domain_forge::Key::Change(made[0].task));
+    let Some(root::Record::Forge { row }) = world.store.rows.get(&key) else { panic!("S stored") };
+    let temper_engine_domain_forge::Stored::Change(change) = row.as_ref() else { panic!("change row") };
+    assert_eq!(change.base.as_ref(), format!("temper/{}/g{}", goal.task, goal.task).as_bytes());
+    assert_eq!(change.producing_charter, 7);
+    let producer = world.assigned.iter().find(|run| run.task != goal.task).expect("S producer run");
+    assert_eq!(producer.charter, 7);
+    world.send(root::Event::Party(root::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1002)),
+        sign_in: world.signed_in.unwrap(),
+        key: [32; 16],
+        ask: jig_domain_people::Ask::Cancel {
+            project: 1,
+            task: goal.task,
+            reason: b"Regression complete".as_slice().into(),
+            grace: None,
+        },
+    }));
+    world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+    world.close();
+}
