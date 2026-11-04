@@ -10,6 +10,7 @@
 //! and answers each line with itself. SIGINT and SIGTERM arrive through
 //! io (io.md, section 7): it stops admitting clients, drains its sessions
 //! and exits successfully. A listener failure exits with a diagnostic.
+#![forbid(unsafe_code)]
 
 use std::env;
 use std::net::SocketAddr;

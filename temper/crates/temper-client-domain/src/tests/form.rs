@@ -408,6 +408,7 @@ fn first_rows(
             w::ForgeRow::new(
                 &w::CEILINGS,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number,
                     kind: w::Kind::Forgejo,
                     mode,

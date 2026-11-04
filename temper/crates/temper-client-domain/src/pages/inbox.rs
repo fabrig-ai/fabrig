@@ -72,7 +72,6 @@ impl Inbox {
         }
         self.next
     }
-    #[expect(clippy::manual_map, reason = "step code uses an explicit optional kind")]
     fn refresh(&mut self, source: &Client, out: &mut Queue<Request>) {
         for card in &self.cards {
             client(out, jig_client::Event::Unwatch { handle: card.handle });
@@ -260,7 +259,6 @@ fn position(object: contract::InboxObject) -> Option<u64> {
     if let contract::InboxObject::Result { position } = object { Some(position) } else { None }
 }
 
-#[expect(clippy::manual_map, reason = "step code spells out optional reply facts")]
 fn unread(reply: Option<&contract::TaskLine>) -> Option<contract::Count> {
     match reply {
         Some(line) => match &line.conversation {

@@ -18,6 +18,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 - Comments say what is true now, in the design's words: no history ("originally"), no emphasis words ("actual", "genuine").
 - Code cites a design section at module or type level, not on every field.
 - Step crates follow the strict subset (`skein/docs/foundation/programming-model.md, 10`): no `std`, no `unsafe` but where a module says why, every `match` lists every variant (no `_`, no `matches!`), no indexing, no unchecked arithmetic, no `as`, no `unwrap`. The workspace's lints and each tree's `clippy.toml` hold it.
+- A package's `[lints]` block and its `clippy.toml` are copies of a definition (`tools/lints/design.md`): a new crate takes a profile with `tools/lints/lints.py --set`, and the gate holds it there.
 - Test crates are ordinary Rust under their tree's `tests/clippy.toml`: one thread, one loop, and a seed replays.
 - Some Markdown is read by tests (`.config/gate/read-by-tests.txt`): a docs change there needs its tests.
 - Public code names no path or address of a machine outside the repository, and nothing private: emails, UUIDs, session names, tokens.

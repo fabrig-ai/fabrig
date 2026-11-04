@@ -1,8 +1,6 @@
 //! Crash-cut file owners share the world's scheduler and memory accounting
 //! (io.md, 5.2 and 5.3; simulator.md, 3.3). Recovery only reads the record.
 
-#![expect(clippy::wildcard_enum_match_arm, reason = "unexpected scenario terminals retain their debug value")]
-
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::file::{Event, Expect, Request};
 use skein_io::file_layer::{self, FileIo};

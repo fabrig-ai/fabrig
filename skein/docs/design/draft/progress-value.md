@@ -126,8 +126,7 @@ with a fraction, beside the `aria-valuetext` it writes today:
 
 ## 10. Open questions
 
-- **The width's channel:** `data-progress` and 101 rules in
-  `skein-ui.css`, or the page part setting `--skein-ui-progress` through
-  the CSSOM, which the policy allows but no part of the page does
-  today? Default: the attribute, so the mapping stays attributes alone
-  and its goldens see all of it.
+None. The width's channel is `data-progress` with `skein-ui.css`'s
+rules, not the page part setting `--skein-ui-progress` through the
+CSSOM: the mapping stays attributes alone and its goldens see all of
+it (the user left the choice to this draft, 2026-11-04).

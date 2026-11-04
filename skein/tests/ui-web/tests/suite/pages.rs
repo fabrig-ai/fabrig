@@ -24,12 +24,13 @@ fn state() -> State {
                     label: records::Label::Task,
                 },
             )
-            .unwrap(),
+            .expect("fixture note fits the record ceilings"),
         )
-        .unwrap();
-    let notes = records::Notes::new(&records::CEILINGS, records::NotesParts { notes }).unwrap();
-    let mut writer = Writer::new(usize::try_from(notes.measure()).unwrap());
-    notes.encode(&mut writer).unwrap();
+        .expect("room for the fixture note");
+    let notes = records::Notes::new(&records::CEILINGS, records::NotesParts { notes })
+        .expect("fixture notes fit the record ceilings");
+    let mut writer = Writer::new(usize::try_from(notes.measure()).expect("encoded notes size fits usize"));
+    notes.encode(&mut writer).expect("writer holds the measured notes");
     let mut state = State::start(1, b"/", &[], 0, b"en");
     state.step(
         Report::Answered { exchange: 0, status: 200, body: writer.finish() },

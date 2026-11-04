@@ -1,6 +1,8 @@
 //! The shipped echo adapter (examples.md, sections 4 and 6; shell.md, 12).
 //! It keeps the service, limits and which diagnostics were said, and knows
 //! no peer state beyond the service's public observations.
+#![forbid(unsafe_code)]
+
 use skein_echo_service::{self as service, Limits, Service};
 use skein_io::Addr;
 use skein_io::kernel::{Complete, Exit, Submit};

@@ -16,6 +16,7 @@ pub(super) fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            host: b"git.example:3000".as_slice().into(),
             number,
             kind,
             mode,
@@ -572,6 +573,7 @@ pub(super) fn first_rows(connection: w::Connection, state: w::FirstState) -> Lis
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                host: b"git.example:3000".as_slice().into(),
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,

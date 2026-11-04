@@ -23,6 +23,7 @@ pub enum Fault {
 
 /// An in-memory CDP peer and the browser step machine it drives.
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "the fake configures independent visible page conditions")]
 pub struct World {
     pub browser: Browser,
     pub env: Env<Limits>,
@@ -54,10 +55,12 @@ impl Default for World {
 }
 
 impl World {
+    #[must_use]
     pub fn new() -> World {
         Self::with_limits(Limits::default())
     }
 
+    #[must_use]
     pub fn with_limits(limits: Limits) -> World {
         World {
             browser: Browser::new(Token::new(1), &limits),
@@ -85,7 +88,7 @@ impl World {
     }
 
     /// The scenario's button saves a file; the seed chooses before or after its reply,
-    /// and whether its progress waits for release_delayed.
+    /// and whether its progress waits for `release_delayed`.
     pub fn download_on_press(&mut self, seed: u64, canceled: bool) {
         self.download_on_press = Some((seed, canceled));
     }
@@ -142,7 +145,7 @@ impl World {
     fn mark_answered(&mut self, reply: &[u8]) {
         if let Some(document) =
             reply.strip_suffix(&[0]).and_then(|bytes| Document::parse(bytes, self.env.limits.message).ok())
-            && let Some(id) = document.root().get(b"id").and_then(|id| id.u64())
+            && let Some(id) = document.root().get(b"id").and_then(skein_browser::wire::decode::Value::u64)
         {
             self.outstanding.remove(&id);
         }
@@ -159,6 +162,7 @@ impl World {
         self.drive();
     }
 
+    #[expect(clippy::too_many_lines, reason = "one loop drives the browser and its scripted CDP peer")]
     pub fn drive(&mut self) {
         let mut replies = VecDeque::new();
         for _ in 0..1000 {
@@ -178,14 +182,15 @@ impl World {
                         let document =
                             Document::parse(&bytes[..bytes.len() - 1], self.env.limits.command).expect("valid command");
                         let root = document.root();
-                        let id = root.get(b"id").and_then(|id| id.u64()).expect("command id");
+                        let id = root.get(b"id").and_then(skein_browser::wire::decode::Value::u64).expect("command id");
                         self.outstanding.insert(id, self.env.now.saturating_add(self.env.limits.answer));
-                        let method = root.get(b"method").and_then(|method| method.text()).expect("method");
-                        let session = root.get(b"sessionId").and_then(|session| session.text());
+                        let method =
+                            root.get(b"method").and_then(skein_browser::wire::decode::Value::text).expect("method");
+                        let session = root.get(b"sessionId").and_then(skein_browser::wire::decode::Value::text);
                         if method.as_ref() == b"DOM.getNodeForLocation" {
                             let params = root.get(b"params").expect("hit test params");
-                            let x = params.get(b"x").and_then(|value| value.i64()).expect("hit x");
-                            let y = params.get(b"y").and_then(|value| value.i64()).expect("hit y");
+                            let x = params.get(b"x").and_then(skein_browser::wire::decode::Value::i64).expect("hit x");
+                            let y = params.get(b"y").and_then(skein_browser::wire::decode::Value::i64).expect("hit y");
                             self.hit_points.push((x, y));
                         }
                         let result = self.reply(&method, root.get(b"params"));
@@ -213,7 +218,7 @@ impl World {
                             && root
                                 .get(b"params")
                                 .and_then(|params| params.get(b"type"))
-                                .and_then(|kind| kind.text())
+                                .and_then(skein_browser::wire::decode::Value::text)
                                 .as_deref()
                                 == Some(b"mouseReleased")
                             && let Some((seed, canceled)) = self.download_on_press.take()
@@ -270,10 +275,9 @@ impl World {
                             );
                         }
                     }
-                    Down::Replies(stream::Down::Demand { .. }) | Down::Errors(stream::Down::Demand { .. }) => {}
-                    Down::Commands(stream::Down::Finish)
-                    | Down::Replies(stream::Down::Finish)
-                    | Down::Errors(stream::Down::Finish) => {}
+                    Down::Replies(stream::Down::Demand { .. } | stream::Down::Finish)
+                    | Down::Errors(stream::Down::Demand { .. } | stream::Down::Finish)
+                    | Down::Commands(stream::Down::Finish) => {}
                     Down::Replies(stream::Down::Send(_)) | Down::Errors(stream::Down::Send(_)) => {
                         panic!("browser sends only commands")
                     }
@@ -326,7 +330,6 @@ impl World {
             b"DOM.getDocument" => r#"{"root":{"nodeId":1}}"#,
             b"Browser.getVersion" => r#"{"product":"Chrome/153"}"#,
             b"Target.createBrowserContext" => r#"{"browserContextId":"ctx1"}"#,
-            b"Browser.setDownloadBehavior" | b"Browser.cancelDownload" => "{}",
             b"Target.createTarget" => r#"{"targetId":"t1"}"#,
             b"Target.attachToTarget" => r#"{"sessionId":"s1"}"#,
             b"DOM.resolveNode" => r#"{"object":{"type":"object","objectId":"scope-7"}}"#,
@@ -334,7 +337,8 @@ impl World {
             b"Accessibility.queryAXTree"
                 if self.ax_visible
                     && params.is_some_and(|params| {
-                        params.get(b"role").and_then(|role| role.text()).as_deref() == Some(b"button")
+                        params.get(b"role").and_then(skein_browser::wire::decode::Value::text).as_deref()
+                            == Some(b"button")
                             && params.get(b"accessibleName").is_none_or(|name| name.text().as_deref() == Some(b"Save"))
                     }) =>
             {

@@ -378,7 +378,6 @@ pub(super) fn files(sign_in: &SignIn, limits: Limits, files: &mut List<config::F
             .expect("issuer trust");
     }
 }
-#[expect(clippy::manual_map, reason = "the programming model keeps branches explicit without closures")]
 pub(super) fn resolve(
     sign_in: &SignIn,
     limits: Limits,

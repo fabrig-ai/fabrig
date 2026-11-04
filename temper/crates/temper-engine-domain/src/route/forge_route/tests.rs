@@ -91,7 +91,6 @@ fn landing_red_news(
     red_news(super::forge::RedOn::Landing { commit: SHA1, branch: Box::from(b"main".as_slice()), failing }, logs)
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn news_log(name: &[u8], end: Option<&[u8]>) -> super::forge::JobLog {
     let end = match end {
         Some(end) => Some(Box::from(end)),
@@ -1434,7 +1433,6 @@ fn landing_words_name_the_pull_and_use_the_forges_address_when_it_fits() {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn landing_forge(kind: super::forge::Kind, git: &[u8], web: Option<&[u8]>) -> super::forge::Configured {
     super::forge::Configured {
         admin_connect: false,
@@ -2228,7 +2226,6 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "test expectations use explicit matches without closures")]
 fn a_change_made_with_parameter_14_keeps_its_route() {
     use super::{Work, forge, forge_change, tasks};
     // forge, host, owner, repository, branch, main.

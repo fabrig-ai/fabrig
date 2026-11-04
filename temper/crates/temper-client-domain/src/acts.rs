@@ -50,7 +50,6 @@ pub fn offers(page: &ReadValue) -> &[Offered] {
     }
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code keeps optional owner facts explicit")]
 pub fn revision(page: &ReadValue) -> Option<contract::Revision> {
     match page {
         ReadValue::Task(v) => match &v.hold {

@@ -43,6 +43,7 @@ const ROOT_CLOSE: Token = Token::new(u64::MAX);
 pub struct Profile(pub PathBuf);
 
 impl Profile {
+    #[must_use]
     pub fn fresh() -> Profile {
         let mut path = std::env::temp_dir();
         let nonce = Clock::new().now().now.as_nanos();
@@ -58,6 +59,7 @@ impl Drop for Profile {
     }
 }
 
+#[must_use]
 pub fn chromium() -> PathBuf {
     if let Some(configured) = std::env::var_os("SKEIN_TEST_CHROMIUM") {
         let path = PathBuf::from(configured);
@@ -185,6 +187,7 @@ impl Scenario {
     }
 }
 
+#[expect(clippy::struct_excessive_bools, reason = "the referee records independent observations for each scenario")]
 pub struct Rig {
     browser: Browser,
     pages: serve::Pages,
@@ -225,6 +228,7 @@ pub struct Rig {
 }
 
 impl Rig {
+    #[must_use]
     pub fn new(chromium: &Path, profile: &Path, scenario: Scenario) -> Rig {
         let browser_limits = browser::Limits::default();
         let limits = io_limits(&browser_limits);
@@ -581,6 +585,10 @@ impl Rig {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one referee handles the browser's observable events for these scenarios"
+    )]
     fn browser_event(&mut self, event: Event) {
         if self.choice.is_some() {
             self.choice_event(&event);
@@ -684,22 +692,22 @@ impl Rig {
                         self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"combobox", b"Pick") });
                     }
                     Scenario::Button => {
-                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Press") })
+                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Press") });
                     }
                     Scenario::Form => {
-                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"textbox", b"Name") })
+                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"textbox", b"Name") });
                     }
                     Scenario::Covered => {
-                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Covered") })
+                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Covered") });
                     }
                     Scenario::Scroll => {
-                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Far away") })
+                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Far away") });
                     }
                     Scenario::Throw => {
-                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Throw") })
+                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Throw") });
                     }
                     Scenario::Csp => {
-                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"heading", b"CSP page") })
+                        self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"heading", b"CSP page") });
                     }
                     Scenario::Words => {
                         let mut words = query(b"StaticText", b"3 failing");
@@ -764,10 +772,6 @@ impl Rig {
                         unreachable!("dialog scenario handled above")
                     }
                     Scenario::Choose { .. } => unreachable!("choice handled by the face"),
-                    Scenario::Select => {
-                        self.stage = Stage::Pressing;
-                        self.ask(Request::Press { page: PAGE, op: PRESS, node, at: None });
-                    }
                     Scenario::Reduction | Scenario::Facts | Scenario::Dates => panic!("facts handled separately"),
                     Scenario::Form => {
                         self.stage = Stage::Typing;
@@ -791,7 +795,7 @@ impl Rig {
                         self.stage = Stage::Pressing;
                         self.ask(Request::Press { page: PAGE, op: PRESS, node, at: Some(Point { x: 30, y: 25 }) });
                     }
-                    Scenario::Button | Scenario::Covered | Scenario::Scroll | Scenario::Throw => {
+                    Scenario::Select | Scenario::Button | Scenario::Covered | Scenario::Scroll | Scenario::Throw => {
                         self.stage = Stage::Pressing;
                         self.ask(Request::Press { page: PAGE, op: PRESS, node, at: None });
                     }
@@ -889,7 +893,7 @@ impl Rig {
             Event::Met { op, seen } => {
                 assert_eq!(op, EXPECT);
                 assert_eq!(self.stage, Stage::Expecting);
-                assert_eq!(seen.len(), if matches!(self.scenario, Scenario::Csp) { 0 } else { 1 });
+                assert_eq!(seen.len(), u32::from(!matches!(self.scenario, Scenario::Csp)));
                 if matches!(self.scenario, Scenario::Throw | Scenario::Csp | Scenario::Reduction) {
                     self.await_met = true;
                     if (matches!(self.scenario, Scenario::Throw | Scenario::Reduction) && self.exception_seen)

@@ -1,4 +1,4 @@
-//! Durable answers use the same operation words before and after a restart.
+//! Durable answers use the same operation words before and after a restart (client/tools.md, 6.1).
 use super::{Text, acts, document};
 use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
@@ -21,6 +21,8 @@ pub(crate) struct Operation {
     pub retry: Option<Box<[u8]>>,
     pub value_name: Option<crate::jig::key::Name>,
     pub proposal_project: Option<u32>,
+    /// Distinct submitted settings scopes, ordered with the deployment before projects.
+    pub settings_scopes: Option<skein_lib::Set<u32>>,
 }
 /// One in-flight source context; its name is bounded by the client's document text limit.
 #[derive(Clone, Debug)]
@@ -123,6 +125,9 @@ impl Operation {
                 ),
             },
         };
+        Self::with_words(ask, word, task)
+    }
+    fn with_words(ask: &Ask, word: &'static [u8], task: Option<u64>) -> Self {
         Self {
             project: funding_project(ask),
             revision: settings_revision(ask),
@@ -138,6 +143,7 @@ impl Operation {
             retry: None,
             value_name: None,
             proposal_project: proposal_project(ask),
+            settings_scopes: settings_scopes(ask),
         }
     }
 }
@@ -418,7 +424,49 @@ fn proposed(proposal: c::ProposalKey, operation: &Operation, me: Option<&c::Me>,
     out.put(&name);
     if let Some(to) = &operation.to {
         out.put(b", to ");
-        acts::recipient(to, me, out);
+        match &operation.settings_scopes {
+            Some(scopes) => settings_owners(scopes, out),
+            None => acts::recipient(to, me, out),
+        }
+    }
+}
+
+fn settings_scopes(ask: &Ask) -> Option<skein_lib::Set<u32>> {
+    if let Ask::Jig(ask) = ask
+        && let c::Ask::Propose { action: c::ProposeAction::Settings(settings), .. } = ask.as_ref()
+    {
+        let mut scopes = skein_lib::Set::with_capacity(settings.items.len());
+        for item in &settings.items {
+            let scope = match item.setting {
+                c::Setting::Charter(_) | c::Setting::Template(_) | c::Setting::Policy(_) | c::Setting::Rules => 0,
+                c::Setting::ProjectPolicy { project } => project,
+                c::Setting::Application { scope, .. } => scope,
+            };
+            scopes.insert(scope).expect("at most one scope per submitted item");
+        }
+        Some(scopes)
+    } else {
+        None
+    }
+}
+
+fn settings_owners(scopes: &skein_lib::Set<u32>, out: &mut Text) {
+    let mut first = true;
+    for scope in scopes {
+        if !first {
+            out.put(b" and ");
+        }
+        first = false;
+        if *scope == 0 {
+            out.put(b"the deployment's owners");
+        } else {
+            out.put(b"project ");
+            out.number(u64::from(*scope));
+            out.put(b"'s owners");
+        }
+    }
+    if scopes.len() > 1 {
+        out.put(b"; one person must own every affected scope");
     }
 }
 

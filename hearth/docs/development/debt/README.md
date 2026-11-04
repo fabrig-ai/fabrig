@@ -68,7 +68,6 @@ it says what a reviewer checks.
 | [D007](D007-two-process-fakes.md) | mmdebstrap's fake is written twice, as a fake-machine process and as a hosted one | duplication | low | S | open |
 | [D008](D008-path-modules.md) | Test modules are reached by `#[path]` | tests | low | S | open |
 | [D009](D009-worlds-as-kits.md) | World crates are used as kits by other test crates | tests | low | M | open |
-| [D010](D010-lint-config-copied.md) | hearth's test crates and shell copy one lint block by hand | lints | medium | S | open |
 | [D011](D011-ratchet-counts-two-forms.md) | hearth's ratchet counts two forms, and counts what the others exempt | other | medium | S | open |
 | [D012](D012-render-test-shapes.md) | Test shapes the render run left | tests | low | S | open |
 | [D013](D013-records-three-times.md) | A record's shape is written up to three times, with hand translations both ways | duplication | low | L | open |

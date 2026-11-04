@@ -801,7 +801,6 @@ pub(crate) fn settings_item_count(values: &[u8], limits: &Limits) -> Result<u32,
     Err(root_too_large())
 }
 
-#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> Result<c::SettingDocument, w::Problem> {
     Ok(c::SettingDocument {
         setting: settings_restore_setting(value.setting(), limits),
@@ -848,7 +847,6 @@ pub(crate) fn settings_restore_held_revision(value: &w::HeldRevision, limits: &L
     c::HeldRevision { head: settings_restore_revision_head(value.head(), limits), holders: value.holders() }
 }
 
-#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub(crate) fn settings_restore_setting_line(
     value: &w::SettingLine,
     limits: &Limits,

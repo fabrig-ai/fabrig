@@ -1,5 +1,4 @@
 //! Root forge stories with its durable store and the independent fake Forgejo.
-#![expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the forge rows relevant to each story")]
 use crate::stock;
 
 use jig_domain_authority as authority;
@@ -19,6 +18,9 @@ use temper_engine_domain_world::forge_routes::{
 use temper_engine_domain_world::{protocol, walking};
 
 use temper_engine_forge_world::{self as forge_world, translate};
+
+#[path = "forge_routes/approval_identity.rs"]
+mod approval_identity;
 
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
@@ -2619,7 +2621,6 @@ fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the story prints an unexpected typed effect answer")]
 fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
     let mut world = World::configured(true, false);
     world.adopt();
