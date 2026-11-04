@@ -1,8 +1,8 @@
 draft = "kv-pay-per-use"
 repo = "fabrig"
 sources = ["skein/docs/plan/kv-pay-per-use/inputs/request.md", "AGENTS.md"]
-# Held (fabrig/qa for the user, 11-03 23:55Z): the trunk is not readied until QA says "land kv-pay-per-use"; agents/loop sets this back to true then.
-ready = false
+# Released (fabrig/qa, 11-04 ~01:10Z): QA checked the footprint on a real box.
+ready = true
 
 # skein-kv pays for what it holds (skein/docs/design/kv.md, 1, 3, 5, 7 and 9): an open's
 # reads sized by its files, a snapshot's trigger by the live map with snapshot_after a
