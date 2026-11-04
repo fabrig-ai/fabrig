@@ -5,6 +5,76 @@ use skein_lib::Wall;
 const BEFORE_CLAIM_ACCOUNT: u32 = 71;
 const DURABLE_CLAIM_ACCOUNT: u32 = 72;
 
+fn writer_with_hold(writer: u64, holder: u64) -> (World, jig_domain_tasks::Name) {
+    use jig_domain_tasks::{Funder, HoldKind, Holding, Kind, Name, Taken};
+    let mut w = World::new(51, LIMITS);
+    w.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    let resource = Name { connector: 1, path: Box::new([b"held".as_slice().into()]) };
+    let held = Holding::Write { resource: resource.clone(), kind: 1 };
+    let mut parent = task(1, &[]);
+    parent.holdings = Box::new([held.clone()]);
+    parent.numbers.budget = 300;
+    parent.authority.budget.spend = 300;
+    assert_eq!(w.make(Party::Person(1), vec![parent, task(3, &[])]), Reply::Made(vec![1, 3]));
+    if writer == 1 {
+        assert_eq!(w.claim_budget_writing(1, 1, 50, Box::new([resource.clone()])), Reply::Done);
+    }
+    if writer != holder {
+        let mut child = task(2, &[]);
+        child.funder = Funder::Task(1);
+        if holder == 2 {
+            child.holdings = Box::new([held]);
+        }
+        assert_eq!(w.make(Party::Task(1), vec![child]), Reply::Made(vec![2]));
+    }
+    if writer == 2 {
+        assert_eq!(w.claim_budget_writing(2, 1, 50, Box::new([resource.clone()])), Reply::Done);
+    }
+    (w, resource)
+}
+
+#[test]
+fn a_cancelled_lost_writer_survives_two_restarts() {
+    use jig_domain_tasks::{Class, Control};
+    // A run can write its own hold, an ancestor's, or one handed to a delegate.
+    for (writer, holder) in [(1, 1), (2, 1), (1, 2)] {
+        let (mut w, resource) = writer_with_hold(writer, holder);
+        let unrelated = w.record(3).clone();
+        w.restart();
+        assert_eq!(w.runs.get(&writer), Some(&1));
+        let reply_to = w.to();
+        w.send(Event::Control {
+            reply_to,
+            by: Party::Person(1),
+            task: writer,
+            control: Control::Cancel { reason: b"stop".as_slice().into(), grace: None, message: None },
+        });
+        w.terminal(writer, End::Failed(Class::Lost));
+        // Drive every obligation offered before the connector confirms its read.
+        while let Some(task) = w.closing.iter().next().copied() {
+            w.settle(task);
+        }
+        w.restart();
+        assert!(w.records.contains_key(&Key::Live(writer)));
+        assert!(w.record(holder).holds_taken);
+        assert!(w.records.values().any(|row| matches!(row, Stored::Writer(slot)
+            if slot.resource == resource && slot.lost)));
+        let reply_to = w.to();
+        w.send(Event::EffectInFlight { reply_to, task: holder, resource: resource.clone(), entry: 99 });
+        assert_eq!(w.replies.last_key_value().expect("writer fence reply").1, &Reply::WriterWaiting(resource.clone()));
+        w.send(Event::ReadAfresh { resource });
+        assert!(!w.records.values().any(|row| matches!(row, Stored::Writer(_))));
+        while let Some(task) = w.closing.iter().next().copied() {
+            w.settle(task);
+        }
+        assert!(!w.records.contains_key(&Key::Live(writer)));
+        assert!(w.records.contains_key(&Key::Ended(writer)));
+        w.restart();
+        assert_eq!(w.record(3), &unrelated);
+        assert!(!w.records.values().any(|row| matches!(row, Stored::Writer(_))));
+    }
+}
+
 #[test]
 fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     let mut w = World::new(20, LIMITS);
