@@ -67,84 +67,109 @@ pub fn scripted(front: &mut Scripted) {
     frame.needs_total = GROUP_ROWS;
     frame.updates.value = GROUP_ROWS;
     front.engine.act(Time::ZERO, Wall::EPOCH, Change::Me(frame)).expect("frame fits");
-    for (group, rows) in [
-        (c::InboxReadGroup::Needs, [(PROPOSER, 1, 1), (SECOND_PROPOSER, 2, 2)]),
-        (c::InboxReadGroup::Updates, [(NEWER_RESULT, 4, 4), (OLDER_RESULT, 3, 3)]),
-    ] {
-        let mut entries = Vec::new();
-        for (task, position, time) in rows {
-            let object = if group == c::InboxReadGroup::Needs {
-                let key = c::ProposalKey { proposer: c::Proposer::Task(task), number: position };
-                let mut proposal = crate::stories::proposal();
-                proposal.key = key;
-                proposal.waiting.holder = c::HistoryHolder::Person(PARTY);
-                proposal.waiting.since = Wall::from_nanos(time);
-                proposal.funding.clear();
-                front
-                    .engine
-                    .act(
-                        Time::ZERO,
-                        Wall::EPOCH,
-                        Change::Object {
-                            project: PROJECT,
-                            key: c::ObjectKey::Proposal(key),
-                            value: c::ReadValue::Proposal(Box::new(proposal)),
-                        },
-                    )
-                    .expect("proposal fits");
-                c::ObjectKey::Proposal(key)
-            } else {
-                let mut chip = crate::stories::task().chip;
-                chip.task = task;
-                chip.phase = c::Phase::Done;
-                chip.details = Box::new(crate::stories::owner_chip(c::ChipPhase::Ended, None));
-                let value = c::ResultValue::Report(c::DocumentText::complete(crate::stories::text(b"Finished")));
-                chip.details.details.ending = Some(c::ChipEnding::Done(value.clone()));
-                chip.details.details.ended_at = Some(Wall::from_nanos(time));
-                let result = c::Result {
-                    task: chip,
-                    ending: c::Ending::Done,
-                    value: Some(value),
-                    at: Some(Wall::from_nanos(time)),
-                    details: None,
-                    acts: crate::test::list([]),
-                };
-                front
-                    .engine
-                    .act(
-                        Time::ZERO,
-                        Wall::EPOCH,
-                        Change::Object {
-                            project: PROJECT,
-                            key: c::ObjectKey::Result(task),
-                            value: c::ReadValue::Result(Box::new(result)),
-                        },
-                    )
-                    .expect("result fits");
-                c::ObjectKey::Result(task)
-            };
-            entries.push(crate::stories::inbox_entry(
-                object,
-                PROJECT,
-                if group == c::InboxReadGroup::Needs { c::InboxGroup::Proposals } else { c::InboxGroup::Results },
-                position,
-                Wall::from_nanos(time),
-                None,
-            ));
-        }
-        front
-            .engine
-            .act(
-                Time::ZERO,
-                Wall::EPOCH,
-                Change::Source(Source {
-                    party: PARTY,
-                    read: c::Read::Inbox { group, project: None, kind: None, goal: None, after: None },
-                    rows: Rows::Inbox(entries),
-                }),
-            )
-            .expect("inbox fits");
-    }
+    let needs = vec![need(front, PROPOSER, 1), need(front, SECOND_PROPOSER, 2)];
+    front
+        .engine
+        .act(
+            Time::ZERO,
+            Wall::EPOCH,
+            Change::Source(Source {
+                party: PARTY,
+                read: c::Read::Inbox {
+                    group: c::InboxReadGroup::Needs,
+                    project: None,
+                    kind: None,
+                    goal: None,
+                    after: None,
+                },
+                rows: Rows::Inbox(needs),
+            }),
+        )
+        .expect("inbox fits");
+    let updates = vec![update(front, NEWER_RESULT, 4), update(front, OLDER_RESULT, 3)];
+    front
+        .engine
+        .act(
+            Time::ZERO,
+            Wall::EPOCH,
+            Change::Source(Source {
+                party: PARTY,
+                read: c::Read::Inbox {
+                    group: c::InboxReadGroup::Updates,
+                    project: None,
+                    kind: None,
+                    goal: None,
+                    after: None,
+                },
+                rows: Rows::Inbox(updates),
+            }),
+        )
+        .expect("inbox fits");
+}
+fn need(front: &mut Scripted, task: u64, position: u64) -> c::InboxEntry {
+    let key = c::ProposalKey { proposer: c::Proposer::Task(task), number: position };
+    let mut proposal = crate::stories::proposal();
+    proposal.key = key;
+    proposal.waiting.holder = c::HistoryHolder::Person(PARTY);
+    proposal.waiting.since = Wall::from_nanos(position);
+    proposal.funding.clear();
+    front
+        .engine
+        .act(
+            Time::ZERO,
+            Wall::EPOCH,
+            Change::Object {
+                project: PROJECT,
+                key: c::ObjectKey::Proposal(key),
+                value: c::ReadValue::Proposal(Box::new(proposal)),
+            },
+        )
+        .expect("proposal fits");
+    crate::stories::inbox_entry(
+        c::ObjectKey::Proposal(key),
+        PROJECT,
+        c::InboxGroup::Proposals,
+        position,
+        Wall::from_nanos(position),
+        None,
+    )
+}
+fn update(front: &mut Scripted, task: u64, position: u64) -> c::InboxEntry {
+    let mut chip = crate::stories::task().chip;
+    chip.task = task;
+    chip.phase = c::Phase::Done;
+    chip.details = Box::new(crate::stories::owner_chip(c::ChipPhase::Ended, None));
+    let value = c::ResultValue::Report(c::DocumentText::complete(crate::stories::text(b"Finished")));
+    chip.details.details.ending = Some(c::ChipEnding::Done(value.clone()));
+    chip.details.details.ended_at = Some(Wall::from_nanos(position));
+    let result = c::Result {
+        task: chip,
+        ending: c::Ending::Done,
+        value: Some(value),
+        at: Some(Wall::from_nanos(position)),
+        details: None,
+        acts: crate::test::list([]),
+    };
+    front
+        .engine
+        .act(
+            Time::ZERO,
+            Wall::EPOCH,
+            Change::Object {
+                project: PROJECT,
+                key: c::ObjectKey::Result(task),
+                value: c::ReadValue::Result(Box::new(result)),
+            },
+        )
+        .expect("result fits");
+    crate::stories::inbox_entry(
+        c::ObjectKey::Result(task),
+        PROJECT,
+        c::InboxGroup::Results,
+        position,
+        Wall::from_nanos(position),
+        None,
+    )
 }
 /// jig/docs/design/domain/engine.md, 11.2.
 pub fn a_person_s_inbox_lists_needs_oldest_first_and_updates_newest_first<F: Front<Test>>(world: &mut World<Test, F>) {
