@@ -364,8 +364,10 @@ in the lower world that owns it, never here.
     within the harness's bound. Its fixture, scripts and checks are its
     own, in its test file, on the tier's shared hosts.
 - **The ladder's twins,** one story a rung of `../draft/v0.1.0.md`'s
-  ladder from B0 up, added once its brief passes on real backends (its
-  section 3): the passing walk replayed on the first run's cast.
+  ladder from B0 up, added once its acceptance story
+  (`../../development/acceptance.md`) passes on real backends
+  (`../draft/v0.1.0.md`, section 3): the passing walk replayed on the
+  first run's cast.
   - **Its scripts are the walk's,** a fake LLM document made from the
     passing run's transcripts by `tools/twin` (4.1), never invented by
     hand: each agent of the walk says what the real model said, turn by
@@ -374,9 +376,9 @@ in the lower world that owns it, never here.
     `playground/widget`, with any commit the walk's person made on it
     (rung B1's gate), and a CI cue that judges as the walk's CI did:
     for B1, a head passes only when it holds `changes/1.md`.
-  - **The person's acts and the checks are the brief's,** through
+  - **The person's acts and the checks are the story's,** through
     `temper ctl` and the fake forge's API: the same request and answer
-    in the same words, read where the brief reads them. A rung's twin
+    in the same words, read where the story reads them. A rung's twin
     replaces its hand-written story once it passes: B0's
     `suite::fuzzy::green_light`, B1's `suite::fuzzy::repair`.
   - **Its data is the playground's story** of the rung
@@ -1331,9 +1333,10 @@ section 8; testing-strategy.md, 2.9).
     (making the App, installing it) are the fixtures', made once by
     hand, and a failing or stalled check is the process tier's on
     fakes.
-- **The ladder's rungs,** a story of their own each once its brief
-  passes on real backends (`../draft/v0.1.0.md`, 3): the brief's
-  scenario as a test in `crates/temper/tests/live.rs`, run by
+- **The ladder's rungs,** a live story of their own each once its
+  acceptance story (`../../development/acceptance.md`) passes on real
+  backends (`../draft/v0.1.0.md`, 3): the acceptance story's steps as a
+  test in `crates/temper/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
   (2.4). B0's three offline proofs are the ignored `proof_live` binary,
@@ -1350,11 +1353,11 @@ section 8; testing-strategy.md, 2.9).
     stops, on a pass, a failure or a signal: the script's last act,
     which it checks by `stat` alone. Whoever runs it holds the login for
     the run.
-  - **Its acts are the brief's,** the person's words included, through
+  - **Its acts are the story's,** the person's words included, through
     `temper ctl`; the forge's by the box's person, its read and write
-    header files (`../protocol/setup.md`, 7.3), as the brief's person
+    header files (`../protocol/setup.md`, 7.3), as the story's person
     acts.
-  - **Its Musts are the brief's "What passes",** read through temper
+  - **Its Musts are the story's "What must hold",** read through temper
     and through Forgejo's API, each a comparison of the two accounts.
   - **Its bounds are the passing walk's,** as its report states them:
     each phase's time and the whole; a run past one fails, naming the

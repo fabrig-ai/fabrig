@@ -1,14 +1,12 @@
 # QA of temper
 
-Provisional, 2026-10-26, with the user. What a pass of QA after landing
-needs of temper: whom it plays, the deployment it drives, the hands it
-holds, how it reads the forge and how it checks an outcome. Who marks,
-chooses, starts and triages, and the pass's steps and report, are the
-agents repository's QA flow. This document says only what those leave
-to the product, and a pass reads it after its brief. The product's
-contracts it relies on are temper's design: the box's forge hands
-(`../design/protocol/setup.md`, 7.3) and ctl's help
-(`../design/client/tools.md`, 11.5). What is still open is section 8.
+Provisional, 2026-10-26, revised 2026-11-04. What temper offers an agent
+driving it in a pass of QA after landing: whom it plays, the deployment
+it drives, the hands it holds, how it reads the forge and how it checks
+an outcome. The product's contracts it relies on are temper's design:
+the box's forge hands (`../design/protocol/setup.md`, 7.3) and ctl's
+help (`../design/client/tools.md`, 11.5). What is still open is
+section 8.
 
 ## 1. In one page
 
@@ -18,13 +16,13 @@ contracts it relies on are temper's design: the box's forge hands
   the systems temper works with (section 2).
 - **temper is agnostic about those tools.** It serves its own part, and
   names the rest by id and link; how a user reaches the forge is the
-  user's choice (the user, 10-26). Our passes choose `curl` (section 5).
+  user's choice. A pass here chooses `curl` (section 5).
 - **temper says what it is doing, why, and where; the forge shows what
   is there.** A change's step, hold and landing are temper's; its diff,
   reviews, CI logs and branches are the forge's (`../design/client/forge.md`,
   section 1).
-- **The deployment is a box,** on its fake backends first, then on real
-  ones a rung at a time, as the brief names (section 3).
+- **The deployment is a box,** on its fake backends or on real ones,
+  each pair of backends a rung (section 3).
 - **Three hands:** ctl as the signed-in person; the forge read as an
   observer, with reads alone; and the person on the forge, for what
   people do there. Never temper's bot or its tokens, its store, its HTTP
@@ -66,120 +64,83 @@ contracts it relies on are temper's design: the box's forge hands
 
 ## 3. The deployment
 
-- **A box in the pass's scratch directory,** started as the walk
-  `box` says (`temper help box`), with the flags of the brief's rung,
-  and stopped by the pass before it ends.
+- **A box in the pass's scratch directory,** started as the walk `box`
+  says (`temper help box`), with the flags of its rung, and stopped by
+  the pass before it ends. Each rung's stories are `acceptance.md`.
 - **The rungs:**
 
-  | Rung | Forges | Model | Accounts held |
+  | Rung | Forges | Model | What it needs |
   |---|---|---|---|
   | fakes | `--fake-backends` (`../design/protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
-  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`../design/client/tools.md`, 5.5, area 5); the box's agents on `gpt-6-luna` at effort medium, its budget raised if needed (below) | the model's |
-  | GitHub | GitHub, through an App kept for QA, on a repository kept for it | as the rung below | the App's key and its installation |
-  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, a held configuration directory used in place (`../design/protocol/credentials.md`, 3) | the model's |
+  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up | ChatGPT, a login imported and exported back, or a key read from a private file (`../design/client/tools.md`, 5.5, area 5) | the model's account |
+  | GitHub | GitHub, through an App, on a repository the pass may change | as a real model's rung | the App's key and its installation, and a person's token on that repository |
+  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, its configuration directory used in place (`../design/protocol/credentials.md`, 3) | the model's login |
 
-- **The real model's agents run `gpt-6-luna` at effort medium** (the
-  user, 10-28: back to init's shipped model after what `gpt-6.1-sol`
-  cost on the held accounts; "luna effort level medium"), set before
-  the box's start (the walk `box`'s first step): init's model entry
-  kept as it is (its window, prices and output 8,192, so init's stock
-  limits hold it, with no turn overrides), its efforts declared
-  `["medium", "high", "low"]` in `temper.json`'s `engine.llm` model, the
-  first being what a task with no choice of its own takes. Every charter
-  takes the first configured model as its main model, and the stock's
-  spends are sized from it at the start (`../design/protocol/configuration.md`,
-  13.4). After the start, `temper ctl settings show charter 1` names
-  `gpt-6-luna`; a box that shows otherwise is a setup to redo, not a
-  finding. A chat is started with `--model gpt-6-luna --effort medium`
-  where its model is named; template 1's choice (`settings apply`, the
-  whole choice: `{"main": {"model": "gpt-6-luna", "effort": "medium"},
-  "account": null, "subagents": []}`) sets it for every chat of a
-  running box. If a rung cannot pass on luna, the walk's evidence goes
-  to the director, and the model is the user's to change.
-- **The Claude rung's agents run Claude Code on `claude-sonnet-5-5` at
-  effort high** (the user, 10-28: "Sonnet at high for the Claude walks",
-  after medium answered a plan-first request in the chat itself), set
-  as luna is: the model entry's efforts `["high", "medium", "low"]`,
-  the chat started with `--model claude-sonnet-5-5 --effort high`, and
-  template 1's whole choice naming them; the rung's brief carries its
-  checks.
-- **Its room is raised beside it,** in `temper.json` before the start:
-  `engine.limits`' overrides `"people.requests": 256` and
-  `application.limits`' overrides `"root.loads.loads": 32`. The small
-  profile keeps each deciding request's answer a day in 32 places, which
-  one busy pass fills, after which every keyed request answers busy
-  (jig's `domain/people.md`, 5.1); and its 2 load slots are too few for
-  a restart with held work loaded. Its retention stays a day, and the
-  memory the start then names is raised as 13.8 says (below). A box
-  that still answers busy past 256 has met that finding again, not a
-  new one. These are a QA box's, as the budget is (below); the
-  product's own values are the user's, settled apart.
-- **One configuration, checked before the first start.** Every change
-  above (the model's efforts, the room) is made in `CONFIG` after
-  `temper init` and before the box's first start, and `memory_bytes`
-  raised by what the start names when it refuses a short one, the figure
-  said in the report. Then, before the first
-  start and before every restart, the pass or walk checks it, and stops
-  if any line prints other than `true`, reporting a setup to redo, never
-  a finding:
-
-  ```
-  jq -e '.engine.llm.models[0] | .name == "gpt-6-luna" and .output == 8192 and .efforts[0] == "medium"' CONFIG/temper.json
-  jq -e '.engine.limits.overrides["people.requests"] == 256' CONFIG/temper.json
-  jq -e '.application.limits.overrides["root.loads.loads"] == 32' CONFIG/temper.json
-  jq -e '.endpoints[0].models[0] | .name == "gpt-6-luna" and .output == 8192' CONFIG/agent.json
-  ```
-
-  A QA brief carries these four lines, and a box set up by an earlier
-  `main` than this section's is set up again.
-- **Give back before you break it** (the director, 10-27, after a
-  restart exercise held the login 46 minutes). A case that aborts
-  `serve`, kills the box or otherwise risks the deployment's restore
-  first exports the held login back (`account export`, then `logins
-  give`): what the deployment holds of its work (a task, an unanswered
-  question) stays in its store, and a restart needs no model. It
-  imports the login again only if a later case needs the model. A
-  login a broken deployment still holds is the walk's finding, said
-  with the case that broke it, and the recovery is the director's.
-- **A budget never stops a walk** (the user, 10-27, "raise the budget if
-  needed"): the stock holds a rung in arithmetic (a 100k-token turn is
-  about 100 units against a run's K of 4,324), but a walk raises its
-  box's anyway, as a person would, and says the figures in its report.
-  Init's first start already makes project 1 and its owner. After
-  sign-in, the walk raises the deployment limits in one `settings
-  apply` edited from `settings show rules
-  --json` and `settings show policy 1 --json`: the rules' spend 207,552
-  and period spend 449,696; policy 1's ceiling's spend 207,552 and
-  period spend 449,696, role 0's
-  authority spend 207,552 and its period spend 415,104. The period
+- **The model is set before the first start.** Init's model entry is
+  kept as it is (its window, prices and output), its efforts declared in
+  `temper.json`'s `engine.llm` model, the first being what a task with
+  no choice of its own takes. Every charter takes the first configured
+  model as its main model, and the stock's spends are sized from it at
+  the start (`../design/protocol/configuration.md`, 13.4). After the
+  start, `temper ctl settings show charter 1` names the model; a box
+  that shows otherwise is a setup to redo, not a finding. A chat is
+  started with `--model MODEL --effort EFFORT` where its model is named;
+  template 1's choice (`settings apply`, the whole choice: `{"main":
+  {"model": MODEL, "effort": EFFORT}, "account": null, "subagents":
+  []}`) sets it for every chat of a running box.
+- **Its room is raised beside it,** in `temper.json` before the start,
+  where a pass needs more than the profile gives: `engine.limits`'
+  override `"people.requests"`, since each deciding request's answer is
+  kept a day, which a busy pass fills, after which every keyed request
+  answers busy (jig's `domain/people.md`, 5.1); and
+  `application.limits`' override `"root.loads.loads"`, since a restart
+  with held work loaded needs a slot for it. Its retention stays a day,
+  and the memory the start then names is raised as
+  `../design/protocol/configuration.md`, 13.8 says. These are a pass's,
+  as the budget is; the product's own values are its design's.
+- **One configuration, checked before every start.** Every change above
+  is made in `CONFIG` after `temper init` and before the box's first
+  start, and `memory_bytes` raised by what the start names when it
+  refuses a short one. Before the first start and before every restart,
+  a pass checks that `CONFIG` says what it set; one that differs is a
+  setup to redo, never a finding.
+- **Give back before you break it.** A case that aborts `serve`, kills
+  the box or otherwise risks the deployment's restore first exports a
+  login moved into the box (`account export`): what the deployment holds
+  of its work (a task, an unanswered question) stays in its store, and a
+  restart needs no model. It imports the login again only if a later
+  case needs the model. A login a broken deployment still holds is a
+  finding, said with the case that broke it.
+- **A budget never stops a pass.** A pass raises its box's budget as a
+  person would (`temper help budget`), and says the figures. Init's
+  first start already makes project 1 and its owner. After sign-in, the
+  pass raises the deployment limits in one `settings apply` edited from
+  `settings show rules --json` and `settings show policy 1 --json`: the
+  rules' spend and period spend, policy 1's ceiling's spend and period
+  spend, and role 0's authority spend and its period spend. The period
   stays larger than role 0's pool, so that the deployment's own work (a
   landing task, a tier run, a queue's repair) is still funded. Nothing
   per run; the chat's template stays as allowed. Policy 1 sizes future
   projects; `settings apply` does not resize the existing project's
-  period or owner's pool. The walk must then fund the project listed
-  by `me`, with distinct operation keys, the project first because the
+  period or owner's pool. The pass must then fund the project listed by
+  `me`, with distinct operation keys, the project first because the
   owner's pool reserves from its period:
 
   ```
   temper ctl DIR me
-  temper ctl DIR project fund PROJECT 449696 --key budget-period
-  temper ctl DIR project fund PROJECT 415104 --role 0 --key budget-owner
+  temper ctl DIR project fund PROJECT PERIOD --key budget-period
+  temper ctl DIR project fund PROJECT POOL --role 0 --key budget-owner
   temper ctl DIR project show PROJECT
   ```
 
-  `PROJECT` is the project `me` lists, 1 on a fresh box. Verify the
-  open period's budget is 449,696 and the owner's pool's is 415,104;
-  read their reserved, spent and left balances too. These funding
-  calls resize the open budgets at once. `forge setup` then adopts the
-  repository into this existing project. The stock's own
-  defaults are not a QA box's to change (temper#16).
-- **Down before up:** the director opens a rung once the rung below has
-  run clean at a `main` no older, and a rung's open findings hold the
-  rungs above it.
-- **Real accounts are the user's,** held on the machine the agents
-  repository's QA flow names, used by path and never read, and given back before the box
-  stops: an imported login exported to its file. Their spend is
-  an open question of that QA flow.
+  `PROJECT` is the project `me` lists, 1 on a fresh box; `PERIOD` and
+  `POOL` are the pass's figures. `project show` prints the open period's
+  budget and the owner's pool's, with their reserved, spent and left
+  balances. These funding calls resize the open budgets at once. `forge
+  setup` then adopts the repository into this existing project.
+- **Real accounts are the person's,** used by path and never read; a
+  login moved into a box goes back before the box stops, an imported
+  login exported to its file.
 
 ## 4. The hands
 
@@ -187,7 +148,7 @@ contracts it relies on are temper's design: the box's forge hands
 |---|---|---|---|
 | ctl | the deployment's first owner, the person | every act on temper, and temper's account of it | the box's printed sign-in link, on stdin to `ctl sign-in -` |
 | the observer | the forge's person, with reads alone: on Forgejo, `read:repository`, `read:issue`, `read:organization` and `read:user` | section 5's reads | a header file the box names |
-| the person on the forge | the forge's person, with a token that writes | what a person does there, as a case's step written in its plan: a review, an approval at a head, a comment, a push, a branch moved under temper | a header file the box names |
+| the person on the forge | the forge's person, with a token that writes | what a person does there, as a case's step names it: a review, an approval at a head, a comment, a push, a branch moved under temper | a header file the box names |
 
 - **Never:** temper's bot or its tokens, the preparation's
   `admin_token`, temper's store or its HTTP API, a fake's internals or
@@ -213,7 +174,8 @@ contracts it relies on are temper's design: the box's forge hands
 
 ## 5. Reading the forge
 
-Our passes read Forgejo with `curl`, the observer's header by its path:
+A pass here reads Forgejo with `curl`, the observer's header by its
+path:
 
 ```sh
 curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
@@ -232,14 +194,13 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
 
 - **Each read is one skein's fake forge serves,** decoded by
   skein-forge's Forgejo requests, so that a pass reads a fake as it
-  reads Forgejo 17. A read the fake refuses is a finding against the
-  fake, routed to skein's owner.
+  reads Forgejo 17. A read the fake refuses is a finding against skein's
+  fake.
 - **The person's writes** are Forgejo's API with the write header, as
-  the case's plan names them; a pass writes only what a case needs.
+  the case names them; a pass writes only what a case needs.
 - **GitHub's reads,** on its rung: GitHub's REST API by `curl` at
   `https://api.github.com`, with the person's header file, a
-  fine-grained token kept for QA on the repository kept for it, by its
-  path:
+  fine-grained token on the pass's repository, by its path:
 
   | What | Read |
   |---|---|
@@ -251,8 +212,8 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
   | a file at a commit | `GET /repos/O/R/contents/PATH?ref=SHA`, with `Accept: application/vnd.github.raw` |
 
   The box prints no forge hands for GitHub, which has no person of the
-  box's: the person's header file is the brief's. Its 5,000 requests an
-  hour are the person's own, apart from temper's installation's, so a
+  box's: the person's header file is the pass's own. Its 5,000 requests
+  an hour are the person's own, apart from temper's installation's, so a
   pass reads at a person's pace, a wait on temper's side between reads,
   never a loop of reads.
 
@@ -262,7 +223,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
   (`../design/client/tools.md`, 5.4); read temper's account; follow its ids and
   links to the forge; compare.
 - **A case's line says both,** what temper said and what the forge
-  showed, in the shape the agents repository's QA role gives.
+  showed.
 - **A finding is one of:**
   - **No way to the forge:** an outcome temper reports with no id or
     link to its place there, such as "Landed" with no pull request.
@@ -278,8 +239,8 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
     section 6): a writer's bug; the finding names the record and the
     link from serve's log, with the case that wrote the record.
 - **Not a finding:** that the pass read the forge, or how.
-- **Known gaps:** what the design has and its status files list as not yet
-  built goes under Blocked, once, with what the pass did instead.
+- **Known gaps:** what the design has and its status files list as not
+  yet built is named once as blocked, with what the pass did instead.
 
 ## 7. What it asks of temper
 
@@ -293,11 +254,10 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
 
 ## 8. Open questions
 
-- **The GitHub rung's App:** made by the user for QA, or from temper's
-  manifest. An installation that exists already is accepted with no
-  browser, by `forge accept FORGE INSTALLATION` (`../design/client/tools.md`, 5.5,
-  area 6).
-- **Real accounts' holding and spend:** the agents repository's QA flow.
+- **The GitHub rung's App:** made by the person for the pass, or from
+  temper's manifest. An installation that exists already is accepted
+  with no browser, by `forge accept FORGE INSTALLATION`
+  (`../design/client/tools.md`, 5.5, area 6).
 - **Holding section 5 to the fake:** a step test that decodes each read
   with skein-forge's Forgejo requests, as the help's ctl lines are held
   to ctl's parser (`../design/protocol/documentation.md`, section 1). Default:
