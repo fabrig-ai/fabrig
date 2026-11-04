@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use jig_domain_people::ApplicationScope;
 use jig_domain_views as views;
 
+#[expect(clippy::too_many_arguments, reason = "the core document ask carries the watcher and its party")]
 pub(crate) fn document(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -12,6 +13,7 @@ pub(crate) fn document(
     watcher: Token,
     scope: ApplicationScope,
     subject: Token,
+    party: u64,
 ) {
     let mut forges = if connector == domain.config.forge_connector
         && scope == ApplicationScope::Deployment
@@ -22,7 +24,7 @@ pub(crate) fn document(
         None
     };
     let mut panel = if connector == domain.config.forge_connector {
-        domain.forge.document(subject.raw(), scope, env.wall, &env.limits.forge)
+        domain.forge.document(subject.raw(), scope, party, env.wall, &env.limits.forge)
     } else {
         None
     };
@@ -53,7 +55,8 @@ pub(crate) fn document(
                             Delivery::Panel { watcher, panel: Box::new(panel) }
                         }
                         document @ (temper_engine_domain_forge::Document::Landing(_)
-                        | temper_engine_domain_forge::Document::Landings(_)) => {
+                        | temper_engine_domain_forge::Document::Landings(_)
+                        | temper_engine_domain_forge::Document::Dismissals(_)) => {
                             Delivery::ForgeDocument { watcher, document: Box::new(document) }
                         }
                     },

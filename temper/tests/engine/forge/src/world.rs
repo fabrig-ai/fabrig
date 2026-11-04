@@ -188,6 +188,7 @@ impl World {
         self.top.document(
             subject,
             jig_domain_people::ApplicationScope::Project(project),
+            0,
             self.env.wall,
             &self.env.limits,
         )

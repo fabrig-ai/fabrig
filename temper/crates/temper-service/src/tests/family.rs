@@ -2345,3 +2345,53 @@ fn playground_config_needs_the_welcome() {
         }
     }
 }
+
+#[test]
+fn dismissed_watches_name_the_partys_own_subject() {
+    let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Dismissed }).unwrap();
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
+        &fixtures::forge_table(&[]),
+        None,
+        family::Deployment { welcome: false, owned: false },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) = event else { panic!("dismissed watch") };
+    assert_eq!(
+        (watcher, subject),
+        (
+            WATCHER,
+            jig_domain_core::documents::Watched::Application {
+                scope: people::ApplicationScope::Own,
+                connector: wire::FORGE,
+                subject: Token::new(forge::DISMISSED_SUBJECT),
+            }
+        )
+    );
+}
+
+#[test]
+fn dismissals_encode_the_partys_rows() {
+    for projects in [[].as_slice(), [3, 7].as_slice()] {
+        let mut rows = List::with_capacity(2);
+        for project in projects {
+            rows.push(forge::Dismissal::ToBegin { project: *project }).unwrap();
+        }
+        let rows = rows.into_boxed();
+        let bytes =
+            family::document(forge::Document::Dismissals(rows), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+        let got = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
+        let mut expected = List::with_capacity(wire::DISMISSED);
+        for project in projects {
+            expected
+                .push(w::Dismissal::ToBegin(
+                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap(),
+                ))
+                .unwrap();
+        }
+        assert_eq!(got, w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: expected }).unwrap());
+    }
+}

@@ -333,7 +333,12 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::landings_subject(subject.project(), subject.ended())),
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Dismissed => {
+                    w::Watch::Dismissed => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::DISMISSED_SUBJECT),
+                    },
+                    w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,
@@ -1026,11 +1031,24 @@ fn admin_stop(stop: forge::AdminStop, limits: &w::Limits) -> Option<w::AdminStop
     })
 }
 
-/// Encode a whole landing document, with deployment addresses at this boundary.
+/// Encode a whole forge document, with deployment addresses at this boundary.
 #[must_use]
 pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
+        forge::Document::Dismissals(rows) => {
+            let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
+            for row in rows {
+                let value = match row {
+                    forge::Dismissal::ToBegin { project } => {
+                        w::Dismissal::ToBegin(w::ToBegin::new(limits, w::ToBeginParts { project }).ok()?)
+                    }
+                };
+                dismissed.push(value).ok()?;
+            }
+            let document = w::Dismissals::new(limits, w::DismissalsParts { dismissed }).ok()?;
+            Some(wire::dismissals(&document))
+        }
         forge::Document::Landing(value) => {
             let mut members = List::with_capacity(u32::try_from(value.members.len()).ok()?);
             for member in value.members {

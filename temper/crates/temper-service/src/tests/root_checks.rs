@@ -283,3 +283,20 @@ fn the_small_engine_watermark_counts_commits_and_door_outputs() {
     assert_eq!(root.watermark, own.root.journal.commits + own.root.journal.deliveries);
     assert_eq!(root.watermark, 515);
 }
+
+#[test]
+fn judge_projects_past_the_wires_dismissals_name_both() {
+    let mut limits = crate::limits::profile(crate::limits::Profile::Small);
+    for (projects, expected) in [
+        (temper_client_protocol_wire::DISMISSED, b"".as_slice()),
+        (
+            temper_client_protocol_wire::DISMISSED + 1,
+            b"application.limits.overrides.forge.judge_projects: must agree with wire::DISMISSED\n".as_slice(),
+        ),
+    ] {
+        limits.forge.judge_projects = projects;
+        let mut found = Problems::empty();
+        checks::limits(&limits, &limits.git_component, &mut found);
+        assert_eq!(lines(&found).as_ref(), expected);
+    }
+}
