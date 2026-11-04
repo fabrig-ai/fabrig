@@ -2,6 +2,5 @@
 # (tests/boundary/tests/outward.rs). A file not listed holds none; each count may only fall.
 # Raising a count or adding a file needs a `# Raised: <who, why>` line directly above its entry.
 
-temper/docs/development/qa.md 3
 temper/docs/development/reference-walks.md 1
 temper/docs/development/v0.1.0-ladder.md 2
