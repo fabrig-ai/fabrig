@@ -4,9 +4,9 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
 
 ## 1. In one page
 
-- **One entry point:** from a fabrig checkout root on a builder,
+- **One entry point:** from a fabrig checkout root,
   `tools/tiers/run TREE TIER [-- NEXTEST_ARGS...]` builds prerequisites and
-  runs `heavy cargo nextest run -p PKG ... --profile TIER-TREE --no-fail-fast`,
+  runs `cargo nextest run -p PKG ... --profile TIER-TREE --no-fail-fast`,
   using the pair's sorted package names from `tools/tiers/packages.toml`,
   followed by the extra arguments unchanged. The map is generated from the
   packages with selected tests in each profile's workspace JSON listing.
@@ -14,13 +14,17 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
   tables whose names contain a hyphen supply the pairs, split at the last
   hyphen into tier and tree. Unknown pairs and pairs missing a valid package
   set fail before any command runs.
-- **Builds are sequential:** every build and nextest command uses `heavy`;
-  the built bundle tool runs directly. Cargo metadata builds nothing and
+- **Plain commands by default:** every build and nextest command runs as it
+  stands, or behind the wrapper when `TIERS_WRAPPER` sets one (section 3).
+- **Builds are sequential:** commands run one at a time; the built bundle
+  tool runs directly, past the wrapper. Cargo metadata builds nothing and
   runs directly to discover the target directory.
-- **Disk before each heavy command:** wait for at least 80,000,000,000 bytes
-  available on `/`, checking once per minute and printing each wait.
-- **Visible evidence:** print each step's command; heavy prints its log path
-  and nextest's summary. Prerequisite failures name their step.
+- **Disk before each of those commands:** with `TIERS_DISK_BYTES` set
+  (section 3), wait for that many bytes available on `/`, checking once per
+  minute and printing each wait.
+- **Visible evidence:** print each step's command; nextest prints its
+  summary, and what a wrapper prints stays visible. Prerequisite failures
+  name their step.
 
 ## 2. Prerequisites
 
@@ -33,7 +37,7 @@ use Cargo's default dev profile, as the trees' browser scripts do.
 | --- | --- | --- |
 | browser-skein | wasm `skein-ui-example-shell-web`; `skein-ui-bundle`; run the tool; `skein-ui-example-server` | `SKEIN_UI_EXAMPLE_BUNDLE`, target's `ui-example-bundle` |
 | browser-jig | wasm `jig-client-test-shell-web`; `skein-ui-bundle`; run the tool; `jig-test` | `JIG_TEST_BUNDLE`, target's `jig-test-bundle` |
-| browser-temper, qa-temper | wasm `temper-client-shell-web` with `loopback-navigation`; `skein-ui-bundle`; run the tool; `temper` | `TEMPER_TEST_BUNDLE`, target's `temper-bundle` |
+| browser-temper | wasm `temper-client-shell-web` with `loopback-navigation`; `skein-ui-bundle`; run the tool; `temper` | `TEMPER_TEST_BUNDLE`, target's `temper-bundle` |
 
 The wasm target is `wasm32-unknown-unknown`. Each tool invocation uses the
 module's underscored package name, `/bundle/` prefix, and the old browser
@@ -58,10 +62,10 @@ Variable names are unique within a pair. `process-temper` sets
 `TEMPER_TEST_CLAUDE` this way for its two program-login tests. The temper
 adapter and smith's adapter both call `smith_fake_claude::main()`.
 
-After any bundle step, build each listed binary in order through
-`heavy cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
-servers in the table above are native list entries. `qa-temper` and
-`process-temper` also list `temper-fake-claude`'s `fake-claude`: temper's
+After any bundle step, build each listed binary in order with
+`cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
+servers in the table above are native list entries. `process-temper` also
+lists `temper-fake-claude`'s `fake-claude`: temper's
 fake-backend tests execute that adapter as the `temper` binary's sibling.
 A failed binary build returns 2 and starts no later step.
 
@@ -72,23 +76,37 @@ The browser servers cross package boundaries and require the explicit builds
 above. Smith's selected live tests use the `smith` package's own binaries;
 the separate `smith-fake-claude` package's binary tests are not selected by
 any of these pairs. No other native binary requirement was found across
-the fourteen pairs.
+the configured pairs.
 
 ## 3. Environment and output
 
 Every child inherits the caller's environment with `NEXTEST_DOUBLE_SPAWN=0`
 (skein/docs/foundation/testing-strategy.md, 8). The chosen bundle variable
 is set to the absolute output directory for nextest, replacing any inherited
-value. `TEMPER_BUNDLE=none` stays as the builder sets it: temper's native
-binary must not embed a person's browser bundle. Chromium, fonts and live
-sign-ins remain the caller's environment prerequisites; this tool installs
-nothing and performs no sign-in.
+value. `TEMPER_BUNDLE=none` stays as the caller's environment sets it: temper's
+native binary must not embed a person's browser bundle. Chromium, fonts and
+live sign-ins remain the caller's environment prerequisites; this tool
+installs nothing and performs no sign-in.
 
-The runner sets umask 077, closes child stdin, and leaves child output visible.
-Heavy supplies its own log paths and command summaries. A direct bundle tool
-has no heavy log. Commands remain sequential, and their inputs must stay
-still until completion. A low disk check sleeps 60 seconds, checks again,
-and prints another line only if disk remains low; there is no disk timeout.
+Two settings come from that environment. Unset, each does nothing, and no
+default names a tool:
+
+- **`TIERS_WRAPPER`, the wrapper:** a command prefix, split on spaces and put
+  before every Cargo build, every nextest run and listing, and the `cc` build
+  of the CPU wrapper (sections 7 and 7.5). Unset or empty, those commands run
+  plain. Cargo metadata and the built bundle tool never go through it. Sections
+  1 to 6 call this setting the wrapper; from section 7 on it is named
+  `TIERS_WRAPPER`, and a bare "wrapper" is the CPU wrapper,
+  `tools/tiers/cpu-wrapper.c`.
+- **`TIERS_DISK_BYTES`:** the minimum free bytes on `/` before each of those
+  commands, wrapper or no wrapper. Unset or empty, nothing waits. A value
+  that is not a non-negative integer is a failed disk check (section 4).
+
+The runner sets umask 077, closes child stdin, and leaves child output visible,
+what a wrapper prints around a command included. Commands remain sequential,
+and their inputs must stay still until completion. A low disk check sleeps 60
+seconds, checks again, and prints another line only if disk remains low; there
+is no disk timeout.
 
 ## 4. Exit codes
 
@@ -104,9 +122,12 @@ failed step and do not start later steps. The runner does not retry failures.
 `python3 -I -B tools/tiers/test_run.py` uses temporary fixture checkouts
 inside this checkout, fake commands on PATH, and a mocked disk sleep.
 It checks configuration-derived pairs, prerequisite order, arguments and
-environment, map refusal and sorted package arguments, verification with fake
-JSON listings, disk admission and refusal/failure exit codes without builds,
-network access, Chromium or credentials. The suite's limit is 60 seconds.
+environment, plain commands with no wrapper and a fake wrapper's prefix on
+each command, map refusal and sorted package arguments, verification with fake
+JSON listings, the disk wait on and off and refusal/failure exit codes without
+builds, network access, Chromium or credentials. It clears any inherited
+`TIERS_WRAPPER` and `TIERS_DISK_BYTES` and needs no real wrapper on PATH.
+The suite's limit is 60 seconds.
 
 ## 6. Package-map verification
 
@@ -118,15 +139,16 @@ forms validate the native binary lists; they do not execute them.
 extra nextest arguments.
 
 For each pair, run `cargo nextest list --message-format json --profile TIER-TREE`
-through heavy, first over `--workspace`, then over the map's `-p` arguments.
+behind the wrapper, first over `--workspace`, then over the map's `-p` arguments.
 Compare the selected package/binary/test identities, ignoring filtered tests
 and build artifact paths. Print both counts for every pair, and continue
-checking the remaining pairs after a difference. Heavy's complete listing
-output is captured with `HEAVY_TAIL` set to retain all lines; its evidence
-around the JSON stays visible. A listing failure names its step and stops.
+checking the remaining pairs after a difference. The listing's output is
+captured whole, and what a wrapper prints around the JSON stays visible. A
+wrapper that truncates its output reads its own setting from the caller's
+environment; the runner sets none. A listing failure names its step and stops.
 
-Verification follows the same unchanged 80,000,000,000-byte admission rule
-before each heavy command. Workspace listings build the workspace test
+Verification follows section 3's disk wait before each listing. Workspace
+listings build the workspace test
 executables; ordinary tier runs build only their mapped packages' tests and
 the prerequisites in section 2. When profiles gain or lose packages, regenerate
 the sorted map from their workspace listings and verify it before the baseline.
@@ -136,13 +158,13 @@ the sorted map from their workspace listings and verify it before the baseline.
 `tools/tiers/run --cpu DIR TREE TIER [-- NEXTEST_ARGS...]` collects every
 executed test attempt in a fresh, private DIR. Without `--cpu`, the runner
 uses exactly section 1's command, prerequisites, environment and exit behavior.
-CPU mode builds `tools/tiers/cpu-wrapper.c` with `heavy cc -std=c11 -O2 -static
--Wall -Wextra -Werror` beneath Cargo metadata's target directory, before the
-nextest command. This Linux process supervisor uses C for direct `wait4`,
-`prctl` and signal calls with no interpreter or dynamic-loader startup. It
-requires the builder's C compiler and static libc development files. It runs
+CPU mode builds `tools/tiers/cpu-wrapper.c` with `cc -std=c11 -O2 -static
+-Wall -Wextra -Werror`, behind `TIERS_WRAPPER`, beneath Cargo metadata's target
+directory, before the nextest command. This Linux process supervisor uses C for
+direct `wait4`, `prctl` and signal calls with no interpreter or dynamic-loader
+startup. It requires a C compiler and static libc development files. It runs
 in section 2.1's prerequisite phase, after the per-pair Cargo binary builds,
-sharing their heavy admission and any metadata target already discovered.
+with their disk wait, sharing any metadata target already discovered.
 It stays outside `[binaries]`: that schema names Cargo package/bin targets
 and applies on ordinary runs, whereas this C target is conditional on `--cpu`.
 Its CPU
@@ -178,9 +200,9 @@ builds the wrapper once, loads `cpu.py` with `runpy.run_path`, calls
 returned arguments to nextest, checks disk admission, and calls
 `execute(COMMAND, ENV, DIR, PROFILE, LIMITS)`. `LIMITS` is `budgets(PATH)`'s
 result; it may be empty. `execute` owns output forwarding, completion metadata,
-wall supervision, evaluation and the resulting exit status. Do not wrap an
-already running heavy command in another heavy command. Keep each DIR until
-its report is retained. Where and when a caller runs the collector is the
+wall supervision, evaluation and the resulting exit status. It runs the
+command as given: `TIERS_WRAPPER` is the runner's, and a caller's own build
+command stands in its place. Keep each DIR until its report is retained. Where and when a caller runs the collector is the
 caller's.
 
 The interfaces and precedence are documented in nextest's
@@ -273,17 +295,31 @@ remain failures unless a later completed attempt beyond its inventory passes.
 Known timeout terminations remain starvation outcomes. JUnit represents
 `on-timeout="pass"` as success; a matching successful attempt whose process
 ended by SIGTERM/SIGKILL is recognized as a timeout termination. Unstarted
-tests are never claimed as executed. In a starved run (`run.json` `starved`
-true), a JUnit attempt with no record whose outcome is an abort by SIGTERM or
-SIGKILL, the signals of cancellation (nextest's `test abort` type with
-`process aborted with signal 15` or `9` in its message or text), is
-unobserved: cancellation stopped its wrapper before the pre-exec record. It is
+tests are never claimed as executed.
+
+A run is starved when `run.json`'s `starved` is true, the hard wall below, or
+when nextest's own `global-timeout` cancelled it: `command-output.txt` holds
+nextest's cancellation line, `Cancelling due to global timeout`, first on its
+line after any padding and colour. The summary reads that from the output and
+leaves `run.json` as `execute` wrote it.
+
+In a starved run, a still-pending attempt is a known timeout termination, and
+so is an attempt that has a record, unfinished or ended by SIGTERM or SIGKILL,
+and whose JUnit outcome is an abort by one of those signals, the signals of
+cancellation (nextest's `test abort` type with `process aborted with signal 15`
+or `9` in its message or text): cancellation reached the test through nextest.
+A test that died of those signals by itself in a starved run reads the same
+way. A record with any other exit status keeps its failure. A JUnit attempt
+with no record and such an abort is unobserved: cancellation stopped its wrapper
+before the pre-exec record. It is
 neither a coverage error, a failure nor an executed attempt. The summary lists
 it in `unobserved` by `binary_id`, `test_name` and `attempt`, counts it in the
 suite's `unobserved` and warns of it, a green warning beside `starved`. Any
 other missing record, and any missing record in a run that is not starved,
-fails coverage (exit 2). `run.json` identifies the profile and completion;
-`heavy-output.txt` retains the public command output. A nonempty DIR is
+fails coverage (exit 2).
+
+`run.json` identifies the profile and completion;
+`command-output.txt` retains the command's output. A nonempty DIR is
 refused to prevent mixing separate runs. CPU mode
 reserves profile and configuration selection, and rejects stress mode, `--no-run` and `--debugger`.
 Pending tests and checkpointed tests still settling descendants both count as
@@ -294,15 +330,32 @@ seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. The tables record the
 user's approved limits; absent tables have no limits set here. `[tools]`
 reserves the suite namespace in section 7.5.
 `--verify-all` validates every budget key, value and configured
-pair before any heavy command. CPU mode validates it too. A test's CPU budget
+pair before any command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
 0 within budget or when no CPU budget is set, 1 for exceeded CPU budgets
 (naming every test and suite), and 2 for invalid input or unverified coverage.
 
 `wall_hard_s` applies to test execution, starting with the first attempt, and
 is checked while a test is active. Crossing it emits a green `starved` warning
-and invokes the owned command's public `heavy --cancel TOKEN`, using the token
-printed by heavy. It never edits heavy state or stops its units directly.
+and cancels the command, with no help from whatever wraps it. `execute` starts
+every command as the leader of its own session and process group. Cancellation
+sends SIGTERM to that group, never to the PID alone, since a wrapper may forward
+nothing, and goes on forwarding the command's output. After a 15-second grace,
+past nextest's default 10 seconds and the wrapper's one-second settlement so
+that an orderly cancellation still writes JUnit, it sends SIGKILL to every
+process left in the session and stops reading. Nextest gives each test a process group
+of its own inside that session (section 7.2): SIGTERM reaches a test through
+nextest, and SIGKILL reaches it through the session, nextest gone or not. A
+process that leaves the session is out of reach here: the wrapper's settlement
+kills what a test leaves behind, and a build command that moves its work out of
+the session, `TIERS_WRAPPER` or a caller's own, must stop that work on SIGTERM.
+
+An interruption of the process running `execute` and a fault in the collector
+cancel the same way and are raised again, with the output no longer read; a
+second interruption during the grace goes straight to SIGKILL. `tools/tiers/run --cpu`
+takes SIGTERM and SIGHUP as interruptions, since neither reaches a command in
+its own session.
+
 Nextest slow-timeout terminations are also counted as starved using the JUnit
 attempt outcomes, without changing configured timeout periods. Starvation
 alone, unobserved attempts included, returns 0; observed assertion, exit or
@@ -357,7 +410,9 @@ up its owned surviving process independently.
 
 The suite covers overlay arguments and parsed configuration,
 record coverage and validation, retries and skipped tests, CPU budgets and
-verdict exit codes, hard-wall heavy cancellation, standard streams, exit codes,
+verdict exit codes, hard-wall cancellation of a command and its descendants,
+an interruption, a nextest global timeout from a recorded cancellation line,
+standard streams, exit codes,
 single and repeated group signals, exit checkpoints, explicit auto-reap
 accounting scope, cancellation with extra records or pending retries,
 cancellation aborts without records, starved or not,
@@ -365,7 +420,8 @@ settlement deadlines under continuous reaping, waited-child CPU,
 double-forked daemon cleanup, and 100 trivial
 attempts' overhead. `test_run.py` also checks budget validation during
 `--verify-all` and preserves the ordinary command-line assertions in section 5.
-All fixtures are local and use no service, sign-in or credential.
+All fixtures are local and use no service, sign-in or credential, and no real
+`TIERS_WRAPPER` on PATH.
 
 ### 7.5 One command as a tools suite
 
@@ -373,8 +429,8 @@ From the checkout root,
 `tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
 runs ARGV once under the same static supervisor. Cargo metadata locates
 `target_directory/tiers-cpu-wrapper`, the path used by `run --cpu`. An absent
-wrapper, or one older than its source, is built with section 7's flags through
-heavy after section 3's 80,000,000,000-byte admission check. Build diagnostics
+wrapper, or one older than its source, is built with section 7's flags, behind
+`TIERS_WRAPPER` and after section 3's disk wait. Build diagnostics
 go to stderr; discovery is quiet on success. A failed discovery, build or
 launcher invocation returns 2 without running the suite.
 
@@ -384,7 +440,7 @@ all three standard streams. The supervisor returns the command's exit code
 or reproduces its terminating signal; launch failures return 127 and collector
 failures 125. Without `--wall-hard`, signals sent to the process group reach
 the command directly; the supervisor ignores PID-only termination signals as
-in section 7.2. No extra heavy command wraps an already admitted suite.
+in section 7.2. `TIERS_WRAPPER` takes only that build: ARGV runs as given.
 Before exec, the Python launcher restores default dispositions for SIGPIPE,
 SIGXFSZ and SIGXFZ where available and ignored by Python, so a native payload
 retains its signal behavior, including a writer terminated by a closed pipe.
@@ -501,18 +557,6 @@ A caller running the after-landing tier calls this entry point
 (section 10). The trees' old `scripts/browser.sh` scripts retire in their
 own trees' branches.
 
-In a starved run, an attempt that has a record and whose JUnit outcome
-is a cancellation abort (7.3's signals) is a failure in this summary,
-since 7.3 counts only known timeout terminations as starvation; a caller
-reconciles such attempts with its own evidence of the cancellation.
-Counting them starved in the summary itself is left for later.
-
-The build command is `heavy` throughout: sections 1, 2 and 7 build and
-run through it, section 6's `HEAVY_TAIL` and 7.3's cancellation are its,
-and 10.3's `heavy-output.txt` is named for it. A runner that takes its
-caller's build command instead is left for later; it keeps section 10's
-names, arguments, results and files as they stand.
-
 `budgets.toml`'s first comment cites the user's decision on its figures
 by a record kept outside this repository; stating where the figures come
 from in this repository's own words is left for later.
@@ -606,18 +650,22 @@ Relative paths are the caller's working directory's, the checkout root.
   `ValueError`: one directory per run.
 - `execute(command, env, directory, profile, limits)`: runs `command`, an
   argument list (the caller's build command around nextest, with
-  `prepare`'s arguments), with `env` and section 6's `HEAVY_TAIL`, its stdin
-  closed and its stdout and stderr forwarded to the caller's stdout. It
-  holds the profile's `wall_hard_s` from `limits` (7.3), writes `run.json`
-  and `heavy-output.txt` (10.3), prints the summary as text and returns the
+  `prepare`'s arguments), with `env`, in a session and process group of its
+  own, its stdin closed and its stdout and stderr forwarded to the caller's
+  stdout. It holds the profile's `wall_hard_s` from `limits` (7.3), writes
+  `run.json` and `command-output.txt` (10.3), prints the summary as text and
+  returns the
   run's exit status: 1 over a CPU budget; otherwise 100 when a failure
   stands; otherwise 0 when the run was starved, or when nextest's failure
   exit came from timeout terminations alone, counted starved; otherwise the
   command's own exit status, nextest's 4 for an empty selection among
-  them. An invalid summary (7.3's exit 2) or a refused cancellation raises
-  `ValueError`; an interruption stops the command and is raised again.
+  them. An invalid summary (7.3's exit 2) raises `ValueError`; an
+  interruption stops the command (7.3) and is raised again.
 - `summary(directory, limits=None, pair=None, expected=None)`: the verdict
-  on a finished run directory, as the dictionary below. `pair` defaults to
+  on a finished run directory, as the dictionary below. A run nextest's
+  `global-timeout` cancelled is starved as one past the hard wall is (7.3):
+  `summary` reads that from `command-output.txt`, so a caller never writes
+  `run.json` itself. `pair` defaults to
   the run's profile and must equal it. `pair='tools'` reads `cpu-run`'s
   suite records instead, and `expected`, the list of suite IDs, is then
   required (7.5); with any other pair it is refused. Invalid input or
@@ -642,7 +690,9 @@ Relative paths are the caller's working directory's, the checkout root.
 
 An unobserved attempt is neither passed nor failed: a caller that reads the
 run's JUnit itself sees it as a `test abort` failure, and maps it to its own
-unobserved result by `unobserved`. These keys and their meanings are the
+unobserved result by `unobserved`. A cancelled attempt that has a record
+is starved, not failed (7.3): that caller sees it as a `test abort` failure
+too, and `tests`' `starved` counts it. These keys and their meanings are the
 contract; a key may be added, none removed or changed in meaning.
 
 ### 10.3 What a caller may read after a run
@@ -650,8 +700,9 @@ contract; a key may be added, none removed or changed in meaning.
 In a directory `prepare` made, once `execute` has returned:
 
 - `run.json`: `profile`, `finished`, `starved`, `wall_s`, `returncode`
-  (the command's) and `cancel_code` (the cancellation's, or null);
-- `heavy-output.txt`: the command's output, as forwarded;
+  (the command's) and `cancel_code` (null: cancellation is signals, with no
+  exit status of its own);
+- `command-output.txt`: the command's output, as forwarded;
 - `junit.xml`: nextest's JUnit report for the profile, absent when nextest
   wrote none;
 - `records/`: one file for each attempt, holding 7.2's JSON line; a name
