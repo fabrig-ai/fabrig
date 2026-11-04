@@ -29,6 +29,16 @@ pub struct Facts<'a> {
     pub login: Option<&'a [u8]>,
 }
 
+/// What a bare document needs, without the box's parts (setup.md, 8.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Bare<'a> {
+    pub binary: &'a [u8],
+    pub git: Option<&'a [u8]>,
+    pub claude: Option<&'a [u8]>,
+    pub clients: NonZeroU16,
+    pub webhooks: NonZeroU16,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Ports {
     pub clients: NonZeroU16,
@@ -122,15 +132,7 @@ pub fn files(
     secret: &[u8; 32],
     demo_key: &[u8; 32],
 ) -> Result<Answer, Refusal> {
-    path::check(Fact::Binary, facts.binary, b"")?;
-    if let Some(git) = facts.git {
-        path::check(Fact::Git, git, b"")?;
-    }
-    if let Some(claude) = facts.claude {
-        path::check(Fact::Claude, claude, b"")?;
-    }
-    path::check(Fact::Config, directories.config, b"agent.json")?;
-    path::check(Fact::Data, directories.data, b"programs")?;
+    check(facts.binary, facts.git, facts.claude, directories)?;
 
     let digits = hex::digits(secret);
     let digest = hex::digits(&sha256::digest(&digits));
@@ -171,6 +173,55 @@ pub fn files(
             },
         ]),
     })
+}
+
+/// `worker.secret`, `worker.digest`, `agent.json`, `temper.json`, in that order.
+pub fn bare(facts: &Bare<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Box<[File]>, Refusal> {
+    check(facts.binary, facts.git, facts.claude, directories)?;
+    let digits = hex::digits(secret);
+    let digest = hex::digits(&sha256::digest(&digits));
+    let (document, agent) = template::bare_documents(facts, directories);
+    Ok(Box::new([
+        File {
+            directory: Directory::Data,
+            name: b"worker.secret",
+            content: Content::Bytes { bytes: line(&digits), private: true },
+        },
+        File {
+            directory: Directory::Data,
+            name: b"worker.digest",
+            content: Content::Bytes { bytes: line(&digest), private: true },
+        },
+        File {
+            directory: Directory::Config,
+            name: b"agent.json",
+            content: Content::Bytes { bytes: agent, private: false },
+        },
+        File {
+            directory: Directory::Config,
+            name: b"temper.json",
+            content: Content::Bytes { bytes: document, private: false },
+        },
+    ]))
+}
+
+fn check(
+    binary: &[u8],
+    git: Option<&[u8]>,
+    claude: Option<&[u8]>,
+    directories: &Directories<'_>,
+) -> Result<(), Refusal> {
+    path::check(Fact::Binary, binary, b"")?;
+    if let Some(git) = git {
+        path::check(Fact::Git, git, b"")?;
+    }
+    if let Some(claude) = claude {
+        path::check(Fact::Claude, claude, b"")?;
+    }
+    path::check(Fact::Config, directories.config, b"agent.json")?;
+    path::check(Fact::Data, directories.data, b"programs")?;
+
+    Ok(())
 }
 
 fn line(digits: &[u8]) -> Box<[u8]> {

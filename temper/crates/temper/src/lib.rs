@@ -46,7 +46,7 @@ const CONFIG_BYTES: u32 = 1 << 20;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Usage(&'static commands::Row),
-    Init { directories: Directories },
+    Init { directories: Directories, boxed: bool },
     Serve { directories: Directories, boxed: bool },
     Box { directories: Directories, echo: temper_box::host::Echo },
     BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo },
@@ -149,7 +149,8 @@ fn configure_row(
     };
     let rest = os(&rest);
     match row.words {
-        ["init"] if rest.is_empty() => Ok(Command::Init { directories }),
+        ["init"] if rest.is_empty() => Ok(Command::Init { directories, boxed: false }),
+        ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
         ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false }),
         ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
         ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo }),
@@ -186,7 +187,9 @@ pub fn run(command: Command) -> Result<u8, String> {
             print!("{}", commands::row(row));
             return Ok(0);
         }
-        Command::Init { directories } => return init::run(&directories).map_err(|why| prefixed("temper init", &why)),
+        Command::Init { directories, boxed } => {
+            return init::run(&directories, boxed).map_err(|why| prefixed("temper init", &why));
+        }
         Command::Serve { directories, boxed } => {
             serve(&directories, boxed).map_err(|why| prefixed("temper serve", &why))?
         }

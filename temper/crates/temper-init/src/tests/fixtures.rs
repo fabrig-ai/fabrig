@@ -68,3 +68,13 @@ pub fn content<'a>(answer: &'a crate::Answer, name: &[u8]) -> &'a [u8] {
         Content::Link { .. } => unreachable!("the requested file holds bytes"),
     }
 }
+
+pub fn bare_facts<'a>(facts: &Facts<'a>) -> crate::Bare<'a> {
+    crate::Bare {
+        binary: facts.binary,
+        git: facts.git,
+        claude: facts.claude,
+        clients: facts.ports.clients,
+        webhooks: facts.ports.webhooks,
+    }
+}

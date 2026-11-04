@@ -79,6 +79,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
     value["engine"]["limits"]["overrides"]["views.watchers_per_party"] = 16.into();
     value["application"] = serde_json::json!({
+        "welcome":true,
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
         "machine":{"github":null},"demo":null,"sign_in":null,
@@ -149,8 +150,12 @@ pub(crate) fn flags(directory: &Path) -> Vec<std::ffi::OsString> {
 /// Let init write its first-run deployment, then name the gate's bundle and reserve every loopback port.
 pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     fs::set_permissions(directory, fs::Permissions::from_mode(0o700)).expect("private demo directory");
-    let initialized =
-        std::process::Command::new(program).arg("init").args(flags(directory)).output().expect("initialize the demo");
+    let initialized = std::process::Command::new(program)
+        .arg("init")
+        .arg("--box")
+        .args(flags(directory))
+        .output()
+        .expect("initialize the demo");
     assert!(initialized.status.success(), "demo init: {}", String::from_utf8_lossy(&initialized.stderr));
     let path = directory.join("temper.json");
     let mut value: serde_json::Value =
