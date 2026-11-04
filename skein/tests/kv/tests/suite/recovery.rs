@@ -46,7 +46,7 @@ fn put(number: u64) -> Op {
     Op::Put { key: Box::from(number.to_be_bytes()), value: value(number) }
 }
 
-fn crc32c(bytes: &[u8]) -> u32 {
+pub(super) fn crc32c(bytes: &[u8]) -> u32 {
     let mut crc = !0_u32;
     for byte in bytes {
         crc ^= u32::from(*byte);

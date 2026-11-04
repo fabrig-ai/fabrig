@@ -120,6 +120,14 @@ pub fn completion(
     served: &[agent::Served],
     asker: agent::Asker,
 ) -> agent::Completion {
+    completion_with(answer, |name, arguments| decode(name, arguments, grants, served, asker))
+}
+
+/// Translate the fake provider's parts with the caller's boundary decoder.
+pub(crate) fn completion_with(
+    answer: provider::Answer,
+    decode: impl Fn(&[u8], &[u8]) -> agent::Decoded,
+) -> agent::Completion {
     let stop = match answer.finish {
         provider::Finish::Stop => agent::Stop::EndTurn,
         provider::Finish::ToolCalls => agent::Stop::ToolUse,
@@ -140,7 +148,7 @@ pub fn completion(
             provider::Part::Text { text } => agent::Said::Text { text, replay: None },
             provider::Part::Opaque { bytes } => agent::Said::Opaque { bytes },
             provider::Part::ToolCall { id, name, arguments } => {
-                let call = decode(&name, &arguments, grants, served, asker);
+                let call = decode(&name, &arguments);
                 agent::Said::ToolCall { id, name, input: arguments, call, replay: None }
             }
             provider::Part::ToolOutput { .. } => panic!("a fake completion contains no tool result"),

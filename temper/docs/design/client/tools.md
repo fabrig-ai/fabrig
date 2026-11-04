@@ -1002,13 +1002,15 @@ The table grows area by area, each with its stories (section 11).
    | `forge repositories FORGE [--installation INSTALLATION] [--page PAGE]` | the picker's PAGE, from 1 (`README.md`, 4.4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `repository adopt --ids`; then the call that reads page PAGE plus one while more follow, or that none do. `--installation INSTALLATION` is an accepted installation's id, as `forge list` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
 
    - **`forge list`'s text,** one line per forge, in number order: `forge N
-     · KIND · MODE · STATE`, the state in the row's words
-     (`../client/forge.md`, 5.4), such as `forge 3 · Forgejo · owned ·
-     Setting up: preparing`, then, when it has one, its first
+     · host: HOST · KIND · MODE · STATE`, HOST the resource host used in
+     charter documents (`../protocol/configuration.md`, 13.7), the state
+     in the row's words (`../client/forge.md`, 5.4), such as `forge 3 ·
+     host: git.example:3000 · Forgejo · owned · Setting up: preparing`,
+     then, when it has one, its first
      repository in the row's words, such as `· work/hello made, in
      Default`; then the digest (5.4). Its JSON is the
-     rows' fields, the state by its name with its step, its why, or its
-     user.
+     rows' fields, including `host`, the state by its name with its step,
+     its why, or its user.
    - **The names are the forge's and the page's.** The group `forge`
      keeps them apart from area 5's `account connect`, `account forget`
      and `account replace-key`, which are an LLM account's; `forge list`

@@ -16,7 +16,7 @@ mod waiting;
 
 #[path = "program/carry.rs"]
 mod carry;
-pub use carry::{from_frames, start_with_window};
+pub use carry::{children_chat, from_frames, resume_children, start_with_window};
 pub(crate) use waiting::message;
 pub use waiting::{HostMessage, When};
 
@@ -68,7 +68,7 @@ impl Case {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Default)]
 struct RunOptions<'a> {
     login: Option<&'a [u8]>,
     refresh: Option<&'a smith_channel::GrantValue>,
@@ -76,6 +76,8 @@ struct RunOptions<'a> {
     releases: Option<&'a [HostMessage]>,
     change_after_snapshot: bool,
     cancel_with_child: bool,
+    files: Option<Files>,
+    activation: u64,
 }
 
 enum Proc {
@@ -471,7 +473,9 @@ impl Referee<Proc> for Judge {
 }
 
 /// An independently decoded channel and program-file observation after settlement.
+#[expect(clippy::partial_pub_fields, reason = "the fake filesystem stays private to activation replay")]
 pub struct Run {
+    files: Option<Files>,
     pub frames: Vec<skein_fake_channel::Observed>,
     pub invocations: Vec<smith_fake_claude::Observation>,
     pub seen: Vec<smith_fake_claude::Seen>,
@@ -521,6 +525,9 @@ fn fixture(story: &Story, login: Option<&[u8]>, case: Case) -> (Files, Opened) {
     if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
         items.extend([
             Item::file(b"work/repo/a", b"before\n"),
+            Item::directory(b"work/repo/src"),
+            Item::file(b"work/repo/src/main.rs", b"fn main() {}\n"),
+            Item::file(b"work/repo/README.md", b"A small example.\n"),
             Item::directory(b"work/repo/empty"),
             Item::file(b"library/a", b"library text"),
             Item::directory(b"outside"),
@@ -600,84 +607,101 @@ pub fn open_with_window(story: &Story, charter: &[u8], releases: &[HostMessage],
 
 /// Drive one hosted program scenario on the shared deterministic world and machine.
 #[must_use]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one hosted fixture connects the program, relay, roots and independent observations"
-)]
 fn run_scenario(
     case: Case,
     story: &Story,
     charter: &[u8],
     value: &smith_channel::GrantValue,
-    options: RunOptions<'_>,
+    mut options: RunOptions<'_>,
 ) -> Run {
-    let RunOptions { login, refresh, history, releases, change_after_snapshot, cancel_with_child } = options;
     let mut story = story.clone();
     if !case.completes() && story.turns.is_empty() {
         story.turns.push(smith_fake_claude::Turn::new(vec![smith_fake_claude::Step::Hang]));
     }
-    let (mut files, base) = fixture(&story, login, case);
+    let (mut files, base) = carry::machine(options.files.take(), &story, options.login, case);
     let root = files.open(base, b".", How::Directory).expect("parent root");
-    let machine =
-        Machine { files, base, change_after_snapshot, snapshot: None, snapshot_closed: false, changed: false };
+    let machine = Machine {
+        files,
+        base,
+        change_after_snapshot: options.change_after_snapshot,
+        snapshot: None,
+        snapshot_closed: false,
+        changed: false,
+    };
     let mut world =
         skein_world::World::new_controlled(7, skein_sim::Config::calm(), skein_world::Memory::Checked, |_| Judge {
             wait_for_exit: case.completes(),
             ended: false,
-            waiting: releases.map_or_else(|| waiting::Release::new(case == Case::Waiting), waiting::Release::open),
+            waiting: options
+                .releases
+                .map_or_else(|| waiting::Release::new(case == Case::Waiting), waiting::Release::open),
             cancel: if case.completes() { None } else { Some(Time::ZERO.saturating_add(Duration::from_millis(50))) },
-            cancel_with_child,
+            cancel_with_child: options.cancel_with_child,
         })
         .with_machine(machine);
+    host_agent(&mut world, case);
+    host_programs(&mut world, case);
+    spawn_parent(&mut world, root, case, charter, value, &options);
+    let mut outcome = world.run();
+    let mut run = observe_run(&mut outcome, base, case);
+    outcome.machine.files.close(base);
+    assert_eq!(outcome.machine.files.open_handles(), 0, "fixture handles settle");
+    run.files = Some(core::mem::replace(&mut outcome.machine.files, Files::new()));
+    run
+}
+
+type ProgramWorld = skein_world::World<Proc, Judge, Machine>;
+
+fn host_agent(world: &mut ProgramWorld, case: Case) {
     let operations = smith_agent_service::program_operations(&configuration(case))
         .expect("program operation bound")
         .checked_add(8)
         .expect("shell routes");
     world.host_startup(
         HostedProgram { program: b"smith".as_slice().into(), make: make_agent, instances: 1, operations },
-        |spawn| {
-            let case: Case = serde_json::from_slice(&spawn.args[0]).expect("case");
-            if case == Case::MissingRoot {
-                Vec::new()
-            } else {
-                let mut roots = vec![skein_world::StartupRoot {
-                    name: b"programs".as_slice().into(),
-                    path: b"/programs".as_slice().into(),
-                }];
-                if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
-                    roots.extend([
-                        skein_world::StartupRoot {
-                            name: b"cwd".as_slice().into(),
-                            path: b"/work/repo".as_slice().into(),
-                        },
-                        skein_world::StartupRoot {
-                            name: b"library".as_slice().into(),
-                            path: b"/library".as_slice().into(),
-                        },
-                    ]);
-                }
-                roots
-            }
-        },
-        |spawn| {
-            let case: Case = serde_json::from_slice(&spawn.args[0]).expect("scenario");
-            if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
-                vec![skein_world::StartupAppend {
-                    name: b"trace".as_slice().into(),
-                    root: b"/home".as_slice().into(),
-                    path: b"events.jsonl".as_slice().into(),
-                    mode: 0o600,
-                }]
-            } else {
-                vec![]
-            }
-        },
+        startup_roots,
+        startup_appends,
     );
+}
 
-    // Each of main and two children checks its login before printing.
+fn startup_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
+    let case: Case = serde_json::from_slice(&spawn.args[0]).expect("case");
+    if case == Case::MissingRoot {
+        Vec::new()
+    } else {
+        let mut roots = vec![skein_world::StartupRoot {
+            name: b"programs".as_slice().into(),
+            path: b"/programs".as_slice().into(),
+        }];
+        if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+            roots.extend([
+                skein_world::StartupRoot { name: b"cwd".as_slice().into(), path: b"/work/repo".as_slice().into() },
+                skein_world::StartupRoot { name: b"library".as_slice().into(), path: b"/library".as_slice().into() },
+            ]);
+        }
+        roots
+    }
+}
+
+fn startup_appends(spawn: &Spawn) -> Vec<skein_world::StartupAppend> {
+    let case: Case = serde_json::from_slice(&spawn.args[0]).expect("scenario");
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+        vec![skein_world::StartupAppend {
+            name: b"trace".as_slice().into(),
+            root: b"/home".as_slice().into(),
+            path: b"events.jsonl".as_slice().into(),
+            mode: 0o600,
+        }]
+    } else {
+        vec![]
+    }
+}
+
+fn host_programs(world: &mut ProgramWorld, case: Case) {
+    // Main and each child check their login before printing.
     let factory = smith_fake_claude::hosted(b"/programs/claude");
     world.host_startup(
-        HostedProgram { program: factory.program, make: make_fake, instances: 6, operations: factory.operations },
+        HostedProgram { program: factory.program, make: make_fake, instances: 8, operations: factory.operations },
         |spawn| {
             let launch = fake_launch(spawn);
             smith_fake_claude::config_root(&launch).into_iter().chain(smith_fake_claude::mcp_root(&launch)).collect()
@@ -687,10 +711,20 @@ fn run_scenario(
     world.host(HostedProgram {
         program: b"/programs/smith-agent".as_slice().into(),
         make: if case == Case::MissingServer { make_failed_relay } else { make_relay },
-        // Main and two inspect-only children each keep a relay.
-        instances: 3,
+        // Main and its inspect-only children each keep a relay.
+        instances: 4,
         operations: smith_agent_shell::relay::operations(),
     });
+}
+
+fn spawn_parent(
+    world: &mut ProgramWorld,
+    root: Opened,
+    case: Case,
+    charter: &[u8],
+    value: &smith_channel::GrantValue,
+    options: &RunOptions<'_>,
+) {
     world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {
         let initial = waiting::initial(matches!(case, Case::Waiting | Case::ParkWaiting | Case::Open));
         let mut parent = Parent::new(
@@ -710,9 +744,11 @@ fn run_scenario(
                 ..ParentOptions::default()
             },
         );
-        parent.program_messages = waiting::messages(releases.unwrap_or(&[]));
-        parent
-            .program_arguments(Box::new([serde_json::to_vec(&case).expect("case arguments").into()]), refresh.cloned());
+        parent.program_messages = waiting::messages(options.releases.unwrap_or(&[]));
+        parent.program_arguments(
+            Box::new([serde_json::to_vec(&case).expect("case arguments").into()]),
+            options.refresh.cloned(),
+        );
         if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
             parent.peer = crate::host();
             parent.peer.play(tools_start(charter, value));
@@ -721,35 +757,17 @@ fn run_scenario(
         if case == Case::Open {
             parent.program_host_answers = Some(0);
         }
-        if case == Case::Transcript || history.is_some() {
-            parent.peer = crate::host();
-            parent.peer.play(match history {
-                Some(turns) => start_with_window(charter, value, turns),
-                None => with_transcript(charter, value),
-            });
-        }
+        carry::activation(&mut parent, case, charter, value, options);
         Proc::Parent(Box::new(parent))
     });
-    let mut outcome = world.run();
+}
+
+fn observe_run(outcome: &mut skein_world::Outcome<Proc, Machine>, base: Opened, case: Case) -> Run {
     assert!(outcome.procs.iter().all(Host::is_empty), "every hosted process settles");
     let Proc::Parent(parent) = &outcome.procs[0] else { panic!("parent first") };
-    let bytes = match outcome.machine.files.open(base, b"programs/source/fake-claude.observations", How::Read) {
-        Ok(file) => {
-            let bytes = outcome.machine.files.read(file, 0, 1_000_000).expect("observations");
-            outcome.machine.files.close(file);
-            bytes
-        }
-        Err(_) => Vec::new(),
-    };
-    let run_directories = match outcome.machine.files.open(base, b"programs/.runs", How::Directory) {
-        Ok(root) => {
-            let entries = outcome.machine.files.list(root, 256, 65_536).expect("run directory entries");
-            outcome.machine.files.close(root);
-            entries.into_iter().map(|_| b"<private-run>".to_vec()).collect()
-        }
-        Err(_) => Vec::new(),
-    };
-    let run = Run {
+    let bytes = observation_bytes(&mut outcome.machine.files, base);
+    let run_directories = run_directories(&mut outcome.machine.files, base);
+    Run {
         workspace_file: fixture_file(&mut outcome.machine.files, base, b"work/repo/a"),
         workspace_empty_directory: match outcome.machine.files.open(base, b"work/repo/empty", How::Directory) {
             Ok(directory) => {
@@ -776,19 +794,34 @@ fn run_scenario(
                 Proc::Parent(_) | Proc::Agent(_) | Proc::Fake(_) => None,
             })
             .collect(),
-        events: if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
-            let file = outcome.machine.files.open(base, b"home/events.jsonl", How::Read).expect("trace file");
-            let size = u32::try_from(outcome.machine.files.stat(file).size).expect("trace size");
-            let bytes = outcome.machine.files.read(file, 0, size).expect("event stream");
-            outcome.machine.files.close(file);
-            crate::events::read(&bytes, configuration(case).limits.events.as_ref().expect("event limits"))
-        } else {
-            Vec::new()
-        },
-    };
-    outcome.machine.files.close(base);
-    assert_eq!(outcome.machine.files.open_handles(), 0, "fixture handles settle");
-    run
+        events: read_events(&mut outcome.machine.files, base, case),
+        files: None,
+    }
+}
+
+fn observation_bytes(files: &mut Files, base: Opened) -> Vec<u8> {
+    let Ok(file) = files.open(base, b"programs/source/fake-claude.observations", How::Read) else { return Vec::new() };
+    let bytes = files.read(file, 0, 1_000_000).expect("observations");
+    files.close(file);
+    bytes
+}
+
+fn run_directories(files: &mut Files, base: Opened) -> Vec<Vec<u8>> {
+    let Ok(root) = files.open(base, b"programs/.runs", How::Directory) else { return Vec::new() };
+    let entries = files.list(root, 256, 65_536).expect("run directory entries");
+    files.close(root);
+    entries.into_iter().map(|_| b"<private-run>".to_vec()).collect()
+}
+
+fn read_events(files: &mut Files, base: Opened, case: Case) -> Vec<smith_events::Record> {
+    if !matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+        return Vec::new();
+    }
+    let file = files.open(base, b"home/events.jsonl", How::Read).expect("trace file");
+    let size = u32::try_from(files.stat(file).size).expect("trace size");
+    let bytes = files.read(file, 0, size).expect("event stream");
+    files.close(file);
+    crate::events::read(&bytes, configuration(case).limits.events.as_ref().expect("event limits"))
 }
 
 fn fixture_file(files: &mut Files, base: Opened, path: &[u8]) -> Option<Vec<u8>> {
