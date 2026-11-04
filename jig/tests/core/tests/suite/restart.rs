@@ -278,7 +278,7 @@ fn a_refused_claim_keeps_the_conversation_for_the_next_resume() {
     let _decision = core::step(&mut core, &env, core::Event::ClaimRefused { task });
     assert_eq!(core.proofs.get(&task), Some(saved));
     assert!(core.replaced.is_empty());
-    core.begin_transcript(task, saved.attempt);
+    core.begin_transcript(task, saved.attempt, saved.window.map(|window| (window.attempt, window.turn)));
     assert_eq!(core.transcripts.get(&task).expect("next resume").from, saved.conversation);
 }
 

@@ -522,9 +522,7 @@ fn prepare_agent(
     let previous_attempt = context.previous_attempt;
     super::results::clear(core, number);
     assert!(core.contexts.insert(number, context).is_ok(), "bounded activation context");
-    core.begin_transcript(number, previous_attempt);
-    let transcript = core.transcripts.get_mut(&number).expect("begun transcript");
-    transcript.window = from;
+    core.begin_transcript(number, previous_attempt, from);
     work.push(Work::Event(Event::Tasks(tasks::Event::Prepare {
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Acknowledge)),
         task: number,
@@ -713,8 +711,7 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
     {
         let previous_attempt = transcript.previous_attempt;
         drop(core.transcripts.remove(&task));
-        core.begin_transcript(task, previous_attempt);
-        core.transcripts.get_mut(&task).expect("restarted empty transcript").window = None;
+        core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {
         super::results::clear(core, task);
