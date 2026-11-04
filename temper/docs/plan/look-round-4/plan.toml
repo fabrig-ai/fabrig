@@ -1,0 +1,3 @@
+draft = "look-round-4"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-4/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/to-begin.md", "temper/docs/design/draft/to-begin.status.md", "AGENTS.md", "DESIGN.md"]
