@@ -101,3 +101,13 @@ The measure's final value, the `dead_code` expectations left in temper and why, 
 ## Answers
 
 2026-11-04. May `temper-fixtures` also depend on `smith-agent-shell` and `temper-engine-domain`, which `turn_bounds` needs? No. `temper-playground/src/documents/turn_bounds.rs` is the same code and public, so the real loop's copy goes and `temper-client-browser-world`, `temper-real-loop-world` and `temper`'s tests name the playground's. Adding the two would put smith's agent shell and the engine's domain into the client crates' tests and the gallery, which link neither today, and keep a duplicate. `serde_json` left the kit's list too: only `turn_bounds` used it. Goal, Inputs, Owns, steps 1, 2 and 5 above say this.
+
+## Rebase (2026-11-04, step merge, foreman debt-5/temper-fixtures-kit/foreman-2)
+
+resolve the debt index conflict by keeping both D008 and D010 removed
+Rebase onto the landing target, preserving its existing debt closures.
+The sole conflicting path is `temper/docs/development/debt/README.md`.
+Target commit `e3f3eec486` removes D008; branch commit `3c4c5a7cd3` removes adjacent D010.
+Resolve the index by deleting both rows and retaining all other target content.
+Keep `D010-path-shared-fixtures.md` deleted.
+The log reports `temper/crates/temper/tests/support/configuration.rs` auto-merged; it reports no code conflict there.
