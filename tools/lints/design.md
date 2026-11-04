@@ -70,12 +70,16 @@ Clippy reads the nearest `clippy.toml` above a crate's manifest and nothing beyo
 applies to a directory's crates through one copy, or to a crate through its own.
 
 - **`step`:** the tree's `clippy.toml`, the subset's bans.
-- **`ordinary`:** a tree's `tests/clippy.toml`, and a copy in any other crate on `harness` or
-  `binary`. A run is one thread and one loop, and a seed replays. A step crate on `testing/` sits
-  beside the harness kits there, so `testing/` has no `clippy.toml` of its own: each kit has a copy.
+- **`ordinary`:** a tree's `tests/clippy.toml`, `temper/tools/clippy.toml`, and a copy in any other
+  crate on `harness` or `binary` that `ring` doesn't take, and in a crate on `step` that is ordinary
+  Rust, as `skein-world` and `skein-fail-stop` are. A run is one thread and one loop, and a seed
+  replays. A step crate on `testing/` sits beside the harness kits there, so `testing/` has no
+  `clippy.toml` of its own: each kit has a copy.
 - **`ring`:** `ordinary`'s bans and no std handle that closes on drop, nor shared ownership
-  (`skein/docs/foundation/programming-model.md`, 2.1). Copies sit in the crates on `ring`, and in
-  the crates that play the kernel: the simulator, the fake machines.
+  (`skein/docs/foundation/programming-model.md`, 2.1). Copies sit in the crates on `ring`; in the
+  crates that play the kernel: the simulator, the fake machines, hearth's fake git and fake
+  mmdebstrap; and in five kits of skein's that hold neither: `skein-sim-world`, `skein-playground`,
+  `skein-conformance`, `skein-heap` and `skein-scratch`.
 
 A crate's lint profile and its variant are separate choices: `skein-sim` is on `step` with `ring`'s
 bans, since it holds to the step crates' lints and is ordinary Rust.
@@ -116,7 +120,18 @@ only sites are in its test modules, the root says `#![cfg_attr(test, expect(...)
 
 ## 7. Later
 
-- smith's packages and the root's `tests/boundary` take a profile when smith's copy of this debt is
-  taken up: they are outside the four trees.
+- smith's packages and the root's `tests/boundary` take a profile when this debt is taken up for
+  them: they are outside the four trees, and no item of `smith/docs/development/debt/` holds it yet.
 - The closure-ban lints could be set once in `[workspace.lints.clippy]`, which would retire each
   crate's root `manual_map` expectation.
+- skein's `manual_map` exceptions could take section 6's one wording at each crate's root, as
+  temper's and jig's do: the user's request of 2026-11-04 asked it of temper alone.
+- **Four profiles or three, awaiting the user.** The request names three: `step`, `harness` and
+  `binary`. Default: the four of section 2 stand, because `binary` held two regimes. Three by
+  dropping `ring`'s further lints loosens `skein-shell`, hearth's binary and the two examples, and
+  merges two definitions and four manifests. Three by raising the twelve crates on `binary` to them
+  is a far larger plan.
+- **Where the check runs, awaiting the user.** The request has it run in a step outside this
+  repository, beside `tools/citations/citations.py`. Recommended: that step gains the line
+  `python3 -I -B tools/lints/lints.py`; the other answer leaves the boundary test as its one run
+  (section 5).

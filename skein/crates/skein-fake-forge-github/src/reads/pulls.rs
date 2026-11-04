@@ -9,6 +9,32 @@ use skein_fake_forge_domain::api as a;
 use skein_forge::github::document as d;
 use skein_lib::List;
 
+pub(super) fn commits(answer: a::Answer, target: &[u8], page: u32, size: u32, limits: &Limits) -> Response {
+    let a::Answer::Commits { commits } = answer else {
+        return answers::failed();
+    };
+    let total = u64::try_from(commits.len()).expect("bounded history");
+    let Some(page) = answers::Page::new(page, size, total) else {
+        return answers::failed();
+    };
+    let mut rows = List::with_capacity(size);
+    for (index, row) in commits.into_iter().enumerate() {
+        if page.contains(u64::try_from(index).expect("bounded history")) {
+            let mut parents = List::with_capacity(u32::try_from(row.parents.len()).expect("bounded parents"));
+            for parent in row.parents {
+                parents.push(commit(parent)).expect("parent capacity");
+            }
+            rows.push(skein_forge::api::CommitMessage {
+                id: commit(row.id),
+                parents: parents.into_boxed(),
+                message: row.message,
+            })
+            .expect("page capacity");
+        }
+    }
+    page.link_next(answers::response(200, &Body::Commits(total, rows.as_slice()), limits), target, limits)
+}
+
 pub(super) fn document(row: a::Pull) -> Option<d::Pull> {
     Some(d::Pull {
         number: row.number,

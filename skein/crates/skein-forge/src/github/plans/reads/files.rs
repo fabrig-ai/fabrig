@@ -171,7 +171,8 @@ impl Plan {
                     return Err(api::Error::TooLarge);
                 }
             }
-            crate::github::document::Row::Entry { .. }
+            crate::github::document::Row::CommitMessage(_)
+            | crate::github::document::Row::Entry { .. }
             | crate::github::document::Row::Installation(_)
             | crate::github::document::Row::Rule(_)
             | crate::github::document::Row::Log(_)

@@ -99,6 +99,7 @@ impl Sweep {
                 | Row::Collaborator(_)
                 | Row::Remark(_)
                 | Row::Review(_)
+                | Row::CommitMessage(_)
                 | Row::Commit(_)
                 | Row::Rule(_)
                 | Row::Entry { .. }

@@ -66,7 +66,6 @@ pub(crate) enum Refused {
     Unsigned,
 }
 impl Connection {
-    #[expect(clippy::manual_map, reason = "step code constructs the optional upload with an explicit match")]
     pub(crate) fn new(
         run: Token,
         forge: &Forge,
@@ -124,13 +123,9 @@ impl Connection {
                 rows: List::with_capacity(capacity),
             },
             call: Some(http::Call { method, target: encoded.target, headers: headers.into_boxed(), body, close: true }),
-            upload: match encoded.body {
-                Some(body) => Some(skein_link::Upload::new(body)),
-                None => None,
-            },
+            upload: skein_link::Upload::of(encoded.body),
         })
     }
-    #[expect(clippy::manual_map, reason = "step code constructs the optional upload with an explicit match")]
     pub(crate) fn github(
         run: Token,
         forge: &Forge,
@@ -191,10 +186,7 @@ impl Connection {
             json_next: None,
             speech: Speech::GitHub { kind, decoder: None, document: None, rows: List::with_capacity(capacity) },
             call: Some(http::Call { method, target: encoded.target, headers: headers.into_boxed(), body, close: true }),
-            upload: match encoded.body {
-                Some(body) => Some(skein_link::Upload::new(body)),
-                None => None,
-            },
+            upload: skein_link::Upload::of(encoded.body),
         })
     }
     fn json_limits(&self, l: &Limits) -> tokenizer::Limits {
@@ -428,9 +420,8 @@ impl Connection {
             return;
         };
         let (send, next) = upload.room(limits::http_transport(&env.limits, self.link.encrypted()).send);
-        match &next {
-            Down::Finish => self.upload = None,
-            Down::Demand { .. } | Down::Send(_) => (),
+        if next == Down::Finish {
+            self.upload = None;
         }
         self.http_down(env, http::Request::Upload(send));
         self.http_down(env, http::Request::Upload(next));
@@ -559,6 +550,7 @@ fn github_row_bound(request: &dialect::request::Request) -> Option<u32> {
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
@@ -635,6 +627,7 @@ pub(crate) fn kind_of(request: &dialect::request::Request) -> Result<Option<dial
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
@@ -693,11 +686,7 @@ fn authorization(auth: &Auth, encoded: dialect::request::Auth, wall: Wall) -> Re
 }
 
 fn link_env(env: &Env<Limits>) -> Env<skein_link::Limits> {
-    Env {
-        now: env.now,
-        wall: env.wall,
-        limits: skein_link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout },
-    }
+    env.with(skein_link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout })
 }
 
 #[cfg(test)]

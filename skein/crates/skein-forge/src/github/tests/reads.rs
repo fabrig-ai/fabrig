@@ -22,6 +22,32 @@ const KEY: api::Repository = api::Repository { forge: 3, repository: 7 };
 const USER: u64 = 9_007_199_254_740_993;
 const WORD: &[u8] = b"example-app";
 const ROOM: u32 = 4096;
+
+#[test]
+fn github_commit_ranges_are_paged_without_files() {
+    let head = fixtures::branch().commit;
+    let message = api::CommitMessage { id: head, parents: Box::new([head]), message: Box::from(*b"work") };
+    for (wire, next, expected) in [
+        (br#"{"total_commits":0,"commits":[],"files":[{"filename":null}],"behind_by":false}"#.as_slice(), false,
+            Ok(api::Answer::Commits { commits: Box::new([]), more: false })),
+        (br#"{"total_commits":1,"commits":[{"sha":"0123456789abcdef0123456789abcdef01234567","parents":[{"sha":"0123456789abcdef0123456789abcdef01234567"}],"commit":{"message":"work"}}],"files":[{"filename":null}]}"#, false,
+            Ok(api::Answer::Commits { commits: Box::new([message.clone()]), more: false })),
+        (br#"{"total_commits":1,"commits":[]}"#, false, Err(api::Error::InvalidAnswer)),
+        (br#"{"total_commits":1,"commits":[]}"#, true,
+            Ok(api::Answer::Commits { commits: Box::new([]), more: true })),
+    ] {
+        for chunk in [1, 7] {
+            let mut call = Call::new(api::Read::Commits { before: head, after: head, page: 1 }, bounds(), true);
+            let Step::Send(exchange) = call.begin().expect("range admitted") else { panic!("range request") };
+            let request = request::encode(&exchange.request, &limits()).unwrap();
+            assert_eq!(request.target.as_ref(), b"/repos/acme/widgets/compare/0123456789abcdef0123456789abcdef01234567...0123456789abcdef0123456789abcdef01234567?page=1&per_page=4");
+            let (rows, document) = fixtures::decode_with(exchange.decoder(&limits()).unwrap(), wire, chunk, &limits());
+            call.head(next);
+            for row in rows.into_boxed() { assert_eq!(call.heard(Heard::Row(row)), Ok(None)); }
+            assert_eq!(call.done(document.expect("commits decoded without files")), ended(expected.clone()));
+        }
+    }
+}
 fn bounds() -> Bounds {
     Bounds { inner: 8, page_size: 4, rows: 4, answer_bytes: ROOM, body_bytes: 128 }
 }

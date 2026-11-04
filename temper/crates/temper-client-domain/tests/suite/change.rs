@@ -226,6 +226,8 @@ mod tests {
             hold: None,
             runs: None,
             ci: w::Ci::Unknown,
+            approvals: List::with_capacity(0),
+            unmapped_reviews: List::with_capacity(0),
             gates: List::with_capacity(0),
             repairs: used(0, 3),
             resolutions: used(0, 3),

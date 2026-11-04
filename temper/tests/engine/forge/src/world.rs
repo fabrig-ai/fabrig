@@ -121,6 +121,7 @@ pub struct World {
     hints: Vec<skein_forge::api::Hint>,
     signatures: bool,
     pull_snapshot: Option<skein_forge::api::Pull>,
+    ancestry_answer: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     landing_config: Option<(u32, temper_engine_domain_forge_change::Way, Box<[top::RepositoryGates]>)>,
 }
 
@@ -271,6 +272,33 @@ impl World {
         )
     }
 
+    /// Give the fake room for a goal while independently bounding client admission.
+    #[must_use]
+    pub fn with_goal_room(seed: u64, rows: u32, answer_bytes: u32) -> World {
+        let mut world = Self::with_comparison_room(seed);
+        world.forge_env.limits.limits.files = 40;
+        world.forge_env.limits.limits.content_bytes = 4096;
+        world.env.limits.client.rows = rows;
+        world.env.limits.client.answer_bytes = answer_bytes;
+        world
+    }
+
+    /// Read the full goal comparison and check the client's row and byte admission.
+    #[must_use]
+    pub fn comparison_fits(&self, base: u64, head: u64) -> bool {
+        let read = skein_forge::api::Read::Compare { before: translate::commit(base), after: translate::commit(head) };
+        let answer = self.inspect(&raw::Read::Compare { base, head, page: 1, limit: 40 });
+        let answer = translate::answer_as(&skein_forge::api::Op::Read(read), answer, &self.env.limits.client, 1, false);
+        skein_forge_client::measure::answer_rows(&answer, self.env.limits.client.rows)
+            && skein_forge::measure::answer(&answer).expect("bounded comparison")
+                <= u64::from(self.env.limits.client.answer_bytes)
+    }
+
+    /// Script each ancestry range's terminal result until the script is cleared.
+    pub fn script_ancestry(&mut self, result: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>) {
+        self.ancestry_answer = result;
+    }
+
     pub fn preload_branches(&mut self, count: u32) {
         for number in 0..count {
             self.external(
@@ -412,6 +440,7 @@ impl World {
             hints: Vec::new(),
             signatures,
             pull_snapshot: None,
+            ancestry_answer: None,
             landing_config: None,
         };
         world.top.restore_begin(world.env.wall);
@@ -1118,6 +1147,21 @@ impl World {
         assert!(repository.repository == REPO.repository || repository.repository == 0 || repository.repository == 3);
         self.calls += 1;
         self.call_ops.push(op.clone());
+        if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Commits { .. }))
+            && let Some(result) = &self.ancestry_answer
+        {
+            self.to_top.push((
+                self.generation,
+                top::Event::Client(skein_forge_client::Event::Answered {
+                    free: 0,
+                    rate: None,
+                    call,
+                    cost: 1,
+                    result: result.clone(),
+                }),
+            ));
+            return;
+        }
         if let skein_forge::api::Op::Write(_) = op {
             self.writes += 1;
         }

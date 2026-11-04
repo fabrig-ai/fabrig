@@ -8,7 +8,11 @@ Read a change's way to landing: its pull request, CI and step
 Prints: `change N`, its repository, branch and landing branch, its pull request, step and CI at its head; its questions: the route, those taken of its bound, and each open question with where it stands; and a digest
 --json: the record change.
 Key: none.
-Until it lands, it prints `next: temper ctl DIR change show TASK
+While landing-rule approval is outstanding, it prints each requirement,
+counted people and review heads, the remaining count and any unmapped
+reviews, then points to the pull request for review. Unread and incomplete
+evidence are named separately from zero qualifying approvals.
+Otherwise, until it lands, it prints `next: temper ctl DIR change show TASK
 --until landed`, or, while a task is held, `next: temper ctl DIR
 task show N`; while verifying or red, `next: temper ctl DIR change show TASK
 --until cleared`; landed, its merge commit. A wait for its landing ends

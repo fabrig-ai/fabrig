@@ -340,6 +340,7 @@ impl Reachable {
                 | github_document::Row::Collaborator(_)
                 | github_document::Row::Remark(_)
                 | github_document::Row::Review(_)
+                | github_document::Row::CommitMessage(_)
                 | github_document::Row::Commit(_)
                 | github_document::Row::Rule(_)
                 | github_document::Row::Entry { .. }

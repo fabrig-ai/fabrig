@@ -342,32 +342,9 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
         }
         None => None,
     };
-    let mut gates = List::with_capacity(forge::PANEL_GATES);
-    for gate in value.gates {
-        gates
-            .push(
-                w::Gate::new(
-                    limits,
-                    w::GateParts {
-                        number: gate.number,
-                        kind: match gate.kind {
-                            change::GateKind::Agent => w::GateKind::Review,
-                            change::GateKind::Person => w::GateKind::Approval,
-                            change::GateKind::Check => w::GateKind::Check,
-                        },
-                        blocks: gate.blocking,
-                        verdict: match gate.verdict {
-                            change::Status::Unknown => w::Verdict::None,
-                            change::Status::Pending => w::Verdict::Pending,
-                            change::Status::Passed => w::Verdict::Approved,
-                            change::Status::Failed => w::Verdict::Changes,
-                        },
-                    },
-                )
-                .ok()?,
-            )
-            .ok()?;
-    }
+    let gates = panel_gates(value.gates, limits)?;
+    let approvals = panel_approvals(value.approvals, limits)?;
+    let unmapped_reviews = panel_unmapped(value.unmapped_reviews, limits)?;
     let record = w::ChangePanel::new(
         limits,
         w::ChangePanelParts {
@@ -394,6 +371,8 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
                 change::Status::Failed => w::Ci::Failed,
             },
             gates,
+            approvals,
+            unmapped_reviews,
             repairs: used(value.repairs, limits)?,
             resolutions: used(value.resolutions, limits)?,
             updates: used(value.updates, limits)?,
@@ -402,6 +381,100 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
     )
     .ok()?;
     Some(wire::change_panel(&record))
+}
+
+fn panel_gates(value: Box<[forge::PanelGate]>, limits: &w::Limits) -> Option<List<w::Gate>> {
+    let mut gates = List::with_capacity(forge::PANEL_GATES);
+    for gate in value {
+        gates
+            .push(
+                w::Gate::new(
+                    limits,
+                    w::GateParts {
+                        number: gate.number,
+                        kind: match gate.kind {
+                            change::GateKind::Agent => w::GateKind::Review,
+                            change::GateKind::Person => w::GateKind::Approval,
+                            change::GateKind::Check => w::GateKind::Check,
+                        },
+                        blocks: gate.blocking,
+                        verdict: match gate.verdict {
+                            change::Status::Unknown => w::Verdict::None,
+                            change::Status::Pending => w::Verdict::Pending,
+                            change::Status::Passed => w::Verdict::Approved,
+                            change::Status::Failed => w::Verdict::Changes,
+                        },
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(gates)
+}
+fn panel_approvals(value: Box<[forge::PanelApproval]>, limits: &w::Limits) -> Option<List<w::Approval>> {
+    let mut approvals = List::with_capacity(limits.change_panel_approvals);
+    for line in value {
+        let mut counted = List::with_capacity(limits.approval_counted);
+        for review in line.counted {
+            counted
+                .push(
+                    w::CountedReview::new(limits, w::CountedReviewParts { person: review.person, head: review.head })
+                        .ok()?,
+                )
+                .ok()?;
+        }
+        approvals
+            .push(
+                w::Approval::new(
+                    limits,
+                    w::ApprovalParts {
+                        scope: line.scope,
+                        number: line.rule,
+                        role: line.role,
+                        freshness: match line.freshness {
+                            forge::JudgeFreshness::Exact => w::RuleFreshness::Exact,
+                            forge::JudgeFreshness::Clean => w::RuleFreshness::Clean,
+                        },
+                        required: line.required,
+                        read: match line.read {
+                            forge::ReviewRead::Unread => w::ReviewRead::Unread,
+                            forge::ReviewRead::Incomplete => w::ReviewRead::Incomplete,
+                            forge::ReviewRead::Complete => w::ReviewRead::Complete,
+                        },
+                        counted,
+                        remaining: line.remaining,
+                        refused: line.refused,
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(approvals)
+}
+fn panel_unmapped(value: Box<[forge::UnmappedReview]>, limits: &w::Limits) -> Option<List<w::UnmappedReview>> {
+    let mut reviews = List::with_capacity(limits.change_panel_unmapped_reviews);
+    for review in value {
+        reviews
+            .push(
+                w::UnmappedReview::new(
+                    limits,
+                    w::UnmappedReviewParts {
+                        account: review.account,
+                        head: review.head,
+                        verdict: match review.verdict {
+                            skein_forge::api::Verdict::Approve => w::Verdict::Approved,
+                            skein_forge::api::Verdict::Comment => w::Verdict::None,
+                            skein_forge::api::Verdict::RequestChanges => w::Verdict::Changes,
+                        },
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    Some(reviews)
 }
 
 fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w::Questions> {

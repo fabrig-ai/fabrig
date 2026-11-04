@@ -533,7 +533,6 @@ impl Component {
             skein_io::Event::Closed { owner } => {
                 if let Some(id) = self.connections.remove(&owner) {
                     let c = self.connection_slab.get_mut(id).expect("indexed connection");
-                    c.link.closed();
                     let closing = c.closing;
                     if let Some(call) = self.holders.remove(&owner)
                         && self.lifecycle == Lifecycle::Live

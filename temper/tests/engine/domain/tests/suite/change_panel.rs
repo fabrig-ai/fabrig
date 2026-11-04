@@ -562,3 +562,9 @@ fn a_watch_window_does_not_slice_the_queue_panel() {
         "design client/forge.md 9.2: a window of one row after a cursor must still deliver the whole panel"
     );
 }
+
+// domain/forge.md, 8.7–8.8: an enforced approval wait reaches the requester.
+#[test]
+fn landing_rule_approval_wait_is_visible_to_requester() {
+    super::forge_routes::approval_identity::approval_wait_story();
+}
