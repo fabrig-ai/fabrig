@@ -36,7 +36,18 @@ pub(super) struct PreparedEndpoint {
 
 pub(super) enum EndpointTransport {
     Plaintext,
-    Tls { server_name: tls::Name, trust_der: Option<String>, trust: Option<document::TrustDocument> },
+    #[cfg_attr(
+        not(unix),
+        expect(
+            dead_code,
+            reason = "only the cfg(unix) trust loading reads these; the checks that build them are portable"
+        )
+    )]
+    Tls {
+        server_name: tls::Name,
+        trust_der: Option<String>,
+        trust: Option<document::TrustDocument>,
+    },
 }
 
 pub(super) fn build_endpoints(
