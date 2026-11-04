@@ -922,6 +922,17 @@ mod tests {
     use skein_lib::List;
 
     #[test]
+    fn a_capture_of_a_directory_with_no_root_ends_unknown_and_idle() {
+        let config = crate::tests::config();
+        let mut hub = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("hub");
+        let mut directories = List::with_capacity(1);
+        directories.push(0).expect("one directory");
+        hub.capture_plain(directories, Time::from_nanos(1_000_000_000));
+        assert_eq!(hub.take_capture_done(), Some(false));
+        assert!(hub.delivery.inspection.idle());
+    }
+
+    #[test]
     fn invalid_limits_are_refused() {
         let base = crate::tests::config().limits.process.io;
         assert!(native_io_valid(&base));
@@ -1008,7 +1019,7 @@ mod tests {
         };
         assert!(adapter.file_events.is_empty(), "both file terminals settle once");
         assert!(adapter.store_io.store_actions.is_empty(), "the store answer settles once");
-        assert!(adapter.delivery.markers.is_none(), "the inspection settles once");
+        assert!(adapter.delivery.inspection.idle(), "the inspection settles once");
     }
 
     fn start_store_load(adapter: &mut HostIo, now: Time, events: &mut Queue<local::Event>) {
@@ -1140,7 +1151,7 @@ mod tests {
         assert!(events.is_empty(), "both requests have exactly one chat terminal");
         assert!(world.adapter.file_events.is_empty());
         assert!(world.adapter.store_io.store_actions.is_empty());
-        assert!(world.adapter.delivery.markers.is_none());
+        assert!(world.adapter.delivery.inspection.idle());
         world.close(&mut events);
         assert!(events.is_empty(), "closing adds no request terminal");
     }
