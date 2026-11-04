@@ -14,8 +14,10 @@ use smith_local_protocol as local_protocol;
 
 use crate::StartValues;
 
+mod close;
 mod delivery;
 mod store;
+use close::Close;
 use delivery::DeliveryIo;
 use store::StoreIo;
 
@@ -36,12 +38,6 @@ enum Operation {
     Io(Token),
     File(Token),
     ProgramRoot,
-}
-
-#[derive(Debug)]
-struct Closing {
-    roots: u32,
-    shutdown_pending: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -85,9 +81,8 @@ pub(crate) struct HostIo {
     terminal_reading: local::Reading,
     window_read: WindowRead,
     signals: Option<Token>,
-    closing: Option<Closing>,
+    close: Close,
     signal_operation: Option<Token>,
-    close_root_pending: bool,
 }
 
 /// IO table capacities and the selected process channel's framing edges.
@@ -157,9 +152,8 @@ impl HostIo {
             terminal_reading: local::Reading::Open,
             window_read: WindowRead::Idle,
             signals: None,
-            closing: None,
+            close: Close::Open,
             signal_operation: None,
-            close_root_pending: false,
         })
     }
 
@@ -242,7 +236,7 @@ impl HostIo {
     }
 
     pub(crate) fn read_window(&mut self) {
-        if self.closing.is_none() && self.terminal_input.is_some() {
+        if !self.close.closing() && self.terminal_input.is_some() {
             self.window_read = match self.window_read {
                 WindowRead::Idle | WindowRead::Requested => WindowRead::Requested,
                 WindowRead::Pending | WindowRead::Again => WindowRead::Again,
@@ -255,7 +249,7 @@ impl HostIo {
             return;
         }
         self.terminal_reading = reading;
-        if self.closing.is_none()
+        if !self.close.closing()
             && let Some(stream) = self.terminal_input
         {
             let read = match reading {
@@ -296,23 +290,12 @@ impl HostIo {
     }
 
     pub(crate) fn close(&mut self) {
-        if self.closing.is_some() {
-            return;
-        }
-        self.cancel_programs();
-        self.closing = Some(Closing {
-            roots: u32::try_from(self.file_roots.len()).expect("admitted root count"),
-            shutdown_pending: false,
-        });
-        if let Some(entity) = self.terminal_input {
-            self.io_requests.push(io::Request::Close { entity });
-        }
-    }
-
-    fn closing_roots(&self) -> u32 {
-        match &self.closing {
-            Some(closing) => closing.roots,
-            None => 0,
+        let roots = u32::try_from(self.file_roots.len()).expect("admitted root count");
+        if self.close.begin(roots) {
+            self.cancel_programs();
+            if let Some(entity) = self.terminal_input {
+                self.io_requests.push(io::Request::Close { entity });
+            }
         }
     }
 
@@ -327,10 +310,7 @@ impl HostIo {
     }
 
     pub(crate) fn take_shutdown(&mut self) -> bool {
-        match &mut self.closing {
-            Some(closing) => core::mem::replace(&mut closing.shutdown_pending, false),
-            None => false,
-        }
+        self.close.take_shutdown()
     }
 
     pub(crate) fn abort_stream(&mut self, trace: &mut Option<crate::stream::Spawned>) {
@@ -350,12 +330,12 @@ impl HostIo {
     }
 
     pub(crate) fn settled(&self, streams: u32) -> bool {
-        self.closing.is_some()
+        self.close.closing()
             && match &self.programs {
                 Some(checks) => checks.closed(),
                 None => true,
             }
-            && self.closing_roots() == 0
+            && self.close.roots_left() == 0
             && self.io.sockets() == streams
             && self.store_io.store.is_none()
             && self.store_io.store_requests.is_empty()
@@ -410,7 +390,7 @@ impl HostIo {
 
     pub(crate) fn work_pending(&self, now: Time) -> bool {
         match &self.programs {
-            Some(checks) if checks.work_pending(now, self.closing.is_some()) => return true,
+            Some(checks) if checks.work_pending(now, self.close.closing()) => return true,
             Some(_) | None => {}
         }
         self.io.is_ready()
@@ -432,7 +412,7 @@ impl HostIo {
             || !self.io_submissions.is_empty()
             || !self.file_submissions.is_empty()
             || self.files.is_due(now)
-            || (self.closing_roots() > 0 && self.files.takes() && !self.close_root_pending)
+            || (self.close.root_due() && self.files.takes())
     }
 
     pub(crate) const fn failed(&self) -> bool {
@@ -550,9 +530,7 @@ impl HostIo {
                     self.shell_events.push(event);
                 }
                 io::Event::Shutdown { .. } => {
-                    if let Some(closing) = &mut self.closing {
-                        closing.shutdown_pending = true;
-                    } else {
+                    if !self.close.shutdown() {
                         terminal.interrupt(terminal_events);
                     }
                 }
@@ -561,7 +539,7 @@ impl HostIo {
                         for byte in bytes {
                             terminal.feed(byte, terminal_events);
                         }
-                        if self.closing.is_none() && self.terminal_reading == local::Reading::Open {
+                        if !self.close.closing() && self.terminal_reading == local::Reading::Open {
                             self.io_requests.push(io::Request::Stream {
                                 stream: owner,
                                 down: stream::Down::Demand { read: stream::Read::Fill(1), room: 0 },
@@ -676,7 +654,7 @@ impl HostIo {
         let now = env.now;
         if self.window_read == WindowRead::Requested {
             self.window_read = WindowRead::Idle;
-            if self.closing.is_none()
+            if !self.close.closing()
                 && let Some(stream) = self.terminal_input
             {
                 self.window_read = WindowRead::Pending;
@@ -718,32 +696,7 @@ impl HostIo {
                 &mut self.file_submissions,
             );
         }
-        if self.closing_roots() > 0 && !self.close_root_pending && self.files.takes() {
-            let position = self.closing_roots().checked_sub(1).expect("positive roots to close");
-            self.closing.as_mut().expect("closing roots").roots = position;
-            let root =
-                *self.file_roots.get(usize::try_from(position).expect("root position fits")).expect("adopted root");
-            self.close_root_pending = true;
-            file_layer::down(
-                &mut self.files,
-                now,
-                file::Request::Close { owner: Token::new(u64::MAX), file: root },
-                &mut self.file_events,
-                &mut self.file_submissions,
-            );
-        }
-        if self.closing.is_some() && self.submissions.room() > 0 && self.operations.len() < self.operations.capacity() {
-            let root = match &mut self.programs {
-                Some(checks) => checks.closing_root(),
-                None => None,
-            };
-            if let Some(fd) = root {
-                let op = Token::new(self.next_operation);
-                self.next_operation = self.next_operation.checked_add(1).expect("root close operation");
-                self.operations.insert(op, Operation::ProgramRoot).expect("root close route");
-                self.submissions.push(kernel::Submit { op, kind: kernel::Op::Close { fd } });
-            }
-        }
+        self.follow_close(now);
         self.flush_submissions();
         self.io.reclaim();
     }
