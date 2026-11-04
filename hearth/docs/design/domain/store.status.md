@@ -50,6 +50,9 @@
 - **Departs:** 6.2, 7.1: unsettled: 6.2 allows a reconciled packages
   layer's base to be collected while its descendants are kept; 7.1
   makes that base an ancestor held by a descendant's pin.
+- **Not yet:** 6.4: recording apt's and mmdebstrap's versions in a
+  resolution's `made` fields in M2. The resolution adapter supplies
+  empty version strings.
 - **Not yet:** 6.8: writing and ordering durable layer tree files and
   records through the helper and builder adapters, and treating all
   layers as unrecorded when the store record is unreadable or its
@@ -62,6 +65,9 @@
   rmdir, or whole-subvolume deletion with `user_subvol_rm_allowed`.
   Discard orders the emptying and removal of a staging layer and its
   temporary tree file, but the protocol refuses those operations.
+- **Not yet:** 8.1: retaining each layer's counts in the in-memory
+  index. Translation from the decoded record drops its counts, and the
+  domain's indexed `Layer` has no counts field.
 - **Not yet:** 11: the store world with btrfs ownership, read-only flags,
   subvolume enumeration and deletion, pins and collection; its full
   crash and fault matrix and real unprivileged btrfs checks. The builder
