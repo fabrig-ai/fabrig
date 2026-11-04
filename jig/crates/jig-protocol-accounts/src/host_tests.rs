@@ -147,7 +147,7 @@ fn a_tls_provider_with_empty_trust_bounds_is_refused() {
         };
         let mut runtime = Runtime { providers: List::with_capacity(1), trust: bounds };
         runtime.providers.push((1, endpoint, List::with_capacity(0))).unwrap();
-        let result = match provider_templates(&config, Some(&mut runtime), &config.limits.driver, &[5; 16]) {
+        let result = match provider_templates(&config, Some(runtime), &config.limits.driver, &[5; 16]) {
             Ok(providers) => Ok(providers.len()),
             Err(problems) => {
                 assert_eq!((problems.problems.len(), problems.past), (1, 0));

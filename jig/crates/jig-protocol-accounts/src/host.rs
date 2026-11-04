@@ -70,15 +70,13 @@ fn registration_input(
 }
 fn provider_templates(
     config: &config::Engine,
-    runtime: Option<&mut Runtime>,
+    runtime: Option<Runtime>,
     limits: &driver::Limits,
     installation_id: &[u8; 16],
 ) -> Result<Map<u32, driver::Account>, Problems> {
     let mut providers = Map::with_capacity(u32::try_from(config.llm.providers.len()).expect("provider count"));
-    if let Some(runtime) = runtime {
-        for (number, endpoint, origins) in
-            ::core::mem::replace(&mut runtime.providers, List::with_capacity(0)).into_boxed()
-        {
+    if let Some(Runtime { providers: prepared, trust }) = runtime {
+        for (number, endpoint, origins) in prepared.into_boxed() {
             let mut registration = None;
             for provider in &config.llm.providers {
                 if provider.number == number {
@@ -87,7 +85,7 @@ fn provider_templates(
                 }
             }
             let registration = registration.ok_or(problem(What::Refers))?;
-            if untrusted(runtime.trust, has_tls(&endpoint, &origins)) {
+            if untrusted(trust, has_tls(&endpoint, &origins)) {
                 return Err(problem(What::Bound));
             }
             let account = party::party_account(
@@ -130,7 +128,7 @@ impl Accounts {
         config: &config::Engine,
         crypto: &Secret,
         installation: &[u8; 16],
-        mut runtime: Option<Runtime>,
+        runtime: Option<Runtime>,
         secrets: &skein_kv::Limits,
     ) -> Result<Self, Problems> {
         let limits = config.limits.driver;
@@ -138,7 +136,7 @@ impl Accounts {
             return Err(problem(What::Bound));
         }
         let crypto = CryptoRng::new(crypto, 1).ok_or(problem(What::Bound))?;
-        let providers = provider_templates(config, runtime.as_mut(), &limits, installation)?;
+        let providers = provider_templates(config, runtime, &limits, installation)?;
         Ok(Self::made(Component::new(application, providers, limits, crypto, secrets.page.rows), limits))
     }
     #[expect(clippy::large_types_passed_by_value, reason = "the host owns its limits")]
