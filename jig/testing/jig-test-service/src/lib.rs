@@ -371,11 +371,11 @@ impl Service {
             && engine.store.opened
             && let Some(workers) = &mut engine.workers
         {
-            for _ in 0..workers.io.len() {
+            for _ in 0..workers.host.io.len() {
                 if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions {
                     break;
                 }
-                let request = workers.io.pop().expect("worker io requests");
+                let request = workers.host.io.pop().expect("worker io requests");
                 io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
             }
         }
@@ -426,7 +426,7 @@ impl Service {
             let ready = match &self.engine {
                 Some(engine) if !engine.store.opened => false,
                 Some(engine) => match &engine.workers {
-                    Some(workers) => workers.opened(),
+                    Some(workers) => workers.host.opened(),
                     None => true,
                 },
                 None => true,
@@ -488,7 +488,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     let started = match &service.engine {
         Some(engine) if !engine.store.opened => false,
         Some(engine) => match &engine.workers {
-            Some(workers) => workers.opened(),
+            Some(workers) => workers.host.opened(),
             None => true,
         },
         None => true,
