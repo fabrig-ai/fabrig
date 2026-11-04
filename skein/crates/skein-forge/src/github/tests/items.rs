@@ -1,11 +1,11 @@
 use super::fixtures::{decode, limits, wall};
 use crate::{
     api,
-    forgejo::document::Body,
     github::{
         decode::Malformed,
         document::{Document, Kind, Row},
     },
+    text::Body,
 };
 
 const ISSUE: &str = r#"{"number":3,"state":"open","user":{"id":9},"updated_at":"2026-10-20T08:00:00Z","title":"widgets","labels":[{"name":"bug"},{"name":"help"}],"body":"description"}"#;

@@ -7,13 +7,13 @@ pub mod document;
 pub mod header;
 pub mod id;
 pub mod limits;
-pub mod path;
+pub use crate::path;
 pub mod pin;
 pub mod request;
 pub mod server;
 #[cfg(test)]
 pub(crate) mod tests;
-pub mod time;
+pub use crate::time;
 
 pub mod failure;
 

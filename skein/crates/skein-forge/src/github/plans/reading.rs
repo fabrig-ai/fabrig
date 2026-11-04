@@ -1,5 +1,5 @@
 //! GitHub's issue documents in the neutral vocabulary (forge.md, 5.3).
-use crate::{api, forgejo::document::Body, github::document};
+use crate::{api, github::document, text::Body};
 use alloc::boxed::Box;
 use skein_lib::{Time, Wall};
 

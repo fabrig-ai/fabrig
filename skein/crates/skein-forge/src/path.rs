@@ -1,5 +1,5 @@
-//! Origin targets and percent encoding, segment boundaries preserved.
-use super::limits::Limits;
+//! Origin targets and percent encoding (skein/docs/design/forge.md, 4.4).
+use crate::limits::Limits;
 use alloc::boxed::Box;
 use skein_lib::{List, Overflow, Writer, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

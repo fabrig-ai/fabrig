@@ -4,7 +4,7 @@ use super::super::{
     id,
     limits::Limits,
 };
-use crate::forgejo::document::Body;
+use crate::text::Body;
 use alloc::boxed::Box;
 use skein_json::writer::{self, Encoder};
 

@@ -4,7 +4,7 @@ use super::{
     limits::{DEPTH, Limits},
     request::{self, Method, Request},
 };
-use crate::forgejo::{id::unsigned, time};
+use crate::{forgejo::id::unsigned, time};
 use alloc::boxed::Box;
 use skein_json::writer::{self, Encoder};
 use skein_lib::{Decimal, List, Overflow, Writer};
