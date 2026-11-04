@@ -26,12 +26,14 @@ fn the_forge_step_shows_choices_after_reset() {
     assert!(root.forge().playground().is_none());
     assert_eq!(d::address::print(root.pages().address()).as_ref(), b"/welcome?at=forge");
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        assert_eq!(choice_cards(view.tree()), [b"GitHub".as_slice(), b"Forgejo"]);
-        node(view.tree(), Role::Button, "Connect GitHub");
-        node(view.tree(), Role::Button, "Run on this machine");
-        let help = node(view.tree(), Role::Link, "Or connect your deployment");
-        let help = view.tree().nodes().iter().find(|n| n.id == help).expect("the help link");
-        assert!(help.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
+        assert_eq!(choice_cards(view.tree()), [b"Forgejo".as_slice(), b"GitHub"]);
+        let github = node(view.tree(), Role::Button, "Connect GitHub");
+        let run = node(view.tree(), Role::Button, "Run on this machine");
+        assert!(styled(view.tree(), run, crate::look::FLOW_PRIMARY));
+        assert!(!styled(view.tree(), github, crate::look::FLOW_PRIMARY));
+        node(view.tree(), Role::Paragraph, "A forge of your own: temper starts it on this machine and manages it.");
+        node(view.tree(), Role::Paragraph, "In this tab, on GitHub · about two minutes");
+        assert!(f::find(view.tree(), Role::Link, b"Or connect your deployment").is_none());
     }
     let mut view = f::browser_page_view(&root);
     let run = node(view.tree(), Role::Button, "Run on this machine");
@@ -98,11 +100,27 @@ fn model_names_the_first_repository_while_forgejo_sets_up() {
 #[test]
 fn model_ticks_the_first_repository_made() {
     let view = model_view(forge::first_rows(forge::connected(), forge::made()));
-    let line = line_before_model(view.tree(), "Forgejo on this machine · work/hello");
+    let line = line_before_model(
+        view.tree(),
+        "Forgejo on this machine · connected as temper · work/hello made, in no project yet",
+    );
     let line = view.tree().nodes().iter().find(|n| n.id == line).unwrap();
     assert!(line.styles.as_slice().contains(&crate::look::FLOW_DONE));
     let index = view.tree().nodes().iter().position(|n| n.id == line.id).unwrap();
-    assert!(f::node_text(view.tree(), index).starts_with("✓ ".as_bytes()));
+    let runs: Vec<_> = view.tree().nodes()[index + 1..]
+        .iter()
+        .take(4)
+        .flat_map(|n| n.text.iter().map(|r| (r.run, r.text.as_ref())))
+        .collect();
+    assert_eq!(
+        runs,
+        [
+            (skein_ui::Run::Plain, "✓".as_bytes()),
+            (skein_ui::Run::Strong, b"Forgejo on this machine".as_slice()),
+            (skein_ui::Run::Plain, "·".as_bytes()),
+            (skein_ui::Run::Plain, b"connected as temper \xc2\xb7 work/hello made, in no project yet".as_slice()),
+        ]
+    );
     each_step(view.tree(), false);
 }
 
@@ -191,13 +209,16 @@ fn model_keeps_steps_while_the_first_repository_is_making() {
 fn node(tree: &skein_ui::Tree, role: Role, name: &str) -> skein_ui::NodeId {
     f::find(tree, role, name.as_bytes()).unwrap_or_else(|| panic!("missing {role:?}: {name}"))
 }
+fn styled(tree: &skein_ui::Tree, id: skein_ui::NodeId, style: skein_ui::Style) -> bool {
+    tree.nodes().iter().find(|n| n.id == id).unwrap().styles.as_slice().contains(&style)
+}
 fn press(root: &d::Domain, role: Role, name: &str) -> d::Action {
     let mut view = f::page_view(root);
     let id = node(view.tree(), role, name);
     crate::act(&mut view, id, Act::Press).expect("bound control")
 }
 #[test]
-fn the_welcome_has_a_bare_frame_and_no_banner() {
+fn the_welcome_frame_is_the_brand_the_box_line_and_the_steps() {
     let root = f::welcome_root(Step::Welcome, true);
     let view = f::page_view(&root);
     let tree = view.tree();
@@ -210,8 +231,23 @@ fn the_welcome_has_a_bare_frame_and_no_banner() {
             .as_slice()
             .contains(&crate::look::WELCOME_INTRO)
     );
-    node(tree, Role::Button, "Sign out");
-    assert_eq!(f::banner_statuses(tree).as_ref(), &[Box::from(b"Pat".as_slice())]);
+    assert!(f::find(tree, Role::Button, b"Sign out").is_none());
+    assert!(f::banner_statuses(tree).is_empty());
+    let banner = tree.nodes().iter().position(|n| n.role == Role::Banner).unwrap();
+    let banner = &tree.nodes()[banner..banner + usize::try_from(tree.nodes()[banner].size).unwrap()];
+    let line = banner.iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_BOX_LINE)).unwrap();
+    let runs: Vec<_> = banner[line + 1].text.iter().map(|r| (r.run, r.text.as_ref())).collect();
+    assert_eq!(
+        runs,
+        [
+            (skein_ui::Run::Strong, b"temper box".as_slice()),
+            (skein_ui::Run::Plain, " · on this machine, to try it · more later, from Settings · ".as_bytes()),
+        ]
+    );
+    let server = banner.iter().find(|n| n.role == Role::Link && n.external.is_some()).unwrap();
+    assert_eq!(server.name.as_deref(), Some("Run temper on a server ↗".as_bytes()));
+    assert!(server.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
+    assert!(banner.iter().any(|n| n.role == Role::List && n.name.as_deref() == Some(b"Steps".as_slice())));
     for role in [Role::Disclosure, Role::Navigation] {
         assert!(!tree.nodes().iter().any(|node| node.role == role));
     }
@@ -243,15 +279,15 @@ fn an_empty_store_offers_both_cards() {
         "Welcome to temper",
         "Reliable, scalable and flexible software factory.",
         "You describe what you want and how you want it done, and it happens.",
-        "Try the playground",
-        "A built-in scripted model and forge. Get a taste of how temper feels.",
-        "Fully offline · Ready at once",
-        "Try the playground",
         "Set up temper",
-        "Your forge: GitHub or Forgejo",
+        "Your forge: a Forgejo temper runs for you, or GitHub. Your model: ChatGPT or Claude.",
         "About five minutes",
         "Set up temper",
-        "Started in the playground? Connect your own forge and model whenever you like; the playground then steps aside.",
+        "Try the playground",
+        "A scripted model and a forge, built in. A taste of how temper feels, with nothing to connect.",
+        "Fully offline · Ready at once",
+        "Try the playground",
+        "Tried the playground first? Set up whenever you like; the playground then steps aside.",
     ] {
         let at = remaining.find(phrase).unwrap_or_else(|| panic!("missing or out of order: {phrase}"));
         remaining = &remaining[at + phrase.len()..];
@@ -263,7 +299,9 @@ fn an_empty_store_offers_both_cards() {
         .filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY))
         .map(|n| n.name.as_deref().unwrap())
         .collect();
-    assert_eq!(primary, [b"Try the playground".as_slice(), b"Set up temper"]);
+    assert_eq!(primary, [b"Set up temper".as_slice()]);
+    let playground = node(view.tree(), Role::Button, "Try the playground");
+    assert!(styled(view.tree(), playground, crate::look::FLOW_SECONDARY));
     assert_eq!(press(&root, Role::Button, "Try the playground"), d::Action::Pages(pages::Act::Playground));
     assert_eq!(
         press(&root, Role::Link, "Set up temper"),
@@ -348,21 +386,46 @@ fn the_model_step_offers_the_accounts_ways() {
     );
     let view = f::page_view(&root);
     node(view.tree(), Role::Heading { level: 1 }, "Connect a model");
-    node(view.tree(), Role::Paragraph, "temper’s agents run on it: on a plan you sign in to, or on a key.");
+    node(view.tree(), Role::Paragraph, "temper’s agents run on a plan you sign in to.");
     node(view.tree(), Role::Heading { level: 2 }, "ChatGPT");
     node(view.tree(), Role::Paragraph, "Your ChatGPT plan: sign in, and temper’s agents use its included usage.");
-    node(view.tree(), Role::Paragraph, "Or paste a key from OpenAI’s platform, billed to its organization.");
-    node(view.tree(), Role::Button, "Continue with ChatGPT");
+    node(view.tree(), Role::Paragraph, "Sign in, in this tab · about a minute");
+    let sign_in = node(view.tree(), Role::Button, "Continue with ChatGPT");
+    assert!(styled(view.tree(), sign_in, crate::look::FLOW_PRIMARY));
     assert!(f::find(view.tree(), Role::Button, "This browser isn't on temper's computer ›".as_bytes()).is_none());
-    let action = press(&root, Role::Link, "Use an OpenAI API key");
-    let d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: Some(_) } } }) = &action
+    // A plan alone: no key's line or link on the welcome.
+    assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("key"));
+    assert!(f::find(view.tree(), Role::Link, b"Use an OpenAI API key").is_none());
+    let d::Action::Pages(pages::Act::ConnectModel(pages::connect_model::Act::SignIn { .. })) =
+        press(&root, Role::Button, "Continue with ChatGPT")
     else {
-        panic!("shared account binding")
+        panic!("ChatGPT's sign-in")
     };
-    let d::Action::Pages(pages::Act::Go { address }) = action else { unreachable!() };
-    f::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+}
+#[test]
+fn the_model_step_offers_each_plan_and_no_key() {
+    let mut root = super::connect_model::plans_root();
+    f::root_event(
+        &mut root,
+        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
+    );
     let view = f::page_view(&root);
-    assert!(view.tree().nodes().iter().any(|node| node.role == Role::TextField));
+    let tree = view.tree();
+    let cards: Vec<_> = tree
+        .nodes()
+        .iter()
+        .filter(|n| n.role == Role::Heading { level: 2 })
+        .map(|n| n.name.as_deref().unwrap())
+        .collect();
+    assert_eq!(cards, [b"ChatGPT".as_slice(), b"Claude"]);
+    node(tree, Role::Paragraph, "Sign in, in this tab · about a minute");
+    node(tree, Role::Paragraph, "A command in a terminal, on each host");
+    let chatgpt = node(tree, Role::Button, "Continue with ChatGPT");
+    let claude = node(tree, Role::Link, "Use your Claude subscription");
+    assert!(styled(tree, chatgpt, crate::look::FLOW_PRIMARY));
+    assert!(styled(tree, claude, crate::look::FLOW_SECONDARY));
+    assert!(!String::from_utf8_lossy(&f::text(tree)).contains("key"));
+    assert!(!tree.nodes().iter().any(|n| n.name.as_deref().is_some_and(|name| name.ends_with(b"API key"))));
 }
 #[test]
 fn each_later_step_offers_the_playground_only_for_an_empty_store() {
@@ -375,24 +438,10 @@ fn each_later_step_offers_the_playground_only_for_an_empty_store() {
                 press(&root, Role::Link, "‹ Back"),
                 d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: back } })
             );
-            assert_eq!(
-                press(&root, Role::Link, "Later"),
-                d::Action::Pages(pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } })
-            );
             let view = f::page_view(&root);
-            for name in ["‹ Back", "Later"] {
-                let id = node(view.tree(), Role::Link, name);
-                assert!(
-                    view.tree()
-                        .nodes()
-                        .iter()
-                        .find(|n| n.id == id)
-                        .unwrap()
-                        .styles
-                        .as_slice()
-                        .contains(&crate::look::FLOW_QUIET)
-                );
-            }
+            assert!(f::find(view.tree(), Role::Link, b"Later").is_none());
+            let id = node(view.tree(), Role::Link, "‹ Back");
+            assert!(styled(view.tree(), id, crate::look::FLOW_QUIET));
             assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some());
             {
                 let id = node(view.tree(), Role::Button, "Try the playground instead");
@@ -978,9 +1027,11 @@ fn the_setup_card_names_supported_models_for_every_provider_catalogue() {
                 .filter(|(_, n)| n.role == Role::Paragraph)
                 .map(|(at, _)| f::node_text(view.tree(), at))
                 .collect();
-            assert_eq!(lines.len(), 2);
-            assert_eq!(lines[0].as_ref(), b"Your forge: GitHub or Forgejo");
-            assert_eq!(lines[1].as_ref(), b"Your model: ChatGPT or Claude");
+            assert_eq!(lines.len(), 1);
+            assert_eq!(
+                lines[0].as_ref(),
+                b"Your forge: a Forgejo temper runs for you, or GitHub. Your model: ChatGPT or Claude."
+            );
         }
     }
 }
