@@ -33,8 +33,9 @@ The code departs in a few single items (`README.md`, `client/domain/client.md`, 
 `client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`, `examples.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
-own. Its one draft, `draft/account-facts.md`, says what a provider
-reports about an account.
+own. Its drafts: `draft/account-facts.md` says what a provider
+reports about an account, and `draft/notes-memory.md` keeps the idea of
+notes as agents' memory, not to be planned until the user says.
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -70,3 +71,4 @@ Design documents:
 
 Drafts:
 - [`draft/account-facts.md`](draft/account-facts.status.md)
+- [`draft/notes-memory.md`](draft/notes-memory.status.md)
