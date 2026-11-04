@@ -14,7 +14,9 @@ application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, and the
 core world's restore stories are ignored (`domain/engine.md`,
-`domain/connectors.md`).
+`domain/connectors.md`). A start does not check an application's declared
+kinds against its limits, and a project's deletion as a whole has no price
+against `journal.writes` (`domain/engine.md`).
 Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,
 markers, a drain and a conversation's questions lag (`domain/people.md`,
 `domain/tasks.md`, `domain/engine.md`, `client/domain/contract.md`); of
@@ -28,7 +30,7 @@ preparation back to the core (`domain/root.md`). Public reading's
 remaining departure is the public index's memory fit
 check (`protocol/configuration.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
-`client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `examples.md`,
+`client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`, `examples.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
 own. jig has no drafts.
