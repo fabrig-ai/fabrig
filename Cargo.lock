@@ -5033,6 +5033,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-transcript",
+ "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "skein-channel",
