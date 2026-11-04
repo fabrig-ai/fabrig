@@ -78,6 +78,7 @@ pub(crate) fn world_document() -> serde_json::Value {
     crate::lower::github::configure(&mut value);
     crate::m15::configure(&mut value);
     crate::public::configure(&mut value);
+    crate::review_delivery::configure(&mut value);
     value
 }
 pub(crate) fn files() -> temper_service::settings::Files {

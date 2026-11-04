@@ -1,6 +1,6 @@
 # temper's parts on jig's channel
 
-Provisional, 2026-10-03, revised 2026-11-02. What temper carries on the
+Provisional, 2026-10-03, revised 2026-11-04. What temper carries on the
 channel between its engine and a worker: its parts inside jig's records,
 under its payload version, and a git identity's value inside a credential
 grant. The channel is jig's (jig's `protocol/channel.md`), and this
@@ -314,6 +314,13 @@ the routing in the step that routes the record:
 - **Bytes only through the generated codecs.** A part's record is
   encoded measured (skein's `codec.md`) and decoded against the side's
   limits.
+- **An assignment that cannot encode** returns a terminal invalid-start
+  refusal with its task and attempt through the worker's upward route.
+  This holds both when temper cannot encode its parts or charter and
+  when jig cannot encode the enclosing assignment (jig's
+  `protocol/channel.md`, 5.2). No workspace or process is prepared for
+  that assignment; the engine releases its reservation and cancellation
+  can settle without a worker holding the attempt.
 - **A part that does not decode,**
   - on the engine: the root gets the answer with no parts
     (`Parts::none()`), as it does for parts beyond its bounds; the
@@ -395,6 +402,15 @@ the routing in the step that routes the record:
 ## 9. Testing
 
 Within the suites' budgets (`../domain/testing.md`, section 2):
+
+- **Review delivery in the one-process world:** a fresh goal reaches a
+  blocking review gate, and a small change does so after two restarts.
+  Scripted model turns make their delegations. A review charter fits
+  smith's encoding but exceeds the worker wire's bound: the review gets
+  a terminal refusal, its reservation is released, change cancellation
+  and chat closure finish, and another run uses the host. The byte
+  handoff is jig's protocol world's rule; these stories hold temper's
+  composition to it.
 
 - **Step tests in `temper-protocol-worker-wire`,** those skein's
   `codec.md`, section 6 generates for each record, and `Identity`'s

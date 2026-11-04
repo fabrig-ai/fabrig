@@ -351,5 +351,6 @@ pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Give
         jig.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
         jig.templates[0].budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(50) };
     }
+    crate::review_delivery::given(&mut given);
     given
 }
