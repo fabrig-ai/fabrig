@@ -23,9 +23,7 @@ under `crates/` and `examples/`.
 Each rewrap is three lines where one would do, and a reader has to
 check that both clocks were carried. The review counted 162 more in jig
 and 72 in temper. jig has since moved onto `Env::with` (7 left by this
-item's measure, not worth an item); temper's are temper's own item,
-`temper/docs/development/debt/D004-env-with.md`, which does not wait on
-this one.
+item's measure, not worth an item).
 
 ## What pays it back
 
