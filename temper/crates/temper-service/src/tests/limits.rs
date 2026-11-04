@@ -173,7 +173,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
         root: limits::Root {
             brief: temper_engine_domain::BriefLimits {
                 read_bytes: 131_584,
-                brief_bytes: 360_299,
+                brief_bytes: 360_275,
                 budgets: temper_engine_domain::BriefBudgets {
                     task: 131_584,
                     pull: 131_584,
@@ -182,7 +182,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 },
                 ..small.root.brief
             },
-            journal: temper_engine_domain::JournalLimits { result_bytes: 360_299, ..small.root.journal },
+            journal: temper_engine_domain::JournalLimits { result_bytes: 360_275, ..small.root.journal },
             loads: small.root.loads,
         },
         ..small
