@@ -450,7 +450,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             }
             What::StoreMap(why) => store_map(why, writer, &mut length, measuring),
             What::StoreTask { needs, has, batch_bytes } => {
-                store_task(needs, has, batch_bytes, writer, &mut length, measuring)
+                store_task(needs, has, batch_bytes, writer, &mut length, measuring);
             }
             What::Redirect(listener) => redirect_listener(listener, writer, &mut length, measuring),
             What::Against { other } => put(writer, &mut length, measuring, other),

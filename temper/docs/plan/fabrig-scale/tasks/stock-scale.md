@@ -3,7 +3,7 @@ id = "stock-scale"
 part = "stock"
 kind = "feature"
 needs = ["brief-room"]
-files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/startup.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/docs/help/budget.md", "temper/docs/help/configure.md", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/proof_live.rs", "jig/crates/jig-domain-core/src/tests/funding/settings.rs", "temper/docs/design/protocol/configuration.status.md"]
+files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/startup.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/docs/help/budget.md", "temper/docs/help/configure.md", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/proof_live.rs", "jig/crates/jig-domain-core/src/tests/funding/settings.rs", "temper/docs/design/protocol/configuration.status.md", "temper/crates/temper-service/src/tests/fixtures/agent.rs", "temper/crates/temper-service/src/tests/fixtures/startup.rs", "temper/crates/temper-service/src/tests/fixtures.rs", "temper/crates/temper-playground/src/documents.rs", "temper/tests/engine/domain/src/protocol.rs", "temper/crates/temper-docs/src/tests/rules.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -138,3 +138,69 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, with every test figure you changed.
+
+## Answers
+
+### 2026-11-04: may this task raise the test agents' advertised bounds so the stock's runs are admitted?
+
+Yes, option A. A fixture's `jig_domain_host::Bounds` is what its agent offers, not a stock
+figure; `admission` and the fleet's `fits` (`jig/crates/jig-domain-fleet/src/needs.rs`) compare
+it with the stock's charters, so acceptance cannot hold while it offers less. The task's
+acceptance needs it, and no other task owns it. This widens "Owns and may change" as follows:
+
+- **What moves:** only what an agent offers, and only in a fixture that fails on the stock
+  (a startup refusal `What::Admission`, or a stock run no worker fits): `turns` 800; `time`
+  28,800 s; `spend` the required figure the refusal names, at least the K of that world's
+  models. Nothing else of a fixture: not its `waiting`, `checks`, `message_bytes`, `inbox`,
+  carriers or model bounds, and no stock figure.
+- **Known sites:** `temper-service/src/tests/fixtures/agent.rs`, the agent `startup_agent` and
+  `worker_agent` derive from (turns 16, 300 s, spend 100); `tests/fixtures/startup.rs`'s
+  `owned_worker_agent`; `tests/fixtures.rs`'s linked worker (near 950); and
+  `temper-playground/src/documents.rs`, whose `documents::agent()` starts stock worlds:
+  `agent_profile`'s `policy.max_turns` 800 (no carrier derives from `max_turns`) and its
+  `Bounds`' `spend` and `time`. Further sites are found by running the packages of acceptance,
+  and `temper-playground`'s tests; `temper/tests/engine/domain/src/protocol.rs`'s `bounds()` is
+  the likely next one, for the worlds that start from the stock.
+- **What stays:** a fixture whose world brings its own charters (`temper/tests/engine/domain/src/walking.rs`'s,
+  for one) and passes as it is; a test that sets a bound to assert a refusal
+  (`jig/crates/jig-domain-fleet/src/tests/needs.rs`). jig is not touched: it names no stock.
+- **A test that asserts an offered figure** from a raised fixture changes that figure only; list
+  every raised bound and changed figure in the report.
+- **Budgets:** a test that now drives a stock run to its 64 or 800 turns, or past its CPU budget
+  or timeout, gets no raised budget and no lowered stock. It sets its own charter through a
+  settings change where it means a short run; otherwise, stop and ask with the measurements.
+- **Still a question:** a failure that no offered bound repairs (a carrier, a store row, a hub
+  limit refusing the stock's figures). The production agent needs no change:
+  `temper/crates/temper/src/agent.rs` offers the profile's policy (`max_turns` 800, spend and
+  time at smith's defaults of 1,000,000,000 and 24 h).
+
+### 2026-11-04: budget.md comes to 8,380 bytes past the concept bound of 8,192, and `capacity_help_names_members_and_dependencies` pins the words this task replaces: may the task trim the page and change the assertion?
+
+Yes, option A. The bound stays 8,192 and the run bullet stays verbatim. This widens "Nothing else
+of the page" and the header's files by exactly what follows.
+
+- **`temper/docs/help/budget.md`,** three cuts of repeated prose, which bring the branch's page
+  from 8,380 to 8,174 bytes. Each fact stays on the page: "What it is" says the open period
+  resizes at once; "What it is" and "The period spent" give `project fund` for the project and
+  for a role; "How it changes" says a project made after a change of policy 1 takes the new
+  period spend.
+  - In "The period spent", ``or until it is raised. `project fund PROJECT AMOUNT` raises the
+    project's period spend, and the open period's budget with it. A person's chats`` becomes
+    ``or until `project fund PROJECT AMOUNT` raises it. A person's chats``.
+  - In "Acting on it", ``\`project fund\` raises the project's period spend or a role's; `` goes.
+  - In "Limits", the last bullet ends at ``(`project fund`).``: ``; `settings show` reads policy
+    1, which only new projects copy`` goes.
+- **`temper/crates/temper-docs/src/tests/rules.rs`,** `capacity_help_names_members_and_dependencies`
+  alone: `spec/result/authority` becomes `spec, message, result and authority sizes`, and
+  `tasks.batch_bytes` and `profile store ceiling` join the list both pages meet. `schema ceiling`
+  leaves that list for `configure` alone, whose sentence keeps it, and `budget` alone is held to
+  `tasks.inbox_messages`, which `configure` does not name. `budget_help_sizes_a_hundred_change_goal`
+  and `PAGES`' bound do not change.
+- **The two failures of `## Left`** stay there, as the run reported them:
+  `the_standard_profile_passes_each_domains_validity` and
+  `the_reference_profile_passes_startup_admission`. Neither is this task's; acceptance holds with
+  them reported, and the trunk's other tasks or its end check take them.
+- **Still to run** before the report: `heavy cargo nextest run -p temper-docs`, and the packages
+  the last report did not reach (`temper` `--lib`, `temper-fake`, `temper-client-world`,
+  `temper-real-loop-world`, `temper-system-world`), each passing or naming a failure under `## Left`
+  with the reason it is not this task's.
