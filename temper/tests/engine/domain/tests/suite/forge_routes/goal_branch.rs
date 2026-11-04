@@ -132,6 +132,7 @@ fn reference_template_four_starts_on_the_configured_forge() {
         panic!("worker hello")
     };
     hello.bounds = jig_test_profile::fixtures::bounds();
+    hello.bounds.time = Duration::from_secs(28_800);
     let model = stock::box_model();
     hello.bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
     world.send(event);
