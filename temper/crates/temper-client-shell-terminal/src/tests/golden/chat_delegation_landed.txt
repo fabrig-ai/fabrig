@@ -2,16 +2,17 @@
 demo:
   [1] temper
   demo:
-    [2] demo (pressed)
+    [2] demo · playground/widget (pressed)
     New project:
       [3] New project: (empty) (enter sends)
       [4] Create
-  [5] Home
-  [6] Needs you
-  [7] Chats (current)
-  [8] + New chat
-  [9] Set up temper
-  [10] Settings
+    [5] Settings for demo
+  [6] Home
+  [7] Needs you
+  [8] Chats (current)
+  [9] + New chat
+  [10] Set up temper
+  [11] Settings
   * Pat
 Playground:
   This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
@@ -38,7 +39,7 @@ Conversation:
       - Pull request opened (completed)
       - CI passed (completed)
       - Landed (completed)
-    [11] Task 2 ↗
+    [12] Task 2 ↗
   1 tool call: wait
     wait
   Temper
@@ -47,6 +48,6 @@ Conversation:
   1 tool call: wait
     wait
 Using Scripted model · Default
-[12] Message: (empty) (enter sends)
+[13] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[13] Send
+[14] Send

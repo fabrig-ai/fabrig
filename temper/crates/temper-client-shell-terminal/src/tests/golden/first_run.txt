@@ -2,35 +2,36 @@
 demo:
   [1] temper
   demo:
-    [2] demo (pressed)
+    [2] demo · playground/widget (pressed)
     New project:
       [3] New project: (empty) (enter sends)
       [4] Create
-  [5] Home
-  [6] Needs you
-  [7] Chats (current)
-  [8] + New chat
-  [9] Set up temper
-  [10] Settings
+    [5] Settings for demo
+  [6] Home
+  [7] Needs you
+  [8] Chats (current)
+  [9] + New chat
+  [10] Set up temper
+  [11] Settings
   * Pat
 Project:
   New chat
   * Ready
   playground/widget
-  [11] All (pressed)
-  [12] Live
-  [13] Closed
+  [12] All (pressed)
+  [13] Live
+  [14] Closed
   No chats yet.
   Playground:
     This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
-[14] Start a chat: (empty) (enter sends)
+[15] Start a chat: (empty) (enter sends)
 enter to start · shift+enter for newline
-[15] Start chat
+[16] Start chat
 Using Scripted model · Default
 Change model:
-  - [16] Scripted model
-  [17] Reset choice
+  - [17] Scripted model
+  [18] Reset choice
 Suggested requests:
-  - [18] Add CSV export to widget
-  - [19] Add a dark theme to widget
-  - [20] Fix widget’s empty search state
+  - [19] Add CSV export to widget
+  - [20] Add a dark theme to widget
+  - [21] Fix widget’s empty search state

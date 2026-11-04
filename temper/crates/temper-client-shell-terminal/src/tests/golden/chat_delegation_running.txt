@@ -2,15 +2,16 @@
 demo:
   [1] temper
   demo:
-    [2] demo (pressed)
+    [2] demo · no repository (pressed)
     New project:
       [3] New project: (empty) (enter sends)
       [4] Create
-  [5] Home
-  [6] Needs you
-  [7] Chats (current)
-  [8] + New chat
-  [9] Settings
+    [5] Settings for demo
+  [6] Home
+  [7] Needs you
+  [8] Chats (current)
+  [9] + New chat
+  [10] Settings
   * Pat
 T1 · Add CSV export to widget:
   * waiting on 1 delegate
@@ -32,10 +33,10 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [10] Task 2 ↗
+    [11] Task 2 ↗
   1 tool call: wait
     wait
 Using the default model
-[11] Message: (empty) (enter sends)
+[12] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[12] Send
+[13] Send
