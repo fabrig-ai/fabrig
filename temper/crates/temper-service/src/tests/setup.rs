@@ -570,6 +570,8 @@ fn every_host_unusable_arm_has_an_operator_path() {
     use host::{Stacked, Unusable};
     for why in [
         Unusable::Zero,
+        Unusable::Io,
+        Unusable::Tls,
         Unusable::TokenBytes { token_bytes: 1 },
         Unusable::Documents(skein_forge::forgejo::limits::Problem::Depth),
         Unusable::GitHubDocuments(skein_forge::github::limits::Problem::Depth),
