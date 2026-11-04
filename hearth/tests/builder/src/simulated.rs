@@ -48,8 +48,8 @@ impl Host for Proc {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()
@@ -62,9 +62,6 @@ impl Host for Proc {
     }
     fn operations(&self) -> u32 {
         self.host().operations()
-    }
-    fn worst_case(&self) -> u64 {
-        self.host().worst_case()
     }
 }
 #[derive(Clone, Debug)]
@@ -128,7 +125,7 @@ fn build(scenario: &Scenario<'_>, seed: u64, config: Config, options: &Options) 
         fixtures::serve(&shared);
     }
     fixtures::lay_calls(&shared);
-    if options.memory == Memory::Checked {
+    if options.memory != Memory::Unchecked {
         fixtures::lay_cache_pages(&shared);
     }
     let lock = options.release.map(|at| (fixtures::HeldLock::new(&shared), at));
@@ -257,13 +254,14 @@ pub fn chaos() -> Config {
 }
 /// Meter the shipped client over the paged-store scenario at the named limits.
 #[must_use]
-pub fn checked(seed: u64) -> Outcome<Proc, Shared> {
-    checked_with(&fixtures::thin(), seed, fixtures::small_limits())
+pub fn checked(seed: u64, ceiling: u64) -> Outcome<Proc, Shared> {
+    checked_with(&fixtures::thin(), seed, fixtures::small_limits(), ceiling)
 }
 /// Meter every iteration, including decoding and writing resolution records.
 #[must_use]
-pub fn checked_with(scenario: &Scenario<'_>, seed: u64, limits: hearth::Limits) -> Outcome<Proc, Shared> {
-    build(scenario, seed, Config::calm(), &Options { memory: Memory::Checked, limits, ..Options::default() }).run()
+pub fn checked_with(scenario: &Scenario<'_>, seed: u64, limits: hearth::Limits, ceiling: u64) -> Outcome<Proc, Shared> {
+    build(scenario, seed, Config::calm(), &Options { memory: Memory::Within(ceiling), limits, ..Options::default() })
+        .run()
 }
 
 /// A killed client's children run on while its cold replacement starts
