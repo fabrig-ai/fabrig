@@ -301,8 +301,12 @@ pub(crate) fn banner(
     if let Address::Welcome { step } = pages.address()
         && unavailable(root).is_none()
     {
-        box_line(builder, words);
-        crate::pages::welcome::steps(builder, root, words, *step);
+        if let Some(deployment) = root.forge().deployment()
+            && deployment.welcome
+        {
+            box_line(builder, words);
+            crate::pages::welcome::steps(builder, root, words, *step);
+        }
         builder.close();
         return;
     }

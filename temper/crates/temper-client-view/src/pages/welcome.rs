@@ -5,7 +5,11 @@ use crate::{
     words::{Word, Words},
 };
 use skein_ui::{Builder, Role, Run, phrases::Hole};
-use temper_client_domain::{Address, Domain, Step, forge::forges::Connection, pages::Act};
+use temper_client_domain::{
+    Address, Domain, Step,
+    forge::{deployment, forges::Connection},
+    pages::Act,
+};
 
 fn text(b: &mut Builder, w: &Words, role: Role, word: Word) {
     b.open(role);
@@ -115,6 +119,10 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::WELCOME);
+    let Some(deployment::Answer { welcome: true, .. }) = root.forge().deployment() else {
+        b.close();
+        return;
+    };
     let playground = temper_client_domain::pages::welcome::decision(root)
         == Some(temper_client_domain::pages::welcome::FirstRun::Empty);
     match step {
