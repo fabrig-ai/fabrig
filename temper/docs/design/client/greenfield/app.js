@@ -1032,7 +1032,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
   }
   function firstRunClick(d) {
     const v = id => document.getElementById(id)?.value.trim();
-    if ('firstRun' in d) setMode('first-run', 'box.html');
+    if ('firstRun' in d) setMode('first-run', 'welcome.html');
     else if ('playground' in d) toast('The playground isn’t drawn in this experiment; the current mockups have it.');
     else if ('forgejoOpen' in d || d.repoOpen) { const s = document.getElementById('repo-sheet'); if (d.repoOpen) { s.querySelector(`input[name="start"][value="${d.repoOpen}"]`).checked = true; s.querySelector('form').dataset.pick = d.repoOpen; } s.showModal(); if (d.repoOpen === 'copy') s.querySelector('#fj-copies').focus(); }
     else if ('github' in d) { S.setup.forge = { kind: 'github', at: Date.now() }; save(); render(); setTimeout(() => { location.href = 'welcome.html?at=model'; }, FR.github.ms); }
