@@ -213,7 +213,6 @@ impl Connection {
             None => crate::settings::host(forge).expect("checked forge host"),
         }
     }
-    #[expect(clippy::manual_map, reason = "the programming model uses explicit matches for optional state")]
     pub fn start(
         &mut self,
         env: &Env<Limits>,
@@ -300,10 +299,7 @@ impl Connection {
         self.clear_json_body();
         self.json_limits = limits::documents(&env.limits).json;
         self.request = Some(request);
-        self.upload = match upload {
-            Some(body) => Some(Upload::new(body)),
-            None => None,
-        };
+        self.upload = Upload::of(upload);
         self.raw_range = range.unwrap_or(Range::Head(self.raw_cap));
         self.done = None;
         self.written = false;
@@ -347,11 +343,7 @@ impl Connection {
         }
     }
     fn link_env(&self, env: &Env<Limits>) -> Env<skein_link::Limits> {
-        Env {
-            now: env.now,
-            wall: env.wall,
-            limits: skein_link::Limits { tls: env.limits.tls, close_timeout: self.shared.io.close_timeout },
-        }
+        env.with(skein_link::Limits { tls: env.limits.tls, close_timeout: self.shared.io.close_timeout })
     }
     pub fn connect(&mut self, env: &Env<Limits>) {
         self.phase = match self.link.connected(&self.link_env(env)) {
@@ -760,15 +752,11 @@ impl Connection {
                 let Some(upload) = &mut self.upload else { return };
                 let (piece, next) = upload.room(room);
                 self.http_down(env, http::Request::Upload(piece));
-                match next {
-                    Down::Finish => {
-                        self.upload = None;
-                        self.phase = Phase::Reading;
-                        self.http_down(env, http::Request::Upload(Down::Finish));
-                    }
-                    Down::Demand { .. } => self.http_down(env, http::Request::Upload(next)),
-                    Down::Send(_) => unreachable!("upload follows a piece with Finish or Demand"),
+                if next == Down::Finish {
+                    self.upload = None;
+                    self.phase = Phase::Reading;
                 }
+                self.http_down(env, http::Request::Upload(next));
             }
             Up::Failed(_) | Up::End => {
                 self.upload = None;
