@@ -1,0 +1,3 @@
+draft = "kv-chunk-target"
+repo = "fabrig"
+sources = ["skein/docs/plan/kv-chunk-target/inputs/request.md", "AGENTS.md"]
