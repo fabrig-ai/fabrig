@@ -10,6 +10,3 @@
   `idle_at`, `tls_closed` and `socket_close_sent` rather than in its
   states; no reason is recorded (the code's side is
   `skein/docs/development/debt/D023-llm-client-states.md`).
-- **Not yet:** 7: `skein-llm-connection/src/limits.rs`'s `valid` accepts what
-  `Component::new` refuses: its stream capacity relationships and a plaintext
-  address.
