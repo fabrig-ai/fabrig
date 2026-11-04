@@ -86,7 +86,7 @@ impl Backend {
     pub(super) fn compaction_input(&mut self) -> Option<()> {
         let Complete { prompt, observation, .. } = self.current.request_mut()?;
         let observed = observation.is_some();
-        let text = render(prompt, &self.settings.adapter, self.settings.input_bytes)?;
+        let text = render(prompt, &self.settings.translation, self.settings.input_bytes)?;
         self.outgoing = Some(stream::text_message(&text, self.settings.input_bytes)?);
         if observed {
             self.prompt_text_measure(skein_lib::Time::ZERO, text);

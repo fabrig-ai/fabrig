@@ -20,7 +20,7 @@ fn endpoints() -> Endpoints {
 }
 
 fn endpoints_with_connect(connect: Duration) -> Endpoints {
-    endpoints_with_client(connect, limits().adapter.client)
+    endpoints_with_client(connect, limits().translation.client)
 }
 
 fn endpoints_with_client(connect: Duration, client: skein_llm::client::Limits) -> Endpoints {
@@ -145,7 +145,7 @@ fn invalid_limits_are_refused() {
                 "per endpoint exceeds connections"
             }
             9 => {
-                invalid.adapter.rendered_result = 0;
+                invalid.translation.rendered_result = 0;
                 "adapter"
             }
             10 => {
@@ -181,7 +181,7 @@ fn invalid_limits_are_refused() {
         assert!(matches!(Component::new(&invalid, endpoints()), Err(codec::ComponentError::Limits)), "{check}");
     }
     let mut incompatible = bounds;
-    incompatible.adapter.client.tools -= 1;
+    incompatible.translation.client.tools -= 1;
     assert!(!codec::component_valid(&incompatible, &endpoints()));
     assert!(matches!(Component::new(&incompatible, endpoints()), Err(codec::ComponentError::ClientLimits)));
     let mut large = bounds;
@@ -312,7 +312,7 @@ fn prepared_failure(limits: &ComponentLimits) -> codec::Prepared {
 
         receiving: limits.receiving,
     };
-    codec::prepare(input, &limits.adapter).expect("bounded preparation")
+    codec::prepare(input, &limits.translation).expect("bounded preparation")
 }
 
 #[test]
@@ -443,7 +443,7 @@ fn the_whole_deadline_precedes_a_later_endpoint_connect_deadline() {
 fn an_observed_request_is_native_validated_before_its_payload_is_copied() {
     let limits = limits();
     for malformed in [false, true] {
-        let mut client = limits.adapter.client;
+        let mut client = limits.translation.client;
         if !malformed {
             client.request = 1;
         }
@@ -496,7 +496,7 @@ fn a_response_failure_keeps_its_status_in_the_evidence() {
 
             receiving: limits.receiving,
         },
-        &limits.adapter,
+        &limits.translation,
     )
     .expect("bounded preparation");
     let terminal = codec::failed(

@@ -23,7 +23,7 @@ use crate::{Context, EndpointOptions, Endpoints, Error, GrantError, Grants, Rece
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ComponentLimits {
     /// Translation and receiving bounds.
-    pub adapter: crate::Limits,
+    pub translation: crate::Limits,
     /// The connection pool and child-machine bounds.
     pub connection: connection::Limits,
     /// Largest Complete receiving contract admitted by this service.
@@ -93,7 +93,7 @@ impl fmt::Debug for Component {
 fn clients_valid(limits: &ComponentLimits, endpoints: &Endpoints) -> bool {
     for endpoint in endpoints.destinations() {
         let native = endpoint.limits;
-        let maximum = limits.adapter.client;
+        let maximum = limits.translation.client;
         let completion_fits = match crate::completion_bound(&native, limits.receiving.decoded_call_bytes) {
             Some(bytes) => bytes <= limits.receiving.max_completion_bytes,
             None => false,
@@ -128,7 +128,7 @@ pub fn component_valid(limits: &ComponentLimits, endpoints: &Endpoints) -> bool 
         || pool.connections < pool.calls
         || pool.per_endpoint > pool.connections
         || endpoints.destinations().len() > pool.endpoints
-        || !crate::valid(&limits.adapter, &limits.receiving)
+        || !crate::valid(&limits.translation, &limits.receiving)
         || !clients_valid(limits, endpoints)
     {
         return false;
@@ -427,7 +427,7 @@ impl Component {
             }
         };
         let purpose = prompt.purpose;
-        let translation = crate::Limits { client: options.client, ..self.limits.adapter };
+        let translation = crate::Limits { client: options.client, ..self.limits.translation };
         let (mut translated, context) =
             match crate::prompt::prepare_component(owner, prompt, outcome, deliver, bounds, &translation) {
                 Ok(prepared) => prepared,
@@ -558,7 +558,7 @@ impl Component {
                         match crate::completion(active.context, completion) {
                             Ok(event) => Self::domain_event(event, to_domain),
                             Err(error) => {
-                                Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
+                                Self::refusal(call, error, self.limits.translation.client.detail_bytes, to_domain);
                             }
                         }
                     }
@@ -570,7 +570,7 @@ impl Component {
                         match crate::failed(active.context, failure, evidence, detail, report) {
                             Ok(event) => Self::domain_event(event, to_domain),
                             Err(error) => {
-                                Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
+                                Self::refusal(call, error, self.limits.translation.client.detail_bytes, to_domain);
                             }
                         }
                     }

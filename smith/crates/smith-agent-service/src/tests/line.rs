@@ -328,7 +328,7 @@ fn endpoints(limits: &adapter::ComponentLimits, provider: skein_llm::Provider) -
         Box::new([adapter::ConfiguredEndpoint {
             name: llm::Endpoint(0),
             destination: skein_llm_connection::Endpoint {
-                limits: limits.adapter.client,
+                limits: limits.translation.client,
                 credential: skein_llm::client::CredentialLimits { value: 128 },
                 address: "127.0.0.1:443".parse().unwrap(),
                 transport: skein_llm_connection::Transport::Plaintext,

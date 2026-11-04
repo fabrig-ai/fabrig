@@ -10,17 +10,17 @@ use super::{Conversation, Phase, Run, State, follow, hard_stop, standing};
 use crate::charter::{self, Mode};
 use crate::facts::FactKind;
 use crate::wind_down::Cause;
-use crate::{CompletionPermit, Domain, Exhausted, Failure, Request, Spend, prompt};
+use crate::{CompletionPermit, Domain, Exhausted, Request, RunFailure, Spend, prompt};
 
 /// Session own prices are monotonic activation totals. Stale names are inert;
 /// subtree updates do not add global spend.
 #[must_use]
-pub fn completion_overflow(domain: &Domain, conversation: Token, price: u64, usage: Spend) -> Option<Failure> {
+pub fn completion_overflow(domain: &Domain, conversation: Token, price: u64, usage: Spend) -> Option<RunFailure> {
     let conversation =
         domain.conversations.get(Id::from_token(conversation)).expect("provider owner has a live run conversation");
     let run = domain.runs.get(conversation.run).expect("conversation retains its run");
     if run.spent.units.checked_add(price).is_none() {
-        return Some(Failure::Budget {
+        return Some(RunFailure::Budget {
             exhausted: Exhausted::Overflow(crate::Overflow::Spend),
             used: None,
             bound: None,
@@ -29,7 +29,7 @@ pub fn completion_overflow(domain: &Domain, conversation: Token, price: u64, usa
     let raw_total = Spend { units: 0, ..run.spent };
     let raw_increment = Spend { units: 0, ..usage };
     if raw_total.accumulate(raw_increment).is_none() {
-        return Some(Failure::Budget {
+        return Some(RunFailure::Budget {
             exhausted: Exhausted::Overflow(crate::Overflow::Usage),
             used: None,
             bound: None,
@@ -60,7 +60,7 @@ pub(crate) fn priced(domain: &mut Domain, conversation: Token, own: u64, subtree
         run.state = hard_stop(
             state,
             &mut domain.conversations,
-            Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None },
+            RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None },
             out,
         );
         follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, run_id);
@@ -98,7 +98,7 @@ pub(crate) fn used(domain: &mut Domain, conversation: Token, spend: Spend, out: 
         run.state = hard_stop(
             state,
             &mut domain.conversations,
-            Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None },
+            RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None },
             out,
         );
         follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, run_id);

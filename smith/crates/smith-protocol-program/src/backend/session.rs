@@ -189,7 +189,7 @@ impl Backend {
         self.written = 0;
         self.interrupt.forget(below);
         self.ledger = List::with_capacity(self.settings.ledger_slots().expect("ledger"));
-        self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
+        self.turns = turns::Turns::new(&self.settings.receiving, self.settings.translation.client.answer);
         self.permitted_message = 1;
         if self.current.owner().is_some() {
             self.startup.prepare(&mut self.server_up, below);

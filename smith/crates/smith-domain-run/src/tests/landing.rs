@@ -19,7 +19,7 @@ fn an_outcome_that_does_not_fit_the_spec_is_rejected_and_the_run_goes_on() {
     }
     assert_eq!(&*harness.step(end_turn(conversation)), &[Request::Close { peer: PEER }]);
     let requests = harness.step(ended(conversation, End::Closed, Spend::ZERO));
-    let unfinished = Failure::Policy(Policy::Unfinished { nudges: LIMITS.nudges, rejected: 2 });
+    let unfinished = RunFailure::Policy(Policy::Unfinished { nudges: LIMITS.nudges, rejected: 2 });
     assert_eq!(answered(requests), (1, failed(unfinished, Spend::ZERO)));
 }
 
@@ -159,7 +159,7 @@ fn a_change_whose_branch_moved_ends_the_run_as_stale() {
     let requests = harness.step(Event::Delivered { owner, delivery: Delivery::Stale });
     assert_eq!(&*requests, &[returned(7, Returned::Stale), Request::Close { peer: PEER }]);
     let requests = harness.step(ended(conversation, End::Closed, Spend::ZERO));
-    assert_eq!(answered(requests), (1, failed(Failure::Stale, Spend::ZERO)));
+    assert_eq!(answered(requests), (1, failed(RunFailure::Stale, Spend::ZERO)));
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn past_the_budget_the_deadline_fails_the_run_for_the_part_it_went_past() {
         (
             1,
             failed(
-                Failure::Budget {
+                RunFailure::Budget {
                     exhausted: Exhausted::Spend,
                     used: Some(BUDGET.spend + 1),
                     bound: Some(BUDGET.spend)
@@ -295,7 +295,7 @@ fn a_run_out_of_time_while_it_prepares_answers_once_its_look_has_ended() {
     let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
     assert_eq!(
         answered(requests),
-        (1, failed(Failure::Budget { exhausted: Exhausted::Time, used: None, bound: None }, Spend::ZERO))
+        (1, failed(RunFailure::Budget { exhausted: Exhausted::Time, used: None, bound: None }, Spend::ZERO))
     );
 }
 
@@ -552,7 +552,7 @@ impl MidDelivery {
 
     fn cancelled(&mut self) {
         assert_eq!(self.harness.step(Event::Cancel { run: self.run }).as_ref(), &[Request::Close { peer: PEER }]);
-        self.ended(Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 0 }, Spend::ZERO);
+        self.ended(Answer::Failed { failure: RunFailure::Cancelled, spent: Spend::ZERO, turns: 0 }, Spend::ZERO);
     }
 
     fn reported(&mut self) {
@@ -567,7 +567,7 @@ fn submitted_mid_delivery_settles_before_a_cancelled_run_answers() {
     drop(delivery.harness.step(Event::Cancel { run: delivery.run }));
     delivery.withdraw_caller();
     delivery.accepted_delivery();
-    delivery.ended(Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 0 }, Spend::ZERO);
+    delivery.ended(Answer::Failed { failure: RunFailure::Cancelled, spent: Spend::ZERO, turns: 0 }, Spend::ZERO);
 }
 
 #[test]
@@ -612,7 +612,7 @@ fn time_shutdown_keeps_an_already_submitted_mid_landing() {
     delivery.accepted_delivery();
     delivery.ended(
         Answer::Failed {
-            failure: Failure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
+            failure: RunFailure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
             spent: Spend::ZERO,
             turns: 0,
         },
@@ -631,7 +631,7 @@ fn spend_shutdown_keeps_an_already_submitted_mid_landing() {
     );
     delivery.ended(
         Answer::Failed {
-            failure: Failure::Budget {
+            failure: RunFailure::Budget {
                 exhausted: Exhausted::Spend,
                 used: Some(BUDGET.spend + 1),
                 bound: Some(BUDGET.spend),

@@ -1,7 +1,7 @@
 //! Host-supplied result contracts and protocol-decoded finish values
 //! (smith/docs/design/domain/run.md, sections 3.1, 7.1–7.3). Labels have no built-in
 //! meaning: this module keeps no runtime state, reads no clocks and performs
-//! no checkout or host effect. The run admits a satisfiable bounded contract,
+//! no workspace or host effect. The run admits a satisfiable bounded contract,
 //! bounds a declaration with `owned_bytes`, then calls `judge` for shape.
 //! `Report`, verdict and declared failure finish without delivery; a change
 //! follows exclusive writable checks and the generic host terminal.

@@ -48,7 +48,7 @@ impl Backend {
         let rendered = tail::render_observed(
             prompt,
             &self.ledger,
-            &self.settings.adapter,
+            &self.settings.translation,
             self.settings.input_bytes,
             prefix,
             capture,

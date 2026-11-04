@@ -180,7 +180,7 @@ pub enum Returned {
     /// The tools' outcome: a success, or a failure, one that ran out of time
     /// included.
     Owned {
-        /// Typed checkout-tool success or failure returned by the tools child;
+        /// Typed workspace-tool success or failure returned by the tools child;
         /// it is not a declared run result and confers no new authority.
         outcome: tools::Outcome,
     },
@@ -237,7 +237,7 @@ pub enum Said {
         /// Provider arguments, or canonical `{}` for an oversized or cut call;
         /// counted with their enclosing message against session ownership limits.
         input: Box<[u8]>,
-        /// Full decoded classification: owned checkout call, run-served ask,
+        /// Full decoded classification: owned workspace call, run-served ask,
         /// or invalid-input problem; the domain executes only admitted classifications.
         call: Decoded,
         replay: Option<Replay>,

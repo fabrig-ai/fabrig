@@ -62,7 +62,7 @@ impl Backend {
     }
 
     fn init_problem(&self, bytes: &[u8]) -> Option<Box<[u8]>> {
-        let depth = self.settings.adapter.client.depth;
+        let depth = self.settings.translation.client.depth;
         let tokens = self.settings.stream_tokens;
         if self.compaction() {
             if super::compact::checked_init(bytes, depth, tokens).is_some() {
@@ -173,7 +173,7 @@ impl Backend {
     // Share the retained-reply budget. Reserve each MCP slot's full cap so
     // its later answer cannot consume bytes already held by a built-in.
     pub(super) fn reply_room(&self, extra: u64) -> bool {
-        let maximum = u64::from(self.settings.adapter.rendered_result)
+        let maximum = u64::from(self.settings.translation.rendered_result)
             .checked_mul(u64::from(self.settings.ledger_slots().expect("call slots")))
             .expect("reply budget");
         let mut retained = extra;
@@ -184,7 +184,7 @@ impl Backend {
                     None => 0,
                 }
             } else {
-                u64::from(self.settings.adapter.rendered_result)
+                u64::from(self.settings.translation.rendered_result)
             };
             retained = match retained.checked_add(bytes) {
                 Some(bytes) => bytes,

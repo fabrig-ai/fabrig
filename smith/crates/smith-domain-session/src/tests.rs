@@ -273,7 +273,7 @@ fn spec() -> Spec {
     }
 }
 
-/// The root of the checkout's one repository, as io names it.
+/// The root of the workspace's one repository, as io names it.
 const ROOT: Token = Token::new(70);
 
 /// What a spec's kit may do: inspect and modify, in `repos` repositories
@@ -327,7 +327,7 @@ fn path(name: &[u8]) -> Path {
     Path { absolute: false, parts: Box::new([Part::Name { name: named(name) }]) }
 }
 
-/// A path outside the checkout.
+/// A path outside the workspace.
 fn outside() -> Path {
     Path { absolute: true, parts: Box::new([Part::Name { name: named(b"etc") }]) }
 }

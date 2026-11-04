@@ -305,7 +305,7 @@ fn answers_too_many_or_too_long_are_refused_before_a_completion() {
         world.run(2000);
         assert!(matches!(
             world.answer(),
-            run::Answer::Failed { failure: run::Failure::Transcript(run::TranscriptRefusal::TooLarge), .. }
+            run::Answer::Failed { failure: run::RunFailure::Transcript(run::TranscriptRefusal::TooLarge), .. }
         ));
         assert!(world.prompts().is_empty());
     }
@@ -322,7 +322,7 @@ fn every_transient_history_refusal_is_exact_and_starts_no_provider_or_tool_effec
         let mut world = World::with_history(Settings { resume: true, ..waiting(908) }, Some(row.saved));
         world.run(HISTORY_REFUSAL_ITERATIONS);
         let terminal = match world.answer() {
-            run::Answer::Failed { failure: run::Failure::Transcript(reason), turns, .. } => Some((*reason, *turns)),
+            run::Answer::Failed { failure: run::RunFailure::Transcript(reason), turns, .. } => Some((*reason, *turns)),
             run::Answer::Parked { .. }
             | run::Answer::Refused(_)
             | run::Answer::Accepted { .. }

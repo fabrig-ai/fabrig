@@ -935,7 +935,7 @@ fn generate_prefix(counted: &mut Counted, messages: u32, cycles: u32) -> Limits 
     counted.step(Event::Cancel { run });
     counted.cycle(cycles + 1);
     assert!(
-        matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns, .. }) if turns == 2 * cycles + 1)
+        matches!(counted.answer, Some(run::Answer::Failed { failure: run::RunFailure::Cancelled, turns, .. }) if turns == 2 * cycles + 1)
     );
 
     tight
@@ -973,7 +973,7 @@ fn restore_overlap(counted: &mut Counted, messages: u32, cycles: u32) {
     counted.waiting = false;
     counted.step(Event::Cancel { run });
     counted.cycle(cycles + 2);
-    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 3, .. })));
+    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 3, .. })));
     counted.resume();
 }
 
@@ -1013,7 +1013,7 @@ fn restore_exact(counted: &mut Counted, messages: u32, cycles: u32, tight: &Limi
     counted.resume();
     drop(counted.complete.take());
     counted.step(Event::Below(smith_domain::Below::Cancelled { owner }));
-    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 1, .. })));
+    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. })));
     counted.resume();
 }
 
@@ -1066,7 +1066,7 @@ fn refuse_one_over(counted: &mut Counted, cycles: u32, tight: &Limits) {
         assert!(matches!(
             counted.answer,
             Some(run::Answer::Failed {
-                failure: run::Failure::Transcript(run::TranscriptRefusal::TooLarge),
+                failure: run::RunFailure::Transcript(run::TranscriptRefusal::TooLarge),
                 turns: 0,
                 ..
             })
@@ -1320,7 +1320,7 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_caller_copies() {
     counted.waiting = false;
     counted.step(Event::Cancel { run });
     counted.cycle(1);
-    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 3, .. })));
+    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 3, .. })));
     reclaim_every_owner(counted, &receiving);
 }
 

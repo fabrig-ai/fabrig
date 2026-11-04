@@ -229,7 +229,7 @@ fn a_persons_stop_crosses_the_worker_and_cancels_smith_before_the_task_answers()
     assert_eq!(world.observed.cancels, 1);
     assert!(matches!(
         world.agent().answer(),
-        smith_domain_run::Answer::Failed { failure: smith_domain_run::Failure::Cancelled, .. }
+        smith_domain_run::Answer::Failed { failure: smith_domain_run::RunFailure::Cancelled, .. }
     ));
     assert_eq!(world.observed.answers, 1);
     assert_eq!(world.observed.gone, 1);
@@ -477,7 +477,7 @@ fn a_review_model_failure_is_retried_and_two_failures_hold_the_change() {
     let agent = world.review_agent(first);
     assert!(matches!(
         agent.answer(),
-        smith_domain_run::Answer::Failed { failure: smith_domain_run::Failure::Model(_), .. }
+        smith_domain_run::Answer::Failed { failure: smith_domain_run::RunFailure::Model(_), .. }
     ));
     assert!(agent.host_submissions().is_empty(), "no transcript of tool calls in the model-failure sighting");
     world.until_review_or_terminal(second);
@@ -608,7 +608,7 @@ fn assert_unfinished_reads(agent: &smith_agent_world::World) {
     assert!(matches!(
         agent.answer(),
         smith_domain_run::Answer::Failed {
-            failure: smith_domain_run::Failure::Policy(smith_domain_run::Policy::Unfinished { rejected: 0, .. }),
+            failure: smith_domain_run::RunFailure::Policy(smith_domain_run::Policy::Unfinished { rejected: 0, .. }),
             ..
         }
     ));

@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use skein_lib::{Duration, Time, Token};
 use smith_domain_run::charter::Reserve;
-use smith_domain_run::{Answer, Exhausted, Failure};
+use smith_domain_run::{Answer, Exhausted, RunFailure};
 use smith_run_world::{
     Settings, Span, World,
     order_log::{Input, Record, Seen},
@@ -159,7 +159,7 @@ fn run_inputs_drained_before_alarms_at_the_check_deadline() {
     assert_eq!(world.stats().deliveries, 0);
     assert!(world.answers().all(|answer| matches!(
         answer,
-        Some(Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Time, .. }, .. })
+        Some(Answer::Failed { failure: RunFailure::Budget { exhausted: Exhausted::Time, .. }, .. })
     )));
 }
 

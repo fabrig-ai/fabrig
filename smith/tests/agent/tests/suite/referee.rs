@@ -264,7 +264,7 @@ fn both_ordinary_and_interrupted_mid_delivery_histories_are_valid() {
     for interrupted in [false, true] {
         let mut referee = mid_history();
         let answer = if interrupted {
-            Answer::Failed { failure: smith_domain::run::Failure::Cancelled, spent: Spend::ZERO, turns: 0 }
+            Answer::Failed { failure: smith_domain::run::RunFailure::Cancelled, spent: Spend::ZERO, turns: 0 }
         } else {
             Answer::Accepted {
                 outcome: Declared::Report(Report { text: b"continued".as_slice().into(), fields: Box::new([]) }),

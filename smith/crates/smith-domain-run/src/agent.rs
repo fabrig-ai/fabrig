@@ -1,5 +1,5 @@
 //! Sub-agents (smith/docs/design/domain/run.md, section 5.3): a delegated call the run serves by
-//! opening another conversation, on the same checkout, with families of tools
+//! opening another conversation, on the same workspace, with families of tools
 //! no wider than its asker's and never `finish`, on an LLM the charter lists,
 //! with a share of what the run has left above its finishing reserve (section 9.1).
 //!
