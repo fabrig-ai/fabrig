@@ -62,7 +62,6 @@ it says what a reviewer checks.
 |---|---|---|---|---|---|
 | [D001](D001-events-hand-kept-records.md) | smith-events keeps every record in four hand-written hierarchies | duplication | medium | L | open |
 | [D003](D003-host-io-route-table.md) | The local host routes io completions through its own table | primitives | low | M | open |
-| [D005](D005-block-walks.md) | Every walk of a message destructures `Block` again | duplication | low | S | open |
 | [D006](D006-backend-two-effect-paths.md) | The program backend's effects leave by two paths | primitives | low | S | open |
 | [D007](D007-tools-namespace.md) | The tools serve a namespace no run produces | complexity | low | M | open |
 | [D008](D008-one-program-map.md) | The agent shell maps endpoints to a one-variant program name | complexity | low | S | open |
