@@ -1,0 +1,22 @@
+draft = "debt-7"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-7/inputs/request.md", "jig/docs/development/debt/D005-accounts-host-copied.md", "temper/docs/development/debt/D001-reference-service-copy.md", "skein/docs/development/debt/D029-fake-github-http-faces.md", "smith/docs/development/debt/D009-startup-writers.md", "smith/docs/development/debt/D014-unused-dependencies.md", "smith/docs/development/debt/D016-retyped-primitives.md", "smith/docs/development/debt/D019-channel-component-twins.md"]
+
+# Three independent parts (inputs/request.md). plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "smith-items"
+title = "smith, four small items: D014, D019, D016 and D009, with what skein must offer first"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 6"
+
+[[slice]]
+id = 1
+story = "smith's manifests, frame kinds, lengths and deadlines each have one spelling, skein's where skein has one, with no behaviour changed"
+parts = ["smith-items"]
+walk = false
