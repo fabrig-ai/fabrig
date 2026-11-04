@@ -1642,10 +1642,6 @@ VM tier its one real machine relies on.
   `tools/tiers/budgets.toml` has no `conformance-hearth` entry, and the
   tier runs by hand. Whether it takes a budget and a place after landing
   depends on the user, and on a runner holding its prerequisites (6.4).
-- **The fail-stop check:** `hearth/scripts/fail_stop.py` keeps to
-  hearth's packages, and no gate runs it. Over the workspace it names two
-  of temper's binaries, `temper-stage-one` and `playground-serve`.
-  Whether the gate takes it depends on those two.
 - **The newer model:** `worst_case` and `MAX_OUT` stay in hearth as
   allowed old forms, which may only fall
   (`skein/docs/foundation/programming-model.md`, 6.3). Moving to the
