@@ -1437,7 +1437,7 @@ What the steward must keep across restarts and reboots lives in
   snapshots keep inodes and change times, the walk reads what the
   builder cannot, layers are deleted with and without the option.
 
-## 12. What is open
+## 12. Open questions
 
 - **Whether `useradd -r -F -K SUB_UID_MIN=262144` makes the default
   range,** or bootstrap keeps `usermod --add-subuids`; depends on

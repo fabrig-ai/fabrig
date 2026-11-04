@@ -807,7 +807,7 @@ hearth/docs/design/README.md (8.1) asks for contained process trees with id maps
 - **a new `/proc` and `/sys`, a minimal `/dev`;**
 - **`no_new_privs` and rlimits.**
 
-The domain and its worlds need none of this; real builds wait for it
+The domain and its worlds need none of this
 (hearth/docs/design/domain/testing.md, section 6).
 
 ## 9. Nothing unique, nothing secret
@@ -1077,7 +1077,7 @@ with its tail.
 - **Recordings replace hand-written fixtures;** pipes and deadlines
   replace `os-proc`'s one-second polling of files.
 
-## 15. What is open
+## 15. Open questions
 
 - **The bounds on a reconciled line:** a depth of 8 and a period of 30
   days are guesses; they depend on what the lab's comparison of
