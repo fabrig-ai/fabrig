@@ -18,7 +18,13 @@ task names. This file grows with each release; what is here so far is what has b
    contracts. The parts' order is fixed there: each jig task moves a part into a product crate and `jig-test-service`
    adapts; each temper task deletes temper's copy. One writer each for `jig-test-service` and `temper-service`.
    - `tasks/skein-kernel-routes.md`, medium, ~30 minutes, needs nothing: `skein_io::kernel::Routes`.
-   - The accounts' host, the worker's side and the clients' side are being written.
+   - `tasks/jig-accounts-host.md`, high, ~75 minutes, needs the routes: `jig_protocol_accounts::host`, net at most +130.
+   - `tasks/temper-accounts-host.md`, high, ~55 minutes, needs the last: temper's copy goes, net at most -290.
+   - `tasks/jig-worker-agents.md`, high, ~60 minutes, needs `jig-accounts-host`: the new crate, net at most +300.
+   - `tasks/temper-worker-agents.md`, high, ~40 minutes, needs it and `temper-accounts-host`: net at most -420.
+   - `tasks/jig-workers-host.md`, high, ~60 minutes, needs `jig-worker-agents`: net at most +120.
+   - `tasks/temper-workers-host.md`, high, ~50 minutes, needs it and `temper-worker-agents`: net at most -200.
+   - The clients' side is being written.
 
 3. **fake-github** (`skein/docs/design/fake-forge.md, 10.6`), slice 3. `notes/fake-github.md` holds its contracts.
    - `tasks/github-fake-surface.md`, high, ~100 minutes, needs nothing: what the four faces build on, additions only.
@@ -65,6 +71,17 @@ task names. This file grows with each release; what is here so far is what has b
   would come from.
 - **Behaviour differences stay differences:** `notes/service-parts.md` lists each, and how both sides keep theirs.
   One carries a question for the user (`wrong-secret-kind`).
+- **The accounts' pass is `begin`, then a bounded loop over `output`.** `begin` keeps the order in jig, as
+  `jig/AGENTS.md` requires, and `for _ in 0..count` stands in for `while`, which step code can't use. temper's
+  one-slot hold is `Accounts::hold`, which only temper calls. temper's 15 host tests stay as composition tests.
+- **`jig_protocol_config::Files` holds the shell's files;** `Seeds` doesn't move. `jig/tests/boundary` pins what these
+  crates may link, which the survey missed, so each task that adds a dependency edits that list.
+- **`Evidence` is a value of `route::decode`:** with no callback, the shared `decode` reaches either form, and a
+  start's failures stay in their order. jig's raw form ships beside temper's decoder.
+- **`Workers::new` takes `&config::Engine` and `&config::Files`,** so the digest and listener checks leave both services.
+  `jig-protocol-engine-workers` links configuration for it, and `jig/tests/boundary` pins that: its exact list changes,
+  and so does `smith_breaches` for the new crate. The survey was wrong that nothing checks which jig crates link smith.
+- **Tests stay.** Only `J/tests/program_sources.rs`' three and the evidence test move; `T/tests/workers.rs`' 26 stay.
 - **D001's and D005's facts have moved.** The measure reads 1,388, not 1,369, and `Resources`' `Debug` is now hidden
   in both copies. `service-items` corrects what survives.
 

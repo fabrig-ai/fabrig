@@ -211,7 +211,8 @@ processes (smith's `protocol/hosts.md`, sections 2 and 3).
   drives, its codec crate, and the domain vocabulary it translates: the
   hub's for the channel's sides, the core's (or a child's) for the
   engine's others. None depends on an application's crate, and none names
-  a system.
+  a system. A host of `service.md`, section 11, reads jig's configuration
+  too.
 - **Which crates link smith.** Of jig's, only `jig-protocol-charter`,
   `jig-protocol-worker-agents`, which an application whose workers run no
   agents leaves out, and the client's decoding of turns;
