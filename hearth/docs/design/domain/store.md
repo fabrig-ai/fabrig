@@ -7,7 +7,7 @@ collection, how each builder reads the store back, the steward's records
 beside it, what the machine must provide, and how peers exchange layers.
 M2 builds it, but for peers (section 10, M6). M1 builds the encoding and
 `H` (3.1, 3.2), and a store without layers, which holds render's cache
-and resolutions (2.4). How a layer's contents are made is domain/build.md.
+and resolutions (2.4). How a layer's contents are made is hearth/docs/design/domain/build.md.
 What is open is in section 12.
 
 ## 1. In one page
@@ -97,10 +97,10 @@ What is open is in section 12.
   store's directories keep everyone else out (2.2).
 - **Two writers, apart:** on a machine the steward writes only
   `state/`, and the builder writes the rest and never `state/`
-  (domain/steward.md, 2.2). Both run as `hearth`.
+  (hearth/docs/design/domain/steward.md, 2.2). Both run as `hearth`.
 - **Artifacts [M6]** are read-only subvolumes named by key, with records
   and tree files beside them, built, published and deleted as layers are
-  (domain/artifacts.md, section 4); they live in `artifacts/` so that their
+  (hearth/docs/design/domain/artifacts.md, section 4); they live in `artifacts/` so that their
   renames, too, stay within one directory (2.3).
 
 ### 2.2 Owners and modes
@@ -110,7 +110,7 @@ What is open is in section 12.
   range's base on disk), so the builder, as "other", can always open it
   to ask btrfs about it (8.2).
 - **Cache files are 0644 in a 0700 directory.** A sandbox reads them
-  through a bind mount (domain/build.md, 5.3), where the builder's own uid is
+  through a bind mount (hearth/docs/design/domain/build.md, 5.3), where the builder's own uid is
   unmapped and only the "other" bits apply; the directory keeps everyone
   else out.
 - **The cache and staging share the store's subvolume,** so a packages
@@ -133,7 +133,7 @@ What is open is in section 12.
 
 A store whose filesystem is not btrfs, or whose builder has built no
 layer, holds what render keeps: its cache and its resolutions. M1's
-`render` and `diff` use one (client/README.md, 3.5), and so may a builder that
+`render` and `diff` use one (hearth/docs/design/client/README.md, 3.5), and so may a builder that
 only renders.
 
 - **Any filesystem,** in a directory of the user's own, 0700: btrfs and
@@ -142,7 +142,7 @@ only renders.
   is missing (9.1).
 - **What it holds:** `store.record` (6.6), `cache/` with its records
   (6.5), `resolutions/` (6.4) and `staging/`, whose only scratch is a
-  resolution's (domain/render.md, 5.2). The layout and the records are those of
+  resolution's (hearth/docs/design/domain/render.md, 5.2). The layout and the records are those of
   a store with layers, so a builder of M2 reads it as its own.
 - **The lock and the scan hold:** a builder takes 8.2's lock on the
   store's root, and its startup scan runs steps 1 and 2, step 6 for its
@@ -150,7 +150,7 @@ only renders.
   temporaries, staging, resolutions and cache files. Steps 3 to 5, the
   subvolumes', belong to a builder that builds [M2], which runs them on
   btrfs and skips them elsewhere, telling the two by `statfs`'s
-  filesystem type (README.md, 8.1). M1's builder builds no layer and
+  filesystem type (hearth/docs/design/README.md, 8.1). M1's builder builds no layer and
   runs none of them: a store it makes has no `layers/`.
 - **Everything in it can be made again:** a resolution is resolved
   again, a cache file fetched or rendered again. A store without layers
@@ -198,20 +198,20 @@ map {k: v…}    07  the count as 8 bytes, big-endian; then, for each entry, k e
 - **A set is a list,** without duplicates, in its members' order: text
   bytewise, a pair by its first member and then its second, unless the
   part names another order, as a packages part's components do
-  (domain/render.md, 4.2).
+  (hearth/docs/design/domain/render.md, 4.2).
 - **Text is its UTF-8 bytes as given,** with no normalisation and no
   terminator.
 - **No signed integers, no floats.** A value that needs one enters as
-  text (domain/render.md, section 4).
+  text (hearth/docs/design/domain/render.md, section 4).
 - **Kinds stay apart:** a digest is not 32 bytes of `bytes`, a boolean
   is not 0 or 1, none is not an empty list. One value has one encoding,
   and a decoder needs no lookahead.
 - **Decoding is bounded:** every length and count is checked against a
   limit before anything is set aside, and nesting uses an explicit stack
-  (`programming-model.md`, section 8).
+  (`skein/docs/foundation/programming-model.md`, section 8).
 - **The encoder and `H` live in `hearth-lib`,** a crate in the lib role:
   `no_std`, depending on skein-lib alone. A domain depends only on lib
-  and its children (`programming-model.md`, 4.5), and six of hearth's
+  and its children (`skein/docs/foundation/programming-model.md`, 4.5), and six of hearth's
   domains encode and hash, so every hearth domain may depend on it.
   Decoding is parsing, and stays a protocol machine's:
   `hearth-protocol-tree` (5.3).
@@ -226,23 +226,23 @@ H(tag, v1, …, vn) = SHA-256( encode( list [ bytes "hearth/1", bytes tag, v1, �
 - **`hearth/1` versions the encoding and hearth's own constants.** A
   change to 3.1 or 3.4, or to a fixed choice of how hearth builds (apt's
   and dpkg's fixed options, `force-confold` among them; the cleanup a
-  step runs: domain/build.md, section 5), changes it, and every key with it: a
+  step runs: hearth/docs/design/domain/build.md, section 5), changes it, and every key with it: a
   rebuild, never a migration.
 - **A file's content digest is plain SHA-256 of its bytes,** without
   `H`, so it matches `sha256sum`, the `SHA256` of Debian's `Packages`
-  and protocol/format.md's software digests (protocol/format.md, section 10).
+  and hearth/docs/design/protocol/format.md's software digests (hearth/docs/design/protocol/format.md, section 10).
 
 | Tag | Values | Defined in |
 |---|---|---|
 | `empty` | none | 3.3 |
 | `packages`, `software`, `config` | the key below, then a part's digest | 3.3 |
 | `closure` | a resolution's closure | 6.4 |
-| `resolution` | a resolution's inputs | domain/render.md, section 5 |
-| `part:<name>`, `spec` | a part's record; a spec's digests | domain/render.md, 4.5 |
+| `resolution` | a resolution's inputs | hearth/docs/design/domain/render.md, section 5 |
+| `part:<name>`, `spec` | a part's record; a spec's digests | hearth/docs/design/domain/render.md, 4.5 |
 | `tree`, `changes` | a tree's entries; two trees and their changes | 3.4, 3.5 |
 | `target`, `state` | a name | 6.6 |
-| `artifact`, `inputs`, `command`, `outputs` | an artifact's | domain/artifacts.md, section 3 |
-| `environment` | a resolution key, then the packages, software and config part digests | domain/artifacts.md, 3.1 |
+| `artifact`, `inputs`, `command`, `outputs` | an artifact's | hearth/docs/design/domain/artifacts.md, section 3 |
+| `environment` | a resolution key, then the packages, software and config part digests | hearth/docs/design/domain/artifacts.md, 3.1 |
 
 Test vectors:
 
@@ -283,31 +283,31 @@ resolution digest  = H("closure",  closure)                               6.4
 - **A head artifact's resolved key enters the software key [M6].** When
   the software part names an artifact by its head form (a recipe and its
   listing's digest), the plan resolves it to an artifact key before the
-  software layer (domain/artifacts.md, 7.2), and `heads` is a map from each
+  software layer (hearth/docs/design/domain/artifacts.md, 7.2), and `heads` is a map from each
   such entry's path to that key, appended as a third value. It is absent
   when the part has no head entry, so keys without one are as above.
   It plays the closure digest's part in the packages key: the part holds
-  what the revision says, the key what was resolved (domain/render.md, 4.5).
+  what the revision says, the key what was resolved (hearth/docs/design/domain/render.md, 4.5).
 - **A resolution's key and its digest differ.** The key, over its
-  inputs (domain/render.md, section 5), names its record. The digest, over the
+  inputs (hearth/docs/design/domain/render.md, section 5), names its record. The digest, over the
   closure it gave, enters the packages key, so the packages layer is
   named by what is installed: a resolution made again (its record
   collected, a newer apt) that gives another closure makes another
   layer.
-- **Part digests are render's** (domain/render.md, 4.5), made with this `H`.
+- **Part digests are render's** (hearth/docs/design/domain/render.md, 4.5), made with this `H`.
   The packages part carries what the packages step reads besides the
   closure: sources, the request, the variant, preseeds, the initramfs's
-  modules, and `install_recommends`, its one apt option (domain/render.md,
+  modules, and `install_recommends`, its one apt option (hearth/docs/design/domain/render.md,
   4.2). hearth's fixed apt and dpkg options are constants of
   `hearth/1` (3.2), not fields of the part.
 - **The empty layer** is every packages layer's parent (4.1).
 - **Nothing else enters a key:** not the builder, its subordinate base,
   its store's path, the time, the target's name, the revision, nor the
   builder's tools' versions, which the record keeps (6.2). A step is
-  given nothing its key does not cover (domain/build.md, 8.6).
+  given nothing its key does not cover (hearth/docs/design/domain/build.md, 8.6).
 - **A key names what was asked for; the tree digest records what was
   built.** Until builds are reproducible, two builds of one key differ,
-  and each records its own (domain/reproducible.md).
+  and each records its own (hearth/docs/design/domain/reproducible.md).
 
 ### 3.4 The tree digest
 
@@ -371,10 +371,10 @@ tree digest = H("tree", list [ entry… ])        in tree order
   entry on another device); a bound passed (5.6). systemd-container's
   postinst runs `systemd-tmpfiles --create`, whose `Q` lines make
   `/var/lib/machines` and `/var/lib/portables` subvolumes on btrfs, so
-  the packages step makes both directories first (domain/build.md, 5.5).
+  the packages step makes both directories first (hearth/docs/design/domain/build.md, 5.5).
 - **A subtree's digest** is the same formula over its entries, paths
   made relative to it, computed from the tree file without reading the
-  layer. When the kernel is unchanged is domain/slots.md's to decide (6.1),
+  layer. When the kernel is unchanged is hearth/docs/design/domain/slots.md's to decide (6.1),
   from digests the tree file records (6.3).
 - **Its record format** is the tree file (6.3).
 
@@ -407,10 +407,10 @@ change set digest = H("changes", parent tree digest, child tree digest, list [ c
 
 - **One read-only subvolume, `/var` included.** dpkg's database lives in
   `/var` and travels with the layer; a slot's `/var` is split from it at
-  prepare (domain/slots.md, 5.3).
+  prepare (hearth/docs/design/domain/slots.md, 5.3).
 - **Of four kinds:** `empty`, `packages`, `software`, `config`, each the
   parent of the next. Artifacts are layers of their own kind on the
-  same machinery [M6] (domain/artifacts.md, 4.2).
+  same machinery [M6] (hearth/docs/design/domain/artifacts.md, 4.2).
 - **The empty layer** holds only its root, a directory, 0755, owners 0.
   The builder creates the subvolume (`BTRFS_IOC_SUBVOL_CREATE` needs no
   privilege); the tree helper applies the root's entry, since a new
@@ -436,12 +436,12 @@ change set digest = H("changes", parent tree digest, child tree digest, list [ c
    helper, since the parent's root is the namespace root's (5.1). The
    builder reads the new uuid and parent uuid
    (`BTRFS_IOC_GET_SUBVOL_INFO`).
-2. **Steps** run in sandboxes (domain/build.md, section 8). The last one's
+2. **Steps** run in sandboxes (hearth/docs/design/domain/build.md, section 8). The last one's
    process tree is proved empty before the walk, and nothing else holds
    the staging subvolume, so nothing changes between walk and freeze.
 3. **Walk:** the tree helper writes the tree file and answers the tree
    digest, the change set's digest, counts, and the scan's findings
-   (domain/build.md, section 9), any of which fails the layer.
+   (hearth/docs/design/domain/build.md, section 9), any of which fails the layer.
 4. **Freeze and sync:** `BTRFS_IOC_SUBVOL_SETFLAGS` with
    `BTRFS_SUBVOL_RDONLY`, then `syncfs(2)` on the store's filesystem,
    both by the tree helper, which answers `freeze` only after the sync.
@@ -450,7 +450,7 @@ change set digest = H("changes", parent tree digest, child tree digest, list [ c
    in a published layer under a record that claims its tree digest.
    `syncfs` is one call for the whole layer. It is synchronous and can
    take seconds, so it runs in the helper, whose loop has nothing else
-   to do meanwhile, never on the builder's (skein's kernel.md, 6.5).
+   to do meanwhile, never on the builder's (skein/docs/design/kernel.md, 6.5).
 5. **Record:** the tree file renamed into place, then the record, which
    names the tree file's SHA-256 and the uuids (6.8).
 6. **Publish:** a rename within `layers/` (2.3). A layer is published
@@ -507,9 +507,9 @@ among them, is a stray, reported and left alone (2.1).
 
 - **A layer that no longer matches its record** is found by a check, not
   by the scan, which reads no file: the activator's verification of what
-  it places (domain/activator.md, section 6), a scrub, a peer's walk (10.2).
+  it places (hearth/docs/design/domain/activator.md, section 6), a scrub, a peer's walk (10.2).
   It is never a lasting refusal of the key. The builder hashes the layer
-  again (5.4), in a `verify` job (domain/steward.md, 3.3); if the tree differs
+  again (5.4), in a `verify` job (hearth/docs/design/domain/steward.md, 3.3); if the tree differs
   from its record, it deletes the layer and every layer built on it
   (7.3) and builds them again; if it does not, the mismatch is the
   activator's to report.
@@ -524,17 +524,17 @@ among them, is a stray, reported and left alone (2.1).
   parent uuid. So the chain of records is the chain of snapshots, and a
   subvolume swapped or made by hand is never taken for a layer.
 - **A slot inherits it:** its parent uuid names the output it was
-  snapshotted from (domain/slots.md, 5.1).
+  snapshotted from (hearth/docs/design/domain/slots.md, 5.1).
 
 ### 4.6 One build per key
 
 - **A key is built once at a time.** A request for a key in progress
   waits for it; one for a published key finds it.
 - **Different keys build at once** within the builder's limits
-  (domain/build.md, 8.7); a chain is built bottom-up. On a machine the steward
+  (hearth/docs/design/domain/build.md, 8.7); a chain is built bottom-up. On a machine the steward
   gives its builder the pass's jobs one at a time, so one of its own
   outputs builds there at a time, with others' work beside it from M6
-  (domain/steward.md, 3.4).
+  (hearth/docs/design/domain/steward.md, 3.4).
 
 ## 5. The tree helper
 
@@ -570,11 +570,11 @@ the tree helper: hearth's own code, `hearth-domain-tree` on
   Then it takes uid and gid 0 in its namespace. mmdebstrap does the
   same dance: a process left outside runs `newuidmap` on the one that
   unshared. In hearth it is skein's, as spawning with an id map
-  (README.md, 8.1).
+  (hearth/docs/design/README.md, 8.1).
 - **The builder's own ids are mapped too, at 65536:** to write the
   store's directories, read the parent's tree file, and give a new
   subvolume's root to the namespace's root. Build steps' sandboxes map
-  the range only (domain/build.md, 8.1).
+  the range only (hearth/docs/design/domain/build.md, 8.1).
 - **It acts beneath an inherited descriptor of the store's root:**
   paths resolved with `openat2` and `RESOLVE_BENEATH |
   RESOLVE_NO_SYMLINKS`, stats with `statx` and `AT_SYMLINK_NOFOLLOW`.
@@ -608,7 +608,7 @@ with a token that its one answer echoes.
 - **On the pipes, a message is a length and a map,** not a frame of a
   kind (6.1): a `u32` BE length, then a map (3.1) of `kind`, the
   request's or answer's name, `token`, and `fields`, the map its kind
-  names. A scan rule is `list [ how, path, what, with ]` (domain/build.md,
+  names. A scan rule is `list [ how, path, what, with ]` (hearth/docs/design/domain/build.md,
   9.3). A message is bounded at 4 MiB, 256 rules and 64 findings; a
   message past a bound, or that its kind does not name, ends the helper,
   as its death does (5.2). The fields of each kind are
@@ -620,14 +620,14 @@ with a token that its one answer echoes.
   (6.3), and deleted once applied, or with the staging layer. The pipes
   carry summaries.
 - **Formats are machines, each its own lib-only crate**
-  (`programming-model.md`, section 4), so the helper's domain parses
+  (`skein/docs/foundation/programming-model.md`, section 4), so the helper's domain parses
   nothing:
   - `hearth-protocol-tree`: the decoder of 3.1's encoding and the
     store's record and tree files, which share the frame (6.1); it depends on skein-lib and `hearth-lib` only;
   - `hearth-protocol-accounts`: the lines of `/etc/passwd`, `/etc/group`,
     `/etc/shadow` and `/etc/gshadow`, read from a layer, as typed
     entries: names to ids for apply's owners (5.5), and whether each
-    password field is locked, for the scan (domain/build.md, 9.3). An empty
+    password field is locked, for the scan (hearth/docs/design/domain/build.md, 9.3). An empty
     password field is not locked; a group's password fields are read as
     a user's; an id past 65,535 is refused, since a layer holds one range
     of 65,536 ids (9.2);
@@ -646,8 +646,8 @@ with a token that its one answer echoes.
   only in the walk is a put, one only in the parent is a delete.
 - **A changed entry is read whole:** skein's `StatEntry`,
   `ListAttributes` and `GetAttribute` for the covered families,
-  `ReadLink`, and a file's contents, hashed as they stream (skein's
-  kernel.md, 6.4). Files with more than one link are grouped by inode
+  `ReadLink`, and a file's contents, hashed as they stream (
+  skein/docs/design/kernel.md, 6.4). Files with more than one link are grouped by inode
   number.
 - **The walk checks what a stream cannot defer:** a path with a hard
   link to an entry seen before must agree with that first entry's mode,
@@ -664,7 +664,7 @@ with a token that its one answer echoes.
   and the helper's protocol layer encodes them, reads the file back for
   the digests with the counts the walk gives, and returns the file's
   SHA-256 and size once the end item and the header are written.
-- **The scan's rules come with the request** as data (domain/build.md, 9.3).
+- **The scan's rules come with the request** as data (hearth/docs/design/domain/build.md, 9.3).
   The helper checks them on what changed, since only it can read every
   file, and answers findings, never contents. A rule on a file's lines
   (a password field locked) is judged on the typed entries
@@ -675,7 +675,7 @@ with a token that its one answer echoes.
 - **Later, the walk clamps modification times.** The reproducible
   retrofit has it set every mtime newer than the layer's time to that
   time as it visits changed inodes, and record the change time read
-  after the clamp, so 4.3's rule stays sound (domain/reproducible.md, 5.1). No
+  after the clamp, so 4.3's rule stays sound (hearth/docs/design/domain/reproducible.md, 5.1). No
   digest changes: times are left out (3.4).
 
 ### 5.5 Apply, empty and the subvolume operations
@@ -693,16 +693,16 @@ with a token that its one answer echoes.
   the tree digest is the check.
 - **Uses in M2:** the empty layer's root; the config layer's file tree,
   owners resolved by name from the layer's own `/etc/passwd` and
-  `/etc/group` as `hearth-protocol-accounts` decodes them (domain/build.md, 7.3),
-  and hearth's own sysusers, tmpfiles and preset files (domain/build.md, 7.2 to
-  7.5); single-file downloads (domain/build.md, 6.2).
+  `/etc/group` as `hearth-protocol-accounts` decodes them (hearth/docs/design/domain/build.md, 7.3),
+  and hearth's own sysusers, tmpfiles and preset files (hearth/docs/design/domain/build.md, 7.2 to
+  7.5); single-file downloads (hearth/docs/design/domain/build.md, 6.2).
 - **Refused in M2 as well:** a FIFO, which no M2 layer's change set
   makes; it comes with a need. Entries' times are not set, since no
   digest holds them (3.4): setting them comes with the slot's shift in
-  M3 (domain/slots.md, 5.2).
+  M3 (hearth/docs/design/domain/slots.md, 5.2).
 - **Records:** skein's `MakeDirectory`, `Create`, `Truncate`,
   `MakeLink`, `HardLink`, `SetOwner`, `SetMode`, `SetAttribute` and
-  `RemoveAttribute`, beneath the store's root (skein's kernel.md, 6.4).
+  `RemoveAttribute`, beneath the store's root (skein/docs/design/kernel.md, 6.4).
 - **Empty** removes everything beneath a layer's root, deepest first, so
   the builder can `rmdir` it (7.3). Stopped half-way, it is done again.
 - **Snapshot, freeze, thaw and delete** are skein's `Snapshot`,
@@ -736,7 +736,7 @@ the path.
 
 Contents never pass through a domain whole: the helper hashes files as
 they stream, and render's static blobs reach `cache/<sha256>` streamed
-by its protocol layer (domain/render.md, 2.3), whence apply reads them.
+by its protocol layer (hearth/docs/design/domain/render.md, 2.3), whence apply reads them.
 
 ### 5.7 Costs
 
@@ -745,11 +745,11 @@ by its protocol layer (domain/render.md, 2.3), whence apply reads them.
   few files hashed: under a second warm (an estimate, to measure).
 - **A packages layer is hashed whole,** at the helper's SHA-256 rate:
   6 seconds for 1.5 GB at 250 MB/s. skein's SHA-256 is byte at a time
-  and unmeasured (README.md, 8.1 asks for a fast streaming one).
+  and unmeasured (hearth/docs/design/README.md, 8.1 asks for a fast streaming one).
 - **Emptying costs about 15 µs a path** (measured: 3,942 paths in
   0.062 s, unprivileged). A snapshot and a freeze cost constant time.
 - **Each request's time, entries, bytes read and hashed** are costs
-  (domain/build.md, section 12).
+  (hearth/docs/design/domain/build.md, section 12).
 
 ### 5.8 The ioctls, and who makes them
 
@@ -767,8 +767,8 @@ by its protocol layer (domain/render.md, 2.3), whence apply reads them.
 
 All are unprivileged: the ioctls the builder makes for any user, the
 helper's for the owner of a subvolume's root. They are synchronous
-records of skein's ring adapter, a closed list (skein's kernel.md, 6.5;
-README.md, 8.1), made in two processes: the builder and its tree
+records of skein's ring adapter, a closed list (skein/docs/design/kernel.md, 6.5;
+hearth/docs/design/README.md, 8.1), made in two processes: the builder and its tree
 helper. The long ones (a snapshot, a flag, a destroy, a sync) are the
 helper's alone, so they never stall the builder's loop; the builder's
 own are made once at the store's start (`SubvolumeCreate`, for the
@@ -793,7 +793,7 @@ body       a map of named fields (3.1); for a tree file, a sequence of items (6.
 values.
 
 **Bounds.** Each kind's bound on its body, and the limits within it, are
-configured (`programming-model.md`, section 7), with these defaults:
+configured (`skein/docs/foundation/programming-model.md`, section 7), with these defaults:
 
 | Kind | Body | Within it |
 |---|---|---|
@@ -806,7 +806,7 @@ configured (`programming-model.md`, section 7), with these defaults:
 
 A body past its bound, or a field past its limit, is a record of a
 version the builder cannot read (6.8). A resolution whose closure would
-pass 8,192 packages is an error of kind resolution (domain/render.md, 7.2),
+pass 8,192 packages is an error of kind resolution (hearth/docs/design/domain/render.md, 7.2),
 never a record; so is one whose record would pass its bound or a
 field's limit, which the store declines to write: it depends on the
 inputs alone, a configuration error. The other kinds' bounds are set
@@ -850,7 +850,7 @@ made         map                    { at: wall time in ns, by: built | received 
 `line` is the `at` of the last scratch build in the layer's line of
 reconciles: its own `at` for a scratch build, its base's `line` for a
 reconcile. It is recorded, not derived from the base chain, since a
-base may be collected while its descendants are kept (domain/build.md, 4.2).
+base may be collected while its descendants are kept (hearth/docs/design/domain/build.md, 4.2).
 
 `counts`: `entries` and `files` in the tree, `bytes` the files' sizes
 summed, `puts` and `deletes` the change set's, `hashed` the bytes the
@@ -864,7 +864,7 @@ in a software layer's record alone, and `how`, `base`, `depth` and
 The key recomputes from `kind`, `parent` and `inputs`, and the startup
 scan checks it. `placed` is what collection keeps in the cache for a
 kept software layer (7.5), since its part digest names no download. The
-activator may read records to check what it places (domain/activator.md,
+activator may read records to check what it places (hearth/docs/design/domain/activator.md,
 section 6).
 
 ### 6.3 A layer's tree file
@@ -888,7 +888,7 @@ boot             list, per kernel the layer holds; empty for a container:
 - **In tree order;** a change item follows its path's entry item, or
   stands alone for a delete. Both digests are computed from the items,
   and the end item must agree.
-- **`boot` is the packages layer's,** computed by its walk (domain/build.md,
+- **`boot` is the packages layer's,** computed by its walk (hearth/docs/design/domain/build.md,
   5.8): the `walk` request carries, per kernel package of the
   resolution's closure, its name, its version and the kernel version it
   installs, with tiny-initramfs-core's version and the microcode
@@ -896,15 +896,15 @@ boot             list, per kernel the layer holds; empty for a container:
   end item. A kernel found in the layer that the request does not name
   is a finding. The layers above copy it unchanged from their parent's
   end item, which may not touch
-  the kernel, its modules or the initramfs's configuration (domain/build.md,
-  9.3). domain/slots.md (6.1) reads it to decide when the kernel is unchanged.
+  the kernel, its modules or the initramfs's configuration (hearth/docs/design/domain/build.md,
+  9.3). hearth/docs/design/domain/slots.md (6.1) reads it to decide when the kernel is unchanged.
 - **About 150 bytes an entry,** 15 MB for 100,000 entries (an
   estimate). A packages layer's change set is every entry; a config
   layer's, a few.
 
 ### 6.4 A resolution's record
 
-`resolutions/<key>.record`. domain/render.md (section 5) makes resolutions;
+`resolutions/<key>.record`. hearth/docs/design/domain/render.md (section 5) makes resolutions;
 the store keeps them. What the packages layer needs from one:
 
 ```
@@ -941,9 +941,9 @@ made       map      { at, apt, mmdebstrap, costs: { fetched, took } }: `at`, wal
   and each decompressed `Packages` file, as apt verified them, from its
   scratch directory, `staging/<resolution key>/`, into `cache/<sha256>`
   before the directory is removed: hashed as it is read for its stanzas,
-  then renamed, with no copy (domain/render.md, 5.3). The fetch then gets only `.deb`s
-  (domain/build.md, 5.1), and the local repository serves the kept indices
-  (domain/build.md, 5.3).
+  then renamed, with no copy (hearth/docs/design/domain/render.md, 5.3). The fetch then gets only `.deb`s
+  (hearth/docs/design/domain/build.md, 5.1), and the local repository serves the kept indices
+  (hearth/docs/design/domain/build.md, 5.3).
 - **The digest covers what is installed;** where it came from does not
   enter.
 
@@ -992,12 +992,12 @@ record.
 `artifacts/<key>.record`, beside the artifact's subvolume and its tree
 file, in the same frame (kind 9): its tree digest, environment, sources,
 inputs, command, outputs, cache, how it was made and its costs, as
-domain/artifacts.md (4.3) lists them. Its key is domain/artifacts.md's (3.1).
+hearth/docs/design/domain/artifacts.md (4.3) lists them. Its key is hearth/docs/design/domain/artifacts.md's (3.1).
 
 ### 6.8 Written by rename; versioned
 
-- **Atomic:** a record is replaced whole by skein's `Store` (skein's
-  `io.md`, sections 5 and 5.2): its temporary, `<name>.skein-<16 hex>`,
+- **Atomic:** a record is replaced whole by skein's `Store` (
+  `skein/docs/design/io.md`, sections 5 and 5.2): its temporary, `<name>.skein-<16 hex>`,
   written beside it, synced, renamed over `<name>`, the directory
   synced. A reader sees the old record or the new. A tree file [M2] is
   written the same way by the builder itself, as `<key>.tree.tmp`.
@@ -1015,11 +1015,11 @@ domain/artifacts.md (4.3) lists them. Its key is domain/artifacts.md's (3.1).
   A file whose name is already present is not written again: its
   temporary is removed. An index a resolution keeps is synced where apt
   left it, renamed from its scratch directory into `cache/<sha256>`
-  (skein's `io.md`, 5: a rename between two directories), and `cache/`
-  synced, before its record (domain/render.md, 5.3). A cut anywhere leaves a
+  (`skein/docs/design/io.md`, 5: a rename between two directories), and `cache/`
+  synced, before its record (hearth/docs/design/domain/render.md, 5.3). A cut anywhere leaves a
   temporary, or a file with no record, which the startup scan deletes
   (4.4).
-- **Versioned per kind, across releases** (domain/activator.md, 7.2's rule): a
+- **Versioned per kind, across releases** (hearth/docs/design/domain/activator.md, 7.2's rule): a
   release reads its own version of each kind and the previous one, and
   writes only versions the previous release can read. After a fall back,
   the blessed slot's older builder and steward read what the newer ones
@@ -1041,24 +1041,24 @@ domain/artifacts.md (4.3) lists them. Its key is domain/artifacts.md's (3.1).
 | Pin | From | Lasts |
 |---|---|---|
 | the empty layer | the store | always |
-| the outputs of the machine's slots [M3], its containers' included [M5] | the activator's facts over the link (domain/activator.md, 4.3), passed on by the steward in the jobs' `Welcome` and `Pins` (domain/steward.md, 3.2) | while a slot holds it, or is prepared from it |
-| the desired revision's outputs [M3]: the machine's target's, and its containers' [M5] | the steward's `hearth-domain-converge` (protocol/wire.md, section 4), in the same records | while it is desired |
-| builds in flight | the plan (domain/build.md, section 4) | until the build ends |
+| the outputs of the machine's slots [M3], its containers' included [M5] | the activator's facts over the link (hearth/docs/design/domain/activator.md, 4.3), passed on by the steward in the jobs' `Welcome` and `Pins` (hearth/docs/design/domain/steward.md, 3.2) | while a slot holds it, or is prepared from it |
+| the desired revision's outputs [M3]: the machine's target's, and its containers' [M5] | the steward's `hearth-domain-converge` (hearth/docs/design/protocol/wire.md, section 4), in the same records | while it is desired |
+| builds in flight | the plan (hearth/docs/design/domain/build.md, section 4) | until the build ends |
 | a target's last N outputs | `targets/` (6.6); N is 3 by default | until N newer builds |
 | a peer's request [M6] | a lease per transfer (10.3) | until it ends or its deadline |
-| an artifact in use [M6] | domain/artifacts.md, 4.4 | as it says |
+| an artifact in use [M6] | hearth/docs/design/domain/artifacts.md, 4.4 | as it says |
 
 - **A pin holds a layer's ancestors too.** A child does not need its
   parent's subvolume (snapshots share extents, not existence), but the
   target's next build starts from it and a peer's change set is against
   it. An ancestor costs only what its descendants changed or deleted.
-  A reconciled packages layer's base (domain/build.md, 4.2) is an ancestor
+  A reconciled packages layer's base (hearth/docs/design/domain/build.md, 4.2) is an ancestor
   too: its line's next reconcile starts from it.
 - **In M2 there is no steward:** the builder's root gives its store
   empty pins at its start, so the empty layer, builds in flight and the
   targets' last N outputs alone pin layers.
 - **A builder collects nothing before it has the steward's pins,** in
-  its `Welcome` (domain/steward.md, 3.2): the activator's slots and the desired
+  its `Welcome` (hearth/docs/design/domain/steward.md, 3.2): the activator's slots and the desired
   revision's outputs. The steward spawns no builder that may collect
   before its activator's `Welcome` has given it the slots' outputs.
 
@@ -1068,12 +1068,12 @@ domain/artifacts.md (4.3) lists them. Its key is domain/artifacts.md's (3.1).
   builder's start once the pins are known, and when the store's
   filesystem falls below its free-space floor (`statfs`), which the
   steward watches between builders and answers with a `collect` job
-  (domain/steward.md, 3.3).
+  (hearth/docs/design/domain/steward.md, 3.3).
 - **Oldest first, bounded per run,** 16 layers by default. What a
   deletion frees is not known
   in advance: without quotas, which need root, btrfs does not say what a
   subvolume holds alone.
-- **Each deletion is reported** with its reason (protocol/wire.md, section 6).
+- **Each deletion is reported** with its reason (hearth/docs/design/protocol/wire.md, section 6).
 
 ### 7.3 Deleting a layer
 
@@ -1137,21 +1137,21 @@ domain/artifacts.md (4.3) lists them. Its key is domain/artifacts.md's (3.1).
   read back at each builder's start: no kv store, no index file to
   disagree with the disk.
 - **Only in memory:** builds in flight (their staging is deleted) and
-  leases. The queue of jobs is the steward's (domain/steward.md, 3.4). A build
+  leases. The queue of jobs is the steward's (hearth/docs/design/domain/steward.md, 3.4). A build
   asked for again finds or redoes its layers.
 - **The in-memory index** holds one entry per published layer (key,
   kind, parent, tree digest, uuid, counts, when), bounded by the store's
   layer limit (4,096 by default); one per resolution, by key, bounded by
   its resolution limit (1,024); and one per cache file, by digest,
   bounded by its cache limit (262,144 files). The three limits are
-  configured (`programming-model.md`, section 7). Tree files are never
+  configured (`skein/docs/foundation/programming-model.md`, section 7). Tree files are never
   held whole, and the scan reads no cache file's record: it pairs files
   and records by name, and a record is read when its file is used.
 - **A store at a limit is full.** A scan that counts more resolutions or
   cache files than their limits stops there: the builder holds no index,
   and answers every request that reads or adds to the store with an
   operational error of kind `store` naming the store, the limit and what
-  passed it (domain/render.md, 7.2). Only a cache file with its record counts
+  passed it (hearth/docs/design/domain/render.md, 7.2). Only a cache file with its record counts
   (8.2, step 6). A resolution is not begun without room for one more
   resolution and for every index its source lines may keep (128 cache
   files by default, 6.1), so a full store runs no mmdebstrap; a
@@ -1164,7 +1164,7 @@ domain/artifacts.md (4.3) lists them. Its key is domain/artifacts.md's (3.1).
 - **A store that cannot be opened ends the call.** A lock or a
   `store.record` that fails, or a `store.record` the builder refuses
   (6.6), keeps the builder from starting: nothing renders, and the
-  client says so on standard error, with the code 75 (client/README.md,
+  client says so on standard error, with the code 75 (hearth/docs/design/client/README.md,
   3.2 and 3.3).
 - **A store whose upkeep fails is refused as a full one.** A page of a
   listing, a removal, a record's load, a `staging/` tree past the walk's
@@ -1175,24 +1175,24 @@ domain/artifacts.md (4.3) lists them. Its key is domain/artifacts.md's (3.1).
   start's scan.
 - **A store's error is the call's,** given once, not each target's: a
   resolution the store would not find or keep leaves its key needed
-  (domain/render.md, 5.7), and the call's code is 75 (client/README.md, 3.3).
+  (hearth/docs/design/domain/render.md, 5.7), and the call's code is 75 (hearth/docs/design/client/README.md, 3.3).
 
 ### 8.2 The startup scan
 
 It runs at every builder's start, and the steward spawns a builder for
-work (domain/steward.md, 4.2), so what a crash, a kill or a power cut left is
+work (hearth/docs/design/domain/steward.md, 4.2), so what a crash, a kill or a power cut left is
 settled before the first job of every pass.
 
 1. **The lock:** an exclusive `flock` on the store's root directory,
-   taken without waiting (skein's `io.md`, 5: `Lock`) and held until the
+   taken without waiting (`skein/docs/design/io.md`, 5: `Lock`) and held until the
    builder exits. A second builder over the same store, a daemon's or a
    client's in-process on a developer's store, waits for it
-   (domain/steward.md, 3.4): while the lock is busy it asks again every 200 ms,
+   (hearth/docs/design/domain/steward.md, 3.4): while the lock is busy it asks again every 200 ms,
    and says once, after its first second of waiting, that it waits (on
-   the client's standard error, client/README.md, 3.5; as an event of
+   the client's standard error, hearth/docs/design/client/README.md, 3.5; as an event of
    its job [M3]). It sets no limit of its own: the person at the client
    may interrupt it, and a daemon's job has its steward's deadline
-   (domain/steward.md, 5.2). The root, not `store.record`, which 6.8 may write
+   (hearth/docs/design/domain/steward.md, 5.2). The root, not `store.record`, which 6.8 may write
    again by rename onto another inode.
 2. **The store's record** (6.6): version, layout, uid and range.
 3. **Every subvolume under the store,** with
@@ -1208,8 +1208,8 @@ settled before the first job of every pass.
    its record. A subvolume inside a layer (`GET_SUBVOL_ROOTREF` on the
    layer) is refused, and the layer deleted. A store without layers runs
    this step for its resolutions and its cache alone (2.4). `cache/`,
-   `resolutions/` and `layers/` are listed page by page (skein's
-   `io.md`, 5: `ListPage`), 1,024 entries a page, so a directory of any
+   `resolutions/` and `layers/` are listed page by page (
+   `skein/docs/design/io.md`, 5: `ListPage`), 1,024 entries a page, so a directory of any
    size is scanned in bounded memory. Resolutions count against their
    limit (8.1) as they come. `cache/` is listed twice: its records
    first, counted against the cache limit as they come, then its files,
@@ -1222,7 +1222,7 @@ settled before the first job of every pass.
 
 What the store says while it opens, that it waits for the lock and that
 it holds strays, goes to the client's standard error as progress does,
-as text or as records with `--json` (client/README.md, 3.2; as events
+as text or as records with `--json` (hearth/docs/design/client/README.md, 3.2; as events
 of its job [M3]); its error is part of the answer, unless it kept the
 store from opening (8.1).
 
@@ -1233,17 +1233,17 @@ builder makes them itself (5.8).
 
 What the steward must keep across restarts and reboots lives in
 `state/`, which only the steward writes and no builder opens
-(domain/steward.md, 2.2), each file named by `H("state", name)`, each bounded:
+(hearth/docs/design/domain/steward.md, 2.2), each file named by `H("state", name)`, each bounded:
 
 | Record | Holds | Bound | Written | Of a version it cannot read | Defined in |
 |---|---|---|---|---|---|
-| desired | target, repository, a commit or a branch with its interval, `trial: auto \| manual`, who set it and when, a generation | one | by rename, when the client changes it | reported; the running slot stays until the client sets a revision again | protocol/wire.md, 4.1 |
-| refused | output keys refused, each with why and when | the last 16 | by rename | discarded, reported; a fall back is refused again as the activator reports it | protocol/wire.md, 4.4 |
-| hold | who held (a peer's uid), when, the reason; or none | one | by rename | held, reported, until `hearth release` | protocol/wire.md, 4.5 |
-| pass | the last pass: its generation, commit, stage, output and prepare keys, and its outcome | one | by rename, at each stage | discarded; the bless's render then takes the desired revision, its commit or the branch's head in the clone | protocol/wire.md, 4.2; domain/steward.md, section 6 |
-| orders [M4] | each order's key, attempt and stage, then its outcome, until the engine acknowledges it; a restart's unit `InvocationID` | 64 outcomes waiting (to start) | by rename, before the effect is asked | discarded; the engine sends again what it has not seen answered, and orders are keyed or conditional | protocol/wire.md, 5.4 and 5.5 |
-| signals [M5] | CPU, memory, pressure, load, disk use per mount | three rings: 10 s for 6 hours, 1 minute for 3 days, 15 minutes for 60 days | in place, slot by slot | discarded, started afresh | domain/operating.md, section 5 |
-| check history [M5] | each check's results | 1,024 per check, a ring each | in place, slot by slot | discarded, started afresh | domain/operating.md, section 5 |
+| desired | target, repository, a commit or a branch with its interval, `trial: auto \| manual`, who set it and when, a generation | one | by rename, when the client changes it | reported; the running slot stays until the client sets a revision again | hearth/docs/design/protocol/wire.md, 4.1 |
+| refused | output keys refused, each with why and when | the last 16 | by rename | discarded, reported; a fall back is refused again as the activator reports it | hearth/docs/design/protocol/wire.md, 4.4 |
+| hold | who held (a peer's uid), when, the reason; or none | one | by rename | held, reported, until `hearth release` | hearth/docs/design/protocol/wire.md, 4.5 |
+| pass | the last pass: its generation, commit, stage, output and prepare keys, and its outcome | one | by rename, at each stage | discarded; the bless's render then takes the desired revision, its commit or the branch's head in the clone | hearth/docs/design/protocol/wire.md, 4.2; hearth/docs/design/domain/steward.md, section 6 |
+| orders [M4] | each order's key, attempt and stage, then its outcome, until the engine acknowledges it; a restart's unit `InvocationID` | 64 outcomes waiting (to start) | by rename, before the effect is asked | discarded; the engine sends again what it has not seen answered, and orders are keyed or conditional | hearth/docs/design/protocol/wire.md, 5.4 and 5.5 |
+| signals [M5] | CPU, memory, pressure, load, disk use per mount | three rings: 10 s for 6 hours, 1 minute for 3 days, 15 minutes for 60 days | in place, slot by slot | discarded, started afresh | hearth/docs/design/domain/operating.md, section 5 |
+| check history [M5] | each check's results | 1,024 per check, a ring each | in place, slot by slot | discarded, started afresh | hearth/docs/design/domain/operating.md, section 5 |
 
 - **Records are written by rename** (6.8), as every record is. An order
   is recorded before the activator is asked for its effect, so a
@@ -1265,16 +1265,16 @@ What the steward must keep across restarts and reboots lives in
 ### 9.1 btrfs and the mount
 
 - **The store is a btrfs subvolume of its own:** `@hearth.store` on a
-  machine, mounted at `/var/lib/hearth/store` in every slot (domain/machine.md,
+  machine, mounted at `/var/lib/hearth/store` in every slot (hearth/docs/design/domain/machine.md,
   3.2 and 3.3), or one a developer makes with `btrfs subvolume create`,
-  which needs no privilege, and names with `--store` (client/README.md, 3.5). The scan lists the store's child subvolumes, so the
+  which needs no privilege, and names with `--store` (hearth/docs/design/client/README.md, 3.5). The scan lists the store's child subvolumes, so the
   store must be their parent. Only layers need it: a store that only
   renders may be a plain directory (2.4).
 - **Linux 4.18 or later,** for unprivileged `rmdir` of an empty
   subvolume (`/sys/fs/btrfs/features/rmdir_subvol`) and 8.2's ioctls.
   Trixie's 6.12 has them.
 - **Mount options:** `nodev,nosuid,noatime` on the store's own mount
-  (domain/machine.md, 3.2), all per mount: no setuid file in a layer works from
+  (hearth/docs/design/domain/machine.md, 3.2), all per mount: no setuid file in a layer works from
   the store, and reading a layer writes nothing; `user_subvol_rm_allowed` (per filesystem) on
   builders and test filesystems only (7.4).
 
@@ -1283,7 +1283,7 @@ What the steward must keep across restarts and reboots lives in
 - **User `hearth`,** a system user, the steward's and the builder's,
   with one subordinate uid range and one gid range of 65536 ids, at a
   base aligned to 64 Ki: the activator's shift is then a mask
-  (domain/slots.md, 5.2), as systemd's shifter assumes.
+  (hearth/docs/design/domain/slots.md, 5.2), as systemd's shifter assumes.
 - **Made explicitly.** `useradd -r` gives a system user no range unless
   `-F` (`--add-subids-for-system`), and then from `SUB_UID_MIN`, 100000,
   which is not aligned. So: `usermod --add-subuids <base>-<base+65535>
@@ -1293,8 +1293,8 @@ What the steward must keep across restarts and reboots lives in
   systemd-nspawn's automatic range (524288 to 1879048191, systemd's
   UID and GID documentation), which hearth's containers may use [M5] only with
   idmapped mounts: a shift into a container's own range needs its base
-  at prepare, before nspawn would pick one (domain/slots.md, 12.1 and 12.4).
-  domain/machine.md (section 8) sets it at bootstrap.
+  at prepare, before nspawn would pick one (hearth/docs/design/domain/slots.md, 12.1 and 12.4).
+  hearth/docs/design/domain/machine.md (section 8) sets it at bootstrap.
 - **The range is the builder's alone.** Whoever runs as its base owns
   every layer, so no other user, container or nspawn range may overlap
   it. hearth refuses a range missing, short, overlapping or in more
@@ -1306,7 +1306,7 @@ What the steward must keep across restarts and reboots lives in
 - **Aligned where there is an activator.** Only the shift needs the
   alignment, so a machine with an activator refuses an unaligned range,
   while a builder alone (a developer's machine, a lab builder, the real
-  tier of domain/testing.md, section 6) accepts the range `useradd` gave it.
+  tier of hearth/docs/design/domain/testing.md, section 6) accepts the range `useradd` gave it.
 
 ### 9.3 Namespaces and tools
 
@@ -1320,32 +1320,32 @@ What the steward must keep across restarts and reboots lives in
 - **A cgroup v2 subtree the builder can write,** for its sandboxes'
   limits: on a machine, `steward/builder/`, which the steward makes in
   the subtree the activator gives it, `steward/`, under its own
-  delegated cgroup (`Delegate=yes`; domain/steward.md, section 7); on a
+  delegated cgroup (`Delegate=yes`; hearth/docs/design/domain/steward.md, section 7); on a
   developer's machine, the client's own scope, run with `systemd-run
-  --user --scope -p Delegate=yes`. What build does with it is domain/build.md,
+  --user --scope -p Delegate=yes`. What build does with it is hearth/docs/design/domain/build.md,
   8.7.
-- **The build's tools** (domain/build.md, section 10): mmdebstrap, apt, dpkg.
+- **The build's tools** (hearth/docs/design/domain/build.md, section 10): mmdebstrap, apt, dpkg.
   On a machine, hearth's own task installs them in every target that
   builds.
 
 ### 9.4 Where the store lives
 
 - **Reachable by `hearth` alone,** and of its processes only the
-  builder and its helpers open a layer (domain/steward.md, 2.2). A layer holds
+  builder and its helpers open a layer (hearth/docs/design/domain/steward.md, 2.2). A layer holds
   setuid files owned by the range: `su` is 4755, owned by the base.
   Whoever could reach and run one would run as the base, which owns
   every layer, and could rewrite an output before it becomes a slot.
   Guix met this (CVE-2024-52867: setuid outputs reachable before they
   were fixed up), and systemd warns of its foreign range the same way.
 - **So it is mounted in one place only,** `/var/lib/hearth/store` in
-  every slot, from the fstab the activator writes (domain/machine.md, 3.3),
+  every slot, from the fstab the activator writes (hearth/docs/design/domain/machine.md, 3.3),
   with `nodev,nosuid,noatime`; its root is 0700 and owned by `hearth`,
   so no other user of the machine reaches anything beneath it.
 - **No task places anything beneath it:** `/var/lib/hearth/` is
-  reserved (protocol/format.md, 5.11). It is never bound into a container, nor into a
+  reserved (hearth/docs/design/protocol/format.md, 5.11). It is never bound into a container, nor into a
   sandbox but for the one layer a step builds.
 - **Read-only is no barrier to the builder,** which can clear the flag;
-  the activator snapshots an output before verifying it (domain/activator.md,
+  the activator snapshots an output before verifying it (hearth/docs/design/domain/activator.md,
   section 6).
 
 ## 10. Peers [M6]
@@ -1353,7 +1353,7 @@ What the steward must keep across restarts and reboots lives in
 ### 10.1 What moves
 
 - **A layer moves as its change set against its parent,** by layer key:
-  `GET /v1/change-set/<layer key>` (protocol/wire.md, section 8). Not btrfs send
+  `GET /v1/change-set/<layer key>` (hearth/docs/design/protocol/wire.md, section 8). Not btrfs send
   and receive: both need root.
 
   ```
@@ -1370,7 +1370,7 @@ What the steward must keep across restarts and reboots lives in
 - **Modification times travel outside the digest,** so a received tree
   keeps them: Python's byte-compiled files record their sources' times.
 - **Downloads move by SHA-256,** `GET /v1/blob/sha256/<digest>`
-  (protocol/wire.md, section 8), checked as they arrive.
+  (hearth/docs/design/protocol/wire.md, section 8), checked as they arrive.
 
 ### 10.2 Receiving
 
@@ -1381,7 +1381,7 @@ What the steward must keep across restarts and reboots lives in
 3. **Apply** the stream with the tree helper as it arrives (5.5).
 4. **Walk** against the parent's tree file, hashing every file written.
 5. **Check** the tree digest against the one the receiver's own engine
-   gave for the key (protocol/wire.md, section 8). A mismatch deletes the
+   gave for the key (hearth/docs/design/protocol/wire.md, section 8). A mismatch deletes the
    staging layer and is reported.
 6. **Freeze, record** (`made.by` received, with the peer) **and
    publish.**
@@ -1390,7 +1390,7 @@ What the steward must keep across restarts and reboots lives in
 
 - **A machine serves the layers it holds,** and its cache by digest:
   the steward holds the HTTP listener, and the bytes come from a
-  builder's job (domain/steward.md, 2.1 and 3.3). The tree helper streams the
+  builder's job (hearth/docs/design/domain/steward.md, 2.1 and 3.3). The tree helper streams the
   change set from the tree file and the layer, since only it can read
   every file.
 - **A request leases the layer and its parent** until it ends or its
@@ -1404,11 +1404,11 @@ What the steward must keep across restarts and reboots lives in
   authenticated wire: a lab output never reaches production.
 - **A receiver cannot check a key against a tree** until builds are
   reproducible; it trusts its plane's builders for that, and checks the
-  bytes against the digest (domain/reproducible.md, section 7).
+  bytes against the digest (hearth/docs/design/domain/reproducible.md, section 7).
 
 ## 11. Its world
 
-- **`hearth-domain-store`'s world** runs on the fake machine (domain/testing.md,
+- **`hearth-domain-store`'s world** runs on the fake machine (hearth/docs/design/domain/testing.md,
   section 3): subvolumes and snapshots that keep inode numbers and
   change times, read-only flags, ownership checks that refuse the
   builder's snapshots and flags and allow the namespace root's, `rmdir`
@@ -1419,7 +1419,7 @@ What the steward must keep across restarts and reboots lives in
   full disk mid-walk or mid-apply; the helper killed mid-request; a
   subvolume swapped behind its record; the steward's pins late; a
   second builder over the same store.
-- **Invariants** (domain/testing.md, section 8):
+- **Invariants** (hearth/docs/design/domain/testing.md, section 8):
   - every published layer's key recomputes from its record, its uuids
     match its subvolume, and its tree digest is the one the world gets
     walking the fake tree on its own;
@@ -1433,7 +1433,7 @@ What the steward must keep across restarts and reboots lives in
   - a change set applied to its parent gives the child's tree digest.
 - **Step tests** hold the codec to 3.2's vectors and tree order to
   hand-made cases.
-- **Real builds** (domain/testing.md, section 6), as a regular user on btrfs:
+- **Real builds** (hearth/docs/design/domain/testing.md, section 6), as a regular user on btrfs:
   snapshots keep inodes and change times, the walk reads what the
   builder cannot, layers are deleted with and without the option.
 
@@ -1441,14 +1441,14 @@ What the steward must keep across restarts and reboots lives in
 
 - **Whether `useradd -r -F -K SUB_UID_MIN=262144` makes the default
   range,** or bootstrap keeps `usermod --add-subuids`; depends on
-  domain/machine.md's bootstrap (section 8).
+  hearth/docs/design/domain/machine.md's bootstrap (section 8).
 - **`FICLONE` in apply,** one more ioctl for skein's ring adapter;
   depends on measuring copies of large files.
 - **Collecting target records:** a target no longer built keeps its
   record, and so its last N outputs, for ever; depends on how targets
-  are retired (domain/steward.md).
+  are retired (hearth/docs/design/domain/steward.md).
 - **Hashing speed:** skein's SHA-256, or a tool, for whole packages
-  layers; depends on README.md 8.1's first ask and a measurement.
+  layers; depends on hearth/docs/design/README.md 8.1's first ask and a measurement.
 - **Several `statx` in flight for the walk;** depends on measuring the
   walk on the real tier against skein's file machine, which runs one
   request at a time.
@@ -1464,6 +1464,6 @@ What the steward must keep across restarts and reboots lives in
   subtrees between machines; depends on peers [M6].
 - **Rules of the scan that change:** a layer recorded with older rules
   is scanned again from its tree file, with the helper for content
-  predicates, before it is used as an output; depends on domain/build.md, 9.3.
+  predicates, before it is used as an output; depends on hearth/docs/design/domain/build.md, 9.3.
 - **Trusting a received key [M6]:** whether a receiver ever checks a
   layer by building it; depends on reproducible builds.
