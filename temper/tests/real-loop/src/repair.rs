@@ -365,29 +365,8 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     ] {
         assert!(diff.contains(words), "H2 review includes {words}: {review}");
     }
-    let change = document(ran, LANDED);
-    assert_eq!(change["chip"]["phase"], "ended");
-    let outcome = &change["result"]["value"]["change"];
-    assert_eq!(outcome["kind"], 1, "landed result");
-    assert_eq!(outcome["part"]["key"]["number"], PULL);
-    let result = &outcome["words"];
-    assert_eq!(result["cut"], false);
-    let words = result["bytes"].as_str().expect("landed evidence");
-    let lines: Vec<_> = words.lines().collect();
-    assert_eq!(lines.len(), 7, "landed evidence: {words}");
-    assert_eq!(lines[0], hex(merge));
-    assert!(lines[1].ends_with("/playground/widget/pulls/2"));
-    assert_eq!(lines[2], format!("Landed: pull request #{PULL} merged into main as {}.", &hex(merge)[..12]));
     let scripts: Value = serde_json::from_slice(include_bytes!("../tests/fixtures/b1/llm.json")).expect("walk scripts");
-    let producer = &scripts["cued"][2]["turns"];
-    assert_eq!(lines[3], "Report:");
-    assert_eq!(lines[4], producer[3]["lines"][0]["arguments"]["fields"]["body"].as_str().expect("producer's report"));
-    let checks = format!("checks at {}: / changes (pull_request) passed; / check (pull_request) passed", hex(repaired));
-    // The report precedes the evidence; the bounded result cuts the evidence from the end.
-    assert!(lines[5].starts_with(&format!("checks at {}: / changes (pull_request) passed; ", hex(repaired))));
-    assert!(checks.starts_with(lines[5]), "checks at the repaired head: {words}");
-    assert!(lines[6].starts_with('[') && lines[6].ends_with(" bytes cut]"), "marked evidence truncation: {words}");
-    assert!(told(query_at(ran, 1, 7)).contains(words), "change's requester heard the whole result");
+    check_result(ran, merge, &scripts);
     let last = String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout);
     assert!(last.contains("CSV export landed"));
     assert!(last.contains(&format!("PR #{PULL}")), "chat names the landed pull: {last}");
@@ -398,6 +377,41 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     assert!(report.contains(&hex(merge)[..12]), "goal names the merge: {report}");
     assert!(told(query_at(ran, 0, 4)).contains(report), "chat hears the goal's landing report");
     assert!(!last.contains("tests passed"), "no unseen test claimed");
+    check_landed_files(ran, &scripts["cued"][2]["turns"]);
+    for position in [WORK_ENDED, PRODUCED, REPAIRED, REVIEWED] {
+        assert_eq!(document(ran, position)["chip"]["phase"], "ended");
+    }
+    assert!(document(ran, REVIEWED).to_string().contains("Approve."));
+    assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
+}
+
+fn check_result(ran: &Ran, merge: u64, scripts: &Value) {
+    let change = document(ran, LANDED);
+    assert_eq!(change["chip"]["phase"], "ended");
+    let outcome = &change["result"]["value"]["change"];
+    assert_eq!(outcome["kind"], 1, "landed result");
+    assert_eq!(outcome["part"]["key"]["number"], PULL);
+    let result = &outcome["words"];
+    assert_eq!(result["cut"], false);
+    let words = result["bytes"].as_str().expect("landed evidence");
+    let lines: Vec<_> = words.lines().collect();
+    assert_eq!(lines.len(), 8, "landed evidence: {words}");
+    assert_eq!(lines[0], hex(merge));
+    assert!(lines[1].ends_with("/playground/widget/pulls/2"));
+    assert_eq!(lines[2], format!("Landed: pull request #{PULL} merged into main as {}.", &hex(merge)[..12]));
+    let producer =
+        scripts["cued"][2]["turns"][3]["lines"][0]["arguments"]["fields"]["body"].as_str().expect("producer's report");
+    let repair =
+        scripts["cued"][3]["turns"][2]["lines"][0]["arguments"]["fields"]["body"].as_str().expect("repair's report");
+    assert_eq!(lines[3], "repairs: 1: CI failed: / changes (pull_request)");
+    assert_eq!(lines[4], format!("successful repair task 5: {repair}"));
+    assert_eq!(lines[5], "Producer report (historical; before repairs):");
+    assert!(!lines[6].is_empty() && producer.starts_with(lines[6]), "producer prefix: {words}");
+    assert!(lines[7].starts_with('[') && lines[7].ends_with(" bytes cut]"), "marked evidence truncation: {words}");
+    assert!(told(query_at(ran, 1, 7)).contains(words), "change's requester heard the whole result");
+}
+
+fn check_landed_files(ran: &Ran, producer: &Value) {
     let source = String::from_utf8_lossy(ran.forge().main_file(b"src/main.rs"));
     assert!(source.contains("println!(\"fruit,count\")"));
     let seed = temper_fake::forge::Document::decode(include_bytes!("../tests/fixtures/b1/forge.json"))
@@ -425,9 +439,4 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
         ran.forge().main_file(b"changes/2.md"),
         b"Add an optional `--csv` command-line mode that prints the fruit table with a `fruit,count` header. The existing aligned table output remains the default; unexpected or extra arguments produce a usage error."
     );
-    for position in [WORK_ENDED, PRODUCED, REPAIRED, REVIEWED] {
-        assert_eq!(document(ran, position)["chip"]["phase"], "ended");
-    }
-    assert!(document(ran, REVIEWED).to_string().contains("Approve."));
-    assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
 }

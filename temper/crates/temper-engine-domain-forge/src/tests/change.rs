@@ -845,3 +845,52 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
         }
     }
 }
+
+#[test]
+fn only_the_active_successful_repair_supplies_an_account() {
+    use temper_engine_domain_forge_change as change;
+    for (child, status, no_change, failed, cancelled, retained) in [
+        (52, change::Status::Passed, false, false, false, true),
+        (52, change::Status::Failed, false, true, false, false),
+        (52, change::Status::Failed, false, false, true, false),
+        (52, change::Status::Passed, true, false, false, false),
+        (52, change::Status::Passed, false, true, false, false),
+        (52, change::Status::Passed, false, false, true, false),
+        (53, change::Status::Passed, false, false, false, false),
+    ] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut row = fixtures::opening_row();
+        row.delegate = Some((52, change::Delegate::Repair(change::Repair::Ci)));
+        row.result.repaired(change::Repair::Ci, Some(fixtures::HEAD), LIMITS.client.answer_bytes);
+        row.report = b"exports CSV".as_slice().into();
+        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        outputs(
+            &mut d,
+            Event::ProducedTitle {
+                task: fixtures::CHANGE,
+                child,
+                title: b"repair title".as_slice().into(),
+                report: b"ignored title account".as_slice().into(),
+            },
+        );
+        outputs(
+            &mut d,
+            Event::DelegateResult {
+                task: fixtures::CHANGE,
+                child,
+                status,
+                no_change,
+                failed,
+                cancelled,
+                words: b"Adds changes/2.md".as_slice().into(),
+            },
+        );
+        let row = d.change(fixtures::CHANGE).expect("retained change");
+        let account =
+            skein_lib::bytes::find(&row.result.repairs.bytes, b"successful repair task 52: Adds changes/2.md");
+        assert_eq!(account.is_some(), retained);
+        assert_eq!(row.title.as_ref(), b"Small fix");
+        assert_eq!(row.report.as_ref(), b"exports CSV");
+    }
+}

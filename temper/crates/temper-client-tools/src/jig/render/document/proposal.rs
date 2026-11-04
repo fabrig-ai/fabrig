@@ -1,6 +1,9 @@
 //! Proposal reads and the settings review supplied by wire 19 (client/tools.md, 5.2).
 use super::{Cut, Limits, Text, settings};
-use crate::jig::runner::{proposal::slot, reads::Reading};
+use crate::jig::runner::{
+    proposal::{INVENTORY, slot},
+    reads::Reading,
+};
 use alloc::boxed::Box;
 use jig_client::{Readout, contract as c};
 use skein_json::writer::Encoder;
@@ -61,49 +64,48 @@ pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out
         && let c::ProposalAction::Settings(s) = &p.action
         && let Some(review) = &s.review
     {
-        for (index, item) in review.items.iter().enumerate() {
-            if let c::Setting::Application { .. } = item.setting {
-                continue;
-            }
-            settings::setting_text(item.setting, reading.parts, out);
-            out.put(b" \xc2\xb7 ");
-            out.put(review_change(item));
-            out.put(b" \xc2\xb7 now ");
-            review_value_text(
-                &item.now,
-                item.setting,
-                reading.pages.get(&slot(index, false)),
-                limits,
-                reading.parts,
-                out,
-            );
-            match item.setting {
-                c::Setting::ProjectPolicy { .. } => {}
-                c::Setting::Charter(_)
-                | c::Setting::Template(_)
-                | c::Setting::Policy(_)
-                | c::Setting::Rules
-                | c::Setting::Application { .. } => {
-                    out.put(b" (");
-                    origin_text(&item.origin, out);
-                    out.put(b")");
-                }
-            }
-            out.put(b" \xc2\xb7 would be ");
-            review_value_text(
-                &item.would_be,
-                item.setting,
-                reading.pages.get(&slot(index, true)),
-                limits,
-                reading.parts,
-                out,
-            );
-            out.put(b"\n");
-        }
+        groups_text(review, reading, out);
+        effect_text(reading, out);
+        out.put(b"settings:\n");
+        review_items_text(review, reading, limits, out);
         application_items_text(reading, limits, out);
         if review.cut {
             out.put(b"cut: more not shown\n");
         }
+    }
+}
+fn review_items_text(review: &c::SettingsReview, reading: &Reading, limits: &Limits, out: &mut Text) {
+    for (index, item) in review.items.iter().enumerate() {
+        if let c::Setting::Application { .. } = item.setting {
+            continue;
+        }
+        settings::setting_text(item.setting, reading.parts, out);
+        out.put(b" \xc2\xb7 ");
+        out.put(review_change(item));
+        out.put(b" \xc2\xb7 now ");
+        review_value_text(&item.now, item.setting, reading.pages.get(&slot(index, false)), limits, reading.parts, out);
+        match item.setting {
+            c::Setting::ProjectPolicy { .. } => {}
+            c::Setting::Charter(_)
+            | c::Setting::Template(_)
+            | c::Setting::Policy(_)
+            | c::Setting::Rules
+            | c::Setting::Application { .. } => {
+                out.put(b" (");
+                origin_text(&item.origin, out);
+                out.put(b")");
+            }
+        }
+        out.put(b" \xc2\xb7 would be ");
+        review_value_text(
+            &item.would_be,
+            item.setting,
+            reading.pages.get(&slot(index, true)),
+            limits,
+            reading.parts,
+            out,
+        );
+        out.put(b"\n");
     }
 }
 fn review_change(item: &c::ReviewItem) -> &'static [u8] {
@@ -391,6 +393,10 @@ fn encode_review(review: &c::SettingsReview, reading: &Reading, out: &mut Encode
         out.object_end();
     }
     out.array_end();
+    out.key(b"groups");
+    encode_groups(review, reading, out);
+    out.key(b"effect");
+    encode_effect(reading, out);
     out.key(b"cut");
     out.boolean(review.cut);
     out.object_end();
@@ -685,4 +691,163 @@ fn application_origin(reading: &Reading, setting: c::Setting) -> Option<&c::Sett
         }
     }
     None
+}
+
+// The two groups are derived from delivered values, independently of the proposal's reason.
+fn in_group(item: &c::ReviewItem, index: usize, reading: &Reading, follows: bool) -> bool {
+    match item.setting {
+        c::Setting::Charter(_) => {}
+        c::Setting::Template(_)
+        | c::Setting::Policy(_)
+        | c::Setting::Rules
+        | c::Setting::ProjectPolicy { .. }
+        | c::Setting::Application { .. } => return !follows,
+    }
+    let now = resolved(&item.now, item.setting, reading.pages.get(&slot(index, false)));
+    let proposed = resolved(&item.would_be, item.setting, reading.pages.get(&slot(index, true)));
+    if let (Ok(Some(c::SettingValue::Charter(now))), Ok(Some(c::SettingValue::Charter(proposed)))) = (now, proposed) {
+        if follows {
+            return now.instructions != proposed.instructions || now.documents != proposed.documents;
+        }
+        let mut enforced = proposed.clone();
+        enforced.instructions = now.instructions.clone();
+        enforced.documents = now.documents.clone();
+        return &enforced != now;
+    }
+    // Adding, removing or an unavailable value needs both aspects reviewed.
+    true
+}
+fn group_fields(setting: c::Setting, follows: bool) -> &'static [u8] {
+    if follows {
+        b"instructions and documents"
+    } else {
+        match setting {
+            c::Setting::Charter(_) => b"execution settings",
+            c::Setting::Template(_)
+            | c::Setting::Policy(_)
+            | c::Setting::Rules
+            | c::Setting::ProjectPolicy { .. }
+            | c::Setting::Application { .. } => b"value",
+        }
+    }
+}
+fn application_name(reading: &Reading) -> &[u8] {
+    let prefix = reading.parts.command_prefix();
+    for (index, byte) in prefix.iter().enumerate() {
+        if *byte == b' ' {
+            return prefix.get(..index).expect("position within command prefix");
+        }
+    }
+    prefix
+}
+fn groups_text(review: &c::SettingsReview, reading: &Reading, out: &mut Text) {
+    for follows in [false, true] {
+        if follows {
+            out.put(b"your agents follow\n");
+        } else {
+            out.put(application_name(reading));
+            out.put(b" enforces\n");
+        }
+        let mut any = false;
+        for (index, item) in review.items.iter().enumerate() {
+            if in_group(item, index, reading, follows) {
+                any = true;
+                out.put(b"  ");
+                settings::setting_text(item.setting, reading.parts, out);
+                out.put(b" \xc2\xb7 ");
+                out.put(group_fields(item.setting, follows));
+                out.put(b" (now and proposed below)\n");
+            }
+        }
+        if !any {
+            out.put(b"  no changes\n");
+        }
+    }
+}
+fn encode_groups(review: &c::SettingsReview, reading: &Reading, out: &mut Encoder) {
+    out.object_start();
+    for (follows, key) in [(false, b"enforces".as_slice()), (true, b"your_agents_follow")] {
+        out.key(key);
+        out.array_start();
+        for (index, item) in review.items.iter().enumerate() {
+            if in_group(item, index, reading, follows) {
+                out.object_start();
+                out.key(b"setting");
+                settings::encode_setting(item.setting, out);
+                out.key(b"fields");
+                out.string(group_fields(item.setting, follows));
+                out.object_end();
+            }
+        }
+        out.array_end();
+    }
+    out.object_end();
+}
+fn inventory(reading: &Reading) -> Option<&c::SettingsDocument> {
+    match reading.pages.get(&INVENTORY) {
+        Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(document)))) => Some(document),
+        _ => None,
+    }
+}
+// client/README.md, 5.13 and 11; jig/docs/design/domain/engine.md, 17.4.
+const EFFECT: &[u8] = b"New work follows this from the moment it is accepted. Nothing restarts.\n\
+--running stays (default): let running tasks finish on their revision.\n\
+--running moves: move compatible tasks at their next run; a live run continues until it ends.\n\
+Conversations move at their next run when compatible, with either choice.\n\
+Tasks whose charter is removed or whose model is no longer allowed retain their revision.\n\
+Authority remains current: rules, project policy and the authority chain apply even to tasks retaining a charter revision.\n";
+fn effect_text(reading: &Reading, out: &mut Text) {
+    out.put(b"Effect\n");
+    match inventory(reading) {
+        Some(document) => {
+            for held in &document.held {
+                out.put(b"  revision ");
+                out.number(u64::from(held.head.number));
+                out.put(b": ");
+                out.number(u64::from(held.holders));
+                out.put(b" live tasks\n");
+            }
+        }
+        None => out.put(b"  held revision counts unavailable\n"),
+    }
+    out.put(EFFECT);
+}
+fn encode_effect(reading: &Reading, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"held_revisions");
+    match inventory(reading) {
+        Some(document) => {
+            out.array_start();
+            for held in &document.held {
+                out.object_start();
+                out.key(b"revision");
+                out.unsigned(u64::from(held.head.number));
+                out.key(b"live_tasks");
+                out.unsigned(u64::from(held.holders));
+                out.object_end();
+            }
+            out.array_end();
+        }
+        None => out.null(),
+    }
+    out.key(b"new_work");
+    out.string(b"on_acceptance");
+    out.key(b"restarts");
+    out.boolean(false);
+    out.key(b"running_choices");
+    out.array_start();
+    out.string(b"stays");
+    out.string(b"moves");
+    out.array_end();
+    out.key(b"running_default");
+    out.string(b"stays");
+    out.key(b"conversations");
+    out.string(b"next_run_when_compatible");
+    out.key(b"incompatible_tasks");
+    out.string(b"retain_revision");
+    out.key(b"authority");
+    out.string(b"current");
+    out.key(b"explanation");
+    out.string(EFFECT);
+    out.object_end();
 }

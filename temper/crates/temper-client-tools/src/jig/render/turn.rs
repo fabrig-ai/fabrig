@@ -1,4 +1,5 @@
 //! Turn parts retain their byte positions and carry an exact continuation call.
+//! Conversation text excludes tool payloads while retaining archived part positions.
 use super::{Text, text_end};
 use crate::jig::{Limits, call::Call, call::number};
 use alloc::boxed::Box;
@@ -48,44 +49,62 @@ pub(super) fn text(
             let mut part = 0u64;
             for message in &turn.messages {
                 for block in &message.blocks {
-                    match block {
-                        c::Block::Text(text) => words(task, turn_name, &mut part, text.bytes(), call, limits, out),
-                        c::Block::Call(call_block) => {
-                            out.put(b"call ");
-                            out.number(call_block.number);
-                            out.put(b" \xc2\xb7 ");
-                            out.put(call_block.tool.bytes());
-                            out.put(b"\n");
-                            words(task, turn_name, &mut part, call_block.input.bytes(), call, limits, out);
-                            if let Some(outcome) = &call_block.outcome {
-                                words(task, turn_name, &mut part, outcome.bytes(), call, limits, out);
-                            }
-                            if call.tool != 4 {
-                                for reference in &call_block.parts {
-                                    reference_text(reference, out);
-                                }
-                            }
-                        }
-                        c::Block::Result { call: called, summary, failed } => {
-                            out.put(b"result ");
-                            out.number(*called);
-                            if *failed {
-                                out.put(b" \xc2\xb7 failed");
-                            }
-                            out.put(b"\n");
-                            words(task, turn_name, &mut part, summary.bytes(), call, limits, out);
-                        }
-                        c::Block::Opaque { dialect, size } => {
-                            out.put(b"opaque ");
-                            out.put(dialect.bytes());
-                            out.put(b" \xc2\xb7 ");
-                            out.number(*size);
-                            out.put(b" bytes\n");
-                        }
-                    }
+                    block_text(task, turn_name, &mut part, block, call, limits, out);
                 }
             }
         }
+    }
+}
+fn block_text(
+    task: u64,
+    turn: c::TurnName,
+    part: &mut u64,
+    block: &c::Block,
+    call: &Call,
+    limits: &Limits,
+    out: &mut Text,
+) {
+    match block {
+        c::Block::Text(text) => words(task, turn, part, text.bytes(), call, limits, out),
+        c::Block::Call(called) => {
+            out.put(b"call ");
+            out.number(called.number);
+            out.put(b" \xc2\xb7 ");
+            out.put(called.tool.bytes());
+            out.put(b"\n");
+            payload(task, turn, part, called.input.bytes(), call, limits, out);
+            if let Some(outcome) = &called.outcome {
+                payload(task, turn, part, outcome.bytes(), call, limits, out);
+            }
+            if call.tool != crate::jig::rows::CHAT_AT {
+                for reference in &called.parts {
+                    reference_text(reference, out);
+                }
+            }
+        }
+        c::Block::Result { call: called, summary, failed } => {
+            out.put(b"result ");
+            out.number(*called);
+            if *failed {
+                out.put(b" \xc2\xb7 failed");
+            }
+            out.put(b"\n");
+            payload(task, turn, part, summary.bytes(), call, limits, out);
+        }
+        c::Block::Opaque { dialect, size } => {
+            out.put(b"opaque ");
+            out.put(dialect.bytes());
+            out.put(b" \xc2\xb7 ");
+            out.number(*size);
+            out.put(b" bytes\n");
+        }
+    }
+}
+fn payload(task: u64, turn: c::TurnName, part: &mut u64, bytes: &[u8], call: &Call, limits: &Limits, out: &mut Text) {
+    if call.tool == crate::jig::rows::CHAT_AT {
+        *part = part.checked_add(1).expect("bounded parts");
+    } else {
+        words(task, turn, part, bytes, call, limits, out);
     }
 }
 fn words(task: u64, turn: c::TurnName, part: &mut u64, bytes: &[u8], call: &Call, limits: &Limits, out: &mut Text) {
