@@ -552,7 +552,10 @@ runs it or writes what it makes.
 - **One pin,** `skein-forge`'s, read by owned mode, the throwaway and
   the conformance alike, so the Forgejo temper runs is the Forgejo whose
   facts it checked (13.3): the versions, and beside them each fetched
-  binary's SHA-256 for each architecture temper fetches for (6.6).
+  binary's SHA-256 for each platform and architecture temper fetches for
+  (6.6). One version on both platforms: on macOS a bottle is that
+  version and another build, so that the version holds there and the
+  build the conformance checked, byte for byte, is Linux's.
 
 ### 6.2 Forgejo's settings
 
@@ -883,7 +886,8 @@ its own for any other host.
   refuses, naming the URL and the status.
 - **A mirror,** the owned entry's `mirror`, absent by default (section
   8): an `https` origin for each binary, in place of codeberg.org's and
-  code.forgejo.org's, its paths and digests the pins' still. A host that
+  code.forgejo.org's, or of `ghcr.io` on macOS, its paths and digests the
+  pins' still. A host that
   keeps its own copies names it; the process tier needs none, its
   binaries placed where the fetch looks (13.4).
 - **TLS with the machine's roots,** read at the command's start as
@@ -893,8 +897,8 @@ its own for any other host.
   command.
 - **The digests are pinned,** one SHA-256 per binary and architecture,
   in `skein-forge` beside `VERSION` and `RUNNER_VERSION` (skein's
-  `forge.md`, 4.3), and required: a fetched binary is the build the
-  conformance checked, byte for byte.
+  `forge.md`, 4.3), and required: on Linux a fetched binary is the build
+  the conformance checked, byte for byte.
 - **Streamed, never held:** the body's chunks are asked for one at a
   time, as the file takes them; each is hashed into the digest, which
   is incremental, and written at its offset into `<file>.part`, private,
@@ -916,7 +920,45 @@ its own for any other host.
   requests, chunks, writes and digests its inputs and outputs, and its
   host in `temper-forge-setup-shell`, on skein-io, skein-http and
   skein-tls (section 11). It holds no credential and writes no record
-  (section 9).
+  (section 9). The platform is the binary's to say, as its shell was
+  built for: the machine is given it.
+- **On macOS** neither Forgejo nor its runner publishes a build, so the
+  fetch takes Homebrew's bottles, each a keg in a tarball, at addresses
+  fixed by the pins' digests. Homebrew is a URL and nothing more: no
+  `brew`, no `/opt/homebrew`, no request to its formula API. `DIGEST` is
+  the pin's archive digest, the bottle for macOS 15, which later
+  systems run too:
+
+  | Binary | From | The archive's member | Into |
+  |---|---|---|---|
+  | Forgejo | `https://ghcr.io/v2/homebrew/core/forgejo/blobs/sha256:DIGEST` | `forgejo/VERSION/bin/forgejo` | `<cache>/forgejo/VERSION/forgejo` |
+  | the runner | `https://ghcr.io/v2/homebrew/core/forgejo-runner/blobs/sha256:DIGEST` | `forgejo-runner/RUNNER_VERSION/bin/forgejo-runner` | `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner` |
+
+  An Intel Mac is refused, naming its architecture. A file already
+  there is held to the binary's digest. Three things differ from
+  Linux's fetch:
+  - **A token that is no credential:** the first request carries
+    `Authorization: Bearer QQ==`, the anonymous value Homebrew sends, to
+    `ghcr.io` alone.
+  - **One redirect:** `ghcr.io` answers `307` with its storage's address.
+    The fetch follows one redirect, to `https`, without the token;
+    another, or one to anything else, refuses, naming the URL. Linux's
+    fetch still takes none.
+  - **An archive:** the body goes to `<file>.archive`, private, hashed
+    as it is written, as the part file above, against the archive's
+    digest, within `setup.fetch_bytes`. Only on a match is the one
+    member, by its exact name, taken out by the machine's own
+    `/usr/bin/tar` into `<file>.part`, within the same bound; its digest
+    is checked against the binary's, it is made `0o755` and renamed over
+    its name, and the archive removed. A wrong digest, a bound passed or
+    a failed extraction removes both files and refuses, and an
+    interrupted fetch starts again from nothing.
+- **A bottle gone:** Homebrew promises nothing about old blobs. The
+  fetch refuses, naming the URL and saying what answers it: a binary
+  given by path, or the owned entry's `mirror`, which serves the same
+  archive at the same `/v2/homebrew/core/…/blobs/sha256:DIGEST` path,
+  under the same digests and the same one redirect, and is sent no
+  token.
 
 ### 6.7 The first repository
 
@@ -1204,7 +1246,9 @@ temper box
   fds 5 and 6 under the default document's two. `--box` tells `temper
   internal serve` to adopt them, and a serve given `--box` whose
   descriptor 3 + *n* or 4 + *n* is not an open pipe refuses its start,
-  naming the fd, *n* being the `LISTEN_FDS` it was given, 0 without it;
+  naming the fd, *n* being the `LISTEN_FDS` it was given, 0 without it
+  (a check that reads `/proc/self/fd`, so Linux's alone: on macOS serve
+  takes them as given);
   without `--box`, as under every other arrangement (7.4), serve has no
   pipe and leaves those descriptors alone. One line each, ending in a line
   feed, `FORGE` the forge's number:
@@ -1975,7 +2019,8 @@ directory is empty (7.1).
     git` (8.4) whatever git the machine has, or none;
   - *the person,* the machine's owned Forgejo's (8.3): its `login` the
     name of the effective uid's entry in `/etc/passwd` (`geteuid`, then
-    that file), the login the person signs in to their Forgejo with; its
+    that file; on macOS, whose users are not in it, what `/usr/bin/id
+    -un` prints), the login the person signs in to their Forgejo with; its
     `email` `LOGIN@localhost`. With no entry, or a name that is not a
     Forgejo login, is one of Forgejo's reserved names (such as `admin`),
     or is the bot's, `temper-admin` or `work`, the first repository's
