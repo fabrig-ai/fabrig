@@ -2,7 +2,6 @@
 
 2026-11-04. Where skein's code lags or departs from [llm-connection.md](llm-connection.md).
 
-- **Not yet:** 5: `skein-llm-connection/src/call.rs` holds its own transport. It asks TLS's close, but its route acts on TLS's `Closed` before it hands io the `Send` beside it, so `close_notify` is lost, against link.md, 3.2.
 - **Departs:** 5: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive
