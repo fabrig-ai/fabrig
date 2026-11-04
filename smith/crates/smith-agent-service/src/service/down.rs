@@ -17,7 +17,7 @@ pub(super) fn domain_down(service: &mut Stages, mut frame: Option<&mut Frame>) {
         Some(domain) if domain.has_facts() => return,
         Some(_) | None => {}
     }
-    if let Some(run) = service.admitted {
+    if let Some(run) = service.admission.run() {
         for _ in 0..service.pending_messages.capacity() {
             if !super::pending_message_ready(service) {
                 break;
@@ -38,13 +38,7 @@ pub(super) fn domain_down(service: &mut Stages, mut frame: Option<&mut Frame>) {
         let Some(request) = service.domain_requests.pop() else { break };
         domain_request(service, frame.as_deref_mut(), request);
     }
-    match service.admitted {
-        Some(run) if service.cancel_pending => {
-            service.domain_events.push(domain::Event::Cancel { run });
-            service.cancel_pending = false;
-        }
-        Some(_) | None => {}
-    }
+    super::admission::follow(service);
     drain_facts(service, frame);
 }
 

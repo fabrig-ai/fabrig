@@ -4,7 +4,6 @@
 //! and the event stream. Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use skein_lib::Time;
-use smith_domain as domain;
 
 use super::{Failure, Frame, Operation, Stages, USAGE_OWNER, face};
 use skein_io::{self as io, file, file_layer};
@@ -148,11 +147,7 @@ fn stream_closed(service: &Stages, frame: Option<&Frame>) -> bool {
 pub(super) fn shutdown(service: &mut Stages) {
     let before_terminal = match service.teardown {
         Teardown::Live | Teardown::LiveUnsent { .. } => {
-            if let Some(run) = service.admitted {
-                service.domain_events.push(domain::Event::Cancel { run });
-            } else {
-                service.cancel_pending = true;
-            }
+            super::admission::cancel(service);
             return;
         }
         Teardown::Answered { at, answer, close: Close::Graceful } => {

@@ -72,3 +72,50 @@ fn a_failure_before_the_answer_leaves_the_run_live() {
         other => panic!("cancel: {other:?}"),
     }
 }
+
+#[test]
+fn a_cancel_before_the_handle_is_delivered_once_after_it() {
+    use super::super::admission::Admission;
+    let mut service = service();
+    let run = Token::new(19);
+    assert_eq!(service.stages.admission, Admission::Waiting);
+    channel_event(&mut service.stages, &mut service.frame, channel::Heard::Cancel);
+    assert_eq!(service.stages.admission, Admission::Cancelled);
+    assert!(service.stages.domain_events.is_empty());
+    service.stages.admission.admit(run);
+    assert_eq!(service.stages.admission, Admission::Owed { run });
+    assert!(service.stages.domain_events.is_empty());
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    assert_eq!(service.stages.admission, Admission::Admitted { run });
+    match service.stages.domain_events.pop().expect("owed cancel") {
+        domain::Event::Cancel { run: named } => assert_eq!(named, run),
+        other => panic!("cancel: {other:?}"),
+    }
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.domain_events.is_empty());
+}
+
+#[test]
+fn a_waiting_cancel_goes_before_the_messages_that_waited_for_the_run() {
+    let mut service = service();
+    channel_event(&mut service.stages, &mut service.frame, channel::Heard::Cancel);
+    channel_event(&mut service.stages, &mut service.frame, host_message(31));
+    service.stages.domain_requests.push(domain::Request::Admitted { host_run: START_REPLY, run: Token::new(19) });
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    assert_eq!(service.stages.pending_messages.len(), 1);
+    match service.stages.domain_events.pop().expect("cancel before message") {
+        domain::Event::Cancel { run } => assert_eq!(run, Token::new(19)),
+        other => panic!("cancel: {other:?}"),
+    }
+    assert!(service.stages.domain_events.is_empty());
+    domain_down(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.pending_messages.is_empty());
+    match service.stages.domain_events.pop().expect("next pass flushes message") {
+        domain::Event::Message { run, name, .. } => {
+            assert_eq!(run, Token::new(19));
+            assert_eq!(name, Token::new(31));
+        }
+        other => panic!("message: {other:?}"),
+    }
+    assert!(service.stages.domain_events.is_empty());
+}

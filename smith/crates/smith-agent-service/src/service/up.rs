@@ -354,7 +354,7 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
             }
         }
         channel::Heard::Message { finish_requested, name, label, text } => {
-            if let Some(run) = service.admitted {
+            if let Some(run) = service.admission.run() {
                 service.domain_events.push(domain::Event::Message { finish_requested, run, name, label, text });
             } else {
                 service.pending_messages.push(PendingMessage { finish_requested, name, label, text });
@@ -365,7 +365,7 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
             service.domain_events.push(domain::Event::Delivered { owner, delivery: run::Delivery::Stale });
         }
         channel::Heard::Acknowledged { turn } => {
-            if let Some(run) = service.admitted {
+            if let Some(run) = service.admission.run() {
                 service.domain_events.push(domain::Event::Acknowledge { run, turn });
             }
         }
@@ -391,18 +391,12 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
                 None => service.mark_failed(Failure::Credential),
             }
         }
-        channel::Heard::Cancel => {
-            if let Some(run) = service.admitted {
-                service.domain_events.push(domain::Event::Cancel { run });
-            } else {
-                service.cancel_pending = true;
-            }
-        }
+        channel::Heard::Cancel => super::admission::cancel(service),
         channel::Heard::WriteFailed => service.mark_failed(Failure::WriteFailed),
         channel::Heard::Ended { why: _ } => match service.teardown {
             Teardown::Live | Teardown::LiveUnsent { .. } => {
                 service.mark_failed(Failure::ChannelEnded);
-                if let Some(run) = service.admitted {
+                if let Some(run) = service.admission.run() {
                     service.domain_events.push(domain::Event::Cancel { run });
                 } else {
                     teardown::answered(service);

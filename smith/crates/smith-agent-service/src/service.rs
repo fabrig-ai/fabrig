@@ -7,6 +7,7 @@
 
 use alloc::boxed::Box;
 
+mod admission;
 mod down;
 mod effects;
 mod face;
@@ -205,9 +206,8 @@ pub(crate) struct Stages {
     input: Option<Token>,
     output: Option<Token>,
     signals: Option<Token>,
-    admitted: Option<Token>,
+    admission: admission::Admission,
     run_started: Time,
-    cancel_pending: bool,
     pub(crate) line: crate::terminal::Line,
     outcome: Option<run::outcome::OutcomeSpec>,
     delivery: Option<run::outcome::ChangeSpec>,
