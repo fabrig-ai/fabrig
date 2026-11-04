@@ -17,6 +17,11 @@ files = [
   "temper/crates/temper-engine-domain/src/tests/setup.rs",
   "temper/crates/temper-playground/src/programs.rs",
   "temper/tests/one-process/src/world.rs",
+  "temper/crates/temper-service/src/stock.rs",
+  "temper/crates/temper-service/src/tests/stock.rs",
+  "temper/tests/engine/domain/tests/suite/settings/b2.rs",
+  "temper/docs/design/protocol/configuration.md",
+  "temper/docs/help/budget.md",
   "Cargo.lock",
 ]
 effort = "high"
@@ -519,3 +524,40 @@ reply was seen. The branch's pushed commits (to `9678bee8e1`) stay and the next 
 them. The earlier rules hold: a refusal outside the allowances' classes, the stock's own
 construction among them, is a question with the typed refusal and its evidence, asked after
 committing and pushing what is repaired.
+
+2026-11-04. **The third suggested request is refused `Budget { needs: 1, left: 0 }`, the stock's 48K
+period reserved whole by the first two open chats' 24K: repair the product's stock, or leave the walk
+blocked?** Repair it, here, as the user decided (11-04, option (a)): a chat's authority spend becomes
+16K and the week's 48K for the project and for role 0 stays, so three open chats fit in one period and
+the week's money bound is unchanged. The script stays as it is (no chat-closing steps). This task's
+files gain the five below, for this repair alone; its acceptance (the other two requests answered,
+`temper/docs/design/playground.md`, 5.2 and 10) cannot hold without it.
+
+- `temper/crates/temper-service/src/stock.rs`, `checked`: `chat_spend` is `run.checked_mul(16)?`;
+  `ceiling_spend` stays `run.checked_mul(48)?`. Nothing else there changes.
+- `temper/crates/temper-service/src/tests/stock.rs`:
+  `stock_budgets_follow_the_default_models_completion_and_run_turn_floor` expects `16 * k` for role
+  0's authority spend; and a new regression beside it, `the_stock_funds_three_chats_in_one_period`:
+  for both of that test's rows, three times policy 1's role 0 authority spend is at most the
+  policy's, role 0's and the rules' period spends, and a fourth is not.
+- `temper/tests/engine/domain/tests/suite/settings/b2.rs` (~237): the stock chat's task budget is
+  `16 * K`.
+- `temper/docs/design/protocol/configuration.md`, 13.4: policy 1's row says an authority's spend of
+  16K; the sizing paragraph's "a chat 24K, its run, an advisor and two coordinators; the ceilings and
+  the periods 48K, twice a chat" becomes "a chat 16K, its run, an advisor and a coordinator; the
+  ceilings and the periods 48K, three chats open in one period". The rules' row keeps its 48K. Run
+  `tools/citations/citations.py` before pushing.
+- `temper/docs/help/budget.md` (~31): "a person's chat may spend 16K"; the help is compiled into
+  `temper-docs`' tests.
+- Story A's own regression (the delegate's 21,140 within the chat role's spend, read from
+  `stories/a/llm.json`) must still pass: at init prices 16K is 67,648.
+- Checks added: `heavy cargo nextest run -p temper-service --lib -E 'test(/stock/)'`,
+  `heavy cargo nextest run -p temper-engine-domain-world -E 'test(/settings/)'`,
+  `heavy cargo nextest run -p temper-docs`, and `heavy cargo nextest run -p temper-playground`.
+  Any other test that held the old 24K is reported under `## Left` with its file and line, not
+  chased.
+- Then the acceptance as written: the full walk, its kept `tests/fixtures/story-a.log` recorded under
+  `SKEIN_CODEGEN_WRITE`, its replay, and the one-process `story_a.rs` once alone with
+  `--run-ignored all` (its `#[ignore]` lifted only if it passes). Past this, a refusal outside the
+  earlier allowances' classes is a question with its evidence, asked after committing and pushing
+  what is repaired.
