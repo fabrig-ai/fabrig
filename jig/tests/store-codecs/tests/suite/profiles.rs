@@ -2,6 +2,60 @@
 use jig_protocol_config::{Profile, profile};
 use jig_protocol_store::codec;
 
+// Standard's development figures (protocol/configuration.md, 6), with small's other limits.
+fn fabrig_scale() -> jig_domain_core::Limits {
+    let mut core = profile(Profile::Small).core;
+    core.tasks = jig_domain_tasks::Limits {
+        tasks: 128,
+        project_tasks: 128,
+        project_goals: 80,
+        tree_tasks: 384,
+        depth: 32,
+        delegates: 80,
+        batch: 160,
+        batch_bytes: 4_194_304,
+        inbox_messages: 82,
+        run_inbox: 82,
+        inbox_bytes: 21_495_808,
+        spec_bytes: 131_072,
+        result_bytes: 262_144,
+        message_bytes: 262_144,
+        contract_choices: 4,
+        authority_grants: 16,
+        authority_segments: 8,
+        hold_segments: 8,
+        executor_kinds: 16,
+        ..core.tasks
+    };
+    core
+}
+
+#[test]
+fn the_codecs_hold_fabrig_scale() {
+    let core = fabrig_scale();
+    let limits = codec::limits(&core).expect("development figures within codec ceilings");
+    println!(
+        "fabrig-scale tasks_v9::Row::encoded_bound={}",
+        jig_protocol_store::tasks_v9::Row::encoded_bound(&limits.tasks).expect("task row bound"),
+    );
+}
+
+#[test]
+fn the_codecs_refuse_figures_past_the_ceilings() {
+    let core = fabrig_scale();
+    // One past each binding schema ceiling (protocol/store.md, 5.1).
+    let cases = [
+        ("delegates", jig_domain_tasks::Limits { delegates: 257, ..core.tasks }),
+        ("inbox_messages", jig_domain_tasks::Limits { inbox_messages: 129, ..core.tasks }),
+        ("spec_bytes", jig_domain_tasks::Limits { spec_bytes: 262_145, ..core.tasks }),
+        ("result_bytes", jig_domain_tasks::Limits { result_bytes: 524_289, ..core.tasks }),
+    ];
+    for (name, tasks) in cases {
+        let domain = jig_domain_core::Limits { tasks, ..core };
+        assert!(codec::limits(&domain).is_none(), "{name}");
+    }
+}
+
 #[test]
 fn both_shipped_profiles_admit_the_tasks_and_people_families() {
     for profile_name in [Profile::Small, Profile::Standard] {

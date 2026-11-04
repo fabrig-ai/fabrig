@@ -40,6 +40,7 @@ fn profile() -> root::Limits {
         references: 2,
         subscriptions: 2,
         batch: 1,
+        batch_bytes: 131_072,
         dependencies: 1,
         holdings: 2,
         hold_kinds: 2,

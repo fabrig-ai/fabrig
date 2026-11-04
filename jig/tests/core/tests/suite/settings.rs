@@ -2070,7 +2070,9 @@ fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documen
 fn stock_profiles_hold_a_day_of_deciding_requests() {
     for (profile, parties) in [(jig_protocol_config::Profile::Small, 4), (jig_protocol_config::Profile::Standard, 16)] {
         let (config, mut limits) = configuration();
-        limits.core.people = jig_protocol_config::profile(profile).core.people;
+        let people = jig_protocol_config::profile(profile).core.people;
+        limits.core.people.requests = people.requests;
+        limits.core.people.request_retention = people.request_retention;
         let mut world = RequestWorld::new(config, &limits);
         let signed = world.sign_in();
         // Twenty conversations per person: creation, three messages and a decision; fivefold room.

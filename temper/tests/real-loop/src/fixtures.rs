@@ -20,7 +20,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
-            "policy":{"max_turns":16,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
+            "policy":{"max_turns":800,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":llm.to_string(),"transport":"plaintext",
             "connect":1000,"handshake":1000,
@@ -480,7 +480,7 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     let mut values = deployment.clone();
     values["world_settings"] = flags.clone();
     let engine = crate::settings::configuration(&values);
-    let mut defaults = temper_service::stock::defaults(&engine.llm);
+    let mut defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let stock_period_spend = defaults.rules.period_spend;
     // Charter 1 also produces finite changes in this world; the Smith boundary keeps Open chats inspecting.
     defaults.charters[0].policy.modify = true;
@@ -518,8 +518,11 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     if let Some(spend) = flags["minimum_run_spend"].as_u64() {
         defaults.rules.minimum_run_spend = spend;
     }
-    if let Some(spend) = flags["maximum_run_spend"].as_u64() {
-        defaults.rules.maximum_run_spend = spend;
+    // Keep these cheap scripted runs within the stories' 64-unit task purse.
+    let run_spend = flags["maximum_run_spend"].as_u64().unwrap_or(32);
+    defaults.rules.maximum_run_spend = run_spend;
+    for charter in &mut defaults.charters {
+        charter.spend = run_spend;
     }
     if flags["case"] == true {
         crate::case::defaults::apply(&mut defaults, flags, stock_period_spend);

@@ -6,6 +6,3 @@ The design carries sections 2 to 6 and 8.1: jig's `domain/engine.md`, section 17
 
 - **Design lags:**
   - 8.2: no design document holds stage 2, `v0.1.0.md`'s rung D, which waits for rung C.
-- **Open:**
-  - 8.1: the stage 1 box's limits, which the user sets (`../domain/testing.md`, section 10): proposed, the reference's profile whole (`docs/examples/reference/limits.json` and `agent.json` over `temper init`'s document, `../protocol/configuration.md`, 13.9), so that one box holds both stages; its spends and times the box's.
-  - 8.1: the walk's bounds, which the user sets (`../domain/testing.md`, section 10): proposed, 3 hours of wall time for the pass from the box's start to the stage's verdict, the configuring chat at most 40 of the person's messages, and the judge one session at Opus 5.5, high, within 30 minutes.

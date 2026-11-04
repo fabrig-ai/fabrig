@@ -2,8 +2,8 @@
 use super::fixtures as f;
 use skein_fake_forge_domain::{self as domain, api as da};
 use skein_fake_forge_github::{
-    self as fake,
-    service::{Account, AppFacts, Row},
+    self as fake, fixture,
+    service::{Account, Row},
 };
 use skein_fake_peers::forge::{Forge, Observation, Peer};
 use skein_fake_peers_tests as support;
@@ -72,6 +72,7 @@ pub(super) fn limits() -> fake::Limits {
         git_records: 16,
     }
 }
+/// Scenario tables over the shared defaults (skein/docs/design/fake-forge.md, 10.6).
 pub(super) fn config() -> fake::Config {
     let mut repositories = List::with_capacity(1);
     repositories
@@ -90,14 +91,7 @@ pub(super) fn config() -> fake::Config {
         accounts.push(Account { login: f::boxed(login), id, organization }).expect("account row fits");
     }
     fake::Config {
-        rate_quota: 5000,
-        rate_window: skein_lib::Duration::from_secs(3600),
-        token_life: skein_fake_forge_github::installations::TOKEN_LIFE,
-        deliveries: fake::delivery::Config::standard(),
         base: f::boxed(b"http://127.0.0.1:1"),
-        blob: f::boxed(b"http://logs.example.test"),
-        third_origin: None,
-        blob_redirect: None,
         app: fake::app::App {
             id: APP,
             slug: f::boxed(SLUG),
@@ -107,18 +101,9 @@ pub(super) fn config() -> fake::Config {
             key: fake::keys::KEYS[0],
             webhook: Secret::new(f::boxed(b"invented-hook-secret")),
         },
-        app_facts: AppFacts::Complete,
-        shown: fake::service::Shown::Ruleset,
-        ruleset_id: 17,
-        pull_requests_only: false,
-        required_signatures: false,
-        tokens: List::with_capacity(0),
-        faults: skein_fake_forge_github::Faults { reset: 0, drop: 0, server_error: 0 },
-        bot: BOT,
         hook: f::boxed(b"http://127.0.0.1/hooks"),
-        repositories,
         accounts,
-        person: f::boxed(b"alice"),
+        ..fixture::config(repositories)
     }
 }
 struct Reply {

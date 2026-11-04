@@ -31,7 +31,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
     let limits = parsed.limits.core;
     jig_protocol_config::check_effective_limits(&limits).expect("deployment receiving limits fit the codecs");
-    assert_eq!(limits.documents.lines, 8);
+    assert_eq!(limits.documents.lines, 16);
     assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
     assert!(limits.documents.lines >= limits.tasks.charters);
     // The reference permits procedures p2, p3 and p4 on each configured connector.
@@ -129,8 +129,6 @@ fn the_default_is_the_owned_example_so_edited() {
             "{row}"
         );
         let mut expected = owned.clone();
-        // A review names repository, base, branch, gate and head, then offers two verdicts.
-        expected["engine"]["limits"]["overrides"]["tasks.parameters"] = json!(5_u32);
         expected["engine"]["acts"] = json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account"] }]);
         assert!(!actual["engine"]["owners"].as_array().unwrap().is_empty());
         // The startup turn_bounds writer holds these to each document's own
@@ -149,7 +147,6 @@ fn the_default_is_the_owned_example_so_edited() {
                 }
             }
         }
-        expected["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = json!(12_288_u32);
         expected["application"]["limits"]["overrides"]["forge.client.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.output"] = json!(82_u32);
@@ -346,7 +343,7 @@ fn demo_turn(text: &str) -> Value {
 }
 
 fn demo_model() -> Value {
-    json!({"name": "demo", "endpoint": "demo", "window": 177_523_u64, "output": 8_192_u64,
+    json!({"name": "demo", "endpoint": "demo", "window": 1_048_576_u64, "output": 8_192_u64,
            "prices": {"input": 1_u64, "cached": 1_u64, "output": 1_u64, "unit": 1_000_u64}})
 }
 
@@ -354,16 +351,16 @@ fn demo_agent(port: u16) -> Value {
     json!({"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
            "address": format!("127.0.0.1:{port}"), "transport": "plaintext",
            "connect": 10_000_u64, "handshake": 10_000_u64, "headers": parse(b"[]"),
-           "models": [{"name": "demo", "window": 177_523_u64, "output": 8_192_u64,
+           "models": [{"name": "demo", "window": 1_048_576_u64, "output": 8_192_u64,
                        "prices": {"input": 1_u64, "cached": 1_u64, "output": 1_u64, "unit": 1_000_u64},
                        "reasoning_item": 2_048_u64, "head": 60_000_u64, "idle": 30_000_u64}]})
 }
 
 #[test]
-fn the_agent_profile_holds_a_run_and_two_sub_agents() {
+fn the_agent_profile_holds_a_run_and_twenty_five_sub_agents() {
     for source in [template::AGENT, fixtures::AGENT] {
         let agent = parse(source);
-        assert_eq!(agent["profile"]["declared"]["conversations"], 3_u32);
+        assert_eq!(agent["profile"]["declared"]["conversations"], 26_u32);
     }
 }
 
@@ -378,7 +375,6 @@ fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
             None => json!({}),
         };
         set(&mut expected, "/programs", programs);
-        set(&mut expected, "/profile/declared/calls_per_response", json!(2_u32));
         set(&mut expected, "/endpoints", json!([owned["endpoints"][0], demo_agent(facts.ports.llm.get())]));
         expected["endpoints"][0]["models"][0]["prices"]["unit"] = json!(1000_u64);
         assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");

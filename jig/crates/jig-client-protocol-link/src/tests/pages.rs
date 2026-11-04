@@ -24,6 +24,43 @@ fn a_owner_inbox_page_record_becomes_its_literal_contract_value() {
         Ok(fixtures::read_value_owner_inbox_page())
     );
 }
+#[test]
+fn an_inbox_entry_33_goals_deep_is_received() {
+    use skein_lib::{List, Writer};
+    let base = fixtures::limits();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*base.client() }, base.exchanges()).unwrap();
+    let mut page = jig_client_test_records::selected_inbox_pages()[0].clone().into_parts();
+    let mut rows = Reader::new(&page.rows);
+    let bytes = skein_codec::piece::split(&mut rows).unwrap().unwrap();
+    let row = w::InboxEntry::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let mut goals = List::with_capacity(33);
+    for goal in 1..=33 {
+        goals.push(goal).unwrap();
+    }
+    let selection = w::InboxSelection::new(
+        &w::CEILINGS,
+        w::InboxSelectionParts { cursor: row.cursor().clone(), goals: goals.clone() },
+    )
+    .unwrap();
+    let mut encoded = Writer::new(usize::try_from(selection.measure()).unwrap());
+    selection.encode(&mut encoded).unwrap();
+    let bytes = encoded.finish();
+    let mut piece = Writer::new(bytes.len().checked_add(4).unwrap());
+    skein_codec::piece::write(&mut piece, &bytes).unwrap();
+    page.selection = Some(piece.finish());
+    let page = w::InboxPage::new(&w::CEILINGS, page).unwrap();
+    let mut encoded = Writer::new(usize::try_from(page.measure()).unwrap());
+    page.encode(&mut encoded).unwrap();
+    let bytes = encoded.finish();
+    let page = w::InboxPage::decode(limits.receiving(), &mut Reader::new(&bytes)).unwrap();
+    let page = translate::pages::inbox_page(page, &limits).unwrap();
+    assert_eq!(page.rows.len(), 1);
+    let selection = page.selection.unwrap();
+    assert_eq!(selection.len(), 1);
+    let selection = selection.get(0).unwrap();
+    assert_eq!(selection.cursor, page.rows.get(0).unwrap().cursor);
+    assert_eq!(selection.goals, goals);
+}
 fn a_owner_spend_page_record_becomes_its_literal_contract_value() {
     assert_eq!(
         translate::pages::spend_page(fixtures::read_wire_owner_spend_page(), &fixtures::limits()),

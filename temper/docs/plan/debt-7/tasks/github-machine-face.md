@@ -95,3 +95,25 @@ against the 605 lines of the run's `base-records.txt`, the readers, the fuzzy ru
 task owns, keeping `Fake`'s public surface and the `fixture_domain` family, which the spec keeps. Why the cap can't be
 counted on: nearly all of the 320 lines left are those two. So it eases to **-300**, under the 25% the plan's owner
 allows. Short of that, stop and ask, with the measurements.
+
+2026-11-04. May the record comparison permit the server's `Connection: close` fields and the five signed-log changes,
+or must the old bytes be kept? **Permit them, narrowly; keep the pushed source as it is.** The request fixes a test's
+visible events and outcome, and neither moves: no assertion, status, body or test file changes. Keeping the old bytes
+would keep a face that answers differently from the fake's own, which is what D029 removes (`fake-forge.md`, 10.6).
+The note's section 3 didn't list these two; this answer adds them, for this task's comparison alone:
+
+- **`Connection: close`** may appear on a branch record only for a request that said it: setup's host writes every
+  call with `close: true` (`skein-forge-setup/src/host/connection.rs`), and `skein-http`'s server answers it so. The
+  peer ends that exchange either way. The comparison drops this field, and the throwaway helper also fails the run if
+  a response carries it where its request doesn't. `github_peer`'s `assert!(!head.contains("\r\nConnection: close"))`
+  stays as it is.
+- **A signed log `Location`** may differ in its `expires` and `signature` values alone, the expiry by under 1 ms. The
+  fake signs `wall` in nanoseconds (`logs.rs`), and the machine's wall follows the wire: this face now sends
+  `X-Accepted-GitHub-Permissions`, an excluded field, so a response's length moves, as the note's section 3 expects
+  of a seeded sweep. The comparison masks those two values on those records only.
+
+After that the lists must be equal, in order. Any other difference, a change in a test's count, or a red seeded test
+is a stop, as before. If `branch-records.txt` and `base-records.txt` are still there and no source line changed,
+compare those, though the `Connection: close` check needs the helper's one run. The run still owes what it left
+unobserved: the four packages' readers, the fuzzy run, clippy, the totals against the note's tenth. Report how many
+records each rule matched: 142 and 5 were measured.

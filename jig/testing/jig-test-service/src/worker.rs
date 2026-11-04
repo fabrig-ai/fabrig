@@ -187,10 +187,10 @@ impl Worker {
             let _request = self.out.pop();
         }
         self.link_down(self.env.now, link::Event::Abort);
-        if let Some(at) = self.sources.next_deadline() {
-            if let Some((owner, answer)) = self.sources.fire(at, &mut self.io) {
-                self.source_events.push(jig_domain_host::Event::SourceAnswered { owner, answer });
-            }
+        if let Some(at) = self.sources.next_deadline()
+            && let Some((owner, answer)) = self.sources.fire(at, &mut self.io)
+        {
+            self.source_events.push(jig_domain_host::Event::SourceAnswered { owner, answer });
         }
         for (entity, _) in &self.entities {
             self.io.push(io::Request::Abort { entity: *entity });

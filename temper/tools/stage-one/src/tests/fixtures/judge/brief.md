@@ -97,7 +97,7 @@ A spec is a change's words: what to make, citing the design in your goal branch 
 
 On a designer's result, read its report's list of the family's changes and the design it wrote, and make the family's changes as one batch with `change`, each "after" its dependencies, made or in the same call. On a designer's question, answer from the draft, or make a designer's change revising S's design, add it to the asker's dependencies by amendment, and answer that it waits for it.
 
-A `change` call makes at most one changes. Make a larger batch in several calls, a later call naming an earlier one's changes in "after" by the task numbers its answer gave. Where a call is refused for its size, make one change to a call.
+A `change` call carries what one call's payload holds, about ten kilobytes of words. Make a larger batch in several calls, a later call naming an earlier one's changes in "after" by the task numbers its answer gave. Where a call is refused for its size, make fewer changes to a call.
 
 On a change's result, read its producer's report and its Left list. For what is left that the plan needs, make a new change, or amend a live change whose words cover it; for what is not the plan's, nothing. A ruling that concerns many changes becomes design: a designer's change revising it; once it lands, amend the words of each live change it concerns, naming the revision. Never fix code yourself.
 

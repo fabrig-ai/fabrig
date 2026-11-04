@@ -36,7 +36,10 @@ fn own(name: &[u8]) -> Path {
 /// The caller selects `Given::Stock`; worlds size their own defaults.
 pub(crate) fn stock(engine: &config::Engine, problems: &mut Problems) {
     if engine.defaults == config::Defaults::Passed
-        && let Err(floor) = crate::stock::floors(&crate::stock::defaults(&engine.llm), &engine.limits)
+        && let Err(floor) = crate::stock::floors(
+            &crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes),
+            &engine.limits,
+        )
     {
         problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"overrides").member(floor.limit),
@@ -1158,8 +1161,8 @@ fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -
     {
         let mut problems = Problems::empty();
         problems.push(
-            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch"),
-            What::StoreTask { needs, has, batch: engine.limits.core.tasks.batch },
+            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch_bytes"),
+            What::StoreTask { needs, has, batch_bytes: engine.limits.core.tasks.batch_bytes },
         );
         return problems;
     }

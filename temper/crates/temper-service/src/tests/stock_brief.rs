@@ -30,7 +30,12 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     assignment.run.sources = Box::new([None, None]);
     assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
     assignment.run.authority.tools = jig_domain_tasks::Tools(
-        crate::stock::defaults(&engine.llm).rules.ceiling.tools.0 & assignment.run.policy.tools.0,
+        crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0
+            & assignment.run.policy.tools.0,
+    );
+    assert_eq!(
+        crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0,
+        1 | 2 | 4 | 512 | 1024
     );
     assignment.run.ended_by =
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
@@ -74,17 +79,27 @@ fn workspace(writable: bool) -> run::Workspace {
 fn every_stock_charter_admits_its_whole_maximal_brief() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    assert_eq!(limits.host_part, 51_717);
-    assert_eq!(limits.room, 125_634);
-    assert_eq!(limits.offer_bytes, 25_859);
-    assert_eq!(configuration.service.limits.channel.bodies.turn_body, 1_662_042);
-    for (number, open) in [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false)] {
+    assert_eq!(limits.host_part, 400_135);
+    assert_eq!(limits.room, 822_476);
+    assert_eq!(limits.offer_bytes, 200_068);
+    assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
+
+    for (number, open, non_brief, remaining) in [
+        (1, false, 37_575, 362_560),
+        (1, true, 35_485, 364_650),
+        (2, false, 33_200, 366_935),
+        (3, false, 37_482, 362_653),
+        (4, false, 30_980, 369_155),
+        (6, false, 31_811, 368_324),
+    ] {
         let assignment = assignment(number, open, 14_592);
         let mut charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
         let workspace = workspace(number != 4 && number != 6 && !open);
         let room = run::brief_room(&charter, Some(&workspace), &limits).expect("stock declarations fit");
+        assert_eq!(limits.host_part.checked_sub(u64::from(room)).unwrap(), non_brief);
+        assert_eq!(room, remaining);
         eprintln!(
             "stock charter {number} open={open}: non-brief={} rendered brief={} remaining={}",
             limits.host_part.checked_sub(u64::from(room)).unwrap(),
@@ -122,6 +137,72 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         }
         assert!(admitted, "charter {number} open={open}: {out:?}");
         eprintln!("stock fit: charter {number} open={open}: admitted brief={fitted}");
+    }
+}
+
+#[test]
+fn the_stock_brief_with_a_whole_spec_fits_every_charter_whole() {
+    use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
+    const FRAMING: u32 = 64 * (16 + 7);
+    const MARGIN: u32 = 813;
+    const OTHER: u32 = 768;
+    let configuration = configured();
+    let limits = configuration.service.limits.domain.run;
+    let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
+    let largest = temper_engine_smith::charter(&assignment(1, false, 0));
+    let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
+    assert_eq!(room, 362_560);
+    let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
+    assert_eq!(full, 395_520);
+    assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
+    let spec = vec![b's'; 131_072];
+    let mut task = spec.clone();
+    task.extend_from_slice(b"\nContract: Change\nRequester: task 1\n");
+    task.resize(usize::try_from(brief.budgets.task).unwrap(), b' ');
+    assert_eq!(&task[..spec.len()], spec);
+    // Gathering keeps the whole task and pull, then the reviews within the total.
+    let reviews = brief.brief_bytes - brief.budgets.task - brief.budgets.pull - OTHER;
+    assert!(reviews <= brief.budgets.reviews);
+    for (number, open) in [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false)] {
+        let mut assignment = assignment(number, open, 0);
+        let mut sections = vec![
+            BriefSection {
+                kind: BriefKind::Core(jig_domain_brief::Core::Task),
+                body: BriefBody::Text(task.clone().into()),
+            },
+            BriefSection {
+                kind: BriefKind::Forge(ForgeBriefKind::Pull),
+                body: BriefBody::Text(vec![b'p'; usize::try_from(brief.budgets.pull).unwrap()].into()),
+            },
+            BriefSection {
+                kind: BriefKind::Forge(ForgeBriefKind::Reviews),
+                body: BriefBody::Text(vec![b'r'; usize::try_from(reviews).unwrap()].into()),
+            },
+        ];
+        for index in 0..61 {
+            sections.push(BriefSection {
+                kind: BriefKind::Core(jig_domain_brief::Core::Attempts),
+                body: BriefBody::Text(
+                    vec![b'x'; usize::try_from(OTHER / 61 + u32::from(index < OTHER % 61)).unwrap()].into(),
+                ),
+            });
+        }
+        assignment.sections = sections.into();
+        let mut charter = temper_engine_smith::charter(&assignment);
+        assert_eq!(charter.brief.sections.len(), 64);
+        assert_eq!(
+            charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(),
+            usize::try_from(brief.brief_bytes).unwrap()
+        );
+        let mounted = workspace(number != 4 && number != 6 && !open);
+        let remaining = run::brief_room(&charter, Some(&mounted), &limits).unwrap();
+        let rendered = run::brief_bytes(&charter.brief).unwrap();
+        assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));
+        assert!(limits.host_part - u64::from(remaining) + rendered <= limits.host_part, "charter {number} open={open}");
+        assert!(u64::from(remaining) - rendered >= u64::from(MARGIN));
+        let whole = temper_engine_smith::charter(&assignment);
+        temper_engine_smith::fit_brief(&mut charter, Some(&mounted), &limits);
+        assert_eq!(charter, whole, "charter {number} open={open} keeps every byte");
     }
 }
 
@@ -343,7 +424,5 @@ fn measure_turn(number: u32) {
         measured.held(),
         measured.peak()
     );
-    if limits.run.host_part == 51_717 {
-        assert_eq!(turns, 1, "stock charter {number} reaches a first turn: {refused:?}");
-    }
+    assert_eq!(turns, 1, "stock charter {number} reaches a first turn: {refused:?}");
 }

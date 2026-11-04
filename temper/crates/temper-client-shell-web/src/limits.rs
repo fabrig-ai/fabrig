@@ -45,18 +45,18 @@ pub fn client() -> client::Limits {
             watches: 16, // Includes the shared me watch.
             turn_bytes: 1_048_576,
             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
-            authority: 14,
+            authority: 16, // Entries in an authority's grants, delegation kinds and notes' scopes.
             heartbeat: Duration::from_secs(30),
             reads: 16,
             parts: 16,
-            delegates: 8,
+            delegates: 80, // Live delegates in a chat's close.
             document_bytes: 1_048_576,
             records: 16,
             kept: 16,
             projects: 2,
             text: CONVERSATION_TEXT,
             turn_text: TURN_TEXT,
-            rows: 8,
+            rows: 16, // Entries in a document's short lists.
             fields: 16,
             segments: 9,
         },

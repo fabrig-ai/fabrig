@@ -1103,8 +1103,6 @@ pub(super) fn overview_bound(limits: &super::DocumentLimits) -> Option<u64> {
             .checked_add(text.checked_mul(8)?)?
             .checked_add(path.checked_mul(2)?)?
             .checked_add(chip)?
-            .checked_add(List::<super::LiveDelegate>::price(limits.lines)?)?
-            .checked_add(lines.checked_mul(chip)?)?
             .checked_add(List::<Chip>::price(limits.lines)?.checked_add(lines.checked_mul(chip)?)?.checked_mul(2)?)?
             .checked_add(List::<Parameter>::price(limits.lines)?.checked_add(lines.checked_mul(text)?)?)?
             .checked_add(List::<ResourceLine>::price(limits.lines)?.checked_add(lines.checked_mul(path)?)?)?

@@ -3,7 +3,7 @@ use super::phase;
 use crate::tasks_v9 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
-use skein_lib::{List, Token, Wall};
+use skein_lib::{Token, Wall};
 
 /// Translate `Status` to its durable tag.
 #[must_use]
@@ -349,9 +349,15 @@ pub fn saved_resource(
     )
 }
 /// Read `SavedResource` from its durable record.
-pub fn read_saved_resource(source: wire::SavedResource) -> Result<domain::SavedResource, wire::Problem> {
+pub fn read_saved_resource(
+    source: wire::SavedResource,
+    limits: &wire::Limits,
+) -> Result<domain::SavedResource, wire::Problem> {
     let wire::SavedResourceParts { connector, path } = source.into_parts();
-    Ok(domain::SavedResource { connector, path: read_saved_path(path) })
+    Ok(domain::SavedResource {
+        connector,
+        path: super::pieces::read_authority_segments(path, limits, wire::Path::SavedResourcePath)?,
+    })
 }
 
 fn optional_notice(
@@ -372,24 +378,6 @@ fn read_optional_notice(
     }
 }
 
-fn saved_path(source: &[Box<[u8]>], limits: &wire::Limits) -> Result<List<wire::AuthoritySegment>, wire::Problem> {
-    let mut path = List::with_capacity(limits.saved_resource_path);
-    for segment in source {
-        let segment = wire::AuthoritySegment::new(limits, wire::AuthoritySegmentParts { bytes: segment.clone() })?;
-        if path.push(segment).is_err() {
-            return Err(problem(wire::Path::SavedResourcePath));
-        }
-    }
-    Ok(path)
-}
-fn read_saved_path(source: List<wire::AuthoritySegment>) -> Box<[Box<[u8]>]> {
-    let mut path = List::with_capacity(source.len());
-    for segment in source.into_boxed() {
-        let segment = segment.into_parts().bytes;
-        path.push(segment).expect("same number of segments");
-    }
-    path.into_boxed()
-}
-fn problem(path: wire::Path) -> wire::Problem {
-    wire::Problem { path, reason: skein_codec::Reason::Bound }
+fn saved_path(source: &[Box<[u8]>], limits: &wire::Limits) -> Result<Box<[u8]>, wire::Problem> {
+    super::pieces::authority_segments(source, limits, limits.saved_resource_path, wire::Path::SavedResourcePath)
 }

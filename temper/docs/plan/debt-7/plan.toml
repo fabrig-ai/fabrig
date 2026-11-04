@@ -37,6 +37,7 @@ walk = false
 [[question]]
 id = "wrong-secret-kind"
 text = """A restored secret of the wrong kind differs between the services. jig stops the engine, pinned by a_restored_sources_wrong_kind_stops_the_engine. In temper, by reading and not by a run, the Corrupt event finds no owner, the accounts child is aborted and the engine runs on; a_restored_sources_other_kind_fails_the_read pins only the event. Which holds? (a) recommended, what this plan builds by default: the shipped host reports the fact and each service acts as it does today, since the request keeps behaviour unchanged. A later small task decides temper's. (b) temper stops too, as jig does: a behaviour change for temper, which needs its own task and a test. Nothing waits on the answer."""
+answer = """(a): the shipped host reports the fact and each service acts as it does today; a later small task decides temper's case. (the user, 11-04 ~12:05Z, as recommended)"""
 parts = ["service-accounts"]
 
 [[part]]
@@ -81,4 +82,5 @@ walk = false
 [[question]]
 id = "github-media-type"
 text = """The fake GitHub answers one media type two ways after this plan. The machine and setup worlds' stories (github_peer.rs, github_convert.rs) read `; charset=utf-8`, as github.com sends, and skein/tests/fake-peers/tests/forge/github.rs reads bare `text/html` from Peer::github, so one Server can't satisfy both without a switch. Which holds? (a) what this plan builds by default: both stay, Server keeps a charset switch only Inline turns on, and no assertion moves, since the request keeps tests' outcomes unchanged. (b) recommended for later: github.com's spelling everywhere, which removes the switch and moves one assertion in skein/tests/fake-peers. Nothing waits on the answer; (b) is a small later change."""
+answer = """(a) now, (b) later as a small change. (the user, 11-04 ~12:05Z, as recommended)"""
 parts = ["fake-github"]

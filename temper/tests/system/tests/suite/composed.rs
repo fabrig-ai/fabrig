@@ -307,7 +307,7 @@ fn a_withheld_store_commit_holds_the_party_reply_and_worker_assignment() {
 
 // This system world is the lowest one with real engine, worker and smith tool choice.
 #[test]
-fn an_agreed_goals_seventh_completion_question_parks_at_the_stock_turn_boundary() {
+fn an_agreed_goals_question_parks_at_the_stock_turn_boundary() {
     agreed_goal_walk(920, true);
 }
 
@@ -359,6 +359,10 @@ fn plan_script(reads: bool) -> skein_fake_llm_domain::api::Script {
                     .as_bytes(),
             ));
         }
+        // Keep the question and wait at the stock chat's last two completions.
+        for _ in 6..62 {
+            turns.push(call(b"read_branch", br#"{"branch":"main"}"#));
+        }
     }
     turns
         .push(call(b"message", br#"{"target":1,"form":"question","words":"Add CSV export with a header. Go ahead?"}"#));
@@ -375,9 +379,11 @@ fn agreed_goal_walk(seed: u64, reads: bool) {
     let mut world = World::agreed_goal(seed, plan_script(reads));
     world.run();
     assert_eq!(world.assignment().task, 2);
-    assert_eq!((world.assignment().run.policy.turns, world.assignment().run.policy.reserve_turns), (8, 1));
+    assert_eq!((world.assignment().run.policy.turns, world.assignment().run.policy.reserve_turns), (64, 1));
     assert!(
-        matches!(world.agent().answer(), smith_domain_run::Answer::Parked { spent, .. } if spent.turns == if reads { 8 } else { 2 })
+        matches!(world.agent().answer(), smith_domain_run::Answer::Parked { spent, .. } if spent.turns == if reads { 64 } else { 2 }),
+        "{:?}",
+        world.agent().answer()
     );
     if reads {
         assert_plan_reads(&world);

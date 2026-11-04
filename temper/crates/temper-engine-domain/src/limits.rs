@@ -140,7 +140,8 @@ pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
             .tasks
             .result_bytes
             .min(limits.journal.result_bytes)
-            .min(limits.journal.transcript_bytes),
+            .min(limits.journal.transcript_bytes)
+            .min(limits.people.words),
         tasks: limits.tasks,
         authority: limits.authority,
         load_slots: limits.loads.loads,

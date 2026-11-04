@@ -1161,7 +1161,8 @@ pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, number: u64, login
 /// Commands are admitted one at a time so a failure cannot start the next act.
 /// A fresh store's account comes from a person's sign-in, or from a held
 /// record moved in by `import` (client/tools.md, 5.5), or a
-/// held Claude Code directory declared and verified on the worker.
+/// held Claude Code directory declared and verified on the worker. A held `ChatGPT`
+/// record is imported again after its first box returned it, with a distinct key.
 #[must_use]
 pub fn live_commands(fresh: bool, model: LiveModel<'_>) -> (Vec<Vec<String>>, usize) {
     let mut commands = vec![vec!["sign-in", "-"]];
@@ -1200,6 +1201,12 @@ pub fn live_commands(fresh: bool, model: LiveModel<'_>) -> (Vec<Vec<String>>, us
                 ]);
             }
         }
+    }
+    if !fresh && let LiveModel::ChatGpt { account: Some(file) } = model {
+        commands.extend([
+            vec!["account", "import", file.to_str().expect("held account path is UTF-8"), "--key", "restart-plan"],
+            vec!["account", "list", "--until", "usable", "--timeout", "600s", "--json"],
+        ]);
     }
     let account = commands.len();
     commands.push(vec!["account", "list", "--json"]);
@@ -1432,6 +1439,13 @@ impl LivePlan<'_> {
         super::held_login::import_guard(binary, self.paths[0].parent().expect("store"), &self.client_directory(), words)
     }
 
+    /// Return before this box stops; only the first box permits a later restart import.
+    #[must_use]
+    pub fn return_call(&self) -> super::ctl::Call {
+        let hook = self.paths[0].parent().expect("store").join("give-back");
+        super::ctl::Call::command(&hook, if self.first { &["--box-ended"] } else { &[] })
+    }
+
     fn starting_phase(&self) -> LivePhase {
         if self.first && !self.kept && matches!(self.model, LiveModel::ClaudeCode { .. }) {
             LivePhase::ProgramDeclared
@@ -1575,7 +1589,7 @@ struct LiveJudge<'a> {
     account_checked: bool,
     linked: bool,
     cleanup: bool,
-    return_until: Option<skein_lib::Time>,
+    ending: Option<super::held_login::Ending>,
     return_at: Option<usize>,
     phase: LivePhase,
     snapshot: Option<String>,
@@ -2182,34 +2196,33 @@ impl LiveJudge<'_> {
     ) {
         if matches!(self.phase, LivePhase::Done) {
             let failed = self.failure.take();
-            let due = matches!(self.plan.model, LiveModel::ChatGpt { account: Some(_) })
-                && super::held_login::due_back(self.plan.first, failed.is_some());
+            self.ending = Some(super::held_login::Ending::new(
+                matches!(self.plan.model, LiveModel::ChatGpt { account: Some(_) }),
+                self.plan.first,
+                failed.is_some(),
+                now,
+            ));
             self.failure.set(failed);
-            if due {
-                self.return_until = Some(now.saturating_add(Duration::from_secs(60)));
-                self.phase = LivePhase::Returning;
-            }
+            self.phase = LivePhase::Returning;
         }
-        if matches!(self.phase, LivePhase::Returning) {
-            if let Some(index) = self.return_at
-                && let Some(ended) = calls.ends().get(index)
-            {
-                super::live::notice(&String::from_utf8_lossy(&ended.stdout));
-                super::live::notice(&String::from_utf8_lossy(&ended.stderr));
-                if ended.exit != Some(Exit::Code(0)) {
-                    self.return_failed(&format!("give-back exited {:?}", ended.exit));
+        let ended = self.return_at.and_then(|index| calls.ends().get(index));
+        match self.ending.as_mut().expect("return stage").next(now, calls.foreground_idle(), ended.map(|end| end.exit))
+        {
+            super::held_login::End::Return => {
+                self.return_at = Some(calls.ends().len());
+                calls.push(super::ctl::Step::Run(self.plan.return_call()));
+            }
+            super::held_login::End::Wait => {}
+            super::held_login::End::Stop(failure) => {
+                if let Some(ended) = ended {
+                    super::live::notice(&String::from_utf8_lossy(&ended.stdout));
+                    super::live::notice(&String::from_utf8_lossy(&ended.stderr));
+                }
+                if let Some(message) = failure {
+                    self.return_failed(message);
                 }
                 self.stop(binary, calls);
-            } else if self.return_until.is_some_and(|until| now >= until) {
-                self.return_failed("give-back exceeded its 60 second deadline");
-                self.stop(binary, calls);
-            } else if self.return_at.is_none() && calls.foreground_idle() {
-                let hook = self.plan.paths[0].parent().expect("store").join("give-back");
-                self.return_at = Some(calls.ends().len());
-                calls.push(super::ctl::Step::Run(super::ctl::Call::command(&hook, &[])));
             }
-        } else if matches!(self.phase, LivePhase::Done) {
-            self.stop(binary, calls);
         }
     }
     fn stop(&mut self, binary: &mut skein_world::end_to_end::Binary, calls: &mut super::ctl::Calls) {
@@ -2364,7 +2377,7 @@ impl Referee<Process> for LiveJudge<'_> {
         if matches!(self.phase, LivePhase::Settled) || self.cleanup {
             None
         } else if matches!(self.phase, LivePhase::Returning) {
-            self.return_until
+            self.ending.as_ref().map(super::held_login::Ending::deadline)
         } else if self.stopping() {
             self.deadline.until()
         } else {
@@ -2438,7 +2451,7 @@ pub fn run_live(
         account_checked: false,
         linked: false,
         cleanup: false,
-        return_until: None,
+        ending: None,
         return_at: None,
         phase: plan.starting_phase(),
         plan,

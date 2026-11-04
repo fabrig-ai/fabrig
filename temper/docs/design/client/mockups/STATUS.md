@@ -38,6 +38,16 @@ Where the client does otherwise:
   which makes the project and opens its chats page, where the mockup's
   Ready names its repository, "ORG/NAME is ready", and opens it. The
   mockup is not edited.
+- **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
+  `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
+  frame holds temper box's line and the steps, and no person's name or
+  "Sign out"; "Set up temper" is the first card and the default;
+  Forge's Forgejo card comes first with "Run on this machine" alone,
+  no "Or connect your deployment"; Model's cards hold the plans alone,
+  no key; the forge's ticked line says who temper is on it and that
+  its first repository is in no project yet; the foot has no "Later";
+  and the words of the cards and leads are the client's. The mockup is
+  not edited.
 
 Not yet known: whether GitHub keeps the state through its
 installation's Configure and Save, and whether the picker reads the

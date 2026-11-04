@@ -26,7 +26,7 @@ Acceptance:
 - `jig/tests/boundary/src/tests.rs`, `engine_http_links_only_its_component_and_foundation`, names `skein-io`.
 - `jig/docs/design/protocol/service.status.md` no longer lists the server. `client.status.md`'s 17.4 **Departs** is true
   of the new paths (step 8).
-- **Size cap:** the branch's net lines are at most +170, tests and manifests included. It rises because the shipped
+- **Size cap:** the branch's net lines are at most +212 (`## Answers`), tests and manifests included. It rises because the shipped
   server carries temper's `hold`, `finish` and `valid`, a hand-written `Debug` and two tests jig's copy never had;
   `temper-server-part` then falls by about 380. Measure it, and stop and ask if it's passed.
 
@@ -262,3 +262,47 @@ now by counts.
 ## Report
 
 The common note's items, with the two tests' breaks, the browser tier's counts, and net lines against the cap.
+
+## Answers
+
+2026-11-04. Q: over `f::server_call`, `PeerEnd::Call` gives no `Ended`, where step 7 and service.md, 11.4 say it does:
+keep the behaviour, or emit a new `Ended`? And compact to +170, or raise the cap?
+
+**Keep the behaviour; no new `Ended`.** The request says behaviour stays unchanged, `notes/service-parts.md` says each
+service keeps its own, and `skein/crates/skein-http/src/server.rs`, `exchange_up`'s `Up::End` arm is what
+`jig/docs/design/protocol/client.md`, 17.4 and `skein/docs/design/http.md`, 5.5 describe: the response goes on and
+nothing is said above. Nothing in jig's copy ever made an `Ended` of it: after a call, `Ended` meets `connection.call`
+empty. So step 7's assertion, step 2's doc comment and step 8's status sentence were wrong, not the code. This answer
+corrects `jig/docs/design/protocol/service.md`, 11.4 on the trunk. Change nothing in skein.
+
+- **Step 2:** `PeerEnd::Call`'s doc comment is `/// Leaves the connection: the response goes on, and the owner hears the
+  call end with it.`
+- **Step 7:** `a_peers_end_during_a_call_follows_its_value` loses `ended` and its match, and ends:
+
+  ```rust
+  server.up(skein_io::Event::Stream { owner: OWNER, up: skein_lib::stream::Up::End }, &mut out);
+  f::server_drain(&mut server, &mut out);
+  let abort = |routed: &Routed| matches!(routed, Routed::Io(skein_io::Request::Abort { entity }) if *entity == SOCKET);
+  assert_eq!(out.iter().any(abort), peer_end == PeerEnd::Connection, "{peer_end:?}: connection end");
+  assert!(!out.iter().any(|routed| matches!(routed, Routed::Http { .. })), "{peer_end:?}: nothing said above");
+  ```
+
+  Its break stays: `ended` ignoring `peer_end` makes the first assertion red under `PeerEnd::Call`.
+- **Step 8:** `client.status.md`, **Departs**, 17.4 reads, whole: "17.4: the reference server, by its `PeerEnd::Call`
+  (`jig/testing/jig-test-service/src/limits.rs`), leaves a peer's end during a mounted call to skein's server and does
+  not end the connection itself (`jig/crates/jig-protocol-engine-clients-http/src/server.rs`): a request all read goes
+  on to its response, the engine end hears nothing of that end, and a stream's end is seen at a failed write or the
+  stall." The clause on `call.rs` goes: it described an `Ended` that doesn't come.
+
+**The cap becomes +212** (42 lines, 25%, the most the plan owner's answer of 2026-11-04 lets an answer call raise).
+Measured: +219 in `d1850d74ed`. Where it goes: the shipped server +407 against -365 in `J/server.rs`, so +42, nearly all
+what the spec names; `Pages` +69, the fixture +37, the two tests +56, `J/clients.rs` +8, the manifests, the lock, the
+boundary list and `limits.rs` +7. +170 can't be met: the rest of that is temper's form, `Pages` and the fixture as steps
+2, 5 and 7 fix them, and the spec's estimate left out the last two. The test above takes about 13 lines, which reaches
+the cap; take any other line that goes without losing behaviour, and don't touch `T`'s form to do it.
+
+Measure, excluding what merges of `jig-workers-host` bring: `git diff a5bd40fd66 HEAD --shortstat -- .
+':!jig/crates/jig-protocol-engine-workers/src/host.rs'`. It reads +219 today. Past +212, ask.
+
+Keep `d1850d74ed` and add commits; merge `origin/debt-7/jig-workers-host` again once it has moved. Then finish what the
+stop left: steps 9 and 10 whole, and both tests' breaks.

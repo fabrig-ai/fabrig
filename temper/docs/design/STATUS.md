@@ -130,5 +130,6 @@ Drafts:
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)

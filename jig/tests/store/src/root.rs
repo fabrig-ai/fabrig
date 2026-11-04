@@ -36,6 +36,7 @@ pub const TASKS_LIMITS: jig_domain_tasks::Limits = jig_domain_tasks::Limits {
     references: 2,
     subscriptions: 2,
     batch: 2,
+    batch_bytes: 131_072,
     dependencies: 2,
     holdings: 2,
     hold_kinds: 2,
@@ -231,8 +232,8 @@ pub fn limits() -> Limits {
     let commits = sizes::Commits { in_flight: 2, writes: 2000 };
     let mut map = skein_kv::Limits {
         key: 1024,
-        // The people family's policy row keeps up to 64 model names (protocol/store.md, 5.1).
-        value: 524_288,
+        // Admit the record bounds before tightening to check_commits' sizes (protocol/store.md, 5.4).
+        value: 1_048_576,
         // Two places per journal write, three creation rows and one orphan erase.
         ops: 4004,
         commit: 1_073_741_824,
@@ -241,8 +242,8 @@ pub fn limits() -> Limits {
         budget: 65_536,
         segment: 1_073_741_824,
         snapshot_after: 1_073_741_824,
-        chunk: 525_332,
-        page: skein_kv::Page { rows: 2, bytes: 525_312 },
+        chunk: 1_049_620,
+        page: skein_kv::Page { rows: 2, bytes: 1_049_600 },
         deadline: Duration::from_secs(1),
     };
     let sizes =

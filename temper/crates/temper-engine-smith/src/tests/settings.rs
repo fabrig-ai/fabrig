@@ -280,6 +280,7 @@ fn settings_neutral_form_preserves_ctls_bounds() {
         neutral.settings.authority_note_resources, ctl.settings.authority_note_resources,
         "authority_note_resources"
     );
+    assert_eq!(neutral.settings.delegation_kinds, 16);
     assert_eq!(neutral.settings.delegation_kinds, ctl.settings.delegation_kinds, "delegation_kinds");
     assert_eq!(neutral.settings.part_key_path_value, ctl.settings.part_key_path_value, "part_key_path_value");
     assert_eq!(
@@ -470,6 +471,141 @@ fn a_runs_proposal_carries_a_project_policy_item() {
     let s::Edit::Set(s::Value::Policy(value)) = &item.edit else { panic!("whole policy value") };
     assert_eq!(value.policy.period_spend, 200);
     assert_eq!(value.policy.ceiling.budget.spend, 100);
+}
+
+fn settings_ceiling(grant_count: u32, kind_count: u32) -> jig_domain_authority::Authority {
+    use jig_domain_authority as authority;
+    let mut ceiling = authority::Authority {
+        tools: authority::Tools(1),
+        models: authority::Models::ALL,
+        grants: Box::default(),
+        delegation: authority::Delegation { kinds: Box::default(), tasks: 18, depth: 4 },
+        budget: authority::Budget { spend: 40, deadline: None },
+        notes: authority::Scopes(0),
+        note_resources: Box::default(),
+    };
+    let mut grants = List::with_capacity(grant_count);
+    for kind in [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19]
+        .into_iter()
+        .take(usize::try_from(grant_count).expect("fixture grant count"))
+    {
+        grants
+            .push(authority::Grant {
+                connector: temper_client_protocol_wire::FORGE,
+                kind,
+                pattern: authority::Pattern {
+                    segments: Box::new([Box::from(b"forge".as_slice())]),
+                    last: authority::Last::Open(Box::default()),
+                },
+            })
+            .expect("fixture grants");
+    }
+    ceiling.grants = grants.into_boxed();
+    let mut kinds = List::with_capacity(kind_count);
+    for kind in [
+        authority::Executor::Charter(1),
+        authority::Executor::Charter(2),
+        authority::Executor::Charter(4),
+        authority::Executor::Charter(6),
+        authority::Executor::Procedure(2),
+        authority::Executor::Procedure(3),
+        authority::Executor::Procedure(4),
+        authority::Executor::Charter(7),
+        authority::Executor::Charter(8),
+        authority::Executor::Charter(9),
+        authority::Executor::Charter(10),
+        authority::Executor::Charter(11),
+        authority::Executor::Charter(12),
+        authority::Executor::Charter(13),
+        authority::Executor::Charter(14),
+        authority::Executor::Charter(15),
+    ]
+    .into_iter()
+    .take(usize::try_from(kind_count).expect("fixture kind count"))
+    {
+        kinds.push(kind).expect("fixture kinds");
+    }
+    ceiling.delegation.kinds = kinds.into_boxed();
+    ceiling
+}
+
+#[test]
+fn the_settings_tool_restores_the_stocks_policy_and_rules() {
+    use jig_domain_authority as authority;
+    use settings_form::view as form;
+    let limits = settings_form::Limits::standard();
+    for (grant_count, kind_count) in [(14, 7), (16, 16)] {
+        let ceiling = settings_ceiling(grant_count, kind_count);
+        let policy = jig_domain_core::ConfiguredPolicy {
+            policy: authority::Policy {
+                escalation_role: Some(0),
+                ceiling: ceiling.clone(),
+                projections: ceiling.grants.clone(),
+                period_spend: 40,
+                roles: Box::new([authority::Role {
+                    number: 0,
+                    authority: ceiling.clone(),
+                    period_spend: 40,
+                    requests: authority::Requests::ALL,
+                    decides: authority::Proposals::ALL,
+                }]),
+                requirements: Box::default(),
+            },
+            permissions: Box::new([jig_domain_people::PermissionRole {
+                connector: temper_client_protocol_wire::FORGE,
+                permission: 1,
+                role: 0,
+            }]),
+            templates: Box::default(),
+        };
+        let rules = authority::Rules {
+            ceiling,
+            period_spend: 40,
+            minimum_run_spend: 1,
+            maximum_run_spend: 40,
+            implies: authority::Implies::new(Box::default(), 0).expect("empty stock implications"),
+            requirements: Box::default(),
+        };
+        for (setting, value) in [
+            (s::Setting::Policy(1), s::Value::Policy(Box::new(policy))),
+            (s::Setting::Rules, s::Value::Rules(Box::new(rules))),
+        ] {
+            let document = jig_domain_core::reads::SettingDocument {
+                setting,
+                revision: 1,
+                value: Some(value),
+                application: None,
+                proposed: None,
+            };
+            let wire =
+                jig_protocol_engine_clients::translate::settings::setting_document(&document, &[], &limits.settings)
+                    .expect("settings document fits wire bounds");
+            let restored = settings_form::wire::restore_setting_document(&wire, &limits)
+                .expect("stock and sixteen-entry settings restore without document limit");
+            assert_eq!(restored.revision, 1);
+            let ceiling = match restored.value.expect("setting value") {
+                form::SettingValue::Policy(policy) => {
+                    assert_eq!(restored.setting, form::Setting::Policy(form::SettingNumber { number: 1 }));
+                    assert_eq!(policy.projections.len(), grant_count);
+                    let role = policy.roles.get(0).expect("stock role");
+                    assert_eq!(role.authority, policy.ceiling);
+                    policy.ceiling
+                }
+                form::SettingValue::Rules(rules) => {
+                    assert_eq!(restored.setting, form::Setting::Rules);
+                    rules.ceiling
+                }
+                form::SettingValue::Application(_)
+                | form::SettingValue::Charter(_)
+                | form::SettingValue::Template(_) => {
+                    panic!("policy or rules");
+                }
+            };
+            assert_eq!(ceiling.grants.len(), grant_count);
+            assert_eq!(ceiling.delegation.kinds.len(), kind_count);
+            settings_text(&SettingsAnswer::Setting(document), None, &[]).expect("settings tool renders the document");
+        }
+    }
 }
 
 #[test]

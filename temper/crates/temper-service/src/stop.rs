@@ -74,7 +74,7 @@ pub(crate) fn advance(engine: &mut Engine) {
         && engine.setup.io.is_empty()
         && engine.forge.closed
         && engine.forge.io.is_empty()
-        && engine.workers.closed()
+        && engine.workers.host.closed()
         && engine.clients.closed
         && engine.clients.io.is_empty()
         && engine.store.idle()

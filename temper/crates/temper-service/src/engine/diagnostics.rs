@@ -22,7 +22,7 @@ impl Engine {
             setup_lifecycle: effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4,
             store: self.store.work_pending(now),
             forge: effects && self.forge.work_pending(now),
-            workers: active && self.workers.work_pending(now),
+            workers: active && self.workers.host.work_pending(now),
             accounts: effects
                 && match &self.accounts {
                     Some(accounts) => accounts.work_pending(now, true),
@@ -50,7 +50,7 @@ impl Engine {
             revision: self.domain.revision(),
             next_deadline,
             requests: self.requests.len(),
-            workers_opened: self.workers.opened(),
+            workers_opened: self.workers.host.opened(),
             clients_opened: self.clients.opened(),
         }
     }

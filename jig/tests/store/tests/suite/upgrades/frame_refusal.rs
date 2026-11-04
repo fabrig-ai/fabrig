@@ -11,8 +11,8 @@ const READER: Token = Token::new(714);
 const TASK: u64 = root::LIVE;
 const ATTEMPT: u64 = 1;
 const PRIOR: &[u8] = b"durable before refusal";
-// store.md 8.1 declares transcript: bytes 8388608 in the current codec.
-const CODEC_TRANSCRIPT_CEILING: u32 = 8_388_608;
+// store.md 8.1 declares transcript: bytes 33554432 in the current codec.
+const CODEC_TRANSCRIPT_CEILING: u32 = 33_554_432;
 const FIRST: u64 = 1;
 const DURABLE: u64 = 2;
 const REFUSED: u64 = 3;

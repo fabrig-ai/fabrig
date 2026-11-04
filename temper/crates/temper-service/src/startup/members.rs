@@ -230,7 +230,7 @@ pub static MEMBERS: [Member; 107] = [
         shape: "application-limits",
         name: "profile",
         kind: "text",
-        bound: "small",
+        bound: "small or standard",
         required: true,
         line: "The limits profile used before applying overrides.",
         gone: None,

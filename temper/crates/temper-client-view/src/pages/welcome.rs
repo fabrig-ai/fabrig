@@ -5,7 +5,6 @@ use crate::{
     words::{Word, Words},
 };
 use skein_ui::{Builder, Role, Run, phrases::Hole};
-use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Address, Domain, Step, forge::forges::Connection, pages::Act};
 
 fn text(b: &mut Builder, w: &Words, role: Role, word: Word) {
@@ -54,8 +53,10 @@ fn control(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, act:
         b.name(&name);
         b.bind(binding);
     }
-    if word == Word::WelcomePlayground || word == Word::WelcomeSetup {
+    if word == Word::WelcomeSetup {
         b.style(look::FLOW_PRIMARY);
+    } else if word == Word::WelcomePlayground {
+        b.style(look::FLOW_SECONDARY);
     } else if word != Word::WelcomePlaygroundInstead {
         b.style(look::FLOW_QUIET);
     }
@@ -64,7 +65,8 @@ fn control(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, act:
 fn go(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, step: Step) {
     control(b, w, bindings, word, Act::Go { address: Address::Welcome { step } });
 }
-fn steps(b: &mut Builder, root: &Domain, w: &Words, current: Step) {
+/// The welcome's steps, in its frame's top bar (3.5).
+pub(crate) fn steps(b: &mut Builder, root: &Domain, w: &Words, current: Step) {
     let welcome = w.say(Word::WelcomeStep, &[]);
     let forge = w.say(Word::WelcomeForgeStep, &[]);
     let model = w.say(Word::WelcomeModelStep, &[]);
@@ -95,9 +97,6 @@ fn setup_description(b: &mut Builder, w: &Words) {
     b.open(Role::Paragraph);
     w.text(b, Word::WelcomeSetupDescription, &[]);
     b.close();
-    b.open(Role::Paragraph);
-    w.text(b, Word::WelcomeYourModel, &[]);
-    b.close();
     b.close();
 }
 
@@ -116,7 +115,6 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::WELCOME);
-    steps(b, root, w, step);
     let playground = temper_client_domain::pages::welcome::decision(root)
         == Some(temper_client_domain::pages::welcome::FirstRun::Empty);
     match step {
@@ -129,6 +127,11 @@ pub(crate) fn main(
                 lead(b, w);
                 b.open(Role::Slot);
                 b.style(look::WELCOME_CHOICES);
+                card(b, w, Word::WelcomeSetup);
+                setup_description(b, w);
+                paragraph(b, w, Word::WelcomeSetupTime, look::WELCOME_MUTED);
+                go(b, w, bindings, Word::WelcomeSetup, Step::Forge { forge: None });
+                b.close();
                 if playground {
                     card(b, w, Word::WelcomePlayground);
                     text(b, w, Role::Paragraph, Word::WelcomePlaygroundDescription);
@@ -136,11 +139,6 @@ pub(crate) fn main(
                     control(b, w, bindings, Word::WelcomePlayground, Act::Playground);
                     b.close();
                 }
-                card(b, w, Word::WelcomeSetup);
-                setup_description(b, w);
-                paragraph(b, w, Word::WelcomeSetupTime, look::WELCOME_MUTED);
-                go(b, w, bindings, Word::WelcomeSetup, Step::Forge { forge: None });
-                b.close();
                 b.close();
                 if playground {
                     paragraph(b, w, Word::WelcomeAfter, look::WELCOME_AFTER);
@@ -177,13 +175,6 @@ pub(crate) fn main(
             Step::Welcome | Step::Forge { forge: None } => Step::Welcome,
         };
         go(b, w, bindings, Word::WelcomeBack, back);
-        control(
-            b,
-            w,
-            bindings,
-            Word::WelcomeLater,
-            Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
-        );
         if playground {
             control(b, w, bindings, Word::WelcomePlaygroundInstead, Act::Playground);
         }
