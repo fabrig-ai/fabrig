@@ -85,7 +85,7 @@ fn outputs(
                     run,
                     attempt,
                     name: Token::new(word.number),
-                    sender: jig_protocol_charter::sender(word.from),
+                    sender: word.from.sender(),
                     finish_requested: word.finish_requested(),
                     words: jig_protocol_tools::words(&word),
                 }))
