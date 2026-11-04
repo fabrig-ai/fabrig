@@ -1094,15 +1094,15 @@ domain sees only typed values.
 | Crate | Format | Way |
 |---|---|---|
 | `hearth-protocol-link` | the link's records (4.1), `TryLive`'s plan included (5.17) | both |
-| `hearth-protocol-state` (new) | the records of `@hearth.state` (7.1), the trial marker, the live record and its manifest (hearth/docs/design/domain/slots.md, 2.4), the classes' snapshot records [M5], the slot record inside the root (hearth/docs/design/domain/slots.md, 2.2) | both |
-| `hearth-protocol-accounts` (new) | `/etc/passwd`, `/etc/group`, `/etc/shadow` lines | read; `/etc/shadow` written |
-| `hearth-protocol-units` (new) | fstab (hearth/docs/design/domain/machine.md, 3.3), the trial's units and the watchdog's drop-in (hearth/docs/design/domain/slots.md, 5.5); a container's nspawn settings [M5] (hearth/docs/design/domain/slots.md, 12.1) | written |
-| `hearth-protocol-xattr` (new) | `security.capability` v2 and v3, POSIX ACL values (hearth/docs/design/domain/slots.md, 5.2) | both |
+| `hearth-protocol-state` | the records of `@hearth.state` (7.1), the trial marker, the live record and its manifest (hearth/docs/design/domain/slots.md, 2.4), the classes' snapshot records [M5], the slot record inside the root (hearth/docs/design/domain/slots.md, 2.2) | both |
+| `hearth-protocol-accounts` | `/etc/passwd`, `/etc/group`, `/etc/shadow` lines | read; `/etc/shadow` written |
+| `hearth-protocol-units` | fstab (hearth/docs/design/domain/machine.md, 3.3), the trial's units and the watchdog's drop-in (hearth/docs/design/domain/slots.md, 5.5); a container's nspawn settings [M5] (hearth/docs/design/domain/slots.md, 12.1) | written |
+| `hearth-protocol-xattr` | `security.capability` v2 and v3, POSIX ACL values (hearth/docs/design/domain/slots.md, 5.2) | both |
 | `hearth-protocol-tree` | the store's layer records and tree files, read; the slot manifest, a tree file (hearth/docs/design/domain/store.md, 6.2 and 6.3) | both |
 | `hearth-protocol-efi` | efivarfs variables and `EFI_LOAD_OPTION` (hearth/docs/design/domain/machine.md, 4.5); efibootmgr's argument vectors | both |
 | `hearth-protocol-grub` [M3b] | `grub.cfg`, a slot's fragment, the environment block (hearth/docs/design/domain/machine.md, section 5); grub-editenv's and grub-install's argument vectors | both |
 | `hearth-protocol-systemd` | systemctl's and systemd-run's lines: states, counts, ids, failed units, `Result`; a job's outcome, and `ActiveState`, `InvocationID`, `NRestarts` and `MainPID` per unit (hearth/docs/design/domain/slots.md, 6.8) | read |
-| `hearth-protocol-proc` (new) | `/proc/<pid>/mountinfo` lines: mount ids, parents, mount points, propagation, fstype, source and options, an overlay's layers included; `/proc/<pid>/cgroup`, a process's unit | read |
+| `hearth-protocol-proc` | `/proc/<pid>/mountinfo` lines: mount ids, parents, mount points, propagation, fstype, source and options, an overlay's layers included; `/proc/<pid>/cgroup`, a process's unit | read |
 | `hearth-protocol-keygen` | ssh-keygen's argument vector and public line | both |
 | `hearth-protocol-dpkg` | dpkg's status, for capturing a mutable machine's packages (hearth/docs/design/domain/development.md, section 5) | read |
 
@@ -1201,7 +1201,7 @@ an exit status (mount, parted, the mkfs tools and the rest of 8.2).
   renames [M5]; sends and receives cut mid-stream, and faults that
   outlive their engine [M6].
 
-## 10. What is open
+## 10. Open questions
 
 - **Hashing contents again at every prepare,** or trusting the builder's
   records where the builder runs only landed code; depends on the

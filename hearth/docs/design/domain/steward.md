@@ -401,7 +401,7 @@ hearth-activator.service      Delegate=yes; memory and pids enabled
   a build ends a job, the steward reports it, and the activator is
   reached only through typed requests.
 
-## 10. What is open
+## 10. Open questions
 
 - **The linger, the deadlines and the builder's ceiling,** to set from
   measurements of the builder's start, its passes and its peak memory
