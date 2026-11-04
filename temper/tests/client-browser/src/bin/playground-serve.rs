@@ -40,7 +40,8 @@ impl Host {
 
     fn file(&self, path: &str) -> io::Result<PathBuf> {
         // Bundle names are literal file names; refuse escaped separators and traversal too.
-        if !path.starts_with('/') || path.contains(['%', '\\', '\0'])
+        if !path.starts_with('/')
+            || path.contains(['%', '\\', '\0'])
             || Path::new(path).components().any(|part| matches!(part, Component::ParentDir))
         {
             return Err(io::Error::from(io::ErrorKind::PermissionDenied));
@@ -71,10 +72,7 @@ impl Host {
         let method = words.next().unwrap_or("");
         let path = words.next().unwrap_or("/").split('?').next().expect("path");
         let mut fields = self.fields(path);
-        let (status, body, content_type) = if !matches!(method, "GET" | "HEAD") {
-            fields.insert("Allow".into(), "GET, HEAD".into());
-            ("405 Method Not Allowed", Vec::new(), "text/plain")
-        } else {
+        let (status, body, content_type) = if matches!(method, "GET" | "HEAD") {
             match self.file(path) {
                 Ok(file) => {
                     let body = fs::read(&file)?;
@@ -85,8 +83,15 @@ impl Host {
                     (status, Vec::new(), "text/plain")
                 }
             }
+        } else {
+            fields.insert("Allow".into(), "GET, HEAD".into());
+            ("405 Method Not Allowed", Vec::new(), "text/plain")
         };
-        write!(stream, "HTTP/1.1 {status}\r\nConnection: close\r\nContent-Length: {}\r\nContent-Type: {content_type}\r\n", body.len())?;
+        write!(
+            stream,
+            "HTTP/1.1 {status}\r\nConnection: close\r\nContent-Length: {}\r\nContent-Type: {content_type}\r\n",
+            body.len()
+        )?;
         for (name, value) in fields {
             write!(stream, "{name}: {value}\r\n")?;
         }
