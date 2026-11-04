@@ -112,6 +112,7 @@ fn provider_templates(
 
 /// The accounts component, its io and one ordered pass over its effects.
 #[expect(missing_debug_implementations, reason = "the accounts component holds token records")]
+#[expect(clippy::partial_pub_fields, reason = "the owner submits the host's io requests")]
 pub struct Accounts {
     component: Component,
     env: Env<driver::Limits>,
@@ -140,6 +141,7 @@ impl Accounts {
         let providers = provider_templates(config, runtime.as_mut(), &limits, installation)?;
         Ok(Self::made(Component::new(application, providers, limits, crypto, secrets.page.rows), limits))
     }
+    #[expect(clippy::large_types_passed_by_value, reason = "the host owns its limits")]
     fn made(component: Component, limits: driver::Limits) -> Self {
         Self {
             component,

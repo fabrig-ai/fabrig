@@ -21,6 +21,7 @@ fn keep(host: &mut Accounts) {
     host.request(domain::Request::Signing(domain::Signing::Keep { source: 7, carried: 11, replaces: false }));
 }
 fn get(host: &mut Accounts, table: &mut Table) -> Token {
+    assert_eq!(begin(host, true, &mut Queue::uncapped()), 1);
     let Some(Output::Store { exchange, request: store::Secrets::Get { .. } }) = host.output(table) else {
         panic!("read carried key")
     };
@@ -33,7 +34,6 @@ fn an_answer_taken_at_begin_is_stepped_before_the_fire_that_counts_its_work() {
     let mut table = Table::new(1, 32);
     assert_eq!(begin(&mut host, true, &mut answers), 0);
     keep(&mut host);
-    assert_eq!(begin(&mut host, true, &mut answers), 1);
     let exchange = get(&mut host, &mut table);
     answers.push(store::Event::Secret {
         owner: Token::tagged(3, exchange.raw()).expect("tagged exchange"),
@@ -44,7 +44,8 @@ fn an_answer_taken_at_begin_is_stepped_before_the_fire_that_counts_its_work() {
     });
     assert_eq!(begin(&mut host, true, &mut answers), 1);
     assert!(answers.is_empty());
-    assert!(matches!(host.output(&mut table), Some(Output::Store { request: store::Secrets::Adopt { .. }, .. })));
+    let Some(Output::Store { request, .. }) = host.output(&mut table) else { panic!("adoption request") };
+    let store::Secrets::Adopt { .. } = request else { panic!("adoption after answer") };
 }
 #[test]
 fn opened_reaches_the_component_only_when_marked() {
@@ -54,7 +55,6 @@ fn opened_reaches_the_component_only_when_marked() {
     assert!(!host.opened());
     assert_eq!(begin(&mut host, true, &mut Queue::uncapped()), 0);
     assert!(host.opened());
-    assert_eq!(begin(&mut host, true, &mut Queue::uncapped()), 1);
     get(&mut host, &mut Table::new(1, 32));
 }
 #[test]
@@ -65,12 +65,11 @@ fn a_held_event_leaves_first_and_is_work_until_it_does() {
     host.effects.push(Effect::InvalidSecret);
     assert_eq!(begin(&mut host, false, &mut Queue::uncapped()), 2);
     let mut table = Table::new(1, 32);
-    assert!(matches!(
-        host.output(&mut table),
-        Some(Output::Account(domain::Event::Component(domain::FromComponent::Closed)))
-    ));
+    let Some(Output::Account(domain::Event::Component(domain::FromComponent::Closed))) = host.output(&mut table) else {
+        panic!("held event first")
+    };
     assert!(!host.held());
-    assert!(matches!(host.output(&mut table), Some(Output::InvalidSecret)));
+    let Some(Output::InvalidSecret) = host.output(&mut table) else { panic!("waiting effect second") };
     assert_eq!(host.effects(), 0);
     assert!(!host.work_pending(Time::ZERO, false));
 }
@@ -92,10 +91,8 @@ fn a_grant_reaches_the_table_before_its_event_leaves() {
     let mut table = Table::new(1, 32);
     assert!(host.output(&mut table).is_none());
     assert_eq!(table.value(7, 1, Time::ZERO).expect("grant before event").token.expose(), b"key");
-    assert!(matches!(
-        host.output(&mut table),
-        Some(Output::Account(domain::Event::Component(domain::FromComponent::Granted { account: 7, .. })))
-    ));
+    let Some(Output::Account(domain::Event::Component(event))) = host.output(&mut table) else { panic!("grant event") };
+    let domain::FromComponent::Granted { account: 7, .. } = event else { panic!("granted account") };
 }
 #[test]
 fn an_aborted_host_opens_nothing_and_drops_its_store_requests() {
@@ -123,7 +120,6 @@ fn a_restored_secret_of_the_wrong_kind_is_reported() {
         provider: 1,
         kind: domain::Kind::Key,
     }));
-    assert_eq!(begin(&mut host, true, &mut Queue::uncapped()), 1);
     let mut table = Table::new(1, 32);
     let exchange = get(&mut host, &mut table);
     host.answer(store::Event::Secret {
@@ -131,17 +127,17 @@ fn a_restored_secret_of_the_wrong_kind_is_reported() {
         value: Some(store::SecretValue::Record(Secret::new(bytes::copy_of(b"record")))),
     });
     assert_eq!(begin(&mut host, true, &mut Queue::uncapped()), 2);
-    assert!(matches!(host.output(&mut table), Some(Output::InvalidSecret)));
+    let Some(Output::InvalidSecret) = host.output(&mut table) else { panic!("invalid restored secret") };
 }
 #[test]
 fn trust_bounds_refuse_tls_alone_and_none_checks_nothing() {
-    for bounds in [
-        None,
-        Some(TrustBounds { roots: 0, bytes: 1 }),
-        Some(TrustBounds { roots: 1, bytes: 0 }),
-        Some(TrustBounds { roots: 1, bytes: 1 }),
+    for (bounds, refused) in [
+        (None, false),
+        (Some(TrustBounds { roots: 0, bytes: 1 }), true),
+        (Some(TrustBounds { roots: 1, bytes: 0 }), true),
+        (Some(TrustBounds { roots: 1, bytes: 1 }), false),
     ] {
         assert!(!untrusted(bounds, false));
-        assert_eq!(untrusted(bounds, true), bounds.is_some_and(|bounds| bounds.roots == 0 || bounds.bytes == 0));
+        assert_eq!(untrusted(bounds, true), refused);
     }
 }
