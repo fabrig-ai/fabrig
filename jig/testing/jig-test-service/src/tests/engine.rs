@@ -1087,3 +1087,19 @@ fn pass_files(driven: &mut fixtures::Driven, next_file: &mut i32) {
         }
     }
 }
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the canary checks formatted values and bytes")]
+fn the_workers_host_counts_what_it_holds() {
+    let canary = "canary-workers-host";
+    let mut service = fixtures::started(&fixtures::workers_document());
+    let workers = &mut fixtures::engine(&mut service).workers.as_mut().expect("workers").host;
+    workers.io.push(skein_io::Request::Output {
+        stream: skein_lib::Token::new(1),
+        down: skein_lib::stream::OutputDown::Send {
+            right: skein_lib::Token::new(1),
+            bytes: Box::from(canary.as_bytes()),
+        },
+    });
+    let debug = format!("{workers:?}");
+    assert!(!debug.contains(canary) && !debug.contains(&format!("{:?}", canary.as_bytes())), "{debug}");
+}
