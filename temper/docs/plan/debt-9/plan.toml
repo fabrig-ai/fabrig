@@ -9,32 +9,6 @@ low = 1.0
 high = 2.0
 
 [[part]]
-id = "github-media-type"
-title = "the fake GitHub names github.com's media types everywhere; the charset switch goes"
-mode = "direct"
-needs = []
-design = "skein/docs/design/fake-forge.md, 10.6"
-
-[[slice]]
-id = 1
-story = "every reply of the fake GitHub, on the peer's connections and in Inline, names github.com's spelling"
-parts = ["github-media-type"]
-walk = false
-
-[[part]]
-id = "temper-wrong-kind"
-title = "temper's wrong-kind secret: reproduced, then settled on the user's answer"
-mode = "direct"
-needs = []
-design = "jig/docs/design/protocol/service.md, 11.1"
-
-[[slice]]
-id = 2
-story = "a restored secret of the wrong kind does in temper what the user says it means, with a test that fails today"
-parts = ["temper-wrong-kind"]
-walk = false
-
-[[part]]
 id = "smith-one-program"
 title = "smith D008: the configuration holds its one program, and the map's lint exceptions go"
 mode = "direct"
@@ -86,16 +60,6 @@ id = 5
 story = "the four components stand on one transport, and a graceful close over TLS reaches the server as close_notify"
 parts = ["transport"]
 walk = false
-
-[[question]]
-id = "github-media-type-assertions"
-text = """Removing the fake GitHub's charset switch reaches three assertions, and the request approves one. Approved: skein/tests/fake-peers/tests/forge/github.rs, `page.header(b"content-type")`, bare text/html. Not counted when the question was asked: (1) the next assertion of that same test, `conversion.header(b"content-type")`, bare application/json; (2) the_peers_server_names_a_bare_media_type in skein-fake-forge-github/src/tests/inline.rs, which pins the switch itself and can't hold without it. The decision's own words, "github.com's spelling, with `; charset=utf-8`, everywhere", need both to go, but "no other does" says they don't move, so the two lines can't both stand. Options: (a) recommended: both follow the decision: (1) reads `application/json; charset=utf-8`, (2) is deleted, since an_app_request_is_answered_whole already pins the one spelling. (b) only text/html moves to the long form and Json stays bare on Server: the switch stays in another form, against "everywhere", and the machine and setup stories that read the long JSON form need one. The task github-media-type stops with a Question until this has an answer: it moves neither on its own."""
-parts = ["github-media-type"]
-
-[[question]]
-id = "wrong-kind-meaning"
-text = """What does a restored secret of the wrong kind mean in temper? The request says: make temper stop if the design says the engine stops; if the design is silent, stop and ask. It is silent. jig/docs/design/protocol/service.md, 11.1 says "`InvalidSecret`, a restored secret of the wrong kind: what that means is the owner's", and temper's design names no meaning: credentials.md, 5 stops the engine on "a failure of jig's secrets' store itself", and here the store answered correctly. The nearest rules lean both ways: jig's protocol/store.md, 7.1 stops on a row that doesn't decode, while skein/docs/design/oauth.md, 6.4 fails only the grant and lets a sign-in replace it. By reading, not yet by a run, temper's accounts child aborts and the engine runs on with no owner told. Options: (a) recommended: temper stops, as jig does, since the store holds what the account's row says it should not. One sentence joins credentials.md, 5; about three lines and a test join temper-service, in files no other draft is changing. It stops on every path that reaches Component::secret, not only a restore. (b) a failure of that one source: the grant fails and a sign-in replaces it, which needs design and more code, so a new task. (c) keep today's behaviour and write that down: the child stays aborted with the engine running. The task temper-wrong-kind reproduces it, then stops with a Question until this has an answer. A real store Corrupt on an accounts write has the same fate today; that is a separate gap, left as it is, and named here for the user."""
-parts = ["temper-wrong-kind"]
 
 [[question]]
 id = "link-role"

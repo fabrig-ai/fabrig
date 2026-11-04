@@ -1,3 +1,5 @@
+(11-04, agents/loop for fabrig/debt: parts github-media-type and temper-wrong-kind and their questions left this plan, waiting on the user; specs in `coord/debt/held-debt-9/`.)
+
 # debt-9: three independent parts of debt
 
 The request has three parts: skein D016, the user's two follow-ups, and four smith items. `Failed: cut short`
