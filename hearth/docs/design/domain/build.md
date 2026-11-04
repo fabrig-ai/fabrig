@@ -155,7 +155,7 @@ plan(spec)
   few megabytes, not a system.
 - **What a reconciled layer may carry:** a purged package's leftovers,
   old conffiles, debconf answers and maintainer scripts' state, which a
-  scratch build would not hold (temper's `factory.md`, 6.4). The
+  scratch build would not hold (`draft/archive/factory.md`, 6.4). The
   periodic scratch build bounds that history. Comparing a reconciled
   layer with a scratch build of the same key is the lab's experiment,
   run in the background, never a step of a build.
@@ -982,7 +982,7 @@ with its tail.
   software, shared by every layer and target; a `.deb` is fetched once
   per store.
 - **An apt proxy is optional,** the fetcher's from the builder's
-  configuration (apt-cacher-ng on a pool's host, temper's `factory.md`,
+  configuration (apt-cacher-ng on a pool's host, `draft/archive/factory.md`,
   6.5), never in a key. snapshot.debian.org already redirects to
   content-addressed URLs.
 - **Peers [M6]:** change sets and blobs by digest, within a plane
@@ -1081,7 +1081,7 @@ with its tail.
 
 - **The bounds on a reconciled line:** a depth of 8 and a period of 30
   days are guesses; they depend on what the lab's comparison of
-  reconcile and scratch finds (temper's `factory.md`, 6.4), and on how
+  reconcile and scratch finds (`draft/archive/factory.md`, 6.4), and on how
   often snapshots are bumped.
 - **Preseeds where no essential hook runs:** the `custom` variant, if
   containers take it (protocol/format.md, section 13), and preseeds for

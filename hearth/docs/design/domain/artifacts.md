@@ -1,6 +1,6 @@
 # Artifacts
 
-Provisional, 2026-10-09. hearth's second recipe (temper's `factory.md`,
+Provisional, 2026-10-09. hearth's second recipe (`draft/archive/factory.md`,
 section 7): an artifact made from a build environment, sources and a
 command. It says what a recipe names, how its key is made, how an
 artifact is kept and served, how the command runs, what compile caches
@@ -66,7 +66,7 @@ limits        memory, processes, time, disk                     (5.4; not in the
 ```
 
 - **A recipe is data in the repository it builds,** read at a commit:
-  product knowledge lives with the product (temper's `factory.md`,
+  product knowledge lives with the product (`draft/archive/factory.md`,
   section 1). The same repository may hold the IaC of the product's
   clusters and of its build environment, as stoa's does.
 
@@ -132,7 +132,7 @@ text.
 - **Submodules are not followed** in M6: a gitlink in the selection is
   an error. Large-file pointers are content like any other.
 - **Fetched as the IaC repository is,** by the builder's git, into a
-  local clone kept as a cache (temper's `factory.md`, section 7).
+  local clone kept as a cache (`draft/archive/factory.md`, section 7).
 
 ### 2.5 Declared inputs
 
@@ -194,7 +194,7 @@ the same as for layer keys.
   recipes that agree on everything make one artifact.
 - **The commit is not in the key:** only what the commit holds at the
   selected paths is. A head that edits only the README keeps S, the key
-  and every key above it (temper's `factory.md`, 8.5).
+  and every key above it (`draft/archive/factory.md`, 8.5).
 
 ### 3.2 The sources' digest
 
@@ -457,7 +457,7 @@ Every build records, and reports as facts (protocol/wire.md, section 6):
   order "build this artifact", keyed by its key, or by repository,
   commit and recipe; and a fact "key → tree digest, or failed" (protocol/wire.md,
   sections 5.4 and 6): the one effect and the one fact the lab's
-  connector needs (temper's `factory.md`, section 7). The steward takes
+  connector needs (`draft/archive/factory.md`, section 7). The steward takes
   the order and runs it as its builder's job (domain/steward.md, 3.3).
 - **The client:** resolve a recipe at a commit to its key and pin
   (7.1), and build it locally (client/README.md, section 3).
@@ -479,8 +479,7 @@ Every build records, and reports as facts (protocol/wire.md, section 6):
 
 - **A new environment output key is a new cache,** cold. A toolchain
   bump changes the environment's identity and output key, so it starts
-  afresh, as it changes every artifact key built with it (temper's
-  `factory.md`, section 7).
+  afresh, as it changes every artifact key built with it (`draft/archive/factory.md`, section 7).
 - **The cache records the environment's tree digest** it was filled
   against. If the builder's copy of the environment changes under the
   same key (built again after collection, or fetched from a peer), its
@@ -610,7 +609,7 @@ section 10, shows the entry's shape):
 
 - **"This head" is the revision being rendered.** With no repository and
   no commit, the recipe is read from the repository being rendered, at
-  the same revision. This is temper's `factory.md` (8.5) case: an
+  the same revision. This is `draft/archive/factory.md` (8.5) case: an
   experiment and its cluster are data in the product's repository, so
   the cluster at head h names stoa built from h.
 - **The software part holds the recipe and its sources' listing, never
@@ -627,7 +626,7 @@ section 10, shows the entry's shape):
   software key, of every head entry built with it, with the consumers'
   parts unchanged; the bump's rendered diff shows it on the
   environment's target, and the lab's experiment key names the artifact
-  beside the specs (temper's `factory.md`, 8.1).
+  beside the specs (`draft/archive/factory.md`, 8.1).
 - **Which environments use it is data.** A lab variant can override a
   base's pin with this form, through merging (protocol/format.md, section 4): the
   lab builds heads, production runs pins.
@@ -677,7 +676,7 @@ The bash fleet already pins software built outside Debian by digest:
 
 ### 7.6 A head of stoa
 
-temper's `factory.md` (8.5), in hearth's terms. The experiment and the
+`draft/archive/factory.md` (8.5), in hearth's terms. The experiment and the
 cluster's members `stoa-1-lab`, `stoa-2-lab` and `stoa-3-lab` are data
 in stoa's repository, with the environment `stoa-build-lab`; the lab
 variant's software entry is `{ "recipe": "stoa" }`.

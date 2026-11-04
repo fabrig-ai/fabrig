@@ -1,7 +1,7 @@
 # hearth's design
 
 Provisional, 2026-10-09, revised 2026-10-19. The design of hearth, the
-factory's build daemon (temper's `factory.md`, section 7): what it
+factory's build daemon (`draft/archive/factory.md`, section 7): what it
 makes, how it makes it, how a machine runs what it made, and how all of
 it is tested. It takes `draft/brainstorm.md` further and holds where the
 two differ (section 7). The mechanics are those of skein's
@@ -363,7 +363,7 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
 | activator, steward, builder | the three processes: root and closed; persistent, deciding and facing; spawned for work (domain/activator.md, domain/steward.md) |
 | link, jobs | the pipe pairs between the activator and its steward, and between the steward and its builder |
 | client | the command-line face (client/README.md, section 3) |
-| engine | what orders a machine: the run side's or the lab's (temper's `factory.md`) |
+| engine | what orders a machine: the run side's or the lab's (`draft/archive/factory.md`) |
 | plane | the lab or the run side: outputs and credentials never cross between them |
 | standalone | hearth with no engine, converging to its desired revision |
 | desired revision | what a machine converges to: ordered by its engine, or set locally |
@@ -384,7 +384,7 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
 - **skein's foundation documents** are named by their file names:
   `programming-model.md`, `testing-strategy.md`, `notes.md`. Other
   documents carry their project's name, never a path: skein's
-  `channel.md`, temper's `factory.md`, jig's `connectors.md`, os's
+  `channel.md`, `draft/archive/factory.md`, jig's `connectors.md`, os's
   `deploy.md`.
 - **Each document** says in one page what it is, then its parts, what it
   owes and is owed below the domain, its world, what it keeps or changes

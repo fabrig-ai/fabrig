@@ -255,7 +255,7 @@ waiting      the activator reports "fell back" from b    waiting      refuse b's
   (domain/store.md, 7.1).
 - **Compare before building.** Most commits change nothing for most
   targets: their output key is the running slot's, and the pass ends in
-  milliseconds after the fetch (temper's `factory.md`, 6.2).
+  milliseconds after the fetch (`draft/archive/factory.md`, 6.2).
 - **A prepared slot is reused.** When the inactive slot already holds
   S, untried (a manual trial, or a pass interrupted by a restart), the
   pass goes straight to trying.
@@ -372,7 +372,7 @@ be made or run, so its prepare key is refused.
   back from (4.4), so the loop does not try that slot again; a new
   commit with another key, a fix or a revert, converges as usual. This is the
   standalone form of the run side's rule that a roll back holds a
-  machine until the desired state matches again (temper's `factory.md`,
+  machine until the desired state matches again (`draft/archive/factory.md`,
   section 9).
 
 ### 4.6 Secrets rotated
@@ -907,7 +907,7 @@ Application kinds of skein's channel; each belongs to one direction.
   Ranges resume an interrupted transfer; a file-backed body serves it
   without reading it into memory (both asks of skein, README.md, 8.1).
 - **Who serves:** every hearth of a plane, for the layers its store
-  holds, and a pool's cache (temper's `factory.md`, 6.5). The steward
+  holds, and a pool's cache (`draft/archive/factory.md`, 6.5). The steward
   holds the HTTP listener; a change set's bytes come from a builder's
   job, streamed through the steward (domain/steward.md, 2.1 and 3.3).
   `hearth-protocol-http` holds the routing, on skein's HTTP client and
@@ -933,14 +933,14 @@ Application kinds of skein's channel; each belongs to one direction.
 ## 9. Generic at the wire [M4]
 
 The factory wants its concepts generic, with hearth as their first
-backend (temper's `factory.md`, section 7). The genericity lives in the
+backend (`draft/archive/factory.md`, section 7). The genericity lives in the
 wire, not in traits: another backend is another daemon speaking it.
 
 | What an engine sees | What it is inside hearth, which the engine never sees |
 |---|---|
 | a target, a revision | a base in an environment; a commit of the IaC repository (protocol/format.md) |
 | an output, by key | the config layer, on software and packages layers, on btrfs (domain/store.md) |
-| parts, by name and digest | packages, software, config, data, secrets, boot: names the engine's policy may match ("caution follows what changed", temper's `factory.md`, 6.3), never interprets |
+| parts, by name and digest | packages, software, config, data, secrets, boot: names the engine's policy may match ("caution follows what changed", `draft/archive/factory.md`, 6.3), never interprets |
 | a slot, by label, and the four facts | `@<target>.<label>` and its `/var`; `BootNext`, `BootOrder`, GRUB's env (domain/machine.md); a delta subvolume and overlays in the mount table; for a container, its link and the default its host records [M5] (domain/slots.md, 12.6) |
 | an activation: live, soft reboot, reboot, restart | overlays swapped beneath `/etc`, `/usr/local` and `/opt` with the units acted on (domain/slots.md, 6.8); `systemctl soft-reboot` into `/run/nextroot`; `systemctl reboot` with `SYSTEMCTL_SKIP_AUTO_SOFT_REBOOT=1` (domain/slots.md, section 6); a container's restart |
 | a unit, by name | a systemd unit of the running slot |
@@ -1021,7 +1021,7 @@ wire, not in traits: another backend is another daemon speaking it.
   its builder (domain/steward.md, 2.3).
 - **A break-glass hold under an engine:** whether a person on the
   machine may hold it against its engine's orders; it depends on the run
-  side's rule that no hand touches a machine (temper's `factory.md`,
+  side's rule that no hand touches a machine (`draft/archive/factory.md`,
   section 9).
 - **Names for the engine:** resolving the engine's name while running,
   rather than at startup; it depends on a resolver in skein's io.

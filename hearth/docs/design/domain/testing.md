@@ -1302,7 +1302,7 @@ cause one in a VM is open (section 11).
 - **Never at the gate.** It runs by choice, and before a hearth release
   reaches a real machine: x1-prod, the MVP's.
 - **Until the lab exists.** The lab's throwaway machines then run the
-  same scenarios (temper's `factory.md`).
+  same scenarios (`draft/archive/factory.md`).
 
 ### 7.6 The development loop
 
@@ -1578,7 +1578,7 @@ machine is too noisy to fail on.
 ### 9.4 The lab
 
 Once the lab exists, it benchmarks hearth as it does any product
-(temper's `factory.md`): real targets built and activated, their cost
+(`draft/archive/factory.md`): real targets built and activated, their cost
 facts compared run over run. A regression in hearth's efficiency is a
 finding, as a failing check is.
 

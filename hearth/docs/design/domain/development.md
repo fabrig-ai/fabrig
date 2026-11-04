@@ -54,7 +54,7 @@ up ──▶ explore (mutable) ──▶ capture ──▶ encode in IaC ──�
 ```
 
 Exploring is for what the agent does not know yet. Development is one
-activity at different stakes (temper's `factory.md`, section 3): run a
+activity at different stakes (`draft/archive/factory.md`, section 3): run a
 revision somewhere and watch it, here on one agent's throwaway machine
 with a root it may change. A session, adding DKIM to `mail-dev`, the
 mail stack, which `dev` places as a container on `rhi-dev` as `prod`
@@ -411,11 +411,10 @@ the kernel and its command line are the host's.
   - the upgrade from production's revision and data;
   - a sealed root, on which a service that writes `/etc` fails (5.3);
   - several related changes together.
-- **These are the lab's,** at QA or at the landing gate (temper's
-  `factory.md`, section 8): a sealed throwaway machine bootstrapped at
+- **These are the lab's,** at QA or at the landing gate (`draft/archive/factory.md`, section 8): a sealed throwaway machine bootstrapped at
   the change's head, possibly once for a stack of related changes, at
   its top. So is the comparison of patch and scratch for the packages
-  layer (domain/build.md, 4.2; temper's `factory.md`, 6.4).
+  layer (domain/build.md, 4.2; `draft/archive/factory.md`, 6.4).
 - **What lands is the agent's own commit** of the same tree;
   `refs/hearth/dev/` never leaves the development host. Reviewers read
   the rendered diff (domain/render.md, section 6) and the lab's verdicts gate
@@ -430,7 +429,7 @@ reaching each machine's hearth through `incus exec` as a person at the
 machine would. Nothing in the daemon depends on Incus: a development
 machine is a standalone machine, and only `mutable: accept` and `hearth
 retarget` know its use. It is the lab's pool-host machinery used by hand
-(temper's `factory.md`, 5.2 and section 8): create a throwaway machine,
+(`draft/archive/factory.md`, 5.2 and section 8): create a throwaway machine,
 keyed; apply a revision; read the facts; tear it down. The lab automates
 the same loop, its engine in the agent's place.
 
@@ -482,7 +481,7 @@ backoff), a timeout, a full pool.
   disk image, by Incus's direct kernel boot with its root over virtiofs
   (domain/machine.md, 2.6).
 - **One build, a snapshot per VM, a boot in seconds:** a cluster of one
-  spec costs one build, as the lab's pools do (temper's `factory.md`,
+  spec costs one build, as the lab's pools do (`draft/archive/factory.md`,
   6.5; domain/slots.md, 12.4), and the host's store stays warm across every
   `down`. No base image and no adoption: slots, records and identities
   are the host's activator's, as a container's are.

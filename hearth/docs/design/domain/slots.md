@@ -1578,7 +1578,7 @@ and no one-shot. A change to the container's parameters is never live
 
 ### 12.4 Pool hosts
 
-- **One build, then a snapshot per container** (temper's `factory.md`,
+- **One build, then a snapshot per container** (`draft/archive/factory.md`,
   6.5): a lab pool runs many containers of one output.
 - **The lean:** shift once, into a base subvolume the host's activator
   keeps owned from 0; snapshot that base for each container; and let

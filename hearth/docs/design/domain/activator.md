@@ -178,7 +178,7 @@ a secret's value or digest.
   a `hearth` group can read, 2.2), root from the IaC's code, and the
   machine from operations outside the closed list. Bad outputs are kept
   out upstream: by review, by the lab, and by outputs never crossing
-  planes (temper's `factory.md`).
+  planes (`draft/archive/factory.md`).
 - **Open (section 10):** how far the activator trusts the builder's
   records (6.3; README, section 9), and whether it should place only a
   hearth binary whose digest it already holds.

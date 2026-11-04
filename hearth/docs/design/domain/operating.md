@@ -5,7 +5,7 @@ for as long as a target runs: the checks that say what healthy means, a
 slot blessed by them, the facts it sends up, the telemetry it keeps and
 serves, the operational effects it carries out, snapshots and backups
 of its data, and the faults a lab's pool host injects. It is the
-machine's end of the run side (temper's `factory.md`, section 9); the
+machine's end of the run side (`draft/archive/factory.md`, section 9); the
 rest is the engine's. M5 builds it, local snapshots and restores
 included; backups and faults are M6's and say so. What is open is in
 section 10.
@@ -17,7 +17,7 @@ section 10.
   probe of the service as its users see it, run by the target itself or
   from another target named by role. The same checks serve the lab's
   experiments, blessing a slot, a rollout's bake and watching the target
-  for as long as it runs (temper's `factory.md`, section 3).
+  for as long as it runs (`draft/archive/factory.md`, section 3).
 - **Checks report facts; decisions are someone else's.** A result is
   `pass`, `fail`, `error` or `skip`, kept as a fact. The one decision
   hearth takes from checks is the trial's own, declared in advance: a
@@ -53,7 +53,7 @@ section 10.
   host.
 - **Nothing else touches a machine:** no shell on the wire, no hand.
   Agents read; their only writes are the infrastructure connector's
-  effects (temper's `factory.md`, section 9).
+  effects (`draft/archive/factory.md`, section 9).
 
 ## 2. Checks
 
@@ -496,8 +496,7 @@ person reads them through the engine.
   cannot (domain/steward.md, 2.3).
 - **No central store for metrics or logs to start.** If history across
   the fleet is needed later, it is a service the factory deploys from
-  its own IaC, behind an observability connector of its own (temper's
-  `factory.md`, section 9).
+  its own IaC, behind an observability connector of its own (`draft/archive/factory.md`, section 9).
 
 ## 6. Operational effects
 
@@ -515,7 +514,7 @@ renewal, snapshots and backups). The operational effects start with three
 - **Policy is the engine's.** Who may roll back or restart, when, and
   whether a person must accept it first are authority's (jig's
   `authority.md`). A roll back may be allowed ahead of time, since it is
-  cheap and conditional (temper's `factory.md`, section 9).
+  cheap and conditional (`draft/archive/factory.md`, section 9).
 - **hearth checks only mechanics:** the key, the condition, that the
   unit belongs to the slot. It never refuses on judgement.
 - **For a container's target,** a roll back is a trial of its other
@@ -713,7 +712,7 @@ lack of disk, and had no off-machine backup of service data at all.
 
 ## 8. Faults [M6]
 
-- **Effects of a pool host** (temper's `factory.md`, 5.3): the host owns
+- **Effects of a pool host** (`draft/archive/factory.md`, 5.3): the host owns
   the network between its containers and their processes, so a fault
   needs no cooperation from the system under test.
 - **Granted only by the lab's policy,** and refused by the activator

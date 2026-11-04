@@ -198,7 +198,7 @@ peers, and each is what makes the retrofit cheap.
 - **The lab tests a build of the same inputs, not the bytes production
   runs.** Each plane builds its own copy of a key, and two copies differ
   for now. The lab's verdicts are about its copy.
-- **Patch and scratch compare noisily** (temper's `factory.md`, 6.4).
+- **Patch and scratch compare noisily** (`draft/archive/factory.md`, 6.4).
   Two builds differ in mtimes, logs and the initramfs, so the comparison
   runs modulo the catalogue's known differences, or waits. Only the
   packages layer needs it: above it, a layer is always replayed on its
@@ -218,7 +218,7 @@ peers, and each is what makes the retrofit cheap.
   which is why production builds artifacts cold.
 - **Not given up: evidence per key.** Keys are digests of inputs, so a
   verdict about a key carries over to every commit that keeps it
-  (temper's `factory.md`, 8.2). That holds now.
+  (`draft/archive/factory.md`, 8.2). That holds now.
 
 ## 5. Retrofitting
 
@@ -392,7 +392,7 @@ mmdebstrap's manual
     alone, whatever its parent's verdict;
   - an artifact, cold on both, and the lab's warm build compared with a
     cold one, which checks its compile cache (domain/artifacts.md, 6.5).
-- **A key is judged once.** Evidence is per key (temper's `factory.md`,
+- **A key is judged once.** Evidence is per key (`draft/archive/factory.md`,
   8.2): a commit that keeps a key gets its verdict by lookup, and a key
   is never built twice again for the gate.
 - **Before landing,** as part of a change's lab gate: a snapshot bump or
@@ -429,7 +429,7 @@ its own sandboxes:
   evidence.
 - **The finding's signature** is the set of differing paths, with
   numbers and hashes normalised, so the lab's triager matches a second
-  occurrence to an open finding (temper's `factory.md`, 8.3).
+  occurrence to an open finding (`draft/archive/factory.md`, 8.3).
 
 ### 7.4 Verdicts, and degrading alone
 
@@ -469,7 +469,7 @@ built, not reproduced      two digests; an open finding names the differing path
   reproduced, the two must be equal. Equal means production runs the
   bytes the lab tested. Unequal means one builder misbehaved, and is a
   finding for both planes. Facts cross planes; outputs still do not.
-- **Exact patch and scratch** (temper's `factory.md`, 6.4): a patched
+- **Exact patch and scratch** (`draft/archive/factory.md`, 6.4): a patched
   packages layer either has the scratch build's digest or a list of
   differing paths.
 - **An initramfs judged by its bytes,** once it and the modules
@@ -511,7 +511,7 @@ built, not reproduced      two digests; an open finding names the differing path
   apart are worth the wait.
 - **Who compares digests across planes,** and what the run side does on
   a mismatch: refuse to activate, or report and continue. It depends on
-  the factory's engines (temper's `factory.md`, section 9).
+  the factory's engines (`draft/archive/factory.md`, section 9).
 - **Whether "built, not reproduced" may reach production,** or only
   after its finding is accepted. It is the run side's policy.
 - **ids allocated by postinst:** that one closure installs in one order,
