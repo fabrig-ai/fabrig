@@ -42,6 +42,8 @@ Each list has one entry per line; `#` starts a comment line.
   files by path, so changes outside their dependencies can break them. A gate
   selecting the packages a change reaches runs these too. The branch adding such
   a test adds its package; adding a line runs that package's tests for every change.
+  A line `PACKAGE PATH-PREFIX` runs them only for a change to a path that starts with
+  the prefix, as written: for a test whose reads all lie under it.
 - **`.config/gate/read-by-tests.txt`:** checkout-root globs of Markdown compiled
   into or read by tests (`AGENTS.md`, 2). A matching change changes test inputs and
   runs their tests as for code; Markdown matching no glob runs none. The branch
