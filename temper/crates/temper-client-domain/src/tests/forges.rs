@@ -5,7 +5,10 @@ mod forgejo_tokens;
 use super::fixtures;
 use crate::forge::{
     self, family,
-    forges::{Connection, Kind, Mode, Offer, Row, SetUpAnswer, SetUpOutcome, SetUpRefusal, Step, ask, rows, watch},
+    forges::{
+        Binary, Connection, Fetched, Kind, Mode, Offer, Row, SetUpAnswer, SetUpOutcome, SetUpRefusal, Step, ask, rows,
+        watch,
+    },
     words,
 };
 use jig_client::{Answered, Ask, Family, Watchable, contract as c};
@@ -259,6 +262,7 @@ fn every_connection_decodes_into_the_forges_words() {
             kind: k,
             mode: m,
             connection: state,
+            fetched: None,
             offer: o,
             first: None,
             installations: Box::new([]),
@@ -298,6 +302,7 @@ fn the_offer_drives_the_manual_words_and_setup_actions() {
         kind: Kind::Forgejo,
         mode: Mode::Owned,
         connection: Connection::NotSetUp,
+        fetched: None,
         offer: Offer::Offered,
         first: None,
         installations: Box::new([]),
@@ -339,6 +344,139 @@ fn the_offer_drives_the_manual_words_and_setup_actions() {
     }
     row.connection = Connection::Stopped { reason: Box::from([255u8]) };
     assert_eq!(words::forge_connection(&row).as_ref(), "Stopped: �".as_bytes());
+}
+
+fn decoded_connection_row(connection: w::Connection) -> Row {
+    const FORGE: u16 = 3;
+    let mut forges = List::with_capacity(1);
+    forges
+        .push(wire_connection_row(FORGE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered, None))
+        .unwrap();
+    let record = w::Forges::new(&limits(), w::ForgesParts { forges }).unwrap();
+    family::forges(&wire::forges(&record), &limits()).unwrap().into_iter().next().unwrap()
+}
+
+fn fetched_connection(step: Option<w::SetUpStep>, fetched: Option<Fetched>) -> w::Connection {
+    let fetched = match fetched {
+        Some(fetched) => Some(
+            w::SetUpFetched::new(
+                &limits(),
+                w::SetUpFetchedParts {
+                    binary: match fetched.binary {
+                        Binary::Forgejo => w::SetUpBinary::Forgejo,
+                        Binary::Runner => w::SetUpBinary::Runner,
+                    },
+                    done: fetched.done,
+                    total: fetched.total,
+                },
+            )
+            .unwrap(),
+        ),
+        None => None,
+    };
+    w::Connection::SettingUp(w::SettingUp::new(&limits(), w::SettingUpParts { step, fetched }).unwrap())
+}
+
+#[test]
+fn the_row_says_how_far_the_fetch_has_gone() {
+    for (fetched, connection, bare, figure, name) in [
+        (
+            Fetched { binary: Binary::Forgejo, done: 42, total: Some(100) },
+            b"Setting up: fetching Forgejo \xc2\xb7 42%".as_slice(),
+            b"Setting up: fetching Forgejo".as_slice(),
+            b"42%".as_slice(),
+            b"Fetching Forgejo".as_slice(),
+        ),
+        (
+            Fetched { binary: Binary::Runner, done: 80, total: Some(100) },
+            b"Setting up: fetching its runner \xc2\xb7 80%",
+            b"Setting up: fetching its runner",
+            b"80%",
+            b"Fetching its runner",
+        ),
+        (
+            Fetched { binary: Binary::Forgejo, done: 41_999_999, total: None },
+            b"Setting up: fetching Forgejo \xc2\xb7 41 MB",
+            b"Setting up: fetching Forgejo",
+            b"41 MB",
+            b"Fetching Forgejo",
+        ),
+        (
+            Fetched { binary: Binary::Forgejo, done: 419, total: Some(1_000) },
+            b"Setting up: fetching Forgejo \xc2\xb7 41%",
+            b"Setting up: fetching Forgejo",
+            b"41%",
+            b"Fetching Forgejo",
+        ),
+        (
+            Fetched { binary: Binary::Forgejo, done: 0, total: Some(1) },
+            b"Setting up: fetching Forgejo \xc2\xb7 0%",
+            b"Setting up: fetching Forgejo",
+            b"0%",
+            b"Fetching Forgejo",
+        ),
+        (
+            Fetched { binary: Binary::Runner, done: 1, total: Some(1_000) },
+            b"Setting up: fetching its runner \xc2\xb7 0%",
+            b"Setting up: fetching its runner",
+            b"0%",
+            b"Fetching its runner",
+        ),
+        (
+            Fetched { binary: Binary::Forgejo, done: u64::MAX, total: Some(u64::MAX) },
+            b"Setting up: fetching Forgejo \xc2\xb7 100%",
+            b"Setting up: fetching Forgejo",
+            b"100%",
+            b"Fetching Forgejo",
+        ),
+        (
+            Fetched { binary: Binary::Runner, done: 999_999, total: None },
+            b"Setting up: fetching its runner \xc2\xb7 0 MB",
+            b"Setting up: fetching its runner",
+            b"0 MB",
+            b"Fetching its runner",
+        ),
+    ] {
+        let row = decoded_connection_row(fetched_connection(Some(w::SetUpStep::Fetch), Some(fetched)));
+        assert_eq!(row.fetched, Some(fetched));
+        assert_eq!(row.connection, Connection::SettingUp { step: Some(Step::Fetch) });
+        assert_eq!(words::forge_connection(&row).as_ref(), connection);
+        assert_eq!(words::forge_connection_bare(&row).as_ref(), bare);
+        assert_eq!(words::fetched_figure(fetched).as_ref(), figure);
+        assert_eq!(words::fetching_name(fetched), name);
+    }
+}
+
+#[test]
+fn a_fetched_at_another_step_or_out_of_range_reads_as_none() {
+    for (step, done, total, expected) in [
+        (Some(w::SetUpStep::Fetch), 0, Some(0), b"Setting up: fetching".as_slice()),
+        (Some(w::SetUpStep::Fetch), 1, Some(0), b"Setting up: fetching"),
+        (Some(w::SetUpStep::Fetch), 2, Some(1), b"Setting up: fetching"),
+        (Some(w::SetUpStep::Prepare), 1, Some(2), b"Setting up: preparing"),
+        (Some(w::SetUpStep::Run), 1, Some(2), b"Setting up: starting"),
+        (None, 1, Some(2), b"Setting up"),
+        (Some(w::SetUpStep::Prepare), 1, None, b"Setting up: preparing"),
+        (Some(w::SetUpStep::Run), 1, None, b"Setting up: starting"),
+        (None, 1, None, b"Setting up"),
+    ] {
+        let row =
+            decoded_connection_row(fetched_connection(step, Some(Fetched { binary: Binary::Forgejo, done, total })));
+        assert_eq!(row.fetched, None);
+        assert_eq!(words::forge_connection(&row).as_ref(), expected);
+        assert_eq!(words::forge_connection_bare(&row).as_ref(), expected);
+    }
+}
+
+#[test]
+fn no_line_heard_says_the_step_alone() {
+    for (wire, connection, expected) in cases() {
+        let row = decoded_connection_row(wire);
+        assert_eq!(row.fetched, None);
+        assert_eq!(row.connection, connection);
+        assert_eq!(words::forge_connection(&row).as_ref(), expected);
+        assert_eq!(words::forge_connection_bare(&row).as_ref(), expected);
+    }
 }
 
 #[test]
