@@ -10,7 +10,6 @@ use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use skein_lib::{Decision, Env, List, Queue};
 
-mod brief;
 mod workspace;
 
 use crate::{Delivery, Domain, Key, Limits, Record, Work, Write, hold, write};
@@ -429,8 +428,17 @@ fn route_now(
         value @ core::Now::StartPreparation { .. } => {
             domain.now.push(crate::Request::Now(value));
         }
-        core::Now::BriefCorePlanned { task, sections, .. } => brief::plan(env, task, sections, work),
-        core::Now::CompleteBrief { brief: token, order } => brief::complete(domain, token, order, work),
+        core::Now::BriefCorePlanned { task, sections, .. } => {
+            work.push(Work::Core(jig_domain_hub_link::brief_plan(
+                task,
+                sections,
+                env.limits.core.brief.brief_bytes,
+                env.now.saturating_add(skein_lib::Duration::from_secs(30)),
+            )));
+        }
+        core::Now::CompleteBrief { brief, order } => {
+            work.push(Work::Core(domain.hub_link.complete_brief(brief, order)));
+        }
         core::Now::WorkspaceRequest { task, attempt, context } => {
             prepare_workspace(domain, env, work, task, attempt, &context);
         }
