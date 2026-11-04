@@ -160,7 +160,7 @@ product's own settings are `docs/design/shell.md`'s.
     `anthropic`, 2, Anthropic's Messages dialect (skein's `llm.md`,
     4.7). A transcript's turns and opaque blocks carry the number
     (transcript.md, section 2), so a number is never given to another
-    dialect, and 1, once the withdrawn Codex route's, is given to none;
+    dialect, and 1 is given to none;
     a name and number that do not match are refused, naming the field;
   - its address, as a name resolved at startup (skein's `io.md`,
     section 4);
@@ -278,6 +278,15 @@ spawns one (hosts.md, section 5.2).
     section 10; llm.md, section 6). The words are rendered from the
     typed failure, matched exhaustively, never from a debug rendering.
 
+  Program failures also drain to standard error as they arrive, even when
+  capture is disabled and the main conversation later succeeds. Each line
+  names `claude_code`, its process-local conversation owner token, and the
+  exit code when available (`unknown` otherwise), followed by at most 512
+  bytes of the already-redacted diagnostic tail, with controls escaped.
+  The pending lines have the service queue's entry bound; a full queue
+  holds further terminals until the shell drains it. These lines never
+  enter canonical model feedback (domain/session.md, section 4).
+
   Its host keeps the tail of standard error and never parses it
   (domain/host.md, section 4).
 - **Startup:**
@@ -391,8 +400,8 @@ spawns one (hosts.md, section 5.2).
     section 8).
 - **Configuration:** every refusal of a malformed one, and of each
   relationship of limits.md, section 4; an endpoint naming a program
-  with no path; each withdrawn field, `account` and `identity`, refused,
-  naming it.
+  with no path; each field an endpoint does not take, `account` and
+  `identity`, refused, naming it.
 - **Memory:** fixed process scenarios against skein's counting
   allocator, one measured total peak under a ceiling with headroom per
   scenario (limits.md, section 11).

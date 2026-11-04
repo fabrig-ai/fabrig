@@ -35,10 +35,10 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   stays within the giver's authority and funding.
   A change runs nothing of its own, so `task release --again` on it is
   refused: release its hold, and it decides afresh.
-- **Its parts,** each read on its own: its tree (its live
-  delegates), its activity (what happened, a line each, newest last),
-  its turns (each step of a run: the model's words, its calls and
-  their results), and its run (the attempt in progress).
+- **Its parts,** read separately: its tree (its live
+  delegates), its activity (events, newest last),
+  its turns (the model's words, calls and their results at each step),
+  and its run (the current attempt).
 - **Its settings revision:** an agent task records the settings
   revision its runs use; `task show` prints it as `settings: revision R`,
   with the run's own and the newest where they differ.
@@ -105,7 +105,7 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 ## Acting on it
 
 - **Reading:** `task list` lists a project's tasks; `task show` reads
-  one, and its tree, activity or run beside it; `task tree`, `task
+  one; `task tree`, `task
   activity`, `task turn` and `task run` read its parts; `task show`,
   `task tree` and `task run` wait with `--until` or `--since`.
 - **Acting:** the acts `task show` lists under `acts:`, among them
@@ -121,6 +121,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   `message` is offered only to a run whose authority holds the message
   family: a change's coder, repairer and resolver are offered it where
   the change relays their questions; its reviewer is not offered it.
+
+Failed-run detail: serve's stderr, or `DATA/box/logs/serve.log` under the box.
 
 ## Limits
 

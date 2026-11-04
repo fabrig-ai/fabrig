@@ -18,11 +18,13 @@ use crate::hand_out::{Finish, Pending};
 use crate::{Domain, Limits, route, smith_delivery, translate, workspace};
 
 /// An agent smith started for a hosted run, by the run's token.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Debug)]
 pub(crate) struct Bound {
     pub(crate) agent: Token,
     /// smith admitted its run, and the hub was told it started.
     pub(crate) admitted: bool,
+    /// Bounded operator evidence retained until process cleanup.
+    detail: Box<[u8]>,
 }
 
 /// A call of a run, from smith's `Called` until the hub's reply.
@@ -85,7 +87,10 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
 pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, out: &mut Queue<Request>) {
     let event = match request {
         smith::parent::Request::Started { client, agent } => {
-            let old = domain.agents.insert(client, Bound { agent, admitted: false }).expect("smith bounds its agents");
+            let old = domain
+                .agents
+                .insert(client, Bound { agent, admitted: false, detail: Box::new([]) })
+                .expect("smith bounds its agents");
             assert!(old.is_none(), "one agent per hosted run");
             return;
         }
@@ -107,10 +112,8 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             let Some(name) = &entry.name else { return };
             host::Event::Agent(host::FromAgent::Withdrawn { owner: client, call: name.clone() })
         }
-        smith::parent::Request::Answered { client, answer, detail: _ } => {
-            let smith::Answer { read, turns, spent, result } = answer;
-            domain.pending.push(Pending::Result { owner: client, turns, spent, read, finish: Finish::of(&result) });
-            return out.push(Request::Encode { owner: client, value: Encodable::Result(result) });
+        smith::parent::Request::Answered { client, answer, detail } => {
+            return answered(domain, env, client, answer, &detail, out);
         }
         smith::parent::Request::Told { client, body } => {
             domain.facts_out = domain.facts_out.saturating_add(1);
@@ -161,6 +164,22 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         smith::parent::Request::Gone { client, end, detail } => return ended(domain, env, client, end, detail),
     };
     route::host_step(domain, env, event);
+}
+
+/// Retain operator evidence beside the result until its process has drained.
+fn answered(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    client: Token,
+    answer: smith::Answer,
+    detail: &[u8],
+    out: &mut Queue<Request>,
+) {
+    let smith::Answer { read, turns, spent, result } = answer;
+    domain.agents.get_mut(&client).expect("a started agent answers").detail =
+        translate::failure_detail(&result, detail, env.limits.host.detail_bytes);
+    domain.pending.push(Pending::Result { owner: client, turns, spent, read, finish: Finish::of(&result) });
+    out.push(Request::Encode { owner: client, value: Encodable::Result(result) });
 }
 
 /// Whether the hub was told the agent of the run `owner` started.
@@ -369,7 +388,12 @@ fn hand_out_pending(domain: &Domain, owner: Token) -> bool {
 /// refused before any process ran is refused as invalid; any other end waits
 /// behind the run's hand-outs.
 fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, detail: Box<[u8]>) {
-    let started = domain.agents.remove(&owner).is_some();
+    let bound = domain.agents.remove(&owner);
+    let started = bound.is_some();
+    let detail = match bound {
+        Some(bound) if !bound.detail.is_empty() => bound.detail,
+        Some(_) | None => detail,
+    };
     let unstarted = match end {
         smith::End::Busy | smith::End::Invalid(_) | smith::End::Unspawned => true,
         smith::End::Exited { .. } | smith::End::Settled => false,

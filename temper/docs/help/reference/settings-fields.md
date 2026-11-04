@@ -24,7 +24,7 @@ One setting, and what becomes of it: `setting`, then exactly one of `set` and `e
 
 Which setting: its kind and, but for the rules, its number.
 
-- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind. `"project-policy"`: A project's own policy, set alone and at most once; its value is a policy.
+- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
 - `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for the rules.
 - `project`: integer, 0 to 4,294,967,295. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 

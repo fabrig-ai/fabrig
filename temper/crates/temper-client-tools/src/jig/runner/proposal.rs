@@ -3,6 +3,8 @@ use super::reads::Reading;
 use jig_client::{Readout, contract as c};
 
 pub(crate) const FIRST: u32 = 8;
+/// The settings inventory retained for a pending proposal's running-work review.
+pub(crate) const INVENTORY: u32 = FIRST;
 pub(crate) fn review(page: &Readout) -> Option<(c::ProposalKey, &c::SettingsReview)> {
     if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Proposal(proposal))) = page
         && let c::ProposalAction::Settings(settings) = &proposal.action
@@ -14,6 +16,8 @@ pub(crate) fn review(page: &Readout) -> Option<(c::ProposalKey, &c::SettingsRevi
 }
 pub(crate) fn slot(index: usize, proposed: bool) -> u32 {
     FIRST
+        .checked_add(1)
+        .expect("inventory slot")
         .checked_add(u32::try_from(index).expect("bounded review").checked_mul(2).expect("two values"))
         .expect("review slots")
         .checked_add(u32::from(proposed))
@@ -21,6 +25,9 @@ pub(crate) fn slot(index: usize, proposed: bool) -> u32 {
 }
 pub(super) fn next(reading: &Reading) -> Option<(u32, c::Read)> {
     let (key, review) = review(reading.pages.get(&1)?)?;
+    if !reading.pages.contains_key(&INVENTORY) {
+        return Some((INVENTORY, c::Read::Settings));
+    }
     for (index, item) in review.items.iter().enumerate() {
         if let c::Setting::Application { .. } = item.setting {
             continue;

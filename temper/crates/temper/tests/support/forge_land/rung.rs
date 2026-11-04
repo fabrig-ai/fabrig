@@ -515,6 +515,87 @@ impl Driver {
     }
 }
 
+/// The guard's return through the installed give-back, which a box still up answers
+/// (temper/docs/design/domain/testing.md, 2.7).
+pub fn return_through_hook(binary: &Path, store: &Path) -> Result<(), String> {
+    let client = store.join("client");
+    let mut driver = Driver::owned(store, &client);
+    driver.binary = binary.into();
+    give_back(&mut driver)
+}
+
+fn give_back(driver: &mut Driver) -> Result<(), String> {
+    driver.arm("the held record's return", Duration::from_secs(60));
+    let output = driver.execute(Command::new(driver.store.join("give-back")), None, true)?;
+    super::super::live::notice(&String::from_utf8_lossy(&output));
+    Ok(())
+}
+
+/// The guard's return with no box up: a box over the store for this alone, a new client signed
+/// in by the box's link, then give-back. The box stops on any ending; the store stays.
+pub fn return_on_a_new_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], account: &Path) -> Result<(), String> {
+    let client = store.join("return-client");
+    fs::create_dir_all(&client).map_err(|error| format!("return client: {error}"))?;
+    fs::set_permissions(&client, fs::Permissions::from_mode(0o700))
+        .map_err(|error| format!("private return client: {error}"))?;
+    super::super::held_login::return_hook(binary, store, &client, account);
+    let mut driver = Driver::owned(store, &client);
+    driver.binary = binary.into();
+    let started = now();
+    driver.arm("the held record's new box", Duration::from_secs(240));
+    let mut guard = super::super::parent::Guard::new(start_box(binary, store, paths));
+    let boxed = guard.child.as_mut().expect("return box");
+    if let Some(deadline) = driver.deadline() {
+        deadline.watch_process(boxed.id());
+    }
+    let returned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let link = return_link(&mut driver, boxed)?;
+        super::super::live::notice(&format!(
+            "RETURN box answered in {}ms",
+            now().saturating_since(started).as_nanos() / 1_000_000
+        ));
+        driver.ctl(&["sign-in", "-"], Some(&link))?;
+        give_back(&mut driver)
+    }));
+    stop_return_box(boxed);
+    returned.unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+}
+
+fn return_link(driver: &mut Driver, boxed: &mut Child) -> Result<String, String> {
+    loop {
+        if let Some(status) = boxed.try_wait().map_err(|error| error.to_string())? {
+            return Err(format!("return box exited ({status}); see {}", driver.store.join("box.err").display()));
+        }
+        driver.check_wait()?;
+        let output = fs::read_to_string(driver.store.join("box.out")).map_err(|error| error.to_string())?;
+        if let Some(link) = output.lines().find(|line| line.starts_with("http://") && line.contains("secret=")) {
+            return Ok(link.to_owned());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+fn stop_return_box(boxed: &mut Child) {
+    super::super::parent::signal(boxed, "TERM");
+    let mut deadline = Deadline::arm("the held record's box stop", Duration::from_secs(30));
+    deadline.watch_process(boxed.id());
+    let stopped = loop {
+        match boxed.try_wait() {
+            Ok(Some(status)) => break require(status.success(), &format!("return box stopped with {status}")),
+            Ok(None) => {}
+            Err(error) => break Err(format!("return box stop: {error}")),
+        }
+        if deadline.passed() {
+            break Err("return box needed killing after its stop bound".into());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    };
+    super::super::parent::end_child(boxed);
+    if let Err(message) = stopped {
+        super::super::live::notice(&message);
+    }
+}
+
 fn stop_box(boxed: &mut Child) -> Result<(), String> {
     super::super::parent::signal(boxed, "TERM");
     let status = boxed.wait().map_err(|e| e.to_string())?;
@@ -532,9 +613,9 @@ pub fn green_light() {
     run_walk(&store, &paths, &account, false);
 }
 
-fn start_box(store: &Path, paths: &[PathBuf; 3]) -> Child {
+fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3]) -> Child {
     Command::new("setsid")
-        .arg(skein_scratch::paths::binary("temper"))
+        .arg(binary)
         .arg("box")
         .args(super::deployment_flags(paths))
         .args(["--echo", "steps"])
@@ -556,7 +637,7 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) {
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
     let mut driver = Driver::owned(store, &client);
     super::super::held_login::return_hook(&driver.binary, store, &driver.client, account);
-    let mut boxed = start_box(store, paths);
+    let mut boxed = start_box(&driver.binary, store, paths);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| walk(&mut driver, paths, account, offline)));
     // No ordinary failure or panic bypasses the return. The launcher's copy of
     // this act covers a signal to the test process itself.

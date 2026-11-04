@@ -51,6 +51,7 @@ fn a_person_asks_claude_code_to_land_a_change_on_the_owned_forge() {
     owned_forge_landing(support::forge_land::LiveModel::ClaudeCode { login: &login });
 }
 
+#[expect(clippy::too_many_lines, reason = "The guard spans both sittings and their landing assertions.")]
 fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     use std::{fs, os::unix::fs::PermissionsExt};
     use support::forge_land::{self, Face, LivePlan};
@@ -71,6 +72,11 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     let line = format!("Hello from temper, {tag}.");
     let words = format!("Please add the line \"{line}\" to the end of README.md in work/hello and land it.");
     support::live::notice(&format!("TAG {tag}"));
+    let _lent = if let forge_land::LiveModel::ChatGpt { account: Some(account) } = model {
+        Some(support::held_login::Lent::new(&skein_scratch::paths::binary("temper"), &paths, account))
+    } else {
+        None
+    };
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let mut bot = None;
         let mut previous: Option<forge_land::LiveEvidence> = None;

@@ -112,7 +112,8 @@ other fields as the read gave them:
   {"setting": {"kind": "landing-rule", "number": 1},
    "set": {"pattern": {"segments": ["666f726765"], "last": {"open": ""}},
            "enforce": true, "ci": true, "up_to_date": true,
-           "gates": [], "approvals": []}},
+           "gates": [{"number": 1, "blocking": true, "freshness": "clean"}],
+           "approvals": []}},
   {"setting": {"kind": "forge-charter", "number": 1}, "set": 2}
 ]}
 ```
@@ -124,10 +125,16 @@ point, and set the whole policy for `PROJECT`:
 temper ctl DIR settings show policy 1 --json | jq --argjson project PROJECT '{items: [{setting: {kind: "project-policy", project: $project}, set: .value}]}' > FILE
 ```
 
-The item is set alone, at most once a file: it takes no `number`, and
-neither `"edit": "removed"` nor `"edit": "reset"`. Change the policy's
-fields in `set` before sending it; setting policy 1 itself changes only
-what projects made after it start with.
+The item accepts only `set`, at most once per file, and may share a file
+with other settings. It takes no `number`, and neither `"edit": "removed"`
+nor `"edit": "reset"`. Change the policy's fields in `set` before sending
+it. Setting a project's policy immediately resizes its open period and
+parties' pools to the policy's spends; setting policy 1 itself changes
+only what projects made after it start with.
+
+For example, accept project-policy `period_spend` 8200000 beside rules
+`period_spend` 8300000 in one file, keeping every other field as read.
+Then read `project show PROJECT`: the open period's budget is 8200000.
 
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
 A proposal's temper items, with their whole values or their removed or

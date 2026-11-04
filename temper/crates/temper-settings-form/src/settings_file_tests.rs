@@ -479,3 +479,38 @@ fn a_charter_left_without_tools_names_no_settings() {
     assert_eq!(value.tools, crate::CHARTER_TOOLS_DEFAULT);
     assert_eq!(value.tools & 1024, 0);
 }
+
+#[test]
+fn forge_document_forms_use_the_registered_connector_and_round_trip() {
+    let prefix = PREFIX.strip_suffix(br#","documents":[]"#).expect("charter documents suffix");
+    for host in [b"127.0.0.1:3000".as_slice(), b"127.0.0.1", b"localhost", b"forgejo", b"1"] {
+        for (heading, expected) in [
+            (b"".as_slice(), None),
+            (br#","heading":null"#, None),
+            (br#","heading":"Rules""#, Some(b"Rules".as_slice())),
+        ] {
+            let bytes = joined(&[
+                prefix,
+                br#","documents":[{"forge":""#,
+                host,
+                br#"","repository":"playground/widget","branch":"main","path":"README.md""#,
+                heading,
+                b"}]",
+                SUFFIX,
+            ]);
+            let value = charter(&bytes);
+            let document = value.documents.get(0).expect("one document");
+            assert_eq!(document.connector, 1);
+            assert_eq!(document.name.get(1).expect("host").as_ref(), host);
+            assert_eq!(document.heading.as_deref(), expected);
+            let bounds = JsonLimits { depth: 32, length: 8192 };
+            let mut measure = Encoder::measure(&bounds);
+            encode_file(&value, &mut measure);
+            let mut out = Encoder::write(measure.measured().expect("charter fits"), &bounds);
+            encode_file(&value, &mut out);
+            let shown = out.finish();
+            assert!(skein_lib::bytes::find(&shown, br#""repository":"playground/widget""#).is_some());
+            assert_eq!(charter(&shown), value);
+        }
+    }
+}

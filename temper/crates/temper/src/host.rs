@@ -287,6 +287,13 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
 
 fn note_line(note: temper_service::Note) -> String {
     match note {
+        temper_service::Note::RunFailed(diagnostic) => run_failure_line(
+            diagnostic.task,
+            diagnostic.run,
+            diagnostic.attempt,
+            diagnostic.failure,
+            &diagnostic.detail,
+        ),
         temper_service::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
             format!(
                 "temper serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason} error={error:?} findings={findings:?}\n",
@@ -336,6 +343,20 @@ fn note_line(note: temper_service::Note) -> String {
         }
     }
 }
+// temper/docs/design/domain/worker.md, 4.3: one bounded, escaped operator line.
+fn run_failure_line(task: u64, run: u64, attempt: u64, failure: jig_domain_host::Failure, detail: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut line = format!("temper serve: task {task} run {run} attempt {attempt} failed {failure:?}: ");
+    let from = detail.len().saturating_sub(4096);
+    for byte in detail.get(from..).expect("bounded diagnostic tail") {
+        for escaped in core::ascii::escape_default(*byte) {
+            line.write_char(char::from(escaped)).expect("format escaped diagnostic");
+        }
+    }
+    line.push('\n');
+    line
+}
+
 fn origin_line(number: u16, origin: &skein_forge::github::redirect::Origin) -> String {
     let scheme = if origin.tls { "https" } else { "http" };
     format!(
@@ -901,4 +922,32 @@ fn refused_job_log_origin_note_names_only_the_origin() {
         },
     });
     assert_eq!(line, "temper serve: forge 7: refused job-log origin https://unrelated.example.test:443\n");
+}
+
+#[cfg(test)]
+fn failed_run_note(detail: &[u8]) -> temper_service::Note {
+    temper_service::Note::RunFailed(temper_engine_domain::RunDiagnostic {
+        task: 3,
+        run: 7,
+        attempt: 2,
+        failure: jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Model),
+        detail: detail.into(),
+    })
+}
+
+#[test]
+fn failed_run_stderr_escapes_control_bytes_on_one_line() {
+    assert_eq!(
+        note_line(failed_run_note(b"exit 1: bad\nstream\r\t\0\x1b\x7f\xff")),
+        "temper serve: task 3 run 7 attempt 2 failed Run(Model): exit 1: bad\\nstream\\r\\t\\x00\\x1b\\x7f\\xff\n"
+    );
+}
+
+#[test]
+fn failed_run_stderr_keeps_a_bounded_tail() {
+    let mut detail = vec![b'x'; 4097];
+    detail[0] = b'y';
+    let line = note_line(failed_run_note(&detail));
+    let prefix = "temper serve: task 3 run 7 attempt 2 failed Run(Model): ";
+    assert_eq!(line, format!("{prefix}{}\n", "x".repeat(4096)));
 }

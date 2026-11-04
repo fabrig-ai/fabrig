@@ -1193,7 +1193,12 @@ section 8; testing-strategy.md, 2.9).
   naming a held ChatGPT record, a fresh store's first run moves it in by
   `temper ctl account import FILE --key connect-plan`, which removes
   FILE, and waits for it usable in place of the person's sign-in, as an
-  account import does; the script refuses it with a kept store.
+  account import does; the script refuses it with a kept store. Each box
+  exports and verifies the record before stopping, including a successful
+  first box whose result is checked before the restart. The second box
+  imports the returned record with a distinct operation key. Hook installation
+  and reopening import share the give-back's lock; a terminal give-back
+  excludes later imports.
   Every ctl call of a sitting names one DIRECTORY, `client` beneath the
   run's root in the store (`first`, `second`, or tagged on a kept
   store): the import, the held record's give-back and the sitting's
@@ -1398,6 +1403,29 @@ section 8; testing-strategy.md, 2.9).
     (../client/tools.md, 8.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
+- **The held record's guard,** for the landing story, whose two sittings
+  leave the record in the store across a stopped box: the second proves
+  the restart on it. The runner's return and the story's own each need a
+  box up, so a panic between the sittings finds none. `Lent`
+  (`tests/support/held_login.rs`) stands from before the first sitting to
+  the test's end. On every ending, a panic anywhere, a failed assertion
+  or an early return, its `Drop` settles what is owed, by `stat` alone,
+  the record never read:
+  - **The record at its lent path,** a private regular file with bytes
+    in it: nothing. The import has not run, or the story's return has;
+    that is what disarms the guard, so it exports once. The same path
+    holding anything else is reported, never overwritten.
+  - **Moved in, a box up:** `give-back`, within its 60 seconds.
+  - **Moved in, no box up:** a box started over the store for this alone,
+    a new client signed in by the box's link, then `give-back`; the box
+    stops on any ending.
+  - **Still not back:** the notice `LOGIN NOT BACK`, naming the store,
+    which stays for recovery. The guard never panics while the test
+    unwinds; a test that would otherwise pass, it fails.
+
+  The rung's one sitting keeps its box up past a panic, which `run_walk`
+  catches before its return, and a held Claude Code login is used in
+  place, so neither has a guard.
 - **What stays the owner's,** ignored and run by hand: the process tier's chat on a
   real model, `a_real_model_answers_a_chat_and_pushes_a_small_change` (a person's
   sitting); `rung_b0_a_person_agrees_a_plan_before_the_change_lands` (the rung's
@@ -2619,3 +2647,7 @@ scripts/proof-live.sh               the live tier
   invocation within profile `live-temper`'s 50 minutes, each story
   bounding itself at 40 (2.7). The profile's figure is set from the
   pair's first after-landing wall times, and is the user's.
+- **A signal between the landing story's sittings.** A signal to the test
+  process runs no `Drop`, and the runner's `give-back` finds no box up:
+  the record stays in the store and the notice says so (2.7). Closing it
+  is a return that starts its own box, in the runner's part.
