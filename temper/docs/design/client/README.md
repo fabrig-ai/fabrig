@@ -1974,7 +1974,7 @@ for its kind, its user's login and its installations. Its nodes:
   it does `forges`, from when `me` is first delivered while the link
   is live, for every party: a watch refused or ended is kept as such,
   with no rows, and not opened again until the next sign-in. Its rows are
-  the forge side's facts, which no page reads yet.
+  the forge side's facts, which no page reads (section 11).
 - **The forge's documents' records:** its other reads, subjects and
   documents, and its other requests, beside `Adopt` and `SetUp`
   (`forge.md`, section 9).
@@ -4710,10 +4710,16 @@ own tests:
   machine's goes so at once. Later: a client relaying the redirect
   (jig's `protocol/llm.md`, section 10). Default: undetected, the
   person's choice.
+- **"Skip" on Home** (*Home,* 3.5; `../draft/to-begin.md`, sections 2
+  and 5): the store, the request and the read are designed (4.6), and
+  the card and its "Skip" are the look requests'
+  `project-home-everyday` and `project-home-onboarding` (`journeys.md`,
+  7). Default: Home offers no "Skip": no act sends `Dismiss`, and no
+  page reads the subject `dismissed`.
 - **The first use of a plan,** in the terminal: a card in the
-  conversation, or a card that waits to be dismissed, which needs a
-  dismissal kept by the engine, as jig's seen is. Default: a card in
-  the conversation (5.5), with nothing to dismiss.
+  conversation, or a card that waits to be dismissed, another kind of
+  `Dismissed`, keyed by its account (`../draft/to-begin.md`, section 5).
+  Default: a card in the conversation (5.5), with nothing to dismiss.
 - **A key typed in the terminal** is echoed by its line editing (6.5).
   Default: accepted on one person's machine; `temper ctl account
   add-key` reads one from a file.
