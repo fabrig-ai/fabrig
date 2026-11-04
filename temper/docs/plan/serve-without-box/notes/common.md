@@ -21,6 +21,13 @@ Every task of this plan names this note.
   `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper --lib -E 'test(=tests::configuration::the_pages_configuration_are_what_the_tables_render)'`.
   Check the test's path with `heavy cargo nextest list` if the filter selects nothing. A task
   that changes a member row regenerates them, a stated departure from "Not yours".
+- **The kept walk:** `temper/tests/playground/tests/fixtures/story-a.log` keeps story A's session
+  byte for byte, so a change to what the client sends or the story's document moves it. Its writer:
+  `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E
+  'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`, then the two replays
+  (`story_a_kept_log_replays_natively`, and `story_a_kept_log_replays_under_the_referee` in
+  `temper-one-process-world`). A task that moves it regenerates it; check the test's path with
+  `heavy cargo nextest list` if the filter selects nothing.
 - **No existing deployment is carried over** (the draft, 2): no migration, no compatibility
   branch, no reading of an old form.
 - **Nothing changes under the box:** the welcome, the playground with its "Demo" and its reset,
