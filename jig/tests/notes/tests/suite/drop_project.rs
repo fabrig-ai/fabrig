@@ -1,8 +1,8 @@
-//! Project deletion retains globally named entries and pages the project's
-//! index lines (jig/docs/design/domain/engine.md, 10).
+//! Project deletion pages the project's index lines and erases their entries
+//! (jig/docs/design/domain/engine.md, 10).
 
-use jig_domain_notes::{Event, Key, Last, Line, Pattern, Recall, Record, Scope};
-use jig_notes_world::{Answer, World, one_scope, task_entry};
+use jig_domain_notes::{Event, Key, Last, Pattern, Record, Scope};
+use jig_notes_world::{Answer, World, one_scope, saved_entry, task_entry};
 use skein_lib::Token;
 
 const PROJECT: u32 = 7;
@@ -51,31 +51,39 @@ fn fixture() -> World {
     world
 }
 
-fn in_project(key: &Key) -> bool {
-    match key {
-        Key::Entry { .. } => false,
-        Key::Line { scope, .. } => match scope {
-            Scope::Deployment => false,
-            Scope::Project { project } | Scope::Goal { project, .. } | Scope::Resources { project, .. } => {
-                *project == PROJECT
-            }
+fn in_project(key: &Key, record: &Record) -> bool {
+    let scope = match key {
+        Key::Entry { .. } => match record {
+            Record::Entry(entry) => &entry.scope,
+            Record::Line(_) => unreachable!("an entry key holds an entry"),
         },
+        Key::Line { scope, .. } => scope,
+    };
+    match scope {
+        Scope::Deployment => false,
+        Scope::Project { project } | Scope::Goal { project, .. } | Scope::Resources { project, .. } => {
+            *project == PROJECT
+        }
     }
 }
 
 #[test]
-fn dropping_a_project_erases_its_scopes_lines_and_retains_entries() {
+fn dropping_a_project_erases_its_scopes_lines_and_entries() {
     let mut world = fixture();
-    let kept: Vec<_> =
-        world.records().iter().filter(|(key, _)| !in_project(key)).map(|(k, v)| (k.clone(), v.clone())).collect();
+    let kept: Vec<_> = world
+        .records()
+        .iter()
+        .filter(|(key, record)| !in_project(key, record))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
     for scope in [Scope::Project { project: PROJECT }, Scope::Goal { project: PROJECT, goal: 11 }] {
         let _answer = world.call(Event::Index { owner: OWNER, scopes: one_scope(scope), most: 3 });
     }
     let commits = world.commits();
     assert_eq!(world.call(Event::DropProject { owner: OWNER, project: PROJECT }), Answer::ProjectDropped);
-    assert!(world.records().keys().all(|key| !in_project(key)));
+    assert!(world.records().iter().all(|(key, record)| !in_project(key, record)));
     assert_eq!(world.records(), &kept.into_iter().collect());
-    assert_eq!(world.commits() - commits, 4, "eight erases fit four two-row decisions");
+    assert_eq!(world.commits() - commits, 4, "eight lines and their entries fit four two-row pages");
     for scope in [Scope::Project { project: PROJECT }, Scope::Goal { project: PROJECT, goal: 11 }] {
         let Answer::Indexed { lines, more } =
             world.call(Event::Index { owner: OWNER, scopes: one_scope(scope), most: 3 })
@@ -89,29 +97,14 @@ fn dropping_a_project_erases_its_scopes_lines_and_retains_entries() {
 }
 
 #[test]
-fn an_entry_shared_with_another_scope_keeps_that_line() {
+fn an_entry_without_an_index_line_is_not_scanned() {
     let mut world = fixture();
-    let entry = world.stored_entry(20).expect("project entry").clone();
-    for scope in [Scope::Deployment, Scope::Project { project: 8 }] {
-        world.seed(Record::Line(Line {
-            scope,
-            name: entry.name,
-            description: entry.description.clone(),
-            revision: entry.revision,
-        }));
-    }
-    let kept =
-        world.records().iter().filter(|(key, _)| !in_project(key)).map(|(k, v)| (k.clone(), v.clone())).collect();
+    let entry = saved_entry(40, Scope::Project { project: PROJECT }, 1);
+    world.seed(Record::Entry(entry.clone()));
     assert_eq!(world.call(Event::DropProject { owner: OWNER, project: PROJECT }), Answer::ProjectDropped);
-    assert_eq!(world.records(), &kept);
-    let Answer::Recalled { entries, more: false } =
-        world.call(Event::Recall { owner: OWNER, by: Recall::Name { name: 20 }, page: 0 })
-    else {
-        panic!("shared entry is recalled");
-    };
-    assert_eq!(entries.get(0), Some(&entry));
+    assert_eq!(world.stored_entry(entry.name), Some(&entry));
     world.restart();
-    assert_eq!(world.records(), &kept, "all remaining records survive restart");
+    assert_eq!(world.stored_entry(entry.name), Some(&entry), "an unindexed entry survives restart");
 }
 
 #[test]
@@ -126,14 +119,18 @@ fn a_project_with_no_notes_answers_at_once() {
 fn a_drop_sent_again_after_a_cut_finishes() {
     for cut in 0..=5 {
         let mut world = fixture();
-        let kept =
-            world.records().iter().filter(|(key, _)| !in_project(key)).map(|(k, v)| (k.clone(), v.clone())).collect();
+        let kept = world
+            .records()
+            .iter()
+            .filter(|(key, record)| !in_project(key, record))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         world.cut_after(Event::DropProject { owner: OWNER, project: PROJECT }, cut);
         assert_eq!(
             world.call(Event::DropProject { owner: OWNER, project: PROJECT }),
             Answer::ProjectDropped,
             "cut {cut}"
         );
-        assert_eq!(world.records(), &kept, "cut {cut} preserves all unrelated lines and every entry");
+        assert_eq!(world.records(), &kept, "cut {cut} preserves all unrelated lines and entries");
     }
 }

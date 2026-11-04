@@ -1,6 +1,6 @@
 # Status
 
-2026-11-03. Where skein's code lags or departs from its design, and its
+2026-11-04. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The kernel's
 records of a tree's metadata, the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
@@ -25,8 +25,8 @@ llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); single departures stand in
-`forge-setup.md`, `forge.md`, `forge-connection.md`, `io.md`, `llm.md`,
-`shell.md` and `testing.md`. The foundation's rules
+`forge-setup.md`, `forge.md`, `forge-connection.md`, `io.md`, `kv.md`,
+`llm.md`, `shell.md` and `testing.md`. The foundation's rules
 (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on

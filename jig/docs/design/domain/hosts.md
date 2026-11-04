@@ -804,7 +804,7 @@ engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (6.8).
 
-Its `assignment` builds that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. A root calls it and decides none of it.
+Its `assignment` builds that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants, of which `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls it and decides none of it.
 
 - **Instructions and brief:** the charter's instructions, and the brief's
   sections rendered as smith's titled sections, in order, the
@@ -813,7 +813,7 @@ Its `assignment` builds that charter from the core's run charter, the brief and 
 
   | jig's family | In smith |
   |---|---|
-  | inspecting, modifying, the shell | smith's inspect, modify and shell, when the run has a workspace; on a program backend, the program's built-in tools of these families, each call asked of smith's policy through the program's permission prompt (smith's `protocol/programs.md`, 5.3 and 5.4) |
+  | inspecting, modifying, the shell | smith's inspect, modify and shell, when the run has a workspace, and modify only with `deliver`; on a program backend, the program's built-in tools of these families, each call asked of smith's policy through the program's permission prompt (smith's `protocol/programs.md`, 5.3 and 5.4) |
   | sub-agents | smith's sub-agents; on a program backend, inspect only, each a program session of its own (smith's `protocol/programs.md`, 5.10) |
   | the engine's tools (engine.md, 7.3) | host tools, each declared with its schema, its description and whether it writes |
   | each connector's reads, and the effects and topics it offers to agents | host tools, declared by the application; its effects through the engine's `effect`, its topics through `subscribe` |

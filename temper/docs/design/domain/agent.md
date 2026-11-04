@@ -129,9 +129,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   charter's `inspect`, `modify`, `shell` and `agents` say; `wait`, always;
   `deliver`, for a finite change's contract (jig's `domain/hosts.md`,
   section 8; smith's `domain/run.md`, 8.4), never in an Open run (4.6).
-  A run that cannot deliver cannot modify files: at temper's Smith
-  charter boundary, `modify` is granted only with `deliver` and the
-  charter's permission. A chat's, a goal's, an advisor's and a reviewer's
+  A run that cannot deliver cannot modify files: jig's charter
+  translation grants `modify` only with `deliver` and the charter's
+  permission (jig's `domain/hosts.md`, section 8). A chat's, a goal's, an advisor's and a reviewer's
   runs inspect alone, whatever their charter's `modify` (a rail, not an
   instruction). Stock charter 1 disables `modify`; repository edits,
   including small fixes, go through `change` (4.3.1). The stock coder

@@ -1099,6 +1099,10 @@ to 7 and 11 settle.
 - **Parts for a phone or a desktop,** as `skein-ui-web`'s are a
   browser's: each waits for an application shipping on that platform;
   until then its shell is the application's (section 16).
+- **The applications' side of section 15:** an application's literals
+  that write out a `Limits` whole, and its tests' own counts of a node's
+  text, move onto `Limits::EMPTY` and `Node::text_bytes` in its own tree.
+  temper's literals wait with no debt item to hold them.
 
 ## 19. Open questions
 

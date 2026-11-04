@@ -115,7 +115,10 @@ impl Component {
             sources::Operation::Check => SourceAsk::Check,
             sources::Operation::SignOut => SourceAsk::SignOut,
         };
-        let source = smith::SourceName::new(name.as_bytes()).expect("same source name grammar");
+        let Some(source) = smith::SourceName::new(name.as_bytes()) else {
+            above.push(failed(owner, operation, jig::SourceFailure::Unconfigured, b"invalid source name", self.detail));
+            return;
+        };
         match ProgramSource::new(
             io_owner,
             ask,

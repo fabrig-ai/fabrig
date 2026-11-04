@@ -15,7 +15,6 @@
 
 - `ops`'s domain is 3,836 non-test lines (4,011 before the quality run; the review aimed at about 2,000); `route.rs` alone is 1,446.
 - It keeps its own classifier of host events (`admission.rs`, `Class`), decodes delegate JSON and assembles alert words; `jig/docs/design/examples.status.md` and `jig/docs/design/domain/root.status.md` record this as a departure.
-- It picks a close grace from the first offered conversation template (`route.rs`, the `Request::Close` arm), a decision a root should not make (the bug is in the triage).
 - The test application's root has another shape: `lib.rs` 1,370 lines against `ops`'s 38, plus `routes.rs` 1,310, with the same `Now` arms (D001).
 
 ## Why it matters
