@@ -61,7 +61,7 @@ impl Limits {
             .checked_add(6)?
             // End line: one paragraph and its text, including the report's words.
             .checked_add(2)?;
-        let counts = domain.accounts;
+        let counts = receiving.accounts;
         // Per row: sources and their actions, state/fact pairs, ranks, editor and outcome.
         // Program observations may appear in both the state notice and the source list.
         // Fixed room covers disclosure/heading, controls, confirmation and sign-in ending.
@@ -70,7 +70,7 @@ impl Limits {
             .sources
             .checked_mul(16)?
             .checked_add(hosts)?
-            .checked_add(counts.uses.checked_mul(2)?)?
+            .checked_add(domain.row_uses.checked_mul(2)?)?
             .checked_add(64)?;
         let account_nodes = account
             .checked_mul(counts.accounts)?

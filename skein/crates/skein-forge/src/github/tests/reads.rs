@@ -331,7 +331,7 @@ fn remark(id: u64) -> document::Remark {
         author: USER,
         path: Box::from(*b"dir/x y"),
         line: 0,
-        body: crate::forgejo::document::Body::Kept(Box::from(*b"hello")),
+        body: crate::text::Body::Kept(Box::from(*b"hello")),
     }
 }
 fn remarks_read() -> api::Read {
@@ -364,11 +364,11 @@ fn github_remarks_line_fallbacks() {
 #[test]
 fn github_remarks_page_and_long_body() {
     let mut row = remark(1);
-    row.body = crate::forgejo::document::Body::Kept(Box::from([b'x'; 129]));
+    row.body = crate::text::Body::Kept(Box::from([b'x'; 129]));
     let mut out = Writer::new(usize::try_from(ROOM).unwrap());
     server::remarks(&[row], &mut out).unwrap();
     let mut long = remark(1);
-    long.body = crate::forgejo::document::Body::Long(129);
+    long.body = crate::text::Body::Long(129);
     document(Kind::RemarkRows, &bytes(out), Document::Rows, &[Row::Remark(long.clone())]);
     for more in [false, true] {
         let mut call = Call::new(remarks_read(), bounds(), true);
@@ -393,7 +393,7 @@ fn github_remarks_page_and_long_body() {
         Kind::RemarkRows,
         br#"[{"id":1,"user":{"id":9007199254740993},"path":"dir/x y","body":null}]"#,
         Document::Rows,
-        &[Row::Remark(document::Remark { body: crate::forgejo::document::Body::Kept(Box::from([])), ..remark(1) })],
+        &[Row::Remark(document::Remark { body: crate::text::Body::Kept(Box::from([])), ..remark(1) })],
     );
 }
 #[test]
@@ -427,7 +427,7 @@ fn review(id: u64) -> document::Review {
         author: USER,
         verdict: Some(api::Verdict::Approve),
         commit: crate::github::id::commit(fixtures::SHA).unwrap(),
-        body: crate::forgejo::document::Body::Kept(Box::from(*b"hello")),
+        body: crate::text::Body::Kept(Box::from(*b"hello")),
         submitted: Some(fixtures::wall()),
         official: true,
     }
@@ -495,8 +495,8 @@ fn github_reviews_marker_revision_and_long_body() {
     let marked = crate::marker::encode(WORD, b"key", b"hello", 128).unwrap();
     let mut call = started(reviews_read(), bounds());
     let rows = [
-        document::Review { body: crate::forgejo::document::Body::Kept(marked.clone()), ..review(1) },
-        document::Review { body: crate::forgejo::document::Body::Long(129), ..review(2) },
+        document::Review { body: crate::text::Body::Kept(marked.clone()), ..review(1) },
+        document::Review { body: crate::text::Body::Long(129), ..review(2) },
     ];
     for row in rows {
         call.heard(Heard::Row(Row::Review(row))).unwrap();
@@ -517,17 +517,11 @@ fn github_reviews_marker_revision_and_long_body() {
         u64::from_be_bytes(skein_lib::sha256::digest(&fallback.finish())[..8].try_into().unwrap())
     );
     for length in [128, 129] {
-        let row = document::Review {
-            body: crate::forgejo::document::Body::Kept(Box::from(&[b'x'; 129][..length])),
-            ..review(1)
-        };
+        let row = document::Review { body: crate::text::Body::Kept(Box::from(&[b'x'; 129][..length])), ..review(1) };
         let mut out = Writer::new(usize::try_from(ROOM).unwrap());
         server::reviews(core::slice::from_ref(&row), &mut out).unwrap();
-        let expected = if length == 128 {
-            row
-        } else {
-            document::Review { body: crate::forgejo::document::Body::Long(129), ..review(1) }
-        };
+        let expected =
+            if length == 128 { row } else { document::Review { body: crate::text::Body::Long(129), ..review(1) } };
         document(Kind::ReviewRows, &bytes(out), Document::Rows, &[Row::Review(expected)]);
     }
 }

@@ -113,8 +113,7 @@ fn configured() -> Driver {
 }
 
 /// Sign `user` in; the person and session its reply names. Person numbers
-/// come from the replies: a first start seeds the configured owners (jig
-/// 0f55ef2d).
+/// come from the replies: a first start seeds the configured owners.
 #[expect(clippy::wildcard_enum_match_arm, reason = "the helper selects its own sign-in reply")]
 fn sign_in(driver: &mut Driver, user: u64, reply: u64) -> (u64, u64) {
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
@@ -230,7 +229,7 @@ fn a_smith_goal_is_proposed_accepted_planned_and_done() {
         },
     }));
     driver.settle();
-    // A decided proposal moves to its history family (jig c231752c).
+    // A decided proposal moves to its history family.
     assert!(
         matches!(driver.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::DecidedProposal(proposal)))),
         Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::DecidedProposal(row))))

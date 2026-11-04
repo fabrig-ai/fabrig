@@ -5,15 +5,9 @@ use temper_client_protocol_wire::v1 as w;
 pub struct Limits {
     pub forge: forge::Limits,
     pub client: jig_client::Limits,
-    pub accounts: AccountLimits,
-}
-/// Interim view counts until jig owns receiving counts (owner, 17:51Z; x1g).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct AccountLimits {
-    pub accounts: u32,
-    pub sources: u32,
-    pub uses: u32,
-    pub sign_ins: u32,
+    /// The uses one account row names before it says how many more. jig's
+    /// `AccountCounts` bounds what the client receives; what a row draws is temper's.
+    pub row_uses: u32,
 }
 /// Refuses unusable client limits, unrepresentable page counts and forge wire bounds.
 #[must_use]

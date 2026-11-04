@@ -45,7 +45,7 @@ fn limits_accept_the_profile_and_reject_each_problem() {
     for (field, bound) in [("string", good.string_bytes), ("body", good.body_bytes)] {
         let mut value = good;
         value.json.string = bound - 1;
-        assert_eq!(limits::check(&value), Err(Problem::TokenizerString), "{field}");
+        assert_eq!(limits::check(&value), Err(Problem::String), "{field}");
     }
     let depths: [BoundaryRow; 2] = [
         ("json", |l: &mut Limits| l.json.depth = MIN_DEPTH - 1),

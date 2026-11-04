@@ -8,7 +8,7 @@ use skein_lib::List;
 
 /// The maximum number of compiled pages.
 pub const MAX_PAGES: usize = 96;
-/// The largest bound of any kind (a reference's, a guide's).
+/// The largest bound of any kind (a reference's).
 pub const PAGE_BYTES: usize = 32_768;
 /// The maximum bytes in a page name.
 pub const NAME_BYTES: usize = 32;
@@ -33,10 +33,9 @@ pub enum Kind {
     Walk,
     Recipe,
     Reference,
-    Guide,
 }
 impl Kind {
-    /// The word of its kind line: "index", "concept", "walk", "recipe", "reference", "guide".
+    /// The word of its kind line: "index", "concept", "walk", "recipe", "reference".
     #[must_use]
     pub fn word(self) -> &'static str {
         match self {
@@ -45,11 +44,10 @@ impl Kind {
             Self::Walk => "walk",
             Self::Recipe => "recipe",
             Self::Reference => "reference",
-            Self::Guide => "guide",
         }
     }
 
-    /// Its bound in bytes: 6,144; 8,192; 12,288; 3,072; 32,768; 32,768.
+    /// Its bound in bytes: 6,144; 8,192; 12,288; 3,072; 32,768.
     #[must_use]
     pub fn bound(self) -> usize {
         match self {
@@ -57,7 +55,7 @@ impl Kind {
             Self::Concept => 8_192,
             Self::Walk => 12_288,
             Self::Recipe => 3_072,
-            Self::Reference | Self::Guide => PAGE_BYTES,
+            Self::Reference => PAGE_BYTES,
         }
     }
 }
@@ -77,7 +75,7 @@ pub struct Page {
     pub text: &'static str,
 }
 
-/// `index`, then the concepts, walks, recipes, reference pages and guides, each by name.
+/// `index`, then the concepts, walks, recipes and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
 pub static PAGES: [Page; 59] = [
     Page {

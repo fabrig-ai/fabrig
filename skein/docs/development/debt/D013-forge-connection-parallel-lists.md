@@ -32,5 +32,6 @@ a panic rather than a type error.
 ## What pays it back
 
 `List<ForgeEntry>` with `enum Dialect { Forgejo { .. }, GitHub(Box<..>) }`,
-passing `&mut ForgeEntry`; lib's `Tail` in place of `grow::Tail`. It
-goes better after D010, and pairs with D020.
+passing `&mut ForgeEntry`; lib's `Tail` in place of `grow::Tail`. The
+neutral pieces sit at skein-forge's root (`skein/docs/design/forge.md`,
+4.4). This pairs with D020.

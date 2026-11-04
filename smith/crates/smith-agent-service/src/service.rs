@@ -210,7 +210,7 @@ pub(crate) struct Stages {
     signals: Option<Token>,
     admission: admission::Admission,
     run_started: Time,
-    pub(crate) line: crate::terminal::Line,
+    pub(crate) line: crate::terminal::Last,
     opening: opening::Opening,
     pipe_routes: Map<Token, Token>,
     roots: roots::Roots,

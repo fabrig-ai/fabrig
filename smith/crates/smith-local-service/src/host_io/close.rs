@@ -77,7 +77,7 @@ impl Close {
         }
     }
 
-    pub(super) fn root_answered(&mut self, owner: Token) -> bool {
+    pub(super) fn settle_root(&mut self, owner: Token) -> bool {
         match self {
             Self::Open => false,
             Self::Closing { roots, .. } => match *roots {
@@ -90,7 +90,7 @@ impl Close {
         }
     }
 
-    pub(super) fn shutdown(&mut self) -> bool {
+    pub(super) fn latch_shutdown(&mut self) -> bool {
         match self {
             Self::Open => false,
             Self::Closing { shutdown, .. } => {
@@ -147,7 +147,7 @@ mod tests {
         let mut close = Close::Open;
         assert!(close.begin(2));
         close.next_root();
-        close.shutdown();
+        close.latch_shutdown();
         let held = close;
         assert!(!close.begin(9));
         assert_eq!(close, held);
@@ -164,8 +164,8 @@ mod tests {
             assert_eq!(close.next_root(), position);
             assert_eq!(close.roots_left(), position);
             assert!(!close.root_due());
-            assert!(close.root_answered(ROOT_OWNER));
-            assert!(!close.root_answered(ROOT_OWNER));
+            assert!(close.settle_root(ROOT_OWNER));
+            assert!(!close.settle_root(ROOT_OWNER));
         }
         assert!(!close.root_due());
         assert!(close.closing());
@@ -174,23 +174,23 @@ mod tests {
     #[test]
     fn a_foreign_file_terminal_answers_no_root() {
         let mut close = Close::Open;
-        assert!(!close.root_answered(ROOT_OWNER));
+        assert!(!close.settle_root(ROOT_OWNER));
         close.begin(1);
         close.next_root();
         let held = close;
-        assert!(!close.root_answered(Token::new(1)));
+        assert!(!close.settle_root(Token::new(1)));
         assert_eq!(close, held);
-        assert!(close.root_answered(ROOT_OWNER));
+        assert!(close.settle_root(ROOT_OWNER));
     }
 
     #[test]
     fn a_shutdown_while_closing_waits_for_one_take() {
         let mut close = Close::Open;
-        assert!(!close.shutdown());
+        assert!(!close.latch_shutdown());
         assert!(!close.take_shutdown());
         close.begin(0);
-        assert!(close.shutdown());
-        assert!(close.shutdown());
+        assert!(close.latch_shutdown());
+        assert!(close.latch_shutdown());
         assert!(close.take_shutdown());
         assert!(!close.take_shutdown());
         assert!(close.closing());

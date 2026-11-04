@@ -28,8 +28,8 @@ impl Plan {
         };
         self.page_row(bounds)?;
         let body = match row.body {
-            crate::forgejo::document::Body::Kept(body) => body,
-            crate::forgejo::document::Body::Long(_) => Box::from([]),
+            crate::text::Body::Kept(body) => body,
+            crate::text::Body::Long(_) => Box::from([]),
         };
         let remark = api::Remark { id: row.id, author: row.author, path: row.path, line: row.line, body };
         self.keep_bytes(64, &[&remark.path, &remark.body], bounds)?;

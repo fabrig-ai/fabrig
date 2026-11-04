@@ -1,8 +1,8 @@
-//! RFC 3339 at second resolution, with checked integer arithmetic.
+//! RFC 3339 and HTTP dates (skein/docs/design/forge.md, 4.4).
 use skein_lib::Wall;
 pub const RFC3339_BYTES: u32 = 20;
 fn number(text: &[u8], start: usize, end: usize) -> Option<u64> {
-    super::id::unsigned(text.get(start..end)?)
+    skein_lib::bytes::decimal(text.get(start..end)?)
 }
 fn leap(year: u64) -> bool {
     year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))

@@ -39,7 +39,6 @@ fn expected_given() -> skein_forge_setup::given::Given {
         bot_login: b"temper".as_slice().into(),
         bot_email: b"temper@example.invalid".as_slice().into(),
         orgs: Box::new([]),
-        // None adopted until temper-14a gives the owned forge’s adopted list.
         adopted: Box::new([]),
         org_owner: None,
         listener: None,

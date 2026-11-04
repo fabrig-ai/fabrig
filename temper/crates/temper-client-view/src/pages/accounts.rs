@@ -416,7 +416,7 @@ fn signings_without_rows(
     root: &Domain,
     w: &Words,
     doc: &c::Accounts,
-    counts: temper_client_domain::limits::AccountLimits,
+    counts: jig_client::AccountCounts,
 ) {
     for signing in doc.signing.iter().take(usize::try_from(counts.sign_ins).expect("bounded sign-ins")) {
         let mut in_row = false;

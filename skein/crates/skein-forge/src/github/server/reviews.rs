@@ -31,8 +31,8 @@ fn remarks_json(rows: &[document::Remark], json: &mut Encoder) -> Result<(), Ove
         json.unsigned(u64::from(row.line));
         json.key(b"body");
         match &row.body {
-            crate::forgejo::document::Body::Kept(body) => json.string(body),
-            crate::forgejo::document::Body::Long(_) => return Err(Overflow),
+            crate::text::Body::Kept(body) => json.string(body),
+            crate::text::Body::Long(_) => return Err(Overflow),
         }
         json.object_end();
     }
@@ -74,12 +74,12 @@ fn reviews_json(rows: &[document::Review], json: &mut Encoder) -> Result<(), Ove
         json.string(&crate::github::id::write_commit(&row.commit).ok_or(Overflow)?);
         json.key(b"body");
         match &row.body {
-            crate::forgejo::document::Body::Kept(body) => json.string(body),
-            crate::forgejo::document::Body::Long(_) => return Err(Overflow),
+            crate::text::Body::Kept(body) => json.string(body),
+            crate::text::Body::Long(_) => return Err(Overflow),
         }
         json.key(b"submitted_at");
         match row.submitted {
-            Some(at) => json.string(&crate::forgejo::time::write(at)),
+            Some(at) => json.string(&crate::time::write(at)),
             None => json.null(),
         }
         json.key(b"author_association");

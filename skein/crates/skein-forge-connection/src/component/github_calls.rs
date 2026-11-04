@@ -338,7 +338,7 @@ impl Component {
         let Some(exchange) = github_plan(waiting).pending() else {
             return Ok(());
         };
-        let encoded = github::request::encode(&exchange.request, &crate::limits::github_documents(&env.limits));
+        let encoded = github::request::encode(&exchange.request, &crate::limits::documents(&env.limits));
         match encoded {
             Ok(encoded) => match encoded.auth {
                 Auth::Installation | Auth::None => {}

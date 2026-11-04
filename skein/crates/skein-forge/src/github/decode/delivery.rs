@@ -8,7 +8,7 @@ use super::{
     Malformed,
     walk::{Move, Payload, Walk},
 };
-use crate::forgejo::document::Body;
+use crate::text::Body;
 use alloc::boxed::Box;
 use skein_json::{Token, tokenizer};
 use skein_lib::bytes;
@@ -264,7 +264,7 @@ impl Decoder {
     }
 }
 fn unsigned(text: &[u8]) -> u64 {
-    crate::forgejo::id::unsigned(text).expect("walker checked integer")
+    bytes::decimal(text).expect("walker checked integer")
 }
 
 /// Reads one whole payload with the same streaming decoder and bounded input pieces.

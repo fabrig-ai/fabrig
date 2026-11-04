@@ -92,7 +92,7 @@ pub enum Refused {
     /// Value outside the field's representation.
     Range,
 }
-/// `forge_component.installations` default; temper-01 adds the configuration row.
+/// `forge_component.installations` default.
 pub const FORGE_INSTALLATIONS: u32 = 8;
 /// Default bound for a token minted by the forge component.
 pub const FORGE_TOKEN_BYTES: u32 = 512;

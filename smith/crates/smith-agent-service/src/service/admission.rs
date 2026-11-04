@@ -4,7 +4,6 @@
 //! Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use super::Stages;
-use core::mem;
 use skein_lib::Token;
 use smith_domain as domain;
 
@@ -30,8 +29,7 @@ impl Admission {
     }
 
     pub(super) fn admit(&mut self, run: Token) {
-        let state = mem::replace(self, Self::Waiting);
-        *self = match state {
+        *self = match *self {
             Self::Waiting => Self::Admitted { run },
             Self::Cancelled => Self::Owed { run },
             Self::Owed { .. } | Self::Admitted { .. } => unreachable!("one Admitted per Start"),
@@ -41,8 +39,7 @@ impl Admission {
 
 /// The one cancel entrance for a host cancel or a live run's shutdown.
 pub(super) fn cancel(service: &mut Stages) {
-    let state = mem::replace(&mut service.admission, Admission::Waiting);
-    service.admission = match state {
+    service.admission = match service.admission {
         Admission::Waiting | Admission::Cancelled => Admission::Cancelled,
         state @ (Admission::Owed { run } | Admission::Admitted { run }) => {
             service.domain_events.push(domain::Event::Cancel { run });
@@ -53,8 +50,7 @@ pub(super) fn cancel(service: &mut Stages) {
 
 /// Deliver a waiting cancel after this pass's requests, before queued messages flush.
 pub(super) fn follow(service: &mut Stages) {
-    let state = mem::replace(&mut service.admission, Admission::Waiting);
-    service.admission = match state {
+    service.admission = match service.admission {
         Admission::Owed { run } => {
             service.domain_events.push(domain::Event::Cancel { run });
             Admission::Admitted { run }

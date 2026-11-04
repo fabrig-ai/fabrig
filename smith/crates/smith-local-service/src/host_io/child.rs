@@ -27,14 +27,15 @@ pub(super) enum Child {
 
 impl Child {
     pub(super) fn spawned(&mut self, process: protocol::Process) {
-        let state = core::mem::replace(self, Self::Absent);
-        *self = match state {
-            Self::Absent => Self::Spawned { process: Box::new(process), read: Read::Idle },
-            Self::Spawned { read, .. } => match read {
-                Read::Idle => Self::Spawned { process: Box::new(process), read: Read::Idle },
-                Read::Held => unreachable!("the previous child's channel end answers its held read before Spawn"),
-            },
-        };
+        assert!(!self.read_held(), "the previous child's channel end answers its held read before Spawn");
+        *self = Self::Spawned { process: Box::new(process), read: Read::Idle };
+    }
+
+    pub(super) fn process_mut(&mut self) -> &mut protocol::Process {
+        match self {
+            Self::Absent => unreachable!("Spawn precedes process requests"),
+            Self::Spawned { process, .. } => process,
+        }
     }
 
     pub(super) fn hold(&mut self) {
@@ -74,22 +75,22 @@ mod tests {
     fn a_new_spawn_holds_no_read() {
         let config = crate::tests::config();
         let mut hub = super::super::HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
-        assert!(!hub.read_held());
+        assert!(!hub.child.read_held());
         hub.child.answered();
-        hub.spawned(
+        hub.child.spawned(
             protocol::Process::new(Token::new(7), &hub.limits.channel, hub.limits.detail_bytes, hub.endpoints.clone())
                 .unwrap(),
         );
-        assert!(!hub.read_held());
-        hub.hold_read();
-        assert!(hub.read_held());
+        assert!(!hub.child.read_held());
+        hub.child.hold();
+        assert!(hub.child.read_held());
         hub.child.answered();
-        assert!(!hub.read_held());
+        assert!(!hub.child.read_held());
         hub.child.answered();
-        hub.spawned(
+        hub.child.spawned(
             protocol::Process::new(Token::new(8), &hub.limits.channel, hub.limits.detail_bytes, hub.endpoints.clone())
                 .unwrap(),
         );
-        assert!(!hub.read_held());
+        assert!(!hub.child.read_held());
     }
 }

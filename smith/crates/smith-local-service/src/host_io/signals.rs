@@ -19,7 +19,7 @@ pub(super) enum Signals {
 
 impl Signals {
     pub(super) fn adopted(&mut self, stream: Token) {
-        match self {
+        match *self {
             Self::Absent => *self = Self::Open { stream },
             Self::Open { .. } | Self::Reading { .. } => unreachable!("signal stream is adopted once"),
         }

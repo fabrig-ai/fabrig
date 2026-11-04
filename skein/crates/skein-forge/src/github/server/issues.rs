@@ -1,9 +1,6 @@
 //! Issue documents and comments share GitHub's issue numbering.
 use super::{document, output_limits};
-use crate::{
-    api,
-    forgejo::{document::Body, time},
-};
+use crate::{api, text::Body, time};
 use skein_json::writer::Encoder;
 use skein_lib::{Overflow, Writer};
 

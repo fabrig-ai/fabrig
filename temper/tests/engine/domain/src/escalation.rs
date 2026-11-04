@@ -377,8 +377,8 @@ impl World {
         self.queue(event, 0);
     }
 
-    /// The winner of decision `stage`: passing keeps the hold's revision
-    /// (jig 00de0b8c), so the first and final decisions share revision one.
+    /// The winner of decision `stage`: passing keeps the hold's revision,
+    /// so the first and final decisions share revision one.
     fn winning_choice(&mut self, stage: u64, owner: usize, decision: people::EscalationDecision, key: u8) {
         let revision = 1;
         let by = self.people[owner].expect("authenticated winning actor");

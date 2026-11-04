@@ -1,17 +1,18 @@
 //! The engine world is the lowest tier joining retained tier facts to ctl's reads.
+use crate::forge_routes::World;
+use crate::forge_routes::{Gate, StoryLimits};
 use jig_client::{self as client, contract as c};
 use jig_domain_core::reads;
 use skein_lib::{Env, List, Queue, Writer};
 use temper_client_tools::{jig::call::Parsed, root};
-use temper_engine_domain_world::forge_routes::World;
-use temper_engine_domain_world::forge_routes::{Gate, StoryLimits};
 
 /// Keep the baseline's projection at 128 bytes without changing other tier stories.
-pub(super) fn world() -> World {
+#[must_use]
+pub fn world() -> World {
     let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
     documents.text_bytes = 128;
     let options = StoryLimits {
-        tier: Some(temper_engine_domain_world::tier_runs::Tier::default()),
+        tier: Some(crate::tier_runs::Tier::default()),
         tasks: Some(12),
         spec_bytes: Some(4096),
         ..StoryLimits::default()
@@ -20,7 +21,7 @@ pub(super) fn world() -> World {
 }
 
 /// Read a tier task through ctl and require its complete execution words in asked.
-pub(super) fn assert_words(world: &mut World, task: u64, expected: &str) {
+pub fn assert_words(world: &mut World, task: u64, expected: &str) {
     world.signed_in = None;
     world.sign_in();
     let printed = show(world, task);
@@ -30,12 +31,12 @@ pub(super) fn assert_words(world: &mut World, task: u64, expected: &str) {
 }
 
 /// Submit ordinary task show through the tools root and real task document read.
-pub(super) fn show(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
+pub fn show(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
     show_format(world, task, false, false)
 }
 
 /// Read the same bounded task document as JSON through the tools root.
-pub(super) fn show_json(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
+pub fn show_json(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
     show_format(world, task, true, false)
 }
 
@@ -45,7 +46,7 @@ fn show_format(world: &mut World, task: u64, json_output: bool, change: bool) ->
         now: world.env.now,
         wall: world.env.wall,
     };
-    let mut root = root::Root::unlinked(&env.limits, temper_engine_domain_world::tier_runs::SEED).expect("ctl limits");
+    let mut root = root::Root::unlinked(&env.limits, crate::tier_runs::SEED).expect("ctl limits");
     let mut out = Queue::uncapped();
     for event in [
         client::Event::StartUnlinked { kept: List::with_capacity(0) },
@@ -171,7 +172,7 @@ fn response(world: &mut World, request: root::Request) -> Option<client::Event> 
 }
 
 /// Exercise ctl's wire decoding and both renderers with the retained hold account.
-pub(in super::super) fn assert_hold_words(world: &mut World, task: u64, expected: &str) {
+pub fn assert_hold_words(world: &mut World, task: u64, expected: &str) {
     for (json, change) in [(false, false), (true, false), (false, true), (true, true)] {
         let printed = show_format(world, task, json, change);
         let registered = world
