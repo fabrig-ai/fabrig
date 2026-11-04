@@ -104,3 +104,18 @@ acceptance whole. `FirstRun { step: 22 } => "widget"` stays, and the gallery's p
 showing this name in place of "Demo" are not this task's.
 `temper/crates/temper/tests/fake_backends/walk/open_default.rs`, whose walk reads a "Default"
 button, is `ready-adopts`'s (its step 6): leave it, under `## Left`.
+
+## Rebase (2026-11-04, step merge, foreman look-round-3/ready-name/foreman-2)
+
+Rebase ready-name, combining its word-segment increase and status removal with the landed Home/Settings changes.
+The merge conflicts are in `temper/crates/temper-client-view/src/words.rs` and `temper/docs/design/client/README.status.md`.
+In `words.rs`, integration commit `e5652cdac9` adds `SettingsFor` and `ProjectNotYours`, two phrases and six segments.
+Keep those variants, list entries, IDs and English definitions, together with ready-name’s `WelcomeDefaultUnnamed` Name hole.
+For the inspected integration tip, the combined counts are `PHRASES = 1268`, `SEGMENTS = 2171`, and `ALL: [Word; 673]`.
+Retain both changes’ explanatory count comments and ready-name’s wording about the first project.
+In `README.status.md`, integration commit `64da93d69a` removes the Settings-page gap and changes the remaining wording to `Home { project }` and “the project frame”.
+Preserve those edits and its removal of “no project's settings” from the Delete gap.
+Apply ready-name’s removal of the offered-name gap: retain “Ready's lead naming the repository and its adoption; the code adopts nothing.”
+Keep the remaining Home/frame and adoption gaps; this task does not implement them.
+Preserve the automatically merged domain changes and the gallery’s `"Hello"` seed from `0564624ca9`.
+Run the spec’s checks after resolving the conflicts, and retain the `Look-request: project-home` trailer on resulting task commits.
