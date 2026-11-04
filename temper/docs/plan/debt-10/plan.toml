@@ -34,6 +34,19 @@ story = "each test of the shipped parts can fail on its rule, and the review's l
 parts = ["tidying"]
 walk = false
 
+[[part]]
+id = "bundle-helpers"
+title = "jig D005, temper D001, B3 and B4: bundle helpers shipped and composed by both services, one Undecoded"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/service.md, 11.4"
+
+[[slice]]
+id = 3
+story = "both services serve their bundles through one shipped set of helpers, keeping their own routes and policies, and one enum says what of a start did not decode"
+parts = ["bundle-helpers"]
+walk = false
+
 [[question]]
 id = "listener-off-loopback"
 parts = ["findings"]
