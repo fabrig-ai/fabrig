@@ -1,6 +1,39 @@
-//! Slot removal's data boundary (temper/docs/design/protocol/setup.md, 7.1).
+//! The box's held listeners and slot boundaries (temper/docs/design/protocol/setup.md, 7.1).
 use crate::forge::remove_directory;
 use std::fs;
+
+#[test]
+fn a_held_descriptor_is_refused_as_held() {
+    use std::os::fd::AsRawFd;
+    let file = fs::File::open("/dev/null").expect("open a non-socket");
+    let fd = skein_io::kernel::Fd::new(file.as_raw_fd());
+    let held = vec![(fd, std::num::NonZeroU16::new(4).expect("nonzero port"))];
+    assert_eq!(
+        crate::box_command::held_listeners(held),
+        Err(format!("held listener: fd {} is not a socket", fd.raw()))
+    );
+}
+
+#[test]
+fn a_refusal_names_whose_descriptor_it_was() {
+    use skein_io::kernel::Fd;
+    use skein_shell::{ListenerCheck, ListenersRefusal as Why};
+    for (why, held, inherited) in [
+        (
+            Why::Check { fd: Fd::new(4), check: ListenerCheck::Listening, errno: 42 },
+            "held listener: fd 4: getsockopt SO_ACCEPTCONN: errno 42",
+            "LISTEN_FDS: fd 4: getsockopt SO_ACCEPTCONN: errno 42",
+        ),
+        (
+            Why::Kernel { fd: Fd::new(4), errno: 42 },
+            "held listener: fd 4: close-on-exec: errno 42",
+            "LISTEN_FDS: fd 4: close-on-exec: errno 42",
+        ),
+    ] {
+        assert_eq!(crate::held_refusal(why), held);
+        assert_eq!(crate::listeners_refusal(why), inherited);
+    }
+}
 
 #[test]
 fn forge_remove_refuses_a_path_outside_data() {

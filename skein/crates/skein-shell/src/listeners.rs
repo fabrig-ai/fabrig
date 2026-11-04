@@ -12,6 +12,28 @@ use crate::system;
 /// exist; io's adoption separately enforces the service's socket capacity.
 pub const MAX_INHERITED_LISTENERS: u32 = 1024;
 
+/// The call of a listener's check that failed (shell.md, 6.6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ListenerCheck {
+    Stat,
+    Kind,
+    Listening,
+    Address,
+}
+
+impl ListenerCheck {
+    /// The call, for a refusal's words.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Stat => "fstat",
+            Self::Kind => "getsockopt SO_TYPE",
+            Self::Listening => "getsockopt SO_ACCEPTCONN",
+            Self::Address => "getsockname",
+        }
+    }
+}
+
 /// Why startup refused inherited listeners, beside `RootsRefusal` for roots.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ListenersRefusal {
@@ -29,7 +51,9 @@ pub enum ListenersRefusal {
     NotListening { fd: Fd },
     /// The listening socket's address is neither IPv4 nor IPv6.
     NotIp { fd: Fd },
-    /// A descriptor check or close-on-exec update failed with this errno.
+    /// A descriptor check's call failed with this errno.
+    Check { fd: Fd, check: ListenerCheck, errno: i32 },
+    /// A close-on-exec update failed with this errno.
     Kernel { fd: Fd, errno: i32 },
 }
 
