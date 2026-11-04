@@ -516,3 +516,9 @@ shows, it reads through the public client.
 - **Triage before an LLM:** whether the connector's classification,
   with a wake policy batching what it lets through, is enough before a
   cheap model triages.
+- **A chat's own template's grace:** no close honours it, since a task
+  keeps no template (`domain/engine.md`, 11.1): the deployment's close
+  gives the grace `ops` configures (7.3), and a person's gives that of
+  the chat template `me` offers now (`client/domain/client.md`, 19).
+  Whether a task keeps its grace as a value, which would honour it at
+  the price of a stored format. Default: as said.
