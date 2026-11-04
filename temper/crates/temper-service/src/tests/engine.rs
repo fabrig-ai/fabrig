@@ -434,7 +434,7 @@ fn startup_admission_keeps_no_forge() {
         fixtures::turn(&mut service);
     }
     let engine = service.engine.as_mut().expect("engine");
-    assert!(!engine.store.host.component.mark_durable());
+    assert!(!engine.store.host.mark_durable());
     assert!(engine.clients.starting.is_some());
     let mark = engine.store.held_mark.take().expect("held startup mark");
     engine.store.hold_mark = false;
@@ -444,7 +444,7 @@ fn startup_admission_keeps_no_forge() {
         fixtures::turn(&mut service);
     }
     let engine = service.engine.as_mut().expect("engine");
-    assert!(engine.store.host.component.mark_durable());
+    assert!(engine.store.host.mark_durable());
     assert!(engine.domain.ready());
     assert!(engine.clients.starting.is_none());
     assert_eq!(engine.domain.forge_connection(1), forge::Connection::NotConnected);
@@ -581,7 +581,7 @@ fn nothing_leaves_before_the_mark() {
     assert!(service.links().is_empty(), "no sign-in link is published before startup opens");
     let engine = service.engine.as_mut().expect("engine");
     assert!(engine.store.held_mark.is_some(), "public restore reaches its mark without secret bootstrap");
-    assert!(!engine.store.host.component.mark_durable());
+    assert!(!engine.store.host.mark_durable());
     assert_eq!(engine.accounts.as_ref().expect("accounts").component().startup(0), (false, 0, 0));
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
     assert!(engine.values.identities.numbers().is_empty(), "restored identities wait for the durable wires");
@@ -604,7 +604,7 @@ fn nothing_leaves_before_the_mark() {
     assert!(engine.store.down(mark));
     fixtures::restart(&mut service);
     let engine = service.engine.as_ref().expect("engine");
-    assert!(engine.store.host.component.mark_durable());
+    assert!(engine.store.host.mark_durable());
     assert_eq!(engine.accounts.as_ref().expect("accounts").component().startup(0), (true, 0, 0));
     assert_eq!(engine.store.forge_loads.as_slice(), [None], "one application-secrets pass");
     assert!(engine.forge_records.done());
@@ -950,7 +950,7 @@ fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
         });
         assert_eq!(service.end(), Some(&expected));
         let engine = service.engine.as_ref().unwrap();
-        assert!(!engine.store.host.component.mark_durable());
+        assert!(!engine.store.host.mark_durable());
         assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 }));
         assert!(!engine.domain.ready());
         assert_eq!(engine.domain.forge_fit_failure(), Some(&failure));
