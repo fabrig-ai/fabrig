@@ -90,7 +90,8 @@ throwaway Forgejo and the conformance).
 ### 2.1 The crates
 
 ```
-skein-forge                     the vocabulary (api, locate); the dialects: Forgejo's documents, both
+skein-forge                     the vocabulary (api, locate); what the dialects share (4.4); the
+│                                 dialects: Forgejo's documents, both
 │                                 sides, its call plans, its deliveries, the setup's documents, the
 │                                 pin; GitHub's likewise (forge-github.md); keys' markers;
 │                                 credentials' kinds
@@ -562,6 +563,8 @@ with the App's documents (the JSON Web Token's bytes, the mint and the
 installations' reads) where Forgejo's has the setup's admin reads
 (forge-github.md, section 2).
 
+What holds for both dialects alike sits at the crate's root (4.4).
+
 ### 4.2 Call plans
 
 A call plan is a dialect's small pure machine for one call. The
@@ -659,6 +662,25 @@ behaviour the conformance checked.
 - **Moving the pin** moves the digests with it: a new `VERSION` or
   `RUNNER_VERSION` comes with the new release files' digests, taken as
   above, in the same change.
+
+### 4.4 What the dialects share
+
+What does not depend on a forge's documents sits at `skein_forge`'s
+root, and both dialects stand on it:
+
+- `time`: RFC 3339 and the HTTP date;
+- `path`: percent-encoding and a target's reading;
+- `text`: `Body`, a text kept whole or only counted;
+- `decode`: `Malformed`;
+- `limits`: `Limits`, `Problem` and `check`, which takes the depth a
+  dialect needs (8 for Forgejo, 10 for GitHub);
+- `plan`: an exchange's `Failure` and how a transport's end reads as
+  one;
+- `users`: the logins' table (4.2).
+
+A dialect keeps its public name for each by re-export, and names no item
+of the other dialect. Its documents, ids, plans, `Bounds` and repository
+rows stay its own. The dialects stay modules of one crate (section 12).
 
 ## 5. Forgejo's API
 

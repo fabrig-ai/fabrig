@@ -34,3 +34,16 @@ id = 2
 story = "smith's lifecycle machines keep their behaviour with about 190 lines fewer, one transition rule and names that say they mutate"
 parts = ["smith-lifecycles"]
 walk = false
+
+[[part]]
+id = "skein-forge-root"
+title = "skein D010: GitHub's dialect stands on skein-forge's root, not on Forgejo's modules"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 4.4"
+
+[[slice]]
+id = 3
+story = "both dialects stand on skein-forge's root, GitHub's non-test code names no forgejo:: and forge-connection translates no twin, with every public path kept by re-export"
+parts = ["skein-forge-root"]
+walk = false
