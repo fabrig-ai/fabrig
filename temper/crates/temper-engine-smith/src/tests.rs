@@ -2465,3 +2465,68 @@ fn task_read_hold_reasons_keep_their_numbers_and_failure_classes() {
         assert!(skein_lib::bytes::find(answer.text(), expected).is_some());
     }
 }
+
+#[test]
+fn authority_findings_name_sources_and_dimensions() {
+    use jig_domain_authority::{Answer, Finding, Source};
+    let dimensions = [
+        ("tool permission", "tools"),
+        ("resource grant", "grants"),
+        ("executor permission", "delegation.kinds"),
+        ("task allowance", "delegation.tasks"),
+        ("descendant depth", "delegation.depth"),
+        ("spend allowance", "budget.spend"),
+        ("deadline", "budget.deadline"),
+        ("note scope", "notes"),
+        ("model permission", "models"),
+    ];
+    for (source, setting) in [
+        (Source::Task, "task authority"),
+        (Source::Role, "project role authority"),
+        (Source::Project, "project policy.ceiling"),
+        (Source::Deployment, "rules.ceiling"),
+    ] {
+        for (index, (dimension, field)) in dimensions.iter().enumerate() {
+            let value = engine::CallAnswer::DelegationDenied {
+                answer: Answer::Refuse,
+                findings: Box::new([Finding::Authority { source, lacks: authority_deficits(1 << index) }]),
+            };
+            let rendered = answer(&value);
+            assert!(rendered.error());
+            assert_eq!(
+                rendered.text(),
+                format!("Authority refused: missing {dimension} ({setting}.{field}); ").as_bytes()
+            );
+        }
+        let value = engine::CallAnswer::DelegationDenied {
+            answer: Answer::Refuse,
+            findings: Box::new([Finding::Authority { source, lacks: authority_deficits(511) }]),
+        };
+        let rendered = answer(&value);
+        for (dimension, field) in dimensions {
+            let expected = format!("missing {dimension} ({setting}.{field})");
+            assert!(skein_lib::bytes::find(rendered.text(), expected.as_bytes()).is_some(), "{:?}", rendered.text());
+        }
+        let value = engine::CallAnswer::DelegationDenied {
+            answer: Answer::Refuse,
+            findings: Box::new([Finding::Executor { source }]),
+        };
+        let rendered = answer(&value);
+        let expected = format!("missing executor permission ({setting}.delegation.kinds)");
+        assert!(skein_lib::bytes::find(rendered.text(), expected.as_bytes()).is_some());
+    }
+}
+
+fn authority_deficits(bits: u16) -> jig_domain_authority::Lacks {
+    jig_domain_authority::Lacks {
+        tools: bits & 1 != 0,
+        grants: bits & 2 != 0,
+        executors: bits & 4 != 0,
+        tasks: bits & 8 != 0,
+        depth: bits & 16 != 0,
+        spend: bits & 32 != 0,
+        deadline: bits & 64 != 0,
+        notes: bits & 128 != 0,
+        models: bits & 256 != 0,
+    }
+}

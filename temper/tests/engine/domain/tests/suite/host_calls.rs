@@ -406,10 +406,17 @@ fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World,
     let mut world = World::configured_stock_limits(&defaults, &model, &limits);
     world.adopt();
     let mut hello = protocol::hello_slots(Token::new(7), 2, Box::new([]));
-    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: ref mut worker, .. }, .. }) = hello else { panic!("hello") };
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Hello { hello: ref mut worker, .. },
+        ..
+    }) = hello
+    else {
+        panic!("hello")
+    };
     worker.bounds = jig_test_profile::fixtures::bounds();
     worker.bounds.time = skein_lib::Duration::from_secs(28_800);
-    worker.bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    worker.bounds.models =
+        Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
     world.send(hello);
     let ask = world.chat(1, b"coordinate designers and close out the plan");
     world.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -450,7 +457,9 @@ fn producer_refusal(
     world.send(event);
     for _ in 0..200 {
         world.tick();
-        if !world.protocol.pending_renders.is_empty() || world.call_errors.len() > before { break; }
+        if !world.protocol.pending_renders.is_empty() || world.call_errors.len() > before {
+            break;
+        }
     }
     if let Some((to, _)) = world.protocol.pending_renders.pop() {
         let answer = &world.protocol.answers.last().expect("fresh refusal").1;
@@ -464,7 +473,9 @@ fn producer_refusal(
         }));
         for _ in 0..200 {
             world.tick();
-            if world.call_errors.len() > before { break; }
+            if world.call_errors.len() > before {
+                break;
+            }
         }
     }
     assert_eq!(world.call_errors.len(), before + 1, "one refusal reaches the worker");
