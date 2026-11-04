@@ -9,6 +9,8 @@ use std::path::Path;
 use temper_client_domain::{Address, ChatsFilter, Step};
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 
+const HOME_HEADLINE: &[u8] = "You’re set up. Nothing has run yet.".as_bytes();
+
 /// The browser's client bounds over the native transport (client/README.md, 2).
 fn browser_bounds() -> temper_client_shell_terminal::limits::Limits {
     temper_client_shell_terminal::limits::Limits {
@@ -62,7 +64,7 @@ impl Referee<NativeClient> for Judge {
                 }
             }
             Page::Home
-                if named(client, Role::Heading { level: 1 }, b"My project").is_some()
+                if named(client, Role::Heading { level: 1 }, HOME_HEADLINE).is_some()
                     && named(client, Role::Button, b"My project")
                         .is_some_and(|node| node.states.as_slice().contains(&State::Pressed))
                     && live(client) =>
@@ -106,7 +108,7 @@ impl Referee<NativeClient> for Judge {
             Page::Starting => "Inbox: native client started and Status Owner",
             Page::Ready => "Welcome Ready: enabled Button Create your project",
             Page::Home => {
-                "Home: Heading My project level 1, pressed Button My project, Status Live and no Status Behind"
+                "Home: Heading You’re set up. Nothing has run yet. level 1, pressed Button My project, Status Live and no Status Behind"
             }
             Page::Chats => "Chats: Heading Chats level 1, Button My project, Status Live and no Status Behind",
             Page::Forges => "Forges: Heading Forges level 1 and Disclosure Forgejo on this machine",
