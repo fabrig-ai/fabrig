@@ -1490,8 +1490,9 @@ The stores open (step 1), and the format row, the layouts and the
 deployment's header are read and checked (step 2, 5.3). Every refusal of
 the levels, versions, layouts and deployment comes here, and nothing has
 been written but skein-kv's recovery of the active generation's maps
-(its next segment, a leftover snapshot's removal; skein's `kv.md`,
-section 3).
+(its next segment, a leftover snapshot's removal, and the snapshot a torn
+tail or a replay past its bound starts; skein's `kv.md`, sections 3 and
+5).
 
 #### 10.1.5 The strays removed
 
@@ -2137,9 +2138,10 @@ was made (`../domain/tasks.md`, section 3):
 - **Three file drivers,** one for each store (skein's `kv.md`, section
   12) and one for transcripts, so a turn's sync never queues behind a
   store's write, nor a store's behind a turn's.
-- **The worst case** is both stores' (skein's `kv.md`, section 7: about
-  three times each map's budget), the component's buffers and tables, and
-  the three drivers' (skein's `io.md`, section 5). Patching's peak (10.2:
+- **The worst case** is both stores' (skein's `kv.md`, section 7: each
+  map's budget, its queued commits and its buffers of a chunk), the
+  component's buffers and tables, and the three drivers' (skein's
+  `io.md`, section 5). Patching's peak (10.2:
   one map open, one machine per kept family within its own map's record
   room, the walk's page and commit buffers at the larger of the two
   maps' bounds, since one walk serves both, the copy's chunk, and the
