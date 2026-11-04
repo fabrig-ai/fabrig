@@ -1,0 +1,30 @@
+draft = "look-round-4"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-4/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/to-begin.md", "temper/docs/design/draft/to-begin.status.md", "AGENTS.md", "DESIGN.md"]
+
+# The design from the draft goes first, then the requests oldest first (inputs/request.md, How the
+# cut shapes it); temper-client-view takes one writer at a time, so its tasks chain. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "home-needs"
+title = "Home reads the project's needs beside its chats"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "everyday-look"
+title = "the everyday Home's rules and tokens"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "Home knows what needs the person in its project, and the stylesheet can draw it"
+parts = ["home-needs", "everyday-look"]
+walk = false
