@@ -3,7 +3,7 @@ id = "init-standard"
 part = "box"
 kind = "feature"
 needs = ["standard-scale", "forge-profile", "smith-calls", "client-capacities"]
-files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs"]
+files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs"]
 effort = "high"
 minutes = 240
 +++
@@ -251,3 +251,27 @@ that line and the acceptance's checks. To land in one more run:
   fall.
 - Run the acceptance's checks in its order, the no-write `startup::turn_bounds` first, then the
   status lines, clippy and the push.
+
+2026-11-04. **`welcome_policy.rs` pins `authority.projects` 2 (Small's); may this task mend it?**
+Yes; the task is widened to that one test, `real_init_policy_fits_with_two_long_github_repositories`.
+Its acceptance (`-p temper-service` passes) cannot hold without it, and `fresh-box`, which owns the
+file, comes four tasks later; the trunk would stay red until then. It fails only because init's
+document now runs `standard`, the mend this answer's pre-approval above names.
+
+- The assertion on `limits.authority.projects` takes `standard`'s 8; the comment above
+  `policy_bytes` says init runs the `standard` profile.
+- The test's capacity proof keeps its meaning: after the two adopted projects, make the projects
+  up to `limits.authority.projects` (a plain `MakeProject`, no adoption), then the next one is
+  refused `LimitKind::Projects`; its `expect` words and the `eprintln!` line say the profile's
+  project capacity instead of "two-project". Do not override `authority.projects` in the test.
+- Another figure of that test that moves only for `standard` (`forge.name_bytes`, the joined
+  policy's bytes, `policy_bytes`) takes its expected figure, listed with old and new. Nothing else
+  in the file: `fresh-box` adds its own tests there.
+- The same holds, with no stop, for any other test of `temper-service` (and of the acceptance's
+  other packages) that fails only because init's documents run `standard` and mends by an
+  expected figure alone: mend it, list it with its old and new figure and the file, and say in the
+  report that the file is outside the header. A failure that needs more than an expected figure,
+  or a test owned by `reference-trim` (`the_reference_profile_passes_startup_admission`), is left
+  under `## Left` or asked as before.
+
+Then the rest of `-p temper-service`, and the acceptance's remaining checks in order.
