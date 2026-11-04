@@ -727,6 +727,11 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
 - **Text that is not UTF-8,** such as a command's output going to an LLM,
   is refused by the writer. A caller that must send it replaces what is
   not UTF-8 first; whether the writer should offer that is open.
+- **A `Collector` over one whole buffer** has no driver, since a `Feed`
+  owns a tokenizer: smith's read of a program's status and a test of
+  skein-llm's meet its demands by hand. Whether a collector gets a feed
+  of its own, or such a caller keeps the document from `parse` and walks
+  it, is open.
 
 ## 9. Not built yet
 
