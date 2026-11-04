@@ -662,7 +662,7 @@ fn set_link(limits: &mut crate::Link, field: &[u8], value: u64) -> Result<(), Wh
 #[must_use]
 #[derive(Debug)]
 pub struct Parsed {
-    /// The named profile with applied overrides; Small if no profile was recognized.
+    /// The named profile with applied overrides; Standard if no profile was recognized.
     /// These limits may be used for further diagnostics, but require no problems for startup.
     pub limits: Limits,
     pub problems: Problems,
@@ -670,7 +670,7 @@ pub struct Parsed {
 
 /// Read the limits member at its path, retaining its limits when checks find problems.
 pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
-    let mut limits = profile(Profile::Small);
+    let mut limits = profile(Profile::Standard);
     let mut problems = Problems::empty();
     let mut object = match read::Object::new(document, at) {
         Ok(object) => object,
@@ -682,7 +682,7 @@ pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
     if let Some(at) = object.required(document, b"profile", path, &mut problems) {
         match read::text(document, at, 8) {
             Ok(name) => match name.as_ref() {
-                b"small" => {}
+                b"small" => limits = profile(Profile::Small),
                 b"standard" => limits = profile(Profile::Standard),
                 _ => problems.push(path.member(b"profile"), What::Override),
             },
