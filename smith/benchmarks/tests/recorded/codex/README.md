@@ -1,4 +1,4 @@
-Completed and children are trimmed archived JSON lines from codex-cli 0.160.0. The manifest pins each original file and lists its retained lines. Only records were removed; retained content is unchanged. The children run used three threads according to its archived result, but its collaboration wait has no receiver ids. Its JSON-line usage is root-only. Child, compaction and helper usage cannot be recovered from this stream.
+Completed and children are trimmed archived JSON lines from codex-cli 0.160.0. The manifest pins each original file and lists its retained lines. Only records were removed; retained content is unchanged except that the recording machine's home directory reads `/home/user/` in recorded paths; `source_sha256` pins each original. The children run used three threads according to its archived result, but its collaboration wait has no receiver ids. Its JSON-line usage is root-only. Child, compaction and helper usage cannot be recovered from this stream.
 
 Increment 00.10 adds isolated-home records from 2026-10-09. The former
 synthetic failed SDK terminal is replaced by the native unknown-model failure;
