@@ -361,9 +361,6 @@ impl Connection {
         };
     }
     pub fn stream(&mut self, env: &Env<Limits>, event: Up) {
-        if self.phase == Phase::Closed && self.link.socket().is_none() {
-            return;
-        }
         self.link.up(&self.link_env(env), event);
     }
     fn http_env(&self, env: &Env<Limits>) -> Env<http::Limits> {
