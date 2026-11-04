@@ -1,4 +1,4 @@
-//! Resolver Pull sections against client admission (domain/forge.md, 8.4).
+//! Resolver Pull sections against client admission (temper/docs/design/domain/forge.md, 8.4).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Token;
@@ -20,7 +20,7 @@ fn tree(files: u32) -> Box<[raw::File]> {
     tree.into_boxed_slice()
 }
 
-fn resolver(files: u32, extra_commits: u32) -> (World, u64, api::Commit, api::Commit) {
+fn resolver(files: u32, extra_commits: u32, missing: bool) -> (World, u64, api::Commit, api::Commit) {
     let mut world = World::with_comparison_room(245);
     world.adopt();
     world.produce_file(b"g", b"shared", b"base");
@@ -38,7 +38,7 @@ fn resolver(files: u32, extra_commits: u32) -> (World, u64, api::Commit, api::Co
     for _ in 0..extra_commits {
         world.push_tree(b"g", tree(files));
     }
-    let base = translate::commit(world.branch(b"g"));
+    let base = if missing { translate::commit(u64::MAX) } else { translate::commit(world.branch(b"g")) };
     let mut row = changes::change_row();
     row.base = Box::from(b"g".as_slice());
     row.pull = Some(pull);
@@ -66,14 +66,14 @@ fn gather(world: &mut World, pull: u64, head: api::Commit) {
 }
 
 fn completed(world: &mut World, pull: u64, head: api::Commit, omitted: bool) {
-    let sizes: Vec<_> = world
-        .seen()
-        .iter()
-        .filter_map(|request| match request {
-            top::Request::BriefSized { section: SECTION, size } => Some(*size),
-            _ => None,
-        })
-        .collect();
+    let sizes: Vec<_> =
+        world
+            .seen()
+            .iter()
+            .filter_map(|request| {
+                if let top::Request::BriefSized { section: SECTION, size } = request { Some(*size) } else { None }
+            })
+            .collect();
     assert_eq!(sizes.len(), 1, "one terminal sizing response");
     let size = sizes[0].expect("required Pull section survives comparison admission");
     assert!(size <= BYTES);
@@ -109,7 +109,7 @@ fn completed(world: &mut World, pull: u64, head: api::Commit, omitted: bool) {
 #[test]
 fn resolver_compare_over_rows_keeps_required_pull_section() {
     for (files, extra, commits) in [(8, 0, 2), (9, 0, 2), (16, 0, 2), (3, 6, 8), (3, 7, 9)] {
-        let (mut world, pull, head, base) = resolver(files, extra);
+        let (mut world, pull, head, base) = resolver(files, extra, false);
         let raw::Answer::Comparison { files: changed, commits: history, .. } = world.inspect(&raw::Read::Compare {
             base: world.branch(b"temper/51"),
             head: world.branch(b"g"),
@@ -132,4 +132,15 @@ fn resolver_compare_over_rows_keeps_required_pull_section() {
         );
         completed(&mut world, pull, head, files > 8 || commits > 8);
     }
+}
+
+#[test]
+fn resolver_comparison_read_errors_still_fail_the_section() {
+    let (mut world, pull, head, absent) = resolver(9, 0, true);
+    gather(&mut world, pull, head);
+    assert!(world.seen().contains(&top::Request::BriefSized { section: SECTION, size: None }));
+    assert!(world.take_calls().contains(&api::Op::Read(api::Read::Compare { before: head, after: absent })));
+    world.take_seen();
+    world.event(top::Event::TakeBrief { section: SECTION });
+    assert_eq!(world.seen(), &[top::Request::BriefTaken { section: SECTION, bytes: None }]);
 }

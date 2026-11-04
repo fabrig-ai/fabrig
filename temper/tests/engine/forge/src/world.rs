@@ -267,7 +267,6 @@ impl World {
             6,
             false,
             None,
-            1,
             config,
         )
     }
@@ -310,7 +309,6 @@ impl World {
             branches,
             turn,
             tier,
-            1,
             fake_config(),
         )
     }
@@ -328,7 +326,6 @@ impl World {
         branches: u32,
         turn: bool,
         tier: Option<raw::Workflow>,
-        repositories: u32,
         mut config: forge::Config,
     ) -> World {
         let tiered = tier.is_some();
@@ -339,7 +336,6 @@ impl World {
             ..LIMITS
         };
         config.limits.branches = branches;
-        config.limits.repositories = repositories;
         if tiered {
             config.limits.statuses = 16;
             config.limits.content_bytes = 512;
@@ -535,8 +531,7 @@ impl World {
             4,
             true,
             Some(workflow.clone()),
-            2,
-            fake_config(),
+            repository_config(2),
         );
         forge::repository(
             &mut world.forge,
@@ -1230,6 +1225,12 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
+}
+
+fn repository_config(repositories: u32) -> forge::Config {
+    let mut config = fake_config();
+    config.limits.repositories = repositories;
+    config
 }
 
 /// Bounded Forgejo fixture shared by the connector and root worlds.
