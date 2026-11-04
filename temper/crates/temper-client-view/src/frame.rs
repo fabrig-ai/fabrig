@@ -259,6 +259,26 @@ fn switcher_refusal(b: &mut Builder, words: &crate::words::Words, switcher: &swi
         crate::pages::chats::outcome_text(b, words, outcome, words.name_bytes);
     }
 }
+/// The welcome's line between the brand and the steps: what temper box is
+/// for, and where running temper on a server is told
+/// (`temper/docs/design/client/README.md`, 3.5).
+fn box_line(builder: &mut Builder, words: &crate::words::Words) {
+    use crate::words::Word;
+    let name = words.say(Word::WelcomeBoxName, &[]);
+    let line = words.say(Word::WelcomeBoxLine, &[]);
+    let server = words.say(Word::WelcomeBoxServer, &[]);
+    builder.open(Role::Slot);
+    builder.style(crate::look::WELCOME_BOX_LINE);
+    builder.open(Role::Text);
+    builder.run(Run::Strong, &name);
+    builder.run(Run::Plain, &line);
+    builder.close();
+    crate::flow::control(
+        builder,
+        crate::flow::Control::External { name: &server, address: crate::forge::connect::DEPLOYMENT },
+    );
+    builder.close();
+}
 pub(crate) fn banner(
     builder: &mut Builder,
     root: &Domain,
@@ -278,16 +298,11 @@ pub(crate) fn banner(
     builder.style(crate::look::BRAND);
     builder.text(Run::Plain, &words.say(crate::words::Word::Brand, &[]));
     builder.close();
-    if let Address::Welcome { .. } = pages.address()
+    if let Address::Welcome { step } = pages.address()
         && unavailable(root).is_none()
     {
-        builder.open(Role::Slot);
-        builder.style(crate::look::CORNER);
-        if let Some(me) = me {
-            text(builder, Role::Status, me.party.name.bytes(), None);
-            action(builder, Role::Button, &words.say(crate::words::Word::SignOut, &[]), Act::SignOut, false, bindings);
-        }
-        builder.close();
+        box_line(builder, words);
+        crate::pages::welcome::steps(builder, root, words, *step);
         builder.close();
         return;
     }

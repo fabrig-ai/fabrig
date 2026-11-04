@@ -5,6 +5,7 @@ use crate::{
     command::{Command, Exec, Prompt, Usage},
     credentials, settings, startup,
 };
+mod cleanup;
 mod files;
 mod placement;
 mod spawned;

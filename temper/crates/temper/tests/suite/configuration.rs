@@ -84,15 +84,12 @@ fn the_owned_example_fits_the_native_client() {
     assert_owned_limits(&value["engine"]["limits"]);
 }
 fn assert_owned_limits(limits: &serde_json::Value) {
-    let mut expected = serde_json::json!({"engine":{"limits":{"profile":"small","overrides":{
-        "authority.segments":8,"tasks.hold_segments":8,"tasks.authority_segments":8,
-        "documents.rows":2,"documents.lines":8,"documents.text_bytes":128,
-        "views.watchers":16,"views.watchers_per_party":16,
-        "authority.grants":14,"tasks.authority_grants":14,"notes.scopes":17,
-        "authority.executors":12,"tasks.executor_kinds":12,
+    let mut expected = serde_json::json!({"engine":{"limits":{"profile":"standard","overrides":{
+        "documents.rows":2,"documents.text_bytes":128,
         "clients.streams":8,"clients.exchanges":12,
         "clients_http.streams":8,"clients_http.calls":12,
-        "tasks.authority_bytes":512,"tasks.batch":1,"tasks.charters":8,"tasks.contract_choices":4
+        "fleet.configured_workers":8,"fleet.slots":2,"fleet.workers":2,"hub.slots":2,
+        "tasks.inbox_bytes":874_120,"tasks.message_bytes":10_660,"tasks.result_bytes":10_660
     }}}});
     let agent: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned/agent.json")).expect("owned agent");

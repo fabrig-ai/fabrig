@@ -623,7 +623,7 @@ pub fn widest() -> engine::Limits {
     limits
 }
 fn component_limits(limits: &engine::Limits) -> Limits {
-    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
     let mut profile = profile.store;
     profile.store.budget = 4 * 1024 * 1024;
     profile.store.key = u32::MAX;

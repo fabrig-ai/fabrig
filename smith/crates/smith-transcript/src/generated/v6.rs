@@ -46,7 +46,7 @@ pub struct Limits {
 pub const CEILINGS: Limits = Limits {
     replay_bytes: 1_048_576,
     text_text: 1_048_576,
-    opaque_bytes: 3_145_728,
+    opaque_bytes: 7_340_032,
     call_id: 256,
     call_name: 64,
     call_input: 1_048_576,
@@ -72,12 +72,12 @@ pub const CEILINGS: Limits = Limits {
     call_name_name: 64,
     allowed_calls_names: 256,
     tool_result_id: 256,
-    message_blocks: 64,
+    message_blocks: 128,
     program_name: 32,
     turn_endpoint: 64,
     turn_model: 128,
     turn_effort_some: 32,
-    turn_messages: 16,
+    turn_messages: 4,
 };
 
 /// A field or tag that caused a codec problem.

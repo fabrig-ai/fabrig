@@ -2,35 +2,25 @@
   "engine": {
     "acts": [{"connector": 1, "may": ["remove_project", "remove_account"]}],
     "limits": {
-      "profile": "small",
+      "profile": "standard",
       "overrides": {
-        "authority.executors": 12,
-        "authority.grants": 14,
-        "authority.segments": 8,
         "clients.exchanges": 12,
         "clients.streams": 8,
         "clients_http.calls": 12,
         "clients_http.streams": 8,
-        "core.resume_bytes": 1662046,
-        "documents.lines": 8,
+        "core.resume_bytes": 16803814,
         "documents.rows": 2,
         "documents.text_bytes": 128,
-        "hub.transcript_bytes": 6648178,
-        "hub.turn_bytes": 1662042,
-        "hub.turn_queue_bytes": 13296336,
-        "notes.scopes": 17,
-        "tasks.authority_bytes": 512,
-        "tasks.authority_grants": 14,
-        "tasks.authority_segments": 8,
-        "tasks.batch": 1,
-        "tasks.charters": 8,
-        "tasks.contract_choices": 4,
-        "tasks.executor_kinds": 12,
-        "tasks.hold_segments": 8,
-        "tasks.inbox_bytes": 12288,
-        "tasks.parameters": 5,
-        "views.watchers": 16,
-        "views.watchers_per_party": 16
+        "fleet.configured_workers": 8,
+        "fleet.slots": 2,
+        "fleet.workers": 2,
+        "hub.slots": 2,
+        "hub.transcript_bytes": 67215250,
+        "hub.turn_bytes": 16803810,
+        "hub.turn_queue_bytes": 134430480,
+        "tasks.inbox_bytes": 874120,
+        "tasks.message_bytes": 10660,
+        "tasks.result_bytes": 10660
       }
     },
     "llm": {
@@ -115,7 +105,7 @@
         {
           "name": "demo",
           "endpoint": "demo",
-          "window": 177523,
+          "window": 1048576,
           "output": 8192,
           "prices": {
             "input": 1,
@@ -196,13 +186,15 @@
         ]
       },
       "limits": {
-        "profile": "small",
+        "profile": "standard",
         "overrides": {
           "hub.accounts": 4,
-          "hub.event_bytes": 4096,
-          "hub.transcript_bytes": 6648178,
-          "hub.turn_bytes": 1662042,
-          "hub.turn_queue_bytes": 13296336
+          "hub.event_bytes": 10660,
+          "hub.run_calls": 48,
+          "hub.slots": 2,
+          "hub.transcript_bytes": 67215250,
+          "hub.turn_bytes": 16803810,
+          "hub.turn_queue_bytes": 134430480
         }
       }
     }
@@ -516,18 +508,20 @@
       }
     },
     "limits": {
-      "profile": "small",
+      "profile": "standard",
       "overrides": {
-        "checkout.message_bytes": 4098,
+        "checkout.message_bytes": 10662,
+        "forge.client.op_bytes": 10660,
         "forge.client.repositories": 3,
+        "forge.judge_projects": 8,
         "forge.output": 82,
         "forge.repositories": 3,
-        "root.journal.transcript_bytes": 1662046,
-        "root.loads.bytes": 1662290,
-        "root.loads.read_bytes": 3324084,
-        "root.loads.reply_bytes": 1662290,
-        "root.loads.transcript_bytes": 1662042,
-        "routes.query_bytes": 2048
+        "forge_component.body_bytes": 21341,
+        "root.journal.transcript_bytes": 16803814,
+        "root.loads.bytes": 16804058,
+        "root.loads.read_bytes": 33607620,
+        "root.loads.reply_bytes": 16804058,
+        "root.loads.transcript_bytes": 16803810
       }
     },
     "workers": [

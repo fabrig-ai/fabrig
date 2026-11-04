@@ -14,6 +14,8 @@ mod mutations;
 pub use skein_fake_forge_protocol::Faults;
 pub mod app;
 pub mod delivery;
+pub mod fixture;
+pub mod inline;
 pub mod installations;
 pub mod keys;
 pub mod logs;

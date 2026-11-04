@@ -13,9 +13,6 @@ const TRIAGE: u32 = 8;
 const GOAL: u32 = 4;
 // The reference supplies five charters, one template and two landing rules.
 const ITEMS: u32 = 8;
-// Checked against the reference's profile.policy.max_turns below.
-const TURNS: u32 = 64;
-const INIT_TURNS: u32 = 16;
 
 fn value(items: &List<SettingItem>, setting: Setting) -> &SettingValue {
     for item in items {
@@ -63,8 +60,8 @@ fn the_reference_settings_file_decodes() {
         assert_eq!(charter.model.name.bytes(), model);
         assert!(charter.alternatives.is_empty());
         assert_eq!(charter.hosts, settings_form::view::SettingHosts::Workers);
-        assert_eq!(charter.turns, if matches!(number, FOREMAN | TRIAGE) { INIT_TURNS } else { TURNS });
-        assert_eq!(charter.time, Duration::from_secs(1800));
+        assert_eq!(charter.turns, 800);
+        assert_eq!(charter.time, Duration::from_secs(28_800));
         if number != CODER && number != FOREMAN {
             assert!(!charter.resume());
             assert_eq!(charter.waiting, Duration::ZERO);
@@ -207,44 +204,46 @@ fn the_reference_settings_fit_the_reference_profile() {
         &temper_client_tools::limits::form(),
     )
     .expect("reference settings");
-    let limits: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json"))
-            .expect("reference limits");
-    let agent: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/agent.json"))
-            .expect("reference agent profile");
+    let init: serde_json::Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
+        .expect("init configuration");
+    let engine = reference_engine(&init["engine"]["limits"]);
+    let limits = &engine.limits.core.tasks;
+    let stock = temper_service::stock::defaults(&engine.llm, limits.result_bytes);
     let init_agent: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/agent.json"))
             .expect("init agent configuration");
-    let max_turns = agent["profile"]["policy"]["max_turns"].as_u64().expect("reference turn limit");
-    assert_eq!(u64::from(TURNS), max_turns);
-    assert_eq!(Some(u64::from(INIT_TURNS)), init_agent["profile"]["policy"]["max_turns"].as_u64());
-    let overrides = &limits["engine"]["limits"]["overrides"];
-    let mut charters = 5_u64;
+    let max_turns = init_agent["profile"]["policy"]["max_turns"].as_u64().expect("init turn limit");
+    let mut charters = stock.charters.len();
     for item in &items {
         if let SettingEdit::Set(set) = &item.edit
             && let SettingValue::Charter(charter) = &set.value
         {
-            charters += 1;
-            assert!(charter.documents.len() <= 2, "small's tasks.charter_documents");
+            if !stock.charters.iter().any(|existing| existing.number == charter.number) {
+                charters += 1;
+            }
+            assert!(charter.documents.len() <= limits.charter_documents, "tasks.charter_documents");
             assert!(u64::from(charter.turns) <= max_turns, "charter {}", charter.number);
         }
     }
-    assert!(charters <= overrides["tasks.charters"].as_u64().expect("charter limit"));
+    assert!(charters <= usize::try_from(limits.charters).expect("charter limit"));
+    for charter in &stock.charters {
+        assert!(u64::from(charter.policy.turns) <= max_turns, "stock charter {}", charter.number);
+    }
     let SettingValue::Template(goal) = value(&items, Setting::Template(SettingNumber { number: GOAL })) else {
         panic!("goal template")
     };
     let TaskContractDocument::Report { words } = goal.contract else { panic!("goal report") };
-    let result_bytes = overrides["tasks.result_bytes"].as_u64().expect("result limit");
-    assert!(u64::from(words) <= result_bytes);
-    assert!(result_bytes <= 4096, "small's tasks.message_bytes");
+    assert!(words <= limits.result_bytes);
     assert_eq!(goal.resources.len(), 1);
     assert_eq!(goal.resources.iter().next(), Some(&Symbol { connector: 1, symbol: 1 }));
     let SettingValue::Charter(coordinator) = value(&items, Setting::Charter(SettingNumber { number: COORDINATOR }))
     else {
         panic!("coordinator charter")
     };
-    assert!(bytes::find(coordinator.instructions.bytes(), b"A `change` call makes at most").is_some());
+    assert!(
+        bytes::find(coordinator.instructions.bytes(), b"A `change` call carries what one call's payload holds")
+            .is_some()
+    );
 }
 
 #[test]
@@ -378,7 +377,7 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
     use jig_client::contract::{Setting, SettingEdit, SettingItem, SettingSet, SettingValue};
     use jig_domain_core::settings;
-    let stock = temper_service::stock::defaults(&engine.llm);
+    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     jig_protocol_config::pass(&mut engine, stock).expect("stock settings");
     let config = jig_protocol_config::core(&engine, [0; 16], 1);
     let limits = &engine.limits.core;

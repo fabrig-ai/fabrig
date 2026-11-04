@@ -60,6 +60,13 @@ fn ways_root(offers: List<c::ProviderOffer>, playground: bool) -> d::Domain {
     );
     root
 }
+/// `openai`'s sign-in and `anthropic`'s program, each provider taking keys too.
+pub(super) fn plans_root() -> d::Domain {
+    let mut providers = List::with_capacity(2);
+    providers.push(offer(PROVIDER, b"openai", true, false)).unwrap();
+    providers.push(offer(PROVIDER + 1, b"anthropic", false, true)).unwrap();
+    ways_root(providers, false)
+}
 pub(super) fn offered_root() -> d::Domain {
     let mut providers = List::with_capacity(1);
     providers.push(offer(PROVIDER, b"openai", true, false)).unwrap();

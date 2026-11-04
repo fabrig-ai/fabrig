@@ -6,8 +6,8 @@ use crate::{
 };
 use skein_fake_forge_domain::{self as domain, api as a};
 use skein_fake_forge_github::{
-    self as fake,
-    service::{Account, AppFacts, Row},
+    self as fake, fixture,
+    service::{Account, Row},
 };
 use skein_fake_peers::forge::{Forge, Peer};
 use skein_io::kernel::{Complete, Done, Family, Op, Submit};
@@ -126,6 +126,7 @@ impl World {
         Self::with_organization(true)
     }
     #[expect(clippy::too_many_lines, reason = "one declared fixture binds domain, service and peer limits")]
+    /// Scenario tables over the shared defaults (skein/docs/design/fake-forge.md, 10.6).
     pub(crate) fn with_organization(organization: bool) -> Result<Self> {
         let config = config();
         let mut d = domain::Domain::new(&config, 23);
@@ -197,14 +198,7 @@ impl World {
             tokens.push((Secret::new(boxed(token.as_bytes())), user, expiry)).expect("fixture tokens");
         }
         let cfg = fake::Config {
-            rate_quota: 5000,
-            rate_window: Duration::from_secs(3600),
-            token_life: skein_fake_forge_github::installations::TOKEN_LIFE,
-            deliveries: fake::delivery::Config::standard(),
             base: boxed(b"http://127.0.0.1:1"),
-            blob: boxed(b"http://logs.example.test"),
-            third_origin: None,
-            blob_redirect: None,
             app: fake::app::App {
                 id: 7,
                 slug: boxed(b"example-app-conformance"),
@@ -214,18 +208,11 @@ impl World {
                 key: fake::keys::KEYS[0],
                 webhook: Secret::new(boxed(b"invented-webhook-secret")),
             },
-            app_facts: AppFacts::Complete,
-            shown: fake::service::Shown::Ruleset,
             ruleset_id: 12_345_678,
-            pull_requests_only: false,
-            required_signatures: false,
             tokens,
-            faults: fake::Faults { reset: 0, drop: 0, server_error: 0 },
-            bot: BOT,
             hook: boxed(b"http://127.0.0.1:1/hooks"),
-            repositories,
             accounts,
-            person: boxed(b"alice"),
+            ..fixture::config(repositories)
         };
         let peer_limits = skein_fake_peers::Limits {
             io: skein_io::Limits {

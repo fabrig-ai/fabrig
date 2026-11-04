@@ -47,7 +47,7 @@ pub enum What {
     StoreTask {
         needs: u32,
         has: u32,
-        batch: u32,
+        batch_bytes: u32,
     },
     /// An explicit call bound below the local agent's call input
     /// (protocol/configuration.md, 7): `bytes` the configured bound, also
@@ -341,11 +341,11 @@ fn operation_counts(
     put(writer, length, measuring, Decimal::of(u64::from(goals)).as_bytes());
 }
 
-fn store_task(needs: u32, has: u32, batch: u32, writer: &mut Writer, length: &mut usize, measuring: bool) {
+fn store_task(needs: u32, has: u32, batch_bytes: u32, writer: &mut Writer, length: &mut usize, measuring: bool) {
     store_map(jig_protocol_store::sizes::SizeRefusal::Value { needs, has }, writer, length, measuring);
-    put(writer, length, measuring, b"; binding record tasks-v9.TaskRecord with tasks.batch ");
-    put(writer, length, measuring, Decimal::of(u64::from(batch)).as_bytes());
-    put(writer, length, measuring, b"; fixed profile ceiling engine.limits.store.value; reduce tasks.batch or the task record's spec/result/authority capacities; this ceiling has no scalar override");
+    put(writer, length, measuring, b"; binding record tasks-v9.TaskRecord with tasks.batch_bytes ");
+    put(writer, length, measuring, Decimal::of(u64::from(batch_bytes)).as_bytes());
+    put(writer, length, measuring, b"; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override");
 }
 
 fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, measuring: bool) {
@@ -449,7 +449,9 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 store_page(frame, ceiling, writer, &mut length, measuring);
             }
             What::StoreMap(why) => store_map(why, writer, &mut length, measuring),
-            What::StoreTask { needs, has, batch } => store_task(needs, has, batch, writer, &mut length, measuring),
+            What::StoreTask { needs, has, batch_bytes } => {
+                store_task(needs, has, batch_bytes, writer, &mut length, measuring);
+            }
             What::Redirect(listener) => redirect_listener(listener, writer, &mut length, measuring),
             What::Against { other } => put(writer, &mut length, measuring, other),
             What::Past { bytes, bound } => {

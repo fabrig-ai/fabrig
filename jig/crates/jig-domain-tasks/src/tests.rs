@@ -34,6 +34,7 @@ pub(crate) fn charters() -> Box<[crate::CharterModels]> {
     Box::new([crate::CharterModels { number: 1, revision: 1, models: Some(Box::new([0])) }])
 }
 
+mod batch_bytes;
 mod decision_reads;
 mod hold_origin;
 mod kept;
@@ -80,6 +81,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         ("circle zero", crate::Limits { circle: 0, ..limits }, false),
         ("tasks zero", crate::Limits { tasks: 0, ..limits }, false),
         ("batch zero", crate::Limits { batch: 0, ..limits }, false),
+        ("batch_bytes zero", crate::Limits { batch_bytes: 0, ..limits }, false),
         ("tree_tasks zero", crate::Limits { tree_tasks: 0, ..limits }, false),
         ("run_inbox zero", crate::Limits { run_inbox: 0, ..limits }, false),
         ("inbox_messages zero", crate::Limits { inbox_messages: 0, ..limits }, false),

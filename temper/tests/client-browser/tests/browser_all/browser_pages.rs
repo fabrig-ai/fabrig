@@ -15,7 +15,7 @@ fn enter_starts_one_chat_keeping_a_shift_enter_break() {
     let chats = || Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") });
     let mut script = Script::new(Box::new([
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Later") }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"temper chats") }),
         see(tier.states().live),
         chats(),
         see(composer()),

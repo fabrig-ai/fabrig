@@ -30,7 +30,7 @@ pub fn stock(deployment: &Value) -> Value {
         jig_protocol_config::Defaults::Passed,
     )
     .expect("configured models");
-    let defaults = temper_service::stock::defaults(&engine.llm);
+    let defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let c = &defaults.charters[0];
     assert!(c.documents.is_empty(), "stock charter has no documents");
     let p = &c.policy;

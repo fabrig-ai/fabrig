@@ -31,6 +31,7 @@ pub fn limits() -> engine::Limits {
         references: 2,
         subscriptions: 2,
         batch: 1,
+        batch_bytes: 131_072,
         dependencies: 1,
         circle: 2,
         holdings: 2,

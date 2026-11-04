@@ -417,7 +417,11 @@ will do:
 - **Close,** for a chat: asks it to finish and cancels it if it has not
   within a grace. A chat with live delegates asks first what becomes of
   each: cancelled, or made the person's, funded from their pool from
-  then on ("reserves 6 from your pool"). `shapes::close_chat` gives one
+  then on ("reserves 6 from your pool"). The chat's document lists
+  every live delegate with what it would reserve, up to the tasks
+  child's `tasks.delegates` (80 in `standard`), not the document lines'
+  bound, since a close disposes of each; a client receives as many.
+  `shapes::close_chat` gives one
   compound request (client.md, section 19): a `Cancel` or a `Move` for
   each live delegate, as the person chose, then a `Cancel` of the chat
   with the chat template's grace, as `me` offers it now, or none once

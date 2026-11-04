@@ -1193,7 +1193,12 @@ section 8; testing-strategy.md, 2.9).
   naming a held ChatGPT record, a fresh store's first run moves it in by
   `temper ctl account import FILE --key connect-plan`, which removes
   FILE, and waits for it usable in place of the person's sign-in, as an
-  account import does; the script refuses it with a kept store.
+  account import does; the script refuses it with a kept store. Each box
+  exports and verifies the record before stopping, including a successful
+  first box whose result is checked before the restart. The second box
+  imports the returned record with a distinct operation key. Hook installation
+  and reopening import share the give-back's lock; a terminal give-back
+  excludes later imports.
   Every ctl call of a sitting names one DIRECTORY, `client` beneath the
   run's root in the store (`first`, `second`, or tagged on a kept
   store): the import, the held record's give-back and the sitting's
@@ -2424,6 +2429,13 @@ Each is a box obligation, recorded present or lacking with what the
 pass saw. A lacking one ends the walk before the chat, a finding against
 the box, never the agent.
 
+The walk's bounds, the user's (2026-11-04): the box's limits are the
+reference's profile whole, as above, its spends and times the box's; the
+pass takes at most 3 hours of wall time from the box's start to the
+stage's verdict, the configuring chat at most 40 of the person's
+messages, and the judge one session at Opus 5.5, high, within 30
+minutes.
+
 #### 6.5.3 The evidence
 
 After the acceptance, the pass collects what the check reads into one
@@ -2605,13 +2617,6 @@ scripts/proof-live.sh               the live tier
 - **The machine's git in the process tier.** Default: whatever git the
   test host has, 2.41 or later, which ../protocol/git.md's start refuses below
   (../protocol/git.md, section 3); transcripts are of 2.53.
-- **Stage 1's figures** (6.5): the box's limits and the walk's bounds,
-  which are the user's (`../draft/configuring.status.md`). Default: the
-  box's limits the reference's profile whole (6.5.2), its spends and
-  times the box's; the pass at most 3 hours of wall time from the box's
-  start to the stage's verdict, the configuring chat at most 40 of the
-  person's messages, and the judge one session at Opus 5.5, high,
-  within 30 minutes.
 
 ## 11. Later
 

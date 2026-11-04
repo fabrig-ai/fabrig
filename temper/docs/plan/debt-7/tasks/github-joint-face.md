@@ -88,3 +88,37 @@ Acceptance:
 
 The common note's items; the request lines' comparison; `cut_heads` of `cutting_github_pipes_connect_and_answer_each_call_once`
 at base and on the branch; the packages' nextest totals, base and branch; net lines. No new test, so no break.
+
+## Answers
+
+2026-11-04. Q: the branch couldn't be pushed, and all four packages' nextest totals rose by more than a tenth: restore
+the push, then a matched timing investigation, or optimise from these totals?
+
+**The push needs nothing.** `d92b796eb0` is on `origin/debt-7/github-joint-face`. Fetch, work from it and check that it
+is an ancestor of your HEAD. Change no key or remote. If a push fails again, report it and stop.
+
+**The timing: measure again, matched; don't optimise from these totals.** They are one run each, in wall time, and two
+of the four are controls: `skein-forge-setup-world` builds no `Joint`, and `skein-forge-protocol-world` builds only
+Forgejo's, so neither runs this branch's only changed file, yet they rose 77% and 90%. That says load, not this change.
+It settles nothing about the two packages that run it, `skein-forge-machine-world` (41.7%) and
+`temper-engine-protocol-forge-world` (13.6%).
+
+`tools/tiers/run --cpu` has no pair for the default profile, so the note's measure stands, matched:
+
+1. In one slot on one machine, three rounds, each base `29b133a352` then branch: check out, `heavy cargo nextest run
+   -p skein-forge-machine-world -p skein-forge-setup-world -p skein-forge-protocol-world -p
+   temper-engine-protocol-forge-world --no-capture --status-level all`, the same command every time. Timing starts
+   with the tests, so what a checkout rebuilds doesn't count. Each round's run counts, red or slow, and none is
+   repeated; a run that fails stops the measure.
+2. For each package and side, sum the per-test durations of each run, and take the **lowest of the three**: load only
+   adds. Report all six sums per package.
+3. **Read it in this order.** A control still above a tenth means the rounds aren't matched: report the numbers as
+   `Question:`, without concluding. Controls within a tenth, and the machine world and temper's within a tenth:
+   the note's check holds, and the task is done. Controls within a tenth, and either of those two above: find the
+   cause in `joint/github.rs`, and fix it there if it's the file's own (`HEADS`' loop, a pass that finds no work), with
+   no test, limit or assertion changed; then measure once more the same way. Still above: `Question:`, with both numbers
+   and the cause. No budget moves.
+
+The tests, the request lines and `-108` stand: nothing of them is run again but step 1's command. Leave the working
+tree on the branch, with `d92b796eb0` unchanged unless step 3 fixes something.
+

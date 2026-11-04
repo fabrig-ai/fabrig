@@ -510,16 +510,17 @@ and `connect-forge.html`.
   record as its request is admitted, never before
   (`../protocol/forge.md`, 2.2). While the playground is read, Choose
   offers no card: there is nothing to add (`README.md`, 4.8). The
-  welcome's Forge step offers two (`README.md`, 3.5): GitHub's, as
-  here, and one "Forgejo" card, "A forge of your own. temper can start
-  it and manage it, or you can connect your own deployment.", with
-  Forgejo on this machine's muted line while it is offered and Your
-  Forgejo's otherwise; its button "Run on this machine", while
-  Forgejo on this machine is offered, sends its `SetUp` at once, its
-  first repository `work/hello` asked of no one (`README.md`, 3.5), and
-  its quiet link "Or connect your deployment" opens the help's server
-  page (`../../help/server.md`) on GitHub, in place of Your Forgejo's
-  Details for now. Choose's cards:
+  welcome's Forge step offers two (`README.md`, 3.5): first, while
+  Forgejo on this machine is offered, one "Forgejo" card, the default,
+  "A forge of your own: temper starts it on this machine and manages
+  it.", with Forgejo on this machine's muted line and one way, the
+  primary button "Run on this machine", which sends its `SetUp` at
+  once, its first repository `work/hello` asked of no one
+  (`README.md`, 3.5); then GitHub's, as here, its button secondary.
+  Your Forgejo is not on the welcome: the forges page connects it,
+  and the welcome's frame links the help's server page
+  (`../../help/server.md`) on GitHub (the user, 2026-11-04). Choose's
+  cards:
   - *GitHub:* "Your repositories on GitHub. temper makes its own App
     there; you choose the account and the repositories it may use." ·
     "In this tab, on GitHub · about two minutes"; in its link's place

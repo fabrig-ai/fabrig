@@ -1,4 +1,4 @@
-//! The small profile and checked field overrides (protocol/configuration.md, section 7).
+//! The small and standard profiles and checked field overrides (protocol/configuration.md, section 7).
 mod names;
 mod reference;
 use alloc::boxed::Box;
@@ -8,10 +8,11 @@ use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 use temper_worker_domain_checkout as checkout;
-/// Temper's profile for one person's machine.
+/// Temper's profiles for one person's machine and a project of fabrig's scale.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Profile {
     Small,
+    Standard,
 }
 /// Root's own limits, beyond jig's child limits.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -245,6 +246,47 @@ const FORGE: forge::Limits = forge::Limits {
     // Time to gather a landing queue, from the engine forge world fixture.
     queue_window: Duration::from_secs(30),
 };
+// A project of fabrig's scale (temper/docs/design/protocol/configuration.md, 13.4).
+const STANDARD_FORGE: forge::Limits = forge::Limits {
+    // One gathered section shares the root task section's read bound.
+    brief_bytes: STANDARD_BRIEF.budgets.task,
+    // Tasks following live changes in a project, 18 changes seen.
+    tasks: 128,
+    // Holds for live changes in a project, 18 seen.
+    holds: 128,
+    // Live changes in a project, 18 seen.
+    changes: 128,
+    // Named calls retained by jig standard core.call_records.
+    named_calls: 128,
+    // Live landings alongside the project's changes.
+    landings: 32,
+    client: skein_forge_client::Limits {
+        // Watched resources, at least one for each held branch.
+        resources: 128,
+        // Whole task results, as jig-protocol-config/src/profile/standard.rs sets tasks.result_bytes.
+        op_bytes: 262_144,
+        ..CLIENT
+    },
+    change_policy: temper_engine_domain_forge_change::Limits {
+        // Questions per change or task, 15 seen.
+        questions: 80,
+        // Tasks across a change's runs and retries, 14 runs seen.
+        tasks: 80,
+        // Repair attempts across a change's runs, 14 seen.
+        repairs: 80,
+        // Resolution attempts across a change's runs, 14 seen.
+        resolutions: 80,
+        // Update attempts across a change's runs, 14 seen.
+        updates: 80,
+        ..FORGE.change_policy
+    },
+    issue_policy: temper_engine_domain_forge_issues::Limits {
+        // Tasks in one goal's lifetime plan, 73 seen.
+        plan_items: 384,
+        ..FORGE.issue_policy
+    },
+    ..FORGE
+};
 const CHECKOUT: checkout::Limits = checkout::Limits {
     // Cached or held checkout workspaces, from the checkout world fixture.
     workspaces: 3,
@@ -335,19 +377,46 @@ const ROOT: Root = Root {
         gather: Duration::from_secs(30),
     },
 };
+// Standard carries a whole jig standard spec (131,072) plus 512 bytes for its
+// contract and requester, as small carries 4,096 plus 512.
+const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
+    read_bytes: 131_584,
+    budgets: engine::BriefBudgets {
+        task: 131_584,
+        // Pull and reviews share the task section's read bound, as in small.
+        pull: 131_584,
+        reviews: 131_584,
+        ..ROOT.brief.budgets
+    },
+    // tests/stock_brief.rs derives charter 1's room (362,876) less 1,472
+    // bytes for 64 titles and framing and 1,129 margin; below 395,520.
+    brief_bytes: 360_275,
+    ..ROOT.brief
+};
+const STANDARD_ROOT: Root = Root {
+    brief: STANDARD_BRIEF,
+    journal: engine::JournalLimits {
+        // Deep task row at jig standard's bounds, including its inbox (engine::row_bound).
+        transcript_bytes: 22_467_632,
+        result_bytes: STANDARD_BRIEF.brief_bytes,
+        ..ROOT.journal
+    },
+    ..ROOT
+};
 const CLIENTS: Clients = Clients {
     // Files of a bundle, the page among them: far above the shell's dev bundle (decision 6 of browser-1).
     bundle_files: 128,
     // Bytes of a bundle in all, read into memory at start.
     bundle_bytes: 16 << 20,
 };
-/// The standalone process's socket admission.
-pub const SOCKETS: u32 = 64;
+/// The standalone process's socket admission holds standard's owned example with both listeners and a sign-in.
+pub const SOCKETS: u32 = 128;
 
-/// Constant small-profile values in each owner's limits.
+/// Constant profile values in each owner's limits.
 #[must_use]
 pub fn profile(profile: Profile) -> Limits {
     match profile {
+        Profile::Standard => Limits { root: STANDARD_ROOT, forge: STANDARD_FORGE, ..self::profile(Profile::Small) },
         Profile::Small => Limits {
             picker: Picker { page: 30 },
             routes: Routes { query_bytes: 2048 },

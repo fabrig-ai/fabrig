@@ -38,6 +38,9 @@ pub struct Limits {
     pub subscriptions: u32,
     /// Maximum directly created tasks in one atomic nonempty `Make` batch.
     pub batch: u32,
+    /// Maximum bytes one batch's tasks hold in all, as `batch_bytes` measures them, a recurring
+    /// member's template's tasks among them (domain/tasks.md, sections 4 and 11).
+    pub batch_bytes: u32,
     /// Maximum immutable dependency identities per task; also bounds its remaining live
     /// `waiting_on` subset.
     pub dependencies: u32,
@@ -138,6 +141,7 @@ pub fn valid(limits: &Limits) -> bool {
         || limits.circle == 0
         || limits.tasks == 0
         || limits.batch == 0
+        || limits.batch_bytes == 0
         || limits.tree_tasks == 0
         || limits.run_inbox == 0
         || limits.run_inbox > limits.inbox_messages

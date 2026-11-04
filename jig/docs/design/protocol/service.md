@@ -689,8 +689,10 @@ and the page policy. It knows no route: what a call means is its owner's.
 - **A peer's end is a value.** `Limits`' `peer_end` says what a peer's
   end does while a call is unfinished. `PeerEnd::Connection` ends the
   connection and tells the owner the call's connection closed, as
-  `client.md`, 17.4 asks. `PeerEnd::Call` leaves the connection, and the
-  owner hears the call's `Ended`.
+  `client.md`, 17.4 asks. `PeerEnd::Call` leaves the connection to
+  skein's server, which lets a response go on once the request is all
+  read and says nothing of that end above (`skein/docs/design/http.md`,
+  5.5): the owner hears the call end with its response.
 - **A call the owner holds.** `hold` keeps a call's connection to a
   deadline of the owner's, past the stall, and `release` gives the call
   back to the stall.

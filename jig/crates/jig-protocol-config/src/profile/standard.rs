@@ -1,5 +1,5 @@
-//! Limits for a team's shared deployment (configuration.md, 6).
-//! The profile gives workers, concurrent work and retained state room to serve several people.
+//! Limits for fabrig-scale development (jig/docs/design/protocol/configuration.md, 6).
+//! The profile holds project work with five times the largest figures seen.
 use super::small;
 use super::{Limits, Link};
 use jig_domain_accounts as accounts;
@@ -16,24 +16,24 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     placed_holds: 16,
     project_placed_holds: 8,
     party_placed_holds: 4,
-    exemptions: 32,
+    exemptions: 128,
 
-    tasks: 32,
-    funders: 32,
-    project_tasks: 32,
-    project_goals: 16,
-    tree_tasks: 128,
-    delegates: 8,
+    tasks: 128,
+    funders: 128,
+    project_tasks: 128,
+    project_goals: 80,
+    tree_tasks: 384,
+    delegates: 80,
     resource_reports: 256,
-    pools: 32,
-    hold_waiters: 32,
-    charters: 8,
+    pools: 128,
+    hold_waiters: 128,
+    charters: 12,
     charter_documents: 2,
     revisions: 8,
     versions: 16,
     facts: 128,
     room_refusals: 32,
-    batch: 4,
+    batch: 160,
     circle: 32,
     dependencies: 16,
     inputs: 16,
@@ -41,17 +41,30 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     holdings: 8,
     parameters: 8,
     saved_resources: 8,
-    authority_grants: 8,
+    authority_grants: 16,
     authority_bytes: 4_096,
-    executor_kinds: 8,
+    executor_kinds: 16,
+    depth: 32,
+    inbox_messages: 82,
+    run_inbox: 82,
+    spec_bytes: 131_072,
+    result_bytes: 262_144,
+    message_bytes: 262_144,
+    inbox_bytes: 21_495_808,
+    batch_bytes: 4_194_304,
+    authority_segments: 8,
+    hold_segments: 8,
+    contract_choices: 4,
     ..small::TASKS
 };
 pub(super) const PEOPLE: people::Limits = people::Limits {
     program_hosts: 65,
-    operations: 16,
+    operations: 81,
     batch: 4,
     people: 16,
-    inbox_tasks: 64,
+    inbox_tasks: 256,
+    inbox_recipients: 176,
+    words: 8_192,
     sign_ins: 32,
     projects: 9,
     holdings: 32,
@@ -86,8 +99,9 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     accounts: 16,
     roles: 8,
     requirements: 8,
-    grants: 8,
-    executors: 8,
+    grants: 16,
+    executors: 16,
+    segments: 8,
     batch: 4,
     writes: 8,
     ..small::AUTHORITY
@@ -97,7 +111,7 @@ pub(super) const ACCOUNTS: accounts::Limits =
     accounts::Limits { program_hosts: 65, accounts: 16, sign_ins: 4, credentials: 15, facts: 128, ..small::ACCOUNTS };
 pub(super) const VIEWS: views::Limits = views::Limits { runs: 32, watchers: 16, facts: 256, ..small::VIEWS };
 pub(super) const NOTES: notes::Limits =
-    notes::Limits { scopes: 16, entries_per_scope: 64, body_bytes: 8_192, lines: 8, recalled: 8, ..small::NOTES };
+    notes::Limits { scopes: 19, entries_per_scope: 64, body_bytes: 8_192, lines: 8, recalled: 8, ..small::NOTES };
 pub(super) const DOCUMENTS: core::documents::DocumentLimits = core::documents::DocumentLimits {
     roles: AUTHORITY.roles,
     grants: super::authority_grants(&TASKS, &AUTHORITY),
@@ -106,7 +120,8 @@ pub(super) const DOCUMENTS: core::documents::DocumentLimits = core::documents::D
     rows: 8,
     text_bytes: 8_192,
     chips: 8,
-    lines: 8,
+    lines: 16,
+    segments: super::name_segments(&TASKS, &AUTHORITY),
     ..small::DOCUMENTS
 };
 pub(super) const CORE: core::Limits = core::Limits {
@@ -139,7 +154,8 @@ pub(super) const CORE: core::Limits = core::Limits {
     documents: DOCUMENTS,
     ..small::CORE
 };
-pub(super) const HUB: host::Limits = host::Limits { slots: 4, accounts: 32, facts: 256, told: 256, ..small::HUB };
+pub(super) const HUB: host::Limits =
+    host::Limits { inbox: 82, slots: 4, accounts: 32, facts: 256, told: 256, ..small::HUB };
 pub(super) const LINK: Link = Link { names: 64, opening: 16, facts: 4470, ..small::LINK };
 pub(super) const LIMITS: Limits = Limits {
     core: CORE,
@@ -186,26 +202,20 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
 // Retained-revision release adds 2 * 8 heads + 16 versions + one extent = 33.
 // Placed holds: tightened core room plus 18 connector slots needs 151,673 writes.
 const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 151_673, door: 1024, release: 1024 };
-// Same 19.s3 composition as small; the standard domain supplies the larger value and operation bounds.
-// Its 25 choices plus the kept pin add 26 optional u32s (130 bytes) to the largest tasks row.
-// The largest tasks row can reference all 64 names; sparse and ALL rows keep only used names.
-// Added provenance costs 25 bytes per dependency plus its four-byte list count;
-// the optional wait-bound wall adds nine bytes, so the largest row grows by 413 bytes.
-// Ending authority adds (batch + 1)^2 = (4 + 1)^2 = 25 bytes: the row,
-// its recurring members and its proposed creations with their recurring members.
-// Task/run settings revisions add nine bytes: u32 plus an optional u32.
-// Each stored spec includes optional job bytes and a deadline.
-// The optional live-room condition costs fourteen bytes in the largest task row.
-// Started-from dependencies cost a four-byte count plus 16 eight-byte numbers = 132 bytes.
+// check_commits sets value to the largest map value, 59,568,612 bytes at these limits (store.md, 5.4).
+// RunPolicy.tools is priced in the largest task row.
+// Page bytes are key + value = 2,079 + 59,568,612 = 59,570,691, above the 33,554,496-byte
+// TurnRecord frame for smith's 33,554,432-byte turn (store.md, 8.1).
+// Chunk bytes are skein_kv::chunk_bytes(key, value) = 59,570,711, including framing.
 const STORE_KV: skein_kv::Limits = skein_kv::Limits {
-    value: 10_767_550,
+    value: 59_568_612,
     ops: 303_350,
     commit: 901_830_282,
     queued_bytes: 2_705_490_846,
     segment: 1_803_660_564,
     snapshot_after: 901_830_282,
-    chunk: 10_769_649,
-    page: skein_kv::Page { rows: 2, bytes: 10_769_629 },
+    chunk: 59_570_711,
+    page: skein_kv::Page { rows: 2, bytes: 59_570_691 },
     ..small::STORE_KV
 };
 const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
