@@ -185,9 +185,9 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
 }
 #[test]
 fn one_ios_entities_hold_both_services_and_their_children() {
-    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"git_component.operations":13}"#);
+    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"git_component.operations":29}"#);
     let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 68 bytes, past its bound of 64\n".as_slice());
+    assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 132 bytes, past its bound of 128\n".as_slice());
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -303,10 +303,10 @@ fn webhook_listeners_on_port_zero_do_not_clash() {
 #[test]
 fn hook_connections_past_the_process_sockets_are_refused() {
     let document =
-        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge_component.hooks":56}"#);
+        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge_component.hooks":100}"#);
     assert_eq!(
         &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
-        b"engine.limits.io.sockets: 85 bytes, past its bound of 64\n"
+        b"engine.limits.io.sockets: 129 bytes, past its bound of 128\n"
     );
 }
 #[test]
@@ -411,7 +411,7 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
     let mut engine =
         config::engine(&document, engine_at, &jig_protocol_config::Directories::working(), config::Defaults::Passed)
             .unwrap();
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
     for declared in [false, true] {
         let mut agent = fixtures::startup_agent();
@@ -490,7 +490,7 @@ fn configured_keys_use_the_token_bound_instead_of_the_moved_file_ceiling() {
         config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 }).unwrap();
     let mut engine =
         config::engine(&document, 0, &jig_protocol_config::Directories::working(), config::Defaults::Passed).unwrap();
-    let defaults = crate::stock::defaults(&engine.llm);
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
     engine.limits.token = 1;
     let key = engine.limits.token;
@@ -528,36 +528,36 @@ fn admission_names_global_and_time_requirements_with_their_units() {
             100,
             8,
             8,
-            "charter 1.time_ms: needs 120000 ms of run time; the agent's profile.policy.max_time allows 119999 ms\n",
+            "charter 1.time_ms: needs 3600000 ms of run time; the agent's profile.policy.max_time allows 119999 ms\n",
         ),
         (
-            300_000,
+            28_800_000,
             9_999,
-            100,
+            256,
             8,
             8,
             "charter 1.waiting_ms: needs 10000 ms of waiting; the agent's profile.policy.max_waiting allows 9999 ms\n",
         ),
         (
-            300_000,
+            28_800_000,
             60_000,
             9,
             8,
             8,
-            "rules.maximum_run_spend: needs a spend allowance of 40; the agent's profile.policy.max_spend allows 9\n",
+            "rules.maximum_run_spend: needs a spend allowance of 256; the agent's profile.policy.max_spend allows 9\n",
         ),
         (
-            300_000,
+            28_800_000,
             60_000,
-            100,
+            256,
             1,
             1,
             "engine.limits: needs an inbox of 2 (tasks.run_inbox); the agent's profile.policy.inbox allows 1\n",
         ),
         (
-            300_000,
+            28_800_000,
             60_000,
-            100,
+            256,
             2,
             0,
             "engine.limits: needs an unacknowledged-turn allowance of 1 (hub.turns); the agent's profile.policy.unacknowledged allows 0\n",

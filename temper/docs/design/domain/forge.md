@@ -704,9 +704,13 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   watches. Two followed tier branches and up to four departing reads
   (`forge.client.pending`) keep the overlap within fifteen slots; shared
   resources count once. Six participating tasks and their six branch holds
-  fit the stock `forge.tasks` and `forge.holds`, both eight; each change fits
+  fit small's `forge.tasks` and `forge.holds`, both eight; each change fits
   `forge.resources_per_task`, two. Landed changes keep their watches until
-  they clear (`after-landing.md`, section 6).
+  they clear (`after-landing.md`, section 6). temper's `standard`, which
+  `temper init`'s box runs, sizes them for a project of fabrig's scale
+  (`../protocol/configuration.md`, 13.4): `forge.tasks` and
+  `forge.holds` 128, and the resource capacity 128, at least the holds,
+  each a held branch's watch.
 - **Temporary admission pressure waits:** when recovery is incomplete,
   or a departing resource's read still occupies capacity, the desired
   names are saved and the complete watch set is retried after one second.
@@ -1794,7 +1798,9 @@ section 9): the foreman and the requester decide, and the change relays
   change that takes none.
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
-  `forge.change_policy.questions` (4 on the stock:
+  `forge.change_policy.questions` (4 in `small`, 80 in `standard`, which
+  `temper init`'s box runs, each below the 128 open questions a change's
+  record keeps:
   `../protocol/configuration.md`, section 7). The one past the bound,
   when its turn comes, is given no foreman and passed nowhere: the
   change holds itself, its words naming the bound and the question's

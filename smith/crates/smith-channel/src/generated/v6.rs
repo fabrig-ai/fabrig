@@ -75,7 +75,7 @@ pub const CEILINGS: Limits = Limits {
     field_name: 64,
     field_text: 262_144,
     deliver_ask_fields: 32,
-    turn_body: 16_777_216,
+    turn_body: 33_554_432,
     account_refused_code: 128,
     account_refused_reason: 512,
     completion_fault_code: 128,

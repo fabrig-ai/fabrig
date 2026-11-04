@@ -1,4 +1,5 @@
-//! Complete close-disposal identities and their owner funding (`client/domain/objects.md`, 11).
+//! Complete close-disposal identities and their owner funding
+//! (`jig/docs/design/client/domain/objects.md`, 11).
 use crate::{
     Core, Limits,
     documents::{Chip, Missing},
@@ -20,10 +21,10 @@ pub(super) fn from_row(
     party: u64,
     row: &tasks::TaskRecord,
 ) -> Result<List<LiveDelegate>, Missing> {
-    if row.delegates.len() > skein_lib::length::usize_of(limits.documents.lines) {
+    if row.delegates.len() > skein_lib::length::usize_of(limits.tasks.delegates) {
         return Err(Missing::TooLarge);
     }
-    let mut delegates = List::with_capacity(limits.documents.lines);
+    let mut delegates = List::with_capacity(limits.tasks.delegates);
     for number in &row.delegates {
         let delegate = super::small::visible(core, party, *number)?;
         if delegate.requester != tasks::Party::Task(row.number) {

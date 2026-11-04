@@ -17,6 +17,8 @@ const STEPS: u32 = 200; // The root world's existing durable-round-trip allowanc
 const CHILDREN: usize = 9;
 const GOAL_BYTES: usize = 300;
 const CHILD_BYTES: usize = 200;
+const OP_BYTES: u32 = 512;
+const PLAN_ITEMS: u32 = 8;
 const BODY_BYTES: usize = 512;
 const COMMENT_SLOTS: usize = 8;
 const REPORT: &[u8] = b"The work is complete";
@@ -54,7 +56,7 @@ fn defaults() -> jig_domain_core::settings::Defaults {
         descriptions: Box::new([None]),
         models: Box::new([model()]),
     };
-    let mut defaults = temper_service::stock::defaults(&llm);
+    let mut defaults = temper_service::stock::defaults(&llm, OP_BYTES);
     defaults.rules.period_spend = SPEND;
     defaults.rules.ceiling.budget.spend = SPEND;
     for charter in &mut defaults.charters {
@@ -221,15 +223,19 @@ fn configured_chat(
     defaults: &jig_domain_core::settings::Defaults,
     words: &[u8],
 ) -> (World, engine::Assignment) {
-    let limits = box_limits();
+    let mut limits = box_limits();
+    // Keep the projection story's operation and plan limits small enough to fill.
+    limits.forge.client.op_bytes = OP_BYTES;
+    limits.tasks.result_bytes = OP_BYTES;
+    limits.forge.issue_policy.plan_items = PLAN_ITEMS;
     let mut world = World::configured_stock_limits(defaults, &model(), &limits);
     world.adopt();
     world.fail_issue_writes = failing;
     let mut bounds = protocol::bounds();
-    bounds.turns = 16;
+    bounds.turns = 800;
     bounds.models = Box::new([host::ModelBound { name: model().name, window: MODEL_WINDOW, output: MODEL_OUTPUT }]);
     bounds.spend = defaults.rules.maximum_run_spend;
-    bounds.time = defaults.charters[0].policy.time;
+    bounds.time = Duration::from_secs(28_800);
     bounds.message_bytes = limits.tasks.message_bytes.max(limits.tasks.result_bytes);
     bounds.inbox = limits.tasks.run_inbox;
     world.send(engine::Event::Worker(engine::WorkerInput::Link {
@@ -378,7 +384,10 @@ fn a_goal_with_a_long_request_and_nine_tasks_reports_and_its_issue_fits() {
     };
     let body = std::str::from_utf8(&item.body).expect("UTF-8 body");
     assert!(body.len() <= BODY_BYTES);
-    assert!(item.title.len() + body.len() <= BODY_BYTES, "edit fits client operation");
+    assert!(
+        item.title.len() + body.len() <= usize::try_from(OP_BYTES).expect("operation bound"),
+        "edit fits client operation"
+    );
     assert!(body.contains('…'));
     assert!(body.contains("2 more tasks"), "{body}");
     assert_eq!(item.state, raw::State::Closed);

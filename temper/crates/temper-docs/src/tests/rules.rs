@@ -115,20 +115,24 @@ fn capacity_help_names_members_and_dependencies() {
             "tasks.depth",
             "tasks.delegates",
             "tasks.batch",
+            "tasks.batch_bytes",
             "tasks.project_goals",
             "documents.lines",
             "people.inbox_tasks",
             "people.operations",
             "128",
             "lifetime tree capacity",
-            "schema ceiling",
-            "profile",
+            "profile store ceiling",
             "reduce",
-            "spec/result/authority",
+            "spec, message, result and authority sizes",
         ] {
             assert!(text.contains(words), "capacity help must explain {words}: {text}");
         }
     }
+    let configure = find(b"configure").expect("configure help page").text;
+    assert!(configure.contains("schema ceiling"), "configure help must explain the schema ceiling");
+    let budget = find(b"budget").expect("budget help page").text;
+    assert!(budget.contains("tasks.inbox_messages"), "budget help must name the inbox capacity");
 }
 
 #[test]

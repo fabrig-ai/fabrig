@@ -219,7 +219,9 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.note_page_rows = document_bytes;
     wire.object_page_rows = document_bytes;
     wire.ended_page_rows = document_bytes;
-    wire.inbox_selection_goals = client.rows;
+    // A selection is a handful of numbers, all received whatever the client's rows
+    // (client/domain/pages.md, 3).
+    wire.inbox_selection_goals = w::CEILINGS.inbox_selection_goals;
     wire.inbox_page_selection_some = document_bytes;
     wire.inbox_page_rows = document_bytes;
     wire.subject_chips_tasks = client.rows;

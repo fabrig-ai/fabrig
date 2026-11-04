@@ -457,7 +457,7 @@ pub const CEILINGS: Limits = Limits {
     note_page_rows: 16_777_216,
     object_page_rows: 16_777_216,
     ended_page_rows: 16_777_216,
-    inbox_selection_goals: 32,
+    inbox_selection_goals: 64,
     inbox_page_selection_some: 16_777_216,
     inbox_page_rows: 16_777_216,
     template_resources: 32,

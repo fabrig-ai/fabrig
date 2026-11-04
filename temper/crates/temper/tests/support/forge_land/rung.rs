@@ -4,6 +4,7 @@
 //! outlives the test on interruption so proof-live's final return hook can still
 //! export the held account before terminating the box. Credentials go to ctl
 //! and curl by path alone. No bot credential or store is read by the driver.
+use super::super::configuration::turn_bounds;
 use super::super::patience::Patience;
 use serde_json::{Value, json};
 use skein_lib::{Duration, Time};
@@ -141,16 +142,17 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     worker["endpoints"][0]["models"][0]["name"] = "gpt-6.1-sol".into();
     worker["endpoints"][0]["models"][0]["output"] = 32_000.into();
     worker["endpoints"][0]["models"][0]["reasoning_item"] = 32_768.into();
-    // B0's fixed carriers describe its one-call recipe.
+    // B0's carriers follow its one-call recipe.
     worker["profile"]["declared"]["calls_per_response"] = 1.into();
-    turn_limits(&mut value);
+    let turn = turn_bounds::turn_body(&worker);
+    turn_limits(&mut value, turn);
     // Walk 1's admitted declarations, not a phase-bound increase.
     value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
     value["workers"][0]["memory_bytes"] = 3_700_000_000_000_u64.into();
     assert_eq!(value["engine"]["llm"]["models"][0]["efforts"][0], "high");
     assert_eq!(value["engine"]["llm"]["models"][0]["output"], 32_000);
     assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
-    assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], 1_507_539);
+    assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], turn);
     assert_eq!(value["application"]["limits"]["overrides"]["root.loads.loads"], 32);
     assert_eq!(worker["endpoints"][0]["models"][0]["name"], "gpt-6.1-sol");
     assert_eq!(worker["endpoints"][0]["models"][0]["output"], 32_000);
@@ -165,23 +167,10 @@ pub fn deployment(paths: &[PathBuf; 3]) {
         .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
 }
 
-fn turn_limits(value: &mut Value) {
-    value["engine"]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
-    value["engine"]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
-    value["workers"][0]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_queue_bytes"] = 12_060_312.into();
-    value["engine"]["limits"]["overrides"]["core.resume_bytes"] = 1_507_543.into();
+fn turn_limits(value: &mut Value, turn: u32) {
+    turn_bounds::apply(value, turn);
     value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
-    for (name, count) in [
-        ("root.loads.loads", 32),
-        ("root.journal.transcript_bytes", 1_507_543),
-        ("root.loads.transcript_bytes", 1_507_539),
-        ("root.loads.bytes", 1_507_787),
-        ("root.loads.reply_bytes", 1_507_787),
-    ] {
-        value["application"]["limits"]["overrides"][name] = count.into();
-    }
+    value["application"]["limits"]["overrides"]["root.loads.loads"] = 32.into();
 }
 
 /// A private command transcript, with a hard wall bound and no pipe backpressure.
@@ -524,56 +513,6 @@ impl Driver {
         )?;
         Ok(goal)
     }
-
-    fn funds(&mut self) -> Result<(), String> {
-        let revision = self.ctl(&["settings", "show"], None)?["newest"].as_u64().ok_or("settings revision")?;
-        let rules = self.ctl(&["settings", "show", "rules"], None)?;
-        let policy = self.ctl(&["settings", "show", "policy", "1"], None)?;
-        require(rules["revision"] == revision && policy["revision"] == revision, "same settings revision")?;
-        let file = self.store.join("funds.json");
-        write_json(&file, &funds_document(&rules, &policy)?);
-        self.ctl(
-            &[
-                "settings",
-                "apply",
-                file.to_str().ok_or("funds path")?,
-                "--against",
-                &revision.to_string(),
-                "--key",
-                "rung-funds",
-            ],
-            None,
-        )?;
-        Ok(())
-    }
-}
-
-/// Edit only numeric members present in ctl's values, preserving the rest of
-/// the revision's settings document (walk 1, step 3).
-pub fn funds_document(rules: &Value, policy: &Value) -> Result<Value, String> {
-    fn spend(value: &mut Value, pointer: &str, amount: u64) -> Result<(), String> {
-        let field = value.pointer_mut(pointer).ok_or_else(|| format!("funds: missing {pointer}"))?;
-        require(field.is_u64(), &format!("funds: {pointer} is not a spend"))?;
-        *field = amount.into();
-        Ok(())
-    }
-    require(rules["setting"] == json!({"kind":"rules"}), "funds: rules selector")?;
-    require(policy["setting"] == json!({"kind":"policy","number":1}), "funds: policy selector")?;
-    let mut r = rules["value"].clone();
-    let mut p = policy["value"].clone();
-    for value in [&mut r, &mut p] {
-        spend(value, "/ceiling/spend", 207_552)?;
-        spend(value, "/period_spend", 449_696)?;
-    }
-    let role = p["roles"]
-        .as_array()
-        .ok_or("funds: policy roles")?
-        .iter()
-        .position(|role| role["number"] == 0)
-        .ok_or("funds: role 0")?;
-    spend(&mut p, &format!("/roles/{role}/authority/spend"), 207_552)?;
-    spend(&mut p, &format!("/roles/{role}/period_spend"), 415_104)?;
-    Ok(json!({"items":[{"setting":rules["setting"],"set":r}, {"setting":policy["setting"],"set":p}]}))
 }
 
 fn stop_box(boxed: &mut Child) -> Result<(), String> {
@@ -829,7 +768,6 @@ fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Va
 /// All ordinary ctl setup before importing the held account, shared by the
 /// live walk and the process proof with the existing fake model.
 fn setup_tools(driver: &mut Driver) -> Result<(), String> {
-    driver.funds()?;
     driver.ctl(&["forge", "setup", "--playground", "--key", "rung-forge"], None)?;
     driver.wait(&["forge", "list"], "settled")?;
     let forges = driver.ctl(&["forge", "list"], None)?;
@@ -857,7 +795,7 @@ fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3], output: &str) -> Re
     require(output.lines().any(|line| line.contains("Forgejo: person ")), "box printed the person's login")?;
     driver.header = paths[1].join(format!("forge-{}/person_read.header", driver.forge));
     super::super::live::notice(
-        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=207552 period=449696 role period=415104",
+        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=8302080 period=449696 role authority=103776 period=415104",
     );
     let memory = read_json(&paths[0].join("temper.json"))["engine"]["memory_bytes"].clone();
     super::super::live::notice(&format!("SETUP engine memory={memory}"));
@@ -919,7 +857,7 @@ pub fn offline_setup(root: &Path) {
                     roles.iter().any(|role| {
                         role["number"] == 0
                             && role["period_spend"] == 415_104
-                            && role["authority"]["authority"]["spend"] == 207_552
+                            && role["authority"]["authority"]["spend"] == 103_776
                             && role["authority"]["cut"] == false
                     })
                 }),

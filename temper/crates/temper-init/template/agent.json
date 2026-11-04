@@ -3,16 +3,16 @@
     "name": "standard",
     "declared": {
       "memory": 2147483648,
-      "tool_payload": 4098,
+      "tool_payload": 10662,
       "read_window": 256,
-      "conversations": 3,
-      "calls_per_response": 2
+      "conversations": 26,
+      "calls_per_response": 48
     },
     "policy": {
-      "max_turns": 16,
+      "max_turns": 800,
       "check_timeout": 60000,
       "group_stop": 10,
-      "inbox": 8,
+      "inbox": 82,
       "unacknowledged": 8
     }
   },
@@ -64,7 +64,7 @@
             "output": 1,
             "unit": 1000
           },
-          "window": 177523,
+          "window": 1048576,
           "output": 8192,
           "reasoning_item": 2048,
           "head": 60000,

@@ -37,7 +37,7 @@ record Turn {
     read: option u64
     opens_window: bool
     refused: list 1024 Refused
-    body: bytes 8388608
+    body: bytes 33554432
 }
 record Call {
     task: u64 attempt: u64
@@ -124,7 +124,7 @@ record Assignment {
     save: bool
     live: LiveAsk
     charter: bytes 67108864
-    transcript: bytes 8388608
+    transcript: bytes 134217728
     answered: list 1024 AnsweredCall
     messages: list 1024 Message
     grants: list 64 Grant

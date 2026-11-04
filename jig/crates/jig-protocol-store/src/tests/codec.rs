@@ -476,6 +476,7 @@ fn a_writer_resource_past_its_aggregate_byte_bound_is_refused() {
 fn a_decoded_writer_resource_past_its_aggregate_byte_bound_is_refused() {
     let mut wider = tasks_limits();
     wider.segment_bytes = 17;
+    wider.name_path = 33;
     let bytes = crate::codec::tasks::encode(
         &writer_with_path_bytes(16),
         &wider,
@@ -1412,6 +1413,7 @@ fn project_asks_answers_and_name_refusals_round_trip() {
 
 mod holds;
 mod settings_proposals;
+mod settings_scale;
 
 #[test]
 fn an_owing_spec_and_its_asked_latch_survive_storage() {

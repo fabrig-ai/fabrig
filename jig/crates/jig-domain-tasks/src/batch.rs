@@ -54,7 +54,7 @@ fn check_with_result_proposal(
     if size == 0 {
         return Err(problem(None, Refusal::Empty));
     }
-    if size > limits.batch {
+    if !within(limits, batch) {
         return Err(problem(None, Refusal::Batch));
     }
     if !live_room(domain, limits, size) {
@@ -562,7 +562,7 @@ pub fn valid_authority(limits: &Limits, value: &Authority) -> bool {
 /// Structural and financial admission is still checked when the batch resumes.
 #[must_use]
 pub fn bounded_batch(limits: &Limits, batch: &[New]) -> bool {
-    if batch.is_empty() || batch.len() > skein_lib::length::usize_of(limits.batch) {
+    if batch.is_empty() || !within(limits, batch) {
         return false;
     }
     for member in batch {
@@ -585,6 +585,16 @@ pub fn bounded_batch(limits: &Limits, batch: &[New]) -> bool {
         }
     }
     true
+}
+
+pub(crate) fn within(limits: &Limits, batch: &[New]) -> bool {
+    if batch.len() > skein_lib::length::usize_of(limits.batch) {
+        return false;
+    }
+    match crate::batch_bytes(batch) {
+        Some(bytes) => bytes <= u64::from(limits.batch_bytes),
+        None => false,
+    }
 }
 
 fn live_room(domain: &Domain, limits: &Limits, size: u32) -> bool {
