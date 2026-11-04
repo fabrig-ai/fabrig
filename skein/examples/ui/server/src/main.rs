@@ -1,4 +1,6 @@
 //! Startup and a single drive loop on the HTTP and io machines (examples.md, 9.3).
+#![forbid(unsafe_code)]
+
 use skein_http::server::{self, Server};
 use skein_http::sse::writer as sse;
 use skein_io::kernel::{Complete, Exit, Submit};

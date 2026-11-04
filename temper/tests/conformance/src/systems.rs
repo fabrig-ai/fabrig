@@ -107,7 +107,6 @@ impl FakeForge {
         }
     }
     #[expect(
-        clippy::wildcard_enum_match_arm,
         clippy::match_wildcard_for_single_variants,
         reason = "only forge entry rows associate the released write with its durable key"
     )]
@@ -326,10 +325,6 @@ impl FakeForge {
         });
     }
 
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "all observations are retained while branch ownership uses only movement and deletion"
-    )]
     fn collect_native(&mut self) {
         while let Some(observation) = self.domain.pop_observation() {
             match &observation {
@@ -344,10 +339,6 @@ impl FakeForge {
             self.native_observations.push(observation);
         }
     }
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "unsupported writes panic and absent read answers provide no evidence"
-    )]
     fn before(&self, write: &raw::Write, key: EffectKey) -> ValueObserved {
         let (state, owned) = match write {
             raw::Write::Merge { number, .. } => (
@@ -484,7 +475,6 @@ impl FakeForge {
         std::mem::take(&mut self.new_observations.borrow_mut())
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "unsupported native writes fail the outside translation explicitly")]
 fn raw_parts(write: &raw::Write) -> (u16, Vec<r::Name>, Option<u64>, u64) {
     let mut name = observations::repository();
     let (kind, condition, target) = match write {

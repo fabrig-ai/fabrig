@@ -331,12 +331,10 @@ impl Domain {
         if let Some(machine) = config.machine.take() {
             forge.set_machine(machine);
         }
-        #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
         let playground_provider = match &config.playground {
             Some(config) => Some(config.provider),
             None => None,
         };
-        #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
         let playground_policy = match config.core.defaults.policies.first() {
             Some((number, _)) => Some(*number),
             None => None,

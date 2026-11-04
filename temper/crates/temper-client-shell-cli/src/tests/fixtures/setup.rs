@@ -83,6 +83,7 @@ impl Frame {
                 f::ForgeRow::new(
                     &f::CEILINGS,
                     f::ForgeRowParts {
+                        host: b"git.example:3000".as_slice().into(),
                         number: FORGE,
                         kind: f::Kind::Forgejo,
                         mode: f::Mode::Owned,

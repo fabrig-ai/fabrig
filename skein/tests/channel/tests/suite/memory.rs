@@ -19,7 +19,6 @@ fn limits() -> Limits {
     Limits { chunk: 8, credential: 16, skip: 32, output_bytes: 128, output_frames: 2, kinds: 2 }
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "the memory world rejects unexpected boundary records")]
 #[expect(clippy::too_many_arguments, reason = "the small memory world keeps the machine's three queues explicit")]
 fn feed(
     machine: &mut Machine,

@@ -157,7 +157,6 @@ fn the_host_starts_after_loading_with_temper_urls_and_the_configured_limits() {
     assert!(service.engine.as_ref().expect("engine").setup.io.is_empty(), "manifest is local");
 }
 #[test]
-#[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 fn reads_use_the_retained_row_past_its_version_and_absence_answers_none() {
     for present in [false, true] {
         let mut service = service(8, Duration::from_secs(3600));

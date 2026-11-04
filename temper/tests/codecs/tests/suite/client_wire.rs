@@ -60,9 +60,9 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
     .expect("record within schema ceilings")
 }
 #[test]
-fn setup_and_every_first_repository_state_round_trip_at_version_twelve() {
+fn setup_and_every_first_repository_state_round_trip_at_version_thirteen() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 12);
+    assert_eq!(wire::CLIENT_VERSION, 13);
     let request = setup_request();
     assert_eq!(wire::decode_requesting(&wire::requesting(&request), &v1::CEILINGS), Some(request));
     for state in [
@@ -90,6 +90,7 @@ fn setup_and_every_first_repository_state_round_trip_at_version_twelve() {
         let row = v1::ForgeRow::new(
             &v1::CEILINGS,
             v1::ForgeRowParts {
+                host: b"git.example:3000".as_slice().into(),
                 number: 3,
                 kind: v1::Kind::Forgejo,
                 mode: v1::Mode::Owned,

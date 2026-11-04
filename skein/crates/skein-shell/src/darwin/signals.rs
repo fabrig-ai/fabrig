@@ -19,6 +19,10 @@ use std::{
 
 // Descriptor identities are process-wide; the lock serializes their ownership
 // when harnesses or separately hosted loops share one process (shell.md, 7.5).
+#[expect(
+    clippy::disallowed_types,
+    reason = "process-wide signal pipe ownership is serialized across hosted loops (shell.md, 7.5)"
+)]
 static PIPES: Mutex<BTreeSet<Fd>> = Mutex::new(BTreeSet::new());
 pub(super) fn remember_pipe(fd: Fd) {
     let _inserted = PIPES.lock().expect("signal pipe table is not poisoned").insert(fd);

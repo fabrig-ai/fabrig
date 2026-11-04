@@ -344,7 +344,6 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
         | Ask::EndPlayground => unreachable!("connect admission"),
     }
 }
-#[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
 fn with_intent(d: &Domain, forge: u16, how: crate::How) -> crate::How {
     match how {
         crate::How::ForgejoAdmin { first: None } => {
@@ -526,7 +525,6 @@ fn admin(
     out.push(Request::MarkedForges);
     out.push(Request::Connect { forge, request, how, carried });
 }
-#[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
 fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     if let Some(record) = d.record(forge) {
         let mut record = record.clone();

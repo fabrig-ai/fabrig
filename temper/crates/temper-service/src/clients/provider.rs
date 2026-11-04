@@ -84,7 +84,6 @@ fn route(target: &[u8]) -> Option<u8> {
     }
 }
 impl Clients {
-    #[expect(clippy::manual_map, reason = "the programming model uses explicit branches without closures")]
     pub(super) fn provider_call(&mut self, call: Token, head: http::Call) {
         let route = route(&head.target).expect("claimed route");
         self.provider_replies

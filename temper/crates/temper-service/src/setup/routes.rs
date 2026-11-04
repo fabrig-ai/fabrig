@@ -223,7 +223,6 @@ pub(super) fn page(
     writer.put(suffix).expect("measured suffix");
     clients.github_answer(call, status, None, &writer.finish());
 }
-#[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 pub(crate) fn busy(clients: &mut crate::clients::Clients, call: Token, target: &[u8]) {
     let back = match forge(split(target).0) {
         Some((forge, _)) => Some(fallback(forge)),

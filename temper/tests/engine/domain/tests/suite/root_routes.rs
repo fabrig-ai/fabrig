@@ -2715,7 +2715,6 @@ fn a_negative_verdict_starts_dependents_and_a_failure_holds_them() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the script selects the requester's next assignment")]
 fn an_ended_delegate_can_be_named_as_a_later_tasks_input() {
     let (mut driver, parent) = batch_fixture();
     let first = call_batch(&mut driver, &parent, 113, Box::new([report_delegate(b"first", Box::new([]))]));
@@ -3990,11 +3989,7 @@ fn a_run_failing_transiently_is_retried_then_held_past_its_tries() {
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    clippy::wildcard_enum_match_arm,
-    reason = "the one end-to-end story checks each routing stage"
-)]
+#[expect(clippy::too_many_lines, reason = "the one end-to-end story checks each routing stage")]
 fn a_delegate_held_past_its_tries_is_escalated_two_levels_to_a_person_released_and_finished() {
     let (mut driver, root) = batch_fixture_with(3, 4);
     let mut holder = report_delegate(b"middle", Box::new([]));
@@ -4795,7 +4790,6 @@ fn restart_refuses_live_tasks_or_claims_past_lowered_limits_without_dropping_the
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the snapshot selects only durable sign-in rows")]
 fn signing_in_with_a_live_held_sign_in_keeps_its_number_expiry_and_pool() {
     let mut driver = Driver::new(Store::new());
     driver.settle();

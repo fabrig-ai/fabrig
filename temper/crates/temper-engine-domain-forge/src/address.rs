@@ -40,3 +40,23 @@ pub fn pull_address(
     }
     Some(writer.finish())
 }
+
+/// Keep the git authority used by repository resource names, including its port
+/// (temper/docs/design/protocol/configuration.md, 13.7).
+#[must_use]
+pub fn host(git: &[u8]) -> Box<[u8]> {
+    let Some(start) = skein_lib::bytes::find(git, b"://") else { return Box::default() };
+    let rest = git.get(start.checked_add(3).expect("URL separator")..).expect("separator within URL");
+    let mut first = 0;
+    let mut end = rest.len();
+    for (index, byte) in rest.iter().enumerate() {
+        if *byte == b'/' || *byte == b'?' || *byte == b'#' {
+            end = index;
+            break;
+        }
+        if *byte == b'@' {
+            first = index.checked_add(1).expect("URL authority separator");
+        }
+    }
+    rest.get(first..end).expect("host within URL authority").into()
+}
