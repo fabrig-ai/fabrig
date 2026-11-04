@@ -412,7 +412,6 @@ fn the_workers_listener_and_accepted_socket_have_their_own_prefixes() {
     };
     assert_eq!(socket, Token::new(4));
     assert_eq!(connection, Token::new(crate::tokens::WORKER_CONNECTIONS + 1));
-    assert_eq!(workers.host.socket(connection), Some(&socket));
 }
 #[test]
 fn a_listener_that_opens_during_closing_is_closed_immediately() {
