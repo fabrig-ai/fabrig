@@ -363,6 +363,7 @@ tests/kv                        the store over file io, the simulated kernel and
 tests/browser                   the browser kit's machine world against a fake browser, its tests against real Chromium, and its peaks under scenario ceilings with the counting allocator, skein-browser-world
 tests/tls                       the TLS client's machine worlds against a rustls server in memory, the HTTP client stacked on it, and its peaks under scenario ceilings with the counting allocator, skein-tls-world
 tests/tls/fixtures              its certificates and key, and the script that makes them
+tests/link                      a link's close rule against a rustls server in memory, skein-link-world (link.md, 4)
 tests/ui                        skein-ui's peaks under scenario ceilings with the counting allocator, and its comparisons with naive functions, skein-ui-tests (ui.md, 17)
 tests/ui-text                   the text shell's terminal on the simulated machine, skein-ui-text-tests (ui-text.md, 8)
 tests/ui-web                    the browser parts' host tests that need more than a crate's step tests, and the UI example's browser tier, skein-ui-web-tests (ui-web.md, 14)
