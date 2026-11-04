@@ -741,6 +741,7 @@ pub fn assert_forgejo_setup_after_sign_in(
     let made = super::ctl::json(&calls[if run == "first" { 4 } else { 1 }]);
     let row = super::first_repository::owned_row(&made);
     let number = row["number"].as_u64().expect("forge number");
+    let host = row["host"].as_str().filter(|host| !host.is_empty()).expect("forge resource host");
     if run == "first" {
         assert_first_setup(run, calls, stderr, row, number);
     } else {
@@ -751,7 +752,7 @@ pub fn assert_forgejo_setup_after_sign_in(
     }
     let stdout = String::from_utf8_lossy(&calls.last().expect("forges read").stdout);
     let user = stdout.lines().find_map(|line| {
-        line.strip_prefix(&format!("forge {number} · Forgejo · owned · Connected as temper ("))?
+        line.strip_prefix(&format!("forge {number} · host: {host} · Forgejo · owned · Connected as temper ("))?
             .split(')')
             .next()?
             .parse::<u64>()

@@ -43,6 +43,7 @@ pub struct Progress {
 #[derive(Debug)]
 pub struct Typed {
     pub(crate) provider: provider::Domain,
+    translation: smith_protocol_llm::Limits,
     stage: Stage<provider::Config, provider::Event, provider::Request>,
     pub(crate) failure: Option<(llm::Failure, llm::Evidence)>,
     pub(crate) failure_report: llm::Report,
@@ -51,8 +52,31 @@ pub struct Typed {
 }
 
 impl Typed {
+    fn completion(
+        &self,
+        answer: provider::api::Answer,
+        grants: tools::Grants,
+        served: &[llm::Served],
+        asker: llm::Asker,
+    ) -> llm::Completion {
+        translate::completion_with(answer, |name, arguments| {
+            // Owned file calls use the caller's receiving bounds; served
+            // calls retain the typed host fixture's contract decoder.
+            if matches!(name, b"read" | b"list" | b"search" | b"write" | b"edit") {
+                smith_protocol_llm::decode(name, arguments, grants, served, asker, &self.translation)
+            } else {
+                translate::decode(name, arguments, grants, served, asker)
+            }
+        })
+    }
+
     pub(crate) fn new(settings: &Settings) -> Self {
+        let mut client = skein_llm_world::limits();
+        client.input = u32::try_from(settings.limits.session.answer_bytes).expect("domain call input fits u32");
+        let stated = smith_protocol_llm::Stated::from_tools(&settings.limits.session.tools, client.input)
+            .expect("domain tool declarations fit");
         Self {
+            translation: smith_protocol_llm::fixture::small(client, stated),
             provider: crate::scripted_provider(&settings.provider, settings.seed ^ 0x25),
             stage: Stage::uncapped(settings.provider),
             failure: None,
@@ -98,7 +122,7 @@ impl Backend for Typed {
             let event = match result {
                 Ok(answer) => Event::Below(smith_domain::Below::Completed {
                     owner,
-                    completion: translate::completion(answer, grants, &served, asker),
+                    completion: self.completion(answer, grants, &served, asker),
                 }),
                 Err(error) => {
                     let (failure, evidence) =

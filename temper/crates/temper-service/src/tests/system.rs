@@ -222,22 +222,11 @@ fn the_box_pipes_carry_no_service_data_and_close_on_drain_or_abort() {
 
 #[test]
 fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
-    use skein_io::kernel::Fd;
     use temper_client_protocol_wire::v1 as w;
     use temper_engine_domain_forge::{Connection, SetUpStep};
     const OWNED: u16 = 1;
     const OTHER: u16 = 2;
-    // Allow the root continuations and memory-store handoffs, then output credit and IO.
-    fn turns(stand: &mut fixtures::system::SystemStand) {
-        const TURNS: u8 = 64;
-        for _ in 0..TURNS {
-            stand.turn();
-        }
-    }
-    const LINE_BYTES: u32 = fixtures::system::BOX_BYTES;
-    let mut stand = fixtures::system::one_process_under_box(true);
-    stand.service.adopt_box(Fd::new(3), Fd::new(4), LINE_BYTES).unwrap();
-    fixtures::until_hosting(&mut stand);
+    let mut stand = scripted_box();
     // SystemStand has fixed membership and an in-memory store. Startup's
     // absent-file state is tested separately; inject its root inputs here.
     for forge in [OWNED, OTHER] {
@@ -308,6 +297,82 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         Some(crate::Note::BoxLink { line: b"box link: dropped started for forge 9, not asked".as_slice().into() })
     );
     assert!(stand.service.notes().is_empty());
+}
+
+#[test]
+fn the_row_carries_the_latest_fetched_line_until_the_next_step() {
+    use temper_client_protocol_wire::v1 as w;
+    use temper_engine_domain_forge::{Connection, SetUpBinary, SetUpFetched, SetUpStep};
+    const OWNED: u16 = 1;
+    // Allow root continuations, memory-store handoffs, output credit and IO.
+    fn line(stand: &mut fixtures::system::SystemStand, line: &[u8]) {
+        for byte in line {
+            stand.kernel.box_answers.push(*byte);
+        }
+        turns(stand);
+    }
+    fn fetched(stand: &fixtures::system::SystemStand) -> Option<SetUpFetched> {
+        let rows = stand.service.engine.as_ref().unwrap().domain.forges();
+        for row in &rows.rows {
+            if row.number == OWNED {
+                return row.fetched;
+            }
+        }
+        panic!("owned forge row");
+    }
+    for (ending, expected) in [
+        (b"step 1 prepare\n".as_slice(), Connection::SettingUp { step: Some(SetUpStep::Prepare) }),
+        (b"started 1\n", Connection::Connecting),
+        (b"failed 1 fetch exited 1\n", Connection::SetUpFailed { why: b"fetch exited 1".as_slice().into() }),
+    ] {
+        let mut stand = scripted_box();
+        turns(&mut stand);
+        while let Some(read) = stand.service.take_handover_read() {
+            stand.service.handover_read(read.forge, read.run, Ok(None));
+        }
+        turns(&mut stand);
+        crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), OWNED, Connection::NotSetUp);
+        line(&mut stand, b"");
+        let bearer = box_sign_in(&mut stand);
+        assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
+        line(&mut stand, b"step 1 fetch\n");
+        assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
+        assert_eq!(fetched(&stand), None);
+        for (bytes, expected) in [
+            (
+                b"fetched 1 forgejo 10 100\n".as_slice(),
+                SetUpFetched { binary: SetUpBinary::Forgejo, done: 10, total: Some(100) },
+            ),
+            (
+                b"fetched 1 forgejo 100 100\n",
+                SetUpFetched { binary: SetUpBinary::Forgejo, done: 100, total: Some(100) },
+            ),
+            (b"fetched 1 runner 20 none\n", SetUpFetched { binary: SetUpBinary::Runner, done: 20, total: None }),
+        ] {
+            line(&mut stand, bytes);
+            assert_eq!(fetched(&stand), Some(expected), "{bytes:?}, ending {ending:?}");
+            line(&mut stand, b"");
+            assert_eq!(fetched(&stand), Some(expected), "progress remains between lines");
+        }
+        line(&mut stand, ending);
+        assert_eq!(stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED), expected, "{ending:?}");
+        assert_eq!(fetched(&stand), None, "{ending:?}");
+    }
+}
+
+fn scripted_box() -> fixtures::system::SystemStand {
+    use skein_io::kernel::Fd;
+    let mut stand = fixtures::system::one_process_under_box(true);
+    stand.service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
+    fixtures::until_hosting(&mut stand);
+    stand
+}
+// Allow root continuations and memory-store handoffs, then output credit and IO.
+fn turns(stand: &mut fixtures::system::SystemStand) {
+    const TURNS: u8 = 64;
+    for _ in 0..TURNS {
+        stand.turn();
+    }
 }
 
 // The system story uses the actual clients component: an HTTP family request

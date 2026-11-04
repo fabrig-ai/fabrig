@@ -168,7 +168,14 @@ fn a_project_policy_review_item_carries_the_policy_now_and_as_it_would_be() {
     let now_wire = settings::value(&now, &f::models(), &limits).unwrap();
     let would_be_wire = settings::value(&would_be, &f::models(), &limits).unwrap();
     let bytes = u64::from(now_wire.measure().max(would_be_wire.measure()));
-    for (bound, large) in [(bytes, false), (bytes - 1, true)] {
+    assert_eq!(now_wire.measure(), would_be_wire.measure(), "both sides share the exact bound");
+    for (bound, owned, large) in [
+        (bytes, limits.owned_record, false),
+        (bytes - 1, limits.owned_record, true),
+        (u64::MAX, u32::try_from(bytes).unwrap(), false),
+        (u64::MAX, u32::try_from(bytes - 1).unwrap(), true),
+    ] {
+        let limits = w::Limits { owned_record: owned, ..limits };
         let mut items = List::with_capacity(1);
         items
             .push(d::ReviewItem {

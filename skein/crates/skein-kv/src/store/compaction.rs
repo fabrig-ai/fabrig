@@ -168,14 +168,16 @@ fn chunk(
     limits: &Limits,
     below: &mut Queue<file::Request>,
 ) -> Compaction {
-    let mut rows = List::with_capacity(limits.chunk / 8);
+    let target = usize::try_from(limits.chunk_target()).expect("target fits usize");
+    let mut rows = List::with_capacity(limits.chunk_target() / 8);
     let mut size: usize = 12;
     let mut payload: u64 = 0;
     for (key, value) in store.map.after(cursor.as_deref()) {
         let row_payload = key.len().checked_add(value.len()).expect("payload fits");
         let row_size = 8_usize.checked_add(row_payload).expect("row size fits");
         let Some(next) = size.checked_add(row_size) else { break };
-        if next > usize::try_from(limits.chunk).expect("chunk fits usize") {
+        // A row past the target has a chunk of its own, up to the ceiling (kv.md, 5).
+        if next > target && !rows.is_empty() {
             break;
         }
         size = next;

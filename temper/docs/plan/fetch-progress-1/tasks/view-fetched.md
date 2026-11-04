@@ -3,7 +3,7 @@ id = "view-fetched"
 part = "client"
 kind = "feature"
 needs = ["client-fetched", "progress-value"]
-files = ["temper/crates/temper-client-view/src/forge/connect.rs", "temper/crates/temper-client-view/src/tests/model_forge.rs", "temper/crates/temper-client-shell-web/temper.css"]
+files = ["temper/crates/temper-client-view/src/forge/connect.rs", "temper/crates/temper-client-view/src/tests/model_forge.rs", "temper/crates/temper-client-shell-web/temper.css", "temper/docs/design/client/journeys/welcome-playground/**", "temper/docs/design/client/journeys/welcome-set-up/**", "temper/docs/design/client/journeys/skein-ui.css"]
 effort = "high"
 minutes = 45
 +++
@@ -44,7 +44,7 @@ Pre-approved:
 - A departure from the draft's look, which the request's page draws with a `<span>`: the figure is the node's own run, a text node of the grid. It takes the same grid cell.
 - `temper-flow-meter`'s selector is under `.temper-welcome-status`, and the node is built there alone. If the step list's `·` shows on Details too, that is the design; leave it.
 - `look::FLOW_METER` is registered already. No `Word` moves: the `·` joins as `welcome_line` joins, by bytes.
-- Journeys do not change: the fake box fetches nothing a walk can see. If a reprint differs, stop and say so in the report.
+- The journeys' pages do not change, the fake box fetching nothing a walk can see: their recordings do, for `SettingUp`'s new field (see Answers). If a page differs by more than Answers allows, stop and say so in the report.
 
 ## Steps
 
@@ -83,3 +83,22 @@ Pre-approved:
 ## Report
 
 As the implementer's text has it, with each rule broken for a new test and the failure seen, and the terminal's two lines as printed.
+
+## Answers
+
+2026-11-04. **Question: the required journey replays are stale; should the journey owner repair them, or this task widen to investigate?** This task repairs them, and the cause is settled, so there is nothing to investigate.
+
+- **The cause:** `wire-fetched` added `fetched` to `SettingUp`, in place, as `temper/docs/design/draft/fetch-progress.md`, 1, says. `welcome-playground` and `welcome-set-up` hold the forge family's frames as they were given, `SettingUp` without that field's byte. At the first such frame the client's strict decoder refuses the record, `forge/forges.rs` ends the invalid delivery, and the replay asks for `/jig/v1/unwatch` where the recording has a deadline. Neither this task's commit nor the view is at fault; `d3548d9091` stands.
+- **The repair is the design's:** the client's exchange changed, so the recordings are stale and are recorded again while their acts hold (`temper/docs/design/client/journeys.md`, 8 and 8.1). Never edit a recording's bytes by hand. This widens the task because step 5's journey check cannot pass without it; the header's `files` now holds these journeys.
+- **Keep the pushed work;** do not redo it. On the branch's head, after any merge, one at a time and with stdin closed:
+
+  ```sh
+  SKEIN_TEST_CHROMIUM="$(command -v chromium)" TEMPER_BUNDLE=none heavy cargo run -p temper-client-journeys -- again welcome-playground
+  SKEIN_TEST_CHROMIUM="$(command -v chromium)" TEMPER_BUNDLE=none heavy cargo run -p temper-client-journeys -- again welcome-set-up
+  TEMPER_BUNDLE=none heavy cargo run -p temper-client-journeys
+  ```
+
+  The last reprints all, and takes `journeys/skein-ui.css` up to `progress-value`'s 101 rules; `the_committed_journeys_are_their_print` compares that file too. Then run step 5's final command to its end: the 865 tests unobserved last time need a verdict.
+- **What may differ in the prints:** the new walk's times and the fake box's loopback ports (8), and `skein-ui.css`. Words, roles, styles or the pages' count are not expected to move: if they do, or if `again` refuses or cannot run, stop and say so in the report with its output; change neither the tool nor a journey's `README.md`.
+- **On a later merge conflict in a recording,** take either side and run `again` once more; never resolve one by hand.
+- **Commits:** the journeys in a commit of their own, which says why, with `Look-request: welcome-fetch-percentage` as this task's commits carry it.

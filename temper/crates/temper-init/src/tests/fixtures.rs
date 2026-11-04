@@ -78,3 +78,44 @@ pub fn bare_facts<'a>(facts: &Facts<'a>) -> crate::Bare<'a> {
         webhooks: facts.ports.webhooks,
     }
 }
+
+/// Retain the shipped profile with inert endpoints and the world's three fake model names.
+pub fn agent_settings(mut document: Value) -> smith_agent_world::Settings {
+    use serde_json::json;
+    use smith_agent_world::{Job, Settings};
+    // Destinations are inert: retain the shipped profile and model quantities,
+    // but consult no programs directory, trust file or name service.
+    document["programs"] = json!({});
+    for endpoint in document["endpoints"].as_array_mut().expect("endpoints") {
+        endpoint["address"] = json!("127.0.0.1:9");
+        endpoint["transport"] = json!("plaintext");
+        endpoint.as_object_mut().expect("endpoint").remove("server_name");
+    }
+    let configuration = smith_agent_shell::config::from_value(document).expect("stock profile derives");
+    let mut settings = Settings {
+        limits: configuration.service.limits.domain,
+        budget: configuration.service.limits.domain.run.budget,
+        window: configuration.declarations.endpoints[0].models[0].window,
+        job: Job::Reporting,
+        writable: false,
+        network: skein_world::domain::Span::millis(1, 1),
+        ..Settings::calm(144)
+    };
+    // The shared world installs three six-byte fake model names, independently
+    // of the shipped destinations. Only their retained declaration room differs.
+    settings.limits.configured_model_bytes = smith_domain::ConfiguredModel::owned_bound(b"fake-1".len(), &[])
+        .expect("fake model declaration")
+        .checked_mul(3)
+        .expect("three fake models");
+    settings.provider.latency_min = skein_lib::Duration::from_millis(100);
+    settings.provider.latency_max = settings.provider.latency_min;
+    settings
+}
+
+/// A scripted provider tool call with whole JSON arguments.
+pub fn call(name: &[u8], arguments: &Value) -> skein_fake_llm_domain::api::Line {
+    skein_fake_llm_domain::api::Line::Call {
+        name: name.into(),
+        arguments: serde_json::to_vec(arguments).expect("call JSON").into(),
+    }
+}

@@ -147,6 +147,8 @@ pub struct Domain {
     pub(crate) playground_request: Option<Token>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) connections: Map<u16, ConnectionState>,
+    /// One setup runs at a time (temper/docs/design/protocol/forge.md, 2.8).
+    pub(crate) fetched: Option<(u16, crate::SetUpFetched)>,
     pub(crate) first: Map<u16, crate::First>,
     pub(crate) ended: Map<u16, (Box<[u8]>, Option<crate::AdminStop>)>,
     pub(crate) apps: Map<u16, crate::AppWay>,
@@ -293,6 +295,16 @@ impl Domain {
                 failed: match self.connections.get(forge) {
                     Some((_, failed)) => *failed,
                     None => None,
+                },
+                fetched: match self.fetched {
+                    Some((number, fetched))
+                        if number == *forge
+                            && self.connection(*forge)
+                                == (crate::Connection::SettingUp { step: Some(crate::SetUpStep::Fetch) }) =>
+                    {
+                        Some(fetched)
+                    }
+                    Some(_) | None => None,
                 },
                 offer: self.offer(*forge),
                 first: self.first.get(forge).cloned(),
@@ -557,6 +569,7 @@ impl Domain {
             playground_request: None,
             bindings: Map::with_capacity(l.bindings),
             connections: Map::with_capacity(l.forges),
+            fetched: None,
             first: Map::with_capacity(l.forges),
             ended: Map::with_capacity(l.forges),
             apps: Map::with_capacity(l.forges),
@@ -1104,6 +1117,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::ResetActAnswered { key, keep } => crate::playground::act_answered(d, key, keep, out),
         Event::BoxClosed => {
             d.under_box = false;
+            d.fetched = None;
             for (forge, _) in &d.configured {
                 if d.forge_ended(*forge) {
                     continue;
@@ -1193,8 +1207,19 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 | crate::Connection::Stopped { .. } => None,
             };
             d.connections.insert(forge, (state, failed)).expect("configured forge connections");
+            if let Some((number, _)) = d.fetched
+                && number == forge
+            {
+                d.fetched = None;
+            }
             crate::playground::connected(d, out);
             out.push(Request::MarkedForges);
+        }
+        Event::Fetched { forge, fetched } => {
+            if d.connection(forge) == (crate::Connection::SettingUp { step: Some(crate::SetUpStep::Fetch) }) {
+                d.fetched = Some((forge, fetched));
+                out.push(Request::MarkedForges);
+            }
         }
         Event::Installation { forge, installation, state } => {
             match state {

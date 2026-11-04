@@ -590,12 +590,68 @@ pub fn turns(
         }
     }
 }
+/// Byte relationships retain the quantities the worker's admission check compared.
+fn worker_payload(limits: &worker_domain::Limits, unfit: worker_domain::Unfit, problems: &mut Problems) -> bool {
+    use worker_domain::Unfit;
+    const MESSAGE: &[u8] = b"agent.json profile.declared.tool_payload less the 2-byte separator";
+    match unfit {
+        Unfit::Events => problems.push(
+            worker_limit(b"hub.event_bytes"),
+            What::Within {
+                bytes: limits.host.event_bytes,
+                limit: MESSAGE,
+                bound: limits.agent.message_bytes.saturating_sub(worker_domain::SEPARATOR),
+            },
+        ),
+        Unfit::BoundsMessage => short(
+            problems,
+            worker_limit(b"hub.event_bytes"),
+            limits.host.event_bytes,
+            MESSAGE,
+            Some(u64::from(limits.bounds.message_bytes)),
+        ),
+        Unfit::CallBytes => short(
+            problems,
+            own(b"checkout.message_bytes"),
+            u64::from(limits.checkout.message_bytes),
+            b"the agent's call_bytes (agent.json profile.declared.tool_payload)",
+            Some(limits.agent.call_bytes),
+        ),
+        Unfit::TurnQueue => short(
+            problems,
+            worker_limit(b"hub.turn_queue_bytes"),
+            limits.host.turn_queue_bytes,
+            b"the agent's turns * workers[0].limits.overrides.hub.turn_bytes",
+            u64::from(limits.agent.turns).checked_mul(limits.host.turn_bytes),
+        ),
+        Unfit::Agent
+        | Unfit::Unacknowledged
+        | Unfit::Directories
+        | Unfit::Conflicts
+        | Unfit::Paths
+        | Unfit::Names
+        | Unfit::Key
+        | Unfit::Accounts
+        | Unfit::Workspaces
+        | Unfit::Agents
+        | Unfit::Turns
+        | Unfit::Calls
+        | Unfit::Held
+        | Unfit::Inbox
+        | Unfit::Saved
+        | Unfit::BoundsInbox => return false,
+    }
+    true
+}
 /// The worker's rules against the agent's configuration, each naming both
 /// limits (temper-worker-domain's `unfit`).
 pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
     use worker_domain::Unfit;
     let worker = at(0, Path::root().member(b"workers"));
     for unfit in &worker_domain::unfit(limits) {
+        if worker_payload(limits, *unfit, problems) {
+            continue;
+        }
         let (path, other): (Path, &'static [u8]) = match unfit {
             Unfit::Agent | Unfit::Unacknowledged => {
                 problems.push(worker.member(b"agent").member(b"configuration"), What::Jig(config::What::Bound));
@@ -610,17 +666,14 @@ pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
             Unfit::Workspaces => (worker.member(b"slots"), b"checkout.workspaces"),
             Unfit::Agents => (worker.member(b"slots"), b"the agent's agents"),
             Unfit::Turns => (worker_limit(b"hub.turns"), b"the agent's turns"),
-            Unfit::TurnQueue => (worker_limit(b"hub.turn_queue_bytes"), b"the agent's turns * hub.turn_bytes"),
             Unfit::Calls => (worker_limit(b"hub.run_calls"), b"the agent's calls"),
-            Unfit::Events => {
-                (worker_limit(b"hub.event_bytes"), b"the agent's message_bytes less smith's 2-byte separator")
-            }
             Unfit::Held => (worker_limit(b"hub.held"), b"the agent's messages"),
             Unfit::Inbox => (worker_limit(b"hub.inbox"), b"the agent's messages"),
-            Unfit::CallBytes => (own(b"checkout.message_bytes"), b"the agent's call_bytes"),
             Unfit::Saved => (own(b"checkout.message_bytes"), b"the save's commit message"),
             Unfit::BoundsInbox => (worker_limit(b"hub.inbox"), b"the agent's hello's inbox"),
-            Unfit::BoundsMessage => (worker_limit(b"hub.event_bytes"), b"the agent's hello's message_bytes"),
+            Unfit::TurnQueue | Unfit::Events | Unfit::CallBytes | Unfit::BoundsMessage => {
+                unreachable!("payload rule reported above")
+            }
         };
         problems.push(path, What::Against { other });
     }
