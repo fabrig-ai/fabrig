@@ -40,10 +40,12 @@ of the settings answer's bound (`domain/root.md`), and a change's refusal
 omits what authority it lacked and which model its charter refused
 (`domain/agent.md`). A run that cannot deliver keeps the shell
 its charter grants (`domain/agent.md`). The
-reference is one profile a box is set up with, but on a small box a
-result's bytes, a batch and the live delegates stay below the sizes it
-is designed for, and the case's repository carries no CI or tiers'
-workflows (`protocol/configuration.md`).
+reference is one profile a box is set up with, and the case's repository
+carries no CI or tiers' workflows (`protocol/configuration.md`). A fresh
+box holds the figures of the user's request of 2026-11-03 but for a
+message, a report, a person's spec and a run's brief, which its agent
+and smith's room bound below them (`protocol/configuration.md`), and
+the walk that request ends with has not passed (`protocol/setup.md`).
 Much of a change's own bounds and gates, the forge's merge queue and a
 goal's issue lag (`domain/forge.md`); so do the client's Board, Changes
 and How work runs pages and many of ctl's tools (`client/README.md`,
