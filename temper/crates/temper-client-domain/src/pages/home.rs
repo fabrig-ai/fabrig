@@ -2,16 +2,26 @@
 use super::{Request, welcome};
 use crate::{Domain, forge, owner::Owner};
 use alloc::boxed::Box;
-use jig_client::{Client, Handle, Latest, Told, Watchable, contract as c};
+use forge::dismissed::{self, Dismissal};
+use jig_client::{Client, Handle, Key, Latest, Told, Watchable, contract as c};
 use skein_lib::Queue;
 
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "settings is a public read; skip state belongs to this page")]
 pub struct Home {
     pub settings: Handle,
+    skip: Option<Key>,
+    skipped: bool,
+    skip_refused: bool,
 }
 impl Home {
     pub(super) fn new(number: u64, out: &mut Queue<Request>) -> Self {
-        let home = Self { settings: Handle { asker: Owner::Pages.asker(), number } };
+        let home = Self {
+            settings: Handle { asker: Owner::Pages.asker(), number },
+            skip: None,
+            skipped: false,
+            skip_refused: false,
+        };
         out.push(Request::Client(jig_client::Event::Watch {
             handle: home.settings,
             subject: Watchable::Jig(c::Subject::Settings),
@@ -21,8 +31,38 @@ impl Home {
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
         out.push(Request::Client(jig_client::Event::Unwatch { handle: self.settings }));
     }
-    pub(super) fn told(&self, told: &Told) -> bool {
-        if let Told::Changed { handle } | Told::Ended { handle, .. } = told { *handle == self.settings } else { false }
+    pub(super) fn skip(&mut self, project: u32, limits: forge::Limits, serial: &mut u64, out: &mut Queue<Request>) {
+        if self.skip.is_some() {
+            return;
+        }
+        let Some(request) = dismissed::ask(Dismissal::ToBegin { project }, &limits) else { return };
+        *serial = serial.checked_add(1).expect("page keys fit");
+        let key = Key { asker: Owner::Pages.asker(), number: *serial };
+        self.skip = Some(key);
+        self.skip_refused = false;
+        out.push(Request::Client(jig_client::Event::Send { key, name: None, request }));
+    }
+    pub(super) fn told(&mut self, told: &Told, limits: forge::Limits) -> bool {
+        match told {
+            Told::Changed { handle } | Told::Ended { handle, .. } => *handle == self.settings,
+            Told::Pending { key } if Some(*key) == self.skip => true,
+            Told::Answered { key, outcome } if Some(*key) == self.skip => {
+                self.skip = None;
+                match dismissed::answer(outcome, limits) {
+                    dismissed::Answer::Dismissed => self.skipped = true,
+                    dismissed::Answer::Unknown => {}
+                    dismissed::Answer::Refused => self.skip_refused = true,
+                }
+                true
+            }
+            Told::Link { .. }
+            | Told::Pending { .. }
+            | Told::Answered { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. }
+            | Told::Page { .. }
+            | Told::Text { .. } => false,
+        }
     }
     fn configured(&self, client: &Client) -> bool {
         let Some(document) = client.document(self.settings) else { return false };
@@ -50,13 +90,27 @@ pub enum Needs {
     },
 }
 
+/// What the person's skip says (temper/docs/design/client/README.md, 3.5, To begin).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Skip {
+    /// The dismissals aren't delivered, or their watch was refused or ended.
+    Unknown,
+    /// The dismissals name the project, or this page's request is out or answered.
+    Skipped,
+    NotSkipped,
+}
+
 /// The facts Home draws (temper/docs/design/client/README.md, 3.5, Home).
 #[derive(Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "Home exposes the independent facts of To begin's contract")]
 pub struct Facts {
     pub configured: bool,
     pub repository: Repository,
     pub chat_asked: bool,
     pub needs: Needs,
+    pub delivered: bool,
+    pub skip: Skip,
+    pub skip_refused: bool,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Repository {
@@ -68,6 +122,11 @@ pub enum Repository {
     None,
 }
 impl Facts {
+    #[must_use]
+    pub fn to_begin(&self) -> bool {
+        self.delivered && self.skip == Skip::NotSkipped && self.left() > 0
+    }
+
     /// The steps left: step 2 counts unless it is `In`.
     #[must_use]
     pub fn left(&self) -> u8 {
@@ -88,14 +147,42 @@ impl Facts {
 }
 #[must_use]
 pub fn facts(root: &Domain, project: u32) -> Facts {
-    let configured = match root.pages().home() {
-        Some(home) => home.configured(root.client()),
-        None => false,
+    let home = if root.pages().address() == &(crate::Address::Home { project }) { root.pages().home() } else { None };
+    let (configuring, chat_asked) = match root.pages().chats() {
+        Some(chats) => chats.chat_counts(root.client(), root.pages().me(root.client()), project),
+        None => (false, false),
     };
-    let chat_asked = match root.pages().chats() {
-        Some(chats) => chats.asked(root.client(), project),
-        None => false,
+    let configured = configuring
+        || match home {
+            Some(home) => home.configured(root.client()),
+            None => false,
+        };
+    let repository = repository(root, project);
+    let delivered = repository != Repository::Unknown
+        && match root.forges() {
+            forge::forges::State::Unknown => false,
+            forge::forges::State::Rows(_) | forge::forges::State::Ended => true,
+        }
+        && match home {
+            Some(home) => delivered(root.client(), home.settings),
+            None => false,
+        }
+        && match root.pages().chats() {
+            Some(chats) => chats.delivered(root.client(), project),
+            None => false,
+        };
+    let mut skip = match root.forge().dismissed(Dismissal::ToBegin { project }) {
+        Some(true) => Skip::Skipped,
+        Some(false) => Skip::NotSkipped,
+        None => Skip::Unknown,
     };
+    let mut skip_refused = false;
+    if let Some(home) = home {
+        if home.skip.is_some() || home.skipped {
+            skip = Skip::Skipped;
+        }
+        skip_refused = home.skip_refused;
+    }
     let needs = match root.pages().inbox() {
         Some(inbox) if inbox.filter.project == Some(project) && inbox.delivered(root.client()) => Needs::Count {
             count: u32::try_from(inbox.needs().count()).expect("inbox cards fit"),
@@ -103,7 +190,7 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
         },
         Some(_) | None => Needs::Unknown,
     };
-    Facts { configured, repository: repository(root, project), chat_asked, needs }
+    Facts { configured, repository, chat_asked, needs, delivered, skip, skip_refused }
 }
 fn repository(root: &Domain, project: u32) -> Repository {
     use forge::listed::Held;
@@ -154,4 +241,11 @@ fn repository(root: &Domain, project: u32) -> Repository {
         }
     }
     Repository::None
+}
+
+pub(super) fn delivered(client: &Client, handle: Handle) -> bool {
+    match client.document(handle) {
+        Some(document) => document.state == jig_client::State::Ended || document.latest.is_some(),
+        None => false,
+    }
 }

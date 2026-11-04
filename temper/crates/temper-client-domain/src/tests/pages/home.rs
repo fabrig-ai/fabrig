@@ -5,7 +5,7 @@ use crate::{
     Action, Address, Domain, Event, Place, Request, forge,
     pages::{
         self, Act,
-        home::{self, Facts, Needs, Repository},
+        home::{self, Facts, Needs, Repository, Skip},
         welcome::First,
     },
 };
@@ -57,11 +57,16 @@ struct Fixture {
     closed: Token,
     forges: Token,
     inbox: Token,
+    dismissed: Token,
 }
 fn fixture() -> Fixture {
+    fixture_with_me(f::chats::me())
+}
+fn fixture_with_me(frame: c::Me) -> Fixture {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let me = f::start(&mut root, List::with_capacity(EMPTY));
-    let out = deliver(&mut root, me, c::Delivery::Me(Box::new(f::chats::me())));
+    let out = deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+    let dismissed = opened(&out, &forge::dismissed::watch(&f::limits().forge).unwrap()).unwrap();
     let forges = opened(&out, &forge::forges::watch(&f::limits().forge).unwrap()).unwrap();
     let out = go(&mut root, f::PROJECT);
     let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
@@ -79,7 +84,7 @@ fn fixture() -> Fixture {
             }
         }
     }
-    Fixture { root, settings, live: live.unwrap(), closed: closed.unwrap(), forges, inbox }
+    Fixture { root, settings, live: live.unwrap(), closed: closed.unwrap(), forges, inbox, dismissed }
 }
 fn settings(fixture: &mut Fixture, follows: c::SettingFollows) {
     let mut lines = List::with_capacity(ONE);
@@ -214,7 +219,19 @@ fn the_three_steps_count_only_what_is_left() {
         (true, Repository::Offer { first: first(), refused: None }, true, ONE_STEP),
         (true, Repository::GitHub { account: None }, true, ONE_STEP),
     ] {
-        assert_eq!(Facts { configured, repository, chat_asked, needs: Needs::Unknown }.left(), left);
+        assert_eq!(
+            Facts {
+                configured,
+                repository,
+                chat_asked,
+                needs: Needs::Unknown,
+                delivered: true,
+                skip: Skip::NotSkipped,
+                skip_refused: false
+            }
+            .left(),
+            left
+        );
     }
 }
 #[test]
@@ -394,12 +411,9 @@ fn github_uses_the_first_accepted_usable_installations_account() {
     }
 }
 fn chat_rows() -> List<c::TaskLine> {
-    let limits =
-        jig_client_protocol_link::Limits::new(f::limits().client.domain, f::limits().client.exchanges).unwrap();
-    let tasks =
-        jig_client_protocol_link::translate::documents::tasks(jig_client_test_records::tasks_rows_record(), &limits)
-            .unwrap();
-    tasks.rows
+    let mut rows = List::with_capacity(ONE);
+    rows.push(super::chats::chat_line()).unwrap();
+    rows
 }
 #[test]
 fn home_counts_live_and_ended_chats_as_asked() {
@@ -659,5 +673,370 @@ fn home_hears_its_chats_and_its_inbox_alike() {
         }
         assert!(home::facts(&f.root, f::PROJECT).chat_asked);
         assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: 0, cut: true });
+    }
+}
+
+const CONFIGURING: u32 = 3;
+const TWO_TEMPLATES: u32 = 2;
+const FACTS: u32 = 5;
+// Live watch, read page's live rows, read page's ended rows.
+const CHAT_SOURCES: u32 = 3;
+
+fn configuring_me() -> c::Me {
+    let mut me = f::chats::me();
+    let project = me.projects.get_mut(0).unwrap();
+    let stock = project.templates.get(0).unwrap().clone();
+    let mut configuring = stock.clone();
+    configuring.number = CONFIGURING;
+    configuring.executor = c::TemplateExecutor::Charter(CONFIGURING);
+    project.templates = List::with_capacity(TWO_TEMPLATES);
+    project.templates.push(stock).unwrap();
+    project.templates.push(configuring).unwrap();
+    me
+}
+fn chat_page(f: &mut Fixture, rows: List<c::TaskLine>, live: bool, after: Option<c::Cursor>) {
+    let (live, ended) = if live {
+        (rows, c::EndedGroup::None)
+    } else {
+        (List::with_capacity(EMPTY), c::EndedGroup::Rows { rows, after: after.clone(), cut: false })
+    };
+    up(
+        &mut f.root,
+        Up::ReadDone {
+            read: f.closed,
+            result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                live,
+                live_after: after,
+                ended,
+            })))),
+        },
+    );
+}
+fn dismissal_rows(f: &mut Fixture, projects: &[u32]) {
+    let mut dismissed = List::with_capacity(wire::DISMISSED);
+    for project in projects {
+        dismissed
+            .push(w::Dismissal::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
+            .unwrap();
+    }
+    up(
+        &mut f.root,
+        Up::FamilyDelivered {
+            watch: f.dismissed,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+            },
+        },
+    );
+}
+fn ready(f: &mut Fixture) {
+    rows(&mut f.root, f.forges, Box::default());
+    settings(f, c::SettingFollows::Default);
+    chat_page(f, List::with_capacity(EMPTY), false, None);
+    deliver(
+        &mut f.root,
+        f.live,
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
+    );
+    dismissal_rows(f, &[]);
+    assert!(home::facts(&f.root, f::PROJECT).to_begin());
+}
+fn skip(f: &mut Fixture) -> (jig_client::Key, Queue<Request>) {
+    let serial = f.root.pages().serial;
+    let out = event(&mut f.root, Event::Act { action: Action::Pages(Act::SkipToBegin) });
+    let key = jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: serial.checked_add(1).unwrap() };
+    (key, out)
+}
+fn skip_answer(f: &mut Fixture, key: jig_client::Key, outcome: jig_client::Outcome) {
+    crate::route::told(&mut f.root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut Queue::uncapped());
+}
+fn family_answer(outcome: w::Outcome) -> jig_client::Outcome {
+    jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+    }))
+}
+#[test]
+fn a_configuring_chat_marks_the_first_step_and_not_the_third() {
+    for source in 0..CHAT_SOURCES {
+        let mut f = fixture_with_me(configuring_me());
+        let mut row = super::chats::chat_line();
+        row.chip.executor = c::ChipExecutor::Agent { charter: CONFIGURING };
+        let mut rows = List::with_capacity(ONE);
+        rows.push(row).unwrap();
+        if source == 0 {
+            deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+        } else {
+            chat_page(&mut f, rows, source == 1, None);
+        }
+        let facts = home::facts(&f.root, f::PROJECT);
+        assert!(facts.configured, "source={source}");
+        assert!(!facts.chat_asked, "configuring alone source={source}");
+        assert!(!home::facts(&f.root, OTHER_PROJECT).configured);
+    }
+}
+#[test]
+fn a_stock_chat_marks_the_third_step_alone() {
+    for me in [f::chats::me(), configuring_me()] {
+        for source in 0..CHAT_SOURCES {
+            let mut f = fixture_with_me(me.clone());
+            if source == 0 {
+                deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows: chat_rows(), more: false })));
+            } else {
+                chat_page(&mut f, chat_rows(), source == 1, None);
+            }
+            let facts = home::facts(&f.root, f::PROJECT);
+            assert!(!facts.configured);
+            assert!(facts.chat_asked);
+        }
+    }
+    let mut chosen = configuring_me();
+    chosen.projects.get_mut(0).unwrap().templates.get_mut(1).unwrap().executor = c::TemplateExecutor::Chosen;
+    assert!(!pages::chats::configuring(&chosen, f::PROJECT, &c::ChipExecutor::Agent { charter: CONFIGURING }));
+    for source in 0..CHAT_SOURCES {
+        let mut f = fixture_with_me(configuring_me());
+        if source == 0 {
+            deliver(
+                &mut f.root,
+                f.live,
+                c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: true })),
+            );
+        } else {
+            chat_page(
+                &mut f,
+                List::with_capacity(EMPTY),
+                source == 1,
+                Some(c::Cursor::new(b"next".as_slice().into(), NAME_BYTES).unwrap()),
+            );
+        }
+        let facts = home::facts(&f.root, f::PROJECT);
+        assert!(!facts.configured, "a configuring chat past the cut isn't seen");
+        assert!(facts.chat_asked, "a cut counts as another chat");
+    }
+}
+#[test]
+fn to_begin_waits_for_every_fact() {
+    for withheld in 0..FACTS {
+        let mut f = fixture();
+        for fact in 0..FACTS {
+            if fact != withheld {
+                deliver_fact(&mut f, fact);
+            }
+        }
+        let facts = home::facts(&f.root, f::PROJECT);
+        assert!(!facts.to_begin(), "withheld={withheld}");
+        assert_eq!(facts.delivered, withheld == 4);
+        deliver_fact(&mut f, withheld);
+        assert!(home::facts(&f.root, f::PROJECT).to_begin());
+    }
+    for ended in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
+        let mut f = fixture();
+        for watch in [f.settings, f.live, f.forges] {
+            up(&mut f.root, Up::WatchEnded { watch, end: ended });
+        }
+        up(&mut f.root, Up::ReadDone { read: f.closed, result: Readout::Limit });
+        dismissal_rows(&mut f, &[]);
+        let facts = home::facts(&f.root, f::PROJECT);
+        assert!(facts.delivered);
+        assert_eq!(facts.left(), THREE_STEPS);
+        assert!(facts.to_begin());
+        up(&mut f.root, Up::WatchEnded { watch: f.dismissed, end: ended });
+        assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Unknown);
+        assert!(!home::facts(&f.root, f::PROJECT).to_begin());
+    }
+    let mut f = fixture_with_me(configuring_me());
+    ready(&mut f);
+    let mut rows = chat_rows();
+    rows.get_mut(0).unwrap().chip.executor = c::ChipExecutor::Agent { charter: CONFIGURING };
+    deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    assert!(home::facts(&f.root, f::PROJECT).configured);
+    up(&mut f.root, Up::WatchEnded { watch: f.live, end: c::WatchEnd::SubjectEnded });
+    assert!(!home::facts(&f.root, f::PROJECT).configured, "ended live read leaves its step");
+    let mut facts = home::facts(&f.root, f::PROJECT);
+    facts.configured = true;
+    facts.chat_asked = true;
+    facts.repository = Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() };
+    assert!(!facts.to_begin(), "nothing left");
+}
+fn deliver_fact(f: &mut Fixture, fact: u32) {
+    match fact {
+        0 => rows(&mut f.root, f.forges, Box::default()),
+        1 => settings(f, c::SettingFollows::Default),
+        2 => {
+            let out = deliver(
+                &mut f.root,
+                f.live,
+                c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(EMPTY), more: false })),
+            );
+            for request in &out {
+                if let Request::Unlinked {
+                    request: jig_client::UnlinkedRequest::Down { down: Down::Read { read, .. } },
+                } = request
+                {
+                    f.closed = *read;
+                }
+            }
+        }
+        3 => chat_page(f, List::with_capacity(EMPTY), false, None),
+        4 => dismissal_rows(f, &[]),
+        _ => panic!("five facts"),
+    }
+}
+#[test]
+fn a_skipped_project_hides_to_begin_and_a_refused_skip_brings_it_back() {
+    let refusals = [
+        refusal(),
+        family_answer(w::Outcome::CoreRefused(
+            w::CoreRefused::new(&w::CEILINGS, w::CoreRefusedParts { refusal: Box::default() }).unwrap(),
+        )),
+        family_answer(w::Outcome::Removed),
+        jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: Box::default(),
+        })),
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+            refusal: c::Refusal::NotOffered,
+            at: None,
+        })),
+        jig_client::Outcome::Limit,
+        jig_client::Outcome::Lost,
+        jig_client::Outcome::NotKept,
+        jig_client::Outcome::Unconfirmed,
+        jig_client::Outcome::Held,
+        jig_client::Outcome::Unsent,
+        jig_client::Outcome::Full { held: ONE, room_at: skein_lib::Wall::EPOCH },
+    ];
+    for outcome in refusals {
+        let mut f = fixture();
+        ready(&mut f);
+        let (key, out) = skip(&mut f);
+        let mut sends = 0_u32;
+        for request in &out {
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, .. } },
+            } = request
+            {
+                assert_eq!(
+                    *request,
+                    forge::dismissed::ask(
+                        forge::dismissed::Dismissal::ToBegin { project: f::PROJECT },
+                        &f::limits().forge
+                    )
+                    .unwrap()
+                );
+                sends += 1;
+            }
+        }
+        assert_eq!(sends, 1);
+        assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
+        assert!(event(&mut f.root, Event::Act { action: Action::Pages(Act::SkipToBegin) }).is_empty());
+        assert_eq!(f.root.pages().serial, key.number, "one press, one key");
+        skip_answer(&mut f, jig_client::Key { number: key.number + 1, ..key }, outcome.clone());
+        assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped, "only our answer");
+        skip_answer(&mut f, key, outcome);
+        let facts = home::facts(&f.root, f::PROJECT);
+        assert!(facts.skip_refused);
+        assert_eq!(facts.skip, Skip::NotSkipped);
+        assert!(facts.to_begin());
+        let (next, _) = skip(&mut f);
+        assert_ne!(next, key);
+        assert!(!home::facts(&f.root, f::PROJECT).skip_refused);
+        dismissal_rows(&mut f, &[f::PROJECT]);
+        skip_answer(&mut f, next, jig_client::Outcome::Unknown);
+        assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped, "subject answers unknown");
+    }
+}
+#[test]
+fn a_skip_answered_before_its_row_arrives_stays_hidden() {
+    let mut f = fixture();
+    ready(&mut f);
+    let (key, _) = skip(&mut f);
+    let before = pages::shown(f.root.pages());
+    skip_answer(&mut f, key, family_answer(w::Outcome::Dismissed));
+    assert!(pages::shown(f.root.pages()) > before);
+    dismissal_rows(&mut f, &[]);
+    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
+    assert!(!home::facts(&f.root, f::PROJECT).to_begin());
+    event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    assert!(event(&mut f.root, Event::Act { action: Action::Pages(Act::SkipToBegin) }).is_empty());
+    go(&mut f.root, f::PROJECT);
+    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::NotSkipped, "acknowledgement lasts until leaving Home");
+    for outcome in [jig_client::Outcome::Unknown, family_answer(w::Outcome::Unknown)] {
+        let (key, _) = skip(&mut f);
+        skip_answer(&mut f, key, outcome);
+        let facts = home::facts(&f.root, f::PROJECT);
+        assert_eq!(facts.skip, Skip::NotSkipped, "unknown follows the subject");
+        assert!(!facts.skip_refused);
+        let (next, _) = skip(&mut f);
+        skip_answer(&mut f, next, jig_client::Outcome::Unknown);
+        assert_ne!(key, next, "unknown ends the request");
+    }
+}
+#[test]
+fn another_projects_dismissal_leaves_to_begin() {
+    let mut f = fixture();
+    ready(&mut f);
+    dismissal_rows(&mut f, &[OTHER_PROJECT]);
+    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::NotSkipped);
+    assert!(home::facts(&f.root, f::PROJECT).to_begin());
+    dismissal_rows(&mut f, &[f::PROJECT]);
+    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
+    assert!(!home::facts(&f.root, f::PROJECT).to_begin());
+}
+
+#[test]
+fn skip_respects_its_page_and_request_bounds() {
+    let mut f = fixture();
+    ready(&mut f);
+    let serial = f.root.pages().serial;
+    let mut limits = f::limits();
+    limits.forge.field_bytes = u32::MAX;
+    assert!(
+        forge::dismissed::ask(forge::dismissed::Dismissal::ToBegin { project: f::PROJECT }, &limits.forge).is_none()
+    );
+    let mut out = Queue::uncapped();
+    pages::step(
+        &mut f.root.pages,
+        &f::env(&limits),
+        &f.root.client,
+        pages::Event::Act { act: Act::SkipToBegin },
+        &mut out,
+    );
+    assert!(out.is_empty());
+    assert_eq!(f.root.pages().serial, serial);
+    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::NotSkipped);
+    pages::step(
+        &mut f.root.pages,
+        &f::env(&f::limits()),
+        &f.root.client,
+        pages::Event::Act { act: Act::SkipToBegin },
+        &mut out,
+    );
+    let key = jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: serial + 1 };
+    assert_eq!(
+        out.pop(),
+        Some(pages::Request::Client(jig_client::Event::Send {
+            key,
+            name: None,
+            request: forge::dismissed::ask(
+                forge::dismissed::Dismissal::ToBegin { project: f::PROJECT },
+                &f::limits().forge
+            )
+            .unwrap(),
+        }))
+    );
+    assert!(out.is_empty());
+    assert_eq!(home::facts(&f.root, f::PROJECT).skip, Skip::Skipped);
+    for address in
+        [Address::Settings { project: f::PROJECT }, Address::Chats { filter: crate::ChatsFilter::All, start: false }]
+    {
+        event(&mut f.root, Event::Went { place: Place::Address(address) });
+        let serial = f.root.pages().serial;
+        assert!(event(&mut f.root, Event::Act { action: Action::Pages(Act::SkipToBegin) }).is_empty());
+        assert_eq!(f.root.pages().serial, serial);
     }
 }

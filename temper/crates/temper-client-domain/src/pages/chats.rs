@@ -27,6 +27,7 @@ pub struct Chats {
     pub outcome: Option<jig_client::Outcome>,
     query: Option<TaskQuery>,
     first: bool,
+    page_delivered: bool,
 }
 impl Chats {
     pub(crate) fn new(first: u64) -> Self {
@@ -41,6 +42,7 @@ impl Chats {
             outcome: None,
             query: None,
             first: true,
+            page_delivered: false,
         }
     }
     pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
@@ -76,6 +78,7 @@ impl Chats {
             self.leave(out);
         }
         self.page = None;
+        self.page_delivered = false;
         self.first = true;
         self.query = Some(query);
         out.push(Request::Client(jig_client::Event::Watch {
@@ -216,9 +219,16 @@ impl Chats {
             Told::Page { handle, page: Readout::Jig(ReadResult::Value(ReadValue::Tasks(page))) }
                 if handle == self.closed =>
             {
+                self.page_delivered = true;
                 self.page = Some(*page);
                 true
             }
+            Told::Page { handle, .. } if handle == self.closed => {
+                self.page_delivered = true;
+                self.page = None;
+                true
+            }
+            Told::Ended { handle, .. } if handle == self.live => true,
             Told::Pending { key } if Some(key) == self.start => true,
             Told::Answered { key, outcome } if Some(key) == self.start => {
                 if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(value))) = &outcome {
@@ -245,25 +255,35 @@ impl Chats {
             | Told::Page { .. } => false,
         }
     }
-    pub(super) fn asked(&self, client: &Client, project: u32) -> bool {
+    pub(super) fn delivered(&self, client: &Client, project: u32) -> bool {
         let Some(query) = self.query else { return false };
+        query.project == Some(project) && self.page_delivered && super::home::delivered(client, self.live)
+    }
+    pub(super) fn chat_counts(&self, client: &Client, me: Option<&Me>, project: u32) -> (bool, bool) {
+        let Some(query) = self.query else { return (false, false) };
         if query.project != Some(project) {
-            return false;
+            return (false, false);
         }
-        if let Some(live) = self.live(client)
-            && (!live.rows.is_empty() || live.more)
+        let mut counts = (false, false);
+        if let Some(document) = client.document(self.live)
+            && document.state != jig_client::State::Ended
+            && let Some(Latest::Jig(Delivery::Tasks(live))) = document.latest
         {
-            return true;
+            count_rows(&live.rows, me, project, &mut counts);
+            counts.1 |= live.more;
         }
         if let Some(page) = &self.page {
-            if !page.live.is_empty() || page.live_after.is_some() {
-                return true;
-            }
-            if let EndedGroup::Rows { rows, after, .. } = &page.ended {
-                return !rows.is_empty() || after.is_some();
+            count_rows(&page.live, me, project, &mut counts);
+            counts.1 |= page.live_after.is_some();
+            match &page.ended {
+                EndedGroup::Rows { rows, after, .. } => {
+                    count_rows(rows, me, project, &mut counts);
+                    counts.1 |= after.is_some();
+                }
+                EndedGroup::None => {}
             }
         }
-        false
+        counts
     }
     #[must_use]
     pub fn live<'a>(&self, client: &'a Client) -> Option<&'a c::Tasks> {
@@ -277,4 +297,27 @@ impl Chats {
 
 fn handle(number: u64) -> Handle {
     Handle { asker: Owner::Pages.asker(), number }
+}
+
+/// A chat of template 3's charter (temper/docs/design/client/README.md, 3.5, To begin).
+#[must_use]
+pub fn configuring(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
+    let Some(template) = jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE) else { return false };
+    match template.executor {
+        c::TemplateExecutor::Charter(charter) => *executor == c::ChipExecutor::Agent { charter },
+        c::TemplateExecutor::Chosen => false,
+    }
+}
+
+fn count_rows(rows: &skein_lib::List<c::TaskLine>, me: Option<&Me>, project: u32, counts: &mut (bool, bool)) {
+    for row in rows {
+        if row.project == project {
+            let configuring = match me {
+                Some(me) => configuring(me, project, &row.chip.executor),
+                None => false,
+            };
+            counts.0 |= configuring;
+            counts.1 |= !configuring;
+        }
+    }
 }

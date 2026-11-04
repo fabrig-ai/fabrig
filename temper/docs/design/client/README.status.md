@@ -17,12 +17,9 @@
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
   3.5, Home: the view draws To begin as numbered steps above Connected on
   every Home, its headline counting them, and nothing of Home on any
-  project: no card, "Optional" tag or "Skip" (`Dismiss` has no sender,
-  and `dismissed` no reader), no rule for when it shows, no link to
+  project: no card, "Optional" tag or "Skip", no rule for when it shows, no link to
   `Accounts` after the lede, no Needs you or Chats, and Connected and
-  its rename still drawn; `configured` and `chat_asked` in
-  `temper-client-domain`'s `pages/home.rs` do not tell a configuring
-  chat from another.
+  its rename still drawn.
   3.5, The first chat, The configuring chat's page: no `Configure {
   project }`: the offers start the chat at once, its first message
   `FIRST_CHAT_WORDS`, and a configuring chat draws as any chat, with no
