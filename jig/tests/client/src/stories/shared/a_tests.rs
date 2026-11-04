@@ -101,3 +101,9 @@ fn roles_an_observer_sees_why_creation_is_unavailable() {
     let mut world = crate::stories::seeded_world(8510);
     super::a_roles::an_observer_sees_why_creation_is_unavailable(&mut world);
 }
+
+#[test]
+fn a_delegate_s_escalation_record_names_the_person_who_asked() {
+    let mut world = crate::stories::seeded_world(8510);
+    crate::stories::shared::a_roles::a_delegate_s_escalation_record_names_the_person_who_asked(&mut world);
+}

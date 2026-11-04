@@ -1,6 +1,6 @@
 # Tasks
 
-Provisional, 2026-10-07, revised 2026-10-27. The core's tasks: what a
+Provisional, 2026-10-07, revised 2026-11-04. The core's tasks: what a
 task is, how tasks are made, how each moves from asked to ended, the
 resources it holds, what it hears and when it wakes, and how proposals
 and escalations travel the tree. It is the first primitive of core.md
@@ -928,6 +928,13 @@ time.
   the engine's grace (engine.md, section 8), once the connector has read
   the resource afresh, so that what a lost attempt wrote is known before
   anyone writes again.
+- **The run writer's task and its hold owner stay live** while the slot is
+  taken, including when the hold was handed down. Neither advances to
+  settling its connector effects and releasing resources until the run's
+  answer frees the slot, or, after loss, the connector confirms its fresh
+  read. The confirmation erases the writer and resumes closing in the
+  same decision, so a restart sees no writer without its live task and hold
+  owner.
 - **A claim that finds the slot taken waits,** which is no failure.
 - **A connector's own effects** on a held resource take the slot too,
   while they are in flight, and wait for it like a claim.
