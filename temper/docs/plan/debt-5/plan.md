@@ -21,4 +21,14 @@ This file grows with each push. What is listed here is what has been released so
    - `tasks/smith-agent-machines.md`, medium, ~50 minutes, needs the last: findings 1, 3, 4, 9, 10.
    - `tasks/smith-host-io.md`, medium, ~40 minutes, needs nothing: findings 5, 6, 9, 10.
 
-Still being cut: jig D001, skein D010.
+3. **skein-forge-root** (skein D010; `skein/docs/design/forge.md, 4.4`), slice 3. `notes/forge-root.md`
+   holds the layout, the calls and what runs. The cut wrote 4.4 and its **Not yet**.
+   - `tasks/forge-limits.md`, medium, ~25 minutes, needs nothing.
+   - `tasks/forge-neutral-modules.md`, medium, ~35 minutes, needs the last.
+   - `tasks/forge-decimal.md`, migration, medium, ~15 minutes, needs the last: the measure reads 0.
+   - `tasks/forge-plan-failure.md`, medium, ~15 minutes, needs the last.
+   - `tasks/forge-users.md`, medium, ~25 minutes, needs the last.
+   - `tasks/connection-twins.md`, medium, ~20 minutes, needs `forge-plan-failure`.
+   - `tasks/forge-root-close.md`, docs, medium, ~15 minutes, needs `forge-users` and `connection-twins`: the item goes.
+
+Still being cut: jig D001.
