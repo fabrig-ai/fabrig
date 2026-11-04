@@ -411,6 +411,7 @@ impl Task {
             | Act::SendAmendment
             | Act::AmendAgain
             | Act::MakeDefault
+            | Act::AdoptFirst
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
@@ -511,6 +512,7 @@ impl Task {
             }
             Act::SendAmendment => self.send(env, client, Sending::Amend, serial, out),
             Act::MakeDefault
+            | Act::AdoptFirst
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }

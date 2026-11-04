@@ -44,6 +44,7 @@ pub struct Pages {
     accounts_open: bool,
     welcome: Option<welcome::Welcome>,
     default_project: welcome::DefaultProject,
+    adopting: Option<welcome::Adopting>,
     pub(crate) welcome_first: Option<welcome::First>,
     pub(crate) welcome_decision: Option<welcome::FirstRun>,
     party: Option<u64>,
@@ -57,6 +58,8 @@ pub struct Pages {
 pub enum Act {
     /// Ready's Create, or its name field's Enter.
     MakeDefault,
+    /// Home adopts the first repository again.
+    AdoptFirst,
     /// Ready's name field.
     DefaultName {
         words: Box<[u8]>,
@@ -188,6 +191,7 @@ impl Pages {
             accounts_open: false,
             welcome: None,
             default_project: welcome::DefaultProject::new(),
+            adopting: None,
             welcome_first: None,
             welcome_decision: None,
             party: None,
@@ -225,6 +229,10 @@ impl Pages {
     #[must_use]
     pub const fn welcome_first(&self) -> Option<&welcome::First> {
         self.welcome_first.as_ref()
+    }
+    #[must_use]
+    pub const fn adopting(&self) -> Option<&welcome::Adopting> {
+        self.adopting.as_ref()
     }
     pub(crate) fn decide_welcome(&mut self) {
         if let Some(welcome) = &mut self.welcome {
@@ -458,6 +466,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 | Act::Cancel),
         } => confirmation(pages, env, client, act, out),
         Event::Act { act: Act::MakeDefault } => make_default(pages, out),
+        Event::Act { act: Act::AdoptFirst } => {
+            if let Address::Home { project } = pages.address {
+                adopt(pages, env, project, out);
+            }
+        }
         Event::Act { act: Act::DefaultName { words } } => {
             let state = &mut pages.default_project;
             if state.making.is_none()
@@ -524,7 +537,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
-    if default_told(pages, client, &told, out) {
+    if default_told(pages, env, client, &told, out) || adoption_told(pages, env, client, &told) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
@@ -901,6 +914,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Switcher(_)
         | Act::Choice(_)
         | Act::MakeDefault
+        | Act::AdoptFirst
         | Act::DefaultName { .. }
         | Act::OpenProject { .. }
         | Act::Project { .. }
@@ -986,7 +1000,7 @@ fn switcher_chosen(pages: &mut Pages, client: &Client, out: &mut Queue<Request>)
         choose_project(pages, client, project);
         if pages.project == Some(project) {
             pages.switcher.opening = None;
-            out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
+            out.push(Request::Show { address: Address::Home { project } });
         }
     }
 }
@@ -1189,7 +1203,7 @@ fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
         request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::MakeProject { name: asked, policy: 1 })),
     }));
 }
-fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
+fn default_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
     let Some(key) = pages.default_project.making else { return false };
     let outcome = match told {
         Told::Answered { key: answered, outcome } if *answered == key => outcome,
@@ -1224,7 +1238,7 @@ fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue
                 && let Some(me) = pages.me(client)
             {
                 for row in &me.projects {
-                    if row.name.bytes() == pages.default_project.asked(&offered) {
+                    if row.name.bytes().eq_ignore_ascii_case(pages.default_project.asked(&offered)) {
                         pages.default_project.project = Some(row.project);
                         break;
                     }
@@ -1246,9 +1260,10 @@ fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue
         | jig_client::Outcome::Full { .. }
         | jig_client::Outcome::Lost => pages.default_project.ended = Some(welcome::Ended::Unknown),
     }
-    if pages.default_project.project.is_some() {
+    if let Some(project) = pages.default_project.project {
         default_chosen(pages, client);
-        out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
+        out.push(Request::Show { address: Address::Home { project } });
+        adopt(pages, env, project, out);
     }
     true
 }
@@ -1259,4 +1274,89 @@ fn default_chosen(pages: &mut Pages, client: &Client) {
             pages.default_project.project = None;
         }
     }
+}
+
+/// Ready and Home share the ctl adoption (temper/docs/design/client/README.md, 3.5).
+fn adopt(pages: &mut Pages, env: &Env<Limits>, project: u32, out: &mut Queue<Request>) {
+    use crate::forge;
+    let Some(first) = pages.welcome_first.clone() else { return };
+    let attempt = if let Some(previous) = &pages.adopting {
+        if previous.out.is_some() {
+            return;
+        }
+        match &previous.ended {
+            Some(welcome::AdoptionEnded::Refused(_)) => previous.attempt.checked_add(1).expect("adoption attempts fit"),
+            Some(welcome::AdoptionEnded::Unknown) | None => previous.attempt,
+        }
+    } else {
+        0
+    };
+    let adoption = forge::Adoption {
+        project,
+        forge: first.forge,
+        owner: first.org.clone(),
+        name: first.name.clone(),
+        prefix: b"temper/".as_slice().into(),
+        role: forge::Role::Owned,
+        home: true,
+        landing: b"main".as_slice().into(),
+        ci: true,
+        checks: Box::default(),
+    };
+    let Some(request) = forge::ask(&adoption, &env.limits.forge) else { return };
+    pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+    let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+    let name = if attempt == 0 {
+        forge::first_repository_key(first.forge, false)
+    } else {
+        forge::first_repository_again_key(first.forge, attempt)
+    };
+    out.push(Request::Client(jig_client::Event::Send { key, name: Some(name), request }));
+    pages.adopting = Some(welcome::Adopting { project, first, out: Some(key), attempt, ended: None });
+}
+fn adoption_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &Told) -> bool {
+    use crate::forge;
+    let Some(adopting) = &mut pages.adopting else { return false };
+    let Some(key) = adopting.out else { return false };
+    let outcome = match told {
+        Told::Answered { key: answered, outcome } if *answered == key => outcome,
+        Told::Pending { key: pending } if *pending == key => {
+            match client.pending(key) {
+                Some(pending) if pending.progress == jig_client::Progress::Unknown => {}
+                Some(_) | None => return true,
+            }
+            &jig_client::Outcome::Unknown
+        }
+        Told::Link { .. }
+        | Told::Pending { .. }
+        | Told::Answered { .. }
+        | Told::Kept { .. }
+        | Told::Dropped { .. }
+        | Told::Changed { .. }
+        | Told::Text { .. }
+        | Told::Ended { .. }
+        | Told::Page { .. } => return false,
+    };
+    let answer = match outcome {
+        jig_client::Outcome::Answered(answered) => {
+            forge::answer(&env.limits, answered).unwrap_or(forge::Answer::Unknown)
+        }
+        jig_client::Outcome::Unknown
+        | jig_client::Outcome::Limit
+        | jig_client::Outcome::Held
+        | jig_client::Outcome::NotKept
+        | jig_client::Outcome::Unsent
+        | jig_client::Outcome::Full { .. }
+        | jig_client::Outcome::Lost
+        | jig_client::Outcome::Unconfirmed => forge::Answer::Unknown,
+    };
+    adopting.out = None;
+    adopting.ended = match answer {
+        forge::Answer::Adopted(_) => None,
+        forge::Answer::Unknown => Some(welcome::AdoptionEnded::Unknown),
+        refused @ (forge::Answer::CoreRefused(_)
+        | forge::Answer::ForgeRefused(_)
+        | forge::Answer::EntranceRefused(_)) => Some(welcome::AdoptionEnded::Refused(refused)),
+    };
+    true
 }
