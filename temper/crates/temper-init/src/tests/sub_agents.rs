@@ -168,15 +168,15 @@ fn check_results(world: &World) -> bool {
 
 fn children_overlap(world: &World) -> bool {
     let parent = world.completions()[0].owner;
-    let mut children = Vec::new();
+    let mut children: [Option<&CompletionObservation>; CHILDREN] = [None; CHILDREN];
     for completion in world.completions() {
-        if completion.owner != parent
-            && !children.iter().any(|child: &&CompletionObservation| child.owner == completion.owner)
-        {
-            children.push(completion);
+        if completion.owner == parent || children.iter().flatten().any(|child| child.owner == completion.owner) {
+            continue;
         }
+        *children.iter_mut().find(|child| child.is_none()).expect("at most three child conversations") =
+            Some(completion);
     }
-    assert_eq!(children.len(), CHILDREN, "three distinct children");
+    let children = children.map(|child| child.expect("three distinct children"));
     let latest_start = children.iter().map(|child| child.started).max().expect("children started");
     let earliest_end =
         children.iter().map(|child| child.terminal.expect("child read settled").0).min().expect("children settled");
