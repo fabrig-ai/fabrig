@@ -68,3 +68,83 @@ fn a_dismissal_past_the_bound_is_refused_at_restart() {
     );
     assert_eq!(d.dismissals(PARTY).len(), usize::try_from(DISMISSALS).unwrap());
 }
+
+const REQUEST: Token = Token::new(90);
+const ANSWER: Token = Token::new(91);
+
+fn dismiss(d: &mut Domain, party: u64, project: u32) -> Box<[Request]> {
+    outputs(d, Event::Dismiss { request: REQUEST, token: ANSWER, party, what: Dismissal::ToBegin { project } })
+}
+fn mark() -> Request {
+    Request::Marked { tasks: Box::new([DISMISSED_SUBJECT]) }
+}
+fn done() -> Request {
+    Request::ApplicationDone { request: REQUEST, token: ANSWER }
+}
+
+#[test]
+fn a_dismissal_saves_its_row_marks_and_answers() {
+    let mut d = domain();
+    assert_eq!(
+        dismiss(&mut d, PARTY, 1).as_ref(),
+        [Request::Save { record: row(PARTY, 1), release: None, read_afresh: None }, mark(), done(),]
+    );
+    assert_eq!(d.dismissals(PARTY).as_ref(), [Dismissal::ToBegin { project: 1 }]);
+    assert_eq!(d.application_answer(ANSWER), Some(Answered::Dismiss(DismissAnswer::Dismissed)));
+}
+
+#[test]
+fn a_second_dismissal_is_answered_as_the_first_and_writes_nothing() {
+    let mut d = restore_rows(DISMISSALS.checked_sub(1).unwrap());
+    let project = DISMISSALS.checked_sub(1).unwrap();
+    dismiss(&mut d, PARTY, project);
+    let first = d.application_answer(ANSWER);
+    let request = Token::new(92);
+    let token = Token::new(93);
+    assert_eq!(
+        outputs(&mut d, Event::Dismiss { request, token, party: PARTY, what: Dismissal::ToBegin { project } }).as_ref(),
+        [Request::ApplicationDone { request, token }]
+    );
+    assert_eq!(first, Some(Answered::Dismiss(DismissAnswer::Dismissed)));
+    assert_eq!(d.application_answer(token), first);
+    assert_eq!(d.dismissals(PARTY).len(), usize::try_from(DISMISSALS).unwrap());
+}
+
+#[test]
+fn a_dismissal_at_the_bound_answers_too_large_and_writes_nothing() {
+    let mut d = restore_rows(DISMISSALS);
+    assert_eq!(dismiss(&mut d, OTHER_PARTY, 1).as_ref(), [done()]);
+    assert_eq!(d.application_answer(ANSWER), Some(Answered::Dismiss(DismissAnswer::TooLarge)));
+    assert!(d.dismissals(OTHER_PARTY).is_empty());
+    assert_eq!(d.dismissals(PARTY).len(), usize::try_from(DISMISSALS).unwrap());
+}
+
+#[test]
+fn a_project_released_erases_its_dismissals_and_marks() {
+    let mut d = domain();
+    for record in [row(PARTY, 1), row(OTHER_PARTY, 1), row(PARTY, 2)] {
+        outputs(&mut d, Event::Restore { record });
+    }
+    let released = outputs(&mut d, Event::ReleaseProject { project: 1, request: REQUEST });
+    assert_eq!(
+        released.as_ref(),
+        [
+            Request::Erase { key: Key::Dismissed { party: PARTY, what: Dismissal::ToBegin { project: 1 } } },
+            Request::Erase { key: Key::Dismissed { party: OTHER_PARTY, what: Dismissal::ToBegin { project: 1 } } },
+            mark(),
+            Request::ProjectReleased { request: REQUEST },
+        ]
+    );
+    assert_eq!(d.dismissals(PARTY).as_ref(), [Dismissal::ToBegin { project: 2 }]);
+    assert!(d.dismissals(OTHER_PARTY).is_empty());
+}
+
+#[test]
+fn a_release_with_no_dismissals_marks_nothing() {
+    let mut d = restore_rows(1);
+    assert_eq!(
+        outputs(&mut d, Event::ReleaseProject { project: 1, request: REQUEST }).as_ref(),
+        [Request::ProjectReleased { request: REQUEST }]
+    );
+    assert_eq!(d.dismissals(PARTY).as_ref(), [Dismissal::ToBegin { project: 0 }]);
+}
