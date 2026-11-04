@@ -34,3 +34,16 @@ id = 2
 story = "jig writes only the skein_ui::Limits fields it means, and its view's size tests read a node's bytes from skein-ui"
 parts = ["jig-ui-callers"]
 walk = false
+
+[[part]]
+id = "skein-json-feed"
+title = "skein D001: skein-json's Feed drives whole-buffer reads, and no step crate pumps by hand"
+mode = "direct"
+needs = []
+design = "skein/docs/design/json.md, 5.3"
+
+[[slice]]
+id = 3
+story = "skein's whole-buffer JSON reads go through one slice-fed driver or skein_json::parse, skein-oauth's Json among them, with the refusals they gave"
+parts = ["skein-json-feed"]
+walk = false
