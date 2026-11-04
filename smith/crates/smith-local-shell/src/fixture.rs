@@ -24,7 +24,6 @@ pub(crate) fn settings(toml: &str) -> settings::Settings {
     ))
 }
 
-#[expect(clippy::zero_sized_map_values, reason = "The fixture retains the configured program names.")]
 pub(crate) fn resolved(workspace: PathBuf) -> settings::resolve::Resolved {
     use std::collections::BTreeMap;
     let (local, service) = smith_local_process_world::process::configuration(skein_io::kernel::Fd::new(70), false);
@@ -32,8 +31,8 @@ pub(crate) fn resolved(workspace: PathBuf) -> settings::resolve::Resolved {
         settings: settings::Settings { paths: settings::Paths::default(), workspace, values: BTreeMap::new() },
         accounts: Vec::new(),
         agent: smith_agent_shell::config::Configuration {
-            programs: BTreeMap::new(),
-            endpoint_programs: BTreeMap::new(),
+            program: None,
+            program_endpoints: std::collections::BTreeSet::new(),
             service,
             memory: u64::MAX,
             trace: None,

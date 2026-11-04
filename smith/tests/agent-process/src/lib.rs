@@ -113,12 +113,11 @@ pub fn configured(
     .expect("configured shipped agent")
 }
 
-#[expect(clippy::zero_sized_map_values, reason = "the shell configuration uses a unit selector map")]
 fn shell_configuration(configuration: agent::Config) -> smith_agent_shell::config::Configuration {
     let environment_bytes = configuration.limits.machine.env_bytes;
     smith_agent_shell::config::Configuration {
-        programs: std::collections::BTreeMap::new(),
-        endpoint_programs: std::collections::BTreeMap::new(),
+        program: None,
+        program_endpoints: std::collections::BTreeSet::new(),
         service: configuration,
         memory: profile().declared.memory,
         trace: None,
