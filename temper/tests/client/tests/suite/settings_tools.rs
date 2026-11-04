@@ -588,3 +588,36 @@ fn forge_revision_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 
         shown
     })
 }
+
+#[test]
+fn restore_revision_shows_replaced_forge_values() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    accept_forge_file(&mut world, agent, b"1", b"before-restore", &forge_revision_file(6, false));
+    let restored =
+        call(&mut world, agent, &[b"revision", b"restore", b"1", b"Restore defaults", b"--key", b"restore-forge"]);
+    let proposal = restored
+        .strip_prefix("proposed restoring revision 1 as proposal ")
+        .expect("restore proposed")
+        .trim_end()
+        .strip_suffix(" to role 0")
+        .expect("owners");
+    ctl_accept(&mut world, agent, proposal, b"accept-restore-forge");
+    let first = restored_forge_outputs(&mut world, agent);
+    accept_forge_file(&mut world, agent, b"3", b"after-restore", &forge_revision_file(4, true));
+    assert_eq!(restored_forge_outputs(&mut world, agent), first);
+}
+
+fn restored_forge_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 2] {
+    [false, true].map(|json| {
+        let mut words = vec![b"revision".as_slice(), b"show", b"3"];
+        if json {
+            words.push(b"--json");
+        }
+        let shown = call(world, agent, &words);
+        assert!(shown.contains("\"ci\":false"), "replaced landing rule: {shown}");
+        assert!(shown.contains(if json { "\"set\":6" } else { "was: 6" }), "replaced charter: {shown}");
+        assert!(shown.contains("landing-rule") && shown.contains("forge-charter"), "{shown}");
+        shown
+    })
+}

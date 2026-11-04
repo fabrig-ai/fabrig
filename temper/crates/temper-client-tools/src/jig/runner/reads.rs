@@ -259,24 +259,16 @@ pub(super) fn page(
     let local = u32::try_from(handle.number & u64::from(u32::MAX)).expect("low half");
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
     if local == super::application::SLOT && reading.application.query.is_some() {
-        reading.pending &= !(1 << super::application::SLOT);
-        if let Err(page) = super::application::received(&mut reading, page, &env.limits) {
-            let printed = render::read(
-                &page,
-                client,
-                runner.me(),
-                reading.called.json,
-                &env.limits,
-                runner.parts.expect("host vocabulary"),
-            );
-            finish(reading, printed, out);
-            return;
-        }
-        complete(runner, client, env, reading, out);
+        application_page(runner, client, env, reading, page, out);
         return;
     }
     // Joined setting reads share the last bit; inbox question details use slot 6.
     reading.pending &= !1u8.checked_shl(local.min(7)).expect("fixed read slot");
+    if reading.called.call.tool == rows::REVISION_AT && local == 8 {
+        super::application::history_received(&mut reading, &page);
+        complete(runner, client, env, reading, out);
+        return;
+    }
     if (reading.called.call.tool == 3 || reading.called.call.tool == rows::TASK_TEXT_AT) && local == 7 {
         super::specification::accept(&mut reading, &page);
         complete(runner, client, env, reading, out);
@@ -293,24 +285,18 @@ pub(super) fn page(
         terminal_read(runner, client, env, reading, &page, out);
         return;
     }
-    // The setting read requires a concrete revision; omission in ctl means
-    // the newest revision named by the authorized inventory read.
-    if reading.called.call.tool == rows::SETTING_AT
-        && local == 6
-        && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = &page
-    {
-        let setting = match reading.parts.setting_selector(&reading.called.call) {
-            Some(setting) => setting,
-            None => super::super::settings_file::selector(&reading.called.call),
-        };
-        if let c::Setting::Application { .. } = setting {
-            super::application::inventory(&mut reading, settings, setting);
-            super::application::read(runner, &mut reading, super::application::Query::Setting(setting), out);
-            complete(runner, client, env, reading, out);
-            return;
-        }
-        let what = c::Read::Setting(c::ReadSetting { setting, revision: settings.newest, proposal: None });
-        read(runner, &mut reading, 1, what, out);
+    accept_page(runner, client, env, reading, local, page, out);
+}
+fn accept_page(
+    runner: &mut Runner,
+    client: &Client,
+    env: &Env<Limits>,
+    mut reading: Reading,
+    local: u32,
+    page: Readout,
+    out: &mut Queue<Out>,
+) {
+    if inventory_read(runner, &mut reading, local, &page, out) {
         complete(runner, client, env, reading, out);
         return;
     }
@@ -442,6 +428,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         && let Some((local, what)) = super::proposal::next(&reading)
     {
         read(runner, &mut reading, local, what, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
+    if let Some(what) = super::application::next_history(&mut reading) {
+        read(runner, &mut reading, 8, what, out);
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
@@ -773,4 +764,44 @@ fn join_thread(reading: &mut Reading) {
             })))),
         );
     }
+}
+
+fn application_page(
+    runner: &mut Runner,
+    client: &Client,
+    env: &Env<Limits>,
+    mut reading: Reading,
+    page: Readout,
+    out: &mut Queue<Out>,
+) {
+    reading.pending &= !(1 << super::application::SLOT);
+    if let Err(page) = super::application::received(&mut reading, page, &env.limits) {
+        let printed = render::read(&page, client, runner.me(), reading.called.json, &env.limits, reading.parts);
+        finish(reading, printed, out);
+        return;
+    }
+    complete(runner, client, env, reading, out);
+}
+
+fn inventory_read(runner: &Runner, reading: &mut Reading, local: u32, page: &Readout, out: &mut Queue<Out>) -> bool {
+    // The setting read requires a concrete revision; omission in ctl means
+    // the newest revision named by the authorized inventory read.
+    if reading.called.call.tool == rows::SETTING_AT
+        && local == 6
+        && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = page
+    {
+        let setting = match reading.parts.setting_selector(&reading.called.call) {
+            Some(setting) => setting,
+            None => super::super::settings_file::selector(&reading.called.call),
+        };
+        if let c::Setting::Application { .. } = setting {
+            super::application::inventory(reading, settings, setting);
+            super::application::read(runner, reading, super::application::Query::Setting(setting), out);
+            return true;
+        }
+        let what = c::Read::Setting(c::ReadSetting { setting, revision: settings.newest, proposal: None });
+        read(runner, reading, 1, what, out);
+        return true;
+    }
+    false
 }
