@@ -1,6 +1,6 @@
 //! Shared local shell pass (protocol/hosts.md, sections 5.3–5.6). It keeps
 //! chat and token file owners, the terminal writer, and kernel routing. It
-//! knows no simulator or checkout state. `Local::within_memory` takes all directories
+//! knows no simulator or workspace state. `Local::within_memory` takes all directories
 //! and terminal descriptors; `Host::iterate` performs the service and shell
 //! passes. Every store acknowledgement follows file and directory sync.
 

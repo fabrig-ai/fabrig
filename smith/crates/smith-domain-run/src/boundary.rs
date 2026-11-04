@@ -12,7 +12,7 @@
 //!   ended by exactly one [`Event::Delivered`]. After submission the
 //!   host operation is never abandoned; its deadline bounds the host terminal.
 //!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 10).
-//! - io's, for what the run itself does in its checkout, which the parent
+//! - io's, for what the run itself does in its workspace, which the parent
 //!   routes to and from the protocol layer. A [`Request::Read`] is ended by
 //!   exactly one [`Event::Read`], a [`Request::Probe`] by one
 //!   [`Event::Probed`], and a [`Request::Check`] by one [`Event::Checked`],
@@ -385,7 +385,7 @@ pub enum Request {
         deadline: Time,
         host_run: Token,
         owner: Token,
-        /// Declared checkout change with validated host-named fields and bounded aggregate ownership, forwarded unchanged.
+        /// Declared workspace change with validated host-named fields and bounded aggregate ownership, forwarded unchanged.
         change: Change,
     },
 
@@ -655,7 +655,7 @@ pub struct Opening {
     pub summary: Box<[u8]>,
     /// The run's text introducing the summary in a new window.
     pub preamble: Box<[u8]>,
-    /// The tools the LLM may run on the checkout.
+    /// The tools the LLM may run on the workspace.
     pub tools: Tools,
     /// Immutable accepted mounts, git kinds and initial conflicts, copied to the
     /// receiving root; None supplies no workspace tool authority.
@@ -941,7 +941,7 @@ pub enum Answer {
     /// A run is refused at its own entrance, before `Admitted`; or after
     /// `Admitted`, when its main conversation is refused at the
     /// conversations' entrance. The run then did nothing but look in its
-    /// checkout: `Busy` says the agent had no room for the conversation, and
+    /// workspace: `Busy` says the agent had no room for the conversation, and
     /// a later retry may find some; `Invalid(Conversation)` that its opening
     /// does not fit the conversations' limits, which a retry will not change.
     Refused(Refusal),

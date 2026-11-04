@@ -45,7 +45,7 @@ pub enum FactKind {
     MessageRefused { run: Token, name: Token, bytes: u64, reason: crate::MessageRefusal },
     /// The run was admitted.
     Admitted { run: Token, resumed: bool },
-    /// It looked in its checkout, and found `guides` guides and `checks`
+    /// It looked in its workspace, and found `guides` guides and `checks`
     /// repositories with checks.
     Prepared {
         run: Token,

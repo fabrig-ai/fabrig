@@ -153,7 +153,7 @@ pub enum Returned {
     /// The tools' outcome: a success, or a failure, one that ran out of time
     /// included.
     Owned {
-        /// Typed checkout-tool success or failure returned by the tools child;
+        /// Typed workspace-tool success or failure returned by the tools child;
         /// it is not a declared run result and confers no new authority.
         outcome: tools::Outcome,
     },

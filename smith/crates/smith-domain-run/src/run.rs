@@ -132,7 +132,7 @@ pub(crate) struct Run {
     pub(crate) lease: crate::lease::Lease,
     pub(crate) charter: Charter,
     pub(crate) workspace: Option<Workspace>,
-    /// What it found in its checkout as it prepared.
+    /// What it found in its workspace as it prepared.
     pub(crate) found: Found,
     /// Each directory's guide bound after the charter's host bytes are measured.
     guide_bytes: u32,
@@ -172,7 +172,7 @@ pub(crate) struct Run {
 
 #[derive(Debug)]
 enum State {
-    /// Looking in its checkout: the look `step` is in flight. Its main
+    /// Looking in its workspace: the look `step` is in flight. Its main
     /// conversation has its slot, and is not opened yet.
     Preparing { reply_to: ReplyTo, main: Id<Conversation>, step: Step },
     /// Prepared without work; main remains unopened while wall and idle time run.

@@ -91,7 +91,7 @@
 //! Answers within the step (the rule for any parent whose child may answer in
 //! the step that gave it the work, as the tools do here and the run and the
 //! sessions will at the top level). The tools answer some calls at their
-//! entrance, without asking io anything (a path outside the checkout, a family
+//! entrance, without asking io anything (a path outside the workspace, a family
 //! not granted, a file not read first). Were a parent to go on from such an
 //! answer at once, starting the next piece of work, hand-offs would chain
 //! within one step, and what it holds for work ended in the iteration
@@ -1664,7 +1664,7 @@ fn use_tools(
 ///
 /// A step starts one batch at most. The tools may answer a call at their
 /// entrance, in this very step, without asking io anything (a path outside the
-/// checkout, a family not granted); if they answer every call of the batch so,
+/// workspace, a family not granted); if they answer every call of the batch so,
 /// the session rests on the ready list before it starts another, so that
 /// the runs it ended are reclaimed first, and what one step emits and the runs
 /// a session holds stay bounded ([`crate::limits`]).

@@ -26,7 +26,7 @@
 //! - io, in two families of records for now: the file and process operations
 //!   of the sessions' tools, as the tools define them (a [`Lower::Io`] is
 //!   ended by [`Below::Done`], with `Cancelled` if a [`Lower::CancelIo`]
-//!   won its race), and the run's own looks in its checkout and
+//!   won its race), and the run's own looks in its workspace and
 //!   its checks (a [`Lower::Read`] by [`Below::Read`], a [`Lower::Probe`]
 //!   by [`Below::Probed`], a [`Lower::Check`] by [`Below::Checked`], or
 //!   after a [`Lower::Abort`] by [`Below::Aborted`] if the abort won). They
@@ -122,7 +122,7 @@ pub struct Start {
     /// Host answers the saved transcript does not hold.
     pub answered: Box<[AnsweredCall]>,
     /// Host credential-name and remaining-validity notices, bounded by `Limits.accounts`.
-    /// These select a usable credential generation; they grant no checkout or tool authority.
+    /// These select a usable credential generation; they grant no workspace or tool authority.
     pub grants: Box<[Grant]>,
 }
 
@@ -278,7 +278,7 @@ pub enum Request {
         deadline: Time,
         host_run: Token,
         owner: Token,
-        /// Declared checkout change with validated host-named fields and bounded aggregate ownership, forwarded unchanged.
+        /// Declared workspace change with validated host-named fields and bounded aggregate ownership, forwarded unchanged.
         change: run::outcome::Change,
     },
 
