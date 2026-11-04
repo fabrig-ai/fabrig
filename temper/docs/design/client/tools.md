@@ -191,7 +191,8 @@ temper                       the binary: `temper ctl` runs the host
   `SOURCE`, `POSITION`, `NAME` (a program source's), `HOLD` (a placed
   hold's number), `LANDING`, `FINDING`, `REVISION` (a
   settings revision), `REV` (a revision a read printed of the object
-  acted on: a spec's, a hold's), `PROPOSAL`, `QUESTION`, `NUMBER` (a
+  acted on: a spec's, a hold's, a person task's), `PROPOSAL`, `QUESTION`,
+  `CHOICE` (a person contract's code), `STATE` (its approval state), `NUMBER` (a
   setting's), `TEMPLATE`, `CHARTER`, `CURSOR`, `COUNT`, `PART`, `OFFSET`, `PAGE`,
   `TURN`, `DIGEST`, `CONDITION`, `DURATION`, `TIME`, `PRIORITY`,
   `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
@@ -536,8 +537,8 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   with a change result, it opens the panel once more and judges the
   condition on that last panel, its digest the last panel's. Any other
   end answers not met, exit 3, with the last panel and its digest, and
-  a task that ended with no change result prints `no change panel for
-  task N`, exit 2. A watch the engine let go as it stopped is no end
+  a task with no panel ever delivered prints `no change panel for task N`,
+  exit 2. A watch the engine let go as it stopped is no end
   (below): the wait goes on through jig's client's reopening, and its
   read of task N, like every read a wait makes, waits out a link down
   within the link's deadline (section 12) and fails only past it, as
@@ -545,10 +546,17 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 - **A change's wait follows its task,** since the panel of a change
   that ended without landing keeps its last step (`../domain/forge.md`,
   8.8): the wait watches task N beside the panel, and when the task
-  ends with no change result (cancelled, failed) it answers at once,
-  not met, exit 3, naming how the task ended (`ended: cancelled`), with
-  the panel's last delivery and its digest; one with no panel ever
-  delivered prints `no change panel for task N`, exit 2.
+  ends with no change result (successful no-change completion, cancelled,
+  failed) it answers at once, not met, exit 3, naming how the task ended:
+  `ended`, `ended: cancelled` or `ended: failed`, with the panel's last
+  delivery and its digest. A successful report result establishes no-change
+  completion (`../domain/forge.md`, 8.2): both a read and a wait print
+  `result: completed, no change` and `next: temper ctl DIR task show N`
+  to reach its explanation directly, even when its parent chat's tree no
+  longer lists N. JSON includes `"result":"completed, no change"`; the
+  digest includes this completion detail. A panel whose step is ended
+  also points to `task show N`. One with no panel ever delivered prints
+  `no change panel for task N`, exit 2.
 - **A task wait fills its text document before printing** through the same
   bounded specification reads as plain `task show` (6.4). These supplemental
   words leave its completion, terminal result and digest unchanged.
@@ -769,6 +777,23 @@ The table grows area by area, each with its stories (section 11).
    the project's own operations, `policy`, `role`, `pool` (jig's
    `domain/people.md`, 5.2), past the spend per period that `project
    fund` sets (5.3).
+
+   `task show TASK` joins a person task's document to its generic task:
+   its question, result contract, choice codes and bounds, person revision,
+   holder, and each offered act with its admission. The inbox's person-task
+   line prints `read: task show TASK`. Role-addressed work offers
+   `task take TASK` and `task hand-back TASK`; it must be taken before an
+   answer. These commands and person answers are optionally keyed.
+
+   A person answer keeps the shown revision: `task answer TASK --rev REV
+   CHOICE TEXT` for a choice and its reason, `task answer TASK --rev REV
+   TEXT` for words, or `task answer TASK --rev REV --approve STATE [TEXT]`
+   for the exact approval state, STATE as lowercase hexadecimal. Every
+   contract also accepts `task answer TASK --rev REV --cannot REASON`.
+   A stale revision reaches the engine and is refused; a retained keyed
+   answer reaches it for replay even after the task ends. The numbered
+   question form of 5.3 keeps its separate question read and answer.
+
 4. **jig's plumbing whole:** `create`, `propose`, `compound --project
    PROJECT FILE`, a batch, a proposal or a compound request as JSON
    (keyed).
@@ -989,7 +1014,7 @@ The table grows area by area, each with its stories (section 11).
    | `playground start` | starts the playground (`../protocol/setup.md`, 8.4): the engine makes its fake forge, the box starts its fakes, and the engine adds the scripted model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (a real forge kept). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartPlayground` | |
    | `playground end` | resets the playground (`../protocol/setup.md`, 8.4), as the banner's "set up temper" does (`README.md`, 4.8): its project deleted, its fake forge removed and the scripted model's account removed, each a kept act the engine resumes at its next start if one is cut; waits for the answer, then prints `reset` and exits 0, once the playground is gone. Refused, exit 2: "not offered" (no playground) | `EndPlayground` | |
    | `forge remove FORGE` | removes forge FORGE (`../domain/forge.md`, 4.1): ended at once, then, by kept acts, its live work cancelled, its box group stopped and its directory removed, its records erased; on the forge itself only what temper ran is undone, a managed Forgejo's bot and hooks and a GitHub App staying the person's. Prints `removed` and exits 0 once the forge is ended. Refused, exit 2, in `ForgeRefusal`'s words: not the deployment's owner, no such forge, or not taken by this forge (the playground's, which `playground end` removes) | `RemoveForge { forge }` | |
-   | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../client/forge.md`, 9.2; `README.md`, 4.6), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../client/forge.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; its questions (`forge.md`, 9.2): its route, the questions taken used of its bound, and one line per open question, its asker's task and the question's number, where it stands (`taken`, `with foreman F`, `asked of requester`, `answered, held for dependencies`) and the first line of its words; then the call that follows it, `change show TASK --until landed` while it is live and has not landed, `change show TASK --until cleared` while it is verifying or red. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`forge.md`, 9.2) | |
+   | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../client/forge.md`, 9.2; `README.md`, 4.6), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../client/forge.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; its questions (`forge.md`, 9.2): its route, the questions taken used of its bound, and one line per open question, its asker's task and the question's number, where it stands (`taken`, `with foreman F`, `asked of requester`, `answered, held for dependencies`) and the first line of its words; then the call that follows it, `change show TASK --until landed` while it is live and has not landed, `change show TASK --until cleared` while it is verifying or red. An ended step points to `task show TASK` for its report; a successful no-change report adds `completed, no change`. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`forge.md`, 9.2) | |
    | `forge repositories FORGE [--installation INSTALLATION] [--page PAGE]` | the picker's PAGE, from 1 (`README.md`, 4.4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `repository adopt --ids`; then the call that reads page PAGE plus one while more follow, or that none do. `--installation INSTALLATION` is an accepted installation's id, as `forge list` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
 
    - **`forge list`'s text,** one line per forge, in number order: `forge N
@@ -1802,6 +1827,11 @@ is reset, the store empty again.
   snapshot, with its digest. Terminal deliveries, no-delivery `gone`,
   timeout, `--since`, and a single answer with watch/timer cleanup
   are covered here: no forge, workflow, model or kernel is needed (5.4).
+- **No-change completion,** in the tools step fixture: a producing panel,
+  a successful no-change report, the unmet landing wait and the retained
+  ended panel on a later read. Completion on the first task read and
+  arriving during a wait both name the result and the direct report
+  command; `task show` keeps the empty-search explanation (5.4).
 - **The boundary:** `src/jig/` names no temper item (section 4).
 - **The bounds:** each of the tools' ceilings within the client's limit
   it reads from, and a picker's page within a result's text (section

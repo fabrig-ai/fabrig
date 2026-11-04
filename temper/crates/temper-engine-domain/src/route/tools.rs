@@ -332,6 +332,11 @@ pub(crate) fn relay_payload(
                     key,
                     action: core::NamedAction::Subscribe { kind },
                 })),
+                Tool::SubscribeNamedForge { repository, topic, own_change, paths } => {
+                    forge_route::subscribe_named_call(
+                        domain, env, decision, reply_to, key, repository, topic, own_change, paths,
+                    );
+                }
                 Tool::SubscribeForge { topic, own_change, paths } => {
                     forge_route::subscribe_call(domain, env, decision, reply_to, key, topic, own_change, paths);
                 }

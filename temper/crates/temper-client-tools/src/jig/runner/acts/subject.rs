@@ -19,6 +19,8 @@ fn expected(call: &Call) -> c::ObjectKey {
             c::ObjectKey::Proposal(*key)
         }
         rows::TASK_DECIDE_AT => c::ObjectKey::Escalation(task),
+        rows::ANSWER_AT if call.form != 0 => c::ObjectKey::PersonTask(task),
+        rows::TAKE_AT | rows::HAND_BACK_AT => c::ObjectKey::PersonTask(task),
         rows::ANSWER_AT => c::ObjectKey::Question { task, message: number(call, 1).expect("question") },
         _ => c::ObjectKey::Task(task),
     }
@@ -31,15 +33,12 @@ pub(super) fn scope(call: &Call, document: &c::ReadValue) -> Result<Scope, Faile
         if settings_history(call, document) {
             return Ok(Scope::Project(0));
         }
-        return Ok(match &history.value {
-            c::EndedValue::Task { document, .. } | c::EndedValue::Escalation { task: document, .. } => {
-                Scope::Project(document.project)
-            }
-            c::EndedValue::Question { question, .. } => chip_scope(&question.task),
-            c::EndedValue::Proposal(proposal) => Scope::Task(proposal.proposer),
-            c::EndedValue::PersonProposal { proposal, .. } => Scope::Project(proposal.project),
-            c::EndedValue::PersonTask { .. } => return Err(Failed::Fixed(b"unexpected act subject")),
-        });
+        return Ok(retained_scope(history));
+    }
+    if let c::ReadValue::PersonTask(person) = document
+        && expected(call) == c::ObjectKey::PersonTask(person.task.task)
+    {
+        return Ok(chip_scope(&person.task));
     }
     if let Some((task, _)) = render::read_task(document)
         && expected(call) == c::ObjectKey::Task(task.chip.task)
@@ -65,12 +64,26 @@ pub(super) fn scope(call: &Call, document: &c::ReadValue) -> Result<Scope, Faile
 
     Err(Failed::Fixed(b"tools' bug; unexpected act document; report it as a finding"))
 }
+fn retained_scope(history: &c::Ended) -> Scope {
+    match &history.value {
+        c::EndedValue::Task { document, .. } | c::EndedValue::Escalation { task: document, .. } => {
+            Scope::Project(document.project)
+        }
+        c::EndedValue::Question { question, .. } => chip_scope(&question.task),
+        c::EndedValue::Proposal(proposal) => Scope::Task(proposal.proposer),
+        c::EndedValue::PersonProposal { proposal, .. } => Scope::Project(proposal.project),
+        c::EndedValue::PersonTask { document, .. } => chip_scope(&document.task),
+    }
+}
 fn chip_scope(chip: &c::Chip) -> Scope {
     Scope::Project(chip_project(chip))
 }
 pub(super) fn offers(document: &c::ReadValue) -> Option<&List<c::Offered>> {
     if let c::ReadValue::Task(task) = document {
         return Some(&task.acts);
+    }
+    if let c::ReadValue::PersonTask(person) = document {
+        return Some(&person.acts);
     }
     if let c::ReadValue::Question(question) = document {
         return Some(&question.acts);

@@ -57,6 +57,7 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **Ended:** Completed, Failed, Cancelled, or Ended; a wait names
   them all `ended`. An ended task keeps its result, and `task show` prints
   it.
+- A start past a host's limits is refused and frees its reservation.
 - **What it waits on** prints after `waiting on:`: `Kept by its
   dependencies`, `Waiting for delegates`, `Waiting for news`, `Nothing
   awaited`, or a party and what it must answer: `you: question 3 of
@@ -126,7 +127,7 @@ Failed-run detail: serve's stderr, or `DATA/box/logs/serve.log` under the box.
 
 ## Limits
 
-For the configuration members that need a restart, read `temper help configuration`.
+Restart settings: `temper help configuration`.
 
 - temper does not let ctl take a task, hand it back, move it to
   another party, reorder it or mark it seen: those acts print `(no
@@ -139,10 +140,10 @@ For the configuration members that need a restart, read `temper help configurati
   16384 bytes at a time.
 
 An overview may cut `asked:`, `instructions:` and its report. Follow
-`read specification:`, `read instructions:` or `read result:` call; JSON
-includes them under `text_reads`, as does `task activity`.
-Read the complete report with `task text TASK --field result`; follow
-continuations until `no more`, even after it leaves live state.
+`read specification:`, `read instructions:` or `read result:`;
+JSON and `task activity` give them under `text_reads`.
+`task text TASK --field result` reads the full report; follow
+continuations until `no more`, including after it ends.
 `task text --json` gives `task`, `field`, `from`, `total`, `text` and `next`;
 null `next` ends the read. Printed offsets keep UTF-8 characters whole.
-After amending the task or moving its settings revision, restart at zero.
+After an amendment or a settings revision change, restart at zero.

@@ -247,9 +247,12 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             false
         }
         CallAnswer::ReadRepositoryRefused { named, repositories }
+        | CallAnswer::SubscriptionRepositoryRefused { named, repositories, .. }
         | CallAnswer::ChangeRefused { named, repositories, .. } => {
             if repositories.is_empty() {
-                if let CallAnswer::ReadRepositoryRefused { .. } = answer {
+                if let CallAnswer::ReadRepositoryRefused { .. } | CallAnswer::SubscriptionRepositoryRefused { .. } =
+                    answer
+                {
                     text.add(b"this project has no repository to read")?;
                 } else {
                     text.add(b"this project has no repository to change")?;
@@ -307,6 +310,10 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             text.number(*revision)?;
             text.add(b" decided")?;
             false
+        }
+        CallAnswer::ForgeSubscriptionRefused { task, topic, cause, limit, existing } => {
+            subscription_refusal(&mut text, *task, topic, cause, *limit, *existing)?;
+            true
         }
         CallAnswer::EscalationRefused(problem)
         | CallAnswer::ProposalRefused(problem)
@@ -800,6 +807,63 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         }
     }
     Ok(())
+}
+
+fn subscription_refusal(
+    text: &mut Text,
+    task: u64,
+    topic: &temper_engine_domain_forge::Topic,
+    cause: &[u8],
+    limit: Option<u32>,
+    existing: Option<u64>,
+) -> Result<(), Problem> {
+    text.add(b"Refused: task ")?;
+    text.number(task)?;
+    text.add(b" forge subscription ")?;
+    subscription_topic(text, topic)?;
+    text.add(b": ")?;
+    text.add(cause)?;
+    if let Some(existing) = existing {
+        text.add(b" (existing subscription ")?;
+        text.number(existing)?;
+        text.add(b")")?;
+    }
+    if let Some(limit) = limit {
+        text.add(b" (limit ")?;
+        text.number(u64::from(limit))?;
+        text.add(b")")?;
+    }
+    Ok(())
+}
+
+fn subscription_topic(text: &mut Text, topic: &temper_engine_domain_forge::Topic) -> Result<(), Problem> {
+    use temper_engine_domain_forge::Topic;
+    let repository = match topic {
+        Topic::Landings { repository, branch } => {
+            text.add(b"landings branch ")?;
+            text.add(branch)?;
+            *repository
+        }
+        Topic::Ci { repository, head } => {
+            text.add(b"ci head ")?;
+            text.commit(head)?;
+            *repository
+        }
+        Topic::Pull { repository, number } | Topic::Participation { repository, number } => {
+            text.add(match topic {
+                Topic::Pull { .. } => b"pull ",
+                Topic::Participation { .. } => b"participation ",
+                Topic::Landings { .. } | Topic::Ci { .. } => unreachable!("numbered topic"),
+            })?;
+            text.number(*number)?;
+            *repository
+        }
+    };
+    text.add(b" repository {forge: ")?;
+    text.number(u64::from(repository.forge))?;
+    text.add(b", repository: ")?;
+    text.number(u64::from(repository.repository))?;
+    text.add(b"}")
 }
 
 fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<(), Problem> {

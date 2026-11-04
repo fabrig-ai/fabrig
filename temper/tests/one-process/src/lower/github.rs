@@ -472,14 +472,10 @@ pub fn run(scenario: Scenario) {
         for (program, roots) in programs::programs::<OneProcess>() {
             world.host_roots(program, roots);
         }
-        let limits = temper_client_shell_cli::limits::native();
         world.host_roots(
-            skein_world::HostedProgram {
-                program: crate::ctl::PROGRAM.into(),
-                make: |spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited)))),
-                instances: 1,
-                operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
-            },
+            crate::ctl::program(|spawn, inherited| {
+                Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited))))
+            }),
             crate::ctl::roots,
         );
         world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
