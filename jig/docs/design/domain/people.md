@@ -1074,6 +1074,20 @@ what outlives it (5.2).
   credential could not use, since a credential proves who sent a
   request and not who wrote it (13.3). Default: none; public documents
   carry only task titles and the project's name as text.
+- **Project 0 in the checks:** the deployment's roster is kept as
+  project 0's (section 3), and no write makes a project 0, so each read
+  that asks whether a project is open sets it aside first. Whether the
+  deployment takes a value of its own, so that no check can forget it.
+  Default: as said.
+- **People's tokens and the core's flights:** a people request's token
+  and a core flight's handle can share a value, so each crossing between
+  them translates. Whether each takes a type of its own, so that a
+  crossing left untranslated does not compile. Default: as said.
+- **An omitted model:** an authority that omits its models translates
+  to none in authority's terms, and that comes back as a stated none,
+  so the two mappings are not each other's inverse; no decision
+  composes them on an omitted value. Whether authority keeps an
+  omission of its own. Default: as said.
 
 
 ## 13. Public reading
