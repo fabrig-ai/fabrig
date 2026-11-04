@@ -114,9 +114,20 @@ pub(crate) enum Membership {
     Configured,
     Removed,
 }
+/// Whose a connection is (forge-connection.md, 7.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Use {
+    /// The calls' pool.
+    Calls,
+    /// A Forgejo forge's own connection, which a call to that forge may take.
+    Own,
+    /// A GitHub forge's own connection, outside the calls' count.
+    Reserved,
+}
 /// One connection's machines, socket identity, request and pending output.
 pub(crate) struct Connection {
     pub(crate) forge: u16,
+    pub(crate) role: Use,
     pub(crate) origin: Option<u32>,
     pub(crate) draining: bool,
     kind: Kind,
@@ -173,6 +184,7 @@ impl Connection {
         let http = http::Client::new(&limits::http(l, link.encrypted(), &shared.io));
         Self {
             forge: forge.number,
+            role: Use::Calls,
             origin,
             draining: false,
             kind: forge.kind,
