@@ -9,7 +9,7 @@ use web_sys::{
     KeyboardEvent, MouseEvent, Node, ResizeObserver, ResizeObserverEntry,
 };
 
-use super::{Event, Op, Page};
+use super::{Event, Op, Page, measure::pixels};
 use crate::{
     dom::{Child, Element as Model},
     inbox::Inbox,
@@ -766,9 +766,6 @@ fn same(left: Option<&Node>, right: Option<&Node>) -> bool {
         (None, None) => true,
         _ => false,
     }
-}
-fn pixels(value: f64) -> u16 {
-    value.floor().clamp(0.0, f64::from(u16::MAX)).to_string().parse().expect("whole CSS pixels fit u16")
 }
 fn value(element: &Element) -> String {
     if let Some(input) = element.dyn_ref::<HtmlInputElement>() {
