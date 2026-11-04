@@ -12,6 +12,17 @@ pub const PROGRAM: &[u8] = b"/world/temper-ctl";
 const OUTPUT: usize = 65_536;
 const TAG: u64 = 0xfffe_0000_0000_0000;
 
+/// The shipped native command with its pipe and connection operation provision.
+pub(crate) fn program<P>(make: fn(&Spawn, &Inherited) -> P) -> skein_world::HostedProgram<P> {
+    let limits = temper_client_shell_cli::limits::native();
+    skein_world::HostedProgram {
+        program: PROGRAM.into(),
+        make,
+        instances: 1,
+        operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
+    }
+}
+
 pub fn roots(spawn: &Spawn) -> Vec<StartupRoot> {
     let parsed =
         arguments::parse(&spawn.args[1..].iter().map(AsRef::as_ref).collect::<Vec<_>>()).expect("setup arguments");
