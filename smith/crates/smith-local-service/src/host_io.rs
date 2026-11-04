@@ -17,9 +17,11 @@ use crate::StartValues;
 mod close;
 mod delivery;
 mod store;
+mod terminal;
 use close::Close;
 use delivery::DeliveryIo;
 use store::StoreIo;
+use terminal::{TerminalInput, WindowRead};
 
 pub use smith_protocol_program::Launch;
 
@@ -38,14 +40,6 @@ enum Operation {
     Io(Token),
     File(Token),
     ProgramRoot,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum WindowRead {
-    Idle,
-    Requested,
-    Pending,
-    Again,
 }
 
 #[derive(Debug)]
@@ -77,8 +71,7 @@ pub(crate) struct HostIo {
     send: u64,
     reading: bool,
     failed: bool,
-    terminal_input: Option<Token>,
-    terminal_reading: local::Reading,
+    terminal_input: TerminalInput,
     window_read: WindowRead,
     signals: Option<Token>,
     close: Close,
@@ -148,8 +141,7 @@ impl HostIo {
             send: 1,
             reading: false,
             failed: false,
-            terminal_input: None,
-            terminal_reading: local::Reading::Open,
+            terminal_input: TerminalInput::Absent,
             window_read: WindowRead::Idle,
             signals: None,
             close: Close::Open,
@@ -217,13 +209,7 @@ impl HostIo {
     }
 
     fn adopted_input(&mut self, stream: Token, read_input: bool) {
-        self.terminal_input = Some(stream);
-        if read_input {
-            self.io_requests.push(io::Request::Stream {
-                stream,
-                down: stream::Down::Demand { read: stream::Read::Fill(1), room: 0 },
-            });
-        }
+        self.terminal_input.adopted(stream, read_input, &mut self.io_requests);
     }
 
     fn hold_read(&mut self) {
@@ -236,28 +222,13 @@ impl HostIo {
     }
 
     pub(crate) fn read_window(&mut self) {
-        if !self.close.closing() && self.terminal_input.is_some() {
-            self.window_read = match self.window_read {
-                WindowRead::Idle | WindowRead::Requested => WindowRead::Requested,
-                WindowRead::Pending | WindowRead::Again => WindowRead::Again,
-            };
+        if self.terminal_input.open().is_some() {
+            self.window_read.asked();
         }
     }
 
     pub(crate) fn input(&mut self, reading: local::Reading) {
-        if self.terminal_reading == reading {
-            return;
-        }
-        self.terminal_reading = reading;
-        if !self.close.closing()
-            && let Some(stream) = self.terminal_input
-        {
-            let read = match reading {
-                local::Reading::Open => stream::Read::Fill(1),
-                local::Reading::Held => stream::Read::Nothing,
-            };
-            self.io_requests.push(io::Request::Stream { stream, down: stream::Down::Demand { read, room: 0 } });
-        }
+        self.terminal_input.reading(reading, &mut self.io_requests);
     }
 
     pub(crate) fn at(&self, now: Time, wall: Wall) -> Env<io::Limits> {
@@ -293,9 +264,7 @@ impl HostIo {
         let roots = u32::try_from(self.file_roots.len()).expect("admitted root count");
         if self.close.begin(roots) {
             self.cancel_programs();
-            if let Some(entity) = self.terminal_input {
-                self.io_requests.push(io::Request::Close { entity });
-            }
+            self.terminal_input.close(&mut self.io_requests);
         }
     }
 
@@ -320,9 +289,7 @@ impl HostIo {
     }
 
     pub(crate) fn abort(&mut self) {
-        if let Some(entity) = self.terminal_input {
-            self.io_requests.push(io::Request::Abort { entity });
-        }
+        self.terminal_input.abort(&mut self.io_requests);
     }
 
     pub(crate) fn closed(&self) -> bool {
@@ -398,7 +365,7 @@ impl HostIo {
             || !self.io_events.is_empty()
             || !self.shell_events.is_empty()
             || !self.io_requests.is_empty()
-            || self.window_read == WindowRead::Requested
+            || self.window_read.requested()
             || self.process_work_pending()
             || !self.completions.is_empty()
             || (self.store_actions_dispatched() && !self.file_events.is_empty())
@@ -523,10 +490,7 @@ impl HostIo {
             match event {
                 io::Event::Resized => self.shell_events.push(io::Event::Resized),
                 event @ io::Event::Window { .. } => {
-                    self.window_read = match self.window_read {
-                        WindowRead::Again => WindowRead::Requested,
-                        WindowRead::Idle | WindowRead::Requested | WindowRead::Pending => WindowRead::Idle,
-                    };
+                    self.window_read.answered();
                     self.shell_events.push(event);
                 }
                 io::Event::Shutdown { .. } => {
@@ -534,22 +498,17 @@ impl HostIo {
                         terminal.interrupt(terminal_events);
                     }
                 }
-                io::Event::Stream { owner, up } if Some(owner) == self.terminal_input => match up {
+                io::Event::Stream { owner, up } if self.terminal_input.owns(owner) => match up {
                     stream::Up::Bytes(bytes) => {
                         for byte in bytes {
                             terminal.feed(byte, terminal_events);
                         }
-                        if !self.close.closing() && self.terminal_reading == local::Reading::Open {
-                            self.io_requests.push(io::Request::Stream {
-                                stream: owner,
-                                down: stream::Down::Demand { read: stream::Read::Fill(1), room: 0 },
-                            });
-                        }
+                        self.terminal_input.bytes(&mut self.io_requests);
                     }
                     stream::Up::End | stream::Up::Failed(_) => terminal.closed(terminal_events),
                     stream::Up::Room => unreachable!("read-only terminal asks for no output room"),
                 },
-                io::Event::Closed { owner } if Some(owner) == self.terminal_input => self.terminal_input = None,
+                io::Event::Closed { owner } if self.terminal_input.owns(owner) => self.terminal_input.closed(),
                 io::Event::Closed { owner } if Some(owner) == self.signals => self.signals = None,
                 other @ (io::Event::Listening { .. }
                 | io::Event::Accepted { .. }
@@ -652,15 +611,7 @@ impl HostIo {
         trace: &mut Option<crate::stream::Spawned>,
     ) {
         let now = env.now;
-        if self.window_read == WindowRead::Requested {
-            self.window_read = WindowRead::Idle;
-            if !self.close.closing()
-                && let Some(stream) = self.terminal_input
-            {
-                self.window_read = WindowRead::Pending;
-                self.io_requests.push(io::Request::Window { owner: stream, stream });
-            }
-        }
+        self.window_read.follow(self.terminal_input.open(), &mut self.io_requests);
         if let Some(trace) = trace {
             if self.settled(trace.producer.streams().checked_add(self.signal_streams()).expect("bounded signal stream"))
             {
