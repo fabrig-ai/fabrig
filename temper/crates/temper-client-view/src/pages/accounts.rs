@@ -689,18 +689,41 @@ pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::AccountLine) ->
     )
 }
 
-/// The welcome names the same first usable account the accounts page draws.
-pub(crate) fn first_usable_heading(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
+/// Ready names the first usable account by its kind and who it is, a
+/// signed-in plan as "PLAN plan · DISPLAY", with no holder: the model and
+/// its effort are chosen elsewhere (client/README.md, 3.5).
+pub(crate) fn first_usable_short(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     let document = accounts::document(root.client())?;
     for row in &document.accounts {
         if rows::playground(root, row.provider) {
             continue;
         }
+        let mut usable = None;
         for source in &row.sources {
             if source.usable {
-                return Some(account_heading(root, w, row));
+                usable = Some(source);
+                break;
             }
         }
+        let Some(source) = usable else { continue };
+        let Some(supplied) = provider_name(row.provider_name.as_ref()) else {
+            return Some(account_heading(root, w, row));
+        };
+        let (brand, plan_name) = words::provider_words(supplied);
+        let (label, display) = match source.kind {
+            c::AccountKind::Program => {
+                (named(w, W::Subscription, plan_name), source.name.as_deref().unwrap_or(row.display.bytes()))
+            }
+            c::AccountKind::SignIn if row.plan => (
+                w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan_name, w))]),
+                row.display.bytes(),
+            ),
+            c::AccountKind::SignIn => (crate::choice::shown(brand, w), row.display.bytes()),
+            c::AccountKind::Key => (named(w, W::ApiKeyBrand, brand), b"".as_slice()),
+            c::AccountKind::None => return Some(account_heading(root, w, row)),
+        };
+        let separator = words::say(w, W::Separator, &[]);
+        return Some(words::join(&[&label, if display.is_empty() { b"" } else { &separator }, display]));
     }
     None
 }

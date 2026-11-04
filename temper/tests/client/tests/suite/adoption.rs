@@ -127,7 +127,7 @@ fn the_first_repository_is_adopted_from_default_with_nothing_typed() {
     front.engine.settle();
     accounts::settle(&mut front, &mut root);
     accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: d::Step::Ready }));
-    press_adoption(&mut front, &mut root, Role::Button, b"Open Default");
+    press_adoption(&mut front, &mut root, Role::Button, b"Create your project");
     assert_eq!(root.person().pages().address(), &fixtures::chats_page());
     let chats = super::connect_forge::view(&root);
     super::connect_forge::node(&chats, Role::Paragraph, b"No repository yet");

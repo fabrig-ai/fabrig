@@ -33,7 +33,7 @@ A write.
 
 ## amend
 
-Change a live delegate within your authority, naming only what changes and the spec revision you read; authority and instructions are whole.
+Amend a live delegate at its spec revision within authority. Omitted parameters remain; lists replace. Authority and instructions are whole.
 
 A write.
 

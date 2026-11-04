@@ -124,7 +124,12 @@ pub(super) fn assignment(driver: &Driver, task: u64) -> engine::Assignment {
 fn amend(driver: &mut Driver, parent: &engine::Assignment, call: u64, target: u64, revision: u64, deps: &[u64]) {
     let mut amendment = fixtures::task_amendment(None, None, b"wait for prerequisites");
     amendment.dependencies = Some(deps.into());
-    fixtures::tool_call(driver, parent, call, engine::Tool::Amend { target, revision, amendment });
+    fixtures::tool_call(
+        driver,
+        parent,
+        call,
+        engine::Tool::Amend { keep_parameters: false, target, revision, amendment },
+    );
 }
 
 fn finish(driver: &mut Driver, run: &engine::Assignment) {

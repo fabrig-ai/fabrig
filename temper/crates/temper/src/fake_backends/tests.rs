@@ -808,7 +808,8 @@ fn exact_sibling_and_provisioning_refusals_use_explicit_paths() {
         }
         let error = provisioned_program(&path).expect_err("provision outside startup");
         assert!(
-            error.contains(path.to_str().expect("path")) && error.contains("cargo build -p temper-fake-claude"),
+            error.contains(path.to_str().expect("path"))
+                && error.contains("cargo build -p smith-fake-claude --bin fake-claude"),
             "{error}"
         );
         assert!(!error.contains("reset"), "{error}");

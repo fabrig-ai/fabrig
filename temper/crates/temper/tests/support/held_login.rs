@@ -12,6 +12,16 @@ fn quote(path: &Path) -> String {
 /// Installed before import; used normally, by Lent and by the launcher's EXIT trap.
 /// An interrupted import is covered even if its reply never reached the driver.
 pub fn return_hook(binary: &Path, store: &Path, client: &Path, account: &Path) {
+    write_hook(binary, store, client, account, false);
+}
+
+/// Install an export-only recovery hook for a fresh client, keeping later imports excluded.
+/// Installation shares the give-back lock and preserves terminal cleanup.
+pub fn recovery_hook(binary: &Path, store: &Path, client: &Path, account: &Path) {
+    write_hook(binary, store, client, account, true);
+}
+
+fn write_hook(binary: &Path, store: &Path, client: &Path, account: &Path, recovering: bool) {
     let hook = store.join("give-back");
     let body = format!(
         r#"#!/bin/sh
@@ -36,26 +46,24 @@ stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- {account}
         terminal = quote(&store.join("terminal-return")),
         returning = quote(&store.join("returning"))
     );
-    install_hook(store, &hook, &body);
+    install_hook(store, &hook, &body, recovering);
 }
 
-fn install_hook(store: &Path, hook: &Path, body: &str) {
+fn install_hook(store: &Path, hook: &Path, body: &str, recovering: bool) {
     let pending = store.join("give-back-next");
     super::write_private(&pending, body.as_bytes());
     fs::set_permissions(&pending, fs::Permissions::from_mode(0o700)).expect("executable return hook");
+    let admission = if recovering {
+        ": > \"$1/terminal-return\"\n: > \"$1/returning\""
+    } else {
+        "test ! -e \"$1/terminal-return\" || exit 1"
+    };
+    let reopen = if recovering { "" } else { "rm -f -- \"$1/returning\"" };
+    let install = format!("set -eu\n{admission}\nmv -f -- \"$2\" \"$3\"\n{reopen}\n");
     let installed = std::process::Command::new("flock")
         .arg("-x")
         .arg(store.join("login.lock"))
-        .args([
-            "sh",
-            "-c",
-            r#"set -eu
-test ! -e "$1/terminal-return" || exit 1
-mv -f -- "$2" "$3"
-rm -f -- "$1/returning"
-"#,
-            "sh",
-        ])
+        .args(["sh", "-c", &install, "sh"])
         .arg(store)
         .arg(pending)
         .arg(hook)

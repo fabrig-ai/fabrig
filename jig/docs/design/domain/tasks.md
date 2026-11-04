@@ -1068,6 +1068,13 @@ circle, each for another of the set, so that none of them could end.
   amender's authority as a batch's is (section 4). An amendment is
   refused once a task is closing. Its label and its flags are never
   amended (section 3).
+- **Host specification parameters.** A host `amend` that supplies spec
+  words but omits parameters keeps the live task's parameters. An
+  explicit list replaces them whole, including an empty list. The host
+  decoder carries omission separately from the decoded list; the core
+  resolves it against the current specification before amendment
+  admission and commit. Creation still defaults omitted parameters to
+  an empty list; stored specifications remain whole.
 - **A new LLM choice is for the next run.** A run in flight keeps its
   own models and account; the next run's check uses the new choice and
   chooses its account again when its main model's LLM provider changed

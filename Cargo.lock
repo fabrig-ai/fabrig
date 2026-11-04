@@ -4651,14 +4651,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "temper-fake-claude"
-version = "0.0.0"
-dependencies = [
- "skein-fail-stop",
- "smith-fake-claude",
-]
-
-[[package]]
 name = "temper-fake-git"
 version = "0.0.0"
 dependencies = [

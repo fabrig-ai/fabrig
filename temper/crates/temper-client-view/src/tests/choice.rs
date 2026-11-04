@@ -1201,43 +1201,32 @@ fn an_unusable_later_program_source_names_no_account_when_a_program_source_after
 }
 
 #[test]
-fn ready_pairs_the_default_model_with_its_selected_account() {
-    let root = line_facts(
-        Some(c::PayerReadiness {
-            provider: 17,
-            payer: c::AccountUse::Party(73),
-            readiness: c::Readiness::Usable,
-            settled: Some(true),
-        }),
-        accounts(&[account(3, c::AccountKind::SignIn, None)]),
-        None,
-        None,
-        None,
-        false,
-    );
-    // Ready names the account by the heading the accounts page draws, then the model.
-    let heading = crate::pages::accounts::first_usable_heading(&root, &fixtures::words()).expect("a usable account");
-    let expected = [heading.as_ref(), " · gpt-6-luna".as_bytes()].concat();
-    assert_eq!(crate::choice::ready_model(&root, &fixtures::words()).as_ref(), expected.as_slice());
-}
-#[test]
-fn ready_does_not_pair_another_providers_account_with_the_model() {
-    let mut other = account(3, c::AccountKind::SignIn, None);
-    other.provider = Some(18);
-    let root = line_facts(
-        Some(c::PayerReadiness {
-            provider: 17,
-            payer: c::AccountUse::Party(73),
-            readiness: c::Readiness::Usable,
-            settled: Some(true),
-        }),
-        accounts(&[other]),
-        None,
-        None,
-        None,
-        false,
-    );
-    assert_eq!(crate::choice::ready_model(&root, &fixtures::words()).as_ref(), b"gpt-6-luna");
+fn ready_names_the_usable_account_and_not_the_model() {
+    let usable = Some(c::PayerReadiness {
+        provider: 17,
+        payer: c::AccountUse::Party(73),
+        readiness: c::Readiness::Usable,
+        settled: Some(true),
+    });
+    // The model and its effort are chosen elsewhere: Ready names the
+    // account, by its kind and who it is.
+    let mut plan = account(3, c::AccountKind::SignIn, None);
+    plan.provider_name = Some(c::DocumentText::complete(c::Text::new(Box::from(b"openai".as_slice()), 32).unwrap()));
+    let mut key = plan.clone();
+    key.plan = false;
+    key.sources.get_mut(1).unwrap().kind = c::AccountKind::Key;
+    let mut program = plan.clone();
+    program.plan = false;
+    program.provider_name =
+        Some(c::DocumentText::complete(c::Text::new(Box::from(b"anthropic".as_slice()), 32).unwrap()));
+    program.sources.get_mut(0).unwrap().usable = true;
+    for (row, expected) in
+        [(plan, "ChatGPT plan · Personal"), (key, "OpenAI API key"), (program, "Claude subscription · Claude Code")]
+    {
+        let root = line_facts(usable, accounts(&[row]), None, None, None, false);
+        let short = crate::pages::accounts::first_usable_short(&root, &fixtures::words()).expect("a usable account");
+        assert_eq!(core::str::from_utf8(&short).unwrap(), expected);
+    }
 }
 
 /// The playground and real providers share a supplied catalogue.

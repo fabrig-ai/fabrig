@@ -69,7 +69,7 @@ fn a_kept_delegate_is_woken_by_its_last_dependencys_met() {
 fn amend_delegate(world: &mut World, parent: (u64, u64), target: u64, dependency: u64) {
     let mut amendment = unchanged(b"wait for prerequisite");
     amendment.dependencies = Some(Box::new([dependency]));
-    named_for(world, parent, 3, core::NamedAction::Amend { target, revision: 0, amendment });
+    named_for(world, parent, 3, core::NamedAction::Amend { keep_parameters: false, target, revision: 0, amendment });
 }
 
 fn named_for(world: &mut World, run: (u64, u64), completion: u32, action: core::NamedAction) {
@@ -315,7 +315,7 @@ fn wait_for_dependency(world: &mut World, seed: u64, parent: (u64, u64), target:
     let mut event = root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(9199)),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 99, position: 0 },
-        action: core::NamedAction::Amend { target, revision: 0, amendment },
+        action: core::NamedAction::Amend { keep_parameters: false, target, revision: 0, amendment },
     });
     world.observer.inbound(&world.store, now.as_nanos(), &mut event);
     root::step(&mut world.domain, &env, event);
@@ -359,7 +359,12 @@ fn a_waiting_amendment_rechecks_its_revision_after_loading() {
     let load = wait_for_dependency(&mut world, SEED, parent, target, dependency);
     let mut edit = unchanged(b"newer instructions");
     edit.instructions = Some(b"revised while the row loads".as_slice().into());
-    named_for(&mut world, parent, 100, core::NamedAction::Amend { target, revision: 0, amendment: edit });
+    named_for(
+        &mut world,
+        parent,
+        100,
+        core::NamedAction::Amend { keep_parameters: false, target, revision: 0, amendment: edit },
+    );
     let before = live_row(&world, target).clone();
     world.store.ask(jig_test_store::StoreOut::Now(load));
     world.drain();

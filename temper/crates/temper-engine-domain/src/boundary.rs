@@ -176,7 +176,13 @@ pub enum Tool {
     /// Create one authorized batch of direct task delegates.
     Delegate { batch: Box<[Delegate]> },
     /// Amend one live delegate after authority fitting and finite source checks.
-    Amend { target: u64, revision: u64, amendment: tasks::Amendment },
+    Amend {
+        target: u64,
+        revision: u64,
+        amendment: tasks::Amendment,
+        /// The host omitted parameters; jig keeps the current task's before admission.
+        keep_parameters: bool,
+    },
     /// Cancel one live delegate's whole subtree with a bounded reason.
     Cancel { target: u64, reason: Box<[u8]> },
     /// Release one held delegate.

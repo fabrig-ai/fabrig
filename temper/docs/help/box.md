@@ -41,7 +41,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   and fetches Forgejo and runner. Fake needs no account: only local
   Forgejo stays real; GitHub, model, sign-in and remote Forgejo are
   loopback fakes. From a checkout:
-  `cargo build -p temper -p temper-fake-claude` to put `fake-claude`
+  `cargo build -p temper -p smith-fake-claude` to put `fake-claude`
   beside `temper`, then `scripts/bundle.sh --loopback BUNDLE`.
 - **Directories:** `CONFIG`, `DATA`, `CACHE`: absolute, empty, private
   (0700), no links; this box alone. `DIR`: private.

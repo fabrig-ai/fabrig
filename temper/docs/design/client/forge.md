@@ -513,10 +513,13 @@ and `connect-forge.html`.
   welcome's Forge step offers two (`README.md`, 3.5): first, while
   Forgejo on this machine is offered, one "Forgejo" card, the default,
   "A forge of your own: temper starts it on this machine and manages
-  it.", with Forgejo on this machine's muted line and one way, the
-  primary button "Run on this machine", which sends its `SetUp` at
-  once, its first repository `work/hello` asked of no one
-  (`README.md`, 3.5); then GitHub's, as here, its button secondary.
+  it. You can import existing repositories into it, from GitHub or
+  elsewhere.", with Forgejo on this machine's muted line and one way,
+  the primary "Run on this machine", which opens Forgejo's sheet, its
+  Details there: what it starts with, an empty repository by default,
+  its names `work` and `hello` until written, and Run, which sends its
+  `SetUp` (`README.md`, 3.5); then GitHub's, as here, its button
+  secondary.
   Your Forgejo is not on the welcome: the forges page connects it,
   and the welcome's frame links the help's server page
   (`../../help/server.md`) on GitHub (the user, 2026-11-04). Choose's
@@ -1330,7 +1333,10 @@ made by the forge connector from what it keeps of the change
   project `Default` (the look request `welcome-forgejo-card`), waits
   on the user's review of these pages; its project is Ready's now, the
   set up naming none (`README.md`, 3.5; `../draft/first-run-projects.md`,
-  4).
+  4). Since 2026-11-04 its button opens Forgejo's sheet, where an
+  empty repository is the default; what copies of public repositories
+  and starting with nothing send, which no `SetUp` carries yet
+  (`../protocol/setup.md`, 6.7), is open (`README.md`, 3.5).
 - **An App of one's own, offered again** (5.4). Default: GitHub's card
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor
