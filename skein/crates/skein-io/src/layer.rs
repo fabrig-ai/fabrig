@@ -57,6 +57,9 @@ pub(crate) struct Tables {
     /// The process resource read, independently of entity admission.
     usage: Option<Id<Flight>>,
     window: Option<Id<Flight>>,
+    /// The owner of a `Window` on a stream gone or closing, until `resume`
+    /// tells it `Gone` (io.md, section 7).
+    gone: Option<Token>,
     /// Unclaimed listening sockets, keyed by their exact bound address.
     pub(crate) held: Map<kernel::Addr, Id<Entity>>,
     pub(crate) names: Map<Name, Id<Entity>>,
@@ -148,6 +151,7 @@ impl Io {
                 armed: 0,
                 usage: None,
                 window: None,
+                gone: None,
                 held: Map::with_capacity(limits.sockets),
                 names: Map::with_capacity(limits.names),
                 waiting: Map::with_capacity(limits.sockets),
@@ -253,7 +257,7 @@ impl Io {
     /// at the start of io's stage, before any completion.
     #[must_use]
     pub fn is_ready(&self) -> bool {
-        !self.tables.refused.is_empty() || self.tables.ready.is_ready()
+        !self.tables.refused.is_empty() || self.tables.gone.is_some() || self.tables.ready.is_ready()
     }
 
     /// When the earliest deadline falls due: a graceful close's, or a
@@ -294,6 +298,7 @@ impl Io {
             && self.tables.flights.is_empty()
             && self.tables.deadlines.is_empty()
             && self.tables.refused.is_empty()
+            && self.tables.gone.is_none()
             && self.tables.ready.is_empty()
             && self.tables.held.is_empty()
             && self.tables.names.is_empty()
@@ -395,13 +400,18 @@ impl Ready {
 }
 
 /// Takes one entry of the ready list, submitting at most
-/// [`MAX_OUT_RESUME`](crate::MAX_OUT_RESUME): a refusal is told; a connect is
-/// told `Connecting`; an open stream is delivered what its demand asked for;
+/// [`MAX_OUT_RESUME`](crate::MAX_OUT_RESUME): a refusal is told; a `Window`
+/// on a stream gone or closing is told `Gone`; a connect is told
+/// `Connecting`; an open stream is delivered what its demand asked for;
 /// an idle listener arms its accept.
 pub fn resume(io: &mut Io, env: &Env<Limits>, up: &mut Queue<Event>, subs: &mut Queue<Submit>) {
     if let Some(owner) = io.tables.refused.pop() {
         up.push(Event::Failed { owner, error: Error::Busy });
         up.push(Event::Closed { owner });
+        return;
+    }
+    if let Some(owner) = io.tables.gone.take() {
+        up.push(Event::Window { owner, window: crate::Window::Gone });
         return;
     }
     let Some(id) = io.tables.ready.pop() else {
@@ -580,10 +590,10 @@ pub fn down(io: &mut Io, env: &Env<Limits>, request: Request, subs: &mut Queue<S
         Request::Spawn { owner, spawn } => process::spawn(io, owner, spawn, subs),
         Request::Signal { child, signal, to } => process::signal(io, child, signal, to, subs),
         Request::Window { owner, stream } => {
-            assert!(io.tables.window.is_none(), "one Window request in flight");
+            assert!(io.tables.window.is_none() && io.tables.gone.is_none(), "one Window request in flight");
             let fd = match io.entities.get(Id::from_token(stream)) {
-                Some(Entity::Pipe(pipe)) => pipe.window_fd().unwrap_or(Fd::new(-1)),
-                None => Fd::new(-1),
+                Some(Entity::Pipe(pipe)) => pipe.window_fd(),
+                None => None,
                 Some(
                     Entity::Listener(_)
                     | Entity::Stream(_)
@@ -594,6 +604,10 @@ pub fn down(io: &mut Io, env: &Env<Limits>, request: Request, subs: &mut Queue<S
                 ) => {
                     unreachable!("Window names the input terminal stream")
                 }
+            };
+            let Some(fd) = fd else {
+                io.tables.gone = Some(owner);
+                return;
             };
             let flight = io
                 .tables
