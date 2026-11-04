@@ -684,11 +684,16 @@ class CommandTests(unittest.TestCase):
         self.fake('cargo', "import json,os,sys\n"
                   "assert sys.argv[1:]==['metadata','--format-version','1','--no-deps']\n"
                   "print(json.dumps({'target_directory':os.environ['FIXTURE_TARGET']}))\n")
-        self.fake('heavy', "import json,os,shutil,sys\nfrom pathlib import Path\n"
+        for key in ('TIERS_WRAPPER', 'TIERS_DISK_BYTES'):
+            self.env.pop(key, None)
+        self.env.update(TIERS_WRAPPER='wrap', TIERS_DISK_BYTES='80000000000')
+        build = ("import json,os,shutil,sys\nfrom pathlib import Path\n"
                   "Path(os.environ['FIXTURE_COMMAND_LOG']).write_text(json.dumps(sys.argv[1:]))\n"
                   "if os.environ.get('FIXTURE_FAIL_BUILD'): sys.exit(9)\n"
                   "shutil.copyfile(os.environ['FIXTURE_WRAPPER'],sys.argv[-1])\n"
                   "Path(sys.argv[-1]).chmod(0o700)\n")
+        self.fake('wrap', build)
+        self.fake('cc', build)
         self.fake('df', "import os\nfrom pathlib import Path\n"
                   "Path(os.environ['FIXTURE_COMMAND_LOG']+'.disk').touch()\n"
                   "print('Avail\\n80000000000')\n")
@@ -1042,6 +1047,33 @@ os.waitpid(child,0)
         result = self.invoke('raise Exception("must not run")', suite='failed')
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn('CPU wrapper build: exit 9', result.stderr)
+
+    def test_command_build_settings_are_optional_and_disk_values_validated(self):
+        for index, (prefix, minimum) in enumerate(((None, None), ("", ""),
+                                                  ("wrap", None), (None, "0"))):
+            with self.subTest(prefix=prefix, minimum=minimum):
+                for key, value in (("TIERS_WRAPPER", prefix), ("TIERS_DISK_BYTES", minimum)):
+                    self.env.pop(key, None)
+                    if value is not None:
+                        self.env[key] = value
+                target = self.root / f"target {index}"
+                self.env['FIXTURE_TARGET'] = str(target)
+                (self.root / 'commands.disk').unlink(missing_ok=True)
+                result = self.invoke('pass', suite=str(index))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                command = json.loads((self.root / 'commands').read_text())
+                self.assertEqual(command[:1], ['cc'] if prefix else ['-std=c11'])
+                self.assertEqual((self.root / 'commands.disk').exists(), minimum == "0")
+        for minimum in ('plenty', '-1'):
+            self.env['TIERS_DISK_BYTES'] = minimum
+            self.env['FIXTURE_TARGET'] = str(self.root / 'invalid disk target')
+            (self.root / 'commands').unlink(missing_ok=True)
+            (self.root / 'commands.disk').unlink(missing_ok=True)
+            result = self.invoke('raise Exception("must not run")', suite=minimum)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn('TIERS_DISK_BYTES', result.stderr)
+            self.assertFalse((self.root / 'commands').exists())
+            self.assertFalse((self.root / 'commands.disk').exists())
 
     def test_command_summary_requires_complete_expected_inventory(self):
         self.directory.mkdir()
