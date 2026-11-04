@@ -1,6 +1,6 @@
 # reference-case: execution
 
-2026-11-02. How [reference-case.md](reference-case.md) gets built: the
+2026-11-04. How [reference-case.md](reference-case.md) gets built: the
 milestones that carry `reference-code-production.md` and
 `reference-landing.md` into the design and the code, until the case
 walks whole as `v0.1.0.md`'s rung C. It designs nothing: each milestone

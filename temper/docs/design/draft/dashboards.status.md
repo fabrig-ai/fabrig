@@ -1,6 +1,6 @@
 # dashboards: status
 
-2026-11-02. Where the design lags or departs from [dashboards.md](dashboards.md).
+2026-11-04. Where the design lags or departs from [dashboards.md](dashboards.md).
 
 - **Design lags:**
   - 2, 4: jig's `domain/engine.md`, 17.5 has no metric kind, and temper's kinds (`../protocol/configuration.md`, 13.2) have no dashboard kind and no forge's metrics kind; no child of temper's root keeps dashboards.
@@ -8,3 +8,6 @@
   - 5: skein's `ui.md` has no palette of panels, and `temper-client-view` no dashboard page (`../client/README.md`).
   - 6: the configuring agent (`../domain/agent.md`, 8.1) has no reads of facts, metrics or dashboards.
   - 8: no limits for dashboards, panels or metrics (`../protocol/configuration.md`).
+  - 9: no design document holds the stories or the golden (`../domain/testing.md`), and the example project's description the golden reads is not written.
+- **Open:**
+  - 11: where the question of public dashboards stands: the draft names a branch, `draft-public-reading`, that does not exist, and `../protocol/sign-in.md`, which designs public reading, has no dashboards.
