@@ -231,11 +231,9 @@ fn the_policy_keeps_a_field_the_answer_already_holds() {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the test inspects the fixed CSP directives as UTF-8")]
 fn the_playground_policy_adds_only_its_worker_source() {
-    use crate::clients::policy::{FIELDS, Page, fields};
+    use crate::clients::policy::{FIELDS, playground_fields};
 
-    let service = fields(Page::Service);
-    assert_eq!(FIELDS, service);
-    for ((name, value), (service_name, service_value)) in fields(Page::Playground).into_iter().zip(service) {
+    for ((name, value), (service_name, service_value)) in playground_fields().into_iter().zip(FIELDS) {
         assert_eq!(name, service_name);
         if name == b"Content-Security-Policy" {
             assert_eq!(value.strip_suffix(b"; worker-src 'self'"), Some(service_value));

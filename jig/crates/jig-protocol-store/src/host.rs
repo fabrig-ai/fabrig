@@ -165,15 +165,9 @@ impl Hosted {
     pub fn close(&mut self) {
         self.closing = true;
         self.drivers.close();
-        for _ in 0..self.above.len() {
-            let _terminal = self.above.pop();
-        }
-        for _ in 0..self.secrets.len() {
-            let _terminal = self.secrets.pop();
-        }
-        for _ in 0..self.sources.len() {
-            let _terminal = self.sources.pop();
-        }
+        self.above = Queue::uncapped();
+        self.secrets = Queue::uncapped();
+        self.sources = Queue::uncapped();
     }
 }
 

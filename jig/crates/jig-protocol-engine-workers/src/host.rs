@@ -142,10 +142,6 @@ impl Workers {
         self.ending
     }
     #[must_use]
-    pub fn socket(&self, connection: Token) -> Option<&Token> {
-        self.sockets.get(&connection)
-    }
-    #[must_use]
     pub fn listener_address(&self, owner: Option<Token>) -> Option<io::Addr> {
         for (name, address, _) in &self.listeners {
             if Some(*name) == owner {
