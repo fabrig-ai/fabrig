@@ -62,3 +62,13 @@ At base, `$OWN`'s sites by the note's searches:
 
 The counts before and after; each site the note's fallout touched; each `#[expect]` you added;
 any site you left and why.
+
+## Answers
+
+### 2026-11-04: Should the sum in temper/tests/one-process/src/public/load.rs:77 stay with an acceptance-search exemption (recommended), or should this task replace its conversion with skein_lib::len_u64 despite the note's What stays rule? (debt-4/temper-sweep-worlds-1, foreman debt-4/temper-sweep-worlds/foreman-1)
+
+Keep the sum unchanged and report it as an exemption from the first acceptance search.
+`temper/docs/plan/debt-4/notes/temper-forms.md`, “What stays”: “A sum or difference of lengths” stays, explicitly including `u64::try_from(size_of::<T>() + x.len())`.
+`temper/docs/plan/debt-4/notes/common.md`: “Acceptance searches are narrow: code that legitimately uses the same word for something else is exempted, not changed; your spec names the exemptions it found, and your report names any other you meet.”
+The expression in `temper/tests/one-process/src/public/load.rs:77` converts an arithmetic sum and falls under that exclusion.
+The next run leaves this expression unchanged, names this additional exemption in its report, completes the remaining sweep, runs the required checks, commits and pushes.
