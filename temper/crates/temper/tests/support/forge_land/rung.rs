@@ -538,7 +538,7 @@ pub fn return_on_a_new_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], ac
     fs::create_dir_all(&client).map_err(|error| format!("return client: {error}"))?;
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700))
         .map_err(|error| format!("private return client: {error}"))?;
-    super::super::held_login::return_hook(binary, store, &client, account);
+    super::super::held_login::recovery_hook(binary, store, &client, account);
     let mut driver = Driver::owned(store, &client);
     driver.binary = binary.into();
     let started = now();

@@ -99,6 +99,7 @@ fn without_job_delegation(world: &mut World, procedure: u64) {
         to: ReplyTo::new(Token::new(9002)),
         key: core::CallKey { task: run.0, attempt: run.1, completion: 2, position: 0 },
         action: core::NamedAction::Amend {
+            keep_parameters: false,
             target: procedure,
             revision: 0,
             amendment: tasks::Amendment { authority: Some(authority), ..jig_test_profile::fixtures::unchanged(b"") },

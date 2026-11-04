@@ -406,7 +406,7 @@ fn dependency_edit(parent: (u64, u64), target: u64, dependency: u64) -> core::Ev
     core::Event::NamedAction {
         to: ReplyTo::new(Token::new(9950)),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 3, position: 0 },
-        action: core::NamedAction::Amend { target, revision: 0, amendment },
+        action: core::NamedAction::Amend { keep_parameters: false, target, revision: 0, amendment },
     }
 }
 
