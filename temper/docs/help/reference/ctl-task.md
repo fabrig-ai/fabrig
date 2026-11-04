@@ -123,10 +123,32 @@ task answer TASK QUESTION TEXT [--key KEY]
   TASK (task): a number; required. The task's number
   QUESTION (question): a number; required. The question's number, as the inbox prints it
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The answer
-Answer a task's question
+task answer TASK --rev REV CHOICE TEXT [--key KEY]
+  TASK (task): a number; required. The person task's number
+  --rev REV: a number; required. The person-task revision shown by task show
+  CHOICE (choice): a number; required. The contract's choice code
+  TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The reason for this choice
+task answer TASK --rev REV TEXT [--key KEY]
+  TASK (task): a number; required. The person task's number
+  --rev REV: a number; required. The person-task revision shown by task show
+  TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The answer in words
+task answer TASK --rev REV --approve STATE [TEXT] [--key KEY]
+  TASK (task): a number; required. The person task's number
+  --rev REV: a number; required. The person-task revision shown by task show
+  --approve STATE: text, at most 1048576 bytes; required. The exact approval state, as lowercase hexadecimal; empty is an empty state
+  TEXT (text): text, at most 1048576 bytes, or - to read stdin; optional. An optional explanation
+task answer TASK --rev REV --cannot REASON [--key KEY]
+  TASK (task): a number; required. The person task's number
+  --rev REV: a number; required. The person-task revision shown by task show
+  --cannot REASON: text, at most 1048576 bytes, or - to read stdin; required. Why the task cannot be done
+Answer a numbered question or a revisioned person task
 Prints: `done: task N, answer`
 --json: the record answer.
 Key: --key KEY, optional.
+Read task show first. A role-addressed person task must be taken
+with task take before answering; task hand-back returns it to the role.
+Use the printed revision: a changed contract refuses a stale answer.
+Choice codes belong to the contract; TEXT explains the choice.
 ```
 
 ## task release
@@ -252,4 +274,28 @@ Each chunk keeps UTF-8 characters whole. Follow the printed call
 until no more. Instructions use the task's override, or its charter
 at the task's recorded settings revision. Result reads the kept terminal
 report; unavailable reports are unknown.
+```
+
+## task take
+
+```
+task take TASK [--key KEY]
+  TASK (task): a number; required. The person task's number
+Take a person task addressed to your role
+Prints: `done: task N, take`
+--json: the record take.
+Key: --key KEY, optional.
+Read task show for the current holder and offered acts.
+```
+
+## task hand-back
+
+```
+task hand-back TASK [--key KEY]
+  TASK (task): a number; required. The person task's number
+Return your person task to its role
+Prints: `done: task N, hand-back`
+--json: the record hand-back.
+Key: --key KEY, optional.
+Only the current holder may hand it back.
 ```

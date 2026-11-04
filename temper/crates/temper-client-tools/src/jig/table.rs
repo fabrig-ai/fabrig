@@ -184,6 +184,8 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"REV",
     b"PROPOSAL",
     b"QUESTION",
+    b"CHOICE",
+    b"STATE",
     b"NUMBER",
     b"N",
     b"TEMPLATE",

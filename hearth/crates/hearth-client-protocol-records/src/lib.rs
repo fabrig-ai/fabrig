@@ -1,4 +1,4 @@
-//! Typed client records and their forms (client/README.md, 3.2).
+//! Typed client records and their forms (hearth/docs/design/client/README.md, 3.2).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -13,7 +13,7 @@ pub mod printer;
 pub mod progress;
 pub mod records;
 pub mod startup;
-/// The client protocol's major version (client/README.md, 3.2).
+/// The client protocol's major version (hearth/docs/design/client/README.md, 3.2).
 pub const CLIENT_VERSION: u32 = 1;
 #[cfg(test)]
 mod tests;

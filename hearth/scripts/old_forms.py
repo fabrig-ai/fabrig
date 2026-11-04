@@ -23,7 +23,7 @@ HEADER = (
     '# Lower them with `python3 -I -B scripts/old_forms.py --write`; a count rises only with a `# Raised:` line saying who and why.',
 )
 RULE = (
-    "Uses of the old forms may only fall (skein's docs/foundation/programming-model.md, 6.3): "
+    "Uses of the old forms may only fall (skein/docs/foundation/programming-model.md, 6.3): "
     'new code takes the new forms, or removes as many old uses as it adds.'
 )
 COMMENT_FORMS = {

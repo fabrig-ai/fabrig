@@ -5,7 +5,7 @@ pub const VPN: &[File] = &[
     File { path: "tasks/vpn/tree/etc/vpn/peers.j2", mode: 0o644, body: b"{% for name, peer in exports.vpn | items %}{% if name != target.name %}{{ name }}={{ peer.address }}{% if peer.endpoint is defined %}@{{ peer.endpoint }}{% endif %};{% endif %}{% endfor +%}\n" },
     File { path: "tasks/vpn/tree/etc/vpn/mtu.j2", mode: 0o644, body: b"{{ settings.mtu }}\n" },
     File { path: "hosts/ion/ion.json", mode: 0o644, body: br#"{"vpn":{"address":"10.0.0.1"}}"# },
-    File { path: "hosts/ion/ion-prod.json", mode: 0o644, body: br#"{"placement": {"kind": "vm", "firmware": "bios", "hardware": "ionos"}, "vpn": {"endpoint": "194.164.162.157"}}"# },
+    File { path: "hosts/ion/ion-prod.json", mode: 0o644, body: br#"{"placement": {"kind": "vm", "firmware": "bios", "hardware": "ionos"}, "vpn": {"endpoint": "203.0.113.157"}}"# },
     File { path: "hosts/ion/ion-lab.json", mode: 0o644, body: br#"{"placement":{"kind":"vm","firmware":"efi","hardware":"incus"},"vpn":{"address":"10.1.0.1"}}"# },
     File { path: "hosts/carbon/carbon.json", mode: 0o644, body: br#"{"vpn":{"address":"10.0.0.2"}}"# },
     File { path: "hosts/carbon/carbon-prod.json", mode: 0o644, body: br#"{"placement":{"kind":"metal","firmware":"efi","hardware":"7th-gen"}}"# },
@@ -33,11 +33,11 @@ pub fn vpn(broken: bool) -> Rendered {
 pub const VPN_MOVED: File = File {
     path: "hosts/ion/ion-prod.json",
     mode: 0o644,
-    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos"},"vpn":{"endpoint":"194.164.162.158"}}"#,
+    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos"},"vpn":{"endpoint":"203.0.113.158"}}"#,
 };
 pub const VPN_MTU: File = File {
     path: "hosts/ion/ion-prod.json", mode: 0o644,
-    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos"},"vpn":{"endpoint":"194.164.162.157","mtu":1280}}"#,
+    body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos"},"vpn":{"endpoint":"203.0.113.157","mtu":1280}}"#,
 };
 pub const VPN_NO_ENDPOINT: File = File {
     path: "hosts/ion/ion-prod.json",

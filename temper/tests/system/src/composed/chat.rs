@@ -7,8 +7,7 @@ use skein_fake_llm_domain::api::{Part, Script, Turn};
 const REQUEST: &[u8] = b"Add the line \"Tier walk: first.\" to the end of README.md in widget.";
 const PROHIBITION: &str =
     "Repository changes must go through change; never implement them by writing your chat workspace.";
-const COMPLETION: &str =
-    "After calling change, say only that work started until its Landed result names the pull request and merge commit.";
+const COMPLETION: &str = "After calling change, say only that work started until the delegate reports.";
 
 fn chat(turns: Vec<Turn>) -> World {
     requested_chat(turns, REQUEST)
@@ -45,7 +44,7 @@ fn assert_prompt(world: &World) {
     let prompt = &world.agent().prompts()[0];
     let system = String::from_utf8_lossy(&prompt.system);
     assert!(system.contains(PROHIBITION), "stock prompt must prohibit workspace-only repository edits");
-    assert!(system.contains(COMPLETION), "stock prompt must reserve completion for a reported landing");
+    assert!(system.contains(COMPLETION), "stock prompt must wait for the delegate's report");
     assert!(prompt.messages.iter().flat_map(|message| &message.parts).any(|part| {
         matches!(part, Part::Text { text } if text.windows(REQUEST.len()).any(|bytes| bytes == REQUEST))
     }));

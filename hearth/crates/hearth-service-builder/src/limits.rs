@@ -1,4 +1,4 @@
-//! The layers' bounds and the queues between them (programming-model.md, 7).
+//! The layers' bounds and the queues between them (skein/docs/foundation/programming-model.md, 7).
 use crate::{domain, protocol};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {

@@ -1001,6 +1001,34 @@ pub fn forge_summary(head: &[u8], connection: &[u8]) -> Box<[u8]> {
 }
 #[must_use]
 pub fn forge_connection(row: &super::forges::Row) -> Box<[u8]> {
+    use super::forges::{Connection as C, FirstState, Step};
+    if let Some(first) = &row.first {
+        match first.state {
+            FirstState::Failed { .. } => return forge_connection_bare(row),
+            FirstState::Making | FirstState::Made { .. } => {}
+        }
+    }
+    match &row.connection {
+        C::SettingUp { step } => match (step, row.fetched) {
+            (Some(Step::Fetch), Some(fetched)) => {
+                join_words(&[&forge_connection_bare(row), b" \xc2\xb7 ", &fetched_figure(fetched)])
+            }
+            (Some(Step::Fetch), None) | (Some(Step::Prepare | Step::Run) | None, Some(_) | None) => {
+                forge_connection_bare(row)
+            }
+        },
+        C::NotConnected
+        | C::NotSetUp
+        | C::SetUpFailed { .. }
+        | C::Connecting
+        | C::Connected { .. }
+        | C::Stopped { .. } => forge_connection_bare(row),
+    }
+}
+
+/// The connection's words without a fetch figure (temper/docs/design/client/forge.md, 5.4).
+#[must_use]
+pub fn forge_connection_bare(row: &super::forges::Row) -> Box<[u8]> {
     use super::forges::{Connection as C, Offer, Step};
     if let Some(super::forges::First { state: super::forges::FirstState::Failed { step }, .. }) = &row.first {
         return join_words(&[b"Set up failed: ", create_step(*step)]);
@@ -1018,11 +1046,17 @@ pub fn forge_connection(row: &super::forges::Row) -> Box<[u8]> {
                 Box::from(b"Not set up".as_slice())
             }
         }
-        C::SettingUp { step } => Box::from(match step {
-            Some(Step::Fetch) => b"Setting up: fetching".as_slice(),
-            Some(Step::Prepare) => b"Setting up: preparing".as_slice(),
-            Some(Step::Run) => b"Setting up: starting".as_slice(),
-            None => b"Setting up".as_slice(),
+        C::SettingUp { step } => Box::from(match (step, row.fetched) {
+            (Some(Step::Fetch), Some(super::forges::Fetched { binary: super::forges::Binary::Forgejo, .. })) => {
+                b"Setting up: fetching Forgejo".as_slice()
+            }
+            (Some(Step::Fetch), Some(super::forges::Fetched { binary: super::forges::Binary::Runner, .. })) => {
+                b"Setting up: fetching its runner".as_slice()
+            }
+            (Some(Step::Fetch), None) => b"Setting up: fetching".as_slice(),
+            (Some(Step::Prepare), Some(_) | None) => b"Setting up: preparing".as_slice(),
+            (Some(Step::Run), Some(_) | None) => b"Setting up: starting".as_slice(),
+            (None, Some(_) | None) => b"Setting up".as_slice(),
         }),
         C::SetUpFailed { why, .. } => join_words(&[b"Set up failed: ", &lossy(why)]),
         C::Connecting => Box::from(b"Connecting".as_slice()),
@@ -1037,6 +1071,32 @@ pub fn forge_connection(row: &super::forges::Row) -> Box<[u8]> {
             join_words(&[b"Connected as ", &lossy(login), b" (", skein_lib::Decimal::of(*id).as_bytes(), b")"])
         }
         C::Stopped { reason } => join_words(&[b"Stopped: ", &lossy(reason)]),
+    }
+}
+
+/// The fetch's percentage or decimal megabytes, rounded down (temper/docs/design/client/forge.md, 5.4).
+#[must_use]
+pub fn fetched_figure(fetched: super::forges::Fetched) -> Box<[u8]> {
+    let (number, unit) = match fetched.total {
+        Some(total) => {
+            let percentage = u128::from(fetched.done)
+                .checked_mul(100)
+                .expect("a u64 percentage fits u128")
+                .checked_div(u128::from(total))
+                .expect("a fetched total is positive");
+            (u64::try_from(percentage).expect("a fetched percentage is at most 100"), b"%".as_slice())
+        }
+        None => (fetched.done.checked_div(1_000_000).expect("one megabyte is positive"), b" MB".as_slice()),
+    };
+    join_words(&[skein_lib::Decimal::of(number).as_bytes(), unit])
+}
+
+/// The progress node's name (temper/docs/design/client/forge.md, 5.4).
+#[must_use]
+pub const fn fetching_name(fetched: super::forges::Fetched) -> &'static [u8] {
+    match fetched.binary {
+        super::forges::Binary::Forgejo => b"Fetching Forgejo",
+        super::forges::Binary::Runner => b"Fetching its runner",
     }
 }
 

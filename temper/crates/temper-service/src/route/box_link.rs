@@ -2,7 +2,7 @@
 
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Queue, Token, Writer, bytes};
-use temper_engine_domain_forge::BoxKind;
+use temper_engine_domain_forge::{BoxKind, SetUpBinary, SetUpFetched};
 
 /// The box's word for the step it runs (protocol/setup.md, 7.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -25,6 +25,8 @@ pub(crate) enum Out {
     Answered { forge: u16, request: Token, answer: Result<(), Refused> },
     /// The forge setting up: `None` at the ask, then each `step` line's step.
     SettingUp { forge: u16, step: Option<Step> },
+    /// `fetched FORGE BINARY DONE TOTAL`.
+    Fetched { forge: u16, fetched: SetUpFetched },
     /// `started FORGE`: the ask ended, the group started.
     Started { forge: u16 },
     /// `failed FORGE WHY`.
@@ -210,6 +212,7 @@ fn start(forge: u16, kind: Option<BoxKind>) -> Box<[u8]> {
 
 enum Reply {
     Step(u16, Step),
+    Fetched(u16, SetUpFetched),
     Started(u16),
     Stopped(u16),
     Removed(u16),
@@ -219,6 +222,7 @@ impl Reply {
     fn forge(&self) -> u16 {
         match self {
             Self::Step(forge, _)
+            | Self::Fetched(forge, _)
             | Self::Started(forge)
             | Self::Stopped(forge)
             | Self::Removed(forge)
@@ -228,6 +232,7 @@ impl Reply {
     fn word(&self) -> &'static [u8] {
         match self {
             Self::Step(..) => b"step",
+            Self::Fetched(..) => b"fetched",
             Self::Started(_) => b"started",
             Self::Stopped(_) => b"stopped",
             Self::Removed(_) => b"removed",
@@ -242,7 +247,7 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     };
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
-        (Some(Ask::Start(active)), Reply::Step(..) | Reply::Started(_) | Reply::Failed(..))
+        (Some(Ask::Start(active)), Reply::Step(..) | Reply::Fetched(..) | Reply::Started(_) | Reply::Failed(..))
         | (Some(Ask::End(End::Remove(active))), Reply::Removed(_) | Reply::Failed(..)) => active == forge,
         _ => false,
     };
@@ -258,6 +263,7 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     }
     match reply {
         Reply::Step(_, step) => out.push(Out::SettingUp { forge, step: Some(step) }),
+        Reply::Fetched(_, fetched) => out.push(Out::Fetched { forge, fetched }),
         Reply::Started(_) => {
             *asked = None;
             out.push(Out::Started { forge });
@@ -298,6 +304,29 @@ fn decoded(line: &[u8]) -> Option<Reply> {
     }
     if let Some(digits) = line.strip_prefix(b"removed ") {
         return Some(Reply::Removed(number(digits)?));
+    }
+    if let Some(rest) = line.strip_prefix(b"fetched ") {
+        let (forge, rest) = word(rest)?;
+        let forge = number(forge)?;
+        let (binary, rest) = word(rest)?;
+        let binary = match binary {
+            b"forgejo" => SetUpBinary::Forgejo,
+            b"runner" => SetUpBinary::Runner,
+            _ => return None,
+        };
+        let (done, total) = word(rest)?;
+        let done = size(done)?;
+        let total = match total {
+            b"none" => None,
+            digits => {
+                let total = size(digits)?;
+                if total == 0 || done > total {
+                    return None;
+                }
+                Some(total)
+            }
+        };
+        return Some(Reply::Fetched(forge, SetUpFetched { binary, done, total }));
     }
     let (word, rest) = if let Some(rest) = line.strip_prefix(b"step ") {
         (b"step".as_slice(), rest)
@@ -341,6 +370,28 @@ fn number(digits: &[u8]) -> Option<u16> {
     }
     Some(number)
 }
+fn word(line: &[u8]) -> Option<(&[u8], &[u8])> {
+    for (index, byte) in line.iter().enumerate() {
+        if *byte == b' ' {
+            let (word, rest) = line.split_at_checked(index)?;
+            return Some((word, rest.strip_prefix(b" ")?));
+        }
+    }
+    None
+}
+fn size(digits: &[u8]) -> Option<u64> {
+    if digits.is_empty() {
+        return None;
+    }
+    let mut number = 0_u64;
+    for byte in digits {
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        number = number.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
+    }
+    Some(number)
+}
 fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     let mut length = 0_usize;
     for part in parts {
@@ -376,6 +427,9 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
             Out::Started { forge } => {
                 crate::setup::lifecycle::started(engine, forge);
             }
+            Out::Fetched { forge, fetched } => engine.events.push(temper_engine_domain::Event::Forge(Box::new(
+                temper_engine_domain_forge::Event::Fetched { forge, fetched },
+            ))),
             Out::Removed { forge } => engine.events.push(temper_engine_domain::Event::Forge(Box::new(
                 temper_engine_domain_forge::Event::BoxRemoved { forge },
             ))),

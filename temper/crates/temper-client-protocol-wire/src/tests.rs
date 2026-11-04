@@ -377,10 +377,35 @@ fn each_forge_connection_round_trips_at_its_bounds() {
         assert_eq!(crate::decode_forges(&fixtures::trailing(&bytes), &limits), None);
     }
     for step in [None, Some(v1::SetUpStep::Fetch), Some(v1::SetUpStep::Prepare), Some(v1::SetUpStep::Run)] {
-        let connection =
-            v1::Connection::SettingUp(v1::SettingUp::new(&limits, v1::SettingUpParts { step }).expect("setup step"));
+        let connection = v1::Connection::SettingUp(
+            v1::SettingUp::new(&limits, v1::SettingUpParts { step, fetched: None }).expect("setup step"),
+        );
         let record = forges_rows(&[1], &connection);
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
+    }
+}
+
+#[test]
+fn a_setting_up_carries_its_fetch() {
+    let limits = fixtures::limits();
+    for binary in [v1::SetUpBinary::Forgejo, v1::SetUpBinary::Runner] {
+        for total in [Some(122_057_320), None] {
+            let fetched = v1::SetUpFetched::new(
+                &limits,
+                v1::SetUpFetchedParts { binary: binary.clone(), done: 1_048_576, total },
+            )
+            .expect("fetched bytes");
+            let connection = v1::Connection::SettingUp(
+                v1::SettingUp::new(
+                    &limits,
+                    v1::SettingUpParts { step: Some(v1::SetUpStep::Fetch), fetched: Some(fetched) },
+                )
+                .expect("fetching"),
+            );
+            let record = forges_rows(&[1], &connection);
+            let bytes = crate::forges(&record);
+            assert_eq!(crate::decode_forges(&bytes, &limits), Some(record), "{binary:?}, total {total:?}");
+        }
     }
 }
 

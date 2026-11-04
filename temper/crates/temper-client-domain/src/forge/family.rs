@@ -231,6 +231,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
     let mut rows = List::with_capacity(record.forges.len());
     for row in record.forges.into_boxed() {
         let row = row.into_parts();
+        let fetched = fetched_from(&row.connection);
         let connection = connection_from(row.connection);
         rows.push(Row {
             read_only: row.read_only,
@@ -247,6 +248,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
                 w::Mode::Fake => Mode::Fake,
             },
             connection,
+            fetched,
             offer: match row.offer {
                 w::Offer::NotOffered => Offer::NotOffered,
                 w::Offer::NotUnderTheBox => Offer::NotUnderTheBox,
@@ -314,6 +316,37 @@ fn adoptions_from(values: List<w::Adoption>) -> Option<Box<[forge::forges::Adopt
             .ok()?;
     }
     Some(repositories.into_boxed())
+}
+
+fn fetched_from(connection: &w::Connection) -> Option<forge::forges::Fetched> {
+    use forge::forges::{Binary, Fetched};
+    let value = match connection {
+        w::Connection::SettingUp(value) => value,
+        w::Connection::NotConnected
+        | w::Connection::NotSetUp
+        | w::Connection::SetUpFailed(_)
+        | w::Connection::Connecting
+        | w::Connection::Connected(_)
+        | w::Connection::Stopped(_) => return None,
+    };
+    match value.step() {
+        Some(w::SetUpStep::Fetch) => {}
+        Some(w::SetUpStep::Prepare | w::SetUpStep::Run) | None => return None,
+    }
+    let fetched = value.fetched().as_ref()?;
+    if let Some(total) = fetched.total()
+        && (*total == 0 || fetched.done() > *total)
+    {
+        return None;
+    }
+    Some(Fetched {
+        binary: match fetched.binary() {
+            w::SetUpBinary::Forgejo => Binary::Forgejo,
+            w::SetUpBinary::Runner => Binary::Runner,
+        },
+        done: fetched.done(),
+        total: *fetched.total(),
+    })
 }
 
 fn connection_from(connection: w::Connection) -> forge::forges::Connection {

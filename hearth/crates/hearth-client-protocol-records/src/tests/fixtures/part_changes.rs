@@ -19,7 +19,7 @@ pub fn part_change(part: ChangedPart) -> Record {
                 secrets::Named::Removed(copy_of(b"gone")),
                 secrets::Named::Changed(copy_of(b"key")),
             ]),
-            passwords: Box::new([secrets::Named::Changed(copy_of(b"free"))]),
+            passwords: Box::new([secrets::Named::Changed(copy_of(b"alice"))]),
             identity: Box::new([secrets::Named::Changed(copy_of(b"ssh"))]),
         }),
         ChangedPart::Software => PartChange::Software(software::Change {

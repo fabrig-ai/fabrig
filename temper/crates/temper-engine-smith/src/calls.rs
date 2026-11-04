@@ -171,7 +171,7 @@ pub(crate) const SPECS: [Spec; 40] = [
     Spec { name: b"withdraw", description: b"Withdraw one of your pending proposals.", schema: br#"{"type":"object","properties":{"proposal":{"type":"integer","description":"The proposal's number, as propose answered it.","minimum":1}},"required":["proposal"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"note", description: b"Write a note in a scope for later runs to recall, or revise one, naming the revision you recalled.", schema: br#"{"type":"object","properties":{"scope":{"type":"object","description":"{kind}: deployment; project, with project; goal, with project and goal; resources, with project, connector, pattern."},"description":{"type":"string","description":"What the note is about: a search reads it."},"body":{"type":"string","description":"The note's text."},"references":{"type":"array","description":"The numbers of the tasks it refers to.","items":{"type":"integer","minimum":1}},"name":{"type":"integer","description":"To revise a note: its name. Leave it out for a new note.","minimum":1},"recalled":{"type":"integer","description":"To revise a note: its revision, as recall answered it.","minimum":1}},"required":["scope","description","body"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"recall", description: b"Recall a note by its name, or search the descriptions of the notes in some scopes, a page at a time.", schema: br#"{"type":"object","properties":{"kind":{"type":"string","description":"name, by its name; search, by words in scopes.","enum":["name","search"]},"name":{"type":"integer","description":"For name: the note's name.","minimum":1},"scopes":{"type":"array","description":"For search: the scopes, each as note's scope.","items":{"type":"object"}},"query":{"type":"string","description":"For search: the words."},"page":{"type":"integer","description":"The page, from 0; 0 when absent.","minimum":0}},"required":["kind"]}"#, effect: run::HostEffect::Read },
-    Spec { name: b"subscribe_forge", description: b"Hear forge news: landings on a branch, CI on a head, a pull request's state, or the comments and reviews on an issue or pull request.", schema: br#"{"type":"object","properties":{"topic":{"type":"object","description":"{kind, repository: {forge, repository}}: landings with branch, ci with head, pull or participation with number."},"own_change":{"type":"integer","description":"For landings: your change task's number; its own landing does not wake you.","minimum":1},"paths":{"type":"array","description":"For landings: a landing wakes you when it changes one of these paths, or a file below one.","items":{"type":"string"}}},"required":["topic"]}"#, effect: run::HostEffect::Write },
+    Spec { name: b"subscribe_forge", description: b"Hear forge news: landings on a branch, CI on heads, pull request state, or comments and reviews on an issue or pull request.", schema: br#"{"type":"object","properties":{"topic":{"type":"object","description":"{kind,repository?}: owner/name|{forge,repository}, else sole readable; landings+branch,ci+head,pull/participation+number"},"own_change":{"type":"integer","description":"For landings: your change task's number; its own landing does not wake you.","minimum":1},"paths":{"type":"array","description":"For landings: a landing wakes you when it changes one of these paths, or a file below one.","items":{"type":"string"}}},"required":["topic"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"effect_forge", description: b"Make one write on an adopted repository through the forge's connector: an issue, a comment or a status, among the forge's writes.", schema: br#"{"type":"object","properties":{"repository":{"type":"object","description":"The repository, as {forge, repository}: the forge's number and the repository's."},"resource":{"type":"object","description":"What it writes on: {kind: repository}, {kind: pull, number}, {kind: issue, number} or {kind: branch, segments}."},"write":{"type":"object","description":"{kind: create_issue, key, title, body}, {kind: post, number, key, body} or {kind: status, commit, context, check}."}},"required":["repository","resource","write"]}"#, effect: run::HostEffect::Write },
     Spec {
         name: b"read_task",
@@ -323,17 +323,17 @@ pub fn call_configured(
             resource: forge::resource(value.required(b"resource")?)?,
             write: Box::new(forge::write(value.required(b"write")?)?),
         },
-        b"subscribe_forge" => engine::Tool::SubscribeForge {
-            topic: forge::topic(value.required(b"topic")?)?,
-            own_change: match value.field(b"own_change")? {
+        b"subscribe_forge" => forge::subscription(
+            value.required(b"topic")?,
+            match value.field(b"own_change")? {
                 Some(change) => Some(change.number(b"own_change")?),
                 None => None,
             },
-            paths: match value.field(b"paths")? {
+            match value.field(b"paths")? {
                 Some(paths) => forge::texts(paths, b"paths")?,
                 None => Box::new([]),
             },
-        },
+        )?,
         b"goal" => {
             let words = value.required(b"words")?.text(b"words")?;
             if words.is_empty() {

@@ -1,4 +1,4 @@
-//! The builder's two passes and reclaim point (programming-model.md, 2).
+//! The builder's two passes and reclaim point (skein/docs/foundation/programming-model.md, 2).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -471,7 +471,7 @@ fn configured_proxy(configuration: &Configuration) -> Option<protocol::Proxy> {
 }
 
 /// Sum hearth's domain and protocol layers and its queue storage.
-/// Returns `None` if the bound overflows (programming-model.md, 6.3).
+/// Returns `None` if the bound overflows (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     let domain = domain::worst_case(&limits.domain)?;

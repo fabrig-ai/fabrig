@@ -1457,3 +1457,75 @@ pub fn configuring_agent(world: &mut World<Temper, Joint>) -> jig_client_world::
     world.front().next_client_limits(limits);
     world.client_with(party, inbox(), limits, crate::agent::new)
 }
+
+// One goal and two delegated choices, with both executor kinds and one level below the goal.
+const PERSON_TASKS: u32 = 3;
+const PERSON_KINDS: u32 = 2;
+const PERSON_DEPTH: u32 = 2;
+// The two walking templates plus reference template 4.
+const PERSON_TEMPLATES: u32 = 3;
+// Goal and six acts per choice use thirteen retained keys; sixteen leave headroom.
+const PERSON_ANSWERS: u32 = 16;
+// The joined question fixtures reserve 512 bytes for whole pending words.
+const PERSON_INBOX_BYTES: u32 = 512;
+/// A ctl root and real engine reproduce template 4 and role 0 delegation.
+#[must_use]
+pub fn person_task_tools(seed: u64) -> (Joint, crate::app::Root) {
+    let mut front = Joint::new(seed, domain_limits());
+    let mut limits = front.engine.env.limits;
+    limits.authority.executors = PERSON_KINDS;
+    limits.tasks.executor_kinds = PERSON_KINDS;
+    limits.documents.executors = PERSON_KINDS;
+    limits.templates = PERSON_TEMPLATES;
+    limits.tasks.tasks = PERSON_TASKS;
+    limits.tasks.project_tasks = PERSON_TASKS;
+    limits.tasks.tree_tasks = PERSON_TASKS;
+    limits.people.inbox_tasks = PERSON_TASKS * 2;
+    limits.people.requests = PERSON_ANSWERS;
+    limits.tasks.inbox_bytes = PERSON_INBOX_BYTES;
+    let configs = std::array::from_fn(|_| person_task_configuration(seed));
+    let forge = front.engine.forge.take();
+    front.engine = Driver::configured(temper_engine_domain_world::store::Store::with_limits(&limits), configs, &limits);
+    front.engine.forge = forge;
+    front.engine.hello(QUESTION_WORKER);
+    front.engine.settle();
+    tools_on(front, seed)
+}
+/// Start a ctl client on a prepared joined engine fixture.
+#[must_use]
+pub fn tools_on(mut front: Joint, seed: u64) -> (Joint, crate::app::Root) {
+    use jig_client_world::harness::{App, ClientId, Front};
+    front.bind(ClientId(0), PARTY);
+    let mut root = crate::agent::new(seed).0;
+    crate::front::account_acts::event(&mut front, &mut root, Temper::start(inbox(), Vec::new(), 0));
+    (front, root)
+}
+fn person_task_configuration(seed: u64) -> engine::Config {
+    use jig_domain_authority::Executor;
+    use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
+    let mut config = temper_engine_domain_world::walking::config(seed);
+    config.core.defaults.rules.ceiling.delegation.depth = PERSON_DEPTH;
+    config.core.defaults.rules.ceiling.delegation.tasks = PERSON_TASKS;
+    let kinds: Box<[Executor]> = Box::new([Executor::Charter(1), Executor::Role(0)]);
+    config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
+    let policy = &mut config.core.seed_projects[0].policy;
+    policy.policy.ceiling.delegation.depth = PERSON_DEPTH;
+    policy.policy.ceiling.delegation.tasks = PERSON_TASKS;
+    policy.policy.roles[0].authority.delegation.depth = PERSON_DEPTH;
+    policy.policy.roles[0].authority.delegation.tasks = PERSON_TASKS;
+    policy.policy.ceiling.delegation.kinds.clone_from(&kinds);
+    policy.policy.roles[0].authority.delegation.kinds = kinds;
+    for permission in &mut policy.permissions {
+        permission.role = 0;
+    }
+    config.core.defaults.policies.insert(1, policy.clone()).expect("policy 1");
+    let mut templates = config.core.defaults.templates.to_vec();
+    let mut goal = templates[1].clone();
+    goal.number = 4;
+    goal.executor = TemplateExecutor::Charter(1);
+    goal.budget = TemplateBudget::AsAllowed { cap: None };
+    goal.deadline = TemplateDeadline::None;
+    templates.push(goal);
+    config.core.defaults.templates = templates.into_boxed_slice();
+    config
+}

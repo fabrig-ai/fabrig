@@ -1,6 +1,6 @@
 # jig's channel
 
-Provisional, 2026-10-10, revised 2026-10-26. The channel between an
+Provisional, 2026-10-10, revised 2026-11-04. The channel between an
 engine and each of its workers: the contract of `../domain/hosts.md`,
 section 2, carried as frames of skein's framed channel (skein's
 `channel.md`) with records generated from schemas (skein's `codec.md`).
@@ -305,6 +305,15 @@ answer, and a **notice** is not answered.
   busy, a relayed call answered busy or as an error, and an answer
   acknowledged again when the engine has finished with its attempt
   (`../domain/engine.md`, section 8).
+- **An assignment that cannot encode ends at the engine's component.**
+  It preserves the task, attempt and channel, sends no assignment to the
+  worker, and returns one upward answer: invalid start, cause other,
+  zero turns and spend, no read fence, refused messages or application
+  parts. Its diagnostic is ASCII `assignment cannot encode`, shortened
+  to the configured detail bound, empty at zero. The fleet settles this
+  refusal through its usual answer route, releasing the reservation;
+  the worker has no start to cancel. Other records that cannot encode
+  are counted and discarded.
 - **Busy, sent again.** A turn answered busy is held by the worker's
   link component, which sends it again after a jittered backoff, as it
   keeps the grace's clock (10.1); the hub arms no timers
