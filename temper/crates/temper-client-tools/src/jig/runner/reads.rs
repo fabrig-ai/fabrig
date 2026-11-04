@@ -291,7 +291,7 @@ pub(super) fn page(
     {
         read(runner, &mut reading, 8, c::Read::PersonTask { task: task.chip.task }, out);
     }
-    if reading.called.call.tool == 3 && local == 7 {
+    if (reading.called.call.tool == rows::TASK_AT || reading.called.call.tool == rows::TASK_TEXT_AT) && local == 7 {
         super::specification::accept(&mut reading, &page);
         complete(runner, client, env, reading, out);
         return;
