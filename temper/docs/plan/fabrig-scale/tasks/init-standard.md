@@ -335,3 +335,12 @@ profile follow from init's profile moving to standard may be updated in place (t
 take temper's test, fixture and golden trees). Stop and ask only for product code outside the
 files, or for a design change. Run the whole of each touched test binary before pushing, so the
 next pinned figure is found in this run, not the next.
+
+### 2026-11-04: May the task repair `reviews.rs`'s eight-task saturation fixture? Options: give it an explicit eight-task cap and rename its shipped-limit claim (recommended), or fill Standard's 128-task capacity before testing refusal. (fabrig-scale/init-standard-8, foreman fabrig-scale/init-standard/foreman-8)
+
+Give the saturation fixture an explicit eight-task cap and rename its shipped-limit claim, as covered by the standing answer.
+The final standing answer authorizes “any test, fixture, golden file or test helper whose expected figures, bounds or profile follow from init's profile moving to standard”.
+It says: “Stop and ask only for product code outside the files, or for a design change.”
+In `temper/tests/engine/domain/tests/suite/forge_routes/reviews.rs`, pass 8 to `pending_large_with_alpha_and_beta`, remove the shipped-capacity assertion, and rename the test to describe its explicit task limit.
+Keep the `tasks::Refusal::Live` and subsequent room-release assertions: they preserve the saturation regression.
+Run the whole touched test binary before pushing, as the standing answer requires, then complete the remaining acceptance checks and status updates with the three authorized exclusions.
