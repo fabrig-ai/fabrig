@@ -6,7 +6,6 @@
     reason = "commit queues, segments, and snapshot chunks are bounded by the store limits"
 )]
 #![expect(clippy::disallowed_methods, reason = "pure bounded admission and recovery scans have no hidden effects")]
-#![expect(clippy::struct_excessive_bools, reason = "recovery flags distinguish independent durable milestones")]
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -38,10 +37,10 @@ struct Pending {
 #[derive(Debug)]
 enum Phase {
     Listing,
-    OpeningLog { name: Box<[u8]> },
-    ReadingLog { file: Token, len: u64, at: u64, bytes: Vec<u8>, replayed: Result<bool, Failure> },
-    ClosingRecovered,
-    RemovingTail,
+    OpeningLog { name: Box<[u8]>, next: usize },
+    ReadingLog { file: Token, len: u64, at: u64, bytes: Vec<u8>, next: usize },
+    ClosingRecovered { next: usize },
+    RemovingTail { name: Box<[u8]> },
     Creating { name: Box<[u8]> },
     Announcing { file: Token },
     Ready { file: Token, offset: u64 },
@@ -54,9 +53,9 @@ enum Phase {
     SnapshotFailureClosing { log: Log },
     OpenFailureClosing { failure: Failure },
     OpeningSnapshot,
-    ReadingSnapshot { file: Token, len: u64, at: u64, reader: snapshot::Reader, failure: Option<Failure> },
-    ClosingSnapshot,
-    RemovingTempOnOpen,
+    ReadingSnapshot { file: Token, len: u64, at: u64, reader: snapshot::Reader },
+    ClosingSnapshot { next: usize },
+    RemovingTempOnOpen { snapshot: bool },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -70,7 +69,7 @@ struct Log {
 #[derive(Debug)]
 pub struct Store {
     state: State,
-    repair_required: bool,
+    repair: Repair,
     last: u64,
     map: KvMap,
     queue: Queue<Pending>,
@@ -94,38 +93,39 @@ enum State {
 #[derive(Debug)]
 struct Dir {
     root: Fd,
-    open_owner: Option<Token>,
+    serving: Serving,
     close_owner: Option<Token>,
     active: Vec<Pending>,
     segments: Vec<Box<[u8]>>,
-    segment_index: usize,
-    tail_name: Option<Box<[u8]>>,
-    recovered: bool,
     compaction: Compaction,
-    has_snapshot: bool,
-    has_temp: bool,
     log_bytes: u64,
-    repairing: bool,
-    recovering_after_failure: bool,
+}
+
+/// Who hears when the store serves (skein/docs/design/kv.md, 2).
+#[derive(Debug)]
+enum Serving {
+    Yes,
+    Opening { owner: Token },
+    Recovering,
+}
+
+/// Whether recovery needs a snapshot before serving (skein/docs/design/kv.md, 3 and 4).
+#[derive(Debug)]
+enum Repair {
+    Clean,
+    Required,
 }
 
 impl Dir {
     fn new(root: Fd, owner: Token) -> Dir {
         Dir {
             root,
-            open_owner: Some(owner),
+            serving: Serving::Opening { owner },
             close_owner: None,
             active: Vec::new(),
             segments: Vec::new(),
-            segment_index: 0,
-            tail_name: None,
-            recovered: false,
             compaction: Compaction::Idle,
-            has_snapshot: false,
-            has_temp: false,
             log_bytes: 0,
-            repairing: false,
-            recovering_after_failure: false,
         }
     }
 
@@ -182,7 +182,7 @@ impl Store {
         assert!(limits.is_usable(), "a store needs usable limits");
         Store {
             state: State::Closed,
-            repair_required: false,
+            repair: Repair::Clean,
             last: 0,
             map: KvMap::new(limits),
             queue: Queue::with_capacity(limits.queued),
@@ -258,43 +258,29 @@ impl Store {
         self.last = 0;
         self.map = KvMap::new(limits);
         dir.segments.clear();
-        dir.segment_index = 0;
-        dir.tail_name = None;
-        dir.recovered = false;
         dir.compaction = Compaction::Idle;
-        dir.has_snapshot = false;
-        dir.has_temp = false;
         dir.log_bytes = 0;
-        dir.repairing = false;
         below.push(file::Request::List { owner: IO_OWNER, root: dir.root });
         dir.at(Phase::Listing)
     }
 
     fn finish_recovery(&mut self, mut dir: Dir, below: &mut Queue<file::Request>) -> State {
         let next = self.last.checked_add(1).expect("commit number did not overflow");
-        if self.repair_required {
-            dir.repairing = true;
-        }
-        if dir.repairing {
-            dir.compaction = Compaction::Due { start: next };
+        match self.repair {
+            Repair::Clean => {}
+            Repair::Required => dir.compaction = Compaction::Due { start: next },
         }
         let name = segment_name(next);
         if dir.segments.iter().any(|entry| entry.as_ref() == name.as_ref()) {
-            dir.tail_name = Some(name);
-            below.push(file::Request::Remove {
-                owner: IO_OWNER,
-                root: dir.root,
-                name: dir.tail_name.as_ref().expect("set").clone(),
-                directory: false,
-            });
-            dir.at(Phase::RemovingTail)
+            below.push(file::Request::Remove { owner: IO_OWNER, root: dir.root, name: name.clone(), directory: false });
+            dir.at(Phase::RemovingTail { name })
         } else {
             create_segment(dir, name, below)
         }
     }
 
-    fn next_log(&mut self, mut dir: Dir, below: &mut Queue<file::Request>, limits: &Limits) -> State {
-        let Some(name) = dir.segments.get(dir.segment_index).cloned() else {
+    fn next_log(&mut self, mut dir: Dir, next: usize, below: &mut Queue<file::Request>, limits: &Limits) -> State {
+        let Some(name) = dir.segments.get(next).cloned() else {
             if dir.log_bytes >= limits.snapshot_bound(self.map.live()) {
                 // Recovery creates the snapshot's starting segment without another rollover.
                 dir.compaction =
@@ -302,40 +288,28 @@ impl Store {
             }
             return self.finish_recovery(dir, below);
         };
-        dir.segment_index = dir.segment_index.checked_add(1).expect("segment index fits");
+        let next = next.checked_add(1).expect("segment index fits");
         below.push(file::Request::OpenRead { owner: IO_OWNER, root: dir.root, name: name.clone() });
-        dir.at(Phase::OpeningLog { name })
+        dir.at(Phase::OpeningLog { name, next })
     }
 
-    fn start_recovery(&mut self, dir: Dir, below: &mut Queue<file::Request>, limits: &Limits) -> State {
-        if dir.has_snapshot {
+    fn start_recovery(&mut self, dir: Dir, snapshot: bool, below: &mut Queue<file::Request>, limits: &Limits) -> State {
+        if snapshot {
             below.push(file::Request::OpenRead { owner: IO_OWNER, root: dir.root, name: Box::from(&b"snapshot"[..]) });
             dir.at(Phase::OpeningSnapshot)
         } else {
-            self.next_log(dir, below, limits)
+            self.next_log(dir, 0, below, limits)
         }
     }
 
-    fn apply_snapshot(
-        &mut self,
-        reader: &mut snapshot::Reader,
-        read: &[u8],
-        failure: &mut Option<Failure>,
-        limits: &Limits,
-    ) {
-        if *failure == Some(Failure::Corrupt) {
-            return;
-        }
+    fn apply_snapshot(&mut self, reader: &mut snapshot::Reader, read: &[u8], limits: &Limits) -> Result<(), Failure> {
         let mut input = read;
         // Each part consumes bytes of this read; an incomplete part ends the pass.
         for _ in 0..read.len() {
             if input.is_empty() {
                 break;
             }
-            let Some(part) = reader.next(&mut input, limits.chunk) else {
-                *failure = Some(Failure::Corrupt);
-                return;
-            };
+            let part = reader.next(&mut input, limits.chunk).ok_or(Failure::Corrupt)?;
             match part {
                 snapshot::Part::NeedMore => break,
                 snapshot::Part::Start { start } => {
@@ -343,19 +317,15 @@ impl Store {
                 }
                 snapshot::Part::Rows { rows } => {
                     for row in rows {
-                        if failure.is_some() {
-                            break;
-                        }
                         let op = Op::Put { key: row.key, value: row.value };
-                        match self.map.check(core::slice::from_ref(&op), limits) {
-                            Ok(used) => self.map.apply(core::slice::from_ref(&op), used),
-                            Err(_) => *failure = Some(Failure::Full),
-                        }
+                        let used = self.map.check(core::slice::from_ref(&op), limits).map_err(|_| Failure::Full)?;
+                        self.map.apply(core::slice::from_ref(&op), used);
                     }
                 }
                 snapshot::Part::End => {}
             }
         }
+        Ok(())
     }
 
     fn replay(&mut self, dir: &mut Dir, bytes: &mut Vec<u8>, limits: &Limits) -> Result<bool, Failure> {
@@ -495,8 +465,9 @@ pub fn down(
 }
 
 fn available(dir: &Dir, phase: &Phase) -> bool {
-    dir.recovered
-        && match phase {
+    match dir.serving {
+        Serving::Opening { .. } | Serving::Recovering => false,
+        Serving::Yes => match phase {
             Phase::Ready { .. }
             | Phase::Writing { .. }
             | Phase::Syncing { .. }
@@ -507,17 +478,18 @@ fn available(dir: &Dir, phase: &Phase) -> bool {
             Phase::Listing
             | Phase::OpeningLog { .. }
             | Phase::ReadingLog { .. }
-            | Phase::ClosingRecovered
-            | Phase::RemovingTail
+            | Phase::ClosingRecovered { .. }
+            | Phase::RemovingTail { .. }
             | Phase::Closing
             | Phase::RecoveryClosing
             | Phase::OpeningSnapshot
             | Phase::ReadingSnapshot { .. }
-            | Phase::ClosingSnapshot
-            | Phase::RemovingTempOnOpen
+            | Phase::ClosingSnapshot { .. }
+            | Phase::RemovingTempOnOpen { .. }
             | Phase::SnapshotFailureClosing { .. }
             | Phase::OpenFailureClosing { .. } => false,
-        }
+        },
+    }
 }
 
 fn begin_batch(store: &mut Store, dir: Dir, phase: Phase, step: &mut Step<'_>) -> State {
@@ -526,8 +498,8 @@ fn begin_batch(store: &mut Store, dir: Dir, phase: Phase, step: &mut Step<'_>) -
         phase @ (Phase::Listing
         | Phase::OpeningLog { .. }
         | Phase::ReadingLog { .. }
-        | Phase::ClosingRecovered
-        | Phase::RemovingTail
+        | Phase::ClosingRecovered { .. }
+        | Phase::RemovingTail { .. }
         | Phase::Creating { .. }
         | Phase::Announcing { .. }
         | Phase::Writing { .. }
@@ -540,8 +512,8 @@ fn begin_batch(store: &mut Store, dir: Dir, phase: Phase, step: &mut Step<'_>) -
         | Phase::OpenFailureClosing { .. }
         | Phase::OpeningSnapshot
         | Phase::ReadingSnapshot { .. }
-        | Phase::ClosingSnapshot
-        | Phase::RemovingTempOnOpen) => dir.at(phase),
+        | Phase::ClosingSnapshot { .. }
+        | Phase::RemovingTempOnOpen { .. }) => dir.at(phase),
     }
 }
 
@@ -657,8 +629,8 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
         phase @ (Phase::Listing
         | Phase::OpeningLog { .. }
         | Phase::ReadingLog { .. }
-        | Phase::ClosingRecovered
-        | Phase::RemovingTail
+        | Phase::ClosingRecovered { .. }
+        | Phase::RemovingTail { .. }
         | Phase::Creating { .. }
         | Phase::Announcing { .. }
         | Phase::Writing { .. }
@@ -671,8 +643,8 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
         | Phase::OpenFailureClosing { .. }
         | Phase::OpeningSnapshot
         | Phase::ReadingSnapshot { .. }
-        | Phase::ClosingSnapshot
-        | Phase::RemovingTempOnOpen) => dir.at(phase),
+        | Phase::ClosingSnapshot { .. }
+        | Phase::RemovingTempOnOpen { .. }) => dir.at(phase),
     }
 }
 
@@ -730,8 +702,8 @@ pub fn up(
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::RemovingTempOnOpen => match event {
-                Done::Finished => temp_removed(store, dir, &mut step),
+            Phase::RemovingTempOnOpen { snapshot } => match event {
+                Done::Finished => temp_removed(store, dir, snapshot, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
@@ -744,40 +716,40 @@ pub fn up(
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::ReadingSnapshot { file, len, at, reader, failure } => match event {
-                Done::Read { bytes } => {
-                    snapshot_read(store, dir, ReadAt { file, len, at }, reader, failure, bytes, &mut step)
-                }
+            Phase::ReadingSnapshot { file, len, at, reader } => match event {
+                Done::Read { bytes } => snapshot_read(store, dir, ReadAt { file, len, at }, reader, bytes, &mut step),
                 Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Finished => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::ClosingSnapshot | Phase::ClosingRecovered => match event {
-                Done::Finished => recovered_file_closed(store, dir, &mut step),
+            Phase::ClosingSnapshot { next } | Phase::ClosingRecovered { next } => match event {
+                Done::Finished => recovered_file_closed(store, dir, next, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::OpeningLog { name } => match event {
-                Done::Opened { file, len } => log_opened(store, dir, name, file, len, &mut step),
+            Phase::OpeningLog { name, next } => match event {
+                Done::Opened { file, len } => {
+                    log_opened(store, dir, name, next, ReadAt { file, len, at: 0 }, &mut step)
+                }
                 Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
                 Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::ReadingLog { file, len, at, bytes, replayed } => match event {
+            Phase::ReadingLog { file, len, at, bytes, next } => match event {
                 Done::Read { bytes: read } => {
-                    log_read(store, dir, ReadAt { file, len, at }, bytes, replayed, read, &mut step)
+                    log_read(store, dir, ReadAt { file, len, at }, bytes, next, read, &mut step)
                 }
                 Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Finished => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::RemovingTail => match event {
-                Done::Finished => tail_removed(dir, step.below),
+            Phase::RemovingTail { name } => match event {
+                Done::Finished => tail_removed(dir, name, step.below),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
@@ -857,34 +829,35 @@ pub fn up(
 
 fn listed(store: &mut Store, mut dir: Dir, entries: Box<[file::Entry]>, step: &mut Step<'_>) -> State {
     dir.segments.clear();
+    let mut snapshot = false;
+    let mut temp = false;
     for entry in entries {
         if entry.name.as_ref() == b"snapshot" {
-            dir.has_snapshot = true;
+            snapshot = true;
         }
         if entry.name.as_ref() == b"snapshot.tmp" {
-            dir.has_temp = true;
+            temp = true;
         }
         if log_number(&entry.name).is_some() {
             dir.segments.push(entry.name);
         }
     }
     dir.segments.sort_unstable();
-    dir.segment_index = 0;
-    if dir.has_temp {
+    if temp {
         step.below.push(file::Request::Remove {
             owner: IO_OWNER,
             root: dir.root,
             name: Box::from(&b"snapshot.tmp"[..]),
             directory: false,
         });
-        dir.at(Phase::RemovingTempOnOpen)
+        dir.at(Phase::RemovingTempOnOpen { snapshot })
     } else {
-        store.start_recovery(dir, step.below, &step.env.limits)
+        store.start_recovery(dir, snapshot, step.below, &step.env.limits)
     }
 }
 
-fn temp_removed(store: &mut Store, dir: Dir, step: &mut Step<'_>) -> State {
-    store.start_recovery(dir, step.below, &step.env.limits)
+fn temp_removed(store: &mut Store, dir: Dir, snapshot: bool, step: &mut Step<'_>) -> State {
+    store.start_recovery(dir, snapshot, step.below, &step.env.limits)
 }
 
 struct ReadAt {
@@ -907,15 +880,14 @@ fn snapshot_opened(dir: Dir, file: Token, len: u64, step: &mut Step<'_>) -> Stat
         offset: 0,
         max: read_size(step.env.limits.chunk, len, 0),
     });
-    dir.at(Phase::ReadingSnapshot { file, len, at: 0, reader: snapshot::Reader::new(), failure: None })
+    dir.at(Phase::ReadingSnapshot { file, len, at: 0, reader: snapshot::Reader::new() })
 }
 
 fn snapshot_read(
     store: &mut Store,
-    mut dir: Dir,
+    dir: Dir,
     source: ReadAt,
     mut reader: snapshot::Reader,
-    mut failure: Option<Failure>,
     read: Box<[u8]>,
     step: &mut Step<'_>,
 ) -> State {
@@ -924,7 +896,9 @@ fn snapshot_read(
     if read.is_empty() || next.is_none_or(|next| next > len) {
         return open_failed_file(dir, file, Failure::Corrupt, step.below);
     }
-    store.apply_snapshot(&mut reader, &read, &mut failure, &step.env.limits);
+    if let Err(failure) = store.apply_snapshot(&mut reader, &read, &step.env.limits) {
+        return open_failed_file(dir, file, failure, step.below);
+    }
     let next = next.expect("checked read offset");
     if next < len {
         step.below.push(file::Request::ReadAt {
@@ -933,59 +907,51 @@ fn snapshot_read(
             offset: next,
             max: read_size(step.env.limits.chunk, len, next),
         });
-        dir.at(Phase::ReadingSnapshot { file, len, at: next, reader, failure })
+        dir.at(Phase::ReadingSnapshot { file, len, at: next, reader })
     } else {
-        let start = reader.finish();
-        if start.is_none() {
-            failure = Some(Failure::Corrupt);
-        }
-        if let Some(failure) = failure {
-            return open_failed_file(dir, file, failure, step.below);
-        }
-        let start = start.expect("the snapshot ends with a checked trailer");
-        dir.segment_index = dir
+        let Some(start) = reader.finish() else {
+            return open_failed_file(dir, file, Failure::Corrupt, step.below);
+        };
+        let next = dir
             .segments
             .iter()
             .position(|name| log_number(name).is_some_and(|number| number >= start))
             .unwrap_or(dir.segments.len());
         step.below.push(file::Request::Close { owner: IO_OWNER, file });
-        dir.at(Phase::ClosingSnapshot)
+        dir.at(Phase::ClosingSnapshot { next })
     }
 }
 
-fn recovered_file_closed(store: &mut Store, dir: Dir, step: &mut Step<'_>) -> State {
-    store.next_log(dir, step.below, &step.env.limits)
+fn recovered_file_closed(store: &mut Store, dir: Dir, next: usize, step: &mut Step<'_>) -> State {
+    store.next_log(dir, next, step.below, &step.env.limits)
 }
 
-fn log_opened(store: &mut Store, mut dir: Dir, name: Box<[u8]>, file: Token, len: u64, step: &mut Step<'_>) -> State {
+fn log_opened(store: &mut Store, dir: Dir, name: Box<[u8]>, next: usize, source: ReadAt, step: &mut Step<'_>) -> State {
+    let ReadAt { file, len, at } = source;
     let cap = step.env.limits.segment.saturating_add(step.env.limits.queued_bytes);
     if len > cap {
         return open_failed_file(dir, file, Failure::Full, step.below);
     }
     let first = log_number(&name).expect("an opened log has a numbered name");
     if len != 0 {
-        let Some(next) = store.last.checked_add(1) else {
+        let Some(number) = store.last.checked_add(1) else {
             return open_failed_file(dir, file, Failure::Corrupt, step.below);
         };
-        if first != next {
-            dir.segment_index = dir.segments.len();
-            dir.repairing = true;
-            store.repair_required = true;
-            step.below.push(file::Request::Close { owner: IO_OWNER, file });
-            return dir.at(Phase::ClosingRecovered);
+        if first != number {
+            return log_damaged(store, dir, file, step.below);
         }
     }
     if len == 0 {
         step.below.push(file::Request::Close { owner: IO_OWNER, file });
-        dir.at(Phase::ClosingRecovered)
+        dir.at(Phase::ClosingRecovered { next })
     } else {
         step.below.push(file::Request::ReadAt {
             owner: IO_OWNER,
             file,
-            offset: 0,
-            max: read_size(step.env.limits.chunk, len, 0),
+            offset: at,
+            max: read_size(step.env.limits.chunk, len, at),
         });
-        dir.at(Phase::ReadingLog { file, len, at: 0, bytes: Vec::new(), replayed: Ok(true) })
+        dir.at(Phase::ReadingLog { file, len, at, bytes: Vec::new(), next })
     }
 }
 
@@ -994,50 +960,47 @@ fn log_read(
     mut dir: Dir,
     source: ReadAt,
     mut bytes: Vec<u8>,
-    mut replayed: Result<bool, Failure>,
+    next: usize,
     read: Box<[u8]>,
     step: &mut Step<'_>,
 ) -> State {
     let ReadAt { file, len, at } = source;
-    let next = at.checked_add(skein_lib::len_u64(read.len()));
-    if read.is_empty() || next.is_none_or(|next| next > len) {
+    let end = at.checked_add(skein_lib::len_u64(read.len()));
+    if read.is_empty() || end.is_none_or(|end| end > len) {
         return open_failed_file(dir, file, Failure::Corrupt, step.below);
     }
-    if replayed == Ok(true) {
-        bytes.reserve_exact(read.len());
-        bytes.extend_from_slice(&read);
-        replayed = store.replay(&mut dir, &mut bytes, &step.env.limits);
-        if replayed != Ok(true) {
-            bytes = Vec::new();
-        }
+    bytes.reserve_exact(read.len());
+    bytes.extend_from_slice(&read);
+    match store.replay(&mut dir, &mut bytes, &step.env.limits) {
+        Err(failure) => return open_failed_file(dir, file, failure, step.below),
+        Ok(false) => return log_damaged(store, dir, file, step.below),
+        Ok(true) => {}
     }
-    let next = next.expect("checked read offset");
-    if next < len {
+    let end = end.expect("checked read offset");
+    if end < len {
         step.below.push(file::Request::ReadAt {
             owner: IO_OWNER,
             file,
-            offset: next,
-            max: read_size(step.env.limits.chunk, len, next),
+            offset: end,
+            max: read_size(step.env.limits.chunk, len, end),
         });
-        dir.at(Phase::ReadingLog { file, len, at: next, bytes, replayed })
+        dir.at(Phase::ReadingLog { file, len, at: end, bytes, next })
+    } else if bytes.is_empty() {
+        step.below.push(file::Request::Close { owner: IO_OWNER, file });
+        dir.at(Phase::ClosingRecovered { next })
     } else {
-        match replayed {
-            Ok(whole) => {
-                if !whole || !bytes.is_empty() {
-                    dir.segment_index = dir.segments.len();
-                    dir.repairing = true;
-                    store.repair_required = true;
-                }
-                step.below.push(file::Request::Close { owner: IO_OWNER, file });
-                dir.at(Phase::ClosingRecovered)
-            }
-            Err(failure) => open_failed_file(dir, file, failure, step.below),
-        }
+        log_damaged(store, dir, file, step.below)
     }
 }
 
-fn tail_removed(mut dir: Dir, below: &mut Queue<file::Request>) -> State {
-    let name = dir.tail_name.take().expect("tail to remove");
+fn log_damaged(store: &mut Store, dir: Dir, file: Token, below: &mut Queue<file::Request>) -> State {
+    store.repair = Repair::Required;
+    let next = dir.segments.len();
+    below.push(file::Request::Close { owner: IO_OWNER, file });
+    dir.at(Phase::ClosingRecovered { next })
+}
+
+fn tail_removed(dir: Dir, name: Box<[u8]>, below: &mut Queue<file::Request>) -> State {
     create_segment(dir, name, below)
 }
 
@@ -1053,11 +1016,10 @@ fn segment_created(mut dir: Dir, name: Box<[u8]>, file: Token, below: &mut Queue
 }
 
 fn segment_announced(store: &mut Store, mut dir: Dir, file: Token, step: &mut Step<'_>) -> State {
-    let was_recovered = dir.recovered;
-    dir.recovered = !dir.repairing;
     dir.compaction = dir.compaction.announced(&mut dir.log_bytes);
-    if !was_recovered && !dir.repairing {
-        announce_recovered(&mut dir, store.last, step.above);
+    match store.repair {
+        Repair::Clean => announce_recovered(&mut dir, store.last, step.above),
+        Repair::Required => {}
     }
     follow_ready(store, dir, file, 0, step)
 }
@@ -1112,8 +1074,11 @@ fn rollover_closed(store: &mut Store, dir: Dir, step: &mut Step<'_>) -> State {
 }
 
 fn commits_failed(store: &mut Store, mut dir: Dir, file: Option<Token>, step: &mut Step<'_>) -> State {
-    store.repair_required = true;
-    dir.recovering_after_failure = true;
+    store.repair = Repair::Required;
+    dir.serving = match dir.serving {
+        Serving::Yes | Serving::Recovering => Serving::Recovering,
+        state @ Serving::Opening { .. } => state,
+    };
     for pending in dir.active.drain(..) {
         step.above.push(Event::Failed { owner: pending.owner, number: pending.number });
     }
@@ -1131,19 +1096,18 @@ fn commits_failed(store: &mut Store, mut dir: Dir, file: Option<Token>, step: &m
 }
 
 fn announce_recovered(dir: &mut Dir, last: u64, above: &mut Queue<Event>) {
-    if let Some(owner) = dir.open_owner.take() {
-        above.push(Event::Opened { owner, last });
-    } else if dir.recovering_after_failure {
-        above.push(Event::Recovered { last });
+    match mem::replace(&mut dir.serving, Serving::Yes) {
+        Serving::Opening { owner } => above.push(Event::Opened { owner, last }),
+        Serving::Recovering => above.push(Event::Recovered { last }),
+        Serving::Yes => {}
     }
-    dir.recovering_after_failure = false;
 }
 
 fn open_failed(mut dir: Dir, failure: Failure, above: &mut Queue<Event>) -> State {
-    if let Some(owner) = dir.open_owner.take() {
-        above.push(Event::OpenFailed { owner, failure });
-    } else if dir.recovering_after_failure {
-        above.push(Event::RecoveryFailed { failure });
+    match dir.serving {
+        Serving::Opening { owner } => above.push(Event::OpenFailed { owner, failure }),
+        Serving::Recovering => above.push(Event::RecoveryFailed { failure }),
+        Serving::Yes => {}
     }
     if let Some(owner) = dir.close_owner.take() {
         above.push(Event::Closed { owner });
@@ -1170,8 +1134,8 @@ pub fn is_ready(store: &Store, limits: &Limits) -> bool {
             Phase::Listing
             | Phase::OpeningLog { .. }
             | Phase::ReadingLog { .. }
-            | Phase::ClosingRecovered
-            | Phase::RemovingTail
+            | Phase::ClosingRecovered { .. }
+            | Phase::RemovingTail { .. }
             | Phase::Creating { .. }
             | Phase::Announcing { .. }
             | Phase::Writing { .. }
@@ -1184,8 +1148,8 @@ pub fn is_ready(store: &Store, limits: &Limits) -> bool {
             | Phase::OpenFailureClosing { .. }
             | Phase::OpeningSnapshot
             | Phase::ReadingSnapshot { .. }
-            | Phase::ClosingSnapshot
-            | Phase::RemovingTempOnOpen => false,
+            | Phase::ClosingSnapshot { .. }
+            | Phase::RemovingTempOnOpen { .. } => false,
         },
     }
 }
@@ -1200,8 +1164,8 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
             phase @ (Phase::Listing
             | Phase::OpeningLog { .. }
             | Phase::ReadingLog { .. }
-            | Phase::ClosingRecovered
-            | Phase::RemovingTail
+            | Phase::ClosingRecovered { .. }
+            | Phase::RemovingTail { .. }
             | Phase::Creating { .. }
             | Phase::Announcing { .. }
             | Phase::Writing { .. }
@@ -1214,8 +1178,8 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
             | Phase::OpenFailureClosing { .. }
             | Phase::OpeningSnapshot
             | Phase::ReadingSnapshot { .. }
-            | Phase::ClosingSnapshot
-            | Phase::RemovingTempOnOpen) => dir.at(phase),
+            | Phase::ClosingSnapshot { .. }
+            | Phase::RemovingTempOnOpen { .. }) => dir.at(phase),
         },
     };
 }
