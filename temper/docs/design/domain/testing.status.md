@@ -23,6 +23,23 @@
   story ending at its task's first terminal failure. 2.7: the live GitHub
   story connects the probe App without `--read-only`, so its record's
   `read_only` is false (`crates/temper/tests/support/live_github.rs`).
+  2.7: the held record's guard, moved in with no box up. The guard's first
+  try, `give-back` alone, writes `terminal-return` before its ctl calls
+  fail, as a second sitting's failed return has already done, and
+  `return_on_a_new_box` then installs the hook again for its new client,
+  which `install_hook` refuses with a panic, the refusal
+  `terminal_login_cleanup_excludes_a_restart_import` asks for. So no box
+  starts, and the guard ends in `LOGIN NOT BACK` with the store kept, not
+  with the record back as its draft of 11-04 says
+  (`crates/temper/tests/support/held_login.rs`,
+  `crates/temper/tests/support/forge_land/rung.rs`). The process story
+  that asks for the record back,
+  `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,
+  is outside the gate's binaries, and the suite's
+  `a_lent_record_not_back_keeps_its_store_and_the_storys_panic` passes on
+  the refusal's notice; a return on a box started past a failed try has
+  no story in the gate, and `crates/temper/tests/live.rs`'s guard no offline
+  one.
   2.7: the owned-forge
   landing pair has not passed in the after-landing tier: neither story
   has passed live on its own store, the
@@ -51,6 +68,13 @@
 - **Departs:** 5.3: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and
   its code awaits removal with its design.
+  2.7: the guard's draft of 11-04 has it made right after the import, its
+  `Drop` running while the box is up, an explicit export disarming it.
+  `Lent` stands before the first sitting, because the import is inside
+  that sitting and the guard must outlive it; it starts a box where none
+  is up, because a failed return and a panic through a sitting leave none;
+  and `stat` disarms it, so that no flag can be forgotten. The draft's
+  goal, every exit path exports the record, stands above that mechanism.
   4.3: `temper-fake-git/src/exchange.rs`, `decode`, and its
   `src/tests/net.rs`, `decode`, each drive a tokenizer over one whole body
   in a `Held` by hand, with their own step bounds, where

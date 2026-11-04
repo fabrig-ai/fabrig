@@ -1403,10 +1403,11 @@ section 8; testing-strategy.md, 2.9).
     (../client/tools.md, 8.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
-- **The held record's guard,** for the landing story, whose two sittings
-  leave the record in the store across a stopped box: the second proves
-  the restart on it. The runner's return and the story's own each need a
-  box up, so a panic between the sittings finds none. `Lent`
+- **The held record's guard,** for the landing story, whose box can end
+  with the record still in the store: each box returns it before
+  stopping, but a return can fail, and a panic through a sitting ends the
+  box with no return. The runner's return and the story's own each need
+  a box up, so neither reaches it. `Lent`
   (`tests/support/held_login.rs`) stands from before the first sitting to
   the test's end. On every ending, a panic anywhere, a failed assertion
   or an early return, its `Drop` settles what is owed, by `stat` alone,
@@ -2647,7 +2648,9 @@ scripts/proof-live.sh               the live tier
   invocation within profile `live-temper`'s 50 minutes, each story
   bounding itself at 40 (2.7). The profile's figure is set from the
   pair's first after-landing wall times, and is the user's.
-- **A signal between the landing story's sittings.** A signal to the test
-  process runs no `Drop`, and the runner's `give-back` finds no box up:
-  the record stays in the store and the notice says so (2.7). Closing it
-  is a return that starts its own box, in the runner's part.
+- **A signal with the record in a stopped box's store.** Between sittings
+  a signal finds the record at its path, each box having returned it; after
+  a return that failed it does not. A signal to the test process runs no
+  `Drop`, and the runner's `give-back` finds no box up: the record stays in
+  the store and the notice says so (2.7). Closing it is a return that
+  starts its own box, in the runner's part.

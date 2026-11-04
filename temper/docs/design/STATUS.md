@@ -72,9 +72,10 @@ person's identity panics at a start, which the user's request counts a
 bug (`domain/root.md`). The case library's
 purpose is retired, the fake git program drives skein's JSON tokenizer
 over a whole body by hand, the ladder has no twin past B1 and no live
-story but B0's, and the live scripts default to a scratch layout of
-whoever runs fabrig's development, in a form the outward check does not
-match (`domain/testing.md`), and the `welcome-set-up`
+story but B0's, the held record's guard refuses its own return where no
+box is up, and the live scripts default to a scratch layout of whoever
+runs fabrig's development, in a form the outward check does not match
+(`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). The forge's connect
 refusals that ctl renders name no remedy (`protocol/documentation.md`).
 Six hand-written
