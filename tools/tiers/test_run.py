@@ -15,6 +15,7 @@ import unittest
 from unittest import mock
 
 
+BUILD_RUNNER = "heavy"
 RUN = Path(__file__).resolve().with_name("run")
 MODULE = runpy.run_path(str(RUN))
 FAKE = '''#!/usr/bin/env python3
@@ -112,7 +113,7 @@ class RunnerTests(unittest.TestCase):
         self.bin.mkdir()
         self.target = self.root / "relocated artifacts"
         (self.target / "debug").mkdir(parents=True)
-        for path in [*(self.bin / name for name in ("cargo", "heavy", "df")),
+        for path in [*(self.bin / name for name in ("cargo", BUILD_RUNNER, "df")),
                      self.target / "debug/skein-ui-bundle"]:
             path.write_text(FAKE)
             path.chmod(0o700)
@@ -139,7 +140,7 @@ class RunnerTests(unittest.TestCase):
                                  '[binaries]\nnew-tier-newtree = []\n')
         result, calls = self.invoke("newtree", "new-tier", "--", "-E", "test(=one)")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["df", "heavy"])
+        self.assertEqual([call['name'] for call in calls], ["df", BUILD_RUNNER])
         self.assertEqual(calls[-1]['args'], ["cargo", "nextest", "run", "-p", "a-package", "-p", "z-package", "--profile",
                                             "new-tier-newtree", "--no-fail-fast", "-E", "test(=one)"])
         result, calls = self.invoke("skein", "browser")
@@ -152,7 +153,7 @@ class RunnerTests(unittest.TestCase):
             with self.subTest(tree=tree, tier=tier):
                 result, calls = self.invoke(tree, tier)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual([call['name'] for call in calls], ["df", "heavy"])
+                self.assertEqual([call['name'] for call in calls], ["df", BUILD_RUNNER])
                 self.assertEqual(calls[-1]['env']['NEXTEST_DOUBLE_SPAWN'], "0")
                 self.assertIn("/fixture/heavy.log", result.stdout)
                 self.assertIn("Summary: fixture tests", result.stdout)
@@ -195,8 +196,8 @@ class RunnerTests(unittest.TestCase):
                                                        "--bin", "fake-claude"])
                     del calls[8:10]
                 self.assertEqual([call['name'] for call in calls],
-                                 ["cargo", "df", "heavy", "df", "heavy", "skein-ui-bundle",
-                                  "df", "heavy", "df", "heavy"])
+                                 ["cargo", "df", BUILD_RUNNER, "df", BUILD_RUNNER, "skein-ui-bundle",
+                                  "df", BUILD_RUNNER, "df", BUILD_RUNNER])
                 self.assertEqual(calls[2]['args'], ["cargo", "build", "--target", "wasm32-unknown-unknown",
                                                    *features, "-p", package])
                 self.assertEqual(calls[4]['args'], ["cargo", "build", "-p", "skein-ui-bundle"])
@@ -219,7 +220,7 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             expected = str(self.target / "temper-playground") if tier == "browser" else "/stale"
             self.assertEqual(calls[-1]['env']['TEMPER_TEST_PLAYGROUND'], expected)
-            builds = [call for call in calls if call['name'] == "heavy"
+            builds = [call for call in calls if call['name'] == BUILD_RUNNER
                       and call['args'][0] == "temper/scripts/bundle.sh"]
             self.assertEqual(len(builds), int(tier == "browser"))
 
@@ -243,7 +244,7 @@ class RunnerTests(unittest.TestCase):
                 result, calls = self.invoke("skein", "browser", **env)
                 self.assertEqual(result.returncode, 2)
                 self.assertIn(f"failed step {step}", result.stderr)
-                heavy = [call for call in calls if call['name'] == "heavy"]
+                heavy = [call for call in calls if call['name'] == BUILD_RUNNER]
                 self.assertEqual(len(heavy), count)
                 self.assertFalse(any('nextest' in call['args'] for call in heavy))
 
@@ -253,7 +254,7 @@ class RunnerTests(unittest.TestCase):
             '{package="last", bin="two"}]'))
         result, calls = self.invoke("jig", "process")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["df", "heavy"] * 3)
+        self.assertEqual([call['name'] for call in calls], ["df", BUILD_RUNNER] * 3)
         self.assertEqual(calls[1]['args'], ["cargo", "build", "-p", "first", "--bin", "one"])
         self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "last", "--bin", "two"])
         self.assertEqual(calls[5]['args'][:3], ["cargo", "nextest", "run"])
@@ -297,13 +298,13 @@ class RunnerTests(unittest.TestCase):
             'process-jig = [{package="adapter",bin="fake-claude",env="TEMPER_TEST_CLAUDE"}]'))
         result, calls = self.invoke("jig", "process", TEMPER_TEST_CLAUDE="/stale")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["cargo", "df", "heavy", "df", "heavy"])
+        self.assertEqual([call['name'] for call in calls], ["cargo", "df", BUILD_RUNNER, "df", BUILD_RUNNER])
         self.assertEqual(calls[2]['args'], ["cargo", "build", "-p", "adapter", "--bin", "fake-claude"])
         self.assertEqual(calls[2]['env']['TEMPER_TEST_CLAUDE'], "/stale")
         self.assertEqual(calls[-1]['env']['TEMPER_TEST_CLAUDE'], str(self.target / "debug/fake-claude"))
         result, calls = self.invoke("--verify", "jig", "process", TEMPER_TEST_CLAUDE="/stale")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["df", "heavy", "df", "heavy"])
+        self.assertEqual([call['name'] for call in calls], ["df", BUILD_RUNNER, "df", BUILD_RUNNER])
 
     def test_nextest_exit_is_preserved(self):
         for code in (4, 100):
@@ -339,7 +340,7 @@ class RunnerTests(unittest.TestCase):
     def test_verify_lists_both_selections_without_prerequisites(self):
         result, calls = self.invoke("--verify", "temper", "qa")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["df", "heavy", "df", "heavy"])
+        self.assertEqual([call['name'] for call in calls], ["df", BUILD_RUNNER, "df", BUILD_RUNNER])
         prefix = ["cargo", "nextest", "list"]
         suffix = ["--profile", "qa-temper", "--message-format", "json"]
         self.assertEqual(calls[1]['args'], [*prefix, "--workspace", *suffix])
@@ -361,7 +362,7 @@ class RunnerTests(unittest.TestCase):
     def test_verify_all_checks_every_configured_pair_even_after_mismatch(self):
         result, calls = self.invoke("--verify-all", MISMATCH="1")
         self.assertEqual(result.returncode, 1, result.stderr)
-        heavy = [call for call in calls if call['name'] == "heavy"]
+        heavy = [call for call in calls if call['name'] == BUILD_RUNNER]
         profiles = sorted(name for name in MODULE['tomllib'].loads(self.packages.read_text())
                           if name != 'binaries')
         self.assertEqual(len(heavy), 2 * len(profiles))
@@ -390,7 +391,7 @@ class RunnerTests(unittest.TestCase):
         directory = self.root / 'CPU results'
         result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa')
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', BUILD_RUNNER, 'df', BUILD_RUNNER])
         self.assertEqual(calls[2]['args'], ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
                                           'tools/tiers/cpu-wrapper.c', '-o', str(self.target / 'tiers-cpu-wrapper')])
         self.assertEqual(calls[-1]['args'], ['cargo', 'nextest', 'run', '--config-file', str(directory / 'repository.toml'),
@@ -412,7 +413,7 @@ class RunnerTests(unittest.TestCase):
         directory = self.root / 'CPU with native'
         result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa', TEMPER_TEST_CLAUDE='/stale')
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', BUILD_RUNNER, 'df', BUILD_RUNNER, 'df', BUILD_RUNNER])
         self.assertEqual(calls[2]['args'], ['cargo', 'build', '-p', 'adapter', '--bin', 'fake-claude'])
         self.assertEqual(calls[4]['args'][0], 'cc')
         self.assertEqual(calls[6]['args'][:3], ['cargo', 'nextest', 'run'])
@@ -421,12 +422,12 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(call['env']['TEMPER_TEST_CLAUDE'], str(self.target / 'debug/fake-claude'))
         result, calls = self.invoke('--cpu', str(self.root / 'native-failure'), 'smith', 'qa', FAIL_BUILD='adapter')
         self.assertEqual(result.returncode, 2, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy'])
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', BUILD_RUNNER])
         result, calls = self.invoke('--cpu', str(self.root / 'wrapper-failure'), 'smith', 'qa',
                                     FAIL_BUILD='tools/tiers/cpu-wrapper.c')
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn('failed step CPU wrapper: exit 19', result.stderr)
-        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', BUILD_RUNNER, 'df', BUILD_RUNNER])
 
     def test_verify_all_validates_budgets_before_any_command(self):
         path = self.root / 'tools/tiers/budgets.toml'
@@ -458,10 +459,10 @@ class RunnerTests(unittest.TestCase):
         output = io.StringIO()
         with mock.patch.object(subprocess, "run", side_effect=fake_run), \
                 mock.patch.object(time, "sleep", side_effect=sleep), contextlib.redirect_stdout(output):
-            self.assertEqual(MODULE['step']("fixture", ["heavy", "cargo", "check"], self.env), 0)
+            self.assertEqual(MODULE['step']("fixture", [BUILD_RUNNER, "cargo", "check"], self.env), 0)
         self.assertEqual(events, [["df", "-B1", "--output=avail", "/"], ["sleep", 60],
                                   ["df", "-B1", "--output=avail", "/"], ["sleep", 60],
-                                  ["df", "-B1", "--output=avail", "/"], ["heavy", "cargo", "check"]])
+                                  ["df", "-B1", "--output=avail", "/"], [BUILD_RUNNER, "cargo", "check"]])
         self.assertEqual(output.getvalue().count("waiting for disk"), 2)
 
     def test_disk_and_launch_errors_name_the_step(self):
@@ -469,7 +470,7 @@ class RunnerTests(unittest.TestCase):
                       subprocess.CalledProcessError(1, ["df"])):
             with mock.patch.object(subprocess, "run", side_effect=error):
                 with self.assertRaisesRegex(MODULE['FailedStep'], "fixture"):
-                    MODULE['step']("fixture", ["heavy", "cargo", "check"], self.env)
+                    MODULE['step']("fixture", [BUILD_RUNNER, "cargo", "check"], self.env)
 
 
 if __name__ == "__main__":

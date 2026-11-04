@@ -14,6 +14,7 @@ import time
 import tomllib
 
 
+BUILD_RUNNER = "heavy"
 DISK_BYTES = 80_000_000_000
 
 
@@ -45,7 +46,7 @@ def step(name, command, env, *, heavy=True):
 
 
 def build(name, arguments, env):
-    code = step(name, ["heavy", "cargo", "build", *arguments], env)
+    code = step(name, [BUILD_RUNNER, "cargo", "build", *arguments], env)
     if code:
         raise FailedStep(f"{name}: exit {code}")
 
@@ -134,7 +135,7 @@ def selected_tests(listing):
 
 def list_tests(profile, selection, env):
     name = f"list {profile} {'workspace' if selection == ['--workspace'] else 'packages'}"
-    command = ["heavy", "cargo", "nextest", "list", *selection,
+    command = [BUILD_RUNNER, "cargo", "nextest", "list", *selection,
                "--profile", profile, "--message-format", "json"]
     try:
         wait_for_disk(env)
@@ -259,7 +260,7 @@ def main(argv=None):
             if profile == "browser-temper":
                 playground = target / "temper-playground"
                 started = time.monotonic()
-                code = step("playground bundle", ["heavy", "temper/scripts/bundle.sh", "--playground", str(playground)],
+                code = step("playground bundle", [BUILD_RUNNER, "temper/scripts/bundle.sh", "--playground", str(playground)],
                             dict(env, CARGO_TARGET_DIR=str(target)))
                 if code:
                     raise FailedStep(f"playground bundle: exit {code}")
@@ -279,11 +280,11 @@ def main(argv=None):
                 target = target_directory(env)
             wrapper = target / "tiers-cpu-wrapper"
             target.mkdir(parents=True, exist_ok=True)
-            code = step("CPU wrapper", ["heavy", "cc", "-std=c11", "-O2", "-static", "-Wall", "-Wextra", "-Werror",
+            code = step("CPU wrapper", [BUILD_RUNNER, "cc", "-std=c11", "-O2", "-static", "-Wall", "-Wextra", "-Werror",
                         "tools/tiers/cpu-wrapper.c", "-o", str(wrapper)], env)
             if code:
                 raise FailedStep(f"CPU wrapper: exit {code}")
-        command = ["heavy", "cargo", "nextest", "run", *package_arguments(package_map[profile]), "--profile", profile,
+        command = [BUILD_RUNNER, "cargo", "nextest", "run", *package_arguments(package_map[profile]), "--profile", profile,
                    "--no-fail-fast", *extra]
         if args.cpu:
             overlay = cpu["prepare"](args.cpu, profile, wrapper)
