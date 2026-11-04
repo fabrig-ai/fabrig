@@ -669,6 +669,8 @@ fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
         | Request::RepoHooks { .. }
         | Request::CreateRepoHook { .. }
         | Request::EditRepoHook { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::DeleteRepoHook { .. } => (
             scopes.repository,
             b"token does not have at least one of required scope(s): [read:repository]",
@@ -813,6 +815,8 @@ fn table(service: &Service, request: &Request, user: u64) -> Option<documents::A
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }

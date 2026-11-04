@@ -1017,6 +1017,8 @@ fn raw_request(request: &request::Request) -> bool {
         | request::Request::Org { .. }
         | request::Request::CreateOrg { .. }
         | request::Request::CreateFile { .. }
+        | request::Request::Migrate { .. }
+        | request::Request::DeleteRepository { .. }
         | request::Request::CreateRepository { .. }
         | request::Request::Teams { .. }
         | request::Request::CreateTeam { .. }

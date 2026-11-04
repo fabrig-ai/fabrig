@@ -150,6 +150,7 @@ impl Store {
     }
     pub(crate) fn answer(&mut self, request: &Request, user: u64, config: &Config, limits: &Limits) -> Option<Reply> {
         match request {
+            Request::Migrate { .. } | Request::DeleteRepository { .. } => Some(refusal(404, b"", limits)),
             Request::RepoSearch { page } => Some(self.search(config, user, *page, limits)),
             Request::RepositoryById { id } => {
                 let caller = self.user(user)?;
@@ -262,6 +263,7 @@ impl Store {
             Request::DeleteToken { login, id } => self.delete_token(login, *id, limits),
             Request::Org { name } => self.read_org(name, limits),
             Request::CreateOrg { person, name } => self.create_org(person, name, limits),
+            Request::Migrate { .. } | Request::DeleteRepository { .. } => refusal(404, b"", limits),
             Request::CreateRepository { .. } | Request::CreateFile { .. } => full(limits),
             Request::Teams { org, page } => self.list_teams(org, *page, config, limits),
             Request::CreateTeam { org, spec } => self.create_team(org, spec, limits),
