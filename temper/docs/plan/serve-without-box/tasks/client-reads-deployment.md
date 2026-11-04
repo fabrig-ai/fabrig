@@ -3,7 +3,7 @@ id = "client-reads-deployment"
 part = "fact"
 kind = "feature"
 needs = ["deployment-read"]
-files = ["temper/crates/temper-client-domain/src/forge/deployment.rs", "temper/crates/temper-client-domain/src/forge.rs", "temper/crates/temper-client-domain/src/route.rs", "temper/crates/temper-client-domain/src/pages/welcome.rs", "temper/crates/temper-client-domain/src/tests/**", "temper/crates/temper-client-view/src/tests/**", "temper/crates/temper-client-shell-terminal/src/tests/**", "temper/tests/client/src/front.rs", "temper/tools/gallery/src/worlds.rs", "temper/tests/playground/tests/fixtures/story-a.log"]
+files = ["temper/crates/temper-client-domain/src/forge/deployment.rs", "temper/crates/temper-client-domain/src/forge.rs", "temper/crates/temper-client-domain/src/route.rs", "temper/crates/temper-client-domain/src/pages/welcome.rs", "temper/crates/temper-client-domain/src/tests/**", "temper/crates/temper-client-view/src/tests/**", "temper/crates/temper-client-shell-terminal/src/tests/**", "temper/tests/client/src/front.rs", "temper/tests/client/tests/suite/choice.rs", "temper/tools/gallery/src/worlds.rs", "temper/tests/playground/tests/fixtures/story-a.log"]
 effort = "high"
 minutes = 90
 +++
@@ -79,3 +79,27 @@ Acceptance:
 ## Report
 
 As the implementer's text asks; name every fixture site changed and each token that moved.
+
+## Answers
+
+2026-11-04. May this task edit `temper/tests/client/tests/suite/choice.rs` to wait for the chat's
+task document? **Yes, and only that:** its acceptance names `temper-client-world`, this task's
+change turns the test red, and no other task owns the file, so it joins the header's `files`.
+
+- The branch's commit stands (61984956b5); nothing else in it reopens.
+- `Using scripted` does not prove the document: `temper-client-view/src/choice.rs`, `using`, draws
+  it from `draft.requested` while `task` is `None`. The chat's title is drawn only with the document
+  (`temper-client-view/src/pages/chat.rs:42`, `Word::ChatTitle`, `T<n> · <title>`).
+- In `a_model_choice_reaches_the_next_run_document`, keep every step and both final asserts, and add
+  one last step after `Using scripted`:
+
+  ```rust
+  Step::See { find: Find::named(Role::Heading { level: 1 }, " · ".as_bytes()), within: fixtures::WITHIN },
+  ```
+
+- This adds a wait; what the test expects does not change. A lost document still fails it, now at
+  this step. If the step times out, the document does not arrive: that is a production fault, so
+  report `Question:` with the log. Do not raise `WITHIN`, change the fixture's scheduling or weaken
+  an assert.
+- Not checked by a test here: this call's machine builds nothing. Run this test first, then the
+  acceptance's seven packages.
