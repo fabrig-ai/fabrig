@@ -11,6 +11,10 @@ blob, limits, ..)` hosts API/browser routes and signed job logs on two
 loopback listeners, sharing the connection limit and io buffers. The peer
 learns both bound origins before clients request a log.
 
+`inline` drives the same `Server` over a lent domain or a whole request,
+without io. `fixture` supplies the shared App, accounts, repositories,
+installations and bounds that worlds vary for their scenarios.
+
 CI contexts render as `github-actions` check runs with the domain's run,
 job and attempt identities. Reported statuses stay classic statuses; an
 empty combined status is pending with zero contexts. Pull documents carry

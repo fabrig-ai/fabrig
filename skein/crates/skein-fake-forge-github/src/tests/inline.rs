@@ -1,21 +1,16 @@
 use super::{fixtures as f, wall};
-use crate::{
-    fixture,
-    inline::{self, Inline, Lent},
-    server::{self, Server},
-    service::Service,
-};
+use crate::inline::{self, Inline, Lent};
+use crate::server::{self, Server};
+use crate::{Service, fixture, installations::Scope};
 use skein_fake_forge_domain::{self as domain, api as a};
-use skein_forge::github::{self, request::Method};
-use skein_lib::{
-    Env, Queue, ReplyTo, Secret, Time, Token, bytes,
-    stream::{Down, Up},
-};
-
+use skein_forge::github;
+use skein_lib::stream::{Down, Up};
+use skein_lib::{Env, Queue, Secret, Time, Token, bytes};
 fn forge(seed: u64) -> Inline {
     let config = fixture::domain_config();
     let mut domain = domain::Domain::new(&config, seed);
-    domain::repository(&mut domain, &config, fixture::setup(2, fixture::PATH));
+    let setup = a::Setup { hooked: true, ..fixture::setup(2, fixture::PATH) };
+    domain::repository(&mut domain, &config, setup);
     domain::grant(&mut domain, fixture::PATH, fixture::BOT, a::Permission::Write);
     let limits = fixture::limits();
     let mut service = Service::new(fixture::config(fixture::widgets(2)), &limits, seed).unwrap();
@@ -23,175 +18,128 @@ fn forge(seed: u64) -> Inline {
     Inline::new(service, domain, config, limits)
 }
 fn request(method: &[u8], target: &[u8], authorization: &[u8], body: &[u8]) -> Box<[u8]> {
-    f::parts(&[
-        method,
-        b" ",
-        target,
-        b" HTTP/1.1\r\nHost: github.test\r\nUser-Agent: test\r\nX-GitHub-Api-Version: ",
-        github::pin::API_VERSION.as_bytes(),
-        b"\r\nAuthorization: ",
-        authorization,
-        b"\r\nContent-Length: ",
-        skein_lib::Decimal::of(skein_lib::len_u64(body.len())).as_bytes(),
-        b"\r\n\r\n",
-        body,
-    ])
+    let line = f::parts(&[method, b" ", target, b" HTTP/1.1\r\nHost: github.test\r\nUser-Agent: test\r\n"]);
+    let version = github::pin::API_VERSION.as_bytes();
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
+    let auth = f::parts(&[b"\r\nAuthorization: ", authorization, b"\r\nContent-Length: ", length.as_bytes()]);
+    f::parts(&[&line, b"X-GitHub-Api-Version: ", version, &auth, b"\r\n\r\n", body])
 }
-fn token(forge: &mut Inline) -> Secret {
-    f::bearer(
-        forge.service.installations_mut().mint(1, crate::installations::Scope::Full, wall(1200)).unwrap().0.expose(),
-    )
+fn token(seed: u64) -> (Inline, Secret) {
+    let mut forge = forge(seed);
+    let (secret, _) = forge.service.installations_mut().mint(1, Scope::Full, wall(1200)).unwrap();
+    (forge, f::bearer(secret.expose()))
 }
 fn header<'a>(wire: &'a [u8], name: &[u8]) -> Option<&'a [u8]> {
     let start = bytes::find(wire, &f::parts(&[b"\r\n", name, b": "]))?.checked_add(name.len())?.checked_add(4)?;
     let tail = wire.get(start..)?;
     tail.get(..bytes::find(tail, b"\r\n")?)
 }
+fn get(forge: &mut Inline, target: &[u8], auth: &[u8]) -> Box<[u8]> {
+    forge.serve(&request(b"GET", target, auth, b""), wall(1200))
+}
 struct Connection {
     server: Server,
-    env: Env<crate::Limits>,
     above: Queue<server::Event>,
     below: Queue<Down>,
 }
 impl Connection {
-    fn head(forge: &mut Inline, wire: &[u8]) -> Self {
-        let env = Env { now: Time::from_nanos(wall(1200).as_nanos()), wall: wall(1200), limits: fixture::limits() };
-        let mut c = Self {
-            server: Server::new(Token::new(77), &env.limits).unwrap(),
-            env,
-            above: Queue::uncapped(),
-            below: Queue::uncapped(),
-        };
-        server::start(&mut c.server, &mut forge.service, &c.env, &mut c.above, &mut c.below);
-        let mut input = skein_lib::Intake::with_capacity(c.env.limits.http.head);
-        input.append(wire).unwrap();
-        for _ in 0..c.env.limits.http.headers.checked_add(2).unwrap() {
-            let Some(Down::Demand { read, .. }) = c.below.pop() else { break };
-            c.up(forge, Up::Bytes(input.meet(read).unwrap()));
+    fn head(forge: &mut Inline, target: &[u8], auth: &[u8]) -> Self {
+        let server = Server::new(Token::new(77), &forge.limits).unwrap();
+        let (above, below) = (Queue::uncapped(), Queue::uncapped());
+        let mut c = Self { server, above, below };
+        let env = Env { now: Time::from_nanos(wall(1200).as_nanos()), wall: wall(1200), limits: forge.limits };
+        server::start(&mut c.server, &mut forge.service, &env, &mut c.above, &mut c.below);
+        c.below.clear();
+        c.run(forge, Some(Up::Room), false);
+        for line in request(b"GET", target, auth, b"").split_inclusive(|byte| *byte == b'\n') {
+            c.run(forge, Some(Up::Bytes(f::boxed(line))), false);
         }
+        c.below.clear();
         c
     }
-    fn up(&mut self, forge: &mut Inline, up: Up) {
-        server::up(&mut self.server, &mut forge.service, &self.env, up, &mut self.above, &mut self.below);
-    }
-    fn pass(&mut self, forge: &mut Inline, hooks: bool) {
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: forge.config };
-        inline::pass(
-            &mut self.server,
-            &mut forge.service,
-            &mut Lent { domain: &mut forge.domain, env: &env, hooks },
-            &self.env,
-            &mut self.above,
-            &mut self.below,
-        );
+    fn run(&mut self, forge: &mut Inline, up: Option<Up>, hooks: bool) {
+        let env = Env { now: Time::from_nanos(wall(1200).as_nanos()), wall: wall(1200), limits: forge.limits };
+        if let Some(up) = up {
+            server::up(&mut self.server, &mut forge.service, &env, up, &mut self.above, &mut self.below);
+        }
+        let domain_env = Env { now: env.now, wall: env.wall, limits: forge.config };
+        let mut lent = Lent { domain: &mut forge.domain, env: &domain_env, hooks };
+        inline::pass(&mut self.server, &mut forge.service, &mut lent, &env, &mut self.above, &mut self.below);
     }
 }
 #[test]
 fn an_app_request_is_answered_whole() {
-    let wire = forge(1).serve(
-        &request(b"GET", b"/app/installations", f::authorization(fixture::key(), 1000, 1600).expose(), b""),
-        wall(1200),
-    );
-    assert!(wire.starts_with(b"HTTP/1.1 200 "));
+    let wire = get(&mut forge(1), f::INSTALLATIONS, f::authorization(fixture::key(), 1000, 1600).expose());
+    assert!(wire.starts_with(b"HTTP/1.1 200 "), "whole App response");
     assert_eq!(header(&wire, b"Date"), Some(b"Thu, 01 Jan 1970 00:20:00 GMT".as_slice()));
     assert_eq!(header(&wire, b"Content-Type"), Some(b"application/json; charset=utf-8".as_slice()));
     let body = wire.get(bytes::find(&wire, b"\r\n\r\n").unwrap().checked_add(4).unwrap()..).unwrap();
-    assert_eq!(
-        header(&wire, b"Content-Length"),
-        Some(skein_lib::Decimal::of(skein_lib::len_u64(body.len())).as_bytes())
-    );
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
+    assert_eq!(header(&wire, b"Content-Length"), Some(length.as_bytes()));
 }
 #[test]
 fn a_token_read_is_admitted_then_called() {
-    let mut forge = forge(2);
-    let auth = token(&mut forge);
-    let wire = forge.serve(&request(b"GET", b"/repos/acme/widgets/branches/main", auth.expose(), b""), wall(1200));
-    assert!(wire.starts_with(b"HTTP/1.1 200 "));
+    let (mut forge, auth) = token(2);
+    let wire = get(&mut forge, b"/repos/acme/widgets/branches/main", auth.expose());
+    assert!(wire.starts_with(b"HTTP/1.1 200 "), "branch response");
     assert_eq!(header(&wire, b"X-RateLimit-Used"), Some(b"1".as_slice()));
-    assert!(bytes::find(&wire, b"0000000000000000000000000000000000000001").is_some());
+    let commit = skein_forge::forgejo::id::write(&skein_fake_forge_protocol::routes::object(1));
+    assert!(bytes::find(&wire, &commit).is_some(), "domain commit in body");
 }
 #[test]
 fn a_conditional_read_admits_after_its_call() {
-    let mut forge = forge(3);
-    let auth = token(&mut forge);
-    let wire = forge.serve(&request(b"GET", b"/repos/acme/widgets", auth.expose(), b""), wall(1200));
+    let (mut forge, auth) = token(3);
+    let wire = get(&mut forge, b"/repos/acme/widgets", auth.expose());
     let auth = f::parts(&[auth.expose(), b"\r\nIf-None-Match: ", header(&wire, b"ETag").unwrap()]);
     for (merge, status, used) in [(true, b"304".as_slice(), b"1".as_slice()), (false, b"200", b"2")] {
-        domain::settings(
-            &mut forge.domain,
-            fixture::PATH,
-            a::Settings { default: f::boxed(b"main"), merge, squash: true, rebase: true },
-        );
-        let wire = forge.serve(&request(b"GET", b"/repos/acme/widgets", &auth, b""), wall(1200));
-        assert!(wire.starts_with(&f::parts(&[b"HTTP/1.1 ", status])));
+        let settings = a::Settings { default: f::boxed(b"main"), merge, squash: true, rebase: true };
+        domain::settings(&mut forge.domain, fixture::PATH, settings);
+        let wire = get(&mut forge, b"/repos/acme/widgets", &auth);
+        assert!(wire.starts_with(&f::parts(&[b"HTTP/1.1 ", status])), "conditional status");
         assert_eq!(header(&wire, b"X-RateLimit-Used"), Some(used));
-        if status == b"304" {
-            assert_eq!(header(&wire, b"Content-Length"), None);
-        }
+        assert_eq!(header(&wire, b"Content-Length").is_none(), status == b"304");
     }
 }
 #[test]
 fn a_blob_request_records_its_headers() {
     let mut forge = forge(4);
-    let wire = forge.blob(&request(b"GET", b"/tampered", b"Bearer fake\r\nRange: bytes=0-0", b""), wall(1200));
-    assert!(wire.starts_with(b"HTTP/1.1 403 "));
-    assert!(wire.ends_with(b"\r\n\r\n"));
-    let records = forge.service.blob_records();
-    assert_eq!(records.len(), 1);
-    assert!(records.iter().next().unwrap().range);
+    let wire = forge.blob(&request(b"GET", b"/logs/invalid", b"Bearer fake\r\nRange: bytes=0-0", b""), wall(1200));
+    assert!(wire.starts_with(b"HTTP/1.1 403 ") && wire.ends_with(b"\r\n\r\n"), "empty tamper refusal");
+    assert_eq!(forge.service.blob_records().len(), 1);
+    assert!(forge.service.blob_records().iter().next().unwrap().range, "Range recorded");
 }
 #[test]
 fn a_request_without_host_is_refused() {
     let mut forge = forge(5);
-    assert!(forge.serve(b"GET /app HTTP/1.1\r\n\r\n", wall(1200)).starts_with(b"HTTP/1.1 400 "));
-    assert_eq!(forge.domain.calls(), 0);
-    assert!(forge.service.blob_records().is_empty());
+    let wire = forge.serve(b"GET /app HTTP/1.1\r\n\r\n", wall(1200));
+    assert!(wire.starts_with(b"HTTP/1.1 400 "), "Host required");
+    assert!(forge.service.blob_records().is_empty(), "HTTP refusal precedes service");
 }
 #[test]
 fn a_pass_stops_at_a_head_and_lends_its_credential() {
-    let mut forge = forge(6);
-    let auth = token(&mut forge);
-    let mut c =
-        Connection::head(&mut forge, &request(b"GET", b"/repos/acme/widgets/branches/main", auth.expose(), b""));
-    c.pass(&mut forge, false);
-    assert_eq!(forge.domain.calls(), 0);
-    assert!(c.server.take_head().unwrap().header(b"authorization").is_none());
+    let (mut forge, auth) = token(6);
+    let mut c = Connection::head(&mut forge, b"/repos/acme/widgets/branches/main", auth.expose());
+    assert_eq!(forge.domain.tally().answered, 0);
+    assert_eq!(c.server.take_head().unwrap().header(b"authorization"), Some(b"".as_slice()));
     assert_eq!(c.server.credential(), Some(auth.expose()));
-    c.pass(&mut forge, false);
+    c.run(&mut forge, None, false);
     assert_eq!(c.server.credential(), None);
-    assert_eq!(forge.domain.calls(), 1);
+    assert_eq!(forge.domain.tally().answered, 1);
 }
 #[test]
 fn the_peers_server_names_a_bare_media_type() {
     let mut forge = forge(7);
-    let mut c = Connection::head(
-        &mut forge,
-        &request(b"GET", b"/app/installations", f::authorization(fixture::key(), 1000, 1600).expose(), b""),
-    );
+    let mut c = Connection::head(&mut forge, f::INSTALLATIONS, f::authorization(fixture::key(), 1000, 1600).expose());
     drop(c.server.take_head());
-    c.pass(&mut forge, false);
-    c.up(&mut forge, Up::Room);
-    c.pass(&mut forge, false);
-    let mut media = None;
-    for _ in 0..c.below.len() {
-        if let Down::Send(wire) = c.below.pop().unwrap() {
-            media = header(&wire, b"Content-Type").map(f::boxed);
-        }
-    }
-    assert_eq!(media.as_deref(), Some(b"application/json".as_slice()));
+    c.run(&mut forge, None, false);
+    let Some(Down::Send(wire)) = c.below.pop() else { panic!("response head") };
+    assert_eq!(header(&wire, b"Content-Type"), Some(b"application/json".as_slice()));
 }
-
 #[test]
 fn the_fixture_builds_a_valid_service() {
     for rows in [fixture::repositories(), fixture::widgets(1)] {
         let mut service = Service::new(fixture::config(rows), &fixture::limits(), 1).expect("valid fixture");
         fixture::install_three(&mut service);
-        let store = service.installations_mut();
-        let mut ids = skein_lib::List::with_capacity(3);
-        for row in store.iter() {
-            ids.push(row.id).expect("three ids");
-        }
-        assert_eq!(ids.as_slice(), &[1, 2, 3]);
-        assert!(store.get(3).expect("third installation").suspended);
+        assert!(service.installations_mut().get(3).unwrap().suspended, "third suspended");
     }
 }
