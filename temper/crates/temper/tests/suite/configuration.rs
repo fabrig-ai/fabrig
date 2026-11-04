@@ -6,8 +6,8 @@ mod creating;
 const DOCUMENT: jig_protocol_config::DocumentLimits =
     jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
 
-fn process_engine() -> jig_protocol_config::Engine {
-    let scratch = support::Scratch::startup("native-document-limits");
+fn process_engine(case: &str) -> jig_protocol_config::Engine {
+    let scratch = support::Scratch::startup(case);
     support::configuration(scratch.path(), &support::Forge::Unreached);
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
@@ -36,8 +36,20 @@ fn the_browsers_client_bounds_are_the_terminals() {
 }
 
 #[test]
+fn the_process_http_mount_fits_the_native_clients_burst() {
+    let engine = process_engine("native-http-calls");
+    let native = temper_client_shell_terminal::limits::native();
+    // jig/docs/design/protocol/client.md, 17.5: streams occupy mounted calls too.
+    let calls = native.connections.exchanges + engine.limits.clients_http.streams;
+    assert!(
+        engine.limits.clients_http.calls >= calls,
+        "the process fixture must admit the native client's exchanges beside its streams"
+    );
+}
+
+#[test]
 fn the_process_and_client_world_documents_fit_their_clients() {
-    let engine = process_engine();
+    let engine = process_engine("native-document-limits");
     let client = temper_client_shell_terminal::limits::native().client;
     assert_documents_fit(&engine.limits.core, client.client.domain);
     let client_world = temper_client_world::fixtures::domain_limits();
