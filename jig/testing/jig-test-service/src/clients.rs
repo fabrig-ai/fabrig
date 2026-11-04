@@ -249,7 +249,7 @@ impl Clients {
             Some(component) => component.next_deadline(),
             None => None,
         };
-        crate::accounts::earliest(component, self.server.next_deadline())
+        skein_lib::earliest(component, self.server.next_deadline())
     }
     pub fn work_pending(&self, now: Time) -> bool {
         !self.closed
