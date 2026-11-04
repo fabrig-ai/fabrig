@@ -5,23 +5,12 @@ use skein_lib::Writer;
 
 pub(crate) use jig_protocol_engine_clients_http::server::policy::FIELDS;
 
-/// Which page the policy is for: the clients' listener or the static playground.
-#[derive(Debug)]
-pub enum Page {
-    #[cfg_attr(not(test), expect(dead_code, reason = "the composition tests inspect the service policy"))]
-    Service,
-    Playground,
-}
-
 const PLAYGROUND_POLICY: &[u8] = b"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'self'";
 
 /// The policy's fields; the playground's CSP adds `worker-src 'self'`.
-pub const fn fields(page: Page) -> [(&'static [u8], &'static [u8]); 5] {
+pub const fn playground_fields() -> [(&'static [u8], &'static [u8]); 5] {
     let [(name, _), nosniff, opener, resource, referrer] = FIELDS;
-    match page {
-        Page::Service => FIELDS,
-        Page::Playground => [(name, PLAYGROUND_POLICY), nosniff, opener, resource, referrer],
-    }
+    [(name, PLAYGROUND_POLICY), nosniff, opener, resource, referrer]
 }
 
 /// Digest-directory files are immutable.
@@ -32,7 +21,7 @@ pub const PAGE_CACHE: &[u8] = b"no-cache";
 /// The playground's `headers` text for a bundle under `directory` (`/bundle/<digest>`).
 #[cfg_attr(not(test), expect(dead_code, reason = "the static playground uses the checked headers template"))]
 pub fn headers(directory: &[u8]) -> Box<[u8]> {
-    let policy = fields(Page::Playground);
+    let policy = playground_fields();
     let cache = [directory, b"/*: Cache-Control: ", FILES_CACHE, b"\n/*: Cache-Control: ", PAGE_CACHE, b"\n"];
     let mut size = 0_usize;
     for (name, value) in policy {
