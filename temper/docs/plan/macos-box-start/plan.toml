@@ -1,0 +1,3 @@
+draft = "macos-box-start"
+repo = "fabrig"
+sources = ["temper/docs/plan/macos-box-start/inputs/request.md", "temper/docs/design/draft/macos.md", "AGENTS.md", "DESIGN.md"]
