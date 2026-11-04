@@ -426,7 +426,7 @@ impl Joint {
         joint.caller = caller;
         driver.forge = joint.engine.forge.take();
         joint.engine = driver;
-        // The stock configuring charter reserves two minutes; this worker plays it.
+        // The worker offers the stock configuring charter's run bounds.
         let mut hello = temper_engine_domain_world::protocol::hello(fixtures::QUESTION_WORKER, Box::new([]));
         let engine::Event::Worker(engine::WorkerInput::Link {
             link: engine::Link::Hello { hello: offered, .. }, ..
@@ -434,7 +434,8 @@ impl Joint {
         else {
             unreachable!("worker hello")
         };
-        offered.bounds.time = Duration::from_secs(120);
+        offered.bounds.time = Duration::from_secs(3600);
+        offered.bounds.turns = 64;
         offered.bounds.message_bytes = engine_limits.tasks.message_bytes;
         joint.engine.send(hello);
         joint.engine.settle();

@@ -81,6 +81,11 @@ pub fn call(name: &[u8], arguments: &[u8]) -> Turn {
 /// Worker capacities for stock inboxes and the recorded repository reads.
 pub(super) fn worker_limits(engine: &engine::Limits) -> worker::Limits {
     let mut limits = super::worker_limits();
+    limits.bounds.turns = 800;
+    limits.bounds.time = Duration::from_secs(28_800);
+    // Retain the stock chat's 64-turn activation across its resume.
+    limits.host.transcript_bytes = 131_072;
+    limits.agent.transcript_bytes = 131_072;
     limits.bounds.message_bytes = engine.tasks.message_bytes.max(4096);
     limits.bounds.inbox = engine.tasks.run_inbox.max(8);
     limits.host.inbox = limits.bounds.inbox;
@@ -290,7 +295,7 @@ impl World {
         assert!(spent + row.numbers.spent_below <= row.numbers.budget);
         let prompt = &self.agent().prompts()[0];
         assert_eq!(prompt.choice, skein_fake_llm_domain::api::ToolChoice::Auto);
-        assert!(String::from_utf8_lossy(&prompt.system).contains("At open, you have 8 turns"));
+        assert!(String::from_utf8_lossy(&prompt.system).contains("At open, you have 64 turns"));
         assert!(prompt.messages.iter().flat_map(|message| &message.parts).any(|part| {
             let bytes = match part {
                 skein_fake_llm_domain::api::Part::Text { text } => text.as_ref(),

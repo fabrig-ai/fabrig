@@ -174,8 +174,8 @@ impl World {
         else {
             panic!("hello")
         };
-        hello.bounds.time = Duration::from_secs(120); // Stock charter run time.
-        hello.bounds.turns = 16; // Stock's largest charter.
+        hello.bounds.time = Duration::from_secs(28_800); // Stock work charter run time.
+        hello.bounds.turns = 800; // Stock's largest charter.
         hello.bounds.message_bytes = MESSAGE_BYTES;
         driver.send(greeting);
         driver.settle();

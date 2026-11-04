@@ -173,6 +173,7 @@ fn chat() -> (Driver, engine::Assignment) {
 fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     let limits = limits();
     let template = config[0].core.defaults.templates[0].clone();
+    let period_budget = config[0].core.defaults.rules.period_spend;
     let mut driver = Driver::configured(Store::with_limits(&limits), config, &limits);
     driver.period_sent = true;
     driver.forge = Some(ForgeStand::with_checks(&[(b"org", b"repo", 2)], &[b"build"]));
@@ -184,14 +185,14 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     hello.bounds.models[0].name = model.name;
     hello.bounds.models[0].window = model.window;
     hello.bounds.models[0].output = model.output;
-    hello.bounds.turns = 16;
-    hello.bounds.time = Duration::from_secs(120);
+    hello.bounds.turns = 800;
+    hello.bounds.time = Duration::from_secs(28_800);
     hello.bounds.spend = K;
     hello.bounds.message_bytes = limits.tasks.message_bytes;
     hello.bounds.inbox = limits.tasks.run_inbox;
     driver.send(greeting);
     driver.settle();
-    driver.send(Event::Party(PartyInput::Period { project: 1, period: 1, budget: 48 * K, next: None }));
+    driver.send(Event::Party(PartyInput::Period { project: 1, period: 1, budget: period_budget, next: None }));
     driver.settle();
     driver.send(Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
     driver.sign_in();

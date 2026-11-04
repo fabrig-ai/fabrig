@@ -65,6 +65,8 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     settings.budget = run::Budget { turns: coder.policy.turns, spend: coder.spend, time: coder.policy.time };
     settings.limits.run.budget = settings.budget;
     settings.limits.session.spend = coder.spend;
+    settings.limits.session.budget.turns = coder.policy.turns;
+    settings.limits.session.budget.time = coder.policy.time;
     settings.limits.run.host_tools = 40;
     settings.limits.run.schema_costs = smith_protocol_llm::schema_costs().expect("production renderer costs");
     let uncut = temper_engine_smith::charter(&repair);
