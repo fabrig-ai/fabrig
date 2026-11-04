@@ -12,15 +12,23 @@ macOS is a person's own machine: development, and a first look at
 temper. Linux stays the platform of record: the gate, deployments,
 and everything only Linux can give (containment, trees, io_uring).
 
+The user's rule for all of it (2026-11-04): keep it cheap. What matters
+is that 2.4's story basically works. Whatever is Linux's may be degraded
+or less sophisticated on macOS, and rough edges are fine.
+
 ## 1. In one page
 
 - **One story first** (2.4): on GitHub's macOS runners, a box with its
   owned Forgejo and a fake LLM, driven through `temper ctl`: a change is
   asked for in a chat, Forgejo runs its CI, temper lands it. That is the
   quick try `v0.1.0.md` names.
-- **Then the rest, in stages** (section 2): the suites, tree by tree
-  (2.1); a person on a real Mac (2.3); the first-run demo in a browser,
-  best effort (2.2).
+- **That story is the acceptance.** Nothing else here holds it up:
+  where macOS differs, it gets the simplest thing that lets the story
+  pass, a degraded behaviour or a Linux-only entry, never a port for its
+  own sake.
+- **Then the rest, as it stays cheap** (section 2): the suites, tree by
+  tree (2.1); a person on a real Mac (2.3); the first-run demo in a
+  browser, best effort (2.2).
 - **The bulk is skein's readiness backend** (skein's `shell.md`,
   section 7): one backend for hosts without io_uring, kqueue's on macOS
   and epoll's on Linux. Step code never knows which backend runs; no
@@ -92,17 +100,16 @@ and everything only Linux can give (containment, trees, io_uring).
   in the process tier (`../domain/testing.md`, 2.6). macOS runs that
   story, never a copy of it, its agent review and its restart included:
   the restart is a graceful one.
-- **What the story's support takes on macOS:**
-  - a guard for a command it runs that names no `/proc` (today
-    `parent::Guard` is Linux's, and `story_command` builds it
-    unconditionally);
+- **What the story's support takes on macOS,** each the simplest that
+  works:
+  - `parent::Guard`, which is Linux's and which `story_command` builds
+    unconditionally: nothing on macOS, or a plain kill of the child;
   - the tools of its CI's steps as macOS's own have them (`base64 -w0`
     is GNU's), within the cleared environments of its children: the
     box's `/usr/bin:/bin`, and the owned runner's configured `PATH`;
   - the story's `left`, Linux's whole-tree proof: under Group (3.5) it
-    is empty without observing a descendant, so it proves nothing there.
-    macOS's evidence is a successful exit, settled io and an empty
-    observed group, and the story says which it holds on each platform.
+    proves nothing, so on macOS the story holds the box's clean exit
+    alone.
 - **No containers:** its jobs run on the runner's host, under the
   `temper-host` label, as on Linux. The macOS runners offer no Docker,
   and the story needs none.
@@ -344,12 +351,17 @@ and everything only Linux can give (containment, trees, io_uring).
    tree; each tree's first Linux-only entries (5.2) and what above skein
    stops a compile.
 3. **The fetch** (4.3).
-4. **What the story needs to run:** the habits it reaches, compiling or
-   not: temper's pipe check without `/proc/self/fd`, its login from
-   `getpwuid`, its errors (4.3), smith's tools found (4.1), the trust
-   roots and the directories (4.4), and its own support (2.4).
+4. **What the story needs to run,** and no more of section 4 than that:
+   the habits it reaches, compiling or not: temper's pipe check without
+   `/proc/self/fd`, its login (4.3), smith's tools (4.1), the trust
+   roots and the directories (4.4), and its own support (2.4). The pipe
+   check may simply be Linux's.
 5. **The story** (2.4) green on the runner, the workflow's first check
    that runs anything.
+The story green is the acceptance. What follows comes as it stays
+cheap, and a test that would take real work goes on its tree's
+Linux-only list:
+
 6. **The suites,** tree by tree, each with its Linux-only list (5.2):
    skein's, with the `macos` profile again and the throwaway Forgejo
    off its list; smith's; jig's; temper's (2.1).
