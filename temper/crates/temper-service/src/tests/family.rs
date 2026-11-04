@@ -228,7 +228,6 @@ fn a_git_base_with_a_port_keeps_it_in_the_host() {
         assert_eq!(family::host(git).as_ref(), expected, "{git:?}");
     }
 }
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn encoded(outcome: Option<forge::ApplicationOutcome>) -> w::Outcome {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     let outcome = match outcome {
@@ -705,7 +704,6 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
     }
 }
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn a_panels_pull_address_uses_its_configured_forge_kind_and_base() {
     use crate::settings::Kind;
     for (row, kind, git, web, number, expected) in [
@@ -893,7 +891,6 @@ fn forges_watches_name_the_deployment_subject() {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn setup_outcomes_use_the_family_answer_including_unknown() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     for (outcome, expected) in [
@@ -1471,7 +1468,6 @@ fn embedded_client_refusals_keep_their_bytes_at_client_eleven() {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details() {
     for (forgejo, runner, password, kept) in [
         (64, Some(64), 512, true),

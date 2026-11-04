@@ -476,7 +476,6 @@ fn input_pass(engine: &mut Engine, now: Time) {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
 fn completes_pending(engine: &Engine) -> Option<bool> {
     match engine.pending.as_deref() {
         Some(event) => Some(root::completes(event)),

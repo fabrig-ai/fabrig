@@ -223,7 +223,6 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
     })
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "the translation uses explicit matches (programming-model.md, 10)")]
 pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Row]>> {
     use forge::forges::{Account, Installation, Kind, Mode, Offer, Row};
     let record = wire::decode_forges(bytes, limits)?.into_parts();
