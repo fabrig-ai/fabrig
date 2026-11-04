@@ -782,21 +782,21 @@ pub fn up(
         State::Open { dir, phase } => match phase {
             Phase::Listing => match event {
                 Done::Listed { entries } => listed(store, dir, entries, &mut step),
-                Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
+                Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
                 Done::Opened { .. } | Done::Read { .. } | Done::Finished => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
             Phase::RemovingTempOnOpen { snapshot } => match event {
                 Done::Finished => temp_removed(store, dir, snapshot, &mut step),
-                Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
+                Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
             Phase::OpeningSnapshot => match event {
                 Done::Opened { file, len } => snapshot_opened(dir, file, len, &mut step),
-                Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
+                Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
                     unreachable!("the file answer must match this phase's request")
                 }
@@ -810,7 +810,7 @@ pub fn up(
             },
             Phase::ClosingSnapshot { next } | Phase::ClosingRecovered { next } => match event {
                 Done::Finished => recovered_file_closed(store, dir, next, &mut step),
-                Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
+                Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
@@ -819,7 +819,7 @@ pub fn up(
                 Done::Opened { file, len } => {
                     log_opened(store, dir, name, next, ReadAt { file, len, at: 0 }, &mut step)
                 }
-                Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
+                Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
                     unreachable!("the file answer must match this phase's request")
                 }
@@ -835,14 +835,14 @@ pub fn up(
             },
             Phase::RemovingTail { name } => match event {
                 Done::Finished => tail_removed(dir, name, step.below),
-                Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
+                Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
             },
             Phase::Creating { name } => match event {
                 Done::Opened { file, .. } => segment_created(dir, name, file, step.below),
-                Done::Failed { .. } => open_failed(dir, Failure::Io, step.above),
+                Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
                     unreachable!("the file answer must match this phase's request")
                 }
@@ -896,7 +896,7 @@ pub fn up(
                 }
             },
             Phase::OpenFailureClosing { failure } => match event {
-                Done::Finished | Done::Failed { .. } => open_failed(dir, failure, step.above),
+                Done::Finished | Done::Failed { .. } => open_failed(dir, failure, &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
@@ -1176,8 +1176,14 @@ fn closed(mut dir: Dir, above: &mut Queue<Event>) -> State {
     State::Closed
 }
 
-fn recovery_closed(store: &mut Store, dir: Dir, step: &mut Step<'_>) -> State {
-    store.recover(dir, step.below, &step.env.limits)
+fn recovery_closed(store: &mut Store, mut dir: Dir, step: &mut Step<'_>) -> State {
+    match mem::replace(&mut dir.compaction, Compaction::Idle).file() {
+        Some(file) => {
+            step.below.push(file::Request::Close { owner: IO_OWNER, file });
+            dir.at(Phase::RecoveryClosing)
+        }
+        None => store.recover(dir, step.below, &step.env.limits),
+    }
 }
 
 fn rollover_closed(store: &mut Store, dir: Dir, step: &mut Step<'_>) -> State {
@@ -1211,7 +1217,7 @@ fn commits_failed(
         step.below.push(file::Request::Close { owner: IO_OWNER, file });
         dir.at(Phase::RecoveryClosing)
     } else {
-        store.recover(dir, step.below, &step.env.limits)
+        recovery_closed(store, dir, step)
     }
 }
 
@@ -1223,14 +1229,17 @@ fn announce_recovered(dir: &mut Dir, last: u64, above: &mut Queue<Event>) {
     }
 }
 
-fn open_failed(mut dir: Dir, failure: Failure, above: &mut Queue<Event>) -> State {
+fn open_failed(mut dir: Dir, failure: Failure, step: &mut Step<'_>) -> State {
+    if let Some(file) = mem::replace(&mut dir.compaction, Compaction::Idle).file() {
+        return open_failed_file(dir, file, failure, step.below);
+    }
     match dir.serving {
-        Serving::Opening { owner } => above.push(Event::OpenFailed { owner, failure }),
-        Serving::Recovering => above.push(Event::RecoveryFailed { failure }),
+        Serving::Opening { owner } => step.above.push(Event::OpenFailed { owner, failure }),
+        Serving::Recovering => step.above.push(Event::RecoveryFailed { failure }),
         Serving::Yes => {}
     }
     if let Some(owner) = dir.close_owner.take() {
-        above.push(Event::Closed { owner });
+        step.above.push(Event::Closed { owner });
     }
     State::Closed
 }
