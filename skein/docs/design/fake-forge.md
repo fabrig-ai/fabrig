@@ -1214,7 +1214,7 @@ masking and refusal of leaked secrets are section 7's.
   dialect, and its pin moves only after it is understood (forge-github.md,
   section 12).
 - **The fixtures' directory** is the person's
-  (`~/src/rust/tmp/github-conformance/`, by its README), named by
+  (a private directory outside any repository, by its README), named by
   `--live`. The tool reads no variable, and refuses a directory that is
   not `0700` or a file that is not `0600`. It holds:
   - `app.json`: the probe App's id, slug, permissions, events and
