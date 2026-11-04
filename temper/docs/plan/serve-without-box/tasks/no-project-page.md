@@ -50,3 +50,14 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Rebase (2026-11-04, step merge, foreman serve-without-box/no-project-page/foreman-1)
+
+combine both branches’ word-table counts in words.rs during rebase
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`, around `PHRASES`, `SEGMENTS`, and `ALL`.
+Main’s `d0b5f0fe52` adds Forgejo-sheet words; `f2af118844` adds Ready words and removes two obsolete words.
+Preserve those changes and this task’s `NoProjectLine` enum entry, `ALL` entry, ID `2197`, and English text.
+Against the refused integration tip, the combined declarations are `PHRASES = 1266`, `SEGMENTS = 2163`, and `ALL: [Word; 671]`.
+Keep both sides’ explanatory comments.
+Retain the chats-page behavior, tests, and task-specific status-line removal; preserve other status edits.
+Validate with `TEMPER_BUNDLE=none heavy cargo nextest run -p temper-client-view -p temper-client-shell-terminal`.
