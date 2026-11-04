@@ -898,11 +898,7 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
     assert_eq!(core.tasks.task(1).unwrap().requester, tasks::Party::Person(1));
 }
 
-#[test]
-fn inbox_context_memory_prices_every_reserved_container_and_complete_document_envelope() {
-    // Each template envelope carries the resource slice: 32 document lines,
-    // eight templates per line, and sixteen bytes per slice carrier.
-    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * 16;
+fn settings_document_bytes() -> u64 {
     // A settings inventory document is priced beside every document (engine.md 17.7).
     // Four pending inventory heads add 96 bytes; the two value sets and
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
@@ -919,7 +915,7 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // Each of its two value sets also carries one project's whole policy:
     // 8,192 owned bytes and the 208-byte ConfiguredPolicy carrier.
     // The two value sets each carry eight bytes for RunPolicy.tools.
-    const SETTINGS_DOCUMENT: u64 = 120_528
+    120_528
         + 4 * 72
         + 16 * 8
         + 2 * 8 * 16
@@ -934,7 +930,14 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
         + 128 * 255 * 4
         + 16
         + 2 * (8192 + 208)
-        + 2 * 8;
+        + 2 * 8
+}
+
+#[test]
+fn inbox_context_memory_prices_every_reserved_container_and_complete_document_envelope() {
+    // Each template envelope carries the resource slice: 32 document lines,
+    // eight templates per line, and sixteen bytes per slice carrier.
+    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * 16;
 
     let (mut core, limits) = fixture();
     waiting(
@@ -960,7 +963,14 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
         + u64::from(limits.tasks.delegates) * chip_heap_bound(&limits.documents).unwrap();
     assert_eq!(
         document_with_context_bound(&limits, &core.kinds),
-        Some(document_bound(&limits.documents).unwrap() + delegates + bound + TEMPLATE_ENVELOPES + SETTINGS_DOCUMENT)
+        Some(
+            document_bound(&limits.documents).unwrap()
+                + delegates
+                + bound
+                + TEMPLATE_ENVELOPES
+                + settings_document_bytes()
+                + u64::from(limits.people.words)
+        )
     );
     assert!(
         crate::reads::answer_bound(&limits, &core.kinds).unwrap()

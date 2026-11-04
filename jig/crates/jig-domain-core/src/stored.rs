@@ -738,7 +738,7 @@ fn settings_refusal_valid(why: &jig_domain_people::Refusal) -> bool {
         return true;
     }
     if let Refusal::Limit { which } = why {
-        return *which == LimitKind::Arithmetic || *which == LimitKind::SettingsProposals;
+        return *which == LimitKind::Arithmetic || *which == LimitKind::SettingsProposals || *which == LimitKind::Words;
     }
     false
 }
