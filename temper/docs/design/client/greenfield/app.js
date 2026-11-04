@@ -726,7 +726,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       body = `<header class="setup-head"><p class="kicker">Reliable, scalable and flexible software factory.</p><h1 class="headline">Welcome to temper</h1><p class="lede">You describe <strong>what</strong> you want and <strong>how</strong> you want it done, and it happens.</p></header>
         <div class="choices-grid">
           ${choice('Try the playground', 'A scripted model and a forge, built in. A taste of how temper feels, with nothing to connect.', 'Fully offline · Ready at once', '<button type="button" class="btn" data-playground>Try the playground</button>')}
-          ${choice('Set up temper', 'Your forge: GitHub, or a Forgejo temper runs for you. Your model: ChatGPT or Claude.', 'About five minutes', `<a class="btn primary" href="welcome.html?at=${f ? (m?.ready ? 'ready' : 'model') : 'forge'}">${f ? 'Go on setting up' : 'Set up temper'}</a>`, ' lead')}
+          ${choice('Set up temper', 'Your forge: GitHub, or a Forgejo temper creates or connects to. Your model: ChatGPT or Claude.', 'About five minutes', `<a class="btn primary" href="welcome.html?at=${f ? (m?.ready ? 'ready' : 'model') : 'forge'}">${f ? 'Go on setting up' : 'Set up temper'}</a>`, ' lead')}
         </div>
         <p class="facts">Tried the playground first? Set up whenever you like; the playground then steps aside.</p>`;
     } else if (at === 'forge') {
