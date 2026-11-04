@@ -290,8 +290,15 @@ impl World {
             Command::Fire(now) => {
                 self.now = now;
                 let mut out = Queue::uncapped();
+                let mut unlinked = Queue::uncapped();
                 match &mut self.machine {
-                    Machine::Client(machine) => machine.fire(now, Wall::EPOCH, &mut out),
+                    Machine::Client(machine) => {
+                        if self.unlinked {
+                            machine.fire_unlinked(now, Wall::EPOCH, &mut unlinked);
+                        } else {
+                            machine.fire(now, Wall::EPOCH, &mut out);
+                        }
+                    }
                     Machine::Root(machine, limits) => {
                         let env = Env { now, wall: Wall::EPOCH, limits: **limits };
                         let mut root_out = Queue::uncapped();
@@ -300,6 +307,7 @@ impl World {
                     }
                 }
                 self.outputs(&mut out);
+                self.unlinked_outputs(&mut unlinked);
             }
             Command::Visit => self.deliver(Event::Up { up: Up::Served { served: true, versions: None } }),
             Command::LoseRequest(key) => self.request_answer(key, false),
@@ -330,8 +338,14 @@ impl World {
         match &mut self.machine {
             Machine::Client(machine) => {
                 let mut out = Queue::uncapped();
-                machine.step(self.now, Wall::EPOCH, event, &mut out);
+                let mut unlinked = Queue::uncapped();
+                if self.unlinked {
+                    machine.step_unlinked(self.now, Wall::EPOCH, event, &mut unlinked);
+                } else {
+                    machine.step(self.now, Wall::EPOCH, event, &mut out);
+                }
                 self.outputs(&mut out);
+                self.unlinked_outputs(&mut unlinked);
                 let Machine::Client(machine) = &mut self.machine else { unreachable!("client mode") };
                 machine.reclaim();
             }
@@ -357,6 +371,11 @@ impl World {
                 root::Request::Client { request } => {
                     client_out.push(request);
                     self.outputs(&mut client_out);
+                }
+                root::Request::Unlinked { request } => {
+                    let mut unlinked = Queue::uncapped();
+                    unlinked.push(request);
+                    self.unlinked_outputs(&mut unlinked);
                 }
                 root::Request::Save { record: root::store::Record::Client(record) } => {
                     self.saved(&record);
@@ -389,25 +408,43 @@ impl World {
         }
     }
 
+    fn told(&mut self, told: Told) {
+        match &told {
+            Told::Page { handle, .. } => self.readers.end(*handle),
+            Told::Answered { key, .. } => self.requests.end(*key),
+            Told::Link { .. }
+            | Told::Pending { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. }
+            | Told::Changed { .. }
+            | Told::Text { .. }
+            | Told::Ended { .. } => {}
+        }
+        self.push(Edge::Told(told));
+    }
+
+    fn unlinked_outputs(&mut self, out: &mut Queue<client::UnlinkedRequest>) {
+        while let Some(request) = out.pop() {
+            match request {
+                client::UnlinkedRequest::Told { told } => self.told(told),
+                client::UnlinkedRequest::Down { down } => self.down(down),
+                other @ (client::UnlinkedRequest::SignOut | client::UnlinkedRequest::Authorized(_)) => {
+                    panic!("unexpected client duty: {other:?}")
+                }
+            }
+        }
+    }
+
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "unexpected linked duties fail at the world's observation boundary"
+    )]
     fn outputs(&mut self, out: &mut Queue<client::Request>) {
         while let Some(request) = out.pop() {
             match request {
                 client::Request::OpenStream { .. } => self.push(Edge::OpenStream),
                 client::Request::CloseStream => self.push(Edge::CloseStream),
-                client::Request::Told { told } => {
-                    match &told {
-                        Told::Page { handle, .. } => self.readers.end(*handle),
-                        Told::Answered { key, .. } => self.requests.end(*key),
-                        Told::Link { .. }
-                        | Told::Pending { .. }
-                        | Told::Kept { .. }
-                        | Told::Dropped { .. }
-                        | Told::Changed { .. }
-                        | Told::Text { .. }
-                        | Told::Ended { .. } => {}
-                    }
-                    self.push(Edge::Told(told));
-                }
+                client::Request::Told { told } => self.told(told),
                 client::Request::Save { records } => {
                     let mut saves = Vec::new();
                     for record in records.into_boxed() {
@@ -425,10 +462,7 @@ impl World {
                     self.writes.push_back(Write { saves: Vec::new(), erases });
                 }
                 client::Request::Exchange { exchange, message, .. } => self.wire(exchange, message),
-                client::Request::Down { down } => self.down(down),
-                other @ (client::Request::SignOut
-                | client::Request::Authorized(_)
-                | client::Request::ServiceCredential { .. }) => panic!("unexpected client duty: {other:?}"),
+                other => panic!("unexpected client duty: {other:?}"),
             }
         }
     }

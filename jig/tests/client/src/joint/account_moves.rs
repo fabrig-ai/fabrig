@@ -21,7 +21,7 @@ fn configuration() -> root::Config {
 struct Story {
     session: Session,
     client: client::Client,
-    out: Queue<client::Request>,
+    out: Queue<client::UnlinkedRequest>,
     now: Time,
     told: Vec<client::Told>,
     sent: Vec<[u8; 16]>,
@@ -82,14 +82,14 @@ impl Story {
         story
     }
     fn event(&mut self, event: client::Event) {
-        self.client.step(self.now, clock(self.now), event, &mut self.out);
+        self.client.step_unlinked(self.now, clock(self.now), event, &mut self.out);
         self.pump();
     }
     fn pump(&mut self) {
         for _ in 0..64 {
             while let Some(request) = self.out.pop() {
                 match request {
-                    client::Request::Down { down: client::Down::Save { record } } => {
+                    client::UnlinkedRequest::Down { down: client::Down::Save { record } } => {
                         if let client::Ask::Jig(ask) = &record.request.request {
                             assert!(
                                 !matches!(
@@ -102,12 +102,12 @@ impl Story {
                                 "a move and its record never reach Save"
                             );
                         }
-                        self.client.step(self.now, clock(self.now), client::Event::Stored, &mut self.out);
+                        self.client.step_unlinked(self.now, clock(self.now), client::Event::Stored, &mut self.out);
                     }
-                    client::Request::Down { down: client::Down::Erase { .. } } => {
-                        self.client.step(self.now, clock(self.now), client::Event::Stored, &mut self.out);
+                    client::UnlinkedRequest::Down { down: client::Down::Erase { .. } } => {
+                        self.client.step_unlinked(self.now, clock(self.now), client::Event::Stored, &mut self.out);
                     }
-                    client::Request::Down { down } => {
+                    client::UnlinkedRequest::Down { down } => {
                         if let client::Down::Send { key, .. } = &down {
                             self.sent.push(*key);
                         }
@@ -116,19 +116,16 @@ impl Story {
                                 OWNER,
                                 self.now,
                                 clock(self.now),
-                                jig_client_test_domain::Request::Client { request: client::Request::Down { down } },
+                                jig_client_test_domain::Request::Unlinked {
+                                    request: client::UnlinkedRequest::Down { down },
+                                },
                             )
                             .expect("real joint request");
                     }
-                    client::Request::Told { told } => self.told.push(told),
-                    client::Request::Exchange { .. }
-                    | client::Request::OpenStream { .. }
-                    | client::Request::CloseStream
-                    | client::Request::Save { .. }
-                    | client::Request::Erase { .. }
-                    | client::Request::SignOut
-                    | client::Request::Authorized(_)
-                    | client::Request::ServiceCredential { .. } => panic!("unlinked client doors only"),
+                    client::UnlinkedRequest::Told { told } => self.told.push(told),
+                    client::UnlinkedRequest::SignOut | client::UnlinkedRequest::Authorized(_) => {
+                        panic!("unlinked client doors only")
+                    }
                 }
             }
             let callbacks = self.session.poll(self.now, clock(self.now)).expect("real root replies");
@@ -139,7 +136,7 @@ impl Story {
                 assert_eq!(owner, OWNER);
                 self.session.received(owner, self.now, clock(self.now), &event);
                 let jig_client_test_domain::Event::Client { event } = event else { panic!("client callback") };
-                self.client.step(self.now, clock(self.now), event, &mut self.out);
+                self.client.step_unlinked(self.now, clock(self.now), event, &mut self.out);
             }
         }
         panic!("joint session did not settle");
@@ -181,7 +178,7 @@ impl Story {
     fn advance(&mut self, span: Duration) {
         self.now = self.now.saturating_add(span);
         self.pump();
-        self.client.fire(self.now, clock(self.now), &mut self.out);
+        self.client.fire_unlinked(self.now, clock(self.now), &mut self.out);
         self.pump();
     }
 }
