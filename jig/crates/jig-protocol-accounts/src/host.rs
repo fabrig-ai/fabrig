@@ -1,6 +1,11 @@
 //! The accounts' host and its pass over store answers and effects
 //! (jig/docs/design/protocol/service.md, 11.1).
-use crate::{Component, component::{Effect, Event, unkept}, party, table::Table};
+use crate::{
+    Component,
+    component::{Effect, Event, unkept},
+    party,
+    table::Table,
+};
 use alloc::boxed::Box;
 use jig_domain_accounts as domain;
 use jig_protocol_config::{self as config, Path, Problems, What};
@@ -81,8 +86,7 @@ fn provider_templates(
                     break;
                 }
             }
-            let registration = registration
-                .ok_or(problem(What::Refers))?;
+            let registration = registration.ok_or(problem(What::Refers))?;
             if untrusted(runtime.trust, has_tls(&endpoint, &origins)) {
                 return Err(problem(What::Bound));
             }
@@ -93,14 +97,9 @@ fn provider_templates(
                 installation_id,
             );
             let mut check = List::with_capacity(1);
-            check
-                .push(unkept(&account))
-                .or(Err(problem(What::Bound)))?;
-            driver::Component::check(check, limits)
-                .or(Err(problem(What::Form)))?;
-            providers
-                .insert(number, account)
-                .or(Err(problem(What::Bound)))?;
+            check.push(unkept(&account)).or(Err(problem(What::Bound)))?;
+            driver::Component::check(check, limits).or(Err(problem(What::Form)))?;
+            providers.insert(number, account).or(Err(problem(What::Bound)))?;
         }
     }
     for provider in &config.llm.providers {
@@ -137,8 +136,7 @@ impl Accounts {
         if limits.client.document.record_bytes > secrets.value {
             return Err(problem(What::Bound));
         }
-        let crypto = CryptoRng::new(crypto, 1)
-            .ok_or(problem(What::Bound))?;
+        let crypto = CryptoRng::new(crypto, 1).ok_or(problem(What::Bound))?;
         let providers = provider_templates(config, runtime.as_mut(), &limits, installation)?;
         Ok(Self::made(Component::new(application, providers, limits, crypto, secrets.page.rows), limits))
     }
@@ -155,16 +153,24 @@ impl Accounts {
     }
     /// The component's reads for an owner's diagnostics and tests.
     #[must_use]
-    pub fn component(&self) -> &Component { &self.component }
+    pub fn component(&self) -> &Component {
+        &self.component
+    }
     /// Whether the durable start has reached the component.
     #[must_use]
-    pub fn opened(&self) -> bool { self.opened }
+    pub fn opened(&self) -> bool {
+        self.opened
+    }
     /// The effects waiting for the owner.
     #[must_use]
-    pub fn effects(&self) -> u32 { self.effects.len() }
+    pub fn effects(&self) -> u32 {
+        self.effects.len()
+    }
     /// Whether an event waits for room in the owner's root.
     #[must_use]
-    pub fn held(&self) -> bool { self.held.is_some() }
+    pub fn held(&self) -> bool {
+        self.held.is_some()
+    }
     /// The owner's browser location for a sign-in callback.
     pub fn return_to(&mut self, source: u32, location: Box<[u8]>) {
         self.component.step(&self.env, Event::Return { source, location }, &mut self.effects);
@@ -205,12 +211,23 @@ impl Accounts {
     /// `marked`: the store's start mark is durable. An owner whose own gate waits for it passes `true`.
     #[must_use]
     pub fn work_pending(&self, now: Time, marked: bool) -> bool {
-        (marked && !self.opened && !self.aborting) || self.component.has_work(now) || !self.effects.is_empty() || self.held.is_some() || !self.io.is_empty()
+        (marked && !self.opened && !self.aborting)
+            || self.component.has_work(now)
+            || !self.effects.is_empty()
+            || self.held.is_some()
+            || !self.io.is_empty()
     }
     /// A pass's first three stages, in order: `Opened` once `marked`, each of `answers`, the component's fire.
     /// Returns the pass's count, for `output`.
     #[must_use]
-    pub fn begin(&mut self, now: Time, wall: Wall, marked: bool, installation: [u8; 16], answers: &mut Queue<store::Event>) -> u32 {
+    pub fn begin(
+        &mut self,
+        now: Time,
+        wall: Wall,
+        marked: bool,
+        installation: [u8; 16],
+        answers: &mut Queue<store::Event>,
+    ) -> u32 {
         self.clock(now, wall);
         if marked && !self.opened && !self.aborting {
             self.component.step(&self.env, Event::Opened { installation }, &mut self.effects);
@@ -225,17 +242,25 @@ impl Accounts {
     /// One effect, in the component's order; `None` when it stayed inside.
     #[must_use]
     pub fn output(&mut self, table: &mut Table) -> Option<Output> {
-        if let Some(event) = self.held.take() { return Some(Output::Account(event)); }
+        if let Some(event) = self.held.take() {
+            return Some(Output::Account(event));
+        }
         match self.effects.pop().expect("accounts effects") {
             Effect::Child(event) => Some(Output::Account(event)),
-            Effect::Io(request) => { self.io.push(request); None }
+            Effect::Io(request) => {
+                self.io.push(request);
+                None
+            }
             Effect::Store { .. } if self.aborting => None,
             Effect::Store { exchange, request } => Some(Output::Store { exchange, request }),
             Effect::Granted { source, generation, value, expires } => {
                 table.granted(source, generation, value, expires).expect("admitted grant");
                 None
             }
-            Effect::Removed { source } => { table.remove(source); None }
+            Effect::Removed { source } => {
+                table.remove(source);
+                None
+            }
             Effect::SourceRemoved { .. } => None,
             Effect::InvalidSecret => Some(Output::InvalidSecret),
         }

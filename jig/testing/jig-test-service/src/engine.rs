@@ -129,8 +129,7 @@ impl Engine {
                 Some(workers) => workers.next_deadline(),
                 None => None,
             };
-            let next =
-                skein_lib::earliest(skein_lib::earliest(accounts, workers), self.store.next_deadline());
+            let next = skein_lib::earliest(skein_lib::earliest(accounts, workers), self.store.next_deadline());
             return skein_lib::earliest(
                 next,
                 match &self.clients {

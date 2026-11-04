@@ -5,8 +5,13 @@ use skein_lib::bytes;
 fn machine() -> Accounts {
     let limits = fixtures::driver_limits();
     let seed = Secret::new(Box::new([7; 32]));
-    let component = Component::new(bytes::copy_of(b"accounts-test"), Map::with_capacity(0), limits,
-        CryptoRng::new(&seed, 1).expect("seed"), 2);
+    let component = Component::new(
+        bytes::copy_of(b"accounts-test"),
+        Map::with_capacity(0),
+        limits,
+        CryptoRng::new(&seed, 1).expect("seed"),
+        2,
+    );
     Accounts::made(component, limits)
 }
 fn begin(host: &mut Accounts, marked: bool, answers: &mut Queue<store::Event>) -> u32 {
@@ -32,7 +37,10 @@ fn an_answer_taken_at_begin_is_stepped_before_the_fire_that_counts_its_work() {
     let exchange = get(&mut host, &mut table);
     answers.push(store::Event::Secret {
         owner: Token::tagged(3, exchange.raw()).expect("tagged exchange"),
-        value: Some(store::SecretValue::Carried { kind: store::CarriedKind::Key, value: Secret::new(bytes::copy_of(b"key")) }),
+        value: Some(store::SecretValue::Carried {
+            kind: store::CarriedKind::Key,
+            value: Secret::new(bytes::copy_of(b"key")),
+        }),
     });
     assert_eq!(begin(&mut host, true, &mut answers), 1);
     assert!(answers.is_empty());
@@ -57,7 +65,10 @@ fn a_held_event_leaves_first_and_is_work_until_it_does() {
     host.effects.push(Effect::InvalidSecret);
     assert_eq!(begin(&mut host, false, &mut Queue::uncapped()), 2);
     let mut table = Table::new(1, 32);
-    assert!(matches!(host.output(&mut table), Some(Output::Account(domain::Event::Component(domain::FromComponent::Closed)))));
+    assert!(matches!(
+        host.output(&mut table),
+        Some(Output::Account(domain::Event::Component(domain::FromComponent::Closed)))
+    ));
     assert!(!host.held());
     assert!(matches!(host.output(&mut table), Some(Output::InvalidSecret)));
     assert_eq!(host.effects(), 0);
@@ -66,14 +77,25 @@ fn a_held_event_leaves_first_and_is_work_until_it_does() {
 #[test]
 fn a_grant_reaches_the_table_before_its_event_leaves() {
     let mut host = machine();
-    host.effects.push(Effect::Granted { source: 7, generation: 1, value: fixtures::value(b"key"), expires: Time::from_nanos(1) });
+    host.effects.push(Effect::Granted {
+        source: 7,
+        generation: 1,
+        value: fixtures::value(b"key"),
+        expires: Time::from_nanos(1),
+    });
     host.effects.push(Effect::Child(domain::Event::Component(domain::FromComponent::Granted {
-        account: 7, generation: 1, form: domain::Form::Credential(domain::Scheme::Key), valid: skein_lib::Duration::from_secs(1),
+        account: 7,
+        generation: 1,
+        form: domain::Form::Credential(domain::Scheme::Key),
+        valid: skein_lib::Duration::from_secs(1),
     })));
     let mut table = Table::new(1, 32);
     assert!(host.output(&mut table).is_none());
     assert_eq!(table.value(7, 1, Time::ZERO).expect("grant before event").token.expose(), b"key");
-    assert!(matches!(host.output(&mut table), Some(Output::Account(domain::Event::Component(domain::FromComponent::Granted { account: 7, .. })))));
+    assert!(matches!(
+        host.output(&mut table),
+        Some(Output::Account(domain::Event::Component(domain::FromComponent::Granted { account: 7, .. })))
+    ));
 }
 #[test]
 fn an_aborted_host_opens_nothing_and_drops_its_store_requests() {
@@ -96,17 +118,29 @@ fn an_aborted_host_opens_nothing_and_drops_its_store_requests() {
 fn a_restored_secret_of_the_wrong_kind_is_reported() {
     let mut host = machine();
     assert_eq!(begin(&mut host, true, &mut Queue::uncapped()), 0);
-    host.request(domain::Request::Signing(domain::Signing::Restore { source: 7, provider: 1, kind: domain::Kind::Key }));
+    host.request(domain::Request::Signing(domain::Signing::Restore {
+        source: 7,
+        provider: 1,
+        kind: domain::Kind::Key,
+    }));
     assert_eq!(begin(&mut host, true, &mut Queue::uncapped()), 1);
     let mut table = Table::new(1, 32);
     let exchange = get(&mut host, &mut table);
-    host.answer(store::Event::Secret { owner: exchange, value: Some(store::SecretValue::Record(Secret::new(bytes::copy_of(b"record")))) });
+    host.answer(store::Event::Secret {
+        owner: exchange,
+        value: Some(store::SecretValue::Record(Secret::new(bytes::copy_of(b"record")))),
+    });
     assert_eq!(begin(&mut host, true, &mut Queue::uncapped()), 2);
     assert!(matches!(host.output(&mut table), Some(Output::InvalidSecret)));
 }
 #[test]
 fn trust_bounds_refuse_tls_alone_and_none_checks_nothing() {
-    for bounds in [None, Some(TrustBounds { roots: 0, bytes: 1 }), Some(TrustBounds { roots: 1, bytes: 0 }), Some(TrustBounds { roots: 1, bytes: 1 })] {
+    for bounds in [
+        None,
+        Some(TrustBounds { roots: 0, bytes: 1 }),
+        Some(TrustBounds { roots: 1, bytes: 0 }),
+        Some(TrustBounds { roots: 1, bytes: 1 }),
+    ] {
         assert!(!untrusted(bounds, false));
         assert_eq!(untrusted(bounds, true), bounds.is_some_and(|bounds| bounds.roots == 0 || bounds.bytes == 0));
     }
