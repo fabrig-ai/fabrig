@@ -26,7 +26,7 @@
   - 9: the native walk through the web client's host:
     `tests/playground` checks story A's calm start alone. Story A's walk
     in the one-process world, ignored (4). The wasm32 builds in the gate:
-    fab's gate list (`.config/gate/wasm32.txt`) holds neither
+    the gate's list (`.config/gate/wasm32.txt`) holds neither
     `temper-playground` nor the web shell, so no gate proves 3's product
     crates on wasm32. `temper-playground`'s wasm32 clippy fails, with
     warnings denied, in smith's and temper's crates alone: unmet

@@ -17,16 +17,14 @@ are named as theirs.
 - **Eleven milestones,** M0 to M10 (section 3). M0 is the ground the
   reference stands on; M1 to M9 each execute a part of the drafts; M10
   is the case whole.
-- **Each runs through fab's loop whole, its design included** (section
-  2): its input is its entry here and the draft sections it cites; its
-  designers write the design into its trunk family by family, feeding
-  its implementers as each part is ready. Shared design is kept to the
+- **Each writes its own design** (section 2): its input is its entry
+  here and the draft sections it cites. Shared design is kept to the
   least: no milestone designs ahead for another, and where several
   touch one section, each adds its own part (section 4).
 - **Done when it lands on main;** its walk, a QA brief of the case's
   steps it makes possible through `temper ctl` alone, follows where
   there is something to walk, blocks nothing, and sends its findings
-  back to the loop as fixes.
+  back as fixes.
 - **A spine and three side tracks** (section 4). The spine is the goal's
   own branch (M1), then four milestones side by side on it (designers,
   questions, early starts, the merge job into it) and its landing (M2).
@@ -40,86 +38,63 @@ are named as theirs.
 
 ## 2. How a milestone runs
 
-A milestone runs through fab's loop whole, its design included, under
-fab's rules for a run's lead and its designers:
-
-1. **Its input:** its entry in section 3 and the draft sections it
-   cites. The user starts it as a plan of its own,
-   `temper/docs/plan/<milestone>`: its trunk made, the entry its
-   request, this file and the drafts the cut's sources.
-2. **Design and build, one pipeline.** The cut releases first what
-   needs nothing. Its designers, one per family, write the family's
-   design into the trunk: the sections the entry's Design names, each
+1. **Its input:** its entry in section 3 and the draft sections it cites.
+2. **Design and build together.** Its designers, one per family, write
+   the family's design: the sections the entry's Design names, each
    document's status with a Not yet for what is still to build, its
-   Later, and the entries they close in the drafts' statuses. Then the
-   specs that cite it, released in batches while the implementers work
-   on the earlier ones. Implementers never write the design. A section
-   once released binds its specs: a later batch adds compatible detail
-   or its own part, and an incompatible change is a numbered revision
-   with new specs. The cut is one call of at most 90 minutes, so a
-   milestone's request asks no more design than one cut writes, its
-   early release carrying the rest; one that needs more is too big.
-3. **Landed whole:** the trunk is checked and lands through the queue,
-   and the plan's retire brings its statuses current.
-4. **Done** when its trunk has landed on main. A milestone that needs it
-   may start then.
+   Later, and the entries they close in the drafts' statuses. The work
+   that cites it follows, family by family. Implementers never write the
+   design. A section once written binds the work that cites it: later
+   work adds compatible detail or its own part, and an incompatible
+   change is a numbered revision.
+3. **Landed whole:** checked whole, it lands on main with its statuses
+   current.
+4. **Done** when it has landed on main. A milestone that needs it may
+   start then.
 5. **Its walk, where there is something to walk:** a rung of the
-   ladder's plan, which blocks nothing. fabrig/qa judges whether what
-   landed makes a story walkable through `temper ctl`; if not yet, the
+   ladder, which blocks nothing. Whether what landed makes a story
+   walkable through `temper ctl` is judged as it lands; if not yet, the
    walk folds into a later milestone's. A brief is in a rung's form
    (`v0.1.0.md`, section 3): the case's steps the milestone makes
    possible, with the case's names, on the case's backends; a step that
    needs a later milestone is walked in its plainest form or left out,
-   and the brief says which. Its findings go back to the loop as fixes.
-   Walks grow, each brief extending the earlier ones, so M10's is the
-   case.
-
-Its designers, its implementers and its walker are separate sessions.
-
-**Old branches, for reference only.** Unmerged branches of the old
-repositories (fabrig-ai's jig, temper and skein, kept in hel8's
-`~/src/fabrig/attic/` until the user decides on them) hold earlier
-code for some milestones, assessed against this file in hel8's
-`~/src/fabrig/coord/old-repos-value/`. Each entry names its own under
-Old code. They are a reference, never a plan: whether to use one, what
-of it and how is its designers' and implementers' choice, case by case.
-Adapting old code to today's tree may cost more than writing it afresh,
-so weigh that before starting from it.
+   and the brief says which. Its findings go back as fixes. Walks grow,
+   each brief extending the earlier ones, so M10's is the case.
 
 ## 3. The milestones
 
 | | Milestone | Executes | Needs | Walks (case steps) | State |
 |---|---|---|---|---|---|
-| M0 | Ground: the playground's reset closed out; fab's designers write the design | | | done 2026-11-02: the close-out landed; fab's designers write design with specs |
+| M0 | Ground: the playground's reset closed out; designers write the design | | | | done 2026-11-02 |
 | M1 | The goal's own branch | N3, N4, N15, N23; N22 in part | M0 | 1, 3, 7, 19 | done: landed 2026-11-03 02:21Z (`d1d49bd206`) |
 | M2 | The goal lands | N3 for L; N22's `mine` | M1 | 23, 24, 28 | done: landed 2026-11-03 04:27Z (`b909b01fd7`) |
 | M3 | Designers and the cut | N12, N13, N16, N19, N20 | M1 | 3, 4, 6, 22 | done: landed 2026-11-03 10:31Z (`224965929f`) |
-| M4 | Surveys as sub-agents | N10 | M0 | 2, 5 | done: landed 2026-11-02 20:47Z (`0ca3509cbf`); its walk folds into M3's |
+| M4 | Surveys as sub-agents | N10 | M0 | 2, 5 | done: landed 2026-11-02 20:47Z (`0ca3509cbf`) |
 | M5 | Questions, and holds passed up | N1, N8 | M1 | 5, 9, 11, 14, 15, 18 | done: landed 2026-11-03 09:21Z (`916b6dbfdb`) |
 | M6 | Early starts | N2, N14 | M1 | 4, 8, 10, 13, 17 | done: landed 2026-11-03 06:08Z (`fcbde2d586`) |
 | M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | done: M7a landed 2026-11-02 21:34Z, M7b 2026-11-03 07:18Z |
-| M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | done: landed 2026-11-02 22:33Z (`2841e59d0a`); first walks blocked by a chat finding (finding-111) |
+| M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | done: landed 2026-11-02 22:33Z (`2841e59d0a`) |
 | M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | done: landed 2026-11-03 08:28Z (`677e405ca1`) |
-| M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | done 2026-11-03 (`4c739315c4`); its walk is rung C |
+| M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | done 2026-11-03 (`4c739315c4`) |
 
 N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
 Each entry's Design names the documents and sections its designers
 write, from the drafts' statuses; Builds, the trees its implementers
 change; Configures, the settings of `reference-code-production.md`,
-section 14 it adds; Old code, the old branches it may start from.
+section 14 it adds.
 
 ### M0. Ground
 
-- **The playground's reset closed out** (the user's X5): its draft
-  ported into the design and archived. Done: the milestones' designers
+- **The playground's reset closed out**: its draft ported into the
+  design and archived. Done: the milestones' designers
   find the documents they edit (`forge.md`, temper's
   `../protocol/configuration.md`, jig's `domain/tasks.md`) free of its
   Departs entries.
-- **fab's designers write the design** (the user, 2026-11-02): the cut's
-  designers write their family's design into the trunk with their
-  specs, as section 2 has it, the project's design rules (`DESIGN.md`)
-  among their documents. agents/loop's change to fab.
-- **Done** when fab's change has landed.
+- **Designers write the design** (the user, 2026-11-02): a milestone's
+  designers write their family's design with the words of its changes,
+  as section 2 has it, the project's design rules (`DESIGN.md`) among
+  their documents.
+- **Done** 2026-11-02.
 
 ### M1. The goal's own branch
 
@@ -155,12 +130,6 @@ section 14 it adds; Old code, the old branches it may start from.
   end); the goal template for drafts; the coding agent's charter (Left
   lists, tests marked ignored for code it does not own: N15); the
   landing rule for goal branches; the merge commit; `.temper/pre-pr`.
-- **Old code:** jig `upgrades-6/j12-verdict-fields-2` (a result's bound
-  past the settings schema's cap); jig's and temper's
-  `configuring-revisions/documents-r1` (a charter's documents); temper
-  `configuring-stock/forge-kinds` (temper's kinds as settings); temper
-  `holds/forge-step-admitted-12`, a bug its walk may meet (a change held
-  for effects, then released, left with no producer).
 - **Walk:** steps 1, 3 (G specifies its changes itself, one after
   another), 7 and 19, then the goal's end with g kept, unlanded. A
   dependent starts once its dependency has landed; no merge into g
@@ -182,8 +151,6 @@ section 14 it adds; Old code, the old branches it may start from.
 - **Configures:** the coordinator's charter: L, its escalations, changes
   into g while L is held; the landing rule for main; L's CI, the full
   gate; three repairs.
-- **Old code:** temper `o/forgejo-land-drift-world`, a test idea for
-  `forge.md`, 8.5.
 - **Walk:** steps 23, 24 and 28, L ending at landed until M8; and
   `reference-landing.md`, section 9's second story (L held past its
   repairs, released after a change into g).
@@ -209,24 +176,20 @@ section 14 it adds; Old code, the old branches it may start from.
   13.2 and 13.3), and the forge's charters, out of `Config`'s
   `forge_charter`, so a change's producer and foreman each take a
   charter of their own (`../domain/root.md`, 6; `forge.md`, 8.1 and 8.9;
-  temper's `../protocol/configuration.md`, 13.2), moved here from M1's
-  cut (the user, 2026-11-02); M4's sub-agents
-  reachable from temper (fabrig/qa, 11-02): the box's smith profile
-  declares one conversation, so every `sub_agent` is refused as too
+  temper's `../protocol/configuration.md`, 13.2), moved here from M1
+  (the user, 2026-11-02); M4's sub-agents reachable from temper: the
+  box's smith profile declares one conversation, so every `sub_agent` is refused as too
   many, and `ctl`'s LLM choice for a task names no sub-agents.
 - **Configures:** the designer's charter; the coordinator's charter:
   the cut, the families' batches, revisions, the close-out; each
   change's LLM choices, gpt-6.1-sol on smith's direct backend (N20);
   sub-agents in both charters, at Opus 5.5 and high.
 - **A charter's documents** are built by `configuring.execution.md`'s
-  P1 (started 2026-11-02), not here: M3's
-  charters naming documents (`AGENTS.md`, the design rules) wait for P1
-  to land.
-- **Old code:** jig's and temper's `configuring-revisions/charter-tools-r6`
-  (the tool families a charter offers); `forge-kinds` (M1).
+  P1, not here: M3's charters naming documents (`AGENTS.md`, the design
+  rules) wait for P1 to land.
 - **Walk:** steps 1 to 6 without questions or early starts (each
   designer starts once S has landed), and 22; with M2, the goal then
-  lands. M4's walk folds in here (fabrig/qa): a Claude Code chat asks
+  lands. M4's walk folds in here: a Claude Code chat asks
   two inspect-only sub-agents to read two parts of the repository side
   by side; both run at their own LLM choice, inspect only, seen through
   `ctl`, each child's session ended on its budget.
@@ -259,8 +222,6 @@ section 14 it adds; Old code, the old branches it may start from.
 - **Configures:** the foreman's charter; the coordinator's charter:
   answer, amend, a new change, ask the person, holds; waking on each
   question at once (N8).
-- **Old code:** `charter-tools-r6` (M3), for the read-only foreman;
-  `holds/forge-step-admitted-12` (M1).
 - **Walk:** steps 9, 11, 14, 15 and 18; 5's question once M3's walk
   stands.
 
@@ -299,13 +260,11 @@ section 14 it adds; Old code, the old branches it may start from.
   M0, as already designed; M7b, the merge job and its three uses: a
   merge into g and a catch-up (after M1), L's update (after M2). M7b
   also lets a role's authority name a job kind in jig's configuration,
-  which M7a's retire found missing (jig's `protocol/configuration.md`,
+  which M7a found missing (jig's `protocol/configuration.md`,
   section 3).
 - **Configures:** `merge_job`, the project's kind that merges and
   recounts its counted baselines; the coordinator's charter:
   catch-ups, landing news paced at most once in 30 minutes (N23).
-- **Old code:** temper `ladder-b01/f19-r4`, the resolving agent's words
-  (the worker pushes the merge commit).
 - **Walk:** steps 12, 16 and 21; `reference-landing.md`, section 9's
   first story (L's update conflicts, settled by the merge job and a
   resolution on g).
@@ -323,11 +282,6 @@ section 14 it adds; Old code, the old branches it may start from.
   cleared; skein's reads.
 - **Configures:** main's tiers, the slow suites; the verification bound,
   two hours.
-- **Old code:** most of the build, in the verdicts line: jig
-  `verdicts/jig-zero-seed-13`, skein `verdicts/skein-reads-3`, temper
-  `verdicts/2a-set-8`, then temper `verdicts/t9-bound` (reruns, flakes,
-  bisection, the bound). It follows the landing branch alone, where N5
-  has a tier name its branches.
 - **Walk:** a chat's small fix into main (`reference-landing.md`, section
   7), verified: green clears it; a red reruns, blames, bisects. Then,
   with M2, step 25 and 28's L given its result at cleared.
@@ -346,8 +300,6 @@ section 14 it adds; Old code, the old branches it may start from.
   following goal branches, at most once per 20 minutes); the
   coordinator's charter: triage along the way and after landing, notes
   on what it learns.
-- **Old code:** temper `verdicts/t9-bound`'s red news to goals and
-  `repairs`; g's tier and triage were never built.
 - **Walk:** steps 20 and 25 to 27; `reference-landing.md`, section 9's
   third story.
 
@@ -363,9 +315,6 @@ section 14 it adds; Old code, the old branches it may start from.
   packages' focused tests. Whether the script runs them too is decided
   from the reds that reach a goal's branch, their repairs' cost and the
   check's time at each push.
-- **Old code:** jig `github-pilot/t28-land-r4` (a batch refused for room
-  waits for it); temper `configuring-revisions/settings-file` and
-  `docs-reference/*`, background for the profile's sizing.
 - **Walk:** rung C (`v0.1.0.md`, 2.1 and section 7): `reference-case.md`,
   acts 1 to 5, act by act, then whole; both plans; opened once rung B2
   passes.
@@ -382,7 +331,7 @@ section 14 it adds; Old code, the old branches it may start from.
 | 3 | M2 and M8 are done | M9; M7b for L |
 | 4 | every one is done, and B2 passes | M10 |
 
-- **Up to five at once,** in wave 2, each a plan of its own in fab.
+- **Up to five at once,** in wave 2.
 - **The longest chain** is M0, M1, M2, M9, M10; M8 joins it if it runs
   late, so it starts in wave 1.
 - **No shared design milestone** (the user, 2026-11-02). Where
@@ -426,10 +375,9 @@ section 14 it adds; Old code, the old branches it may start from.
   shows: the reference needs neither (`notes.md`, section 6).
 - **The web client's pages** for any of this: the walks are `ctl`'s;
   pages are rung W's.
-- **After the case:** fabrig's own drafts carried out by temper in place
-  of fab, on fabrig's forge, GitHub, a rung behind
-  (`v0.1.0.md`, 2.2 and section 6). It gets a brief of its own once M10
-  passes.
+- **After the case:** fabrig's own drafts carried out by temper, on
+  fabrig's forge, GitHub, a rung behind (`v0.1.0.md`, 2.2 and section 6).
+  It gets a brief of its own once M10 passes.
 
 ## 7. Open questions
 
