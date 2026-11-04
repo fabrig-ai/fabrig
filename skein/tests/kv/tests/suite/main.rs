@@ -5,6 +5,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod golden;
 mod memory;
+mod open;
 mod real;
 mod store;
 

@@ -460,6 +460,12 @@ fn log_number(name: &[u8]) -> Option<u64> {
     Some(number)
 }
 
+/// What a recovery read asks: a chunk, or what the file holds past `at` (kv.md, 3).
+fn read_size(chunk: u32, len: u64, at: u64) -> u32 {
+    let left = len.checked_sub(at).expect("recovery reads only within the file");
+    u32::try_from(u64::from(chunk).min(left)).expect("a recovery read is at most one chunk")
+}
+
 /// The owner's request.
 pub fn down(
     store: &mut Store,
@@ -667,13 +673,22 @@ pub fn up(
         }
         (Phase::RemovingTempOnOpen, file::Event::Removed { .. }) => store.start_recovery(below),
         (Phase::OpeningSnapshot, file::Event::Opened { file, len, .. }) => {
+            if len == 0 {
+                open_failed_file(store, file, Failure::Corrupt, below);
+                return;
+            }
             let cap = env.limits.budget.saturating_mul(2).saturating_add(1024);
             if len > cap {
                 open_failed_file(store, file, Failure::Full, below);
                 return;
             }
             store.phase = Phase::ReadingSnapshot { file, len, at: 0, bytes: Vec::new() };
-            below.push(file::Request::ReadAt { owner: IO_OWNER, file, offset: 0, max: env.limits.chunk });
+            below.push(file::Request::ReadAt {
+                owner: IO_OWNER,
+                file,
+                offset: 0,
+                max: read_size(env.limits.chunk, len, 0),
+            });
         }
         (Phase::ReadingSnapshot { file, len, at, mut bytes }, file::Event::Read { bytes: read, .. }) => {
             let next = at.checked_add(skein_lib::len_u64(read.len()));
@@ -685,7 +700,12 @@ pub fn up(
             let next = next.expect("checked read offset");
             if next < len {
                 store.phase = Phase::ReadingSnapshot { file, len, at: next, bytes };
-                below.push(file::Request::ReadAt { owner: IO_OWNER, file, offset: next, max: env.limits.chunk });
+                below.push(file::Request::ReadAt {
+                    owner: IO_OWNER,
+                    file,
+                    offset: next,
+                    max: read_size(env.limits.chunk, len, next),
+                });
             } else {
                 if let Err(failure) = store.apply_snapshot(&bytes, &env.limits) {
                     open_failed_file(store, file, failure, below);
@@ -708,7 +728,12 @@ pub fn up(
                 below.push(file::Request::Close { owner: IO_OWNER, file });
                 store.phase = Phase::ClosingRecovered;
             } else {
-                below.push(file::Request::ReadAt { owner: IO_OWNER, file, offset: 0, max: env.limits.chunk });
+                below.push(file::Request::ReadAt {
+                    owner: IO_OWNER,
+                    file,
+                    offset: 0,
+                    max: read_size(env.limits.chunk, len, 0),
+                });
             }
         }
         (Phase::ReadingLog { file, first, len, at, mut bytes }, file::Event::Read { bytes: read, .. }) => {
@@ -721,7 +746,12 @@ pub fn up(
             let next = next.expect("checked read offset");
             if next < len {
                 store.phase = Phase::ReadingLog { file, first, len, at: next, bytes };
-                below.push(file::Request::ReadAt { owner: IO_OWNER, file, offset: next, max: env.limits.chunk });
+                below.push(file::Request::ReadAt {
+                    owner: IO_OWNER,
+                    file,
+                    offset: next,
+                    max: read_size(env.limits.chunk, len, next),
+                });
             } else {
                 let replayed = store.replay(first, &bytes, &env.limits);
                 match replayed {
