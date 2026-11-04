@@ -15,7 +15,7 @@ fn owned(scratch: &support::Scratch) -> Owned {
         scratch.path(),
         r#"
 case "$*" in
-  --version) echo 'forgejo version 17.0.0';;
+  --version) echo 'forgejo version 17.0.1';;
   *'admin user create'*) echo "generated random password is 'private-password'";;
   *'generate-access-token'*) echo 'private-token';;
   *'actions register'*) echo 'kept-runner';;
@@ -35,7 +35,7 @@ fn with_runner(scratch: &support::Scratch) -> Owned {
     let mut owned = owned(scratch);
     let directory = scratch.path().join("runner-binary");
     fs::create_dir(&directory).expect("runner binary directory");
-    let program = support::script(&directory, "echo 'forgejo-runner version v13.2.0'");
+    let program = support::script(&directory, "echo 'forgejo-runner version v13.2.1'");
     owned.runner = Some(temper_forge_setup::setup::Runner {
         binary: program.program,
         labels: Box::new([b"temper-host:host".as_slice().into()]),
