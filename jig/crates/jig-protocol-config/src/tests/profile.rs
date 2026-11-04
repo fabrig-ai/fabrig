@@ -87,3 +87,13 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
         assert!(request.min(u64::from(page)) < MAX_FRAME);
     }
 }
+
+#[test]
+fn profiles_retain_a_day_of_deciding_answers_with_fivefold_room() {
+    for selected in [Profile::Small, Profile::Standard] {
+        let people = profile(selected).core.people;
+        // Twenty conversations each: create, three messages, decide. Fivefold headroom.
+        assert_eq!(people.requests, people.people * 20 * 5 * 5);
+        assert_eq!(people.request_retention, skein_lib::Duration::from_secs(86_400));
+    }
+}

@@ -1,6 +1,5 @@
 use super::*;
 use crate::backend::fixtures::COMPLETION;
-use crate::mcp::json;
 use fixtures::records as active;
 use fixtures::{env, records_with as running, request};
 use smith_domain::run;
@@ -77,7 +76,7 @@ fn sub_agent_call(input: &[u8], served: bool) -> llm::Decoded {
     prompt.served = if served { Box::new([llm::Served::SubAgent]) } else { Box::default() };
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    let line = json::join(&[
+    let line = skein_lib::bytes::concat(&[
         br#"{"type":"assistant","message":{"id":"unframed","content":[{"type":"tool_use","id":"t","name":"mcp__smith__sub_agent","input":"#,
         input,
         b"}]}}",

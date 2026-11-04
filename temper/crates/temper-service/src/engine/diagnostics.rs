@@ -25,7 +25,7 @@ impl Engine {
             workers: active && self.workers.work_pending(now),
             accounts: effects
                 && match &self.accounts {
-                    Some(accounts) => accounts.work_pending(now),
+                    Some(accounts) => accounts.work_pending(now, true),
                     None => false,
                 },
             store_opened: self.store.opened,

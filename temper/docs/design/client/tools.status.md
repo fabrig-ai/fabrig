@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-03. Remaining gaps between temper's code and [tools.md](tools.md).
+2026-11-04. Remaining gaps between temper's code and [tools.md](tools.md).
 
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone

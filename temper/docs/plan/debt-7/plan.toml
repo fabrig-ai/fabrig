@@ -40,6 +40,32 @@ text = """A restored secret of the wrong kind differs between the services. jig 
 parts = ["service-accounts"]
 
 [[part]]
+id = "service-worker"
+title = "jig D005, temper D001: the worker's agents and the workers' side, shipped by jig and composed by both services"
+mode = "direct"
+needs = ["service-accounts"]
+design = "jig/docs/design/protocol/service.md, 11.2"
+
+[[slice]]
+id = 4
+story = "a worker's program sources and route, and the engine's workers' side, are jig's in both services, with each service's visible events and a lost listener's meaning unchanged"
+parts = ["service-worker"]
+walk = false
+
+[[part]]
+id = "service-clients"
+title = "jig D005, temper D001: the server, the store's host and the clients' side, shipped by jig and composed by both services"
+mode = "direct"
+needs = ["service-worker"]
+design = "jig/docs/design/protocol/service.md, 11.4"
+
+[[slice]]
+id = 5
+story = "the clients' listener, the store's host and the clients' side are jig's in both services, each with its own routes, and both items say what's left"
+parts = ["service-clients"]
+walk = false
+
+[[part]]
 id = "fake-github"
 title = "skein D029: every test that serves the fake GitHub over HTTP drives its server, and the fixture is built once, in the fake"
 mode = "direct"

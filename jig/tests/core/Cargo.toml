@@ -37,6 +37,7 @@ skein-lib.workspace = true
 skein-world.workspace = true
 
 [dev-dependencies]
+jig-fake-store.workspace = true
 jig-test-patches-smith.workspace = true
 skein-codec.workspace = true
 jig-protocol-engine-clients.workspace = true

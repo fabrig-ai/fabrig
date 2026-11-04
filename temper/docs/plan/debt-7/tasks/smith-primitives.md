@@ -3,7 +3,7 @@ id = "smith-primitives"
 part = "smith-items"
 kind = "migration"
 needs = ["skein-concat"]
-files = ["smith/crates/**/*.rs", "smith/benchmarks/src/agent/smith/observe.rs", "smith/docs/development/debt/D016-retyped-primitives.md", "smith/docs/development/debt/README.md"]
+files = ["smith/crates/**/*.rs", "smith/benchmarks/src/agent/smith/observe.rs", "smith/benchmarks/src/suite.rs", "smith/tests/**/*.rs", "smith/docs/development/debt/D016-retyped-primitives.md", "smith/docs/development/debt/README.md"]
 effort = "medium"
 minutes = 75
 +++
@@ -87,3 +87,14 @@ Acceptance:
 
 The common note's items. No new test, so no break. The two counts, the exemptions you met, and each
 helper that lost its `Option`. Net lines.
+
+## Answers
+
+2026-11-04. May the 15 conversions in `smith/tests/**` and `smith/benchmarks/src/suite.rs` change, or are they
+exempt? **They change; `files` now lists them.** They are not exempt: each widens a native `usize`, and the broad
+search of the acceptance must hold. Every package there names `skein_lib`, so no manifest changes. Each is the
+conversion alone: `u64::try_from(<expr>).expect(..)` becomes `skein_lib::len_u64(<expr>)`, its `.expect` going with
+it, `<expr>` as it stands, no assertion and no value moved. This departs from `notes/common.md`'s "a test may change
+only where it names a moved item" for these lines only. A `size_of` inside a longer length sum, as in
+`fuzzy/listing.rs` and `recorded.rs`, is one of them: the exemption is for `u64::try_from(size_of::<T>())` alone.
+The packages they sit in join step 4's clippy and nextest lists. Keep the pushed commit, then the two other sweeps.

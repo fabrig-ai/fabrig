@@ -5,7 +5,7 @@
 use super::Complete;
 use super::PIPE_BYTES;
 use super::{Backend, State, policy};
-use crate::mcp::{self, json};
+use crate::mcp;
 use alloc::boxed::Box;
 use skein_lib::List;
 use smith_domain::llm;
@@ -104,5 +104,5 @@ pub(super) fn outside(names: &[llm::Served]) -> Box<[u8]> {
         bytes.push(b' ').expect("finishing names fit");
     }
     // The fixed finishing choice contains finish and, when granted, deliver.
-    json::join(&[bytes.as_slice()])
+    skein_lib::bytes::concat(&[bytes.as_slice()])
 }

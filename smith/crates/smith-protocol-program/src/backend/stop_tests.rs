@@ -161,7 +161,7 @@ fn prompt_input(backend: &mut Backend, labelled: bool, input: serde_json::Value)
     if labelled {
         message["params"]["arguments"]["tool_use_id"] = serde_json::json!("r");
     }
-    let bytes = mcp::json::join(&[&serde_json::to_vec(&message).expect("prompt JSON"), b"\n"]);
+    let bytes = skein_lib::bytes::concat(&[&serde_json::to_vec(&message).expect("prompt JSON"), b"\n"]);
     let server = backend.startup.server_mut().expect("permission server");
     server.from_io(
         env(0).now,
@@ -336,7 +336,7 @@ fn a_tail_checks_its_exact_encoded_length() {
             role: llm::Role::User,
             content: Box::new([llm::Block::Text { text: text.into(), replay: None }]),
         }]);
-        let encoded = mcp::json::join(&[
+        let encoded = skein_lib::bytes::concat(&[
             b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":",
             &serde_json::to_vec(core::str::from_utf8(&expected).unwrap()).unwrap(),
             b"}}\n",

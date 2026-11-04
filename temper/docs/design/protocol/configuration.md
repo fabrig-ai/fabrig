@@ -1279,6 +1279,16 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   standard profile, whose store holds a larger record, or jig's store
   bounds follow the limits they hold; the case's walk shows whether a
   family's list, cut at that bound, still reaches the coordinator.
+- **Who writes the case's workflows** (13.9). The repository a case runs
+  on carries CI and `tier-slow.yml` and `tier-goal.yml` for its landing
+  to meet them. Who writes them, and the runner's budget they take, are
+  the user's, open since 2026-11-03, with no default: the walk's copy of
+  fabrig carries them, written for the box that runs the case, CI
+  running the gate's nextest profiles whole, `tier-goal.yml` the gate
+  without its slowest suites and `tier-slow.yml` the slow tiers, within
+  a runner budget the user sets; or fabrig carries them under
+  `.forgejo/workflows/` once that budget is set; or the case runs on a
+  smaller repository than fabrig, whose workflows are cheap.
 
 ## 12. The three directories
 

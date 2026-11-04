@@ -197,11 +197,7 @@ fn payload_at_edge(limits: &session::Limits, system: &[u8]) -> u64 {
     limits
         .history_bytes
         .checked_sub(reserve)
-        .and_then(|bytes| {
-            bytes.checked_sub(
-                u64::try_from(system.len() + 1 + size_of::<session::llm::Block>()).expect("fixed ownership"),
-            )
-        })
+        .and_then(|bytes| bytes.checked_sub(skein_lib::len_u64(system.len() + 1 + size_of::<session::llm::Block>())))
         .and_then(|bytes| bytes.checked_sub(26)) // The fixture's retained summary instruction.
         .and_then(|bytes| bytes.checked_sub(23)) // The retained preamble is beside the task.
         .and_then(|bytes| bytes.checked_div(2)) // The task is retained beside its history block.

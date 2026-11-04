@@ -121,7 +121,7 @@ fn runtime() -> jig_test_service::AccountsRuntime {
         .expect("issuer origin");
     let mut providers = skein_lib::List::with_capacity(1);
     providers.push((1, endpoint(), origins)).expect("provider runtime");
-    jig_test_service::AccountsRuntime { providers, trust_roots: 0, trust_root_bytes: 0 }
+    jig_test_service::AccountsRuntime { providers, trust: Some(jig_test_service::TrustBounds { roots: 0, bytes: 0 }) }
 }
 fn service(inherited: &Inherited) -> Process {
     let root = |name: &[u8]| inherited.roots.iter().find(|(n, _)| n.as_ref() == name).expect("startup root").1;

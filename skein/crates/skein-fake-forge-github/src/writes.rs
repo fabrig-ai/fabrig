@@ -357,7 +357,7 @@ pub(crate) fn finish(
     let limits = &service.limits;
     let answer = match result {
         Ok(answer) => answer,
-        Err(error) => return Outcome::Reply(refused(&stage, error, limits)),
+        Err(error) => return Outcome::Reply(refused(&stage, error, limits, service.ambiguous_updates)),
     };
     let response = match stage {
         Stage::Merge(_) => return Outcome::Reply(answers::failed()),
@@ -437,7 +437,7 @@ fn done(status: u16, answer: a::Answer, limits: &Limits) -> Response {
     answers::response(status, &Body::Done, limits)
 }
 
-fn refused(stage: &Stage, error: a::Error, limits: &Limits) -> Response {
+fn refused(stage: &Stage, error: a::Error, limits: &Limits, ambiguous: bool) -> Response {
     match stage {
         Stage::Merge(_) => return answers::failed(),
         Stage::DeleteBranch if error == a::Error::Missing(a::What::Branch) => {
@@ -488,7 +488,7 @@ fn refused(stage: &Stage, error: a::Error, limits: &Limits) -> Response {
             }
         }
         Stage::Updated if error == a::Error::Conflict => {
-            return answers::refusal(422, texts::UPDATE_CONFLICT, limits);
+            return answers::refusal(422, if ambiguous { texts::UPDATE_STALE } else { texts::UPDATE_CONFLICT }, limits);
         }
         Stage::Branch
         | Stage::DeleteBranch

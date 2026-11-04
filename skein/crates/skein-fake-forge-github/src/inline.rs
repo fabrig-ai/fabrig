@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain as domain;
 use skein_lib::{
-    Env, Intake, Queue, Time, Token, Wall, Writer,
+    Env, Intake, List, Queue, Time, Token, Wall,
     stream::{Down, Up},
 };
 
@@ -113,9 +113,10 @@ pub struct Inline {
     pub service: Service,
     pub domain: domain::Domain,
     pub config: domain::Config,
-    limits: Limits,
+    pub limits: Limits,
 }
 impl Inline {
+    #[must_use]
     pub fn new(service: Service, domain: domain::Domain, config: domain::Config, limits: Limits) -> Self {
         Self { service, domain, config, limits }
     }
@@ -135,12 +136,11 @@ impl Inline {
         let mut intake = Intake::with_capacity(
             u32::try_from(request.len())
                 .expect("fixture request length")
-                .max(self.limits.http.head)
-                .max(self.limits.http.read),
+                .max(skein_http::server::largest_read(&self.limits.http)),
         );
         intake.append(request).expect("whole request fits");
         let capacity = self.limits.http.response.checked_add(self.limits.response).expect("fixture response length");
-        let mut output = Writer::new(usize::try_from(capacity).expect("u32 fits"));
+        let mut output = List::with_capacity(capacity);
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
         server::start(&mut server, &mut self.service, &env, &mut above, &mut below);
@@ -161,11 +161,15 @@ impl Inline {
                             server::up(&mut server, &mut self.service, &env, up, &mut above, &mut below);
                         }
                     }
-                    Down::Send(bytes) => output.put(&bytes).expect("fixture response fits"),
-                    Down::Finish => return output.finish(),
+                    Down::Send(bytes) => {
+                        for byte in &bytes {
+                            output.push(*byte).expect("fixture response fits");
+                        }
+                    }
+                    Down::Finish => return output.into_boxed(),
                 }
             } else if !server.has_work() {
-                return output.finish();
+                return output.into_boxed();
             }
         }
         unreachable!("whole request settles within fixture event bound")

@@ -418,7 +418,8 @@ pub(super) fn engine_startup(
         Some(crate::accounts::Accounts::new(
             ACCOUNT_APPLICATION.into(),
             &parsed.engine,
-            seeds,
+            &seeds.crypto,
+            &seeds.installation,
             runtime,
             &store_limits.secrets,
         )?)

@@ -17,7 +17,7 @@ mod values;
 mod worker;
 mod worker_route;
 mod workers;
-pub use accounts::AccountsRuntime;
+pub use accounts::{AccountsRuntime, TrustBounds};
 pub use worker::{Worker, WorkerRuntime};
 mod engine;
 pub mod limits;
@@ -59,7 +59,7 @@ pub struct Service {
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     raw_submissions: Queue<Submit>,
-    kernel: accounts::Kernel,
+    kernel: skein_io::kernel::Routes,
     told: Queue<io::Event>,
     engine: Option<Engine>,
     workers: List<Worker>,
@@ -93,7 +93,7 @@ impl Service {
     pub fn account_startup(&self, source: u32, generation: u64, now: Time) -> Option<AccountStartup> {
         let engine = self.engine.as_ref()?;
         let accounts = engine.accounts.as_ref()?;
-        let (driver_made, restores_waiting, wants_waiting) = accounts.startup(source);
+        let (driver_made, restores_waiting, wants_waiting) = accounts.component().startup(source);
         Some(AccountStartup {
             pending_mark: engine.store.component.pending_mark(),
             durable: engine.store.component.mark_durable(),
@@ -113,7 +113,7 @@ impl Service {
             completions: Queue::with_capacity(queue),
             submissions: Queue::with_capacity(queue),
             raw_submissions: Queue::with_capacity(queue),
-            kernel: accounts::Kernel::new(
+            kernel: skein_io::kernel::Routes::new(
                 io::operations(&limits)
                     .expect("io operations")
                     .checked_add(8)

@@ -522,12 +522,10 @@ fn repeated_provider_ids_keep_distinct_origins_and_restore_includes_history_pref
 // rather than supplied answers as evidence. Contract: smith/docs/design/domain/session.md, 3/5.
 fn initial_owned(opening: &record::Opening) -> u64 {
     let spec = &opening.spec;
-    u64::try_from(
+    skein_lib::len_u64(
         spec.model.len() + spec.system.len() + 2 * spec.prompt.len() + spec.summary.len() + spec.preamble.len(),
-    )
-    .expect("small fixture")
-        + u64::try_from(core::mem::size_of::<llm::Block>()).expect("block size")
-        + u64::try_from(spec.delegated.len() * core::mem::size_of::<llm::Descriptor>()).expect("descriptors")
+    ) + u64::try_from(core::mem::size_of::<llm::Block>()).expect("block size")
+        + skein_lib::len_u64(spec.delegated.len() * core::mem::size_of::<llm::Descriptor>())
 }
 
 fn fill_initial(spec: &mut record::Opening, total: u64) {
@@ -633,14 +631,13 @@ fn full_history_batch_credit_keeps_maximum_late_results() {
             },
             replay: Some(llm::Replay { bytes: bytes(b"\0token\xff") }),
         });
-        held += u64::try_from(
+        held += skein_lib::len_u64(
             2 * core::mem::size_of::<llm::Block>()
                 + 2 * id.len()
                 + b"served".len()
                 + b"{}".len()
                 + b"\0token\xff".len(),
-        )
-        .expect("small fixture");
+        );
     }
     fill_initial(
         &mut spec,
@@ -748,10 +745,10 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         let id = b"-owned".as_slice();
         let name = b"owned".as_slice();
         let input = b"{}".as_slice();
-        let skeleton = u64::try_from(2 * core::mem::size_of::<llm::Block>() + 2 * id.len() + name.len() + input.len())
-            .expect("bounded cells")
-            + call.owned_bytes().expect("checked complete call")
-            - u64::try_from(core::mem::size_of::<Call>()).expect("inline call");
+        let skeleton =
+            skein_lib::len_u64(2 * core::mem::size_of::<llm::Block>() + 2 * id.len() + name.len() + input.len())
+                + call.owned_bytes().expect("checked complete call")
+                - u64::try_from(core::mem::size_of::<Call>()).expect("inline call");
         let mut spec = opening(None, u64::MAX);
         let mount = || Name::new(bytes(b"repo")).expect("mount");
         spec.spec.authority = Authority {

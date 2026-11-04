@@ -32,6 +32,7 @@ pub enum Event {
     Closed,
 }
 #[expect(missing_debug_implementations, reason = "HTTP heads and body intake can contain credentials")]
+#[expect(clippy::struct_excessive_bools, reason = "connection flags track independent HTTP and listener facts")]
 pub struct Server {
     owner: Token,
     blob: bool,
@@ -86,13 +87,14 @@ impl Server {
     }
     /// The request in hand's Authorization value, until it is dispatched. A world's tally reads it beside
     /// `take_head`, which blanks the head's own.
+    #[must_use]
     pub fn credential(&self) -> Option<&[u8]> {
         self.call.as_ref()?.header(b"authorization")
     }
-    /// Takes the head with every Authorization value removed.
     pub(crate) fn head_pending(&self) -> bool {
         self.head.is_some()
     }
+    /// Takes the head with every Authorization value removed.
     pub fn take_head(&mut self) -> Option<http::Call> {
         self.head.take()
     }

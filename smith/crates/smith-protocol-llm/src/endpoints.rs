@@ -147,16 +147,16 @@ impl Endpoints {
     pub fn option_bytes(&self) -> Option<u64> {
         let mut held = 0_u64;
         for (_, option) in &self.options {
-            held = held.checked_add(u64::try_from(option.endpoint.authority.len()).ok()?)?;
-            held = held.checked_add(u64::try_from(option.endpoint.target.len()).ok()?)?;
+            held = held.checked_add(skein_lib::len_u64(option.endpoint.authority.len()))?;
+            held = held.checked_add(skein_lib::len_u64(option.endpoint.target.len()))?;
             held = held.checked_add(u64::try_from(size_of_val(option.endpoint.headers.as_ref())).ok()?)?;
             for header in &option.endpoint.headers {
-                held = held.checked_add(u64::try_from(header.name.len()).ok()?)?;
-                held = held.checked_add(u64::try_from(header.value.len()).ok()?)?;
+                held = held.checked_add(skein_lib::len_u64(header.name.len()))?;
+                held = held.checked_add(skein_lib::len_u64(header.value.len()))?;
             }
             for model in &option.models {
                 held = held.checked_add(u64::try_from(size_of::<ConfiguredModel>()).ok()?)?;
-                held = held.checked_add(u64::try_from(model.name.len()).ok()?)?;
+                held = held.checked_add(skein_lib::len_u64(model.name.len()))?;
             }
         }
         Some(held)

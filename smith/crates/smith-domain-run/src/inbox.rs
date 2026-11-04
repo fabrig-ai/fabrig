@@ -36,7 +36,7 @@ pub(crate) enum Entrance {
 /// The bytes a message takes when rendered as its label, colon, space and text.
 #[must_use]
 pub fn rendered_bytes(label: &[u8], text: &[u8]) -> Option<u64> {
-    u64::try_from(label.len()).ok()?.checked_add(2)?.checked_add(u64::try_from(text.len()).ok()?)
+    skein_lib::len_u64(label.len()).checked_add(2)?.checked_add(skein_lib::len_u64(text.len()))
 }
 
 impl Inbox {

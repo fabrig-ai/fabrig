@@ -227,7 +227,7 @@ impl Live {
             identity.held = identity.held.checked_add(u32::try_from(count).expect("held bound")).expect("held bound");
         }
         *next = next.checked_add(length).expect("bounded stream bytes");
-        room.lose(u64::try_from(bytes.len().saturating_sub(count)).expect("delta length"));
+        room.lose(skein_lib::len_u64(bytes.len().saturating_sub(count)));
         self.pump(now, room);
     }
 

@@ -243,7 +243,9 @@ pub(crate) enum PendingKind {
 }
 /// GitHub's own state, with no clock, socket or HTTP parser.
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "scenario flags select independent GitHub refusals and facts")]
 pub struct Service {
+    pub(crate) ambiguous_updates: bool,
     pub(crate) rate_heads: Map<fake::RateKey, crate::rates::Heads>,
     pub(crate) rate_quota: u32,
     pub(crate) rate_window: skein_lib::Duration,
@@ -273,6 +275,10 @@ pub struct Service {
     pub(crate) limits: Limits,
 }
 impl Service {
+    /// Answers an update conflict with the ambiguous stale-head refusal.
+    pub fn ambiguous_updates(&mut self) {
+        self.ambiguous_updates = true;
+    }
     /// Validates the tables and limits before creating bounded stores.
     pub fn new(config: Config, limits: &Limits, seed: u64) -> Result<Self, Problem> {
         if !valid(limits, &config) {
@@ -327,6 +333,7 @@ impl Service {
         let pages_seed = seeds.next_u64();
         let installations_seed = seeds.next_u64();
         Ok(Self {
+            ambiguous_updates: false,
             logs: crate::logs::Store::new(
                 config.blob,
                 config.third_origin,
