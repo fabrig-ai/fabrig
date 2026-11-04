@@ -1,5 +1,5 @@
 //! Calls share the component's connections and advance their held plans.
-use super::{Body, CallPlan, Component, Heard, Phase, Plan, Start, Step, Waiting, api};
+use super::{Body, CallPlan, Common, Component, ForgeEntry, Heard, Phase, Plan, Start, Step, Waiting, api, find};
 use crate::connection::{self, Exchange};
 use crate::{
     boundary::{Answered, Event},
@@ -8,6 +8,82 @@ use crate::{
 use skein_forge::forgejo::plans::plan::Bounds;
 use skein_lib::{Env, Id, Lifecycle, List, Queue, Token};
 impl Component {
+    pub(super) fn drive_calls(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        let Self { forges, common } = self;
+        let mut calls = List::with_capacity(common.calls.capacity());
+        for (call, id) in &common.calls {
+            calls.push((*call, *id)).expect("bounded calls");
+        }
+        for (call, id) in calls.into_boxed() {
+            if common.lifecycle != Lifecycle::Live {
+                break;
+            }
+            let waiting = common.waiting.get(id).expect("indexed call");
+            if waiting.deadline <= env.now {
+                common.expire(call, id, env, up, io);
+                continue;
+            }
+            let forge = waiting.repository.forge;
+            let Some(entry) = find(forges, forge) else {
+                common.finish(call, id, Err(api::Error::Unavailable), up);
+                continue;
+            };
+            if waiting.connection.is_none() {
+                if waiting.revoked {
+                    let error = match waiting.plan.as_ref() {
+                        Some(CallPlan::Forgejo(plan)) => plan.error(api::Error::Forbidden),
+                        Some(CallPlan::GitHub(_)) | None => api::Error::Forbidden,
+                    };
+                    common.finish(call, id, Err(error), up);
+                    continue;
+                }
+                if waiting.plan.is_none() {
+                    match entry.base.start {
+                        Start::Unconnected | Start::Stopped(_) => {
+                            common.finish(call, id, Err(api::Error::NotConnected), up);
+                            continue;
+                        }
+                        Start::Listing { .. }
+                        | Start::Minting { .. }
+                        | Start::Identity { .. }
+                        | Start::Checking { .. }
+                        | Start::Settings { .. }
+                        | Start::Waiting { .. } => continue,
+                        Start::Ready { .. } => {}
+                    }
+                }
+            }
+            if entry.base.forge.kind == crate::settings::Kind::GitHub {
+                common.drive_github_call((call, id), entry, env, up, io);
+                continue;
+            }
+            if !common.assign(call, id, entry, env, up, io) {
+                continue;
+            }
+            common.pump_call((call, id), entry, env, up, io);
+        }
+        for (_, id) in &common.connections {
+            let c = common.connection_slab.get_mut(*id).expect("indexed connection");
+            if c.drain_redirect(env, io) {
+                common.wake = Some(env.now);
+            }
+            if common.lifecycle != Lifecycle::Live
+                || (c.phase == Phase::Idle && c.deadline <= Some(env.now))
+                || c.phase == Phase::Closed
+            {
+                c.close(env, c.in_flight(), io);
+                if c.link.has_work() {
+                    c.pump(env, io);
+                }
+                if c.link.has_work() {
+                    common.wake = Some(env.now);
+                }
+            }
+        }
+    }
+}
+
+impl Common {
     pub(super) fn expire(
         &mut self,
         call: Token,
@@ -48,90 +124,11 @@ impl Component {
         let _call = self.calls.remove(&call);
         up.push(Event::Answered(Answered { call, cost, free, rate, result }));
     }
-    pub(super) fn drive_calls(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        let mut calls = List::with_capacity(self.calls.capacity());
-        for (call, id) in &self.calls {
-            calls.push((*call, *id)).expect("bounded calls");
-        }
-        for (call, id) in calls.into_boxed() {
-            if self.lifecycle != Lifecycle::Live {
-                break;
-            }
-            let waiting = self.waiting.get(id).expect("indexed call");
-            if waiting.deadline <= env.now {
-                self.expire(call, id, env, up, io);
-                continue;
-            }
-            let forge = waiting.repository.forge;
-            let mut at = None;
-            for n in 0..self.forges.len() {
-                if self.forges.get(n).expect("forge").base.forge.number == forge {
-                    at = Some(n);
-                    break;
-                }
-            }
-            let Some(at) = at else {
-                self.finish(call, id, Err(api::Error::Unavailable), up);
-                continue;
-            };
-            if waiting.connection.is_none() {
-                if waiting.revoked {
-                    let error = match waiting.plan.as_ref() {
-                        Some(CallPlan::Forgejo(plan)) => plan.error(api::Error::Forbidden),
-                        Some(CallPlan::GitHub(_)) | None => api::Error::Forbidden,
-                    };
-                    self.finish(call, id, Err(error), up);
-                    continue;
-                }
-                if waiting.plan.is_none() {
-                    match self.forges.get(at).expect("forge").base.start {
-                        Start::Unconnected | Start::Stopped(_) => {
-                            self.finish(call, id, Err(api::Error::NotConnected), up);
-                            continue;
-                        }
-                        Start::Listing { .. }
-                        | Start::Minting { .. }
-                        | Start::Identity { .. }
-                        | Start::Checking { .. }
-                        | Start::Settings { .. }
-                        | Start::Waiting { .. } => continue,
-                        Start::Ready { .. } => {}
-                    }
-                }
-            }
-            if self.forges.get(at).expect("forge").base.forge.kind == crate::settings::Kind::GitHub {
-                self.drive_github_call((call, id), at, env, up, io);
-                continue;
-            }
-            if !self.assign(call, id, at, env, up, io) {
-                continue;
-            }
-            self.pump_call((call, id), at, env, up, io);
-        }
-        for (_, id) in &self.connections {
-            let c = self.connection_slab.get_mut(*id).expect("indexed connection");
-            if c.drain_redirect(env, io) {
-                self.wake = Some(env.now);
-            }
-            if self.lifecycle != Lifecycle::Live
-                || (c.phase == Phase::Idle && c.deadline <= Some(env.now))
-                || c.phase == Phase::Closed
-            {
-                c.close(env, c.in_flight(), io);
-                if c.link.has_work() {
-                    c.pump(env, io);
-                }
-                if c.link.has_work() {
-                    self.wake = Some(env.now);
-                }
-            }
-        }
-    }
     pub(super) fn assign(
         &mut self,
         call: Token,
         id: Id<Waiting>,
-        at: u32,
+        entry: &mut ForgeEntry,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
@@ -141,7 +138,7 @@ impl Component {
             return true;
         }
         let forge = waiting.repository.forge;
-        let cap = match self.forges.get(at).expect("forge").base.start {
+        let cap = match entry.base.start {
             Start::Ready { cap } => cap,
             Start::Listing { .. }
             | Start::Minting { .. }
@@ -160,14 +157,7 @@ impl Component {
         let call_connections = self.call_connections();
         for (owner, connection) in &self.connections {
             let c = self.connection_slab.get(*connection).expect("indexed connection");
-            let mut reserved = false;
-            for n in 0..self.forges.len() {
-                if self.forges.get(n).expect("forge").base.own == Some(*owner)
-                    && self.forges.get(n).expect("forge").base.forge.kind == crate::settings::Kind::GitHub
-                {
-                    reserved = true;
-                }
-            }
+            let reserved = c.role == connection::Use::Reserved;
             if reserved {
                 continue;
             }
@@ -176,12 +166,7 @@ impl Component {
                     token = Some(*owner);
                     break;
                 }
-                let mut start = false;
-                for entry in &self.forges {
-                    if entry.base.own == Some(*owner) {
-                        start = true;
-                    }
-                }
+                let start = c.role != connection::Use::Calls;
                 if !start {
                     other = Some(*connection);
                 }
@@ -192,7 +177,7 @@ impl Component {
             && self.connections.len() < self.connections.capacity()
         {
             let origin = waiting.origin();
-            token = Some(self.open_call_origin(at, origin, env, io));
+            token = Some(self.open_call_origin(&entry.base.forge, origin, env, io));
         }
         if token.is_none() {
             if let Some(other) = other {
@@ -201,8 +186,12 @@ impl Component {
             return false;
         }
         let token = token.expect("selected connection");
-        if self.forges.get(at).expect("forge").base.own == Some(token) {
-            self.forges.get_mut(at).expect("forge").base.own = None;
+        if entry.base.own == Some(token) {
+            entry.base.own = None;
+            self.connection_slab
+                .get_mut(*self.connections.get(&token).expect("own token"))
+                .expect("own connection")
+                .role = connection::Use::Calls;
         }
         let _old = self.holders.insert(token, call).expect("one holder per connection");
         let waiting = self.waiting.get_mut(id).expect("indexed call");
@@ -210,8 +199,8 @@ impl Component {
         if waiting.plan.is_some() {
             return true;
         }
-        if self.forges.get(at).expect("forge").base.forge.kind == crate::settings::Kind::GitHub {
-            return self.begin_github_call(call, id, env, up, io);
+        if entry.base.forge.kind == crate::settings::Kind::GitHub {
+            return self.begin_github_call(call, id, entry, env, up, io);
         }
         let op = waiting.op.take().expect("waiting operation");
         waiting.page_size = page_size(&op, crate::settings::Kind::Forgejo, cap, &env.limits, &self.shared);
@@ -241,7 +230,7 @@ impl Component {
     fn pump_call(
         &mut self,
         holder: (Token, Id<Waiting>),
-        at: u32,
+        entry: &mut ForgeEntry,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
@@ -267,7 +256,7 @@ impl Component {
                 if let Some(request) = plan.pending() {
                     c.deadline = Some(deadline);
                     c.raw_room(plan.raw_room(self.shared.answer_bytes));
-                    let forge = &self.forges.get(at).expect("forge").base.forge;
+                    let forge = &entry.base.forge;
                     let authorization = skein_forge::forgejo::credential::authorization(
                         &forge.access.as_ref().expect("held access").credential,
                     )

@@ -114,9 +114,20 @@ pub(crate) enum Membership {
     Configured,
     Removed,
 }
+/// Whose a connection is (forge-connection.md, 7.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Use {
+    /// The calls' pool.
+    Calls,
+    /// A Forgejo forge's own connection, which a call to that forge may take.
+    Own,
+    /// A GitHub forge's own connection, outside the calls' count.
+    Reserved,
+}
 /// One connection's machines, socket identity, request and pending output.
 pub(crate) struct Connection {
     pub(crate) forge: u16,
+    pub(crate) role: Use,
     pub(crate) origin: Option<u32>,
     pub(crate) draining: bool,
     kind: Kind,
@@ -153,7 +164,7 @@ impl Connection {
     #[expect(clippy::manual_map, reason = "the programming model excludes closures")]
     pub fn at_origin(forge: &Forge, origin: Option<u32>, l: &Limits, shared: Shared, deadline: Time) -> Self {
         let configured = match origin {
-            Some(at) => Some(forge.log_origins.get(at).expect("configured log origin")),
+            Some(origin) => Some(forge.log_origins.get(origin).expect("configured log origin")),
             None => None,
         };
         let tls = match (&forge.transport, configured) {
@@ -173,6 +184,7 @@ impl Connection {
         let http = http::Client::new(&limits::http(l, link.encrypted(), &shared.io));
         Self {
             forge: forge.number,
+            role: Use::Calls,
             origin,
             draining: false,
             kind: forge.kind,
@@ -209,7 +221,7 @@ impl Connection {
     }
     fn host(&self, forge: &Forge) -> Box<[u8]> {
         match self.origin {
-            Some(at) => crate::settings::log_host(forge.log_origins.get(at).expect("configured origin")),
+            Some(origin) => crate::settings::log_host(forge.log_origins.get(origin).expect("configured origin")),
             None => crate::settings::host(forge).expect("checked forge host"),
         }
     }

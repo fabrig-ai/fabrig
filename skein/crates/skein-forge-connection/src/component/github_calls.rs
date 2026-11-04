@@ -1,5 +1,5 @@
 //! Installation account routing and bounded repository discovery (forge-connection.md, 4).
-use super::{CallPlan, Component, Waiting, calls};
+use super::{CallPlan, Common, ForgeEntry, Waiting, calls};
 use crate::{
     Event, Limits,
     connection::{self, Exchange, Phase},
@@ -78,11 +78,11 @@ impl Discovery {
 fn eligible(row: &crate::installations::Row) -> bool {
     row.accepted && !row.suspended && row.state != crate::installations::Tokens::Gone
 }
-impl Component {
+impl Common {
     #[expect(clippy::manual_map, reason = "the programming model excludes closures")]
-    fn github_route(&mut self, id: Id<Waiting>, at: u32, env: &Env<Limits>) -> Result<bool, api::Error> {
+    fn github_route(&mut self, id: Id<Waiting>, entry: &mut ForgeEntry, env: &Env<Limits>) -> Result<bool, api::Error> {
         let waiting = self.waiting.get_mut(id).expect("call");
-        let gh = &self.forges.get(at).expect("forge").github().expect("GitHub").state;
+        let gh = &entry.github().expect("GitHub").state;
         if let Some(discovery) = &mut waiting.discovery {
             if waiting.revoked {
                 return Err(api::Error::Forbidden);
@@ -159,7 +159,7 @@ impl Component {
     pub(super) fn drive_github_call(
         &mut self,
         holder: (Token, Id<Waiting>),
-        at: u32,
+        entry: &mut ForgeEntry,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
@@ -167,7 +167,7 @@ impl Component {
         let (call, id) = holder;
         let waiting = self.waiting.get(id).expect("call");
         if waiting.plan.is_none()
-            && self.forges.get(at).expect("forge").base.forge.log_origins.is_empty()
+            && entry.base.forge.log_origins.is_empty()
             && let Some(api::Op::Read(api::Read::Job { .. })) = waiting.op.as_ref()
         {
             self.finish(call, id, Err(api::Error::Refused), up);
@@ -183,7 +183,7 @@ impl Component {
             let waiting = self.waiting.get_mut(id).expect("call");
             waiting.route = None;
             if missing {
-                let discovery = Discovery::new(&self.forges.get(at).expect("forge").github().expect("GitHub").state);
+                let discovery = Discovery::new(&entry.github().expect("GitHub").state);
                 if discovery.candidates.is_empty() {
                     self.finish(call, id, Err(api::Error::NotInstalled), up);
                     return;
@@ -192,7 +192,7 @@ impl Component {
             }
         }
         if self.waiting.get(id).expect("call").connection.is_none() {
-            match self.github_route(id, at, env) {
+            match self.github_route(id, entry, env) {
                 Ok(true) => {}
                 Ok(false) => return,
                 Err(error) => {
@@ -205,19 +205,19 @@ impl Component {
             self.finish(call, id, Ok(answer), up);
             return;
         }
-        if let Some(answer) = self.github_bot_permission(id, at) {
+        if let Some(answer) = self.github_bot_permission(id, entry) {
             self.finish(call, id, Ok(answer), up);
             return;
         }
-        if !self.assign(call, id, at, env, up, io) {
+        if !self.assign(call, id, entry, env, up, io) {
             return;
         }
-        self.pump_github_call(holder, at, env, up, io);
+        self.pump_github_call(holder, entry, env, up, io);
     }
-    fn github_bot_permission(&self, id: Id<Waiting>, at: u32) -> Option<api::Answer> {
+    fn github_bot_permission(&self, id: Id<Waiting>, entry: &ForgeEntry) -> Option<api::Answer> {
         let waiting = self.waiting.get(id).expect("call");
-        let gh = &self.forges.get(at).expect("forge").github().expect("GitHub").state;
-        let bot = self.forges.get(at).expect("forge").base.forge.access.as_ref()?.user;
+        let gh = &entry.github().expect("GitHub").state;
+        let bot = entry.base.forge.access.as_ref()?.user;
         if waiting.discovery.is_none()
             && let Some(api::Op::Read(api::Read::Permission { user })) = waiting.op.as_ref()
             && *user == bot
@@ -232,13 +232,14 @@ impl Component {
         &mut self,
         call: Token,
         id: Id<Waiting>,
+        entry: &mut ForgeEntry,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) -> bool {
         let step = self.initialize_github_plan(id, env);
         match step {
-            Ok(step) => !self.github_call_step((call, id), step, env, up, io, None),
+            Ok(step) => !self.github_call_step((call, id), step, env, up, io, (entry, None)),
             Err(error) => {
                 self.finish(call, id, Err(error), up);
                 false
@@ -266,7 +267,7 @@ impl Component {
     fn pump_github_call(
         &mut self,
         holder: (Token, Id<Waiting>),
-        at: u32,
+        entry: &mut ForgeEntry,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
@@ -276,7 +277,7 @@ impl Component {
         let connection = *self.connections.get(&token).expect("connection");
         for _ in 0..64_u32 {
             if self.connection_slab.get(connection).expect("connection").phase == Phase::Idle {
-                match self.github_route(id, at, env) {
+                match self.github_route(id, entry, env) {
                     Ok(true) => {}
                     Ok(false) => {
                         self.release_github_call(id, env, io);
@@ -288,11 +289,12 @@ impl Component {
                         break;
                     }
                 }
-                if self.waiting.get(id).expect("call").plan.is_none() && !self.begin_github_call(call, id, env, up, io)
+                if self.waiting.get(id).expect("call").plan.is_none()
+                    && !self.begin_github_call(call, id, entry, env, up, io)
                 {
                     break;
                 }
-                if let Err(error) = self.send_github_call(id, at, env) {
+                if let Err(error) = self.send_github_call(id, entry, env) {
                     self.finish(call, id, Err(error), up);
                     break;
                 }
@@ -304,14 +306,13 @@ impl Component {
             if c.written && !waiting.charged {
                 waiting.cost = waiting.cost.checked_add(1).expect("bounded exchanges");
                 waiting.charged = true;
-                self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state.recent =
-                    Some(waiting.route.expect("sent route").selected.id);
+                entry.github_mut().expect("GitHub").state.recent = Some(waiting.route.expect("sent route").selected.id);
             }
             if let Some(heard) = c.heard() {
-                let (step, valid) = self.hear_github_call(id, at, env, heard);
+                let (step, valid) = self.hear_github_call(id, entry, env, heard);
                 match step {
                     Ok(Some(step)) => {
-                        if self.github_call_step(holder, step, env, up, io, Some((at, valid))) {
+                        if self.github_call_step(holder, step, env, up, io, (entry, Some(valid))) {
                             break;
                         }
                     }
@@ -333,7 +334,12 @@ impl Component {
             self.wake = Some(env.now);
         }
     }
-    fn send_github_call(&mut self, id: Id<Waiting>, at: u32, env: &Env<Limits>) -> Result<(), api::Error> {
+    fn send_github_call(
+        &mut self,
+        id: Id<Waiting>,
+        entry: &mut ForgeEntry,
+        env: &Env<Limits>,
+    ) -> Result<(), api::Error> {
         let waiting = self.waiting.get_mut(id).expect("call");
         let Some(exchange) = github_plan(waiting).pending() else {
             return Ok(());
@@ -347,7 +353,7 @@ impl Component {
             Err(_) => return Err(api::Error::Refused),
         }
         let route = waiting.route.as_mut().expect("eligible route");
-        let gh = &self.forges.get(at).expect("forge").github().expect("GitHub").state;
+        let gh = &entry.github().expect("GitHub").state;
         let row = gh.rows.get(&route.selected.id).expect("eligible row");
         let authorization = if route.origin.is_some() {
             None
@@ -359,12 +365,7 @@ impl Component {
         let token = waiting.connection.expect("holder");
         let c = self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
         c.deadline = Some(waiting.deadline);
-        match c.start(
-            env,
-            &self.forges.get(at).expect("forge").base.forge,
-            &self.owner.user_agent,
-            Exchange::GitHub { exchange, authorization },
-        ) {
+        match c.start(env, &entry.base.forge, &self.owner.user_agent, Exchange::GitHub { exchange, authorization }) {
             Ok(()) => {}
             Err(connection::Refusal::GitHub(_)) => return Err(api::Error::Refused),
             Err(connection::Refusal::Forgejo(_)) => unreachable!("GitHub encoder"),
@@ -375,7 +376,7 @@ impl Component {
     fn hear_github_call(
         &mut self,
         id: Id<Waiting>,
-        at: u32,
+        entry: &mut ForgeEntry,
         env: &Env<Limits>,
         heard: connection::Heard,
     ) -> (Result<Option<Step>, api::Error>, bool) {
@@ -399,8 +400,7 @@ impl Component {
             Heard::Done(Body::Document(_) | Body::Raw { .. } | Body::Empty) | Heard::Row(_) | Heard::Failed(_) => {}
         }
         let route = waiting.route.expect("sent route");
-        let valid = !waiting.revoked
-            && self.forges.get(at).expect("forge").github().expect("GitHub").state.valid(route.selected);
+        let valid = !waiting.revoked && entry.github().expect("GitHub").state.valid(route.selected);
         let mut discarded = Tables::new(0, 0);
         let tables = if valid {
             match &mut waiting.discovery {
@@ -419,7 +419,7 @@ impl Component {
         let step =
             if refused && route.origin.is_none() { Ok(Some(Step::Done(Err(api::Error::Forbidden)))) } else { step };
         if refused && route.origin.is_none() && valid {
-            self.github_token_refused(at, route.selected.id, route.token_revision, env);
+            self.github_token_refused(entry, route.selected.id, route.token_revision, env);
         }
         (step, valid)
     }
@@ -448,9 +448,10 @@ impl Component {
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
-        checked: Option<(u32, bool)>,
+        checked: (&mut ForgeEntry, Option<bool>),
     ) -> bool {
         let (call, id) = holder;
+        let (entry, checked) = checked;
         match step {
             Step::Send(exchange) => {
                 github_plan(self.waiting.get_mut(id).expect("call")).set_pending(exchange);
@@ -467,12 +468,12 @@ impl Component {
                 false
             }
             Step::Redirect { redirect, retention } => {
-                self.follow_github_log(holder, redirect, retention, env, up, io);
+                self.follow_github_log(holder, entry, redirect, retention, env, up, io);
                 true
             }
             Step::Done(result) => {
                 if self.waiting.get(id).expect("call").discovery.is_some() {
-                    self.github_discovered(holder, result, env, up, io, checked.expect("discovery response"));
+                    self.github_discovered(holder, result, env, up, io, (entry, checked.expect("discovery response")));
                     return true;
                 }
                 self.release_github_call(id, env, io);
@@ -488,10 +489,10 @@ impl Component {
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
-        checked: (u32, bool),
+        checked: (&mut ForgeEntry, bool),
     ) {
         let (call, id) = holder;
-        let (at, valid) = checked;
+        let (entry, valid) = checked;
         let result = if valid { result } else { Err(api::Error::Forbidden) };
         match result {
             Ok(answer) => {
@@ -501,7 +502,7 @@ impl Component {
                 self.github_tables.keep_user(waiting.repository.forge, row.owner_id, row.owner.clone());
                 self.github_tables.keep_repository(waiting.repository, row);
                 waiting.route = None;
-                let usable = match self.github_route(id, at, env) {
+                let usable = match self.github_route(id, entry, env) {
                     Ok(usable) => usable,
                     Err(error) => {
                         self.release_github_call(id, env, io);
@@ -520,7 +521,7 @@ impl Component {
                     }
                     return;
                 }
-                if let Some(answer) = self.github_bot_permission(id, at) {
+                if let Some(answer) = self.github_bot_permission(id, entry) {
                     self.release_github_call(id, env, io);
                     if usable {
                         self.finish(call, id, Ok(answer), up);
@@ -534,7 +535,7 @@ impl Component {
                         github_plan(self.waiting.get_mut(id).expect("call")).set_pending(exchange);
                     }
                     Ok(Step::Redirect { redirect, retention }) => {
-                        self.follow_github_log(holder, redirect, retention, env, up, io);
+                        self.follow_github_log(holder, entry, redirect, retention, env, up, io);
                         return;
                     }
                     Ok(Step::Done(result)) => {
@@ -569,6 +570,7 @@ impl Component {
         }
     }
 }
+
 pub(super) fn github_plan(waiting: &mut Waiting) -> &mut Plan {
     match waiting.plan.as_mut().expect("plan") {
         CallPlan::GitHub(plan) => plan,
