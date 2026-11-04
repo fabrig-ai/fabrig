@@ -370,7 +370,7 @@ fn prepare(bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String
 fn configure_sources(service: &mut service::Service, configured: &AgentStart, workers: u32) -> Result<(), String> {
     let Some(sources) = &configured.sources else { return Ok(()) };
     for index in 0..workers {
-        let resources = service::program_sources::Resources::from_paths(
+        let resources = service::program_sources::from_paths(
             sources.directory.clone(),
             sources.executable.clone(),
             sources.environment.clone(),

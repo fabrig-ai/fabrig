@@ -441,6 +441,15 @@ fn smith_breaches(manifests: &[CrateManifest]) -> Vec<String> {
                     ["smith-domain-run", "smith-charter", "smith-channel"].contains(&dependency.as_str())
                 }
                 "jig-protocol-transcript" => dependency == "smith-transcript",
+                "jig-protocol-worker-agents" => [
+                    "smith-channel",
+                    "smith-domain-run",
+                    "smith-host-domain",
+                    "smith-host-protocol",
+                    "smith-protocol-channel",
+                    "smith-protocol-program",
+                ]
+                .contains(&dependency.as_str()),
                 _ => false,
             };
             if dependency.starts_with("smith-") && !allowed {
@@ -528,7 +537,7 @@ fn a_protocol_crate_naming_an_ops_crate_is_reported() {
 }
 
 #[test]
-fn only_the_charter_and_the_transcript_link_smith_even_when_empty() {
+fn only_the_charter_the_transcript_and_the_worker_agents_link_smith_even_when_empty() {
     let failures = smith_breaches(&manifests());
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
