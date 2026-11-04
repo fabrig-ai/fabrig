@@ -32,72 +32,57 @@ struct Pending {
     frame: Box<[u8]>,
 }
 
+#[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one Limits::chunk read")]
 #[derive(Debug)]
 enum Phase {
     Listing,
-    OpeningLog {
-        name: Box<[u8]>,
-        next: usize,
-    },
-    ReadingLog {
-        file: Token,
-        len: u64,
-        at: u64,
-        #[expect(
-            clippy::disallowed_types,
-            reason = "replay retains at most Limits::commit plus one Limits::chunk read"
-        )]
-        bytes: Vec<u8>,
-        next: usize,
-    },
-    ClosingRecovered {
-        next: usize,
-    },
-    RemovingTail {
-        name: Box<[u8]>,
-    },
-    Creating {
-        name: Box<[u8]>,
-    },
-    Announcing {
-        file: Token,
-    },
-    Ready {
-        log: Log,
-    },
-    Writing {
-        log: Log,
-        batch: Queue<Pending>,
-    },
-    Syncing {
-        log: Log,
-        batch: Queue<Pending>,
-    },
+    OpeningLog { name: Box<[u8]>, next: usize },
+    ReadingLog { file: Token, len: u64, at: u64, bytes: Vec<u8>, next: usize },
+    ClosingRecovered { next: usize },
+    RemovingTail { name: Box<[u8]> },
+    Creating { name: Box<[u8]> },
+    Announcing { file: Token },
+    Ready { log: Log },
+    Writing { log: Log, batch: Queue<Pending> },
+    Syncing { log: Log, batch: Queue<Pending> },
     Closing,
     RecoveryClosing,
     RolloverClosing,
-    SnapIo {
-        log: Log,
-    },
-    SnapshotFailureClosing {
-        log: Log,
-    },
-    OpenFailureClosing {
-        failure: Failure,
-    },
+    SnapIo { log: Log },
+    SnapshotFailureClosing { log: Log },
+    OpenFailureClosing { failure: Failure },
     OpeningSnapshot,
-    ReadingSnapshot {
-        file: Token,
-        len: u64,
-        at: u64,
-        reader: snapshot::Reader,
-    },
-    ClosingSnapshot {
-        next: usize,
-    },
-    RemovingTempOnOpen {
-        snapshot: bool,
-    },
+    ReadingSnapshot { file: Token, len: u64, at: u64, reader: snapshot::Reader },
+    ClosingSnapshot { next: usize },
+    RemovingTempOnOpen { snapshot: bool },
+}
+
+impl Phase {
+    /// The open log, when no file request is outstanding and none must be.
+    fn ready(&self) -> Option<Log> {
+        match self {
+            Self::Ready { log } => Some(*log),
+            Self::Listing
+            | Self::OpeningLog { .. }
+            | Self::ReadingLog { .. }
+            | Self::ClosingRecovered { .. }
+            | Self::RemovingTail { .. }
+            | Self::Creating { .. }
+            | Self::Announcing { .. }
+            | Self::Writing { .. }
+            | Self::Syncing { .. }
+            | Self::Closing
+            | Self::RecoveryClosing
+            | Self::RolloverClosing
+            | Self::SnapIo { .. }
+            | Self::SnapshotFailureClosing { .. }
+            | Self::OpenFailureClosing { .. }
+            | Self::OpeningSnapshot
+            | Self::ReadingSnapshot { .. }
+            | Self::ClosingSnapshot { .. }
+            | Self::RemovingTempOnOpen { .. } => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -574,27 +559,9 @@ fn available(dir: &Dir, phase: &Phase) -> bool {
 }
 
 fn begin_batch(store: &mut Store, dir: Dir, phase: Phase, step: &mut Step<'_>) -> State {
-    match phase {
-        Phase::Ready { log } => store.start_batch(dir, log, &step.env.limits, step.below),
-        phase @ (Phase::Listing
-        | Phase::OpeningLog { .. }
-        | Phase::ReadingLog { .. }
-        | Phase::ClosingRecovered { .. }
-        | Phase::RemovingTail { .. }
-        | Phase::Creating { .. }
-        | Phase::Announcing { .. }
-        | Phase::Writing { .. }
-        | Phase::Syncing { .. }
-        | Phase::Closing
-        | Phase::RecoveryClosing
-        | Phase::RolloverClosing
-        | Phase::SnapIo { .. }
-        | Phase::SnapshotFailureClosing { .. }
-        | Phase::OpenFailureClosing { .. }
-        | Phase::OpeningSnapshot
-        | Phase::ReadingSnapshot { .. }
-        | Phase::ClosingSnapshot { .. }
-        | Phase::RemovingTempOnOpen { .. }) => dir.at(phase),
+    match phase.ready() {
+        Some(log) => store.start_batch(dir, log, &step.env.limits, step.below),
+        None => dir.at(phase),
     }
 }
 
@@ -693,8 +660,8 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
         return dir.at(phase);
     }
     dir.close_owner = Some(owner);
-    match phase {
-        Phase::Ready { log } => {
+    match phase.ready() {
+        Some(log) => {
             if dir.compaction.is_idle() && store.queue.is_empty() {
                 step.below.push(file::Request::Close { owner: IO_OWNER, file: log.file });
                 dir.at(Phase::Closing)
@@ -702,25 +669,7 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
                 dir.at(Phase::Ready { log })
             }
         }
-        phase @ (Phase::Listing
-        | Phase::OpeningLog { .. }
-        | Phase::ReadingLog { .. }
-        | Phase::ClosingRecovered { .. }
-        | Phase::RemovingTail { .. }
-        | Phase::Creating { .. }
-        | Phase::Announcing { .. }
-        | Phase::Writing { .. }
-        | Phase::Syncing { .. }
-        | Phase::Closing
-        | Phase::RecoveryClosing
-        | Phase::RolloverClosing
-        | Phase::SnapIo { .. }
-        | Phase::SnapshotFailureClosing { .. }
-        | Phase::OpenFailureClosing { .. }
-        | Phase::OpeningSnapshot
-        | Phase::ReadingSnapshot { .. }
-        | Phase::ClosingSnapshot { .. }
-        | Phase::RemovingTempOnOpen { .. }) => dir.at(phase),
+        None => dir.at(phase),
     }
 }
 
@@ -1254,31 +1203,13 @@ fn open_failed_file(dir: Dir, file: Token, failure: Failure, below: &mut Queue<f
 pub fn is_ready(store: &Store, limits: &Limits) -> bool {
     match &store.state {
         State::Closed | State::Memory => false,
-        State::Open { dir, phase } => match phase {
-            Phase::Ready { .. } => {
+        State::Open { dir, phase } => match phase.ready() {
+            Some(_) => {
                 !dir.compaction.is_idle()
                     || dir.log_bytes >= limits.snapshot_bound(store.map.live())
                     || dir.close_owner.is_some()
             }
-            Phase::Listing
-            | Phase::OpeningLog { .. }
-            | Phase::ReadingLog { .. }
-            | Phase::ClosingRecovered { .. }
-            | Phase::RemovingTail { .. }
-            | Phase::Creating { .. }
-            | Phase::Announcing { .. }
-            | Phase::Writing { .. }
-            | Phase::Syncing { .. }
-            | Phase::Closing
-            | Phase::RecoveryClosing
-            | Phase::RolloverClosing
-            | Phase::SnapIo { .. }
-            | Phase::SnapshotFailureClosing { .. }
-            | Phase::OpenFailureClosing { .. }
-            | Phase::OpeningSnapshot
-            | Phase::ReadingSnapshot { .. }
-            | Phase::ClosingSnapshot { .. }
-            | Phase::RemovingTempOnOpen { .. } => false,
+            None => false,
         },
     }
 }
@@ -1288,27 +1219,9 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
     let state = mem::replace(&mut store.state, State::Closed);
     store.state = match state {
         state @ (State::Closed | State::Memory) => state,
-        State::Open { dir, phase } => match phase {
-            Phase::Ready { log } => compaction::fire_ready(dir, log, store, env, below),
-            phase @ (Phase::Listing
-            | Phase::OpeningLog { .. }
-            | Phase::ReadingLog { .. }
-            | Phase::ClosingRecovered { .. }
-            | Phase::RemovingTail { .. }
-            | Phase::Creating { .. }
-            | Phase::Announcing { .. }
-            | Phase::Writing { .. }
-            | Phase::Syncing { .. }
-            | Phase::Closing
-            | Phase::RecoveryClosing
-            | Phase::RolloverClosing
-            | Phase::SnapIo { .. }
-            | Phase::SnapshotFailureClosing { .. }
-            | Phase::OpenFailureClosing { .. }
-            | Phase::OpeningSnapshot
-            | Phase::ReadingSnapshot { .. }
-            | Phase::ClosingSnapshot { .. }
-            | Phase::RemovingTempOnOpen { .. }) => dir.at(phase),
+        State::Open { dir, phase } => match phase.ready() {
+            Some(log) => compaction::fire_ready(dir, log, store, env, below),
+            None => dir.at(phase),
         },
     };
 }
