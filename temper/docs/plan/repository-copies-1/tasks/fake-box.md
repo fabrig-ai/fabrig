@@ -53,3 +53,12 @@ commit and push.
 ## Report
 
 As the implementer's text asks.
+
+## Rebase (2026-11-04, step merge, foreman repository-copies-1/fake-box/foreman-1)
+
+resolve the configuration status conflict by retaining both gap removals
+Rebase onto the landing target and resolve `temper/docs/design/protocol/configuration.status.md`.
+Commit `b72a078109` (“Keep repository makings durable across restart”) removes `7: forge.makings`.
+Task commit `4ab8196191` removes `12.1: box: copy source` from the same bullet, causing the content conflict.
+Delete that entire first `Not yet` bullet: both gaps are now implemented.
+Preserve every other status entry and the task’s code changes.
