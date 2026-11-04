@@ -473,6 +473,22 @@ fn read_size(chunk: u32, len: u64, at: u64) -> u32 {
     u32::try_from(u64::from(chunk).min(left)).expect("a recovery read is at most one chunk")
 }
 
+/// Where this read ends, if it is a read this file can give.
+fn read_end(source: &ReadAt, read: &[u8]) -> Option<u64> {
+    let end = source.at.checked_add(skein_lib::len_u64(read.len()))?;
+    if read.is_empty() || end > source.len { None } else { Some(end) }
+}
+
+/// Ask the next read of `file`, at `at`.
+fn read_next(file: Token, len: u64, at: u64, step: &mut Step<'_>) {
+    step.below.push(file::Request::ReadAt {
+        owner: IO_OWNER,
+        file,
+        offset: at,
+        max: read_size(step.env.limits.chunk, len, at),
+    });
+}
+
 /// The owner's request.
 pub fn down(
     store: &mut Store,
@@ -759,9 +775,7 @@ pub fn up(
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::OpeningLog { name, next } => match event {
-                Done::Opened { file, len } => {
-                    log_opened(store, dir, name, next, ReadAt { file, len, at: 0 }, &mut step)
-                }
+                Done::Opened { file, len } => log_opened(store, dir, name, next, file, len, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
                 Done::Listed { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
@@ -881,12 +895,7 @@ fn snapshot_opened(dir: Dir, file: Token, len: u64, step: &mut Step<'_>) -> Stat
     if len > cap {
         return open_failed_file(dir, file, Failure::Full, step.below);
     }
-    step.below.push(file::Request::ReadAt {
-        owner: IO_OWNER,
-        file,
-        offset: 0,
-        max: read_size(step.env.limits.chunk, len, 0),
-    });
+    read_next(file, len, 0, step);
     dir.at(Phase::ReadingSnapshot { file, len, at: 0, reader: snapshot::Reader::new() })
 }
 
@@ -898,28 +907,16 @@ fn snapshot_read(
     read: Box<[u8]>,
     step: &mut Step<'_>,
 ) -> State {
-    let ReadAt { file, len, at } = source;
-    let next = at.checked_add(skein_lib::len_u64(read.len()));
-    if read.is_empty()
-        || match next {
-            Some(next) => next > len,
-            None => true,
-        }
-    {
+    let ReadAt { file, len, .. } = source;
+    let Some(end) = read_end(&source, &read) else {
         return open_failed_file(dir, file, Failure::Corrupt, step.below);
-    }
+    };
     if let Err(failure) = store.apply_snapshot(&mut reader, &read, &step.env.limits) {
         return open_failed_file(dir, file, failure, step.below);
     }
-    let next = next.expect("checked read offset");
-    if next < len {
-        step.below.push(file::Request::ReadAt {
-            owner: IO_OWNER,
-            file,
-            offset: next,
-            max: read_size(step.env.limits.chunk, len, next),
-        });
-        dir.at(Phase::ReadingSnapshot { file, len, at: next, reader })
+    if end < len {
+        read_next(file, len, end, step);
+        dir.at(Phase::ReadingSnapshot { file, len, at: end, reader })
     } else {
         let Some(start) = reader.finish() else {
             return open_failed_file(dir, file, Failure::Corrupt, step.below);
@@ -943,8 +940,15 @@ fn snapshot_read(
     clippy::disallowed_types,
     reason = "the recovery frame buffer grows only to Limits::commit plus Limits::chunk"
 )]
-fn log_opened(store: &mut Store, dir: Dir, name: Box<[u8]>, next: usize, source: ReadAt, step: &mut Step<'_>) -> State {
-    let ReadAt { file, len, at } = source;
+fn log_opened(
+    store: &mut Store,
+    dir: Dir,
+    name: Box<[u8]>,
+    next: usize,
+    file: Token,
+    len: u64,
+    step: &mut Step<'_>,
+) -> State {
     let cap = step.env.limits.segment.saturating_add(step.env.limits.queued_bytes);
     if len > cap {
         return open_failed_file(dir, file, Failure::Full, step.below);
@@ -962,13 +966,8 @@ fn log_opened(store: &mut Store, dir: Dir, name: Box<[u8]>, next: usize, source:
         step.below.push(file::Request::Close { owner: IO_OWNER, file });
         dir.at(Phase::ClosingRecovered { next })
     } else {
-        step.below.push(file::Request::ReadAt {
-            owner: IO_OWNER,
-            file,
-            offset: at,
-            max: read_size(step.env.limits.chunk, len, at),
-        });
-        dir.at(Phase::ReadingLog { file, len, at, bytes: Vec::new(), next })
+        read_next(file, len, 0, step);
+        dir.at(Phase::ReadingLog { file, len, at: 0, bytes: Vec::new(), next })
     }
 }
 
@@ -982,16 +981,10 @@ fn log_read(
     read: Box<[u8]>,
     step: &mut Step<'_>,
 ) -> State {
-    let ReadAt { file, len, at } = source;
-    let end = at.checked_add(skein_lib::len_u64(read.len()));
-    if read.is_empty()
-        || match end {
-            Some(end) => end > len,
-            None => true,
-        }
-    {
+    let ReadAt { file, len, .. } = source;
+    let Some(end) = read_end(&source, &read) else {
         return open_failed_file(dir, file, Failure::Corrupt, step.below);
-    }
+    };
     bytes.reserve_exact(read.len());
     bytes.extend_from_slice(&read);
     match store.replay(&mut dir, &mut bytes, &step.env.limits) {
@@ -999,14 +992,8 @@ fn log_read(
         Ok(false) => return log_damaged(store, dir, file, step.below),
         Ok(true) => {}
     }
-    let end = end.expect("checked read offset");
     if end < len {
-        step.below.push(file::Request::ReadAt {
-            owner: IO_OWNER,
-            file,
-            offset: end,
-            max: read_size(step.env.limits.chunk, len, end),
-        });
+        read_next(file, len, end, step);
         dir.at(Phase::ReadingLog { file, len, at: end, bytes, next })
     } else if bytes.is_empty() {
         step.below.push(file::Request::Close { owner: IO_OWNER, file });

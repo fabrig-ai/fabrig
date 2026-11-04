@@ -111,8 +111,10 @@ pub(super) fn fire_ready(
     dir.compaction = match mem::replace(&mut dir.compaction, Compaction::Idle) {
         Compaction::Idle => return idle(store, dir, log, env, below),
         Compaction::Due { .. } => unreachable!("the starting segment is announced before Ready"),
+        Compaction::RemoveTemp { .. } => {
+            unreachable!("create_failed sends the removal and finished answers it before Ready")
+        }
         Compaction::Create { start } => create(start, dir.root, below),
-        Compaction::RemoveTemp { start } => remove_temp(start, dir.root, below),
         Compaction::Header { start, file } => header(start, file, below),
         Compaction::Chunk { written, cursor } => chunk(written, cursor, store, &env.limits, below),
         Compaction::Trailer { written } => trailer(written, below),
