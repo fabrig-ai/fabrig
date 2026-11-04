@@ -502,6 +502,7 @@ impl HostWorld {
                 }
                 Event::Done { run, outcome } => self.heard.push(Heard::Done { run, outcome, at }),
                 Event::Stop { run, failure } => self.heard.push(Heard::Stop { run, failure, at }),
+                Event::Said { .. } => (),
                 Event::Closed => self.heard.push(Heard::Closed { at }),
             }
         }

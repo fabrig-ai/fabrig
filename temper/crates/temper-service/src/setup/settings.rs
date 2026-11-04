@@ -157,7 +157,7 @@ fn check(own: &temper_forge_setup::limits::Host) -> Result<(), Problems> {
             let name = match place {
                 Place::Backoff => b"setup.backoff_ms".as_slice(),
                 Place::BackoffMax => b"setup.backoff_max_ms",
-                Place::Deadline => b"setup.deadline_ms",
+                Place::Deadline | Place::CopyDeadline => b"setup.deadline_ms",
                 Place::RepositoriesLimit => b"forge.client.repositories",
                 Place::Orgs | Place::Org(_) | Place::OrgsLimit => {
                     unreachable!("temper gives no org and a fixed bound")
@@ -165,6 +165,7 @@ fn check(own: &temper_forge_setup::limits::Host) -> Result<(), Problems> {
                 Place::FilesLimit
                 | Place::FileBytesLimit
                 | Place::CreateOrg
+                | Place::CopyFrom
                 | Place::CreateRepository
                 | Place::Files
                 | Place::FilePath(_)

@@ -402,6 +402,9 @@ fn setup_stopped_line(number: u16, why: temper_service::SetupStopped) -> String 
                 | SetupWhy::Busy
                 | SetupWhy::Crowded
                 | SetupWhy::Down
+                | SetupWhy::Taken
+                | SetupWhy::Empty
+                | SetupWhy::TimedOut
                 | SetupWhy::Unexpected) => format!("{why:?}"),
             };
             let action = match plan {

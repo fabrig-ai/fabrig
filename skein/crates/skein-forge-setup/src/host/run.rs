@@ -34,7 +34,8 @@ pub(crate) fn given_for(forge: &Given, adopted: &[u64]) -> Given {
 /// A Forgejo plan's machine; GitHub's plans are refused.
 fn forgejo_machine(forge: &Forge, given: &Given, plan: Plan, bounds: &Bounds) -> Result<Machine, Failure> {
     Ok(match plan {
-        Plan::Paste { .. }
+        Plan::Copy { .. }
+        | Plan::Paste { .. }
         | Plan::Manifest { .. }
         | Plan::Convert { .. }
         | Plan::Install { .. }
@@ -185,6 +186,7 @@ impl Run {
     ) -> Result<Self, Failure> {
         let now = env.now;
         let writes = plan.writes();
+        let deadline = deadline(forge, &plan, now);
         let mut issued_state = None;
         let machine = match &forge.kind {
             Kind::Forgejo(given) => forgejo_machine(forge, given, plan, &bounds)?,
@@ -246,7 +248,11 @@ impl Run {
                         github_reconcile::Reconcile::new(given, env.wall).expect("host checks the given"),
                     ))
                 }
-                Plan::Check { .. } | Plan::TakeOver { .. } | Plan::Adopt { .. } | Plan::Create { .. } => {
+                Plan::Check { .. }
+                | Plan::TakeOver { .. }
+                | Plan::Adopt { .. }
+                | Plan::Create { .. }
+                | Plan::Copy { .. } => {
                     return Err(super::about(forge, &plan, Why::Unexpected));
                 }
             },
@@ -258,7 +264,7 @@ impl Run {
             forge: forge.number(),
             writes,
             machine,
-            deadline: now.saturating_add(times.deadline),
+            deadline,
             pending: None,
             owner: None,
             send: None,
@@ -345,6 +351,26 @@ impl Run {
         });
         need
     }
+}
+
+/// Selects the whole-run cut before the plan moves into its machine (4.4 and 4.10).
+pub(crate) fn deadline(forge: &Forge, plan: &Plan, now: Time) -> Time {
+    let times = forge.times();
+    let duration = match plan {
+        Plan::Copy { .. } => times.copy_deadline,
+        Plan::Manifest { .. }
+        | Plan::Convert { .. }
+        | Plan::Paste { .. }
+        | Plan::Install { .. }
+        | Plan::Accept { .. }
+        | Plan::Reconcile { .. }
+        | Plan::Check { .. }
+        | Plan::TakeOver { .. }
+        | Plan::Adopt { .. }
+        | Plan::Create { .. }
+        | Plan::Reachable { .. } => times.deadline,
+    };
+    now.saturating_add(duration)
 }
 
 fn issue_state(

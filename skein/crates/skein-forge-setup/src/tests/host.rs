@@ -578,7 +578,11 @@ fn a_second_run_of_any_plan_for_a_forge_with_one_live_stops_busy() {
             let mut w = World::new();
             w.plan(1, first.clone());
             let connection = match first {
-                Plan::Reconcile { .. } | Plan::Check { .. } | Plan::Adopt { .. } | Plan::Create { .. } => {
+                Plan::Reconcile { .. }
+                | Plan::Check { .. }
+                | Plan::Adopt { .. }
+                | Plan::Create { .. }
+                | Plan::Copy { .. } => {
                     assert!(w.up.pop().is_some());
                     None
                 }
@@ -618,9 +622,11 @@ fn a_second_run_of_any_plan_for_a_forge_with_one_live_stops_busy() {
                 w.answer(1, Answer::Read(None));
                 let expected = match first {
                     Plan::Check { .. } => token_stop(Why::Missing),
-                    Plan::Reconcile { .. } | Plan::Adopt { .. } | Plan::TakeOver { .. } | Plan::Create { .. } => {
-                        stop(1, 1, Why::Missing)
-                    }
+                    Plan::Reconcile { .. }
+                    | Plan::Adopt { .. }
+                    | Plan::TakeOver { .. }
+                    | Plan::Create { .. }
+                    | Plan::Copy { .. } => stop(1, 1, Why::Missing),
                     Plan::Reachable { .. }
                     | Plan::Manifest { .. }
                     | Plan::Convert { .. }
@@ -1440,3 +1446,71 @@ fn abort_when_idle_is_closed_at_once() {
 
 #[path = "../host/runtime_tests.rs"]
 mod runtime_tests;
+
+fn copy() -> Plan {
+    Plan::Copy {
+        forge: 1,
+        org: b"first".as_slice().into(),
+        repository: b"copied".as_slice().into(),
+        from: b"https://source.invalid/owner/repo".as_slice().into(),
+        files: Box::new([]),
+    }
+}
+#[test]
+fn copy_selects_its_own_deadline_from_admission_time() {
+    let forge = forge(1);
+    assert_eq!(
+        crate::host::run::deadline(&forge, &copy(), Time::ZERO),
+        Time::ZERO.saturating_add(Duration::from_secs(1800))
+    );
+    assert_eq!(
+        crate::host::run::deadline(&forge, &check(), Time::ZERO),
+        Time::ZERO.saturating_add(Duration::from_secs(120))
+    );
+}
+#[test]
+fn copy_on_github_stops_unexpected_naming_its_plan() {
+    let mut github = World::with(limits(), github_settings());
+    let mut github_plan = copy();
+    if let Plan::Copy { forge, .. } = &mut github_plan {
+        *forge = 4;
+    }
+    github.plan(2, Plan::Install { forge: 4 });
+    github.up.clear();
+    github.plan(1, github_plan);
+    assert_eq!(
+        github.up.pop(),
+        Some(Event::Stop {
+            run: Token::new(1),
+            failure: Failure { forge: 4, step: Stage::App, subject: b"copy".as_slice().into(), why: Why::Unexpected }
+        })
+    );
+    assert!(github.up.is_empty());
+}
+#[test]
+fn copy_on_forgejo_stops_unexpected_until_implemented() {
+    let mut forgejo = World::new();
+    forgejo.plan(1, copy());
+    assert_eq!(forgejo.up.pop(), Some(stop(1, 1, Why::Unexpected)));
+    assert!(forgejo.up.is_empty());
+    assert!(forgejo.io.is_empty());
+}
+#[test]
+fn copy_takes_the_forgejo_writing_slot() {
+    let mut busy = World::new();
+    busy.run(1, 1);
+    busy.up.clear();
+    busy.plan(2, copy());
+    assert_eq!(busy.up.pop(), Some(stop(2, 1, Why::Busy)));
+    assert!(busy.up.is_empty());
+}
+
+#[test]
+#[should_panic(expected = "the owner checks a copy plan before sending it")]
+fn the_host_asserts_copy_admission_before_starting() {
+    let mut plan = copy();
+    if let Plan::Copy { from, .. } = &mut plan {
+        *from = b"http://source.invalid/owner/repo".as_slice().into();
+    }
+    World::new().plan(1, plan);
+}

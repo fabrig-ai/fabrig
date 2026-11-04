@@ -623,6 +623,9 @@ pub(super) fn stopped(engine: &mut Engine, run: Token, failure: &skein_forge_set
             | Why::Crowded
             | Why::Down
             | Why::Unexpected
+            | Why::Taken
+            | Why::Empty
+            | Why::TimedOut
             | Why::KeyForm => domain::AdminStop::Other,
         };
     }
@@ -651,6 +654,9 @@ fn accept_failure(
             }
         }
         Why::Unexpected
+        | Why::Taken
+        | Why::Empty
+        | Why::TimedOut
         | Why::NotAdmin
         | Why::BotIsAdmin
         | Why::Unmarked
