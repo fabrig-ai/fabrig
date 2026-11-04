@@ -20,6 +20,7 @@ pub struct Referee {
 }
 
 impl Referee {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }

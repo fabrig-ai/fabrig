@@ -8,6 +8,7 @@ use skein_lib::Time;
 use skein_ui::{NodeId, Role};
 use skein_ui_web_tests::SECOND;
 use std::collections::{BTreeMap, VecDeque};
+use std::fmt::Write;
 
 enum Part {
     Script(Box<Script>),
@@ -53,19 +54,22 @@ impl TreeStory {
     fn layout(&mut self, parent: &str, runs: &[&[&str]]) {
         let mut selector = format!("[role=treeitem][aria-label='{parent}']:has(> span:first-child)");
         // Every item has its visible caption first; the remaining direct children are these runs.
-        selector.push_str(&format!(":not(:has(> :nth-child({})))", runs.len() + 2));
+        write!(selector, ":not(:has(> :nth-child({})))", runs.len() + 2).expect("write to a string");
         for (run, names) in runs.iter().enumerate() {
             if names.is_empty() {
-                selector.push_str(&format!(":has(> p[aria-label='Between runs']:nth-child({}))", run + 2));
+                write!(selector, ":has(> p[aria-label='Between runs']:nth-child({}))", run + 2)
+                    .expect("write to a string");
                 continue;
             }
             let group = format!("> [role=group]:not([data-node]):nth-child({})", run + 2);
             for (at, name) in names.iter().enumerate() {
-                selector.push_str(&format!(
+                write!(
+                    selector,
                     ":has({group} > [role=treeitem][aria-label='{name}']:nth-child({}){})",
                     at + 1,
                     if at + 1 == names.len() { ":last-child" } else { "" },
-                ));
+                )
+                .expect("write to a string");
             }
         }
         self.dom(selector, "aria-label", parent);
