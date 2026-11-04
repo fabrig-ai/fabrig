@@ -165,7 +165,7 @@ pub fn report_script(host_call: bool) -> Script {
 
 /// [`report_script`] with its host write, finishing again once the person's
 /// words arrive: a wait-granted run rejects a finish that crosses words it
-/// has not read, and offers them (smith 10183b12).
+/// has not read, and offers them.
 #[must_use]
 pub fn crossed_script() -> Script {
     let mut script = report_script(true);
@@ -1127,7 +1127,7 @@ fn grant_read(config: &mut engine::Config, limits: &mut engine::Limits) {
     policy.ceiling.grants = Box::new([grant.clone()]);
     policy.ceiling.tools = authority::Tools(1);
     policy.projections = Box::new([grant.clone()]);
-    // A chat's authority is its role's, one level shallower (jig a2616181).
+    // A chat's authority is its role's, one level shallower.
     policy.roles[0].authority.grants = Box::new([grant]);
     policy.roles[0].authority.tools = authority::Tools(1);
     let mut roles = policy.roles.to_vec();

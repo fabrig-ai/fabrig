@@ -1,8 +1,9 @@
 //! Forge connection (forge-connection.md, sections 3 and 8).
 use alloc::boxed::Box;
 use skein_forge::forgejo::plans::{self, Fields, plan::Range};
-use skein_forge::forgejo::{decode, header};
-use skein_forge::github;
+use skein_forge::forgejo::{decode::Step as ForgejoStep, header};
+pub(crate) use skein_forge::plan::Failure;
+use skein_forge::{decode, github, time};
 
 /// A forge connection's state; the component arms its deadline.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -50,12 +51,6 @@ pub(crate) enum Heard {
 pub(crate) enum Refusal {
     Forgejo(documents::Refusal),
     GitHub(github::request::Refusal),
-}
-/// Whether any request byte may have reached the peer.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Failure {
-    Unseen,
-    Seen,
 }
 #[derive(Debug)]
 enum Request {
@@ -258,7 +253,7 @@ impl Connection {
             Exchange::GitHub { exchange, authorization } => {
                 let request = &exchange.request;
                 assert_eq!(self.kind, Kind::GitHub, "exchange belongs to its connection dialect");
-                let encoded = match github::request::encode(request, &limits::github_documents(&env.limits)) {
+                let encoded = match github::request::encode(request, &limits::documents(&env.limits)) {
                     Ok(encoded) => encoded,
                     Err(error) => return Err(Refusal::GitHub(error)),
                 };
@@ -645,7 +640,7 @@ impl Connection {
             Request::Forgejo(_) => self.forgejo_response(env, response),
             Request::GitHub(exchange) => {
                 let request = &exchange.request;
-                let mut l = limits::github_documents(&env.limits);
+                let mut l = limits::documents(&env.limits);
                 if github::decode::kind(request) == Some(github::document::Kind::Minted) && response.status == 201 {
                     l = limits::github_mint_documents(&env.limits);
                 }
@@ -692,7 +687,7 @@ impl Connection {
     }
     fn forgejo_response(&mut self, env: &Env<Limits>, response: http::Response) {
         let date = match response.header(b"Date") {
-            Some(date) => skein_forge::forgejo::time::http_date(date),
+            Some(date) => time::http_date(date),
             None => None,
         };
         let retry_after = match response.header(b"Retry-After") {
@@ -836,10 +831,10 @@ impl Connection {
         };
         let step = match decoder {
             Decoder::Forgejo(decoder) => match documents::step(decoder, &limits::documents(&env.limits), &event) {
-                decode::Step::Demand(request) => JsonStep::Demand(request),
-                decode::Step::Row(row, request) => JsonStep::Row(Heard::Forgejo(plans::Heard::Row(row)), request),
-                decode::Step::Done(document) => JsonStep::Done(Body::Forgejo(plans::Body::Document(document))),
-                decode::Step::Malformed(error) => JsonStep::Malformed(error),
+                ForgejoStep::Demand(request) => JsonStep::Demand(request),
+                ForgejoStep::Row(row, request) => JsonStep::Row(Heard::Forgejo(plans::Heard::Row(row)), request),
+                ForgejoStep::Done(document) => JsonStep::Done(Body::Forgejo(plans::Body::Document(document))),
+                ForgejoStep::Malformed(error) => JsonStep::Malformed(error),
             },
             Decoder::GitHub(decoder) => {
                 let (request, step) = decoder.step(event);
@@ -916,14 +911,8 @@ impl Connection {
         self.deadline = None;
         self.request = None;
         let heard = match self.kind {
-            Kind::Forgejo => Heard::Forgejo(plans::Heard::Failed(match failure {
-                Failure::Unseen => plans::Failure::Unseen,
-                Failure::Seen => plans::Failure::Seen,
-            })),
-            Kind::GitHub => Heard::GitHub(github::plans::Heard::Failed(match failure {
-                Failure::Unseen => github::plans::Failure::Unseen,
-                Failure::Seen => github::plans::Failure::Seen,
-            })),
+            Kind::Forgejo => Heard::Forgejo(plans::Heard::Failed(failure)),
+            Kind::GitHub => Heard::GitHub(github::plans::Heard::Failed(failure)),
         };
         self.heard.push(heard);
     }

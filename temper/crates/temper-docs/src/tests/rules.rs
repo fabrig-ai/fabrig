@@ -136,12 +136,6 @@ fn capacity_help_names_members_and_dependencies() {
 }
 
 #[test]
-fn each_guide_is_one_of_the_six_names() {
-    let guides = PAGES.iter().filter(|page| page.kind == Kind::Guide).map(|page| page.name).collect::<Vec<_>>();
-    assert!(guides.iter().all(|name| GUIDES.contains(name)), "guides among the six transitional names");
-}
-
-#[test]
 fn the_index_names_every_concept_walk_and_recipe_once() {
     let text = find(b"index").expect("index").text;
     for entry in &PAGES {
@@ -179,7 +173,7 @@ fn a_page_at_its_kinds_bound_passes_and_one_byte_more_fails() {
             Kind::Concept => CONCEPT,
             Kind::Walk => WALK,
             Kind::Recipe => RECIPE,
-            Kind::Index | Kind::Reference | Kind::Guide => "",
+            Kind::Index | Kind::Reference => "",
         };
         let mut padded = String::from(text);
         padded.push_str(&"x".repeat(kind.bound() - text.len()));
@@ -248,7 +242,7 @@ fn placeholders_are_the_set_or_declared_by_the_walk() {
     );
     placeholders(&fixture(Kind::Concept, "OWNER in prose\n```\ntemper ctl DIR task show taskTASK\n```\n"))
         .expect("prose or mixed case");
-    placeholders(&fixture(Kind::Guide, "```\ntemper ctl DIRECTORY task show N\n```\n")).expect("guides exempt");
+    placeholders(&fixture(Kind::Reference, "```\ntemper ctl DIRECTORY task show N\n```\n")).expect("references exempt");
 }
 
 #[test]
@@ -257,7 +251,7 @@ fn the_designs_words_stay_in_code() {
     for text in ["jig in prose", "smith in prose", "skein in prose", "see box.md", "temper-docs"] {
         fails(voice, &fixture(Kind::Concept, text), "voice");
     }
-    voice(&fixture(Kind::Guide, "jig in prose")).expect("guides exempt");
+    voice(&fixture(Kind::Reference, "jig in prose")).expect("references exempt");
 }
 
 #[test]

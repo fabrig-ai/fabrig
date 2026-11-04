@@ -1,7 +1,8 @@
 //! Call-specific HTTP refusals and table invalidation (forge.md, 3.4).
 use crate::api;
 use crate::forgejo::failure::Refusal;
-use crate::forgejo::plans::{Failure, Fields};
+use crate::forgejo::plans::Fields;
+pub use crate::plan::transport;
 use skein_lib::Duration;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Asked {
@@ -93,11 +94,4 @@ pub fn before_write(asked: Asked, error: api::Error) -> api::Error {
 #[must_use]
 pub fn read(status: u16, fields: &Fields) -> api::Error {
     classify(Asked::Read, status, None, fields.retry_after).error
-}
-#[must_use]
-pub fn transport(failure: Failure) -> api::Error {
-    match failure {
-        Failure::Unseen => api::Error::Unavailable,
-        Failure::Seen => api::Error::Timeout,
-    }
 }

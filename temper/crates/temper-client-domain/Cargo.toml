@@ -21,5 +21,6 @@ jig-client-protocol-wire.workspace = true
 workspace = true
 
 [dev-dependencies]
+temper-fixtures.workspace = true
 jig-client-test-records.workspace = true
 skein-world.workspace = true

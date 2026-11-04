@@ -237,7 +237,6 @@ pub fn step_4_1() -> Vec<calls::Step> {
         // Keep these watches live: a fresh wait on an ended delegate exits
         // unknown. jig's crates/jig-domain-core/src/routing/views.rs:304 maps
         // documents/small.rs:23-28's missing/ended live row to that refusal.
-        // 2071ea76 fixes ended reads only; it cannot admit these watches.
         start(D1, argv!["task", "show", number(DIRECTOR), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
         call(D1, argv!["task", "show", number(A), "--until", "replied"]),

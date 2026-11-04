@@ -395,9 +395,9 @@ fn a_tail_read_past_body_bytes_in_is_malformed_and_closes() {
     let heard = h.answer(&fixtures::ok(b"abcdefghi"));
     assert_eq!(
         heard.last(),
-        Some(&Heard::Done(skein_forge::forgejo::plans::Body::Malformed(
-            skein_forge::forgejo::decode::Malformed::Bound { field: b"log" }
-        )))
+        Some(&Heard::Done(skein_forge::forgejo::plans::Body::Malformed(skein_forge::decode::Malformed::Bound {
+            field: b"log"
+        })))
     );
     assert_eq!(h.connection.phase, Phase::Closed, "Body limit closes");
 }

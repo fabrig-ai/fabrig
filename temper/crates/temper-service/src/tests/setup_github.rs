@@ -574,7 +574,7 @@ fn unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap() {
                 engine.domain.forge_connection(FORGE)
             )
         };
-        // Known gap, temper-07: NotInstalled projects to NoAccess on the family wire.
+        // Known gap (client/README.md, 4.7): NotInstalled projects to NoAccess on the family wire.
         assert_eq!(refusal.reason(), &w::ForgeReason::NoAccess, "{name}");
         assert!(
             service.engine.as_ref().unwrap().domain.forges().rows[0].repositories.is_empty(),

@@ -1009,9 +1009,9 @@ fn checked_setup(_bytes: &[u8], named: &temper_service::Named) -> temper_forge_s
     }
 }
 
-/// temper-01a's Adopt stand-in (forge-setup.md, 4.5 and 4.8); temper-15 removes it.
+/// Adopt's stand-in (forge-setup.md, 4.5 and 4.8).
 /// Uses the kept webhook secret, drawing one only when absent.
-/// Uses the person's token because preparation's admin token carries no write:repository; temper-14 settles Adopt's scopes.
+/// Uses the person's token because preparation's admin token carries no write:repository.
 pub fn adopt(
     directory: &Path,
     instance: &skein_throwaway_forgejo::Instance,

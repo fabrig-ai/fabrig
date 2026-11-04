@@ -6,7 +6,7 @@ use skein_json::{
     tokenizer::{self, Event},
     writer::Encoder,
 };
-use skein_lib::{List, Overflow, Writer};
+use skein_lib::{List, Overflow, Writer, bytes};
 
 /// Repository write paths carry placeholders until `write_body` decodes the body.
 pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
@@ -51,7 +51,7 @@ pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
     }
     if let Some(tail) = tail.strip_prefix(b"pulls/") {
         let (number, suffix) = super::split(tail, b'/');
-        let number = super::unsigned(number)?;
+        let number = bytes::decimal(number)?;
         return match suffix {
             b"merge" if method == super::Method::Put => Some(Request::Merge {
                 owner,
@@ -84,7 +84,7 @@ pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
     }
     let tail = tail.strip_prefix(b"issues/")?;
     let (number, suffix) = super::split(tail, b'/');
-    let number = super::unsigned(number)?;
+    let number = bytes::decimal(number)?;
     match suffix {
         b"" if method == super::Method::Patch => Some(Request::Edit { owner, name, number, title: None, body: None }),
         b"comments" if method == super::Method::Post => {

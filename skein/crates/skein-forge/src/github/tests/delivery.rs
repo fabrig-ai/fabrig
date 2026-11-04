@@ -1,7 +1,6 @@
 use super::fixtures::{SHA, delivery_decode, limits};
 use crate::{
     api,
-    forgejo::document::Body,
     github::{
         decode::Malformed,
         delivery::{self, Account, Change, Ci, Delivery, Pull},
@@ -10,6 +9,7 @@ use crate::{
         server,
     },
     marker,
+    text::Body,
 };
 use skein_json::{
     tokenizer,

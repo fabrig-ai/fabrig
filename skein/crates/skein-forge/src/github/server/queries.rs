@@ -1,11 +1,11 @@
 //! Bounded GraphQL envelopes for the dialect's two byte-matched documents.
 use super::{Limits, document};
-use crate::forgejo::id::unsigned;
 use alloc::boxed::Box;
 use skein_json::{
     Document,
     document::{self as json_document, Compact, Kind},
 };
+use skein_lib::bytes;
 
 /// The two query documents understood by the fake.
 #[derive(Debug)]
@@ -76,7 +76,7 @@ fn read_variables(walk: &mut Walk<'_>, limits: &Limits) -> Option<Variables> {
             b"owner" if owner.is_none() => owner = Some(string(walk, limits)?),
             b"name" if name.is_none() => name = Some(string(walk, limits)?),
             b"number" if number.is_none() => {
-                number = Some(unsigned(walk.text(Kind::Number)?)?);
+                number = Some(bytes::decimal(walk.text(Kind::Number)?)?);
             }
             _ => return None,
         }

@@ -144,7 +144,7 @@ impl WindowRead {
     }
 
     pub(super) fn follow(&mut self, input: Option<Token>, below: &mut Queue<io::Request>) {
-        match self {
+        match *self {
             Self::Requested => match input {
                 Some(stream) => {
                     *self = Self::Pending;

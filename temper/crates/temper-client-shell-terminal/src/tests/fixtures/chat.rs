@@ -1,8 +1,6 @@
-#[expect(dead_code, reason = "the shared transcript also names the dark-theme request and report for the view tier")]
-#[path = "../../../../../testing/first_run.rs"]
-mod first_run;
 use super::*;
 use skein_ui::{Role, Run};
+use temper_fixtures::first_run;
 fn text(b: &mut skein_ui::Builder, role: Role, words: &[u8]) {
     b.open(role);
     b.text(Run::Plain, words);

@@ -2,15 +2,15 @@
 use super::{Malformed, walk::Node};
 use crate::{
     api,
-    forgejo::{id::unsigned, time},
     github::{
         document::{self, Kind, Row},
         id,
     },
+    time,
 };
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::List;
+use skein_lib::{List, bytes};
 
 #[derive(Debug)]
 pub(super) struct State {
@@ -79,7 +79,7 @@ impl State {
     pub(super) fn scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match token {
             Token::Number(text) => {
-                let number = unsigned(&text).expect("walker checked integer");
+                let number = bytes::decimal(&text).expect("walker checked integer");
                 if node == Node::PullObject {
                     self.pull.number = number;
                 } else if node == Node::Reviewer {

@@ -72,9 +72,8 @@ pub fn native() -> Limits {
             client::Limits {
                 forge: client::forge::Limits { field_bytes: 256, checks: 8 },
                 client,
-                // A page shows sixteen accounts per holder, eight sources/uses each, four live sign-ins.
-                // These modest display counts are independent of task windows and document byte capacity.
-                accounts: client::limits::AccountLimits { accounts: 16, sources: 8, uses: 8, sign_ins: 4 },
+                // An account's row names eight uses.
+                row_uses: 8,
             }
         },
         connections: jig_client_shell_native::Limits {

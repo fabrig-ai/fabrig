@@ -1,6 +1,3 @@
-#[path = "../../../testing/client_documents.rs"]
-#[expect(dead_code, reason = "shared document fixtures also supply the other client suites")]
-pub mod documents;
 use crate::{
     limits,
     route::{self, Down},
@@ -8,6 +5,7 @@ use crate::{
 use jig_client_protocol_link as link;
 use skein_lib::{List, Queue, Time};
 use temper_client_domain as client;
+pub use temper_fixtures::client_documents as documents;
 mod family;
 pub(crate) mod fixtures;
 mod render;

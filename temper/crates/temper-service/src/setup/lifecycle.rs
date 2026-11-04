@@ -1308,7 +1308,7 @@ pub(crate) fn started(engine: &mut crate::engine::Engine, forge: u16) {
         return;
     }
     if engine.setup.lifecycle.local(forge).is_none() {
-        // temper-15 retains old-form access; 14a2 moves the template to records and removes the box's reconcile step.
+        // A forge with no local setup stays not connected.
         state(engine, forge, domain::Connection::NotConnected);
         return;
     }
