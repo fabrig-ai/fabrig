@@ -23,8 +23,9 @@ Every task of this plan names this note.
   broken, which test failed, and what the failure read. A test that only moved needs no break.
 - **Keep new code in proportion.** These items exist to remove duplication: each part ends with fewer
   lines than it started. Your report gives the branch's net lines (`git diff --shortstat` against your
-  base). A task's size cap is a limit: measure it, and stop and ask if it's passed. A task that
-  expects to add lines says so in its spec.
+  base). Your base has your needs in it: a need's lines are its own task's, so measure from the last
+  commit that merged a need into your branch. A task's size cap is a limit: measure it, and stop and
+  ask if it's passed. A task that expects to add lines says so in its spec.
 - **Acceptance searches are narrow:** code that legitimately uses the same word for something else
   is exempted, not changed; your report names any exemption the spec does not.
 - **Not yours:** `docs/design/`, status files and drafts, unless your spec lists one. This departs
