@@ -360,8 +360,8 @@ window.MOCK.firstRun = {
   },
   github: { ms: 2200, account: 'owner-dev', repos: ['owner-dev/website', 'owner-dev/notes', 'owner-dev/budget-cli', 'owner-dev/dotfiles'] },
   models: {
-    chatgpt: { name: 'ChatGPT plan', who: 'owner@example.com', model: 'gpt-6-luna', line: 'ChatGPT, through your plan · gpt-6-luna' },
-    key: { name: 'OpenAI API key', who: 'billed to the key’s organization', model: 'gpt-6-luna', line: 'OpenAI API key · gpt-6-luna' },
+    chatgpt: { name: 'ChatGPT plan', who: 'owner@example.com', model: 'gpt-6.1-sol · high effort', line: 'ChatGPT, through your plan · gpt-6.1-sol · high effort' },
+    key: { name: 'OpenAI API key', who: 'billed to the key’s organization', model: 'gpt-6.1-sol · high effort', line: 'OpenAI API key · gpt-6.1-sol · high effort' },
     claude: { name: 'Claude subscription', who: 'claude-owner, signed in on this machine', model: 'Opus', line: 'Claude, through your subscription · Opus' },
   },
   // What Ready makes: an ordinary project on the stock policy, with no

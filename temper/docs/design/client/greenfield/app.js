@@ -810,7 +810,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
         : f.done ? row('done', 'Forge', `${esc(f.name)} · ${esc(f.line)}`)
         : row('current', 'Forge', `${esc(f.name)} · ${esc(f.doing)}…`, f.kind === 'forgejo' ? forgeSteps(f) : '');
       const modelRow = !m ? row('todo', 'Model', 'none yet · <a class="link" href="welcome.html?at=model">Connect a model</a>')
-        : m.ready ? row('done', 'Model', `${esc(m.name)} · ${esc(m.who)} · ${esc(m.model)}`)
+        : m.ready ? row('done', 'Model', `${esc(m.name)} · ${esc(m.who)}`)
         : row('current', 'Model', `${esc(m.name)} · signing in…`);
       const into = startRepos(S.setup.forge);
       const intoWords = into.length === 1 ? into[0] : `${into.length} repositories`;
