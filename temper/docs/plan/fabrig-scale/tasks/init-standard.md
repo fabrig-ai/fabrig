@@ -233,3 +233,21 @@ small agent is needed.
   question as before.
 
 Then the rest of the acceptance as written.
+
+2026-11-04. **Four runs without landing: rerun, split or stop?** Rerun, as it is. Each run stopped
+on a distinct, rightful question (the sockets, the escalation reason, B0's carriers,
+`template_bounds`' profile), each is answered above, and each pushed its work: the branch holds the
+profiles, agents, overrides, T and every repair but `template_bounds`' profile line. What is left is
+that line and the acceptance's checks. To land in one more run:
+
+- Start from the pushed `fabrig-scale/init-standard` (`046211ac6f` or later) and the answers above;
+  redo nothing they settle and ask nothing they answer.
+- Pre-approved, with no stop: in a file of the header, a test that fails only because init's
+  documents now run `standard`, and that mends by an expected figure, by T's carriers derived with
+  `turn_bounds::apply` in place of hand figures, or by selecting `standard` where the fixture
+  stands for init's box, takes that mend; list each in the report with its old and new figure.
+- Still a question: a refusal from `limits.rs` beyond `SOCKETS`, jig's profile or a codec ceiling;
+  a failure in a file outside the header; a figure of the contracts' tables that would have to
+  fall.
+- Run the acceptance's checks in its order, the no-write `startup::turn_bounds` first, then the
+  status lines, clippy and the push.
