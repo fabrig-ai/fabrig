@@ -1,7 +1,6 @@
 //! Pure configuration fixtures shared by unit and process tests.
 use std::path::Path;
-#[path = "../../../../tests/real-loop/src/turn_bounds.rs"]
-pub mod turn_bounds;
+pub use temper_playground::documents::turn_bounds;
 #[must_use]
 pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     let agent = serde_json::json!({
