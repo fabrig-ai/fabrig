@@ -19,7 +19,10 @@ use skein_lib::{Duration, List, Map, bytes};
 /// Settings defaults supplied at a start (protocol/configuration.md, 13.4).
 /// The binary uses Stock; an in-process test world may pass its own values.
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "worlds supply jig and forge defaults together at startup")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "worlds supply jig and forge defaults together at startup")
+)]
 pub enum Given {
     Stock,
     Own { jig: Defaults, forge: Box<[temper_engine_domain_forge::settings::Stock]> },
