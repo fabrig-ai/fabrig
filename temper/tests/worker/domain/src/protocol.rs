@@ -7,7 +7,7 @@
 use skein_lib::{Duration, List, Reader, Token, Writer};
 use smith_domain_session::{llm, record};
 use smith_protocol_channel::{Endpoint, Endpoints};
-use temper_worker_domain::{Encodable, Encoded, Invalid, agent, host};
+use temper_worker_domain::{Encodable, Encoded, agent, host};
 
 /// smith's agent's one endpoint: what its charter's LLM and its turns name.
 #[must_use]
@@ -135,20 +135,20 @@ pub fn transcript_turn(sequence: u32, length: usize, first: bool) -> Box<[u8]> {
 /// # Errors
 ///
 /// What of the start did not decode.
-pub fn decode(run: Token, source: host::Start, limits: &agent::Limits) -> Result<Box<agent::Start>, Invalid> {
+pub fn decode(run: Token, source: host::Start, limits: &agent::Limits) -> Result<Box<agent::Start>, host::Undecoded> {
     let endpoints = endpoints();
     let charter = smith_protocol_channel::decode_charter(&source.charter, &smith_charter::CEILINGS, &endpoints)
-        .map_err(|_| Invalid::Charter)?;
-    let charter = agent::Charter::new(charter, limits.charter_bytes).ok_or(Invalid::Charter)?;
-    let piece = smith_protocol_channel::transcript_piece(&source.turns).ok_or(Invalid::Transcript)?;
+        .map_err(|_| host::Undecoded::Charter)?;
+    let charter = agent::Charter::new(charter, limits.charter_bytes).ok_or(host::Undecoded::Charter)?;
+    let piece = smith_protocol_channel::transcript_piece(&source.turns).ok_or(host::Undecoded::Transcript)?;
     let found = smith_transcript::CEILINGS.found_hits;
     // Each framed turn needs at least its four-byte length, as in the service's decoder.
-    let turns = u32::try_from(limits.transcript_bytes / 4).map_err(|_| Invalid::Transcript)?;
+    let turns = u32::try_from(limits.transcript_bytes / 4).map_err(|_| host::Undecoded::Transcript)?;
     let decoded =
         smith_protocol_channel::decode_transcript(&piece, turns, found, &smith_transcript::CEILINGS, &endpoints)
-            .map_err(|_| Invalid::Transcript)?;
+            .map_err(|_| host::Undecoded::Transcript)?;
     let transcript = match decoded {
-        Some(value) => Some(agent::Transcript::new(value, limits.transcript_bytes).ok_or(Invalid::Transcript)?),
+        Some(value) => Some(agent::Transcript::new(value, limits.transcript_bytes).ok_or(host::Undecoded::Transcript)?),
         None => None,
     };
     let mut answered = Vec::with_capacity(source.answered.len());
@@ -199,7 +199,7 @@ pub fn decode(run: Token, source: host::Start, limits: &agent::Limits) -> Result
     }))
 }
 
-fn call_name(bytes: &[u8]) -> Result<agent::CallName, Invalid> {
+fn call_name(bytes: &[u8]) -> Result<agent::CallName, host::Undecoded> {
     let mut reader = Reader::new(bytes);
     match smith_channel::CallName::decode(&smith_channel::CEILINGS, &mut reader) {
         Ok(name) if reader.is_empty() => Ok(agent::CallName {
@@ -207,7 +207,7 @@ fn call_name(bytes: &[u8]) -> Result<agent::CallName, Invalid> {
             completion: name.completion(),
             position: name.position(),
         }),
-        Ok(_) | Err(_) => Err(Invalid::CallName),
+        Ok(_) | Err(_) => Err(host::Undecoded::CallName),
     }
 }
 

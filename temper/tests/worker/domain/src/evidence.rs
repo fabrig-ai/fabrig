@@ -5,17 +5,17 @@
 //! that plays one.
 
 use smith_channel as wire;
-use temper_worker_domain::{Invalid, agent, host};
+use temper_worker_domain::{agent, host};
 
 /// The delivery the evidence records, if it decodes and agrees with
 /// `outcome`.
 ///
 /// # Errors
 ///
-/// [`Invalid::Evidence`] for evidence that does not decode, or that records
+/// [`host::Undecoded::Evidence`] for evidence that does not decode, or that records
 /// another outcome.
-pub fn decode(outcome: host::DeliveryOutcome, evidence: &[u8]) -> Result<agent::Delivery, Invalid> {
-    let delivery = delivery(evidence).ok_or(Invalid::Evidence)?;
+pub fn decode(outcome: host::DeliveryOutcome, evidence: &[u8]) -> Result<agent::Delivery, host::Undecoded> {
+    let delivery = delivery(evidence).ok_or(host::Undecoded::Evidence)?;
     let recorded = match &delivery {
         agent::Delivery::Delivered(_) => host::DeliveryOutcome::Delivered,
         agent::Delivery::Nothing => host::DeliveryOutcome::Nothing,
@@ -23,7 +23,7 @@ pub fn decode(outcome: host::DeliveryOutcome, evidence: &[u8]) -> Result<agent::
         agent::Delivery::Refused(_) => host::DeliveryOutcome::Refused,
         agent::Delivery::Failed(_) => host::DeliveryOutcome::Failed,
     };
-    if recorded == outcome { Ok(delivery) } else { Err(Invalid::Evidence) }
+    if recorded == outcome { Ok(delivery) } else { Err(host::Undecoded::Evidence) }
 }
 
 /// Encodes `delivery` as evidence for a settled call, if it fits smith's
@@ -138,7 +138,7 @@ fn encoded_reason(reason: agent::DeliveryReason) -> wire::DeliveryReason {
 mod tests {
     use super::{decode, encode};
     use temper_worker_domain::agent::{Delivered, Delivery, DeliveryFailure, DeliveryReason, Diagnostic, Receipt};
-    use temper_worker_domain::{Invalid, host::DeliveryOutcome};
+    use temper_worker_domain::host::{DeliveryOutcome, Undecoded};
 
     #[test]
     fn receipts_survive_a_resumed_delivery() {
@@ -161,12 +161,12 @@ mod tests {
 
     #[test]
     fn malformed_evidence_is_invalid() {
-        assert_eq!(decode(DeliveryOutcome::Nothing, &[255, 0, 1]), Err(Invalid::Evidence));
+        assert_eq!(decode(DeliveryOutcome::Nothing, &[255, 0, 1]), Err(Undecoded::Evidence));
     }
 
     #[test]
     fn evidence_that_disagrees_with_its_outcome_is_invalid() {
         let evidence = encode(&Delivery::Nothing).expect("codec accepts nothing");
-        assert_eq!(decode(DeliveryOutcome::Delivered, &evidence), Err(Invalid::Evidence));
+        assert_eq!(decode(DeliveryOutcome::Delivered, &evidence), Err(Undecoded::Evidence));
     }
 }

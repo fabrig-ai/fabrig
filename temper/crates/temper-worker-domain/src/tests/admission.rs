@@ -1,6 +1,6 @@
 //! Every entrance's admission class, with a small pacing bound.
 use super::fixtures::{self, ATTEMPT, RUN};
-use crate::{Encoded, Event, Invalid, admits, agent, checkout, host, is_new_work, passes};
+use crate::{Encoded, Event, admits, agent, checkout, host, is_new_work, passes};
 use alloc::boxed::Box;
 use skein_lib::Token;
 
@@ -83,7 +83,7 @@ fn admission_classes() -> Box<[(Event, bool, bool)]> {
             false,
             false,
         ),
-        (Event::Decoded { agent: OWNER, start: Err(Invalid::Charter) }, false, false),
+        (Event::Decoded { agent: OWNER, start: Err(host::Undecoded::Charter) }, false, false),
         (Event::Encoded { owner: OWNER, encoded: Encoded::Undecodable }, false, false),
         (Event::Activity { owner: OWNER, activity: None }, false, false),
         (Event::Done { owner: OWNER, done: checkout::git::Done::Succeeded }, false, false),
