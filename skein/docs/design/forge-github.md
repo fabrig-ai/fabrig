@@ -56,7 +56,8 @@ fake-forge.md's, sections 10 and 11.
 
 ## 2. What the module holds
 
-By forge.md 4.1's list:
+By forge.md 4.1's list, what holds for both dialects alike sitting at
+the crate's root (forge.md, 4.4):
 
 - **Each request,** as a sized encoder, and **each answer,** as a
   decoder over skein-json's tokens with a bounded stack, keeping only
