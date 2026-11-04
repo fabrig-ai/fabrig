@@ -408,6 +408,7 @@ dependencies = [
  "skein-heap",
  "skein-json",
  "skein-lib",
+ "skein-scratch",
  "skein-world",
 ]
 
@@ -523,6 +524,7 @@ dependencies = [
  "hearth-test-mirror",
  "skein-heap",
  "skein-lib",
+ "skein-scratch",
  "skein-world",
 ]
 
@@ -607,6 +609,7 @@ dependencies = [
  "minijinja",
  "skein-heap",
  "skein-lib",
+ "skein-scratch",
  "skein-world",
 ]
 
@@ -627,6 +630,7 @@ dependencies = [
  "hearth-protocol-template",
  "skein-heap",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
