@@ -36,18 +36,21 @@ def abort(signal_number, name, kind='test abort', *, message=True):
 
 
 def setUpModule():
-    global WRAPPER, SETTLEMENT_WRAPPER
+    global WRAPPER, SETTLEMENT_WRAPPER, COLLISION_WRAPPER
     native = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-cpu-native-')
     unittest.addModuleCleanup(native.cleanup)
     WRAPPER = Path(native.name) / 'tiers-cpu-wrapper'
     SETTLEMENT_WRAPPER = Path(native.name) / 'cpu-settlement-fixture'
+    COLLISION_WRAPPER = Path(native.name) / 'cpu-collision-fixture'
     compiler = ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
                 str(HERE / 'cpu-wrapper.c')]
     before = resource.getrusage(resource.RUSAGE_CHILDREN)
     for arguments in (['-o', str(WRAPPER)],
                       [str(HERE / 'fixtures/cpu-settlement.c'),
                        '-Wl,--wrap=wait4,--wrap=clock_gettime,--wrap=open,--wrap=read,--wrap=lseek,--wrap=kill,--wrap=write',
-                       '-o', str(SETTLEMENT_WRAPPER)]):
+                       '-o', str(SETTLEMENT_WRAPPER)],
+                      [str(HERE / 'fixtures/cpu-collision.c'), '-Wl,--wrap=mkstemps',
+                       '-o', str(COLLISION_WRAPPER)]):
         try:
             subprocess.run([*compiler, *arguments], check=True, stdin=subprocess.DEVNULL,
                            capture_output=True, text=True)
@@ -755,6 +758,21 @@ while True:
         self.assertTrue(items[0]['complete'])
         self.assertEqual(items[0]['exit_code'], 7)
         self.assertGreater(items[0]['user_s'] + items[0]['system_s'], 0)
+
+    def test_wrapper_preserves_published_record_on_basename_collision(self):
+        self.record('cpu-AAAAAA')
+        original = (self.directory / 'records/cpu-AAAAAA').read_bytes()
+        env = clean_env(NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
+                        NEXTEST_TEST_NAME='two', NEXTEST_ATTEMPT='1')
+        result = subprocess.run([str(COLLISION_WRAPPER), str(self.directory / 'records'), '/bin/true'],
+                                env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.directory / 'records/cpu-AAAAAA').read_bytes(), original)
+        self.xml('<testcase name="one"/><testcase name="two"/>')
+        summary = CPU['summary'](self.directory)
+        self.assertEqual(summary['suite']['attempts'], 2)
+        self.assertEqual(summary['failures'], [])
+        self.assertEqual(list((self.directory / 'records').glob('*.tmp')), [])
 
     def test_wrapper_signal_pass_through(self):
         result, items = self.wrapped('import os,signal; os.kill(os.getpid(), signal.SIGTERM)')
