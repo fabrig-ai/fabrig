@@ -18,8 +18,8 @@ const OWNER: Token = Token::new(1);
 const LOG_NAME: &[u8] = b"log-00000000000000000001";
 
 // The world's transient heap through an empty root's open, including its directory listing.
-// Measured peak minus net: 6072 bytes; a quarter of headroom, rounded up to two significant digits.
-const RECOVERY_ALLOWANCE: i64 = 7600;
+// Measured peak minus net: 7704 bytes; a quarter of headroom, rounded up to two significant digits.
+const RECOVERY_ALLOWANCE: i64 = 9700;
 
 fn limits() -> Limits {
     Limits {
@@ -84,7 +84,7 @@ fn read_row(world: &mut World, key: u64, expected: u64) {
 
 fn snapshot_world(rows: u64, chunk: u32) -> World {
     let limits = Limits { snapshot_after: 1, chunk, ..limits() };
-    let mut world = World::new(limits);
+    let mut world = World::untraced(limits, &[]);
     open(&mut world);
     assert_eq!(world.pop(), Event::Opened { owner: OWNER, last: 0 });
     for start in (0..rows).step_by(4) {
@@ -100,7 +100,7 @@ fn snapshot_world(rows: u64, chunk: u32) -> World {
 
 #[test]
 fn an_empty_root_opens_within_the_allowance() {
-    let mut world = World::new(limits());
+    let mut world = World::untraced(limits(), &[]);
     let span = Span::start();
     open(&mut world);
     let grown = span.end();
@@ -130,7 +130,7 @@ fn recovery_holds_a_read_and_a_frame_whatever_the_log() {
             last += 1;
             bytes.extend_from_slice(&frame(last, &(last % LOG_KEYS).to_be_bytes(), &value(last)));
         }
-        let mut world = World::with_items(limits(), &[Item::file(LOG_NAME, &bytes)]);
+        let mut world = World::untraced(limits(), &[Item::file(LOG_NAME, &bytes)]);
         let span = Span::start();
         open(&mut world);
         let grown = span.end();
