@@ -1235,8 +1235,8 @@ section 8; testing-strategy.md, 2.9).
   completions and its wall time.
 - **A chat's change lands on github.com, through a restart,** a test
   of its own, `crates/temper/tests/live_github.rs`, run by
-  `scripts/proof-live-github.sh OWNER`, `OWNER` `freeekanayaka` or
-  `fabrig-ai`, one repository a run: the process tier's story of 2.6
+  `scripts/proof-live-github.sh OWNER`, `OWNER` the probe account or
+  the org `fabrig-ai`, one repository a run: the process tier's story of 2.6
   ("a chat's change on connected GitHub, through a restart") on the
   real service, on the probe App of skein's conformance fixtures and
   its installation on `OWNER/temper-probe`, whose `ci` workflow is a

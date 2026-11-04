@@ -617,8 +617,8 @@ token makes an App:
 ## 11. What the probes found
 
 Run on 2026-10-20 with a throwaway public App, `temper-probe-d0fc06`,
-installed on the account `freeekanayaka` (repository
-`freeekanayaka/temper-probe`) and the org `fabrig-ai`, then named
+installed on the probe account (repository `temper-probe`) and the org
+`fabrig-ai`, then named
 `fabrig-dev` (repository `fabrig-ai/temper-probe`; the API answers the
 old names with a 301), with API version 2026-03-10; each repository
 had one Actions workflow, a job `ci` that sleeps 45 seconds and fails
@@ -626,8 +626,8 @@ when the head's message says `FAIL`. Rulesets, pull requests, issues,
 branches and tokens made by the probes were removed after. The scripts
 and their evidence are not kept; the live conformance records the
 facts for good (section 17). The App and the repositories are kept as
-its fixtures, with a spare repository, `freeekanayaka/temper-probe-2`,
-not granted to the App. The App's key, its hook secret, the person's
+its fixtures, with a spare repository on the probe account,
+`temper-probe-2`, not granted to the App. The App's key, its hook secret, the person's
 tokens (section 17) and a README are in the person's private
 fixtures directory, never in a repository. Each fact
 is cited by its probe's number across this document.
