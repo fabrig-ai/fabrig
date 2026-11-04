@@ -32,8 +32,6 @@ pub(crate) fn request(engine: &mut Engine, forge: u16) {
     if let Some(number) = engine.values.tokens.forget(forge) {
         engine.values.identities.forget(number);
     }
-    engine.forge.file_access.remove(&forge);
-    engine.forge.startup_access.remove(&forge);
     engine.forge.endpoints.remove(&forge);
     engine.forge.held.remove(&forge);
     engine.forge.resolving.remove(&forge);

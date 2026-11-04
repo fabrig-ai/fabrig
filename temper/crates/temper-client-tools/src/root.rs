@@ -20,6 +20,7 @@ impl Limits {
 #[derive(Debug)]
 pub struct Root {
     client: Client,
+    unlinked: bool,
     runner: runner::Runner,
     adopter: crate::forge::Adopter,
     forges: crate::forges::Forges,
@@ -37,30 +38,49 @@ pub enum Event {
 }
 #[derive(Debug)]
 pub enum Request {
-    Client { request: jig_client::Request },
+    Client {
+        request: jig_client::Request,
+    },
+    /// What the unlinked client asks, which its host carries (jig's client.md, 4.4).
+    Unlinked {
+        request: jig_client::UnlinkedRequest,
+    },
     Ready,
-    Record { number: u32, record: skein_lib::Secret },
-    Kept { line: Box<[u8]> },
-    Progress { line: Box<[u8]> },
-    Printed { number: u32, printed: jig::Printed },
-    Fact { fact: temper_client_domain::Fact },
+    Record {
+        number: u32,
+        record: skein_lib::Secret,
+    },
+    Kept {
+        line: Box<[u8]>,
+    },
+    Progress {
+        line: Box<[u8]>,
+    },
+    Printed {
+        number: u32,
+        printed: jig::Printed,
+    },
+    Fact {
+        fact: temper_client_domain::Fact,
+    },
 }
 impl Root {
     /// # Errors
     /// Refuses client limits that cannot be represented.
     pub fn new(limits: &Limits, seed: u64) -> Result<Self, jig_client::Unusable> {
-        Ok(Self::with_client(Client::new(&limits.domain.client, seed)?, seed))
+        Ok(Self::with_client(Client::new(&limits.domain.client, seed)?, seed, false))
     }
     /// # Errors
     /// Refuses client limits that cannot be represented.
     pub fn unlinked(limits: &Limits, seed: u64) -> Result<Self, jig_client::Unusable> {
-        Ok(Self::with_client(Client::unlinked(&limits.domain.client, seed)?, seed))
+        Ok(Self::with_client(Client::unlinked(&limits.domain.client, seed)?, seed, true))
     }
-    fn with_client(client: Client, seed: u64) -> Self {
+    fn with_client(client: Client, seed: u64, unlinked: bool) -> Self {
         let mut runner = runner::Runner::new(RUNNER.asker(), crate::key::TOOLS, seed);
         runner.parts(&Parts);
         let mut root = Self {
             client,
+            unlinked,
             runner,
             adopter: crate::forge::Adopter::new(),
             forges: crate::forges::Forges::new(),
@@ -128,7 +148,7 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             if let jig_client::Event::StartUnlinked { kept } = &event {
                 root.recovery.load_rows(kept);
             }
-            root.client.step(env.now, env.wall, event, &mut client);
+            step_client(root, env, event, &mut client);
         }
         Event::Call { number, call, json, value } => {
             let active = root
@@ -178,13 +198,32 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
     root.client.reclaim();
     root.changed();
 }
+enum ClientOutput {
+    Linked(jig_client::Request),
+    Unlinked(jig_client::UnlinkedRequest),
+}
+fn step_client(root: &mut Root, env: &Env<Limits>, event: jig_client::Event, out: &mut Queue<ClientOutput>) {
+    if root.unlinked {
+        let mut requests = Queue::uncapped();
+        root.client.step_unlinked(env.now, env.wall, event, &mut requests);
+        while let Some(request) = requests.pop() {
+            out.push(ClientOutput::Unlinked(request));
+        }
+    } else {
+        let mut requests = Queue::uncapped();
+        root.client.step(env.now, env.wall, event, &mut requests);
+        while let Some(request) = requests.pop() {
+            out.push(ClientOutput::Linked(request));
+        }
+    }
+}
 fn tools_env(env: &Env<Limits>) -> Env<jig::Limits> {
     Env { now: env.now, wall: env.wall, limits: env.limits.tools }
 }
 fn drain(
     root: &mut Root,
     env: &Env<Limits>,
-    client: &mut Queue<jig_client::Request>,
+    client: &mut Queue<ClientOutput>,
     child: &mut Queue<runner::Out>,
     out: &mut Queue<Request>,
 ) {
@@ -195,20 +234,28 @@ fn drain(
         if !client_outputs_dispatched {
             let request = client.pop().expect("client output pending");
             match request {
-                jig_client::Request::Told { told } => route(root, env, told, child, out),
-                // M4's Authorize place answers it
-                jig_client::Request::Authorized(_) => {}
-                request @ (jig_client::Request::Exchange { .. }
-                | jig_client::Request::OpenStream { .. }
-                | jig_client::Request::CloseStream
-                | jig_client::Request::Save { .. }
-                | jig_client::Request::Erase { .. }
-                | jig_client::Request::Down { .. }
-                | jig_client::Request::SignOut
-                | jig_client::Request::ServiceCredential { .. }) => {
-                    root.recovery.output(&request, &link_limits(env));
-                    out.push(Request::Client { request });
-                }
+                ClientOutput::Linked(request) => match request {
+                    jig_client::Request::Told { told } => route(root, env, told, child, out),
+                    // M4's Authorize place answers it
+                    jig_client::Request::Authorized(_) => {}
+                    request @ (jig_client::Request::Exchange { .. }
+                    | jig_client::Request::OpenStream { .. }
+                    | jig_client::Request::CloseStream
+                    | jig_client::Request::Save { .. }
+                    | jig_client::Request::Erase { .. }
+                    | jig_client::Request::ServiceCredential { .. }) => {
+                        root.recovery.output(&request, &link_limits(env));
+                        out.push(Request::Client { request });
+                    }
+                },
+                ClientOutput::Unlinked(request) => match request {
+                    jig_client::UnlinkedRequest::Told { told } => route(root, env, told, child, out),
+                    jig_client::UnlinkedRequest::Authorized(_) => {}
+                    request @ (jig_client::UnlinkedRequest::Down { .. } | jig_client::UnlinkedRequest::SignOut) => {
+                        root.recovery.output_unlinked(&request);
+                        out.push(Request::Unlinked { request });
+                    }
+                },
             }
         } else if let Some(request) = child.pop() {
             // All client outputs, including a retired request's erase, have
@@ -228,7 +275,7 @@ fn drain(
                             route(root, env, Told::Pending { key: kept }, child, out);
                         }
                     } else {
-                        root.client.step(env.now, env.wall, event, client);
+                        step_client(root, env, event, client);
                     }
                 }
                 runner::Out::Record { number, record } => out.push(Request::Record { number, record }),
@@ -390,7 +437,19 @@ fn route_owner(
 pub fn fire(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut client = Queue::uncapped();
     let mut child = Queue::uncapped();
-    root.client.fire(env.now, env.wall, &mut client);
+    if root.unlinked {
+        let mut requests = Queue::uncapped();
+        root.client.fire_unlinked(env.now, env.wall, &mut requests);
+        while let Some(request) = requests.pop() {
+            client.push(ClientOutput::Unlinked(request));
+        }
+    } else {
+        let mut requests = Queue::uncapped();
+        root.client.fire(env.now, env.wall, &mut requests);
+        while let Some(request) = requests.pop() {
+            client.push(ClientOutput::Linked(request));
+        }
+    }
     drain(root, env, &mut client, &mut child, out);
     jig::wait::fire(&mut root.runner, &root.client, &tools_env(env), &mut child);
     crate::change::fire(&mut root.changes, env, &mut child);

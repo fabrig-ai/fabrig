@@ -21,8 +21,9 @@ fn keyed_requests_leave_only_through_the_table_after_their_records() {
         unreachable!("save precedes send");
     };
     assert!(record.first_sent.is_some());
-    let Request::Client {
-        request: jig_client::Request::Down { down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+    let Request::Unlinked {
+        request:
+            jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. } },
     } = &rows[1]
     else {
         unreachable!("one jig request was sent");
@@ -39,9 +40,9 @@ fn a_final_answer_reaches_the_child_that_asked_unread_and_once() {
     let attempt = rows
         .iter()
         .find_map(|r| match r {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } => {
-                Some(*attempt)
-            }
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => Some(*attempt),
             _ => None,
         })
         .unwrap();
@@ -114,9 +115,9 @@ fn a_reload_parks_kept_requests_until_jig_confirms_their_party() {
     let attempt = sends
         .iter()
         .find_map(|r| match r {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } => {
-                Some(*attempt)
-            }
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => Some(*attempt),
             _ => None,
         })
         .unwrap();
@@ -158,7 +159,10 @@ fn link_and_confirmation_reach_both_children_and_park_the_table() {
     assert_eq!(root.first().link(), Link::Offline);
     assert_eq!(root.second().link(), Link::Offline);
     for row in taken(&mut root) {
-        if let Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { .. } } } = row {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { .. } },
+        } = row
+        {
             unreachable!("offline requests are parked");
         }
     }
@@ -173,8 +177,9 @@ fn a_current_signed_out_envelope_tells_jig_and_both_siblings() {
     let watch = start(&mut root, List::with_capacity(0));
     confirm(&mut root, watch, 7);
     let rows = ask(&mut root, Token::new(42));
-    let Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } =
-        &rows[1]
+    let Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+    } = &rows[1]
     else {
         unreachable!("one request is in flight");
     };
@@ -195,7 +200,10 @@ fn a_current_signed_out_envelope_tells_jig_and_both_siblings() {
     assert_eq!(root.first().party(), None);
     assert_eq!(root.second().party(), None);
     for row in taken(&mut root) {
-        if let Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { .. } } } = row {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { .. } },
+        } = row
+        {
             unreachable!("signed out requests remain parked");
         }
     }
@@ -210,9 +218,9 @@ fn ready(seed: u64) -> Domain {
 fn family_read(rows: &[Request]) -> Token {
     rows.iter()
         .find_map(|row| match row {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Family { .. } },
                     },
             } => Some(*read),
@@ -223,9 +231,9 @@ fn family_read(rows: &[Request]) -> Token {
 fn family_watch(rows: &[Request]) -> Token {
     rows.iter()
         .find_map(|row| match row {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { .. } },
                     },
             } => Some(*watch),
@@ -278,9 +286,9 @@ fn a_family_page_hands_its_task_and_proposal_to_jigs_working_set() {
             .is_some()
     );
     assert!(rows_initial.iter().any(|row| match row {
-        Request::Client {
+        Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Open {
                             subject: jig_client::Watchable::Jig(contract::Subject::Chips { .. }), ..
@@ -290,9 +298,9 @@ fn a_family_page_hands_its_task_and_proposal_to_jigs_working_set() {
         _ => false,
     }));
     assert!(rows_initial.iter().any(|row| match row {
-        Request::Client {
+        Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Open {
                             subject: jig_client::Watchable::Jig(contract::Subject::Inbox { .. }), ..
@@ -305,7 +313,8 @@ fn a_family_page_hands_its_task_and_proposal_to_jigs_working_set() {
     let rows =
         drive(&mut root, Event::First(first::Event::Watch { watch, event: first::WatchEvent::Delivered(item(1)) }));
     assert!(!rows.iter().any(|row| match row {
-        Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Open { .. } } } => true,
+        Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { .. } } } =>
+            true,
         _ => false,
     }));
 }
@@ -350,9 +359,9 @@ fn family_change_refuses_a_moved_revision_and_final_answers_stay_with_the_family
     );
     assert!(taken(&mut root).is_empty());
     let Request::Save { record: crate::store::Record::Unlinked(_) } = &rows[0] else { panic!("record first") };
-    let Request::Client {
+    let Request::Unlinked {
         request:
-            jig_client::Request::Down {
+            jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record: ask, .. }, .. },
             },
     } = &rows[1]
@@ -417,9 +426,9 @@ fn object_parameters_are_the_familys_revision_naming_request() {
             }),
         },
     );
-    let Request::Client {
+    let Request::Unlinked {
         request:
-            jig_client::Request::Down {
+            jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send { request: jig_client::Ask::Family { record: ask, .. }, .. },
             },
     } = &rows[1]
@@ -579,7 +588,9 @@ fn restored_foreign_scope_counts_are_routed_without_root_page_policy() {
     assert_eq!(
         sent.iter()
             .filter(|r| match r {
-                Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { .. } } } => true,
+                Request::Unlinked {
+                    request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { .. } },
+                } => true,
                 _ => false,
             })
             .count(),
@@ -596,9 +607,9 @@ fn restored_own_scope_sends_and_retires_each_final_request_once() {
     let sends: Vec<_> = sent
         .into_iter()
         .filter_map(|row| match row {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } => {
-                Some(attempt)
-            }
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => Some(attempt),
             _ => None,
         })
         .collect();
@@ -666,9 +677,9 @@ fn a_raw_entrance_refusal_finishes_the_original_family_request_once_with_its_fac
         },
     );
     let Request::Save { .. } = &rows[0] else { panic!("retention precedes send") };
-    let Request::Client {
+    let Request::Unlinked {
         request:
-            jig_client::Request::Down {
+            jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { .. }, .. },
             },
     } = &rows[1]
@@ -715,7 +726,8 @@ fn a_raw_entrance_refusal_finishes_the_original_family_request_once_with_its_fac
     assert_eq!(root.first().object(id).unwrap().card, first::Card::Refused { answer });
     assert_eq!(crate::shown(&root), shown);
     assert!(taken(&mut root).iter().all(|request| match request {
-        Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { .. } } } => false,
+        Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { .. } } } =>
+            false,
         _ => true,
     }));
 }
@@ -764,9 +776,9 @@ fn actual_application_object_form_keeps_explicit_zero_observed_revision_and_orig
     let (attempt, ask) =
         sent.iter()
             .find_map(|request| match request {
-                Request::Client {
+                Request::Unlinked {
                     request:
-                        jig_client::Request::Down {
+                        jig_client::UnlinkedRequest::Down {
                             down:
                                 jig_client::Down::Send {
                                     attempt, request: jig_client::Ask::Family { record: ask, .. }, ..
@@ -901,9 +913,9 @@ fn whole_owner_parts_require_original_inner_identity_and_keep_unversioned_snapsh
             },
         );
         for request in taken(&mut root) {
-            if let Request::Client {
+            if let Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Send { request: jig_client::Ask::Family { .. }, .. },
                     },
             } = request

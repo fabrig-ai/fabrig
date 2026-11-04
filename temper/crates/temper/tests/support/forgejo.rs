@@ -390,7 +390,6 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     }
     let limits = value["application"]["limits"].take();
     value["application"] = owned::application(&owned);
-    owned::old_form(&mut value["application"]);
     value["application"]["limits"] = limits;
     value["application"]["limits"]["overrides"]["root.brief.gather_ms"] = BRIEF_GATHER_MS.into();
     let path = directory.join("agent.json");

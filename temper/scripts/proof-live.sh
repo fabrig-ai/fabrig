@@ -3,14 +3,13 @@
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
-# The machine's build queue where it has one, plain cargo where it hasn't.
-heavy=$(command -v heavy || true)
+# TEMPER_WRAPPER, when set and not empty, names one command that runs each build
+# command below; unset, cargo runs plainly.
 if [ "${1-}" = rung-b0-offline ]; then
     [ "$#" -eq 1 ] || { printf '%s\n' 'usage: scripts/proof-live.sh rung-b0-offline' >&2; exit 2; }
     export NEXTEST_DOUBLE_SPAWN=0
     # No live account is admitted by the offline proofs.
-    [ -n "$heavy" ] || { printf '%s\n' 'heavy is required for offline proofs' >&2; exit 2; }
-    exec "$heavy" cargo nextest run -p temper --test proof_live --profile live-temper --ignore-default-filter --run-ignored only --no-fail-fast
+    exec ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --test proof_live --profile live-temper --ignore-default-filter --run-ignored only --no-fail-fast
 fi
 case ${1-} in
     '') test_name=a_real_model_answers_a_chat_and_pushes_a_small_change ;;
@@ -262,8 +261,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 # A build failure or a signal also returns through finish, after stopping the box.
-# shellcheck disable=SC2086
-$heavy cargo nextest run -p temper --profile live-temper --no-run
+${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --no-run
 if [ "$rerun" = false ] && [ -z "${TEMPER_LIVE_ACCOUNT-}" ] && [ -z "$claude_identity" ]; then
     printf '%s\n' 'Approve the printed ChatGPT address in a browser that reaches this machine.' \
         'For a remote browser: ssh -L 1455:127.0.0.1:1455 -L <client port>:127.0.0.1:<client port> HOST'
@@ -277,8 +275,7 @@ if [ -n "$store" ] && [ -d "$store" ]; then
     done
 fi
 launched=true
-# shellcheck disable=SC2086
-TMPDIR=$scratch $heavy cargo nextest run -p temper --profile live-temper --ignore-default-filter \
+TMPDIR=$scratch ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --ignore-default-filter \
     --run-ignored only --no-capture -E "binary(=live) & test(=$test_name)" &
 runner=$!
 tail -n +1 -f --sleep-interval=0.2 --pid="$runner" "$notice" &

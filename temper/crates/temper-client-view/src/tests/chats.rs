@@ -337,18 +337,18 @@ fn open_chats(root: &mut Domain, env: &Env<temper_client_domain::Limits>, out: &
     let mut watch = None;
     let mut read = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Open { watch: token, subject: jig_client::Watchable::Jig(Subject::Tasks { .. }) },
                 },
         } = request
         {
             watch = Some(token);
-        } else if let Request::Client {
+        } else if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Read { read: token, what: jig_client::Readable::Jig(Read::Tasks { .. }) },
                 },
         } = request
@@ -423,9 +423,9 @@ fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
     // A live update refreshes the first ended page; answer the latest read.
     let mut read = read;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Read { read: token, what: jig_client::Readable::Jig(Read::Tasks { .. }) },
                 },
         } = request
@@ -784,8 +784,8 @@ fn an_accepted_start_draws_no_applied_status() {
     );
     let mut attempt = None;
     for request in &out {
-        if let Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: token, .. } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: token, .. } },
         } = request
         {
             attempt = Some(*token);

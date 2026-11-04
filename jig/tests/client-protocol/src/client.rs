@@ -207,7 +207,6 @@ impl Front {
             client::Request::OpenStream { credential } => {
                 self.connections.down(now, client::Request::OpenStream { credential }, &mut self.below);
             }
-            client::Request::Down { .. } | client::Request::SignOut => panic!("linked clients emit wire work"),
             client::Request::CloseStream => {
                 self.connections.down(now, client::Request::CloseStream, &mut self.below);
             }

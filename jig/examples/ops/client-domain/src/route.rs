@@ -255,8 +255,14 @@ pub(crate) fn route_observability(
 }
 pub(crate) fn client(root: &mut Domain, env: &Env<Limits>, event: jig_client::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    root.client.step(env.now, env.wall, event, &mut child);
-    route_client(root, env, &mut child, out);
+    let mut unlinked = Queue::uncapped();
+    if root.unlinked {
+        root.client.step_unlinked(env.now, env.wall, event, &mut unlinked);
+        route_unlinked(root, env, &mut unlinked, out);
+    } else {
+        root.client.step(env.now, env.wall, event, &mut child);
+        route_client(root, env, &mut child, out);
+    }
 }
 pub(crate) fn route_client(
     root: &mut Domain,
@@ -277,19 +283,32 @@ pub(crate) fn route_client(
                     out.push(Request::Erase { key: Key::Client(key) });
                 }
             }
-            jig_client::Request::Down { down: jig_client::Down::Save { record } } => {
-                out.push(Request::Save { record: Record::Unlinked(record) });
-            }
-            jig_client::Request::Down { down: jig_client::Down::Erase { key } } => {
-                out.push(Request::Erase { key: Key::Unlinked(key) });
-            }
             request @ (jig_client::Request::Exchange { .. }
             | jig_client::Request::OpenStream { .. }
             | jig_client::Request::CloseStream
-            | jig_client::Request::Down { .. }
             | jig_client::Request::Authorized(_)
-            | jig_client::Request::ServiceCredential { .. }
-            | jig_client::Request::SignOut) => out.push(Request::Client { request }),
+            | jig_client::Request::ServiceCredential { .. }) => out.push(Request::Client { request }),
+        }
+    }
+}
+pub(crate) fn route_unlinked(
+    root: &mut Domain,
+    env: &Env<Limits>,
+    child: &mut Queue<jig_client::UnlinkedRequest>,
+    out: &mut Queue<Request>,
+) {
+    while let Some(request) = child.pop() {
+        match request {
+            jig_client::UnlinkedRequest::Told { told: value } => told(root, env, value, out),
+            jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } } => {
+                out.push(Request::Save { record: Record::Unlinked(record) });
+            }
+            jig_client::UnlinkedRequest::Down { down: jig_client::Down::Erase { key } } => {
+                out.push(Request::Erase { key: Key::Unlinked(key) });
+            }
+            request @ (jig_client::UnlinkedRequest::Down { .. }
+            | jig_client::UnlinkedRequest::Authorized(_)
+            | jig_client::UnlinkedRequest::SignOut) => out.push(Request::Unlinked { request }),
         }
     }
 }

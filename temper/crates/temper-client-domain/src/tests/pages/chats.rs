@@ -449,17 +449,17 @@ fn opened_chats() -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
     let mut watch = None;
     let mut read = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
+        if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(Subject::Tasks { .. }) },
                 },
         } = request
         {
             watch = Some(token);
-        } else if let crate::Request::Client {
+        } else if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Read { read: token, what: Readable::Jig(Read::Tasks { .. }) },
                 },
         } = request
@@ -517,9 +517,9 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
     assert!(root.pages().chats().expect("chats").live(root.client()).expect("live group").rows.is_empty());
     let mut refreshed = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
+        if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Read { read, what: Readable::Jig(Read::Tasks { query, live, ended }) },
                 },
         } = request

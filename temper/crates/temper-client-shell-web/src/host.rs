@@ -253,12 +253,16 @@ impl Host {
                     }
                 }
                 Request::SignOut => self.client(jig_client::Event::SignOut),
-                Request::Dropped { .. } | Request::Fact { .. } => {}
+                Request::Unlinked { .. } | Request::Dropped { .. } | Request::Fact { .. } => {}
             }
         }
         root::take(&mut self.root, &self.env, &mut self.out);
         (asked, writes)
     }
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the root consumes notifications and keeps unlinked requests out of the linked browser transport"
+    )]
     fn carry(&mut self, request: jig_client::Request, asked: &mut Vec<Asked>) {
         match request {
             jig_client::Request::Save { records } => {
@@ -291,11 +295,7 @@ impl Host {
                 });
             }
             jig_client::Request::CloseStream => asked.push(Asked::CloseStream),
-            jig_client::Request::Authorized(_)
-            | jig_client::Request::Told { .. }
-            | jig_client::Request::Down { .. }
-            | jig_client::Request::SignOut
-            | jig_client::Request::ServiceCredential { .. } => {}
+            _ => {}
         }
     }
     pub fn build(&mut self) {

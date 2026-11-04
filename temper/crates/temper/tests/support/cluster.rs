@@ -23,7 +23,7 @@ const STDERR_TAIL_LINES: usize = 20;
 // crates/temper/tests/fixtures/cluster/engine.json's fleet.grace_ms: above each worker's stop bound, 2300 (jig-protocol-config worker.rs:38), which a hello must be under (jig-domain-fleet channel.rs:174); reached only on a lost link.
 pub(crate) const FLEET_GRACE_MS: u64 = 3000;
 const _: () = assert!(FLEET_GRACE_MS < STOP_SECONDS * 1000);
-const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/README.md, 15.5): run them through heavy";
+const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/README.md, 15.5): run them where it delegates them";
 
 /// crates/temper/tests/fixtures/cluster/ read, rendered for one test's scratch, and its processes' state.
 pub struct Cluster {

@@ -71,7 +71,7 @@ fn github_config(
     config.identities[0].author.email = Box::new([]);
     config.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
     config.forges[0].web = Some(Box::from(b"http://127.0.0.1:3000".as_slice()));
-    config.forges[0].api_token = None;
+    config.without_records = Box::new([1]);
     config.forges[0].transport = crate::settings::Transport::Plaintext;
     config.limits.setup.states = states;
     config.limits.setup.state_life = life;
@@ -460,13 +460,13 @@ fn tls_forges() -> (fixtures::ConfiguredEngine, List<crate::ForgeRuntime>) {
     let mut config = fixtures::configured_engine();
     config.forges =
         Box::new([fixtures::forges().into_iter().next().unwrap(), fixtures::forges().into_iter().next().unwrap()]);
+    config.without_records = Box::new([1, 2]);
     let mut runtime = List::with_capacity(2);
     for (index, (number, name, address)) in
         [(1, "first.test", [192, 0, 2, 7]), (2, "second.test", [192, 0, 2, 8])].into_iter().enumerate()
     {
         config.forges[index].number = number;
         config.forges[index].kind = crate::settings::Kind::GitHub;
-        config.forges[index].api_token = None;
         config.forges[index].transport =
             crate::settings::Transport::Tls { server_name: name.as_bytes().into(), trust: None };
         let (trust, _) = skein_tls::Config::from_der(core::slice::from_ref(&root), &[name.as_bytes()]).unwrap();
@@ -623,7 +623,7 @@ fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     config.identities[0].login = Box::new([]);
     config.identities[0].author.name = Box::new([]);
     config.identities[0].author.email = Box::new([]);
-    config.forges[0].api_token = None;
+    config.without_records = Box::new([1]);
     config.limits.forge_component.inner = 13;
     config.limits.picker.page = 1;
     let mut endpoints =
@@ -668,7 +668,7 @@ fn configured(runs: u32, states: u32, tls: bool) -> (fixtures::ConfiguredEngine,
     config.identities[0].login = Box::new([]);
     config.identities[0].author.name = Box::new([]);
     config.identities[0].author.email = Box::new([]);
-    config.forges[0].api_token = None;
+    config.without_records = Box::new([1]);
     config.limits.setup.runs = runs;
     config.limits.setup.states = states;
     fixtures::fill_files(&mut config);
@@ -689,7 +689,7 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     let mut config = fixtures::configured_engine();
     config.forges[0].kind = crate::settings::Kind::GitHub;
     config.forges[0].api = jig_protocol_config::Address::Host { name: b"forge.example".as_slice().into(), port: 443 };
-    config.forges[0].api_token = None;
+    config.without_records = Box::new([1]);
     let mut other = fixtures::forges().into_iter().next().unwrap();
     other.number = 2;
     let first = config.forges.into_iter().next().unwrap();
@@ -784,8 +784,7 @@ fn local_config(records: bool, fake: bool) -> fixtures::ConfiguredEngine {
         });
     }
     if records {
-        config.records_only = Box::new([1]);
-        config.forges[0].api_token = None;
+        config.without_records = Box::new([1]);
         config.forges[0].user = 0;
         config.identities[0].token = Secret::new(Box::new([]));
         config.identities[0].login = if fake { Box::new([]) } else { b"git-user".as_slice().into() };
@@ -1075,8 +1074,14 @@ fn local_with_other(config: fixtures::ConfiguredEngine, store: crate::store::Sto
     let mut other = fixtures::forges().into_iter().next().unwrap();
     other.number = 2;
     other.kind = crate::settings::Kind::GitHub;
-    other.api_token = None;
     other.api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
+    let mut without_records =
+        List::with_capacity(u32::try_from(config.without_records.len()).unwrap().checked_add(1).unwrap());
+    for number in config.without_records {
+        without_records.push(number).unwrap();
+    }
+    without_records.push(2).unwrap();
+    config.without_records = without_records.into_boxed();
     config.forges = Box::new([config.forges.into_iter().next().unwrap(), other]);
     let mut runtime = List::with_capacity(2);
     runtime.push(fixtures::forge_runtime().into_boxed().into_iter().next().unwrap()).unwrap();
@@ -1914,7 +1919,6 @@ fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::For
     source.web = record.place.web.clone();
     source.git = record.place.git.clone();
     source.transport = crate::settings::Transport::Plaintext;
-    source.api_token = None;
     assert!(engine.workers.forges.insert(source));
     root::step(
         &mut engine.domain,
@@ -2251,7 +2255,7 @@ fn fixture_setup(
     snapshot.forges = config.forges.clone();
     snapshot.identities = config.identities.clone();
     snapshot.setup = config.setup.clone();
-    snapshot.records_only = config.records_only.clone();
+    snapshot.without_records = config.without_records.clone();
     fixtures::fill_files(&mut snapshot);
     let endpoints = core::mem::replace(endpoints, crate::forge::prepare(&snapshot.engine, List::with_capacity(0))?);
     let service = fixtures::configured_prepared(snapshot, &fixtures::seeds(), None, endpoints, None, None)?;

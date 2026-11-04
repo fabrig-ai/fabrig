@@ -149,7 +149,7 @@ pub const FAMILIES: &[Family] = &[
 pub fn check() {
     let tree = skein_scratch::paths::tree();
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    let again = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world -p jig-store-codecs-world -E 'test(drift::)'";
+    let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world -p jig-store-codecs-world -E 'test(drift::)'";
     for family in FAMILIES {
         let root = tree.join(family.root);
         let mut source = String::new();

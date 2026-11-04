@@ -104,6 +104,5 @@ debt it says what a reviewer checks.
 | [D043](D043-browser-kit-json-and-tables.md) | The browser kit keeps its own JSON decoder and `Vec` tables | primitives | low | M | open |
 | [D044](D044-io-token-tags.md) | Hand bit tags work around io's and FileIo's colliding operation tokens | other | medium | S | open |
 | [D045](D045-shell-keeper-syscalls.md) | skein-shell's public API carries the harness's syscalls | coupling | low | S | open |
-| [D046](D046-ui-limits-and-accounting.md) | skein-ui offers no `Limits` constructor and hides its node accounting | primitives | medium | S | open |
 | [D047](D047-role-sets-as-slices.md) | Role sets are written as slice `contains` checks | primitives | low | S | open |
 | [D048](D048-oauth-accounts-world-copies.md) | The oauth-accounts world doubles its owner harness and switches on stories | tests | low | M | open |
