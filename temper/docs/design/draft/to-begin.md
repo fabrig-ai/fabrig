@@ -37,7 +37,8 @@ draws it, and landed apart from this draft.
 ## 2. On Home
 
 - **The intro,** while "To begin" shows: the kicker as on any Home,
-  the day and the time; the headline "PROJECT is ready.", never a
+  the day and the time, enough for now (the user, 2026-11-04); the
+  headline "PROJECT is ready.", never a
   count of what is left, since nothing in "To begin" is owed; the
   lede naming the model's account and the forge, "Your agents run on
   your ChatGPT plan, and Forgejo on this machine.", from the LLM
@@ -159,6 +160,3 @@ draws it, and landed apart from this draft.
 - **Every new project, or the welcome's alone?** Default: every
   project with steps left (section 4), since nothing records which
   project the welcome made.
-- **"Made just now" in the kicker,** as the mockup has it, needs the
-  project's making time, which jig does not keep: default, the day and
-  the time, as on any Home.
