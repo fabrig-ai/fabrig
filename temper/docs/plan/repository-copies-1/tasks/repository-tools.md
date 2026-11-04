@@ -88,3 +88,19 @@ copy.
   `lib.rs`, 400, becomes `Repositories: make, copy or adopt one into a project.`, and nothing else there
   moves. Then run what the last run left unobserved: the failing docs test, the clippy, and the acceptance's
   whole `heavy cargo nextest run`.
+
+## Rebase (2026-11-04, step merge, foreman repository-copies-1/repository-tools/foreman-3)
+
+combine forge resource-host help with repository-making help in the three conflicting paths
+The merge failed on overlapping help text, introduced on main by `82618af6f5` (“Expose forge resource hosts so charter documents can name their forge”).
+Resolve these paths together:
+- `temper/crates/temper-client-tools/src/forges.rs`, `READ.prints`
+- `temper/crates/temper-client-tools/src/tests/golden/help_forge_list.txt`
+- `temper/docs/help/reference/ctl-forge.md`
+Use this combined wording in all three, retaining `Prints: ` in the golden and reference:
+“A line per forge, `forge N`, its resource host, kind, mode and connection, its App, installations and repositories being made, then `digest: forges`”.
+In `forges.rs`, preserve main’s `encode_identity` and `text_identity` helpers and their calls, including the JSON `host` field.
+Preserve the branch’s making-row rendering, `settled` check, `ROWS_JSON_DEPTH = 10`, and scoped `too_many_lines` expectation.
+Retain the automatically merged host assertions and repository make/copy registrations.
+Verify the combined help with `tests::help::the_help_prints_as_its_golden_files` and `tests::help::the_forge_reference_is_what_the_table_renders`; verify rows with `tests::making::forge_list_shows_the_rows`, through heavy.
+Then complete the spec’s clippy and whole `heavy cargo nextest run -p temper-client-tools -p temper-docs -p temper` checks.
