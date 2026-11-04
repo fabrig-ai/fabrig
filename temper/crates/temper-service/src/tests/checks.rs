@@ -269,6 +269,14 @@ fn standalone_shapes() -> [(Shape, Path, What); 8] {
 }
 
 #[test]
+fn a_v6_clients_listener_off_loopback_is_refused_at_the_start() {
+    for document in [fixtures::document(), fixtures::engine_alone_document()] {
+        let document = fixtures::with(&document, b"application.clients.listener", br#"{"socket":"[::]:7100"}"#);
+        let found = crate::named(&document, &config::Directories::working()).expect_err("off-loopback IPv6");
+        assert_eq!(&*lines(&found), b"application.clients.listener: must be a socket address on loopback\n");
+    }
+}
+#[test]
 fn a_webhook_listener_off_loopback_is_refused() {
     let document = fixtures::with(
         &fixtures::webhook_document(),

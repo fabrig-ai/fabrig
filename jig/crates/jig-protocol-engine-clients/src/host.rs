@@ -5,7 +5,6 @@ use jig_domain_core as domain;
 use jig_domain_people as people;
 use jig_protocol_store as store;
 use skein_lib::{List, Map, Token, Wall};
-const HOST_BYTES: u32 = 64;
 
 /// What a request in flight was for: a kept value's owner, or the exchange whose carried value the store numbers.
 #[derive(Clone, Copy, Debug)]
@@ -247,26 +246,6 @@ pub fn ending(key: &domain::Key) -> Option<u64> {
 pub fn served(application: kit::Served) -> List<kit::Served> {
     use jig_client_protocol_wire::VERSION;
     List::from_boxed(Box::new([kit::Served { family: None, first: VERSION, last: VERSION }, application]))
-}
-/// A bound address as text, `None` for a non-loopback IPv6 one.
-#[must_use]
-pub fn address_text(address: ::core::net::SocketAddr) -> Option<Box<[u8]>> {
-    let mut text = skein_lib::Intake::with_capacity(HOST_BYTES);
-    match address.ip() {
-        core::net::IpAddr::V4(ip) => {
-            for (at, octet) in ip.octets().iter().enumerate() {
-                if at != 0 {
-                    text.append(b".").ok()?;
-                }
-                text.append(skein_lib::Decimal::of(u64::from(*octet)).as_bytes()).ok()?;
-            }
-        }
-        core::net::IpAddr::V6(ip) if ip.is_loopback() => text.append(b"[::1]").ok()?,
-        core::net::IpAddr::V6(_) => return None,
-    }
-    text.append(b":").ok()?;
-    text.append(skein_lib::Decimal::of(u64::from(address.port())).as_bytes()).ok()?;
-    text.meet(skein_lib::stream::Read::Fill(text.len()))
 }
 
 #[cfg(test)]

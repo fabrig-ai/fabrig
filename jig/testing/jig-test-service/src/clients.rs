@@ -238,7 +238,7 @@ impl Clients {
             && let Some(address) = addr.socket()
         {
             let mut hosts = List::with_capacity(1);
-            hosts.push(kit::host::address_text(address).expect("bound listener address")).expect("one listener host");
+            hosts.push(http::address_text(address).expect("bound listener address")).expect("one listener host");
             self.mount.down(&self.mount_env, http::Event::Listening { hosts });
         }
         self.server.up(event, &mut self.server_out);
