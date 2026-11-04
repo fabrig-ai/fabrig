@@ -337,6 +337,9 @@ fn plaintext_admission_checks_the_exact_loopback_ranges() {
                 credential: skein_llm::client::CredentialLimits { value: 2048 },
             })
             .expect("one endpoint");
+        if !admitted {
+            assert!(!valid(&limits(), &endpoints));
+        }
         assert_eq!(
             Component::new(endpoints, &limits()).err(),
             if admitted { None } else { Some(EndpointError::PlaintextAddress) },
@@ -760,6 +763,7 @@ fn construction_names_each_stream_capacity_relationship() {
         };
         let mut endpoints = List::with_capacity(1);
         endpoints.push(destination).expect("endpoint");
+        assert!(!valid(&config, &endpoints));
         assert_eq!(Component::new(endpoints, &config).err(), Some(expected));
     }
 }
