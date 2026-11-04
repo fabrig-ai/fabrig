@@ -669,6 +669,10 @@ crate that reads configuration.
 - **The bound address.** The host keeps each listener's configured
   address, for the owner's report of a lost one, and the address last
   bound, in `listening`, until the owner takes it.
+- **Its `Debug` counts.** A queued write holds an encoded grant, and a
+  read what a worker sent, a credential among them. So `Workers`,
+  `Component`, `Request` and `Event` show counts and variants, and no
+  bytes.
 
 ### 11.4 The server
 
@@ -763,9 +767,9 @@ order, and no part cuts across it.
   and an owner with a bound asks `room` before it commits. `ending` reads
   the sign-in from a core key: which of an application's writes end one
   is its own to read.
-- **The printed link.** `address_text` is a bound address as text, and
-  the mapping's `printed_link` joins it to the path its `link_path` gave.
-  An owner with a public origin writes its own.
+- **The printed link.** The mapping's `address_text` is a bound address
+  as text, and its `printed_link` joins that to the path its `link_path`
+  gave. An owner with a public origin writes its own.
 - **The component's settings are a value,** `Settings`. This crate can't
   read configuration, which names it, so what every application fills
   alike is `jig_protocol_config::clients::settings`, beside `models`.
