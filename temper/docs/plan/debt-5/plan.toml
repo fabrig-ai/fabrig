@@ -47,27 +47,3 @@ id = 3
 story = "both dialects stand on skein-forge's root, GitHub's non-test code names no forgejo:: and forge-connection translates no twin, with every public path kept by re-export"
 parts = ["skein-forge-root"]
 walk = false
-
-[[part]]
-id = "jig-core-steps"
-title = "jig D001: the core keeps the steps no root owns: Activate and PrepareAgent; the question holds the rest"
-mode = "direct"
-needs = []
-design = "jig/docs/design/domain/root.md, 3"
-
-[[slice]]
-id = 4
-story = "a task that comes due waits in the core and each root takes it with take_due, so no root echoes an activation or an agent's preparation back"
-parts = ["jig-core-steps"]
-walk = false
-
-[[question]]
-id = "d001-scope"
-text = """jig D001's Paid-when cannot hold as written. It says no root answers a Now by pushing a fixed core event straight back, and lists five arms, but its premise that the three roots write the same arms is true only of ops and the test root. Activate and PrepareAgent can leave the core; this plan removes them. The other three do real work in temper: CompleteBrief keeps a payload in every root; BriefCorePlanned binds documents, home access and forge sections; WorkspaceRequest prepares a workspace. The design holds them (jig engine.md 7.1, 9, 17.9; root.md 7), so ops's and the test root's fixed answers to BriefCorePlanned, and ops's to WorkspaceRequest, remain.
-
-(a) Recommended, already being built: Activate and PrepareAgent go, the measure falls from 40 to 38, and D001 stays open. You then either narrow its Paid-when to what stands (a Now value stays when any root does real work with it) and close it, or leave the fixed answers to D004, which moves what remains of ops's wiring into jig.
-(b) Remove all five. A design change to engine.md and root.md: a new hand-off for connectors' sections and a gather timeout in the core. A separate plan, and it will not remove more than it adds.
-(c) Keep activations where they are. Activate stays and only PrepareAgent goes, the measure ends at 39, and PrepareAgent needs an added Busy route. Choose this if you do not want an activation to run in a later decision than the one that made its task due, which is the one behaviour (a) changes.
-
-Which, and under (a), may a follow-up rewrite D001's Paid-when and delete the item?"""
-parts = ["jig-core-steps"]

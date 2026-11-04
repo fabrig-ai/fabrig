@@ -64,4 +64,4 @@
   `$HOME/src/rust/tmp/`, a scratch layout of whoever runs fabrig's
   development (`AGENTS.md`, 1), and 2.7 names the first. They stay
   because the scripts' behaviour held but for their build wrapper, and
-  `tests/boundary/tests/outward.rs` counts the `~/` form alone.
+  `tests/boundary/tests/outward.rs` matches the `~/` form alone.

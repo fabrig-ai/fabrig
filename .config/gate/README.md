@@ -31,9 +31,8 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing.md`, 6;
 6. **Citations:** `python3 -I -B tools/citations/citations.py --all`, at 0 broken.
    Rules: `DESIGN.md`, 4; `tools/citations/README.md`.
 7. **The outward check:** `cargo nextest run -p fabrig-boundary`, included in
-   `default`. Rule: `tests/boundary/tests/outward.rs`'s module doc and `AGENTS.md`, 1;
-   inventory: `tests/boundary/outward.txt`, whose counts only fall and whose header
-   requires a `# Raised: <who, why>` line for a raised count.
+   `default`. Rule: `tests/boundary/tests/outward.rs`'s module doc and `AGENTS.md`, 1.
+   The rule is absolute: any match fails, and the check has no inventory.
 
 ## The gate's lists
 
