@@ -19,7 +19,11 @@ so far is what has been written.
    - `tasks/bite-tests.md`, high, ~40 minutes, needs nothing: B5, first as the request asks.
    - `tasks/core-preparation.md`, medium, ~40 minutes, needs nothing: A1, A2, A4.
    - `tasks/engine-activate.md`, high, ~45 minutes, needs nothing: A3, with its proof first, and A5.
-   - B6 and B7 to come.
+   - `tasks/part-leftovers.md`, high, ~45 minutes, needs `bite-tests`, `workers-debug`, `listener-text`: B6.
+   - `tasks/part-names.md`, medium, ~35 minutes, needs `part-leftovers`, `undecoded`, `bundle-part`: B7, jig's half.
+   - `tasks/temper-names.md`, medium, ~20 minutes, needs `part-names`: B7, temper's half.
+   - Size caps sum to about -16 lines for the part, against the request's "fewer lines than it started": `bite-tests`
+     adds about 50 on purpose, and the rest take about 66.
 
 ## What was decided
 
@@ -39,8 +43,12 @@ so far is what has been written.
 
 ## Overlaps with other drafts
 
-None so far: these tasks touch none of the files `debt-9` lists, but for `temper-service`'s `tests/**`, which
-`debt-9/smith-names` holds as a glob; `listener-text` adds one test to `tests/checks.rs`.
+- `debt-9/temper-wrong-kind` is changing `temper-service/src/{accounts,engine}.rs`, where `temper-names` swaps one call at
+  each `mark_durable` site. `temper-names` runs last in its part so that it meets that work settled.
+- `debt-9/smith-names` holds `temper-service`'s `tests/**` as a glob; `listener-text`, `part-leftovers` and `temper-names`
+  change single lines there.
+- `workers-debug` and `listener-text` each delete one of two adjacent lines of `service.status.md`, so the second to
+  merge may meet a conflict. Later entries there have a blank line between them, so they won't.
 
 ## Critical path
 
