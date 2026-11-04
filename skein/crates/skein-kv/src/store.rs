@@ -587,22 +587,22 @@ fn commit_disk(store: &mut Store, dir: Dir, phase: Phase, owner: Token, ops: Box
         above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
         return dir.at(phase);
     };
+    let projected = match store.admitted.check(&store.map, &ops, &env.limits) {
+        Ok(projected) => projected,
+        Err(refusal) => {
+            above.push(Event::Refused { owner, refusal });
+            return dir.at(phase);
+        }
+    };
     let total = store.queued_bytes.checked_add(skein_lib::len_u64(bytes.len()));
     if match total {
         Some(total) => total > env.limits.queued_bytes,
         None => true,
     } {
-        let refusal = match store.admitted.check(&store.map, &ops, &env.limits) {
-            Ok(..) => Refusal::Busy,
-            Err(refusal) => refusal,
-        };
-        above.push(Event::Refused { owner, refusal });
+        above.push(Event::Refused { owner, refusal: Refusal::Busy });
         return dir.at(phase);
     }
-    if let Err(refusal) = store.admitted.admit(&store.map, &ops, &env.limits, number) {
-        above.push(Event::Refused { owner, refusal });
-        return dir.at(phase);
-    }
+    store.admitted.reserve(&ops, projected, number);
     store.queued_bytes = total.expect("checked queue bytes");
     store.queue.push(Pending { owner, number, ops, frame: bytes });
     begin_batch(store, dir, phase, step)
