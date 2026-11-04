@@ -1,0 +1,3 @@
+draft = "debt-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-2/inputs/request.md", "jig/docs/development/debt/D018-native-shell-unlinked-panics.md", "skein/docs/development/debt/D046-ui-limits-and-accounting.md", "smith/docs/development/debt/D002-lifecycles-in-flags.md", "temper/docs/development/debt/D005-forgejo-file-credentials.md"]
