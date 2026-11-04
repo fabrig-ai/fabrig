@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 94;
+pub const N: usize = 97;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -87,6 +87,24 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-one-left",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-at-work",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-needs-several",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-nothing-needs",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -722,6 +740,12 @@ fn home_domain(name: &str) -> Domain {
     let mut projects = List::with_capacity(1);
     projects.push(me.projects.get(0).expect("Hello project").clone()).expect("one project");
     me.projects = projects;
+    me.needs_total = match name {
+        "home-at-work" => 1,
+        "home-needs-several" => 3,
+        _ => 0,
+    };
+    me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
     let accounts = temper_client_domain::pages::accounts::document(source.client()).expect("sample accounts").clone();
     let (chats, _) = crate::worlds::world(Solo, CHATS, Shown);
     let Some(Latest::Jig(c::Delivery::Tasks(chat_rows))) =
@@ -743,7 +767,8 @@ fn home_domain(name: &str) -> Domain {
     ] {
         step(&mut root, Event::Client { event }, &mut out);
     }
-    let in_project = matches!(name, "home-two-left" | "home-one-left" | "home-ready");
+    let everyday = matches!(name, "home-at-work" | "home-needs-several" | "home-nothing-needs");
+    let in_project = everyday || matches!(name, "home-two-left" | "home-one-left" | "home-ready");
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
         let Some(request) = down(request) else { continue };
@@ -758,7 +783,7 @@ fn home_domain(name: &str) -> Domain {
                             .push(c::SettingLine {
                                 setting: c::Setting::Rules,
                                 name: None,
-                                follows: if matches!(name, "home-one-left" | "home-ready") {
+                                follows: if everyday || matches!(name, "home-one-left" | "home-ready") {
                                     c::SettingFollows::Change
                                 } else {
                                     c::SettingFollows::Default
@@ -781,8 +806,18 @@ fn home_domain(name: &str) -> Domain {
                             row.project = 1;
                             rows.push(row).expect("one chat");
                         }
+                        if everyday {
+                            rows = home_chat_rows(name, chat_rows.rows.get(0).expect("sample chat"), false);
+                        }
                         c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
                     }
+                    c::Subject::Inbox { .. } => c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
+                        List::with_capacity(0),
+                        0,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        false,
+                    ))),
                     _ => continue,
                 };
                 deliver(&mut root, watch, value, &mut out);
@@ -815,10 +850,69 @@ fn home_domain(name: &str) -> Domain {
                 c::ReadValue::Tasks(Box::new(c::TaskPage {
                     live: List::with_capacity(0),
                     live_after: None,
-                    ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
+                    ended: c::EndedGroup::Rows {
+                        rows: if everyday {
+                            home_chat_rows(name, chat_rows.rows.get(0).expect("sample chat"), true)
+                        } else {
+                            List::with_capacity(0)
+                        },
+                        after: None,
+                        cut: false,
+                    },
                 })),
                 &mut out,
             ),
+            Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
+                let mut rows = List::with_capacity(3);
+                if group == c::InboxReadGroup::Needs {
+                    let tasks: &[u64] = match name {
+                        "home-at-work" => &[3],
+                        "home-needs-several" => &[3, 2, 1],
+                        _ => &[],
+                    };
+                    for task in tasks {
+                        rows.push(temper_fixtures::client_documents::entry(
+                            c::ObjectKey::Question { task: *task, message: 1 },
+                            1,
+                            1,
+                            home_since(4),
+                            None,
+                        ))
+                        .expect("Home needs");
+                    }
+                }
+                crate::driver::answer(
+                    &mut root,
+                    read,
+                    c::ReadValue::Inbox(Box::new(c::InboxPage {
+                        rows,
+                        cut: false,
+                        before: None,
+                        after: None,
+                        selection: None,
+                    })),
+                    &mut out,
+                );
+            }
+            Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task, message }) } => {
+                let mut chip = chat_rows.rows.get(0).expect("sample chat").chip.clone();
+                chip.task = task;
+                chip.title = home_text(home_title(task));
+                crate::driver::answer(
+                    &mut root,
+                    read,
+                    c::ReadValue::Question(Box::new(c::Question {
+                        task: chip,
+                        from: None,
+                        message,
+                        words: home_text("The repository has no license. Name one in the README?"),
+                        since: home_since(4),
+                        acts: List::with_capacity(0),
+                        ending: None,
+                    })),
+                    &mut out,
+                );
+            }
             Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                 let value = match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("Home read").read() {
                     w::Read::Deployment => Some(wire::deployment_answer(
@@ -879,6 +973,52 @@ fn home_domain(name: &str) -> Domain {
     }
     root
 }
+fn home_text(words: &str) -> c::DocumentText {
+    c::DocumentText::complete(
+        c::Text::new(words.as_bytes().into(), crate::driver::limits().client.domain.text).expect("Home words"),
+    )
+}
+fn home_since(minutes: u64) -> skein_lib::Wall {
+    skein_lib::Wall::from_nanos(
+        crate::worlds::now(FirstRun { step: 7 })
+            .as_nanos()
+            .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home minutes fit"))
+            .expect("Home time follows epoch"),
+    )
+}
+fn home_title(task: u64) -> &'static str {
+    match task {
+        3 => "Add a README",
+        2 => "Hello in Rust",
+        1 => "What is in this repository?",
+        _ => unreachable!("Home's three chats"),
+    }
+}
+fn home_chat_rows(name: &str, source: &c::TaskLine, ended: bool) -> skein_lib::List<c::TaskLine> {
+    let tasks: &[u64] = match (name, ended) {
+        ("home-at-work" | "home-needs-several", false) => &[3],
+        ("home-at-work" | "home-needs-several", true) => &[2, 1],
+        ("home-nothing-needs", true) => &[1],
+        _ => &[],
+    };
+    let mut rows = skein_lib::List::with_capacity(3);
+    for task in tasks {
+        let mut row = source.clone();
+        row.project = 1;
+        row.chip.task = *task;
+        row.chip.title = home_text(home_title(*task));
+        row.last_activity = home_since(if ended { 60 } else { 4 });
+        row.ended_at = if ended { Some(home_since(60)) } else { None };
+        row.waits_on = if ended {
+            c::WaitsOn::Nothing
+        } else {
+            c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: *task, kind: c::WaitedFor::Question }
+        };
+        rows.push(row).expect("Home chats");
+    }
+    rows
+}
+
 fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_protocol_wire::v1::ForgeRow> {
     use skein_lib::List;
     use temper_client_protocol_wire::v1 as w;

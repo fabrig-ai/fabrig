@@ -1121,7 +1121,10 @@ from the engine's own answers, is where the look is tuned.
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
 | `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
 | `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
-| `home-ready` | hand-made Home deliveries: all three steps done |
+| `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
+| `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |
+| `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |
+| `home-ready` | hand-made Home deliveries: all three steps done; plain Home |
 | `home-adopting` | hand-made Home deliveries: first adoption in flight; no repository acts |
 | `home-refused` | hand-made Home deliveries: first adoption refused; its words and retry acts |
 | `home-no-repository` | hand-made Home deliveries: no repository or first offer |

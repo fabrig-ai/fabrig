@@ -11,6 +11,27 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    HomeOpen,
+    HomeNeedsNone,
+    HomeNeedsOne,
+    HomeNeedsMany,
+    HomeNeedsCut,
+    HomeNeedsCount,
+    HomeNeedsEmpty,
+    HomeInARow,
+    HomeQuestion,
+    HomeProposal,
+    HomeHeld,
+    HomePersonTask,
+    HomeAllChats,
+    HomeAllChatsCut,
+    HomeAllChatsName,
+    HomeAskLine,
+    HomeAnswer,
+    HomeAnswerName,
+    HomeChatName,
+    HomeWaiting,
+    HomeClosed,
     HomeThree,
     HomeTwo,
     HomeOne,
@@ -808,14 +829,37 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The rail adds four literals and one counted entry (client/README.md, 5.3).
 // Five switcher phrases describe repository rows in both shells.
 // Home adds 35 phrases for its steps, intro and connected lines (3.5).
-const PHRASES: u32 = 1315;
+// Everyday Home adds twenty-one phrases (3.5).
+const PHRASES: u32 = 1336;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
 // The switcher phrases add twenty-one literal and hole segments.
 // Home adds 87 literal and hole segments.
-const SEGMENTS: u32 = 2290;
-const ALL: [Word; 720] = [
+// Everyday Home adds forty-five literal and hole segments (3.5).
+const SEGMENTS: u32 = 2335;
+const ALL: [Word; 741] = [
+    Word::HomeOpen,
+    Word::HomeNeedsNone,
+    Word::HomeNeedsOne,
+    Word::HomeNeedsMany,
+    Word::HomeNeedsCut,
+    Word::HomeNeedsCount,
+    Word::HomeNeedsEmpty,
+    Word::HomeInARow,
+    Word::HomeQuestion,
+    Word::HomeProposal,
+    Word::HomeHeld,
+    Word::HomePersonTask,
+    Word::HomeAllChats,
+    Word::HomeAllChatsCut,
+    Word::HomeAllChatsName,
+    Word::HomeAskLine,
+    Word::HomeAnswer,
+    Word::HomeAnswerName,
+    Word::HomeChatName,
+    Word::HomeWaiting,
+    Word::HomeClosed,
     Word::HomeThree,
     Word::HomeTwo,
     Word::HomeOne,
@@ -1541,6 +1585,27 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::HomeOpen => 3165,
+            Self::HomeNeedsNone => 3145,
+            Self::HomeNeedsOne => 3146,
+            Self::HomeNeedsMany => 3147,
+            Self::HomeNeedsCut => 3148,
+            Self::HomeNeedsCount => 3149,
+            Self::HomeNeedsEmpty => 3150,
+            Self::HomeInARow => 3151,
+            Self::HomeQuestion => 3152,
+            Self::HomeProposal => 3153,
+            Self::HomeHeld => 3154,
+            Self::HomePersonTask => 3155,
+            Self::HomeAllChats => 3156,
+            Self::HomeAllChatsCut => 3157,
+            Self::HomeAllChatsName => 3158,
+            Self::HomeAskLine => 3159,
+            Self::HomeAnswer => 3160,
+            Self::HomeAnswerName => 3161,
+            Self::HomeChatName => 3162,
+            Self::HomeWaiting => 3163,
+            Self::HomeClosed => 3164,
             Self::HomeThree => 3110,
             Self::HomeTwo => 3111,
             Self::HomeOne => 3112,
@@ -2307,7 +2372,14 @@ const SET_UP_FAILURE_BYTES: u32 = temper_client_domain::forge::forges::FAILURE_B
 fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(13).ok_or(Invalid::Overflow)
 }
+fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
+    joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
+}
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // The phone link names the joined title, question and its colon (3.5).
+    if word == Word::HomeAnswerName {
+        return home_answer_bytes(joined);
+    }
     if word == Word::SwitcherRow && last {
         return switcher_repository_bytes(joined);
     }
@@ -2471,10 +2543,12 @@ impl Words {
             holes: 4,
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
-            text_bytes: 32768,
+            // Everyday Home adds 288 bytes of English literals (3.5).
+            text_bytes: 32768 + 288,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
+                .max(home_answer_bytes(joined)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -2558,6 +2632,27 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicPerson => (&[b"a person"], &[]),
         Word::PublicJob => (&[b"a job"], &[]),
         Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
+        Word::HomeOpen => (&[b"Open"], &[]),
+        Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
+        Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),
+        Word::HomeNeedsMany => (&[b"", b" things need you."], &[Number]),
+        Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
+        Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeNeedsEmpty => (&[b"Nothing needs you. Work carries on, and this page tells you what changed when you come back."], &[]),
+        Word::HomeInARow => (&[b"Answer in a row"], &[]),
+        Word::HomeQuestion => (&[b"a question"], &[]),
+        Word::HomeProposal => (&[b"a proposal"], &[]),
+        Word::HomeHeld => (&[b"held"], &[]),
+        Word::HomePersonTask => (&[b"a person task"], &[]),
+        Word::HomeAllChats => (&[b"All ", b""], &[Number]),
+        Word::HomeAllChatsCut => (&[b"All ", b"+"], &[Number]),
+        Word::HomeAllChatsName => (&[b"", b" chats"], &[Name]),
+        Word::HomeAskLine => (&[b"", b": ", b""], &[Name, Name]),
+        Word::HomeAnswer => (&[b"Answer"], &[]),
+        Word::HomeAnswerName => (&[b"", b" Answer"], &[Name]),
+        Word::HomeChatName => (&[b"", b", ", b", ", b""], &[Name, Name, Name]),
+        Word::HomeWaiting => (&[b"waiting on you"], &[]),
+        Word::HomeClosed => (&[b"closed"], &[]),
         Word::HomeThree => (&[b"You\xe2\x80\x99re set up. Nothing has run yet."], &[]),
         Word::HomeTwo => (&[b"Two things left to begin with."], &[]),
         Word::HomeOne => (&[b"One thing left to begin with."], &[]),
