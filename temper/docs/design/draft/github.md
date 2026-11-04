@@ -629,7 +629,7 @@ facts for good (section 17). The App and the repositories are kept as
 its fixtures, with a spare repository, `freeekanayaka/temper-probe-2`,
 not granted to the App. The App's key, its hook secret, the person's
 tokens (section 17) and a README are in the person's private
-`~/src/rust/tmp/github-conformance/`, never in a repository. Each fact
+fixtures directory, never in a repository. Each fact
 is cited by its probe's number across this document.
 
 - **Setup.** The manifest flow takes `http://127.0.0.1:<port>` as its

@@ -5,15 +5,16 @@ Offline checks run in the workspace's focused suite, without network
 access or credentials. The contract is `docs/design/benchmarks.md`.
 
 Run commands from a clean committed worktree. Build each named smith
-commit in the build lane before running it in the gate lane:
+commit first. Run probes, calibrations, fixes and suites on an otherwise
+idle machine, one at a time:
 
 ```sh
-heavy cargo run -p smith-bench -- build HEAD
-heavy cargo run -p smith-bench -- build CONTROL_COMMIT
-heavy --gate cargo run -p smith-bench -- probe probes/smoke-tools --arm DIRECTORY
-heavy --gate cargo run -p smith-bench -- calibrate probes/first-request --control CONTROL_COMMIT
-heavy --gate cargo run -p smith-bench -- fix probes/first-request --parent CONTROL_COMMIT
-heavy --gate cargo run -p smith-bench -- suite smoke --arm DIRECTORY
+cargo run -p smith-bench -- build HEAD
+cargo run -p smith-bench -- build CONTROL_COMMIT
+cargo run -p smith-bench -- probe probes/smoke-tools --arm DIRECTORY
+cargo run -p smith-bench -- calibrate probes/first-request --control CONTROL_COMMIT
+cargo run -p smith-bench -- fix probes/first-request --parent CONTROL_COMMIT
+cargo run -p smith-bench -- suite smoke --arm DIRECTORY
 ```
 
 `build COMMIT [--repository REPOSITORY]` prints the archived arm directory
@@ -164,8 +165,8 @@ usage, calls and event checks. Both streams must be whole. This arm records
 and removes them from deciding checks; every other check still applies.
 
 ```sh
-heavy --gate cargo run -p smith-bench -- probe probes/smoke-tools --agent smith-claude-code --arm DIRECTORY
-heavy --gate cargo run -p smith-bench -- probe probes/credentials --arm DIRECTORY
+cargo run -p smith-bench -- probe probes/smoke-tools --agent smith-claude-code --arm DIRECTORY
+cargo run -p smith-bench -- probe probes/credentials --arm DIRECTORY
 ```
 
 The credentials probe runs two smith attempts concurrently on `chatgpt`,
@@ -190,20 +191,20 @@ The repository suite uses `shell-cwd` frozen at smith
 vendored. Its manifest is `tasks/repository/shell-cwd/seed/bundle.toml`;
 the directory lives at
 `$XDG_STATE_HOME/smith-bench/bundles/shell-cwd-56c0c59/` on
-`debian-16gb-hel1-1`. An absent bundle is reported as skipped offline,
+the benchmark machine. An absent bundle is reported as skipped offline,
 and refuses an attempt. A present bundle must match its complete seed
 digest. The task's own seed digest binds the bundle manifest.
 
 To reproduce it with the two source commits available locally, export
 smith's frozen tree to that directory with `git archive`. From the
-exported directory run `heavy cargo vendor --locked vendor`, and save
+exported directory run `cargo vendor --locked vendor`, and save
 Cargo's printed source replacements in `.cargo/config.toml`, using
 `directory = "vendor"` so each copied workspace builds independently.
 Export skein's three `tests/tls/fixtures/{leaf.der,intermediate.der,leaf.key}`
 files at the frozen pin to those paths in the bundle; the vendored fake
 peers include them by their existing relative paths. Keep the frozen
 `Cargo.lock` and `.config/nextest.toml` unchanged. Build
-once with `heavy cargo build --offline --locked --workspace --all-targets
+once with `cargo build --offline --locked --workspace --all-targets
 --target-dir DIRECTORY_OUTSIDE_THE_BUNDLE`. The directory's digest,
 including the vendored sources and config, must match `bundle.toml`;
 never keep build output inside it.
