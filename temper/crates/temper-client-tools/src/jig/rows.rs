@@ -87,7 +87,7 @@ pub const CHAT: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Each page is older than the one before it. A run still writing\nadds its words so far.\n",
+    notes: b"Each page is older than the one before it. A run still writing\nadds its words so far.\nTool inputs, outcomes and result summaries are read with task turn TASK TURN;\nthey consume no conversation words budget. JSON leaves those payload fields null.\n",
 };
 pub const ACTIVITY: Tool = Tool {
     name: b"task activity",

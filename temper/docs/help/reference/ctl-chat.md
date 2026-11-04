@@ -16,6 +16,8 @@ Prints: The conversation, oldest line first: each turn's words, each run's start
 Key: none.
 Each page is older than the one before it. A run still writing
 adds its words so far.
+Tool inputs, outcomes and result summaries are read with task turn TASK TURN;
+they consume no conversation words budget. JSON leaves those payload fields null.
 ```
 
 ## chat start
