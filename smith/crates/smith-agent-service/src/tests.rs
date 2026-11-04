@@ -465,7 +465,7 @@ fn an_admitted_opening_fits_the_derived_request_with_escaped_host_text() {
     };
     let application = smith_protocol_llm::schemas_for_contract(
         &prompt,
-        &limits.llm.adapter.stated,
+        &limits.llm.translation.stated,
         &run::outcome::OutcomeSpec {
             change: None,
             verdicts: Box::default(),
@@ -473,11 +473,11 @@ fn an_admitted_opening_fits_the_derived_request_with_escaped_host_text() {
             report: Some(run::outcome::TextSpec { max: 32, fields: Box::default() }),
         },
         None,
-        limits.llm.adapter.client.request,
+        limits.llm.translation.client.request,
     )
     .expect("schemas");
     let mut translated =
-        smith_protocol_llm::fixture::prompt(prompt, &application, &limits.llm.adapter).expect("translated opening");
+        smith_protocol_llm::fixture::prompt(prompt, &application, &limits.llm.translation).expect("translated opening");
     translated.output_ceiling(skein_llm::Provider::OpenAi, 4096).expect("configured model output");
     let prepared = skein_llm::client::Client::prepare(
         skein_llm::Call {
@@ -486,7 +486,7 @@ fn an_admitted_opening_fits_the_derived_request_with_escaped_host_text() {
             endpoint: skein_llm::Endpoint::openai(),
             credential: Some(skein_llm::Credential::bearer(b"fake".as_slice().into())),
         },
-        &limits.llm.adapter.client,
+        &limits.llm.translation.client,
     );
     assert!(prepared.is_ok(), "admitted host bytes must fit the derived request: {:?}", prepared.err());
 }
@@ -511,7 +511,7 @@ fn standard_profile_accepts_full_workspace_read_results() {
         window: smith_domain::tools::BytesClamp::Within,
     };
     let (rendered, error) =
-        llm::render_outcome(&outcome, &smith_domain::tools::Namespace::One, limits.llm.adapter.rendered_result)
+        llm::render_outcome(&outcome, &smith_domain::tools::Namespace::One, limits.llm.translation.rendered_result)
             .expect("full read fits after escaping and adding line metadata");
     assert!(!error);
     assert!(rendered.len() > 16_384, "escaped bytes and metadata exceed the old string bound");
@@ -519,7 +519,7 @@ fn standard_profile_accepts_full_workspace_read_results() {
 
 #[test]
 fn standard_profile_accepts_conversation_history_with_workspace_results() {
-    let limits = standard_limits().expect("standard limits").llm.adapter.client.native();
+    let limits = standard_limits().expect("standard limits").llm.translation.client.native();
     let mut input = Vec::new();
     for index in 0_u32..12 {
         let call_id = format!("read_{index}").into_bytes().into_boxed_slice();
@@ -549,7 +549,7 @@ fn standard_profile_accepts_provider_heads_with_many_metadata_fields() {
     use skein_lib::stream::{Down, Up};
     use skein_lib::{Env, Queue, Time, Wall};
 
-    let limits = standard_limits().expect("standard limits").llm.adapter.client.http;
+    let limits = standard_limits().expect("standard limits").llm.translation.client.http;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut client = http::client::Client::new(&limits);
     let mut above = Queue::with_capacity(4);
@@ -594,7 +594,7 @@ fn standard_profile_accepts_provider_events_that_echo_tool_schemas() {
     use skein_lib::stream::{Down, Up};
     use skein_lib::{Env, Queue, Time, Wall};
 
-    let limits = standard_limits().expect("standard limits").llm.adapter.client;
+    let limits = standard_limits().expect("standard limits").llm.translation.client;
     let tools: Vec<_> = (0_u32..32)
         .map(|index| {
             serde_json::json!({

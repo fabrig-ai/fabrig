@@ -209,6 +209,10 @@ impl Service {
             settings.sign_in.as_ref(),
             settings.files.entries.as_slice(),
         )?;
+        clients.deployment = crate::family::Deployment {
+            welcome: settings.welcome,
+            owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
+        };
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
@@ -233,7 +237,7 @@ impl Service {
             machine: Some(machine_config(&settings.machine)),
             forges: configured,
             under_box: box_line_bytes.is_some(),
-            playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
+            playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),
         };
         let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
         let demo = settings.demo;
@@ -1090,11 +1094,20 @@ impl Service {
     }
 }
 
+/// Whether the deployment can set up an owned forge (temper/docs/design/client/README.md, 4.6).
+pub(crate) const fn deployment_owned(document_owned: bool, under_box: bool) -> bool {
+    document_owned && under_box
+}
+
 #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 pub(crate) fn playground_config(
     demo: Option<&settings::Demo>,
+    welcome: bool,
     deadline: skein_lib::Duration,
 ) -> Option<temper_engine_domain_forge::PlaygroundConfig> {
+    if !welcome {
+        return None;
+    }
     match demo {
         Some(demo) => Some(temper_engine_domain_forge::PlaygroundConfig { provider: demo.provider, deadline }),
         None => None,

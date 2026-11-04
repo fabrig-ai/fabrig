@@ -81,7 +81,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
         });
     }
     world.complete(
-        Box::new([llm::Block::ToolCall {
+        Box::new([llm::Block::ToolCall(llm::ToolCall {
             id: bytes(b"finish-four"),
             name: bytes(b"finish"),
             input: br#"{"form":"report","text":"ALPHA"}"#.as_slice().into(),
@@ -92,7 +92,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
                 effect: smith_domain_tools::Effect::Write,
             },
             replay: None,
-        }]),
+        })]),
         llm::Stop::ToolUse,
         llm::Usage::ZERO,
     );

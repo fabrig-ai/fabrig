@@ -110,12 +110,12 @@ pub fn invalid_start(invalid: run::Invalid, limits: &channel::Limits) -> Result<
 }
 
 fn failure_record(
-    failure: run::Failure,
+    failure: run::RunFailure,
     limits: &channel::Limits,
     now: skein_lib::Time,
 ) -> Result<channel::RunFailure, Error> {
     let record = match failure {
-        run::Failure::Transcript(refusal) => {
+        run::RunFailure::Transcript(refusal) => {
             let value = match refusal {
                 run::TranscriptRefusal::Version => channel::TranscriptRefusal::Version,
                 run::TranscriptRefusal::Malformed => channel::TranscriptRefusal::Malformed,
@@ -129,7 +129,7 @@ fn failure_record(
                 },
             )
         }
-        run::Failure::Model(fault) => {
+        run::RunFailure::Model(fault) => {
             let value = model_fault(fault, now, limits)?;
             channel::RunFailure::Model(
                 match channel::ModelFaultValue::new(limits, channel::ModelFaultValueParts { value }) {
@@ -138,7 +138,7 @@ fn failure_record(
                 },
             )
         }
-        run::Failure::Budget { exhausted, used, bound } => {
+        run::RunFailure::Budget { exhausted, used, bound } => {
             let value = budget_failure(exhausted, limits)?;
             channel::RunFailure::Budget(
                 match channel::BudgetFailureValue::new(limits, channel::BudgetFailureValueParts { value, used, bound })
@@ -148,14 +148,14 @@ fn failure_record(
                 },
             )
         }
-        run::Failure::Policy(run::Policy::Unfinished { nudges, rejected }) => channel::RunFailure::Policy(
+        run::RunFailure::Policy(run::Policy::Unfinished { nudges, rejected }) => channel::RunFailure::Policy(
             match channel::PolicyFailure::new(limits, channel::PolicyFailureParts { nudges, rejected }) {
                 Ok(value) => value,
                 Err(problem) => return Err(Error::ChannelBody(problem)),
             },
         ),
-        run::Failure::Cancelled => channel::RunFailure::Cancelled,
-        run::Failure::Stale => channel::RunFailure::Stale,
+        run::RunFailure::Cancelled => channel::RunFailure::Cancelled,
+        run::RunFailure::Stale => channel::RunFailure::Stale,
     };
     Ok(record)
 }

@@ -1,4 +1,4 @@
-//! Forge connection (forge-connection.md, sections 3 and 8).
+//! Forge connection (forge-connection.md, sections 3 and 8), on skein/docs/design/link.md, 3.
 use alloc::boxed::Box;
 use skein_forge::forgejo::plans::{self, Fields, plan::Range};
 use skein_forge::forgejo::{decode::Step as ForgejoStep, header};
@@ -31,9 +31,10 @@ use skein_forge::forgejo::{client as documents, request};
 use skein_http::client as http;
 use skein_json::tokenizer;
 use skein_lib::{
-    Env, Intake, List, Queue, Secret, Time, Token, Writer, bytes,
+    Env, Intake, List, Queue, Secret, Time, Writer, bytes,
     stream::{Down, Read, Up},
 };
+use skein_link::{Link, Moved, Start, Upload};
 /// A component-selected request and its complete Authorization value.
 #[derive(Debug)]
 pub(crate) enum Exchange {
@@ -121,20 +122,15 @@ pub(crate) struct Connection {
     kind: Kind,
     pub(crate) phase: Phase,
     pub(crate) deadline: Option<Time>,
-    pub(crate) socket: Option<Token>,
+    pub(crate) link: Link,
     pub(crate) closing: bool,
     pub(crate) membership: Membership,
-    /// The socket whose graceful close io holds; an abort may still follow it.
-    graceful: Option<Token>,
     pub(crate) written: bool,
     http: http::Client,
-    tls: Option<skein_tls::client::Client>,
     json: tokenizer::Tokenizer,
     shared: Shared,
     http_up: Queue<http::Event>,
     http_down: Queue<Down>,
-    tls_up: Queue<skein_tls::client::Event>,
-    tls_down: Queue<Down>,
     json_up: Queue<tokenizer::Event>,
     json_down: Queue<Down>,
     json_next: Option<tokenizer::Request>,
@@ -144,8 +140,7 @@ pub(crate) struct Connection {
     receive: Receiving,
     done: Option<Body>,
     after: u64,
-    upload: Option<Box<[u8]>>,
-    uploaded: u32,
+    upload: Option<Upload>,
     raw_range: Range,
     raw_cap: u32,
     json_limits: tokenizer::Limits,
@@ -174,6 +169,8 @@ impl Connection {
                 Some(skein_tls::client::Client::new(trust, server_name.clone(), &l.tls))
             }
         };
+        let link = Link::new(tls);
+        let http = http::Client::new(&limits::http(l, link.encrypted(), &shared.io));
         Self {
             forge: forge.number,
             origin,
@@ -181,19 +178,15 @@ impl Connection {
             kind: forge.kind,
             phase: Phase::Connecting,
             deadline: Some(deadline),
-            socket: None,
+            link,
             closing: false,
             membership: Membership::Configured,
-            graceful: None,
             written: false,
-            http: http::Client::new(&limits::http(l, tls.is_some(), &shared.io)),
-            tls,
+            http,
             json: tokenizer::Tokenizer::new(&limits::documents(l).json),
             shared,
             http_up: Queue::uncapped(),
             http_down: Queue::uncapped(),
-            tls_up: Queue::uncapped(),
-            tls_down: Queue::uncapped(),
             json_up: Queue::uncapped(),
             json_down: Queue::uncapped(),
             json_next: None,
@@ -209,7 +202,6 @@ impl Connection {
             done: None,
             after: 0,
             upload: None,
-            uploaded: 0,
             raw_range: Range::Head(0),
             raw_cap: shared.answer_bytes,
             json_limits: limits::documents(l).json,
@@ -221,6 +213,7 @@ impl Connection {
             None => crate::settings::host(forge).expect("checked forge host"),
         }
     }
+    #[expect(clippy::manual_map, reason = "the programming model uses explicit matches for optional state")]
     pub fn start(
         &mut self,
         env: &Env<Limits>,
@@ -307,8 +300,10 @@ impl Connection {
         self.clear_json_body();
         self.json_limits = limits::documents(&env.limits).json;
         self.request = Some(request);
-        self.upload = upload;
-        self.uploaded = 0;
+        self.upload = match upload {
+            Some(body) => Some(Upload::new(body)),
+            None => None,
+        };
         self.raw_range = range.unwrap_or(Range::Head(self.raw_cap));
         self.done = None;
         self.written = false;
@@ -351,41 +346,28 @@ impl Connection {
             self.http_down(env, http::Request::Discard);
         }
     }
-    pub fn connect(&mut self, env: &Env<Limits>) {
-        match &mut self.tls {
-            Some(tls) => {
-                self.phase = Phase::Handshaking;
-                let tls_env = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
-                skein_tls::client::down(
-                    tls,
-                    &tls_env,
-                    skein_tls::client::Request::Handshake,
-                    &mut self.tls_up,
-                    &mut self.tls_down,
-                );
-            }
-            None => {
-                self.phase = Phase::Idle;
-            }
+    fn link_env(&self, env: &Env<Limits>) -> Env<skein_link::Limits> {
+        Env {
+            now: env.now,
+            wall: env.wall,
+            limits: skein_link::Limits { tls: env.limits.tls, close_timeout: self.shared.io.close_timeout },
         }
+    }
+    pub fn connect(&mut self, env: &Env<Limits>) {
+        self.phase = match self.link.connected(&self.link_env(env)) {
+            Start::Handshaking => Phase::Handshaking,
+            Start::Ready => Phase::Idle,
+            Start::Closing => Phase::Closed,
+        };
     }
     pub fn stream(&mut self, env: &Env<Limits>, event: Up) {
-        if self.closing || self.phase == Phase::Closed {
+        if self.phase == Phase::Closed && self.link.socket().is_none() {
             return;
         }
-        match &mut self.tls {
-            Some(tls) => {
-                let tls_env = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
-                skein_tls::client::up(tls, &tls_env, event, &mut self.tls_up, &mut self.tls_down);
-            }
-            None => {
-                let h = self.http_env(env);
-                http::up(&mut self.http, &h, event, &mut self.http_up, &mut self.http_down);
-            }
-        }
+        self.link.up(&self.link_env(env), event);
     }
     fn http_env(&self, env: &Env<Limits>) -> Env<http::Limits> {
-        Env { now: env.now, wall: env.wall, limits: limits::http(&env.limits, self.tls.is_some(), &self.shared.io) }
+        Env { now: env.now, wall: env.wall, limits: limits::http(&env.limits, self.link.encrypted(), &self.shared.io) }
     }
     fn http_down(&mut self, env: &Env<Limits>, request: http::Request) {
         let h = self.http_env(env);
@@ -398,33 +380,27 @@ impl Connection {
     /// Routes at most a fixed number of child-machine movements. Remaining work stays owned.
     pub fn pump(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
         for _ in 0_u32..64 {
+            match self.link.pump(io) {
+                Moved::Sent => {
+                    if self.request.is_some() {
+                        self.written = true;
+                        self.phase =
+                            if self.upload.is_some() { Phase::Sending { written: true } } else { Phase::Reading };
+                    }
+                    continue;
+                }
+                Moved::Above(event) => {
+                    self.link_event(env, event);
+                    continue;
+                }
+                Moved::Within => continue,
+                Moved::Nothing => {}
+            }
             if self.answer_pending() || self.closing || self.phase == Phase::Closed {
                 break;
             }
-            if let Some(down) = self.tls_down.pop() {
-                self.send(down, io);
-                continue;
-            }
-            if let Some(event) = self.tls_up.pop() {
-                self.tls_event(env, event);
-                continue;
-            }
             if let Some(down) = self.http_down.pop() {
-                match &mut self.tls {
-                    Some(tls) => {
-                        let e = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
-                        skein_tls::client::down(
-                            tls,
-                            &e,
-                            skein_tls::client::Request::Stream(down),
-                            &mut self.tls_up,
-                            &mut self.tls_down,
-                        );
-                    }
-                    None => {
-                        self.send(down, io);
-                    }
-                }
+                self.link.down(&self.link_env(env), down);
                 continue;
             }
             if let Some(down) = self.json_down.pop() {
@@ -499,28 +475,14 @@ impl Connection {
         tokenizer::up(&mut self.json, &j, event, &mut self.json_up, &mut self.json_down);
         true
     }
-    fn send(&mut self, down: Down, io: &mut Queue<skein_io::Request>) {
-        if sending(&down) && self.request.is_some() {
-            self.written = true;
-            self.phase = if self.upload.is_some() { Phase::Sending { written: true } } else { Phase::Reading };
-        }
-        if let Some(socket) = self.socket {
-            io.push(skein_io::Request::Stream { stream: socket, down });
-        }
-    }
-    fn tls_event(&mut self, env: &Env<Limits>, event: skein_tls::client::Event) {
+    fn link_event(&mut self, env: &Env<Limits>, event: skein_link::Event) {
         match event {
-            skein_tls::client::Event::Ready(_) => {
-                self.phase = Phase::Idle;
-            }
-            skein_tls::client::Event::Stream(event) => {
+            skein_link::Event::Ready => self.phase = Phase::Idle,
+            skein_link::Event::Stream(event) => {
                 let h = self.http_env(env);
                 http::up(&mut self.http, &h, event, &mut self.http_up, &mut self.http_down);
             }
-            skein_tls::client::Event::Failed(_) => {
-                self.failed(if self.written { Failure::Seen } else { Failure::Unseen });
-            }
-            skein_tls::client::Event::Closed => {}
+            skein_link::Event::Failed => self.failed(if self.written { Failure::Seen } else { Failure::Unseen }),
         }
     }
     fn json_body_event(&mut self, event: Up) {
@@ -794,29 +756,18 @@ impl Connection {
     fn upload(&mut self, env: &Env<Limits>, event: Up) {
         match event {
             Up::Room => {
-                let Some(body) = &self.upload else {
-                    return;
-                };
-                let start = usize::try_from(self.uploaded).expect("bounded position");
-                let end = body
-                    .len()
-                    .min(start.saturating_add(usize::try_from(self.http_env(env).limits.send).expect("send fits")));
-                let piece = bytes::copy_of(body.get(start..end).expect("bounded position"));
-                self.uploaded = u32::try_from(end).expect("bounded body");
-                let finished = end == body.len();
-                self.http_down(env, http::Request::Upload(Down::Send(piece)));
-                if finished {
-                    self.upload = None;
-                    self.phase = Phase::Reading;
-                    self.http_down(env, http::Request::Upload(Down::Finish));
-                } else {
-                    self.http_down(
-                        env,
-                        http::Request::Upload(Down::Demand {
-                            read: Read::Nothing,
-                            room: self.http_env(env).limits.send,
-                        }),
-                    );
+                let room = self.http_env(env).limits.send;
+                let Some(upload) = &mut self.upload else { return };
+                let (piece, next) = upload.room(room);
+                self.http_down(env, http::Request::Upload(piece));
+                match next {
+                    Down::Finish => {
+                        self.upload = None;
+                        self.phase = Phase::Reading;
+                        self.http_down(env, http::Request::Upload(Down::Finish));
+                    }
+                    Down::Demand { .. } => self.http_down(env, http::Request::Upload(next)),
+                    Down::Send(_) => unreachable!("upload follows a piece with Finish or Demand"),
                 }
             }
             Up::Failed(_) | Up::End => {
@@ -926,7 +877,7 @@ impl Connection {
                 Phase::Closed | Phase::Sending { .. } | Phase::Reading | Phase::Idle => false,
             }
     }
-    pub fn close(&mut self, abort: bool, io: &mut Queue<skein_io::Request>) {
+    pub fn close(&mut self, env: &Env<Limits>, abort: bool, io: &mut Queue<skein_io::Request>) {
         if self.closing {
             return;
         }
@@ -934,26 +885,16 @@ impl Connection {
         self.phase = Phase::Closed;
         self.deadline = None;
         self.request = None;
-        if let Some(socket) = self.socket {
-            self.closing = true;
-            self.graceful = if abort { None } else { Some(socket) };
-            io.push(if abort {
-                skein_io::Request::Abort { entity: socket }
-            } else {
-                skein_io::Request::Close { entity: socket }
-            });
-        }
+        self.closing = true;
+        self.link.close(&self.link_env(env), abort, io);
     }
-    /// Aborts the connection, and turns a graceful close already sent into an abort
-    /// (programming-model.md, 5.2).
-    pub fn abort(&mut self, io: &mut Queue<skein_io::Request>) {
+    /// Aborts the connection, including a close still under way (programming-model.md, 5.2).
+    pub fn abort(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
         if !self.closing {
-            self.close(true, io);
+            self.close(env, true, io);
             return;
         }
-        if let Some(socket) = self.graceful.take() {
-            io.push(skein_io::Request::Abort { entity: socket });
-        }
+        self.link.close(&self.link_env(env), true, io);
     }
     fn answer_pending(&self) -> bool {
         !self.heard.is_empty()
@@ -963,12 +904,11 @@ impl Connection {
     }
     pub fn ready(&self) -> bool {
         if self.phase == Phase::Closed {
-            return !self.heard.is_empty();
+            return !self.heard.is_empty() || self.link.has_work();
         }
         !self.http_up.is_empty()
             || !self.http_down.is_empty()
-            || !self.tls_up.is_empty()
-            || !self.tls_down.is_empty()
+            || self.link.has_work()
             || !self.json_up.is_empty()
             || !self.json_down.is_empty()
             || !self.heard.is_empty()
@@ -1018,12 +958,6 @@ impl Connection {
             Receiving::Json(decoder) => Some(decoder),
             Receiving::Raw { .. } | Receiving::Tail { .. } | Receiving::Empty => None,
         }
-    }
-}
-fn sending(down: &Down) -> bool {
-    match down {
-        Down::Send(_) => true,
-        Down::Demand { .. } | Down::Finish => false,
     }
 }
 fn raw_request(request: &request::Request) -> bool {

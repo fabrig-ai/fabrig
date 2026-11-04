@@ -618,7 +618,7 @@ fn component_limits(
         llm::Stated::from_tools(&domain.session.tools, client.input).ok_or(derived(Layer::Llm, "output_ceiling"))?;
     stated.host_part = domain.run.host_part;
     Ok(llm::ComponentLimits {
-        adapter: llm::Limits {
+        translation: llm::Limits {
             client,
             history_bytes: domain.session.history_bytes,
             tool_bytes: domain

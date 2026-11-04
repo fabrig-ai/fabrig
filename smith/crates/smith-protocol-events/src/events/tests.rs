@@ -122,7 +122,11 @@ fn refused_raw_totals_and_overflow_reach_the_wire_answer_and_operator_once() {
             at(7),
             at(1),
             &run::Answer::Failed {
-                failure: run::Failure::Budget { exhausted: run::Exhausted::Overflow(cause), used: None, bound: None },
+                failure: run::RunFailure::Budget {
+                    exhausted: run::Exhausted::Overflow(cause),
+                    used: None,
+                    bound: None,
+                },
                 spent: run::Spend::ZERO,
                 turns: u32::from(overflow),
             },

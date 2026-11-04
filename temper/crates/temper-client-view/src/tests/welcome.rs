@@ -11,6 +11,106 @@ use temper_client_domain::{self as d, Address, Step, pages};
 use temper_client_protocol_wire::v1 as w;
 
 const HERE: u16 = 3;
+fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
+    let limits = f::limits();
+    let (frame, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &limits);
+    let me = frame.pages().me(frame.client()).unwrap().clone();
+    let mut root = d::unlinked(&limits, f::SEED);
+    let mut out = skein_lib::Queue::uncapped();
+    for event in [
+        d::Event::Client { event: jig_client::Event::StartUnlinked { kept: skein_lib::List::with_capacity(0) } },
+        d::Event::Start {
+            address: Address::Welcome { step },
+            kept: skein_lib::List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
+        d::Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        },
+    ] {
+        d::step(&mut root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits }, event, &mut out);
+    }
+    let mut watch = None;
+    for request in &out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open {
+                            watch: token,
+                            subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
+                        },
+                },
+        } = request
+        {
+            watch = Some(*token);
+        }
+    }
+    let watch = watch.unwrap();
+    d::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
+                        me,
+                    ))),
+                },
+            },
+        },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                == &w::Read::Deployment
+        {
+            return (root, read);
+        }
+    }
+    panic!("live link reads deployment");
+}
+fn temper_alone(root: &d::Domain) {
+    for view in [f::page_view(root), f::browser_page_view(root)] {
+        assert_eq!(f::text(view.tree()).as_ref(), b"temper");
+        let main = view.tree().nodes().iter().find(|node| node.role == Role::Main).unwrap();
+        assert_eq!(main.size, 1, "the main has no children");
+        assert!(f::find(view.tree(), Role::Link, b"temper chats").is_some());
+        assert!(!view.tree().nodes().iter().any(|node| node.role == Role::Heading { level: 1 }));
+    }
+}
+#[test]
+fn before_the_read_the_frame_draws_temper_alone() {
+    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+        let (root, _) = waiting_for_deployment(step);
+        temper_alone(&root);
+    }
+}
+#[test]
+fn no_welcome_draws_temper_alone() {
+    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+        let (mut root, read) = waiting_for_deployment(step);
+        f::deliver_deployment(&mut root, read, false, false);
+        temper_alone(&root);
+    }
+}
+#[test]
+fn an_answer_showing_the_welcome_draws_its_frame_and_heading() {
+    let (mut root, read) = waiting_for_deployment(Step::Welcome);
+    f::deliver_deployment(&mut root, read, true, true);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        node(view.tree(), Role::Heading { level: 1 }, "Welcome to temper");
+        node(view.tree(), Role::List, "Steps");
+        assert!(String::from_utf8_lossy(&f::text(view.tree())).contains("temper box"));
+    }
+}
 fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
     let choices = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICES)).unwrap();
     tree.nodes()

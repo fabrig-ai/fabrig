@@ -72,6 +72,7 @@ mod tests;
 #[cfg(test)]
 mod turns_tests;
 
+const SERVER_UPS: u32 = 2;
 const PIPE_BYTES: u32 = 4096;
 const INPUT_RIGHT: Token = Token::new(1);
 const INTERRUPT_RIGHT: Token = Token::new(2);
@@ -137,7 +138,7 @@ pub struct Settings {
     pub relay: Box<[u8]>,
     pub environment: Box<[Box<[u8]>]>,
     pub mcp: mcp::Limits,
-    pub adapter: protocol::Limits,
+    pub translation: protocol::Limits,
     pub receiving: protocol::Receiving,
     /// JSON records retained from one complete program stream document.
     pub stream_tokens: u32,
@@ -233,7 +234,8 @@ pub struct Backend {
     turns: turns::Turns,
     stderr: Tail,
     stderr_wrapped: bool,
-    io: Queue<io::Request>,
+    /// What the MCP server has said and `server_events` has not read: at most `SERVER_UPS`, one event's worth.
+    server_up: Queue<mcp::Up>,
 }
 
 impl core::fmt::Debug for Backend {
@@ -253,7 +255,7 @@ impl Backend {
         let failure_bytes = settings.receiving.max_failure_bytes;
         let line = List::with_capacity(settings.line_bytes);
         let calls = List::with_capacity(u32::from(settings.mcp.calls));
-        let turns = turns::Turns::new(&settings.receiving, settings.adapter.client.answer);
+        let turns = turns::Turns::new(&settings.receiving, settings.translation.client.answer);
         let ledger = List::with_capacity(settings.ledger_slots().expect("call ledger"));
         let delta_carry = redaction::carries(&settings);
         let measure_capacity = measures::capacity(&settings).expect("measure capacity");
@@ -291,7 +293,7 @@ impl Backend {
             turns,
             stderr: Tail::with_capacity(failure_bytes),
             stderr_wrapped: false,
-            io: Queue::with_capacity(32),
+            server_up: Queue::with_capacity(SERVER_UPS),
         }
     }
 
@@ -416,7 +418,7 @@ impl Backend {
             }
         }
         self.consume_stdout(env, up, below);
-        self.flush(below);
+        self.load_native(below);
     }
 
     /// Consume one lower terminal and advance startup or resource settlement (5.1).
@@ -430,7 +432,7 @@ impl Backend {
         match event {
             BelowEvent::File { event, descriptor } => {
                 if event.owner() == self.token(Owner::Native) {
-                    self.native_event(event, up);
+                    self.native_event(event, up, below);
                 } else {
                     self.file_event(env, event, descriptor, up, below);
                 }
@@ -438,18 +440,18 @@ impl Backend {
             BelowEvent::Io(event) => self.io_event(env, event, up, below),
         }
         self.progress(env, up, below);
-        self.flush(below);
+        self.load_native(below);
     }
 
     /// Advance the check, startup deadline and close grace at the supplied clock.
     pub fn fire(&mut self, env: &Env<protocol::ComponentLimits>, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
-        self.startup.fire(env.now, &mut self.io);
+        self.startup.fire(env.now, &mut self.server_up, below);
         let drain_due = match self.process.next_deadline() {
             Some(deadline) => env.now >= deadline,
             None => false,
         };
         if drain_due {
-            self.terminate(env.now);
+            self.terminate(env.now, below);
         }
         let eof_due = match self.startup.eof_deadline() {
             Some(deadline) => env.now >= deadline,
@@ -463,7 +465,7 @@ impl Backend {
             None => false,
         };
         if stop_due {
-            self.terminate(env.now);
+            self.terminate(env.now, below);
         }
         let startup_due = match self.startup.startup_deadline() {
             Some(deadline) => env.now >= deadline,
@@ -481,11 +483,11 @@ impl Backend {
             self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
         }
         self.progress(env, up, below);
-        self.flush(below);
+        self.load_native(below);
     }
 
-    fn terminate(&mut self, now: Time) {
-        self.stopping.terminate(now, self.settings.grace, &mut self.process, &mut self.io);
+    fn terminate(&mut self, now: Time, below: &mut Queue<Below>) {
+        self.stopping.terminate(now, self.settings.grace, &mut self.process, below);
     }
 
     /// Earliest check, server authentication, startup or close deadline.
@@ -552,7 +554,7 @@ impl Backend {
                                 call.answer = Some(match result {
                                     Returned::Text { text, error, .. }
                                         if text.len()
-                                            <= usize::try_from(self.settings.adapter.rendered_result)
+                                            <= usize::try_from(self.settings.translation.rendered_result)
                                                 .expect("result ceiling") =>
                                     {
                                         if *error {
@@ -576,8 +578,8 @@ impl Backend {
                 }
             }
         }
-        self.answer_calls();
-        self.flush(below);
+        self.answer_calls(below);
+        self.load_native(below);
     }
 
     /// End the conversation, closing input before terminating at its grace (5.7).
@@ -597,7 +599,7 @@ impl Backend {
             State::Idle | State::Checking | State::Starting | State::Running => {}
         }
         let active = self.active_turn();
-        self.startup.close(&mut self.io);
+        self.startup.close(&mut self.server_up, below);
         if let Some(owner) = self.current.owner() {
             self.terminal_measure(env.now, owner);
             self.current.settle(current::Terminal::Cancelled, up);
@@ -608,12 +610,12 @@ impl Backend {
         if parking && self.stopping.action() == Some(stopping::Action::Finish) {
             self.stopping.begin(stopping::Action::Park, self.stopping.next_deadline());
         }
-        self.read_stdout();
+        self.read_stdout(below);
         if self.process.child().is_none() && !self.process.spawning() {
-            self.startup.close_server(&mut self.io);
+            self.startup.close_server(&mut self.server_up, below);
         }
         self.progress(env, up, below);
-        self.flush(below);
+        self.load_native(below);
     }
 
     /// Every owned resource, including the programs root, has reported closed.
@@ -630,16 +632,6 @@ impl Backend {
             Owner::Native => 6,
         };
         Token::new(self.first.raw().checked_add(offset).expect("backend token range"))
-    }
-
-    fn flush(&mut self, below: &mut Queue<Below>) {
-        self.load_native(below);
-        for _ in 0..self.io.capacity() {
-            match self.io.pop() {
-                Some(request) => below.push(Below::Io(request)),
-                None => break,
-            }
-        }
     }
 
     fn fail_program(
@@ -678,7 +670,7 @@ impl Backend {
         }
         if restart {
             let active = self.active_turn();
-            self.startup.switch(&mut self.io);
+            self.startup.switch(&mut self.server_up, below);
             self.outgoing = None;
             self.stop(env, active, false, up, below);
             self.current.clear(up);

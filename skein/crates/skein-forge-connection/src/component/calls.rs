@@ -12,6 +12,7 @@ impl Component {
         &mut self,
         call: Token,
         id: Id<Waiting>,
+        env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
@@ -25,7 +26,7 @@ impl Component {
             self.connection_slab
                 .get_mut(*self.connections.get(&token).expect("holder"))
                 .expect("connection")
-                .close(true, io);
+                .close(env, true, io);
         }
         self.finish(call, id, Err(error), up);
     }
@@ -58,7 +59,7 @@ impl Component {
             }
             let waiting = self.waiting.get(id).expect("indexed call");
             if waiting.deadline <= env.now {
-                self.expire(call, id, up, io);
+                self.expire(call, id, env, up, io);
                 continue;
             }
             let forge = waiting.repository.forge;
@@ -116,7 +117,13 @@ impl Component {
                 || (c.phase == Phase::Idle && c.deadline <= Some(env.now))
                 || c.phase == Phase::Closed
             {
-                c.close(c.in_flight(), io);
+                c.close(env, c.in_flight(), io);
+                if c.ready() {
+                    c.pump(env, io);
+                }
+                if c.ready() {
+                    self.wake = Some(env.now);
+                }
             }
         }
     }
@@ -189,7 +196,7 @@ impl Component {
         }
         if token.is_none() {
             if let Some(other) = other {
-                self.connection_slab.get_mut(other).expect("idle other forge").close(false, io);
+                self.connection_slab.get_mut(other).expect("idle other forge").close(env, false, io);
             }
             return false;
         }
@@ -316,7 +323,7 @@ impl Component {
                     }
                     Ok(None) => {}
                     Err(error) => {
-                        c.close(true, io);
+                        c.close(env, true, io);
                         self.finish(call, id, Err(error), up);
                         break;
                     }
@@ -324,7 +331,7 @@ impl Component {
                 continue;
             }
             if c.phase == Phase::Closed {
-                c.close(true, io);
+                c.close(env, true, io);
             }
             if !c.ready() {
                 break;
@@ -353,7 +360,7 @@ impl Component {
                     .get_mut(*self.connections.get(&token).expect("connection"))
                     .expect("connection");
                 if c.phase == Phase::Closed {
-                    c.close(false, io);
+                    c.close(env, false, io);
                     let _holder = self.holders.remove(&token);
                     self.waiting.get_mut(id).expect("call").connection = None;
                     self.wake = Some(env.now);
@@ -368,7 +375,7 @@ impl Component {
                     .get_mut(*self.connections.get(&token).expect("connection"))
                     .expect("connection");
                 if c.phase == Phase::Closed {
-                    c.close(false, io);
+                    c.close(env, false, io);
                 } else {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
                 }

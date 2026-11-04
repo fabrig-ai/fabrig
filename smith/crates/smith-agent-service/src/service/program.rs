@@ -124,7 +124,7 @@ fn settings(
     limits: &Limits,
     environment: &smith_protocol_machine::Environment,
 ) -> Option<backend::Settings> {
-    let mut adapter = limits.llm.adapter;
+    let mut translation = limits.llm.translation;
     // Built-in results are skipped before rendering; only host text and
     // bounded root feedback use this MCP reply ceiling (smith/docs/design/protocol/programs.md 5.5).
     let result = limits
@@ -135,21 +135,21 @@ fn settings(
         .max(u64::from(limits.domain.run.message_bytes))
         .max(FIXED_RESULT_BYTES)
         .checked_add(u64::from(llm::CUT_MARKER_BYTES))?;
-    adapter.rendered_result = u32::try_from(result).ok()?;
+    translation.rendered_result = u32::try_from(result).ok()?;
     let contract_bytes = u32::try_from(limits.llm.contract_bytes).ok()?;
     // Host schemas count in run::charter::cost against run_bytes (smith/docs/design/domain/run.md, 5.2).
     // schemas_for_contract caps finish/deliver at contract_bytes; the fixed
     // inventory bounds every other generated schema (smith/docs/design/protocol/programs.md, 5.3).
     let schema_bytes = contract_bytes
         .max(u32::try_from(limits.domain.run.run_bytes).ok()?)
-        .max(u32::try_from(llm::fixed_schema_bytes(&adapter.stated)?).ok()?);
+        .max(u32::try_from(llm::fixed_schema_bytes(&translation.stated)?).ok()?);
     // A call's JSON input plus its RPC ID/name/envelope. This is a line
     // ceiling, not another allocation beside MCP's priced input buffers.
-    let call_bytes = adapter.stated.call_input_bytes.checked_add(MCP_ENVELOPE_BYTES)?;
+    let call_bytes = translation.stated.call_input_bytes.checked_add(MCP_ENVELOPE_BYTES)?;
     // Each tool byte can become six JSON escape bytes in tools/list. Finish
     // and delivery schemas each have their own contract-sized encoded ceiling;
     // fixed room covers descriptions, names and the RPC/list envelope.
-    let tool_bytes = u32::try_from(adapter.tool_bytes)
+    let tool_bytes = u32::try_from(translation.tool_bytes)
         .ok()?
         .checked_mul(JSON_ESCAPE_BYTES)?
         .checked_add(contract_bytes.checked_mul(CONTRACT_SCHEMAS)?)?
@@ -157,10 +157,10 @@ fn settings(
     // A result byte needs at most six JSON escape bytes. Tool-list and result
     // are alternative messages in the same MCP output slot, hence max, not sum.
     let answer_bytes =
-        adapter.rendered_result.checked_mul(JSON_ESCAPE_BYTES)?.checked_add(MCP_ENVELOPE_BYTES)?.max(tool_bytes);
+        translation.rendered_result.checked_mul(JSON_ESCAPE_BYTES)?.checked_add(MCP_ENVELOPE_BYTES)?.max(tool_bytes);
     // Stream JSON wraps semantic answer text/arguments (six-byte escapes),
     // plus message headers, IDs, usage and block envelopes.
-    let line_bytes = adapter.client.answer.checked_mul(JSON_ESCAPE_BYTES)?.checked_add(STREAM_ENVELOPE_BYTES)?;
+    let line_bytes = translation.client.answer.checked_mul(JSON_ESCAPE_BYTES)?.checked_add(STREAM_ENVELOPE_BYTES)?;
     Some(backend::Settings {
         program: Programs { claude: config.program.claude.clone(), directory: config.program.directory.clone() },
         relay: config.relay.clone(),
@@ -175,15 +175,15 @@ fn settings(
             calls: u16::try_from(limits.domain.run.calls).ok()?,
             unauthenticated: skein_lib::Time::from_nanos(MCP_AUTHENTICATION.as_nanos()),
         },
-        adapter,
+        translation,
         receiving: limits.llm.receiving,
         stream_tokens: backend::Settings::stream_tokens(line_bytes),
-        prompt_bytes: u64::from(adapter.client.request),
+        prompt_bytes: u64::from(translation.client.request),
         contract_bytes,
         line_bytes,
         // client.request already bounds encoded JSON, including escaping and
         // all admitted history. This user envelope omits the model's schemas.
-        input_bytes: adapter.client.request.checked_add(STREAM_ENVELOPE_BYTES)?,
+        input_bytes: translation.client.request.checked_add(STREAM_ENVELOPE_BYTES)?,
         max_turns: 1,
         grace: limits.io.close_timeout,
         startup: STARTUP,

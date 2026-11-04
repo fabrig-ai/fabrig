@@ -29,6 +29,7 @@ pub struct Settings {
 pub enum Story {
     Chat { words: &'static [u8] },
     ChatReadThenWait { words: &'static [u8] },
+    NoWelcome,
     Adoption,
     Adopt,
     Merge,
@@ -384,6 +385,7 @@ pub(crate) struct Person {
     pub(crate) life: u32,
     cutting: bool,
     playground_replies: Vec<u32>,
+    story: Story,
 }
 const CHAT_WITHIN: Duration = Duration::from_secs(5);
 impl Person {
@@ -435,6 +437,12 @@ impl Person {
             Story::HeldChange if stories::first_start() => stories::person(),
             Story::HeldChange => Vec::new(),
             Story::PlaygroundA => playground_steps,
+            Story::NoWelcome => vec![
+                Step::Go {
+                    address: temper_client_domain::Address::Welcome { step: temper_client_domain::Step::Welcome },
+                },
+                Step::See { find: Find::named(skein_ui::Role::Heading { level: 1 }, b"Inbox"), within: CHAT_WITHIN },
+            ],
         };
         let mut offset = PROGRESS.with(|progress| progress.borrow().at);
         if matches!(scenario, Story::Adoption) && offset < fixtures::ADOPTION_REPLY_STEP {
@@ -458,12 +466,12 @@ impl Person {
             client: None,
             root: Some(root),
             actor: skein_fake_person::Person::new(remaining.into_boxed_slice()),
-            provision: (offset == 0 && !matches!(scenario, Story::PlaygroundA))
+            provision: (offset == 0 && !matches!(scenario, Story::PlaygroundA | Story::NoWelcome))
                 .then(|| skein_fake_person::Person::new(fixtures::account_steps())),
             wake: None,
             signed_in: 0,
             finished: false,
-            project_selected: matches!(scenario, Story::PlaygroundA),
+            project_selected: matches!(scenario, Story::PlaygroundA | Story::NoWelcome),
             setup: None,
             printed_link: Box::new([]),
             completions: Queue::with_capacity(512),
@@ -472,6 +480,7 @@ impl Person {
             life,
             cutting: matches!(scenario, Story::Adoption),
             playground_replies,
+            story: scenario,
         }
     }
     pub(crate) fn sign_in(&mut self, link: &[u8]) {
@@ -599,6 +608,7 @@ impl Host for Person {
         self.prepare_client(now, wall);
         let Some(client) = &mut self.client else { return };
         client.iterate(now, wall);
+        no_welcome_drawn(client.tree(), self.story);
         if crate::m15::observer::enabled() {
             crate::m15::observer::page(format!("{:?}", client.tree().nodes()).as_bytes());
         }
@@ -719,6 +729,30 @@ impl Host for Person {
     }
     fn operations(&self) -> u32 {
         512
+    }
+}
+fn no_welcome_drawn(tree: &skein_ui::Tree, story: Story) {
+    if !matches!(story, Story::NoWelcome) {
+        return;
+    }
+    for node in tree.nodes() {
+        assert!(
+            !(node.role == skein_ui::Role::Heading { level: 1 }
+                && [b"Welcome to temper".as_slice(), b"Connect a forge", b"Connect a model", b"Ready"]
+                    .contains(&node.name.as_deref().unwrap_or_default())),
+            "no welcome heading was ever drawn: {:?}",
+            node.name,
+        );
+        assert!(
+            !(node.role == skein_ui::Role::List && node.name.as_deref() == Some(b"Steps")),
+            "no welcome steps were ever drawn"
+        );
+        for run in &node.text {
+            assert!(
+                !run.text.windows(b"temper box".len()).any(|word| word == b"temper box"),
+                "no box line was ever drawn"
+            );
+        }
     }
 }
 fn playground_progress(now: Time, before: u32, replies: &[u32]) {

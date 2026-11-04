@@ -56,10 +56,11 @@ fn an_open_result_completes_text_and_keeps_input_open() {
     assert_eq!(text.as_ref(), b"Hello.");
     assert_eq!(backend.process.pipes().input, Some(Token::new(31)));
     assert_eq!(
-        backend
-            .io
+        below
             .iter()
-            .filter_map(|effect| { if let io::Request::Close { entity } = effect { Some(entity) } else { None } })
+            .filter_map(|effect| {
+                if let Below::Io(io::Request::Close { entity }) = effect { Some(entity) } else { None }
+            })
             .count(),
         0
     );
@@ -148,7 +149,7 @@ fn an_open_launch_has_no_result_schema() {
 #[test]
 fn a_host_message_uses_input_room_not_tool_reply_room() {
     let mut backend = running();
-    backend.settings.adapter.rendered_result = 4;
+    backend.settings.translation.rendered_result = 4;
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     reply(&mut backend, &mut up, &mut below);

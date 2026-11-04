@@ -809,8 +809,9 @@ Closed and Idle waits until it, so no exchange outlives what it serves.
 At it the exchange fails `Unseen` if no byte of it was written, else
 `Seen`, and the connection is aborted. Which deadline runs is a function
 of the phase, set in one place after each transition
-(programming-model.md, section 5.4). A closing connection is bounded by
-io's close deadline.
+(programming-model.md, section 5.4). A connection stands on a link
+(link.md): a closing one sends TLS's `close_notify`, and is bounded by
+the link's close deadline and then io's.
 
 ### 8.2 A call
 

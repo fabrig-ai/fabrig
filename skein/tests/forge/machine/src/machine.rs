@@ -385,6 +385,11 @@ impl Machine {
     pub fn closed_events(&self) -> u32 {
         self.closed_events
     }
+    /// Whether each retained TLS server read the client's `close_notify`.
+    #[must_use]
+    pub fn tls_closed(&self) -> Vec<bool> {
+        self.peers.values().filter_map(|peer| peer.tls.as_ref()).map(|server| server.closed).collect()
+    }
     /// Defers io Closed acknowledgments, keeping each closing socket owned.
     pub fn hold_settlement(&mut self) {
         self.hold_settlement = true;

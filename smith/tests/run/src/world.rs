@@ -1342,14 +1342,14 @@ impl World {
                     turns_failure: matches!(
                         answer,
                         run::Answer::Failed {
-                            failure: run::Failure::Budget { exhausted: run::Exhausted::Turns, .. },
+                            failure: run::RunFailure::Budget { exhausted: run::Exhausted::Turns, .. },
                             ..
                         }
                     ),
                     time_failure: matches!(
                         answer,
                         run::Answer::Failed {
-                            failure: run::Failure::Budget { exhausted: run::Exhausted::Time, .. },
+                            failure: run::RunFailure::Budget { exhausted: run::Exhausted::Time, .. },
                             ..
                         }
                     ),

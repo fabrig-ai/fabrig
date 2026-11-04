@@ -59,7 +59,7 @@ fn a_chats_reply_shows_as_it_is_written_then_as_its_committed_turn() {
 #[test]
 fn a_tool_only_turn_leaves_no_provisional_text() {
     use skein_lib::Token;
-    use smith_domain_session::llm::{Block, Decoded};
+    use smith_domain_session::llm::{Block, Decoded, ToolCall};
 
     let mut world = fixtures::open_world(fixtures::SEED);
     let task = fixtures::chat(world.front(), QUESTION);
@@ -71,13 +71,13 @@ fn a_tool_only_turn_leaves_no_provisional_text() {
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 
     let mut turn = temper_worker_domain_world::protocol::session_turn(1, 0, 0, true);
-    turn.messages[0].content = Box::new([Block::ToolCall {
+    turn.messages[0].content = Box::new([Block::ToolCall(ToolCall {
         id: b"wait-1".as_slice().into(),
         name: b"wait".as_slice().into(),
         input: b"{}".as_slice().into(),
         call: Decoded::Historical,
         replay: None,
-    }]);
+    })]);
     let body = smith_protocol_channel::encode_turn(
         &turn,
         &smith_transcript::CEILINGS,

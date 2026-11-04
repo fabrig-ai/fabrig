@@ -84,7 +84,7 @@ pub(super) fn configuration_with_limits(provider: skein_llm::Provider, limits: &
             handshake: skein_lib::Duration::from_secs(1),
             name: smith_domain::llm::Endpoint(0),
             destination: skein_llm_connection::Endpoint {
-                limits: limits.llm.adapter.client,
+                limits: limits.llm.translation.client,
                 credential: skein_llm::client::CredentialLimits { value: limits.llm.grant_value_bytes },
                 address: kernel::Addr::from((std::net::Ipv4Addr::LOCALHOST, 443)),
                 transport: skein_llm_connection::Transport::Plaintext,

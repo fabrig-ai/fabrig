@@ -403,3 +403,14 @@ fn ending_a_start_skips_absent_acts_and_answers_held_starts() {
     assert_eq!(d.playground(), None);
     assert_eq!(d.application_answer(Token::new(102)), Some(Answered::EndPlayground(EndAnswer::Reset)));
 }
+
+#[test]
+fn a_start_with_no_playground_config_is_not_offered() {
+    let mut d = configured();
+    d.configure_playground(None);
+    let sent = ask(&mut d, 1, Ask::StartPlayground);
+    assert_eq!(sent.as_ref(), [Request::ApplicationDone { request: Token::new(1), token: Token::new(101) }]);
+    assert_eq!(d.application_answer(Token::new(101)), Some(Answered::StartPlayground(StartAnswer::NotOffered)));
+    assert_eq!(d.playground(), None);
+    assert_eq!(d.record(1), None);
+}

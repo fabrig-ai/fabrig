@@ -1,0 +1,29 @@
+[package]
+name = "skein-link-world"
+description = "A link's close rule against an in-memory rustls server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-link.workspace = true
+skein-tls.workspace = true
+skein-tls-world = { path = "../tls" }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+wildcard_enum_match_arm = "deny"
+unwrap_used = "deny"
+missing_panics_doc = "allow"

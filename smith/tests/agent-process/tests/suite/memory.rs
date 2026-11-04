@@ -54,7 +54,7 @@ fn maximum_run_context_and_provider_completion_fit_each_process_at_every_iterati
     completion.check_memory();
     assert!(completion.settle());
     assert!(completion.peer_replied(), "the maximum completion was emitted");
-    let client = limits().llm.adapter.client;
+    let client = limits().llm.translation.client;
     assert_eq!(
         completion.provider_answer_shape(),
         (usize::try_from(client.output_items).expect("parts"), usize::try_from(client.answer).expect("payload")),

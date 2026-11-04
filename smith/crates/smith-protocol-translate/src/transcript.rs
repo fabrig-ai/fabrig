@@ -230,13 +230,13 @@ fn decode_block(
         wire::Block::Refusal(text) => {
             llm::Block::Refusal { text: Box::from(text.text()), replay: replay(text.replay().as_ref(), dialect)? }
         }
-        wire::Block::Call(call) => llm::Block::ToolCall {
+        wire::Block::Call(call) => llm::Block::ToolCall(llm::ToolCall {
             id: Box::from(call.id()),
             name: Box::from(call.name()),
             input: Box::from(call.input()),
             call: llm::Decoded::Historical,
             replay: replay(call.replay().as_ref(), dialect)?,
-        },
+        }),
         wire::Block::Result(result) => llm::Block::ToolResult {
             id: Box::from(result.id()),
             result: returned(result.returned(), limits, search_hits)?,

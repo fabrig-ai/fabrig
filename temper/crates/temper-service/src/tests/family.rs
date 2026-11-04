@@ -57,6 +57,7 @@ fn an_adopt_reaches_the_root_with_its_forges_host() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting())),
         &fixtures::forge_table(&forges),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -90,6 +91,7 @@ fn an_adopt_naming_no_configured_forge_reaches_the_root_with_no_host() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting())),
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -112,6 +114,7 @@ fn an_adopt_of_another_version_is_answered_undecodable() {
             exchange(family, version, record),
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         ) else {
@@ -165,6 +168,7 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             input,
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         ) else {
@@ -207,6 +211,7 @@ fn a_forge_family_watch_is_refused_unknown() {
             input,
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         ) else {
@@ -364,6 +369,7 @@ fn a_request_under_an_owner_without_records_is_answered_undecodable() {
             exchange(number, wire::CLIENT_VERSION, wire::requesting(&requesting())),
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         ) else {
@@ -416,6 +422,7 @@ fn a_family_request_keeps_its_supplied_admission_scope() {
         input,
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -464,6 +471,7 @@ fn a_change_watch_reaches_the_root_with_its_scope_subject_and_window() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, watching(CHANGE_TASK)),
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -500,6 +508,7 @@ fn invalid_change_watches_are_refused_unknown_without_the_root() {
             watch_exchange(family, version, record),
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         ) else {
@@ -841,6 +850,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -874,6 +884,7 @@ fn forges_watches_name_the_deployment_subject() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -1146,6 +1157,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -1336,6 +1348,7 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                     exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
                     &fixtures::forge_table(&[]),
                     None,
+                    family::Deployment { welcome: false, owned: false },
                     None,
                     &w::CEILINGS,
                 );
@@ -1389,6 +1402,7 @@ fn install_without_a_back_is_admitted() {
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -1543,6 +1557,7 @@ fn accept_decodes_only_a_nonzero_installation_and_keeps_its_id() {
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         );
@@ -1712,6 +1727,7 @@ fn the_landings_subject_names_no_task() {
                 watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
                 &fixtures::forge_table(&[]),
                 None,
+                family::Deployment { welcome: false, owned: false },
                 None,
                 &w::CEILINGS,
             )
@@ -1743,6 +1759,7 @@ fn the_landings_subject_names_no_task() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     )
@@ -1772,6 +1789,7 @@ fn the_landings_subject_names_no_task() {
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
         &fixtures::forge_table(&[]),
         None,
+        family::Deployment { welcome: false, owned: false },
         None,
         &w::CEILINGS,
     ) else {
@@ -1797,6 +1815,7 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         )
@@ -1898,6 +1917,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                 exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
                 &fixtures::forge_table(&[]),
                 None,
+                family::Deployment { welcome: false, owned: false },
                 None,
                 &w::CEILINGS,
             )
@@ -1944,6 +1964,7 @@ fn playground_read(row: Option<&forge::Playground>, demo: Option<&crate::setting
         input,
         &fixtures::forge_table(&[]),
         demo,
+        family::Deployment { welcome: false, owned: false },
         row,
         &w::CEILINGS,
     ) else {
@@ -2066,6 +2087,7 @@ fn tokens_connect_and_replace_keep_their_carried_values_and_envelopes() {
             },
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         )
@@ -2140,6 +2162,7 @@ fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
             exchange,
             &fixtures::forge_table(&[]),
             None,
+            family::Deployment { welcome: false, owned: false },
             None,
             &w::CEILINGS,
         )
@@ -2232,5 +2255,72 @@ fn a_panels_questions_map_field_for_field() {
             )
             .unwrap()
         );
+    }
+}
+
+#[test]
+fn the_deployment_read_answers_the_document() {
+    let service = fixtures::demo_service();
+    let demo = service.engine.as_ref().unwrap().demo.as_ref().unwrap();
+    let row =
+        forge::Playground { state: forge::PlaygroundState::Running, forge: 1, project: Some(1), account: Some(1) };
+    for deployment in [
+        family::Deployment { welcome: false, owned: false },
+        family::Deployment { welcome: false, owned: true },
+        family::Deployment { welcome: true, owned: false },
+        family::Deployment { welcome: true, owned: true },
+    ] {
+        for (demo, playground) in [(None, None), (Some(demo), None), (None, Some(&row)), (Some(demo), Some(&row))] {
+            let mut input = read_input(people::ApplicationScope::Deployment);
+            if let kit::ToApplication::Read { record, .. } = &mut input {
+                *record = wire::reading(
+                    &w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment }).unwrap(),
+                );
+            }
+            let Err(answer) = family::to_root(
+                &jig_protocol_config::Directories::working(),
+                input,
+                &fixtures::forge_table(&[]),
+                demo,
+                deployment,
+                playground,
+                &w::CEILINGS,
+            ) else {
+                panic!("deployment read answers directly")
+            };
+            let kit::Event::Application(kit::FromApplication::Read { reply, family, record }) = *answer else {
+                panic!("deployment answer")
+            };
+            assert_eq!((reply, family), (REPLY, wire::FORGE));
+            let answer = wire::decode_deployment_answer(&record.expect("every deployment answers"), &w::CEILINGS)
+                .expect("deployment record");
+            assert_eq!((answer.welcome(), answer.owned()), (deployment.welcome, deployment.owned));
+        }
+    }
+}
+
+#[test]
+fn deployment_owned_needs_the_document_and_the_box() {
+    for (document_owned, under_box, expected) in
+        [(false, false, false), (false, true, false), (true, false, false), (true, true, true)]
+    {
+        assert_eq!(crate::system::deployment_owned(document_owned, under_box), expected);
+    }
+}
+
+#[test]
+fn playground_config_needs_the_welcome() {
+    let service = fixtures::demo_service();
+    let demo = service.engine.as_ref().unwrap().demo.as_ref().unwrap();
+    let deadline = skein_lib::Duration::from_secs(10);
+    for (demo, welcome, offered) in
+        [(None, false, false), (None, true, false), (Some(demo), false, false), (Some(demo), true, true)]
+    {
+        let config = crate::system::playground_config(demo, welcome, deadline);
+        assert_eq!(config.is_some(), offered);
+        if let Some(config) = config {
+            assert_eq!(config.provider, demo.unwrap().provider);
+            assert_eq!(config.deadline, deadline);
+        }
     }
 }

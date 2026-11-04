@@ -3,15 +3,14 @@
 //! or durable store. The component routes io events and advances one child at a
 //! time, then consumes the client's terminal before closing the connection.
 
-#![expect(clippy::single_match, reason = "explicit socket presence at the transport boundary")]
-
 use crate::{Endpoint, Limits, Transport};
 
 use alloc::boxed::Box;
 use skein_http::{Header, Method, client as http};
 use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, Env, List, Queue, Time, Token, bytes};
+use skein_lib::{Duration, Env, List, Queue, Time, bytes};
+use skein_link::{self as link, Link, Moved, Start, Upload};
 use skein_oauth as oauth;
 use skein_tls::client as tls;
 
@@ -171,26 +170,21 @@ enum Phase {
     Closed,
 }
 
+/// HTTP over one link (skein/docs/design/link.md, 3).
 pub(crate) struct Web {
-    pub(crate) socket: Option<Token>,
+    link: Link,
     phase: Phase,
-    tls: Option<tls::Client>,
     http: http::Client,
     events: Queue<http::Event>,
     requests: Queue<http::Request>,
     plain: Queue<Down>,
-    tls_events: Queue<tls::Event>,
-    cipher: Queue<Down>,
-    upload: Box<[u8]>,
-    offset: usize,
+    upload: Upload,
     document: List<u8>,
     response: Option<http::Response>,
     pub(crate) answer: Option<oauth::HttpResponse>,
     pub(crate) failure: Option<oauth::Failure>,
-    close_sent: bool,
     id: u64,
     pub(crate) sent: bool,
-    abort: bool,
 }
 
 impl Web {
@@ -231,17 +225,13 @@ impl Web {
             Transport::Plaintext => None,
         };
         Some(Web {
-            socket: None,
+            link: Link::new(tls),
             phase: Phase::Connecting,
-            tls,
             http: http::Client::new(&limits.http),
             events: Queue::uncapped(),
             requests,
             plain: Queue::uncapped(),
-            tls_events: Queue::uncapped(),
-            cipher: Queue::uncapped(),
-            upload: request.body,
-            offset: 0,
+            upload: Upload::new(request.body),
             document: List::with_capacity(
                 limits
                     .client
@@ -253,58 +243,27 @@ impl Web {
             response: None,
             answer: None,
             failure: None,
-            close_sent: false,
             id: request.id,
             sent: false,
-            abort: false,
         })
     }
 
     pub(crate) fn up(&mut self, env: &Env<Limits>, event: IoEvent, io: &mut Queue<IoRequest>) {
         match event {
-            IoEvent::Connecting { socket, .. } => {
-                self.socket = Some(socket);
-                if self.phase == Phase::Closing {
-                    self.close_socket(io);
-                }
-            }
+            IoEvent::Connecting { socket, .. } => self.link.connecting(socket, io),
             IoEvent::Connected { .. } => {
                 if self.phase == Phase::Connecting {
-                    match &mut self.tls {
-                        Some(client) => {
-                            self.phase = Phase::Handshaking;
-                            tls::down(
-                                client,
-                                &Env { now: env.now, wall: env.wall, limits: env.limits.tls },
-                                tls::Request::Handshake,
-                                &mut self.tls_events,
-                                &mut self.cipher,
-                            );
-                        }
-                        None => self.phase = Phase::Calling,
-                    }
+                    self.phase = match self.link.connected(&link_env(env)) {
+                        Start::Handshaking => Phase::Handshaking,
+                        Start::Ready => Phase::Calling,
+                        Start::Closing => Phase::Closing,
+                    };
                 }
             }
             IoEvent::Stream { up, .. } => {
-                if self.phase == Phase::Closed {
-                    return;
-                }
-                match &mut self.tls {
-                    Some(client) => tls::up(
-                        client,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tls },
-                        up,
-                        &mut self.tls_events,
-                        &mut self.cipher,
-                    ),
-                    None if self.phase == Phase::Closing => {}
-                    None => http::up(
-                        &mut self.http,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.http },
-                        up,
-                        &mut self.events,
-                        &mut self.plain,
-                    ),
+                self.link.up(&link_env(env), up);
+                if !self.link.encrypted() {
+                    self.pump(env, io);
                 }
             }
             IoEvent::Failed { .. } => {
@@ -316,7 +275,7 @@ impl Web {
                     self.transport_failed(env);
                 }
                 self.phase = Phase::Closed;
-                self.socket = None;
+                self.link.closed();
             }
             IoEvent::Listening { .. }
             | IoEvent::Accepted { .. }
@@ -351,37 +310,16 @@ impl Web {
 
     pub(crate) fn progress(&mut self, env: &Env<Limits>, io: &mut Queue<IoRequest>) {
         let http_env = Env { now: env.now, wall: env.wall, limits: env.limits.http };
-        let tls_env = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
-        if self.phase == Phase::Closing || self.phase == Phase::Closed {
+        if self.phase == Phase::Closed {
             return;
         }
-        if let Some(event) = self.events.pop() {
+        if self.phase != Phase::Closing
+            && let Some(event) = self.events.pop()
+        {
             self.http_event(env, event);
             return;
         }
-        if let Some(event) = self.tls_events.pop() {
-            match event {
-                tls::Event::Ready(_) => self.phase = Phase::Calling,
-                tls::Event::Stream(up) => http::up(&mut self.http, &http_env, up, &mut self.events, &mut self.plain),
-                tls::Event::Failed(_) => {
-                    // HTTP has heard the stream failure and keeps a body read
-                    // whole before it. Only a handshake failure bypasses HTTP.
-                    if self.phase == Phase::Handshaking {
-                        self.transport_failed(env);
-                    }
-                }
-                tls::Event::Closed => {
-                    self.phase = Phase::Closing;
-                    self.close_socket(io);
-                }
-            }
-            return;
-        }
-        if let Some(down) = self.cipher.pop() {
-            match self.socket {
-                Some(socket) => io.push(IoRequest::Stream { stream: socket, down }),
-                None => {}
-            }
+        if self.pump(env, io) {
             return;
         }
         if self.phase != Phase::Calling {
@@ -392,19 +330,38 @@ impl Web {
                 Down::Send(bytes) if !bytes.is_empty() => self.sent = true,
                 Down::Send(_) | Down::Demand { .. } | Down::Finish => {}
             }
-            match &mut self.tls {
-                Some(client) => {
-                    tls::down(client, &tls_env, tls::Request::Stream(down), &mut self.tls_events, &mut self.cipher);
-                }
-                None => match self.socket {
-                    Some(socket) => io.push(IoRequest::Stream { stream: socket, down }),
-                    None => {}
-                },
+            self.link.down(&link_env(env), down);
+            if !self.link.encrypted() {
+                self.pump(env, io);
             }
             return;
         }
         if let Some(request) = self.requests.pop() {
             http::down(&mut self.http, &http_env, request, &mut self.events, &mut self.plain);
+        }
+    }
+
+    // Plaintext moves cross the link in the same turn as their HTTP source.
+    fn pump(&mut self, env: &Env<Limits>, io: &mut Queue<IoRequest>) -> bool {
+        match self.link.pump(io) {
+            Moved::Above(event) => {
+                match event {
+                    link::Event::Ready => self.phase = Phase::Calling,
+                    link::Event::Stream(up) => {
+                        http::up(&mut self.http, &env.with(env.limits.http), up, &mut self.events, &mut self.plain);
+                    }
+                    link::Event::Failed => {
+                        // HTTP keeps a body read whole before a stream failure.
+                        // Only a handshake failure bypasses HTTP.
+                        if self.phase == Phase::Handshaking {
+                            self.transport_failed(env);
+                        }
+                    }
+                }
+                true
+            }
+            Moved::Sent | Moved::Within => true,
+            Moved::Nothing => false,
         }
     }
 
@@ -418,19 +375,9 @@ impl Web {
                 }));
             }
             http::Event::Upload(Up::Room) => {
-                let end = self
-                    .offset
-                    .saturating_add(usize::try_from(env.limits.http.send).expect("u32 fits usize"))
-                    .min(self.upload.len());
-                let bytes = bytes::copy_of(self.upload.get(self.offset..end).expect("bounded upload"));
-                self.requests.push(http::Request::Upload(Down::Send(bytes)));
-                self.offset = end;
-                if end == self.upload.len() {
-                    self.requests.push(http::Request::Upload(Down::Finish));
-                } else {
-                    self.requests
-                        .push(http::Request::Upload(Down::Demand { read: Read::Nothing, room: env.limits.http.send }));
-                }
+                let (send, next) = self.upload.room(env.limits.http.send);
+                self.requests.push(http::Request::Upload(send));
+                self.requests.push(http::Request::Upload(next));
             }
             http::Event::Body(Up::Bytes(bytes)) => {
                 let length = u32::try_from(bytes.len()).ok();
@@ -482,59 +429,17 @@ impl Web {
         if abort {
             self.answer = None;
             self.failure = None;
-            if !self.abort {
-                self.close_sent = false;
-            }
-            self.abort = true;
-            self.phase = Phase::Closing;
-            self.close_socket(io);
-        } else if self.phase != Phase::Closing {
-            self.phase = Phase::Closing;
-            match &mut self.tls {
-                Some(client) => tls::down(
-                    client,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tls },
-                    tls::Request::Close,
-                    &mut self.tls_events,
-                    &mut self.cipher,
-                ),
-                None => self.close_socket(io),
-            }
         }
+        self.phase = Phase::Closing;
+        self.link.close(&link_env(env), abort, io);
     }
 
-    pub(crate) fn close_progress(&mut self, _env: &Env<Limits>, io: &mut Queue<IoRequest>) {
-        if self.phase != Phase::Closing {
-            return;
-        }
-        if let Some(down) = self.cipher.pop() {
-            match self.socket {
-                Some(socket) => io.push(IoRequest::Stream { stream: socket, down }),
-                None => {}
-            }
-        } else if let Some(event) = self.tls_events.pop() {
-            match event {
-                tls::Event::Closed => self.close_socket(io),
-                tls::Event::Ready(_) | tls::Event::Stream(_) | tls::Event::Failed(_) => {}
-            }
-        }
+    pub(crate) fn next_deadline(&self) -> Option<Time> {
+        self.link.next_deadline()
     }
 
-    fn close_socket(&mut self, io: &mut Queue<IoRequest>) {
-        if self.close_sent {
-            return;
-        }
-        match self.socket {
-            Some(socket) => {
-                self.close_sent = true;
-                if self.abort {
-                    io.push(IoRequest::Abort { entity: socket });
-                } else {
-                    io.push(IoRequest::Close { entity: socket });
-                }
-            }
-            None => {}
-        }
+    pub(crate) fn fire(&mut self, now: Time, io: &mut Queue<IoRequest>) {
+        self.link.fire(now, io);
     }
 
     pub(crate) fn closed(&self) -> bool {
@@ -542,18 +447,20 @@ impl Web {
     }
 
     pub(crate) fn has_work(&self) -> bool {
-        match self.phase {
-            Phase::Closed | Phase::Answered => self.answer.is_some() || self.failure.is_some(),
-            Phase::Closing | Phase::Handshaking => !self.cipher.is_empty() || !self.tls_events.is_empty(),
-            Phase::Connecting => false,
-            Phase::Calling => {
-                !self.events.is_empty()
-                    || !self.requests.is_empty()
-                    || !self.plain.is_empty()
-                    || !self.tls_events.is_empty()
-                    || !self.cipher.is_empty()
+        self.link.has_work()
+            || match self.phase {
+                Phase::Closed | Phase::Answered => self.answer.is_some() || self.failure.is_some(),
+                Phase::Closing | Phase::Handshaking | Phase::Connecting => false,
+                Phase::Calling => !self.events.is_empty() || !self.requests.is_empty() || !self.plain.is_empty(),
             }
-        }
+    }
+}
+
+fn link_env(env: &Env<Limits>) -> Env<link::Limits> {
+    Env {
+        now: env.now,
+        wall: env.wall,
+        limits: link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout },
     }
 }
 

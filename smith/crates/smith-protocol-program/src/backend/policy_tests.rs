@@ -144,9 +144,9 @@ fn the_denials_use_the_workspace_words() {
             },
         );
         assert_eq!(
-            smith_protocol_llm::fixture::prompt(denied, &[], &backend.settings.adapter)
+            smith_protocol_llm::fixture::prompt(denied, &[], &backend.settings.translation)
                 .expect("rendered invalid input"),
-            smith_protocol_llm::fixture::prompt(expected, &[], &backend.settings.adapter)
+            smith_protocol_llm::fixture::prompt(expected, &[], &backend.settings.translation)
                 .expect("rendered denial words")
         );
     }

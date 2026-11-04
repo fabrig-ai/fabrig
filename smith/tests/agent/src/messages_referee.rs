@@ -200,7 +200,7 @@ impl Meeting {
                                 session::llm::Block::Text { .. }
                                 | session::llm::Block::Refusal { .. }
                                 | session::llm::Block::Opaque { .. }
-                                | session::llm::Block::ToolCall { .. }
+                                | session::llm::Block::ToolCall(_)
                                 | session::llm::Block::ToolResult { .. } => None,
                             });
                         if name.as_ref() == b"wait" {
@@ -327,7 +327,7 @@ pub(crate) fn recorded_parts(content: &[session::llm::Block]) -> Vec<Part> {
                 Part::Text { text: text.clone() }
             }
             session::llm::Block::Opaque { bytes } => Part::Opaque { bytes: bytes.clone() },
-            session::llm::Block::ToolCall { id, name, input, .. } => {
+            session::llm::Block::ToolCall(session::llm::ToolCall { id, name, input, .. }) => {
                 Part::ToolCall { id: id.clone(), name: name.clone(), arguments: input.clone() }
             }
             session::llm::Block::ToolResult { id, result } => Part::ToolOutput {

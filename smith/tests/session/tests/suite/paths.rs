@@ -45,7 +45,7 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
         world.open(opening);
         assert!(world.completing.is_some(), "provider query admitted: {:?}", world.end);
         world.complete(
-            Box::new([llm::Block::ToolCall {
+            Box::new([llm::Block::ToolCall(llm::ToolCall {
                 id: bytes(b"missing"),
                 name: bytes(b"read"),
                 input: br#"{"path":"work/src/missing.rs"}"#.as_slice().into(),
@@ -63,7 +63,7 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
                     },
                 },
                 replay: None,
-            }]),
+            })]),
             llm::Stop::ToolUse,
             llm::Usage::ZERO,
         );

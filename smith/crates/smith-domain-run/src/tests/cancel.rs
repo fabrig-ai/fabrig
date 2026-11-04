@@ -53,7 +53,7 @@ fn a_cancel_while_main_is_over_the_budget_closes_it() {
     assert_eq!(&*harness.step(Event::Cancel { run }), &[Request::Close { peer: PEER }]);
     let spent = spend(BUDGET.spend + 1);
     let requests = harness.step(ended(conversation, End::Budget(Exhausted::Spend), spent));
-    assert_eq!(answered(requests), (1, failed(Failure::Cancelled, spent)));
+    assert_eq!(answered(requests), (1, failed(RunFailure::Cancelled, spent)));
 }
 
 #[test]
@@ -180,7 +180,7 @@ fn checks_that_pass_once_the_run_winds_down_delivery_nothing() {
         (
             1,
             failed(
-                Failure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
+                RunFailure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
                 Spend::ZERO
             )
         )
@@ -200,7 +200,7 @@ fn a_cancel_while_the_run_winds_down_changes_nothing() {
         (
             1,
             failed(
-                Failure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
+                RunFailure::Budget { exhausted: Exhausted::Time, used: Some(600_000), bound: Some(600_000) },
                 Spend::ZERO
             )
         )
