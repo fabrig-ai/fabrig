@@ -2584,7 +2584,8 @@ repository, and the cues the playground's, copied in from its read:
   mockup is not edited): the Forge step's Details have no "Into a new
   project, named" and the step no "Choose a repository to start in";
   the forge's line names no project, "FORGE · ORG/NAME · CONNECTION"
-  and "✓ FORGE · ORG/NAME"; Ready's checklist has no "Project PROJECT,
+  and "✓ FORGE · connected as LOGIN · ORG/NAME made, in no project
+  yet"; Ready's checklist has no "Project PROJECT,
   with ORG/NAME" line, and its act makes a project with no
   repository, in place of "ORG/NAME is ready", "It opens once ORG/NAME
   is made." and "Adopt a repository"; and the chats page of a project with no
@@ -4724,6 +4725,16 @@ own tests:
   while tests walk the playground by them, to revisit (11-03).
   Default: a list under the composer's line, in the playground's start
   alone.
+- **The account's email on Ready** (3.5, The welcome): a signed-in
+  plan's line names the provider's verified email, a fact beside the
+  account's display (`jig/docs/design/draft/account-facts.md`, 1 and
+  6). Default: the display, as its holder gave it.
+- **How far the forge's fetch has gone** (3.5, The welcome;
+  `forge.md`, 5.4): the line naming the binary, the percentage or the
+  bytes in the progress node, as its text and value, and "Each step"'s
+  first step (`../draft/fetch-progress.md`, 5). Default: the line says
+  the step alone, and the browser's node is textless, named by the
+  connection.
 - **A taken name at Ready** (3.5, The welcome;
   `../draft/first-run-projects.md`, 9): a person who made a project of
   the name Ready's field holds, "Default" unless they wrote another,

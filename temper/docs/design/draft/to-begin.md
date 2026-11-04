@@ -12,8 +12,10 @@ draws it, and landed apart from this draft.
 
 ## 1. In one page
 
-- **On Home, at the top:** the intro and "To begin", its steps one row
-  each, then Home's other parts. It fits a laptop's first screen
+- **On Home, at the top:** the intro and "To begin", a card of its
+  own marked "Optional", with "Skip" a button, its steps one row each.
+  Nothing else on Home while it shows, but what needs the person and
+  the chats once there are any. It fits a laptop's first screen
   (section 2).
 - **Three steps:** "Tell temper how you work", the project's
   repository, and "Start a chat", each with its act while it is left
@@ -35,18 +37,35 @@ draws it, and landed apart from this draft.
 ## 2. On Home
 
 - **The intro,** while "To begin" shows: the kicker as on any Home,
-  the day and the time; the headline counting the steps left, "Two
-  things left to begin with.", "One thing left to begin with."; the
+  the day and the time, enough for now (the user, 2026-11-04); the
+  headline "PROJECT is ready.", never a
+  count of what is left, since nothing in "To begin" is owed; the
   lede naming the model's account and the forge, "Your agents run on
-  your ChatGPT plan. Forgejo runs on this machine.", from the LLM
-  accounts and the forges the client reads already.
-- **"To begin",** a section headed so, "Skip" at the heading's right.
-  One row a step, in section 3's order: its mark, the step's number or
+  your ChatGPT plan, and Forgejo on this machine.", from the LLM
+  accounts and the forges the client reads already; after it, a link
+  to Accounts naming what the person does not hold yet: "Add Claude or
+  another plan" with a ChatGPT plan alone, "Add ChatGPT or another
+  plan" with a Claude subscription alone, "Add another account" with
+  both or with a key (the user, 2026-11-04).
+- **More accounts, never more room:** the link offers other providers
+  and models, and its words promise no capacity, since a limited task
+  waits for its own account and never moves to another of its
+  holder's (jig's `domain/accounts.md`, 4.3), as OpenAI's terms ask
+  (jig's `domain/providers.md`, 2.5), and Anthropic's limits assume
+  one person's ordinary use (jig's `domain/providers.md`, 3.4).
+- **"To begin," optional and plainly so:** a card of its own, headed
+  "To begin" beside an "Optional" tag, "Skip" a button at its top
+  right; under the heading, "Two steps left. Skip them if you like;
+  they stay in Settings and Chats.", its count the steps left. Then
+  one row a step, in section 3's order: its mark, the step's number or
   a check once done; its title over one short line; its act at the
-  row's right while the step is left.
-- **Then Home's other parts,** as on any Home: Needs you and Chats
-  when they hold something, empty ones left out, since the steps stand
-  for them; Connected; the landing's line.
+  row's right while the step is left (the user, 2026-11-04).
+- **Nothing else but what has content:** Needs you and Chats when they
+  hold something, as on any Home; empty, they are left out, since the
+  steps stand for them. Connected and the landing's line wait for
+  "To begin" to go: the lede says what Connected would, the second
+  step says the repository, and nothing has landed yet (the user,
+  2026-11-04).
 - **Small:** "To begin" and the intro fit the first screen of a 1366
   by 768 laptop with its browser's bars, and of a phone (the user,
   2026-11-04).
@@ -141,6 +160,3 @@ draws it, and landed apart from this draft.
 - **Every new project, or the welcome's alone?** Default: every
   project with steps left (section 4), since nothing records which
   project the welcome made.
-- **"Made just now" in the kicker,** as the mockup has it, needs the
-  project's making time, which jig does not keep: default, the day and
-  the time, as on any Home.

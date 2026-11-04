@@ -520,7 +520,12 @@ over skein's harness.
   walk of typing. The user's word.
 - **The gallery's states,** set from hand-written worlds: whether each
   moves to a journey once the fake box reaches it, its answers then the
-  engine's own (`browser.md`, section 7).
+  engine's own (`browser.md`, section 7). Model's forge done and failed
+  and Ready wait on a fake box whose Forgejo set up finishes, so that
+  fewer states are hand-made (`../draft/look-requests.md`, 8).
+- **A render-check command:** in `temper-client-journeys`, taking a
+  request's name. Default: each landing's own script
+  (`../draft/look-requests.md`, 4 and 8).
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.

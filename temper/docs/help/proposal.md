@@ -65,7 +65,7 @@ change, or a start, makes a new revision.
   with a running choice: running work stays on its revision, as when no
   choice is given, or moves.
 - Its proposer reads the outcome with `proposal show`. A run that
-  proposed settings first receives the proposal's number and who
+  proposed settings first receives its ctl name (`tN/K`) and who
   decides it, then hears its outcome in its task's messages:
   `accepted: revision N made`, `rejected: REASON`, or
   `withdrawn as stale: the newest is N`.

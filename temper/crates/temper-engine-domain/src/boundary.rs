@@ -538,8 +538,21 @@ pub enum ApplicationAnswer {
 /// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ForgeRead {
-    Setting { kind: u32, scope: u32, number: u32 },
-    ProposalItems { key: u64 },
+    /// The explicit value set in a retained revision.
+    RevisionSetting {
+        kind: u32,
+        scope: u32,
+        number: u32,
+        revision: u32,
+    },
+    Setting {
+        kind: u32,
+        scope: u32,
+        number: u32,
+    },
+    ProposalItems {
+        key: u64,
+    },
 }
 /// Typed answers from the forge's held settings, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Debug)]
