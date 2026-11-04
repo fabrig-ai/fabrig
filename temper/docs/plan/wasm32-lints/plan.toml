@@ -1,0 +1,3 @@
+draft = "wasm32-lints"
+repo = "fabrig"
+sources = ["temper/docs/plan/wasm32-lints/inputs/request.md", "temper/docs/design/playground.status.md", "smith/docs/design/shell.status.md", "AGENTS.md", "DESIGN.md"]
