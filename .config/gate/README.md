@@ -27,11 +27,11 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing.md`, 6;
    in the gate.
 5. **The old-forms counts:** `(cd TREE && python3 -I -B scripts/old_forms.py)` for
    each tree the branch touches; add `--write` to lower counts for what it removed.
-   Counts only fall (`AGENTS.md`, 1; `tools/old_forms/README.md`).
+   Counts only fall (`tools/old_forms/README.md`).
 6. **Citations:** `python3 -I -B tools/citations/citations.py --all`, at 0 broken.
    Rules: `DESIGN.md`, 4; `tools/citations/README.md`.
 7. **The outward check:** `cargo nextest run -p fabrig-boundary`, included in
-   `default`. Rule: `tests/boundary/tests/outward.rs`'s module doc and `AGENTS.md`, 2;
+   `default`. Rule: `tests/boundary/tests/outward.rs`'s module doc and `AGENTS.md`, 1;
    inventory: `tests/boundary/outward.txt`, whose counts only fall and whose header
    requires a `# Raised: <who, why>` line for a raised count.
 

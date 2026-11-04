@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-03. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-04. Where temper's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
