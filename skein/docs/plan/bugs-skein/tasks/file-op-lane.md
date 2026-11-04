@@ -3,7 +3,7 @@ id = "file-op-lane"
 part = "io"
 kind = "feature"
 needs = ["window-gone"]
-files = ["skein/crates/skein-io/src/file_layer.rs", "skein/crates/skein-io/src/limits.rs", "skein/crates/skein-io/src/tests/file.rs", "skein/testing/skein-world/src/files.rs", "skein/docs/development/debt/D044-io-token-tags.md", "skein/docs/design/io.status.md"]
+files = ["skein/crates/skein-io/src/file_layer.rs", "skein/crates/skein-io/src/limits.rs", "skein/crates/skein-io/src/tests/file.rs", "skein/testing/skein-world/src/files.rs", "skein/docs/development/debt/D044-io-token-tags.md", "skein/docs/design/io.status.md", "temper/crates/temper-client-shell-cli/src/tests.rs", "temper/crates/temper-service/src/tests/worker.rs"]
 effort = "high"
 minutes = 75
 +++
@@ -51,6 +51,10 @@ Acceptance:
 - A test that pins a limit past the new ceiling as valid (`rg 'sockets' skein/crates/skein-io/src/tests`):
   lower its figure and list it. A test that pins a `FileIo` token's number: take the token from the
   submission, and list it.
+- Two readers pin `sockets = 1 << 28_u32` as valid: `validity_accepts_large_representable_io_edges`
+  (`temper/crates/temper-client-shell-cli/src/tests.rs`) and `worker_preparation_accepts_large_representable_io_edges`
+  (`temper/crates/temper-service/src/tests/worker.rs`). Change that one literal in each and nothing else in
+  those files (`## Answers`).
 
 ## Steps
 
@@ -64,7 +68,7 @@ Acceptance:
    `skein-io`, `skein-world`, `skein-oauth-accounts`, `skein-oauth-accounts-world`, `smith-protocol-machine`,
    `smith-local-shell`, `smith-local-service`, `smith-agent-service`, `jig-protocol-store`,
    `jig-test-store-files`, `jig-client-shell-native`, `temper-box`, `temper-client-shell-cli`,
-   `temper-github-app`, and `-p temper --lib`. `cargo fmt`, `python3 -I -B skein/scripts/old_forms.py`,
+   `temper-github-app`, `temper-service`, and `-p temper --lib`. `cargo fmt`, `python3 -I -B skein/scripts/old_forms.py`,
    `heavy cargo clippy -p skein-io -p skein-world --all-targets -- -D warnings`.
 4. Commit, push.
 
@@ -72,3 +76,13 @@ Acceptance:
 
 As the implementer's text says, with what the test showed on the old code, and each test whose figure or
 pin you changed.
+
+## Answers
+
+2026-11-04. Q: Extend the task's scope to lower temper-client-shell-cli's valid-limit fixture, or give the
+repair to a separate task? A: Extend it: step 3 needs that package green and this task's ceiling is what
+breaks the fixture. Commit `23128b9899` stands; add to it. `temper-service` has the same pin and step 3 did
+not run it, so both files are now in `files` and `temper-service` is in step 3. In both tests, set
+`sockets` to `(1 << 24_u32) - 1`: the largest figure the ceiling admits (2^27 - 4 slots), so the test still
+pins the edge, not `1 << 23_u32`. Then rerun those two packages by name, and report both figures. Nothing
+else in temper changes; the rest of step 3 has passed and needs no rerun unless the skein code moves.

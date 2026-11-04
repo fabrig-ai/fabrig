@@ -4,7 +4,11 @@ use crate::{
     machine::{self, Machine},
     programs::{self, Harness, Process},
 };
-use skein_lib::Wall;
+use skein_lib::{Time, Wall};
+use skein_playground::{
+    slices::{Reach, Slices},
+    visitor::Visitor,
+};
 use skein_sim_world::{Bare, Inherited, Meter, Stream, World};
 
 /// Inputs read as a deployment, with one seed and a supplied wall clock.
@@ -59,8 +63,36 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
             }
         }
     }
+    if !document["application"]["demo"].is_null() {
+        use temper_forge_setup::{
+            machine::BoxKind,
+            place::{File, Place},
+        };
+        let directories = jig_protocol_config::Directories::working();
+        let named = temper_service::startup::named_with(&deployment, &directories, &documents::given(&document))
+            .expect("deployment's machine");
+        let last = document["setup"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| entry["forge"].as_u64())
+            .max()
+            .unwrap_or(0);
+        let number = u16::try_from(last + 1).expect("playground forge number");
+        let entry = temper_forge_setup::machine::entry(&named.machine, number, BoxKind::Fake, &directories)
+            .expect("playground's fake machine");
+        let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
+        machine::lay_handover(&mut disk, &path, &crate::stories::admin_token(seed));
+    }
     let machine = Machine::new(disk);
-    let parameters = programs::Parameters { deployment, seed, links, forge: fakes.forge, disk: machine.0.clone() };
+    let parameters = programs::Parameters {
+        deployment,
+        seed,
+        links,
+        forge: fakes.forge,
+        route: route(&document),
+        disk: machine.0.clone(),
+    };
     let mut config = skein_sim::Config::calm();
     config.wall = wall;
     config.trace = skein_sim::Trace::Off;
@@ -72,10 +104,9 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
         world.spawn_restartable(programs::service_roots(), programs::service::<()>);
     });
     let printer = world.printer(b"temper serve", Stream::Output);
-    let (sim, pids, processes) = world.parts();
-    let stdout = sim.open_inherited_write(pids[0]);
+    let (_, _, processes) = world.parts();
     if let Process::Service(service) = &mut processes[0] {
-        service.capture_output(stdout, printer);
+        service.print_to(printer);
     }
     world.spawn_signals(|signal| {
         programs::llm_peer(fakes.llm, &Inherited { signal, pipes: vec![], roots: vec![], appends: vec![] })
@@ -83,28 +114,46 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     world.spawn_signals(|signal| {
         programs::fake_forge(fakes.peer, &Inherited { signal, pipes: vec![], roots: vec![], appends: vec![] })
     });
+    let at = world.spawn(|| Process::Visitor(Box::new(Visitor::new(&documents::visitor(&document)))));
+    assert_eq!(at, VISITOR, "the visitor follows the service and its two fake peers");
     world
 }
 
-/// Drain the service's simulated standard output into the world's whole-line capture.
-/// A loop calls this between steps, just as it takes `World::printed`.
-pub fn capture<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) {
-    let (sim, pids, processes) = world.parts();
-    for (pid, process) in pids.iter().zip(processes) {
-        if let Process::Service(service) = process
-            && let Some((fd, printer)) = service.output_capture()
-        {
-            use std::io::Write;
-            let bytes = sim.peer_drain(*pid, fd, skein_sim_world::PRINTED_BYTES);
-            printer.write_all(&bytes).expect("bounded world output");
-        }
+/// The playground's git reaches the live peer that issues its bot's credential.
+#[must_use]
+pub fn route(document: &serde_json::Value) -> Option<skein_fake_forge_protocol::Limits> {
+    (!document["application"]["demo"].is_null()).then(temper_fake::forge::git_limits)
+}
+
+/// The visitor follows the service and its two fake peers.
+pub const VISITOR: usize = 3;
+
+/// Reach the composition's visitor between steps.
+#[must_use]
+pub fn reach<H: Harness>() -> Reach<Process<H>> {
+    Reach {
+        at: VISITOR,
+        enter: |process, input| {
+            let Process::Visitor(visitor) = process else { unreachable!("Reach names the visitor") };
+            visitor.enter(input);
+        },
+        take: |process, reports| {
+            let Process::Visitor(visitor) = process else { unreachable!("Reach names the visitor") };
+            visitor.take(reports);
+        },
     }
 }
 
-/// Step with this world's factory parameters installed, then capture its output.
+/// Step with this world's factory parameters installed.
 /// The scope ends before returning to the caller or another world's loop.
 pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> skein_sim_world::Step {
-    let parameters = world
+    programs::with(parameters(world), || world.step())
+}
+
+/// The world's factory parameters, read by its hosted programs while it steps.
+#[must_use]
+pub fn parameters<H: Harness, N: Meter>(world: &World<Process<H>, Machine, N>) -> programs::Parameters {
+    world
         .processes()
         .iter()
         .find_map(
@@ -112,10 +161,23 @@ pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> 
                 if let Process::Service(service) = process { Some(service.parameters.clone()) } else { None }
             },
         )
-        .expect("a composition has its service");
-    let stepped = programs::with(parameters, || world.step());
-    capture(world);
-    stepped
+        .expect("a composition has its service")
+}
+
+/// A slice's budget in steps (skein/docs/design/playground.md, 3).
+pub const SLICE_STEPS: u32 = 256;
+
+/// A story's world in skein's slices, its visitor reached, at 1× from `browser`.
+#[must_use]
+pub fn slices(start: Start, budget: u32, browser: Time) -> Slices<Process<()>, Machine> {
+    Slices::new(world(start), reach(), budget, browser)
+}
+
+/// Make slices from a worker start message; an unknown story has no world.
+#[must_use]
+pub fn start_slices(start: &skein_ui_web::bridge::Start, browser: Time) -> Option<Slices<Process<()>, Machine>> {
+    let story = crate::stories::named(&start.story)?;
+    Some(slices(story.start(start.seed, start.start), SLICE_STEPS, browser))
 }
 
 #[cfg(test)]

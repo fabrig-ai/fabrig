@@ -1,4 +1,6 @@
 //! Composition startup checks (temper/docs/design/playground.md, 3).
+mod visitor;
+
 use crate::{documents, fakes};
 
 #[test]

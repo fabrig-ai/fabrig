@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>temper's playground</title>
+  <link rel="stylesheet" href="{bundle}skein-ui.css">
+  <link rel="stylesheet" href="{bundle}temper.css">
+  <link rel="stylesheet" href="{bundle}task-pages.css">
+  <link rel="stylesheet" href="{bundle}playground.css">
+  <script type="module" src="{bundle}boot.js"></script>
+</head>
+<body class="playground">
+  <header id="playground-frame" class="playground-frame" aria-label="Playground">
+    <p class="playground-intro">temper's playground: a scripted model and forge, running in your browser</p>
+    <p id="playground-description"></p>
+    <div class="playground-controls">
+      <label for="playground-story">Story</label>
+      <select id="playground-story" aria-describedby="playground-description"></select>
+      <div role="group" aria-label="World speed">
+        <button id="playground-pause" type="button" aria-pressed="false">Pause</button>
+        <button id="playground-half" type="button" aria-pressed="false">½×</button>
+        <button id="playground-one" type="button" aria-pressed="true">1×</button>
+        <button id="playground-ten" type="button" aria-pressed="false">10×</button>
+      </div>
+      <button id="playground-reset" type="button">Reset</button>
+      <button id="playground-log" type="button">Download the session log</button>
+    </div>
+    <div class="playground-figures" aria-label="World measurements">
+      <span id="playground-time">World time 00:00:00.000</span>
+      <span id="playground-memory">Memory high water 0.0 MiB</span>
+      <span id="playground-slice">Longest slice 0.000 ms</span>
+      <span id="playground-pace" role="status">1×</span>
+    </div>
+    <p class="playground-download"><span id="playground-version"></span> · Download temper to use a real model and forge.</p>
+  </header>
+  <p id="playground-loading" class="playground-loading" role="status">Loading the playground…</p>
+  <section id="playground-failure" class="playground-failure" tabindex="-1" aria-labelledby="playground-failure-heading" hidden>
+    <h1 id="playground-failure-heading">The playground failed.</h1>
+    <p id="playground-failure-words"></p>
+    <p id="playground-failure-log"></p>
+    <button id="playground-start-over" type="button">Start over</button>
+  </section>
+  <div id="app" hidden></div>
+  <noscript>temper's playground needs WebAssembly and scripts.</noscript>
+</body>
+</html>

@@ -32,7 +32,8 @@ the joined client world are ignored (`protocol/configuration.md`,
 in the stock and the reference pages it reads are built, but its runs
 cannot read a project's own policy (`domain/agent.md`), and a charter's
 `tools` decides only whether its runs are offered the settings family
-(`protocol/configuration.md`). The
+(`protocol/configuration.md`). A run that cannot deliver keeps the shell
+its charter grants (`domain/agent.md`). The
 reference is one profile a box is set up with, but on a small box a
 result's bytes, a batch and the live delegates stay below the sizes it
 is designed for, and the case's repository carries no CI or tiers'
@@ -60,7 +61,8 @@ tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
 (`protocol/setup.md`); with `application.machine.github` null, GitHub's
 remotes come out malformed (`protocol/configuration.md`). The case library's
-purpose is retired (`domain/testing.md`), and the `welcome-set-up`
+purpose is retired and the fake git program drives skein's JSON tokenizer
+over a whole body by hand (`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
 drafts' statuses hold two departures their cuts decided, a foreman's
 LLM choice and a red of a goal branch's tier that wakes its goal only

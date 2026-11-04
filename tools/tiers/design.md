@@ -27,13 +27,17 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
 Paths to source assets are relative to the checkout root. Build artifacts
 and bundle output directories are beneath `cargo metadata`'s
 `target_directory`, including when Cargo config relocates it. All builds
-use Cargo's default dev profile, as the trees' browser scripts do.
+use Cargo's default dev profile, as the trees' browser scripts do, but
+temper's playground: `bundle.sh --playground` builds its page and its
+world in their own profiles (temper's `docs/design/playground.md`, 7), so
+that the tier walks and measures what a visitor downloads.
 
 | Pair | Prerequisites in order | Bundle environment |
 | --- | --- | --- |
 | browser-skein | wasm `skein-ui-example-shell-web`; `skein-ui-bundle`; run the tool; `skein-ui-example-server` | `SKEIN_UI_EXAMPLE_BUNDLE`, target's `ui-example-bundle` |
 | browser-jig | wasm `jig-client-test-shell-web`; `skein-ui-bundle`; run the tool; `jig-test` | `JIG_TEST_BUNDLE`, target's `jig-test-bundle` |
-| browser-temper, qa-temper | wasm `temper-client-shell-web` with `loopback-navigation`; `skein-ui-bundle`; run the tool; `temper` | `TEMPER_TEST_BUNDLE`, target's `temper-bundle` |
+| browser-temper | wasm `temper-client-shell-web` with `loopback-navigation`; `skein-ui-bundle`; run the tool; `temper/scripts/bundle.sh --playground`; `temper` | `TEMPER_TEST_BUNDLE`, target's `temper-bundle`; `TEMPER_TEST_PLAYGROUND`, target's `temper-playground` |
+| qa-temper | wasm `temper-client-shell-web` with `loopback-navigation`; `skein-ui-bundle`; run the tool; `temper` | `TEMPER_TEST_BUNDLE`, target's `temper-bundle` |
 
 The wasm target is `wasm32-unknown-unknown`. Each tool invocation uses the
 module's underscored package name, `/bundle/` prefix, and the old browser

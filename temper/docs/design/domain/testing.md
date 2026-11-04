@@ -2131,6 +2131,9 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
     eight stay within the real loop's ceiling with the rest; a
     whole-chat GitHub story that would pass the ceiling goes to the user
     with its numbers.
+  - a playground story walked natively through the web client's host
+    (`../playground.md`, 9) at most 3 s: it runs whole chats, a delegate
+    with its agents, git, CI and a landing, as a whole-chat story does.
 
   A test that misses its guide follows the three questions in 8.1; it
   moves only if what it checks belongs in another tier. It is never
