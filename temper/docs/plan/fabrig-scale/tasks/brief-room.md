@@ -121,3 +121,16 @@ them, and every other instruction of that section stands. `chat.txt` stays as in
   The same applies if the base has moved again: follow the derivation, without asking.
 - Only the aggregate falls: the reviews section gives up the bytes, the task and pull sections
   stay whole. Stop and ask only as "Owns and may change" says, when a whole spec no longer fits.
+
+## Rebase (2026-11-04, step merge, foreman fabrig-scale/brief-room/foreman-3)
+
+resolve the three merge conflicts and rederive the brief limit on the integration base.
+Rebase `8b46110efc` onto the landing’s current integration tip (observed `e3a27e166f`).
+- `temper/crates/temper-service/src/tests/stock_brief.rs` conflicts with `046211ac6f`. Keep host/room/offer/T pins `400_135`, `822_476`, `200_068`, `16_803_810`, this task’s tool-mask assertion, six exact charter measurements, and `the_stock_brief_with_a_whole_spec_fits_every_charter_whole`. Keep `measure_turn`’s unconditional first-turn assertion.
+- Follow the Answers section when refreshing measurements: integration’s `3721f23e5c` grew `stock/chat.txt` by 24 bytes. Leave that file intact. Charter 1’s non-brief bytes become `37_259`, its room `362_876`, and the derived brief `360_275` on the observed base; verify all six pairs through the focused tests.
+- Update `limits.rs`’s derivation comment and aggregate brief limit, `tests/limits.rs`’s brief/result pins, and `stock_brief.rs`’s room assertions together. Derive `min(395_520, room - 1_472 - 1_129)` again if the base moves.
+- Preserve task, pull and reviews budgets of `131_584`, the whole `131_072`-byte spec, and the framing/margin checks. Reduce only the gathered reviews contribution when the aggregate falls.
+- `temper/docs/design/domain/agent.status.md` conflicts with `4cec6f4389`, carried through `b2775ed115`. Preserve integration’s expanded project-policy-read explanation and verdict-follow-up gap; remove the obsolete 4.3/4.6 host-room/control-family entry.
+- `temper/docs/design/protocol/configuration.status.md` conflicts with `8baca21f39`. Preserve November 4’s date, removal of the init/default-sizing gap, the separate host-family enforcement gap, and other status text. Remove “its tools leave out the control family,” from the stock entry.
+- Preserve automatic merges in `limits.rs` and `tests/stock.rs`, including integration’s socket admission and fixture changes alongside this task’s limits and control-family pins.
+Run the spec’s focused stock tests first through `heavy`, then its remaining acceptance checks.
