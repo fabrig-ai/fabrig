@@ -362,6 +362,19 @@ pub(super) fn roles(front: &mut Scripted, story: crate::harness::seed::RoleStory
     match story {
         RoleStory::Proposal => proposal_for(front, 3, &[1, 2], b"decide this goal", 150),
         RoleStory::Choice => choice(front),
+        RoleStory::DelegateHold => {
+            let mut chat = fixture::conversations::chat(1, b"Hello", Wall::EPOCH);
+            chat.requester = Requester::Person(3);
+            fixture::shared::b_held::scripted_delegate(front, &mut chat);
+            front
+                .engine
+                .act(
+                    Time::ZERO,
+                    Wall::EPOCH,
+                    Change::Object { project: 1, key: ObjectKey::Task(1), value: ReadValue::Task(Box::new(chat)) },
+                )
+                .expect("member conversation fits");
+        }
         RoleStory::Goal | RoleStory::Observer => {}
     }
 }

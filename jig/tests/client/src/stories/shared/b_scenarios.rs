@@ -34,9 +34,6 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall, facts: Facts) {
     else {
         unreachable!("conversation recipe")
     };
-    if matches!(facts, Facts::DelegateEscalation) {
-        batch[0].flags.ended_by = jig_domain_people::EndedBy::Requester;
-    }
     batch[0].authority.spend = 10;
     batch[0].authority.delegation.tasks = 2;
     batch[0].budget = jig_domain_people::Budget::Named;
@@ -110,7 +107,6 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
                 )
                 .expect("inbox fits");
         }
-        Facts::DelegateEscalation => super::b_held::scripted_delegate(front, &mut chat),
         Facts::Delegates => {
             let mut cancelled = crate::stories::task();
             cancelled.chip.task = 2;
