@@ -788,7 +788,7 @@ lack of disk, and had no off-machine backup of service data at all.
   DNS server, `btrfs send` and `receive` between two VMs, and a restore
   that boots.
 
-## 10. What is open
+## 10. Open questions
 
 - **What a check may do on a production machine:** whether a check may
   send a real message and see it delivered, or write any state, and
