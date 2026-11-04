@@ -1548,6 +1548,7 @@ for its kind, its user's login and its installations. Its nodes:
   `Request`, as `Reading` names a read: `adopt`, `Adopt`, `set_up`,
   `SetUp`, `connect`, `Connect`, `install`, `Install`, `reachable`,
   `Reachable`, `accept`, `Accept`, `remove_forge`, `RemoveForge`,
+  `make_repository`, `MakeRepository`,
   `start_playground` and `end_playground`, the last two with no fields
   (below), or `return`, `Return`, answered `returning` (section 8). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
@@ -1613,6 +1614,18 @@ for its kind, its user's login and its installations. Its nodes:
   `name_bytes`; or *unknown*, its
   outcome no longer held (section 8), the same unknown as an
   adoption's. A refusal at admission is jig's answer, as for `Adopt`.
+- **`MakeRepository`:** of the project `into` names, or of the deployment
+  with none (section 8): the forge's number (u16); the org and the name
+  (byte strings, bounded as `Adopt`'s owner and name); `from`, `MakeFrom`:
+  `empty`, or `copy`, `MakeCopy`, its address (at most 512 bytes), the
+  form `https://HOST/OWNER/NAME` the client's check gives
+  (`../draft/repository-copies.md`, 5.4); and `into`, none or `MakeInto`:
+  the project (u32) and `home` (bool). Its outcome, `Answer`'s, kept as an
+  adoption's is (section 8): *kept*, the row written; *make refused*,
+  `MakeRefusal`: no such forge, not offered, not owner, invalid, home
+  held or full (`../domain/forge.md`, 4.5); or *unknown*, as `SetUp`'s.
+  A refusal at admission is jig's answer, as for `Adopt`. The course of
+  what it asked is the forge's row's, never the answer's.
 - **`StartPlayground`:** of the deployment's scope (section 8), with
   no fields: the start makes the playground's records
   (`../protocol/setup.md`, 8.4). Its outcome, `Answer`'s: *running*,
@@ -1810,7 +1823,15 @@ for its kind, its user's login and its installations. Its nodes:
   `owned`, `OwnedForge`, the Forgejo and runner versions the box pins
   (at most 64 bytes each, the runner's optional) and the path of the
   person's first password's file, never the password (at most 512
-  bytes; `forge.md`, 5.4); and its
+  bytes; `forge.md`, 5.4); `makings`, the repositories being made or
+  failed on it, at most `MAKINGS` (64) in key order, each
+  `RepositoryMaking`: its org and name, its `from` and `into`, and its
+  state, `MakingState`: waiting; making; made, with the id (u64) and the
+  branch (bounded as `Adopt`'s landing branch); adopting, with both; or
+  failed, `MakingFailed`, with its step (`MakeStep`: admin, org,
+  repository, file or adoption), its reason (`MakeFailure`: taken, empty,
+  timed out, refused with status (u16), not allowed or other) and the
+  forge's words (at most 256 bytes); and its
   offer, the forge domain's (`../domain/forge.md`, 4.1): offered, not
   under the box, or not offered, which is what "Set up a Forgejo here", "Set up again"
   and the words without the box follow (`forge.md`, 5.4). The read of the forges, the
@@ -3896,6 +3917,7 @@ does for the client:
   | `Forget { forge }` | none | the admin's token erased; a managed forge becomes connected (`../protocol/credentials.md`) | forgotten |
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup.md`, 7.1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge.md`, 2.2) | setting up |
   | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge.md`, 4.1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
+  | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge.md`, 4.5; `../protocol/setup.md`, 6.9) | kept; make refused, `MakeRefusal`; then the watched row |
   | `StartPlayground` | the scripted model's key, which the routing reads from its file at each start and carries as a pasted value | the playground's start (`../protocol/setup.md`, 8.4): the `Playground` row written starting when none, its fake forge's record made and the box asked for its group, then the scripted model's account added and its repository adopted into its project, each unless done; refused "not offered" while a real forge is kept | running, once all are done; start failed, naming why |
   | `EndPlayground` | none | the playground's reset (`../protocol/setup.md`, 8.4): the `Playground` row resetting in one decision, then its kept acts in order, the project deleted, the fake forge removed, the scripted account removed, the row erased | reset, once the row is erased; end refused, not offered, with no playground |
   | `Reachable { forge, installation?, page }` | none | on every kind, the setup's host's `Reachable { forge, installation?, page }` plan (skein's `forge-setup.md`, 4.8; `../domain/forge.md`, what the picker offers): on GitHub one accepted installation's repositories, `GET /installation/repositories` paged by number on a token minted for the page; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the site admin can see by id ascending, read on the admin's token, which stays the setup's host's (`../protocol/forge.md`, the setup's host) | a page, `{ rows, more }`: at most `picker.page` rows on every forge, clipped to the forge's own page cap, each the repository's id, its owner's id and login, its name and whether it is private; `more` set when the page is full |

@@ -26,9 +26,10 @@ help or ctl: note it with the minutes it cost, then go on.
    project exists, following `temper help forgejo`. `temper ctl forge list` shows it connected and
    managed.
 3. **A copy:** `temper ctl repository copy --project PROJECT --forge FORGE ADDRESS --until adopted
-   --key KEY`, with the first source's address. It answers once adopted: the repository is `OWNER/NAME`
-   on the forge, its default branch the source's, and not the project's home unless you asked.
-4. **It says it as it goes:** a second copy, of the second source, without `--until`: it answers at once,
+   --key KEY`, with the first source's address. The project has a home, so it is refused at once, naming
+   `--no-home`, and nothing is copied. With `--no-home` and a new key, it answers once adopted: the
+   repository is `OWNER/NAME` on the forge, its default branch the source's.
+4. **It says it as it goes:** a second copy, of the second source, with `--no-home` and without `--until`: it answers at once,
    and `temper ctl forge list` shows `Copying OWNER/NAME from HOST` until it is gone from the list and
    adopted. Time it.
 5. **The checks are there:** through the forge's API, the copy's default branch holds

@@ -27,7 +27,7 @@ Acceptance:
   `skein/testing/skein-throwaway-forgejo`'s ignored tests, which need the pinned binary, shows a
   repository made before the kill reads after the restart.
 - `heavy cargo nextest run -p skein-throwaway-forgejo` passes;
-  `heavy cargo check --tests -p forgejo-conformance -p temper-git-transcripts` passes.
+  `heavy cargo check --tests -p forgejo-conformance -p git-transcripts` passes.
 
 ## Inputs
 

@@ -340,6 +340,8 @@ agent must name.
 | `task message TASK TEXT` | words to a task | `Message` | yes |
 | `chat close TASK [--move TASK]... [--reason TEXT]` | closes a chat: its live delegates cancelled, or moved to the party where named; the reason empty unless given, as jig's reference UI sends it | `shapes::close_chat`, a compound request | yes |
 | `repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY [--ids IDS] --landing BRANCH [--role owned\|fork\|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]...` | adopts a repository | the forge family's request (`README.md`, 4.4) | yes |
+| `repository make --project PROJECT [--forge FORGE] ORG/NAME [--no-home] [--until adopted] [--timeout DURATION]` | makes an empty repository, its starter workflow in it, and has it adopted into the project: owned, landing on its default branch, with CI, the project's home unless `--no-home` (`../domain/forge.md`, 4.5) | the forge family's `MakeRepository` (`README.md`, 4.6) | yes |
+| `repository copy --project PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home] [--until adopted] [--timeout DURATION]` | copies a public repository, `HOST/OWNER/NAME`, into `OWNER/NAME` on the forge, or `--as` where given, and has it adopted as `repository make` does; the address refused, naming the form to write, before anything is sent | the forge family's `MakeRepository` | yes |
 | `task answer TASK QUESTION TEXT` | answers question QUESTION of the task | `Answer` | |
 | `proposal decide PROPOSAL accept\|reject\|pass-up [REASON] [--running stays\|moves]` | decides a proposal: PROPOSAL is `tN/K` for task N's, `pN/K` for party N's | `Decide` | |
 | `task decide TASK --hold REV release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |
@@ -454,6 +456,13 @@ agent must name.
   sent as `Propose` where it is proposable, and the result says so; past
   them, refused by the client, nothing sent. Where `me` gives no bound
   for a draft, it is sent and the engine's answer printed.
+
+`repository make` and `repository copy` answer once the request is kept.
+`--until adopted` then follows the `forges` watch's row: gone with its forge
+still listed, it is adopted, status 0; failed, its step's words and status 1;
+past `--timeout`, the row's state and status 2, as a read's timeout is, the
+copy going on. These two are the only acts that take `--until`, and a
+`--timeout` without it is refused, as on a read.
 
 A charter's `tools` in a settings file is an integer mask in the same bits
 as an authority's tools. Left out, it is 1,023, every jig family but

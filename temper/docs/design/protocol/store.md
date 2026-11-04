@@ -105,6 +105,14 @@ section 7).
   | 27 | `Playground` | `Playground`: one row | the playground's state, starting, running, or resetting at its step, the project's, the forge's or the account's; its fake forge's number; and its project's and scripted account's numbers once its start has made them (setup.md, 8.4). Written at its start, at each act its start makes, and at each step of its reset; erased when the reset ends; no row is no playground | one row |
 
 - **Reserved bytes:** 17 and 19 keep no family and are never reused.
+- **The repositories being made** (`../domain/forge.md`, 4.5), 35
+  `Making`, keyed `Making { forge, org, name }`: one row per name a
+  forge is making, holding what was asked (`from`, an address or
+  nothing; `into`, the project, whether it is its home and the forge's
+  host), the wall time asked, `copying`, the mark of skein's `Copying`
+  item, and the state. Written at admission and at each state, erased
+  once adopted, once made with no `into`, and in its forge's removal's
+  decision. Bounded by `forge.makings`.
 - **Beside them,** after the forges (`../domain/after-landing.md`,
   section 10; `../domain/findings.md`, section 9): 28 `Tier`, keyed by
   repository and tier, its run in flight, last judged tip, failures
@@ -151,6 +159,8 @@ section 7).
   - `Topic` is its variant (0 `Landings`, 1 `Ci`, 2 `Pull`, 3
     `Participation`), then the repository, then the branch, the commit
     or the number;
+  - `Making` is the forge, then the org and the name, each one byte
+    string;
   - the client's key is its variant (0 `Live`, 1 `Repository`), then its
     resource or repository, a resource's `What` tagged as `Name`'s is,
     its branch one byte string.
@@ -293,6 +303,10 @@ envelope (2026-11-04).
   generated keys of both (section 6).
 - **Nothing else is read:** no load, get or party's read of temper's
   families follows the restart.
+- **A row of `Making` restored** comes back waiting if it was making,
+  its `copying` kept: nothing runs from the restore itself, and the
+  setup's pull starts it once its forge is connected
+  (`../domain/forge.md`, 4.5).
 - **The core's ranges are jig's, filtered.** jig's restart ranges
   (jig's `protocol/store.md`, 4.3 and 7.2) are coarser than the root's
   core ranges, so the routing asks for the jig ranges that hold a root

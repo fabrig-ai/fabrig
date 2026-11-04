@@ -649,6 +649,68 @@ narrowed, and its changes wait.
   adoption says, for each landing branch, whether its bypass is
   `Always`, which the turn needs (`landing.md`, 8).
 
+### 4.5 A repository made or copied
+
+`MakeRepository` (`../client/README.md`, 4.6) asks the connector for a
+repository on an owned or managed Forgejo, empty or copied from a
+public address, adopted into a project when `into` names one
+(`../draft/repository-copies.md`, 5).
+
+- **Admitted** by key, as any party's request: the root's scope is the
+  project `into` names, or the deployment with none, and the connector
+  then refuses any role but owner, `NotOwner`. In order, it refuses a
+  forge it does not keep or that has ended, `NoSuchForge`; a forge that
+  is not an owned or managed Forgejo, `NotOffered`; a name or an address
+  that breaks 5.4 of the draft, or past `name_bytes`, `Invalid`; a
+  `home` in a project that has one already, `HomeHeld`, which spares a
+  copy that would be refused at its end; and a new row past
+  `forge.makings`, `Full`. Its outcome is the request's, kept as an
+  adoption's is (`../protocol/store.md`, section 2): *kept*, or *refused*
+  with its reason.
+- **One row per name,** `RepositoryMaking`, the family `Making`
+  (`../protocol/store.md`, section 2). A second request for a name whose
+  row is not failed is answered *kept*, as the first, and changes
+  nothing. One for a failed row replaces it, keeping `copying` when it
+  copies from the same address.
+- **Its state** moves one way: `Waiting`, `Making`, `Made { id, branch }`,
+  `Adopting { id, branch }`, then erased; or `Failed { step, reason,
+  words }`, the step `Admin`, `Org`, `Repository`, `File` or `Adoption`,
+  the reason `Taken`, `Empty`, `TimedOut`, `Refused(status)`, `NotAllowed`
+  or `Other`, and the forge's words, cut to 256 bytes.
+- **The connector holds the rows; the setup runs them.** Only the
+  service sees the forge's writing runs, so it pulls: when no writing
+  run is live on a connected forge, it asks the connector for the
+  forge's oldest `Waiting` row, starts its plan and tells the connector
+  (`../protocol/setup.md`, 6.9). So a row waits for reconcile, a set up,
+  an adoption's access or another copy, and restarts need no path of
+  their own.
+- **`Copying`** (skein's `forge-setup.md`, 4.10) is the row's `copying`:
+  the plan's write sets it in a decision, and the service answers
+  `Written` once that decision is kept. A stop at `Taken` clears it.
+- **Made,** with no `into` the row is erased: the repository waits for
+  an adoption as any made one does. With `into` it is `Adopting`.
+- **The adoption is the connector's own act,** jig's `Act::Adopt` under
+  `engine.acts` (jig's `domain/people.md`, 5.3, as the
+  playground's reset acts; `../protocol/setup.md`, 8.3), not a party's
+  request, so that a sign-in that ended during a long copy, or a restart,
+  cannot lose it. It names the repository by the id the plan gave, so
+  nothing locates it: owned, landing on the branch the plan gave, with
+  CI and no gates, the prefix `temper/`, the project's home when `home`.
+  The act is keyed from the row's forge, org, name and wall time, so a
+  restart joins it or is answered from its saved answer, adopted once.
+  jig asks the connector back as it does for a party's adoption, and
+  the reads and refusals of this section hold.
+- **Refused,** the row is `Failed` at `Adoption`, `NotAllowed` for jig's
+  refusals and `Refused` for the forge's, with what the adoption's
+  refusal says; the repository stays made, adopted nowhere. A row that
+  is asked again runs its plan, which finds its copy finished, and
+  adopts it.
+- **Adopted,** the row is erased in the decision that hears jig's answer.
+- **A forge removed** erases its rows in its removal's decision (4.1),
+  and its live run ends with the forge's runs (skein's `forge-setup.md`, 6.3).
+- **A project deleted** while a row names it: the act is refused, and the
+  row says so.
+
 ## 5. What it holds, and keeping up
 
 The working set, the keep, fresh reads and the budget are the client's

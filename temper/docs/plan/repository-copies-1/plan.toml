@@ -56,3 +56,57 @@ id = 2
 story = "a copy of a catalogue's source lands on the fake forge, private, with the bot's access and the starter, and a run cut short, run again, finishes it"
 parts = ["copy-plan", "copy-facts", "fake-migration", "copy-story"]
 walk = false
+
+[[part]]
+id = "making-records"
+title = "temper's records of a making: the wire, the address's check and the store family"
+mode = "direct"
+needs = ["copy-plan"]
+design = "temper/docs/design/protocol/store.md, 2"
+
+[[part]]
+id = "making-engine"
+title = "the connector decides a making, and the root adopts by its act"
+mode = "direct"
+needs = ["making-records"]
+design = "temper/docs/design/domain/forge.md, 4.5"
+
+[[part]]
+id = "making-service"
+title = "the service runs what the connector holds, one writing run at a time"
+mode = "direct"
+needs = ["making-engine", "copy-plan"]
+design = "temper/docs/design/protocol/setup.md, 6.9"
+
+[[part]]
+id = "making-client"
+title = "the client's facts, and temper ctl repository make and copy"
+mode = "direct"
+needs = ["making-records"]
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[part]]
+id = "fake-backends"
+title = "two sources on the fake forgejo peer, and their printed addresses"
+mode = "direct"
+needs = ["fake-migration"]
+design = "temper/docs/design/protocol/setup.md, 7.5"
+
+[[slice]]
+id = 3
+story = "an owner's request is kept, its row runs its plan on a connected forge, and the connector's act adopts what it made, with every client told"
+parts = ["making-records", "making-engine", "making-service", "making-client", "fake-backends"]
+walk = false
+
+[[part]]
+id = "copy-end-to-end"
+title = "a copy made and adopted through temper ctl, and a restart in the middle"
+mode = "direct"
+needs = ["making-service", "making-client", "fake-backends", "copy-story"]
+design = "temper/docs/design/draft/repository-copies.md, 10"
+
+[[slice]]
+id = 4
+story = "On temper box --fake-backends, through temper ctl alone, a public repository is copied into a connected Forgejo and adopted into a project, its starter workflow beside its own (the walk's brief: temper/docs/plan/repository-copies-1/walk.md)"
+parts = ["copy-end-to-end"]
+walk = true
