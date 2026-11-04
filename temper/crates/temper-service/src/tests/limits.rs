@@ -158,7 +158,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             changes: 128,
             named_calls: 128,
             landings: 32,
-            client: skein_forge_client::Limits { resources: 128, ..small.forge.client },
+            client: skein_forge_client::Limits { resources: 128, op_bytes: 262_144, ..small.forge.client },
             change_policy: temper_engine_domain_forge_change::Limits {
                 questions: 80,
                 tasks: 80,
@@ -182,7 +182,11 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 },
                 ..small.root.brief
             },
-            journal: temper_engine_domain::JournalLimits { result_bytes: 360_275, ..small.root.journal },
+            journal: temper_engine_domain::JournalLimits {
+                transcript_bytes: 22_467_632,
+                result_bytes: 360_275,
+                ..small.root.journal
+            },
             loads: small.root.loads,
         },
         ..small
@@ -223,6 +227,12 @@ fn the_standard_profile_passes_each_domains_validity() {
     crate::store::admit(&root, &root.forge, &jig.store, None).expect("coherent standard store profile");
     let mut short = own;
     short.forge.named_calls -= 1;
+    assert!(limits::engine(&jig, &short).is_none());
+    short = own;
+    short.forge.client.op_bytes -= 1;
+    assert!(limits::engine(&jig, &short).is_none());
+    short = own;
+    short.root.journal.transcript_bytes -= 1;
     assert!(limits::engine(&jig, &short).is_none());
 }
 
