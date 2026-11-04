@@ -258,7 +258,10 @@ fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String>
             providers.push((provider.number, endpoint, origins)).expect("configured provider count");
         }
     }
-    Ok(service::AccountsRuntime { providers, trust_roots, trust_root_bytes })
+    Ok(service::AccountsRuntime {
+        providers,
+        trust: Some(service::TrustBounds { roots: trust_roots, bytes: trust_root_bytes }),
+    })
 }
 struct Configured {
     document: skein_json::Document,

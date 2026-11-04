@@ -116,7 +116,7 @@ pub struct Component {
     output: Queue<Effect>,
     restoring: Map<u32, (u32, domain::Kind)>,
 }
-fn unkept(account: &driver::Account) -> driver::Account {
+pub(crate) fn unkept(account: &driver::Account) -> driver::Account {
     let (registration, endpoint, shared, origins) = match account {
         driver::Account::SignIn { registration, endpoint, shared, origins, .. } => {
             (registration, endpoint, shared, origins)

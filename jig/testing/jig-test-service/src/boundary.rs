@@ -3,12 +3,9 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_protocol_config::Problems;
 use jig_test_domain as root;
-use skein_lib::{List, Secret};
+use skein_lib::Secret;
 
-#[derive(Debug)]
-pub struct Files {
-    pub entries: List<(Box<[u8]>, Secret)>,
-}
+pub use jig_protocol_config::Files;
 #[derive(Debug)]
 pub struct Seeds {
     pub deployment: [u8; 16],
