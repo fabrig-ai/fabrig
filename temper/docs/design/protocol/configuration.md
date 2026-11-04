@@ -1218,6 +1218,11 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   change, so landing can be left unenforced by a change of rules.
   Default: changeable, and said plainly on the review page; jig could
   let an application mark requirements no change removes.
+- **A kept GitHub forge whose base ends in `/`.** Its record keeps
+  that place (section 8), so its remotes have two `/` after the host.
+  Default: so, until it is removed and connected again (forge.md,
+  2.3); a patch of the record or a trimmed base would repair it in
+  place.
 - **A repository renamed or moved after adoption.** Default: its
   resource path, which landing patterns match, and its remote keep the
   owner and name of its adoption; Forgejo redirects the old path, and

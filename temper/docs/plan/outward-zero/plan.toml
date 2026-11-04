@@ -1,0 +1,23 @@
+draft = "outward-zero"
+repo = "fabrig"
+sources = ["temper/docs/plan/outward-zero/inputs/request.md"]
+
+# The outward check becomes absolute (inputs/request.md, step 12 of 12 of a user-approved plan):
+# one direct task, as the request asks. plan.md says what was decided.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "absolute"
+title = "any match in a tracked text file fails the outward check; the inventory is gone, and only plan directories, the check's own file and binary files are left out"
+mode = "direct"
+needs = []
+design = "AGENTS.md, 1"
+
+[[slice]]
+id = 1
+story = "fabrig's rule that it names nothing of whoever runs its development is absolute: a name outside a plan directory fails the gate at its file and line, with no list to raise and no count to spend"
+parts = ["absolute"]
+walk = false

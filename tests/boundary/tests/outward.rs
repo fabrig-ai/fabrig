@@ -1,11 +1,14 @@
 //! fabrig names nothing of whoever runs its development: no repository,
-//! tool, machine or session of that lab (AGENTS.md, 1). The check reads
-//! git's tracked files from the workspace root with `git ls-files`, so
-//! `target/`, `.git/` and other untracked build output are never listed.
-//! It skips symlinks, whose targets are tracked files read under their own
-//! paths, and binary files: a NUL byte in the first 8000 bytes, as git decides.
-//! It leaves out its own file, its inventory, and every `docs/plan/` directory
-//! until the plans move out.
+//! tool, machine or session of that lab (AGENTS.md, 1). The rule is absolute:
+//! any name in a file the check reads fails it. The check reads git's tracked
+//! files from the workspace root with `git ls-files`, so `target/`, `.git/`
+//! and other untracked build output are never listed. A symlink's text is its
+//! target's path, as git stores it.
+//!
+//! Three things are left out and nothing else: the directories
+//! `*/docs/plan/<draft>/`, the transient run files of whoever runs a plan, each
+//! of which leaves main when its plan retires; this file, which spells the
+//! names; and binary files, a NUL byte in the first 8000 bytes, as git decides.
 //!
 //! Names match ASCII case-insensitively, with ASCII word boundaries where
 //! required: `fabrig-ai/agents`, `agents repo`, `agents repos`, `agents
@@ -17,10 +20,7 @@
 //! A bare `director`, a bare `heavy` and a generic `/home/<user>/` are left
 //! off on purpose: they have product meanings.
 //!
-//! The inventory lists each file's maximum count; an unlisted file holds
-//! none, and each count may only fall. Raising a count or adding a file
-//! needs a `# Raised: <who, why>` line directly above its entry.
-//! A line it cannot read is a failure, never a skip.
+//! A file it cannot read is a failure, never a skip.
 
 use std::collections::BTreeMap;
 use std::fmt::Write;
@@ -29,7 +29,6 @@ use std::path::Path;
 use std::process::Command;
 
 const OWN: &str = "tests/boundary/tests/outward.rs";
-const INVENTORY: &str = "tests/boundary/outward.txt";
 
 /// Each fixed name, and whether its left and right ends need word boundaries.
 const FIXED: &[(&[u8], bool, bool)] = &[
@@ -134,10 +133,11 @@ fn found(text: &[u8]) -> Vec<(usize, String)> {
         .collect()
 }
 
-/// Whether the check leaves out `path` (from the root, `/`-separated): its own file, its
-/// inventory, and anything with a `docs/plan/` directory in it, at the root or in a tree.
+/// Whether the check leaves out `path` (from the root, `/`-separated): its own file, and
+/// anything inside a plan's directory, `*/docs/plan/<draft>/`.
 fn left_out(path: &str) -> bool {
-    path == OWN || path == INVENTORY || path.starts_with("docs/plan/") || path.contains("/docs/plan/")
+    let parts: Vec<&str> = path.split('/').collect();
+    path == OWN || matches!(parts.as_slice(), [_, "docs", "plan", _, _, ..])
 }
 
 /// Whether a file's `bytes` are binary: a NUL among the first 8000.
@@ -152,8 +152,9 @@ struct Scan {
     found: BTreeMap<String, Vec<(usize, String)>>,
 }
 
-/// `git -C root ls-files -z`, then each listed path not left out: a symlink is skipped,
-/// anything else that is not a file is an error, a binary file is skipped.
+/// `git -C root ls-files -z`, then each listed path not left out: a symlink's text is its
+/// target path as git stores it; anything else that is not a file is an error.
+/// A binary file is skipped.
 fn scan(root: &Path) -> Result<Scan, String> {
     let output = Command::new("git")
         .arg("-C")
@@ -172,13 +173,13 @@ fn scan(root: &Path) -> Result<Scan, String> {
         }
         let absolute = root.join(path);
         let metadata = fs::symlink_metadata(&absolute).map_err(|why| format!("{path}: {why}"))?;
-        if metadata.is_symlink() {
-            continue;
-        }
-        if !metadata.is_file() {
+        let bytes = if metadata.is_symlink() {
+            fs::read_link(&absolute).map_err(|why| format!("{path}: {why}"))?.into_os_string().into_encoded_bytes()
+        } else if metadata.is_file() {
+            fs::read(&absolute).map_err(|why| format!("{path}: {why}"))?
+        } else {
             return Err(format!("{path}: neither a file nor a symlink"));
-        }
-        let bytes = fs::read(&absolute).map_err(|why| format!("{path}: {why}"))?;
+        };
         if binary(&bytes) {
             continue;
         }
@@ -192,108 +193,22 @@ fn scan(root: &Path) -> Result<Scan, String> {
     Ok(scan)
 }
 
-/// An entry has one space, a path without whitespace and a positive decimal count.
-fn entry(line: &str) -> Option<(&str, usize)> {
-    let (path, count) = line.split_once(' ')?;
-    if path.is_empty()
-        || path.chars().any(char::is_whitespace)
-        || path.starts_with('/')
-        || path.split('/').any(|part| part == "." || part == ".." || part.is_empty())
-        || count.starts_with('0')
-        || count.is_empty()
-        || !count.bytes().all(|byte| byte.is_ascii_digit())
-    {
-        return None;
+/// The verdict on `found`: a failure listing each file, line and name, if any file holds one.
+fn verdict(found: &BTreeMap<String, Vec<(usize, String)>>) -> Result<(), String> {
+    if found.is_empty() {
+        return Ok(());
     }
-    Some((path, count.parse().ok()?))
-}
-
-/// The inventory's entries: each listed path and its count.
-fn inventory(source: &str) -> Result<BTreeMap<String, usize>, String> {
-    let mut entries: BTreeMap<String, usize> = BTreeMap::new();
-    for (number, line) in source.split_terminator('\n').enumerate() {
-        if line.bytes().all(|byte| byte == b' ') || line.starts_with('#') {
-            continue;
-        }
-        let error = |why| format!("{INVENTORY}:{}: {why}: {line}", number + 1);
-        let (path, count) = entry(line).ok_or_else(|| error("an entry the check does not read"))?;
-        if entries.contains_key(path) {
-            return Err(error("listed twice"));
-        }
-        if entries.last_key_value().is_some_and(|(previous, _)| previous.as_str() > path) {
-            return Err(error("out of order"));
-        }
-        entries.insert(path.to_owned(), count);
-    }
-    Ok(entries)
-}
-
-/// The inventory the tree needs, from the inventory's `source` and today's `counts`.
-fn needed(source: &str, counts: &BTreeMap<String, usize>) -> String {
-    let mut remaining: BTreeMap<_, _> =
-        counts.iter().filter(|(_, count)| **count > 0).map(|(path, count)| (path.as_str(), *count)).collect();
-    let mut output = String::new();
-    let mut raised = String::new();
-    for line in source.split_terminator('\n') {
-        if line.starts_with("# Raised:") {
-            writeln!(raised, "{line}").expect("writing to a string succeeds");
-        } else if let Some((path, _)) = entry(line) {
-            if let Some(&count) = counts.get(path).filter(|count| **count > 0) {
-                while remaining.first_key_value().is_some_and(|(next, _)| *next < path) {
-                    let (next, count) = remaining.pop_first().expect("the first entry exists");
-                    writeln!(output, "{next} {count}").expect("writing to a string succeeds");
-                }
-                output.push_str(&raised);
-                writeln!(output, "{path} {count}").expect("writing to a string succeeds");
-                remaining.remove(path);
-            }
-            raised.clear();
-        } else {
-            output.push_str(&raised);
-            raised.clear();
-            writeln!(output, "{line}").expect("writing to a string succeeds");
-        }
-    }
-    output.push_str(&raised);
-    for (path, count) in remaining {
-        writeln!(output, "{path} {count}").expect("writing to a string succeeds");
-    }
-    if output.is_empty() {
-        output.push('\n');
-    }
-    output
-}
-
-/// The verdict on `found` against the inventory's `source`: the failure, when a file holds
-/// more names than its entry allows. An unreadable `source` is a failure too.
-fn verdict(found: &BTreeMap<String, Vec<(usize, String)>>, source: &str) -> Result<(), String> {
-    let entries = inventory(source)?;
-    let mut failure = String::new();
+    let mut failure = String::from("Files name the lab running fabrig's development (AGENTS.md, 1):\n");
     for (path, names) in found {
-        if names.len() <= entries.get(path).copied().unwrap_or(0) {
-            continue;
-        }
-        if failure.is_empty() {
-            writeln!(failure, "Files name the lab beyond {INVENTORY}; each count may only fall; raising one or adding a file needs a `# Raised: <who, why>` line directly above its entry.")
-                .expect("writing to a string succeeds");
-        }
-        let allowed = entries.get(path).map_or_else(|| "not listed".to_owned(), usize::to_string);
-        writeln!(failure, "{path}: {} names, inventory: {allowed}", names.len()).expect("writing to a string succeeds");
         for (line, name) in names {
             writeln!(failure, "{path}:{line}: {name}").expect("writing to a string succeeds");
         }
     }
-    if failure.is_empty() {
-        return Ok(());
-    }
-    let counts = found.iter().map(|(path, names)| (path.clone(), names.len())).collect();
-    failure.push_str("The inventory the tree needs:\n");
-    failure.push_str(&needed(source, &counts));
     Err(failure)
 }
 
 #[test]
-fn no_file_names_the_lab_beyond_the_inventory() {
+fn no_file_names_the_lab() {
     let root = skein_scratch::paths::workspace();
     let scan = scan(&root).unwrap_or_else(|why| panic!("the workspace's files: {why}"));
     for prefix in ["skein/", "smith/", "jig/", "temper/", "tools/", "tests/"] {
@@ -302,8 +217,7 @@ fn no_file_names_the_lab_beyond_the_inventory() {
     assert!(scan.read.iter().any(|path| path == "AGENTS.md"), "the check reads AGENTS.md");
     eprintln!("Read {} text files ({} bytes).", scan.read.len(), scan.bytes);
     eprintln!("Found {} names in {} files.", scan.found.values().map(Vec::len).sum::<usize>(), scan.found.len());
-    let source = fs::read_to_string(root.join(INVENTORY)).unwrap_or_else(|why| panic!("{INVENTORY}: {why}"));
-    if let Err(why) = verdict(&scan.found, &source) {
+    if let Err(why) = verdict(&scan.found) {
         panic!("{why}");
     }
 }
@@ -376,12 +290,14 @@ fn product_words_pass() {
 }
 
 #[test]
-fn the_check_leaves_out_plans_its_own_file_and_its_inventory() {
+fn the_check_leaves_out_plan_directories_and_its_own_file() {
     for (path, expected) in [
         ("temper/docs/plan/outward-rule/inputs/request.md", true),
-        ("docs/plan/a.md", true),
+        ("smith/docs/plan/sign-in-wait/plan.toml", true),
         (OWN, true),
-        (INVENTORY, true),
+        ("temper/docs/plan/a.md", false),
+        ("docs/plan/a/b.md", false),
+        ("temper/crates/a/docs/plan/b/c.md", false),
         ("temper/docs/planning.md", false),
         ("temper/docs/design/plan/a.md", false),
         ("tests/boundary/tests/direction.rs", false),
@@ -402,83 +318,33 @@ fn a_nul_in_the_first_8000_bytes_makes_a_file_binary() {
 }
 
 #[test]
-fn an_inventory_line_the_check_does_not_read_fails_it() {
-    for (source, number, why) in [
-        ("a.md", 1, "does not read"),
-        ("a.md x", 1, "does not read"),
-        ("a.md 0", 1, "does not read"),
-        ("a.md 01", 1, "does not read"),
-        ("a.md 1 2", 1, "does not read"),
-        ("a.md  1", 1, "does not read"),
-        ("b.md 1\na.md 1", 2, "out of order"),
-        ("a.md 1\na.md 2", 2, "listed twice"),
-        ("a.md 1\nb.md 1\na.md 1", 3, "listed twice"),
-        ("a\tb.md 1", 1, "does not read"),
-    ] {
-        let failure = inventory(source).expect_err("the inventory fails");
-        let line = source.lines().nth(number - 1).expect("the failing line exists");
-        assert!(
-            failure.contains(&format!(":{number}:")) && failure.contains(line) && failure.contains(why),
-            "{failure}"
-        );
-    }
-    for source in ["# c\n\n.config/x 2\nA.md 1\nb/c.md 10\n", "# c\n   \n.config/x 2\nA.md 1\nb/c.md 10"] {
-        assert_eq!(
-            inventory(source),
-            Ok(BTreeMap::from([(".config/x".to_owned(), 2), ("A.md".to_owned(), 1), ("b/c.md".to_owned(), 10)]))
-        );
+fn no_name_passes() {
+    assert_eq!(verdict(&BTreeMap::new()), Ok(()));
+}
+
+#[test]
+fn any_name_fails_and_the_failure_lists_each_file_line_and_match() {
+    let found = BTreeMap::from([
+        ("a.md".to_owned(), vec![(2, "fab".to_owned()), (7, "heavy cargo".to_owned())]),
+        ("b.md".to_owned(), vec![(1, "hel8".to_owned())]),
+    ]);
+    let failure = verdict(&found).expect_err("any name fails");
+    for text in ["a.md:2: fab", "a.md:7: heavy cargo", "b.md:1: hel8"] {
+        assert!(failure.contains(text), "missing {text:?}: {failure}");
     }
 }
 
 #[test]
-fn fewer_names_than_listed_pass() {
-    for source in ["a.md 3\ngone.md 2\n", "a.md 1\n", "# Raised: lead, a reason\na.md 2\n"] {
-        assert_eq!(verdict(&BTreeMap::from([("a.md".to_owned(), vec![(1, "fab".to_owned())])]), source), Ok(()));
-    }
+fn a_symlinks_target_is_read_as_its_text() {
+    let scratch = skein_scratch::Scratch::new("outward-symlink");
+    git(scratch.path(), &["init", "-q"]);
+    std::os::unix::fs::symlink("/home/free/elsewhere", scratch.path().join("link")).expect("creating the symlink");
+    git(scratch.path(), &["add", "link"]);
+    let scan = scan(scratch.path()).expect("reading the symlink's text");
+    assert_eq!(scan.found, BTreeMap::from([("link".to_owned(), vec![(1, "/home/free/".to_owned())])]));
 }
 
-#[test]
-fn a_file_beyond_its_count_fails_with_its_names_and_the_needed_inventory() {
-    for source in ["# The header.\n\na.md 1\nc.md 3\n", "# The header.\n\na.md 1\nc.md 3"] {
-        let found = BTreeMap::from([
-            ("a.md".to_owned(), vec![(2, "fab".to_owned()), (7, "heavy cargo".to_owned())]),
-            ("b.md".to_owned(), vec![(1, "hel8".to_owned())]),
-            ("c.md".to_owned(), vec![(4, "/home/free/".to_owned())]),
-        ]);
-        let failure = verdict(&found, source).expect_err("the counts exceed the inventory");
-        for text in [
-            "a.md:2: fab",
-            "a.md:7: heavy cargo",
-            "b.md:1: hel8",
-            "# Raised: <who, why>",
-            "a.md: 2 names, inventory: 1",
-            "b.md: 1 names, inventory: not listed",
-            "The inventory the tree needs:\n# The header.\n\na.md 2\nb.md 1\nc.md 1\n",
-        ] {
-            assert!(failure.contains(text), "missing {text:?}: {failure}");
-        }
-        assert!(!failure.contains("c.md:4"), "{failure}");
-    }
-}
-
-#[test]
-fn the_needed_inventory_keeps_the_comments_and_takes_todays_counts() {
-    for (source, counts, expected) in [
-        (
-            "# The header.\n\na.md 3\n# Raised: lead, a reason\nb.md 2\n# Raised: lead, another\nc.md 1\nd.md 1\n",
-            vec![("a.md", 1), ("b.md", 4), ("bb.md", 2), ("d.md", 1), ("e.md", 5)],
-            "# The header.\n\na.md 1\n# Raised: lead, a reason\nb.md 4\nbb.md 2\nd.md 1\ne.md 5\n",
-        ),
-        (
-            "# header\n# Raised: first\n# Raised: second\nb.md 1\n# tail\n",
-            vec![("a.md", 1), ("b.md", 2), ("c.md", 3)],
-            "# header\na.md 1\n# Raised: first\n# Raised: second\nb.md 2\n# tail\nc.md 3\n",
-        ),
-        ("# Raised: kept\n\n# Raised: dropped\na.md 1\n# tail", vec![], "# Raised: kept\n\n# tail\n"),
-        ("a.md 1\n", vec![("a.md", 0)], "\n"),
-        ("", vec![("a.md", 1)], "a.md 1\n"),
-    ] {
-        let counts = counts.into_iter().map(|(path, count)| (path.to_owned(), count)).collect();
-        assert_eq!(needed(source, &counts), expected, "{source:?}");
-    }
+fn git(root: &Path, args: &[&str]) {
+    let output = Command::new("git").arg("-C").arg(root).args(args).output().expect("running git");
+    assert!(output.status.success(), "git {args:?}: {}: {}", output.status, String::from_utf8_lossy(&output.stderr));
 }

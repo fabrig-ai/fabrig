@@ -58,10 +58,13 @@ plays the proxy's own rules against scripted upstreams rather than
 temper's service (`protocol/sign-in.md`); a connected Forgejo, its connect with its bot's
 tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
-(`protocol/setup.md`); with `application.machine.github` null, GitHub's
-remotes come out malformed (`protocol/configuration.md`). The case library's
-purpose is retired and the fake git program drives skein's JSON tokenizer
-over a whole body by hand (`domain/testing.md`), and the `welcome-set-up`
+(`protocol/setup.md`); a kept GitHub forge whose base ends in `/` keeps
+remotes with two after the host (`protocol/configuration.md`). A duplicate
+person's identity panics at a start, which the user's request counts a
+bug (`domain/root.md`). The case library's
+purpose is retired, the fake git program drives skein's JSON tokenizer
+over a whole body by hand and the ladder has no twin past B1 and no live
+story but B0's (`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). Six hand-written
 widenings stand beside skein's `len_u64` and `usize_of`, two of them in
 the worker's steps (`README.md`). Of the drafts, the reference

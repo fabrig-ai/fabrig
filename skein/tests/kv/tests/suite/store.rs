@@ -28,6 +28,84 @@ fn put(key: &[u8], value: &[u8]) -> Op {
     Op::Put { key: Box::from(key), value: Box::from(value) }
 }
 
+const SNAPSHOT_FILE_STAGES: [(&str, u32); 6] = [
+    ("Header", 2),
+    ("Chunk before rows", 3),
+    ("Chunk after first rows", 4),
+    ("Chunk after last rows", 5),
+    ("Sync", 6),
+    ("Close", 7),
+];
+
+fn snapshot_at(limits: Limits, fires: u32) -> World {
+    let mut world = World::new(limits);
+    world.request(Request::Open { owner: Token::new(1), root: world.root });
+    assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
+    let value = [b'x'; 60];
+    world.request_no_fire(Request::Commit {
+        owner: Token::new(2),
+        ops: Box::new([put(b"a", &value), put(b"b", &value), put(b"c", &value), put(b"d", &value)]),
+    });
+    assert_eq!(world.pop(), Event::Committed { owner: Token::new(2), number: 1 });
+    for _ in 0..fires {
+        world.fire_once();
+    }
+    assert!(world.below.is_empty(), "snapshot I/O has settled before the commit");
+    assert_eq!(world.io.open_files(), 2, "the log and snapshot are open");
+    world
+}
+
+#[test]
+fn a_commit_failing_mid_snapshot_closes_the_snapshot_s_file() {
+    for (stage, fires) in SNAPSHOT_FILE_STAGES {
+        for sync in [false, true] {
+            let mut world = snapshot_at(limits(32), fires);
+            world.start(Request::Commit { owner: Token::new(3), ops: Box::new([put(b"e", b"new")]) });
+            if sync {
+                assert!(world.step(false), "write lands and starts sync");
+                assert!(matches!(world.below.iter().next(), Some(file::Request::Sync { .. })));
+            } else {
+                assert!(matches!(world.below.iter().next(), Some(file::Request::WriteAt { .. })));
+            }
+            world.sim.set_faults(Faults { io_error: 1000, ..Faults::NONE });
+            assert!(world.step(false), "commit I/O fails");
+            assert_eq!(world.pop(), Event::Failed { owner: Token::new(3), number: 2 });
+            world.sim.set_faults(Faults::NONE);
+            world.drive(true);
+            assert_eq!(world.pop(), Event::Recovered { last: if sync { 2 } else { 1 } });
+            world.request(Request::Close { owner: Token::new(4) });
+            assert_eq!(world.pop(), Event::Closed { owner: Token::new(4) });
+            assert!(world.above.is_empty());
+            assert_eq!(world.io.open_files(), 0, "{stage}, sync={sync}: snapshot file is closed");
+        }
+    }
+}
+
+#[test]
+fn a_rollover_failing_mid_snapshot_closes_the_snapshot_s_file() {
+    for (stage, fires) in SNAPSHOT_FILE_STAGES {
+        for directory_sync in [false, true] {
+            let mut world = snapshot_at(Limits { segment: 1, ..limits(32) }, fires);
+            world.request_no_fire(Request::Commit { owner: Token::new(3), ops: Box::new([put(b"e", b"new")]) });
+            assert_eq!(world.pop(), Event::Committed { owner: Token::new(3), number: 2 });
+            world.start(Request::Commit { owner: Token::new(4), ops: Box::new([put(b"f", b"next")]) });
+            assert!(matches!(world.below.iter().next(), Some(file::Request::Close { .. })));
+            assert!(world.step(false), "rollover closes the log");
+            assert!(matches!(world.below.iter().next(), Some(file::Request::Create { .. })));
+            if directory_sync {
+                assert!(world.step(false), "rollover creates the next log");
+                assert!(matches!(world.below.iter().next(), Some(file::Request::SyncDirectory { .. })));
+            }
+            world.sim.set_faults(Faults { no_space: 1000, ..Faults::NONE });
+            assert!(world.step(false), "rollover I/O fails");
+            world.sim.set_faults(Faults::NONE);
+            world.drive(true);
+            assert!(world.above.is_empty(), "failed rollover leaves its commit unanswered: {:?}", world.above);
+            assert_eq!(world.io.open_files(), 0, "{stage}, directory_sync={directory_sync}: snapshot file is closed");
+        }
+    }
+}
+
 fn crc32c(bytes: &[u8]) -> u32 {
     let mut crc = !0_u32;
     for byte in bytes {

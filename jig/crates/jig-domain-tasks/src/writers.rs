@@ -142,6 +142,21 @@ pub(crate) fn read_afresh(domain: &mut Domain, env: &Env<Limits>, resource: &Nam
     }
 }
 
+/// Keep a run writer's task and hold owner until its answer or lost-attempt fresh read.
+pub(crate) fn closing_blocked(domain: &Domain, task: u64) -> bool {
+    for (resource, slot) in &domain.writers {
+        match slot.writer {
+            Writer::Run { task: owner, .. } => {
+                if owner == task || crate::holds::writer_holder(domain, resource) == Some(task) {
+                    return true;
+                }
+            }
+            Writer::Effect { .. } => {}
+        }
+    }
+    false
+}
+
 /// Pure whole-set preflight; a repeated procedure entry keeps its own slot.
 pub(crate) fn effect_ready(domain: &Domain, limits: &Limits, task: u64, resource: &Name, entry: Option<u64>) -> bool {
     if !crate::holds::valid_name(limits, resource) || !covers(domain, task, resource, limits.depth.saturating_add(1)) {

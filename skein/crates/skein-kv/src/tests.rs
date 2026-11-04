@@ -150,38 +150,121 @@ fn a_page_too_small_for_one_row_is_refused() {
     assert_eq!(above.pop(), Some(Event::Refused { owner: Token::new(3), refusal: crate::Refusal::TooLarge }));
 }
 
-#[test]
-fn commit_is_invisible_until_sync() {
-    let env = env();
+fn open_store(env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<file::Request>) -> Store {
     let mut store = Store::new(&env.limits);
-    let mut above = Queue::with_capacity(20);
-    let mut below = Queue::with_capacity(20);
-    down(&mut store, &env, Request::Open { owner: Token::new(1), root: Fd::new(5) }, &mut above, &mut below);
+    down(&mut store, env, Request::Open { owner: Token::new(1), root: Fd::new(5) }, above, below);
     let Some(file::Request::List { .. }) = below.pop() else {
         panic!("list requested");
     };
-    up(
-        &mut store,
-        &env,
-        file::Event::Listed { owner: Token::new(0x4b56), entries: Box::new([]) },
-        &mut above,
-        &mut below,
-    );
+    up(&mut store, env, file::Event::Listed { owner: Token::new(0x4b56), entries: Box::new([]) }, above, below);
     let Some(file::Request::Create { .. }) = below.pop() else {
         panic!("segment create requested");
     };
-    up(
-        &mut store,
-        &env,
-        file::Event::Opened { owner: Token::new(0x4b56), file: Token::new(9), len: 0 },
-        &mut above,
-        &mut below,
-    );
+    up(&mut store, env, file::Event::Opened { owner: Token::new(0x4b56), file: Token::new(9), len: 0 }, above, below);
     let Some(file::Request::SyncDirectory { .. }) = below.pop() else {
         panic!("directory sync requested");
     };
-    up(&mut store, &env, file::Event::Synced { owner: Token::new(0x4b56) }, &mut above, &mut below);
+    up(&mut store, env, file::Event::Synced { owner: Token::new(0x4b56) }, above, below);
     assert_eq!(above.pop(), Some(Event::Opened { owner: Token::new(1), last: 0 }));
+    assert!(above.is_empty());
+    assert!(below.is_empty());
+    store
+}
+
+#[test]
+fn put_and_erase_churn_on_distinct_keys_keeps_the_projection_bounded() {
+    const ROUNDS: u32 = 1_024;
+    let mut env = env();
+    env.limits.segment = u64::from(ROUNDS) * u64::from(env.limits.commit);
+    let bound = env.limits.queued * env.limits.ops;
+    let mut above = Queue::with_capacity(20);
+    let mut below = Queue::with_capacity(20);
+    let mut store = open_store(&env, &mut above, &mut below);
+    let mut committed = 0;
+    let mut in_flight_last = 1;
+    let mut syncs = 0;
+
+    // Each round queues a put and erase on a fresh key before answering one request.
+    // Every sync therefore has a successor batch waiting behind it.
+    for round in 0..ROUNDS {
+        let number = u64::from(round) + 1;
+        let key = round.to_be_bytes();
+        down(
+            &mut store,
+            &env,
+            Request::Commit {
+                owner: Token::new(number),
+                ops: vec![put(&key, b"value"), Op::Erase { key: Box::from(key.as_slice()) }].into_boxed_slice(),
+            },
+            &mut above,
+            &mut below,
+        );
+        assert!(above.is_empty(), "commit {number} waits for sync");
+        assert_eq!(below.len(), 1, "one request is outstanding");
+        if round % 2 == 0 {
+            let Some(file::Request::WriteAt { owner, .. }) = below.pop() else {
+                panic!("frame write requested");
+            };
+            up(&mut store, &env, file::Event::Written { owner }, &mut above, &mut below);
+            assert!(above.is_empty(), "writing does not commit");
+            let Some(file::Request::Sync { .. }) = below.iter().next() else {
+                panic!("log sync requested");
+            };
+        } else {
+            let Some(file::Request::Sync { owner, .. }) = below.pop() else {
+                panic!("log sync requested");
+            };
+            assert!(in_flight_last < number, "a commit is queued at every sync");
+            up(&mut store, &env, file::Event::Synced { owner }, &mut above, &mut below);
+            for expected in committed + 1..=in_flight_last {
+                assert_eq!(above.pop(), Some(Event::Committed { owner: Token::new(expected), number: expected }));
+            }
+            assert!(above.is_empty(), "only the synced batch commits");
+            committed = in_flight_last;
+            in_flight_last = number;
+            syncs += 1;
+            let Some(file::Request::WriteAt { .. }) = below.iter().next() else {
+                panic!("next batch starts");
+            };
+        }
+        assert_eq!(below.len(), 1);
+        let keys = store.projected_keys();
+        assert!(keys <= bound, "round {round}: {keys} projected keys exceed {bound}");
+    }
+    assert_eq!(syncs, ROUNDS / 2);
+    assert_eq!(committed, u64::from(ROUNDS) - 2);
+}
+
+#[test]
+fn map_budget_refusal_precedes_the_full_byte_queue() {
+    // One row's entry charge, one-byte key and one-byte value.
+    const BUDGET: u64 = crate::map::ENTRY + 2;
+    // Frame header, put's lengths and tag, key and value.
+    const FRAME: u32 = crate::FRAME_BYTES + 9 + 1 + 1;
+    let mut env = env();
+    env.limits.budget = BUDGET;
+    env.limits.queued_bytes = u64::from(FRAME);
+    let mut above = Queue::with_capacity(20);
+    let mut below = Queue::with_capacity(20);
+    let mut store = open_store(&env, &mut above, &mut below);
+    for owner in [Token::new(2), Token::new(3)] {
+        down(&mut store, &env, Request::Commit { owner, ops: Box::new([put(b"k", b"v")]) }, &mut above, &mut below);
+    }
+    assert!(above.is_empty(), "one frame is writing and one fills the byte queue");
+    for (op, refusal) in [(put(b"x", b"v"), crate::Refusal::Full), (put(b"k", b"v"), crate::Refusal::Busy)] {
+        let owner = Token::new(4);
+        down(&mut store, &env, Request::Commit { owner, ops: Box::new([op]) }, &mut above, &mut below);
+        assert_eq!(above.pop(), Some(Event::Refused { owner, refusal }));
+        assert!(above.is_empty());
+    }
+}
+
+#[test]
+fn commit_is_invisible_until_sync() {
+    let env = env();
+    let mut above = Queue::with_capacity(20);
+    let mut below = Queue::with_capacity(20);
+    let mut store = open_store(&env, &mut above, &mut below);
     down(
         &mut store,
         &env,
@@ -315,6 +398,18 @@ fn the_map_keeps_its_encoded_size_through_puts_overwrites_and_erases() {
     }
 }
 
+fn admit(
+    queued: &mut crate::map::Queued,
+    map: &crate::map::KvMap,
+    ops: &[Op],
+    limits: &Limits,
+    number: u64,
+) -> Result<(), crate::Refusal> {
+    let projected = queued.check(map, ops, limits)?;
+    queued.reserve(ops, projected, number);
+    Ok(())
+}
+
 #[test]
 fn queued_admission_matches_concatenated_ops_after_refusals() {
     use crate::map::{ENTRY, KvMap, Queued};
@@ -346,6 +441,7 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
     let mut successes = 0_u32;
 
     for step in 0..COMMITS {
+        let number = u64::from(step);
         let mut ops = vec![];
         for _ in 0..rng.between(0, u64::from(limits.ops)) {
             let byte = u8::try_from(rng.below(KEYS)).expect("small key set");
@@ -361,7 +457,7 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
         let mut concatenated = accepted.clone();
         concatenated.extend_from_slice(&ops);
         let expected = map.check(&concatenated, &limits).map(|_| ());
-        assert_eq!(admitted.admit(&map, &ops, &limits), expected, "seed {SEED:#x}, commit {step}");
+        assert_eq!(admit(&mut admitted, &map, &ops, &limits, number), expected, "seed {SEED:#x}, commit {step}");
         match expected {
             Ok(()) => {
                 successes += 1;
@@ -375,14 +471,18 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
                 }
                 // Rebuild the state before the refusal and compare the next admission.
                 let mut unchanged = Queued::new();
-                unchanged.admit(&map, &accepted, &limits).expect("accepted projection fits");
+                admit(&mut unchanged, &map, &accepted, &limits, number).expect("accepted projection fits");
                 let key = [u8::try_from(rng.below(KEYS)).expect("small key set")];
                 let probe = [put(&key, b"next")];
                 let mut concatenated = accepted.clone();
                 concatenated.extend_from_slice(&probe);
                 let expected = map.check(&concatenated, &limits).map(|_| ());
-                assert_eq!(unchanged.admit(&map, &probe, &limits), expected, "reference probe at {step}");
-                assert_eq!(admitted.admit(&map, &probe, &limits), expected, "refusal changed next answer at {step}");
+                assert_eq!(admit(&mut unchanged, &map, &probe, &limits, number), expected, "reference probe at {step}");
+                assert_eq!(
+                    admit(&mut admitted, &map, &probe, &limits, number),
+                    expected,
+                    "refusal changed next answer at {step}"
+                );
                 if expected.is_ok() {
                     accepted = concatenated;
                 }
@@ -391,6 +491,7 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
         if step % APPLY_EVERY == 0 || step % DRAIN_EVERY == 0 {
             let used = map.check(&accepted, &limits).expect("admitted ops fit");
             map.apply(&accepted, used);
+            admitted.applied(&accepted, number);
         }
         if step % DRAIN_EVERY == 0 {
             admitted.clear();
@@ -400,4 +501,29 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
     assert!(successes > 0, "seed exercises acceptance");
     assert!(full > 0, "seed exercises the map budget");
     assert!(too_large > 0, "seed exercises key and value limits");
+}
+
+#[test]
+fn applying_an_earlier_commit_keeps_a_later_charge_on_the_same_key() {
+    use crate::map::{KvMap, Queued};
+
+    let limits = limits();
+    let mut map = KvMap::new(&limits);
+    let mut admitted = Queued::new();
+    let first = [put(b"key", b"short")];
+    let second = [put(b"key", b"a longer value")];
+    let third = [put(b"other", b"third")];
+    admit(&mut admitted, &map, &first, &limits, 1).expect("first commit fits");
+    admit(&mut admitted, &map, &second, &limits, 2).expect("second commit fits");
+
+    let used = map.check(&first, &limits).expect("first commit fits");
+    map.apply(&first, used);
+    admitted.applied(&first, 1);
+    let mut concatenated = second.to_vec();
+    concatenated.extend_from_slice(&third);
+    assert_eq!(
+        admitted.check(&map, &third, &limits),
+        Queued::new().check(&map, &concatenated, &limits),
+        "the later commit's charge survives the earlier commit applying",
+    );
 }

@@ -1088,7 +1088,7 @@ names (section 2.3):
 | `check_timeout` | 5 minutes, which the default reserve's 5 minutes holds (domain/run.md, 9.1) | provisional |
 | `tool_deadline` | 20 minutes, the most a command's call may ask for | provisional; the tool-output probe |
 | `job_poll` | 30 s, a `job` call's wait when it asks for none | provisional; the tool-output probe's `background` |
-| `job_wait` | 5 minutes, the longest yield or wait a call may ask for | provisional; the dogfood's polls |
+| `job_wait` | 5 minutes, the longest yield or wait a call may ask for | provisional; the polls of real runs |
 | `parallel_tools` | 4 adjacent reads run at once | provisional; the parallel-read probe |
 | `group_stop` | 1 s for each of its three steps | provisional; the process-tree probe |
 | `close` | 5 s | provisional |
