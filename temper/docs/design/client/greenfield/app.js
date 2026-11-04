@@ -725,8 +725,8 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     if (at === 'welcome') {
       body = `<header class="setup-head"><p class="kicker">Reliable, scalable and flexible software factory.</p><h1 class="headline">Welcome to temper</h1><p class="lede">You describe <strong>what</strong> you want and <strong>how</strong> you want it done, and it happens.</p></header>
         <div class="choices-grid">
+          ${choice('Set up temper', 'Your forge: a Forgejo temper runs for you, or GitHub. Your model: ChatGPT or Claude.', 'About five minutes', `<a class="btn primary" href="welcome.html?at=${f ? (m?.ready ? 'ready' : 'model') : 'forge'}">${f ? 'Go on setting up' : 'Set up temper'}</a>`, ' lead')}
           ${choice('Try the playground', 'A scripted model and a forge, built in. A taste of how temper feels, with nothing to connect.', 'Fully offline · Ready at once', '<button type="button" class="btn" data-playground>Try the playground</button>')}
-          ${choice('Set up temper', 'Your forge: GitHub, or a Forgejo temper creates or connects to. Your model: ChatGPT or Claude.', 'About five minutes', `<a class="btn primary" href="welcome.html?at=${f ? (m?.ready ? 'ready' : 'model') : 'forge'}">${f ? 'Go on setting up' : 'Set up temper'}</a>`, ' lead')}
         </div>
         <p class="facts">Tried the playground first? Set up whenever you like; the playground then steps aside.</p>`;
     } else if (at === 'forge') {
@@ -737,8 +737,8 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       } else {
         body = `${head('Connect a forge', 'Where your code lives: you tell temper what you want, agents push and land code.')}
           <div class="choices-grid">
+            ${choice('Forgejo', 'A forge of your own: temper starts it on this machine and manages it.', 'Here · about a minute', '<button type="button" class="btn primary" data-forgejo>Run on this machine</button>', ' lead')}
             ${choice('GitHub', 'Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.', 'In this tab, on GitHub · about two minutes', '<button type="button" class="btn" data-github>Connect GitHub</button>')}
-            ${choice('Forgejo', 'A forge of your own. temper can start it and manage it, or you can connect your own deployment.', 'Here · about a minute', '<button type="button" class="btn" data-forgejo>Run on this machine</button><button type="button" class="link plain" data-later-note="Connecting your own Forgejo: its address, then temper connects as its admin or with its bot’s tokens. Not drawn yet.">Or connect your deployment</button>')}
           </div>${foot}`;
       }
     } else if (at === 'model') {
@@ -774,10 +774,10 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       } else if (m?.ready) {
         body = `${status}${head('Connect a model')}<div class="forge-status done"><p><span class="ok">✓</span><b>${esc(m.name)}</b><span class="sep">·</span><span class="muted">${esc(m.who)}</span></p></div><div class="acts"><a class="btn primary" href="welcome.html?at=ready">Continue</a></div>${foot}`;
       } else {
-        body = `${status}${head('Connect a model', 'temper’s agents run on it: on a plan you sign in to, or on a key.')}
+        body = `${status}${head('Connect a model', 'temper’s agents run on a plan you sign in to. Keys and other accounts can be added later, in Settings.')}
           <div class="choices-grid">
-            ${choice('ChatGPT', 'Your ChatGPT plan: sign in, and temper’s agents use its included usage.', 'Or paste a key from OpenAI’s platform, billed to its organization.', '<button type="button" class="btn primary" data-chatgpt>Continue with ChatGPT</button><a class="link" href="welcome.html?at=model&amp;way=key">Use an OpenAI API key</a>')}
-            ${choice('Claude', 'Your Claude subscription, through Claude Code on each host temper’s agents run on.', '', '<a class="btn" href="welcome.html?at=model&amp;way=claude">Use your Claude subscription</a>')}
+            ${choice('ChatGPT', 'Your ChatGPT plan: sign in, and temper’s agents use its included usage.', 'Sign in, in this tab · about a minute', '<button type="button" class="btn primary" data-chatgpt>Continue with ChatGPT</button>', ' lead')}
+            ${choice('Claude', 'Your Claude subscription, through Claude Code on each host temper’s agents run on.', 'A command in a terminal, on each host', '<a class="btn" href="welcome.html?at=model&amp;way=claude">Use your Claude subscription</a>')}
           </div>${foot}`;
       }
     } else {
@@ -796,7 +796,8 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
         <div class="acts"><button type="button" class="btn primary" data-make${ready && !making ? '' : ' disabled'}>${making ? `Making ${esc(FR.project.name)}…` : `Open ${esc(FR.project.name)}`}</button></div>
         ${ready ? '' : `<p class="facts">${f && !f.done ? 'Forgejo is still setting up; this page moves on by itself.' : 'It opens once your forge and model are ready.'}</p>`}${foot}`;
     }
-    return `<div class="setup"><header class="setup-top"><a class="brand" href="welcome.html">temper</a>${steps}</header><main class="setup-main">${body}</main></div>`;
+    const notice = `<p class="setup-notice">temper box runs temper on this machine, to try it. Deploying it for real? See <a class="link" href="#" data-later-note="The deployment guide: temper’s documentation, outside this wizard. Not drawn.">the deployment guide ↗</a></p>`;
+    return `<div class="setup"><header class="setup-top"><a class="brand" href="welcome.html">temper</a>${steps}</header>${notice}<main class="setup-main">${body}</main></div>`;
   }
   function forgeSteps(f) {
     return `<details class="each" id="forge-steps"><summary>Each step</summary><ol>${FR.forgejo.steps.map((s, i) => `<li class="${i < f.i ? 'done' : i === f.i ? 'current' : ''}">${esc(i < f.i ? s.done : s.doing)}</li>`).join('')}</ol></details>`;
