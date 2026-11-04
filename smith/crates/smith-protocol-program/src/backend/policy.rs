@@ -113,15 +113,17 @@ pub(crate) fn judge(tool: &[u8], input: &[u8], grants: Grants, mounts: &[Mount],
     let path = match &reading {
         PathField::Text(path) => path.as_ref(),
         PathField::Absent if field == b"path" => cwd,
-        PathField::Absent => return deny(&json::join(&[MISSING, b"\"", field, b"\""])),
-        PathField::NotText | PathField::Unreadable => return deny(&json::join(&[WRONG_TYPE, b"\"", field, b"\""])),
+        PathField::Absent => return deny(&skein_lib::bytes::concat(&[MISSING, b"\"", field, b"\""])),
+        PathField::NotText | PathField::Unreadable => {
+            return deny(&skein_lib::bytes::concat(&[WRONG_TYPE, b"\"", field, b"\""]));
+        }
     };
     if path.len() > usize::try_from(path_bytes).expect("path bound") {
         return deny(TOO_LONG);
     }
     let resolved = resolve(cwd, path, path_bytes);
     let Some(mount) = select(mounts, &resolved) else {
-        return deny(&json::join(&[OUTSIDE, path]));
+        return deny(&skein_lib::bytes::concat(&[OUTSIDE, path]));
     };
     let mut cursor = 0;
     for _ in 0..=resolved.len() {
@@ -133,7 +135,9 @@ pub(crate) fn judge(tool: &[u8], input: &[u8], grants: Grants, mounts: &[Mount],
         }
     }
     match tool {
-        Builtin::Write | Builtin::Edit if !mount.writable => return deny(&json::join(&[READ_ONLY, path])),
+        Builtin::Write | Builtin::Edit if !mount.writable => {
+            return deny(&skein_lib::bytes::concat(&[READ_ONLY, path]));
+        }
         Builtin::Read | Builtin::Glob | Builtin::Grep | Builtin::Write | Builtin::Edit | Builtin::Bash => {}
     }
     mcp::Verdict::Allow { updated_input: input.into() }

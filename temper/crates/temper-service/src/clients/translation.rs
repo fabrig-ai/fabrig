@@ -87,7 +87,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::PreparedAgent { .. }
         | core::Event::EndedTaskLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
         | core::Event::EndedReadLoaded { .. }

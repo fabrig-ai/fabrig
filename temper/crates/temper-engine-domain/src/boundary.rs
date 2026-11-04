@@ -291,7 +291,10 @@ pub enum ChangeAfter {
 
 /// Action a worker can submit for an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[expect(clippy::large_enum_variant, reason = "the worker boundary carries jig's bounded amendment whole")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "the worker boundary carries jig's bounded amendment whole")
+)]
 pub enum ProposedAction {
     Effect { repository: skein_forge::api::Repository, resource: forge::What, write: Box<skein_forge::api::Write> },
     Batch(Box<[Delegate]>),
@@ -876,6 +879,7 @@ pub(crate) enum Work {
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),
     Activate(Box<tasks::RunContext>),
+    Due { context: Box<tasks::RunContext>, ready: bool },
     EscalationLoaded { waiter: Token, rows: Box<[Record]> },
     EscalationFailed { waiter: Token },
     ProposalLoaded { waiter: Token, rows: Box<[Record]> },

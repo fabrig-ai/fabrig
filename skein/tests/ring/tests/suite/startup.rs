@@ -266,3 +266,48 @@ fn startup_forwards_the_bundle_byte_bound_to_the_reader() {
         RootsRefusal::Unread { path, why: Unread::TooLarge { max: length - 1 } }
     );
 }
+
+#[test]
+fn startup_stores_keep_conflict_and_refuse_without_leaking_descriptors() {
+    use skein_io::file::Expect;
+    use skein_lib::Duration;
+    use skein_shell::{
+        Clock, Config, Kernel, STORE_OPERATIONS, StartupStore, StoreDirectory, Stored, Unstored, store_file,
+    };
+    let scratch = Scratch::new("startup-store");
+    let private = scratch.path().join("private");
+    fs::create_dir(&private).expect("private directory");
+    fs::set_permissions(&private, fs::Permissions::from_mode(0o740)).expect("group bit");
+    let mut kernel = Kernel::open(Config { operations: STORE_OPERATIONS }).expect("store ring");
+    let clock = Clock::new();
+    for (directory, bytes, answer) in [
+        (StoreDirectory::Root, b"kept".as_slice(), Ok(Stored::Kept)),
+        (StoreDirectory::Root, b"conflicting".as_slice(), Ok(Stored::Conflict)),
+        (
+            StoreDirectory::Private { name: b"private", user: skein_shell::effective_user() },
+            b"refused".as_slice(),
+            Err(Unstored::Unsafe(Unsafe::Mode(0o040))),
+        ),
+    ] {
+        let descriptors = fs::read_dir(DESCRIPTORS).expect("descriptor observer").count();
+        assert_eq!(
+            store_file(
+                &mut kernel,
+                &clock,
+                StartupStore {
+                    root: skein_shell::open_root(scratch.path()).expect("store root"),
+                    directory,
+                    name: b"file",
+                    bytes: Box::from(bytes),
+                    expected: Expect::Absent,
+                    timeout: Duration::from_secs(30),
+                    seed: 1,
+                }
+            ),
+            answer
+        );
+        assert_eq!(fs::read_dir(DESCRIPTORS).expect("descriptor observer").count(), descriptors, "store closes");
+        assert_eq!(fs::read(scratch.path().join("file")).expect("kept file"), b"kept");
+        assert_eq!(fs::read_dir(&private).expect("private entries").count(), 0, "refusal writes nothing");
+    }
+}

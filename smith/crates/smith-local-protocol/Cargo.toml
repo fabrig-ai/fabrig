@@ -18,7 +18,6 @@ smith-local-domain.workspace = true
 smith-events.workspace = true
 smith-host-domain.workspace = true
 smith-domain.workspace = true
-smith-protocol-channel.workspace = true
 smith-protocol-translate.workspace = true
 smith-transcript.workspace = true
 skein-oauth.workspace = true

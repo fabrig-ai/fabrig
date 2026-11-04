@@ -645,7 +645,7 @@ impl Bounded {
     pub fn accounts(&self) -> temper_service::AccountsRuntime {
         use skein_oauth_accounts::{Endpoint, Origin, Transport};
         let value: serde_json::Value = serde_json::from_slice(&self.document).expect("bounded document");
-        let mut runtime = temper_service::AccountsRuntime { providers: skein_lib::List::with_capacity(2) };
+        let mut runtime = temper_service::AccountsRuntime { providers: skein_lib::List::with_capacity(2), trust: None };
         for provider in value["engine"]["llm"]["providers"].as_array().expect("providers") {
             let Some(sign_in) = provider["sources"].get("sign_in") else { continue };
             // Synthetic transports check registration without resolving or opening endpoints.

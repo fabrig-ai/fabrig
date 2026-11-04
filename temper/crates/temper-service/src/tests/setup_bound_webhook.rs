@@ -18,8 +18,8 @@ fn reconcile_hands_the_forge_the_bound_webhook_address_after_a_port_zero_bind() 
         let mut service = local_service(config, store);
         let engine = service.engine.as_mut().unwrap();
         // Answer the unrelated worker listener so the real engine pass has routing room.
-        for _ in 0..engine.workers.io.len() {
-            let Some(skein_io::Request::Listen { owner, addr }) = engine.workers.io.pop() else {
+        for _ in 0..engine.workers.host.io.len() {
+            let Some(skein_io::Request::Listen { owner, addr }) = engine.workers.host.io.pop() else {
                 panic!("worker listener");
             };
             assert!(engine.workers.up(

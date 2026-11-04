@@ -1592,10 +1592,12 @@ name = "jig-protocol-accounts"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
+ "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
  "skein-http",
  "skein-io",
+ "skein-kv",
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
@@ -1701,6 +1703,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-protocol-engine-clients",
  "skein-http",
+ "skein-io",
  "skein-lib",
 ]
 
@@ -1709,6 +1712,7 @@ name = "jig-protocol-engine-workers"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-protocol-config",
  "jig-protocol-worker-wire",
  "skein-channel",
  "skein-codec",
@@ -1762,6 +1766,21 @@ dependencies = [
  "jig-client-domain",
  "skein-lib",
  "smith-transcript",
+]
+
+[[package]]
+name = "jig-protocol-worker-agents"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-host",
+ "skein-io",
+ "skein-lib",
+ "smith-channel",
+ "smith-domain-run",
+ "smith-host-domain",
+ "smith-host-protocol",
+ "smith-protocol-channel",
+ "smith-protocol-program",
 ]
 
 [[package]]
@@ -1994,6 +2013,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-tools",
+ "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "jig-test-connector",
@@ -2008,12 +2028,10 @@ dependencies = [
  "skein-json",
  "skein-kv",
  "skein-lib",
- "skein-oauth",
  "skein-oauth-accounts",
  "skein-world",
  "smith-channel",
  "smith-charter",
- "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
  "smith-host-protocol",
@@ -3622,7 +3640,6 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-events",
- "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
@@ -3859,7 +3876,6 @@ dependencies = [
  "smith-local-process-world",
  "smith-local-service",
  "smith-local-shell",
- "smith-protocol-channel",
  "smith-protocol-program",
  "smith-protocol-translate",
 ]
@@ -3949,7 +3965,6 @@ dependencies = [
  "smith-host-domain",
  "smith-local-domain",
  "smith-local-protocol",
- "smith-protocol-channel",
  "smith-protocol-translate",
  "smith-transcript",
 ]
@@ -4025,7 +4040,6 @@ dependencies = [
  "smith-local-process-world",
  "smith-local-protocol",
  "smith-local-service",
- "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-program",
  "smith-protocol-translate",
@@ -4133,7 +4147,6 @@ dependencies = [
  "smith-domain-session",
  "smith-domain-tools",
  "smith-events",
- "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-translate",
@@ -4232,7 +4245,6 @@ dependencies = [
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
- "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-translate",
  "smith-tools-world",
@@ -5351,6 +5363,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-transcript",
+ "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "skein-channel",

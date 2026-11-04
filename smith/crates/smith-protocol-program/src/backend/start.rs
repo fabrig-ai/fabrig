@@ -346,7 +346,7 @@ pub(super) fn arguments(
         arguments.push(Box::from(b"--effort".as_slice())).ok()?;
         arguments.push(Box::from(effort)).ok()?;
     }
-    let permission = mcp::json::join(&[b"mcp__", mcp::SERVER, b"__", mcp::PROMPT_TOOL]);
+    let permission = skein_lib::bytes::concat(&[b"mcp__", mcp::SERVER, b"__", mcp::PROMPT_TOOL]);
     for argument in [
         b"--append-system-prompt-file".as_slice(),
         instructions,

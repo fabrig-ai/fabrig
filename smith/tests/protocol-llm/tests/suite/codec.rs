@@ -466,7 +466,7 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
     let mut bounds = limits();
     bounds.client.output_items = 2;
     let cells = u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("bounded fixed cell") * 2;
-    let payload = u64::try_from(b"opaque_host".len() + BODY.len()).expect("bounded observed host payload");
+    let payload = skein_lib::len_u64(b"opaque_host".len() + BODY.len());
     let decoded_call_bytes = cells + payload - u64::from(!exact);
     let receiving = Receiving {
         max_completion_blocks: 2,

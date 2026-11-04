@@ -5,6 +5,7 @@ extern crate alloc;
 pub mod boundary;
 mod component;
 mod connection;
+pub mod host;
 pub mod limits;
 mod opening;
 mod translate;

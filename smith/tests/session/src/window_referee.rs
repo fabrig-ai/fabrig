@@ -116,8 +116,7 @@ pub(super) fn measured(session: &Session, prompt: &crate::provider::MeasuredProm
 }
 
 fn payload_bytes(prompt: &Prompt) -> u64 {
-    u64::try_from(prompt.model.len() + prompt.system.len() + prompt.effort.as_ref().map_or(0, |v| v.len()))
-        .expect("small fixed bytes")
+    skein_lib::len_u64(prompt.model.len() + prompt.system.len() + prompt.effort.as_ref().map_or(0, |v| v.len()))
         + prompt.namespace.owned_bytes().expect("small namespace")
         + prompt.messages.iter().flat_map(|message| &message.content).map(block_bytes).sum::<u64>()
 }

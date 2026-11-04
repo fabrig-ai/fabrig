@@ -46,7 +46,6 @@ pub fn key(now: &Now) -> Option<Key> {
         | Now::AcceptedTurn { .. }
         | Now::RefusedPayload { .. }
         | Now::Activate { .. }
-        | Now::PrepareAgent { .. }
         | Now::StartPreparation { .. }
         | Now::CompleteBrief { .. }
         | Now::BriefCorePlanned { .. }
@@ -125,7 +124,6 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         | Now::AcceptedTurn { .. }
         | Now::RefusedPayload { .. }
         | Now::Activate { .. }
-        | Now::PrepareAgent { .. }
         | Now::StartPreparation { .. }
         | Now::CompleteBrief { .. }
         | Now::BriefCorePlanned { .. }

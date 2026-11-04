@@ -71,7 +71,7 @@ fn ask(service: &mut crate::Service, value: Secret, first: Option<domain::FirstA
     let digest = skein_lib::sha256::digest(value.expose());
     engine.store.secrets(Token::new(901), fixtures::application_request(records::CARRIED, value));
     assert!(
-        (match engine.store.above.pop() {
+        (match engine.store.host.above.pop() {
             Some(StoreEvent::Carried { number: found, .. }) => found == records::CARRIED,
             _ => false,
         })
@@ -321,7 +321,7 @@ fn restart_without_an_admin_record_offers_connect_and_sweeps_a_crashed_carry() {
     let mut store = store(&forge);
     store.secrets(Token::new(901), fixtures::application_request(records::CARRIED, bundle(1, ADMIN)));
     assert!(
-        (match store.above.pop() {
+        (match store.host.above.pop() {
             Some(StoreEvent::Carried { number: found, .. }) => found == records::CARRIED,
             _ => false,
         })
@@ -363,7 +363,7 @@ fn both_admin_plans_read_the_paste_even_with_different_records_and_adoptions() {
         let digest = skein_lib::sha256::digest(value.expose());
         engine.store.secrets(Token::new(901), fixtures::application_request(records::CARRIED, value));
         assert!(
-            (match engine.store.above.pop() {
+            (match engine.store.host.above.pop() {
                 Some(StoreEvent::Carried { number: found, .. }) => found == records::CARRIED,
                 _ => false,
             })
@@ -441,7 +441,7 @@ fn admin_record_files_and_directories_are_owner_only() {
     let mut opened = false;
     for _ in 0_u32..4096 {
         disk_turn(&mut store, &mut kernel);
-        if let Some(event) = store.above.pop() {
+        if let Some(event) = store.host.above.pop() {
             assert!(
                 (match event {
                     StoreEvent::Opened { .. } => true,
@@ -457,12 +457,12 @@ fn admin_record_files_and_directories_are_owner_only() {
     fixtures::commit(&mut store, 1, Box::new([root::Write::Wires]));
     for _ in 0_u32..4096 {
         disk_turn(&mut store, &mut kernel);
-        if let Some(event) = store.above.pop() {
+        if let Some(event) = store.host.above.pop() {
             let StoreEvent::Committed { .. } = event else { panic!("{event:?}") };
             break;
         }
     }
-    assert!(store.component.mark_durable());
+    assert!(store.host.component.mark_durable());
     store.secrets(
         Token::new(901),
         fixtures::application_request(
@@ -473,7 +473,7 @@ fn admin_record_files_and_directories_are_owner_only() {
     let mut kept = false;
     for _ in 0_u32..4096 {
         disk_turn(&mut store, &mut kernel);
-        if let Some(event) = store.above.pop() {
+        if let Some(event) = store.host.above.pop() {
             assert!(
                 (match event {
                     StoreEvent::Kept { .. } => true,
@@ -536,7 +536,7 @@ fn busy_admin_connect_erases_its_unused_paste() {
     let number = records::CARRIED.checked_add(1).unwrap();
     engine.store.secrets(Token::new(901), fixtures::application_request(number, value));
     assert!(
-        (match engine.store.above.pop() {
+        (match engine.store.host.above.pop() {
             Some(StoreEvent::Carried { number: found, .. }) => found == number,
             _ => false,
         })
@@ -573,7 +573,7 @@ fn a_failed_keep_ends_the_admin_caller_and_erases_before_the_engine_stops() {
         records::Origin { kind: skein_forge_connection::settings::Kind::Forgejo, api: "127.0.0.1:3000".into() }
             .encode();
     lifecycle::keep(engine, 1, Item::Origin, &origin, Purpose::Host(run));
-    let Some(StoreEvent::Kept { owner }) = engine.store.above.pop() else { panic!("pending keep") };
+    let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else { panic!("pending keep") };
     answer(engine, StoreEvent::Corrupt { owner });
     assert!(engine.end.is_some());
     assert!(engine.setup.public.is_empty());
@@ -630,7 +630,7 @@ fn a_github_app_paste_cannot_decode_an_admin_bundle() {
     let digest = skein_lib::sha256::digest(value.expose());
     engine.store.secrets(Token::new(901), fixtures::application_request(records::CARRIED, value));
     assert!(
-        (match engine.store.above.pop() {
+        (match engine.store.host.above.pop() {
             Some(StoreEvent::Carried { number: found, .. }) => found == records::CARRIED,
             _ => false,
         })
@@ -745,7 +745,7 @@ fn setup_refuses_a_carried_value_of_another_kind() {
         let value = bundle(11, ADMIN);
         let digest = skein_lib::sha256::digest(value.expose());
         engine.store.secrets(Token::new(901), Secrets::Carry { kind, value });
-        let Some(StoreEvent::Carried { number, .. }) = engine.store.above.pop() else { panic!("carried seed") };
+        let Some(StoreEvent::Carried { number, .. }) = engine.store.host.above.pop() else { panic!("carried seed") };
         public::connect(
             engine,
             1,

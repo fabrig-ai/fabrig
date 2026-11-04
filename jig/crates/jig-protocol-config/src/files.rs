@@ -1,7 +1,7 @@
 //! Startup file names and bounds; this crate performs no reads (configuration.md, 7).
 use crate::{Engine, Path, Segment, Worker, llm::Transport};
 use alloc::boxed::Box;
-use skein_lib::{List, bytes};
+use skein_lib::{List, Secret, bytes};
 #[derive(Debug)]
 pub struct File {
     pub at: Path,
@@ -95,4 +95,23 @@ pub fn worker_files(worker: &Worker) -> Box<[File]> {
 pub(crate) fn push(files: &mut List<File>, at: Path, path: &[u8], max: u32, private: bool) {
     let file = File { at, path: bytes::copy_of(path), max, private };
     files.push(file).expect("capacity includes every configured file");
+}
+
+/// The files a configuration names, by path, as a process's shell read them (configuration.md, 7).
+#[derive(Debug)]
+pub struct Files {
+    pub entries: List<(Box<[u8]>, Secret)>,
+}
+
+impl Files {
+    /// The bytes read for `path`.
+    #[must_use]
+    pub fn contents(&self, path: &[u8]) -> Option<&[u8]> {
+        for (name, value) in &self.entries {
+            if name.as_ref() == path {
+                return Some(value.expose());
+            }
+        }
+        None
+    }
 }

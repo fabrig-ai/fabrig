@@ -24,7 +24,7 @@ fn the_worker_iterates_only_once_the_engine_listens() {
     for _ in 0_u8..4 {
         stand.turn();
     }
-    assert!(stand.service.engine.as_ref().expect("engine").workers.opened());
+    assert!(stand.service.engine.as_ref().expect("engine").workers.host.opened());
     assert!(stand.service.worker.as_ref().unwrap().started);
 }
 #[test]

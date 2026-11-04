@@ -48,7 +48,7 @@ fn rejected_responses(sessions: &[super::events::Session], expected: u64) -> boo
             }
         }
     }
-    expected > 0 && u64::try_from(started.len()).ok() == Some(expected) && started == rejected
+    expected > 0 && skein_lib::len_u64(started.len()) == expected && started == rejected
 }
 
 /// An event observer paired with its private invocation and writer bounds.

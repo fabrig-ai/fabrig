@@ -187,16 +187,16 @@ impl Turn {
             Kind::First(opener) | Kind::Window(opener) => {
                 u64::try_from(size_of::<Opener>()).ok()?.checked_add(match &opener.backend {
                     Backend::Direct => 0,
-                    Backend::Program { name } => u64::try_from(name.len()).ok()?,
+                    Backend::Program { name } => skein_lib::len_u64(name.len()),
                 })?
             }
             Kind::Ordinary => 0,
         };
         messages_bytes(&self.messages)?
             .checked_add(backend)?
-            .checked_add(u64::try_from(self.model.len()).ok()?)?
+            .checked_add(skein_lib::len_u64(self.model.len()))?
             .checked_add(match &self.effort {
-                Some(effort) => u64::try_from(effort.len()).ok()?,
+                Some(effort) => skein_lib::len_u64(effort.len()),
                 None => 0,
             })
     }
@@ -236,7 +236,7 @@ impl Transcript {
     /// before retaining the history or starting effects.
     #[must_use]
     pub fn owned_bytes(&self) -> Option<u64> {
-        let mut bytes = u64::try_from(size_of::<Turn>()).ok()?.checked_mul(u64::try_from(self.turns.len()).ok()?)?;
+        let mut bytes = u64::try_from(size_of::<Turn>()).ok()?.checked_mul(skein_lib::len_u64(self.turns.len()))?;
         for turn in &self.turns {
             bytes = bytes.checked_add(turn.owned_bytes()?)?;
         }
@@ -245,7 +245,7 @@ impl Transcript {
 }
 
 fn messages_bytes(messages: &[Message]) -> Option<u64> {
-    let mut bytes = u64::try_from(size_of::<Message>()).ok()?.checked_mul(u64::try_from(messages.len()).ok()?)?;
+    let mut bytes = u64::try_from(size_of::<Message>()).ok()?.checked_mul(skein_lib::len_u64(messages.len()))?;
     for message in messages {
         bytes = bytes.checked_add(crate::session::content_cost(&message.content)?)?;
     }

@@ -48,7 +48,7 @@ fn a_restored_key_is_durable_before_its_value_is_lent() {
             replaces: None,
         },
     );
-    while bootstrap.engine.as_mut().expect("engine").store.above.pop().is_some() {}
+    while bootstrap.engine.as_mut().expect("engine").store.host.above.pop().is_some() {}
     let mut service = fixtures::start_with_store(&[(1, 100)], Some(bootstrap.engine.expect("engine").store));
     for _ in 0_u32..256 {
         fixtures::turn(&mut service);

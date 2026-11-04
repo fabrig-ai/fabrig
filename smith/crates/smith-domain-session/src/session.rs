@@ -2145,7 +2145,7 @@ fn admit(
             crate::record::Backend::Program { name } => len(name)?,
         })?
         .checked_add(spec.authority.namespace_bytes()?)?
-        .checked_add(final_turn.note_bytes()?)?
+        .checked_add(final_turn.note_bytes())?
         .checked_add(len(&task)?)?
         .checked_add(len(&spec.summary)?)?
         .checked_add(len(&spec.preamble)?)?

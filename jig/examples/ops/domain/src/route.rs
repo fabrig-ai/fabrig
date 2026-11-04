@@ -1285,11 +1285,7 @@ fn core_now(
             drop(domain.hub_link.take_payload(message.words));
         }
         core::Now::Activate { context } => {
-            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
-        }
-        core::Now::PrepareAgent { context, load_transcript } => {
-            let transcript_waiter = if load_transcript { Some(Token::new(context.task)) } else { None };
-            work.push(Work::Core(core::Event::PreparedAgent { context, transcript_waiter, busy: false }));
+            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
         }
         value @ core::Now::StartPreparation { .. } => {
             now(domain, Output::CoreLoad(value));

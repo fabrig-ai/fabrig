@@ -277,8 +277,8 @@ pub fn memory_store() -> crate::store::Store {
 fn completed_maps() -> jig_protocol_store::Stores {
     let mut service = ready();
     let mut store = memory_store();
-    core::mem::swap(&mut service.engine.as_mut().unwrap().store.component, &mut store.component);
-    store.component.into_stores()
+    core::mem::swap(&mut service.engine.as_mut().unwrap().store.host.component, &mut store.host.component);
+    store.host.component.into_stores()
 }
 pub fn records_store() -> crate::store::Store {
     let (root, _, mut profile) = store_limits();
@@ -290,19 +290,21 @@ pub fn records_store() -> crate::store::Store {
     let limits = crate::store::limits(&root, &root.forge, &profile).expect("record fixture limits");
     maps.secrets = skein_kv::Store::memory(&limits.secrets);
     let mut store = memory_store_for(&root, &profile, &models);
-    store.component = jig_protocol_store::Store::over(
+    store.host.component = jig_protocol_store::Store::over(
         &limits,
         temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("fixture families"),
         &models,
         maps,
     );
-    assert!(store.component.wires(&crate::store::WIRES));
-    store.ask(jig_protocol_store::Request::Open {
+    assert!(store.host.component.wires(&crate::store::WIRES));
+    store.host.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
     });
-    let Some(jig_protocol_store::Event::Opened { .. }) = store.above.pop() else { panic!("record store reopened") };
+    let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else {
+        panic!("record store reopened")
+    };
     mark_store(&mut store);
     commit(
         &mut store,
@@ -311,7 +313,7 @@ pub fn records_store() -> crate::store::Store {
             row: Box::new(temper_engine_domain_forge::Stored::Forge(forge_record(1))),
         })]),
     );
-    assert!(store.above.pop().is_some());
+    assert!(store.host.above.pop().is_some());
     store
 }
 pub(super) fn memory_store_for(
@@ -321,7 +323,7 @@ pub(super) fn memory_store_for(
 ) -> crate::store::Store {
     let limits = crate::store::limits(root, &root.forge, profile).expect("checked store limits");
     let mut store = crate::store::Store::new(root, &limits, models, seeds().installation);
-    store.component = jig_protocol_store::Store::over(
+    store.host.component = jig_protocol_store::Store::over(
         &limits,
         temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("application sizes"),
         models,
@@ -330,13 +332,13 @@ pub(super) fn memory_store_for(
             secrets: skein_kv::Store::memory(&limits.secrets),
         },
     );
-    assert!(store.component.wires(&crate::store::WIRES));
-    store.ask(jig_protocol_store::Request::Open {
+    assert!(store.host.component.wires(&crate::store::WIRES));
+    store.host.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
     });
-    let Some(jig_protocol_store::Event::Opened { .. }) = store.above.pop() else { panic!("store opened") };
+    let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else { panic!("store opened") };
     store.opened = true;
     store
 }
@@ -349,13 +351,13 @@ pub fn commit(store: &mut crate::store::Store, number: u64, writes: Box<[temper_
     // Appending a fixture row must retain the real first-start counters, as well
     // as its settings rows. Empty stores still receive the minimal test header.
     let owner = Token::new(993);
-    store.ask(jig_protocol_store::Request::Get {
+    store.host.ask(jig_protocol_store::Request::Get {
         owner,
         key: jig_protocol_store::Get::Jig(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)),
     });
     let mut header = None;
-    for _ in 0..store.above.len() {
-        let event = store.above.pop().expect("store event");
+    for _ in 0..store.host.above.len() {
+        let event = store.host.above.pop().expect("store event");
         if let jig_protocol_store::Event::Got { owner: found, .. } = &event
             && *found == owner
         {
@@ -367,7 +369,7 @@ pub fn commit(store: &mut crate::store::Store, number: u64, writes: Box<[temper_
                 header = Some(found);
             }
         } else {
-            store.above.push(event);
+            store.host.above.push(event);
         }
     }
     let number = match header {
@@ -414,8 +416,8 @@ pub fn load(
             most: 4,
             bytes: 65_536,
         }));
-        for _ in 0_u32..store.above.len() {
-            crate::store::route::up(&mut store.routes, store.above.pop().expect("store event"), &mut store.routed);
+        for _ in 0_u32..store.host.above.len() {
+            crate::store::route::up(&mut store.routes, store.host.above.pop().expect("store event"), &mut store.routed);
         }
         let Some(crate::store::route::Up::Root(event)) = store.routed.pop() else { panic!("loaded root event") };
         let temper_engine_domain::Event::Store(temper_engine_domain::StoreInput::Loaded { rows, next, .. }) = *event
@@ -640,9 +642,9 @@ pub fn period(number: u64) -> temper_engine_domain::Event {
 pub fn get(service: &mut crate::Service, key: jig_domain_core::Key) -> Option<jig_domain_core::Record> {
     let engine = service.engine.as_mut().expect("engine");
     let owner = Token::new(991);
-    engine.store.ask(jig_protocol_store::Request::Get { owner, key: jig_protocol_store::Get::Jig(key) });
-    for _ in 0_u32..engine.store.above.len() {
-        let event = engine.store.above.pop().unwrap();
+    engine.store.host.ask(jig_protocol_store::Request::Get { owner, key: jig_protocol_store::Get::Jig(key) });
+    for _ in 0_u32..engine.store.host.above.len() {
+        let event = engine.store.host.above.pop().unwrap();
         if let jig_protocol_store::Event::Got { row, .. } = event {
             return match row {
                 Some(jig_protocol_store::Row::Jig(record)) => Some(record),
@@ -650,7 +652,7 @@ pub fn get(service: &mut crate::Service, key: jig_domain_core::Key) -> Option<ji
                 Some(jig_protocol_store::Row::Application { .. }) => panic!("jig record"),
             };
         }
-        engine.store.above.push(event);
+        engine.store.host.above.push(event);
     }
     panic!("store get answered")
 }
@@ -845,7 +847,8 @@ pub fn settle_root(
         engine.store.iterate();
         crate::engine::answer(engine);
         if let Some(accounts) = &mut engine.accounts {
-            accounts.iterate(
+            crate::accounts::iterate(
+                accounts,
                 engine.env.now,
                 engine.env.wall,
                 &mut engine.values,
@@ -905,7 +908,7 @@ fn restored_key() -> crate::Service {
             replaces: None,
         },
     );
-    while bootstrap.engine.as_mut().expect("engine").store.above.pop().is_some() {}
+    while bootstrap.engine.as_mut().expect("engine").store.host.above.pop().is_some() {}
     let mut service = start_with_store(&[(1, 100)], Some(bootstrap.engine.expect("engine").store));
     restart(&mut service);
     service
@@ -1163,20 +1166,20 @@ pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domai
     let settings = engine();
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
     let limits = crate::store::limits(root, &root.forge, &settings.jig.limits.store).expect("fixture store limits");
-    let maps = store.component.into_stores();
-    store.component = jig_protocol_store::Store::over(
+    let maps = store.host.component.into_stores();
+    store.host.component = jig_protocol_store::Store::over(
         &limits,
         temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("fixture families"),
         &models,
         maps,
     );
-    assert!(store.component.wires(&crate::store::WIRES));
-    store.ask(jig_protocol_store::Request::Open {
+    assert!(store.host.component.wires(&crate::store::WIRES));
+    store.host.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
     });
-    let Some(jig_protocol_store::Event::Opened { pending: false, .. }) = store.above.pop() else {
+    let Some(jig_protocol_store::Event::Opened { pending: false, .. }) = store.host.above.pop() else {
         panic!("reopened fixture")
     };
     store.secret_requests = 0;
@@ -1185,11 +1188,13 @@ pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domai
 }
 
 pub fn mark_store(store: &mut crate::store::Store) {
-    if store.component.mark_durable() {
+    if store.host.component.mark_durable() {
         return;
     }
     commit(store, 1, Box::new([temper_engine_domain::Write::Wires]));
-    let Some(jig_protocol_store::Event::Committed { .. }) = store.above.pop() else { panic!("fixture start mark") };
+    let Some(jig_protocol_store::Event::Committed { .. }) = store.host.above.pop() else {
+        panic!("fixture start mark")
+    };
 }
 pub fn marked_store() -> crate::store::Store {
     let mut store = memory_store();
@@ -1428,7 +1433,7 @@ pub fn configured_prepared(
                 row: Box::new(domain::Stored::Forge(record.clone())),
             })]),
         );
-        assert!(engine.store.above.pop().is_some());
+        assert!(engine.store.host.above.pop().is_some());
         keep_forge(&mut service, record);
         service.engine.as_mut().unwrap().setup.fixture_locals(&config.setup);
         if !config.without_records.contains(&source.number) && source.kind == settings::Kind::Forgejo {
@@ -1489,11 +1494,11 @@ fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed:
     };
     let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
     let secret_requests = engine.store.secret_requests;
-    let original = if engine.store.component.mark_durable() {
+    let original = if engine.store.host.component.mark_durable() {
         None
     } else {
         // Seed secrets through Keep without changing the main store's startup state.
-        let component = core::mem::replace(&mut engine.store.component, seed.empty());
+        let component = core::mem::replace(&mut engine.store.host.component, seed.empty());
         let mut maps = component.into_stores();
         open_seeded(&mut engine.store);
         mark_store(&mut engine.store);
@@ -1514,11 +1519,11 @@ fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed:
             limits::profile(limits::Profile::Small).records.value_bytes,
         );
         assert!(engine.store.secrets(Token::new(999), application_request(number, value)).is_none());
-        assert!(engine.store.above.pop().is_some());
+        assert!(engine.store.host.above.pop().is_some());
     }
     if let Some(mut maps) = original {
         exchange_secrets(&mut engine.store, &mut maps.secrets, seed);
-        engine.store.component = seed.component(maps);
+        engine.store.host.component = seed.component(maps);
         open_seeded(&mut engine.store);
         engine.store.secret_requests = secret_requests;
     }
@@ -1526,20 +1531,22 @@ fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed:
 
 /// Exchange only secrets, preserving the main store's durable start state.
 fn exchange_secrets(store: &mut crate::store::Store, secrets: &mut skein_kv::Store, seed: &ForgeSeed) {
-    let component = core::mem::replace(&mut store.component, seed.empty());
+    let component = core::mem::replace(&mut store.host.component, seed.empty());
     let mut maps = component.into_stores();
     core::mem::swap(&mut maps.secrets, secrets);
-    store.component = seed.component(maps);
+    store.host.component = seed.component(maps);
     open_seeded(store);
 }
 fn open_seeded(store: &mut crate::store::Store) {
-    assert!(store.component.wires(&crate::store::WIRES));
-    store.ask(jig_protocol_store::Request::Open {
+    assert!(store.host.component.wires(&crate::store::WIRES));
+    store.host.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
     });
-    let Some(jig_protocol_store::Event::Opened { .. }) = store.above.pop() else { panic!("seeded fixture reopened") };
+    let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else {
+        panic!("seeded fixture reopened")
+    };
 }
 
 /// Replace the fake durable store while retaining the fixture's kept forge records.
@@ -1574,7 +1581,7 @@ pub fn replace_store(service: &mut crate::Service, mut store: crate::store::Stor
     }
     if !writes.is_empty() {
         commit(&mut store, 1, writes.into_boxed());
-        assert!(store.above.pop().is_some());
+        assert!(store.host.above.pop().is_some());
     }
     engine.store = store;
 }

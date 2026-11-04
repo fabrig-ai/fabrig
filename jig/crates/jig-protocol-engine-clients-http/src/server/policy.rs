@@ -10,7 +10,7 @@ pub const FIELDS: [(&[u8], &[u8]); 5] = [
     (b"Cross-Origin-Resource-Policy", b"same-origin"),
     (b"Referrer-Policy", b"no-referrer"),
 ];
-pub(super) fn add(response: &mut Response) {
+pub fn add(response: &mut Response) {
     let capacity = u32::try_from(response.headers.len()).expect("bounded response headers");
     let mut headers = List::with_capacity(capacity.checked_add(5).expect("policy fields"));
     for header in core::mem::replace(&mut response.headers, Box::new([])) {
