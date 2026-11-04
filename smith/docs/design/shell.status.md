@@ -4,12 +4,11 @@
 
 - **Not yet:**
   - 2.5: the gate's wasm32 list (`.config/gate/wasm32.txt`) leaves out
-    `smith-protocol-events`, `smith-protocol-llm`,
-    `smith-protocol-program`, `smith-agent-service` and
-    `smith-agent-shell`, and no listed package reaches them on wasm32,
-    so the gate's wasm32 clippy lints none of them. Outside the gate,
-    in `temper-playground`'s wasm32 graph, the first four pass it,
-    warnings denied, and `smith-agent-shell` fails it: in
+    `smith-agent-shell`, and no listed package reaches it on wasm32,
+    so the gate's wasm32 clippy does not lint it. Outside the gate,
+    `smith-agent-shell` fails that clippy, warnings denied, first with
+    `unused_imports` at
+    `smith/crates/smith-agent-shell/src/config/native.rs:10`: in
     `src/config/`, what only its `cfg(unix)` code reads is unused on
     wasm32: the import `skein_tls as tls` (`native.rs:10`), the
     parameter `errors` (`native.rs:31`), the constant `CERTIFICATES`

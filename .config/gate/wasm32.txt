@@ -43,3 +43,10 @@ smith-domain-run
 smith-protocol-channel
 smith-protocol-translate
 smith-protocol-machine
+skein-tls
+skein-fake-forge-github
+skein-fake-peers
+smith-protocol-events
+smith-protocol-llm
+smith-protocol-program
+smith-agent-service

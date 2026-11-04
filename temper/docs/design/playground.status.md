@@ -28,12 +28,16 @@
     the gate: the gate's list (`.config/gate/wasm32.txt`) omits
     `temper-playground`, so no gate proves both of 3's product crates
     on wasm32. `temper-playground`'s wasm32 clippy fails, with warnings
-    denied, in smith's and temper's crates alone: unmet
-    `clippy::large_enum_variant` expectations on `Source`
-    (`smith/crates/smith-local-service/src/credentials.rs:27`) and on
-    `Stored` (`temper/crates/temper-engine-domain-forge/src/boundary.rs:1024`),
+    denied, in jig's and smith's crates alone: first,
+    `unfulfilled_lint_expectations` for the
+    `clippy::trivially_copy_pass_by_ref` expectations on `Index::publish`
+    (`jig/crates/jig-domain-core/src/public/index.rs:115`) and
+    `Index::follow` (`jig/crates/jig-domain-core/src/public/index.rs:130`),
+    an unmet `clippy::large_enum_variant` expectation on `Source`
+    (`smith/crates/smith-local-service/src/credentials.rs:27`),
     and `smith-agent-shell`'s items left unused on wasm32 (smith's
-    `shell.md`, 2.5, and its status).
+    `shell.md`, 2.5, and its status). What depends on those crates goes
+    unlinted, `temper-playground` among them.
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the download being past its own (8)
     and the memory's and the slice's unset (section 11); and published.
