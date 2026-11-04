@@ -1370,9 +1370,9 @@ section 8; testing-strategy.md, 2.9).
   record (`TEMPER_LIVE_ACCOUNT`) and
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge` on a held Claude
   Code login (`TEMPER_LIVE_CLAUDE`, with `claude` on the machine's `PATH`), both
-  from fab's shelf of logins. fab's after-landing run with `--live` runs profile
-  `live-temper` under `--run-ignored only`, whose default filter selects these two
-  alone. Automatic live runs take the cheapest models, as the user requires:
+  named inputs of the after-landing tier. The tier runs profile `live-temper`
+  under `--run-ignored only`, whose default filter selects these two alone.
+  Automatic live runs take the cheapest models, as the user requires:
   `gpt-6-luna` and `claude-haiku-5-5`.
   - **One invocation, a store per story:** the runner sets one fresh
     `TEMPER_LIVE_STORE`; each story takes its own store beneath it, named by the
