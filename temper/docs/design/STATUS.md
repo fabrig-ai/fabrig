@@ -67,7 +67,9 @@ over a whole body by hand, the ladder has no twin past B1 and no live
 story but B0's, and the live scripts default to a scratch layout of
 whoever runs fabrig's development, in a form the outward check does not
 match (`domain/testing.md`), and the `welcome-set-up`
-journey waits on a new walk (`client/journeys.md`). Six hand-written
+journey waits on a new walk (`client/journeys.md`). The forge's connect
+refusals that ctl renders name no remedy (`protocol/documentation.md`).
+Six hand-written
 widenings stand beside skein's `len_u64` and `usize_of`, two of them in
 the worker's steps (`README.md`). Of the drafts, the reference
 drafts' statuses hold two departures their cuts decided, a foreman's
