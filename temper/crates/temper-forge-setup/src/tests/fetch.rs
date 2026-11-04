@@ -149,9 +149,83 @@ fn fetch_bound_through_checked() {
     }
 }
 
-use crate::fetch::{self, Bottle, Event, Extraction, Failure, Pin, Request};
-use skein_forge::forgejo::pin::Platform;
+use crate::fetch::{self, Bottle, Event, Extraction, Failure, Fetched, Pin, Request};
+use skein_forge::forgejo::pin::{Binary, Platform};
 use skein_lib::{Queue, sha256::Sha256};
+
+#[test]
+fn a_fetched_line_reads_back() {
+    for (binary, word) in [(Binary::Forgejo, "forgejo"), (Binary::Runner, "runner")] {
+        for (done, total) in [
+            (0, None),
+            (1_048_576, None),
+            (u64::MAX, None),
+            (0, Some(1)),
+            (1, Some(1)),
+            (1_048_576, Some(122_057_320)),
+            (0, Some(u64::MAX)),
+            (u64::MAX, Some(u64::MAX)),
+        ] {
+            let fetched = Fetched { binary, done, total };
+            let expected = match total {
+                Some(total) => format!("fetched {word} {done} of {total} bytes\n"),
+                None => format!("fetched {word} {done} bytes\n"),
+            };
+            let line = fetched.line();
+            assert_eq!(fetched.word(), word.as_bytes());
+            assert_eq!(line.as_ref(), expected.as_bytes());
+            assert_eq!(Fetched::read(&line), Some(fetched));
+            assert_eq!(Fetched::read(line.strip_suffix(b"\n").unwrap()), Some(fetched));
+        }
+    }
+}
+
+#[test]
+fn only_a_fetched_line_reads() {
+    for line in [
+        "",
+        "fetch forgejo 1 bytes",
+        "Fetched forgejo 1 bytes",
+        "fetched other 1 bytes",
+        "fetched Forgejo 1 bytes",
+        "fetched Runner 1 bytes",
+        "fetched forgejo-runner 1 bytes",
+        "fetched forgejo +1 bytes",
+        "fetched forgejo -1 bytes",
+        "fetched forgejo 1 of +2 bytes",
+        "fetched forgejo 1 of -2 bytes",
+        "fetched forgejo ١ bytes",
+        "fetched forgejo 1 of ２ bytes",
+        "fetched forgejo 1",
+        "fetched forgejo 1 of 2",
+        "fetched forgejo 0 of 0 bytes",
+        "fetched forgejo 2 of 1 bytes",
+        "fetched forgejo 18446744073709551616 bytes",
+        "fetched forgejo 18446744073709551620 bytes",
+        "fetched forgejo 1 of 18446744073709551616 bytes",
+        "fetched forgejo 1 of 18446744073709551620 bytes",
+        "fetched forgejo  bytes",
+        "fetched forgejo 1 of  bytes",
+        "fetched forgejo  of 2 bytes",
+        " fetched forgejo 1 bytes",
+        "fetched  forgejo 1 bytes",
+        "fetched forgejo  1 bytes",
+        "fetched forgejo 1  bytes",
+        "fetched forgejo 1  of 2 bytes",
+        "fetched forgejo 1 of  2 bytes",
+        "fetched forgejo 1 of 2  bytes",
+        "fetched forgejo\t1 bytes",
+        "fetched forgejo 1\tof 2 bytes",
+        "fetched forgejo 1 bytes ",
+        "fetched forgejo 1 bytes\r\n",
+        "fetched forgejo 1 bytes\n\n",
+        "fetched forgejo 1 bytes\nfetched runner 1 bytes\n",
+        "fetched forgejo 1 bytes\0",
+    ] {
+        assert_eq!(Fetched::read(line.as_bytes()), None, "{line:?}");
+    }
+}
+
 fn sha(bytes: &[u8]) -> [u8; 32] {
     let mut hash = Sha256::new();
     hash.update(bytes);
