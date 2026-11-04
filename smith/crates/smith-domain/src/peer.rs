@@ -373,7 +373,9 @@ impl Peer {
             sllm::Block::Text { text, replay } => Block::Text { text, replay },
             sllm::Block::Refusal { text, replay } => Block::Refusal { text, replay },
             sllm::Block::Opaque { bytes } => Block::Opaque { bytes },
-            sllm::Block::ToolCall(sllm::ToolCall { id, name, input, call: _, replay }) => Block::ToolCall { id, name, input, replay },
+            sllm::Block::ToolCall(sllm::ToolCall { id, name, input, call: _, replay }) => {
+                Block::ToolCall { id, name, input, replay }
+            }
             sllm::Block::ToolResult { id, result } => {
                 let result = match result {
                     sllm::Returned::Owned { outcome } => Returned::Owned { outcome },

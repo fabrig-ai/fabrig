@@ -244,9 +244,13 @@ fn record_blocks(blocks: &[session::llm::Block]) -> u64 {
             session::llm::Block::Text { text, replay } => {
                 len(text) + replay.as_ref().map_or(0, |value| len(&value.bytes))
             }
-            session::llm::Block::ToolCall(session::llm::ToolCall { id, name, input, call: session::llm::Decoded::Historical, replay }) => {
-                len(id) + len(name) + len(input) + replay.as_ref().map_or(0, |value| len(&value.bytes))
-            }
+            session::llm::Block::ToolCall(session::llm::ToolCall {
+                id,
+                name,
+                input,
+                call: session::llm::Decoded::Historical,
+                replay,
+            }) => len(id) + len(name) + len(input) + replay.as_ref().map_or(0, |value| len(&value.bytes)),
             session::llm::Block::ToolResult { id, result: session::llm::Returned::Text { text, replay, .. } } => {
                 len(id) + len(text) + replay.as_ref().map_or(0, |value| len(&value.bytes))
             }

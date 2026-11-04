@@ -1291,7 +1291,11 @@ impl World {
     fn check_results(&mut self, owner: Token, prompt: &Prompt) {
         for pair in prompt.messages.windows(2) {
             let calls = pair[0].content.iter().filter_map(|block| {
-                let Block::ToolCall(smith_domain_session::llm::ToolCall { call: Decoded::Owned { call }, id, .. }) = block else { return None };
+                let Block::ToolCall(smith_domain_session::llm::ToolCall { call: Decoded::Owned { call }, id, .. }) =
+                    block
+                else {
+                    return None;
+                };
                 Some((id, call))
             });
             for (id, call) in calls {
@@ -1836,7 +1840,9 @@ fn in_call_order(prompt: &Prompt) {
     let calls: Vec<&[u8]> = asked
         .content
         .iter()
-        .filter_map(|block| if let Block::ToolCall(smith_domain_session::llm::ToolCall { id, .. }) = block { Some(&**id) } else { None })
+        .filter_map(|block| {
+            if let Block::ToolCall(smith_domain_session::llm::ToolCall { id, .. }) = block { Some(&**id) } else { None }
+        })
         .collect();
     let results: Vec<&[u8]> = answered
         .content

@@ -384,7 +384,13 @@ fn delegated(id: &[u8], ticket: u64, effect: Effect) -> Block {
         ticket: Token::new(ticket),
         effect,
     };
-    Block::ToolCall(crate::llm::ToolCall { id: bytes(id), name: bytes(b"finish"), input: bytes(b"{}"), call, replay: None })
+    Block::ToolCall(crate::llm::ToolCall {
+        id: bytes(id),
+        name: bytes(b"finish"),
+        input: bytes(b"{}"),
+        call,
+        replay: None,
+    })
 }
 
 /// A concrete answer preserves the old ticket's distinct payload and length.
@@ -1680,7 +1686,9 @@ fn a_selected_descriptor_can_have_a_distinct_live_call_ticket() {
         names: Some(Box::new([bytes(b"finish")])),
     })));
     let mut call = delegated(b"allowed", 1234, Effect::Write);
-    let Block::ToolCall(crate::llm::ToolCall { call: Decoded::Delegated { descriptor, .. }, .. }) = &mut call else { unreachable!() };
+    let Block::ToolCall(crate::llm::ToolCall { call: Decoded::Delegated { descriptor, .. }, .. }) = &mut call else {
+        unreachable!()
+    };
     *descriptor = FINISH.ticket;
     let Some(Request::Delegate { call, .. }) =
         h.step(Event::Completed { owner, completion: completion(Box::new([call]), Stop::ToolUse) })

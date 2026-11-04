@@ -76,7 +76,10 @@ fn chat_positive_and_omitted_reordered_or_corrupted_turns() {
                         .find(|block| matches!(block, smith_domain::session::llm::Block::ToolCall(_)))
                         .expect("wait call");
                     match seen_call {
-                        smith_domain::session::llm::Block::ToolCall(smith_domain::session::llm::ToolCall { id, .. }) => {
+                        smith_domain::session::llm::Block::ToolCall(smith_domain::session::llm::ToolCall {
+                            id,
+                            ..
+                        }) => {
                             *id = b"invented-id".as_slice().into();
                         }
                         smith_domain::session::llm::Block::Text { .. }
