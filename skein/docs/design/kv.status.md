@@ -1,16 +1,8 @@
 # kv: status
 
-2026-11-03. Where skein's code lags or departs from [kv.md](kv.md).
+2026-11-04. Where skein's code lags or departs from [kv.md](kv.md).
 
-- **Not yet:** 3: recovery's reads ask a whole chunk whatever the file
-  holds; a segment and the snapshot are read whole before they are
-  applied; segments named before a snapshot's start that a crash leaves
-  are dropped from recovery's list, never removed. 5: a snapshot starts
-  after `snapshot_after` bytes of log, whatever the live map's size, and
-  the log a recovery replays does not count toward it. 7: recovery's
-  buffers hold a whole segment or the whole snapshot and its rows;
-  `SNAPSHOT_FLOOR` and `SNAPSHOT_MULTIPLE` are not exported. 9: the
-  world checks none of "What it pays for"; nor the model-map referee
+- **Not yet:** 9: the model-map referee
   across simulated-disk commits, loads, snapshots and crash recovery,
   commits racing every snapshot chunk, and the recovered value check
   over the real ring. In
