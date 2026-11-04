@@ -3,7 +3,7 @@ use super::{
     Base, Body, Common, Component, Dialect, ForgejoCall, GitHubCall, Heard, Phase, Plan, Side, Start, Step, Waiting,
     api,
 };
-use crate::connection::{self, Exchange};
+use crate::connection;
 use crate::{
     boundary::{Answered, Event},
     limits::{self, Limits, Listing, Shared},
@@ -109,6 +109,11 @@ impl Common {
         let _old = self.holders.insert(token, call).expect("one holder per connection");
         let waiting = self.waiting.get_mut(id).expect("indexed call");
         waiting.connection = Some(token);
+        match &mut waiting.side {
+            Side::Forgejo(call) => call.exchange = connection::forgejo::Exchange::new(),
+            Side::GitHub(call) => call.exchange = connection::github::Exchange::new(),
+            Side::Unbegun => {}
+        }
         true
     }
     fn begin_forgejo_call(
@@ -135,7 +140,7 @@ impl Common {
             &self.owner.word,
             &mut self.forgejo_tables,
         );
-        waiting.side = Side::Forgejo(Box::new(ForgejoCall { plan }));
+        waiting.side = Side::Forgejo(Box::new(ForgejoCall { plan, exchange: connection::forgejo::Exchange::new() }));
         match step {
             Ok(step) => !self.call_step(id, step, env, up, io, call),
             Err(error) => {
@@ -178,33 +183,27 @@ impl Common {
                         &forge.access.as_ref().expect("held access").credential,
                     )
                     .expect("checked credential length");
-                    match c.start(
-                        env,
-                        forge,
-                        &self.owner.user_agent,
-                        Exchange::Forgejo { request: request.request, range: request.range, authorization },
-                    ) {
+                    match forgejo.exchange.start(c, env, forge, &self.owner.user_agent, request, authorization) {
                         Ok(()) => {
-                            c.keep_after(plan.after());
+                            forgejo.exchange.keep_after(plan.after());
                         }
-                        Err(connection::Refusal::Forgejo(_)) => {
+                        Err(_) => {
                             self.finish(call, id, Err(api::Error::Refused), up);
                             break;
-                        }
-                        Err(connection::Refusal::GitHub(_)) => {
-                            unreachable!("Forgejo call has a Forgejo encoder");
                         }
                     }
                     self.waiting.get_mut(id).expect("call").charged = false;
                 }
             }
-            c.pump(env, io);
             let waiting = self.waiting.get_mut(id).expect("indexed call");
+            let Some(forgejo) = waiting.forgejo() else { break };
+            forgejo.exchange.pump(c, env, io);
             if c.written && !waiting.charged {
                 waiting.cost = waiting.cost.checked_add(1).expect("bounded exchanges");
                 waiting.charged = true;
             }
-            if let Some(heard) = c.heard() {
+            let Some(forgejo) = waiting.forgejo() else { break };
+            if let Some(heard) = forgejo.exchange.heard(c) {
                 let heard = call_heard(heard, waiting, &mut self.diagnostics);
                 let page_size = waiting.page_size;
                 let Some(forgejo) = waiting.forgejo() else {
@@ -218,7 +217,7 @@ impl Common {
                 );
                 let cut = forgejo.plan.take_cut();
                 if cut {
-                    c.cut(env);
+                    forgejo.exchange.cut(c);
                 }
                 match step {
                     Ok(Some(step)) => {
@@ -238,7 +237,7 @@ impl Common {
             if c.phase == Phase::Closed {
                 c.close(env, true, io);
             }
-            if !c.ready() {
+            if !forgejo.exchange.ready(c) {
                 break;
             }
             self.wake = Some(env.now);
@@ -285,11 +284,7 @@ impl Common {
     }
 }
 
-fn call_heard(heard: connection::Heard, waiting: &mut Waiting, diagnostics: &mut super::Diagnostics) -> Heard {
-    let heard = match heard {
-        connection::Heard::Forgejo(heard) => heard,
-        connection::Heard::GitHub(_) => unreachable!("Forgejo call has a Forgejo connection"),
-    };
+fn call_heard(heard: Heard, waiting: &mut Waiting, diagnostics: &mut super::Diagnostics) -> Heard {
     match &heard {
         Heard::Head { status, .. } => waiting.answered_head(*status, None),
         Heard::Done(_) | Heard::Row(_) | Heard::Failed(_) => {}
@@ -395,6 +390,7 @@ impl Component {
                     let waiting = self.common.waiting.get_mut(id).expect("call");
                     if waiting.github().is_none() {
                         waiting.side = Side::GitHub(Box::new(GitHubCall {
+                            exchange: connection::github::Exchange::new(),
                             plan: None,
                             route: None,
                             discovery: None,
@@ -426,7 +422,7 @@ impl Component {
             {
                 c.close(env, c.in_flight(), io);
                 if c.link.has_work() {
-                    c.pump(env, io);
+                    c.drain(env, io);
                 }
                 if c.link.has_work() {
                     self.common.wake = Some(env.now);

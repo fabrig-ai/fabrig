@@ -1,7 +1,7 @@
 //! Waiting calls and returned answers (skein/docs/design/forge-connection.md, sections 2, 7.1 and 8).
 use crate::{
     boundary::{Answered, Event, Request},
-    connection::{self, Connection, Exchange, Phase, Use},
+    connection::{self, Connection, Phase, Use},
     limits::{self, Limits, Shared, Unusable},
     settings::{Forge, Owner, Settings},
     start,
@@ -38,10 +38,12 @@ pub(crate) enum Side {
 }
 #[derive(Debug)]
 pub(crate) struct ForgejoCall {
+    pub exchange: connection::forgejo::Exchange,
     pub plan: Plan,
 }
 #[derive(Debug)]
 pub(crate) struct GitHubCall {
+    pub exchange: connection::github::Exchange,
     pub plan: Option<skein_forge::github::plans::plan::Plan>,
     pub route: Option<github_calls::Route>,
     pub discovery: Option<github_calls::Discovery>,
@@ -196,42 +198,6 @@ impl Component {
                 wake: None,
             },
         })
-    }
-    #[cfg(test)]
-    pub(crate) fn test_calls_ready(&mut self) {
-        self.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: skein_forge::github::pin::PAGE_CAP };
-        self.forges.get_mut(0).expect("forge").base.forge.access = Some(crate::tests::fixtures::app_access(
-            skein_fake_forge_github::keys::KEYS.first().expect("test key"),
-            7,
-            9,
-        ));
-        let gh = self.test_github_mut();
-        gh.connected = true;
-        gh.identity_checked = true;
-        gh.baseline = false;
-    }
-    #[cfg(test)]
-    pub(crate) fn test_github(&self) -> &crate::installations::GitHub {
-        &self.test_github_forge().state
-    }
-    #[cfg(test)]
-    pub(crate) fn test_github_mut(&mut self) -> &mut crate::installations::GitHub {
-        &mut self.test_github_forge_mut().state
-    }
-    #[cfg(test)]
-    pub(crate) fn test_local(&mut self, env: &Env<Limits>, up: &mut Queue<Event>) {
-        let before = up.len();
-        let ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
-        match dialect {
-            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
-            Dialect::GitHub(gh) => {
-                for _ in 0..64_u32 {
-                    if !self.common.github_local(base, gh, env, up) || up.len() != before {
-                        break;
-                    }
-                }
-            }
-        }
     }
     /// Opens each forge's start within its connection slots.
     pub fn begin(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
@@ -392,7 +358,7 @@ impl Component {
         for entry in forges.iter_mut() {
             entry.base.forge.access = None;
             match &mut entry.dialect {
-                Dialect::Forgejo { plan } => *plan = None,
+                Dialect::Forgejo { plan, .. } => *plan = None,
                 Dialect::GitHub(github) => {
                     github.state.forget();
                     github.plan = None;
@@ -474,7 +440,7 @@ impl Component {
             c.close(env, c.in_flight(), io);
         }
         match &mut *dialect {
-            Dialect::Forgejo { plan } => *plan = None,
+            Dialect::Forgejo { plan, .. } => *plan = None,
             Dialect::GitHub(github) => {
                 github.state.forget();
                 github.plan = None;
@@ -591,7 +557,7 @@ impl Component {
             base.own = None;
             let retry = common.lifecycle == Lifecycle::Live && !closing;
             match dialect {
-                Dialect::Forgejo { plan } => {
+                Dialect::Forgejo { plan, .. } => {
                     *plan = None;
                     if retry {
                         common.start_heard(base, StartHeard::Unanswered, env, up);
@@ -664,7 +630,7 @@ impl Component {
         let Self { forges, common } = self;
         for ForgeEntry { base, dialect } in forges.iter_mut() {
             match dialect {
-                Dialect::Forgejo { plan } => common.drive_forgejo(base, plan, env, up, io),
+                Dialect::Forgejo { plan, exchange } => common.drive_forgejo(base, plan, exchange, env, up, io),
                 Dialect::GitHub(gh) => common.drive_github(base, gh, env, up, io),
             }
         }
@@ -750,6 +716,7 @@ impl Common {
         &mut self,
         base: &mut Base,
         plan: &mut Option<StartPlan>,
+        exchange: &mut connection::forgejo::Exchange,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
@@ -769,6 +736,7 @@ impl Common {
             && self.connections.len() < self.connections.capacity()
         {
             token = Some(self.open_own(base, Use::Own, env, io));
+            *exchange = connection::forgejo::Exchange::new();
             *plan = None;
             if let Some(read) = start_read(base.start) {
                 *plan = Some(StartPlan::new(read));
@@ -803,14 +771,17 @@ impl Common {
                 if plan.is_none() {
                     *plan = Some(StartPlan::new(read));
                 }
-                send_start(c, env, &base.forge, &self.owner.user_agent, plan.as_mut().expect("active start read"));
+                send_start(
+                    c,
+                    exchange,
+                    env,
+                    &base.forge,
+                    &self.owner.user_agent,
+                    plan.as_mut().expect("active start read"),
+                );
             }
-            c.pump(env, io);
-            if let Some(heard) = c.heard() {
-                let heard = match heard {
-                    connection::Heard::Forgejo(heard) => heard,
-                    connection::Heard::GitHub(_) => unreachable!("Forgejo start has a Forgejo connection"),
-                };
+            exchange.pump(c, env, io);
+            if let Some(heard) = exchange.heard(c) {
                 let step = match plan.as_mut() {
                     Some(plan) => plan.heard(heard),
                     None => None,
@@ -831,7 +802,7 @@ impl Common {
             if c.phase == Phase::Closed {
                 c.close(env, c.in_flight(), io);
             }
-            if !c.ready() {
+            if !exchange.ready(c) {
                 break;
             }
             self.wake = Some(env.now);
@@ -889,22 +860,22 @@ impl Common {
     }
 }
 
-fn send_start(connection: &mut Connection, env: &Env<Limits>, forge: &Forge, user_agent: &[u8], plan: &mut StartPlan) {
+fn send_start(
+    connection: &mut Connection,
+    exchange: &mut connection::forgejo::Exchange,
+    env: &Env<Limits>,
+    forge: &Forge,
+    user_agent: &[u8],
+    plan: &mut StartPlan,
+) {
     let step = plan.begin();
-    let skein_forge::forgejo::plans::start::Step::Send(exchange) = step else {
+    let skein_forge::forgejo::plans::start::Step::Send(pending) = step else {
         unreachable!("a new start plan sends its read");
     };
     let authorization =
         skein_forge::forgejo::credential::authorization(&forge.access.as_ref().expect("held access").credential)
             .expect("checked credential length");
-    connection
-        .start(
-            env,
-            forge,
-            user_agent,
-            Exchange::Forgejo { request: exchange.request, range: exchange.range, authorization },
-        )
-        .expect("checked start request");
+    exchange.start(connection, env, forge, user_agent, pending, authorization).expect("checked start request");
 }
 
 fn start_read(state: Start) -> Option<Read> {
@@ -973,19 +944,6 @@ fn initial(dialect: &Dialect, next: skein_lib::Duration) -> Start {
     }
 }
 
-#[cfg(test)]
-impl Component {
-    pub(crate) fn test_github_handoffs(&self) -> u32 {
-        let mut count = 0_u32;
-        for (_, id) in &self.common.connections {
-            if self.common.connection_slab.get(*id).expect("indexed connection").test_github_handoff() {
-                count = count.checked_add(1).expect("bounded connections");
-            }
-        }
-        count
-    }
-}
-
 #[expect(clippy::manual_find, reason = "the programming model excludes closures")]
 fn find(forges: &mut List<ForgeEntry>, number: u16) -> Option<&mut ForgeEntry> {
     for entry in forges.iter_mut() {
@@ -994,28 +952,4 @@ fn find(forges: &mut List<ForgeEntry>, number: u16) -> Option<&mut ForgeEntry> {
         }
     }
     None
-}
-
-#[cfg(test)]
-impl Component {
-    fn test_github_forge(&self) -> &GitHubForge {
-        match &self.forges.get(0).expect("forge").dialect {
-            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
-            Dialect::GitHub(gh) => gh,
-        }
-    }
-    fn test_github_forge_mut(&mut self) -> &mut GitHubForge {
-        match &mut self.forges.get_mut(0).expect("forge").dialect {
-            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
-            Dialect::GitHub(gh) => gh,
-        }
-    }
-    fn test_open_own(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) -> Token {
-        let ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
-        let role = match dialect {
-            Dialect::Forgejo { .. } => Use::Own,
-            Dialect::GitHub(_) => Use::Reserved,
-        };
-        self.common.open_own(base, role, env, io)
-    }
 }

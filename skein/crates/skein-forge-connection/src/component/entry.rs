@@ -20,13 +20,15 @@ pub(crate) struct Base {
 
 /// A forge's dialect, and what only that dialect has.
 #[derive(Debug)]
+#[expect(clippy::large_enum_variant, reason = "the Forgejo variant holds its own plan and exchange together")]
 pub(crate) enum Dialect {
-    Forgejo { plan: Option<skein_forge::forgejo::plans::start::Plan> },
+    Forgejo { plan: Option<skein_forge::forgejo::plans::start::Plan>, exchange: crate::connection::forgejo::Exchange },
     GitHub(Box<GitHubForge>),
 }
 
 #[derive(Debug)]
 pub(crate) struct GitHubForge {
+    pub exchange: crate::connection::github::Exchange,
     pub state: crate::installations::GitHub,
     pub plan: Option<OwnPlan>,
 }
@@ -35,11 +37,17 @@ impl ForgeEntry {
     /// A forge as it's added: its start from its access, its dialect from its kind.
     pub fn new(forge: Forge, limits: &Limits) -> Self {
         let dialect = match forge.kind {
-            crate::settings::Kind::Forgejo => Dialect::Forgejo { plan: None },
+            crate::settings::Kind::Forgejo => {
+                Dialect::Forgejo { plan: None, exchange: crate::connection::forgejo::Exchange::new() }
+            }
             crate::settings::Kind::GitHub => {
                 let mut state = crate::installations::GitHub::new(limits.installations);
                 state.said_origins = Queue::with_capacity(limits.log_origins);
-                Dialect::GitHub(Box::new(GitHubForge { state, plan: None }))
+                Dialect::GitHub(Box::new(GitHubForge {
+                    state,
+                    plan: None,
+                    exchange: crate::connection::github::Exchange::new(),
+                }))
             }
         };
         let start = if forge.access.is_some() { initial(&dialect, limits.start_backoff) } else { Start::Unconnected };

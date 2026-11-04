@@ -206,12 +206,19 @@ fn a_call_of_the_other_dialect_is_unavailable() {
         (
             "GitHub call under Forgejo",
             fixtures::settings(),
-            Side::GitHub(Box::new(GitHubCall { plan: None, route: None, discovery: None, discovered: None })),
+            Side::GitHub(Box::new(GitHubCall {
+                exchange: connection::github::Exchange::new(),
+                plan: None,
+                route: None,
+                discovery: None,
+                discovered: None,
+            })),
         ),
         (
             "Forgejo call under GitHub",
             fixtures::github_settings(),
             Side::Forgejo(Box::new(ForgejoCall {
+                exchange: connection::forgejo::Exchange::new(),
                 plan: Plan::new(fixtures::REPO, api::Op::Read(api::Read::Settings)),
             })),
         ),
@@ -238,5 +245,87 @@ fn a_call_of_the_other_dialect_is_unavailable() {
         c.drive_calls(&env, &mut up, &mut io);
         assert!(up.is_empty(), "{name}: only one answer");
         assert!(io.is_empty(), "{name}: no exchange begun");
+    }
+}
+
+impl Component {
+    pub(crate) fn test_calls_ready(&mut self) {
+        self.forges.get_mut(0).expect("forge").base.start = Start::Ready { cap: skein_forge::github::pin::PAGE_CAP };
+        self.forges.get_mut(0).expect("forge").base.forge.access =
+            Some(fixtures::app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
+        let gh = self.test_github_mut();
+        gh.connected = true;
+        gh.identity_checked = true;
+        gh.baseline = false;
+    }
+    pub(crate) fn test_github(&self) -> &crate::installations::GitHub {
+        &self.test_github_forge().state
+    }
+    pub(crate) fn test_github_mut(&mut self) -> &mut crate::installations::GitHub {
+        &mut self.test_github_forge_mut().state
+    }
+    pub(crate) fn test_local(&mut self, env: &Env<Limits>, up: &mut Queue<Event>) {
+        let before = up.len();
+        let ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
+        match dialect {
+            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
+            Dialect::GitHub(gh) => {
+                for _ in 0..64_u32 {
+                    if !self.common.github_local(base, gh, env, up) || up.len() != before {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Component {
+    pub(crate) fn test_github_handoffs(&self) -> u32 {
+        let mut count = 0_u32;
+        for entry in &self.forges {
+            match &entry.dialect {
+                Dialect::GitHub(gh) => {
+                    if gh.exchange.test_github_handoff() {
+                        count = count.saturating_add(1);
+                    }
+                }
+                Dialect::Forgejo { .. } => {}
+            }
+        }
+        for (_, id) in &self.common.calls {
+            match &self.common.waiting.get(*id).expect("indexed call").side {
+                Side::GitHub(call) => {
+                    if call.exchange.test_github_handoff() {
+                        count = count.saturating_add(1);
+                    }
+                }
+                Side::Unbegun | Side::Forgejo(_) => {}
+            }
+        }
+        count
+    }
+}
+
+impl Component {
+    fn test_github_forge(&self) -> &GitHubForge {
+        match &self.forges.get(0).expect("forge").dialect {
+            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
+            Dialect::GitHub(gh) => gh,
+        }
+    }
+    fn test_github_forge_mut(&mut self) -> &mut GitHubForge {
+        match &mut self.forges.get_mut(0).expect("forge").dialect {
+            Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
+            Dialect::GitHub(gh) => gh,
+        }
+    }
+    fn test_open_own(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) -> Token {
+        let ForgeEntry { base, dialect } = self.forges.get_mut(0).expect("forge");
+        let role = match dialect {
+            Dialect::Forgejo { .. } => Use::Own,
+            Dialect::GitHub(_) => Use::Reserved,
+        };
+        self.common.open_own(base, role, env, io)
     }
 }

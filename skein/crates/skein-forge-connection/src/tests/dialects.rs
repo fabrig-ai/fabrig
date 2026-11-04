@@ -1,6 +1,7 @@
 //! Both dialects over one bounded HTTP connection, with no socket or held credential.
+use super::fixtures::Exchange;
 use super::fixtures::{self, ConnectionHarness};
-use crate::connection::{self, Exchange, Phase};
+use crate::connection::Phase;
 use alloc::boxed::Box;
 use skein_forge::github::{
     credential,
@@ -46,21 +47,15 @@ fn start(h: &mut ConnectionHarness, request: Request, token: Option<&[u8]>) {
         Some(token) => Some(credential::bearer(&Secret::new(Box::from(token))).expect("artificial token")),
         None => None,
     };
-    h.connection
-        .start(
-            &h.env,
-            &h.forge,
-            fixtures::USER_AGENT,
-            Exchange::GitHub {
-                exchange: skein_forge::github::plans::plan::Exchange {
-                    request,
-                    retention: None,
-                    comparison: skein_forge::github::plans::plan::Comparison::Full,
-                },
-                authorization,
-            },
-        )
-        .expect("valid GitHub request");
+    h.start(Exchange::GitHub {
+        exchange: skein_forge::github::plans::plan::Exchange {
+            request,
+            retention: None,
+            comparison: skein_forge::github::plans::plan::Comparison::Full,
+        },
+        authorization,
+    })
+    .expect("valid GitHub request");
 }
 fn begun(request: Request) -> ConnectionHarness {
     let mut h = ConnectionHarness::github();
@@ -265,15 +260,11 @@ fn github_faults_before_and_after_a_send_have_visibility() {
                 FaultAt::Deadline => h.connection.timeout(),
             }
             h.pump();
-            assert_eq!(
-                h.connection.heard(),
-                Some(connection::Heard::GitHub(Heard::Failed(expected))),
-                "{label}/{fault:?}"
-            );
+            assert_eq!(h.github.heard(&mut h.connection), Some(Heard::Failed(expected)), "{label}/{fault:?}");
             h.connection.timeout();
             h.connection.stream(&h.env, Up::Failed(Fault::Reset));
             h.pump();
-            assert_eq!(h.connection.heard(), None, "{label}/{fault:?}: one terminal");
+            assert_eq!(h.github.heard(&mut h.connection), None, "{label}/{fault:?}: one terminal");
             assert_eq!(h.connection.phase, Phase::Closed, "{label}/{fault:?}: closed");
         }
     }
@@ -287,11 +278,11 @@ fn github_stream_failure_during_json_is_seen() {
     h.connection.stream(&h.env, Up::Failed(Fault::Reset));
     h.pump();
     assert_eq!(
-        h.connection.heard(),
-        Some(connection::Heard::GitHub(Heard::Failed(Failure::Seen))),
+        h.github.heard(&mut h.connection),
+        Some(Heard::Failed(Failure::Seen)),
         "stream failure retains visibility"
     );
-    assert_eq!(h.connection.heard(), None, "one failure");
+    assert_eq!(h.github.heard(&mut h.connection), None, "one failure");
     assert_eq!(h.connection.phase, Phase::Closed, "failed body closes");
 }
 

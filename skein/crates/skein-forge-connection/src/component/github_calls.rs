@@ -1,10 +1,6 @@
 //! Installation account routing and bounded repository discovery (forge-connection.md, 4).
 use super::{Base, Common, GitHubForge, Waiting, calls};
-use crate::{
-    Event, Limits,
-    connection::{self, Exchange, Phase},
-    installations::Selected,
-};
+use crate::{Event, Limits, connection::Phase, installations::Selected};
 use skein_forge::{
     api,
     github::{
@@ -320,8 +316,9 @@ impl Common {
             }
 
             let c = self.connection_slab.get_mut(connection).expect("connection");
-            c.pump(env, io);
             let waiting = self.waiting.get_mut(id).expect("call");
+            let Some(github) = waiting.github() else { break };
+            github.exchange.pump(c, env, io);
             if c.written && !waiting.charged {
                 waiting.cost = waiting.cost.checked_add(1).expect("bounded exchanges");
                 waiting.charged = true;
@@ -330,7 +327,8 @@ impl Common {
                 };
                 gh.state.recent = Some(github.route.expect("sent route").selected.id);
             }
-            if let Some(heard) = c.heard() {
+            let Some(github) = waiting.github() else { break };
+            if let Some(heard) = github.exchange.heard(c) {
                 let (step, valid) = self.hear_github_call(id, base, gh, env, heard);
                 match step {
                     Ok(Some(step)) => {
@@ -350,7 +348,7 @@ impl Common {
             if c.phase == Phase::Closed {
                 c.close(env, true, io);
             }
-            if !c.ready() {
+            if !github.exchange.ready(c) {
                 break;
             }
             self.wake = Some(env.now);
@@ -391,10 +389,9 @@ impl Common {
         route.status = None;
         let c = self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
         c.deadline = Some(deadline);
-        match c.start(env, &base.forge, &self.owner.user_agent, Exchange::GitHub { exchange, authorization }) {
+        match github.exchange.start(c, env, &base.forge, &self.owner.user_agent, exchange, authorization) {
             Ok(()) => {}
-            Err(connection::Refusal::GitHub(_)) => return Err(api::Error::Refused),
-            Err(connection::Refusal::Forgejo(_)) => unreachable!("GitHub encoder"),
+            Err(_) => return Err(api::Error::Refused),
         }
         waiting.charged = false;
         Ok(())
@@ -405,13 +402,9 @@ impl Common {
         base: &mut Base,
         gh: &mut GitHubForge,
         env: &Env<Limits>,
-        heard: connection::Heard,
+        heard: Heard,
     ) -> (Result<Option<Step>, api::Error>, bool) {
         let waiting = self.waiting.get_mut(id).expect("call");
-        let heard = match heard {
-            connection::Heard::GitHub(heard) => heard,
-            connection::Heard::Forgejo(_) => unreachable!("GitHub connection"),
-        };
         let refused = match &heard {
             Heard::Head { status, .. } => *status == 401,
             Heard::Done(_) | Heard::Row(_) | Heard::Failed(_) => false,
