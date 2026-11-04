@@ -639,3 +639,121 @@ mod instruction_words;
 mod result_words;
 mod task_settings;
 use result_words::text as result_text;
+
+// jig/docs/design/client/domain/contract.md, 3.2: person answers name their revision and offers.
+fn person_text(person: &jig_client::contract::PersonTask, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
+    out.put(b"person task ");
+    out.number(person.task.task);
+    out.put(b" --rev ");
+    out.number(person.revision.value);
+    out.put(b"\n");
+    out.words(person.spec.specification.words.bytes());
+    if person.spec.cut {
+        out.put(b" (cut)");
+    }
+    out.put(b"\ncontract: ");
+    person_contract_text(&person.contract, out);
+    out.put(b"\ntaken by: ");
+    match person.taken_by {
+        Some(party) => acts::party(party, me, out),
+        None => out.put(b"none"),
+    }
+    out.put(b"\nacts:\n");
+    for offer in &person.acts {
+        out.put(b"  ");
+        person_call(person, offer.act, out);
+        match &offer.admission {
+            jig_client::contract::Admission::Allowed => {}
+            jig_client::contract::Admission::Refused(why) => {
+                out.put(b": ");
+                acts::refusal(why, book, out);
+            }
+            jig_client::contract::Admission::Proposed { to } => acts::proposed(to, me, out),
+            jig_client::contract::Admission::Bounded { within, .. } => acts::bounds(within, out),
+        }
+        out.put(b"\n");
+    }
+}
+fn person_contract_text(contract: &jig_client::contract::TaskContractDocument, out: &mut Text) {
+    use jig_client::contract::TaskContractDocument as C;
+    match contract {
+        C::Report { words } => {
+            out.put(b"words, at most ");
+            out.number(u64::from(*words));
+        }
+        C::Verdict { choices, cut } => {
+            out.put(b"choice\n");
+            for choice in choices {
+                out.put(b"  ");
+                out.number(u64::from(choice.code));
+                out.put(b" (reason bytes ");
+                out.number(u64::from(choice.words));
+                out.put(b")\n");
+            }
+            if *cut {
+                out.put(b"  (choices cut)\n");
+            }
+        }
+        C::Approval { state, .. } => {
+            out.put(b"approve state ");
+            let hex = crate::jig::argv::value::encode(
+                &[],
+                crate::jig::table::Kind::Cursor,
+                &crate::jig::call::Value::Cursor(state.clone()),
+            )
+            .expect("bounded state hexadecimal");
+            out.put(&hex);
+        }
+        C::Job { .. } | C::Change { .. } => out.put(b"owner result"),
+    }
+}
+fn person_call(person: &jig_client::contract::PersonTask, act: jig_client::contract::ActKind, out: &mut Text) {
+    use jig_client::contract::{ActKind, TaskContractDocument as C};
+    let name = if act == ActKind::Take {
+        crate::jig::rows::TAKE.name
+    } else if act == ActKind::HandBack {
+        crate::jig::rows::HAND_BACK.name
+    } else {
+        acts::name(act)
+    };
+    out.put(name);
+    out.put(b" ");
+    out.number(person.task.task);
+    if act == ActKind::Answer {
+        out.put(b" --rev ");
+        out.number(person.revision.value);
+        match person.contract {
+            C::Verdict { .. } => out.put(b" CHOICE TEXT"),
+            C::Approval { .. } => out.put(b" --approve STATE [TEXT]"),
+            C::Report { .. } | C::Job { .. } | C::Change { .. } => out.put(b" TEXT"),
+        }
+    }
+    out.put(b" --key KEY");
+}
+fn encode_person_task(person: &jig_client::contract::PersonTask, out: &mut Encoder, budget: &mut Cut) {
+    out.object_start();
+    out.key(b"task");
+    encode_chip(&person.task, out, budget);
+    out.key(b"revision");
+    encode_revision(person.revision, out, budget);
+    out.key(b"spec");
+    encode_specification_document(&person.spec, out, budget);
+    out.key(b"address");
+    encode_person_address(&person.address, out, budget);
+    out.key(b"taken_by");
+    match person.taken_by {
+        Some(party) => out.unsigned(party),
+        None => out.null(),
+    }
+    out.key(b"contract");
+    encode_task_contract_document(&person.contract, out, budget);
+    out.key(b"acts");
+    out.array_start();
+    for offer in &person.acts {
+        encode_offered(offer, out, budget);
+    }
+    out.array_end();
+    out.key(b"cut");
+    out.boolean(person.cut);
+    out.object_end();
+}

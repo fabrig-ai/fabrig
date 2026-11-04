@@ -271,15 +271,15 @@ Expect: the change's panel, its first line `change CHANGE ·
 work/hello on forge FORGE · `, its branch and `into main`, then `met`;
 `change show` then names its step, `landed`, and its merge commit.
 
-If not: `not met: timeout` (exit 3): read `temper ctl DIR change
-show CHANGE` and `temper ctl DIR task show CHANGE --tree` for its step,
-hold and acts; act, then wait again. `not met: ended:
-cancelled` or `not met: ended: failed` (exit 3), at once: the change
-ended without landing; its tree says why. `not met: held` (exit 3):
-`held: task N (REASON)` names the change, writer or reviewer;
-`temper ctl DIR task show N` prints its way out. `held before
-registration: REASON` (exit 2): held before making the pull request;
-`temper ctl DIR task show CHANGE` prints its way out.
+If not (exit 3): `not met: timeout`: inspect `change show CHANGE` and
+`task show CHANGE --tree`, act, then wait again.
+`not met: ended`, `not met: ended: cancelled` or `not met: ended:
+failed`: ended without landing. `completed, no change` means success
+without a change. `temper ctl DIR task show CHANGE` prints its report.
+`not met: held`: `held: task N (REASON)` names the change, writer or
+reviewer; `temper ctl DIR task show N` prints its way out.
+`held before registration: REASON` (exit 2): no pull request yet;
+`task show CHANGE` prints its way out.
 
 ## 8. Export the account, then stop
 

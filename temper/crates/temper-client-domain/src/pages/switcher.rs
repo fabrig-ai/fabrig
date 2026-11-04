@@ -12,6 +12,8 @@ const NAME_BYTES: u32 = 64;
 pub enum Act {
     /// Open the rename's form for the open project.
     Rename,
+    /// Open the rename in Home’s Connected line.
+    RenameHere,
     /// The rename's field.
     RenameWords { words: Box<[u8]> },
     /// The rename's "Save", or its field's Enter.
@@ -31,6 +33,7 @@ pub enum Form {
 #[derive(Clone, Debug)]
 pub struct Switcher {
     renaming: Option<u32>,
+    renaming_here: bool,
     rename_words: Box<[u8]>,
     new_words: Box<[u8]>,
     pending: Option<(Key, Form)>,
@@ -42,6 +45,7 @@ impl Default for Switcher {
     fn default() -> Self {
         Self {
             renaming: None,
+            renaming_here: false,
             rename_words: Box::default(),
             new_words: Box::default(),
             pending: None,
@@ -55,6 +59,10 @@ impl Switcher {
     #[must_use]
     pub const fn renaming(&self) -> Option<u32> {
         self.renaming
+    }
+    #[must_use]
+    pub const fn renaming_here(&self) -> bool {
+        self.renaming_here
     }
     #[must_use]
     pub fn rename_words(&self) -> &[u8] {
@@ -79,6 +87,25 @@ impl Switcher {
         }
     }
     pub(super) fn went(&mut self, address: &Address) {
+        if self.renaming_here {
+            let stays_here = match address {
+                Address::Home { project } => self.renaming == Some(*project),
+                Address::Settings { .. }
+                | Address::Chats { .. }
+                | Address::Chat { .. }
+                | Address::Task { .. }
+                | Address::Adopt { .. }
+                | Address::Accounts
+                | Address::Forges
+                | Address::ConnectForge { .. }
+                | Address::ConnectModel { .. }
+                | Address::Welcome { .. }
+                | Address::Inbox { .. } => false,
+            };
+            if !stays_here {
+                self.close();
+            }
+        }
         match address {
             Address::Accounts
             | Address::Forges
@@ -86,11 +113,17 @@ impl Switcher {
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Inbox { .. } => self.close(),
-            Address::Chats { .. } | Address::Chat { .. } | Address::Task { .. } | Address::Adopt { .. } => {}
+            Address::Home { .. }
+            | Address::Settings { .. }
+            | Address::Chats { .. }
+            | Address::Chat { .. }
+            | Address::Task { .. }
+            | Address::Adopt { .. } => {}
         }
     }
     pub(super) fn close(&mut self) {
         self.renaming = None;
+        self.renaming_here = false;
         self.rename_words = Box::default();
         self.clear_refusal(Form::Rename);
     }
@@ -110,9 +143,10 @@ impl Switcher {
         out: &mut Queue<Request>,
     ) {
         match act {
-            Act::Rename if self.pending.is_none() => {
+            Act::Rename | Act::RenameHere if self.pending.is_none() => {
                 let Some(row) = owned(me, project) else { return };
                 let Ok(words) = c::Text::new(row.name.bytes().into(), NAME_BYTES) else { return };
+                self.renaming_here = act == Act::RenameHere;
                 self.renaming = Some(row.project);
                 self.rename_words = words.into_bytes();
                 self.clear_refusal(Form::Rename);
@@ -142,7 +176,13 @@ impl Switcher {
                 let name = c::Text::new(self.new_words.clone(), NAME_BYTES).expect("bounded new project words");
                 self.send(c::Ask::MakeProject { name, policy: 1 }, Form::New, serial, out);
             }
-            Act::Rename | Act::RenameWords { .. } | Act::Save | Act::Cancel | Act::NewWords { .. } | Act::Create => {}
+            Act::Rename
+            | Act::RenameHere
+            | Act::RenameWords { .. }
+            | Act::Save
+            | Act::Cancel
+            | Act::NewWords { .. }
+            | Act::Create => {}
         }
     }
     fn send(&mut self, ask: c::Ask, form: Form, serial: &mut u64, out: &mut Queue<Request>) {

@@ -517,7 +517,7 @@ pub static NAMES: [Name; 232] = [
     Name {
         name: "people.words",
         unit: Unit::Bytes,
-        line: "Bounds opening-word or escalation rejection-reason bytes per keyed ask, including pending and completed copies.",
+        line: "Bounds opening words, escalation rejection and settings-proposal reason bytes, including pending and completed copies.",
         value: |limits| u64::from(limits.core.people.words),
     },
     Name {

@@ -156,7 +156,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(27) {
+    match random.below(28) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -196,6 +196,7 @@ pub fn key(random: &mut Rng) -> top::Key {
         22 => top::Key::ForgeNumber,
         23 => top::Key::Playground,
         24 => top::Key::Tier { repository: repository(random), tier: Box::from(b"tier".as_slice()) },
+        25 => top::Key::Verification { repository: repository(random), commit: commit(random) },
         26 => top::Key::Setting(top::settings::SettingKey {
             kind: u32::try_from(random.below(3).checked_add(1).expect("kind")).expect("kind"),
             scope: u32::try_from(random.below(4_294_967_296)).expect("u32"),
@@ -207,7 +208,10 @@ pub fn key(random: &mut Rng) -> top::Key {
                 _ => top::settings::SettingSlot::Replaced(random.next_u64()),
             },
         }),
-        _ => top::Key::Verification { repository: repository(random), commit: commit(random) },
+        _ => top::Key::Dismissed {
+            party: number,
+            what: top::Dismissal::ToBegin { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
+        },
     }
 }
 pub fn core_keys() -> [jig_domain_core::Key; 4] {

@@ -45,6 +45,8 @@ pub(crate) fn person() -> Vec<Step<temper_client_domain::Address>> {
         Step::Go {
             address: temper_client_domain::Address::Inbox { filter: temper_client_domain::address::Filter::ALL },
         },
+        see(Find::exactly_named(Role::Link, b"Settings")),
+        press(Role::Link, b"Settings"),
         see(Find::named(Role::Link, b"Adopt a repository")),
         press(Role::Link, b"Adopt a repository"),
         see(Find::named(Role::TextField, b"Owner")),
@@ -351,5 +353,6 @@ pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Give
         jig.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
         jig.templates[0].budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(50) };
     }
+    crate::review_delivery::given(&mut given);
     given
 }

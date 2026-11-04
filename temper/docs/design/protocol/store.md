@@ -18,8 +18,8 @@ a second store. temper's part is the crate `temper-protocol-store`
   `protocol/store.md`, section 12).
 - **One family per forge record.** Each variant of the forge connector's
   `Stored` is a family, a keyed adoption's or forge outcome, each
-  forge's writer, each forge itself, the last forge number given and the
-  playground's row among them. Nothing
+  forge's writer, each forge itself, the last forge number given, the
+  playground's row and a person's dismissals among them. Nothing
   else of temper's is in the main store: temper has no index of its own
   and no secret record there, its forges' credentials being in jig's
   secrets' store (credentials.md, 2.1); the core's records, people's and
@@ -122,10 +122,15 @@ section 7).
   (`../domain/after-landing.md`, section 6); its row keeps the red
   landing it repairs (`repairs`, `../domain/after-landing.md`, section
   7).
+- **A person's dismissals,** after them:
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 34 | `Dismissed` | `Dismissed { party, what }`: the party, then what it dismissed, `ToBegin { project }` the one kind for now | what the person dismissed, on every device and across restarts (`../domain/forge.md`, 5.5). Its record is its key's fields, `{ party, what }`, as `Flight`'s is. Written by the party's `Dismiss` (`../client/README.md`, 4.6), a second writing nothing; erased in the decision that releases its project (jig's `domain/connectors.md`, section 2). A family of the forge connector's though it is people's, as `Binding` is. jig erases no party, so nothing erases a row by its party: a member removed keeps theirs, as a binding stays (`sign-in.md`, section 5; section 7) | the forge's `bindings` times its `judge_projects`: the members times the projects |
 
 - **Loaded:** every family at the forge's restart step, and never
-  otherwise. No party reads them: the engine serves none of the forge's
-  client parts but the adoption form (`../client/README.md`, section 4).
+  otherwise. No party reads a row: what a party sees of them comes in
+  the forge's documents (`../client/README.md`, section 4).
 - **Written** in the root's decisions, as the forge asks: its `Save` and
   `Erase` become the root's `Write::Save(Record::Forge { row })` and
   `Write::Erase(Key::Forge(key))`, which the routing encodes into jig's
@@ -153,7 +158,9 @@ section 7).
     or the number;
   - the client's key is its variant (0 `Live`, 1 `Repository`), then its
     resource or repository, a resource's `What` tagged as `Name`'s is,
-    its branch one byte string.
+    its branch one byte string;
+  - `Dismissed` is the party, then what it dismissed: 0 `ToBegin` and
+    the project.
 - **Written out, not generated:** each family has a small encoder and
   decoder in `temper-protocol-store`. A property test holds each encoder
   to the order `Key` derives, on generated keys of every family, and
@@ -354,6 +361,13 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
   as another's landing. Default: bounded by the forge's limits, no
   retention. A row could go once no live goal's subscription could hear
   of its merge.
+- **A party's dismissals outlive it.** jig erases no party: a member
+  taken out of the configuration stays a party, and a role lost leaves
+  the party's rows. So `Dismissed` is erased with its project alone, and
+  a row can outlive its member's use for it, within the family's bound.
+  Default: nothing, until jig erases a party, when its connector would
+  need telling, a change of jig's (jig's `domain/connectors.md`, section
+  2).
 - **Upgrades:** reading an older `STORE_VERSION` as it loads, or a pass
   at opening that rewrites it, once a deployment's data must outlive a
   release. Default: jig's (jig's `protocol/store.md`, section 16), a store

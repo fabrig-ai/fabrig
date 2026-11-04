@@ -1,7 +1,7 @@
 # tools: status
 
 2026-11-04. Remaining gaps between temper's code and [tools.md](tools.md).
-Unlisted sections, including 6.1's settings proposal recipients, have no known gap.
+Unlisted sections have no known gap.
 
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
@@ -15,7 +15,7 @@ Unlisted sections, including 6.1's settings proposal recipients, have no known g
   `finding drop`, `qa choose`, `task hold` and `project hold`.
   5.5: area 2's procedure executor choice for `goal start`,
   `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
-  show`, `task move`, `task take`, `task hand-back`, and the project's
+  show`, `task move`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.
   6.1: a task wait's refusal by a worker's hello

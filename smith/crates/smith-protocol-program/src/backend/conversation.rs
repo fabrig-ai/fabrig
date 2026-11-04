@@ -2,11 +2,11 @@
 //! Keeps correlation separately from delivered domain blocks; the domain alone
 //! accepts outcomes; cancellation fails unanswered calls before settling the child.
 
-use super::Complete;
 use super::{Backend, Below, State, calls, stream, turns};
+use super::{Complete, Rejection};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
-use skein_json::{Document, Kind};
+use skein_json::Kind;
 use skein_lib::{Env, List, Queue};
 use smith_domain::{llm, run};
 use smith_protocol_llm::{self as protocol, ToDomain};
@@ -82,23 +82,53 @@ impl Backend {
             self.fail_program(env, b"smith: the program stream does not decode", up, below);
             return;
         };
-        let Some(document) = self.terminal_record(env, bytes, document, up, below) else {
-            return;
-        };
         let kind = json::text_in(&document, json::field(&document, 0, b"type"));
-        if self.record(env, &document, up).is_none() {
-            let failure = if self.turns.problem == b"completion backlog is full" {
-                llm::Failure::Invalid
-            } else {
-                llm::Failure::Program { exit: self.process.exit() }
-            };
-            let detail = skein_lib::bytes::concat(&[b"smith: ", record_name(kind), b": ", self.turns.problem]);
-            self.fail(env, failure, &detail, up, below);
+        if kind == Some(b"control_response") {
+            if !self.control_response(&document, below) {
+                self.fail(env, llm::Failure::Invalid, b"smith: the program refused the interrupt", up, below);
+            }
             return;
         }
+        if self.stopping.waiting() {
+            if kind == Some(b"result") {
+                // Note rendering reuses the parser's workspace term.
+                drop(document);
+                self.stopped_result(env, up, below);
+                self.deliver(env, up, below);
+            }
+            return;
+        }
+        self.conversation_line(env, document, bytes, up, below);
+    }
+
+    fn conversation_line(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        document: skein_json::Document,
+        bytes: &[u8],
+        up: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) {
+        let kind = json::text_in(&document, json::field(&document, 0, b"type"));
+        if self.startup.switching() {
+            return;
+        }
+        if kind == Some(b"system") && json::text_in(&document, json::field(&document, 0, b"subtype")) == Some(b"init") {
+            drop(document);
+            self.later_init(env, bytes, up, below);
+            return;
+        }
+        let result = self.record(env, &document, kind, up, below);
+        match result {
+            Ok(true) => {}
+            Ok(false) => return,
+            Err(reason) => {
+                self.reject_record(env, reason, record_name(kind), up, below);
+                return;
+            }
+        }
         if self.register_calls().is_none() {
-            let detail = skein_lib::bytes::concat(&[b"smith: ", record_name(kind), b": ", self.turns.problem]);
-            self.fail(env, llm::Failure::Invalid, &detail, up, below);
+            self.fail(env, llm::Failure::Invalid, b"smith: program call ledger is full", up, below);
             return;
         }
         self.match_calls(below);
@@ -107,137 +137,100 @@ impl Backend {
         self.continue_ended(env, up, below);
     }
 
-    fn terminal_record(
+    fn reject_record(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
-        bytes: &[u8],
-        document: Document,
+        reason: Rejection,
+        record: &[u8],
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
-    ) -> Option<Document> {
-        let kind = json::text_in(&document, json::field(&document, 0, b"type"));
-        if kind == Some(b"control_response") {
-            if !self.control_response(&document, below) {
-                self.fail(env, llm::Failure::Invalid, b"smith: the program refused the interrupt", up, below);
-            }
-            return None;
-        }
-        if self.stopping.waiting() {
-            if kind == Some(b"result") {
-                drop(document);
-                self.stopped_result(env, up, below);
-                self.deliver(env, up, below);
-            }
-            return None;
-        }
-        if self.startup.switching() {
-            return None;
-        }
-        if kind == Some(b"system") {
-            match json::text_in(&document, json::field(&document, 0, b"subtype")) {
-                Some(b"init") => {
-                    drop(document);
-                    self.later_init(env, bytes, up, below);
-                    return None;
-                }
-                Some(b"api_retry" | b"compact_boundary" | b"compaction") | None => {}
-                Some(_) => return None,
-            }
-        }
-        if self.failed_record(env, &document, up, below) {
-            return None;
-        }
-        Some(document)
-    }
-
-    fn failed_record(
-        &mut self,
-        env: &Env<protocol::ComponentLimits>,
-        document: &Document,
-        up: &mut Queue<ToDomain>,
-        below: &mut Queue<Below>,
-    ) -> bool {
-        let kind = json::text_in(document, json::field(document, 0, b"type"));
-        if kind == Some(b"result") {
-            if let Some(failure) = result_failure(document, env.wall) {
-                self.turns.result = true;
-                self.fail(env, failure, b"smith: the program reported a failed result", up, below);
-                return true;
-            }
-            if self.turns.result {
-                self.fail_program(env, b"smith: a program turn repeated its result", up, below);
-                return true;
-            }
-        }
-        if kind == Some(b"rate_limit_event") {
-            let info = json::field(document, 0, b"rate_limit_info");
-            if json::text_in(document, json::field_in(document, info, b"status")) == Some(b"rejected".as_slice()) {
-                let retry_after = retry_after(document, env.wall);
-                self.fail(env, llm::Failure::Exhausted { retry_after }, b"smith: program usage limit", up, below);
-                return true;
-            }
-        }
-        false
+    ) {
+        let failure = match reason {
+            Rejection::Backlog { .. } => llm::Failure::Invalid,
+            Rejection::Malformed
+            | Rejection::Unsupported
+            | Rejection::Boundary
+            | Rejection::StructuredBoundary
+            | Rejection::Limit { .. }
+            | Rejection::Overflow => llm::Failure::Program { exit: self.process.exit() },
+        };
+        let detail = reason.detail(record);
+        self.fail(env, failure, &detail, up, below);
     }
 
     fn record(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
-        document: &Document,
+        document: &skein_json::Document,
+        kind: Option<&[u8]>,
         up: &mut Queue<ToDomain>,
-    ) -> Option<()> {
-        match json::text_in(document, json::field(document, 0, b"type")) {
+        below: &mut Queue<Below>,
+    ) -> Result<bool, Rejection> {
+        match kind {
             Some(b"stream_event") => {
                 self.flush_prompt_measure(env.now);
-                self.turns.problem = b"stream_event has no event";
-                let event = json::field(document, 0, b"event")?;
-                self.turns.problem = b"partial content has invalid fields or exceeds observation bounds";
+                let event = json::field(document, 0, b"event").ok_or(Rejection::Malformed)?;
                 self.partial_measure(env.now, document, event)?;
-                self.turns.event(document, event)
+                self.turns.event(document, event)?;
             }
-            Some(b"assistant") => match self.turns.assistant(document, self.settings.translation.client.answer) {
-                Some(_) => Some(()),
-                None => None,
-            },
-            Some(b"result") => self.result_record(document),
-            Some(b"rate_limit_event") => Some(()),
-            Some(b"system") => self.system_record(env, document),
-            Some(b"user") => self.builtin_results(document, up),
-            Some(_) => {
-                self.turns.problem = b"unknown top-level record type";
-                None
+            Some(b"assistant") => {
+                self.turns.assistant(document, self.settings.translation.client.answer)?;
             }
-            None => {
-                self.turns.problem = b"top-level record has no string type";
-                None
+            Some(b"result") => return self.result_record(env, document, up, below),
+            Some(b"user") => self.builtin_results(document, up)?,
+            Some(b"system") => return self.system_record(env.now, document),
+            Some(b"rate_limit_event") => {
+                let info = json::field(document, 0, b"rate_limit_info");
+                if json::text_in(document, json::field_in(document, info, b"status")) == Some(b"rejected".as_slice()) {
+                    let retry_after = retry_after(document, env.wall);
+                    self.fail(env, llm::Failure::Exhausted { retry_after }, b"smith: program usage limit", up, below);
+                    return Ok(false);
+                }
             }
+            Some(_) => return Err(Rejection::Unsupported),
+            None => return Err(Rejection::Malformed),
         }
+        Ok(true)
     }
 
-    fn result_record(&mut self, document: &Document) -> Option<()> {
+    fn result_record(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        document: &skein_json::Document,
+        up: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) -> Result<bool, Rejection> {
+        if let Some(failure) = result_failure(document, env.wall) {
+            self.turns.result = true;
+            self.fail(env, failure, b"smith: the program reported a failed result", up, below);
+            return Ok(false);
+        }
+        if self.turns.result {
+            self.fail_program(env, b"smith: a program turn repeated its result", up, below);
+            return Ok(false);
+        }
         self.turns.result = true;
-        let structured = self.result_contract();
         match json::field(document, 0, b"structured_output") {
-            Some(index) if structured => {
-                self.turns.problem = b"structured_output outcome is missing or exceeds answer bound";
-                let input = json::outcome_input(document, index, self.settings.translation.client.answer)?;
+            Some(index) if self.result_contract() => {
+                let input = json::outcome_value(document, index).ok_or(Rejection::Malformed)?;
+                let input = turns::bounded_input(document, input, self.settings.translation.client.answer)?;
                 self.turns.structured(input)?;
             }
             Some(_) | None => {
                 self.turns.close(true)?;
                 if !self.turns.deliverable() && !self.turns.ready.is_empty() {
-                    self.turns.problem = b"StructuredOutput has no structured_output outcome";
-                    return None;
+                    return Err(Rejection::StructuredBoundary);
                 }
             }
         }
-        self.turns.end_empty()
+        self.turns.end_empty()?;
+        Ok(true)
     }
 
-    fn system_record(&mut self, env: &Env<protocol::ComponentLimits>, document: &Document) -> Option<()> {
+    fn system_record(&mut self, at: skein_lib::Time, document: &skein_json::Document) -> Result<bool, Rejection> {
         match json::text_in(document, json::field(document, 0, b"subtype")) {
             Some(b"api_retry") => {
-                self.retry_measure(env.now, document);
+                self.retry_measure(at, document);
                 self.turns.retry();
                 let old = core::mem::replace(
                     &mut self.ledger,
@@ -248,14 +241,12 @@ impl Backend {
                         assert!(self.ledger.push(call).is_ok(), "retained delivered calls");
                     }
                 }
-                Some(())
             }
-            Some(_) => Some(()),
-            None => {
-                self.turns.problem = b"system record has no string subtype";
-                None
-            }
+            Some(b"compact_boundary" | b"compaction") => {}
+            Some(_) => return Ok(false),
+            None => return Err(Rejection::Malformed),
         }
+        Ok(true)
     }
 
     fn continue_ended(
@@ -289,30 +280,22 @@ impl Backend {
     }
 
     fn register_calls(&mut self) -> Option<()> {
-        self.turns.problem = b"call ledger message sequence overflow";
         let mut message = self.turns.closed.checked_sub(u64::from(self.turns.ready.len()))?.checked_add(1)?;
         for _ in 0..self.turns.ready.len() {
-            let completion = self.turns.ready.pop().expect("queued completion");
-            self.turns.problem = b"call ledger is full";
+            let completion = self.turns.ready.pop()?;
             let result = register_blocks(&mut self.ledger, &completion.content, message);
             self.turns.ready.push(completion);
             result?;
-            self.turns.problem = b"call ledger message sequence overflow";
             message = message.checked_add(1)?;
         }
-        self.turns.problem = b"call ledger message sequence overflow";
-        let open = self.turns.closed.checked_add(1)?;
-        self.turns.problem = b"call ledger is full";
         if let Some(blocks) = self.turns.open_blocks() {
-            register_blocks(&mut self.ledger, blocks, open)?;
+            register_blocks(&mut self.ledger, blocks, self.turns.closed.checked_add(1)?)?;
         }
-        self.turns.problem = b"call ledger matching sequence overflow";
         let floor = self.turns.matching_floor()?;
         for index in 0..self.ledger.len() {
-            let call = self.ledger.get_mut(index).expect("ledger slot");
+            let call = self.ledger.get_mut(index)?;
             call.eligible = call.message >= floor;
         }
-        self.turns.problem = b"call ledger exceeds retained reply byte bound";
         if !self.reply_room(0) {
             return None;
         }
@@ -349,14 +332,8 @@ impl Backend {
             return;
         };
         self.retain_calls();
-        if self.translate_completion(&mut completion).is_none() {
-            self.fail(
-                env,
-                llm::Failure::Invalid,
-                b"smith: assistant: completion exceeds its receiving bound",
-                up,
-                below,
-            );
+        if let Err(reason) = self.translate_completion(&mut completion) {
+            self.fail(env, llm::Failure::Invalid, &reason.detail(b"assistant"), up, below);
             return;
         }
         let text = completion_text(&completion);
@@ -376,7 +353,7 @@ impl Backend {
         }
     }
 
-    fn translate_completion(&self, completion: &mut llm::Completion) -> Option<()> {
+    fn translate_completion(&self, completion: &mut llm::Completion) -> Result<(), Rejection> {
         let Some(Complete { prompt, outcome, deliver, .. }) = self.current.request() else {
             unreachable!("active completion contract");
         };
@@ -510,19 +487,7 @@ impl Backend {
     }
 }
 
-fn record_name(kind: Option<&[u8]>) -> &'static [u8] {
-    match kind {
-        Some(b"assistant") => b"assistant",
-        Some(b"stream_event") => b"stream_event",
-        Some(b"user") => b"user",
-        Some(b"result") => b"result",
-        Some(b"system") => b"system",
-        Some(b"rate_limit_event") => b"rate_limit_event",
-        Some(_) | None => b"record",
-    }
-}
-
-fn completion_room(completion: &llm::Completion, maximum: u64) -> Option<()> {
+fn completion_room(completion: &llm::Completion, maximum: u64) -> Result<(), Rejection> {
     let mut held = 0_u64;
     for block in &completion.content {
         let payload = match block {
@@ -543,10 +508,7 @@ fn completion_room(completion: &llm::Completion, maximum: u64) -> Option<()> {
         };
         held = held.saturating_add(u64::try_from(size_of::<llm::Said>()).expect("block cell")).saturating_add(payload);
     }
-    if held > maximum {
-        return None;
-    }
-    Some(())
+    turns::check_bound(super::Bound::Completion, held, maximum)
 }
 
 fn completion_text(completion: &llm::Completion) -> u32 {
@@ -683,11 +645,11 @@ fn decode(
     }
 }
 
-fn token_kind(document: &Document, index: Option<u32>) -> Option<Kind> {
+fn token_kind(document: &skein_json::Document, index: Option<u32>) -> Option<Kind> {
     Some(document.token(index?)?.kind)
 }
 
-fn result_failure(document: &Document, wall: skein_lib::Wall) -> Option<llm::Failure> {
+fn result_failure(document: &skein_json::Document, wall: skein_lib::Wall) -> Option<llm::Failure> {
     if token_kind(document, json::field(document, 0, b"is_error")) != Some(Kind::True) {
         return None;
     }
@@ -704,8 +666,20 @@ fn result_failure(document: &Document, wall: skein_lib::Wall) -> Option<llm::Fai
     })
 }
 
-fn retry_after(document: &Document, wall: skein_lib::Wall) -> Option<skein_lib::Duration> {
+fn retry_after(document: &skein_json::Document, wall: skein_lib::Wall) -> Option<skein_lib::Duration> {
     let info = json::field(document, 0, b"rate_limit_info");
     let seconds = turns::number(document, json::field_in(document, info, b"resetsAt"))?;
     Some(skein_lib::Duration::from_nanos(seconds.checked_mul(1_000_000_000)?.saturating_sub(wall.as_nanos())))
+}
+
+fn record_name(kind: Option<&[u8]>) -> &'static [u8] {
+    match kind {
+        Some(b"assistant") => b"assistant",
+        Some(b"stream_event") => b"stream_event",
+        Some(b"result") => b"result",
+        Some(b"user") => b"user",
+        Some(b"system") => b"system",
+        Some(b"rate_limit_event") => b"rate_limit_event",
+        Some(_) | None => b"record",
+    }
 }

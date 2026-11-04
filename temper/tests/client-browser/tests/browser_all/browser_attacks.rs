@@ -27,6 +27,8 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         Step::Trouble { words: b"frame-ancestors".as_slice().into(), within: WITHIN },
         Step::Person(PersonStep::Gone { find: live.clone(), within: ABSENT }),
         Step::Person(PersonStep::Go { address: target.page.into() }),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
         see(live.clone()),
     ];
     for origin in [0, 1] {
@@ -34,8 +36,10 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
             Step::Visit { origin, path: b"/forging".as_slice().into() },
             see(Find::exactly_named(Role::Heading { level: 1 }, b"Forged requests completed")),
             Step::Person(PersonStep::Go { address: target.page.into() }),
-            see(live.clone()),
+            see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
             Step::Person(PersonStep::Gone { find: target.done.clone(), within: ABSENT }),
+            Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
+            see(live.clone()),
         ]);
     }
     let mut script = Script::new(steps.into_boxed_slice());

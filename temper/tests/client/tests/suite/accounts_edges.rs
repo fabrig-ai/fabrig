@@ -76,11 +76,19 @@ fn accounts_connect_link_opens_choose() {
     );
 }
 
-// client/README.md 5.3: Accounts navigation is current on the connection flow too.
+// client/README.md 5.3: the connection flow reaches Accounts through Settings.
 #[test]
-fn accounts_navigation_is_current_on_connect_model() {
+fn accounts_navigation_from_connect_model_walks_settings() {
     let mut world = world();
     let client = open(&mut world, b"/accounts/connect");
+    follow(&mut world, client, vec![see(Role::Link, b"Settings"), press(Role::Link, b"Settings")]);
+    let settings = world
+        .tree(client)
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings"))
+        .expect("settings navigation");
+    assert!(settings.states.as_slice().contains(&State::Current));
     follow(&mut world, client, vec![see(Role::Link, b"Accounts")]);
     let entry = world
         .tree(client)
@@ -88,7 +96,8 @@ fn accounts_navigation_is_current_on_connect_model() {
         .iter()
         .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Accounts"))
         .expect("accounts navigation");
-    assert!(entry.states.as_slice().contains(&State::Current));
+    assert!(!entry.states.as_slice().contains(&State::Current));
+    follow(&mut world, client, vec![press(Role::Link, b"Accounts"), see(Role::Heading { level: 1 }, b"Accounts")]);
 }
 
 // client/README.md 3.5 Accounts: the person's accounts come before the deployment's.

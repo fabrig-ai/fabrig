@@ -88,7 +88,8 @@ pub fn page(
         );
     }
     if let Some(answer) = &form.outcome {
-        outcome(builder, form, answer, words, text_limit);
+        let [forge, owner, name, prefix, _, _] = &form.texts;
+        outcome(builder, (&owner.text, &name.text, &prefix.text, &forge.text), answer, words, text_limit);
     }
     builder.close();
 }
@@ -170,13 +171,14 @@ fn kinds(kinds: forge::Kinds, words: &Words) -> Box<[u8]> {
     }
     writer.finish()
 }
-pub(super) fn outcome(
+pub(crate) fn outcome(
     builder: &mut Builder,
-    form: &forge::Form,
+    fields: (&[u8], &[u8], &[u8], &[u8]),
     answer: &forge::Answer,
     words: &Words,
     text_limit: u32,
 ) {
+    let (owner, name, prefix, forge) = fields;
     match answer {
         forge::Answer::Adopted(adopted) => {
             let role = forge::words::role(adopted.role);
@@ -211,20 +213,19 @@ pub(super) fn outcome(
         }
         forge::Answer::ForgeRefused(reason) => {
             builder.open(Role::Alert);
-            let [forge, owner, name, prefix, _, _] = &form.texts;
-            let name = Hole::Name(forge::words::full_name(&owner.text, &name.text));
-            let number = Hole::Name(forge.text.clone());
+            let name = Hole::Name(forge::words::full_name(owner, name));
+            let number = Hole::Name(forge.into());
             match reason {
                 forge::Reason::NoSuchForge => words::text(words, builder, Word::NoSuchForge, &[number]),
                 forge::Reason::NotFound => words::text(words, builder, Word::NotFound, &[name, number]),
                 forge::Reason::NoAccess => words::text(words, builder, Word::NoAccess, &[name, number]),
                 forge::Reason::Refused => {
-                    words::text(words, builder, Word::Refused, &[name, Hole::Name(prefix.text.clone())]);
+                    words::text(words, builder, Word::Refused, &[name, Hole::Name(prefix.into())]);
                 }
                 forge::Reason::AnotherProject => words::text(words, builder, Word::AnotherProject, &[name]),
                 forge::Reason::HomeHeld => words::text(words, builder, Word::HomeHeld, &[]),
                 forge::Reason::PrefixOccupied => {
-                    words::text(words, builder, Word::PrefixOccupied, &[Hole::Name(prefix.text.clone())]);
+                    words::text(words, builder, Word::PrefixOccupied, &[Hole::Name(prefix.into())]);
                 }
                 forge::Reason::InFlight => words::text(words, builder, Word::InFlight, &[name]),
                 forge::Reason::TooLarge => words::text(words, builder, Word::TooLarge, &[]),
@@ -234,8 +235,7 @@ pub(super) fn outcome(
             builder.close();
         }
         forge::Answer::Unknown => {
-            let [_, owner, name, _, _, _] = &form.texts;
-            status(builder, Word::Unknown, &[Hole::Name(forge::words::full_name(&owner.text, &name.text))], words);
+            status(builder, Word::Unknown, &[Hole::Name(forge::words::full_name(owner, name))], words);
         }
     }
 }
