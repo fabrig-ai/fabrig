@@ -4,28 +4,26 @@
 - **Where:** `examples/ops/domain/src/route.rs`, `testing/jig-test-domain/src/routes.rs`, `jig-domain-core/src/vocabulary.rs`; temper's `temper-engine-domain/src/route/now.rs`
 - **Seen:** 2026-10-31 at `c30cf6a03`, in the jig code-quality review (T4, A1 F3, A12 F3; order of work, item 9)
 - **Seen:** 2026-10-31 at `1b5c98834`, in the quality run's debt list (item 9: "roots still send nine public hand-offs")
-- **Checked:** 2026-11-03 at `41d63da8c3`
+- **Checked:** 2026-11-04 at `e2fd13de21`
 - **Value:** high (each root shrinks; a new root cannot get the order wrong; unblocks D004)
 - **Size:** M
 - **Status:** open
-- **Paid when:** a root handles only the core's `Now` values that need the root (a peer to call, a store to load, a payload to keep); none is answered by pushing a fixed core event straight back.
-- **Measure:** `rg -c 'core::Now::' jig/examples/ops/domain/src/route.rs` (39 at base)
+- **Paid when:** a `Now` value stays when any root does real work with it; none is answered by every root with a fixed core event.
+- **Measure:** `rg -c 'core::Now::' jig/examples/ops/domain/src/route.rs` (39 at `e2fd13de21`)
 
 ## What
 
-The core asks its root for work as `core::Now` values, and several of them come back
-unchanged as a core event, the root adding nothing it owns. In `ops`'s `route.rs`
-(1,446 lines, 39 `core::Now::` arms, 50 pushes of `Work::Core(core::Event::…)`):
+The core asks its root for work as `core::Now` values. `Now::PrepareAgent` is gone;
+the core continues agent preparation internally. The four values below stay because
+temper's engine root does real work with them:
 
-- `Now::Activate` returns as `Event::Activate` with `domain.ready()`;
-- `Now::PrepareAgent` returns as `Event::PreparedAgent`;
-- `Now::BriefCorePlanned` returns as a `GatherEvent::Plan` built from the core's own limits;
-- `Now::CompleteBrief` returns as `Event::BriefAssembled { ready: true }`;
-- `Now::WorkspaceRequest` returns as `Event::WorkspacePrepared` with empty holds.
+- `Now::Activate` checks its byte budget and read room;
+- `Now::BriefCorePlanned` plans the application's brief;
+- `Now::CompleteBrief` assembles the brief;
+- `Now::WorkspaceRequest` prepares the workspace.
 
-The test application's `routes.rs` (39 arms, 26 pushes) and temper's engine root write
-the same arms. The restore protocol moved into the core (`Core::restore`, used by
-`examples/ops/domain/src/restart.rs`); the preparation and brief steps did not.
+`ops`'s `route.rs` has 39 `core::Now::` lines. Its and the test root's fixed answers
+belong to D004; they do not make these values unnecessary to every root.
 
 ## Why it matters
 
