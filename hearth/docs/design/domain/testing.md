@@ -1223,7 +1223,7 @@ hearth/docs/design/domain/operating.md, section 7):
 
 | Scenario | What happens | What must hold |
 |---|---|---|
-| binds after their class | a target with `journal` and `iwd` in `core` and `home-free` in `data` | `/srv/core` and `/srv/data` mounted from `@<target>.core` and `@<target>.data`; each bind up after its class's mount and after `/var`; journald writes `/srv/core/journal/<machine-id>` |
+| binds after their class | a target with `journal` and `iwd` in `core` and `home-alice` in `data` | `/srv/core` and `/srv/data` mounted from `@<target>.core` and `@<target>.data`; each bind up after its class's mount and after `/var`; journald writes `/srv/core/journal/<machine-id>` |
 | seeding | an entry whose path the output fills, `/var/spool/postfix` | its directory made once and seeded by reflink, owners and modes as the output had them; the next prepare leaves it alone; the slot's own copy hidden under the bind |
 | a class that will not mount | the harness renames `@<target>.data` before a boot | the class's mount and every bind of it fail, the boot isolates `emergency.target`, and no service starts on the slot's copy of a path |
 | a snapshot across two services [M5] | two services in `data` append numbered records to their files, without pause, while snapshots are taken | each snapshot holds both files as of one instant: no record in one past what the other had at that instant, beyond what was in flight |

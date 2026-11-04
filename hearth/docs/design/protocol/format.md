@@ -237,7 +237,7 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
 
 - **A base, a member and a base-env layer decide presence.** A key naming
   a task adds it: `"ssh": {}` adds ssh with all its defaults, and
-  `"ssh": {"allow": ["free"]}` adds it with a setting. `"wifi": null`
+  `"ssh": {"allow": ["alice"]}` adds it with a setting. `"wifi": null`
   removes it.
 - **`fleet.json` and `envs/` never add or remove a task.** A task's key
   there sets settings for the targets that have the task; `null` for a
@@ -430,7 +430,7 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
     "architecture": "amd64",
     "snapshot": { "archive": "20261001T030405Z", "security": "20261001T031522Z" }
   },
-  "core": { "domain": "ekanayaka.io" },
+  "core": { "domain": "example.org" },
   "hearth": {
     "snapshots": {
       "core": { "every": "1d", "keep": { "daily": 7 } },
@@ -440,7 +440,7 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
   "locale": { "timezone": { "area": "Europe", "zone": "Lisbon" }, "locale": "en_US.UTF-8" },
   "ssh": {
     "port": 10127,
-    "authorized": { "free": { "x1": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA… free@x1" } }
+    "authorized": { "alice": { "x1": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA… alice@x1" } }
   }
 }
 ```
@@ -459,9 +459,9 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
   "host": {},
   "locale": {},
   "boot": { "params": { "audit": { "param": "audit=0" } } },
-  "users": { "accounts": { "free": { "uid": 1000, "groups": ["sudo"], "password": "users/free.passwd" } } },
+  "users": { "accounts": { "alice": { "uid": 1000, "groups": ["sudo"], "password": "users/alice.passwd" } } },
   "wifi": {},
-  "desktop": { "user": "free" }
+  "desktop": { "user": "alice" }
 }
 ```
 
@@ -562,7 +562,7 @@ merge(target, patch):
   The bash fleet could not express this: task presence was the union of
   both files, so carbon-lab inherited the Wi-Fi task and its iwd mount.
 - **One entry removed, one replaced:**
-  `{"ssh": {"authorized": {"free": {"old-laptop": null}}}}` drops one key
+  `{"ssh": {"authorized": {"alice": {"old-laptop": null}}}}` drops one key
   of one user; `{"dns": {"servers": ["10.0.0.1"]}}` replaces the whole
   list of servers.
 
@@ -955,8 +955,8 @@ nothing.
 - **A sysusers user's own group,** what an unset `group` names, has the
   user's name and the user's `uid` as its id. A `groups` entry of that
   name is that group, so its `gid` is the user's `uid`, and another is a
-  collision (hearth/docs/design/domain/render.md, 3.7): user `free` with `uid` 1000 and group
-  `free` with `gid` 1001 differ. A user whose primary group has another
+  collision (hearth/docs/design/domain/render.md, 3.7): user `alice` with `uid` 1000 and group
+  `alice` with `gid` 1001 differ. A user whose primary group has another
   id names a group of another name in `group`.
 - **A package user gives both `uid` and `gid`, or neither:** build seeds
   its passwd line from both (hearth/docs/design/domain/build.md, 5.5), and one alone is an `ids`
@@ -1102,8 +1102,8 @@ nothing.
   beneath keep the owners postfix gave them; `mail` is base-passwd's
   static group.
 - **On x1-prod** the entries make `@x1-prod.core`, with `journal` and
-  `iwd`, and `@x1-prod.data`, with `home-free` (6.6), bound at
-  `/var/log/journal`, `/var/lib/iwd` and `/home/free`; neither journald
+  `iwd`, and `@x1-prod.data`, with `home-alice` (6.6), bound at
+  `/var/log/journal`, `/var/lib/iwd` and `/home/alice`; neither journald
   nor iwd is configured to find them. Its fstab is hearth/docs/design/domain/machine.md, 3.3's
   example.
 
@@ -1155,7 +1155,7 @@ nothing.
 | Europe/Lisbon and en_US preseeds (os's `install.rs`, bash's `deploy`) | the `locale` task's preseeds (5.3); the values in `fleet.json` (3.7) |
 | the persistent `journal` and `iwd` directories (os's `provision`) | `data` entries of `core` and `wifi` (5.7) |
 | gettys masked in containers (os's and bash's `deploy`) | `files` links in `core`, conditional on placement (below) |
-| `domain=ekanayaka.io` (bash's `manifest`) | the `core` task's `domain` setting, set in `fleet.json` (3.7) |
+| `domain=example.org` (bash's `manifest`) | the `core` task's `domain` setting, set in `fleet.json` (3.7) |
 | SSH port 10127 (bash's ssh templates) | the `ssh` task's `port` setting, default 22, set in `fleet.json` (3.7), read as `Port {{ settings.port }}` in its sshd drop-in |
 
 - **Firmware for x1's hardware.** `tasks/firmware/task.json`:
@@ -1302,7 +1302,7 @@ declares it (hearth/docs/design/domain/render.md, 7.2):
     "packages": { "git": {}, "mmdebstrap": {}, "uidmap": {}, "openssh-client": {} },
     "software": {
       "hearth": {
-        "url": "https://git.ekanayaka.io/ai/hearth/releases/download/v0.1.0/hearth-x86_64-linux",
+        "url": "https://git.example.org/ai/hearth/releases/download/v0.1.0/hearth-x86_64-linux",
         "sha256": "…", "unpack": "file", "path": "/usr/local/bin/hearth", "mode": "0755"
       }
     },
@@ -1448,7 +1448,7 @@ an error.
   {
     "software": {
       "stoa": {
-        "url": "https://git.ekanayaka.io/ai/stoa/releases/download/v0.4.0/stoa-x86_64-linux.tar.gz",
+        "url": "https://git.example.org/ai/stoa/releases/download/v0.4.0/stoa-x86_64-linux.tar.gz",
         "sha256": "…", "unpack": "tar", "strip": 1, "path": "/opt/stoa"
       }
     },
@@ -1593,7 +1593,7 @@ type  = "bool" | "int" | "string" | "path" | "mode" | "duration" | "secret" | "t
   default map or remove one of its entries with `null`.
 - **Inside maps and lists,** whose entries the schema cannot name in
   advance, each object entry has its absent fields filled from the
-  object type's defaults during validation: `"free": {"uid": 1000}` gets
+  object type's defaults during validation: `"alice": {"uid": 1000}` gets
   `/bin/bash` from the users task's `shell` default.
 - **`optional`:** the setting may be absent, and reads as undefined
   (7.6). A setting with neither `default` nor `optional` is required.
@@ -1686,11 +1686,11 @@ Each with its file and line (hearth/docs/design/domain/render.md, section 7):
 }
 ```
 
-- `hosts/x1/x1.json`'s `"free": {"uid": 1000, "groups": ["sudo"], "password": "users/free.passwd"}`
+- `hosts/x1/x1.json`'s `"alice": {"uid": 1000, "groups": ["sudo"], "password": "users/alice.passwd"}`
   validates, and gets `/bin/bash`; its home is the directory
-  `home-free` in `@x1-prod.data`, bound at `/home/free`.
-- `"free": {"uid": "1000"}` is a wrong type; `"free": {"shel": "/bin/sh"}`
-  an undeclared field; `"free": {}` misses the required `uid`. Each error
+  `home-alice` in `@x1-prod.data`, bound at `/home/alice`.
+- `"alice": {"uid": "1000"}` is a wrong type; `"alice": {"shel": "/bin/sh"}`
+  an undeclared field; `"alice": {}` misses the required `uid`. Each error
   names `hosts/x1/x1.json` and the line.
 
 ## 7. Templates
@@ -2023,7 +2023,7 @@ typed values make unneeded:
 
 `hosts/ion/ion.json` holds `"vpn": {"address": "10.0.0.1", "hub": true}`,
 and `hosts/ion/ion-prod.json` what belongs to ion in production,
-`"vpn": {"endpoint": "194.164.162.157", "public_key": "m3NY8…="}`, the
+`"vpn": {"endpoint": "203.0.113.157", "public_key": "m3NY8…="}`, the
 key as ion-prod's activator reported it.
 
 `tasks/vpn/tree/etc/systemd/network/wg0.netdev.j2`:
@@ -2123,7 +2123,7 @@ PersistentKeepalive=25
 - **TLS keys are secrets.** Build removes the snakeoil pair that
   ssl-cert's postinst makes (hearth/docs/design/domain/build.md, 5.6), so a task that serves TLS
   declares its private key as a secret file, such as
-  `"mail/tls/mx1.key": {"path": "/etc/ssl/private/mx1.ekanayaka.io.key",
+  `"mail/tls/mx1.key": {"path": "/etc/ssl/private/mx1.example.org.key",
   "mode": "0640", "group": "ssl-cert"}`, with `ssl-cert` declared from
   its package with a fixed id (5.6). A certificate a machine obtains
   itself (ACME) lives on persistent data instead.
@@ -2253,7 +2253,7 @@ hearth/docs/design/domain/artifacts.md (7.3) cite it.
     "software": {
       "stoa": {
         "artifact": {
-          "repository": "https://git.ekanayaka.io/ai/stoa.git",
+          "repository": "https://git.example.org/ai/stoa.git",
           "commit": "4e1d0c3a…",
           "recipe": "stoa",
           "key": "9f2c71e0…"

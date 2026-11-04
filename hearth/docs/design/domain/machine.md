@@ -192,7 +192,7 @@ btrfs filesystem, UUID 0f3c9a6e-…, label hearth     top level: subvolid 5, mou
 ├── @x1-prod.b.var          slot b's /var
 ├── @x1-prod.live.3         a live delta            only while a live state exists (domain/slots.md, 6.6)
 ├── @x1-prod.core           the core class          one directory per entry: journal, iwd
-├── @x1-prod.data           the data class          one directory per entry: home-free
+├── @x1-prod.data           the data class          one directory per entry: home-alice
 ├── @hearth.store           the builder's store     owned by hearth, 0700; its layers nested in it (domain/store.md, section 2)
 ├── @hearth.state           the activator's state   root, 0700 (domain/activator.md, section 7)
 ├── @hearth.snapshots [M5]  class snapshots         root, 0700: <target>.<class>/<seq>, read-only (domain/operating.md, 7.1)
@@ -302,7 +302,7 @@ UUID=0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90  /srv/data              btrfs  subvol=
 UUID=0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90  /var                   btrfs  subvol=/@x1-prod.b.var,nodev,nosuid     0  0
 UUID=0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90  /var/lib/hearth/state  btrfs  subvol=/@hearth.state,nodev,nosuid,noexec 0  0
 UUID=0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90  /var/lib/hearth/store  btrfs  subvol=/@hearth.store,nodev,nosuid,noatime 0  0
-/srv/data/home-free                         /home/free             none   bind                                    0  0
+/srv/data/home-alice                        /home/alice            none   bind                                    0  0
 /srv/core/iwd                               /var/lib/iwd           none   bind                                    0  0
 /srv/core/journal                           /var/log/journal       none   bind                                    0  0
 ```
@@ -830,7 +830,7 @@ hearth/docs/design/client/README.md, 3.8 owns their syntax:
 
 ```
 hearth bootstrap --disk /dev/nvme0n1 --wipe --target x1-prod
-    --repository https://git.ekanayaka.io/ai/fleet.git
+    --repository https://git.example.org/ai/fleet.git
     --revision main --every 10m --trial manual --operator 1000
     --secrets /root/x1-prod.secrets
 ```
