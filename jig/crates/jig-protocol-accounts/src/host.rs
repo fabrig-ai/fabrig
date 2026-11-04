@@ -300,3 +300,6 @@ fn untrusted(bounds: Option<TrustBounds>, tls: bool) -> bool {
         None => false,
     }
 }
+#[cfg(test)]
+#[path = "host_tests.rs"]
+mod tests;
