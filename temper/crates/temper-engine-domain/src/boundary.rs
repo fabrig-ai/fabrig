@@ -1002,3 +1002,19 @@ pub struct Unsettled {
     pub entry: u64,
     pub task: u64,
 }
+
+/// A failed run's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
+/// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
+#[derive(PartialEq, Eq, Debug)]
+pub struct RunDiagnostic {
+    /// The task whose accepted answer failed.
+    pub task: u64,
+    /// The worker run token.
+    pub run: u64,
+    /// The fenced activation attempt.
+    pub attempt: u64,
+    /// The failure classification reported by the worker.
+    pub failure: jig_domain_host::Failure,
+    /// Worker-bounded evidence for the operator sink alone.
+    pub detail: Box<[u8]>,
+}

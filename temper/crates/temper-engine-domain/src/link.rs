@@ -119,6 +119,18 @@ fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
 
 /// Interpret worker endings with forge parts and the change's failed-review policy.
 pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: Token) {
+    if let Some(Payload::Answer {
+        task, end: hub::Ending::Link(host::Ending::Failed { failure, detail, .. }), ..
+    }) = domain.hub_link.payload(payload)
+    {
+        domain.run_diagnostics.push(crate::RunDiagnostic {
+            task: *task,
+            run: run.raw(),
+            attempt: attempt.raw(),
+            failure: *failure,
+            detail: detail.clone(),
+        });
+    }
     if match domain.answer_parts.get(&payload) {
         Some(parts) => !parts_within(parts, &domain.limits),
         None => false,
