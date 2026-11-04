@@ -202,14 +202,9 @@ impl Pages {
         self.replies.insert(call, reply).expect("bounded server calls");
     }
     fn demand(&self, server: &mut Server, call: Token, left: usize, out: &mut Queue<Routed>) {
-        server.answer(
-            call,
-            http::Request::Reply(Down::Demand {
-                read: Read::Nothing,
-                room: self.send.min(u32::try_from(left).expect("bounded file")),
-            }),
-            out,
-        );
+        let room = self.send.min(u32::try_from(left).expect("bounded file"));
+        let demand = http::Request::Reply(Down::Demand { read: Read::Nothing, room });
+        server.answer(call, demand, out);
     }
     fn send(&mut self, server: &mut Server, call: Token, out: &mut Queue<Routed>) {
         let reply = self.replies.get_mut(&call).expect("own reply");
