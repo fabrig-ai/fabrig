@@ -9,7 +9,7 @@ pub(crate) mod box_link;
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
-        root::Request::MakingCopied { .. } => {}
+        root::Request::MakingCopied { key } => crate::setup::making::copied(engine, &key),
         root::Request::PlaygroundActs { .. } => {}
         root::Request::ResetAct { .. } => {}
         root::Request::ForgeKept(record) => crate::forges::record(engine, record),
@@ -108,6 +108,11 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                         rate,
                     }));
                 }
+                event @ (Event::MakingStarted { .. }
+                | Event::MakingCopying { .. }
+                | Event::MakingMade { .. }
+                | Event::MakingStopped { .. }
+                | Event::MakingAdopt { .. }) => engine.events.push(root::Event::Forge(Box::new(event))),
                 // skein's forge-connection.md, section 2: no returned-hint request; never offer it again.
                 // protocol/forge.md, 2: these views are not kept; restart publishes connections and skein's forge-connection.md, 4.4's baseline.
                 Event::AppRecorded { .. }
