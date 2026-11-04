@@ -26,7 +26,7 @@ is offered in no project's document (`client/domain/contract.md`).
 Public reading's remaining departure is the public index's memory fit
 check (`protocol/configuration.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
-`client/domain/contract.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `examples.md`,
+`client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `examples.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
 own. jig has no drafts.

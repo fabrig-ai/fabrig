@@ -62,14 +62,16 @@ tokens and a forge's Replace are built, but for the real loop's story
 remotes come out malformed (`protocol/configuration.md`). The case library's
 purpose is retired and the fake git program drives skein's JSON tokenizer
 over a whole body by hand (`domain/testing.md`), and the `welcome-set-up`
-journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
+journey waits on a new walk (`client/journeys.md`). Six hand-written
+widenings stand beside skein's `len_u64` and `usize_of`, two of them in
+the worker's steps (`README.md`). Of the drafts, the reference
 drafts' statuses hold two departures their cuts decided, a foreman's
 LLM choice and a red of a goal branch's tier that wakes its goal only
 when new, and a lag, the coordinator's decide, propose, subscribe and
 recall families, which the reference's profile does not grant and
 configuring's stage 1 follows (`draft/reference-code-production.md`);
 the others record what the design carries of
-them and where it lags or departs. `README.md`, `domain/README.md` and
+them and where it lags or departs. `domain/README.md` and
 `protocol/llm.md` have no gap.
 
 Design documents:
