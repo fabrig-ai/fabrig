@@ -1717,6 +1717,9 @@ fn forge_value(kind: u32) -> Box<[u8]> {
     } else {
         br#"{"items":[{"setting":{"kind":"landing-rule","number":1},"set":{"pattern":{"segments":["ff"],"last":{"open":"61"}},"enforce":true,"ci":false,"up_to_date":true,"gates":[{"number":2,"blocking":false,"freshness":"clean"}],"approvals":[{"role":0,"people":1,"freshness":"exact"}]}}]}"#.as_slice()
     };
+    forge_file_value(json)
+}
+fn forge_file_value(json: &[u8]) -> Box<[u8]> {
     let items = settings_file::decode(json, &fixtures::limits()).unwrap();
     let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) = &items.as_slice()[0].edit
     else {
@@ -1872,64 +1875,172 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
     }
 }
 fn forge_review() -> c::ReadValue {
-    review_proposal(Some(c::SettingsReview {
+    forge_state_review(c::Setting::Application { kind: 1, scope: 0, number: 1 }, Some(c::ApplicationFollows::Default))
+}
+fn forge_state_review(setting: c::Setting, follows: Option<c::ApplicationFollows>) -> c::ReadValue {
+    let mut proposal = review_proposal(Some(c::SettingsReview {
         key: Some(u64::MAX),
         newest: 5,
         items: list([c::ReviewItem {
-            setting: c::Setting::Application { kind: 1, scope: 0, number: 1 },
+            setting,
             edit: c::RevisionItemEdit::Set,
             now: c::ReviewValue::None,
             would_be: c::ReviewValue::None,
-            origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
-            application: None,
+            origin: c::SettingOrigin::NotOffered,
+            application: Some(c::ApplicationReview {
+                edit: c::SizedEdit::Set { size: 4 },
+                now: follows.map(|follows| c::ApplicationState { follows, size: 4, charters: list([]) }),
+            }),
         }]),
         cut: true,
-    }))
+    }));
+    let c::ReadValue::Proposal(p) = &mut proposal else { panic!("proposal") };
+    let c::ProposalAction::Settings(settings) = &mut p.action else { panic!("settings proposal") };
+    settings.items = list([c::RevisionItemHead { setting, edit: c::RevisionItemEdit::Set }]);
+    proposal
+}
+fn forge_set_items(kind: u32) -> jig_client::Readout {
+    use temper_client_protocol_wire::v1 as w;
+    let item = w::ProposalItem::new(
+        &w::CEILINGS,
+        w::ProposalItemParts {
+            kind,
+            scope: 0,
+            number: 1,
+            edit: w::SettingEdit::Set(
+                w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(kind) }).unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    forge_items_page(list([item]))
+}
+fn forge_items_page(items: List<temper_client_protocol_wire::v1::ProposalItem>) -> jig_client::Readout {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let record = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) }
+}
+fn forge_proposed_review(kind: u32, follows: Option<c::ApplicationFollows>, json: bool) -> jig::Printed {
+    let file = if kind == 3 {
+        br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.to_vec()
+    } else {
+        file_from_setting(&setting_json(
+            c::Setting::Application { kind, scope: 0, number: 1 },
+            c::SettingValue::Application(forge_value(kind)),
+        ))
+    };
+    let mut root = fixtures::signed_in(fixtures::PARTY);
+    let mut request =
+        fixtures::call(&["settings", "propose", "FILE", "Please review", "--against", "5", "--key", "forge-review"]);
+    *request.values.get_mut(0).unwrap() = Some(Values::One(Value::Text(file.into())));
+    let proposed = root.submit_prepared(request, false, None);
+    let c::Ask::Propose { reason, action: c::ProposeAction::Settings(settings), .. } =
+        fixtures::act_ask(&root, proposed)
+    else {
+        panic!("settings proposal")
+    };
+    assert_eq!(reason.bytes(), b"Please review");
+    assert_eq!(settings.items.as_slice()[0].setting, c::Setting::Application { kind, scope: 0, number: 1 });
+    root.done(proposed, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 0 }));
+    let answer = root.answer(proposed).unwrap();
+    assert_eq!(answer.status, 0);
+    let printed = core::str::from_utf8(&answer.stdout).unwrap();
+    let key = printed.strip_prefix("proposed: ").unwrap().split(',').next().unwrap();
+    let call = root.submit_prepared(fixtures::call(&["proposal", "show", key]), json, None);
+    serve_review(
+        &mut root,
+        call,
+        forge_state_review(c::Setting::Application { kind, scope: 0, number: 1 }, follows.clone()),
+    );
+    root.serve_readout(call, forge_set_items(kind));
+    let value = if follows == Some(c::ApplicationFollows::Removed { revision: 5 }) {
+        None
+    } else if kind == 3 {
+        Some(forge_file_value(br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":2}]}"#))
+    } else {
+        Some(forge_value(kind))
+    };
+    root.serve_readout(call, forge_setting_page(value));
+    root.answer(call).expect("proposal review")
+}
+#[test]
+fn forge_proposal_show_uses_application_state_and_common_line_form() {
+    for (follows, origin, json_origin, now) in [
+        (Some(c::ApplicationFollows::Default), "default", r#""default""#, "2"),
+        (Some(c::ApplicationFollows::Changed { revision: 5 }), "revision 5", r#"{"change":{"revision":5}}"#, "2"),
+        (
+            Some(c::ApplicationFollows::Removed { revision: 5 }),
+            "removed at revision 5",
+            r#"{"removed":{"revision":5}}"#,
+            "none",
+        ),
+        (None, "not offered", r#""not_offered""#, "2"),
+    ] {
+        for json in [false, true] {
+            let answer = forge_proposed_review(3, follows.clone(), json);
+            assert_eq!(answer.status, 0);
+            let text = core::str::from_utf8(&answer.stdout).unwrap();
+            if json {
+                let (_, items) = text.split_once("\"application_items\":").unwrap();
+                let expected = format!("\"origin\":{json_origin},");
+                assert!(items.contains(&expected), "{text}");
+                assert_eq!(text.matches(&expected).count(), 2, "both review origins: {text}");
+            } else {
+                let expected = format!("forge-charter 1 · set · now {now} ({origin}) · would be 6");
+                assert!(text.lines().any(|line| line == expected), "{text}");
+            }
+        }
+    }
+    for follows in [c::ApplicationFollows::Default, c::ApplicationFollows::Changed { revision: 5 }] {
+        let answer = forge_proposed_review(1, Some(follows.clone()), false);
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        let line =
+            text.lines().find(|line| line.starts_with("landing-rule 1 · set · now ")).expect("landing rule line");
+        assert!(
+            line.contains(if follows == c::ApplicationFollows::Default {
+                " (default) · would be "
+            } else {
+                " (revision 5) · would be "
+            }),
+            "{text}"
+        );
+    }
 }
 #[test]
 fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
-    use temper_client_protocol_wire::{self as wire, v1 as w};
+    use temper_client_protocol_wire::v1 as w;
     for json in [false, true] {
         let mut root = fixtures::signed_in(fixtures::PARTY);
         let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
         serve_review(&mut root, call, forge_review());
         let w::Read::ProposalItems(query) = forge_query(&root, call) else { panic!("proposal items") };
         assert_eq!(query.key(), u64::MAX, "the review's key, not proposer 73's number 7");
-        let record = w::ProposalItemsAnswer::new(
-            &w::CEILINGS,
-            w::ProposalItemsAnswerParts {
-                items: list([
-                    w::ProposalItem::new(
-                        &w::CEILINGS,
-                        w::ProposalItemParts {
-                            kind: 1,
-                            scope: 0,
-                            number: 1,
-                            edit: w::SettingEdit::Set(
-                                w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(1) })
-                                    .unwrap(),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                    w::ProposalItem::new(
-                        &w::CEILINGS,
-                        w::ProposalItemParts { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
-                    )
-                    .unwrap(),
-                    w::ProposalItem::new(
-                        &w::CEILINGS,
-                        w::ProposalItemParts { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
-                    )
-                    .unwrap(),
-                ]),
-            },
-        )
-        .unwrap();
-        root.serve_readout(
-            call,
-            jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) },
-        );
+        let items = list([
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts {
+                    kind: 1,
+                    scope: 0,
+                    number: 1,
+                    edit: w::SettingEdit::Set(
+                        w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(1) }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
+            )
+            .unwrap(),
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
+            )
+            .unwrap(),
+        ]);
+        root.serve_readout(call, forge_items_page(items));
         for (kind, scope, number) in [(1, 0, 1), (2, 7, 2), (3, 0, 1)] {
             let w::Read::Setting(query) = forge_query(&root, call) else { panic!("current setting") };
             assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, number));
