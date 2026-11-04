@@ -38,6 +38,7 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
                 task.requester = c::Requester::Person(1);
                 task.label = 2;
                 task.priority = Some(0);
+                task.changed = Wall::from_nanos(number);
                 front
                     .engine
                     .act(
@@ -96,6 +97,7 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall, facts: Facts) {
         Facts::FamilyResource => super::b_family::core(driver, now, wall),
         Facts::HeldConversation => super::b_held::core(driver, now, wall),
         Facts::Goals => {
+            const SPACING: skein_lib::Duration = skein_lib::Duration::from_millis(20);
             driver.scripted_party(
                 Party::new(
                     1,
@@ -112,6 +114,7 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall, facts: Facts) {
                                 deadline: None,
                             },
                         },
+                        Act::Pause { for_: SPACING },
                         Act::Request {
                             key: [72; 16],
                             ask: Ask::Goal {
