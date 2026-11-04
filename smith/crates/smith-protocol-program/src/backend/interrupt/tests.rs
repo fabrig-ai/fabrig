@@ -1,4 +1,5 @@
 use super::*;
+use crate::backend::fixtures::pop_io;
 
 const PIPE: Token = Token::new(31);
 const MAXIMUM: u32 = 1024;
@@ -10,14 +11,14 @@ fn a_matching_acknowledgement_releases_the_sent_request_once() {
     interrupt.prepare(MAXIMUM, &mut below).expect("bounded control line");
     assert!(below.is_empty());
     interrupt.offer(Some(PIPE), &mut below);
-    let Some(io::Request::Output { down: stream::OutputDown::Room { right, .. }, .. }) = below.pop() else {
+    let Some(io::Request::Output { down: stream::OutputDown::Room { right, .. }, .. }) = pop_io(&mut below) else {
         panic!("one room request")
     };
     assert_eq!(right, INTERRUPT_RIGHT);
     interrupt.offer(Some(PIPE), &mut below);
     assert!(below.is_empty(), "one outstanding output right");
     interrupt.send(PIPE, &mut below);
-    let Some(io::Request::Output { down: stream::OutputDown::Send { bytes, .. }, .. }) = below.pop() else {
+    let Some(io::Request::Output { down: stream::OutputDown::Send { bytes, .. }, .. }) = pop_io(&mut below) else {
         panic!("one control line")
     };
     assert_eq!(Some(bytes), records::interrupt_request(1, MAXIMUM));

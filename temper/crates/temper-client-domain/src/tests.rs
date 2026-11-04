@@ -6,6 +6,7 @@ mod acts;
 mod address;
 mod admin;
 mod amend;
+mod deployment;
 mod playground;
 mod public;
 

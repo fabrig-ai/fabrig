@@ -34,6 +34,7 @@ const CLOSING_ANSWER: &[u8] = b"The plan chat is now closed.";
 pub fn configuration(directory: &Path) -> oauth::Peer {
     let initialized = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
+        .arg("--box")
         .args(super::configuration::flags(directory))
         .env_clear()
         .env("PATH", "/usr/bin:/bin")

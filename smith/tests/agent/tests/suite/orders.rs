@@ -186,7 +186,7 @@ fn run_handoffs_drained_before_later_session_requests() {
             .iter()
             .any(|completion| matches!(completion.terminal, Some((_, CompletionTerminal::Cancelled))))
     );
-    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
+    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
 }
 
 /// Order: `child_facts_gathered_before_handoff` (phase C).
@@ -298,7 +298,7 @@ fn handoff_promoted_after_reclaim_for_returns_and_closes() {
     assert_eq!(reads(&world), usize::try_from(CHILDREN).expect("child reads"));
     assert_returns_cross_reclaim(world.entrances(), SEED, REJECTIONS);
     assert_closes_cross_reclaim(world.entrances(), SEED);
-    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
+    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
 }
 
 fn assert_returns_cross_reclaim(entries: &[EntranceObservation], seed: u64, rejections: u32) {

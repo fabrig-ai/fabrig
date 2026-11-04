@@ -23,7 +23,7 @@ fn round_trip(outcome: Outcome) -> Result<Outcome, record::Refusal> {
         other @ (llm::Block::Opaque { .. }
         | llm::Block::Refusal { .. }
         | llm::Block::Text { .. }
-        | llm::Block::ToolCall { .. }
+        | llm::Block::ToolCall(_)
         | llm::Block::ToolResult { .. }) => panic!("expected job outcome: {other:?}"),
     }
 }
@@ -247,7 +247,7 @@ fn round_trip_problem(problem: llm::Problem) -> llm::Problem {
         other @ (llm::Block::Opaque { .. }
         | llm::Block::Refusal { .. }
         | llm::Block::Text { .. }
-        | llm::Block::ToolCall { .. }
+        | llm::Block::ToolCall(_)
         | llm::Block::ToolResult { .. }) => panic!("expected invalid result: {other:?}"),
     }
 }

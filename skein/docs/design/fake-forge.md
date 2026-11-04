@@ -757,13 +757,6 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
 - **The runner's start.** The conformance starts the runner (section 7).
   Whether a second user moves that start into the throwaway is open.
   Default: it stays in the conformance until a second user needs it.
-- **GitHub's media types.** The peer's `Server` names a bare media type and
-  `Inline` adds `; charset=utf-8`, as github.com does (10.6), because stories
-  read each: `skein/tests/fake-peers` reads `text/html`, the machine and
-  setup worlds the longer form. Both stay for now, by the user's
-  decision. Later, as a small change: github.com's spelling everywhere,
-  which takes `Server`'s switch away and moves the one assertion in
-  `skein/tests/fake-peers`.
 
 ## 10. GitHub's layer
 
@@ -1235,9 +1228,10 @@ a domain the caller lends, with no io.
   API's listener and of the blob listener, and return the response's bytes.
   A cut, a pause or a lost reply is the world's, on those bytes. A request
   is what the HTTP server admits: an HTTP/1.1 request without `Host` is
-  refused `400`, as a real server refuses it. `Inline`'s replies name the
-  media types github.com does, with `; charset=utf-8`; the peer's name them
-  bare (section 9).
+  refused `400`, as a real server refuses it.
+- **Media types.** `Server` names the media types github.com does, with
+  `; charset=utf-8`, on the peer's connections and in `Inline` alike. Bytes
+  of a blob are `application/octet-stream`, as they stand.
 - **What a scenario turns.** `Service::ambiguous_updates` answers an
   update's conflict with the stale head's refusal, the one spelling
   forge-github.md, 5.2 reads as ambiguous. `Installations::minted_token`

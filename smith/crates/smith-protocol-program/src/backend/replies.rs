@@ -43,7 +43,7 @@ pub(super) fn resume(
     prompt: &mut llm::Prompt,
     capture: bool,
 ) -> Option<Resumed> {
-    let bound = backend.settings.adapter.rendered_result;
+    let bound = backend.settings.translation.rendered_result;
     let mut last = None;
     let mut nudge: Option<Box<[u8]>> = None;
     let mut synthetic = None;
@@ -72,7 +72,7 @@ pub(super) fn resume(
         let rendered = super::tail::render_observed(
             prompt,
             &backend.ledger,
-            &backend.settings.adapter,
+            &backend.settings.translation,
             backend.settings.input_bytes,
             b"",
             capture,
@@ -90,7 +90,7 @@ pub(super) fn resume(
                     if id.as_ref() != super::turns::STRUCTURED_FINISH && !backend.awaits_answer(&id) {
                         continue;
                     }
-                    let mut answer = Some(calls::render(result, prompt, &backend.settings.adapter)?);
+                    let mut answer = Some(calls::render(result, prompt, &backend.settings.translation)?);
                     for index in 0..backend.ledger.len() {
                         let call = backend.ledger.get_mut(index)?;
                         if call.id == id && !call.answered {

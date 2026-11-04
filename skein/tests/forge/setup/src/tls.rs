@@ -11,7 +11,8 @@ pub(crate) enum Carrier {
     Tls(Box<Tls>),
 }
 pub(crate) struct Tls {
-    server: Server,
+    pub(crate) server: Server,
+    pub(crate) hold_room: bool,
     plain: Intake,
     wire: Intake,
     client: Option<(Read, u32)>,
@@ -24,6 +25,7 @@ impl Carrier {
         if tls {
             Self::Tls(Box::new(Tls {
                 server: Server::new(pki::Server::plain().config()),
+                hold_room: false,
                 plain: Intake::with_capacity(131_072),
                 wire: Intake::with_capacity(131_072),
                 client: None,
@@ -61,7 +63,7 @@ impl Carrier {
             Self::Tls(tls) => {
                 let (read, room) = tls.client?;
                 let event = tls.wire.meet(read).map(Up::Bytes).or_else(|| {
-                    if room > 0 {
+                    if room > 0 && !tls.hold_room {
                         Some(Up::Room)
                     } else if tls.finished && !tls.ended && tls.wire.is_empty() && read != Read::Nothing {
                         tls.ended = true;
@@ -113,8 +115,9 @@ impl Carrier {
         match self {
             Self::Plain(pipe) => pipe.has_work(),
             Self::Tls(tls) => {
-                tls.client.is_some_and(|(_, room)| room > 0 || !tls.wire.is_empty() || (tls.finished && !tls.ended))
-                    || tls.peer.is_some_and(|(_, room)| room > 0 || !tls.plain.is_empty())
+                tls.client.is_some_and(|(_, room)| {
+                    (room > 0 && !tls.hold_room) || !tls.wire.is_empty() || (tls.finished && !tls.ended)
+                }) || tls.peer.is_some_and(|(_, room)| room > 0 || !tls.plain.is_empty())
             }
         }
     }

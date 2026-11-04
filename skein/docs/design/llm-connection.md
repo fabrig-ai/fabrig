@@ -47,7 +47,8 @@ protocol layer is its first user.
   handshake, the response's head, idleness between events, and the call
   as a whole. A deadline that passes fails the call as timed out, naming
   the deadline, with the client's evidence of whether the request was
-  sent. A closing connection has none: io's close deadline bounds it.
+  sent. A closing connection has none of these: the link's close
+  deadline bounds it, then io's (link.md, 3.3).
 - **The owner close drains.** The component refuses new calls at its
   entrance, closes idle connections at once and busy ones when their calls
   end, and reports `closed` once every socket has settled. Its idle keep

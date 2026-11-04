@@ -165,7 +165,7 @@ fn bounded_message_and_input_at_idle_deadline_preserve_existing_fifo() {
         &*harness.step(ended(conversation, End::Closed, Spend::ZERO)),
         &[Request::Answer {
             to: ReplyTo::new(Token::new(1)),
-            answer: Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 1 },
+            answer: Answer::Failed { failure: RunFailure::Cancelled, spent: Spend::ZERO, turns: 1 },
             read: Some(Token::new(5)),
             detail: Box::default(),
         }]
@@ -546,7 +546,7 @@ fn awaiting_cancellation_retires_unopened_main_and_answers_once() {
     let requests = harness.start_workspace(84, message_driven_charter(), None);
     let [Request::Admitted { run, .. }, Request::Waiting { .. }] = requests.as_ref() else { panic!("awaiting") };
     let run = *run;
-    assert_eq!(answered(harness.step(Event::Cancel { run })), (84, failed(Failure::Cancelled, Spend::ZERO)));
+    assert_eq!(answered(harness.step(Event::Cancel { run })), (84, failed(RunFailure::Cancelled, Spend::ZERO)));
     assert!(harness.step(Event::Cancel { run }).is_empty());
     assert_eq!(harness.domain.next_deadline(), None);
     harness.domain.reclaim();

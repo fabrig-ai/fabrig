@@ -72,7 +72,7 @@ fn file_creation_matches_the_pinned_forgejos_request_and_201_answer() {
     assert_eq!(encoded.target.as_ref(), transcript.target);
     assert_eq!(encoded.body.as_deref(), Some(transcript.request_body.as_slice()));
     assert_eq!(transcript.status, 201);
-    let commit = id::read(b"0000000000000000000000000000000000000004").unwrap();
+    let commit = id::read(b"000000000000000000000000000000000000001b").unwrap();
     for chunk in [1, 7, transcript.body.len()] {
         assert_eq!(
             forgejo::decode_chunks(&request, &transcript.body, chunk).document,

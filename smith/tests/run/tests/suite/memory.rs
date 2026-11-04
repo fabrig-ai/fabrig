@@ -573,7 +573,7 @@ fn delivery_memory_step(
                 assert_eq!(receipts.owned_bytes(), smith_domain_run::Delivered::owned_bound());
             }
             Request::Answer {
-                answer: Answer::Failed { failure: smith_domain_run::Failure::Cancelled, .. }, ..
+                answer: Answer::Failed { failure: smith_domain_run::RunFailure::Cancelled, .. }, ..
             } => {
                 answered = true;
             }

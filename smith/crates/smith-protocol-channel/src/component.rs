@@ -579,7 +579,7 @@ impl Component {
         Ok(())
     }
 
-    /// Relay one checked delivery after its run and checkout effects settled.
+    /// Relay one checked delivery after its run and workspace effects settled.
     #[expect(clippy::too_many_arguments, reason = "the typed channel boundary carries each domain value")]
     pub fn send_delivery(
         &mut self,

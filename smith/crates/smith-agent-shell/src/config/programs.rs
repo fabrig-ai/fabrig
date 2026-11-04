@@ -1,7 +1,10 @@
 //! Program declarations and endpoint bindings (smith/docs/design/protocol/agent.md, section 4).
 //! Keeps paths and adapter names only; it never opens or runs a program.
 
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+};
 
 use serde::Deserialize;
 use smith_agent_service::profile::{Layer, LimitName, Per, Refusal};
@@ -44,38 +47,29 @@ fn path(value: Option<String>, field: &'static str) -> Result<PathBuf, Configura
     Ok(value.into())
 }
 
-pub(super) fn build(
-    documents: BTreeMap<String, ProgramDocument>,
-) -> Result<BTreeMap<ProgramName, Program>, ConfigurationRefusal> {
-    let mut programs = BTreeMap::new();
+pub(super) fn build(documents: BTreeMap<String, ProgramDocument>) -> Result<Option<Program>, ConfigurationRefusal> {
+    let mut program = None;
     for (key, document) in documents {
-        let name = name(&key, &format!("programs.{key}"))?;
-        programs.insert(
-            name,
-            Program {
-                path: path(document.path, "programs.claude_code.path")?,
-                directory: path(document.directory, "programs.claude_code.directory")?,
-            },
-        );
+        name(&key, &format!("programs.{key}"))?;
+        program = Some(Program {
+            path: path(document.path, "programs.claude_code.path")?,
+            directory: path(document.directory, "programs.claude_code.directory")?,
+        });
     }
-    Ok(programs)
+    Ok(program)
 }
 
-#[expect(
-    clippy::zero_sized_map_values,
-    reason = "Endpoint selections retain the adapter name; Claude Code is currently the sole adapter."
-)]
 pub(super) fn endpoints(
     endpoints: &[Endpoint],
-    programs: &BTreeMap<ProgramName, Program>,
-) -> Result<BTreeMap<u32, ProgramName>, ConfigurationRefusal> {
-    let mut selections = BTreeMap::new();
+    program: Option<&Program>,
+) -> Result<BTreeSet<u32>, ConfigurationRefusal> {
+    let mut selections = BTreeSet::new();
     for endpoint in endpoints {
         match &endpoint.program {
             None => {}
             Some(value) => {
-                let program = name(value, &format!("endpoints[{}].program", endpoint.number))?;
-                if !programs.contains_key(&program) {
+                name(value, &format!("endpoints[{}].program", endpoint.number))?;
+                if program.is_none() {
                     return Err(ConfigurationRefusal::Profile(Refusal::Field {
                         limit: LimitName {
                             layer: Layer::Declared,
@@ -84,7 +78,7 @@ pub(super) fn endpoints(
                         },
                     }));
                 }
-                selections.insert(endpoint.number, program);
+                selections.insert(endpoint.number);
             }
         }
     }
@@ -92,23 +86,19 @@ pub(super) fn endpoints(
 }
 
 /// Prepare the service's program declaration; the shell later supplies entropy and relay resources.
-#[expect(
-    clippy::zero_sized_map_values,
-    reason = "endpoint selections retain the named adapter as more adapters become available"
-)]
 #[cfg(unix)]
 pub(super) fn backend(
-    programs: &BTreeMap<ProgramName, Program>,
-    endpoints: &BTreeMap<u32, ProgramName>,
+    program: Option<&Program>,
+    endpoints: &BTreeSet<u32>,
 ) -> Option<smith_agent_service::ProgramBackend> {
     use std::os::unix::ffi::OsStrExt;
-    let program = programs.get(&ProgramName::ClaudeCode)?;
+    let program = program?;
     Some(smith_agent_service::ProgramBackend {
         program: smith_protocol_program::Programs {
             claude: program.path.as_os_str().as_bytes().into(),
             directory: program.directory.as_os_str().as_bytes().into(),
         },
-        endpoints: endpoints.keys().copied().collect(),
+        endpoints: endpoints.iter().copied().collect(),
         relay: Box::default(),
         entropy: skein_lib::Secret::new(Box::new([0; 32])),
         effective_user: skein_shell::effective_user(),
@@ -116,22 +106,20 @@ pub(super) fn backend(
 }
 
 #[cfg(not(unix))]
-#[expect(clippy::zero_sized_map_values, reason = "endpoint selections retain the named adapter")]
 pub(super) fn backend(
-    _programs: &BTreeMap<ProgramName, Program>,
-    _endpoints: &BTreeMap<u32, ProgramName>,
+    _program: Option<&Program>,
+    _endpoints: &BTreeSet<u32>,
 ) -> Option<smith_agent_service::ProgramBackend> {
     None
 }
 
 /// Charge program declarations to the same startup pool as model declarations.
-#[expect(clippy::zero_sized_map_values, reason = "endpoint selections retain the adapter name")]
 pub(super) fn domain(
-    endpoints: &BTreeMap<u32, ProgramName>,
+    endpoints: &BTreeSet<u32>,
     limits: &mut smith_domain::Limits,
 ) -> Result<Box<[smith_domain::Program]>, ConfigurationRefusal> {
     let mut programs = Vec::with_capacity(endpoints.len());
-    for endpoint in endpoints.keys() {
+    for endpoint in endpoints {
         let name: Box<[u8]> = b"claude_code".as_slice().into();
         let owned = u64::try_from(size_of::<smith_domain::Program>())
             .ok()

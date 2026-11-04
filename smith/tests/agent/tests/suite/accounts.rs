@@ -160,7 +160,7 @@ fn nonrenewable_401_count_proof() {
         assert_eq!(
             world.answer(),
             &run::Answer::Failed {
-                failure: run::Failure::Model(run::Fault::Completion {
+                failure: run::RunFailure::Model(run::Fault::Completion {
                     failure: run::CompletionFailure::Unauthorized,
                     evidence: run::CompletionEvidence::Response { status: Some(401) },
                     model: 0,

@@ -450,7 +450,7 @@ fn corrected_host(world: &World) {
     assert!(
         world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(
             |block| matches!(block,
-        recorded::Block::ToolCall { id, name, input, replay: Some(replay), .. }
+        recorded::Block::ToolCall(recorded::ToolCall { id, name, input, replay: Some(replay), .. })
         if id.as_ref() == CALL_ID && name.as_ref() == b"host_action" && input.as_ref() == RAW
         && envelope(&replay.bytes, *b"\x00\x01\x03\x00\x00\x00\x16", ROOT_REPLAY))
         ),
@@ -459,7 +459,7 @@ fn corrected_host(world: &World) {
 }
 
 fn retired(world: &World) {
-    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
+    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
     let [first, second, third] = world.protocol_calls() else { panic!("three observed Clients") };
     for binding in [first, second] {
         assert_eq!(binding.terminal.map(|(_, _, event)| event), Some(Terminal::Completed(binding.owner)));

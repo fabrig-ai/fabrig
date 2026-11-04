@@ -244,15 +244,19 @@ fn record_blocks(blocks: &[session::llm::Block]) -> u64 {
             session::llm::Block::Text { text, replay } => {
                 len(text) + replay.as_ref().map_or(0, |value| len(&value.bytes))
             }
-            session::llm::Block::ToolCall { id, name, input, call: session::llm::Decoded::Historical, replay } => {
-                len(id) + len(name) + len(input) + replay.as_ref().map_or(0, |value| len(&value.bytes))
-            }
+            session::llm::Block::ToolCall(session::llm::ToolCall {
+                id,
+                name,
+                input,
+                call: session::llm::Decoded::Historical,
+                replay,
+            }) => len(id) + len(name) + len(input) + replay.as_ref().map_or(0, |value| len(&value.bytes)),
             session::llm::Block::ToolResult { id, result: session::llm::Returned::Text { text, replay, .. } } => {
                 len(id) + len(text) + replay.as_ref().map_or(0, |value| len(&value.bytes))
             }
             session::llm::Block::Refusal { .. }
             | session::llm::Block::Opaque { .. }
-            | session::llm::Block::ToolCall { .. }
+            | session::llm::Block::ToolCall(_)
             | session::llm::Block::ToolResult { .. } => {
                 panic!("generated fixture has only literal text, historical Wait and concrete feedback")
             }
@@ -410,13 +414,13 @@ fn assert_rewritten(history: &root::Transcript, prompt: &llm::Prompt) {
                     assert_eq!(replay, envelope);
                 }
                 (
-                    session::llm::Block::ToolCall {
+                    session::llm::Block::ToolCall(session::llm::ToolCall {
                         id: original_id,
                         name: original_name,
                         input: original_input,
                         replay: envelope,
                         ..
-                    },
+                    }),
                     llm::Block::ToolCall { id, name, input, replay },
                 ) => {
                     assert_eq!(id, original_id);
@@ -824,7 +828,7 @@ fn assert_generated(history: &root::Transcript, messages: u32) {
                             large += 1;
                         }
                     }
-                    session::llm::Block::ToolCall { id, name, input, call, .. } => {
+                    session::llm::Block::ToolCall(session::llm::ToolCall { id, name, input, call, .. }) => {
                         assert_eq!(id.as_ref(), ID);
                         assert_eq!(name.as_ref(), b"wait");
                         assert_eq!(input.as_ref(), b"{}");
@@ -931,7 +935,7 @@ fn generate_prefix(counted: &mut Counted, messages: u32, cycles: u32) -> Limits 
     counted.step(Event::Cancel { run });
     counted.cycle(cycles + 1);
     assert!(
-        matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns, .. }) if turns == 2 * cycles + 1)
+        matches!(counted.answer, Some(run::Answer::Failed { failure: run::RunFailure::Cancelled, turns, .. }) if turns == 2 * cycles + 1)
     );
 
     tight
@@ -969,7 +973,7 @@ fn restore_overlap(counted: &mut Counted, messages: u32, cycles: u32) {
     counted.waiting = false;
     counted.step(Event::Cancel { run });
     counted.cycle(cycles + 2);
-    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 3, .. })));
+    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 3, .. })));
     counted.resume();
 }
 
@@ -1009,7 +1013,7 @@ fn restore_exact(counted: &mut Counted, messages: u32, cycles: u32, tight: &Limi
     counted.resume();
     drop(counted.complete.take());
     counted.step(Event::Below(smith_domain::Below::Cancelled { owner }));
-    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 1, .. })));
+    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. })));
     counted.resume();
 }
 
@@ -1046,7 +1050,7 @@ fn refuse_one_over(counted: &mut Counted, cycles: u32, tight: &Limits) {
                     session::llm::Block::Text { .. }
                     | session::llm::Block::Refusal { .. }
                     | session::llm::Block::Opaque { .. }
-                    | session::llm::Block::ToolCall { .. }
+                    | session::llm::Block::ToolCall(_)
                     | session::llm::Block::ToolResult { .. } => None,
                 })
                 .expect("literal generated large message");
@@ -1062,7 +1066,7 @@ fn refuse_one_over(counted: &mut Counted, cycles: u32, tight: &Limits) {
         assert!(matches!(
             counted.answer,
             Some(run::Answer::Failed {
-                failure: run::Failure::Transcript(run::TranscriptRefusal::TooLarge),
+                failure: run::RunFailure::Transcript(run::TranscriptRefusal::TooLarge),
                 turns: 0,
                 ..
             })
@@ -1316,7 +1320,7 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_caller_copies() {
     counted.waiting = false;
     counted.step(Event::Cancel { run });
     counted.cycle(1);
-    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::Failure::Cancelled, turns: 3, .. })));
+    assert!(matches!(counted.answer, Some(run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 3, .. })));
     reclaim_every_owner(counted, &receiving);
 }
 

@@ -108,7 +108,7 @@ impl Delegate for Proc {
 fn configuration(case: Case) -> smith_agent_service::Config {
     let mut config = if matches!(case, Case::Events | Case::Transcript) {
         let mut limits = crate::limits();
-        limits.llm.adapter.client.request = 1_048_576;
+        limits.llm.translation.client.request = 1_048_576;
         crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits)
     } else {
         crate::configuration()
@@ -205,7 +205,6 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     config
 }
 
-#[expect(clippy::zero_sized_map_values, reason = "the shell configuration uses a unit selector map")]
 fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
     let case: Case = serde_json::from_slice(&spawn.args[0]).expect("scenario arguments");
     let configuration = configuration(case);
@@ -231,8 +230,8 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
             },
             profile: crate::profile(),
             declarations: crate::declarations(4096),
-            programs: std::collections::BTreeMap::new(),
-            endpoint_programs: std::collections::BTreeMap::new(),
+            program: None,
+            program_endpoints: std::collections::BTreeSet::new(),
         },
         smith_agent_shell::Resources {
             input: pipe(0),

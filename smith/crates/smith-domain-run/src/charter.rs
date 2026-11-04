@@ -137,7 +137,7 @@ pub struct Grants {
     /// Final Change permission does not grant this tool; children never inherit it.
     /// Admission checks minimum container/name/value fit before session or IO.
     pub deliver: Option<outcome::ChangeSpec>,
-    /// The tools that act on the checkout, which conversations run themselves.
+    /// The tools that act on the workspace, which conversations run themselves.
     pub tools: Tools,
     /// Asking for sub-agents: conversations of the LLM's own, opened by the run.
     pub agents: bool,
@@ -146,7 +146,7 @@ pub struct Grants {
     pub host_tools: Box<[HostTool]>,
 }
 
-/// The families of tools a conversation has: those it runs on the checkout,
+/// The families of tools a conversation has: those it runs on the workspace,
 /// and those the run serves. Host declarations stay with main.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Families {
@@ -172,7 +172,7 @@ impl Families {
     }
 }
 
-/// The tool families a conversation runs on the checkout.
+/// The tool families a conversation runs on the workspace.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Tools {
     /// Read, list and search.

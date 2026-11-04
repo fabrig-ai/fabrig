@@ -21,6 +21,13 @@ const _: () = {
     assert!(forge::PANEL_NAME_BYTES == w::CEILINGS.change_panel_landing, "panel landing branch bound");
 };
 
+/// The start's deployment facts (temper/docs/design/client/README.md, 4.6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Deployment {
+    pub welcome: bool,
+    pub owned: bool,
+}
+
 /// Decode the keyed request, preserving its admission envelope and supplied digest.
 #[expect(clippy::too_many_lines, reason = "one exhaustive match translates the family's typed requests")]
 pub fn to_root(
@@ -28,6 +35,7 @@ pub fn to_root(
     exchange: kit::ToApplication,
     forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
+    deployment: Deployment,
     playground: Option<&forge::Playground>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
@@ -266,6 +274,10 @@ pub fn to_root(
                         number: value.number(),
                     }),
                     w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+                    w::Read::Deployment => {
+                        answer = Some(deployment_answer(deployment, limits));
+                        None
+                    }
                     w::Read::Playground => {
                         if let (Some(row), Some(demo)) = (playground, demo) {
                             answer = Some(playground_answer(row, demo, limits));
@@ -1201,6 +1213,15 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
         forge::ForgeRefusal::NoKey => w::ForgeRefusal::NoKey,
         forge::ForgeRefusal::FirstIsBot => w::ForgeRefusal::FirstIsBot,
     }
+}
+
+fn deployment_answer(deployment: Deployment, limits: &w::Limits) -> Box<[u8]> {
+    let answer = w::DeploymentAnswer::new(
+        limits,
+        w::DeploymentAnswerParts { welcome: deployment.welcome, owned: deployment.owned },
+    )
+    .expect("deployment booleans fit the wire");
+    wire::deployment_answer(&answer)
 }
 
 /// The kept row supplies progress and ids; settings supply the scripted model's public view.

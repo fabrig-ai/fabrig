@@ -39,7 +39,7 @@ fn reaching_the_scalar_cap_settles_wait_and_fails_only_after_yield() {
     assert_eq!(
         answer,
         failed(
-            Failure::Budget { exhausted: Exhausted::Spend, used: Some(BUDGET.spend), bound: Some(BUDGET.spend) },
+            RunFailure::Budget { exhausted: Exhausted::Spend, used: Some(BUDGET.spend), bound: Some(BUDGET.spend) },
             Spend { units: BUDGET.spend, ..Spend::ZERO }
         )
     );
@@ -123,14 +123,14 @@ fn run_wide_overflow_preflight_preserves_charged_prefix() {
     assert!(harness.step(priced(main, u64::MAX, u64::MAX)).is_empty());
     assert_eq!(
         crate::completion_overflow(&harness.domain, main, 1, Spend::ZERO),
-        Some(Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None })
+        Some(RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None })
     );
     assert_eq!(crate::completion_overflow(&harness.domain, main, 0, Spend { turns: 1, ..Spend::ZERO }), None);
     let answer = answered(harness.step(ended(main, End::PriceOverflow, Spend::ZERO))).1;
     assert_eq!(
         answer,
         failed(
-            Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None },
+            RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None },
             Spend { units: u64::MAX, ..Spend::ZERO }
         )
     );
@@ -147,7 +147,11 @@ fn raw_usage_overflow_ends_with_only_the_charged_prefix() {
         assert!(harness.step(Event::Used { conversation: main, spend: full }).is_empty());
         assert_eq!(
             crate::completion_overflow(&harness.domain, main, 0, overflow),
-            Some(Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None })
+            Some(RunFailure::Budget {
+                exhausted: Exhausted::Overflow(crate::Overflow::Usage),
+                used: None,
+                bound: None
+            })
         );
         assert_eq!(
             harness.step(Event::Used { conversation: main, spend: overflow }).as_ref(),
@@ -157,7 +161,7 @@ fn raw_usage_overflow_ends_with_only_the_charged_prefix() {
         assert_eq!(
             answer,
             failed(
-                Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None },
+                RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None },
                 full
             )
         );
@@ -172,7 +176,7 @@ fn a_session_usage_overflow_becomes_the_run_failure() {
     assert_eq!(
         answer,
         failed(
-            Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None },
+            RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None },
             Spend::ZERO
         )
     );
@@ -219,7 +223,7 @@ fn final_turns_ignore_ordinary_nudges_and_fail_once_only_after_the_last() {
         units: 3,
     };
     let (_, answer) = answered(harness.step(ended(main, End::Closed, seen)));
-    assert_eq!(answer, failed(Failure::Budget { exhausted: Exhausted::Turns, used: Some(4), bound: Some(4) }, seen));
+    assert_eq!(answer, failed(RunFailure::Budget { exhausted: Exhausted::Turns, used: Some(4), bound: Some(4) }, seen));
 }
 
 #[test]

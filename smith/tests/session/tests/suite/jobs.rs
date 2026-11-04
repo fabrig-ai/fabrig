@@ -28,13 +28,13 @@ fn world() -> Scripted {
 }
 
 fn called(id: &[u8], call: Call) -> llm::Block {
-    llm::Block::ToolCall {
+    llm::Block::ToolCall(llm::ToolCall {
         id: id.into(),
         name: bytes(b"workspace"),
         input: Box::default(),
         call: llm::Decoded::Owned { call },
         replay: None,
-    }
+    })
 }
 
 fn shell() -> llm::Block {

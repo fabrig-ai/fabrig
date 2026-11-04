@@ -11,6 +11,7 @@ extern crate std;
 use super::{
     ACK, Answer, CallId, Ended, Limits, PROMPT_TOOL, PROTOCOL_VERSIONS, Server, Tool, Up, Verdict, json, secret_text,
 };
+use crate::backend::Below;
 use alloc::{boxed::Box, format, vec, vec::Vec};
 use serde_json::{Value, json as value};
 use skein_io::{self as io, Addr};
@@ -40,9 +41,16 @@ fn address(port: u16) -> Addr {
     Addr::Ip(core::net::SocketAddr::from(([127, 0, 0, 1], port)))
 }
 
-fn drain(queue: &mut Queue<io::Request>) -> Vec<io::Request> {
+fn pop_io(queue: &mut Queue<Below>) -> Option<io::Request> {
+    queue.pop().map(|effect| match effect {
+        Below::Io(request) => request,
+        Below::File { .. } => panic!("MCP emits only I/O"),
+    })
+}
+
+fn drain(queue: &mut Queue<Below>) -> Vec<io::Request> {
     let mut requests = Vec::new();
-    while let Some(request) = queue.pop() {
+    while let Some(request) = pop_io(queue) {
         requests.push(request);
     }
     requests
@@ -50,7 +58,8 @@ fn drain(queue: &mut Queue<io::Request>) -> Vec<io::Request> {
 
 struct Harness {
     server: Server,
-    below: Queue<io::Request>,
+    above: Queue<Up>,
+    below: Queue<Below>,
 }
 
 impl Harness {
@@ -60,14 +69,14 @@ impl Harness {
     fn with_limits(limits: Limits) -> Self {
         let mut below = Queue::with_capacity(64);
         let server = Server::new(FIRST, 0, &[7; 32], Box::new([tool()]), limits, &mut below).expect("tool list fits");
-        Self { server, below }
+        Self { server, above: Queue::with_capacity(2), below }
     }
     fn event(&mut self, event: io::Event) {
-        self.server.from_io(Time::ZERO, event, &mut self.below);
+        self.server.from_io(Time::ZERO, event, &mut self.above, &mut self.below);
     }
     fn listen(&mut self) {
         self.event(io::Event::Listening { owner: FIRST, listener: LISTENER, addr: address(47100) });
-        assert_eq!(self.server.up(), Some(Up::Listening { port: 47100 }));
+        assert_eq!(self.above.pop(), Some(Up::Listening { port: 47100 }));
     }
     fn accept(&mut self, socket: Token) {
         self.event(io::Event::Accepted { owner: FIRST, socket, peer: address(50000) });
@@ -80,7 +89,7 @@ impl Harness {
         self.acknowledge();
     }
     fn acknowledge(&mut self) {
-        assert_eq!(self.server.up(), None);
+        assert_eq!(self.above.pop(), None);
         let records = drain(&mut self.below);
         assert!(!records.iter().any(|record| match record {
             io::Request::Stream { down: Down::Demand { read: Read::Line { max: 4096 }, .. }, .. } => true,
@@ -97,7 +106,7 @@ impl Harness {
             owner: OWNER,
             up: OutputUp::Settled { right, outcome: OutputOutcome::Granted },
         });
-        assert_eq!(self.server.up(), Some(Up::Connected));
+        assert_eq!(self.above.pop(), Some(Up::Connected));
         let records = drain(&mut self.below);
         let bytes = records
             .into_iter()
@@ -134,14 +143,14 @@ impl Harness {
     }
     fn call(&mut self) -> CallId {
         self.message(br#"{"jsonrpc":"2.0","id":"opaque","method":"tools/call","params":{"name":"finish","arguments":{"answer":42}}}"#);
-        let Some(Up::Call { call, tool, input }) = self.server.up() else { panic!("call upward") };
+        let Some(Up::Call { call, tool, input }) = self.above.pop() else { panic!("call upward") };
         assert_eq!(tool.as_ref(), b"finish");
         assert_eq!(serde_json::from_slice::<Value>(&input).expect("input JSON"), value!({"answer":42_u32}));
         call
     }
     fn prompt(&mut self) -> CallId {
         self.message(br#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"permission_prompt","arguments":{"tool_name":"Read","input":{"file_path":"file"},"tool_use_id":"toolu_1"}}}"#);
-        let Some(Up::Prompt { call, tool_name, input, tool_use_id }) = self.server.up() else {
+        let Some(Up::Prompt { call, tool_name, input, tool_use_id }) = self.above.pop() else {
             panic!("prompt upward")
         };
         assert_eq!(tool_name.as_ref(), b"Read");
@@ -158,7 +167,7 @@ impl Harness {
 #[test]
 fn the_server_listens_on_loopback_only() {
     let mut h = Harness::new();
-    assert_eq!(h.below.pop(), Some(io::Request::Listen { owner: FIRST, addr: address(0) }));
+    assert_eq!(pop_io(&mut h.below), Some(io::Request::Listen { owner: FIRST, addr: address(0) }));
     assert!(h.server.owns(FIRST));
     assert!(h.server.owns(OWNER));
     assert!(h.server.owns(Token::new(12)));
@@ -179,7 +188,7 @@ fn a_connection_without_the_secret_is_aborted() {
         drain(&mut h.below);
         h.event(io::Event::Stream { owner: OWNER, up: stream::Up::Bytes(line.into()) });
         assert!(drain(&mut h.below).contains(&io::Request::Abort { entity: SOCKET }));
-        assert_eq!(h.server.up(), None);
+        assert_eq!(h.above.pop(), None);
     }
 }
 
@@ -190,10 +199,10 @@ fn a_silent_connection_is_aborted_at_its_deadline() {
     h.accept(SOCKET);
     drain(&mut h.below);
     assert_eq!(h.server.next_deadline(), Some(Time::from_nanos(10)));
-    h.server.fire(Time::from_nanos(9), &mut h.below);
+    h.server.fire(Time::from_nanos(9), &mut h.above, &mut h.below);
     assert!(h.below.is_empty());
-    h.server.fire(Time::from_nanos(10), &mut h.below);
-    assert_eq!(h.below.pop(), Some(io::Request::Abort { entity: SOCKET }));
+    h.server.fire(Time::from_nanos(10), &mut h.above, &mut h.below);
+    assert_eq!(pop_io(&mut h.below), Some(io::Request::Abort { entity: SOCKET }));
     assert_eq!(h.server.next_deadline(), None);
 }
 
@@ -205,7 +214,7 @@ fn a_third_pending_connection_is_rejected() {
     h.accept(Token::new(102));
     drain(&mut h.below);
     h.accept(Token::new(103));
-    assert_eq!(h.below.pop(), Some(io::Request::Reject { socket: Token::new(103) }));
+    assert_eq!(pop_io(&mut h.below), Some(io::Request::Reject { socket: Token::new(103) }));
 }
 
 #[test]
@@ -222,7 +231,7 @@ fn the_first_authenticated_connection_closes_the_listener() {
     let requests = drain(&mut h.below);
     assert!(requests.contains(&io::Request::Close { entity: LISTENER }));
     assert!(requests.contains(&io::Request::Abort { entity: Token::new(102) }));
-    assert_eq!(h.server.up(), None);
+    assert_eq!(h.above.pop(), None);
     assert_eq!(h.server.next_deadline(), None);
 }
 
@@ -430,7 +439,7 @@ fn a_line_past_its_bound_fails_the_connection() {
     h.event(io::Event::Stream { owner: OWNER, up: stream::Up::Bytes(Box::new([b'x'; 16])) });
     assert!(drain(&mut h.below).contains(&io::Request::Abort { entity: SOCKET }));
     h.end();
-    assert_eq!(h.server.up(), Some(Up::Ended(Ended::Failed)));
+    assert_eq!(h.above.pop(), Some(Up::Ended(Ended::Failed)));
 }
 
 #[test]
@@ -476,7 +485,7 @@ fn a_tool_schema_is_bounded_before_listening() {
     let _server = Server::new(FIRST, 0, &[7; 32], Box::new([tool()]), Limits { schema_bytes, ..limits() }, &mut below)
         .expect("schema at its bound");
     assert!(match below.pop() {
-        Some(io::Request::Listen { .. }) => true,
+        Some(Below::Io(io::Request::Listen { .. })) => true,
         _ => false,
     });
     let mut oversized = tool();
@@ -506,7 +515,7 @@ fn notifications_are_not_answered() {
             io::Request::Output { .. } => true,
             _ => false,
         }));
-        assert_eq!(h.server.up(), None);
+        assert_eq!(h.above.pop(), None);
     }
 }
 
@@ -537,11 +546,11 @@ fn the_peer_s_end_closes_the_server() {
     h.connect();
     h.event(io::Event::Stream { owner: OWNER, up: stream::Up::End });
     assert!(drain(&mut h.below).contains(&io::Request::Close { entity: SOCKET }));
-    assert_eq!(h.server.up(), None);
+    assert_eq!(h.above.pop(), None);
     h.end();
-    assert_eq!(h.server.up(), Some(Up::Ended(Ended::Closed)));
-    h.server.close(&mut h.below);
-    assert_eq!(h.server.up(), None);
+    assert_eq!(h.above.pop(), Some(Up::Ended(Ended::Closed)));
+    h.server.close(&mut h.above, &mut h.below);
+    assert_eq!(h.above.pop(), None);
 }
 
 #[test]
@@ -557,7 +566,7 @@ fn nested_arguments_keep_their_values() {
     let mut h = Harness::new();
     h.connect();
     h.message(br#"{"jsonrpc":"2.0","id":"a\"b","method":"tools/call","params":{"name":"finish","arguments":{"array":[true,null,2.5,{"text":"\u00e9"}],"method":"ping"}}}"#);
-    let Some(Up::Call { call, input, .. }) = h.server.up() else { panic!("call") };
+    let Some(Up::Call { call, input, .. }) = h.above.pop() else { panic!("call") };
     assert_eq!(
         serde_json::from_slice::<Value>(&input).expect("input"),
         value!({"array":[true,null,2.5_f64,{"text":"é"}],"method":"ping"})
@@ -588,7 +597,7 @@ fn a_cancelled_call_still_receives_its_answer() {
     h.connect();
     let call = h.call();
     h.message(br#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":"opaque"}}"#);
-    assert_eq!(h.server.up(), None);
+    assert_eq!(h.above.pop(), None);
     h.server.answer(call, Answer::Text(b"completed".as_slice().into()), &mut h.below);
     assert_eq!(h.response()["result"]["content"][0]["text"], "completed");
 }

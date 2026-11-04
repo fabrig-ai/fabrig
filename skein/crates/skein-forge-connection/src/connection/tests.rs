@@ -73,7 +73,7 @@ fn github_exchange_handoff_drops_on_loss_close_replacement_and_answer() {
         assert_eq!(retained(&h).comparison, Comparison::MergeBase);
         match terminal {
             Terminal::Loss => h.connection.failed(Failure::Seen),
-            Terminal::Close => h.connection.close(true, &mut h.io),
+            Terminal::Close => h.connection.close(&h.env, true, &mut h.io),
             Terminal::Replacement => {
                 // A completed request is replaced on the reusable connection.
                 h.github_answer(&f::ok(b""));
@@ -100,7 +100,7 @@ fn github_exchange_handoff_drops_on_loss_close_replacement_and_answer() {
                 let exchange = retained(&h);
                 assert_eq!(exchange.retention, Some(Retention::Head { bytes: 1 }));
                 assert_eq!(exchange.comparison, Comparison::Full);
-                h.connection.close(true, &mut h.io);
+                h.connection.close(&h.env, true, &mut h.io);
             }
             Terminal::Answer => {
                 h.github_answer(&f::ok(b""));

@@ -101,7 +101,7 @@ fn endpoints(configuration: &super::super::Configuration, limits: &crate::Limits
                     limits: super::super::endpoint_client(
                         &profile(),
                         endpoint,
-                        limits.llm.adapter.client.history_items,
+                        limits.llm.translation.client.history_items,
                     )
                     .expect("endpoint client"),
                     credential: skein_llm::client::CredentialLimits { value: 0 },

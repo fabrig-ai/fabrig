@@ -392,7 +392,7 @@ pub(crate) fn answered(requests: Box<[Request]>) -> (u64, Answer) {
     (to.into_token().raw(), answer)
 }
 
-pub(crate) fn failed(failure: Failure, spent: Spend) -> Answer {
+pub(crate) fn failed(failure: RunFailure, spent: Spend) -> Answer {
     Answer::Failed { failure, spent, turns: 0 }
 }
 
@@ -513,7 +513,7 @@ pub(crate) fn ran(code: u8, output: &[u8]) -> Ran {
 // A cancel in every state.
 
 pub(crate) fn cancelled() -> Answer {
-    failed(Failure::Cancelled, Spend::ZERO)
+    failed(RunFailure::Cancelled, Spend::ZERO)
 }
 
 // Sub-agents.

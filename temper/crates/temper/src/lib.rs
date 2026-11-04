@@ -46,7 +46,7 @@ const CONFIG_BYTES: u32 = 1 << 20;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Usage(&'static commands::Row),
-    Init { directories: Directories },
+    Init { directories: Directories, boxed: bool },
     Serve { directories: Directories, boxed: bool },
     Box { directories: Directories, echo: temper_box::host::Echo },
     BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo },
@@ -149,7 +149,8 @@ fn configure_row(
     };
     let rest = os(&rest);
     match row.words {
-        ["init"] if rest.is_empty() => Ok(Command::Init { directories }),
+        ["init"] if rest.is_empty() => Ok(Command::Init { directories, boxed: false }),
+        ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
         ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false }),
         ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
         ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo }),
@@ -186,7 +187,9 @@ pub fn run(command: Command) -> Result<u8, String> {
             print!("{}", commands::row(row));
             return Ok(0);
         }
-        Command::Init { directories } => return init::run(&directories).map_err(|why| prefixed("temper init", &why)),
+        Command::Init { directories, boxed } => {
+            return init::run(&directories, boxed).map_err(|why| prefixed("temper init", &why));
+        }
         Command::Serve { directories, boxed } => {
             serve(&directories, boxed).map_err(|why| prefixed("temper serve", &why))?
         }
@@ -561,7 +564,7 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
     let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
     let answers = requests + 1;
-    if boxed {
+    if boxed && cfg!(target_os = "linux") {
         for fd in [requests, answers] {
             if !std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok_and(|m| m.file_type().is_fifo()) {
                 return Err(format!("--box: fd {fd} is not an open pipe"));
@@ -609,8 +612,31 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     host.store = store;
     Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut host))
 }
-/// The effective user's passwd login; forge commands preserve lookup refusals.
+/// The effective user's login (protocol/setup.md, 8.2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
+    if cfg!(target_os = "macos") { login_id() } else { login_passwd(user) }
+}
+
+/// Kept on every platform so Linux tests compare macOS's lookup with passwd's.
+fn login_id() -> Result<Box<[u8]>, String> {
+    let output = std::process::Command::new("/usr/bin/id")
+        .arg("-un")
+        .stdin(std::process::Stdio::null())
+        .env_clear()
+        .output()
+        .map_err(|why| format!("user: /usr/bin/id -un: {why}"))?;
+    if !output.status.success() {
+        return Err(format!("user: /usr/bin/id -un: {}", output.status));
+    }
+    let name = output.stdout.strip_suffix(b"\n").ok_or("user: /usr/bin/id -un: missing line feed")?;
+    if name.is_empty() || name.contains(&b'\n') {
+        return Err("user: /usr/bin/id -un: expected one login line".into());
+    }
+    Ok(name.into())
+}
+
+/// The effective user's passwd login; forge commands preserve lookup refusals.
+fn login_passwd(user: u32) -> Result<Box<[u8]>, String> {
     let passwd = skein_shell::read_file(std::path::Path::new("/etc/passwd"), 1 << 20)
         .map_err(|why| format!("user: {}", unread(why)))?;
     for line in passwd.split(|c| *c == b'\n') {

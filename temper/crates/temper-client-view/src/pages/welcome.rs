@@ -6,7 +6,11 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
-use temper_client_domain::{Address, Domain, Step, forge::forges::Connection, pages::Act};
+use temper_client_domain::{
+    Address, Domain, Step,
+    forge::{deployment, forges::Connection},
+    pages::Act,
+};
 
 fn text(b: &mut Builder, w: &Words, role: Role, word: Word) {
     b.open(role);
@@ -116,6 +120,10 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::WELCOME);
+    let Some(deployment::Answer { welcome: true, .. }) = root.forge().deployment() else {
+        b.close();
+        return;
+    };
     let playground = temper_client_domain::pages::welcome::decision(root)
         == Some(temper_client_domain::pages::welcome::FirstRun::Empty);
     match step {
@@ -152,15 +160,16 @@ pub(crate) fn main(
             crate::forge::connect::welcome(b, root, w, bindings, forge, forge_choice, sign_in);
         }
         Step::Model { .. } => {
-            if let Some(row) = crate::forge::connect::personal(root) {
-                b.open(Role::Slot);
-                b.style(look::WELCOME_STATUS);
-                crate::forge::connect::welcome_line(b, root, w, row);
-                b.close();
-            }
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
             paragraph(b, w, Word::WelcomeModelLead, look::WELCOME_LEAD);
             super::connect_model::body(b, root, w, accounts, text_per_node);
+            if let Some(row) = crate::forge::connect::personal(root) {
+                b.open(Role::Complementary);
+                b.style(look::WELCOME_STATUS);
+                b.name(&w.say(Word::WelcomeForgeStep, &[]));
+                crate::forge::connect::welcome_line(b, root, w, row);
+                b.close();
+            }
         }
         Step::Ready => {
             ready(b, root, w, bindings, accounts, forge, sign_in);
