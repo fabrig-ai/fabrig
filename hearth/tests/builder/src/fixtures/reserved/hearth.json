@@ -35,7 +35,7 @@
   "packages": { "git": {}, "mmdebstrap": {}, "uidmap": {}, "openssh-client": {} },
   "software": {
     "hearth": {
-      "url": "https://git.ekanayaka.io/ai/hearth/releases/download/v0.1.0/hearth-x86_64-linux",
+      "url": "https://git.example.org/ai/hearth/releases/download/v0.1.0/hearth-x86_64-linux",
       "sha256": "ca2dff1617240ba417e8dc9aa1af98e5324e899243abcbc1dc7186391fc7fab9", "unpack": "file", "path": "/usr/local/bin/hearth", "mode": "0755"
     }
   },

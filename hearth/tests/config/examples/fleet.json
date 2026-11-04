@@ -5,7 +5,7 @@
     "architecture": "amd64",
     "snapshot": { "archive": "20261001T030405Z", "security": "20261001T031522Z" }
   },
-  "core": { "domain": "ekanayaka.io" },
+  "core": { "domain": "example.org" },
   "hearth": {
     "snapshots": {
       "core": { "every": "1d", "keep": { "daily": 7 } },
