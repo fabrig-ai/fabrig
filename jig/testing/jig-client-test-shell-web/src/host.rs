@@ -103,7 +103,7 @@ impl Host {
         use jig_client_protocol_http::Heard as H;
         let mut above = Queue::uncapped();
         match heard {
-            Heard::Answered { exchange, status, body } => {
+            Heard::Answered { exchange, status, body, headers: _ } => {
                 if let Some(token) = self.tickets.remove(&exchange) {
                     above.push(jig_client_protocol_http::answered(token, status, body));
                 }
@@ -164,6 +164,8 @@ impl Host {
                         id: self.next,
                         call: jig_client_protocol_http::exchange(&self.mapping, credential.as_ref(), message),
                         bound: 65536,
+                        cache: skein_ui_web::fetch::Cache::Browser,
+                        keep: &[],
                     });
                 }
                 Request::Client { request: jig_client::Request::OpenStream { credential } } => {

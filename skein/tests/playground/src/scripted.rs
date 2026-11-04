@@ -107,6 +107,7 @@ impl Host for StandIn {
                     exchange: job.exchange,
                     status: 200,
                     body: Box::from(&b"answer"[..]),
+                    headers: Vec::new(),
                 });
             }
         }
@@ -202,12 +203,14 @@ pub fn take(process: &mut Process, reports: &mut Vec<fetch::Report>) {
 /// A fetch input identified by its script's exchange number.
 #[must_use]
 pub fn input(id: u32) -> Input {
-    Input::Exchange(fetch::Exchange {
+    Input::Exchange(skein_ui_web::bridge::Exchange {
         id,
         path: Box::from(&b"/"[..]),
         method: String::from("GET"),
         headers: Vec::new(),
         body: Box::from([]),
         bound: 16,
+        cache: fetch::Cache::Browser,
+        keep: Vec::new(),
     })
 }

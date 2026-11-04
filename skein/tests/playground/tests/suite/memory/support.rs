@@ -119,6 +119,8 @@ pub fn exchange(id: u32) -> fetch::Exchange {
         headers: Vec::new(),
         body: Box::from([]),
         bound: ANSWER_BOUND,
+        cache: skein_ui_web::fetch::Cache::Browser,
+        keep: &[],
     }
 }
 
@@ -127,5 +129,5 @@ pub fn fixed() -> Route {
 }
 
 pub fn answer(exchange: u32) -> fetch::Report {
-    fetch::Report::Answered { exchange, status: 201, body: b"the site's answer".as_slice().into() }
+    fetch::Report::Answered { exchange, status: 201, body: b"the site's answer".as_slice().into(), headers: Vec::new() }
 }

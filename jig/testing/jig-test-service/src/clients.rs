@@ -37,6 +37,7 @@ pub(super) struct Clients {
     durable: u64,
     secret_owners: Map<Token, Asked>,
     next_secret: u64,
+    public_names: Option<()>,
 }
 
 // Hide printed sign-in links because they carry secrets (skein/docs/design/lib.md, 6).
@@ -66,6 +67,7 @@ impl ::core::fmt::Debug for Clients {
             .field("durable", &self.durable)
             .field("secret_owners", &self.secret_owners)
             .field("next_secret", &self.next_secret)
+            .field("public_names", &self.public_names)
             .finish()
     }
 }
@@ -110,6 +112,7 @@ fn invalid(what: What) -> Problems {
     problems
 }
 impl Clients {
+    #[expect(clippy::too_many_lines, reason = "startup wires the bounded client children and the public key lookup")]
     pub fn new(
         config: &config::Engine,
         listener: io::Addr,
@@ -166,6 +169,8 @@ impl Clients {
             })
             .or(Err(invalid(What::Bound)))?;
         let settings = kit::Settings {
+            public: public_kinds(&public_bounds(config)),
+            public_bounds: public_bounds(config),
             provider: None,
             addresses: Box::new([]),
             link,
@@ -194,7 +199,10 @@ impl Clients {
             component: None,
             settings: Some(settings),
             server: crate::server::Server::new(listener, transport),
-            mount: http::Mount::new(http_settings(), &config.limits.clients_http),
+            mount: http::Mount::new(
+                http::Settings { max_age: config.limits.clients.public.max_age, ..http_settings() },
+                &config.limits.clients_http,
+            ),
             mount_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients_http },
             mount_out: Queue::uncapped(),
             server_out: Queue::uncapped(),
@@ -213,6 +221,7 @@ impl Clients {
             endings: Map::with_capacity(u32::MAX),
             secret_owners: Map::with_capacity(u32::MAX),
             next_secret: 1,
+            public_names: None,
             durable: 0,
         })
     }
@@ -297,19 +306,14 @@ impl Clients {
             match self.server_out.pop().expect("server requests") {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
                 crate::server::Routed::Call { call, head } => {
-                    if self.mount.room() > 0 {
+                    if self.mount.room_for(&head) > 0 {
                         self.mount.down(&self.mount_env, http::Event::Call { call, head });
                     } else {
                         self.refused.insert(call, ()).expect("bounded refused server calls");
                         self.server.answer(call, skein_http::server::Request::Discard, &mut self.server_out);
                         self.server.answer(
                             call,
-                            skein_http::server::Request::Respond(skein_http::server::Response {
-                                status: 503,
-                                headers: Box::new([]),
-                                body: skein_http::server::Body::None,
-                                close: true,
-                            }),
+                            skein_http::server::Request::Respond(self.mount.refusal(&head)),
                             &mut self.server_out,
                         );
                     }
@@ -367,13 +371,19 @@ impl Clients {
                     };
                     self.down(kit::Event::MovedTaken { exchange, record });
                 }
+                Routed::Secrets(kit::SecretsRequest::Get { owner: kit::SecretOwner::PublicNames }) => {
+                    self.public_names = Some(());
+                }
                 Routed::Secrets(value) => self.secrets.push(value),
                 Routed::Root(value) => self.root(*value, events),
                 Routed::Application(value) => match family::to_root(value, bound, rows) {
                     Ok(value) => self.root(value, events),
                     Err(value) => self.down(*value),
                 },
-                Routed::Closed => self.component_closed = true,
+                Routed::Closed => {
+                    self.component_closed = true;
+                    self.public_names = None;
+                }
             }
         }
     }
@@ -538,6 +548,7 @@ fn ended(key: &root::Key) -> Option<u64> {
                 | people::Key::ReadConversation { .. }
                 | people::Key::Roles(..)
                 | people::Key::Deletion(..)
+                | people::Key::Public(..)
                 | people::Key::Policy(..)
                 | people::Key::Acted(..)
                 | people::Key::Answer(..),
@@ -604,6 +615,10 @@ impl Clients {
         self.advance_secrets(store);
     }
     fn advance_secrets(&mut self, store: &mut crate::store::Store) {
+        if self.public_names.is_some() && store.component.mark_durable() {
+            self.public_names = None;
+            self.secrets.push(kit::SecretsRequest::Get { owner: kit::SecretOwner::PublicNames });
+        }
         for _ in 0..self.secrets.len() {
             let request = self.secrets.pop().expect("client secrets requests");
             let (owner, request) = secret_request(request);
@@ -679,9 +694,13 @@ fn secret_request(request: kit::SecretsRequest) -> (Asked, jig_protocol_store::S
     match request {
         kit::SecretsRequest::Keep { owner, value } => {
             let (kind, number) = place(owner);
-            let value = jig_protocol_store::SecretValue::Digest {
-                expiry: value.expires.as_nanos(),
-                digest: value.digest.expose().try_into().expect("credential digest is 32 bytes"),
+            let value = if owner == kit::SecretOwner::PublicNames {
+                jig_protocol_store::SecretValue::Key(value.digest)
+            } else {
+                jig_protocol_store::SecretValue::Digest {
+                    expiry: value.expires.as_nanos(),
+                    digest: value.digest.expose().try_into().expect("credential digest is 32 bytes"),
+                }
             };
             (Asked::Owner(owner), Secrets::Keep { owner: kind, number, value })
         }
@@ -712,12 +731,16 @@ fn place(owner: kit::SecretOwner) -> (jig_protocol_store::SecretOwner, u64) {
         kit::SecretOwner::SignIn(number) => (SecretOwner::SignIn, number),
         kit::SecretOwner::Service(number) => (SecretOwner::Service, number),
         kit::SecretOwner::Carried(number) => (SecretOwner::Application, number),
+        kit::SecretOwner::PublicNames => (SecretOwner::PublicNames, 0),
     }
 }
 fn kept(value: jig_protocol_store::SecretValue) -> Option<kit::Kept> {
     match value {
         jig_protocol_store::SecretValue::Digest { expiry, digest } => {
             Some(kit::Kept { digest: skein_lib::Secret::new(Box::new(digest)), expires: Wall::from_nanos(expiry) })
+        }
+        jig_protocol_store::SecretValue::Key(key) if key.len() == 32 => {
+            Some(kit::Kept { digest: key, expires: Wall::from_nanos(u64::MAX) })
         }
         jig_protocol_store::SecretValue::Record(_)
         | jig_protocol_store::SecretValue::Key(_)
@@ -766,5 +789,26 @@ fn address_text(address: ::core::net::SocketAddr) -> Option<Box<[u8]>> {
 }
 
 pub(super) fn http_settings() -> http::Settings {
-    http::Settings { prefix: Box::from(b"/jig".as_slice()), public: None }
+    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), public: None }
+}
+
+#[cfg(test)]
+#[path = "clients/public.rs"]
+mod public_tests;
+
+fn public_bounds(config: &config::Engine) -> jig_client_protocol_wire::PublicIndexBounds {
+    jig_client_protocol_wire::PublicIndexBounds {
+        goals: config.limits.core.public.goals,
+        ended: config.limits.core.public.ended,
+        lines: config.limits.core.public.lines,
+        depth: config.limits.core.public.depth,
+        projects: config.limits.core.people.projects,
+    }
+}
+fn public_kinds(bounds: &jig_client_protocol_wire::PublicIndexBounds) -> List<kit::PublicKind> {
+    let mut kinds = List::with_capacity(3);
+    for kind in kit::jig_kinds(bounds) {
+        kinds.push(kind).expect("three public kinds");
+    }
+    kinds
 }

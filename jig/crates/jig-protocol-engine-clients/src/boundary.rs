@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_views as views;
-use skein_lib::{Duration, List, ReplyTo, Secret, Token, Wall};
+use skein_lib::{Duration, List, ReplyTo, Secret, Time, Token, Wall};
 #[derive(Debug)]
 pub enum Event {
     Transport(FromTransport),
@@ -69,6 +69,10 @@ pub enum Event {
     Stop,
     Close,
     Abort,
+    Public {
+        reply: ReplyTo,
+        answer: core::PublicAnswer,
+    },
 }
 #[derive(Debug)]
 pub enum Request {
@@ -153,6 +157,7 @@ pub enum SecretOwner {
     Service(u64),
     /// A value a request carried, by the number the store drew; only erased.
     Carried(u64),
+    PublicNames,
 }
 #[derive(Debug)]
 pub enum SecretsAnswer {
@@ -200,6 +205,8 @@ pub struct Settings {
     pub redirect_bytes: u32,
     /// The moved file form's bound under the configured accounts limits.
     pub moved_bytes: u64,
+    pub public: List<crate::public::PublicKind>,
+    pub public_bounds: jig_client_protocol_wire::PublicIndexBounds,
 }
 /// A configured model as the client protocol names and shows it (configuration.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -240,6 +247,7 @@ pub enum FromTransport {
     StreamOpen { stream: Token, credential: Option<Secret> },
     StreamTaken { stream: Token },
     StreamGone { stream: Token },
+    PublicRead { exchange: Token, read: PublicRead },
 }
 #[derive(Debug, PartialEq)]
 pub enum Message {
@@ -258,6 +266,7 @@ pub enum ToTransport {
     Reply { exchange: Token, reply: Reply },
     Streamed { stream: Token, message: Streamed },
     StreamEnded { stream: Token, why: Ended },
+    Public { exchange: Token, reply: PublicReply },
 }
 #[derive(Debug)]
 pub enum Reply {
@@ -284,4 +293,21 @@ pub struct ProviderAnswer {
     pub status: u16,
     pub challenge: Option<Box<[u8]>>,
     pub body: Secret,
+}
+
+/// A credential-free public read (jig/docs/design/protocol/client.md, 19).
+#[derive(Debug, PartialEq)]
+pub struct PublicRead {
+    pub owner: u16,
+    pub version: u16,
+    pub kind: u16,
+    pub ids: Box<[u64]>,
+}
+/// One terminal public answer (jig/docs/design/protocol/client.md, 19).
+#[derive(Debug, PartialEq, Eq)]
+pub enum PublicReply {
+    Document { bytes: Box<[u8]>, decided: Time },
+    Unknown,
+    Busy,
+    NotServed { record: Box<[u8]> },
 }

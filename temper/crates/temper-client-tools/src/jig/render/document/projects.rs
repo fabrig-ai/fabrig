@@ -9,6 +9,7 @@ use jig_client::contract as c;
 pub(super) fn text(
     project: &c::Project,
     call: &Call,
+    me: Option<&c::Me>,
     limits: &crate::jig::Limits,
     vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
@@ -20,6 +21,11 @@ pub(super) fn text(
         out.number(u64::from(project.number));
         out.put(b", ");
         out.words(project.name.bytes());
+        out.put(b"\npublic: ");
+        match super::super::visibility::identifier(me, project.number) {
+            Some(identifier) => out.put(&super::super::visibility::page(identifier)),
+            None => out.put(b"no"),
+        }
         out.put(b"\nhomes:");
         for resource in &project.resources {
             if resource.home {
@@ -192,6 +198,7 @@ fn numbers(ledger: &c::PoolLedger, brief: bool, out: &mut Text) {
 pub(super) fn encode(
     project: &c::Project,
     call: &Call,
+    me: Option<&c::Me>,
     limits: &crate::jig::Limits,
     out: &mut skein_json::writer::Encoder,
     budget: &mut super::Cut,
@@ -199,5 +206,5 @@ pub(super) fn encode(
     if call.tool == rows::PROJECT_SHOW_AT {
         budget.digest = projects_json::digest(project, call, limits);
     }
-    projects_json::encode(project, call, out, budget);
+    projects_json::encode(project, call, super::super::visibility::identifier(me, project.number), out, budget);
 }

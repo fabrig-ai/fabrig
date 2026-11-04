@@ -96,7 +96,11 @@ impl Visitor {
     fn input(&mut self, input: bridge::Input, wall: Wall) {
         match input {
             bridge::Input::Exchange(exchange) => {
-                if let Some(ticket) = self.fetch.0.begin(exchange.id, exchange.bound) {
+                if let Some(ticket) = self.fetch.0.begin(
+                    exchange.id,
+                    exchange.bound,
+                    &exchange.keep.iter().map(String::as_str).collect::<Vec<_>>(),
+                ) {
                     self.open(ticket, exchange, false, wall);
                 } else {
                     self.reports.push(fetch::Report::Failed { exchange: exchange.id });
@@ -123,7 +127,16 @@ impl Visitor {
                 match headers {
                     Ok(headers) => self.open(
                         ticket,
-                        fetch::Exchange { id: 0, path, method: "GET".into(), headers, body: Box::from([]), bound },
+                        bridge::Exchange {
+                            id: 0,
+                            path,
+                            method: "GET".into(),
+                            headers,
+                            body: Box::from([]),
+                            bound,
+                            cache: fetch::Cache::Browser,
+                            keep: Vec::new(),
+                        },
                         true,
                         wall,
                     ),
@@ -148,7 +161,7 @@ impl Visitor {
         }
     }
 
-    fn open(&mut self, ticket: u64, exchange: fetch::Exchange, stream: bool, wall: Wall) {
+    fn open(&mut self, ticket: u64, exchange: bridge::Exchange, stream: bool, wall: Wall) {
         let Some(method) = Method::from_bytes(exchange.method.as_bytes()) else {
             self.end(ticket);
             return;
@@ -190,6 +203,8 @@ impl Visitor {
             },
             exchange.body,
             stream.then_some(exchange.bound.min(self.config.http.read)),
+            exchange.keep,
+            exchange.bound,
         );
         self.connections.insert(owner, connection);
         self.requests.push(io::Request::Connect { owner, addr: io::Addr::Ip(self.config.listener) });

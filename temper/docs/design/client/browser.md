@@ -242,7 +242,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 
   `<task>` and `<project>` are the task's and the project's numbers in
   decimal. A later page's path comes with it, in this shape
-  (`/projects/<project>/board`, `/projects/<project>/changes`).
+  (`/projects/<project>/board`, `/projects/<project>/changes`). The
+  public pages' paths, under `/public`, are section 8's.
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with
   every field unset, so that `/` is the inbox unfiltered and
@@ -360,7 +361,9 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   instead: temper's mark, "Sign in" and "Continue with Google", the ways
   read from the page's `temper-sign-in` meta at start
   (`../protocol/sign-in.md`, section 7); the link leaves for Google's
-  sign-in and comes back to the page's address.
+  sign-in and comes back to the page's address. Where the deployment
+  has public projects, the signed-out main and the sign-in page add a
+  link, "Read the public projects", to `/public` (section 8).
 - **A link's sign-in not taken,** answered full, busy or not ready: the
   link is not spent, and the main says why and that the link stays
   usable until it expires (`README.md`, 5.1), full with the deployment's
@@ -968,6 +971,10 @@ Not in the tier, each in the lowest world that shows it:
   `skein-ui.css` does. Default: light only (2.5).
 - **Other browsers** than Chromium are `skein-browser`'s question
   (skein's `browser.md`).
+- **One shared stream per public document,** fanned out by the server
+  to every visitor reading it, in place of each page reading again
+  (section 8). Default: none; pages read again at the `max-age`, and a
+  visitor never holds a stream.
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
@@ -1130,3 +1137,92 @@ gallery builds it.
   `scripts/bundle.sh`'s order, read from that script.
 - **Their cost:** together at most 1 s (0.5 s before the user's doubling of
   10-22, provisional) of the default suite; no fuzzy test.
+
+## 8. Reading without signing in
+
+The web client's anonymous mode: a visitor reads a public project
+(jig's `domain/people.md`, section 13) through its public documents,
+jig's and the forge's (`forge.md`, section 11), never signing in and
+never streaming (`../draft/first-release.md`, 5.3).
+
+### 8.1 Its pages and addresses
+
+| Page | Path | Reads |
+|---|---|---|
+| `PublicProjects` | `/public` | jig's *projects* |
+| `PublicBoard { project }` | `/public/projects/<project>` | jig's *board*, and the forge's *landings* for its queues' lines |
+| `PublicTask { project, task }` | `/public/projects/<project>/tasks/<task>` | jig's *card*, and the forge's *change* where the task makes one |
+| `PublicLandings { project }` | `/public/projects/<project>/landings` | the forge's *landings* |
+| `PublicLanding { project, task }` | `/public/projects/<project>/landings/<task>` | the forge's *landing*, through a member's change's task |
+
+- **By temper's address codec,** as every page's (2.3); `<project>`
+  and `<task>` are public identifiers, 16 lowercase hexadecimal digits
+  (jig's `domain/people.md`, 13.8), never numbers. A path under
+  `/public` that does not read is `/public`.
+- **Served as every page is:** the server answers each with the page
+  and the bundle (2.2); nothing on the server is new but the public
+  kinds the forge declares to jig (`forge.md`, 11.1).
+
+### 8.2 How it reads
+
+- **No sign-in, no stream, no small store.** At an address under
+  `/public`, the shell starts the public mode in place of `jig-client`'s
+  sign-in: no `Transport`, no credential, no watch. It reads each
+  document its page shows by jig's public `GET` through jig's HTTP
+  client end (jig's `protocol/client.md`, 17.5), and decodes it with
+  jig's and the forge's public records alone.
+- **It reads again by itself,** when a document's freshness ends (the
+  `max-age` its answer gave, less the `Age` a cache added), while its
+  tab is visible; a hidden tab reads nothing, and reads at once when
+  shown. The proxy's cache answers most of these reads; the engine sees
+  one per document per `max-age` (`../protocol/sign-in.md`, 2.4).
+- **Nothing shown past its freshness.** A document is shown only until
+  its freshness ends: a read again that is answered busy or fails keeps
+  it until then, marked as of when it was read, and after it the page
+  drops it and says "Not available just now.", reading again after
+  `Retry-After`, doubling to a bound of a minute. So a project made
+  private leaves an open page within the `max-age`, as it leaves the
+  proxy; a copy already shown or saved is not withdrawn.
+- **Unknown** shows "Not public, or not here." with a link to
+  `/public`, and drops what the page showed.
+- **Anyone, signed in or not,** sees the same pages at these addresses:
+  the answers are the same for every visitor. A signed-in person's
+  cookie goes with the `GET` and is never read. The banner offers "Sign
+  in" where the deployment has a way, and nothing else of a person's.
+
+### 8.3 What it shows
+
+- **No names:** the records carry no text, so a project is "Project"
+  and a goal "Goal", each with the first eight digits of its public
+  identifier, and a task "task" with the same; an executor is its kind,
+  "an agent", "a procedure", "a person".
+- **The board:** the project's goals, each a line: its identifier, its
+  phase in words, for how long, its spend; under it its tree's lines:
+  "task 3f2a9c01, an agent, running for 14 minutes", its phase, its
+  times; the count of lines folded; and the queues' lines from the
+  landings.
+- **A task:** its line, its lineage up to its goal as links, its
+  delegates, and where it makes a change, the change's step in words,
+  CI's state, its gates' verdicts by number and kind, and "its change
+  on the forge", the pull's address, with the head's commit linked by
+  its short hash.
+- **The landings:** the turn, each queue in order, without places, and
+  the recent landings, each landed commit a link.
+- **Never** a person's name, words, an agent's words, or anything the
+  records do not carry: the view reads only the public records.
+
+### 8.4 Its tests
+
+- **Step tests:** the address codec's public paths, both ways, and a
+  malformed one (a number, upper-case, short or long identifiers) read
+  as `/public`; the public mode's reads, its timer from the answer's
+  freshness and `Age`, a hidden tab reading nothing, busy keeping the
+  page until its freshness ends and then dropping it, backing off,
+  unknown's main.
+- **Fuzzy tests:** the address codec's parser over seeded paths under
+  `/public`, never panicking and printing back what it read.
+- **The browser tier** (section 4): a public project on fakes read at
+  `/public`, its board, a task and its landings, by a page with no
+  sign-in and no stream, the view's text checked against the public
+  records' fields alone; and a project made private, its pages unknown
+  at the next read.

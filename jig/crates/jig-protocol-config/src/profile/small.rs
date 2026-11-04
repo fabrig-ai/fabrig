@@ -184,6 +184,7 @@ pub(super) const BUDGETS: core::CoreBriefBudgets = core::CoreBriefBudgets {
     notes: 2_048,
 };
 pub(super) const CORE: core::Limits = core::Limits {
+    public: core::PublicIndexLimits::OFF,
     // The sum of child route bounds when this configured hand-off bound was set.
     routes: 20_783,
     settings: core::settings::Limits {
@@ -287,6 +288,7 @@ pub(super) const LIMITS: Limits = Limits {
     driver: DRIVER,
     clients: CLIENTS,
     clients_http: jig_protocol_engine_clients_http::Limits {
+        public_calls: 0,
         calls: 4,
         streams: 2,
         body: CLIENTS.message_bytes,
@@ -301,6 +303,7 @@ pub(super) const LIMITS: Limits = Limits {
 
 /// Native client HTTP: 4 sockets, 8 exchanges, 5 minute link, 30 second stall.
 pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_engine_clients::Limits {
+    public: jig_protocol_engine_clients::PublicLimits::OFF,
     streams: 2,
     watches_per_stream: 4,
     queued_bytes: 65536,

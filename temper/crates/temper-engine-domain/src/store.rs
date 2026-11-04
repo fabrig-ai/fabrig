@@ -768,6 +768,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         u64::try_from(reason.len()).ok()
                     }
                     jig_domain_people::Ask::RemoveProject { .. }
+                    | jig_domain_people::Ask::SetVisibility { .. }
                     | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
@@ -803,6 +804,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                 model_context_bytes(models)?.checked_add(payload)?.checked_add(program_answer_bytes(outcome)?)
             }
             jig_domain_people::Stored::Deletion { .. }
+            | jig_domain_people::Stored::Public { .. }
             | jig_domain_people::Stored::SignIn { .. }
             | jig_domain_people::Stored::ReadResults { .. }
             | jig_domain_people::Stored::EndedRead { .. }
@@ -1008,6 +1010,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::CompoundRefused { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::Renamed { .. }
         | Outcome::Created { .. }
         | Outcome::MarkedSeen { .. }

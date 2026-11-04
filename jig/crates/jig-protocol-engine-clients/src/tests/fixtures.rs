@@ -48,6 +48,14 @@ pub fn settings() -> Settings {
         key_bytes: 7934,
         redirect_bytes: 4096,
         moved_bytes: 70000,
+        public: List::with_capacity(0),
+        public_bounds: jig_client_protocol_wire::PublicIndexBounds {
+            goals: 0,
+            ended: 0,
+            lines: 0,
+            depth: 0,
+            projects: 0,
+        },
     }
 }
 /// Two configured models: one with efforts, provider, cache-write price and description,
@@ -79,6 +87,7 @@ pub fn env() -> Env<Limits> {
         now: Time::ZERO,
         wall: Wall::EPOCH,
         limits: Limits {
+            public: crate::PublicLimits::OFF,
             streams: 2,
             watches_per_stream: 4,
             queued_bytes: 65536,
