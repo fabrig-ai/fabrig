@@ -17,6 +17,7 @@ pub(super) struct Clients {
     component: Option<kit::Component>,
     settings: Option<kit::Settings>,
     pub(super) server: crate::server::Server,
+    pub(super) pages: crate::server::Pages,
     pub(super) mount: http::Mount,
     pub(super) refused: Map<Token, ()>,
     mount_env: Env<http::Limits>,
@@ -47,6 +48,7 @@ impl ::core::fmt::Debug for Clients {
             .field("component", &self.component)
             .field("settings", &self.settings)
             .field("server", &self.server)
+            .field("pages", &self.pages)
             .field("mount", &self.mount)
             .field("refused", &self.refused)
             .field("mount_env", &self.mount_env)
@@ -199,6 +201,7 @@ impl Clients {
             component: None,
             settings: Some(settings),
             server: crate::server::Server::new(listener, transport),
+            pages: crate::server::Pages::new(transport),
             mount: http::Mount::new(
                 http::Settings { max_age: config.limits.clients.public.max_age, ..http_settings() },
                 &config.limits.clients_http,
@@ -306,7 +309,10 @@ impl Clients {
             match self.server_out.pop().expect("server requests") {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
                 crate::server::Routed::Call { call, head } => {
-                    if self.mount.room_for(&head) > 0 {
+                    let answer = self.pages.route(&head);
+                    if answer != crate::server::Answer::Mount {
+                        self.pages.call(&mut self.server, call, &head, answer, &mut self.server_out);
+                    } else if self.mount.room_for(&head) > 0 {
                         self.mount.down(&self.mount_env, http::Event::Call { call, head });
                     } else {
                         self.refused.insert(call, ()).expect("bounded refused server calls");
@@ -319,7 +325,9 @@ impl Clients {
                     }
                 }
                 crate::server::Routed::Http { call, event } => {
-                    if self.refused.get(&call).is_some() {
+                    if self.pages.owns(call) {
+                        self.pages.event(&mut self.server, call, event, &mut self.server_out);
+                    } else if self.refused.get(&call).is_some() {
                         match event {
                             skein_http::server::Event::Done(_)
                             | skein_http::server::Event::Failed(_)
