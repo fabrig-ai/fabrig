@@ -40,8 +40,18 @@ draws it, and landed apart from this draft.
   the day and the time; the headline "PROJECT is ready.", never a
   count of what is left, since nothing in "To begin" is owed; the
   lede naming the model's account and the forge, "Your agents run on
-  your ChatGPT plan. Forgejo runs on this machine.", from the LLM
-  accounts and the forges the client reads already.
+  your ChatGPT plan, and Forgejo on this machine.", from the LLM
+  accounts and the forges the client reads already; after it, a link
+  to Accounts naming what the person does not hold yet: "Add Claude or
+  another plan" with a ChatGPT plan alone, "Add ChatGPT or another
+  plan" with a Claude subscription alone, "Add another account" with
+  both or with a key (the user, 2026-11-04).
+- **More accounts, never more room:** the link offers other providers
+  and models, and its words promise no capacity, since a limited task
+  waits for its own account and never moves to another of its
+  holder's (jig's `domain/accounts.md`, 4.3), as OpenAI's terms ask
+  (jig's `domain/providers.md`, 2.5), and Anthropic's limits assume
+  one person's ordinary use (jig's `domain/providers.md`, 3.4).
 - **"To begin," optional and plainly so:** a card of its own, headed
   "To begin" beside an "Optional" tag, "Skip" a button at its top
   right; under the heading, "Two steps left. Skip them if you like;
