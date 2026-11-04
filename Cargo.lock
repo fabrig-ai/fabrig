@@ -1403,6 +1403,7 @@ name = "jig-protocol-engine-workers"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-protocol-config",
  "jig-protocol-worker-wire",
  "skein-channel",
  "skein-codec",
