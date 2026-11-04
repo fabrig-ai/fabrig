@@ -147,39 +147,42 @@ temper ctl DIR me
 
 Expect: `party 1 · owner · Owner`; `me` lists no project yet.
 
-The playground makes `Demo`; setup makes yours (temper help playground).
-Policy 1 sizes each. After `settings apply`, fund the project's period,
-then role 0's pool with distinct keys (temper help weekly-budget).
-Settings never resize budgets; check with `project show PROJECT`.
+After step 4, check `project show PROJECT`; resize with temper help weekly-budget.
 
 If not: `temper ctl: the sign-in link was refused` (exit 1): spent or
 expired. Use the new link after `A fresh sign-in link:`.
 
 ## 4. Set up Forgejo on this machine
 
-Setup adopts into `me`'s project, 1 on a new box.
+When `me` lists no project, leave out `--project`: setup creates a project named `hello`.
 
 ```
-temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
+temper ctl DIR forge setup --org work --repository hello --key KEY
 ```
 
-Expect: `setting up`, then `project: PROJECT · NAME`,
+Expect: `setting up`, then `project: PROJECT · hello`,
 `Adopted work/hello on forge FORGE as owned.` and
 `It is the project's home.`
 
-Each Forgejo start prints:
+Use the printed `PROJECT` number in later commands (1 on a new box).
+Add `--project PROJECT` to choose an existing project.
+
+Instead, `--playground` without `--project` creates `widget`:
+`project: 1 · widget` on a new box.
+
+Forgejo prints:
 
 ```
 Forgejo: api http://127.0.0.1:PORT/api/v1
 Forgejo: person LOGIN
 ```
 
-Headers: `DATA/forge-FORGE/person_read.header` and `person_write.header`
-beside it; `curl -H @PATH` keeps tokens private.
+Headers: `DATA/forge-FORGE/person_read.header` and `person_write.header`;
+`curl -H @PATH` keeps tokens private.
 `person_password` holds your first password.
 
-If not: `not met: timeout` (exit 3) after 300 seconds fetching:
-run `temper ctl DIR forge list --until made:FORGE`, then continue.
+If not: `not met: timeout` (exit 3) after 300 seconds:
+run `temper ctl DIR forge list --until made:FORGE`.
 `temper ctl DIR forge list` names fetch or start failures.
 
 ## 5. Give the model an account

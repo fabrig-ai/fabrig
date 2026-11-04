@@ -203,3 +203,28 @@ fn the_clusters_documents_check_as_their_shapes() {
     }
     scratch.remove();
 }
+
+#[test]
+fn the_clusters_workers_admit_the_initial_stock() {
+    let scratch = support::Scratch::startup("cluster-stock-admission");
+    let cluster = cluster_documents(scratch.path());
+    let value = cluster_document(&cluster, "engine");
+    let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
+    let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
+    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        .expect("initial stock engine");
+    let core = jig_protocol_config::core(&engine, [0; 16], 1);
+    let needs = jig_domain_core::settings::fleet_needs::configured(&core, &engine.limits.core);
+    for process in ["w1", "w2"] {
+        let profile = support::owned::deployment_profile(
+            &cluster.dir(process),
+            &format!("crates/temper/tests/fixtures/cluster/{process}.json"),
+        );
+        assert_eq!(
+            jig_domain_fleet::shortfall(&needs, &profile.agent.bounds, jig_domain_fleet::HostKind::Worker),
+            None,
+            "{process} must admit startup stock before the story applies its settings"
+        );
+    }
+    scratch.remove();
+}

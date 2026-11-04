@@ -695,11 +695,169 @@ fn a_claude_plan_selects_provider_two_beside_demo_accounts() {
     );
 }
 
-#[test]
-fn a_held_login_is_due_after_the_second_run_or_a_failed_first_run() {
-    for (first, failed, due) in [(true, false, false), (true, true, true), (false, false, true), (false, true, true)] {
-        assert_eq!(support::held_login::due_back(first, failed), due, "first={first} failed={failed}");
+struct HeldBox {
+    scratch: support::Scratch,
+    paths: [std::path::PathBuf; 3],
+    record: std::path::PathBuf,
+    stub: std::path::PathBuf,
+    starts: usize,
+    returned_before_stop: Vec<bool>,
+}
+
+impl HeldBox {
+    fn new(case: &str) -> Self {
+        use std::{fs, os::unix::fs::PermissionsExt};
+        let scratch = support::Scratch::new(case);
+        let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
+        let record = scratch.path().join("record");
+        support::write_private(&record, b"synthetic fixture");
+        let stub = scratch.path().join("ctl");
+        support::write_private(
+            &stub,
+            br#"#!/bin/sh
+set -eu
+root=$(dirname "$0")
+test -e "$root/running"
+test "$2" = "$(cat "$root/running")/client"
+case "$4" in
+import) mv "$5" "$root/inside" ;;
+list) printf '%s\n' '{"accounts":{"party":[{"provider":1,"plan":true,"number":7}]}}' ;;
+export) test "$5" = 7; mv "$root/inside" "$6" ;;
+*) exit 1 ;;
+esac
+"#,
+        );
+        fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable fake ctl");
+        Self { scratch, paths, record, stub, starts: 0, returned_before_stop: vec![] }
     }
+
+    fn import(plan: &support::forge_land::LivePlan<'_>, stub: &std::path::Path, record: &std::path::Path) {
+        let (commands, _) = support::forge_land::live_commands(plan.first, plan.model);
+        let import = commands
+            .iter()
+            .find(|args| args.starts_with(&["account".into(), "import".into()]))
+            .expect("held record is imported for each box");
+        let words = import.iter().map(String::as_str).collect::<Vec<_>>();
+        assert_eq!(words.last(), Some(&if plan.first { "connect-plan" } else { "restart-plan" }));
+        let imported = support::ctl::alone(plan.client, plan.held_import(stub, &words));
+        assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(0)));
+        assert!(!record.exists(), "import moves the source into the box");
+    }
+
+    fn run(&mut self, first: bool, failed: bool) -> Result<(), &'static str> {
+        use support::{
+            forge_land::{LiveModel, LivePlan},
+            held_login::{End, Ending},
+        };
+        let root = self.scratch.path();
+        let client = root.join(if first { "first" } else { "second" });
+        std::fs::create_dir(&client).expect("fake box client");
+        support::write_private(&root.join("running"), client.as_os_str().as_encoded_bytes());
+        self.starts += 1;
+        let plan = LivePlan {
+            paths: &self.paths,
+            client: &client,
+            first,
+            kept: false,
+            model: LiveModel::ChatGpt { account: Some(&self.record) },
+            address: None,
+            tasks: None,
+            baseline: None,
+            roots: None,
+            words: "",
+            line: "",
+        };
+        plan.install_return_hook(&self.stub);
+        Self::import(&plan, &self.stub, &self.record);
+        let now = skein_lib::Time::ZERO;
+        let mut ending = Ending::new(true, first, failed, now);
+        let mut exit = None;
+        loop {
+            match ending.next(now, true, exit) {
+                End::Return => {
+                    exit = Some(support::ctl::alone(&client, plan.return_call()).exit);
+                }
+                End::Stop(failure) => {
+                    use std::os::unix::fs::PermissionsExt;
+                    self.returned_before_stop.push(std::fs::symlink_metadata(&self.record).is_ok_and(|file| {
+                        file.is_file() && file.len() > 0 && file.permissions().mode() & 0o777 == 0o600
+                    }));
+                    std::fs::remove_file(root.join("running")).expect("stop fake box");
+                    return failure.or(failed.then_some("run failed")).map_or(Ok(()), Err);
+                }
+                End::Wait => panic!("fake ctl already ended"),
+            }
+        }
+    }
+}
+
+/// domain/testing.md, 2.7: validation between boxes cannot strand an imported login.
+#[test]
+fn a_held_login_returns_when_validation_panics_between_boxes() {
+    let mut boxes = HeldBox::new("held-between-boxes");
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        boxes.run(true, false).expect("first box succeeds");
+        let _ = support::forge_land::landed_identity("", "");
+        boxes.run(false, false).expect("second box succeeds");
+    }));
+    let failure = result.expect_err("validation remains a failure");
+    let message =
+        failure.downcast_ref::<String>().map(String::as_str).or_else(|| failure.downcast_ref::<&str>().copied());
+    assert_eq!(message, Some("landed result line"));
+    assert_eq!(boxes.starts, 1, "validation panics before the second box starts");
+    assert_eq!(boxes.returned_before_stop, [true], "record is private, nonempty and back before the first stop");
+    assert!(boxes.record.is_file(), "the stopped box no longer owns the record");
+    boxes.scratch.remove();
+}
+
+/// Both successful boxes return before stopping; failures in either do the same.
+#[test]
+fn a_held_login_returns_on_restart_and_failures_in_either_box() {
+    for failure in [None, Some(true), Some(false)] {
+        let mut boxes = HeldBox::new("held-restart-endings");
+        let first = boxes.run(true, failure == Some(true));
+        assert_eq!(first.is_err(), failure == Some(true));
+        assert_eq!(boxes.returned_before_stop, [true], "first box returns before stopping");
+        if first.is_ok() {
+            assert_eq!(boxes.run(false, failure == Some(false)).is_err(), failure == Some(false));
+        }
+        assert!(boxes.returned_before_stop.iter().all(|returned| *returned), "failure={failure:?}");
+        assert!(boxes.record.is_file());
+        boxes.scratch.remove();
+    }
+}
+
+/// A terminal give-back wins over hook installation and every later import.
+#[test]
+fn terminal_login_cleanup_excludes_a_restart_import() {
+    use support::forge_land::{LiveModel, LivePlan};
+    let mut boxes = HeldBox::new("held-terminal-return");
+    boxes.run(true, false).expect("first box returns");
+    let root = boxes.scratch.path();
+    let terminal = support::ctl::alone(root, support::ctl::Call::command(&root.join("give-back"), &[]));
+    assert_eq!(terminal.exit, Some(skein_io::kernel::Exit::Code(0)));
+    let client = root.join("second");
+    let plan = LivePlan {
+        paths: &boxes.paths,
+        client: &client,
+        first: false,
+        kept: false,
+        model: LiveModel::ChatGpt { account: Some(&boxes.record) },
+        address: None,
+        tasks: None,
+        baseline: None,
+        roots: None,
+        words: "",
+        line: "",
+    };
+    let installed = std::panic::catch_unwind(|| plan.install_return_hook(&boxes.stub));
+    assert!(installed.is_err(), "terminal cleanup must exclude replacement of its return hook");
+    let words = ["account", "import", boxes.record.to_str().expect("record path"), "--key", "restart-plan"];
+    let imported = support::ctl::alone(root, plan.held_import(&boxes.stub, &words));
+    assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(1)));
+    assert!(boxes.record.is_file());
+    assert_eq!(boxes.starts, 1);
+    boxes.scratch.remove();
 }
 
 fn held_launcher(case: &str, story: &str, body: &str) -> (support::Scratch, std::process::Output) {

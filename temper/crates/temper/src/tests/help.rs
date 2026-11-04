@@ -103,6 +103,40 @@ fn box_walk_reads_the_conversation_after_waiting_for_a_reply() {
 }
 
 #[test]
+fn box_help_creates_the_first_project_before_using_its_number() {
+    let page = help::answer(&configured(&["help", "box"])).expect("box help");
+    let (_, sign_in) = page.split_once("\n## 3. ").expect("sign-in step");
+    let (sign_in, setup) = sign_in.split_once("\n## 4. ").expect("setup step");
+    let (setup, _) = setup.split_once("\n## 5. ").expect("account step");
+    let sign_in = sign_in.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(sign_in.contains("`me` lists no project yet"), "fresh sign-in must have no project: {sign_in}");
+    let commands = fenced_lines(setup);
+    let primary = commands.first().expect("primary setup command").1;
+    assert!(primary.starts_with("temper ctl DIR forge setup --org work --repository hello "), "{primary}");
+    assert!(!primary.contains("--project"), "first setup must create its project: {primary}");
+    for (_, command) in commands {
+        if !command.starts_with("temper ctl ") {
+            continue;
+        }
+        let words = command_words(command).expect("setup command words");
+        let arguments = words[2..].iter().map(String::as_bytes).collect::<Vec<_>>();
+        assert!(matches!(crate::ctl::parse(&arguments), Ok((_, Parsed::Call { .. }))), "{command}");
+    }
+    let setup = setup.split_whitespace().collect::<Vec<_>>().join(" ");
+    for guidance in [
+        "When `me` lists no project, leave out `--project`",
+        "creates a project named `hello`",
+        "`project: PROJECT · hello`",
+        "Use the printed `PROJECT` number in later commands",
+        "`--project PROJECT` to choose an existing project",
+        "`--playground` without `--project` creates `widget`",
+        "`project: 1 · widget` on a new box",
+    ] {
+        assert!(setup.contains(guidance), "setup must explain {guidance}: {setup}");
+    }
+}
+
+#[test]
 fn every_command_line_in_the_pages_parses() {
     let mut ctl = 0;
     let mut binary = 0;

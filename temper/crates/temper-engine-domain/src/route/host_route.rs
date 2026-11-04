@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use jig_domain_core::{SettledAnswer, SettledCall};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
-use skein_lib::{ReplyTo, Token};
+use skein_lib::{Decimal, List, ReplyTo, Token, Writer};
 
 /// Root to protocol: a relayed call to decode, or one the fleet dropped.
 #[derive(PartialEq, Eq, Debug)]
@@ -79,6 +79,7 @@ impl FlightRender {
 pub(crate) struct ChangeChoice {
     named: Option<Box<[u8]>>,
     project: u32,
+    producers: Box<[Option<u32>]>,
 }
 
 pub(crate) fn decode(domain: &mut Domain, to: ReplyTo, task: u64, attempt: u64, call: fleet::Call) {
@@ -126,16 +127,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
         };
         FlightRender::Settings { from: *from, requested }
     } else if let crate::Tool::Change { changes } = &body.tool {
-        match domain.core.tasks.delegation(key.task) {
-            Some(context) => FlightRender::Change(Box::new(ChangeChoice {
-                named: match changes.first() {
-                    Some(change) => change.repository.clone(),
-                    None => None,
-                },
-                project: context.project,
-            })),
-            None => FlightRender::Plain,
-        }
+        change_choice(domain, key.task, changes)
     } else if let crate::Tool::Amend { amendment, .. } = &body.tool {
         FlightRender::Amended(crate::Changed::amendment(amendment))
     } else {
@@ -145,6 +137,31 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     flight.render = render;
     flight.key = Some(key);
     relay_payload(domain, env, decision, to, key, body);
+}
+
+fn change_choice(domain: &Domain, task: u64, changes: &[crate::ChangeCall]) -> FlightRender {
+    let Some(context) = domain.core.tasks.delegation(task) else { return FlightRender::Plain };
+    let mut producers = List::with_capacity(u32::try_from(changes.len()).expect("admitted change batch"));
+    for change in changes {
+        let charter = change.producer.unwrap_or(domain.forge.charters().change);
+        let executor = jig_domain_tasks::AuthorityExecutor::Charter(charter);
+        let permission = jig_domain_authority::Executor::Charter(charter);
+        let mut missing = !context.authority.delegation.kinds.contains(&executor)
+            || !domain.core.authority.rules().ceiling.delegation.kinds.contains(&permission);
+        if let Some(policy) = domain.core.authority.policy(context.project) {
+            missing |= !policy.ceiling.delegation.kinds.contains(&permission);
+        }
+        let producer = if missing { Some(charter) } else { None };
+        producers.push(producer).expect("bounded producer context");
+    }
+    FlightRender::Change(Box::new(ChangeChoice {
+        named: match changes.first() {
+            Some(change) => change.repository.clone(),
+            None => None,
+        },
+        project: context.project,
+        producers: producers.into_boxed(),
+    }))
 }
 
 fn admit(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: &crate::Tool) -> Option<ReplyTo> {
@@ -250,6 +267,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
         answered_at_decode(domain, to, flight, answer);
         return;
     };
+    let answer = change_refusal(domain, &flight.render, key, answer);
     let mut call = SettledCall { serial: 0, tool: flight.tool, answer };
     let reading = flight.render.is_core_read();
     let recorded = !reading && domain.core.call_parts.contains_key(&key);
@@ -281,6 +299,47 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
         let id = domain.hub_link.retain(Payload::SettledCall(call));
         domain.work.push(Work::Fleet(fleet::Event::Relayed { to, answer: id }));
     }
+}
+
+/// Add the blocked producers before settlement, so replay keeps these words.
+fn change_refusal(domain: &Domain, render: &FlightRender, key: CallKey, answer: SettledAnswer) -> SettledAnswer {
+    let FlightRender::Change(change) = render else { return answer };
+    let Some(CallAnswer::DelegationDenied { .. }) = super::call_answer(domain, key) else { return answer };
+    let SettledAnswer::Host { error: true, body } = &answer else { return answer };
+    let mut capacity = body.len();
+    for (index, producer) in change.producers.iter().enumerate() {
+        if let Some(charter) = producer {
+            let member = u64::try_from(index).expect("bounded change index").checked_add(1).expect("change member");
+            let length = b"Change member : producer charter ; "
+                .len()
+                .checked_add(Decimal::of(member).as_bytes().len())
+                .expect("bounded member number")
+                .checked_add(Decimal::of(u64::from(*charter)).as_bytes().len())
+                .expect("bounded charter number");
+            capacity = capacity.checked_add(length).expect("admitted change context");
+        }
+    }
+    if capacity > usize::try_from(domain.limits.call_answer_bytes).expect("u32 fits") {
+        return SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) };
+    }
+    let mut words = Writer::new(capacity);
+    for (index, producer) in change.producers.iter().enumerate() {
+        if let Some(charter) = producer {
+            let member = u64::try_from(index).expect("bounded change index").checked_add(1).expect("change member");
+            if words.put(b"Change member ").is_err()
+                || words.put(Decimal::of(member).as_bytes()).is_err()
+                || words.put(b": producer charter ").is_err()
+                || words.put(Decimal::of(u64::from(*charter)).as_bytes()).is_err()
+                || words.put(b"; ").is_err()
+            {
+                return SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) };
+            }
+        }
+    }
+    if words.put(body).is_err() {
+        return SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) };
+    }
+    SettledAnswer::Host { error: true, body: words.finish() }
 }
 
 /// An answer made at decode decides nothing (domain/root.md, 5.2).
