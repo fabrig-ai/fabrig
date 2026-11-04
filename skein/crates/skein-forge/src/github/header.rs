@@ -1,8 +1,8 @@
 //! The answer head read beside GitHub's documents (forge-github.md, section 2).
 use super::limits::Limits;
-use crate::{api, forgejo::id::unsigned, time};
+use crate::{api, time};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Wall};
+use skein_lib::{Duration, Wall, bytes};
 /// GitHub's rate window, present only when all three fields arrived.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RateFields {
@@ -28,7 +28,7 @@ impl Cursor {
     /// Checks the 128-byte printable bound before copying.
     #[must_use]
     pub fn new(bytes: &[u8]) -> Option<Self> {
-        if printable(bytes) { Some(Self(skein_lib::bytes::copy_of(bytes))) } else { None }
+        if printable(bytes) { Some(Self(bytes::copy_of(bytes))) } else { None }
     }
     /// The cursor's query value.
     #[must_use]
@@ -40,7 +40,7 @@ impl Etag {
     /// Checks the 128-byte printable bound before copying.
     #[must_use]
     pub fn new(bytes: &[u8]) -> Option<Self> {
-        if printable(bytes) { Some(Self(skein_lib::bytes::copy_of(bytes))) } else { None }
+        if printable(bytes) { Some(Self(bytes::copy_of(bytes))) } else { None }
     }
     /// The tag's HTTP spelling.
     #[must_use]
@@ -147,7 +147,7 @@ pub fn field(head: &mut Head, name: &[u8], value: &[u8], limits: &Limits) {
         head.date = time::http_date(value);
     } else if name.eq_ignore_ascii_case(b"Retry-After") {
         head.retry_at = None;
-        head.retry_after = match unsigned(value) {
+        head.retry_after = match bytes::decimal(value) {
             Some(seconds) => seconds_duration(seconds),
             None => {
                 head.retry_at = time::http_date(value);
@@ -168,7 +168,7 @@ pub fn field(head: &mut Head, name: &[u8], value: &[u8], limits: &Limits) {
         head.etag = Etag::new(raw_value);
     } else if name.eq_ignore_ascii_case(b"Location") {
         head.location = if value.len() <= usize::try_from(limits.target_bytes).expect("u32 fits usize") {
-            Some(skein_lib::bytes::copy_of(value))
+            Some(bytes::copy_of(value))
         } else {
             None
         };
@@ -200,7 +200,7 @@ pub fn field(head: &mut Head, name: &[u8], value: &[u8], limits: &Limits) {
     };
 }
 fn number(value: &[u8]) -> Option<u32> {
-    u32::try_from(unsigned(value)?).ok()
+    u32::try_from(bytes::decimal(value)?).ok()
 }
 fn split(bytes: &[u8], delimiter: u8) -> (&[u8], &[u8]) {
     for (i, byte) in bytes.iter().enumerate() {
@@ -221,7 +221,7 @@ pub fn link_next(value: &[u8]) -> Option<(bool, Option<Cursor>)> {
     }
     for _ in 0..=value.len() {
         let target = rest.strip_prefix(b"<")?;
-        let at = skein_lib::bytes::find(target, b">")?;
+        let at = bytes::find(target, b">")?;
         let url = target.get(..at)?;
         if url.is_empty() {
             return None;
@@ -238,7 +238,7 @@ pub fn link_next(value: &[u8]) -> Option<(bool, Option<Cursor>)> {
                 break;
             }
             rest = rest.get(1..)?.trim_ascii_start();
-            let eq = skein_lib::bytes::find(rest, b"=")?;
+            let eq = bytes::find(rest, b"=")?;
             let name = rest.get(..eq)?.trim_ascii();
             if name.is_empty() || name.contains(&b';') || name.contains(&b',') {
                 return None;
@@ -246,7 +246,7 @@ pub fn link_next(value: &[u8]) -> Option<(bool, Option<Cursor>)> {
             rest = rest.get(eq.checked_add(1)?..)?.trim_ascii_start();
             let parameter;
             if let Some(quoted) = rest.strip_prefix(b"\"") {
-                let end = skein_lib::bytes::find(quoted, b"\"")?;
+                let end = bytes::find(quoted, b"\"")?;
                 parameter = quoted.get(..end)?;
                 rest = quoted.get(end.checked_add(1)?..)?.trim_ascii_start();
             } else {
@@ -282,7 +282,7 @@ pub fn link_next(value: &[u8]) -> Option<(bool, Option<Cursor>)> {
     None
 }
 fn link_cursor(url: &[u8]) -> Option<Cursor> {
-    let query = url.get(skein_lib::bytes::find(url, b"?")?.checked_add(1)?..)?;
+    let query = url.get(bytes::find(url, b"?")?.checked_add(1)?..)?;
     let mut rest = query;
     for _ in 0..=query.len() {
         let (part, tail) = split(rest, b'&');
@@ -320,7 +320,7 @@ fn seconds_duration(seconds: u64) -> Option<Duration> {
     Some(Duration::from_nanos(seconds.checked_mul(1_000_000_000)?))
 }
 fn seconds_wall(bytes: &[u8]) -> Option<Wall> {
-    Some(Wall::from_nanos(unsigned(bytes)?.checked_mul(1_000_000_000)?))
+    Some(Wall::from_nanos(bytes::decimal(bytes)?.checked_mul(1_000_000_000)?))
 }
 
 fn retry_date(at: Option<Wall>, date: Option<Wall>) -> Option<Duration> {

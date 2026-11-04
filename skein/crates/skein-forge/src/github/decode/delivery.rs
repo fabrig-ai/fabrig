@@ -264,7 +264,7 @@ impl Decoder {
     }
 }
 fn unsigned(text: &[u8]) -> u64 {
-    crate::forgejo::id::unsigned(text).expect("walker checked integer")
+    bytes::decimal(text).expect("walker checked integer")
 }
 
 /// Reads one whole payload with the same streaming decoder and bounded input pieces.

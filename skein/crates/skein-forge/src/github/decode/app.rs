@@ -3,7 +3,7 @@ use super::super::document::{self, Document, Kind, Row};
 use super::{Malformed, walk::Node};
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::{List, Secret, Wall};
+use skein_lib::{List, Secret, Wall, bytes};
 
 #[derive(Debug)]
 pub(super) struct State {
@@ -411,7 +411,7 @@ impl State {
     }
 }
 fn unsigned(text: &[u8]) -> u64 {
-    crate::forgejo::id::unsigned(text).expect("walker checked integer")
+    bytes::decimal(text).expect("walker checked integer")
 }
 pub(super) fn time(text: &[u8], field: &'static [u8]) -> Result<Wall, Malformed> {
     crate::time::read(text).ok_or(Malformed::Time { field })

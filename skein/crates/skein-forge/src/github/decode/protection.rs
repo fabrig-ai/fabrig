@@ -2,12 +2,11 @@
 use super::Malformed;
 use crate::{
     api::Bypass,
-    forgejo::id::unsigned,
     github::document::{self, RuleKind},
 };
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::List;
+use skein_lib::{List, bytes};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Node {
     Rows,
@@ -60,7 +59,7 @@ impl State {
             let Token::Number(text) = token else {
                 return Err(Malformed::Shape { field: key });
             };
-            self.ruleset = unsigned(&text).ok_or(Malformed::Range { field: key })?;
+            self.ruleset = bytes::decimal(&text).ok_or(Malformed::Range { field: key })?;
             if self.ruleset == 0 {
                 return Err(Malformed::Range { field: key });
             }
@@ -81,7 +80,7 @@ impl State {
             let Token::Number(text) = token else {
                 return Err(Malformed::Shape { field: key });
             };
-            self.value.approvals = u32::try_from(unsigned(&text).ok_or(Malformed::Range { field: key })?)
+            self.value.approvals = u32::try_from(bytes::decimal(&text).ok_or(Malformed::Range { field: key })?)
                 .or(Err(Malformed::Range { field: key }))?;
             self.fields |= 1;
         } else if key == b"dismiss_stale_reviews_on_push" || key == b"dismiss_stale_reviews" {

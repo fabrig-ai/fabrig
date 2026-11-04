@@ -7,7 +7,7 @@ use super::{
 pub use crate::decode::Malformed;
 use alloc::boxed::Box;
 use skein_json::{Token, tokenizer};
-use skein_lib::List;
+use skein_lib::{List, bytes};
 mod app;
 mod checks;
 pub(crate) mod delivery;
@@ -103,7 +103,7 @@ pub fn decoder(kind: Kind, limits: &Limits) -> Decoder {
 #[must_use]
 pub fn log_delivery_decoder(event: &[u8], limits: &Limits) -> Decoder {
     let mut result = decoder(Kind::LogDelivery, limits);
-    result.log.expected(skein_lib::bytes::copy_of(event));
+    result.log.expected(bytes::copy_of(event));
     result
 }
 /// Starts a comparison decoder that requires only the merge base.
@@ -447,7 +447,7 @@ impl Decoder {
                 return self.checks.scalar(node, key, token);
             }
             (Node::IdResult, b"id", Token::Number(text)) | (Node::NumberResult, b"number", Token::Number(text)) => {
-                self.result = crate::forgejo::id::unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                self.result = bytes::decimal(&text).ok_or(Malformed::Range { field: key })?;
             }
             (
                 node @ (Node::Compare
@@ -528,22 +528,22 @@ impl Decoder {
             (Node::Entry, b"name", Token::String(text)) => self.entry_name = text,
             (Node::Entry, b"type", Token::String(text)) => self.entry_kind = crate::directory::kind(&text),
             (Node::Collaborator, b"id", Token::Number(text)) => {
-                self.collaborator.id = crate::forgejo::id::unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                self.collaborator.id = bytes::decimal(&text).ok_or(Malformed::Range { field: key })?;
             }
             (Node::Collaborator, b"login", Token::String(text)) => self.collaborator.login = Some(text),
             (Node::Collaborator, b"role_name", Token::String(text)) => {
                 self.collaborator.permission = people::permission(&text)?;
             }
             (Node::User, b"id", Token::Number(text)) => {
-                self.user.id = crate::forgejo::id::unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                self.user.id = bytes::decimal(&text).ok_or(Malformed::Range { field: key })?;
             }
             (Node::User, b"login", Token::String(text)) => self.user.login = text,
             (Node::Permission, b"role_name", Token::String(text)) => self.permission = people::permission(&text)?,
             (Node::Repository, b"id", Token::Number(text)) => {
-                self.repository.id = crate::forgejo::id::unsigned(&text).expect("walker checked integer");
+                self.repository.id = bytes::decimal(&text).expect("walker checked integer");
             }
             (Node::Owner, b"id", Token::Number(text)) => {
-                self.repository.owner_id = crate::forgejo::id::unsigned(&text).expect("walker checked integer");
+                self.repository.owner_id = bytes::decimal(&text).expect("walker checked integer");
             }
             (Node::Owner, b"login", Token::String(text)) => self.repository.owner = text,
             (Node::Owner, b"type", Token::String(text)) => {
