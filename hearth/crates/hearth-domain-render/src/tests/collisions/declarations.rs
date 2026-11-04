@@ -8,7 +8,7 @@ use skein_lib::bytes::copy_of;
 fn equal_users_of_two_tasks_make_one_row() {
     let expansion = f::equal_users();
     let survivors = f::agreeing(&expansion).expect("identical users");
-    assert_eq!(f::account_names(&survivors.accounts).as_ref(), &[b"free".as_slice()]);
+    assert_eq!(f::account_names(&survivors.accounts).as_ref(), &[b"alice".as_slice()]);
 }
 #[test]
 fn a_user_two_tasks_declare_differently_collides_naming_both() {
@@ -21,7 +21,7 @@ fn a_user_two_tasks_declare_differently_collides_naming_both() {
         &[(
             Kind::Collision(Collision::Differs {
                 subject: Subject::User,
-                name: copy_of(b"free"),
+                name: copy_of(b"alice"),
                 first: copy_of(b"a"),
                 second: copy_of(b"b"),
             }),
@@ -37,7 +37,7 @@ fn a_package_user_and_a_sysusers_user_of_one_name_collide() {
         &[(
             Kind::Collision(Collision::Differs {
                 subject: Subject::User,
-                name: copy_of(b"free"),
+                name: copy_of(b"alice"),
                 first: copy_of(b"a"),
                 second: copy_of(b"b"),
             }),
@@ -52,7 +52,7 @@ fn a_groups_entry_of_a_users_own_name_with_another_gid_differs() {
         &[(
             Kind::Collision(Collision::Differs {
                 subject: Subject::Group,
-                name: copy_of(b"free"),
+                name: copy_of(b"alice"),
                 first: copy_of(b"a"),
                 second: copy_of(b"b"),
             }),
@@ -66,7 +66,7 @@ fn a_groups_entry_of_a_users_own_name_with_its_uid_is_one_row() {
     assert_eq!(
         rows.accounts.groups.as_ref(),
         &[crate::kinds::groups::Group {
-            name: copy_of(b"free"),
+            name: copy_of(b"alice"),
             task: copy_of(b"b"),
             at: fixtures::kinds::FILE_AT,
             gid: Some(f::ACCOUNT_UID),
@@ -77,7 +77,7 @@ fn a_groups_entry_of_a_users_own_name_with_its_uid_is_one_row() {
 #[test]
 fn two_users_with_one_uid_collide() {
     let accounts = fixtures::id_accounts(
-        &[f::named_user(b"free", b"a", Some(f::ACCOUNT_UID)), f::named_user(b"ci", b"b", Some(f::ACCOUNT_UID))],
+        &[f::named_user(b"alice", b"a", Some(f::ACCOUNT_UID)), f::named_user(b"ci", b"b", Some(f::ACCOUNT_UID))],
         &[],
     );
     assert_eq!(
@@ -86,7 +86,7 @@ fn two_users_with_one_uid_collide() {
             Kind::Collision(Collision::Shared {
                 id: Id::Uid,
                 value: f::ACCOUNT_UID,
-                first: copy_of(b"free"),
+                first: copy_of(b"alice"),
                 second: copy_of(b"ci"),
             }),
             Class::Configuration
@@ -96,7 +96,7 @@ fn two_users_with_one_uid_collide() {
 #[test]
 fn a_users_own_group_takes_its_uid_in_the_gid_space() {
     let accounts = fixtures::id_accounts(
-        &[f::named_user(b"free", b"a", Some(f::ACCOUNT_UID))],
+        &[f::named_user(b"alice", b"a", Some(f::ACCOUNT_UID))],
         &[fixtures::id_group(b"other", Some(f::ACCOUNT_UID), false)],
     );
     assert_eq!(
@@ -105,7 +105,7 @@ fn a_users_own_group_takes_its_uid_in_the_gid_space() {
             Kind::Collision(Collision::Shared {
                 id: Id::Gid,
                 value: f::ACCOUNT_UID,
-                first: copy_of(b"free"),
+                first: copy_of(b"alice"),
                 second: copy_of(b"other"),
             }),
             Class::Configuration
@@ -123,7 +123,7 @@ fn overlapping_subordinate_ranges_collide() {
         &[(
             Kind::Collision(Collision::Overlap {
                 subject: Subject::Range,
-                first: copy_of(b"free"),
+                first: copy_of(b"alice"),
                 second: copy_of(b"ci"),
             }),
             Class::Configuration
@@ -211,7 +211,7 @@ fn agreeing_users_keep_the_first_tasks_provenance() {
 #[test]
 fn a_password_reference_is_part_of_a_users_declaration() {
     let expansion = f::user_rows(
-        &[fixtures::kinds::text(Name::Password, b"users/free")],
+        &[fixtures::kinds::text(Name::Password, b"users/alice")],
         &[fixtures::kinds::text(Name::Password, b"users/other")],
     );
     assert_eq!(
@@ -219,7 +219,7 @@ fn a_password_reference_is_part_of_a_users_declaration() {
         &[(
             Kind::Collision(Collision::Differs {
                 subject: Subject::User,
-                name: copy_of(b"free"),
+                name: copy_of(b"alice"),
                 first: copy_of(b"a"),
                 second: copy_of(b"b"),
             }),
@@ -243,7 +243,7 @@ fn an_enclosing_range_meets_each_later_range_inside_it() {
             (
                 Kind::Collision(Collision::Overlap {
                     subject: Subject::Range,
-                    first: copy_of(b"free"),
+                    first: copy_of(b"alice"),
                     second: copy_of(b"ci")
                 }),
                 Class::Configuration
@@ -251,7 +251,7 @@ fn an_enclosing_range_meets_each_later_range_inside_it() {
             (
                 Kind::Collision(Collision::Overlap {
                     subject: Subject::Range,
-                    first: copy_of(b"free"),
+                    first: copy_of(b"alice"),
                     second: copy_of(b"deploy")
                 }),
                 Class::Configuration

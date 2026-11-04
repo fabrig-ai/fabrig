@@ -64,7 +64,7 @@ pub fn collision_faults() -> [render::Collision; 22] {
         },
         render::Collision::Differs {
             subject: render::Subject::User,
-            name: copy_of(b"free"),
+            name: copy_of(b"bob"),
             first: copy_of(b"first"),
             second: copy_of(b"second"),
         },

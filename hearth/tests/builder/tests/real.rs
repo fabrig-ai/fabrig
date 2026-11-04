@@ -614,7 +614,7 @@ fn hearth_render_lists_secrets_passwords_and_identity_by_name_and_place() {
         concat!(
             "  secret     mail/dkim/example.org.key /etc/dkimkeys/example.org.key 0640 root:opendkim\n",
             "  secret     mail/tls/mx1.key /etc/ssl/private/mx1.key 0600 root:root\n",
-            "  password   free users/free.passwd\n",
+            "  password   alice users/alice.passwd\n",
             "  identity   ssh-ed25519 ssh-host-key ed25519 /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key.pub 0600 root:root\n"
         )
     );

@@ -42,7 +42,7 @@ pub fn account_expansion(tasks: &[(&[u8], Map, &[Concrete])]) -> Expansion {
     Expansion { tasks: expanded.into_boxed() }
 }
 pub fn accounts<const N: usize>(fields: [Made; N]) -> Result<Accounts, Box<[Error]>> {
-    crate::parts::config::accounts(&account_expansion(&[(b"motd", Map::Users, &[file(b"free", fields)])]))
+    crate::parts::config::accounts(&account_expansion(&[(b"motd", Map::Users, &[file(b"alice", fields)])]))
 }
 pub fn account_config(expansion: &Expansion) -> Config {
     crate::parts::config::account_rows(

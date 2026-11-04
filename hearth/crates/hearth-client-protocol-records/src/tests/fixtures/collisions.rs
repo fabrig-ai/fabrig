@@ -23,7 +23,7 @@ pub fn shared_uid_collision() -> Error {
     error.kind = Kind::Collision(Collision::Shared {
         id: crate::errors::Id::Uid,
         value: COLLISION_UID,
-        first: copy_of(b"free"),
+        first: copy_of(b"alice"),
         second: copy_of(b"ci"),
     });
     error
@@ -32,7 +32,7 @@ pub fn range_collision() -> Error {
     let mut error = path_collision();
     error.kind = Kind::Collision(Collision::Overlap {
         subject: Subject::Range,
-        first: copy_of(b"free"),
+        first: copy_of(b"alice"),
         second: copy_of(b"ci"),
     });
     error
