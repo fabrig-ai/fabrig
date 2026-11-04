@@ -1,6 +1,6 @@
 # Artifacts
 
-Provisional, 2026-10-09. hearth's second recipe (`draft/archive/factory.md`,
+Provisional, 2026-10-09. hearth's second recipe (`hearth/docs/design/draft/archive/factory.md`,
 section 7): an artifact made from a build environment, sources and a
 command. It says what a recipe names, how its key is made, how an
 artifact is kept and served, how the command runs, what compile caches
@@ -48,7 +48,7 @@ what is open.
 - **Each plane builds its own copy of a key.** Outputs never cross
   planes, so the lab proves a build of the inputs production runs, not
   its bytes. Once builds are reproducible, the two planes' tree digests
-  for a key are compared as facts (domain/reproducible.md, section 7).
+  for a key are compared as facts (hearth/docs/design/domain/reproducible.md, section 7).
 
 ## 2. The recipe
 
@@ -66,14 +66,14 @@ limits        memory, processes, time, disk                     (5.4; not in the
 ```
 
 - **A recipe is data in the repository it builds,** read at a commit:
-  product knowledge lives with the product (`draft/archive/factory.md`,
+  product knowledge lives with the product (`hearth/docs/design/draft/archive/factory.md`,
   section 1). The same repository may hold the IaC of the product's
   clusters and of its build environment, as stoa's does.
 
 ### 2.2 The file
 
 `artifacts.json` at the repository's root: strict JSON with `_note` for
-annotations, as protocol/format.md (section 2) has it, and a map of recipes keyed
+annotations, as hearth/docs/design/protocol/format.md (section 2) has it, and a map of recipes keyed
 by name. stoa's:
 
 ```json
@@ -101,18 +101,18 @@ text.
 
 - **A build environment is a target,** with tasks, packages and a pinned
   Debian snapshot like any other. Its placement's kind is `container`
-  with no host (no `on`, protocol/format.md, 3.4): it has no kernel and no
+  with no host (no `on`, hearth/docs/design/protocol/format.md, 3.4): it has no kernel and no
   bootloader, takes the containers' bootstrap variant, and is never
   prepared into a slot. Its output is used only as a sandbox's root
-  (5.2), never run by nspawn as a host's containers are (domain/slots.md,
+  (5.2), never run by nspawn as a host's containers are (hearth/docs/design/domain/slots.md,
   section 12): no host's `target.containers` holds it, and no hearth
   ever activates it.
 - **It is named by target,** in the recipe's repository at the recipe's
   commit by default: stoa's is `stoa-build-lab`, base `stoa-build` in
-  environment `lab` (protocol/format.md, 3.1), which every plane builds. Another
+  environment `lab` (hearth/docs/design/protocol/format.md, 3.1), which every plane builds. Another
   repository's is `{ "repository", "commit", "target" }`.
 - **What enters the key is its identity,** what was asked for: its
-  resolution key and its three output parts' digests (domain/render.md, 4.5).
+  resolution key and its three output parts' digests (hearth/docs/design/domain/render.md, 4.5).
   Not its output key, which takes the closure a builder resolved: two
   builders whose apt resolves one key differently, or a resolution made
   again after its record was collected, would name one artifact twice,
@@ -132,15 +132,15 @@ text.
 - **Submodules are not followed** in M6: a gitlink in the selection is
   an error. Large-file pointers are content like any other.
 - **Fetched as the IaC repository is,** by the builder's git, into a
-  local clone kept as a cache (`draft/archive/factory.md`, section 7).
+  local clone kept as a cache (`hearth/docs/design/draft/archive/factory.md`, section 7).
 
 ### 2.5 Declared inputs
 
 - **Files the command needs that are not in the sources:** a toolchain
   archive, a dataset, a dependency, another artifact. Each has a name, a
-  SHA-256 and a source: a URL, as a software download has (protocol/format.md,
+  SHA-256 and a source: a URL, as a software download has (hearth/docs/design/protocol/format.md,
   section 10), or an artifact key. The fetch step, the only one with
-  network (domain/build.md, section 8), fetches and verifies them into the
+  network (hearth/docs/design/domain/build.md, section 8), fetches and verifies them into the
   store's content-addressed download cache; each is bound read-only at
   `/inputs/<name>`.
 - **A project's own dependencies** are either committed (stoa's
@@ -184,7 +184,7 @@ outputs digest           = H("outputs", each output sorted by path: path, from)
 artifact key             = H("artifact", E, S, command digest, inputs digest, outputs digest)
 ```
 
-H is SHA-256 over the canonical encoding domain/store.md (section 3) fixes,
+H is SHA-256 over the canonical encoding hearth/docs/design/domain/store.md (section 3) fixes,
 the same as for layer keys.
 
 - **The environment's identity** brings the architecture, the snapshot
@@ -194,18 +194,18 @@ the same as for layer keys.
   recipes that agree on everything make one artifact.
 - **The commit is not in the key:** only what the commit holds at the
   selected paths is. A head that edits only the README keeps S, the key
-  and every key above it (`draft/archive/factory.md`, 8.5).
+  and every key above it (`hearth/docs/design/draft/archive/factory.md`, 8.5).
 
 ### 3.2 The sources' digest
 
-- **A tree digest, as a layer's** (domain/store.md, section 3): paths, types,
+- **A tree digest, as a layer's** (hearth/docs/design/domain/store.md, section 3): paths, types,
   modes, owners, contents and link targets, as seen inside the builder's
   namespace, mtimes left out.
 - **The export is made from the commit's objects, not by `git
   archive`.** `git ls-tree -r -z` of the selection gives each path's
   mode and object id; `git cat-file --batch` gives each blob; the
   builder turns them into a change set against the empty tree, which the
-  tree helper applies to a fresh subvolume and walks (domain/store.md, 5.4 and
+  tree helper applies to a fresh subvolume and walks (hearth/docs/design/domain/store.md, 5.4 and
   5.5). git's modes become
   0644, 0755 and links; every owner is root. `git archive` would apply
   `.gitattributes` (`export-subst`, `export-ignore`, line-ending
@@ -245,7 +245,7 @@ After the command exits 0, the builder takes the declared outputs:
 
 1. the tree helper walks each declared path under `/out` or `/cache`;
 2. it applies them, normalised, to a fresh subvolume, as a change set
-   against the empty tree (domain/store.md, section 5): owner and group root,
+   against the empty tree (hearth/docs/design/domain/store.md, section 5): owner and group root,
    permission bits kept, setuid, setgid and sticky bits cleared,
    extended attributes dropped; a device, fifo or socket fails the
    build; links are kept as links; hard links become separate files;
@@ -253,7 +253,7 @@ After the command exits 0, the builder takes the declared outputs:
 4. its record is written, and only then does the artifact count.
 
 Contents are cloned (`FICLONE`), so a large binary costs metadata only;
-that the tree helper's apply clones is to verify (domain/store.md, section 5).
+that the tree helper's apply clones is to verify (hearth/docs/design/domain/store.md, section 5).
 
 ### 4.2 A read-only subvolume, not an archive
 
@@ -281,7 +281,7 @@ recording its tree digest,** as a layer is. A content-addressed archive
 
 ### 4.3 The record
 
-Beside the subvolume (domain/store.md, section 6):
+Beside the subvolume (hearth/docs/design/domain/store.md, section 6):
 
 ```
 artifact <key>
@@ -302,9 +302,9 @@ in, since two builds of one key differ for now.
 
 ### 4.4 Pins and collection
 
-- **The store's pins apply** (domain/store.md, section 7). An artifact is
+- **The store's pins apply** (hearth/docs/design/domain/store.md, section 7). An artifact is
   pinned while a spec in the pins the steward gives its builder names it
-  (its desired revision's, or an order's; domain/steward.md, 3.2), while a
+  (its desired revision's, or an order's; hearth/docs/design/domain/steward.md, 3.2), while a
   layer is being built from it, and for a window after its last use.
   Then it is collected like a layer.
 - **A software layer holds its own copy** (7.3), so collecting an
@@ -313,13 +313,13 @@ in, since two builds of one key differ for now.
 
 ### 4.5 Served by digest
 
-- **Within a plane only** (protocol/wire.md, section 8). A builder asks a peer for
+- **Within a plane only** (hearth/docs/design/protocol/wire.md, section 8). A builder asks a peer for
   a key: first its record, then its tree as a change set against the
   empty tree. The receiver applies it to a fresh subvolume, walks it,
   and keeps it only if its tree digest is the one expected (below). A
   layer moves the same way, against its parent.
 - **The receiver takes the expected tree digest from its own engine,**
-  as it does for layers (domain/store.md, 10.4), never from the peer's record.
+  as it does for layers (hearth/docs/design/domain/store.md, 10.4), never from the peer's record.
   It does not rebuild to check; once builds are reproducible, it can.
 
 ## 5. Running the command
@@ -339,25 +339,25 @@ any state ─→ failed (typed, 5.5)          any state ─→ cancelled (the or
   ends here. Otherwise the builder reads the recipe at the commit,
   renders the environment for its identity, finds S (the memo, or an
   export) and computes the key, which must equal the pin's (7.1).
-- **Two orders for one key join one build** (a keyed effect, jig's
-  `connectors.md`, 4.3): the steward holds the orders, and gives its
-  builder one job per key (domain/steward.md, 3.3). **Preparing** builds the
-  environment's output if it is missing (domain/build.md, section 4) and
+- **Two orders for one key join one build** (a keyed effect,
+  `jig/docs/design/domain/connectors.md`, 4.3): the steward holds the orders, and gives its
+  builder one job per key (hearth/docs/design/domain/steward.md, 3.3). **Preparing** builds the
+  environment's output if it is missing (hearth/docs/design/domain/build.md, section 4) and
   patches the sources for the cache (6.3).
-- **After a restart,** a builder's loss included (domain/steward.md, 5.1), a
+- **After a restart,** a builder's loss included (hearth/docs/design/domain/steward.md, 5.1), a
   build that had not written its record never happened: its `/out` and
   sandbox are removed, its cache is emptied (6.4), and an order still
-  standing starts it again. The filesystem is the only state (domain/store.md,
+  standing starts it again. The filesystem is the only state (hearth/docs/design/domain/store.md,
   section 8).
 
 `hearth-domain-artifacts` steps this machine: a child of
 `hearth-domain-builder` sharing no types with its siblings, whose
 requests for renders, layer builds, store operations and sandboxes the
-root translates (`programming-model.md`, 4.5).
+root translates (`skein/docs/foundation/programming-model.md`, 4.5).
 
 ### 5.2 The sandbox
 
-A build step's sandbox, as domain/build.md (section 8) defines it: its
+A build step's sandbox, as hearth/docs/design/domain/build.md (section 8) defines it: its
 namespaces (8.1), the network's included, its `/proc`, `/sys` and `/dev`
 (8.4), its cgroup, limits and stop in three steps (8.7). What differs
 for an artifact:
@@ -374,7 +374,7 @@ for an artifact:
 - **The root is the environment's output, read-only,** not a layer
   being built: the command must leave its environment as the next build
   will find it.
-- **The command runs as id 1000, not as the namespace's root** (domain/build.md,
+- **The command runs as id 1000, not as the namespace's root** (hearth/docs/design/domain/build.md,
   8.1, runs a step as root, since dpkg changes owners), with an empty
   capability bounding set besides `no_new_privs`. As root it could
   remount its read-only binds, or clear the read-only flag of the
@@ -383,17 +383,17 @@ for an artifact:
   only `/out`, `/cache` and its `/tmp`. The environment may name id 1000
   in its passwd (a sysusers line of its own tasks) for tools that look
   it up.
-- **Its own environment, given whole** as a step's is (domain/build.md, 8.6):
+- **Its own environment, given whole** as a step's is (hearth/docs/design/domain/build.md, 8.6):
   `PATH=/usr/local/bin:/usr/bin:/bin`, `HOME=/tmp/home`,
   `LC_ALL=C.UTF-8`, `TZ=UTC`, umask 022, and `SOURCE_DATE_EPOCH` set to
   the environment's Debian snapshot timestamp, which its key holds
-  (domain/reproducible.md, 5.1). Setting the variable costs nothing, so
+  (hearth/docs/design/domain/reproducible.md, 5.1). Setting the variable costs nothing, so
   artifacts have it from M6. The recipe's variables are added; it may
   not set `SOURCE_DATE_EPOCH`.
 
 ### 5.3 No network
 
-- **Loopback only,** as for every build step (domain/build.md, 8.5): a test
+- **Loopback only,** as for every build step (hearth/docs/design/domain/build.md, 8.5): a test
   suite that binds `127.0.0.1` works; a fetch does not.
 - **The caches are files, not services.** What the command would fetch
   reaches it as declared inputs (2.5), and what it keeps between runs
@@ -407,21 +407,21 @@ for an artifact:
 |---|---|---|
 | memory, tmpfs included | the cgroup's `memory.max` | killed: `memory` |
 | processes | `pids.max` | forks fail; the command's own failure follows |
-| time | a deadline the domain arms (`programming-model.md`, section 9) | stopped: `time` |
+| time | a deadline the domain arms (`skein/docs/foundation/programming-model.md`, section 9) | stopped: `time` |
 | `/tmp` | tmpfs `size=` | writes fail with ENOSPC |
 | outputs | the declared outputs' size, at collection | failed: `output too large` |
-| the store's disk | the store's free-space floor (domain/store.md, 7.2), checked with `statfs` while the command runs | stopped: `disk` |
-| concurrent builds | the steward's lane for others' work, as many as the builder's limits allow (domain/steward.md, 3.4; domain/build.md, 4.4) | the order waits, or is refused when the queue is full |
+| the store's disk | the store's free-space floor (hearth/docs/design/domain/store.md, 7.2), checked with `statfs` while the command runs | stopped: `disk` |
+| concurrent builds | the steward's lane for others' work, as many as the builder's limits allow (hearth/docs/design/domain/steward.md, 3.4; hearth/docs/design/domain/build.md, 4.4) | the order waits, or is refused when the queue is full |
 
 - **Limits are the recipe's,** within the builder's ceilings, in place
-  of a step's defaults (domain/build.md, 8.7); a recipe that asks for more is
+  of a step's defaults (hearth/docs/design/domain/build.md, 8.7); a recipe that asks for more is
   refused before anything runs.
 - **No per-build disk quota:** btrfs quota groups need root to enable
   (to verify for unprivileged use), so `/out` and `/cache` share the
   store's space, bounded by the floor and the caches' caps (6.4). **No
-  progress deadline,** unlike a build step's (domain/build.md, 8.7): a link
+  progress deadline,** unlike a build step's (hearth/docs/design/domain/build.md, 8.7): a link
   step may be silent for minutes. The steward's deadline for the job
-  (domain/steward.md, 5.2) is the recipe's time and a margin.
+  (hearth/docs/design/domain/steward.md, 5.2) is the recipe's time and a margin.
 
 ### 5.5 Failures
 
@@ -430,17 +430,17 @@ exited non-zero (its status, and the last 64 KiB of its output as opaque
 bytes); stopped by a limit (which); a declared output missing, or not a
 file, a directory or a link; an input's digest wrong; the pin's key not
 its recipe's (7.1, both keys); the environment's build failed
-(domain/build.md's failure, nested); the sources not fetched or exported; the
-builder lost twice, `crashed` (domain/steward.md, 5.1).
+(hearth/docs/design/domain/build.md's failure, nested); the sources not fetched or exported; the
+builder lost twice, `crashed` (hearth/docs/design/domain/steward.md, 5.1).
 
 - **A failure is not a verdict:** a new order builds again.
 - **The command's output** goes to a file beside the record, capped (the
   first and last 4 MiB kept), served on demand as telemetry is
-  (domain/operating.md, section 5). The domain never reads it.
+  (hearth/docs/design/domain/operating.md, section 5). The domain never reads it.
 
 ### 5.6 Costs as facts
 
-Every build records, and reports as facts (protocol/wire.md, section 6):
+Every build records, and reports as facts (hearth/docs/design/protocol/wire.md, section 6):
 
 - wall time per state (5.1); the command's CPU time, user and system
   (`cpu.stat`); its peak memory (`memory.peak`, Linux 5.19 and later,
@@ -455,12 +455,12 @@ Every build records, and reports as facts (protocol/wire.md, section 6):
   (section 7): its software layer waits for the artifact.
 - **An engine,** over M4's wire, with one order and one fact M6 adds: an
   order "build this artifact", keyed by its key, or by repository,
-  commit and recipe; and a fact "key → tree digest, or failed" (protocol/wire.md,
+  commit and recipe; and a fact "key → tree digest, or failed" (hearth/docs/design/protocol/wire.md,
   sections 5.4 and 6): the one effect and the one fact the lab's
-  connector needs (`draft/archive/factory.md`, section 7). The steward takes
-  the order and runs it as its builder's job (domain/steward.md, 3.3).
+  connector needs (`hearth/docs/design/draft/archive/factory.md`, section 7). The steward takes
+  the order and runs it as its builder's job (hearth/docs/design/domain/steward.md, 3.3).
 - **The client:** resolve a recipe at a commit to its key and pin
-  (7.1), and build it locally (client/README.md, section 3).
+  (7.1), and build it locally (hearth/docs/design/client/README.md, section 3).
 
 ## 6. Compile caches
 
@@ -479,7 +479,7 @@ Every build records, and reports as facts (protocol/wire.md, section 6):
 
 - **A new environment output key is a new cache,** cold. A toolchain
   bump changes the environment's identity and output key, so it starts
-  afresh, as it changes every artifact key built with it (`draft/archive/factory.md`, section 7).
+  afresh, as it changes every artifact key built with it (`hearth/docs/design/draft/archive/factory.md`, section 7).
 - **The cache records the environment's tree digest** it was filled
   against. If the builder's copy of the environment changes under the
   same key (built again after collection, or fetched from a peer), its
@@ -552,7 +552,7 @@ shows the difference.
   does not, and a standalone host builds cold: production's artifacts
   never depend on a cache's history, and outputs never cross planes.
 - **Once builds are reproducible,** a warm and a cold build of one key
-  must have one tree digest. The lab's gate checks it (domain/reproducible.md,
+  must have one tree digest. The lab's gate checks it (hearth/docs/design/domain/reproducible.md,
   7.1), and a cache's mistake becomes a finding instead of a silent
   binary.
 
@@ -560,7 +560,7 @@ shows the difference.
 
 ### 7.1 By key, pinned by a change
 
-A software entry names the artifact, and where its tree goes (protocol/format.md,
+A software entry names the artifact, and where its tree goes (hearth/docs/design/protocol/format.md,
 section 10, shows the entry's shape):
 
 ```json
@@ -578,11 +578,11 @@ section 10, shows the entry's shape):
 ```
 
 - **An entry has either `url` and `sha256`, or `artifact`.** `path`,
-  `owner` and `group` mean what they mean for a download (protocol/format.md,
+  `owner` and `group` mean what they mean for a download (hearth/docs/design/protocol/format.md,
   10.1); `unpack`, `strip` and `mode` do not apply, since an artifact
   is a tree.
 - **The key is the artifact's digest in the IaC,** and the software
-  part's digest covers it (domain/render.md, section 4). Render uses it as it
+  part's digest covers it (hearth/docs/design/domain/render.md, section 4). Render uses it as it
   stands: it needs neither the product's repository nor its build
   environment, so it stays local and fast on every machine.
 - **The repository, commit and recipe say how to make it.** The key is a
@@ -597,7 +597,7 @@ section 10, shows the entry's shape):
   builder computes the same key from the same pin.
 - **Bumped by a change, as a snapshot bump is.** An agent or a bot
   updates commit and key together; the client prints the pin for a
-  commit (5.7). The change carries its rendered diff (domain/render.md,
+  commit (5.7). The change carries its rendered diff (hearth/docs/design/domain/render.md,
   section 6): "software of stoa-1-prod: stoa 9f2c… → 31ab… (commit
   4e1d… → 77c0…)", and lands through the usual gates.
 
@@ -609,7 +609,7 @@ section 10, shows the entry's shape):
 
 - **"This head" is the revision being rendered.** With no repository and
   no commit, the recipe is read from the repository being rendered, at
-  the same revision. This is `draft/archive/factory.md` (8.5) case: an
+  the same revision. This is `hearth/docs/design/draft/archive/factory.md` (8.5) case: an
   experiment and its cluster are data in the product's repository, so
   the cluster at head h names stoa built from h.
 - **The software part holds the recipe and its sources' listing, never
@@ -617,7 +617,7 @@ section 10, shows the entry's shape):
   -z` over its selection (3.2), both read from the revision. Render
   stays a pure function of the revision and the target.
 - **The resolved key enters the software layer's key,** as a closure's
-  digest enters the packages key (domain/render.md, 4.5; domain/store.md, 3.3). The
+  digest enters the packages key (hearth/docs/design/domain/render.md, 4.5; hearth/docs/design/domain/store.md, 3.3). The
   plan resolves each head entry before the software layer (5.1): the
   recipe, the listing's S, the environment's identity at the same
   revision.
@@ -626,9 +626,9 @@ section 10, shows the entry's shape):
   software key, of every head entry built with it, with the consumers'
   parts unchanged; the bump's rendered diff shows it on the
   environment's target, and the lab's experiment key names the artifact
-  beside the specs (`draft/archive/factory.md`, 8.1).
+  beside the specs (`hearth/docs/design/draft/archive/factory.md`, 8.1).
 - **Which environments use it is data.** A lab variant can override a
-  base's pin with this form, through merging (protocol/format.md, section 4): the
+  base's pin with this form, through merging (hearth/docs/design/protocol/format.md, section 4): the
   lab builds heads, production runs pins.
 - **When the IaC is in another repository than the product,** there is
   no "this head": a pin is bumped by a change (7.1), including an
@@ -637,11 +637,11 @@ section 10, shows the entry's shape):
 ### 7.3 Placed in the software layer
 
 - **The tree helper applies the artifact's tree under the entry's
-  `path`,** as it applies a single download's put (domain/build.md, 6.2;
-  domain/store.md, 5.5): no tool runs, owners are root unless declared, and
+  `path`,** as it applies a single download's put (hearth/docs/design/domain/build.md, 6.2;
+  hearth/docs/design/domain/store.md, 5.5): no tool runs, owners are root unless declared, and
   contents are cloned from the artifact's subvolume.
 - **The software layer's record names the artifact's tree digest,** and
-  the plan (domain/build.md, section 4) resolves, fetches or builds each
+  the plan (hearth/docs/design/domain/build.md, section 4) resolves, fetches or builds each
   artifact before the layer.
 
 ### 7.4 Today's precedent: releases pinned by sha256
@@ -657,7 +657,7 @@ The bash fleet already pins software built outside Debian by digest:
 - **What carries over:** pinning by digest, bumps as reviewed changes,
   a cache keyed by digest. **What a recipe adds:** how the bytes were
   made, offline, in a known environment, under a key.
-- **Downloads stay** (protocol/format.md, 10.1), for software built outside the
+- **Downloads stay** (hearth/docs/design/protocol/format.md, 10.1), for software built outside the
   factory, and for bytes identical in both planes before builds
   reproduce.
 
@@ -668,15 +668,15 @@ The bash fleet already pins software built outside Debian by digest:
   hold: the run side would have to fetch them from the lab, which the
   planes forbid, or build its own, which would not match. So the lab
   proves a build of the inputs production runs, not its bytes: the gap
-  `draft/brainstorm.md` (11.3) accepts.
+  `hearth/docs/design/draft/brainstorm.md` (11.3) accepts.
 - **Once builds are reproducible,** any builder's copy can be checked by
   building it again, and each plane reports its tree digest per key as a
   fact for the factory to compare: equal digests mean production runs
-  the bytes the lab proved (domain/reproducible.md, 7.6).
+  the bytes the lab proved (hearth/docs/design/domain/reproducible.md, 7.6).
 
 ### 7.6 A head of stoa
 
-`draft/archive/factory.md` (8.5), in hearth's terms. The experiment and the
+`hearth/docs/design/draft/archive/factory.md` (8.5), in hearth's terms. The experiment and the
 cluster's members `stoa-1-lab`, `stoa-2-lab` and `stoa-3-lab` are data
 in stoa's repository, with the environment `stoa-build-lab`; the lab
 variant's software entry is `{ "recipe": "stoa" }`.
@@ -709,10 +709,10 @@ then builds the new key cold, from the same inputs, on its own builders.
 ## 8. Its world
 
 `hearth-artifacts-world`, a domain world of `hearth-domain-artifacts`
-under `testing-strategy.md` (2.2), with its parent scripted, and a
+under `skein/docs/foundation/testing-strategy.md` (2.2), with its parent scripted, and a
 system world with render, store and build beside it (2.3).
 
-- **The fakes act on the fake machine** (domain/testing.md, sections 3 and 4):
+- **The fakes act on the fake machine** (hearth/docs/design/domain/testing.md, sections 3 and 4):
   git with repositories, commits, listings and blobs; the tree helper's
   walk and apply; resolutions that give two builders different closures
   for one key; peers serving records and trees, sometimes wrong.
@@ -737,7 +737,7 @@ system world with render, store and build beside it (2.3).
   that mismatches its recipe is built; one pin gives one key on builders
   whose closures differ; render's software part holds no resolved key;
   every build records its costs.
-- **The real tier** (domain/testing.md, section 6) builds a small C project in
+- **The real tier** (hearth/docs/design/domain/testing.md, section 6) builds a small C project in
   an environment output from the local mirror, as a regular user, cold
   then warm, and checks that a one-file change rebuilds one object. A
   Rust case checks 6.3 against cargo itself; it is heavier (the
@@ -746,7 +746,7 @@ system world with render, store and build beside it (2.3).
 
 ## 9. What is open
 
-- **Credentials for private repositories:** it depends on protocol/wire.md (5.3)
+- **Credentials for private repositories:** it depends on hearth/docs/design/protocol/wire.md (5.3)
   and the plane's secret store.
 - **Lockfiles as declared inputs:** whether hearth reads cargo's
   `Cargo.lock` (SHA-256 per crate), or recipes list their inputs; npm's
@@ -762,11 +762,11 @@ system world with render, store and build beside it (2.3).
   revision may build its own product for its run-side targets, which is
   the run side's policy; and, for IaC in another repository, who makes
   the unlanded pin change that tests a product head.
-- **Signing artifacts** (and kernels for Secure Boot, domain/machine.md,
+- **Signing artifacts** (and kernels for Secure Boot, hearth/docs/design/domain/machine.md,
   section 9): a signing key is a secret, and the sandbox holds none.
 - **6.3's rule and its alternatives:** whether an in-tree build's
   working tree should persist in its cache (a tree to reconcile, not
   sources to patch); and, once cargo's checksum freshness is stable, a
   plain export for cargo. Other mtime-based tools still need the rule.
 - **Artifacts on small standalone hosts,** which build the environment
-  and the artifact themselves until peers (domain/store.md, section 10).
+  and the artifact themselves until peers (hearth/docs/design/domain/store.md, section 10).
