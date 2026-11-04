@@ -8,5 +8,3 @@
   run on the plans-only `World`, while `HostWorld` plays the host; no
   reason is recorded (the code's side is
   `skein/docs/development/debt/D031-forge-setup-two-worlds.md`).
-- **Not yet:** 6.3: `skein-forge-setup/src/host.rs`'s `Remove` replaces a run's
-  held `Done` with a `Stop` it makes up, at the step `Admin`, naming `remove`.
