@@ -135,7 +135,7 @@ pub(super) fn domain(
         let name: Box<[u8]> = b"claude_code".as_slice().into();
         let owned = u64::try_from(size_of::<smith_domain::Program>())
             .ok()
-            .and_then(|cell| cell.checked_add(u64::try_from(name.len()).ok()?))
+            .and_then(|cell| cell.checked_add(skein_lib::len_u64(name.len())))
             .and_then(|owned| limits.configured_model_bytes.checked_add(owned))
             .ok_or_else(|| {
                 ConfigurationRefusal::Profile(Refusal::Derived {

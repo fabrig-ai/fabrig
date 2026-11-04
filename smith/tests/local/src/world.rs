@@ -1588,7 +1588,7 @@ impl World {
                 let ran = run::Ran {
                     exit: run::Exit::Code { code: u8::from(!passed) },
                     output: output[output.len() - keep..].into(),
-                    cut: u64::try_from(output.len() - keep).expect("small output"),
+                    cut: skein_lib::len_u64(output.len() - keep),
                 };
                 self.events.push_back(self.below(Below::Checked { owner, ran }));
             }

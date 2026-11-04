@@ -204,7 +204,7 @@ impl DeliveryRefusal {
             Some(marker) => marker.path.len(),
             None => 0,
         };
-        u64::try_from(path.checked_add(self.explanation.len()).expect("sealed feedback")).expect("bounded feedback")
+        skein_lib::len_u64(path.checked_add(self.explanation.len()).expect("sealed feedback"))
     }
 }
 

@@ -186,12 +186,12 @@ impl Files {
 
 impl Backend {
     pub(super) fn run_relative(&self) -> Box<[u8]> {
-        json::join(&[b".runs/", &self.names.run])
+        skein_lib::bytes::concat(&[b".runs/", &self.names.run])
     }
 
     pub(super) fn run_path(&self, name: &[u8]) -> Box<[u8]> {
         let separator: &[u8] = if self.settings.program.directory.ends_with(b"/") { b"" } else { b"/" };
-        json::join(&[&self.settings.program.directory, separator, &self.run_relative(), b"/", name])
+        skein_lib::bytes::concat(&[&self.settings.program.directory, separator, &self.run_relative(), b"/", name])
     }
 
     pub(super) fn open_runs(&mut self, now: Time, below: &mut Queue<Below>) {
@@ -226,7 +226,7 @@ impl Backend {
                     tools
                         .push(mcp::Tool {
                             name: schema.name,
-                            description: json::join(&[
+                            description: skein_lib::bytes::concat(&[
                                 &schema.description,
                                 b" On this backend a sub-agent reads only: its tools are [\"inspect\"]. Several asked in one message run side by side.",
                             ]),
@@ -357,7 +357,10 @@ impl Backend {
                 );
             }
             Step::Mcp => {
-                let path = json::join(&[&self.grant.as_ref().expect("installed source").source, b"/settings.json"]);
+                let path = skein_lib::bytes::concat(&[
+                    &self.grant.as_ref().expect("installed source").source,
+                    b"/settings.json",
+                ]);
                 self.file(
                     Step::Settings,
                     file::Request::Store {
@@ -407,7 +410,10 @@ impl Backend {
         };
         if let Some(residue) = &self.files.residue {
             let (root, name) = if self.files.residue_source == Some(Step::Settings) {
-                (root.descriptor, json::join(&[&self.grant.as_ref().expect("source").source, b"/", &residue.name]))
+                (
+                    root.descriptor,
+                    skein_lib::bytes::concat(&[&self.grant.as_ref().expect("source").source, b"/", &residue.name]),
+                )
             } else {
                 (self.files.run_descriptor.expect("run descriptor"), residue.name.clone())
             };
@@ -476,7 +482,7 @@ impl Backend {
 pub(super) fn mcp_configuration(relay_path: &[u8], server_port: u16, secret: &[u8]) -> Box<[u8]> {
     let relay = json::quote(relay_path, 32_768).expect("validated relay path");
     let port = Decimal::of(u64::from(server_port));
-    json::join(&[
+    skein_lib::bytes::concat(&[
         b"{\"mcpServers\":{\"smith\":{\"type\":\"stdio\",\"command\":",
         &relay,
         b",\"args\":[\"--mcp-relay\",\"127.0.0.1:",

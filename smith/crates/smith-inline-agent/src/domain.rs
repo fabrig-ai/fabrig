@@ -5,7 +5,7 @@
 //! callbacks. The parent owns told payloads; exact ACK metadata stays here.
 
 use alloc::boxed::Box;
-use skein_lib::{Env, Id, List, Map, Queue, Set, Slab, Time, Token};
+use skein_lib::{Env, Id, List, Map, Queue, Set, Slab, Time, Token, earliest};
 use smith_domain as smith;
 use smith_host_domain::{self as host, parent};
 
@@ -100,15 +100,15 @@ impl Domain {
             let slot = self.slots.get(*id).expect("retained slot");
             match slot.state {
                 State::Live => {
-                    next = Some(earlier(next, slot.wall));
+                    next = earliest(next, Some(slot.wall));
                     if let Some(at) = slot.root.next_deadline() {
-                        next = Some(earlier(next, at));
+                        next = earliest(next, Some(at));
                     }
                 }
                 State::Cancelling { grace } => {
-                    next = Some(earlier(next, grace));
+                    next = earliest(next, Some(grace));
                     if let Some(at) = slot.root.next_deadline() {
-                        next = Some(earlier(next, at));
+                        next = earliest(next, Some(at));
                     }
                 }
                 State::Settling(_) | State::Gone => {}
@@ -174,13 +174,6 @@ impl Domain {
             entries = entries.checked_add(slot.root.backlog()).expect("inline backlog fits u32");
         }
         entries
-    }
-}
-
-fn earlier(current: Option<Time>, candidate: Time) -> Time {
-    match current {
-        Some(current) => current.min(candidate),
-        None => candidate,
     }
 }
 
