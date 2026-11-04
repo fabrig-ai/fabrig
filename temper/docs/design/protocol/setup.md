@@ -1000,10 +1000,15 @@ its own for any other host.
   failed, its `why` naming the step, and "Set up again" asks with the
   same fields. A restart reads the row's first repository from the
   record, making `ORG/NAME`, until `Create` answers again.
-- **Adopted by ctl's call alone.** The welcome and `ConnectForge`
-  adopt nothing: the made repository waits, unadopted, for the person
-  to adopt it into a project of theirs from the adoption form
-  (`../client/README.md`, 3.5 and 4.4), one choice away.
+- **Adopted by a client's act, never by the set up.** The welcome's
+  Ready, its last act, adopts it into the project that act makes
+  (`../client/README.md`, 3.5), as ctl's call does, below, and the
+  project opens without waiting for it; `ConnectForge` adopts nothing:
+  there the made repository waits, unadopted, for the person to adopt
+  it into a project of theirs from the adoption form
+  (`../client/README.md`, 4.4), one choice away. A repository the
+  person's Ready left refused or unanswered waits the same way, Home
+  offering it again.
   `temper ctl forge setup` and `forge connect … --first` hold their
   `--project` in their own run (`../client/tools.md`, 5.5): once the
   row says made, the call sends, under the same party, jig's
