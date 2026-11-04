@@ -2,6 +2,8 @@
 
 2026-11-04. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 2.5: a chat in the chats page's pane keeps the main list's
+  row, stacked under the rail (`temper-client-shell-web`'s `temper.css`).
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,

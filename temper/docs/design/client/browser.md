@@ -231,6 +231,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
   | `Settings { project }` | `/projects/<project>/settings` |
+  | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
@@ -548,8 +549,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   left pane under the banner, of the viewport's height and scrolling
   alone, ruled from the rest; in it the new chat's bar and context as
   lines, the heading "Chats" in small capitals over its filters as
-  plain words and a flat list, and the playground's banner over a
-  hairline, in the chats' size. The rest is the prompt, a bare box,
+  plain words and a flat list, each chat a compact line, its title and
+  when, then its status and number, the whole line its link and its
+  spend left out, and the playground's banner over a hairline, in the
+  chats' size. The rest is the prompt, a bare box,
   its hint under its left edge and the composer's line under its
   right, the chooser's list dropping below it; under 1100 px the hint
   gives way to that line. At phone width the pane follows the prompt,
