@@ -1,0 +1,30 @@
+draft = "to-begin-store"
+repo = "fabrig"
+sources = ["temper/docs/plan/to-begin-store/inputs/request.md", "temper/docs/design/draft/to-begin.md", "temper/docs/design/draft/to-begin.status.md", "AGENTS.md", "DESIGN.md"]
+
+# The storage behind "Skip": temper/docs/design/draft/to-begin.md, 5, the draft's step 2. Temper
+# alone. Released in batches: the design and the two surfaces first, the engine and the client after.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "store"
+title = "the family Dismissed at byte 34, restored and held by the forge connector"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/store.md, 2"
+
+[[part]]
+id = "wire"
+title = "Dismiss, its outcome and the subject dismissed on the client wire"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[slice]]
+id = 1
+story = "the store can hold a dismissal and the wire can carry one"
+parts = ["store", "wire"]
+walk = false

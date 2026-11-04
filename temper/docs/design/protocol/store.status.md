@@ -2,4 +2,4 @@
 
 2026-11-04. Where temper's code lags or departs from [store.md](store.md).
 
-- **Not yet:** 2: family 22 `Delivery` (no `Key` or `Stored` variant); family 30 `LandingLog`; and the families of findings, `Finding`, `Mark` and `QaPass`.
+- **Not yet:** 2: family 22 `Delivery` (no `Key` or `Stored` variant); family 30 `LandingLog`; the families of findings, `Finding`, `Mark` and `QaPass`; and family 34 `Dismissed` (no `Key` or `Stored` variant).

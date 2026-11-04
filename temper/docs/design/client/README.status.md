@@ -15,7 +15,10 @@
   the engine keeps no email; jig's account-facts draft designs it.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
-  5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
+  5.5: a plan's first use, its card in the conversation. 4.6, 8:
+  `Dismiss` and the subject `dismissed`: neither in
+  `temper-client-protocol-wire`'s schema, `temper-service`'s routing or
+  the forge side of `temper-client-domain`. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat
   template's grace: no project's settings and no such act in
