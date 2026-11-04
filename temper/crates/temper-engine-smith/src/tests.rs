@@ -509,8 +509,32 @@ fn delegate_tracking_is_optional_and_requires_a_priority_object() {
 }
 
 #[test]
+fn amendment_parameter_omission_is_distinct_from_replacement() {
+    for (parameters, keep, expected) in [
+        ("", true, 0),
+        (r#", "parameters":[]"#, false, 0),
+        (r#", "parameters":[{"kind":"number","name":14,"value":1}]"#, false, 1),
+    ] {
+        let input = format!(
+            "{{\"target\":3,\"revision\":1,\"amendment\":{{\"spec\":{{\"words\":\"new\"{parameters}}},\"reason\":\"scope\"}}}}"
+        );
+        let engine::Tool::Amend { amendment, keep_parameters, .. } =
+            decided(b"amend", input.as_bytes()).expect("amend").tool
+        else {
+            panic!("amend tool")
+        };
+        assert_eq!(keep_parameters, keep, "{parameters}");
+        let spec = amendment.spec.expect("amended spec");
+        assert_eq!(spec.parameters.len(), expected);
+        if expected == 1 {
+            assert_eq!(spec.parameters.as_ref(), &[tasks::Parameter::Number { name: 14, value: 1 }]);
+        }
+    }
+}
+
+#[test]
 fn only_a_priority_amendment_can_omit_its_revision() {
-    let engine::Tool::Amend { target, revision, amendment } =
+    let engine::Tool::Amend { keep_parameters: false, target, revision, amendment } =
         decided(b"amend", br#"{"target":3,"amendment":{"reason":"x","tracked":{"priority":8}}}"#)
             .expect("priority without revision")
             .tool
@@ -581,7 +605,7 @@ fn the_declared_deadline_example_decodes_the_whole_authority() {
             );
         }
     }
-    let engine::Tool::Amend { target, revision, amendment } =
+    let engine::Tool::Amend { keep_parameters: false, target, revision, amendment } =
         decided(b"amend", EXAMPLE).expect("deadline example").tool
     else {
         panic!("amend tool")
@@ -1037,6 +1061,7 @@ fn amend_and_release_calls_name_their_revision() {
         assert_eq!(decided(row.name, row.missing), Err(Problem::Missing(b"revision")), "{:?}", row.name);
         let expected = if row.name == b"amend" {
             engine::Tool::Amend {
+                keep_parameters: false,
                 target: CALL_TASK,
                 revision: 0,
                 amendment: tasks::Amendment {

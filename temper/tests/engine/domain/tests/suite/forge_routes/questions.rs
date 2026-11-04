@@ -495,7 +495,12 @@ fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
         temper_engine_domain_world::fixtures::task_amendment(None, None, b"Land the prerequisite first");
     amendment.dependencies = Some(Box::new([dependency]));
     let revision = live_task(&world, change).revisions.spec;
-    call(&mut world, &requester, CALL + 2, engine::Tool::Amend { target: change, revision, amendment });
+    call(
+        &mut world,
+        &requester,
+        CALL + 2,
+        engine::Tool::Amend { keep_parameters: false, target: change, revision, amendment },
+    );
     answer(&mut world, &requester, change, CALL + 3);
     for _ in 0..TICKS {
         world.tick();
