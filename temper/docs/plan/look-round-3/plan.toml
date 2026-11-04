@@ -121,4 +121,4 @@ walk = false
 id = "home-age-and-ci"
 parts = ["home-page"]
 text = """Home's drawn kicker says "Hello · made just now" and its repository's step "its CI ran on main and passed.". No client is given either fact: `me` and the project's document hold no time it was made, and a repository's CI is read only through a change's task. Giving them is a change to a protocol, so it is yours (temper/docs/design/draft/look-requests.md, 6). Options: (a) leave them out: the kicker is "Hello" alone, the step "Chats can change its code now."; (b) add a project's made time to jig's `me`, and a first CI run to the forges' rows in temper's client wire, a follow-up plan. Recommendation: (a) now, the landing does so and its account names both, then (b) as its own draft when the look is walked. No task waits."""
-answer = ""
+answer = """(a), no protocol change. The kicker is the day and the time, as on any Home (`to-begin.md`, 2). The repository step says "temper can change its code now; checked changes land on main through temper's merge queue.", the line `project-home-onboarding` draws; drop "its CI ran on main and passed". (the user, through fabrig/temper, 11-04)"""

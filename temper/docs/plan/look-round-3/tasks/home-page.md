@@ -109,3 +109,7 @@ Options, each pre-approved:
 
 As `notes/common.md`, Your report, with the overlay's list, and every state above with where it
 renders.
+
+## Answers
+
+2026-11-04 (the user, through fabrig/temper). `home-age-and-ci`: (a), no protocol change. The kicker is the day and the time, as on any Home (`to-begin.md`, 2). The repository step says "temper can change its code now; checked changes land on main through temper's merge queue.", the line `project-home-onboarding` draws; drop "its CI ran on main and passed".
