@@ -1,6 +1,9 @@
 //! Accounts effects routed through the reference service.
 use super::*;
 use crate::tests::fixtures;
+use alloc::boxed::Box;
+use jig_domain_accounts as domain;
+use skein_lib::{List, Secret};
 fn finish_start(service: &mut crate::Service) {
     for _ in 0_u32..64 {
         fixtures::turn(service);
@@ -35,7 +38,7 @@ fn pump_accounts(accounts: &mut Accounts, engine: &mut crate::Engine) -> List<do
     let mut heard = List::with_capacity(64);
     for _ in 0_u32..32 {
         crate::store::answer(engine);
-        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+        iterate(accounts, Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
         while let Some(event) = events.pop() {
             if let root::Event::Core(core::Event::Account(domain::Event::Component(event))) = event {
                 heard.push(event).expect("bounded component events");

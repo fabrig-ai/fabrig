@@ -24,7 +24,7 @@ mod files;
 pub mod hosts;
 pub mod llm;
 pub use clients::Clients;
-pub use files::{File, files, worker_files};
+pub use files::{File, Files, files, worker_files};
 pub use hosts::{Hosts, WorkerName};
 pub use llm::{Endpoint, Header, Llm, Transport};
 pub mod address;

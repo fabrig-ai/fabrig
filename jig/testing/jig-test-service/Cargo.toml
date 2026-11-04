@@ -35,7 +35,6 @@ jig-test-worker.workspace = true
 jig-protocol-worker-link.workspace = true
 
 skein-channel.workspace = true
-skein-oauth.workspace = true
 skein-oauth-accounts.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-brief.workspace = true
