@@ -63,8 +63,36 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
             }
         }
     }
+    if !document["application"]["demo"].is_null() {
+        use temper_forge_setup::{
+            machine::BoxKind,
+            place::{File, Place},
+        };
+        let directories = jig_protocol_config::Directories::working();
+        let named = temper_service::startup::named_with(&deployment, &directories, &documents::given(&document))
+            .expect("deployment's machine");
+        let last = document["setup"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| entry["forge"].as_u64())
+            .max()
+            .unwrap_or(0);
+        let number = u16::try_from(last + 1).expect("playground forge number");
+        let entry = temper_forge_setup::machine::entry(&named.machine, number, BoxKind::Fake, &directories)
+            .expect("playground's fake machine");
+        let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
+        machine::lay_handover(&mut disk, &path, &crate::stories::admin_token(seed));
+    }
     let machine = Machine::new(disk);
-    let parameters = programs::Parameters { deployment, seed, links, forge: fakes.forge, disk: machine.0.clone() };
+    let parameters = programs::Parameters {
+        deployment,
+        seed,
+        links,
+        forge: fakes.forge,
+        route: route(&document),
+        disk: machine.0.clone(),
+    };
     let mut config = skein_sim::Config::calm();
     config.wall = wall;
     config.trace = skein_sim::Trace::Off;
@@ -89,6 +117,12 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     let at = world.spawn(|| Process::Visitor(Box::new(Visitor::new(&documents::visitor(&document)))));
     assert_eq!(at, VISITOR, "the visitor follows the service and its two fake peers");
     world
+}
+
+/// The playground's git reaches the live peer that issues its bot's credential.
+#[must_use]
+pub fn route(document: &serde_json::Value) -> Option<skein_fake_forge_protocol::Limits> {
+    (!document["application"]["demo"].is_null()).then(temper_fake::forge::git_limits)
 }
 
 /// The visitor follows the service and its two fake peers.

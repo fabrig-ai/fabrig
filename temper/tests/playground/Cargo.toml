@@ -17,11 +17,20 @@ skein-sim-world.workspace = true
 skein-sim = { path = "../../../skein/crates/skein-sim" }
 skein-lib.workspace = true
 skein-io.workspace = true
+temper-client-shell-web.workspace = true
+temper-client-domain.workspace = true
+temper-client-view.workspace = true
+jig-client-shell-web.workspace = true
+skein-ui.workspace = true
+skein-ui-web.workspace = true
+skein-playground.workspace = true
+skein-fake-person.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 skein-heap.workspace = true
 temper-service.workspace = true
-serde_json.workspace = true
+skein-fake-forge-domain.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"
