@@ -283,7 +283,7 @@ impl Peer {
             | io::Event::Resized
             | io::Event::Window { .. }
             | io::Event::Shutdown { .. } => {
-                panic!("issuer only listens and serves classic byte streams");
+                unreachable!("issuer only listens and serves classic byte streams");
             }
         }
     }
