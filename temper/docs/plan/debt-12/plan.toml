@@ -1,3 +1,22 @@
 draft = "debt-12"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-12/inputs/request.md", "temper/docs/plan/debt-12/inputs/link-review.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "debt-index"
+title = "tools/debt prints each tree's debt index; the READMEs' hand-kept tables go"
+mode = "direct"
+needs = []
+design = "temper/docs/plan/debt-12/inputs/request.md, 2"
+
+[[slice]]
+id = 1
+story = "paying an item touches its file alone: the index is printed from the item files, one command, and no README row can conflict"
+parts = ["debt-index"]
+walk = false
