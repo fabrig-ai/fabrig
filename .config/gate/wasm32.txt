@@ -1,4 +1,4 @@
-# Packages the gate clippies for wasm32-unknown-unknown (fab's clippy-wasm32 step).
+# Packages the gate's wasm32 clippy lints for wasm32-unknown-unknown (README.md beside this file).
 skein-ui
 skein-ui-web
 skein-ui-example-view

@@ -1118,7 +1118,6 @@ pub fn owned_setup(forge: u16) -> settings::Setup {
             forge,
             directory: b"/data/forge".as_slice().into(),
             bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.test".as_slice().into() },
-            orgs: Box::new([]),
             asked: true,
             mode: Mode::Owned(Owned {
                 public: None,

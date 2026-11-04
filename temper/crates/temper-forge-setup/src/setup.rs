@@ -65,13 +65,12 @@ pub enum Mode {
     Owned(Owned),
     Fake(Fake),
 }
-/// One forge's directory, bot, orgs and mode.
+/// One forge's directory, bot and mode.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Entry {
     pub forge: u16,
     pub directory: Box<[u8]>,
     pub bot: Account,
-    pub orgs: Box<[Box<[u8]>]>,
     pub mode: Mode,
     pub asked: bool,
 }

@@ -1,5 +1,5 @@
 //! fabrig names nothing of whoever runs its development: no repository,
-//! tool, machine or session of that lab (AGENTS.md, 2). The check reads
+//! tool, machine or session of that lab (AGENTS.md, 1). The check reads
 //! git's tracked files from the workspace root with `git ls-files`, so
 //! `target/`, `.git/` and other untracked build output are never listed.
 //! It skips symlinks, whose targets are tracked files read under their own

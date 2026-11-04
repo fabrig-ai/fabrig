@@ -22,8 +22,8 @@
   story connects the probe App without `--read-only`, so its record's
   `read_only` is false (`crates/temper/tests/support/live_github.rs`).
   2.7: the owned-forge
-  landing pair has not passed after a landing (the runner is fab's, in the
-  agents repository): neither story has passed live on its own store, the
+  landing pair has not passed in the after-landing tier: neither story
+  has passed live on its own store, the
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`). 4.3: the shell subset;
@@ -42,9 +42,7 @@
   tests and joined with the engine, since the pages are not built
   (`../client/README.status.md`); the joined world's configuring chat
   starts, proposes, is accepted, waits for an owner and goes stale
-  through ctl alone (`tests/client`'s `configuring_chat.rs`). 6.5:
-  `tools/stage-one` is not built: the golden's file and its decoder,
-  the judge's brief and the verdict's decoder, and `collect`. 6: a state
+  through ctl alone (`tests/client`'s `configuring_chat.rs`). 6: a state
   digest for replay (`testing-strategy.md`, section 6); the walking
   world compares its formatted state
   (`tests/engine/domain/src/walking.rs`, `run_replayed`).

@@ -39,8 +39,6 @@ pub struct Row {
     /// The skein settings tables whose flags it takes, printed by its `--help`.
     pub settings: &'static [&'static skein_shell::Settings],
     pub notes: &'static str,
-    /// A transition (`forge reconcile`): it goes once its forms do.
-    pub transition: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -56,7 +54,7 @@ const DIRECTORIES: Argument = Argument {
 const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
-pub const COMMANDS: [Row; 21] = [
+pub const COMMANDS: [Row; 20] = [
     Row {
         words: &["help"],
         who: Who::Documentation,
@@ -71,7 +69,6 @@ pub const COMMANDS: [Row; 21] = [
         ],
         settings: &[],
         notes: "Reads no directory and no configuration, so it works before temper init. A name that is no page, or a search that matches nothing, exits 1. A search prints at most 20 hits, a line each, NAME: HEADING: LINE, then \"and more; narrow the words\" when more matched.",
-        transition: false,
     },
     Row {
         words: &["init"],
@@ -97,7 +94,6 @@ all five reservations through startup; use that first-run path to avoid
 a gap between selection and startup.
 
 Refused, changing nothing, when the configuration directory already holds temper.json.",
-        transition: false,
     },
     Row {
         words: &["serve"],
@@ -107,7 +103,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
         notes: "Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.",
-        transition: false,
     },
     Row {
         words: &["box"],
@@ -131,7 +126,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         ],
         settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS],
         notes: "Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is temper serve's sign-in links, each line whole; its stderr, what --echo chooses; each step logs under the data directory.",
-        transition: false,
     },
     Row {
         words: &["program-login"],
@@ -144,7 +138,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         ],
         settings: &[&directories::SETTINGS],
         notes: "Checks the configuration and the agent's, makes the source's directory, then replaces itself by the program's sign-in, whose exit status is then its own. The engine need not run.",
-        transition: false,
     },
     Row {
         words: &["forge", "fetch"],
@@ -154,7 +147,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "Fetches only the binaries the forge's setup gives as \"fetched\", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture.",
-        transition: false,
     },
     Row {
         words: &["forge", "prepare"],
@@ -164,7 +156,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "",
-        transition: false,
     },
     Row {
         words: &["forge", "run"],
@@ -174,7 +165,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child.",
-        transition: false,
     },
     Row {
         words: &["forge", "remove"],
@@ -184,7 +174,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.",
-        transition: false,
     },
     Row {
         words: &["forge", "sign-in"],
@@ -194,17 +183,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
-        transition: false,
-    },
-    Row {
-        words: &["forge", "reconcile"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Reconcile a managed or connected Forgejo still in its old form.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "A forge that starts from its records is refused: temper serve takes its handover.",
-        transition: true,
     },
     Row {
         words: &["ctl"],
@@ -233,7 +211,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         ],
         settings: &[],
         notes: "temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.",
-        transition: false,
     },
     Row {
         words: &["open"],
@@ -249,7 +226,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         ],
         settings: &[],
         notes: "For people; an agent works through temper ctl.",
-        transition: false,
     },
     Row {
         words: &["internal", "agent"],
@@ -262,7 +238,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         }],
         settings: &[],
         notes: "",
-        transition: false,
     },
     Row {
         words: &["internal", "serve"],
@@ -272,7 +247,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
         notes: "",
-        transition: false,
     },
     Row {
         words: &["internal", "forge-child"],
@@ -285,7 +259,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         ],
         settings: &[],
         notes: "",
-        transition: false,
     },
     Row {
         words: &["fake", "llm"],
@@ -298,7 +271,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES],
         settings: &[&fake::LLM_SETTINGS, &directories::SETTINGS],
         notes: "",
-        transition: false,
     },
     Row {
         words: &["fake", "forge"],
@@ -311,7 +283,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&fake::FORGE_SETTINGS, &directories::SETTINGS],
         notes: "",
-        transition: false,
     },
     Row {
         words: &["fake", "forge", "check"],
@@ -326,7 +297,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         ],
         settings: &[&directories::SETTINGS],
         notes: "",
-        transition: false,
     },
     Row {
         words: &["fake", "oauth"],
@@ -336,7 +306,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[],
         settings: &[&fake::OAUTH_SETTINGS],
         notes: "",
-        transition: false,
     },
     Row {
         words: &["fake", "git"],
@@ -346,7 +315,6 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[],
         settings: &[],
         notes: "",
-        transition: false,
     },
 ];
 
@@ -409,8 +377,7 @@ pub fn help() -> String {
             writeln!(text, "  temper {} {form}", row.words.join(" ")).expect("writing into a string");
         }
         if row.who != Who::Spawned {
-            let transition = if row.transition { " (a transition)" } else { "" };
-            writeln!(text, "    {}{transition}", row.line).expect("writing into a string");
+            writeln!(text, "    {}", row.line).expect("writing into a string");
         }
     }
     text
@@ -449,9 +416,6 @@ pub fn reference() -> String {
         write!(text, "\n{}", row.line).expect("writing into a string");
         if row.who == Who::Spawned {
             text.push_str(" Spawned by temper; never run by hand.");
-        }
-        if row.transition {
-            text.push_str(" A transition: it goes once the forms it serves do.");
         }
         text.push('\n');
         if !row.arguments.is_empty() {

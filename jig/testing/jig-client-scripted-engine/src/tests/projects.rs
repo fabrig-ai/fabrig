@@ -2,9 +2,9 @@ use super::*;
 
 fn owned() -> Script {
     let mut script = script();
-    let owner = script.truth.frames.get_mut(&1).unwrap();
+    let owner = script.truth.frames.get_mut(&1).expect("fixture owner frame");
     owner.deployment_role = Some(HeldRole::Owner);
-    owner.projects.get_mut(0).unwrap().role = HeldRole::Owner;
+    owner.projects.get_mut(0).expect("fixture project").role = HeldRole::Owner;
     script
 }
 fn make(name: &[u8], policy: u32) -> Ask {
@@ -12,7 +12,7 @@ fn make(name: &[u8], policy: u32) -> Ask {
 }
 fn refused_as(engine: &mut Engine, party: u64, ask: &Ask, refusal: Refusal) {
     let before = engine.truth().clone();
-    let (answer, changes) = engine.decide(party, ask, Wall::EPOCH).unwrap();
+    let (answer, changes) = engine.decide(party, ask, Wall::EPOCH).expect("typed decision fits");
     assert_eq!(answer, Answer::Refused { refusal, at: None });
     assert!(changes.is_empty());
     assert_eq!(engine.truth(), &before);
@@ -20,7 +20,7 @@ fn refused_as(engine: &mut Engine, party: u64, ask: &Ask, refusal: Refusal) {
 
 #[test]
 fn project_names_check_each_rule_before_changing_truth() {
-    let mut engine = Engine::new(owned(), 1).unwrap();
+    let mut engine = Engine::new(owned(), 1).expect("valid script");
     for (name, rule) in [
         (String::new(), NameRule::Empty),
         (format!("{}é", "a".repeat(63)), NameRule::Long),
@@ -38,16 +38,16 @@ fn project_names_check_each_rule_before_changing_truth() {
 
 #[test]
 fn project_names_at_the_byte_bound_and_with_internal_spaces_are_accepted() {
-    let mut engine = Engine::new(owned(), 1).unwrap();
+    let mut engine = Engine::new(owned(), 1).expect("valid script");
     for name in [format!("{}é", "a".repeat(62)), "Ta lly".to_owned(), "١٢".to_owned()] {
-        let (answer, _) = engine.decide(1, &make(name.as_bytes(), 1), Wall::EPOCH).unwrap();
+        let (answer, _) = engine.decide(1, &make(name.as_bytes(), 1), Wall::EPOCH).expect("typed decision fits");
         assert!(matches!(answer, Answer::Done(Outcome::Document(DocumentOutcome::ProjectMade { .. }))));
     }
 }
 
 #[test]
 fn only_the_scoped_can_make_or_rename() {
-    let mut engine = Engine::new(owned(), 1).unwrap();
+    let mut engine = Engine::new(owned(), 1).expect("valid script");
     for ask in [make(b"Tally", 1), Ask::Rename { project: 1, name: text(b"Tally") }] {
         refused_as(&mut engine, 2, &ask, Refusal::Role { held: Some(HeldRole::Policy { role: 1 }) });
     }
@@ -55,7 +55,7 @@ fn only_the_scoped_can_make_or_rename() {
 fn configured_policy() -> Engine {
     let mut script = owned();
     script.truth.policies = Some(vec![2]);
-    Engine::new(script, 1).unwrap()
+    Engine::new(script, 1).expect("valid script")
 }
 #[test]
 fn a_make_with_an_unconfigured_policy_is_refused() {
@@ -64,16 +64,23 @@ fn a_make_with_an_unconfigured_policy_is_refused() {
 #[test]
 fn a_make_accepts_the_scripts_configured_policy() {
     let mut engine = configured_policy();
-    let (answer, _) = engine.decide(1, &make(b"Tally", 2), Wall::EPOCH).unwrap();
+    let (answer, _) = engine.decide(1, &make(b"Tally", 2), Wall::EPOCH).expect("typed decision fits");
     assert_eq!(answer, Answer::Done(Outcome::Document(DocumentOutcome::ProjectMade { project: 2 })));
 }
 
 fn with_hidden_project() -> Engine {
     let mut script = owned();
-    let hidden = script.truth.frames.get_mut(&2).unwrap().projects.get_mut(0).unwrap();
+    let hidden = script
+        .truth
+        .frames
+        .get_mut(&2)
+        .expect("fixture hidden frame")
+        .projects
+        .get_mut(0)
+        .expect("fixture hidden project");
     hidden.project = 100;
     hidden.name = DocumentText::complete(text(b"Hidden"));
-    Engine::new(script, 1).unwrap()
+    Engine::new(script, 1).expect("valid script")
 }
 #[test]
 fn project_names_collide_with_hidden_projects() {
@@ -83,14 +90,16 @@ fn project_names_collide_with_hidden_projects() {
 }
 #[test]
 fn a_rename_excludes_its_own_project_from_collisions() {
-    let mut engine = Engine::new(owned(), 1).unwrap();
-    let (answer, _) = engine.decide(1, &Ask::Rename { project: 1, name: text(b"PROJECT") }, Wall::EPOCH).unwrap();
+    let mut engine = Engine::new(owned(), 1).expect("valid script");
+    let (answer, _) = engine
+        .decide(1, &Ask::Rename { project: 1, name: text(b"PROJECT") }, Wall::EPOCH)
+        .expect("typed decision fits");
     assert_eq!(answer, Answer::Done(Outcome::Document(DocumentOutcome::Renamed { project: 1 })));
 }
 #[test]
 fn a_make_is_numbered_past_every_project_held_by_the_script() {
     let mut engine = with_hidden_project();
-    let (answer, _) = engine.decide(1, &make(b"Tally", 1), Wall::EPOCH).unwrap();
+    let (answer, _) = engine.decide(1, &make(b"Tally", 1), Wall::EPOCH).expect("typed decision fits");
     assert_eq!(answer, Answer::Done(Outcome::Document(DocumentOutcome::ProjectMade { project: 101 })));
 }
 
@@ -100,9 +109,9 @@ fn making_a_project_without_room_is_refused_with_the_deployments_limit() {
     script.bounds.rows = 1;
     // The standard creating offer reserves more than one row; this fixture needs no offer.
     for frame in script.truth.frames.values_mut() {
-        frame.projects.get_mut(0).unwrap().creating = None;
+        frame.projects.get_mut(0).expect("fixture project").creating = None;
     }
-    let mut engine = Engine::new(script, 1).unwrap();
+    let mut engine = Engine::new(script, 1).expect("valid script");
     refused_as(
         &mut engine,
         1,

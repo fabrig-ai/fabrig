@@ -83,6 +83,7 @@ fn opening() -> record::Opening {
         prices: record::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         budget: 100,
         answered: Box::new([]),
+        withheld: None,
         transcript: Some(transcript),
     }
 }

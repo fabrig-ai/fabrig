@@ -1370,9 +1370,9 @@ section 8; testing-strategy.md, 2.9).
   record (`TEMPER_LIVE_ACCOUNT`) and
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge` on a held Claude
   Code login (`TEMPER_LIVE_CLAUDE`, with `claude` on the machine's `PATH`), both
-  from fab's shelf of logins. fab's after-landing run with `--live` runs profile
-  `live-temper` under `--run-ignored only`, whose default filter selects these two
-  alone. Automatic live runs take the cheapest models, as the user requires:
+  named inputs of the after-landing tier. The tier runs profile `live-temper`
+  under `--run-ignored only`, whose default filter selects these two alone.
+  Automatic live runs take the cheapest models, as the user requires:
   `gpt-6-luna` and `claude-haiku-5-5`.
   - **One invocation, a store per story:** the runner sets one fresh
     `TEMPER_LIVE_STORE`; each story takes its own store beneath it, named by the
@@ -2157,7 +2157,7 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   made cheaper at the cause the profile shows, or moved only where their
   checks belong under 8.1, by named steps. A change after which the real
   loop's sum is at 15 s or past it puts the ceiling to the user, with
-  its measurements (the repository's `AGENTS.md`, section 6); until the
+  its measurements (the repository's `AGENTS.md`, section 5); until the
   user moves it, the 15 s stands.
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
@@ -2370,8 +2370,8 @@ triage's charter, which the reference's table does not name, is an obligation
 through the profile (`../draft/reference-landing.md`, section 6), as
 `../protocol/configuration.md`, 13.9 makes it the reference's: its
 instructions (`judged`), its model, and `inspect` true with `modify`,
-`shell` and `agents` false. With the reference's milestones landed, no
-field of the table is a gap: each is a setting or the box's. The kind
+`shell` and `agents` false. No field of the table is a gap: the design
+carries each, as a setting or the box's. The kind
 stays for a field a later edition of the table adds before a design
 carries it.
 
@@ -2479,8 +2479,8 @@ become structure, and accepts with running work staying as it is.
   lacking); the judge's brief for that evidence, as golden text; the
   verdict's decoder refusing an unknown rule, a rule twice or missing;
   `collect`'s assembly from recorded ctl outputs.
-- **Walked** after this plan lands, and again whenever the agent's
-  instructions, the documentation in the binary or a reference
+- **Walked,** never in the gate: a pass of QA, run again whenever the
+  agent's instructions, the documentation in the binary or a reference
   milestone's settings change (`../draft/configuring.md`, 8.1).
 
 ## 7. Layout
@@ -2598,6 +2598,13 @@ scripts/proof-live.sh               the live tier
 - **The machine's git in the process tier.** Default: whatever git the
   test host has, 2.41 or later, which ../protocol/git.md's start refuses below
   (../protocol/git.md, section 3); transcripts are of 2.53.
+- **Stage 1's figures** (6.5): the box's limits and the walk's bounds,
+  which are the user's (`../draft/configuring.status.md`). Default: the
+  box's limits the reference's profile whole (6.5.2), its spends and
+  times the box's; the pass at most 3 hours of wall time from the box's
+  start to the stage's verdict, the configuring chat at most 40 of the
+  person's messages, and the judge one session at Opus 5.5, high,
+  within 30 minutes.
 
 ## 11. Later
 

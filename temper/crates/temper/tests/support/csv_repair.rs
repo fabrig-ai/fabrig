@@ -18,8 +18,8 @@ fn now() -> Time {
 }
 
 const NOTE: &str = "Widget prints its table with --csv.\n";
-// Source: ladder-b01/g1/report.md, the proved gate also printed byte for byte
-// in qa-focused/rung-b1-brief.md's appendix. No action or external service.
+// The release-note gate a walk against Forgejo proved, recorded byte for byte on
+// 2026-10-27. No action or external service.
 const WORKFLOW: &str = r#"on:
   push:
     branches: [main]

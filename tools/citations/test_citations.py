@@ -269,16 +269,54 @@ class Citations(unittest.TestCase):
         self.assertNotIn("notes.md", result.stdout)
         self.assertIn("skein/crates/k/src/lib.rs:4: path gone.md", result.stdout)
 
-    def test_other_repositories_dates_and_rfcs_are_not_citations(self):
+    def test_hearths_documents_dates_and_rfcs_are_not_citations(self):
         self.write(f"{DESIGN}/c.md",
-                   "# c\n\n## 1. One\n\nAs hearth's `domain/store.md`, 5.2, and agents' `docs/design/gone.md`, 4.\n\n"
+                   "# c\n\n## 1. One\n\nAs hearth's `domain/store.md`, 5.2, says.\n\n"
                    "Decided with `a.md`, 2026-10-05; RFC 6749, section 5.1, allows it.\n")
         self.commit("head")
         result = self.since_base()
         self.assertEqual(result.returncode, 0, result.stdout)
 
+    def test_another_repositorys_document_is_refused(self):
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\n## 1. One\n\nAs the probe repository's `docs/design/a.md`, 2.1, says.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"{DESIGN}/c.md:5: path docs/design/a.md (outside)", result.stdout)
+        self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+
+    def test_a_possessive_is_no_exception(self):
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\n## 1. One\n\nAs the probe's `docs/design/gone.md`, 4, says.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"{DESIGN}/c.md:5: path docs/design/gone.md", result.stdout)
+
+    def test_a_determiners_repository_is_this_one(self):
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\nA gate is a repository's (`a.md`, 2.1); the repository's `a.md`, 9, is gone.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"section {DESIGN}/a.md 9", result.stdout)
+        self.assertNotIn("(outside)", result.stdout)
+        self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+
+    def test_design_md_and_tools_markdown_are_read(self):
+        for rel in ("DESIGN.md", "tools/t/README.md"):
+            self.write(rel, "See `gone.md`.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        for rel in ("DESIGN.md", "tools/t/README.md"):
+            self.assertIn(f"{rel}:1: path gone.md", result.stdout)
+        self.assertEqual(len(result.stdout.splitlines()), 2, result.stdout)
+
     def test_plans_are_not_read(self):
         self.write("skein/docs/plan/p/tasks/t.md", "# t\n\nDelete `../../../design/a.md`, 2.1.\n")
+        self.write("skein/docs/plan/p/plan.toml", "# Deletes `../../design/gone.md`.\n")
         self.commit("plan")
         self.write(f"{DESIGN}/a.md", DOC.replace("### 2.1 Part", "### 2.2 Part"))
         self.write(f"{DESIGN}/b.md", "# b\n\n## 1. One\n")
