@@ -51,7 +51,7 @@ def main():
             with contextlib.redirect_stdout(sys.stderr):
                 target.mkdir(parents=True, exist_ok=True)
                 runner['wait_for_disk'](env)
-                command = ['heavy', 'cc', '-std=c11', '-O2', '-static', '-Wall',
+                command = [*runner['command_prefix'](env), 'cc', '-std=c11', '-O2', '-static', '-Wall',
                            '-Wextra', '-Werror', str(source), '-o', str(wrapper)]
                 print(f'tiers: CPU wrapper: {shlex.join(command)}', flush=True)
                 code = subprocess.run(command, env=env, stdin=subprocess.DEVNULL,

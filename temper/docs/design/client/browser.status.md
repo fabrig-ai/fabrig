@@ -2,11 +2,6 @@
 
 2026-11-04. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 8.4: the public browser walk's project-link checks expect
-  `Project <identifier prefix>` (`temper/tests/client-browser/tests/browser_all/browser_public.rs`,
-  `Walk::project_label`), where the public projects view uses the
-  project's name (`temper/crates/temper-client-view/src/public/pages.rs`,
-  `Draw::projects`).
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,
