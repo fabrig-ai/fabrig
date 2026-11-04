@@ -809,7 +809,12 @@ have one, an engine alone none. Each:
     its largest event with smith's 2-byte separator within the agent's
     message, and the agent's message less that separator within the
     hub's event. So `hub.event_bytes` is the agent's `message_bytes` less
-    2, and no other value starts;
+    2, and no other value starts. Payload-related refusals name the
+    exact override, its configured bytes and its required lower or
+    upper bound: `checkout.message_bytes`, `hub.event_bytes` and
+    `hub.turn_queue_bytes`. The event's requirement names
+    `agent.json`'s `profile.declared.tool_payload` less the two-byte
+    separator, so the value to set is explicit;
   - the turn's, against the agent's configuration: smith's largest
     turn, the `turn_body` its configuration derives (smith's
     `smith-agent-service`, `profile`; its models' reasoning allowances
