@@ -709,6 +709,16 @@ service's io.
 - **The box's lines,** for the forge asked:
   - `step FORGE STEP`, `STEP` one of `fetch`, `prepare` and `run`: the
     forge setting up, at that step;
+  - `fetched FORGE BINARY DONE TOTAL`: how far the fetch has gone, told
+    to the root as it comes. The forge domain keeps the latest beside
+    the forge's connection, in memory alone, while that connection is
+    setting up at `fetch`, and any other line's new state drops it, as
+    the pipe closing does: gone at the next step, at `started` and at
+    `failed`. One heard at another step is the domain's to ignore, the
+    link deciding nothing. Each is a change of the forge's row, so at
+    most a hundred or so per binary reach a client
+    (`../client/forge.md`, 5.4), a restart of serve forgets it, and the
+    next line brings it back;
   - **`started FORGE`:** the ask ends and the forge goes connecting. The
     setup host takes the handover with `TakeOver` whenever the file is
     present, even with a kept `AdminToken`, removes it after `Done` and
@@ -743,7 +753,8 @@ service's io.
   it with the link, and the next start asks again.
 - **Named and dropped,** each in one line of the log and changing no
   state: a line for a forge other than the one asked, or while none is;
-  a line whose word, forge number or step the link does not know; and a
+  a line whose word, forge number or step the link does not know; a
+  `fetched` line whose `TOTAL` is zero or whose `DONE` passes it; and a
   line past `box.line_bytes`, named by its bound, skipped to its line
   feed.
 - **The pipe closed:** the box's end of it closed, or a read or a write on the

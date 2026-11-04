@@ -714,7 +714,9 @@ and `connect-forge.html`.
   line, "ORG/NAME", then its steps as a list, each with
   its state in words, "done", "under way" or none for one to come:
   "Fetching Forgejo and its runner" ("Fetched Forgejo and its runner"
-  once done), "Preparing: its database, temper’s admin, your account",
+  once done), and while the row says how far, "· 42%" or "· 41 MB"
+  after it, as the row's words do (the table below), then
+  "Preparing: its database, temper’s admin, your account",
   "Starting Forgejo and its runner", "Connecting as temper", and
   "Making ORG/NAME". The box's step
   names the one under way (fetch, prepare or run); none named yet, no
@@ -797,7 +799,7 @@ says:
   |---|---|
   | not connected | "Not connected", with Connect; where its records say why, "Not connected: its records are unreadable" or "Not connected: its records were made for KIND at ADDRESS", and connecting again overwrites them (`../protocol/forge.md`, at start) |
   | not set up | an owned forge not prepared yet (`../protocol/setup.md`, 6.5): under the box, "Not set up", with "Set up a Forgejo here"; without it, "Not set up: start temper with temper box", with no action, since its group is the box's (`../protocol/setup.md`, 7.4) |
-  | setting up | the box runs its steps, asked: "Setting up: fetching", "Setting up: preparing" or "Setting up: starting", by the box's last word of the step it runs, else "Setting up" (`../protocol/setup.md`, 7.1); then "Connecting", as its handover is taken and reconciled (`../protocol/setup.md`, 5.1) |
+  | setting up | the box runs its steps, asked: "Setting up: fetching", "Setting up: preparing" or "Setting up: starting", by the box's last word of the step it runs, else "Setting up" (`../protocol/setup.md`, 7.1); while it fetches, how far the row says, "Setting up: fetching Forgejo · 42%", then "Setting up: fetching its runner · 80%", the percentage `done × 100 / total` rounded down, or with no size its bytes, "Setting up: fetching Forgejo · 41 MB", `done / 1000000` rounded down, each binary's own (`../protocol/setup.md`, 6.6); then "Connecting", as its handover is taken and reconciled (`../protocol/setup.md`, 5.1) |
   | set up failed | "Set up failed: STEP", naming the box's step, or, after the box's `started`, the engine's step that stopped (taking the handover, reconciling, removing the handover file; `../protocol/setup.md`, 6.5), with `temper box`'s output for the rest until its `failed` line carries a reason; with "Set up again"; the engine and every other forge run on |
   | connecting | "Connecting": a run holds the forge, and what it waits for: a managed or owned Forgejo's reconcile, the forge's answers to a check, or GitHub's conversion of its App; on GitHub, also connected with no accepted installation, "Connecting: installed nowhere yet" with none, or "Connecting: no installation accepted yet" with strays alone, with "Install on GitHub". The person's browser on GitHub is no run, and shows nowhere |
   | connected | "Connected as LOGIN", the user the records hold: the bot's on Forgejo, the App's on GitHub; its id on an Account line |

@@ -15,8 +15,41 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/ui.md, 3.2"
 
+[[part]]
+id = "fetch"
+title = "temper forge fetch keeps each binary's size, refuses a body past it, and says how far it has gone on stdout"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 6.6"
+
+[[part]]
+id = "box"
+title = "the box turns an asked fetch's lines into fetched lines on its pipe, shows none on its terminal, and keeps its replies"
+mode = "direct"
+needs = ["fetch"]
+design = "temper/docs/design/protocol/setup.md, 7.2"
+
+[[part]]
+id = "row"
+title = "serve keeps the latest line in memory, and the forge's row carries it to every client"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/forge.md, 2.8"
+
 [[slice]]
 id = 1
 story = "a progress node built with a fraction and words reaches a page with its aria-value attributes and data-progress, and the stylesheet gives an owner's rule a width to read"
 parts = ["progress-value"]
+walk = false
+
+[[slice]]
+id = 2
+story = "temper forge fetch says how far it has gone, the box passes it on the pipe, and no terminal shows it"
+parts = ["fetch", "box"]
+walk = false
+
+[[slice]]
+id = 3
+story = "a fetched line on the pipe sets the forge's row, and the row's progress is gone at the next step, at started and at failed"
+parts = ["row"]
 walk = false
