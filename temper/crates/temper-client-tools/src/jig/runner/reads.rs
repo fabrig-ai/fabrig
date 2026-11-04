@@ -255,7 +255,7 @@ pub(super) fn page(
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
     if local == super::application::SLOT && reading.application.query.is_some() {
         reading.pending &= !(1 << super::application::SLOT);
-        if let Err(page) = super::application::received(&mut reading, page) {
+        if let Err(page) = super::application::received(&mut reading, page, &env.limits) {
             let printed = render::read(
                 &page,
                 client,
@@ -442,7 +442,7 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
-    if reading.called.call.tool == rows::PROPOSAL_AT
+    if (reading.called.call.tool == rows::PROPOSAL_AT || reading.called.call.tool == rows::REVISION_AT)
         && let Some(query) = super::application::next(&reading)
     {
         super::application::read(runner, &mut reading, query, out);
@@ -550,26 +550,7 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
     let task = number(&reading.called.call, 0).unwrap_or(0);
     match reading.called.call.tool {
         rows::SETTINGS_AT => read(runner, reading, 1, c::Read::Settings, out),
-        rows::SETTING_AT => {
-            let call = &reading.called.call;
-            let setting = match reading.parts.setting_selector(call) {
-                Some(setting) => setting,
-                None => super::super::settings_file::selector(call),
-            };
-            match number(call, 2) {
-                Some(n) => {
-                    let revision = u32::try_from(n).expect("parsed revision");
-                    read(
-                        runner,
-                        reading,
-                        1,
-                        c::Read::Setting(c::ReadSetting { setting, revision, proposal: None }),
-                        out,
-                    );
-                }
-                None => read(runner, reading, 6, c::Read::Settings, out),
-            }
-        }
+        rows::SETTING_AT => setting_start(runner, reading, out),
         rows::REVISION_AT => {
             let number = u32::try_from(task).expect("parsed revision");
             read(runner, reading, 1, c::Read::Revision(c::ReadRevision { number }), out);
@@ -582,6 +563,35 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
             None => read(runner, reading, 1, c::Read::Revisions(c::ReadRevisions { before: None }), out),
         },
         _ => unreachable!("settings read tool"),
+    }
+}
+
+fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
+    let call = &reading.called.call;
+    let setting = match reading.parts.setting_selector(call) {
+        Some(setting) => setting,
+        None => super::super::settings_file::selector(call),
+    };
+    if let c::Setting::Application { .. } = setting {
+        if let Some(revision) = number(call, if call.form == 2 { 3 } else { 2 }) {
+            super::application::historical(
+                runner,
+                reading,
+                setting,
+                u32::try_from(revision).expect("parsed revision"),
+                out,
+            );
+        } else {
+            read(runner, reading, 6, c::Read::Settings, out);
+        }
+        return;
+    }
+    match number(call, 2) {
+        Some(n) => {
+            let revision = u32::try_from(n).expect("parsed revision");
+            read(runner, reading, 1, c::Read::Setting(c::ReadSetting { setting, revision, proposal: None }), out);
+        }
+        None => read(runner, reading, 6, c::Read::Settings, out),
     }
 }
 

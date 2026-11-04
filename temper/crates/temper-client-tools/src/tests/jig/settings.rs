@@ -442,6 +442,12 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
             }))),
         );
     }
+    while root.family_reads.contains_key(&call) {
+        let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
+            panic!("revision value")
+        };
+        root.serve_readout(call, forge_setting_page(Some(forge_value(query.kind()))));
+    }
     root.answer(call).expect("read completed")
 }
 fn serve_review(root: &mut fixtures::Harness, call: u32, value: c::ReadValue) {
@@ -1946,7 +1952,6 @@ fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
 fn forge_setting_commands_refuse_selectors_outside_their_forms() {
     for argv in [
         vec!["settings", "show", "landing-rule", "0"],
-        vec!["settings", "show", "landing-rule", "1", "--revision", "2"],
         vec!["settings", "show", "forge-charter", "0"],
         vec!["settings", "show", "forge-charter", "3"],
         vec!["settings", "show", "forge-charter", "1", "--project", "1"],
@@ -2443,5 +2448,84 @@ fn malformed_template_resources_name_the_member_before_sending() {
         let (mut root, call) = changed(&file, false);
         assert!(root.sends.is_empty());
         assert_eq!(root.answer(call).expect("local refusal").status, 1);
+    }
+}
+
+#[test]
+fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
+    for json in [false, true] {
+        let (mut root, call) =
+            fixtures::read_call(if json { &["revision", "show", "5", "--json"] } else { &["revision", "show", "5"] });
+        let items = [(2, 1), (3, 0)].map(|(kind, scope)| c::RevisionItem {
+            setting: c::Setting::Application { kind, scope, number: 1 },
+            edit: c::RevisionEdit::Application(c::SizedEdit::Set {
+                size: u32::try_from(forge_value(kind).len()).unwrap(),
+            }),
+            replaced: if kind == 3 { c::RevisionReplaced::Default } else { c::RevisionReplaced::NotOffered },
+        });
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+                head: head(c::RevisionDecider::Release),
+                items: list(items),
+            })))),
+        );
+        for kind in [2, 3] {
+            assert!(root.answer(call).is_none(), "revision must read historical forge values before printing");
+            let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
+                panic!("revision-qualified read")
+            };
+            assert_eq!(
+                (query.kind(), query.scope(), query.number(), query.revision()),
+                (kind, u32::from(kind == 2), 1, 5)
+            );
+            root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
+        }
+        let answer = root.answer(call).expect("historical values joined");
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        assert!(text.contains("\"ci\":false"), "{text}");
+        assert!(text.contains(if json { "\"set\":6" } else { "\n6\n" }), "{text}");
+        assert!(text.contains(if json { "\"replaced\":\"default\"" } else { "was: default" }), "{text}");
+    }
+}
+
+#[test]
+fn revision_show_large_temper_values_name_a_working_historical_read() {
+    for json in [false, true] {
+        let (mut root, call) =
+            fixtures::read_call(if json { &["revision", "show", "5", "--json"] } else { &["revision", "show", "5"] });
+        root.limits.tools.result_bytes = 512;
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+                head: head(c::RevisionDecider::Release),
+                items: list([c::RevisionItem {
+                    setting: c::Setting::Application { kind: 2, scope: 1, number: 1 },
+                    edit: c::RevisionEdit::Application(c::SizedEdit::Set { size: 100 }),
+                    replaced: c::RevisionReplaced::Default,
+                }]),
+            })))),
+        );
+        root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
+        let answer = root.answer(call).expect("bounded historical read");
+        assert_eq!(answer.status, 0, "{answer:?}");
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        let command = "settings show landing-rule 1 --project 1 --revision 5";
+        assert!(text.contains(command), "{text}");
+        assert!(text.contains(if json { "\"too_large\":" } else { "too large," }), "{text}");
+        let mut argv: Vec<_> = command.split(' ').collect();
+        if json {
+            argv.push("--json");
+        }
+        let (mut root, call) = fixtures::read_call(&argv);
+        let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
+            panic!("qualified historical read")
+        };
+        assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (2, 1, 1, 5));
+        root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
+        let answer = root.answer(call).expect("whole historical value");
+        assert_eq!(answer.status, 0);
+        assert!(core::str::from_utf8(&answer.stdout).unwrap().contains("\"ci\":false"));
     }
 }

@@ -325,7 +325,7 @@ fn ctl_accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u
 }
 
 #[test]
-#[ignore = "tools.md, 11.2: joint component does not correlate ForgeRead replies; Restore also awaits restore-request"]
+#[ignore = "tools.md, 11.2: Restore awaits restore-request"]
 fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
     let mut world = restore_world();
     let agent = fixtures::agent(&mut world);
@@ -499,4 +499,90 @@ fn assert_review_json(json: &str) {
     assert!(!enforced.contains("\"number\":3"), "{json}");
     assert!(followed.contains("\"number\":1") && followed.contains("\"number\":3"), "{json}");
     assert!(!followed.contains("\"kind\":\"rules\""), "{json}");
+}
+
+fn revision_world() -> ClientWorld {
+    let mut world = fixtures::kinds_world(fixtures::SEED);
+    let front = world.front();
+    let mut limits = front.engine.env.limits;
+    limits.people.initial_owners = 2;
+    limits.people.requests = 16;
+    limits.settings.history = 4;
+    limits.tasks.charters = 8;
+    let mut config = restore_configuration(&limits);
+    let mut charter = config.core.defaults.charters[0].clone();
+    charter.number = 6;
+    let mut charters = config.core.defaults.charters.into_vec();
+    charters.push(charter);
+    config.core.defaults.charters = charters.into_boxed_slice();
+    let forge = front.engine.forge.take();
+    front.engine = Driver::cold(Store::with_limits(&limits), config, &limits);
+    front.engine.forge = forge;
+    front.engine.settle();
+    world
+}
+
+fn accept_forge_file(world: &mut ClientWorld, agent: ClientId, against: &[u8], key: &[u8], file: &str) {
+    let number = fixtures::give_with_file(
+        world,
+        agent,
+        &[b"settings", b"propose", b"settings.json", b"Set the forge values", b"--against", against, b"--key", key],
+        file.as_bytes(),
+    );
+    let printed = fixtures::answered(world, agent, number);
+    assert_eq!(printed.status, 0, "{printed:?}");
+    let text = String::from_utf8(printed.stdout.into_vec()).expect("proposal");
+    let proposal = text.strip_prefix("proposed: ").expect("proposed outcome").split_once(", ").expect("recipient").0;
+    ctl_accept(world, agent, proposal, &[key, b"-accept"].concat());
+}
+
+fn forge_revision_file(charter: u32, ci: bool) -> String {
+    format!(
+        r#"{{"items":[{{"setting":{{"kind":"landing-rule","number":1,"project":1}},"set":{{"pattern":{{"segments":["666f726765"],"last":{{"exact":"6d61696e"}}}},"enforce":true,"ci":{ci},"up_to_date":false,"gates":[],"approvals":[]}}}},{{"setting":{{"kind":"forge-charter","number":1}},"set":{charter}}}]}}"#
+    )
+}
+
+#[test]
+fn revision_show_keeps_temper_values_after_both_settings_are_overwritten() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    let defaults = call(&mut world, agent, &[b"revision", b"show", b"1"]);
+    accept_forge_file(&mut world, agent, b"1", b"first-forge", &forge_revision_file(6, false));
+    let first = forge_revision_outputs(&mut world, agent);
+    accept_forge_file(&mut world, agent, b"2", b"second-forge", &forge_revision_file(4, true));
+    let after = forge_revision_outputs(&mut world, agent);
+    assert_eq!(after, first, "historical values must survive later accepted edits");
+    accept_forge_file(
+        &mut world,
+        agent,
+        b"3",
+        b"erase-forge",
+        r#"{"items":[{"setting":{"kind":"landing-rule","number":1,"project":1},"edit":"removed"},{"setting":{"kind":"forge-charter","number":1},"edit":"reset"}]}"#,
+    );
+    assert_eq!(forge_revision_outputs(&mut world, agent), first);
+    assert_eq!(call(&mut world, agent, &[b"revision", b"show", b"1"]), defaults);
+    let erased = call(&mut world, agent, &[b"revision", b"show", b"4"]);
+    assert!(erased.contains("removed") && erased.contains("reset"), "{erased}");
+    for (kind, project) in [(b"landing-rule".as_slice(), true), (b"forge-charter".as_slice(), false)] {
+        let mut words = vec![b"settings".as_slice(), b"show", kind, b"1", b"--revision", b"2"];
+        if project {
+            words.extend_from_slice(&[b"--project", b"1"]);
+        }
+        let shown = call(&mut world, agent, &words);
+        assert!(shown.contains(if project { "\"ci\":false" } else { "\n6\n" }), "{shown}");
+    }
+}
+
+fn forge_revision_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 2] {
+    [false, true].map(|json| {
+        let mut words = vec![b"revision".as_slice(), b"show", b"2"];
+        if json {
+            words.push(b"--json");
+        }
+        let shown = call(world, agent, &words);
+        assert!(shown.contains("\"ci\":false"), "{shown}");
+        assert!(shown.contains(if json { "\"set\":6" } else { "\n6\n" }), "{shown}");
+        assert!(shown.contains("landing-rule") && shown.contains("forge-charter"), "{shown}");
+        shown
+    })
 }

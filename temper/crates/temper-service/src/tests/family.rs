@@ -1461,13 +1461,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_eleven() {
-    // The pinned jig v15 generated Unknown golden was [9]. All 422 existing
-    // refusal dependency goldens are identical at v16; new tags are appended.
+fn embedded_client_refusals_keep_their_bytes_at_client_twelve() {
+    // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v19::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 11);
+    assert_eq!(wire::CLIENT_VERSION, 12);
 }
 
 #[test]

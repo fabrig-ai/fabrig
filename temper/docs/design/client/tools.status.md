@@ -29,9 +29,8 @@
   joined story of a settings file of each kind proposed, shown, accepted
   and restored (`tests/client`'s `settings_tools.rs`,
   `each_kind_through_ctl_proposed_shown_accepted_and_restored`),
-  ignored because the world's joint component does not correlate the
-  forge's `ForgeRead` replies, its reason naming `restore-request` too,
-  on main since. 11.3:
+  ignored pending the restore request path; the joint component correlates
+  forge setting reads, including historical revision values. 11.3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
