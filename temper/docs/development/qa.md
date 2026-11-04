@@ -66,7 +66,7 @@ section 8.
 
 - **A box in the pass's scratch directory,** started as the walk `box`
   says (`temper help box`), with the flags of its rung, and stopped by
-  the pass before it ends.
+  the pass before it ends. Each rung's stories are `acceptance.md`.
 - **The rungs:**
 
   | Rung | Forges | Model | What it needs |
