@@ -212,7 +212,7 @@ fn a_stop_clears_all_fields_and_returns_to_details_before_the_answer() {
         assert!(root.forge().tokens_form().written[field.index()] > written[field.index()]);
     }
     assert_eq!(
-        forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None),
+        forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true),
         forge::connect::Shown::Details(Choice::Forge(FORGE))
     );
     paste(&mut root, Field::Api, &bytes(1, 16));
@@ -243,7 +243,7 @@ fn a_stop_clears_all_fields_and_returns_to_details_before_the_answer() {
         assert!(root.forge().tokens_form().written[field.index()] > written[field.index()]);
     }
     assert_eq!(
-        forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None),
+        forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true),
         forge::connect::Shown::Details(Choice::Forge(FORGE))
     );
     paste(&mut root, Field::Api, &bytes(1, 16));

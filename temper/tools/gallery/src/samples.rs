@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 80;
+pub const N: usize = 83;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -70,6 +70,7 @@ fn task(task: u64) -> Address {
 }
 
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
     [
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
@@ -93,6 +94,9 @@ pub fn samples() -> [Sample; N] {
             temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
         ),
         welcome_sample("welcome-model-choose", temper_client_domain::Step::Model { way: None }),
+        model_forge_sample("welcome-model-forge-under-way", 6),
+        model_forge_sample("welcome-model-forge-done", 7),
+        model_forge_sample("welcome-model-forge-failed", 9),
         welcome_model_sample("welcome-model-key-details", temper_client_domain::WayKind::Key, Shown),
         welcome_model_sample("welcome-model-signing-in", temper_client_domain::WayKind::SignIn, SigningIn),
         welcome_model_sample("welcome-model-signin-ready", temper_client_domain::WayKind::SignIn, SignInReady),
@@ -191,6 +195,14 @@ fn github_sample(name: &'static str, step: u8) -> Sample {
 }
 fn welcome_sample(name: &'static str, step: temper_client_domain::Step) -> Sample {
     Sample { name, world: World::FirstRun { step: 0 }, address: Address::Welcome { step }, then: Then::Shown }
+}
+fn model_forge_sample(name: &'static str, step: u8) -> Sample {
+    Sample {
+        name,
+        world: World::FirstRun { step },
+        address: Address::Welcome { step: temper_client_domain::Step::Model { way: None } },
+        then: Then::Shown,
+    }
 }
 fn owned_sample(name: &'static str, step: u8, ready: bool) -> Sample {
     Sample {

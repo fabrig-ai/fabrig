@@ -3,7 +3,7 @@
 //! the session's opener. The session defines them; its parent depends on it.
 //! Contracts: smith/docs/design/domain/session.md, sections 3–7.
 //! This module retains no runtime state and knows no provider wire format,
-//! host policy or checkout contents; [`Event`] and [`Request`] are the typed
+//! host policy or workspace contents; [`Event`] and [`Request`] are the typed
 //! entrances and exits for the stateful session module.
 //!
 //! Two shapes cross it. A session's lifecycle, with its opener: an
@@ -288,7 +288,7 @@ pub struct Spec {
     /// System instructions supplied by the opener, retained within the enclosing byte cap.
     pub system: Box<[u8]>,
     /// What the session's own tools may do and where (the families the LLM
-    /// may call among them, the checkout's repositories, what commands run
+    /// may call among them, the workspace's repositories, what commands run
     /// with), copied into its kit; and the tools its opener serves.
     pub authority: tools::Authority,
     /// Opener-owned tool descriptors; tickets are resolved only by the opener.

@@ -4,7 +4,7 @@
 //! here, through small total functions, each an exhaustive match, so that a
 //! variant added on either side breaks the build in one place.
 //! These functions retain no state and know no provider wire syntax, host
-//! policy or checkout contents. The root calls them while routing openings,
+//! policy or workspace contents. The root calls them while routing openings,
 //! tools, outcomes and turn records between its two child domains.
 
 use alloc::boxed::Box;
@@ -47,12 +47,12 @@ pub(crate) struct Offered {
 }
 
 /// The session's spec for a conversation the run opens with `opening`, and
-/// the tools the run serves it; or `None` if the checkout cannot be laid out
+/// the tools the run serves it; or `None` if the workspace cannot be laid out
 /// for the tools.
 ///
 /// The run's LLM is the session's endpoint, model and answer size; its system
 /// text and first message are the session's; its share of the budget is the
-/// session's budget. The tools it runs on the checkout, the checkout and which
+/// session's budget. The tools it runs on the workspace, the workspace and which
 /// of it may be written make the tools' authority. What the run serves is
 /// offered as descriptors: `finish` if the opening says so, a write, run
 /// alone; sub-agents if its families have them, a write when the families
@@ -140,7 +140,7 @@ pub(crate) fn spec(
     Some((spec, offered))
 }
 
-/// The tools' authority over `checkout` with `tools`, or `None` if a
+/// The tools' authority over `workspace` with `tools`, or `None` if a
 /// repository's name cannot be a directory's.
 ///
 /// Each repository is mounted at the root, under its name, which is how the

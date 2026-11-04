@@ -17,17 +17,14 @@ Reads no directory and no configuration, so it works before temper init. A name 
 
 ## temper init
 
-`temper init [DIRECTORIES]`
+`temper init [DIRECTORIES] [--box]`
 
 Write a deployment that starts, with temper's default configuration, into the three directories.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- `--box`: Also write the box's parts: the welcome, the owned Forgejo and the playground.
 
-Init chooses five distinct ports on `127.0.0.1`, preferring 8367 for
-clients, 8368 for owned Forgejo, 8369 for the fake forge, 8370 for the
-demo LLM and 8371 for webhooks. Each occupied port falls back to a free
-port from the kernel. It writes matching listener, forge remote and
-demo LLM addresses into `temper.json` and `agent.json`.
+Alone, init chooses two ports on `127.0.0.1`, preferring 8367 for clients and 8371 for webhooks. With `--box`, it adds the welcome, owned Forgejo and playground: five ports, preferring 8367 for clients, 8368 for owned Forgejo, 8369 for the fake forge, 8370 for the demo LLM and 8371 for webhooks. Taken ports fall back to the kernel. It writes matching addresses in `temper.json` and `agent.json`.
 
 To choose ports for another box, leave the first running and give init
 separate empty configuration, data and cache directories. No port flag

@@ -42,6 +42,12 @@ fn a_person_signs_in_by_the_printed_link_and_a_chat_is_answered() {
     assert_eq!(outcome.chats_answered, 1);
 }
 #[test]
+fn a_person_on_a_deployment_with_no_welcome_finds_the_inbox() {
+    let outcome = world::run(fixtures::calm(fixtures::SEED), world::Story::NoWelcome);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.signed_in, 1);
+}
+#[test]
 fn a_person_keeps_the_sign_in_held_by_a_fresh_printed_link() {
     let starts = world::sign_in_again(fixtures::calm(fixtures::SEED));
     for outcome in starts {

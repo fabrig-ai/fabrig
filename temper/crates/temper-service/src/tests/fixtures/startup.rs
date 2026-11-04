@@ -13,7 +13,7 @@ pub const APPLICATION: &[u8] = br#"{
 "landing":{"projects":[{"project":1}]},
 "demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
 }"#;
-pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
+pub const DEMO: &str = r#""welcome":true,"demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
 {"cue":"Add a dark theme to widget","turns":["Theme"]},
 {"cue":"Fix widget's empty search state","turns":["Search"]}],

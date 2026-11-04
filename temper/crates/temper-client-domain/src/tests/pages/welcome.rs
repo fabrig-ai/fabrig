@@ -23,6 +23,10 @@ fn deliver(root: &mut Domain, watch: Token, delivery: c::Delivery) -> Queue<Requ
     up(root, Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) })
 }
 fn answer(root: &mut Domain, present: bool) {
+    crate::tests::deployment::answer(root, true, true);
+    playground_answer(root, present);
+}
+fn playground_answer(root: &mut Domain, present: bool) {
     let mut out = Queue::with_capacity(1);
     forge::playground::told(&mut root.forge, &Told::Link { link: Link::Offline }, f::limits().forge, &mut out);
     forge::playground::told(&mut root.forge, &Told::Link { link: Link::Live }, f::limits().forge, &mut out);
@@ -187,6 +191,52 @@ fn moved(mut out: Queue<Request>, replace: bool) -> bool {
 }
 fn decided(root: &Domain) -> bool {
     root.pages().welcome().unwrap().decided
+}
+fn shown(mut out: Queue<Request>) -> Option<(Address, bool)> {
+    let mut shown = None;
+    while let Some(request) = out.pop() {
+        if let Request::Show { address, replace } = request {
+            assert!(shown.is_none(), "one address change");
+            shown = Some((address, replace));
+        }
+    }
+    shown
+}
+#[test]
+fn no_welcome_moves_each_step_on_to_the_inbox() {
+    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+        let (mut root, _, _, _) = opened(true, step);
+        crate::tests::deployment::answer(&mut root, false, false);
+        let Some((address, _)) = shown(go(&mut root, step)) else { panic!("{step:?} moves on") };
+        assert_eq!(address, Address::Inbox { filter: crate::address::Filter::ALL });
+        assert!(!decided(&root), "the store is not judged");
+    }
+}
+#[test]
+fn no_welcome_replaces_the_address() {
+    let (mut root, _, _, _) = opened(true, Step::Welcome);
+    crate::tests::deployment::answer(&mut root, false, false);
+    assert_eq!(
+        shown(go(&mut root, Step::Welcome)),
+        Some((Address::Inbox { filter: crate::address::Filter::ALL }, true))
+    );
+}
+#[test]
+fn a_welcome_waits_for_the_read() {
+    let (mut root, _, accounts, forges) = opened(true, Step::Welcome);
+    playground_answer(&mut root, false);
+    account(&mut root, accounts, 18, true);
+    let out = rows(&mut root, forges.unwrap(), 3);
+    assert_eq!(shown(out), None);
+    assert!(!decided(&root));
+    crate::tests::deployment::answer(&mut root, true, true);
+    assert!(decided(&root));
+}
+#[test]
+fn no_welcome_offers_no_playground() {
+    let (mut root, _, _, _) = opened(true, Step::Welcome);
+    crate::tests::deployment::answer(&mut root, false, false);
+    assert_eq!(pages::welcome::playground_offered(&root), Some(false));
 }
 #[test]
 fn an_empty_store_offers_the_playground_and_set_up() {
@@ -822,4 +872,29 @@ fn default_is_refused_until_both_forge_and_model_are_done() {
     rows(&mut root, forges.unwrap(), 3);
     assert!(press_default(&mut root).is_empty());
     assert_eq!(root.pages().default_project().attempt, 0);
+}
+
+#[test]
+fn the_welcome_decision_waits_for_the_deployment_read() {
+    let (mut root, _, accounts, forges) = opened(true, Step::Welcome);
+    playground_answer(&mut root, false);
+    account(&mut root, accounts, 18, false);
+    forge_rows(&mut root, forges.unwrap(), None, false);
+    assert!(root.forge().playground_answered());
+    assert_eq!(pages::welcome::decision(&root), None);
+    assert!(!decided(&root));
+    crate::tests::deployment::answer(&mut root, true, true);
+    assert_eq!(pages::welcome::decision(&root), Some(FirstRun::Empty));
+    assert!(decided(&root), "the deployment answer rebuilds the page");
+}
+#[test]
+fn the_playground_offer_waits_for_the_deployment_and_requires_its_welcome() {
+    let (mut root, _, _, forges) = opened(true, Step::Welcome);
+    playground_answer(&mut root, false);
+    forge_rows(&mut root, forges.unwrap(), None, false);
+    assert_eq!(pages::welcome::playground_offered(&root), None);
+    crate::tests::deployment::answer(&mut root, false, true);
+    assert_eq!(pages::welcome::playground_offered(&root), Some(false));
+    crate::tests::deployment::answer(&mut root, true, false);
+    assert_eq!(pages::welcome::playground_offered(&root), Some(true), "the offer does not require an owned forge");
 }

@@ -651,7 +651,7 @@ fn the_inline_answer_measures_the_exhausted_accounts_wait() {
         (None, Time::from_nanos(20_000_000), None),
     ] {
         let answer = run::Answer::Failed {
-            failure: run::Failure::Model(run::Fault::Limited { account: 23, reset_at }),
+            failure: run::RunFailure::Model(run::Fault::Limited { account: 23, reset_at }),
             spent: run::Spend::ZERO,
             turns: 0,
         };

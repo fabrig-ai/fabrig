@@ -757,7 +757,7 @@ impl skein_world::Referee<Proc> for Referee {
                         if self.full_completion {
                             assert_eq!(
                                 fact.count(),
-                                u64::from(crate::limits().llm.adapter.client.output_items),
+                                u64::from(crate::limits().llm.translation.client.output_items),
                                 "all maximum provider parts decoded"
                             );
                         }
@@ -1371,7 +1371,7 @@ impl World {
                             bytes += text.text().len();
                             let metadata = skein_llm::Replay::from_bytes(
                                 text.replay().as_ref().expect("text replay").bytes(),
-                                &crate::limits().llm.adapter.client.native().document(),
+                                &crate::limits().llm.translation.client.native().document(),
                             )
                             .expect("provider metadata");
                             let document = metadata.value.document();

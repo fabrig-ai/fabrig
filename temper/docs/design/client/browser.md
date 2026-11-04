@@ -347,7 +347,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   cookie, so the browser's stays as it was (jig's `domain/people.md`,
   section 3); a cookie the engine does not know, or one ended or
   expired, signs in afresh, with a new cookie. The welcome follows,
-  which moves on to the chats page once the first run is over
+  which moves on to the chats page once the first run is over, and to
+  the inbox, drawing nothing of itself, on a deployment with no welcome
   (`README.md`, 3.5, The welcome).
 - **A reload, or another tab,** signs in with `Transport`, by the cookie
   (jig's `client/domain/client.md`, section 12).
@@ -469,8 +470,16 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   ink button, a secondary one a white bordered button, a quiet one
   underlined words. The muted line under the cards is 14.5 px; the
   foot, "‹ Back" at the left and the playground alternative at the
-  right, is muted underlined words; the forge's line on Model is a
-  pale green box. Forgejo's sheet is a native modal dialog, 620 px
+  right, is muted underlined words. Model's forge region follows the
+  choices before the foot: from 1280 px, a 272 px pane to the right of
+  the column, its top at the heading's, with a hairline on its left;
+  narrower, in the column with a hairline above. Its line stacks a quiet
+  ring, the forge's strong name in ink and each detail muted on its own
+  line; once connected the ring is a green tick, drawn by style alone,
+  and "Each step" is gone. Under way, the repository precedes the status,
+  with a 3 px hairline track under it, a 35% ink segment sliding across
+  every 1.4 s; reduced motion makes it a faint full track with no animation.
+  Done, failed and GitHub's installation waits have no bar. Forgejo's sheet is a native modal dialog, 620 px
   wide, white, 14 px corners, over a dimmed page: its heading 19 px,
   its line 14 px muted; "Start it with" its fieldset's legend; each
   choice a bordered card, 10 px corners, that picks its choice
@@ -1104,6 +1113,9 @@ from the engine's own answers, is where the look is tuned.
 | `github-picker` | the installation's reached repositories, ready to adopt |
 | `github-adopted` | the adopted GitHub repository and its primary Open act |
 | `welcome-model-choose` | the welcome's Model choices, with ChatGPT sign-in and an API key |
+| `welcome-model-forge-under-way` | Model at first run step 6, Forgejo setting up, its Forge pane and Each step |
+| `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
+| `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
 | `welcome-model-signing-in` | signing in to ChatGPT inside the welcome |
 | `welcome-model-signin-ready` | ChatGPT Ready with the account's address and Accounts-page line |

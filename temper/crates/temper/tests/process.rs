@@ -1917,7 +1917,7 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
         fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("private deployment directories");
     }
     let mut init = std::process::Command::new(skein_scratch::paths::binary("temper"));
-    init.arg("init");
+    init.arg("init").arg("--box");
     for (flag, path) in ["--config", "--data", "--cache"].into_iter().zip(&paths) {
         init.arg(flag).arg(path);
     }
@@ -2099,6 +2099,7 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
     // Init before box.pid exists: a first run requires an empty configuration directory.
     let output = Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
+        .arg("--box")
         .args(support::configuration::flags(scratch.path()))
         .output()
         .expect("init");

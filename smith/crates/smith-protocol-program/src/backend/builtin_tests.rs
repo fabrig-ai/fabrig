@@ -245,7 +245,7 @@ fn a_served_sub_agent_is_listed_inspect_only() {
     prompt.served = Box::new([llm::Served::SubAgent]);
     let direct = protocol::schemas_for_contract(
         prompt,
-        &backend.settings.adapter.stated,
+        &backend.settings.translation.stated,
         outcome,
         deliver.as_ref(),
         backend.settings.contract_bytes,
@@ -309,7 +309,7 @@ fn the_server_keeps_only_remove_when_modify_is_granted() {
         prompt.served = Box::new([llm::Served::Finish, llm::Served::Wait]);
         let expected = protocol::schemas_for_contract(
             prompt,
-            &backend.settings.adapter.stated,
+            &backend.settings.translation.stated,
             &smith_domain::run::outcome::OutcomeSpec {
                 change: None,
                 verdicts: Box::default(),
@@ -640,14 +640,15 @@ fn launch_wraps_the_unchanged_contract_within_its_bound() {
 
 // Native snapshots are supplied by the file boundary, independently of the
 // program's result text and the private startup files.
-fn native_call(name: &str, input: serde_json::Value) -> Backend {
+fn native_call(name: &str, input: serde_json::Value) -> (Backend, Queue<Below>) {
+    let mut below = Queue::with_capacity(64);
     let mut backend = active();
     backend.mounts = Box::new([Mount { root: Token::new(40), host: b"/work/repo".as_slice().into(), writable: true }]);
     if let Some(Complete { prompt, .. }) = backend.current.request_mut() {
         prompt.tools = Grants { inspect: true, modify: true, shell: false };
     }
     let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+
     let message = serde_json::json!({"type":"assistant","message":{"id":"native","content":[
         {"type":"tool_use","id":"n","name":name,"input":input}
     ]}});
@@ -660,11 +661,11 @@ fn native_call(name: &str, input: serde_json::Value) -> Backend {
         prompt.tools = Grants { inspect: true, modify: true, shell: false };
     }
     fixtures::connect_server(&mut backend);
-    native_prompt(&mut backend, "n", name, input);
-    backend
+    native_prompt(&mut backend, "n", name, input, &mut below);
+    (backend, below)
 }
 
-fn native_prompt(backend: &mut Backend, id: &str, name: &str, input: serde_json::Value) {
+fn native_prompt(backend: &mut Backend, id: &str, name: &str, input: serde_json::Value, below: &mut Queue<Below>) {
     let prompt = serde_json::json!({"jsonrpc":"2.0","id":1_u32,"method":"tools/call","params":{
         "name":"permission_prompt","arguments":{"tool_name":name,"input":input,"tool_use_id":id}
     }});
@@ -677,14 +678,15 @@ fn native_prompt(backend: &mut Backend, id: &str, name: &str, input: serde_json:
                 b"\n",
             ])),
         },
-        &mut backend.io,
+        &mut backend.server_up,
+        below,
     );
-    let prompt = backend.startup.server_mut().expect("server").up().expect("prompt");
-    backend.permission(prompt);
+    let prompt = backend.server_up.pop().expect("prompt");
+    backend.permission(prompt, below);
 }
 
-fn allow_native(backend: &mut Backend, input: &serde_json::Value) {
-    let reply = fixtures::server_reply(backend);
+fn allow_native(backend: &mut Backend, input: &serde_json::Value, below: &mut Queue<Below>) {
+    let reply = fixtures::server_reply(backend, below);
     let verdict: serde_json::Value =
         serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("text")).expect("verdict");
     assert_eq!(verdict["behavior"], "allow");
@@ -695,9 +697,9 @@ fn allow_native(backend: &mut Backend, input: &serde_json::Value) {
 const NATIVE_FILE_BYTES: u32 = 128;
 const OVERSIZED_FILE_BYTES: u64 = 129;
 
-fn native_load(backend: &mut Backend) {
-    let mut below = Queue::with_capacity(64);
-    backend.flush(&mut below);
+fn native_load(backend: &mut Backend, below: &mut Queue<Below>) {
+    backend.load_native(below);
+
     let loads: Vec<_> = below
         .iter()
         .filter_map(|request| match request {
@@ -717,6 +719,7 @@ fn native_load(backend: &mut Backend) {
         }
     );
     assert!(backend.owns(backend.token(Owner::Native)));
+    below.clear();
 }
 
 fn native_version(event: Option<ToDomain>, owner: Token, bytes: &[u8]) {
@@ -726,31 +729,35 @@ fn native_version(event: Option<ToDomain>, owner: Token, bytes: &[u8]) {
     assert_eq!(version, smith_domain::tools::Version::new(skein_io::digest::digest(bytes).0));
 }
 
-fn native_result(backend: &mut Backend, error: bool, up: &mut Queue<ToDomain>) {
+fn native_result(backend: &mut Backend, error: bool, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
     let result = serde_json::json!({"type":"user","message":{"content":[
         {"type":"tool_result","tool_use_id":"n","content":"program text","is_error":error}
     ]}});
-    backend.line(&env(0), &serde_json::to_vec(&result).expect("result"), up, &mut Queue::with_capacity(64));
+    backend.line(&env(0), &serde_json::to_vec(&result).expect("result"), up, below);
 }
 
 #[test]
 fn a_whole_native_read_snapshots_before_allow() {
     let input = serde_json::json!({"file_path":"./x/../a"});
-    let mut backend = native_call("Read", input.clone());
-    for request in &backend.io {
+    let (mut backend, mut below) = native_call("Read", input.clone());
+    for request in below.iter().filter_map(|effect| match effect {
+        Below::Io(request) => Some(request),
+        Below::File { .. } => None,
+    }) {
         if let io::Request::Output { .. } = request {
             panic!("no Allow before file terminal");
         }
     }
-    native_load(&mut backend);
+    native_load(&mut backend, &mut below);
     let mut up = Queue::with_capacity(32);
     backend.native_event(
         file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"file bytes".as_slice().into() },
         &mut up,
+        &mut below,
     );
     native_version(up.pop(), COMPLETION, b"file bytes");
     assert!(up.is_empty());
-    allow_native(&mut backend, &input);
+    allow_native(&mut backend, &input, &mut below);
 }
 
 #[test]
@@ -759,11 +766,11 @@ fn a_partial_native_read_never_snapshots_even_with_null_fields() {
         for value in [serde_json::json!(1_u32), serde_json::Value::Null] {
             let mut input = serde_json::json!({"file_path":"a"});
             input[field] = value;
-            let mut backend = native_call("Read", input.clone());
+            let (mut backend, mut below) = native_call("Read", input.clone());
             assert!(backend.native.is_none());
-            allow_native(&mut backend, &input);
+            allow_native(&mut backend, &input, &mut below);
             let mut up = Queue::with_capacity(32);
-            native_result(&mut backend, false, &mut up);
+            native_result(&mut backend, false, &mut up, &mut below);
             result_id(up.pop(), COMPLETION, b"n");
             assert!(up.is_empty(), "no observation that could replace earlier knowledge");
         }
@@ -775,16 +782,17 @@ fn native_writes_and_edits_snapshot_after_their_results_including_errors() {
     for name in ["Write", "Edit"] {
         for error in [false, true] {
             let input = serde_json::json!({"file_path":"a"});
-            let mut backend = native_call(name, input.clone());
+            let (mut backend, mut below) = native_call(name, input.clone());
             assert!(backend.native.is_none(), "no snapshot before result");
-            allow_native(&mut backend, &input);
+            allow_native(&mut backend, &input, &mut below);
             let mut up = Queue::with_capacity(32);
-            native_result(&mut backend, error, &mut up);
+            native_result(&mut backend, error, &mut up, &mut below);
             assert!(up.is_empty(), "result waits for snapshot");
-            native_load(&mut backend);
+            native_load(&mut backend, &mut below);
             backend.native_event(
                 file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"stored bytes".as_slice().into() },
                 &mut up,
+                &mut below,
             );
             native_version(up.pop(), COMPLETION, b"stored bytes");
             let Some(ToDomain::BuiltinResult { text, error: got, .. }) = up.pop() else { panic!("result") };
@@ -798,11 +806,12 @@ fn native_writes_and_edits_snapshot_after_their_results_including_errors() {
 const SNAPSHOT_ERRORS: [kernel::Error; 3] =
     [kernel::Error::NotFound, kernel::Error::Permission, kernel::Error::IsADirectory];
 
-fn fail_native_load(backend: &mut Backend, failure: kernel::Error, up: &mut Queue<ToDomain>) {
-    native_load(backend);
+fn fail_native_load(backend: &mut Backend, failure: kernel::Error, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
+    native_load(backend, below);
     backend.native_event(
         file::Event::Failed { owner: backend.token(Owner::Native), error: failure, committed: false, residue: None },
         up,
+        below,
     );
 }
 
@@ -810,33 +819,34 @@ fn fail_native_load(backend: &mut Backend, failure: kernel::Error, up: &mut Queu
 fn failed_native_read_snapshots_preserve_allow() {
     for failure in SNAPSHOT_ERRORS {
         let input = serde_json::json!({"file_path":"a"});
-        let mut backend = native_call("Read", input.clone());
+        let (mut backend, mut below) = native_call("Read", input.clone());
         let mut up = Queue::with_capacity(32);
-        fail_native_load(&mut backend, failure, &mut up);
+        fail_native_load(&mut backend, failure, &mut up, &mut below);
         assert!(up.is_empty());
-        allow_native(&mut backend, &input);
+        allow_native(&mut backend, &input, &mut below);
     }
     let input = serde_json::json!({"file_path":"a"});
-    let mut backend = native_call("Read", input.clone());
-    native_load(&mut backend);
+    let (mut backend, mut below) = native_call("Read", input.clone());
+    native_load(&mut backend, &mut below);
     let mut up = Queue::with_capacity(32);
     backend.native_event(
         file::Event::TooLarge { owner: backend.token(Owner::Native), size: OVERSIZED_FILE_BYTES },
         &mut up,
+        &mut below,
     );
     assert!(up.is_empty());
-    allow_native(&mut backend, &input);
+    allow_native(&mut backend, &input, &mut below);
 }
 
 #[test]
 fn failed_native_write_snapshots_preserve_result_text() {
     for failure in SNAPSHOT_ERRORS {
         let input = serde_json::json!({"file_path":"a"});
-        let mut backend = native_call("Write", input.clone());
-        allow_native(&mut backend, &input);
+        let (mut backend, mut below) = native_call("Write", input.clone());
+        allow_native(&mut backend, &input, &mut below);
         let mut up = Queue::with_capacity(32);
-        native_result(&mut backend, true, &mut up);
-        fail_native_load(&mut backend, failure, &mut up);
+        native_result(&mut backend, true, &mut up, &mut below);
+        fail_native_load(&mut backend, failure, &mut up, &mut below);
         let Some(ToDomain::BuiltinResult { text, error, .. }) = up.pop() else { panic!("unchanged result") };
         assert_eq!(text.as_ref(), b"program text");
         assert!(error);
@@ -846,8 +856,8 @@ fn failed_native_write_snapshots_preserve_result_text() {
 
 #[test]
 fn closing_settles_the_native_load_before_private_cleanup() {
-    let mut backend = native_call("Read", serde_json::json!({"file_path":"a"}));
-    native_load(&mut backend);
+    let (mut backend, mut below) = native_call("Read", serde_json::json!({"file_path":"a"}));
+    native_load(&mut backend, &mut below);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.close(&env(0), &mut up, &mut below);
@@ -870,8 +880,8 @@ fn closing_settles_the_native_load_before_private_cleanup() {
 #[test]
 fn queued_native_snapshots_keep_result_order_and_message_owners() {
     let input = serde_json::json!({"file_path":"a"});
-    let mut backend = native_call("Write", input.clone());
-    allow_native(&mut backend, &input);
+    let (mut backend, mut below) = native_call("Write", input.clone());
+    allow_native(&mut backend, &input, &mut below);
     let mut second = reply_tests::call(b"second");
     second.builtin = true;
     second.owner = Some(Token::new(81));
@@ -888,20 +898,22 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
         {"type":"tool_result","tool_use_id":"second","content":"second text","is_error":true}
     ]}});
     let mut up = Queue::with_capacity(32);
-    backend.line(&env(0), &serde_json::to_vec(&results).expect("results"), &mut up, &mut Queue::with_capacity(64));
+    backend.line(&env(0), &serde_json::to_vec(&results).expect("results"), &mut up, &mut below);
     assert!(up.is_empty());
-    native_load(&mut backend);
+    native_load(&mut backend, &mut below);
     backend.native_event(
         file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"first version".as_slice().into() },
         &mut up,
+        &mut below,
     );
     native_version(up.pop(), COMPLETION, b"first version");
     result_id(up.pop(), COMPLETION, b"n");
     assert!(up.is_empty(), "the second result waits behind its own snapshot");
-    native_load(&mut backend);
+    native_load(&mut backend, &mut below);
     backend.native_event(
         file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"second version".as_slice().into() },
         &mut up,
+        &mut below,
     );
     native_version(up.pop(), Token::new(81), b"second version");
     let Some(ToDomain::BuiltinResult { owner, id, text, error }) = up.pop() else { panic!("second result") };
@@ -912,7 +924,7 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
     assert!(up.is_empty());
 }
 
-fn server_call(backend: &mut Backend, id: u32) {
+fn server_call(backend: &mut Backend, id: u32, below: &mut Queue<Below>) {
     let call =
         serde_json::json!({"jsonrpc":"2.0", "id":id, "method":"tools/call", "params":{"name":"foo", "arguments":{}}});
     backend.startup.server_mut().expect("server").from_io(
@@ -924,26 +936,28 @@ fn server_call(backend: &mut Backend, id: u32) {
                 b"\n",
             ])),
         },
-        &mut backend.io,
+        &mut backend.server_up,
+        below,
     );
-    let call = backend.startup.server_mut().expect("server").up().expect("RPC");
+    let call = backend.server_up.pop().expect("RPC");
     backend.calls.push(call).expect("held RPC");
-    backend.match_calls();
+    backend.match_calls(below);
 }
 
-fn after_partial_result() -> Backend {
+fn after_partial_result() -> (Backend, Queue<Below>) {
     let input = serde_json::json!({"file_path":"a", "limit":1_u32});
-    let mut backend = native_call("Read", input.clone());
-    allow_native(&mut backend, &input);
+    let (mut backend, mut below) = native_call("Read", input.clone());
+    allow_native(&mut backend, &input, &mut below);
     let mut up = Queue::with_capacity(32);
-    native_result(&mut backend, false, &mut up);
-    server_call(&mut backend, 2);
-    backend
+    native_result(&mut backend, false, &mut up, &mut below);
+    server_call(&mut backend, 2, &mut below);
+    (backend, below)
 }
 
 #[test]
 fn an_owned_remove_result_reaches_its_mcp_caller() {
     use smith_domain::tools::Outcome;
+    let mut below = Queue::with_capacity(64);
     for (outcome, expected, error) in [
         (Outcome::Removed, "removed", false),
         (Outcome::NotRead, "read the file whole", true),
@@ -954,7 +968,7 @@ fn an_owned_remove_result_reaches_its_mcp_caller() {
         call.name = b"foo".as_slice().into();
         backend.ledger.push(call).ok().expect("owned call");
         fixtures::connect_server(&mut backend);
-        server_call(&mut backend, 1);
+        server_call(&mut backend, 1, &mut below);
         let mut next = request(&backend);
         let FromDomain::Complete { prompt, .. } = &mut next else { panic!("complete") };
         prompt.messages = Box::new([llm::Message {
@@ -964,13 +978,8 @@ fn an_owned_remove_result_reaches_its_mcp_caller() {
                 result: llm::Returned::Owned { outcome },
             }]),
         }]);
-        backend.resume(
-            &env(0),
-            Complete::from_request(next),
-            &mut Queue::with_capacity(32),
-            &mut Queue::with_capacity(64),
-        );
-        let reply = fixtures::server_reply(&mut backend);
+        backend.resume(&env(0), Complete::from_request(next), &mut Queue::with_capacity(32), &mut below);
+        let reply = fixtures::server_reply(&mut backend, &mut below);
         assert!(reply["result"]["content"][0]["text"].as_str().expect("result text").contains(expected));
         assert_eq!(reply["result"]["isError"], error);
     }
@@ -978,11 +987,11 @@ fn an_owned_remove_result_reaches_its_mcp_caller() {
 
 #[test]
 fn an_mcp_successor_may_arrive_before_its_next_assistant_record() {
-    let mut backend = after_partial_result();
+    let (mut backend, mut below) = after_partial_result();
     let mut up = Queue::with_capacity(32);
     assert_eq!(backend.calls.len(), 1, "RPC waits for its next assistant record");
     backend.line(&env(0), br#"{"type":"assistant","message":{"id":"next-message","content":[{"type":"tool_use","id":"next","name":"mcp__smith__foo","input":{}}]}}"#,
-        &mut up, &mut Queue::with_capacity(64));
+        &mut up, &mut below);
     assert!(backend.calls.is_empty(), "the announcement correlates the RPC");
     completed(up.pop(), COMPLETION);
     let mut next = request(&backend);
@@ -994,8 +1003,8 @@ fn an_mcp_successor_may_arrive_before_its_next_assistant_record() {
             result: llm::Returned::Text { text: b"found".as_slice().into(), error: false, replay: None },
         }]),
     }]);
-    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut Queue::with_capacity(64));
-    let reply = fixtures::server_reply(&mut backend);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
+    let reply = fixtures::server_reply(&mut backend, &mut below);
     assert_eq!(reply["id"], 2_u32);
     assert_eq!(reply["result"]["content"][0]["text"], "found");
     assert_eq!(reply["result"]["isError"], false);
@@ -1003,12 +1012,12 @@ fn an_mcp_successor_may_arrive_before_its_next_assistant_record() {
 
 #[test]
 fn an_unannounced_mcp_successor_is_refused_when_the_turn_ends() {
-    let mut backend = after_partial_result();
+    let (mut backend, mut below) = after_partial_result();
     let mut up = Queue::with_capacity(32);
     assert_eq!(backend.calls.len(), 1);
-    backend.line(&env(0), br#"{"type":"result","is_error":false}"#, &mut up, &mut Queue::with_capacity(64));
+    backend.line(&env(0), br#"{"type":"result","is_error":false}"#, &mut up, &mut below);
     assert!(backend.calls.is_empty());
-    let reply = fixtures::server_reply(&mut backend);
+    let reply = fixtures::server_reply(&mut backend, &mut below);
     assert_eq!(reply["result"]["isError"], true);
     assert_eq!(reply["result"]["content"][0]["text"], "smith: this call was not in the model's message");
 }
@@ -1041,12 +1050,18 @@ fn read_turn(paths: &[&str]) -> (Backend, Queue<ToDomain>, Queue<Below>) {
     (backend, up, below)
 }
 
-fn read_results(backend: &mut Backend, words: &[&str], error: bool, up: &mut Queue<ToDomain>) {
+fn read_results(
+    backend: &mut Backend,
+    words: &[&str],
+    error: bool,
+    up: &mut Queue<ToDomain>,
+    below: &mut Queue<Below>,
+) {
     let content: Vec<_> = words.iter().enumerate().map(|(index, text)| {
         serde_json::json!({"type":"tool_result","tool_use_id":index.to_string(),"content":text,"is_error":error})
     }).collect();
     let record = serde_json::json!({"type":"user","message":{"content":content}});
-    backend.line(&env(0), &serde_json::to_vec(&record).expect("results"), up, &mut Queue::with_capacity(64));
+    backend.line(&env(0), &serde_json::to_vec(&record).expect("results"), up, below);
     for (index, word) in words.iter().enumerate() {
         let Some(ToDomain::BuiltinResult { owner, id, text, error: got }) = up.pop() else { panic!("recorded result") };
         assert_eq!(owner, COMPLETION);
@@ -1066,35 +1081,36 @@ fn several_native_read_denials_keep_their_permission_reasons_in_results() {
         "path is outside the workspace: /elsewhere/b",
         "path is outside the workspace: /work/repo/../c",
     ];
-    let (mut backend, mut up, _) = read_turn(&paths);
+    let (mut backend, mut up, mut below) = read_turn(&paths);
     for (index, path) in paths.iter().enumerate() {
-        native_prompt(&mut backend, &index.to_string(), "Read", serde_json::json!({"file_path":path}));
-        let reply = fixtures::server_reply(&mut backend);
+        native_prompt(&mut backend, &index.to_string(), "Read", serde_json::json!({"file_path":path}), &mut below);
+        let reply = fixtures::server_reply(&mut backend, &mut below);
         let verdict: serde_json::Value =
             serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("text")).expect("verdict");
         assert_eq!(verdict["behavior"], "deny");
         assert_eq!(verdict["message"], words[index]);
         assert!(backend.native.is_none(), "a denied read takes no snapshot");
     }
-    read_results(&mut backend, &words, true, &mut up);
+    read_results(&mut backend, &words, true, &mut up, &mut below);
 }
 
 #[test]
 fn several_native_reads_in_one_turn_allow_read_only_reviewer_mounts() {
     let paths = ["ci.yml", "CONTRIBUTING.md", "changes/2.md", "changes/3.md"];
-    let (mut backend, mut up, _) = read_turn(&paths);
+    let (mut backend, mut up, mut below) = read_turn(&paths);
     for (index, path) in paths.iter().enumerate() {
         let input = serde_json::json!({"file_path":path});
-        native_prompt(&mut backend, &index.to_string(), "Read", input.clone());
+        native_prompt(&mut backend, &index.to_string(), "Read", input.clone(), &mut below);
         assert!(backend.native.is_some(), "whole reads snapshot before allow");
         backend.native_event(
             file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"review text".as_slice().into() },
             &mut up,
+            &mut below,
         );
         let Some(ToDomain::ReadVersion { owner, place, .. }) = up.pop() else { panic!("version") };
         assert_eq!(owner, COMPLETION);
         assert_eq!(place.path.as_ref(), path.as_bytes());
-        allow_native(&mut backend, &input);
+        allow_native(&mut backend, &input, &mut below);
     }
-    read_results(&mut backend, &["ci", "contributing", "change two", "change three"], false, &mut up);
+    read_results(&mut backend, &["ci", "contributing", "change two", "change three"], false, &mut up, &mut below);
 }

@@ -247,7 +247,7 @@ fn account_failure(
     now: Time,
     later: Time,
     account: Option<u32>,
-) -> (Option<run::Failure>, u32) {
+) -> (Option<run::RunFailure>, u32) {
     let mut harness = Harness::new();
     let mut charter = charter();
     charter.llm.account = account;
@@ -289,7 +289,7 @@ fn a_limited_account_ends_the_run_with_its_reset() {
         .0;
         assert_eq!(
             terminal,
-            Some(run::Failure::Model(run::Fault::Limited { account: 0, reset_at: expected })),
+            Some(run::RunFailure::Model(run::Fault::Limited { account: 0, reset_at: expected })),
             "{reset:?} at {later:?}"
         );
     }
@@ -299,7 +299,10 @@ fn a_limited_account_ends_the_run_with_its_reset() {
 fn a_refused_account_ends_the_run_with_its_code() {
     let report = crate::llm::Report { code: bytes(b"not-eligible"), request: bytes(b"request"), field: Box::default() };
     let terminal = account_failure(Failure::Refused, report, Time::ZERO, Time::ZERO, Some(0)).0;
-    assert_eq!(terminal, Some(run::Failure::Model(run::Fault::Refused { account: 0, code: bytes(b"not-eligible") })));
+    assert_eq!(
+        terminal,
+        Some(run::RunFailure::Model(run::Fault::Refused { account: 0, code: bytes(b"not-eligible") }))
+    );
 }
 
 #[test]
@@ -309,7 +312,7 @@ fn an_unsupported_request_ends_the_run_naming_its_field() {
     let terminal = account_failure(Failure::Unsupported, report, Time::ZERO, Time::ZERO, Some(0)).0;
     assert_eq!(
         terminal,
-        Some(run::Failure::Model(run::Fault::Completion {
+        Some(run::RunFailure::Model(run::Fault::Completion {
             failure: run::CompletionFailure::Unsupported,
             evidence: run::CompletionEvidence::Response { status: Some(403) },
             model: 0,
@@ -334,7 +337,7 @@ fn an_unaccounted_llms_account_failure_names_no_account() {
         assert_eq!(
             terminal,
             (
-                Some(run::Failure::Model(run::Fault::Completion {
+                Some(run::RunFailure::Model(run::Fault::Completion {
                     failure: expected,
                     evidence: run::CompletionEvidence::Response { status: Some(403) },
                     model: 0,

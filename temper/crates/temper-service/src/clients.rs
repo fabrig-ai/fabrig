@@ -65,6 +65,7 @@ pub struct Clients {
     #[cfg(test)]
     pub(crate) secret_terminals: Option<Queue<kit::SecretOwner>>,
     // The read view for this clients pass (temper/docs/design/protocol/setup.md, 8.4).
+    pub(crate) deployment: crate::family::Deployment,
     pub(crate) playground: Option<temper_engine_domain_forge::Playground>,
     playground_starts: Map<Token, root::Event>,
     playground_reads: Queue<crate::HandoverRead>,
@@ -272,6 +273,7 @@ impl Clients {
             bridge: kit::host::Bridge::new(Token::new(crate::tokens::CLIENTS).tag()),
             #[cfg(test)]
             secret_terminals: None,
+            deployment: crate::family::Deployment { welcome: false, owned: false },
             playground: None,
             playground_starts: Map::with_capacity(PLAYGROUND_STARTS),
             playground_reads: Queue::with_capacity(PLAYGROUND_STARTS),
@@ -492,6 +494,7 @@ impl Clients {
                         value,
                         forges,
                         demo,
+                        self.deployment,
                         self.playground.as_ref(),
                         &temper_client_protocol_wire::v1::CEILINGS,
                     ) {

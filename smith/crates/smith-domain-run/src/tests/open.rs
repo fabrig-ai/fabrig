@@ -178,7 +178,7 @@ fn cancel_after_finish_request_still_cancels_the_run() {
     assert_eq!(harness.step(Event::Cancel { run }).as_ref(), &[Request::Close { peer: Token::new(PEER) }]);
     assert_eq!(
         answered(harness.step(settled(main, Spend::ZERO))),
-        (HOST, Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 0 })
+        (HOST, Answer::Failed { failure: RunFailure::Cancelled, spent: Spend::ZERO, turns: 0 })
     );
     harness.domain.reclaim();
     assert!(harness.step(finish_request(run, NEXT, b"stale")).is_empty());
@@ -426,10 +426,10 @@ fn explicit_open_wait_can_park_without_any_text() {
 #[test]
 fn unsuccessful_open_ends_keep_the_existing_failure_policy() {
     for (stop, text, failure) in [
-        (Stop::EndTurn, b"".as_slice(), Failure::Policy(Policy::Unfinished { nudges: 2, rejected: 0 })),
-        (Stop::MaxTokens, b"truncated".as_slice(), Failure::Model(Fault::Truncated)),
-        (Stop::Refusal, b"refused".as_slice(), Failure::Model(Fault::Declined)),
-        (Stop::NoCalls, b"no calls".as_slice(), Failure::Model(Fault::Malformed)),
+        (Stop::EndTurn, b"".as_slice(), RunFailure::Policy(Policy::Unfinished { nudges: 2, rejected: 0 })),
+        (Stop::MaxTokens, b"truncated".as_slice(), RunFailure::Model(Fault::Truncated)),
+        (Stop::Refusal, b"refused".as_slice(), RunFailure::Model(Fault::Declined)),
+        (Stop::NoCalls, b"no calls".as_slice(), RunFailure::Model(Fault::Malformed)),
     ] {
         let mut harness = Harness::new(LIMITS);
         let (_, main) = harness.running_on(HOST, PEER, policy());
@@ -452,7 +452,7 @@ fn listening_cancel_has_no_tool_terminal() {
     assert_eq!(harness.step(Event::Cancel { run }).as_ref(), &[Request::Close { peer: Token::new(PEER) }]);
     assert_eq!(
         answered(harness.step(settled(main, Spend::ZERO))),
-        (HOST, Answer::Failed { failure: Failure::Cancelled, spent: Spend::ZERO, turns: 0 })
+        (HOST, Answer::Failed { failure: RunFailure::Cancelled, spent: Spend::ZERO, turns: 0 })
     );
 }
 
@@ -494,7 +494,7 @@ fn listening_usage_overflow_stops_without_a_call_terminal() {
         (
             HOST,
             Answer::Failed {
-                failure: Failure::Budget {
+                failure: RunFailure::Budget {
                     exhausted: Exhausted::Overflow(crate::Overflow::Usage),
                     used: None,
                     bound: None
@@ -520,7 +520,7 @@ fn a_reply_does_not_spend_or_reset_unsuccessful_nudges() {
         (
             HOST,
             Answer::Failed {
-                failure: Failure::Policy(Policy::Unfinished { nudges: 2, rejected: 0 }),
+                failure: RunFailure::Policy(Policy::Unfinished { nudges: 2, rejected: 0 }),
                 spent: Spend::ZERO,
                 turns: 0
             }

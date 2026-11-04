@@ -214,7 +214,7 @@ fn validate_hosted(configuration: &config::Configuration, resources: &Resources)
     {
         return Err(format!("the trace at {} is not supplied by the host", trace.path.display()));
     }
-    if resources.programs.is_some() || !configuration.programs.is_empty() || configuration.service.program.is_some() {
+    if resources.programs.is_some() || configuration.program.is_some() || configuration.service.program.is_some() {
         return Err("program claude_code requires a native shell".into());
     }
     Ok(())
@@ -273,7 +273,7 @@ fn extra_operations(configuration: &config::Configuration, resources: &Resources
         .and_then(|count| {
             // An unbound program leaves one inherited root for the shell to close.
             count.checked_add(u32::from(
-                configuration.endpoint_programs.is_empty()
+                configuration.program_endpoints.is_empty()
                     && resources.programs.as_ref().and_then(|programs| programs.directory).is_some(),
             ))
         })
@@ -536,7 +536,7 @@ pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
     let seed = skein_shell::seed()
         .map_err(|errno| format!("kernel seed failed (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
-    let programs = match configuration.programs.get(&config::ProgramName::ClaudeCode) {
+    let programs = match configuration.program.as_ref() {
         Some(program) => Some(open_program(program, errors.as_mut())?),
         None => None,
     };

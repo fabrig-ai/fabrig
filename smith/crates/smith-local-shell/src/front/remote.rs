@@ -132,7 +132,7 @@ impl Remote {
                 continue;
             }
             for block in &message.content {
-                if let Block::ToolCall { id, name, .. } = block {
+                if let Block::ToolCall(smith_domain::session::llm::ToolCall { id, name, .. }) = block {
                     let result =
                         told.turn.messages.iter().flat_map(|message| message.content.iter()).find_map(|block| {
                             match block {
@@ -140,7 +140,7 @@ impl Remote {
                                 Block::ToolResult { .. }
                                 | Block::Text { .. }
                                 | Block::Refusal { .. }
-                                | Block::ToolCall { .. }
+                                | Block::ToolCall(_)
                                 | Block::Opaque { .. } => None,
                             }
                         });

@@ -18,7 +18,7 @@ use skein_lib::{Duration, Queue, Slab, Time, Token};
 use crate::budget::{Granted, Share, Stage};
 use crate::charter::Reserve;
 
-use crate::boundary::{Answer, End, Exit, Failure, Refusal, Request, Returned};
+use crate::boundary::{Answer, End, Exit, Refusal, Request, Returned, RunFailure};
 use crate::run::{self, Conversation, Run};
 
 /// An observation stamped with the injected time of its emitting step.
@@ -45,7 +45,7 @@ pub enum FactKind {
     MessageRefused { run: Token, name: Token, bytes: u64, reason: crate::MessageRefusal },
     /// The run was admitted.
     Admitted { run: Token, resumed: bool },
-    /// It looked in its checkout, and found `guides` guides and `checks`
+    /// It looked in its workspace, and found `guides` guides and `checks`
     /// repositories with checks.
     Prepared {
         run: Token,
@@ -258,7 +258,7 @@ pub enum FailureKind {
     Stale,
 }
 
-impl Failure {
+impl RunFailure {
     /// Classifies the failure without copying its report into a fact.
     #[must_use]
     pub const fn kind(&self) -> FailureKind {

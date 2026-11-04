@@ -96,7 +96,7 @@ fn a_turn_holds_a_reasoning_block_at_the_completions_share() {
     configuration.endpoints[0].models[0].output = 32_768;
     configuration.endpoints[0].models[0].reasoning_item = 65_536;
     let derived = super::derive(&selected, &configuration).expect("standard profile");
-    let client = derived.llm.adapter.client;
+    let client = derived.llm.translation.client;
     let transcript = derived.channel.transcript;
     let share = client.output_items.checked_mul(client.reasoning).expect("completion share");
     assert_eq!(share, 2_228_224);
@@ -280,7 +280,7 @@ fn a_payload_sized_write_fits_the_stated_whole_call_input() {
     configuration.endpoints[0].models[0].output = 32_000;
     configuration.endpoints[0].models[0].window = 272_000;
     let limits = super::derive(&selected, &configuration).expect("product call limits");
-    let stated = limits.llm.adapter.stated;
+    let stated = limits.llm.translation.stated;
     let mut path_bytes = [1_u8; 256];
     path_bytes[127] = b'/';
     let path = core::str::from_utf8(&path_bytes).expect("admitted UTF-8 path");
@@ -658,8 +658,8 @@ fn a_larger_window_grows_the_request_and_not_the_connection_pool() {
         let large = super::derive(&selected, &configuration).expect("large window");
         assert_eq!(small.llm.connection.memory, large.llm.connection.memory);
         assert_eq!(large.llm.connection.memory, selected.declared.llm_pool);
-        let small_client = small.llm.adapter.client;
-        let large_client = large.llm.adapter.client;
+        let small_client = small.llm.translation.client;
+        let large_client = large.llm.translation.client;
         assert!(large_client.request > small_client.request);
         assert!(skein_llm::client::valid(&small_client));
         assert!(skein_llm::client::valid(&large_client));
