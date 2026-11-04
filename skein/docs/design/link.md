@@ -10,8 +10,9 @@ accounts (oauth.md) and LLM connections (llm-connection.md). Read it with
 ## 1. In one page
 
 - **A stream with a close rule.** A `Link` carries `lib::stream`'s `Down` and
-  `Up` between its owner and a socket, through TLS or not, and the owner can't
-  tell which. It names no HTTP: what stands on it is the owner's.
+  `Up` between its owner and a socket, through TLS or not, and the owner drives
+  both alike: it reads `encrypted` only for the sizes that follow from it. It
+  names no HTTP: what stands on it is the owner's.
 - **A graceful close sends `close_notify`.** TLS closes first, what it wrote
   reaches io, then the socket closes. Only then.
 - **An abort sends nothing:** the socket is aborted, at once, and an abort
@@ -66,6 +67,8 @@ impl Link {
 }
 ```
 
+- **`encrypted`** says which, for the sizes an owner derives: what it can hand
+  down at once is TLS's `send` with TLS, io's `output` without.
 - **`connecting`** keeps io's token, and sends a close asked for before it.
 - **`connected`** starts the handshake, `Handshaking`; with no TLS the stream is
   `Ready` at once; once closing it starts nothing, `Closing`.
@@ -98,7 +101,7 @@ loses `close_notify`.
 | Open | `close(false)`, without | Graceful | the socket's `Close` |
 | Open, Flushing, Graceful | `close(true)` | Aborted | the socket's `Abort` |
 | Flushing | TLS's `Closed` | Graceful | the socket's `Close` |
-| Flushing | `fire` past `until` | Aborted | the socket's `Abort` |
+| Flushing | `fire` once `due` | Aborted | the socket's `Abort` |
 | any but Closed | io's `Closed` | Closed | nothing |
 
 - **Closing, the stream above is over.** `down` is dropped, and `pump` gives
@@ -130,8 +133,8 @@ impl Upload {
 }
 ```
 
-An owner reads the end as `next == Down::Finish`. Its `Debug` gives the body's
-length, never its bytes, as the link's does.
+An owner that acts at the end reads it as `next == Down::Finish`. Its `Debug`
+gives the body's length, never its bytes, as the link's does.
 
 `skein-llm-connection` has none: `skein-llm`'s client uploads its own request.
 
@@ -162,3 +165,7 @@ and that its stalled close is aborted at the link's deadline.
 - **The connections' lifecycles** stay the owners' (`D020`, `D022`, `D023` of
   `skein/docs/development/debt/`): the link holds only its own.
 - **Whether the link is a "component kit"** is `draft/component-kit.md`, 6.2.
+- **`Debug` over what passes through.** `Event` and `Moved` derive it over an
+  `Up`'s bytes, as lib's `Up` does: they carry those bytes and keep none, and
+  `clippy::use_debug` denies formatting them. They stay so until something keeps
+  one (oauth.md, 4).
