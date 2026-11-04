@@ -134,7 +134,7 @@ impl Workspace {
         }
         panic!("checkout settles");
     }
-    fn attempt(&mut self, world: &mut World, run: &engine::Assignment, unfinished: bool) -> engine::Parts {
+    fn prepare(&mut self, world: &mut World, run: &engine::Assignment) -> Token {
         let repository = &run.workspace.repositories[0];
         let start = match &repository.start {
             engine::ForgeStart::Base(branch) => checkout::Start::Base { branch: branch.clone() },
@@ -171,6 +171,11 @@ impl Workspace {
         else {
             panic!("prepared")
         };
+        workspace
+    }
+    fn attempt(&mut self, world: &mut World, run: &engine::Assignment, unfinished: bool) -> engine::Parts {
+        let workspace = self.prepare(world, run);
+        let repository = &run.workspace.repositories[0];
         if unfinished {
             let path =
                 checkout_io::path(&checkout::git::Place { git: None, workspace, repository: repository.name.clone() });
@@ -199,6 +204,28 @@ impl Workspace {
         assert_eq!(self.domain.holds(), 0);
         parts
     }
+}
+
+/// Prepare the assignment through the checkout domain and its shared fake forge.
+pub(super) fn inspect(world: &mut World, run: &engine::Assignment) -> (Checkout, smith_domain_run::Workspace) {
+    let mut checkout = Workspace::new();
+    let workspace = checkout.prepare(world, run);
+    let repository = &run.workspace.repositories[0];
+    let path = checkout_io::path(&checkout::git::Place { git: None, workspace, repository: repository.name.clone() });
+    let root = Token::new(checkout.disk.root(&path));
+    let hold = checkout.hold.take().expect("prepared checkout held");
+    checkout.finish(world, checkout::Event::Release { hold });
+    let workspace = smith_domain_run::Workspace {
+        directories: Box::new([smith_domain_run::Directory {
+            host: [b"/".as_slice(), &path].concat().into(),
+            name: repository.name.clone(),
+            root,
+            writable: false,
+            git: true,
+            conflicts: Box::new([]),
+        }]),
+    };
+    (checkout.disk, workspace)
 }
 
 fn finish_change(world: &mut World, run: &engine::Assignment, words: &[u8], parts: engine::Parts) {
