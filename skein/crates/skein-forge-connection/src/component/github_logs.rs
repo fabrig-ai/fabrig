@@ -1,5 +1,5 @@
 //! A call follows a job log once to a configured, separately pooled origin (4.5).
-use super::{Common, ForgeEntry, Waiting, github_calls::github_plan};
+use super::{Base, Common, GitHubForge, Waiting, github_calls::github_plan};
 use crate::{Event, Fact, Limits};
 use skein_forge::{
     api,
@@ -11,11 +11,15 @@ use skein_forge::{
 use skein_lib::{Env, Id, Queue, Token};
 
 impl Common {
-    #[expect(clippy::too_many_arguments, reason = "a redirected call carries its forge entry and log exchange")]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the redirect carries its split forge and retention through the call"
+    )]
     pub(super) fn follow_github_log(
         &mut self,
+        base: &mut Base,
+        gh: &mut GitHubForge,
         holder: (Token, Id<Waiting>),
-        entry: &mut ForgeEntry,
         redirect: Redirect,
         retention: Retention,
         env: &Env<Limits>,
@@ -23,8 +27,8 @@ impl Common {
         io: &mut Queue<skein_io::Request>,
     ) {
         let (call, id) = holder;
-        let number = self.waiting.get(id).expect("call").repository.forge;
-        let forge = &entry.base.forge;
+        let number = base.forge.number;
+        let forge = &base.forge;
         let mut matched = None;
         for index in 0..forge.log_origins.len() {
             if forge.log_origins.get(index).expect("origin").origin.same(&redirect.origin) {
@@ -39,19 +43,19 @@ impl Common {
         }
         self.release_github_call(id, env, io);
         let Some(index) = matched else {
-            let gh = &mut entry.github_mut().expect("GitHub").state;
+            let data = &mut gh.state;
             let mut said = false;
-            for origin in &gh.said_origins {
+            for origin in &data.said_origins {
                 if origin.same(&redirect.origin) {
                     said = true;
                     break;
                 }
             }
             if !said {
-                if gh.said_origins.room() == 0 {
-                    drop(gh.said_origins.pop());
+                if data.said_origins.room() == 0 {
+                    drop(data.said_origins.pop());
                 }
-                gh.said_origins.push(redirect.origin.clone());
+                data.said_origins.push(redirect.origin.clone());
                 up.push(Event::Fact { forge: number, fact: Fact::Origin { origin: redirect.origin } });
             }
             self.finish(call, id, Err(api::Error::Refused), up);

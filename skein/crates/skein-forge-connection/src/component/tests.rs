@@ -15,13 +15,13 @@ fn token_fixture() -> (Component, Env<Limits>, Queue<skein_io::Request>) {
 fn api_tokens_stop_before_the_listener_range() {
     let (mut c, env, mut io) = token_fixture();
     c.common.next_token = LISTENER_OWNER;
-    c.common.open_own(c.forges.get_mut(0).expect("forge"), &env, &mut io);
+    c.test_open_own(&env, &mut io);
 }
 #[test]
 fn the_last_api_token_is_still_issued() {
     let (mut c, env, mut io) = token_fixture();
     c.common.next_token = LAST_API_OWNER;
-    assert_eq!(c.common.open_own(c.forges.get_mut(0).expect("forge"), &env, &mut io).raw(), LAST_API_OWNER);
+    assert_eq!(c.test_open_own(&env, &mut io).raw(), LAST_API_OWNER);
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn forgejo_starts_leave_the_github_reserved_slot_free() {
         forge.number = u16::try_from(number).expect("forge number");
         forges.push(forge).expect("forge room");
     }
-    let mut github = fixtures::github_settings().forges.into_boxed().into_iter().next().expect("GitHub forge");
+    let mut github = fixtures::github_settings().forges.into_boxed().into_iter().next().expect("fixture forge");
     github.number = u16::try_from(FORGES).expect("forge number");
     forges.push(github).expect("forge room");
     settings.forges = forges;
@@ -55,7 +55,11 @@ fn forgejo_starts_leave_the_github_reserved_slot_free() {
 use crate::tests::github_renewal::{ready as github_ready, renewed_contents, renewed_full, renewing};
 
 fn refuse(h: &mut fixtures::Harness, revision: u64) {
-    h.component.common.github_token_refused(h.component.forges.get_mut(0).expect("forge"), 1, revision, &h.env);
+    let ForgeEntry { base, dialect } = h.component.forges.get_mut(0).expect("forge");
+    match dialect {
+        Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
+        Dialect::GitHub(gh) => h.component.common.github_token_refused(base, gh, 1, revision, &h.env),
+    }
 }
 fn revision(h: &fixtures::Harness) -> u64 {
     h.component.test_github().rows.get(&1).expect("row").token_revision
