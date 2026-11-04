@@ -3,7 +3,7 @@
 Run the hosted fake, with invented fixtures and no machine sockets:
 
 ```sh
-heavy cargo run -p github-conformance -- --fake --out /tmp/github-conformance-out
+cargo run -p github-conformance -- --fake --out /tmp/github-conformance-out
 ```
 
 Use a new output directory for each run. `facts.txt` records the named facts
