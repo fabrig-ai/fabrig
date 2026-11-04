@@ -12,7 +12,7 @@ fn id_login_agrees_with_the_effective_users_passwd_entry() {
     let user = skein_shell::effective_user();
     let expected = super::login_passwd(user).expect("effective user's passwd login");
     assert_eq!(super::login(user).expect("Linux login"), expected);
-    assert_eq!(super::login_id().expect("macOS login lookup"), expected);
+    assert_eq!(super::forge_exec::login_id().expect("macOS login lookup"), expected);
 }
 
 #[test]

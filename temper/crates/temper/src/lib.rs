@@ -614,25 +614,7 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
 }
 /// The effective user's login (protocol/setup.md, 8.2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
-    if cfg!(target_os = "macos") { login_id() } else { login_passwd(user) }
-}
-
-/// Kept on every platform so Linux tests compare macOS's lookup with passwd's.
-fn login_id() -> Result<Box<[u8]>, String> {
-    let output = std::process::Command::new("/usr/bin/id")
-        .arg("-un")
-        .stdin(std::process::Stdio::null())
-        .env_clear()
-        .output()
-        .map_err(|why| format!("user: /usr/bin/id -un: {why}"))?;
-    if !output.status.success() {
-        return Err(format!("user: /usr/bin/id -un: {}", output.status));
-    }
-    let name = output.stdout.strip_suffix(b"\n").ok_or("user: /usr/bin/id -un: missing line feed")?;
-    if name.is_empty() || name.contains(&b'\n') {
-        return Err("user: /usr/bin/id -un: expected one login line".into());
-    }
-    Ok(name.into())
+    if cfg!(target_os = "macos") { forge_exec::login_id() } else { login_passwd(user) }
 }
 
 /// The effective user's passwd login; forge commands preserve lookup refusals.
