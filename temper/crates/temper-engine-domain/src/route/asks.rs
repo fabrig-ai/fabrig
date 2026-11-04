@@ -87,8 +87,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
-        core::Ask::Document { watcher, scope, subject, .. } => {
-            super::panels::document(domain, env, decision, connector, watcher, scope, subject);
+        core::Ask::Document { watcher, scope, subject, party, .. } => {
+            super::panels::document(domain, env, decision, connector, watcher, scope, subject, party);
             None
         }
         core::Ask::Read { reply, .. } => {
