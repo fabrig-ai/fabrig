@@ -29,7 +29,8 @@ without changing it. Reading and showing them come after (section 6).
   it and how. A new kind is a line of the registry, not a change of the
   format (section 4).
 - **Each kind names its audience:** its holder alone, or whoever sees
-  the account; the client's line carries what its reader may see.
+  the account; the client's line carries what its reader may see. The
+  user took section 3's audiences as they stand (2026-11-04).
 - **Changed in place:** until v0.1.0 there is no supported deployment,
   so the accounts' store version and the client protocol change in
   place (the user, 2026-11-04; `../protocol/store.md`, 5).
@@ -161,6 +162,4 @@ The draft takes the third.
 
 ## 8. Open questions
 
-- **The audiences:** whether usage is everyone's who sees the account,
-  as section 3 has it, or its holder's alone; and whether the renewal
-  and end are the holder's, as it has them.
+None.

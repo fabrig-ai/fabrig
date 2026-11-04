@@ -7,4 +7,4 @@
   - 3: no document registers kinds, origins or a window's states.
   - 4: `../client/domain/contract.md`, 5.1: an account's line carries no facts and no audience.
   - 6: skein's `oauth.md`, 2.2, reads no claim beyond `sub`, so no email reaches jig.
-- **Open:** 8: the audiences of usage and of the renewal and end.
+- **Open:** none.
