@@ -508,17 +508,13 @@ fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32
     }
 }
 
-pub(crate) fn route_prepared_agent(
+fn prepare_agent(
     core: &mut Core,
     work: &mut Queue<Work>,
     context: Box<tasks::RunContext>,
     from: Option<(u64, u32)>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    let Some(row) = core.tasks.task(context.task) else { return out };
-    if row.phase != tasks::Phase::Active(tasks::Active::Due) {
-        return out;
-    }
     let number = context.task;
     if let Some((token, _)) = core.workspace_flight(number) {
         drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
@@ -526,9 +522,7 @@ pub(crate) fn route_prepared_agent(
     let previous_attempt = context.previous_attempt;
     super::results::clear(core, number);
     assert!(core.contexts.insert(number, context).is_ok(), "bounded activation context");
-    core.begin_transcript(number, previous_attempt);
-    let transcript = core.transcripts.get_mut(&number).expect("begun transcript");
-    transcript.window = from;
+    core.begin_transcript(number, previous_attempt, from);
     work.push(Work::Event(Event::Tasks(tasks::Event::Prepare {
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Acknowledge)),
         task: number,
@@ -586,7 +580,7 @@ pub(crate) fn route_activate(
                     if busy && from.is_some() {
                         remember_due(core, context);
                     } else {
-                        return route_prepared_agent(core, work, context, from);
+                        return prepare_agent(core, work, context, from);
                     }
                 }
                 crate::RunAdmission::Wait(_) => remember_due(core, context),
@@ -717,8 +711,7 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
     {
         let previous_attempt = transcript.previous_attempt;
         drop(core.transcripts.remove(&task));
-        core.begin_transcript(task, previous_attempt);
-        core.transcripts.get_mut(&task).expect("restarted empty transcript").window = None;
+        core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {
         super::results::clear(core, task);

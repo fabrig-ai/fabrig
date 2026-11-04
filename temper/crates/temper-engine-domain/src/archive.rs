@@ -430,7 +430,7 @@ mod tests {
     #[test]
     fn unread_retires_once_and_ignores_a_stale_preparation() {
         let (mut domain, _) = root();
-        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT);
+        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, None);
         let waiter = transcript_read(&mut domain);
         transcript_unread(&mut domain, waiter);
         transcript_unread(&mut domain, waiter);
@@ -449,7 +449,7 @@ mod tests {
         transcript_unread(&mut domain, stale);
         assert!(domain.work.is_empty(), "no current preparation to fail");
         domain.archive_reads.reclaim();
-        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT);
+        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, None);
         let current = transcript_read(&mut domain);
         transcript_unread(&mut domain, stale);
         assert!(domain.work.is_empty(), "a retired waiter cannot reach a later preparation");
@@ -483,7 +483,7 @@ mod tests {
             );
             assert!(issued.pop().is_some());
         }
-        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT);
+        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, None);
         let waiter = transcript_read(&mut domain);
         let mut out = Queue::with_capacity(1);
         request_load(
