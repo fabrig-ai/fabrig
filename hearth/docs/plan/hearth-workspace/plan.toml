@@ -1,0 +1,23 @@
+draft = "hearth-workspace"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-workspace/inputs/request.md"]
+
+# hearth joins the root workspace (inputs/request.md): a port, then the join, then the test layout
+# and the measurements for the user. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "join"
+title = "hearth: built against skein by path as a member of the root workspace, and run by the gate"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 6.3"
+
+[[slice]]
+id = 1
+story = "hearth's packages compile against today's skein as workspace members, and the gate's default and fuzzy profiles run their tests"
+parts = ["join"]
+walk = false
