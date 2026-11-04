@@ -1,5 +1,5 @@
 //! The stream and its close rule (skein/docs/design/link.md, 3.1–3.3).
-use core::mem;
+use core::{fmt, mem};
 use skein_io as io;
 use skein_lib::stream::{Down, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token};
@@ -44,7 +44,6 @@ enum Ask {
     Abort,
 }
 
-#[derive(Debug)]
 pub struct Link {
     socket: Option<Token>,
     tls: Option<tls::Client>,
@@ -52,6 +51,15 @@ pub struct Link {
     cipher: Queue<Down>,
     ending: Ending,
     held: Option<Ask>,
+}
+#[expect(clippy::missing_fields_in_debug, reason = "show TLS only as encrypted and omit the held close request")]
+impl fmt::Debug for Link {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug = f.debug_struct("Link");
+        debug.field("socket", &self.socket).field("encrypted", &self.encrypted());
+        debug.field("events", &self.events.len()).field("cipher", &self.cipher.len());
+        debug.field("ending", &self.ending).finish()
+    }
 }
 
 impl Link {
@@ -212,6 +220,14 @@ impl Link {
         match self.ending {
             Ending::Flushing { until } => Some(until),
             Ending::Open | Ending::Graceful | Ending::Aborted | Ending::Closed => None,
+        }
+    }
+    /// `next_deadline` has come: `fire` at `now` aborts.
+    #[must_use]
+    pub fn due(&self, now: Time) -> bool {
+        match self.ending {
+            Ending::Flushing { until } => now >= until,
+            Ending::Open | Ending::Graceful | Ending::Aborted | Ending::Closed => false,
         }
     }
     pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) {

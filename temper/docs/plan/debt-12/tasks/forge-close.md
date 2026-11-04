@@ -22,7 +22,8 @@ Acceptance:
 
 - A machine test fails with `link.fire` deleted from `Component::fire`, and fails with `c.link.next_deadline()`
   deleted from `Component::next_deadline`.
-- A test fails with `c.link.has_work()` put back to `c.ready()` in either `if` of `drive`'s last loop.
+- A test fails with `c.link.has_work()` put back to `c.ready()` in the second `if` of `drive`'s last loop, the one
+  that sets `wake`. The first `if` takes the same change but no mutation test: see Answers.
 - A test fails with `link.pump` run above the guard unconditionally.
 - `rg -n 'link\.socket\(\)|link\.closed\(\)' skein/crates/skein-forge-connection/src` finds nothing.
 - `heavy cargo nextest run` passes for `-p skein-forge-connection -p skein-forge-machine-world -p
@@ -82,7 +83,8 @@ One commit each, in this order: they're in order of value.
 
    A test in `component/tests.rs`, on `fixtures::Harness`: an idle call connection, a call done and no holder,
    takes `skein_io::Event::Failed`. That leaves an `heard` nobody takes. Before its socket's `Closed`,
-   `next_deadline()` isn't `now`. Break it by restoring each `if`.
+   `next_deadline()` isn't `now`. Break it by restoring the second `if`; report that the first, restored alone, stays
+   green.
 3. **The guard.** `Connection::pump` in `connection.rs`:
 
    ```rust
@@ -112,3 +114,14 @@ One commit each, in this order: they're in order of value.
 
 The report of your implementer text, and: each thing you broke and what failed; whether any test's trace moved
 at step 3; net lines, production and tests apart.
+
+## Answers
+
+2026-11-04. **Must step 2's mutation fail for both `if`s, or may it pin the second alone?** The second alone; add
+no pump-call instrumentation. The asking run's reading holds in the code: restored alone, the first `if` is an
+equivalent mutant. With `cipher` and `events` empty, `has_work` is false, `Link::pump` returns `Moved::Nothing` with
+no effect, and `Connection::pump` stops at its guard because `close` has set `closing` and `Phase::Closed`. So an
+extra `c.pump` changes no output, deadline or state, and a test could pin only a call count, not a rule. Both `if`s
+still become `c.link.has_work()`, as finding 3 asks. Acceptance and step 2 are amended to match. Steps 1 and 2 are
+done on `debt-12/forge-close`, with their mutation evidence (the first `if` passing, the second failing): keep them,
+go on with step 3, and carry that evidence into the report.

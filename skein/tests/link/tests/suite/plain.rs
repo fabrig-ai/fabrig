@@ -5,6 +5,14 @@ use skein_link::{Event, Link, Moved, Start};
 use skein_link_world::{SOCKET, env};
 
 #[test]
+fn a_link_shows_its_queues_lengths_and_no_byte() {
+    let mut link = Link::new(None);
+    link.down(&env(), Down::Send(bytes::copy_of(b"secret-token")));
+    link.up(&env(), Up::Bytes(bytes::copy_of(b"secret-token")));
+    assert_eq!(format!("{link:?}"), "Link { socket: None, encrypted: false, events: 1, cipher: 1, ending: Open }");
+}
+
+#[test]
 fn without_tls_a_close_is_at_once() {
     for (abort, expected) in [(false, Request::Close { entity: SOCKET }), (true, Request::Abort { entity: SOCKET })] {
         let mut link = Link::new(None);

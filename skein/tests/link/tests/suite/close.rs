@@ -4,6 +4,19 @@ use skein_link::{Event, Moved, Start};
 use skein_link_world::{DEADLINE, NOW, SOCKET, Trace, World};
 
 #[test]
+fn due_says_the_close_deadline_has_come() {
+    let mut world = World::ready();
+    assert!(!world.link.due(DEADLINE), "an open link has no deadline");
+    world.room = false;
+    world.close(false);
+    world.settle();
+    assert!(!world.link.due(Time::from_nanos(3_999_999_999)), "one nanosecond before DEADLINE");
+    assert!(world.link.due(DEADLINE), "the close is due at its deadline");
+    world.link.fire(DEADLINE, &mut world.below);
+    assert!(!world.link.due(DEADLINE), "the abort leaves no deadline");
+}
+
+#[test]
 fn a_graceful_close_sends_close_notify_before_the_socket_closes() {
     let mut world = World::ready();
     world.close(false);
