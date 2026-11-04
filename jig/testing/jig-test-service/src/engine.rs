@@ -126,7 +126,7 @@ impl Engine {
                 None => None,
             };
             let workers = match &self.workers {
-                Some(workers) => workers.next_deadline(),
+                Some(workers) => workers.host.next_deadline(),
                 None => None,
             };
             let next = skein_lib::earliest(skein_lib::earliest(accounts, workers), self.store.next_deadline());
@@ -156,7 +156,7 @@ impl Engine {
             next = skein_lib::earliest(next, accounts.next_deadline());
         }
         if let Some(workers) = &self.workers {
-            next = skein_lib::earliest(next, workers.next_deadline());
+            next = skein_lib::earliest(next, workers.host.next_deadline());
         }
         if let Some(clients) = &self.clients {
             next = skein_lib::earliest(next, clients.next_deadline());
@@ -171,7 +171,7 @@ impl Engine {
                     Some(accounts) => accounts.work_pending(now, self.store.component.mark_durable()),
                     None => false,
                 } || match &self.workers {
-                    Some(workers) => workers.work_pending(now),
+                    Some(workers) => workers.host.work_pending(now),
                     None => false,
                 } || match &self.clients {
                     Some(clients) => clients.work_pending(now),
@@ -249,7 +249,7 @@ impl Engine {
 
     pub(crate) fn listeners_open(&self) -> bool {
         (match &self.workers {
-            Some(workers) => workers.opened(),
+            Some(workers) => workers.host.opened(),
             None => true,
         }) && match &self.clients {
             Some(clients) => clients.opened(),
@@ -277,8 +277,8 @@ impl Engine {
             }
             if let Some(workers) = &mut self.workers {
                 if !self.store.opened {
-                    for _ in 0..workers.io.len() {
-                        let _unstarted = workers.io.pop();
+                    for _ in 0..workers.host.io.len() {
+                        let _unstarted = workers.host.io.pop();
                     }
                 }
                 workers.abort(self.env.now, &mut self.events);
