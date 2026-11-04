@@ -14,11 +14,13 @@ use smith_local_protocol as local_protocol;
 
 use crate::StartValues;
 
+mod child;
 mod close;
 mod delivery;
 mod signals;
 mod store;
 mod terminal;
+use child::Child;
 use close::Close;
 use delivery::DeliveryIo;
 use signals::Signals;
@@ -54,7 +56,7 @@ pub(crate) struct HostIo {
     io: io::Io,
     shell_output: Option<Token>,
     shell_events: Queue<io::Event>,
-    process: Option<protocol::Process>,
+    child: Child,
     delivery: DeliveryIo,
     store_io: StoreIo,
     files: file_layer::FileIo,
@@ -71,7 +73,6 @@ pub(crate) struct HostIo {
     submissions: Queue<kernel::Submit>,
     completions: Queue<kernel::Complete>,
     send: u64,
-    reading: bool,
     failed: bool,
     terminal_input: TerminalInput,
     window_read: WindowRead,
@@ -123,7 +124,7 @@ impl HostIo {
             limits: *limits,
             launch,
             endpoints,
-            process: None,
+            child: Child::Absent,
             delivery: DeliveryIo::new(),
             store_io: StoreIo::new(),
             files,
@@ -140,7 +141,6 @@ impl HostIo {
             submissions: Queue::with_capacity(limits.queue),
             completions: Queue::with_capacity(limits.queue),
             send: 1,
-            reading: false,
             failed: false,
             terminal_input: TerminalInput::Absent,
             window_read: WindowRead::Idle,
@@ -205,7 +205,7 @@ impl HostIo {
     }
 
     fn spawned(&mut self, process: protocol::Process) {
-        self.process = Some(process);
+        self.child.spawned(process);
     }
 
     fn adopted_input(&mut self, stream: Token, read_input: bool) {
@@ -213,12 +213,11 @@ impl HostIo {
     }
 
     fn hold_read(&mut self) {
-        assert!(!self.reading, "one host read at a time");
-        self.reading = true;
+        self.child.hold();
     }
 
     fn read_held(&self) -> bool {
-        self.reading
+        self.child.read_held()
     }
 
     pub(crate) fn read_window(&mut self) {
@@ -327,9 +326,9 @@ impl HostIo {
             Some(git) => git.next_deadline(),
             None => None,
         };
-        let process_deadline = match &self.process {
-            Some(process) => process.next_deadline(),
-            None => None,
+        let process_deadline = match &self.child {
+            Child::Spawned { process, .. } => process.next_deadline(),
+            Child::Absent => None,
         };
         let mut next: Option<Time> = None;
         for deadline in [
@@ -516,9 +515,9 @@ impl HostIo {
                 | io::Event::Exited { .. }
                 | io::Event::Usage { .. }
                 | io::Event::Failed { .. }
-                | io::Event::Closed { .. }) => match &mut self.process {
-                    Some(process) => process.from_io(now, other, &mut self.process_events, &mut self.io_requests),
-                    None => self.shell_events.push(other),
+                | io::Event::Closed { .. }) => match &mut self.child {
+                    Child::Spawned { process, .. } => process.from_io(now, other, &mut self.process_events, &mut self.io_requests),
+                    Child::Absent => self.shell_events.push(other),
                 },
             }
         }
@@ -532,8 +531,9 @@ impl HostIo {
         if git_done {
             self.delivery.git = None;
         }
-        if let Some(process) = &mut self.process {
-            process.fire(now, &mut self.process_events, &mut self.io_requests);
+        match &mut self.child {
+            Child::Spawned { process, .. } => process.fire(now, &mut self.process_events, &mut self.io_requests),
+            Child::Absent => {}
         }
         self.drain_process(host_events);
     }
@@ -591,7 +591,7 @@ impl HostIo {
                     self.process_events.push(event);
                     continue;
                 }
-                self.reading = false;
+                self.child.answered();
             }
             host_events.push(to_host_event(event, &mut self.live));
         }
@@ -619,11 +619,14 @@ impl HostIo {
             let Some(request) = requests.pop() else { break };
             self.request(request, start_values, grant_values, host_events);
         }
-        if let Some(process) = &mut self.process {
-            for _ in 0..self.limits.queue {
-                let Some(request) = process.next_channel_down() else { break };
-                process.channel_down(request, &mut self.io_requests);
+        match &mut self.child {
+            Child::Spawned { process, .. } => {
+                for _ in 0..self.limits.queue {
+                    let Some(request) = process.next_channel_down() else { break };
+                    process.channel_down(request, &mut self.io_requests);
+                }
             }
+            Child::Absent => {}
         }
         for _ in 0..self.limits.queue {
             if !self.io.takes() {
@@ -722,7 +725,10 @@ impl HostIo {
             host::process::Request::Send { owner, message, .. } => {
                 let send_token = Token::new(self.send);
                 self.send = self.send.checked_add(1).expect("bounded send tokens");
-                let process = self.process.as_mut().expect("Spawn precedes Send");
+                let process = match &mut self.child {
+                    Child::Spawned { process, .. } => process,
+                    Child::Absent => unreachable!("Spawn precedes Send"),
+                };
                 let sent = match message {
                     host::Down::Start { start, window } => {
                         let asked = match start.live {
@@ -776,15 +782,18 @@ impl HostIo {
                     host::Signal::Terminate => kernel::Signal::Terminate,
                     host::Signal::Kill => kernel::Signal::Kill,
                 };
-                self.process.as_ref().expect("spawned child").signal(signal, &mut self.io_requests);
+                match &mut self.child {
+                    Child::Spawned { process, .. } => process.signal(signal, &mut self.io_requests),
+                    Child::Absent => unreachable!("Spawn precedes Signal"),
+                }
                 host_events.push(host::Input::Process(host::process::Event::Signalled { owner }));
             }
             host::process::Request::Read { .. } => {
                 self.hold_read();
-                self.process
-                    .as_mut()
-                    .expect("Spawn precedes Read")
-                    .read(&mut self.process_events, &mut self.io_requests);
+                match &mut self.child {
+                    Child::Spawned { process, .. } => process.read(&mut self.process_events, &mut self.io_requests),
+                    Child::Absent => unreachable!("Spawn precedes Read"),
+                }
             }
             host::process::Request::Wait { .. } | host::process::Request::Reap { .. } => {}
         }
