@@ -576,3 +576,26 @@ fn unresolved_outcomes_release_on_retry_and_interrupt() {
         assert!(harness.backend.turns.message.is_none());
     }
 }
+
+#[test]
+fn an_unresolved_outcome_waits_for_stdout_without_polling() {
+    let mut harness = fixtures::Harness::new(fixtures::running(fixtures::backend()));
+    let first = advisor_request(&harness.backend, 80);
+    harness.backend.current.retain(first, &mut harness.up);
+    harness.backend.line(&env(0), br#"{"type":"assistant","message":{"id":"outcome","content":[{"type":"tool_use","id":"s","name":"StructuredOutput","input":{}}]}}"#, &mut harness.up, &mut harness.below);
+    advisor_tail(&mut harness, false);
+    while harness.backend.pop_measure().is_some() {}
+    assert_eq!(harness.backend.turns.ready.len(), 1);
+    for _ in 0_u32..2 {
+        harness.backend.consume_stdout(&env(0), &mut harness.up, &mut harness.below);
+        assert_eq!(harness.backend.intake_due, None, "only more stdout can resolve the held outcome");
+        assert!(harness.backend.stdout_demanding);
+        assert!(harness.up.is_empty());
+    }
+    for byte in br#"{"type":"result","structured_output":{"outcome":{"form":"report","text":"done","fields":{}}}}
+"# {
+        harness.backend.intake.push(*byte).unwrap();
+    }
+    harness.backend.consume_stdout(&env(0), &mut harness.up, &mut harness.below);
+    assert_eq!(finished_reply(&harness.up).stop, llm::Stop::ToolUse);
+}
