@@ -233,8 +233,19 @@ pub fn to_root(
                         }),
                     }));
                 }
-                w::Request::Dismiss(_) => {
-                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
+                w::Request::Dismiss(value) => {
+                    let what = match value.into_parts().what {
+                        w::Dismissal::ToBegin(value) => forge::Dismissal::ToBegin { project: value.project() },
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Dismiss { what },
+                    }));
                 }
                 w::Request::Adopt(value) => value,
             };
@@ -614,6 +625,10 @@ pub fn answer(
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
         Some(root::ApplicationAnswer::Returning) => w::Outcome::Returning,
+        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
+        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge)) => w::Outcome::ForgeRefused(
+            w::ForgeRefused::new(limits, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).ok()?,
+        ),
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(a))) => {
             w::Outcome::Adopted(
                 w::Adopted::new(

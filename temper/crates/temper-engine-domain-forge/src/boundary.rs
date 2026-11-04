@@ -239,6 +239,7 @@ pub enum Answered {
     Install(InstallAnswer),
     Accept(AcceptAnswer),
     Reachable(ReachableAnswer),
+    Dismiss(crate::DismissAnswer),
 }
 /// Public forge admission refusals (client/README.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1374,6 +1375,13 @@ pub enum Event {
         ask: Ask,
         role: Option<jig_domain_people::Role>,
         carried: Option<jig_domain_core::Carried>,
+    },
+    /// A core-admitted dismissal (temper/docs/design/domain/forge.md, 5.5).
+    Dismiss {
+        request: Token,
+        token: Token,
+        party: u64,
+        what: crate::Dismissal,
     },
     /// The core's answer to the application's adoption part.
     ApplicationAnswered {
