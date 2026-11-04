@@ -1,8 +1,7 @@
 # debt-10: the plan
 
 From `inputs/request.md`: three independent parts, from the spot review `inputs/debt7-8-review.md`, which was read and
-not run. `notes/common.md` holds the standing rules every task names. This file grows with each release; what is here
-so far is what has been written.
+not run. `notes/common.md` holds the standing rules every task names.
 
 ## Parts and tasks
 
@@ -13,7 +12,9 @@ so far is what has been written.
 2. **bundle-helpers** (`jig/docs/design/protocol/service.md, 11.4`), slice 3. `notes/contracts.md` holds the surface.
    - `tasks/bundle-part.md`, high, ~50 minutes, needs nothing: the shipped module, and the reference composes it.
    - `tasks/undecoded.md`, medium, ~30 minutes, needs nothing: B4.
-   - Temper's side, and D001's measure, to come.
+   - `tasks/bundle-temper.md`, high, ~35 minutes, needs `bundle-part`: temper composes the helpers, and D005 goes.
+   - `tasks/measure-recheck.md`, medium, ~10 minutes, needs `bundle-temper`, `undecoded`, `listener-text`, `temper-names`:
+     D001's unchanged measure, rechecked and written down.
 
 3. **tidying** (`jig/docs/design/protocol/service.md, 11`), slice 2.
    - `tasks/bite-tests.md`, high, ~40 minutes, needs nothing: B5, first as the request asks.
@@ -26,6 +27,14 @@ so far is what has been written.
      adds about 50 on purpose, and the rest take about 66.
 
 ## What was decided
+
+- **D001 is not paid here, against the request's "both items go".** D005 is. D001's bound is below 200 on a measure that
+  reads 356 and leaves out the bundle files, so B3 doesn't move it. A read-only survey sorted the lines by hand (a
+  judgement, not a count): about 127 generic, about 176 application-owned, about 53 movable. Every move that keeps
+  `service.md`, 11 leaves about 310; below 200 takes a clients' part holding the pass, which 11.6 rules out and the item's
+  own condition forbids. Its **Paid when** is the user's to change, so this plan leaves it open, rechecks the measure as
+  the item asks, and asks: question `d001-bound`. The survey's few small moves aren't in the plan: they wouldn't pay
+  anything, and the request says "and nothing else".
 
 - **B2's fix is expected to be skipped.** The review says `[::]:7100` panics on `Listening`. Both services refuse such a
   listener first: temper's `checks::standalone`, in every engine shape, and the reference's `server`. `listener-text`
@@ -52,4 +61,6 @@ so far is what has been written.
 
 ## Critical path
 
-So far each task stands alone.
+`bite-tests`, `workers-debug` or `listener-text` (~40), then `part-leftovers` (~45), `part-names` (~35), `temper-names` (~20)
+and `measure-recheck` (~10): about 150 implementer-minutes. `bundle-part` and `undecoded` also feed `part-names`, and
+`bundle-part` feeds `bundle-temper`. `core-preparation` and `engine-activate` stand alone.
