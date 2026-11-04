@@ -96,6 +96,7 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
         ("tasks.tree_tasks", 8),
         ("tasks.charters", 4),
         ("tasks.message_bytes", 4094),
+        ("tasks.run_inbox", 8),
         ("people.words", 512),
         ("tasks.authority_bytes", 512),
         ("core.call_answer_bytes", 4096),
@@ -128,9 +129,14 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
     value["workers"][0]["slots"] = 1.into();
     let limits = &mut value["workers"][0]["limits"]["overrides"];
     limits["hub.slots"] = 1.into();
+    limits["hub.inbox"] = agent["profile"]["policy"]["inbox"].clone();
+    limits["tasks.run_inbox"] = agent["profile"]["policy"]["inbox"].clone();
     limits["core.call_answer_bytes"] = 4096.into();
     limits["hub.event_bytes"] = 4094.into();
     limits["tasks.message_bytes"] = 4096.into();
+    // The worker validates core message bounds even when its profile is standard.
+    limits["people.words"] = 2048.into();
+    limits["tasks.result_bytes"] = 512.into();
     agent["profile"]["declared"]["tool_payload"] = 4096.into();
     agent["profile"]["policy"]["max_turns"] = 800.into();
     agent["profile"]["policy"]["check_timeout"] = 1000.into();
