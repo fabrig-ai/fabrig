@@ -4,7 +4,7 @@
 use alloc::boxed::Box;
 #[expect(
     clippy::disallowed_types,
-    reason = "segments follow directory listings; recovery holds at most Limits::commit plus Limits::chunk"
+    reason = "segments follow directory listings; recovery holds at most Limits::commit plus one read"
 )]
 use alloc::vec::Vec;
 use core::mem;
@@ -32,7 +32,7 @@ struct Pending {
     frame: Box<[u8]>,
 }
 
-#[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one Limits::chunk read")]
+#[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one read")]
 #[derive(Debug)]
 enum Phase {
     Listing,
@@ -393,7 +393,7 @@ impl Store {
         Ok(())
     }
 
-    #[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one Limits::chunk read")]
+    #[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one read")]
     fn replay(&mut self, dir: &mut Dir, bytes: &mut Vec<u8>, limits: &Limits) -> Result<bool, Failure> {
         let mut at: usize = 0;
         // Each complete frame consumes bytes; an incomplete frame ends the pass.
@@ -437,6 +437,7 @@ impl Store {
         if at != 0 {
             *bytes = bytes.split_off(at);
         }
+        frame::reserve_frame(bytes, limits.commit);
         Ok(true)
     }
 }
@@ -467,10 +468,10 @@ fn log_number(name: &[u8]) -> Option<u64> {
     Some(number)
 }
 
-/// What a recovery read asks: a chunk, or what the file holds past `at` (kv.md, 3).
-fn read_size(chunk: u32, len: u64, at: u64) -> u32 {
+/// What a recovery read asks: the target, or what the file holds past `at` (kv.md, 3).
+fn read_size(target: u32, len: u64, at: u64) -> u32 {
     let left = len.checked_sub(at).expect("recovery reads only within the file");
-    u32::try_from(u64::from(chunk).min(left)).expect("a recovery read is at most one chunk")
+    u32::try_from(u64::from(target).min(left)).expect("a recovery read is at most the target")
 }
 
 /// Where this read ends, if it is a read this file can give.
@@ -485,7 +486,7 @@ fn read_next(file: Token, len: u64, at: u64, step: &mut Step<'_>) {
         owner: IO_OWNER,
         file,
         offset: at,
-        max: read_size(step.env.limits.chunk, len, at),
+        max: read_size(step.env.limits.chunk_target(), len, at),
     });
 }
 
@@ -936,10 +937,7 @@ fn snapshot_read(
     }
 }
 
-#[expect(
-    clippy::disallowed_types,
-    reason = "the recovery frame buffer grows only to Limits::commit plus Limits::chunk"
-)]
+#[expect(clippy::disallowed_types, reason = "the recovery frame buffer grows only to Limits::commit plus one read")]
 fn log_opened(
     store: &mut Store,
     dir: Dir,
@@ -971,7 +969,7 @@ fn log_opened(
     }
 }
 
-#[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one Limits::chunk read")]
+#[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one read")]
 fn log_read(
     store: &mut Store,
     mut dir: Dir,

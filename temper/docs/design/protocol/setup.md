@@ -3516,6 +3516,13 @@ Each is intended; what it needs is named with it.
 - **The forge as people's sign-in provider** (credentials.md, section
   8), which would link the person's account on an owned Forgejo to their
   owner in jig.
+- **A launchd agent for the box** on macOS, as 7.4 arranges systemd
+  (`../draft/macos.md`, section 7).
+- **A copy of a bottle of temper's own** (6.6), only if a pinned bottle
+  leaves `ghcr.io` while a released temper still pins it: until then
+  the refusal, `mirror` and a binary given by path answer it, and a copy
+  temper hosts is GPL code it distributes, its source to keep beside it
+  (`../draft/macos.md`, section 7).
 
 ## 16. Open questions
 

@@ -72,7 +72,9 @@ scripted upstreams rather than temper's service
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
 managed (`protocol/setup.md`); a kept GitHub forge whose base ends
-in `/` keeps remotes with two after the host
+in `/` keeps remotes with two after the host, and a clients'
+listener off loopback is refused in every engine shape, where the
+design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
 (`domain/root.md`). Ready names no email for a ChatGPT sign-in,
@@ -82,6 +84,8 @@ git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, and the
 live scripts default to a scratch layout of whoever runs fabrig's
 development, in a form the outward check does not match
+(`domain/testing.md`). temper's one story on macOS has not run green
+on the runner, so `draft/macos.md`'s acceptance stands open
 (`domain/testing.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and
@@ -146,6 +150,7 @@ Drafts:
 - [`draft/macos.md`](draft/macos.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
+- [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)

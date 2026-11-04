@@ -380,3 +380,159 @@ fn a_cancelled_program_run_terminates_a_deaf_child() {
     let signals: Vec<_> = run.seen.iter().filter(|seen| matches!(seen, Seen::Interrupted | Seen::Terminated)).collect();
     assert_eq!(signals, [&Seen::Interrupted, &Seen::Interrupted, &Seen::Terminated]);
 }
+
+fn chat_charter() -> Box<[u8]> {
+    smith_agent_process_world::wire::edit_charter(&program_world::child_charter(), |parts| {
+        parts.mode = smith_charter::Mode::Open;
+        parts.resume = true;
+        let mut tools = parts.tools.clone().into_parts();
+        tools.wait = true;
+        tools.deliver = None;
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("chat tools");
+        parts.waiting = skein_lib::Duration::from_millis(10);
+        smith_agent_process_world::wire::budget(parts, 24, 80);
+        let mut main = parts.main.clone().into_parts();
+        main.effort = Some(b"medium".as_slice().into());
+        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("main effort");
+        parts.brief = skein_lib::List::with_capacity(1);
+        parts
+            .brief
+            .push(
+                smith_charter::Section::new(
+                    &smith_charter::CEILINGS,
+                    smith_charter::SectionParts {
+                        title: b"Request".as_slice().into(),
+                        body: b"Have two sub-agents read src/main.rs and README.md side by side.".as_slice().into(),
+                    },
+                )
+                .expect("chat brief"),
+            )
+            .expect("one brief");
+    })
+}
+
+fn inspect_child(cue: &str, named: bool) -> Step {
+    let mut input = json!({"brief":format!("{cue} Read the file and report."),"tools":["inspect"],"max_turns":3});
+    if named {
+        input["llm"] = json!("fake");
+    }
+    Step::Call { tool: "sub_agent".into(), input }
+}
+
+fn chat_story(named: bool) -> Story {
+    Story {
+        turns: vec![
+            Turn::new(vec![Step::Together(vec![inspect_child("CUE-MAIN", named), inspect_child("CUE-README", named)])]),
+            Turn::new(vec![Step::Text("Both files read.".into())]),
+        ],
+        asked: vec![Script {
+            cue: "FOLLOWUP".into(),
+            turns: vec![
+                Turn::new(vec![inspect_child("CUE-README", named)]),
+                Turn::new(vec![Step::Text("Read the README again.".into())]),
+            ],
+        }],
+        cued: [
+            ("CUE-MAIN", "/work/repo/src/main.rs", "main contains an empty entry point"),
+            ("CUE-README", "/work/repo/README.md", "README describes a small example"),
+        ]
+        .into_iter()
+        .map(|(cue, path, answer)| Script {
+            cue: cue.into(),
+            turns: vec![Turn::new(vec![read(path)]), Turn::new(vec![Step::Text(answer.into())])],
+        })
+        .collect(),
+        ..Default::default()
+    }
+}
+
+fn chat_parked(run: &Run, children: usize) {
+    assert!(
+        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Parked),
+        "answer={:?}, errors={}",
+        run.answer(),
+        String::from_utf8_lossy(&run.errors)
+    );
+    let results = results(run);
+    assert_eq!(results.len(), children, "seen={:?}", run.seen);
+    for result in results {
+        assert!(
+            matches!(result.returned(), smith_transcript::Returned::Said(said)
+            if !said.error() && skein_lib::bytes::find(said.text(), b"unanswered").is_none()
+                && (skein_lib::bytes::find(said.text(), b"README describes a small example").is_some()
+                    || skein_lib::bytes::find(said.text(), b"main contains an empty entry point").is_some())),
+            "child must return its scripted answer: {:?}; faults={:?}",
+            result.returned(),
+            program_faults(run)
+        );
+    }
+    let ends: Vec<_> = run
+        .events
+        .iter()
+        .filter_map(|record| match &record.event {
+            Event::ConversationClosed(close) if close.conversation != 0 => Some(close.end.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(ends.len(), children);
+    assert!(ends.iter().all(|end| *end == ConversationEnd::Closed));
+    assert!(run.run_directories.is_empty());
+}
+
+fn print_calls(run: &Run) -> Vec<&smith_fake_claude::Observation> {
+    run.invocations.iter().filter(|invocation| invocation.arguments[0] == "-p").collect()
+}
+
+#[test]
+fn a_resumed_program_main_can_start_fresh_children() {
+    for named in [true, false] {
+        let story = chat_story(named);
+        let charter = chat_charter();
+        let control = program_world::HostMessage {
+            when: program_world::When::Waiting(1),
+            text: "FOLLOWUP Have one sub-agent read README.md once more.".into(),
+            finish_requested: false,
+        };
+        let mut first = program_world::children_chat(&story, &charter, &[control]);
+        chat_parked(&first, 3);
+        let before: Vec<_> = print_calls(&first)
+            .iter()
+            .map(|call| argument(&call.arguments, "--session-id").expect("fresh session").to_owned())
+            .collect();
+        assert_eq!(before.len(), 4, "same-activation follow-up keeps main alive");
+        assert!(first.seen.contains(&Seen::Acted {
+            tool: "Read".into(),
+            path: "/work/repo/src/main.rs".into(),
+            error: false
+        }));
+        let later = program_world::resume_children(&mut first, &story, &charter, 2);
+        chat_parked(&later, 1);
+        let calls = print_calls(&later);
+        assert_eq!(calls.len(), 2);
+        assert_eq!(argument(&calls[0].arguments, "--resume"), Some(before[0].as_str()));
+        assert!(argument(&calls[1].arguments, "--resume").is_none());
+        let session = argument(&calls[1].arguments, "--session-id").expect("fresh child session");
+        assert!(!before.iter().any(|prior| prior == session), "each activation needs fresh children");
+        assert_eq!(argument(&calls[1].arguments, "--effort"), Some(if named { "high" } else { "medium" }));
+        assert!(later.seen.contains(&Seen::Acted {
+            tool: "Read".into(),
+            path: "/work/repo/README.md".into(),
+            error: false
+        }));
+    }
+}
+
+fn program_faults(run: &Run) -> Vec<String> {
+    run.events
+        .iter()
+        .filter_map(|record| match &record.event {
+            Event::ConversationClosed(close) => {
+                close.failure.as_ref()?.detail.as_ref().map(|text| String::from_utf8_lossy(text).into_owned())
+            }
+            Event::ResponseCompleted(response) => {
+                response.failure.as_ref()?.detail.as_ref().map(|text| String::from_utf8_lossy(text).into_owned())
+            }
+            _ => None,
+        })
+        .collect()
+}

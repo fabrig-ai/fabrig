@@ -8,6 +8,7 @@ use crate::{Event, KeyReader, KeyWriter, Limits, Op, Page, Range, Request, Store
 use crate::{crc, frame};
 use alloc::boxed::Box;
 use alloc::vec;
+use alloc::vec::Vec;
 use skein_io::file;
 use skein_io::kernel::Fd;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -79,6 +80,26 @@ fn frame_rejects_every_single_byte_corruption() {
         *bad.get_mut(at).expect("byte in frame") ^= 1;
         assert!(frame::decode(&bad, 4096).is_none(), "corruption at {at}");
     }
+}
+
+#[test]
+fn a_carried_frame_reserves_its_whole_length_once_its_header_arrives() {
+    let bytes = frame::encode(1, &[put(b"a", b"value")], 4096).expect("frame fits");
+    let header = usize::try_from(frame::HEADER).expect("header fits usize");
+    let mut carried = Vec::with_capacity(header);
+    carried.extend_from_slice(bytes.get(..header).expect("frame has a header"));
+    frame::reserve_frame(&mut carried, 4096);
+    assert!(carried.capacity() >= bytes.len());
+    let capacity = carried.capacity();
+    frame::reserve_frame(&mut carried, 4096);
+    assert_eq!(carried.capacity(), capacity);
+
+    let short = header.checked_sub(1).expect("header is nonempty");
+    let mut carried = Vec::with_capacity(short);
+    carried.extend_from_slice(bytes.get(..short).expect("frame has a header"));
+    let capacity = carried.capacity();
+    frame::reserve_frame(&mut carried, 4096);
+    assert_eq!(carried.capacity(), capacity);
 }
 
 #[test]
@@ -526,4 +547,13 @@ fn applying_an_earlier_commit_keeps_a_later_charge_on_the_same_key() {
         Queued::new().check(&map, &concatenated, &limits),
         "the later commit's charge survives the earlier commit applying",
     );
+}
+
+#[test]
+fn chunk_target_is_the_target_under_a_higher_ceiling() {
+    for (chunk, target) in
+        [(4096, 4096), (crate::CHUNK_TARGET, crate::CHUNK_TARGET), (crate::CHUNK_TARGET + 1, crate::CHUNK_TARGET)]
+    {
+        assert_eq!(Limits { chunk, ..limits() }.chunk_target(), target);
+    }
 }

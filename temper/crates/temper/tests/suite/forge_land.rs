@@ -1159,17 +1159,17 @@ fn setup_accepts_a_project_free_first_repository_row() {
     use skein_io::kernel::Exit;
     let scratch = support::Scratch::new("setup-project-free-row");
     let row = json!({"forges":[{
-        "number":1,"mode":"owned","state":"connected",
+        "number":1,"host":"git.example:3000","mode":"owned","state":"connected",
         "first":{"state":"made","org":"work","repository":"hello","id":1}
     }]});
-    let calls = [
+    let mut calls = [
         String::new(),
         json!({"forges":[]}).to_string(),
         "setting up\nproject: 1 · hello\nAdopted work/hello on forge 1 as owned.\nIt is the project's home.\n"
             .to_owned(),
         String::new(),
         row.to_string(),
-        "forge 1 · Forgejo · owned · Connected as temper (2)".to_owned(),
+        "forge 1 · host: git.example:3000 · Forgejo · owned · Connected as temper (2)".to_owned(),
     ]
     .map(|stdout| support::Ended { exit: Some(Exit::Code(0)), stdout: stdout.into_bytes(), stderr: vec![] });
     assert_eq!(
@@ -1181,6 +1181,22 @@ fn setup_accepts_a_project_free_first_repository_row() {
             scratch.path()
         ),
         2
+    );
+    let mut other_host = row;
+    other_host["forges"][0]["host"] = json!("other.example:3000");
+    calls[4].stdout = other_host.to_string().into_bytes();
+    assert!(
+        std::panic::catch_unwind(|| {
+            support::forge_land::assert_forgejo_setup_after_sign_in(
+                "first",
+                &calls,
+                "forgejo-1: started\nrunner-1: started",
+                None,
+                scratch.path(),
+            )
+        })
+        .is_err(),
+        "the text row must name the JSON row's resource host"
     );
     scratch.remove();
 }
