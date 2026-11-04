@@ -315,7 +315,7 @@ pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
     // Every source value funds at most one output slot. Export roots also
     // reserve a spec list; boxing a list may temporarily hold both buffers.
     let outputs = entries.checked_mul(u64::try_from(largest).ok()?)?.checked_mul(3)?;
-    let arena = List::<Type>::worst_case(limits.document.saturating_div(2).saturating_add(1))?;
+    let arena = List::<Type>::price(limits.document.saturating_div(2).saturating_add(1))?;
     let pending = u64::from(limits.depth).checked_mul(u64::try_from(size_of::<Text>()).ok()?)?;
-    outputs.checked_add(arena)?.checked_add(pending)?.checked_add(Stack::<Frame>::worst_case(limits.depth)?)
+    outputs.checked_add(arena)?.checked_add(pending)?.checked_add(Stack::<Frame>::price(limits.depth)?)
 }
