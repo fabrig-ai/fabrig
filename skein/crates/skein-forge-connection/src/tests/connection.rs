@@ -44,6 +44,23 @@ fn a_reset_before_the_first_byte_is_unseen_and_after_it_seen() {
 }
 
 #[test]
+fn a_failed_connection_holds_link_work_until_close() {
+    let mut h = fixtures::ConnectionHarness::new();
+    h.connection
+        .start(&h.env, &h.forge, fixtures::USER_AGENT, fixtures::forgejo_exchange(request::Request::User, None))
+        .expect("valid request");
+    h.pump();
+    h.connection.failed(Failure::Unseen);
+    h.connection.stream(&h.env, Up::Room);
+    h.pump();
+    assert!(h.connection.link.has_work(), "closed connection holds link events");
+    assert_eq!(h.connection.phase, Phase::Closed);
+    h.connection.close(&h.env, false, &mut h.io);
+    h.pump();
+    assert!(!h.connection.link.has_work(), "closing drains the link");
+}
+
+#[test]
 fn a_json_response_is_decoded_through_its_body_end() {
     let mut h = fixtures::ConnectionHarness::new();
     h.connection

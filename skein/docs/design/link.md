@@ -52,7 +52,6 @@ pub enum Moved { Nothing, Within, Sent, Above(Event) }
 impl Link {
     pub fn new(tls: Option<tls::Client>) -> Link;
     pub fn encrypted(&self) -> bool;
-    pub fn socket(&self) -> Option<Token>;
     pub fn connecting(&mut self, socket: Token, below: &mut Queue<io::Request>);
     pub fn connected(&mut self, env: &Env<Limits>) -> Start;
     pub fn up(&mut self, env: &Env<Limits>, event: Up);
@@ -62,6 +61,7 @@ impl Link {
     pub fn closed(&mut self);
     pub fn has_work(&self) -> bool;
     pub fn next_deadline(&self) -> Option<Time>;
+    pub fn due(&self, now: Time) -> bool;
     pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>);
 }
 ```
@@ -76,6 +76,9 @@ impl Link {
   none. It's called until `Nothing`, or until the owner's budget or room ends,
   and `has_work` says what's left.
 - **`closed`** is io's `Closed`: nothing more leaves.
+- **`due`** says `next_deadline` has come: `fire` at `now` aborts.
+- **Its `Debug`** gives its queues' lengths, never what they hold: a body going
+  down may be a token request (oauth.md, 4).
 
 ### 3.2 The order of a move
 
@@ -119,11 +122,16 @@ apart from it, since a body may go through HTTP's framing.
 ```rust
 impl Upload {
     pub fn new(body: Box<[u8]>) -> Upload;
+    /// A request's optional body.
+    pub fn of(body: Option<Box<[u8]>>) -> Option<Upload>;
     /// At `Up::Room`: the next piece of at most `room` bytes, and what follows
     /// it: `Finish` at the end, otherwise a demand for `room` more.
     pub fn room(&mut self, room: u32) -> (Down, Down);
 }
 ```
+
+An owner reads the end as `next == Down::Finish`. Its `Debug` gives the body's
+length, never its bytes, as the link's does.
 
 `skein-llm-connection` has none: `skein-llm`'s client uploads its own request.
 
@@ -131,7 +139,8 @@ impl Upload {
 
 `skein/tests/link` drives a `Link` against skein's in-memory TLS server
 (`skein/tests/tls/src/server.rs`). Each component's own world pins that its
-graceful close reaches the server, whose `closed` says it read `close_notify`.
+graceful close reaches the server, whose `closed` says it read `close_notify`,
+and that its stalled close is aborted at the link's deadline.
 
 - A graceful close: `close_notify` is read, its `Send` precedes the socket's
   `Close`, and nothing follows it.
@@ -140,7 +149,11 @@ graceful close reaches the server, whose `closed` says it read `close_notify`.
   `Connecting`; twice.
 - A close whose room never comes: `next_deadline` is `close_timeout` on, and
   `fire` aborts.
+- A stream that fails during a close ends it, and the socket closes. One that
+  ends leaves it to `fire`.
+- A close after TLS failed: TLS answers `Closed` at once, and the socket closes.
 - Without TLS, `close` makes its request at once.
+- `Debug` shows no byte of a body or a queue.
 
 ## 5. Later
 
