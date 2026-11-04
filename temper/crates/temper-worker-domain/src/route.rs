@@ -20,18 +20,18 @@ use crate::workspace::{self, Write};
 use crate::{agents, jobs, tooling, translate};
 
 /// What the host reads: this iteration's times, and its own limits.
-pub(crate) const fn host_env(env: &Env<Limits>) -> Env<host::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.host }
+pub(crate) fn host_env(env: &Env<Limits>) -> Env<host::Limits> {
+    env.with(env.limits.host)
 }
 
 /// What the checkout reads.
-pub(crate) const fn checkout_env(env: &Env<Limits>) -> Env<checkout::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.checkout }
+pub(crate) fn checkout_env(env: &Env<Limits>) -> Env<checkout::Limits> {
+    env.with(env.limits.checkout)
 }
 
 /// What the agent child domain reads.
-pub(crate) const fn agent_env(env: &Env<Limits>) -> Env<agent::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.agent }
+pub(crate) fn agent_env(env: &Env<Limits>) -> Env<agent::Limits> {
+    env.with(env.limits.agent)
 }
 
 /// Hands one of the protocol's events to the child domain it is for.
