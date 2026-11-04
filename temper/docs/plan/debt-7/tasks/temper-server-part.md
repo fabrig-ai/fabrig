@@ -96,3 +96,18 @@ The shipped server is temper's form. The two lines where it isn't:
 
 The common note's items, the measure by file, the browser tier's counts, and net lines against the cap. No test is added;
 the one that moves needs no break.
+
+## Answers
+
+2026-11-04. Does the -340 cap read against the base with the needs merged (-397), or against the integration base the
+run started from (-186)? **Against the base with the needs merged: -397 meets the cap, nothing to cut.** The cap was
+set for this task's own lines; the +211 between the two figures is `jig-server-part`'s and `temper-workers-host`'s
+work, counted against their caps. `notes/common.md` now says so. The figure is `git diff --shortstat 85e80b7286
+fcfee88275`: 42 insertions, 439 deletions, and `fcfee88275` is the only commit of the branch that isn't a merge.
+
+Keep the pushed work at `fcfee88275` and finish what the stop left, on this branch: confirm `git status` shows
+`debt-7/temper-server-part` at that commit first, since the last run's slot was switched under it, and leave out
+anything in `jig/crates/jig-domain-tasks/src/control.rs`, which isn't this task's. Then `cargo fmt` and the old-forms
+check on this branch, which last ran on the switched checkout; step 5's clippy, which also checks the `expect` on
+`Page::Service`; the full `temper-service` nextest; `temper`'s and the direct dependents' checks; step 6's browser
+tier; and the citations check.
