@@ -279,7 +279,7 @@ fn pending_settings_review(core: &Core, party: u64, proposer: people::Proposer, 
                 | tasks::ProposalState::Rejected { .. }
                 | tasks::ProposalState::Withdrawn => false,
             };
-            let settings = match proposal.action {
+            let settings_action = match proposal.action {
                 tasks::ProposalAction::Settings { .. } => true,
                 tasks::ProposalAction::Batch(..)
                 | tasks::ProposalAction::Effect { .. }
@@ -289,7 +289,7 @@ fn pending_settings_review(core: &Core, party: u64, proposer: people::Proposer, 
                 | tasks::ProposalAction::Release { .. }
                 | tasks::ProposalAction::ReleasePlaced { .. } => false,
             };
-            pending && settings
+            pending && settings_action
         }
     }
 }
