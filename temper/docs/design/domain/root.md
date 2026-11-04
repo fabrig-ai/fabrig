@@ -315,8 +315,8 @@ counted at the root, which sees them all.
 - **What waits:** a run's preparation, the one entrance that brings the
   most. While the held bytes are at or past the budget, every activation
   waits, the task staying due in jig: `Resume`'s second choice (it goes
-  on to the fleet's progress), an activation that comes ready of itself,
-  and one queued as the root's work. A restart's restored activations (a
+  on to the fleet's progress) and one queued as the root's work. A
+  restart's restored activations (a
   task due or preparing when the engine stopped) are no longer drained
   all at once when decisions open: `Resume` takes them within the
   budget, as bytes drain. Since a
