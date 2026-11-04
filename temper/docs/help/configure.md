@@ -36,6 +36,7 @@ not raise these limits.
 | `tasks.batch` | Tasks created atomically |
 | `tasks.project_goals` | Live tracked goals per project |
 | `documents.lines` | Lines per charter document read |
+| `people.requests` | Retained deciding answers across the deployment |
 
 Size live concurrency separately from lifetime tree capacity; ended
 tasks do not return tree room. `people.inbox_tasks` must be at least
@@ -44,6 +45,15 @@ max(`tasks.delegates` + 1, `tasks.project_goals`) and at most
 `tasks.tasks`. For example, `tasks.tasks: 64` needs
 `people.inbox_tasks: 128`, while `tasks.delegates: 8` needs
 `people.operations: 9` and enough live task capacity to hold it.
+
+`people.requests` holds a day's deciding answers across the deployment:
+2,000 on small and 8,000 on standard. The calculation is 4 or 16 people,
+each with 20 daily conversations, each a creation, three messages and a
+decision, with fivefold headroom. Settings changes and other deciding
+acts share this room; pending decisions also need a place. Unexpired
+answers stay so a retry with the same key replays its answer. When full,
+ctl reports the number held and when the oldest answer expires. Size
+this limit for a higher daily workload or a longer answer retention.
 
 A refused start names the failed dependency and required minimum.
 A fixed schema ceiling or profile store ceiling cannot be raised with
