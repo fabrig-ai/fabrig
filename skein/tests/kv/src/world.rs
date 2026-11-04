@@ -88,6 +88,21 @@ impl World {
         self.drive(false);
     }
 
+    /// Whether the store has a chunk or a replacement step for `fire`, and io room to ask it.
+    #[must_use]
+    pub fn ready(&self) -> bool {
+        self.io.takes() && self.below.is_empty() && skein_kv::is_ready(&self.store, &self.env.limits)
+    }
+
+    /// One `fire`, measured alone, then the world driven to rest without another.
+    pub fn fire_measured(&mut self) -> skein_heap::Grown {
+        let span = skein_heap::Span::start();
+        skein_kv::fire(&mut self.store, &self.env, &mut self.above, &mut self.below);
+        let grown = span.end();
+        self.drive(false);
+        grown
+    }
+
     pub fn drive(&mut self, auto_fire: bool) {
         for _ in 0..10_000 {
             if !self.step(auto_fire) {
@@ -127,7 +142,7 @@ impl World {
             skein_kv::up(&mut self.store, &self.env, event, &mut self.above, &mut self.below);
             progress = true;
         }
-        if auto_fire && self.io.takes() && self.below.is_empty() && skein_kv::is_ready(&self.store, &self.env.limits) {
+        if auto_fire && self.ready() {
             skein_kv::fire(&mut self.store, &self.env, &mut self.above, &mut self.below);
             progress = true;
         }
