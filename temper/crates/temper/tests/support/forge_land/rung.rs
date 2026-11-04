@@ -795,7 +795,7 @@ fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3], output: &str) -> Re
     require(output.lines().any(|line| line.contains("Forgejo: person ")), "box printed the person's login")?;
     driver.header = paths[1].join(format!("forge-{}/person_read.header", driver.forge));
     super::super::live::notice(
-        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=207552 period=449696 role period=415104",
+        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=8302080 period=449696 role authority=103776 period=415104",
     );
     let memory = read_json(&paths[0].join("temper.json"))["engine"]["memory_bytes"].clone();
     super::super::live::notice(&format!("SETUP engine memory={memory}"));
@@ -857,7 +857,7 @@ pub fn offline_setup(root: &Path) {
                     roles.iter().any(|role| {
                         role["number"] == 0
                             && role["period_spend"] == 415_104
-                            && role["authority"]["authority"]["spend"] == 207_552
+                            && role["authority"]["authority"]["spend"] == 103_776
                             && role["authority"]["cut"] == false
                     })
                 }),

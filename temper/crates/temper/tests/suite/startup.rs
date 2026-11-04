@@ -585,9 +585,10 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let original: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("agent fixture")).expect("agent JSON");
     for (member, value, expected) in [
-        ("max_turns", 7, Some("charter 1.turns: needs 8 turns; the agent's profile.policy.max_turns allows 7\n")),
-        ("max_turns", 15, Some("charter 2.turns: needs 16 turns; the agent's profile.policy.max_turns allows 15\n")),
-        ("max_turns", 16, None),
+        ("max_turns", 7, Some("charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 7\n")),
+        ("max_turns", 15, Some("charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 15\n")),
+        ("max_turns", 799, Some("charter 2.turns: needs 800 turns; the agent's profile.policy.max_turns allows 799\n")),
+        ("max_turns", 800, None),
         (
             "check_timeout",
             60001,
@@ -640,7 +641,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
     assert_eq!(
         temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("old tuple refused"),
-        "temper serve: charter 1.turns: needs 8 turns; the agent's profile.policy.max_turns allows 5\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
+        "temper serve: charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 5\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
     );
     scratch.remove();
 }

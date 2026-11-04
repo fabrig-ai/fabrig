@@ -27,8 +27,9 @@ Acceptance:
   `a_fresh_init_names_the_standard_profiles` reads init's generated document (the module's
   `super::stock::generated()` or its neighbours' helper) and asserts its three `"profile"` lines
   are `"standard"` and that its engine overrides hold none of jig's tasks', people's or
-  authority's members but `tasks.message_bytes` and `tasks.result_bytes` (configuration.md,
-  13.4: the overrides say only what differs).
+  authority's members but `tasks.inbox_bytes`, `tasks.message_bytes` and `tasks.result_bytes`
+  (configuration.md, 13.4: the overrides say only what differs; the inbox's bytes follow the
+  box's message bound, `init-standard`'s answers).
 - **`me` lists the stock charters:** `temper-service/src/tests/welcome_policy.rs` (near 107-157)
   drives init's documents through the engine; extend it, or add
   `a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale` beside it: after its project is
@@ -81,3 +82,24 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, with each test's time.
+
+## Answers
+
+### 2026-11-04: may this test admit init's `tasks.inbox_bytes` 874,120 override?
+
+Yes. The acceptance above now names it; assert exactly those three task overrides, and that
+`tasks.inbox_bytes` is `tasks.inbox_messages` × `tasks.message_bytes` (82 × 10,660). It differs
+from the profile for a reason (`init-standard.md`'s answers: `standard`'s 21,495,808-byte inbox
+passes the journal carrier, and the inbox's bytes follow the box's message bound; 13.4's table
+leaves coupled limits sized the same way), so it is what "only what differs" allows. init's
+document and the journal bound stay as they are.
+
+Carry on with the remaining acceptance. Two things the rerun should expect:
+
+- `startup/problems.rs`'s `clippy::semicolon_if_nothing_returned` is `stock-scale`'s file. Leave
+  it under `## Left` unless the merged `stock-scale` has mended it; lint this task's own files.
+- A worker's hello is checked against every configured charter of its kind
+  (`jig_domain_fleet::needs::shortfall`), so your worlds' hello offers the stock's largest:
+  `turns` 800, `time` 28,800 s, and `spend` what the refusal names. Set that in
+  `fabrig_scale.rs` if the world's own bounds offer less. That is what an agent offers, not an
+  override of a limit, so it does not fall under "never override it in the test".
