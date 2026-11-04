@@ -13,6 +13,11 @@
   first chunk; `real.rs`'s `commit_and_recover` checks the reopened number,
   without reading the value; no reason is recorded.
 - **Departs:**
+  - 4: a failed create or directory sync on a rollover ends the store as a
+    failed start does: `skein-kv/src/store.rs`'s `Creating` and `Announcing`
+    close it with no event, and leave its queued commits unanswered, where
+    this section answers them `Failed` and recovers from the disk; no reason
+    is recorded.
   - 2, 3, 4: for the store's requests, recovery and commits,
     `skein/docs/foundation/programming-model.md`, 5.4 asks for one explicit
     state enum per lifecycle, each state holding exactly its data, no
