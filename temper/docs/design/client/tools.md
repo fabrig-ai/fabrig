@@ -191,7 +191,8 @@ temper                       the binary: `temper ctl` runs the host
   `SOURCE`, `POSITION`, `NAME` (a program source's), `HOLD` (a placed
   hold's number), `LANDING`, `FINDING`, `REVISION` (a
   settings revision), `REV` (a revision a read printed of the object
-  acted on: a spec's, a hold's), `PROPOSAL`, `QUESTION`, `NUMBER` (a
+  acted on: a spec's, a hold's, a person task's), `PROPOSAL`, `QUESTION`,
+  `CHOICE` (a person contract's code), `STATE` (its approval state), `NUMBER` (a
   setting's), `TEMPLATE`, `CHARTER`, `CURSOR`, `COUNT`, `PART`, `OFFSET`, `PAGE`,
   `TURN`, `DIGEST`, `CONDITION`, `DURATION`, `TIME`, `PRIORITY`,
   `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
@@ -769,6 +770,23 @@ The table grows area by area, each with its stories (section 11).
    the project's own operations, `policy`, `role`, `pool` (jig's
    `domain/people.md`, 5.2), past the spend per period that `project
    fund` sets (5.3).
+
+   `task show TASK` joins a person task's document to its generic task:
+   its question, result contract, choice codes and bounds, person revision,
+   holder, and each offered act with its admission. The inbox's person-task
+   line prints `read: task show TASK`. Role-addressed work offers
+   `task take TASK` and `task hand-back TASK`; it must be taken before an
+   answer. These commands and person answers are optionally keyed.
+
+   A person answer keeps the shown revision: `task answer TASK --rev REV
+   CHOICE TEXT` for a choice and its reason, `task answer TASK --rev REV
+   TEXT` for words, or `task answer TASK --rev REV --approve STATE [TEXT]`
+   for the exact approval state, STATE as lowercase hexadecimal. Every
+   contract also accepts `task answer TASK --rev REV --cannot REASON`.
+   A stale revision reaches the engine and is refused; a retained keyed
+   answer reaches it for replay even after the task ends. The numbered
+   question form of 5.3 keeps its separate question read and answer.
+
 4. **jig's plumbing whole:** `create`, `propose`, `compound --project
    PROJECT FILE`, a batch, a proposal or a compound request as JSON
    (keyed).
