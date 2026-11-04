@@ -1,0 +1,3 @@
+draft = "serve-without-box"
+repo = "fabrig"
+sources = ["temper/docs/plan/serve-without-box/inputs/serve-without-box.md", "temper/docs/design/draft/serve-without-box.md", "AGENTS.md"]
