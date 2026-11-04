@@ -45,10 +45,10 @@ fn the_flow_shows_the_step_its_row_is_at() {
         (C::Connected { id: 1, login: b"bot".as_slice().into() }, Shown::Ready(HERE)),
         (C::Stopped { reason: b"stopped".as_slice().into() }, Shown::Choose),
     ] {
-        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows(connection), None), expected);
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows(connection), None, true), expected);
     }
-    assert_eq!(connect::step(None, &rows(C::NotSetUp), None), Shown::Choose);
-    assert_eq!(connect::step(Some(Choice::Forge(9)), &rows(C::NotSetUp), None), Shown::Choose);
+    assert_eq!(connect::step(None, &rows(C::NotSetUp), None, true), Shown::Choose);
+    assert_eq!(connect::step(Some(Choice::Forge(9)), &rows(C::NotSetUp), None, true), Shown::Choose);
     // Leaving the elsewhere card off the welcome does not retire its address.
     for address in [
         Address::Welcome { step: Step::Forge { forge: Some(Choice::Elsewhere) } },
@@ -63,17 +63,17 @@ fn the_flow_shows_the_step_its_row_is_at() {
         else {
             panic!("forge choice");
         };
-        assert_eq!(connect::step(choice, &State::Unknown, None), Shown::Details(Choice::Elsewhere));
+        assert_eq!(connect::step(choice, &State::Unknown, None, true), Shown::Details(Choice::Elsewhere));
     }
     let playground = forge::family::playground(&playground::answer(b"title"), &w::CEILINGS).unwrap();
     assert_eq!(
-        connect::step(Some(Choice::Forge(playground.forge)), &rows(C::NotSetUp), Some(playground.forge)),
+        connect::step(Some(Choice::Forge(playground.forge)), &rows(C::NotSetUp), Some(playground.forge), true),
         Shown::Choose
     );
     let github = State::Rows(Box::new([row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered)]));
-    assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None), Shown::Details(Choice::Forge(2)));
+    assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None, true), Shown::Details(Choice::Forge(2)));
     let fake = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Fake, C::NotSetUp, Offer::Offered)]));
-    assert_eq!(connect::step(Some(Choice::Forge(HERE)), &fake, None), Shown::Choose);
+    assert_eq!(connect::step(Some(Choice::Forge(HERE)), &fake, None, true), Shown::Choose);
 }
 #[test]
 fn a_fresh_deployment_lists_no_forge_and_offers_the_kinds() {
@@ -88,6 +88,41 @@ fn a_fresh_deployment_lists_no_forge_and_offers_the_kinds() {
         &[connect::Choice::GitHub, connect::Choice::Managed]
     );
 }
+#[test]
+fn no_owned_offers_github_and_a_forgejo_elsewhere() {
+    for state in [State::Unknown, State::Ended, State::Rows(Box::new([]))] {
+        assert_eq!(
+            connect::choices(connect::records(&state), None, false).as_ref(),
+            &[connect::Choice::GitHub, connect::Choice::Managed]
+        );
+    }
+}
+#[test]
+fn an_owned_address_with_none_offered_is_choose() {
+    for (state, playground, owned) in [
+        (State::Unknown, None, false),
+        (State::Ended, None, false),
+        (State::Rows(Box::new([])), None, false),
+        (State::Rows(Box::new([])), Some(1), true),
+        (State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotOffered)])), None, true),
+        (
+            State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotUnderTheBox)])),
+            None,
+            true,
+        ),
+    ] {
+        assert_eq!(connect::step(Some(Choice::Owned), &state, playground, owned), Shown::Choose);
+        assert_eq!(connect::welcome_step(Some(Choice::Owned), &state, playground, owned), Shown::Choose);
+    }
+}
+#[test]
+fn an_offered_owned_address_keeps_its_details() {
+    for (state, owned) in [(State::Rows(Box::new([])), true), (rows(C::NotSetUp), false)] {
+        assert_eq!(connect::step(Some(Choice::Owned), &state, None, owned), Shown::Details(Choice::Owned));
+        assert_eq!(connect::welcome_step(Some(Choice::Owned), &state, None, owned), Shown::Details(Choice::Owned));
+    }
+}
+
 fn event(root: &mut crate::Domain, event: Event) -> Queue<Request> {
     event_at(root, event, Time::ZERO)
 }
@@ -561,11 +596,16 @@ fn ready_waits_on_the_first_repository_made() {
         (forges::FirstState::Made { id: 42 }, Shown::Ready(HERE)),
     ] {
         let rows = with_first(C::Connected { id: 7, login: b"temper".as_slice().into() }, state);
-        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows, None), expected);
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows, None, true), expected);
         assert_eq!(connect::personal(&rows, None).unwrap().number, HERE);
     }
     assert_eq!(
-        connect::step(Some(Choice::Forge(HERE)), &with_first(C::Connecting, forges::FirstState::Made { id: 42 }), None),
+        connect::step(
+            Some(Choice::Forge(HERE)),
+            &with_first(C::Connecting, forges::FirstState::Made { id: 42 }),
+            None,
+            true
+        ),
         Shown::SettingUp(HERE)
     );
 }
@@ -578,7 +618,7 @@ fn a_first_repository_failed_shows_its_step() {
         (forges::CreateStep::File, b"Set up failed: adding the starter workflow"),
     ] {
         let rows = with_first(C::Connected { id: 7, login: Box::default() }, forges::FirstState::Failed { step });
-        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows, None), Shown::SettingUp(HERE));
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &rows, None, true), Shown::SettingUp(HERE));
         let row = connect::personal(&rows, None).unwrap();
         assert_eq!(forge::words::forge_connection(row).as_ref(), words);
         assert_eq!(forge::listed::dot(&rows, None), forge::listed::Dot::Red);
@@ -730,7 +770,7 @@ fn github_without_an_accepted_installation_is_connecting() {
     let mut state = github_picker_rows();
     let State::Rows(rows) = &mut state else { panic!("rows") };
     rows[0].installations = Box::default();
-    assert_eq!(connect::step(Some(Choice::Forge(2)), &state, None), Shown::SettingUp(2));
+    assert_eq!(connect::step(Some(Choice::Forge(2)), &state, None, true), Shown::SettingUp(2));
     assert_eq!(connect::unfinished(connect::records(&state), None).unwrap().number, 2);
 }
 #[test]
@@ -764,8 +804,8 @@ fn welcome_skips_owned_details_only_when_offered_under_the_box() {
         [(Offer::Offered, Shown::Choose), (Offer::NotUnderTheBox, Shown::Details(Choice::Forge(HERE)))]
     {
         let state = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, offer)]));
-        assert_eq!(connect::welcome_step(Some(Choice::Forge(HERE)), &state, None), expected);
-        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &state, None), Shown::Details(Choice::Forge(HERE)));
+        assert_eq!(connect::welcome_step(Some(Choice::Forge(HERE)), &state, None, true), expected);
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &state, None, true), Shown::Details(Choice::Forge(HERE)));
     }
     let mut candidate = row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered);
     assert!(connect::at_once(&candidate));
@@ -930,7 +970,7 @@ fn new_owned_setup_binds_the_made_rows_number_without_adopting() {
 }
 #[test]
 fn the_welcome_shows_a_forge_not_set_up_as_unfinished() {
-    assert_eq!(connect::welcome_step(None, &rows(C::NotSetUp), None), Shown::Unfinished(HERE));
+    assert_eq!(connect::welcome_step(None, &rows(C::NotSetUp), None, true), Shown::Unfinished(HERE));
 }
 #[test]
 fn a_connected_forge_without_its_first_repository_continues_instead_of_starting_over() {
@@ -944,7 +984,7 @@ fn a_connected_forge_without_its_first_repository_continues_instead_of_starting_
         assert!(connect::unfinished(connect::records(&state), None).is_none());
         let personal = connect::personal(&state, None).unwrap();
         assert!(!connect::complete(personal), "the first repository is still needed");
-        assert_eq!(connect::step(Some(Choice::Forge(personal.number)), &state, None), Shown::Ready(HERE));
+        assert_eq!(connect::step(Some(Choice::Forge(personal.number)), &state, None, true), Shown::Ready(HERE));
     }
 }
 
