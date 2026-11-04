@@ -539,3 +539,63 @@ its routing, `iterate` and `main`, its connectors and its own settings.
 run no agents leaves it out, as `README.md`, 5 says. The kernel's hand-off
 between a process's owners of records is skein's, `kernel::Routes`
 (skein's `kernel.md`, 5).
+
+### 11.1 The accounts' host
+
+`jig_protocol_accounts::host::Accounts` is the accounts' component with
+its effects and its io, and one pass over them. The engine's accounts'
+component alone refreshes a record (`../domain/accounts.md`, section 2),
+so this order is jig's: the owner's `iterate` calls the host, and holds
+no step of the order but its own store's and root's. The host takes no
+store: it hands out its store requests, and the owner calls its own store
+and feeds the answer back.
+
+- **At `new`:** the application's name, jig's part of the configuration,
+  the crypto seed, the drawn installation identifier, the secrets' store's
+  limits and a `Runtime`, which holds each provider's endpoint and
+  origins, prepared by the shell, and `trust`, the bounds of the trust
+  roots it prepared. With bounds, a provider on TLS is refused if either
+  is zero; with `None` the shell answers for its roots and the host checks
+  nothing. `jig-protocol-accounts` links `jig-protocol-config` for this,
+  which links nothing back. The files a shell reads for a configuration
+  are `jig_protocol_config::Files`; this host reads none.
+- **A pass.** `begin` takes the iteration's time, whether the store's
+  start mark is durable, the installation, and the secrets' answers the
+  owner holds for the host. In this order, the component hears `Opened`,
+  once; it steps with each answer; it fires. `begin` returns the pass's
+  count: the effects waiting then, and the held event if there is one.
+  The owner calls `output` that many times, each taking one effect in the
+  component's order, and ends the pass with the table's `expire`.
+- **What stays in.** `output` takes the owner's table, and does itself
+  what needs no owner: an io request joins the host's `io`, a grant or a
+  removal changes the table, a source's release ends there. It returns
+  `None` for those, so a grant is in the table before the event that
+  announces it leaves. Three things come out as `Output`:
+  - `Account`, an event for the root: the owner wraps it and pushes it;
+  - `Store`, a request on the host's exchange token: the owner tags the
+    token and calls its store;
+  - `InvalidSecret`, a restored secret of the wrong kind: what that means
+    is the owner's.
+- **What the owner keeps.** It routes each output before it asks for the
+  next, so its root, its store and the table see the component's order.
+  A store that answers within the pass (a read does) goes to `answer` at
+  once. An effect that any step makes after `begin` has counted waits for
+  the next pass.
+- **Tokens.** The host's exchange tokens and io owners sit below the top
+  four bits (skein's `lib.md`, 4). The owner tags `io`'s requests and
+  `Store`'s exchange in its own namespace, and hands io's events back
+  untagged. `answer` and `begin` take a store answer's namespace off.
+- **Room.** The queue to a root is uncapped (section 2). An owner whose
+  queue may be full gives an `Account` back with `hold` and ends the
+  loop. The host keeps it in one slot: it leaves first in the next pass,
+  and the host counts as work until it has. The rest of the count waits
+  with it, and the next `begin` counts them again.
+- **Aborting.** After `abort` the store is closing: the host opens
+  nothing and drops the store requests it holds, and an open it will
+  never make is no work.
+- **Work.** `work_pending` takes `marked`, whether the store's start mark
+  is durable, since the open waits for it. An owner whose own gate
+  holds the host back until the mark passes `true`.
+- **Reads for an owner's diagnostics and tests:** whether it has opened,
+  the effects waiting, whether it holds an event, and the component, for
+  what the component reports of itself. None of them formats a value.
