@@ -24,16 +24,12 @@ pub fn message(speaker: c::Speaker, blocks: &[c::Block]) -> c::Message {
     }
     c::Message { speaker, blocks: kept }
 }
-#[expect(clippy::manual_map, reason = "fixtures spell out options under the step-code lints")]
 pub fn call(number: u64, name: &[u8], input: &[u8], outcome: Option<&[u8]>) -> c::Block {
     c::Block::Call(c::Call {
         number,
         tool: text(name),
         input: text(input),
-        outcome: match outcome {
-            Some(value) => Some(text(value)),
-            None => None,
-        },
+        outcome: outcome.map(text),
         failed: false,
         objects: List::with_capacity(0),
         parts: List::with_capacity(0),
@@ -47,7 +43,6 @@ fn received(value: &c::Text, left: &mut usize, cut: &mut bool, turn_text: u32) -
     *left = left.checked_sub(length).expect("receiving text budget");
     c::Text::new(Box::from(&value.bytes()[..length]), turn_text).expect("receiving prefix")
 }
-#[expect(clippy::manual_map, reason = "fixtures spell out options under the step-code lints")]
 pub fn turn(
     position: u64,
     attempt: u64,
@@ -68,10 +63,7 @@ pub fn turn(
                     let mut call = call.clone();
                     call.tool = received(&call.tool, &mut left, &mut cut, turn_text);
                     call.input = received(&call.input, &mut left, &mut cut, turn_text);
-                    call.outcome = match &call.outcome {
-                        Some(value) => Some(received(value, &mut left, &mut cut, turn_text)),
-                        None => None,
-                    };
+                    call.outcome = call.outcome.as_ref().map(|value| received(value, &mut left, &mut cut, turn_text));
                     c::Block::Call(call)
                 }
                 c::Block::Result { call, summary, failed } => c::Block::Result {

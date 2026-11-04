@@ -22,7 +22,6 @@ impl<'a> Driver<'a> {
         this.drain();
         this
     }
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the one-shot host submits only socket operations")]
     fn turn(&mut self) {
         let now = self.host.real_deadline.as_ref().map_or(Time::ZERO, Deadline::until);
         self.host.iterate(now, Wall::EPOCH);

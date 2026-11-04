@@ -578,8 +578,8 @@ without it.
   `./target/debug/temper box`, serves the browser; so do `cargo build
   --release` and `cargo install --git` of temper's repository.
 - **A crate of its own embeds it,** `temper-client-bundle`, ordinary
-  Rust with its own `[lints]` table, as tools have, which `temper`
-  depends on. Its library is data: the bundle's files, each its path
+  Rust on the `binary` lint profile (`tools/lints/design.md`, 2.3), which
+  `temper` depends on. Its library is data: the bundle's files, each its path
   from the bundle's root (`index.html`, then `<digest>/…`) and its
   bytes by `include_bytes!`, in a directory read's order, and the
   digest, both written by its build script into `OUT_DIR`. A build

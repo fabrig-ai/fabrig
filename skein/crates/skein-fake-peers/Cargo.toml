@@ -25,15 +25,21 @@ skein-fake-llm-protocol.workspace = true
 [target.'cfg(unix)'.dependencies]
 rustls = { workspace = true, features = ["std"] }
 
-[lints.rust]
+[lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
 unused_must_use = "deny"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-wildcard_enum_match_arm = "deny"
-unwrap_used = "deny"
-panic = "deny"
-missing_panics_doc = "allow"
+module_name_repetitions = "allow"
 missing_errors_doc = "allow"
-single_match_else = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+disallowed_methods = "deny"

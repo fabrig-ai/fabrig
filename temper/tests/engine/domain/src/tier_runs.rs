@@ -256,7 +256,6 @@ pub fn tick(world: &mut World) {
 }
 
 #[must_use]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the rows relevant to the tier story")]
 pub fn task(world: &World, number: u64) -> &tasks::TaskRecord {
     world
         .store
@@ -298,7 +297,6 @@ pub fn named_tier<'a>(world: &'a World, name: &[u8]) -> &'a forge_top::TierRow {
     row
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the rows relevant to the tier story")]
 pub fn until(world: &mut World, ticks: u32, description: &str, met: impl Fn(&World) -> bool) {
     for _ in 0..ticks {
         if met(world) {
@@ -385,7 +383,6 @@ pub fn produce_delegated(
 }
 
 #[must_use]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the rows relevant to the tier story")]
 pub fn merge(world: &World, number: u64) -> skein_forge::api::Commit {
     match change(world, number).change.state {
         State::Landed { merge, .. }

@@ -8,6 +8,7 @@
 //! decision, while a committed pending state asks for no duplicate action.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 #![expect(clippy::disallowed_macros, reason = "the relay contracts require Default for Route and Questions")]
 
 extern crate alloc;

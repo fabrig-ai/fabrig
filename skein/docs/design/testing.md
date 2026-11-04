@@ -396,8 +396,8 @@ world meters its processes; a simulated world checking memory meters
 every iteration.
 
 What a crate under `testing/` holds is shared by the tests of more than
-one crate, and is ordinary Rust held to the step crates' lints, each with
-a `clippy.toml` of its own. `skein-heap` holds the one `unsafe` in skein
+one crate, and is ordinary Rust on a lint profile, each with a
+`clippy.toml` of its own, or the step crates' (`tools/lints/design.md`, 3). `skein-heap` holds the one `unsafe` in skein
 beside the ring adapter: a global allocator is an `unsafe impl`.
 programming-model.md (1, 2.1, 10.2) confines `unsafe` to the ring adapter
 in code a service runs, and in tests to this `unsafe impl GlobalAlloc`: a

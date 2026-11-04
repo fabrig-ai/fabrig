@@ -6,7 +6,9 @@
   `system/init`'s `capabilities`: `checked_init`
   (`smith-protocol-program/src/backend/stream.rs`) checks its tools and
   MCP servers only. 8: whether the live suite passes on Claude Code
-  2.1.312 is unknown. Its two agent-process probes and the summary
+  2.1.312 is unknown; 5.8's explicit current-activation refresh is
+  checked through the fake program, with its live model treatment unknown.
+  Its two agent-process probes and the summary
   session's probe passed in the after-landing run at main
   `df41529d3ee1`, whose Claude Code release is unknown. No after-landing
   run read holds the 5.10 probe of two programs answering at once on

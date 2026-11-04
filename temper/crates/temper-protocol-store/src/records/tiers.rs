@@ -137,7 +137,6 @@ fn decode_run(run: w::TierRun) -> Result<p::Run, Undecodable> {
     };
     Ok(p::Run { number, tip, key, landings, part, faults })
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches")]
 pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
     let record = encode_record(&row.record);
     w::TierRow::new(
@@ -199,7 +198,6 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit options")]
 pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let w::TierRowParts {
         observations,
@@ -323,7 +321,6 @@ fn decode_fault(fault: w::TierFault) -> temper_engine_domain_forge_landing::Faul
         w::TierFault::Lost => Fault::Lost,
     }
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit options")]
 fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
     let mut pending = List::with_capacity(u32::try_from(flight.pending.len()).expect(FITS));
     for attempt in &flight.pending {
@@ -366,7 +363,6 @@ fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit options")]
 fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
     let w::TierFlightParts { entry, start, since, waiting, next, run, pending, fault, report } = flight.into_parts();
     let mut attempts = List::with_capacity(pending.len());
@@ -437,7 +433,6 @@ fn decode_probe(
     }
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit matches")]
 fn encode_record(record: &p::Record) -> w::TierRecord {
     let mut flakes = List::with_capacity(u32::try_from(record.flakes.len()).expect(FITS));
     for flake in &record.flakes {
@@ -502,7 +497,6 @@ fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
     })
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit options")]
 fn encode_goals(goals: &[d::TierGoal]) -> List<w::TierGoal> {
     let mut values = List::with_capacity(u32::try_from(goals.len()).expect(FITS));
     for goal in goals {
@@ -528,7 +522,6 @@ fn encode_goals(goals: &[d::TierGoal]) -> List<w::TierGoal> {
     }
     values
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit options")]
 fn decode_goals(goals: List<w::TierGoal>) -> Result<Box<[d::TierGoal]>, Undecodable> {
     let mut values = List::with_capacity(goals.len());
     for goal in goals.into_boxed() {

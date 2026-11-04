@@ -89,7 +89,6 @@ debt it says what a reviewer checks.
 | [D033](D033-limits-literals-in-tests.md) | Tests write out whole `Limits` and `Config` literals instead of one constructor | tests | low | M | open |
 | [D034](D034-codec-double-generation.md) | tests/codec generates its fixtures twice, and skein-codec compiles one of them | tests | medium | S | open |
 | [D035](D035-codegen-diff-and-emit.md) | The schema diff is written twice, and codegen edits its own output as text | duplication | medium | M | open |
-| [D036](D036-lint-blocks-by-hand.md) | Lint configuration is copied by hand into 48 manifests | lints | medium | S | open |
 | [D037](D037-one-word-several-things.md) | One name stands for several things in skein's kits and crates | naming | low | S | open |
 | [D038](D038-comment-words.md) | Comments carry emphasis words, rulings and history | naming | low | S | open |
 | [D039](D039-forge-client-section-citations.md) | forge-client's module headers cite the wrong design sections | naming | low | S | open |
