@@ -259,6 +259,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
         Stored::Entry { entry, .. } => {
             room(K::Entry, Rows(K::Entry), d.entries.len(), d.entries.capacity(), d.entries.contains_key(&entry.number))
         }
+        Stored::Dismissed { party, what } => room(
+            K::Dismissed,
+            Rows(K::Dismissed),
+            d.dismissed.len(),
+            d.dismissed.capacity(),
+            d.dismissed.contains_key(&(*party, *what)),
+        ),
         Stored::Binding { address, subject } => {
             field(K::Binding, RestoreSet::BindingAddressBytes, count(address.len()), 254)?;
             field(K::Binding, RestoreSet::BindingSubjectBytes, count(subject.len()), 255)?;

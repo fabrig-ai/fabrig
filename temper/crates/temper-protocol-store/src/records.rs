@@ -50,6 +50,14 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::ProposedEffect(value) => w::Value::ProposedEffect(entries::encode_proposed(value)),
         d::Stored::Entry { entry, held } => w::Value::Entry(entries::encode_entry_row(entry, *held)),
         d::Stored::Call { key, answer } => w::Value::Call(entries::encode_call(key, answer)),
+        d::Stored::Dismissed { party, what } => {
+            let what = match what {
+                d::Dismissal::ToBegin { project } => w::Dismissal::ToBegin(
+                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).expect(FITS),
+                ),
+            };
+            w::Value::Dismissed(w::Dismissed::new(&w::CEILINGS, w::DismissedParts { party: *party, what }).expect(FITS))
+        }
         d::Stored::Binding { address, subject } => w::Value::Binding(
             w::Binding::new(&w::CEILINGS, w::BindingParts { address: address.clone(), subject: subject.clone() })
                 .expect(FITS),
@@ -89,6 +97,13 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
         w::Value::Change(value) => d::Stored::Change(change::decode_change_row(*value)),
+        w::Value::Dismissed(value) => {
+            let w::DismissedParts { party, what } = value.into_parts();
+            let what = match what {
+                w::Dismissal::ToBegin(value) => d::Dismissal::ToBegin { project: value.into_parts().project },
+            };
+            d::Stored::Dismissed { party, what }
+        }
         w::Value::Binding(value) => {
             let w::BindingParts { address, subject } = value.into_parts();
             d::Stored::Binding { address, subject }
