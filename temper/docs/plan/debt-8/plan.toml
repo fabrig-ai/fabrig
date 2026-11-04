@@ -1,3 +1,16 @@
 draft = "debt-8"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-8/inputs/request.md", "temper/docs/plan/debt-8/inputs/held-core-prepare-agent.md", "jig/docs/development/debt/D001-roots-sequence-core-steps.md"]
+
+[[part]]
+id = "jig-core-steps"
+title = "jig D001: Now::PrepareAgent leaves the core's vocabulary, with a Busy route on Event::Activate; the item goes"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 3"
+
+[[slice]]
+id = 1
+story = "an admitted agent prepares in the core in the activation's decision, and with no read room stays due until a read retires"
+parts = ["jig-core-steps"]
+walk = false
