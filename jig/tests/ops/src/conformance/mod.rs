@@ -44,6 +44,7 @@ pub struct Config {
     documents: bool,
     client_backed: bool,
     close_grant: bool,
+    close_grace: Option<Duration>,
     scenario: Option<jig_conformance::scenarios::Scenario>,
 }
 
@@ -58,6 +59,7 @@ impl Config {
             documents: false,
             client_backed: false,
             close_grant: true,
+            close_grace: None,
             scenario: None,
         }
     }
@@ -66,6 +68,13 @@ impl Config {
     #[must_use]
     pub fn without_close_grant(mut self) -> Self {
         self.close_grant = false;
+        self
+    }
+
+    /// Set the deployment's grace for closing an environment's chat.
+    #[must_use]
+    pub fn with_close_grace(mut self, grace: Duration) -> Self {
+        self.close_grace = Some(grace);
         self
     }
 
@@ -189,6 +198,9 @@ impl Application for Ops {
         let mut configuration = config::root_for(config.seed, config.story == Story::Environment).0;
         if !config.close_grant {
             configuration.core.grants = Box::new([]);
+        }
+        if let Some(grace) = config.close_grace {
+            configuration.environment_close_grace = grace;
         }
         root::Domain::new(configuration, &config.limits).expect("fixture core configuration")
     }
