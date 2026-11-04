@@ -275,3 +275,32 @@ document now runs `standard`, the mend this answer's pre-approval above names.
   under `## Left` or asked as before.
 
 Then the rest of `-p temper-service`, and the acceptance's remaining checks in order.
+
+2026-11-04. **`box_limits()` projects init's engine overrides over a bare application profile: may
+it read and apply init's `application.limits.overrides` too?** Yes; the helper is widened to that,
+in `forge_routes.rs` alone. It says "Effective box limits, read through the shipped init
+template", and init's box is both halves of that template: its application overrides
+(`forge.client.op_bytes` 10,660, T's root carriers) are the ones this task's answers above made
+init's document carry so the root is valid under `standard`. Without them `limits::engine` refuses
+(512 < 10,660; a `root.journal.transcript_bytes` of 65,536 under the row), and the
+engine-domain world's 26 failures all come from that one line, so the acceptance cannot hold
+without it.
+
+- In `box_limits()`: take `temper_service::limits::profile(Profile::Standard)` (it has `Small`
+  on the trunk; `Standard`, as acceptance says), read the template's
+  `application.limits.overrides` with the configuration reader `box_profile()` already uses,
+  apply each numeric member with `temper_service::limits::apply` (expecting `Ok`, naming the
+  member in the panic), then `limits::engine`. Read the document once if that keeps it plain (a
+  private helper returning both halves); the signature of `box_limits()` and `box_joins()` stays,
+  and nothing becomes public. Copy no carrier arithmetic and no T figure.
+- A test of the world that still fails after that only because its figure was `small`'s takes the
+  expected figure, listed with old and new. Anything else is a question as before.
+- **Leave under `## Left`, without stopping**, the two failures outside this task's reach that
+  the run listed: `temper-service/src/tests/limits.rs`, `the_standard_profile_passes_each_domains_validity`
+  (the bare `standard` profiles, no init document; `brief-room` owns `limits.rs` and that test),
+  and `temper-service/src/tests/room.rs`, `defaults_leaving_2048_bytes_start` (its hand
+  run carriers; not an expected figure). Also the reference's, `reference-trim`'s. Run
+  `-p temper-service` and `-p temper --test suite` excluding those three by name, and say so;
+  every other test of the acceptance's packages passes.
+
+Then the status lines, clippy, the push.
