@@ -14,7 +14,7 @@ use crate::wire::{Access, Repository, Start, Workspace};
 /// Whether the workspace `items` and each saved-work branch fit
 /// `limits`, and the words for what does not.
 pub(crate) fn check(items: &Workspace, limits: &Limits) -> Result<(), &'static [u8]> {
-    let count = u64::try_from(items.repositories.len()).expect("a length fits in a u64");
+    let count = skein_lib::len_u64(items.repositories.len());
     if count > u64::from(limits.checkout.repositories) {
         return Err(b"too many repositories");
     }
@@ -56,6 +56,17 @@ fn repository(repository: &Repository, limits: &Limits) -> Result<(), &'static [
             }
         }
         Start::Commit { .. } => {}
+        Start::Merged { branch, heads } => {
+            if limits.checkout.conflicts == 0 || limits.checkout.path_bytes == 0 {
+                return Err(b"merged heads");
+            }
+            if !name(branch, limits) {
+                return Err(b"branch");
+            }
+            if heads.is_empty() || heads.len() > 64 {
+                return Err(b"merged heads");
+            }
+        }
         Start::Merge { branch, .. } => {
             if limits.checkout.conflicts == 0 {
                 return Err(b"merge in progress");
@@ -92,5 +103,5 @@ fn component(name: &[u8]) -> bool {
 
 /// The length of `bytes`.
 pub(crate) fn len(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("a length fits in a u64")
+    skein_lib::len_u64(bytes.len())
 }

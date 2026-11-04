@@ -37,6 +37,9 @@ pub(in crate::codec) fn wire_part_key(value: &c::PartKey, limits: &w::Limits) ->
 
 pub(in crate::codec) fn wire_executor(value: &c::Executor, limits: &w::Limits) -> Result<w::Executor, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::Executor::Job { kind } => {
+            w::Executor::Job(w::ExecutorJob::new(limits, w::ExecutorJobParts { kind: *kind })?)
+        }
         c::Executor::Agent { charter } => {
             w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter: *(charter) })?)
         }

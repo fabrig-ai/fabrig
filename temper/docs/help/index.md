@@ -72,6 +72,8 @@ temper runs software work for people: agents take tasks on the repositories of a
   started with one call.
 - temper help landing: how a project that lands by turn lands a
   change: its candidate, its gates proved by receipts, the turn.
+- temper help tier: the slow checks after landing: runs on a branch's
+  tip whose verdicts clear landings or blame one.
 
 ## The walks
 

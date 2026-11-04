@@ -71,8 +71,15 @@ fn creating(me: &Me, project: u32) -> Result<&Creating, NotOffered> {
     Err(NotOffered::Project)
 }
 pub fn chat(me: &Me, project: u32, words: Text) -> Result<Ask, NotOffered> {
+    chat_from(me, project, CHAT, words)
+}
+/// Fill a named conversation template (jig/docs/design/client/domain/client.md, 19).
+pub fn chat_from(me: &Me, project: u32, number: u32, words: Text) -> Result<Ask, NotOffered> {
     let creating = creating(me, project)?;
-    let template = template(me, project, CHAT).ok_or(NotOffered::Template)?;
+    let template = template(me, project, number).ok_or(NotOffered::Template)?;
+    if !template.flags.conversation {
+        return Err(NotOffered::Template);
+    }
     let task = fill(template, creating, words, None)?;
     Ok(Ask::Create { project, tasks: single(task) })
 }
@@ -102,13 +109,33 @@ pub fn close_chat(me: &Me, project: u32, chat: u64, delegates: &[Delegate], reas
     operations.push(Operation::Cancel { project, task: chat, reason, grace }).expect("chat last");
     Ok(Ask::Compound { project, operations })
 }
+/// A project's deletion with the chat template's grace, as a close gives one
+/// (client/domain/client.md, 19; domain/people.md, 5.2).
+pub fn remove_project(me: &Me, project: u32) -> Result<Ask, NotOffered> {
+    for membership in &me.projects {
+        if membership.project == project {
+            let grace = match template(me, project, CHAT) {
+                Some(template) => template.grace,
+                None => None,
+            };
+            return Ok(Ask::RemoveProject { project, grace });
+        }
+    }
+    Err(NotOffered::Project)
+}
+/// Fill the stock goal template and judge it against the project's creating bounds.
 #[must_use]
 pub fn set_goal(me: &Me, project: u32, draft: GoalDraft, reason: Text) -> Judged {
+    set_goal_from(me, project, GOAL, draft, reason)
+}
+/// Fill an offered template by number, keeping the goal's authority/proposal judgement.
+#[must_use]
+pub fn set_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text) -> Judged {
     let creating = match creating(me, project) {
         Ok(value) => value,
         Err(why) => return Judged::NotOffered(why),
     };
-    let Some(template) = template(me, project, GOAL) else {
+    let Some(template) = template(me, project, number) else {
         return Judged::NotOffered(NotOffered::Template);
     };
     let task = match fill(template, creating, draft.words.clone(), Some(&draft)) {
@@ -167,7 +194,7 @@ fn fill(
             }
             NewContract::Verdict { choices: choices.clone() }
         }
-        TaskContractDocument::Approval { .. } => return Err(NotOffered::Template),
+        TaskContractDocument::Job { .. } | TaskContractDocument::Approval { .. } => return Err(NotOffered::Template),
     };
     if template.shallower == 0 {
         return Err(NotOffered::Template);
@@ -209,6 +236,7 @@ fn fill(
         llm = Some(choice.clone());
     }
     Ok(NewTask {
+        symbols: template.resources.clone(),
         deadline,
         executor,
         spec: Specification { asks: false, words, parameters: List::with_capacity(0), inputs: List::with_capacity(0) },
@@ -257,7 +285,7 @@ fn listed(within: &CreateBounds, executor: &Executor) -> bool {
                 }
             }
         }
-        Executor::Person(_) => {}
+        Executor::Job { .. } | Executor::Person(_) => {}
     }
     false
 }

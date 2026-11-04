@@ -122,6 +122,7 @@ pub fn codec() -> wire::v9::Limits {
 #[must_use]
 pub fn hello() -> host::Hello {
     host::Hello {
+        jobs: Box::default(),
         slots: 1,
         stop_bound: Duration::from_secs(1),
         workstreams: Box::new([3]),

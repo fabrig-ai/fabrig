@@ -329,9 +329,9 @@ impl World {
                 .push(Endpoint {
                     address: (Ipv4Addr::LOCALHOST, 80 + u16::try_from(endpoint).expect("test endpoint")).into(),
                     transport: skein_llm_connection::Transport::Plaintext,
-                    llm: skein_llm::Endpoint::codex(),
+                    llm: skein_llm::Endpoint::openai(),
                     limits: client_limits,
-                    credential: skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+                    credential: skein_llm::client::CredentialLimits { value: 2048 },
                 })
                 .expect("endpoint");
         }

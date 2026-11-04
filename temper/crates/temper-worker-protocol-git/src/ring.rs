@@ -11,12 +11,7 @@ pub struct ByteRing {
 impl ByteRing {
     #[must_use]
     pub fn new(capacity: u32) -> ByteRing {
-        ByteRing {
-            bytes: bytes::zeroed(usize::try_from(capacity).expect("u32 fits usize")),
-            next: 0,
-            length: 0,
-            dropped: 0,
-        }
+        ByteRing { bytes: bytes::zeroed(skein_lib::usize_of(capacity)), next: 0, length: 0, dropped: 0 }
     }
     pub fn write(&mut self, bytes: &[u8]) {
         for byte in bytes {

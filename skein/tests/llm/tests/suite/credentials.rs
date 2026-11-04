@@ -5,14 +5,10 @@ use skein_llm_world::{call, fields_holding, header, limits, rejection, response,
 fn input(provider: Provider, scheme: Scheme) -> Call {
     let mut input = call(1);
     input.endpoint = match provider {
-        Provider::OpenAiCodex => Endpoint::codex(),
         Provider::OpenAi => Endpoint::openai(),
         Provider::Anthropic => Endpoint::anthropic(),
     };
     input.credential.as_mut().expect("fixture credential").scheme = scheme;
-    if provider != Provider::OpenAiCodex {
-        input.credential.as_mut().expect("fixture credential").account_id = Box::new([]);
-    }
     input.prompt.affinity = None;
     input
 }
@@ -26,7 +22,7 @@ fn head_fields(sent: &[u8]) -> Vec<(&str, &str)> {
         .collect()
 }
 type RouteCase = (Provider, Scheme, Option<&'static str>, Vec<&'static str>, Vec<(&'static str, &'static str)>);
-fn route_cases() -> [RouteCase; 4] {
+fn route_cases() -> [RouteCase; 3] {
     [
         (Provider::Anthropic, Scheme::Key, None, vec!["x-api-key"], vec![("anthropic-version", "2023-06-01")]),
         (
@@ -36,20 +32,7 @@ fn route_cases() -> [RouteCase; 4] {
             vec!["x-api-key"],
             vec![("anthropic-version", "2023-06-01"), ("anthropic-beta", "fixture-beta")],
         ),
-        (
-            Provider::Anthropic,
-            Scheme::Bearer,
-            None,
-            vec!["Authorization"],
-            vec![("anthropic-version", "2023-06-01"), ("anthropic-beta", "oauth-2025-04-20")],
-        ),
-        (
-            Provider::OpenAiCodex,
-            Scheme::Bearer,
-            None,
-            vec!["Authorization"],
-            vec![("chatgpt-account-id", "account-test")],
-        ),
+        (Provider::OpenAi, Scheme::Bearer, None, vec!["Authorization"], vec![]),
     ]
 }
 #[test]
@@ -68,10 +51,8 @@ fn each_scheme_goes_where_its_route_takes_it() {
 #[test]
 fn a_credential_its_route_refuses_is_invalid() {
     for (provider, credential) in [
-        (Provider::OpenAiCodex, Some(Credential::key(call(1).credential.expect("fixture credential").value))),
-        (Provider::OpenAiCodex, Some(Credential::bearer(call(1).credential.expect("fixture credential").value))),
         (Provider::Anthropic, call(1).credential),
-        (Provider::OpenAi, call(1).credential),
+        (Provider::Anthropic, Some(Credential::bearer(b"fixture-bearer".as_slice().into()))),
     ] {
         let mut input = input(provider, Scheme::Bearer);
         input.credential = credential;
@@ -80,9 +61,9 @@ fn a_credential_its_route_refuses_is_invalid() {
 }
 #[test]
 fn an_endpoint_header_naming_a_credential_field_is_refused() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic, Provider::OpenAi] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         for name in [b"Authorization".as_slice(), b"x-api-key", b"chatgpt-account-id", b"session-id", b"thread-id"] {
-            let mut input = input(provider, Scheme::Bearer);
+            let mut input = input(provider, if provider == Provider::Anthropic { Scheme::Key } else { Scheme::Bearer });
             input.endpoint.headers = Box::new([header(name, b"override")]);
             assert_eq!(rejection(input, &limits()), Some(Error::Invalid), "{provider:?} {name:?}");
         }
@@ -110,22 +91,20 @@ fn a_key_head_at_its_bound_is_admitted() {
 
 #[test]
 fn a_call_without_a_credential_sends_no_credential_field() {
-    for (provider, expected) in [(Provider::Anthropic, None), (Provider::OpenAiCodex, Some(Error::Invalid))] {
+    for (provider, expected_fields) in
+        [(Provider::Anthropic, vec![("anthropic-version", "2023-06-01")]), (Provider::OpenAi, vec![])]
+    {
         let mut call = input(provider, Scheme::Bearer);
         call.credential = None;
-        let measured = skein_llm::client::measure(&call.prompt, None, &call.endpoint, &limits());
-        assert_eq!(measured.as_ref().err().copied(), expected, "{provider:?}");
-        if expected.is_some() {
-            assert_eq!(rejection(call, &limits()), expected, "{provider:?}");
-        } else {
-            let world = run_call(call, limits(), response(401, "", b"{}", false), 1);
-            assert_eq!(head_fields(&world.sent), [("anthropic-version", "2023-06-01")], "{provider:?}");
-            for name in [b"Authorization".as_slice(), b"x-api-key"] {
-                assert!(!world.sent.windows(name.len()).any(|field| field.eq_ignore_ascii_case(name)), "{name:?}");
-            }
-            let head = world.sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("request head") + 4;
-            assert_eq!(usize::try_from(measured.expect("admitted head").head).unwrap(), head);
+        let measured =
+            skein_llm::client::measure(&call.prompt, None, &call.endpoint, &limits()).expect("credential optional");
+        let world = run_call(call, limits(), response(401, "", b"{}", false), 1);
+        assert_eq!(head_fields(&world.sent), expected_fields, "{provider:?}");
+        for name in [b"Authorization".as_slice(), b"x-api-key"] {
+            assert!(!world.sent.windows(name.len()).any(|field| field.eq_ignore_ascii_case(name)), "{name:?}");
         }
+        let head = world.sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("request head") + 4;
+        assert_eq!(usize::try_from(measured.head).unwrap(), head);
     }
 }
 
@@ -139,7 +118,7 @@ fn a_zero_value_bound_is_refused_as_a_value_cap() {
         assert_eq!(
             skein_llm::client::request_head(
                 &call.endpoint,
-                &skein_llm::client::CredentialLimits { value: 0, account_id: 0 },
+                &skein_llm::client::CredentialLimits { value: 0 },
                 &limits(),
             )
             .and_then(|_| skein_llm::client::measure(

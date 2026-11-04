@@ -818,7 +818,7 @@ fn codex_responses_are_priced_from_their_usage_records() {
         .responses()
         .iter()
         .map(|response| {
-            let prices = smith_local_shell::presets::list_prices("codex", &response.model, response.prompt_tokens())
+            let prices = smith_local_shell::presets::list_prices("openai", &response.model, response.prompt_tokens())
                 .expect("model price");
             let cost = u128::from(response.fresh - response.cache_write) * u128::from(prices.input)
                 + u128::from(response.cache_read) * u128::from(prices.cached)

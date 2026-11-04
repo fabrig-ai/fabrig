@@ -748,19 +748,6 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
         (credential(wire::Scheme::Key), false),
         (credential(wire::Scheme::Bearer), true),
         (
-            wire::GrantValue::Withdrawn(
-                wire::WithdrawnValue::new(
-                    &limits,
-                    wire::WithdrawnValueParts {
-                        id: b"fixture-id".as_slice().into(),
-                        bearer: Secret::new(b"fixture".as_slice().into()),
-                    },
-                )
-                .expect("bounded withdrawn form"),
-            ),
-            true,
-        ),
-        (
             wire::GrantValue::Program(
                 wire::ProgramValue::new(&limits, wire::ProgramValueParts { name: b"claude-code".as_slice().into() })
                     .expect("bounded program form"),

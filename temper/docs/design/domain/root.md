@@ -77,7 +77,7 @@ temper-engine-domain                       the root: the journal, routing, trans
   (jig's `domain/engine.md`, section 6). temper's domain worlds run their
   workers apart.
 - **Its state:** its children's; the journal; what it keeps of its
-  configuration (the forge's number and the forge's charter); its facts
+  configuration (the forge's number); its facts
   waiting to be drained; and the values in flight between a hand-off and
   its answer, each bounded (section 10): a worker's record until the
   fleet takes it, a run's brief sections and workspace while its claim is
@@ -419,6 +419,12 @@ to the forge; a timer to the child that armed it. What temper adds:
   subscriptions to tasks and timers go to the core as named actions, and
   the forge's reads, effects and topics to the forge (5.5); a proposal of
   a forge effect goes to the forge, which keeps it, then to the core.
+- **Task reads decide nothing.** `read_task` goes to jig before durable-call
+  replay. jig checks the read family and task relationships, including the
+  immediate requester retained on an ended delegate's owner row. The root
+  translates its bounded answer through the fresh-read door; it makes no
+  visibility decision. Escalations name the held task and hold revision and
+  tell the recipient to use `read_task` for its source facts and hold account.
 - **Rendered by hand-out.** A decided call's answer goes out to be
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked
@@ -526,6 +532,13 @@ section 13's.
   means and whether it is well formed is the forge's.
 - **The forge's charter is the forge's own value,** read from its kind
   3 when a change is made, and kept on the change (section 6).
+
+Both settings entrances decode a value of temper's kinds at the client
+wire's schema ceilings for pattern segments, segment bytes, gates and
+approvals. A value that does not decode whole is refused as out of shape at
+its item. A value within those ceilings but beyond the deployment's bounds
+reaches the forge, which refuses it as judged with its own pattern, gates or
+approvals reason (decided 2026-11-03).
 
 ### 5.7 Periods, from the calendar
 
@@ -640,23 +653,24 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   id as text: in lowercase hexadecimal, as a delegate's commits are
   (below), shortened to its first digits, as a short id is, when the
   task's contract bounds its words under the id's 40 or 64. Where the
-  bound leaves room, a line follows the id: the pull request in the
+  bound leaves room, verification words follow the id, whole or not at
+  all: `Cleared by TIER run N.`, the repairing run and landing where
+  applicable, or `Not cleared: ...` (`after-landing.md`, 6). These words
+  precede the optional pull request line so they take room first within
+  a task document's text window. Next comes the pull request in the
   forge's words (`../client/README.md`, 4.1) and its address on the
   forge (`../client/forge.md`, 9.2), `pull request #7 of acme/app on
   github.com: https://github.com/acme/app/pull/7`, or the words alone
   where the forge gives no address or it is past its bound; the line
-  cut whole, never in part, where the bound leaves no room for it; so
-  that the run that
-  asked for it hears which pull request landed, since jig gives a
-  parent a result's words and never its resource. After the pull
-  request line, where the bound leaves room for it whole, a third line
-  says the landing in words, `Landed: pull request #7 merged into main
-  as 0123456789ab.`: the pull request's number, the branch it landed
-  into and the merge commit's first twelve digits, whole or not at
-  all, so that the run reads that the change landed and not only what
-  the landing passed (`forge.md`, 8.2), which follows, fitted to what
-  the bound leaves. A client reads the id
-  from the first line. A result's
+  cut whole, never in part, where the bound leaves no room for it.
+  After the pull request line, where the bound leaves room for it whole,
+  a line says `Landed: pull request #7 merged into main as 0123456789ab.`:
+  the pull request's number, the branch it landed into and the merge
+  commit's first twelve digits. The run that asked hears which pull
+  request landed, since jig gives a parent the result's words and never
+  its resource. The reported evidence of what the landing passed
+  (`forge.md`, 8.2) follows, fitted to what the bound leaves. A client
+  reads the id from the first line. A result's
   words are text that summarises it (jig's `domain/tasks.md`, section 3,
   and `client/domain/contract.md`, 5.3), never the commit's bytes; the
   whole id stays the change's and its pull request's (`forge.md`, 8.2).
@@ -761,6 +775,15 @@ preparing, held until its claim commits:
   attempt is spent. A section whose bytes the forge no longer has sends
   the brief back, as a missing one does.
 
+Required forge sections take room from optional core sections alone, never
+from a charter's document sections. The small root's eight section slots
+hold three required core sections, two documents and three forge sections
+(2026-11-04).
+
+A charter document that names another connector or no forge branch is
+answered missing at its gather without asking the forge. Its section is
+titled `Document PATH` and says its read failed (2026-11-04).
+
 ### 7.3 A call's answer
 
 The core's part (its status, an effect's entry, why it was refused) and
@@ -788,11 +811,14 @@ and no diagnostic variant enters the store or client wire.
 - **Saved work:** the repositories saved, as the task's saved resources,
   which its next run starts from.
 - **A failed preparation** names its repository and why: what the forge
-  lacks (the repository, the branch, the commit), or that it refused the
-  identity (`../protocol/channel.md`, section 5). The root reports it as
-  a fact of the attempt: its task, its attempt, the repository's tag, the
-  reason. Whether the task tries again follows the answer's class, as for
-  any failure (worker.md, 4.3).
+  lacks (the repository, the branch, the commit), that it refused the
+  identity, or the head that did not merge into a base with heads merged
+  in (`../protocol/channel.md`, section 5; worker.md, section 5). The
+  root reports it as a fact of the attempt: its task, its attempt, the
+  repository's tag, the reason; a conflict it gives the forge too, for
+  the change whose producer the run is (forge.md, 8.11). Whether the
+  task tries again follows the answer's class, as for any failure
+  (worker.md, 4.3).
 - **Past their bounds,** an answer's parts fail its run as invalid,
   whatever the answer says.
 

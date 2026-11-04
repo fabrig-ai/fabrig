@@ -256,6 +256,35 @@ read by the application: client.document(handle), client.text(handle), client.pe
   documents with their revisions and offers (contract.md, 5.3), and each
   request's progress and answer.
 
+### 4.4 Without a link
+
+`Client::unlinked` makes a client that holds no link: its host carries
+the domain's work in the link's place, and answers it with `Up`. Each
+mode is stepped by its own pair, and each pair has its own request type:
+
+```
+Client::new:      step(now, wall, Event, &mut Queue<Request>), fire(now, wall, &mut Queue<Request>)
+Client::unlinked: step_unlinked(now, wall, Event, &mut Queue<UnlinkedRequest>),
+                  fire_unlinked(now, wall, &mut Queue<UnlinkedRequest>)
+
+UnlinkedRequest, out
+  Told { told }               as a linked client's
+  Authorized(authorized)      a printed link's authorization, always lost: no link signs in
+  Down { down }               the domain's work, which the host carries: a save, an erase, a send,
+                              a watch opened, continued or closed, a read
+  SignOut                     the sign-out, which the host answers
+Event, in, besides the application's: StartUnlinked { kept } in place of Start, Up { up }, SignOutLost
+```
+
+- **A linked client's `Request` holds no `Down` and no `SignOut`:** what
+  its domain asks goes to the link, and its sign-out is an exchange. A
+  linked host matches only what a linked client asks.
+- **A pair given the other mode's client is a fault** (an assertion), as
+  an event of the other mode is.
+- **An application root stepping either mode** keeps the two apart in its
+  own requests: what the linked client asks, and what the unlinked one
+  asks, each under its own variant.
+
 ## 5. Pages and the working set
 
 Pages, places, navigation and the working set are the reference UI's,
@@ -1115,6 +1144,12 @@ with a person in front of a tree, are view.md's, 18.10.
   level-triggered watches and the link are jig's while they have one
   user; whether they move to skein, by a rename and a crate move, once
   a second user wants them.
+- **A root's two modes:** an application root chooses its mode at run
+  time, so it holds both modes' requests under one type (4.4), and a
+  host that only ever runs a linked root still matches the unlinked
+  variant, as a cell it never reaches. Whether each root splits by mode,
+  so that such a host is never handed that variant, is a change to every
+  application root and its hosts.
 
 ## 19. Helpers
 
@@ -1127,14 +1162,28 @@ with a person in front of a tree, are view.md's, 18.10.
   the application's data that `me` serves (contract.md, 3.6;
   `../../protocol/configuration.md`, 3.1):
   - `shapes::chat(me, project, words)` fills the chat template into a
-    `Create`;
+    `Create`, and `shapes::chat_from(me, project, template, words)`
+    fills a chat's template named by its number the same way, for an
+    application offering more than one (temper's configuring chat,
+    template 3): a template `me` does not offer the project, or one
+    whose flags make no conversation (contract.md, 3.2), gives
+    `NotOffered::Template`;
   - `shapes::close_chat(task, disposals)` gives one compound request:
     each live delegate cancelled or moved to the party, then the chat
     cancelled with the grace of the chat template `me` offers now, or
     with none once a change of settings removed it: closing is an act,
     and reads the newest settings as every act does
     (`../../domain/core.md`, section 13), so a chat can always be closed;
-  - `shapes::set_goal(..)` fills the goal template, compares the draft
+  - `shapes::remove_project(me, project)` gives a project's
+    `RemoveProject` with the same grace, the chat template's as `me`
+    offers it now, or none once a change of settings removed it: the
+    grace each of the project's live conversations is asked to finish
+    within as its deletion closes it (`../../domain/people.md`, 5.2);
+    a project not in `me` gives `NotOffered::Project`, and nothing is
+    sent;
+  - `shapes::set_goal(..)` fills the stock goal template;
+    `shapes::set_goal_from(me, project, template, draft, reason)` fills
+    an offered template by number. Each compares the filled draft
     with the project's creating bounds in `me` (contract.md, 5.3), a
     deadline given as a span within both, for the engine to judge, and
     gives one of four: *made,* a `Create`, within the first bound;
@@ -1156,7 +1205,8 @@ with a person in front of a tree, are view.md's, 18.10.
     by configured names (contract.md, 3.2), none being the charter's
     default resolved at Create. Shapes copy configured intent, never
     `resolved_default`, the separate preview served in `me`;
-    no parameters, inputs, dependencies or grants named after it;
+    no parameters, inputs or dependencies; symbolic resources copied
+    from the template for the engine to resolve;
   - a template it cannot fill gives `NotOffered::Template`, and nothing
     is sent: a contract no `Create` names (an approval, or a verdict
     whose choices its document cut), a value its helper takes no input
@@ -1189,8 +1239,13 @@ with a person in front of a tree, are view.md's, 18.10.
     until it parks, and is idle meanwhile (`../../domain/engine.md`,
     7.4). The party it waits on is the signed-in one where it names
     them, or a role `me` says they hold in the chat's project; any other
-    is another party. How each status is said is the presentation's
-    (the reference UI's: pages.md, section 4);
+    is another party. The helper reads whatever chip it is given and
+    never aborts on one: a record missing what its phase names is the
+    link's to refuse (`../../protocol/client.md`, section 3), and a chip
+    built past the link with no end time ends at its phase's `since`,
+    and one backing off with no notice says until when alone. How each
+    status is said is the presentation's (the reference UI's: pages.md,
+    section 4);
   - *an act's offer and effect:* the engine's admission of the act, as
     the document offers it (made, proposable and to whom, bounded, or
     refused; contract.md, 5.3), and what a decision will do, where the

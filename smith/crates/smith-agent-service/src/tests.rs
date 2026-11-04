@@ -478,17 +478,13 @@ fn an_admitted_opening_fits_the_derived_request_with_escaped_host_text() {
     .expect("schemas");
     let mut translated =
         smith_protocol_llm::fixture::prompt(prompt, &application, &limits.llm.adapter).expect("translated opening");
-    translated.output_ceiling(skein_llm::Provider::OpenAiCodex, 4096).expect("configured model output");
+    translated.output_ceiling(skein_llm::Provider::OpenAi, 4096).expect("configured model output");
     let prepared = skein_llm::client::Client::prepare(
         skein_llm::Call {
             owner: Token::new(1),
             prompt: translated,
-            endpoint: skein_llm::Endpoint::codex(),
-            credential: Some(skein_llm::Credential {
-                value: b"fake".as_slice().into(),
-                account_id: b"fake".as_slice().into(),
-                scheme: skein_llm::Scheme::Bearer,
-            }),
+            endpoint: skein_llm::Endpoint::openai(),
+            credential: Some(skein_llm::Credential::bearer(b"fake".as_slice().into())),
         },
         &limits.llm.adapter.client,
     );

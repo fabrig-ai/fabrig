@@ -118,6 +118,23 @@ fn deadline(label: &[u8], until: Option<skein_lib::Wall>, out: &mut Encoder) {
     out.object_end();
     out.object_end();
 }
+/// Print the supplied main and ordered sub-agent choices, with their optional efforts.
+pub(super) fn text_choice(choice: Option<&c::LlmChoice>, out: &mut Text) {
+    let Some(choice) = choice else { return };
+    out.put(b"\nmain model: ");
+    text_model(&choice.main, out);
+    for entry in &choice.subagents {
+        out.put(b"\nsub-agent model: ");
+        text_model(entry, out);
+    }
+}
+fn text_model(value: &c::ModelEffort, out: &mut Text) {
+    out.words(value.model.bytes());
+    if let Some(effort) = &value.effort {
+        out.put(b"/");
+        out.words(effort.bytes());
+    }
+}
 pub(super) fn text_wait(value: Option<c::TaskRunWait>, out: &mut Text) {
     let Some(value) = value else { return };
     out.put(b"\nnext run: ");
@@ -225,6 +242,7 @@ fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
 }
 fn hello_refusal(value: c::HelloRefusal, out: &mut Encoder) {
     match value {
+        c::HelloRefusal::JobKinds => out.string(b"job_kinds"),
         c::HelloRefusal::ReservedChannel => out.string(b"reserved_channel"),
         c::HelloRefusal::Agent { why } => {
             out.object_start();
@@ -290,6 +308,7 @@ fn refused_text(value: c::TaskWaitRefused, out: &mut Text) {
 fn hello_refusal_text(value: c::HelloRefusal, out: &mut Text) {
     match value {
         c::HelloRefusal::Agent { why } => agent_shortfall_text(why, out),
+        c::HelloRefusal::JobKinds => out.put(b"its job kinds are not ascending and distinct"),
         c::HelloRefusal::ReservedChannel => out.put(b"channel zero belongs to the engine's own host"),
         c::HelloRefusal::Position { worker } => {
             out.put(b"unconfigured or occupied worker position ");

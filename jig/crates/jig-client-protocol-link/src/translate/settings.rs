@@ -16,6 +16,14 @@ pub fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting
         c::Setting::Template(item) => w::Setting::Template(wire_setting_number(item, limits)?),
         c::Setting::Policy(item) => w::Setting::Policy(wire_setting_number(item, limits)?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
+            limits,
+            w::ProjectPolicySettingParts { project: *project },
+        )?),
+        c::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
+            limits,
+            w::ApplicationSettingParts { kind: *kind, scope: *scope, number: *number },
+        )?),
     })
 }
 pub fn restore_setting(value: &w::Setting) -> Result<c::Setting, w::Problem> {
@@ -24,6 +32,8 @@ pub fn restore_setting(value: &w::Setting) -> Result<c::Setting, w::Problem> {
         w::Setting::Template(item) => c::Setting::Template(restore_setting_number(item)?),
         w::Setting::Policy(item) => c::Setting::Policy(restore_setting_number(item)?),
         w::Setting::Rules => c::Setting::Rules,
+        w::Setting::ProjectPolicy(v) => c::Setting::ProjectPolicy { project: v.project() },
+        w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     })
 }
 pub fn wire_setting_model(value: &c::SettingModel, limits: &w::Limits) -> Result<w::SettingModel, w::Problem> {
@@ -108,9 +118,24 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
     for item in &value.alternatives {
         alternatives.push(wire_setting_model(item, limits)?).expect("same capacity");
     }
+    let mut documents = List::with_capacity(value.documents.len());
+    for item in &value.documents {
+        documents
+            .push(w::CharterDocument::new(
+                limits,
+                w::CharterDocumentParts {
+                    connector: item.connector,
+                    name: item.name.clone(),
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                },
+            )?)
+            .expect("same capacity");
+    }
     w::Charter::new(
         limits,
         w::CharterParts {
+            documents,
             skein_bools: [value.resume, value.inspect, value.modify, value.shell, value.agents],
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
@@ -122,8 +147,10 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
             model: wire_setting_model(&value.model, limits)?,
             alternatives,
             call_timeout: value.call_timeout,
+            tools: value.tools,
             hosts: wire_setting_hosts(&value.hosts)?,
             spend: value.spend,
+            wake: super::asks::wire_owner_wake_policy(&value.wake, limits)?,
         },
     )
 }
@@ -132,7 +159,19 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
     for item in value.alternatives() {
         alternatives.push(restore_setting_model(item)?).expect("same capacity");
     }
+    let mut documents = List::with_capacity(value.documents().len());
+    for item in value.documents() {
+        documents
+            .push(c::CharterDocument {
+                connector: item.connector(),
+                name: item.name().clone(),
+                path: bytes::copy_of(item.path()),
+                heading: item.heading().clone(),
+            })
+            .expect("same capacity");
+    }
     Ok(c::Charter {
+        documents,
         number: value.number(),
         instructions: text(value.instructions(), 1_114_240)?,
         waiting: value.waiting(),
@@ -148,8 +187,10 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
         shell: value.shell(),
         agents: value.agents(),
         call_timeout: value.call_timeout(),
+        tools: value.tools(),
         hosts: restore_setting_hosts(value.hosts())?,
         spend: value.spend(),
+        wake: super::facts::wake_policy(value.wake()),
     })
 }
 pub fn wire_setting_policy(value: &c::SettingPolicy, limits: &w::Limits) -> Result<w::SettingPolicy, w::Problem> {
@@ -273,6 +314,10 @@ pub fn restore_rules(value: &w::Rules, limits: &Limits) -> Result<c::Rules, w::P
 }
 pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
+        c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue::new(
+            limits,
+            w::ApplicationValueParts { bytes: v.clone() },
+        )?),
         c::SettingValue::Charter(item) => w::SettingValue::Charter(Box::new(wire_charter(item, limits)?)),
         c::SettingValue::Template(item) => w::SettingValue::Template(Box::new(wire_template(item, limits)?)),
         c::SettingValue::Policy(item) => w::SettingValue::Policy(Box::new(wire_setting_policy(item, limits)?)),
@@ -281,6 +326,7 @@ pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result
 }
 pub fn restore_setting_value(value: &w::SettingValue, limits: &Limits) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
+        w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(v.bytes())),
         w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(restore_charter(item)?)),
         w::SettingValue::Template(item) => {
             c::SettingValue::Template(Box::new(super::documents::me::template(item, limits)?))
@@ -390,6 +436,7 @@ pub fn wire_setting_fault(value: &c::SettingFault) -> Result<w::SettingFault, w:
         c::SettingFault::Budget => w::SettingFault::Budget,
         c::SettingFault::Grace => w::SettingFault::Grace,
         c::SettingFault::Owner => w::SettingFault::Owner,
+        c::SettingFault::Judged => w::SettingFault::Judged,
     })
 }
 pub fn restore_setting_fault(value: &w::SettingFault) -> Result<c::SettingFault, w::Problem> {
@@ -401,6 +448,7 @@ pub fn restore_setting_fault(value: &w::SettingFault) -> Result<c::SettingFault,
         w::SettingFault::Budget => c::SettingFault::Budget,
         w::SettingFault::Grace => c::SettingFault::Grace,
         w::SettingFault::Owner => c::SettingFault::Owner,
+        w::SettingFault::Judged => c::SettingFault::Judged,
     })
 }
 pub fn wire_malformed_settings(
@@ -492,6 +540,10 @@ pub fn wire_setting_line(value: &c::SettingLine, limits: &w::Limits) -> Result<w
             },
             follows: wire_setting_follows(&value.follows)?,
             last: value.last,
+            application: match &value.application {
+                Some(v) => Some(wire_application_state(v, limits)?),
+                None => None,
+            },
         },
     )
 }
@@ -503,7 +555,11 @@ pub fn restore_setting_line(value: &w::SettingLine, limits: &Limits) -> Result<c
             None => None,
         },
         follows: restore_setting_follows(value.follows())?,
-        last: value.last(),
+        last: *value.last(),
+        application: match value.application() {
+            Some(v) => Some(restore_application_state(v)),
+            None => None,
+        },
     })
 }
 pub fn wire_revision_party(value: &c::RevisionParty, limits: &w::Limits) -> Result<w::RevisionParty, w::Problem> {
@@ -621,7 +677,18 @@ pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> 
         w::SettingDocumentParts {
             setting: wire_setting(&value.setting, limits)?,
             revision: value.revision,
-            value: wire_setting_value(&value.value, limits)?,
+            value: match &value.value {
+                Some(v) => Some(wire_setting_value(v, limits)?),
+                None => None,
+            },
+            application: match &value.application {
+                Some(v) => Some(wire_application_state(v, limits)?),
+                None => None,
+            },
+            proposed: match &value.proposed {
+                Some(v) => Some(wire_sized_edit(v, limits)?),
+                None => None,
+            },
         },
     )
 }
@@ -629,7 +696,18 @@ pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> 
     Ok(c::SettingDocument {
         setting: restore_setting(value.setting())?,
         revision: value.revision(),
-        value: restore_setting_value(value.value(), limits)?,
+        value: match value.value() {
+            Some(v) => Some(restore_setting_value(v, limits)?),
+            None => None,
+        },
+        application: match value.application() {
+            Some(v) => Some(restore_application_state(v)),
+            None => None,
+        },
+        proposed: match value.proposed() {
+            Some(v) => Some(restore_sized_edit(v)),
+            None => None,
+        },
     })
 }
 pub fn wire_size(value: &c::Size, limits: &w::Limits) -> Result<w::Size, w::Problem> {
@@ -642,6 +720,10 @@ pub fn wire_revision_edit(value: &c::RevisionEdit, limits: &w::Limits) -> Result
     Ok(match value {
         c::RevisionEdit::Set(item) => w::RevisionEdit::Set(wire_setting_set(item, limits)?),
         c::RevisionEdit::TooLarge(item) => w::RevisionEdit::TooLarge(wire_size(item, limits)?),
+        c::RevisionEdit::Application(v) => w::RevisionEdit::Application(w::ApplicationEdit::new(
+            limits,
+            w::ApplicationEditParts { edit: wire_sized_edit(v, limits)? },
+        )?),
         c::RevisionEdit::Removed => w::RevisionEdit::Removed,
         c::RevisionEdit::Reset => w::RevisionEdit::Reset,
     })
@@ -650,6 +732,7 @@ pub fn restore_revision_edit(value: &w::RevisionEdit, limits: &Limits) -> Result
     Ok(match value {
         w::RevisionEdit::Set(item) => c::RevisionEdit::Set(restore_setting_set(item, limits)?),
         w::RevisionEdit::TooLarge(item) => c::RevisionEdit::TooLarge(restore_size(item)?),
+        w::RevisionEdit::Application(v) => c::RevisionEdit::Application(restore_sized_edit(v.edit())),
         w::RevisionEdit::Removed => c::RevisionEdit::Removed,
         w::RevisionEdit::Reset => c::RevisionEdit::Reset,
     })
@@ -660,6 +743,7 @@ pub fn wire_revision_item(value: &c::RevisionItem, limits: &w::Limits) -> Result
         w::RevisionItemParts {
             setting: wire_setting(&value.setting, limits)?,
             edit: wire_revision_edit(&value.edit, limits)?,
+            replaced: wire_revision_replaced(&value.replaced, limits)?,
         },
     )
 }
@@ -667,6 +751,7 @@ pub fn restore_revision_item(value: &w::RevisionItem, limits: &Limits) -> Result
     Ok(c::RevisionItem {
         setting: restore_setting(value.setting())?,
         edit: restore_revision_edit(value.edit(), limits)?,
+        replaced: restore_revision_replaced(value.replaced(), limits)?,
     })
 }
 pub fn wire_revision_document(
@@ -950,6 +1035,7 @@ fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template,
     w::Template::new(
         limits,
         w::TemplateParts {
+            resources: super::documents::me::wire_symbols(&value.resources, limits)?,
             number: value.number,
             name: wire_document_text(&value.name, limits)?,
             executor: super::operations::executor(value.executor, limits)?,
@@ -984,6 +1070,10 @@ fn wire_task_contract(
     limits: &w::Limits,
 ) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
+        c::TaskContractDocument::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob::new(
+            limits,
+            w::TaskContractDocumentJobParts { bytes: *bytes },
+        )?),
         c::TaskContractDocument::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
                 limits,
@@ -1094,4 +1184,79 @@ fn text(value: &[u8], bound: u32) -> Result<c::Text, w::Problem> {
         Ok(value) => Ok(value),
         Err(_) => Err(super::too_large()),
     }
+}
+
+pub(super) fn wire_application_state(
+    v: &c::ApplicationState,
+    limits: &w::Limits,
+) -> Result<w::ApplicationState, w::Problem> {
+    let follows = match v.follows {
+        c::ApplicationFollows::Default => w::ApplicationFollows::Default,
+        c::ApplicationFollows::Changed { revision } => w::ApplicationFollows::Changed(w::ApplicationRevision::new(
+            limits,
+            w::ApplicationRevisionParts { revision },
+        )?),
+        c::ApplicationFollows::Removed { revision } => w::ApplicationFollows::Removed(w::ApplicationRevision::new(
+            limits,
+            w::ApplicationRevisionParts { revision },
+        )?),
+    };
+    w::ApplicationState::new(limits, w::ApplicationStateParts { follows, size: v.size, charters: v.charters.clone() })
+}
+pub(super) fn restore_application_state(v: &w::ApplicationState) -> c::ApplicationState {
+    c::ApplicationState {
+        follows: match v.follows() {
+            w::ApplicationFollows::Default => c::ApplicationFollows::Default,
+            w::ApplicationFollows::Changed(v) => c::ApplicationFollows::Changed { revision: v.revision() },
+            w::ApplicationFollows::Removed(v) => c::ApplicationFollows::Removed { revision: v.revision() },
+        },
+        size: v.size(),
+        charters: v.charters().clone(),
+    }
+}
+pub(super) fn wire_sized_edit(v: &c::SizedEdit, limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
+    Ok(match v {
+        c::SizedEdit::Set { size } => {
+            w::SizedEdit::Set(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+        }
+        c::SizedEdit::Remove => w::SizedEdit::Remove,
+        c::SizedEdit::Reset => w::SizedEdit::Reset,
+    })
+}
+pub(super) fn restore_sized_edit(v: &w::SizedEdit) -> c::SizedEdit {
+    match v {
+        w::SizedEdit::Set(v) => c::SizedEdit::Set { size: v.size() },
+        w::SizedEdit::Remove => c::SizedEdit::Remove,
+        w::SizedEdit::Reset => c::SizedEdit::Reset,
+    }
+}
+
+pub fn wire_revision_replaced(
+    value: &c::RevisionReplaced,
+    limits: &w::Limits,
+) -> Result<w::RevisionReplaced, w::Problem> {
+    Ok(match value {
+        c::RevisionReplaced::Value(v) => w::RevisionReplaced::Value(wire_setting_set(v, limits)?),
+        c::RevisionReplaced::TooLarge(v) => w::RevisionReplaced::TooLarge(wire_size(v, limits)?),
+        c::RevisionReplaced::Default => w::RevisionReplaced::Default,
+        c::RevisionReplaced::Removed => w::RevisionReplaced::Removed,
+        c::RevisionReplaced::NotOffered => w::RevisionReplaced::NotOffered,
+        c::RevisionReplaced::Application { size } => {
+            w::RevisionReplaced::Application(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+        }
+    })
+}
+
+pub fn restore_revision_replaced(
+    value: &w::RevisionReplaced,
+    limits: &Limits,
+) -> Result<c::RevisionReplaced, w::Problem> {
+    Ok(match value {
+        w::RevisionReplaced::Value(v) => c::RevisionReplaced::Value(restore_setting_set(v, limits)?),
+        w::RevisionReplaced::TooLarge(v) => c::RevisionReplaced::TooLarge(restore_size(v)?),
+        w::RevisionReplaced::Default => c::RevisionReplaced::Default,
+        w::RevisionReplaced::Removed => c::RevisionReplaced::Removed,
+        w::RevisionReplaced::NotOffered => c::RevisionReplaced::NotOffered,
+        w::RevisionReplaced::Application(v) => c::RevisionReplaced::Application { size: v.size() },
+    })
 }

@@ -68,6 +68,7 @@ pub(crate) fn task_contract_document_fields(
     limits: &Limits,
 ) -> Result<c::TaskContractDocument, w::Problem> {
     Ok(match value {
+        w::TaskContractDocument::Job(row) => c::TaskContractDocument::Job { bytes: row.bytes() },
         w::TaskContractDocument::Approval(row) => c::TaskContractDocument::Approval {
             state: raw(row.state(), limits)?,
             part: crate::translate::facts::part(row.part()),
@@ -155,6 +156,7 @@ pub(crate) fn grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<L
 
 pub(crate) fn authority_executor_fields(value: &w::AuthorityExecutor) -> c::AuthorityExecutor {
     match value {
+        w::AuthorityExecutor::Job(row) => c::AuthorityExecutor::Job(row.value()),
         w::AuthorityExecutor::Charter(row) => c::AuthorityExecutor::Charter(row.value()),
         w::AuthorityExecutor::Procedure(row) => c::AuthorityExecutor::Procedure(row.value()),
         w::AuthorityExecutor::Role(row) => c::AuthorityExecutor::Role(row.value()),

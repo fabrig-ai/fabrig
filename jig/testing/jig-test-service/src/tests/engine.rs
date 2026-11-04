@@ -954,6 +954,7 @@ fn pass_by_run() -> (fixtures::Driven, u64, u64) {
         link: root::link::Event::Hello {
             worker: 0,
             hello: host::Hello {
+                jobs: Box::default(),
                 slots: 1,
                 stop_bound: Duration::ZERO,
                 workstreams: Box::new([]),

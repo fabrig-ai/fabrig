@@ -54,9 +54,9 @@ fn full_pool_stays_under_its_peak_ceiling() {
                 server_name: skein_tls::Name::new("skein.test").expect("name"),
                 trust: pki::client(&[]),
             },
-            llm: skein_llm::Endpoint::codex(),
+            llm: skein_llm::Endpoint::openai(),
             limits: skein_llm_world::limits(),
-            credential: skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+            credential: skein_llm::client::CredentialLimits { value: 2048 },
         })
         .expect("one endpoint");
     let first = skein_llm_world::call(7);
@@ -228,15 +228,12 @@ fn every_declared_waiting_start_stays_under_the_peak_ceiling() {
     let meter = Meter::new();
     meter.start();
     let mut input = skein_llm_world::call(7);
-    input.endpoint = skein_llm::Endpoint::codex();
+    input.endpoint = skein_llm::Endpoint::openai();
     input.prompt.instructions = b"close-world".as_slice().into();
     let mut bounds = skein_llm_world::limits();
-    bounds.http.request = skein_llm::client::request_head(
-        &input.endpoint,
-        &skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
-        &bounds,
-    )
-    .unwrap();
+    bounds.http.request =
+        skein_llm::client::request_head(&input.endpoint, &skein_llm::client::CredentialLimits { value: 2048 }, &bounds)
+            .unwrap();
     let measured = skein_llm::client::measure(
         &input.prompt,
         Some(skein_llm_world::credential_of(&input)),

@@ -17,6 +17,23 @@ import unittest
 HERE = Path(__file__).resolve().parent
 CPU = runpy.run_path(str(HERE / 'cpu.py'))
 
+# Recorded from nextest's cancellation output (tools/tiers/design.md, 7.4).
+GLOBAL_TIMEOUT_LINE = '  Cancelling due to global timeout: 1 test still running\n'
+
+
+def clean_env(**fields):
+    env = dict(os.environ)
+    for key in ('TIERS_WRAPPER', 'TIERS_DISK_BYTES'):
+        env.pop(key, None)
+    env.update(fields)
+    return env
+
+
+def abort(signal_number, name, kind='test abort', *, message=True):
+    text = f'process aborted with signal {signal_number} ({name})'
+    attribute = f' message="{text}"' if message else ''
+    return f'<failure type="{kind}"{attribute}>{text}</failure>'
+
 
 def setUpModule():
     global WRAPPER, SETTLEMENT_WRAPPER
@@ -218,44 +235,134 @@ class CollectorTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     CPU['budgets'](path, {'qa-jig'})
 
-    def test_hard_wall_uses_heavy_cancel_and_stays_green(self):
-        fake = self.root / 'heavy'
-        fake.write_text('''#!/usr/bin/env python3
-import json, os, signal, subprocess, sys
-from pathlib import Path
-state = Path(os.environ['FIXTURE_STATE'])
-if sys.argv[1] == '--cancel':
-    (state / 'cancelled').write_text(sys.argv[2])
-    os.killpg(int((state / 'pid').read_text()), signal.SIGKILL)
-    sys.exit(0)
-print('heavy: queued task 1 in the build lane token abcdef', flush=True)
-env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
-           NEXTEST_TEST_NAME='one', NEXTEST_ATTEMPT='1')
-child = subprocess.Popen([env['FIXTURE_WRAPPER'], env['FIXTURE_RECORDS'], '/bin/sleep', '5'],
-                         env=env, start_new_session=True)
-(state / 'pid').write_text(str(child.pid))
-child.wait()
-sys.exit(130)
-''')
-        fake.chmod(0o700)
-        (self.directory / 'junit.xml').unlink()
+    def execute_driver(self, command, *, limits=None, grace=0.15):
         driver = self.root / 'driver.py'
-        driver.write_text("import os,runpy,sys\n"
-                          f"cpu=runpy.run_path({str(HERE / 'cpu.py')!r})\n"
-                          f"sys.exit(cpu['execute'](['heavy','fixture'], os.environ, {str(self.directory)!r}, "
-                          "'qa-jig', {'qa-jig': {'wall_hard_s': 0.1}}))\n")
-        env = dict(os.environ, PATH=f"{self.root}:{os.environ['PATH']}",
-                   FIXTURE_STATE=str(self.root), FIXTURE_WRAPPER=str(WRAPPER),
-                   FIXTURE_RECORDS=str(self.directory / 'records'))
-        result = subprocess.run([sys.executable, '-I', '-B', str(driver)], env=env,
-                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10)
+        driver.write_text(
+            'import os,runpy,sys\n'
+            f"cpu=runpy.run_path({str(HERE / 'cpu.py')!r})\n"
+            f"cpu['execute'].__globals__['GRACE_S']={grace!r}\n"
+            'try:\n'
+            f"    code=cpu['execute']({command!r},os.environ,{str(self.directory)!r},"
+            f"'qa-jig',{limits or {}!r})\n"
+            'except KeyboardInterrupt:\n'
+            f"    open({str(self.root / 'interrupted')!r},'w').close()\n"
+            '    raise\n'
+            'sys.exit(code)\n')
+        return [sys.executable, '-I', '-B', str(driver)]
+
+    def command_tree(self, *, ignore=False, escape=False, fault=False):
+        (self.directory / 'junit.xml').unlink(missing_ok=True)
+        child_pid = self.root / 'child-pid'
+        command_pid = self.root / 'command-pid'
+        terminated = self.root / 'terminated'
+        child = ("import os,signal,time\nfrom pathlib import Path\n"
+                 f"signal.signal(signal.SIGTERM, {int(signal.SIG_IGN if ignore else signal.SIG_DFL)})\n"
+                 f"Path({str(child_pid)!r}).write_text(str(os.getpid()))\n"
+                 "while True: time.sleep(1)\n")
+        command = self.root / 'command.py'
+        item = dict(self.item, pending=True, complete=False, exit_code=None)
+        command.write_text(
+            'import json,os,signal,subprocess,sys,time\nfrom pathlib import Path\n'
+            'def term(signum, frame):\n'
+            f"    Path({str(terminated)!r}).touch()\n"
+            "    print('during grace',flush=True)\n"
+            + ('signal.signal(signal.SIGTERM,term)\n' if ignore else '')
+            + f"child=subprocess.Popen([sys.executable,'-I','-c',{child!r}],"
+            + ('start_new_session=True' if escape else f'process_group={0 if ignore else None!r}')
+            + ')\n'
+            f"while not Path({str(child_pid)!r}).exists(): time.sleep(0.001)\n"
+            f"Path({str(command_pid)!r}).write_text(str(os.getpid()))\n"
+            "print('before cancellation',flush=True)\n"
+            f"item={item!r}\nitem['start_s']=time.monotonic()\n"
+            f"record=Path({str(self.directory / 'records/cpu-one')!r})\n"
+            "temporary=record.with_suffix('.tmp')\n"
+            + ("temporary.write_text('not json')\n" if fault else "temporary.write_text(json.dumps(item)+'\\n')\n")
+            + 'temporary.replace(record)\n'
+            'while True: time.sleep(1)\n')
+        def cleanup():
+            for path in (command_pid, child_pid):
+                if path.exists():
+                    try:
+                        os.kill(int(path.read_text()), signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+        self.addCleanup(cleanup)
+        return [sys.executable, '-I', '-B', str(command)]
+
+    def assert_tree_stopped(self):
+        for name in ('command-pid', 'child-pid'):
+            pid = int((self.root / name).read_text())
+            try:
+                stat = Path(f'/proc/{pid}/stat').read_bytes().rsplit(b')', 1)[1].split()
+            except FileNotFoundError:
+                continue
+            self.assertEqual(stat[0], b'Z', f'fixture process {pid} still alive')
+
+    def run_driver(self, command, **fields):
+        return subprocess.run(self.execute_driver(command, **fields), env=clean_env(),
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=5)
+
+    def test_hard_wall_terminates_the_group_and_stays_green(self):
+        result = self.run_driver(self.command_tree(), limits={'qa-jig': {'wall_hard_s': 0.05}})
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertEqual((self.root / 'cancelled').read_text(), 'abcdef')
-        self.assertIn('starved', result.stdout)
+        self.assert_tree_stopped()
+        run = json.loads((self.directory / 'run.json').read_text())
+        self.assertTrue(run['starved'])
+        self.assertEqual(run['returncode'], -signal.SIGTERM)
+        self.assertIn('cancel_code', run)
+        self.assertIsNone(run['cancel_code'])
+        self.assertIn(b'before cancellation', (self.directory / 'command-output.txt').read_bytes())
         summary = CPU['summary'](self.directory)
         self.assertEqual(summary['suite']['incomplete'], 1)
         self.assertEqual(summary['suite']['starved'], 1)
         self.assertTrue(summary['suite']['starved_run'])
+
+    def test_hard_wall_kills_a_command_and_descendants_after_the_grace(self):
+        result = self.run_driver(self.command_tree(ignore=True),
+                                 limits={'qa-jig': {'wall_hard_s': 0.05}})
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assert_tree_stopped()
+        run = json.loads((self.directory / 'run.json').read_text())
+        self.assertEqual(run['returncode'], -signal.SIGKILL)
+        self.assertIsNone(run['cancel_code'])
+        output = (self.directory / 'command-output.txt').read_text()
+        self.assertIn('before cancellation', output)
+        self.assertIn('during grace', output)
+
+    def test_hard_wall_ends_though_a_descendant_holds_stdout(self):
+        result = self.run_driver(self.command_tree(ignore=True, escape=True),
+                                 limits={'qa-jig': {'wall_hard_s': 0.05}})
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        child = int((self.root / 'child-pid').read_text())
+        self.assertEqual(os.getsid(child), child)
+        self.assertIn('during grace', (self.directory / 'command-output.txt').read_text())
+
+    def test_interruption_stops_the_command_and_descendants(self):
+        for second in (False, True):
+            with self.subTest(second=second):
+                for name in ('command-pid', 'child-pid', 'terminated', 'interrupted'):
+                    (self.root / name).unlink(missing_ok=True)
+                process = subprocess.Popen(
+                    self.execute_driver(self.command_tree(ignore=True), grace=2 if second else 0.15),
+                    env=clean_env(), stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                self.addCleanup(lambda p=process: p.poll() is None and p.kill())
+                self.wait_until(lambda: (self.root / 'command-pid').exists())
+                process.send_signal(signal.SIGINT)
+                self.wait_until(lambda: (self.root / 'terminated').exists())
+                if second:
+                    process.send_signal(signal.SIGINT)
+                stdout, stderr = process.communicate(timeout=1.5)
+                self.assertNotEqual(process.returncode, 0, stdout + stderr)
+                self.assertIn(b'KeyboardInterrupt', stderr)
+                self.assertTrue((self.root / 'interrupted').exists())
+                self.assert_tree_stopped()
+
+    def test_collector_fault_stops_the_command_and_descendants(self):
+        result = self.run_driver(self.command_tree(ignore=True, fault=True))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('JSONDecodeError', result.stderr)
+        self.assert_tree_stopped()
 
     def test_timeout_is_green_and_other_failures_and_budgets_remain_red(self):
         driver = self.root / 'verdict.py'
@@ -266,7 +373,8 @@ sys.exit(130)
                           "{'qa-jig': {'cpu_suite_s': float(sys.argv[1])}} if len(sys.argv)>1 else {}))\n")
         def invoke(*args):
             return subprocess.run([sys.executable, '-I', '-B', str(driver), *args],
-                                  stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=5)
+                                  env=clean_env(), stdin=subprocess.DEVNULL,
+                                  capture_output=True, text=True, timeout=5)
         self.record(exit_code=None, signal=15)
         self.xml('<testcase name="one"><failure type="test timeout"/></testcase>')
         result = invoke()
@@ -292,31 +400,87 @@ sys.exit(130)
 
     def assert_cancelled_verdict(self, expected):
         self.record('cpu-running', test_name='running', pending=True, complete=False, exit_code=None)
-        marker = self.root / 'cancelled'
-        marker.unlink(missing_ok=True)
-        heavy = self.root / 'heavy'
-        heavy.write_text(f'''#!/usr/bin/env python3
-from pathlib import Path
-import sys,time
-marker=Path({str(marker)!r})
-if sys.argv[1] == '--cancel':
-    marker.touch()
-    sys.exit(0)
-print('heavy: queued task 1 in the build lane token abcdef',flush=True)
-while not marker.exists():
-    time.sleep(0.001)
-sys.exit(130)
-''')
-        heavy.chmod(0o700)
-        driver = self.root / 'cancel-verdict.py'
-        driver.write_text('import os,runpy,sys\n'
-                          f'cpu=runpy.run_path({str(HERE / "cpu.py")!r})\n'
-                          f"sys.exit(cpu['execute'](['heavy','fixture'],os.environ,{str(self.directory)!r},"
-                          "'qa-jig',{'qa-jig':{'wall_hard_s':0.001}}))\n")
-        result = subprocess.run([sys.executable,'-I','-B',str(driver)],
-                                env=dict(os.environ,PATH=f"{self.root}:{os.environ['PATH']}"),
-                                stdin=subprocess.DEVNULL,capture_output=True,text=True,timeout=5)
-        self.assertEqual(result.returncode,expected,result.stdout+result.stderr)
+        command = [sys.executable, '-I', '-c', 'import time; time.sleep(60)']
+        result = self.run_driver(command, limits={'qa-jig': {'wall_hard_s': 0.001}})
+        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+
+    def test_recorded_cancellation_abort_is_starved(self):
+        self.xml(f'<testcase name="one">{abort(15, "SIGTERM")}</testcase>')
+        for fields in ({'exit_code': None, 'signal': 15},
+                       {'exit_code': None, 'signal': 9},
+                       {'exit_code': None, 'pending': True, 'complete': False}):
+            with self.subTest(fields=fields):
+                self.starved(junit=True)
+                self.record(**fields)
+                result = CPU['summary'](self.directory)
+                self.assertEqual(result['failures'], [])
+                self.assertEqual(result['tests'][0]['starved'], 1)
+                self.assert_cancelled_verdict(0)
+                (self.directory / 'records/cpu-running').unlink()
+                self.finished()
+                if fields.get('pending'):
+                    with self.assertRaisesRegex(ValueError, 'unfinished attempt'):
+                        CPU['summary'](self.directory)
+                else:
+                    self.assertEqual(CPU['summary'](self.directory)['failures'], ['fixture::suite one'])
+        self.starved(junit=True)
+        for fields in ({'exit_code': 7}, {'exit_code': None, 'signal': 11}):
+            with self.subTest(fields=fields):
+                self.record(**fields)
+                self.assertEqual(CPU['summary'](self.directory)['failures'], ['fixture::suite one'])
+                self.assert_cancelled_verdict(100)
+        (self.directory / 'records/cpu-running').unlink()
+        self.record(exit_code=7)
+        self.record('cpu-retry', attempt=2, exit_code=None, signal=15)
+        self.xml('<testcase name="one"><failure type="test failure"/>'
+                 f'<rerunFailure type="test abort">process aborted with signal 15 (SIGTERM)</rerunFailure>'
+                 '</testcase>')
+        self.assertEqual(CPU['summary'](self.directory)['failures'], ['fixture::suite one'])
+        self.assert_cancelled_verdict(100)
+
+    def test_global_timeout_is_starvation(self):
+        output = self.directory / 'command-output.txt'
+        for line in (GLOBAL_TIMEOUT_LINE, '\x1b[1;33m' + GLOBAL_TIMEOUT_LINE.rstrip() + '\x1b[0m\n'):
+            for case in ('pending', 'unobserved', 'recorded', 'empty'):
+                with self.subTest(line=line, case=case):
+                    for path in (self.directory / 'records').iterdir():
+                        path.unlink()
+                    self.finished()
+                    if case == 'empty':
+                        self.xml('')
+                    elif case == 'pending':
+                        self.record(pending=True, complete=False, exit_code=None)
+                        self.xml('<testcase name="one"/>')
+                    else:
+                        if case == 'recorded':
+                            self.record(exit_code=None, signal=15)
+                        self.xml(f'<testcase name="one">{abort(15, "SIGTERM")}</testcase>')
+                    output.write_text(line)
+                    before = (self.directory / 'run.json').read_bytes()
+                    result = CPU['summary'](self.directory)
+                    self.assertTrue(result['suite']['starved_run'])
+                    self.assertEqual(result['verdict'], 'starved')
+                    self.assertEqual(result['failures'], [])
+                    self.assertEqual(result['suite']['unobserved'], int(case == 'unobserved'))
+                    self.assertEqual(result['suite']['starved'], int(case in ('pending', 'recorded')))
+                    cli = self.cli()
+                    self.assertEqual(cli.returncode, 0, cli.stderr)
+                    self.assertEqual((self.directory / 'run.json').read_bytes(), before)
+                    command = [sys.executable, '-I', '-c', f'import sys; print({line!r},end=""); sys.exit(100)']
+                    execution = self.run_driver(command)
+                    self.assertEqual(execution.returncode, 0, execution.stdout + execution.stderr)
+                    self.assertFalse(json.loads((self.directory / 'run.json').read_text())['starved'])
+                    self.assertIsNone(json.loads((self.directory / 'run.json').read_text())['cancel_code'])
+                    if case in ('pending', 'unobserved'):
+                        for other in (None, '  Cancelling due to test failure\n',
+                                      'prefix Cancelling due to global timeout\n',
+                                      '  Cancelling due to global timeouts\n'):
+                            if other is None:
+                                output.unlink(missing_ok=True)
+                            else:
+                                output.write_text(other)
+                            invalid = self.cli()
+                            self.assertEqual(invalid.returncode, 2, invalid.stdout + invalid.stderr)
 
     def test_cancel_with_junit_preserves_extra_failed_record(self):
         self.starved(junit=True)
@@ -327,6 +491,99 @@ sys.exit(130)
         self.record('cpu-extra-pass', test_name='extra', attempt=2)
         self.assertEqual(CPU['summary'](self.directory)['failures'], [])
         self.assert_cancelled_verdict(0)
+
+    def test_starved_cancellation_abort_without_record_is_unobserved(self):
+        self.starved(junit=True)
+        self.record()
+        warning = ('qa-jig fixture::suite two: attempt 1 unobserved, '
+                   'cancelled before its record')
+        for element in (abort(15, 'SIGTERM'), abort(9, 'SIGKILL'),
+                        abort(15, 'SIGTERM', 'test abort (leaked handles)'),
+                        abort(15, 'SIGTERM', message=False),
+                        '<failure type="TEST ABORT" '
+                        'message="process aborted with signal 15 (SIGTERM)"/>',
+                        '<failure type="test abort" message="2 errors occurred executing test">'
+                        '* process aborted with signal 15 (SIGTERM)\n* leaked handles</failure>'):
+            with self.subTest(element=element):
+                self.xml(f'<testcase name="one"/><testcase name="two">{element}</testcase>')
+                result = CPU['summary'](self.directory)
+                self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite',
+                                                            test_name='two', attempt=1)])
+                self.assertEqual(result['suite']['unobserved'], 1)
+                self.assertEqual(result['failures'], [])
+                self.assertEqual([test['test_name'] for test in result['tests']], ['one'])
+                self.assertEqual((result['suite']['attempts'], result['suite']['tests']), (1, 1))
+                self.assertEqual(result['verdict'], 'starved')
+                self.assertEqual(result['warnings'], [warning])
+                command = self.cli()
+                self.assertEqual(command.returncode, 0, command.stderr)
+                self.assertIn('starved_run True unobserved 1 leaked', command.stdout)
+                self.assertIn(f'warning: {warning}\n', command.stdout)
+        result = CPU['summary'](self.directory, {'qa-jig': {'cpu_suite_s': 1}})
+        self.assertEqual(result['verdict'], 'over budget')
+        self.assertEqual(result['suite']['unobserved'], 1)
+        element = abort(15, 'SIGTERM')
+        self.xml(f'<testcase name="one"/><testcase name="zero">{element}</testcase>'
+                 f'<testcase name="two">{element}</testcase>')
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite',
+                                                    test_name=name, attempt=1)
+                                                for name in ('two', 'zero')])
+        self.assertEqual(result['suite']['unobserved'], 2)
+        self.assertEqual(result['warnings'], [warning, warning.replace(' two:', ' zero:')])
+        self.xml(f'<testcase name="one"/><testcase name="two">{element}</testcase>')
+        self.assert_cancelled_verdict(0)
+
+    def test_cancellation_abort_without_record_fails_coverage_when_not_starved(self):
+        self.record()
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['unobserved'], [])
+        self.assertEqual(result['suite']['unobserved'], 0)
+        self.xml(f'<testcase name="one"/><testcase name="two">{abort(15, "SIGTERM")}</testcase>')
+        result = self.cli()
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("record coverage: missing [('qa-jig', 'fixture::suite', 'two', 1)]",
+                      result.stderr)
+
+    def test_starved_run_missing_other_records_fails_coverage(self):
+        self.starved(junit=True)
+        self.record()
+        for case in ('<testcase name="two"/>',
+                     '<testcase name="two"><failure type="test failure with exit code 101" '
+                     'message="thread \'two\' panicked"/></testcase>',
+                     '<testcase name="two"><failure type="test failure with exit code 7"/></testcase>',
+                     f'<testcase name="two">{abort(11, "SIGSEGV")}</testcase>',
+                     f'<testcase name="two">{abort(90, "OTHER")}</testcase>',
+                     f'<testcase name="two">{abort(150, "OTHER")}</testcase>',
+                     f'<testcase name="two">{abort(15, "SIGTERM", "test failure")}</testcase>',
+                     '<testcase name="two"><failure type="test abort"/></testcase>',
+                     '<testcase name="two"><failure type="test timeout"/></testcase>'):
+            with self.subTest(case=case):
+                self.xml('<testcase name="one"/>' + case)
+                result = self.cli()
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn('record coverage: missing', result.stderr)
+
+    def test_unobserved_retry_keeps_the_observed_failure(self):
+        self.starved(junit=True)
+        self.record(exit_code=7)
+        self.xml('<testcase name="one"><failure type="test failure with exit code 7"/>'
+                 '<rerunFailure type="test abort" '
+                 'message="process aborted with signal 15 (SIGTERM)"/></testcase>')
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite',
+                                                    test_name='one', attempt=2)])
+        self.assertEqual(result['failures'], ['fixture::suite one'])
+        self.assertEqual((result['suite']['attempts'], result['suite']['tests']), (1, 1))
+        self.assert_cancelled_verdict(100)
+        (self.directory / 'records/cpu-one').unlink()
+        self.record('cpu-pass', attempt=2)
+        self.xml('<testcase name="one"><flakyFailure type="test abort" '
+                 'message="process aborted with signal 9 (SIGKILL)"/></testcase>')
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite',
+                                                    test_name='one', attempt=1)])
+        self.assertEqual(result['failures'], [])
 
     def test_cancel_pending_retry_preserves_completed_failure(self):
         self.starved()
@@ -341,7 +598,7 @@ sys.exit(130)
     def live_wrapper(self, code, *, wrapper=None, extra_env=None):
         if wrapper is None:
             wrapper = WRAPPER
-        env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
+        env = clean_env(NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
                    NEXTEST_TEST_NAME='one', NEXTEST_ATTEMPT='1', **(extra_env or {}))
         process = subprocess.Popen([str(wrapper), str(self.directory / 'records'),
                                     sys.executable, '-I', '-c', code], env=env,
@@ -470,7 +727,7 @@ while True:
 
     def test_settlement_deadline_and_cleanup_apply_during_reap_stream(self):
         marker = self.root / 'cleanup'
-        env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
+        env = clean_env(NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
                    NEXTEST_TEST_NAME='one', NEXTEST_ATTEMPT='1', TIERS_CLEANUP_MARKER=str(marker))
         result = subprocess.run([str(SETTLEMENT_WRAPPER), str(self.directory / 'records'), '/bin/true'],
                                 env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
@@ -481,7 +738,7 @@ while True:
         self.assertTrue(marker.exists(), 'continuous successful reaps bypassed cleanup')
 
     def wrapped(self, code, *, name='one', input_text=None):
-        env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
+        env = clean_env(NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
                    NEXTEST_TEST_NAME=name, NEXTEST_ATTEMPT='1')
         result = subprocess.run([str(WRAPPER), str(self.directory / 'records'),
                                  sys.executable, '-I', '-c', code], env=env,
@@ -550,7 +807,7 @@ os.waitpid(child, 0)
         overheads = []
         snapshots = []
         for attempt in range(100):
-            env = dict(os.environ, NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
+            env = clean_env(NEXTEST_PROFILE='qa-jig', NEXTEST_BINARY_ID='fixture::suite',
                        NEXTEST_TEST_NAME=f'trivial_{attempt}', NEXTEST_ATTEMPT='1')
             child = os.posix_spawn(str(WRAPPER), [str(WRAPPER), str(self.directory / 'records'), '/bin/true'], env)
             _, status, usage = os.wait4(child, 0)
@@ -578,18 +835,23 @@ class CommandTests(unittest.TestCase):
         self.directory = self.root / 'suite records'
         self.bin = self.root / 'bin'
         self.bin.mkdir()
-        self.env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}",
+        self.env = clean_env(PATH=f"{self.bin}:{os.environ['PATH']}",
                         FIXTURE_TARGET=str(WRAPPER.parent), FIXTURE_WRAPPER=str(WRAPPER),
                         FIXTURE_COMMAND_LOG=str(self.root / 'commands'),
                         NEXTEST_PROFILE='unchanged')
         self.fake('cargo', "import json,os,sys\n"
                   "assert sys.argv[1:]==['metadata','--format-version','1','--no-deps']\n"
                   "print(json.dumps({'target_directory':os.environ['FIXTURE_TARGET']}))\n")
-        self.fake('heavy', "import json,os,shutil,sys\nfrom pathlib import Path\n"
+        for key in ('TIERS_WRAPPER', 'TIERS_DISK_BYTES'):
+            self.env.pop(key, None)
+        self.env.update(TIERS_WRAPPER='wrap', TIERS_DISK_BYTES='80000000000')
+        build = ("import json,os,shutil,sys\nfrom pathlib import Path\n"
                   "Path(os.environ['FIXTURE_COMMAND_LOG']).write_text(json.dumps(sys.argv[1:]))\n"
                   "if os.environ.get('FIXTURE_FAIL_BUILD'): sys.exit(9)\n"
                   "shutil.copyfile(os.environ['FIXTURE_WRAPPER'],sys.argv[-1])\n"
                   "Path(sys.argv[-1]).chmod(0o700)\n")
+        self.fake('wrap', build)
+        self.fake('cc', build)
         self.fake('df', "import os\nfrom pathlib import Path\n"
                   "Path(os.environ['FIXTURE_COMMAND_LOG']+'.disk').touch()\n"
                   "print('Avail\\n80000000000')\n")
@@ -944,6 +1206,33 @@ os.waitpid(child,0)
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn('CPU wrapper build: exit 9', result.stderr)
 
+    def test_command_build_settings_are_optional_and_disk_values_validated(self):
+        for index, (prefix, minimum) in enumerate(((None, None), ("", ""),
+                                                  ("wrap", None), (None, "0"))):
+            with self.subTest(prefix=prefix, minimum=minimum):
+                for key, value in (("TIERS_WRAPPER", prefix), ("TIERS_DISK_BYTES", minimum)):
+                    self.env.pop(key, None)
+                    if value is not None:
+                        self.env[key] = value
+                target = self.root / f"target {index}"
+                self.env['FIXTURE_TARGET'] = str(target)
+                (self.root / 'commands.disk').unlink(missing_ok=True)
+                result = self.invoke('pass', suite=str(index))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                command = json.loads((self.root / 'commands').read_text())
+                self.assertEqual(command[:1], ['cc'] if prefix else ['-std=c11'])
+                self.assertEqual((self.root / 'commands.disk').exists(), minimum == "0")
+        for minimum in ('plenty', '-1'):
+            self.env['TIERS_DISK_BYTES'] = minimum
+            self.env['FIXTURE_TARGET'] = str(self.root / 'invalid disk target')
+            (self.root / 'commands').unlink(missing_ok=True)
+            (self.root / 'commands.disk').unlink(missing_ok=True)
+            result = self.invoke('raise Exception("must not run")', suite=minimum)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn('TIERS_DISK_BYTES', result.stderr)
+            self.assertFalse((self.root / 'commands').exists())
+            self.assertFalse((self.root / 'commands.disk').exists())
+
     def test_command_summary_requires_complete_expected_inventory(self):
         self.directory.mkdir()
         self.assertEqual(self.summary('--expect', 'missing').returncode, 2)
@@ -976,7 +1265,10 @@ os.waitpid(child,0)
         self.assertIn('tools', CPU['budgets'](budget, {'qa-jig'}))
         result = self.summary(*arguments)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout)['suite']['tests'], 2)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['suite']['tests'], 2)
+        self.assertEqual(report['unobserved'], [])
+        self.assertEqual(report['suite']['unobserved'], 0)
         budget.write_text('[tools."tools/fixture.py"]\ncpu_suite_s=1.0\ncpu_test_s=1.0\n')
         result = self.summary(*arguments)
         self.assertEqual(result.returncode, 1, result.stderr)

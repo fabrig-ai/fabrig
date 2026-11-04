@@ -34,11 +34,11 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     let receiving = link::Limits::new(limits.domain, limits.exchanges).expect("receiving profile");
     let mut client = client::Client::unlinked(&limits, SEED).expect("client");
     let mut output = Queue::uncapped();
-    client.step(Time::ZERO, WALL, client::Event::StartUnlinked { kept: List::with_capacity(0) }, &mut output);
-    client.step(Time::ZERO, WALL, client::Event::SignIn { with: client::With::Transport }, &mut output);
+    client.step_unlinked(Time::ZERO, WALL, client::Event::StartUnlinked { kept: List::with_capacity(0) }, &mut output);
+    client.step_unlinked(Time::ZERO, WALL, client::Event::SignIn { with: client::With::Transport }, &mut output);
     let mut frame_watch = None;
     while let Some(request) = output.pop() {
-        if let client::Request::Down {
+        if let client::UnlinkedRequest::Down {
             down: client::Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) },
         } = request
         {
@@ -47,7 +47,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     }
     let mut me = link::translate::documents::frame(jig_client_test_records::frame_record(), &receiving).expect("me");
     me.party.number = PARTY;
-    client.step(
+    client.step_unlinked(
         Time::ZERO,
         WALL,
         client::Event::Up {
@@ -59,7 +59,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
         &mut output,
     );
     while output.pop().is_some() {}
-    client.step(
+    client.step_unlinked(
         Time::ZERO,
         WALL,
         client::accounts::move_out(KEY, NAME, c::AskAccountHolder::Own, EXPORT_ACCOUNT),
@@ -68,7 +68,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     let mut codec = link::Link::new(&receiving).expect("client codec");
     let mut wire = Queue::uncapped();
     while let Some(request) = output.pop() {
-        if let client::Request::Down { down: client::Down::Send { attempt, key, request, value } } = request {
+        if let client::UnlinkedRequest::Down { down: client::Down::Send { attempt, key, request, value } } = request {
             codec.step(Time::ZERO, link::Event::Send { attempt, key, ask: request, value }, &mut wire);
         }
     }
@@ -83,7 +83,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
         &mut wire,
     );
     let Some(link::Request::Answer { attempt, envelope, answer, why }) = wire.pop() else { panic!("client envelope") };
-    client.step(
+    client.step_unlinked(
         Time::ZERO,
         WALL,
         client::Event::Up { up: client::Up::Answer { attempt, envelope, answer, why } },
@@ -92,7 +92,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     let terminal: Vec<_> = output
         .iter()
         .filter_map(|request| {
-            if let client::Request::Told { told: client::Told::Answered { key, outcome } } = request {
+            if let client::UnlinkedRequest::Told { told: client::Told::Answered { key, outcome } } = request {
                 Some((*key, outcome.clone()))
             } else {
                 None

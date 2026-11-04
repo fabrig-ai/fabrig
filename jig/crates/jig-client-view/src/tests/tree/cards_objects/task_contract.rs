@@ -53,7 +53,9 @@ fn task_contract_overview_preserves_opaque_approval_and_named_verdict_caps_witho
                 assert_eq!(slots.len(), 1);
                 assert_eq!(bindings.owner_part(slots[0].token), Some(&reference));
             }
-            TaskContractDocument::Verdict { .. } | TaskContractDocument::Change { .. } => {
+            TaskContractDocument::Job { .. }
+            | TaskContractDocument::Verdict { .. }
+            | TaskContractDocument::Change { .. } => {
                 goldens.check(&tree);
             }
         }
@@ -134,7 +136,9 @@ fn maximum_nested_task_contracts_fit_the_page_bound_and_preserve_every_raw_slot_
                 assert_eq!(fields, usize::try_from(CLIENT.client.rows * CLIENT.client.rows).unwrap());
                 goldens.check(&tree);
             }
-            TaskContractDocument::Report { .. } | TaskContractDocument::Change { .. } => unreachable!(),
+            TaskContractDocument::Job { .. }
+            | TaskContractDocument::Report { .. }
+            | TaskContractDocument::Change { .. } => unreachable!(),
         }
     }
 }

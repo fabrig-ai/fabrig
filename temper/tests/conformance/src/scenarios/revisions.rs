@@ -24,7 +24,7 @@ fn call(world: &mut World, name: u64, completion: u32, tool: engine::Tool) {
     crate::link::call(world, assignment.task, assignment.attempt, name, engine::Call { completion, position: 0, tool });
 }
 fn spec(words: &[u8]) -> tasks::Spec {
-    tasks::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) }
+    tasks::Spec { job: None, asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) }
 }
 pub(super) fn party_amend(world: &mut World) -> Result<(), Violation> {
     let mut authority = authority(world);
@@ -42,7 +42,7 @@ pub(super) fn party_amend(world: &mut World) -> Result<(), Violation> {
                 authority,
                 symbolic_grants: Box::new([]),
                 dependencies: Box::new([]),
-                wake: tasks::WakePolicy::DEFAULT,
+                wake: Some(tasks::WakePolicy::DEFAULT),
                 ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
             }]),
         },

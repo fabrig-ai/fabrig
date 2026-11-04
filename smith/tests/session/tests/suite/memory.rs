@@ -421,6 +421,7 @@ fn priced_opening(
         budget: 1,
         transcript,
         answered: Box::default(),
+        withheld: None,
     })
 }
 
@@ -433,6 +434,7 @@ fn zero_opening(spec: Spec) -> Box<smith_domain_session::record::Opening> {
         budget: 1,
         transcript: None,
         answered: Box::default(),
+        withheld: None,
     })
 }
 
@@ -580,6 +582,7 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
         text: bytes(output),
         error: false,
         spent: 0,
+        after: smith_domain_session::After::Complete,
     });
     assert!(owner.is_some(), "bounded result leaves the next request for compaction");
     assert_eq!(ended, None);

@@ -34,7 +34,7 @@ impl Complete {
                 deltas,
                 bounds: _,
             } => Self { owner, grant, prompt, deadlines, outcome, deliver, observation, deltas },
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => {
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } | FromDomain::Close { .. } => {
                 unreachable!("the completion route admits Complete")
             }
         }

@@ -29,8 +29,7 @@ use chat_machine::{
     send_line, state_saved, store_failed, turn_saved,
 };
 pub(crate) use chat_machine::{closed, select_chat};
-use delivery::{InPlace, begin_delivery, deliver_to_agent, delivery_saved, plain_status};
-use reconcile::{Reconcile, reconcile_next};
+use delivery::{Delivering, begin_delivery, delivery_saved, plain_status, reconcile_intent, save_failed};
 
 /// One local chat and its inline or spawned agent behind the parent face.
 #[derive(Debug)]
@@ -41,17 +40,12 @@ pub struct Domain {
     chat_seed: u64,
     pub(crate) choice: Option<crate::Slash>,
     pub(crate) interactive: bool,
-    pub(crate) closing_last: Option<u64>,
     agent: Agent,
     pub(crate) child: Child,
     pub(crate) ending: crate::end::End,
     pub(crate) chat: Chat,
-    transcript: Option<smith_host_domain::Transcript>,
     records: Map<agent::run::CallName, DeliveryRecord>,
-    delivery: Option<InPlace>,
-    saving: Option<DeliveryRecord>,
-    delivery_owner: Option<Token>,
-    reconciling: Option<Reconcile>,
+    delivering: Delivering,
     pub(crate) lines: Lines,
     run_messages: Queue<host::Message>,
     pub(crate) turns: Turns,
@@ -157,17 +151,12 @@ impl Domain {
             chat_seed: seed,
             choice: None,
             interactive: false,
-            closing_last: None,
             agent: Agent::new(&child_limits, agent_config, seed)?,
             chat: Chat::new(seed),
             child: Child::Starting,
             ending: crate::end::End::new(),
-            transcript: None,
             records: Map::with_capacity(limits.smith.run.answered_calls),
-            delivery: None,
-            saving: None,
-            delivery_owner: None,
-            reconciling: None,
+            delivering: Delivering::Idle,
             lines,
             run_messages: Queue::with_capacity(limits.smith.run.messages.saturating_add(1)),
             turns: Turns::new(limits.unsaved),
@@ -436,7 +425,8 @@ fn route_agent(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
                 | smith_inline_agent::Lower::Probe { .. }
                 | smith_inline_agent::Lower::Check { .. }
                 | smith_inline_agent::Lower::Abort { .. }
-                | smith_inline_agent::Lower::Yield { .. }) => out.push(Request::Lower { agent, request }),
+                | smith_inline_agent::Lower::Yield { .. }
+                | smith_inline_agent::Lower::Close { .. }) => out.push(Request::Lower { agent, request }),
             },
             Some(Output::Process(request)) => out.push(Request::Process(request)),
             None => break,
@@ -622,7 +612,7 @@ fn gone(domain: &mut Domain, end: host::End, detail: Box<[u8]>, out: &mut Queue<
         match &mut domain.chat.phase {
             State::Answered { detail: held, .. } if held.is_empty() => *held = detail,
             State::Loading(_)
-            | State::Idle
+            | State::Idle { .. }
             | State::Starting(_)
             | State::Running { .. }
             | State::Ending(_)
@@ -670,8 +660,6 @@ pub(crate) fn observe(domain: &mut Domain, fact: Fact) {
 fn git_result(domain: &mut Domain, env: &Env<Limits>, owner: Token, result: GitResult, out: &mut Queue<Request>) {
     if domain.chat.phase.is_starting() && domain.chat.starting().survey != HeadSurvey::Complete {
         head_result(domain, env, owner, result, out);
-    } else if domain.reconciling.is_some() {
-        reconcile::reconcile_git(domain, env, owner, result, out);
     } else {
         delivery::git_result(domain, env, owner, result, out);
     }
@@ -711,13 +699,6 @@ impl Domain {
     pub(crate) fn running_parent(config: Config, limits: &Limits, seed: u64) -> Self {
         let mut domain = Self::starting_parent(config, limits, seed);
         domain.child.started(Token::new(1));
-        domain
-    }
-
-    /// A parent-face harness retaining one durable delivery owner through withdrawal.
-    pub(crate) fn running_delivery(config: Config, limits: &Limits, seed: u64, owner: Token) -> Self {
-        let mut domain = Self::running_parent(config, limits, seed);
-        domain.delivery_owner = Some(owner);
         domain
     }
 }

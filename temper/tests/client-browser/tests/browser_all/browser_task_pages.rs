@@ -1,11 +1,12 @@
-//! Task addresses, a fresh open and lineage (temper/docs/design/client/browser.md,
+//! Task addresses, a fresh open, lineage and a live link across a reload once the project is made
+//! (temper/docs/design/client/browser.md,
 //! 4.6, item 11).
 //! The client world's task scenarios and the terminal's agent-page golden
 //! hold the page contents; Chromium holds the first full load at `/tasks/3`.
 use skein_fake_person::{Find, Step as PersonStep, Target};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
-use temper_client_browser_world::{Tier, WITHIN};
+use temper_client_browser_world::{ABSENT, FIRST_CHAT, Tier, WITHIN};
 
 #[test]
 fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
@@ -14,6 +15,8 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
     let press = |find| Step::Person(PersonStep::Press { find });
     let heading = |level, name: &[u8]| Find::exactly_named(Role::Heading { level }, name);
     let task = |number: &[u8]| Find::exactly_named(Role::Link, number);
+    let behind = || Find::exactly_named(Role::Status, b"Behind");
+    let chat = || Find::exactly_named(Role::Link, FIRST_CHAT);
     let change = b"Export widget's table as CSV";
     let agent = "T3 · Export widget's table as CSV".as_bytes();
     let plan_agent = || {
@@ -27,7 +30,7 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(tier.states().live),
-        see(heading(1, b"What shall we change?")),
+        see(heading(1, b"Chats")),
         see(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         press(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         // The card settles at its call once the turn's words show (client/README.md, 5.7).
@@ -62,6 +65,18 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
         see(heading(1, agent)),
         see(Find::exactly_named(Role::Region, b"Task brief")),
         Step::Address(b"/tasks/3".as_slice().into()),
+        // 6: the playground's project made, the link stays up across a reload: the page's own
+        // client bounds receive the box's Me (temper/docs/design/client/README.md, 2).
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        see(heading(1, b"Chats")),
+        see(tier.states().live),
+        Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
+        see(chat()),
+        Step::Person(PersonStep::Reload),
+        see(heading(1, b"Chats")),
+        see(tier.states().live),
+        Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
+        see(chat()),
     ]));
     let mut harness = Harness::new(tier.setup());
     assert_eq!(harness.run(&mut [&mut story]), Outcome::Done);

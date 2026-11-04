@@ -62,8 +62,19 @@ fn covers(
             bound.executors.iter().any(|listed| match (listed, value) {
             (tasks::AuthorityExecutor::Charter(a), people::Executor::Charter(b))
             | (tasks::AuthorityExecutor::Procedure(a), people::Executor::Procedure(b))
-            | (tasks::AuthorityExecutor::Role(a), people::Executor::Role(b)) => a == b,
-            (tasks::AuthorityExecutor::Charter(_), people::Executor::Procedure(_) | people::Executor::Role(_))
+            | (tasks::AuthorityExecutor::Role(a), people::Executor::Role(b))
+            | (tasks::AuthorityExecutor::Job(a), people::Executor::Job(b)) => a == b,
+            (
+                tasks::AuthorityExecutor::Job(_),
+                people::Executor::Charter(_) | people::Executor::Procedure(_) | people::Executor::Role(_),
+            )
+            | (
+                tasks::AuthorityExecutor::Charter(_)
+                | tasks::AuthorityExecutor::Procedure(_)
+                | tasks::AuthorityExecutor::Role(_),
+                people::Executor::Job(_),
+            )
+            | (tasks::AuthorityExecutor::Charter(_), people::Executor::Procedure(_) | people::Executor::Role(_))
             | (tasks::AuthorityExecutor::Procedure(_), people::Executor::Charter(_) | people::Executor::Role(_))
             | (tasks::AuthorityExecutor::Role(_), people::Executor::Charter(_) | people::Executor::Procedure(_)) => {
                 false

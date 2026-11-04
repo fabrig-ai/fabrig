@@ -610,6 +610,7 @@ fn saved_answer(rows: &[Request]) -> Stored {
                 | Stored::Roles { .. }
                 | Stored::Acted { .. }
                 | Stored::Deletion { .. }
+                | Stored::Public { .. }
                 | Stored::Policy { .. } => None,
             },
             Request::Reply { .. }
@@ -1194,6 +1195,7 @@ fn is_answer(request: &Request) -> bool {
             | Stored::Roles { .. }
             | Stored::Acted { .. }
             | Stored::Deletion { .. }
+            | Stored::Public { .. }
             | Stored::Policy { .. } => false,
         },
         Request::Reply { .. }
@@ -1220,6 +1222,7 @@ fn is_roles(request: &Request) -> bool {
             | Stored::Answer { .. }
             | Stored::Acted { .. }
             | Stored::Deletion { .. }
+            | Stored::Public { .. }
             | Stored::Policy { .. } => false,
         },
         Request::Reply { .. }
@@ -2433,7 +2436,7 @@ fn a_deleting_projects_seen_chat_can_end_before_it_is_forgotten() {
     });
     let request = route(&test.request(10, 1, Ask::MarkSeen { seen: Seen::Conversation { task: 9, through: 1 } }));
     test.send(Event::ConversationSeen { request, project: 1, last_reply: 2 });
-    test.send(Event::Deleting { project: 1, step: Some(DeletionStep::Tasks) });
+    test.send(Event::Deleting { project: 1, step: Some(DeletionStep::Tasks), grace: None });
     test.send(Event::CloseProject { project: 1 });
     test.send(Event::ChatState {
         party: 1,
@@ -2487,11 +2490,11 @@ fn an_owners_remove_project_ask_routes_before_the_deletion_is_kept() {
     let mut test = Test::new(LIMITS);
     test.signin(1, 10, identity(0, 1));
     test.send(Event::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Owner }]) });
-    let outputs = test.request(10, 1, Ask::RemoveProject { project: 1 });
+    let outputs = test.request(10, 1, Ask::RemoveProject { project: 1, grace: None });
     let [Request::Route { person: 1, project: 1, role: Some(Role::Owner), ask, .. }] = outputs.as_slice() else {
         unreachable!("the owner routes one project deletion to its parent");
     };
-    assert_eq!(**ask, Ask::RemoveProject { project: 1 });
+    assert_eq!(**ask, Ask::RemoveProject { project: 1, grace: None });
     assert!(test.d.deletions().is_empty());
 }
 

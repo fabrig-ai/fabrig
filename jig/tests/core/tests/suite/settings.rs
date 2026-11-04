@@ -40,6 +40,7 @@ fn the_document_bridge_starts_once_and_preserves_templates_policies_rules_and_mo
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
@@ -71,7 +72,7 @@ fn a_release_changes_the_template_once_and_archives_its_predecessor() {
     assert_eq!(newest.head.by, settings::Decider::Release);
     assert_eq!(newest.head.against, 1);
     assert!(
-        matches!(&newest.items[..], [settings::Item { setting: settings::Setting::Template(1), edit: settings::Edit::Set(settings::Value::Template(value)) }] if value.grace == Some(Duration::from_millis(6000)))
+        matches!(&newest.items[..], [settings::RevisionItem { setting: settings::Setting::Template(1), edit: settings::Edit::Set(settings::Value::Template(value)), .. }] if value.grace == Some(Duration::from_millis(6000)))
     );
     assert_eq!(revision(&world, 1, true).head.by, settings::Decider::FirstStart);
     let signed = sign_in(&mut world);
@@ -393,6 +394,7 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
@@ -639,6 +641,7 @@ fn a_changed_run_cap_applies_to_the_next_run_without_capping_its_tasks_total_all
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
@@ -697,7 +700,7 @@ fn settings_inventory_tracks_each_defaults_revision_across_a_release() {
     let signed = sign_in(&mut world);
     let first = inventory(&mut world, signed);
     assert_eq!(first.newest, 1);
-    assert!(first.settings.iter().all(|line| line.follows == documents::Follows::Default && line.last == 1));
+    assert!(first.settings.iter().all(|line| line.follows == documents::Follows::Default && line.last == Some(1)));
     assert_eq!(first.held.get(0).expect("settings story fixture").holders, 0);
     let mut config = configuration().0;
     config.core.defaults.templates[0].grace = Some(Duration::from_secs(6));
@@ -706,7 +709,7 @@ fn settings_inventory_tracks_each_defaults_revision_across_a_release() {
     let second = inventory(&mut world, signed);
     assert_eq!(second.newest, 2);
     for line in &second.settings {
-        assert_eq!(line.last, if line.setting == settings::Setting::Template(1) { 2 } else { 1 });
+        assert_eq!(line.last, Some(if line.setting == settings::Setting::Template(1) { 2 } else { 1 }));
     }
 }
 #[test]
@@ -732,7 +735,7 @@ fn a_setting_reads_whole_only_from_the_newest() {
     ) else {
         panic!("whole template")
     };
-    let settings::Value::Template(template) = value.value else { panic!("template value") };
+    let Some(settings::Value::Template(template)) = value.value else { panic!("template value") };
     assert_eq!(template.grace, Some(Duration::from_secs(10)));
     assert_eq!(
         client_read(
@@ -802,6 +805,7 @@ fn ready_host(world: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
@@ -872,7 +876,7 @@ fn a_removed_setting_keeps_its_inventory_line_and_reads_unknown() {
         .find(|line| line.setting == settings::Setting::Template(2))
         .expect("settings story fixture");
     assert_eq!(line.follows, documents::Follows::Change);
-    assert_eq!(line.last, 1);
+    assert_eq!(line.last, Some(1));
     assert_eq!(
         client_read(
             &mut world,
@@ -934,8 +938,9 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
     const NAME_BYTES: usize = 4096;
-    // v19 SettingValue tag + this fixture's Template: 46 fixed bytes + its 4096-byte name.
-    const ENCODED_TEMPLATE_BYTES: u64 = 4142;
+    // v19 SettingValue tag + this fixture's Template: 50 fixed bytes (including
+    // the empty resource list's count) + its 4096-byte name.
+    const ENCODED_TEMPLATE_BYTES: u64 = 4146;
     let (config, mut limits) = configuration();
     limits.core.load_bytes = SINGLE_READ_BYTES;
     let mut world = World::new(Setup {
@@ -1070,7 +1075,7 @@ fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
     ) else {
         panic!("held charter")
     };
-    let settings::Value::Charter(charter) = value.value else { panic!("charter value") };
+    let Some(settings::Value::Charter(charter)) = value.value else { panic!("charter value") };
     assert_eq!(charter.policy.instructions.as_ref(), b"Answer within the granted authority.");
     let document = inventory(&mut world, signed);
     assert_eq!(document.held.iter().map(|row| (row.head.number, row.holders)).collect::<Vec<_>>(), [(1, 1), (2, 0)]);
@@ -1616,6 +1621,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
         worker: 0,
         channel: Token::new(0),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
@@ -1744,6 +1750,7 @@ fn a_restart_adopts_a_live_run_on_its_old_version() {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
@@ -1982,6 +1989,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
         worker: 0,
         channel: Token::new(8),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_secs(3600),
             slots: 1,

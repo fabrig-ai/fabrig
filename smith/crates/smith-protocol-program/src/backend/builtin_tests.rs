@@ -239,6 +239,68 @@ fn an_init_without_a_granted_built_in_fails() {
 }
 
 #[test]
+fn a_served_sub_agent_is_listed_inspect_only() {
+    let mut backend = active();
+    let Some(Complete { prompt, outcome, deliver, .. }) = backend.current.request_mut() else { panic!("request") };
+    prompt.served = Box::new([llm::Served::SubAgent]);
+    let direct = protocol::schemas_for_contract(
+        prompt,
+        &backend.settings.adapter.stated,
+        outcome,
+        deliver.as_ref(),
+        backend.settings.contract_bytes,
+    )
+    .expect("direct schemas");
+    let direct = direct.iter().find(|tool| tool.name.as_ref() == b"sub_agent").expect("direct sub_agent");
+    let tools = backend.tools();
+    let [tool] = tools.as_ref() else { panic!("one served sub_agent") };
+    assert_eq!(tool.name.as_ref(), b"sub_agent");
+    let suffix = b" On this backend a sub-agent reads only: its tools are [\"inspect\"]. Several asked in one message run side by side.";
+    assert_eq!(tool.description.as_ref(), mcp::json::join(&[&direct.description, suffix]).as_ref());
+    let schema: serde_json::Value = serde_json::from_slice(&tool.input_schema).expect("schema JSON");
+    assert_eq!(schema["type"], "object");
+    assert_eq!(schema["properties"]["tools"]["items"]["enum"], serde_json::json!(["inspect"]));
+    assert_eq!(schema["required"], serde_json::json!(["brief", "tools"]));
+    for key in ["oneOf", "allOf", "anyOf"] {
+        assert!(schema.get(key).is_none());
+    }
+    let expected = core::str::from_utf8(&direct.schema)
+        .expect("direct schema UTF-8")
+        .replace(r#"["inspect","modify","shell"]"#, r#"["inspect"]"#);
+    assert_eq!(tool.input_schema.as_ref(), expected.as_bytes(), "only the enum changes");
+    let list = mcp::json::tool_list(&tools, backend.settings.mcp.answer_bytes, backend.settings.mcp.schema_bytes)
+        .expect("MCP inventory");
+    let list: serde_json::Value = serde_json::from_slice(&list).expect("MCP list JSON");
+    assert_eq!(list["tools"][0]["name"], "sub_agent");
+    assert_eq!(list["tools"][0]["inputSchema"], schema);
+    assert_eq!(list["tools"][0]["description"].as_str().expect("description").as_bytes(), tool.description.as_ref());
+}
+
+#[test]
+fn an_unserved_sub_agent_is_not_listed() {
+    let backend = active();
+    assert!(backend.tools().iter().all(|tool| tool.name.as_ref() != b"sub_agent"));
+}
+
+#[test]
+fn an_init_listing_a_served_sub_agent_is_admitted() {
+    let init = br#"{"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":["mcp__smith__sub_agent"]}"#;
+    for served in [true, false] {
+        let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
+        let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
+        prompt.served = if served { Box::new([llm::Served::SubAgent]) } else { Box::default() };
+        backend.admit_init(&env(0), init, &mut up, &mut below);
+        if served {
+            assert!(up.is_empty());
+            assert_eq!(backend.startup.phase(), State::Running);
+        } else {
+            failed(up.pop(), b"smith: the program started without smith's tools");
+            assert_eq!(backend.startup.phase(), State::Ending);
+        }
+    }
+}
+
+#[test]
 fn the_server_keeps_only_remove_when_modify_is_granted() {
     for modify in [false, true] {
         let mut backend = active();

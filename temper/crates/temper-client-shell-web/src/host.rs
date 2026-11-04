@@ -109,7 +109,7 @@ impl Host {
         let address = match parse(path) {
             Place::Authorize { .. } | Place::AuthorizeMalformed => return self.address.clone(),
             Place::Address(address) => address,
-            Place::Missing => Address::Inbox { filter: Filter::ALL },
+            Place::Missing | Place::Public(_) => Address::Inbox { filter: Filter::ALL },
         };
         let printed = print(&address);
         if *printed != *path {
@@ -174,7 +174,7 @@ impl Host {
     fn heard(&mut self, heard: Heard) {
         let mut above = Queue::uncapped();
         match heard {
-            Heard::Answered { exchange, status, body } => {
+            Heard::Answered { exchange, status, body, headers: _ } => {
                 if let Some(token) = self.tickets.remove(&exchange) {
                     above.push(jig_client_protocol_http::answered(token, status, body));
                 }
@@ -253,12 +253,16 @@ impl Host {
                     }
                 }
                 Request::SignOut => self.client(jig_client::Event::SignOut),
-                Request::Dropped { .. } | Request::Fact { .. } => {}
+                Request::Unlinked { .. } | Request::Dropped { .. } | Request::Fact { .. } => {}
             }
         }
         root::take(&mut self.root, &self.env, &mut self.out);
         (asked, writes)
     }
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the root consumes notifications and keeps unlinked requests out of the linked browser transport"
+    )]
     fn carry(&mut self, request: jig_client::Request, asked: &mut Vec<Asked>) {
         match request {
             jig_client::Request::Save { records } => {
@@ -279,6 +283,8 @@ impl Host {
                     id: self.next,
                     call: jig_client_protocol_http::exchange(&self.mapping, credential.as_ref(), message),
                     bound: limits::BODY_BYTES,
+                    cache: skein_ui_web::fetch::Cache::Browser,
+                    keep: &[],
                 });
             }
             jig_client::Request::OpenStream { credential } => {
@@ -289,11 +295,7 @@ impl Host {
                 });
             }
             jig_client::Request::CloseStream => asked.push(Asked::CloseStream),
-            jig_client::Request::Authorized(_)
-            | jig_client::Request::Told { .. }
-            | jig_client::Request::Down { .. }
-            | jig_client::Request::SignOut
-            | jig_client::Request::ServiceCredential { .. } => {}
+            _ => {}
         }
     }
     pub fn build(&mut self) {

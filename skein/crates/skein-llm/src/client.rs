@@ -59,7 +59,7 @@ pub struct Limits {
     pub detail_bytes: u32,
     /// A non-success response body. At its cap the connection is closed.
     pub error_bytes: u32,
-    /// Drop Codex reasoning past its cap; Anthropic thinking still fails.
+    /// Drop Responses reasoning past its cap; Anthropic thinking still fails.
     /// Default for direct prepare; explicit per-call preparation overrides it.
     pub drop_reasoning: bool,
     /// The endpoint model's declared completion ceiling, in tokens.
@@ -93,20 +93,16 @@ impl Limits {
     }
 }
 
-/// The owner's byte bounds on credential and account values at one endpoint.
+/// The owner's byte bounds on credential values at one endpoint.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct CredentialLimits {
     pub value: u32,
-    pub account_id: u32,
 }
 
 /// Check credential bytes before constructing the bounded request head.
 pub fn check_credential(credential: &Credential, limits: &CredentialLimits) -> Result<(), Error> {
     if credential.value.len() > usize::try_from(limits.value).expect("u32 fits usize") {
         return Err(Error::limit(crate::Cap::Value, limits.value));
-    }
-    if credential.account_id.len() > usize::try_from(limits.account_id).expect("u32 fits usize") {
-        return Err(Error::limit(crate::Cap::AccountId, limits.account_id));
     }
     Ok(())
 }
@@ -120,10 +116,10 @@ pub fn largest_event_demand(limits: &Limits) -> u32 {
 /// Measure the largest request head from endpoint configuration and owner bounds
 /// (llm-connection.md, section 3), without copying a credential or body.
 pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: &Limits) -> Result<u32, Error> {
-    // The native Messages grammar admits nonzero u32 max_tokens; Codex does
+    // The native Messages grammar admits nonzero u32 max_tokens; Responses does
     // not send this route field (llm.md, sections 4.3 and 4.5).
     match endpoint.provider {
-        Provider::OpenAiCodex | Provider::OpenAi => {}
+        Provider::OpenAi => {}
         Provider::Anthropic => {
             if limits.declared_output_tokens == 0 {
                 return Err(Error::limit(crate::Cap::Output, limits.declared_output_tokens));
@@ -133,12 +129,11 @@ pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: 
     if credential.value == 0 {
         return Err(Error::limit(crate::Cap::Value, credential.value));
     }
-    let maximum_affinity = [[b'0'; 36]; 2];
-    let fields = provider_headers(endpoint, Some(Scheme::Bearer), &[], Some(&maximum_affinity));
-    let account_bytes = match endpoint.provider {
-        Provider::OpenAiCodex => usize::try_from(credential.account_id).expect("u32 fits usize"),
-        Provider::Anthropic | Provider::OpenAi => 0,
+    let scheme = match endpoint.provider {
+        Provider::OpenAi => Scheme::Bearer,
+        Provider::Anthropic => Scheme::Key,
     };
+    let fields = provider_headers(endpoint);
     let fixed = match endpoint.encoding {
         Encoding::Identity => 5,
         Encoding::Gzip => 6,
@@ -159,12 +154,11 @@ pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: 
     let measured = head_length(
         endpoint,
         usize::try_from(credential.value).expect("u32 fits usize"),
-        account_bytes,
         // A compressed body's length stays below the request bound and a
         // body sent as rendered within it, so the bound fixes the digits.
         endpoint.encoding,
         u64::from(limits.request),
-        Some(Scheme::Bearer),
+        Some(scheme),
         &fields,
     )?;
     match u32::try_from(measured) {
@@ -360,20 +354,11 @@ pub fn measure(
 ) -> Result<Measured, Error> {
     check_preparation(limits)?;
     let body = match endpoint.provider {
-        Provider::OpenAiCodex | Provider::OpenAi => {
-            translate::measure_request(endpoint.provider, prompt, &limits.native())?
-        }
+        Provider::OpenAi => translate::measure_request(endpoint.provider, prompt, &limits.native())?,
         Provider::Anthropic => anthropic::measure_request(prompt, limits.declared_output_tokens, &limits.native())?,
     };
     let compressed = compressed(endpoint, body, limits);
-    let head = measure_headers(
-        endpoint,
-        credential,
-        prompt.affinity,
-        limits,
-        coding(compressed),
-        content_length(body, compressed),
-    )?;
+    let head = measure_headers(endpoint, credential, limits, coding(compressed), content_length(body, compressed))?;
     Ok(Measured { head, body, compressed })
 }
 
@@ -461,7 +446,7 @@ impl Client {
         Self::prepare_with_reasoning_drop(input, limits, limits.drop_reasoning)
     }
 
-    /// Prepares one call with an explicit Codex reasoning policy. False keeps
+    /// Prepares one call with an explicit Responses reasoning policy. False keeps
     /// the typed limit failure even when the endpoint default permits dropping.
     /// Stored endpoint bounds remain unchanged for connection reuse.
     pub fn prepare_with_reasoning_drop(input: Call, limits: &Limits, enabled: bool) -> Result<Client, Error> {
@@ -476,11 +461,8 @@ impl Client {
         let MeasuredRequest { input, limits, drop_reasoning: enabled, measured } = request;
         let limits = &limits;
         let provider = input.endpoint.provider;
-        let affinity = input.prompt.affinity;
         let rendered = match provider {
-            Provider::OpenAiCodex | Provider::OpenAi => {
-                translate::encode_measured_request(&input.prompt, &limits.native(), measured.body)?
-            }
+            Provider::OpenAi => translate::encode_measured_request(&input.prompt, &limits.native(), measured.body)?,
             Provider::Anthropic => anthropic::encode_measured_request(
                 &input.prompt,
                 limits.declared_output_tokens,
@@ -493,7 +475,6 @@ impl Client {
         let head = measure_headers(
             &input.endpoint,
             input.credential.as_ref(),
-            affinity,
             limits,
             coding(compressed),
             content_length(length, compressed),
@@ -516,7 +497,6 @@ impl Client {
         let headers = headers(
             &input.endpoint,
             input.credential.as_ref(),
-            affinity,
             limits,
             coding(compressed),
             u64::try_from(end).expect("a body length fits u64"),
@@ -1010,10 +990,10 @@ fn response_head(
         fail(client, Failure::Protocol, bytes::copy_of(b"unsupported content encoding"), above);
         closing(client, env, above, below);
     } else if (200..300).contains(&response.status) {
-        // Both OpenAI Responses routes can omit Content-Type on valid SSE.
+        // Public Responses can omit Content-Type on valid SSE.
         // The event decoder still requires a terminal event (llm.md, 4.8).
         let allow_missing = match client.provider {
-            Provider::OpenAi | Provider::OpenAiCodex => true,
+            Provider::OpenAi => true,
             Provider::Anthropic => false,
         };
         let media = media_type(&response.headers);
@@ -1037,13 +1017,11 @@ fn response_head(
     }
 }
 
-const CODEX_REQUEST_HEADER: &[u8] = b"x-oai-request-id";
 const OPENAI_REQUEST_HEADER: &[u8] = b"x-request-id";
 
 fn request_id(provider: Provider, headers: &[Header]) -> Box<[u8]> {
     let name: &[u8] = match provider {
         Provider::OpenAi => OPENAI_REQUEST_HEADER,
-        Provider::OpenAiCodex => CODEX_REQUEST_HEADER,
         Provider::Anthropic => b"request-id",
     };
     for header in headers {
@@ -1560,45 +1538,30 @@ pub fn encoder_bound(limits: &Limits) -> Option<u64> {
     openai::encoder_bound(&limits.native())
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset excludes closure-taking maps")]
 fn measure_headers(
     endpoint: &Endpoint,
     credential: Option<&Credential>,
-    affinity: Option<crate::Affinity>,
     limits: &Limits,
     coding: Encoding,
     content_length: u64,
 ) -> Result<u32, Error> {
     if let Some(credential) = credential
-        && (credential.value.is_empty() || !header_value(&credential.value) || !header_value(&credential.account_id))
+        && (credential.value.is_empty() || !header_value(&credential.value))
     {
         return Err(Error::Invalid);
     }
-    match (endpoint.provider, credential) {
-        (Provider::OpenAiCodex, Some(credential)) => {
-            if credential.account_id.is_empty() || credential.scheme == Scheme::Key {
-                return Err(Error::Invalid);
-            }
-        }
-        (Provider::OpenAiCodex, None) => return Err(Error::Invalid),
-        (Provider::Anthropic | Provider::OpenAi, credential) => {
-            if let Some(credential) = credential
-                && !credential.account_id.is_empty()
-            {
-                return Err(Error::Invalid);
-            }
-        }
+    if endpoint.provider == Provider::Anthropic
+        && let Some(credential) = credential
+        && credential.scheme == Scheme::Bearer
+    {
+        return Err(Error::Invalid);
     }
-    let (scheme, value_bytes, account_id) = match credential {
-        Some(credential) => (Some(credential.scheme), credential.value.len(), credential.account_id.as_ref()),
-        None => (None, 0, b"".as_slice()),
+    let (scheme, value_bytes) = match credential {
+        Some(credential) => (Some(credential.scheme), credential.value.len()),
+        None => (None, 0),
     };
-    let rendered = match affinity {
-        Some(affinity) => Some(crate::affinity::rendered(affinity)),
-        None => None,
-    };
-    let fields = provider_headers(endpoint, scheme, account_id, rendered.as_ref());
-    let total = head_length(endpoint, value_bytes, account_id.len(), coding, content_length, scheme, &fields)?;
+    let fields = provider_headers(endpoint);
+    let total = head_length(endpoint, value_bytes, coding, content_length, scheme, &fields)?;
     let mut fixed_count = if credential.is_some() { 5_usize } else { 4_usize };
     if coding == Encoding::Gzip {
         fixed_count =
@@ -1625,25 +1588,15 @@ fn measure_headers(
     u32::try_from(total).or(Err(Error::limit(crate::Cap::RequestHead, limits.http.request)))
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset excludes closure-taking maps")]
 fn headers(
     endpoint: &Endpoint,
     credential: Option<&Credential>,
-    affinity: Option<crate::Affinity>,
     limits: &Limits,
     coding: Encoding,
     content_length: u64,
 ) -> Result<Box<[Header]>, Error> {
-    measure_headers(endpoint, credential, affinity, limits, coding, content_length)?;
-    let rendered = match affinity {
-        Some(affinity) => Some(crate::affinity::rendered(affinity)),
-        None => None,
-    };
-    let (scheme, account_id) = match credential {
-        Some(credential) => (Some(credential.scheme), credential.account_id.as_ref()),
-        None => (None, b"".as_slice()),
-    };
-    let fields = provider_headers(endpoint, scheme, account_id, rendered.as_ref());
+    measure_headers(endpoint, credential, limits, coding, content_length)?;
+    let fields = provider_headers(endpoint);
     let mut headers = List::with_capacity(limits.http.headers);
     for (name, value) in [
         (b"Host".as_slice(), endpoint.authority.as_ref()),
@@ -1670,8 +1623,8 @@ fn headers(
             (Provider::Anthropic, Scheme::Key) => {
                 Header { name: bytes::copy_of(b"x-api-key"), value: credential.value.clone() }
             }
-            (Provider::OpenAiCodex | Provider::OpenAi, Scheme::Key)
-            | (Provider::OpenAiCodex | Provider::OpenAi | Provider::Anthropic, Scheme::Bearer) => {
+            (Provider::Anthropic, Scheme::Bearer) => return Err(Error::Invalid),
+            (Provider::OpenAi, Scheme::Key | Scheme::Bearer) => {
                 let len = credential
                     .value
                     .len()
@@ -1694,7 +1647,6 @@ fn headers(
 fn head_length(
     endpoint: &Endpoint,
     value_bytes: usize,
-    account_bytes: usize,
     coding: Encoding,
     content_length: u64,
     scheme: Option<Scheme>,
@@ -1711,7 +1663,6 @@ fn head_length(
     }
     let mut total = endpoint.authority.len().checked_add(endpoint.target.len()).ok_or(Error::Invalid)?;
     total = total.checked_add(value_bytes).ok_or(Error::Invalid)?;
-    total = total.checked_add(account_bytes).ok_or(Error::Invalid)?;
     for (index, header) in endpoint.headers.iter().enumerate() {
         if reserved(&header.name) || !header_name(&header.name) || !header_value(&header.value) {
             return Err(Error::Invalid);
@@ -1744,20 +1695,15 @@ fn head_length(
         total = total.checked_add(b"Content-Encoding: gzip\r\n".len()).ok_or(Error::Invalid)?;
     }
     let credential_field = match (endpoint.provider, scheme) {
-        (Provider::OpenAiCodex | Provider::OpenAi, Some(Scheme::Key))
-        | (Provider::OpenAiCodex | Provider::OpenAi | Provider::Anthropic, Some(Scheme::Bearer)) => {
-            b"Authorization: Bearer \r\n".as_slice()
-        }
+        (Provider::Anthropic, Some(Scheme::Bearer)) => return Err(Error::Invalid),
+        (Provider::OpenAi, Some(Scheme::Key | Scheme::Bearer)) => b"Authorization: Bearer \r\n".as_slice(),
         (Provider::Anthropic, Some(Scheme::Key)) => b"x-api-key: \r\n".as_slice(),
-        (Provider::OpenAiCodex | Provider::OpenAi | Provider::Anthropic, None) => b"".as_slice(),
+        (Provider::OpenAi | Provider::Anthropic, None) => b"".as_slice(),
     };
     total = total.checked_add(credential_field.len()).ok_or(Error::Invalid)?;
     for (name, value) in fields.iter().flatten() {
         total = total.checked_add(name.len()).ok_or(Error::Invalid)?;
-        // Codex account bytes were counted with the credential above.
-        if !name.eq_ignore_ascii_case(b"chatgpt-account-id") {
-            total = total.checked_add(value.len()).ok_or(Error::Invalid)?;
-        }
+        total = total.checked_add(value.len()).ok_or(Error::Invalid)?;
         total = total.checked_add(4).ok_or(Error::Invalid)?;
     }
     let length = Decimal::of(content_length);
@@ -1765,31 +1711,10 @@ fn head_length(
     Ok(total)
 }
 
-fn provider_headers<'a>(
-    endpoint: &Endpoint,
-    scheme: Option<Scheme>,
-    account_id: &'a [u8],
-    affinity: Option<&'a [[u8; 36]; 2]>,
-) -> [Option<(&'static [u8], &'a [u8])>; 3] {
-    let (session, thread) = match affinity {
-        Some(rendered) => (
-            Some((b"session-id".as_slice(), rendered.first().expect("fixed session UUID").as_slice())),
-            Some((b"thread-id".as_slice(), rendered.get(1).expect("fixed thread UUID").as_slice())),
-        ),
-        None => (None, None),
-    };
+fn provider_headers(endpoint: &Endpoint) -> [Option<(&'static [u8], &'static [u8])>; 1] {
     match endpoint.provider {
-        Provider::OpenAiCodex => [Some((b"chatgpt-account-id", account_id)), session, thread],
-        Provider::OpenAi => [None, None, None],
-        Provider::Anthropic => [
-            default_header(endpoint, b"anthropic-version", b"2023-06-01"),
-            // The bearer route is withdrawn; the second part of LLM accounts removes it.
-            match scheme {
-                Some(Scheme::Bearer) => default_header(endpoint, b"anthropic-beta", b"oauth-2025-04-20"),
-                Some(Scheme::Key) | None => None,
-            },
-            None,
-        ],
+        Provider::OpenAi => [None],
+        Provider::Anthropic => [default_header(endpoint, b"anthropic-version", b"2023-06-01")],
     }
 }
 fn default_header(

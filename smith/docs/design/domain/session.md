@@ -128,7 +128,10 @@ child domain `smith-domain-session`, whose own child is the tools domain
   not-run result as an ordinary continuation, unless the opener answers
   it as the session opens, as a run answers the `wait` it withheld when
   it parked; answers the history does not hold go to the LLM as text in
-  the waking prompt (run.md, section 6).
+  the waking prompt (run.md, section 6). The opener names in its opening
+  the one call it may have withheld, by its tool's name, and the session
+  restores that call alone as withheld: it knows none of its opener's
+  tools by name.
 - **Refused transcripts.** Another version, a malformed, unresolved or
   oversized history are distinct refusals; the run treats every one as
   a transient failure (run.md, section 6).
@@ -540,7 +543,7 @@ window, history only grows (section 3).
   output, beside its prompt as every completion's is, and takes no room
   in the window (protocol/limits.md, 2.1). The history before them is
   the ordinary prompt's, unchanged:
-  - **on the Codex dialect,** which keeps the tool choice outside the
+  - **on the OpenAI dialect,** which keeps the tool choice outside the
     cached prefix, the request reads the cached prefix;
   - **on the Anthropic dialect,** a changed choice keeps the cache of the
     tools and the system text and loses that of the messages, so a

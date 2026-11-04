@@ -158,7 +158,7 @@ use skein_lib::{Deadlines, Duration, Env, Id, List, Queue, ReplyTo, Rng, Set, Sl
 use smith_domain_tools::{self as tools, Call, Effect, Entry, Grants, Outcome};
 
 use crate::boundary::{
-    Budget, BudgetDenial, Deadlines as CallDeadlines, Dimension, End, Progress, Request, Spec, Yield,
+    After, Budget, BudgetDenial, Deadlines as CallDeadlines, Dimension, End, Progress, Request, Spec, Yield,
 };
 use crate::domain::Domain;
 use crate::facts::{FactKind, Facts};
@@ -294,15 +294,6 @@ const KIT_ONLY: Waiting = Waiting { completion: false, runs: 0, kit: Kit::Open }
 
 /// A closing session that waits for nothing: it has ended.
 const SETTLED: Waiting = Waiting { completion: false, runs: 0, kit: Kit::Closed };
-
-/// Opener-requested continuation after its result and tool turn settle.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum After {
-    /// Request the next completion directly.
-    Complete,
-    /// Return control to the opener before requesting the next completion.
-    Yield,
-}
 
 /// A child's exact cumulative inclusive bill. This fixed handoff carries no
 /// payload and never changes the receiver's own price.
@@ -445,7 +436,7 @@ pub(crate) fn open(
         refuse(&mut domain.facts, opener, End::Busy, out);
         return;
     }
-    let crate::record::Opening { spec, window_llm, dialect, prices, budget, transcript, answered } = opening;
+    let crate::record::Opening { spec, window_llm, dialect, prices, budget, transcript, answered, withheld } = opening;
     if prices.unit == 0 || budget > env.limits.spend {
         refuse(&mut domain.facts, opener, End::Invalid, out);
         return;
@@ -470,7 +461,7 @@ pub(crate) fn open(
                 return;
             }
         }
-        Some(transcript) => match restore(&mut conversation, transcript, answered, &env.limits) {
+        Some(transcript) => match restore(&mut conversation, transcript, answered, withheld.as_deref(), &env.limits) {
             Ok(previous) => {
                 sequence = previous;
                 told = conversation.transcript.len().saturating_sub(1);
@@ -714,7 +705,13 @@ pub(crate) fn close(domain: &mut Domain, env: &Env<Limits>, session: Token, out:
     session.state = match state {
         State::Completing { attempt: _ } => cancel_completion(id, End::Closed, out),
         State::Resting { tools } => finish_batch(End::Closed, tools),
-        State::Yielded { tools } => State::Closing { end: End::Closed, waiting: KIT_ONLY, tools },
+        State::Yielded { tools } => {
+            let end = match session.conversation.final_turn.spent() {
+                Some(spent) => End::Budget { spent },
+                None => End::Closed,
+            };
+            State::Closing { end, waiting: KIT_ONLY, tools }
+        }
         State::Backoff { .. } => finish(End::Closed),
         State::Tooling { tools } => cancel_tools(&domain.calls.runs, tools, End::Closed, out),
         // It is already ending, with the end it had first.
@@ -1900,7 +1897,7 @@ fn resumed(
     {
         return history::continue_held(conversation, id, text, env, out);
     }
-    let content = unrun(conversation, text, &mut [], false);
+    let content = unrun(conversation, text, &mut [], None);
     conversation.transcript.push(Message { role: Role::User, content }).expect("checked for room above");
     ask(conversation, id, 0, env, out)
 }
@@ -1911,7 +1908,7 @@ fn unrun(
     conversation: &Conversation,
     text: Box<[u8]>,
     answered: &mut [crate::record::Answered],
-    waiting: bool,
+    withheld: Option<&[u8]>,
 ) -> Box<[Block]> {
     let message = conversation.transcript.last().expect("a yielded session's transcript ends with its answer");
     let (calls, _) = tally(&message.content);
@@ -1919,9 +1916,9 @@ fn unrun(
     let mut waking = Some(text);
     for (position, block) in message.content.iter().enumerate() {
         match block {
-            Block::ToolCall { id, name, .. } => {
-                let mut result = if waiting && name.as_ref() == b"wait" {
-                    Returned::Text { text: waking.take().expect("one withheld wait"), error: false, replay: None }
+            Block::ToolCall { id, .. } => {
+                let mut result = if withheld == Some(id.as_ref()) {
+                    Returned::Text { text: waking.take().expect("one withheld call"), error: false, replay: None }
                 } else {
                     Returned::NotRun { why: crate::llm::NotRun::Stopped }
                 };

@@ -486,6 +486,7 @@ impl World {
                 | Stored::Acted { .. }
                 | Stored::Answer { .. }
                 | Stored::Deletion { .. }
+                | Stored::Public { .. }
                 | Stored::Policy { .. } => None,
             })
             .unwrap_or(0);
@@ -596,7 +597,8 @@ impl World {
                             unreachable!("party batches are exercised by the core world")
                         }
                         Ask::MakeService { .. } => RouteKind::Service,
-                        Ask::DecideProposal { .. }
+                        Ask::Restore { .. }
+                        | Ask::DecideProposal { .. }
                         | Ask::Propose {
                             action: people::Action::Amend { .. } | people::Action::Settings { .. }, ..
                         } => RouteKind::Proposal,
@@ -620,6 +622,7 @@ impl World {
                         | Ask::AnswerQuestion { .. }
                         | Ask::SetRoles { .. }
                         | Ask::RemoveProject { .. }
+                        | Ask::SetVisibility { .. }
                         | Ask::Rename { .. }
                         | Ask::MakeProject { .. }
                         | Ask::ChangeSettings { .. }
@@ -674,6 +677,12 @@ impl World {
                         self.deferred.push((request, key));
                     } else {
                         match *ask {
+                            Ask::Restore { .. } => people::step(
+                                &mut self.domain,
+                                &self.env,
+                                Event::Decided { request, outcome: Outcome::Refused(Refusal::Stale { newest: 1 }) },
+                                &mut self.out,
+                            ),
                             Ask::Compound { project, operations } => {
                                 let outcome = if self.settings.authority_refuses {
                                     Outcome::CompoundRefused { at: 1, why: Refusal::Unknown }
@@ -999,7 +1008,8 @@ impl World {
                                             person_answers.push((task, person, self.env.wall));
                                             Outcome::PersonAnswered { task }
                                         }
-                                        Ask::TakePerson { .. }
+                                        Ask::Restore { .. }
+                                        | Ask::TakePerson { .. }
                                         | Ask::HandBackPerson { .. }
                                         | Ask::AnswerPerson { .. } => Outcome::Refused(Refusal::NotWaiting),
                                         Ask::Compound { .. }
@@ -1022,6 +1032,7 @@ impl World {
                                         | Ask::Amend { .. }
                                         | Ask::SetRoles { .. }
                                         | Ask::RemoveProject { .. }
+                                        | Ask::SetVisibility { .. }
                                         | Ask::Rename { .. }
                                         | Ask::MakeProject { .. }
                                         | Ask::ChangeSettings { .. }
@@ -1050,6 +1061,7 @@ impl World {
                             | Ask::AnswerQuestion { .. }
                             | Ask::SetRoles { .. }
                             | Ask::RemoveProject { .. }
+                            | Ask::SetVisibility { .. }
                             | Ask::Rename { .. }
                             | Ask::MakeProject { .. }
                             | Ask::ChangeSettings { .. }

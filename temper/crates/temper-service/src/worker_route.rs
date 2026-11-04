@@ -345,6 +345,30 @@ pub fn items(
     }
     Ok(crate::translate::workspace(Some(&items)))
 }
+/// A job's workspace uses the run's items family (temper/docs/design/domain/worker.md, 4.4).
+pub(crate) fn job_items(
+    job: &hub::JobAssignment,
+    parts: &[jig_protocol_worker_wire::Part],
+    limits: &temper_protocol_worker_wire::v1::Limits,
+) -> Result<temper_worker_domain::wire::Workspace, temper_worker_domain::wire::Undecodable> {
+    let Some(workspace) = &job.workspace else {
+        return Ok(crate::translate::workspace(None));
+    };
+    let bytes = part(workspace.items, parts).ok_or(temper_worker_domain::wire::Undecodable)?;
+    let items = temper_protocol_worker_wire::v1::Items::decode(limits, &mut Reader::new(bytes))
+        .or(Err(temper_worker_domain::wire::Undecodable))?;
+    Ok(crate::translate::workspace(Some(&items)))
+}
+/// Decode the job's spec at the protocol boundary (temper/docs/design/protocol/tooling.md, 2).
+pub(crate) fn job_spec(
+    bytes: &[u8],
+    limits: &temper_protocol_worker_wire::v1::Limits,
+) -> Result<temper_worker_domain::wire::JobSpec, temper_worker_domain::wire::Undecodable> {
+    let spec = temper_protocol_worker_wire::v1::JobSpec::decode(limits, &mut Reader::new(bytes))
+        .or(Err(temper_worker_domain::wire::Undecodable))?
+        .into_parts();
+    Ok(temper_worker_domain::wire::JobSpec { command: spec.command, request: spec.request })
+}
 fn part(token: Token, parts: &[jig_protocol_worker_wire::Part]) -> Option<&[u8]> {
     for part in parts {
         if part.token == token {

@@ -123,7 +123,7 @@ impl Visitor {
             body: self
                 .form
                 .as_ref()
-                .map_or(http::Body::None, |form| http::Body::Length(u64::try_from(form.len()).expect("bounded form"))),
+                .map_or(http::Body::None, |form| http::Body::Length(skein_lib::len_u64(form.len()))),
             close: true,
         }));
         if let Some(form) = &self.form {

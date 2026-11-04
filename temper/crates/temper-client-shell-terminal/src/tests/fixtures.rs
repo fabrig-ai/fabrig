@@ -251,9 +251,9 @@ fn populate_page(
             break;
         };
         match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) },
                     },
             } => {
@@ -272,9 +272,9 @@ fn populate_page(
                     );
                 }
             }
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) }
                             | jig_client::Down::Continue { watch, subject },
@@ -323,6 +323,7 @@ fn populate_page(
                 }
             }
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Fact { .. }

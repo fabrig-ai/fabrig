@@ -54,18 +54,14 @@ schemas, decodes what the LLM calls, and renders what the tools return.
 
 A completion's prompt is built from what the domain gives:
 
-- **the system text,** which the domain wrote (domain/run.md, 3.3), after
-  any identity blocks an endpoint's withdrawn identity profile asks
-  skein's client for (agent.md, section 4);
+- **the system text,** which the domain wrote (domain/run.md, 3.3);
 - **the messages,** in order. Each block is translated, and a provider's
   replay goes back verbatim, only to its own dialect;
 - **the tools offered,** with their schemas (section 3), and the
   completion's tool choice;
 - **the model, and the prompt's output cap,** the charter's `output` for
   that model (charter.md, section 2): a dialect that takes an output cap
-  sends it, Anthropic's as `max_tokens`, and the withdrawn Codex route
-  takes none, so there it stays a local bound on the answer (skein's
-  `llm.md`, section 4);
+  sends it, Anthropic's as `max_tokens` (skein's `llm.md`, section 4);
 - **the endpoint's options,** from its configuration, and the reasoning
   effort the conversation's LLM asks for in its charter (charter.md,
   section 2);
@@ -81,13 +77,11 @@ A completion's prompt is built from what the domain gives:
   the conversation (domain/session.md, section 2). This component passes
   it on and never makes one.
 - **Each dialect renders it** (skein's `llm.md`):
-  - Codex: the key as the body's `prompt_cache_key` and as the
-    `session-id` header, and the thread as the `thread-id` header;
+  - OpenAI: the key as the body's `prompt_cache_key`, with no header;
   - Anthropic: no effect on the wire.
 
-  These per-call headers are skein's client's. The names `session-id` and
-  `thread-id` are reserved: an endpoint's configuration that sets either
-  is refused.
+  The names `session-id` and `thread-id` are reserved: an endpoint's
+  configuration that sets either is refused.
 - **No static cache key.** An endpoint's configuration carries none.
   Affinity is the run's, not the endpoint's, and is never derived from a
   credential or a path.
@@ -110,8 +104,8 @@ A completion's prompt is built from what the domain gives:
   (section 5), asked with the tool choice `None` whatever the
   conversation's (section 3; domain/session.md, 8.2). The tool choice is
   not among what a window fixes:
-  - on the Codex dialect it is outside the cached prefix, so the request
-    reads the cached prefix;
+  - on the OpenAI dialect, which keeps the tool choice outside the
+    cached prefix, the request reads the cached prefix;
   - on the Anthropic dialect a changed choice keeps the cache of the
     tools and the system text and loses that of the messages (skein's
     `llm.md`, 4.7), so the compaction writes its window's messages to
@@ -128,7 +122,7 @@ A completion's prompt is built from what the domain gives:
   never more than four, with the dialect's default lifetime (skein's
   `llm.md`). Where they go is a function of the prompt's shape, so smith
   places none.
-- **Codex** caches a prefix on its own, routed by the affinity (2.1).
+- **OpenAI** caches a prefix on its own, routed by the affinity (2.1).
 
 ## 3. Tools' schemas
 
@@ -480,16 +474,10 @@ A completion's prompt is built from what the domain gives:
   renew it** (channel.md, section 6). A bearer goes as an
   authorization bearer and a key as its provider's key, as the
   endpoint's dialect sends that scheme (skein's `llm.md`, 2.6). A scheme the
-  dialect does not take is a value the agent cannot install (channel.md,
-  section 6).
+  dialect does not take is a value the agent cannot install (a bearer on
+  `anthropic`, which takes a key alone) (channel.md, section 6).
 - **A program source is never read here.** Its run makes no call through
   this component (programs.md, section 3).
-- ***Withdrawn:*** the `codex` dialect, and the grant value that carries
-  an account's id beside a bearer, which that dialect sends as its
-  account's header (skein's `llm.md`, 4.6). The component accepts them
-  for a host that still sends them; smith's product, its presets, the
-  live suite and the benchmarks use neither (`docs/design/shell.md`,
-  6.2).
 - **A grant missing or lapsed** fails the call as unauthorized and unsent.
   The session retries it once a refreshed grant has come.
 - **In one process,** the host's protocol layer fills the table directly
@@ -595,7 +583,6 @@ component and skein's client against scripted byte peers, in each dialect.
     start;
   - a call of an LLM with no account: it starts with no credential, its
     request carries no credential field, and it never reads the table;
-  - the withdrawn `codex` dialect with its id-and-bearer grant;
   - replay going back after a resume;
   - a grant refreshed between two calls;
   - each deadline passing, a steady stream outliving any fixed time, and
@@ -643,8 +630,8 @@ All run in virtual time, in milliseconds each, within the focused suite.
 - **MCP tools:** schemas passed through like host tools', once MCP is a
   tool source.
 - **Edit formats:** which format each dialect is offered, once measured;
-  a patch as a free-form tool needs skein's Codex dialect to offer one.
-- **Routing extras:** Codex's turn-state token and `reasoning.context`,
+  a patch as a free-form tool needs skein's Responses dialect to offer one.
+- **Routing extras:** OpenAI's turn-state token and `reasoning.context`,
   adopted only if a probe shows a material gain; an incremental transport
   over WebSocket is on skein's roadmap.
 - **Guidance as system messages:** where a dialect takes system messages

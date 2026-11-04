@@ -3,7 +3,7 @@ use jig_domain_people as people;
 use skein_lib::List;
 
 pub(super) fn batch(batch: &[people::Member]) -> Option<u64> {
-    let mut bytes = u64::try_from(batch.len()).ok()?.checked_mul(u64::try_from(size_of::<people::Member>()).ok()?)?;
+    let mut bytes = skein_lib::len_u64(batch.len()).checked_mul(u64::try_from(size_of::<people::Member>()).ok()?)?;
     for member in batch {
         bytes = bytes.checked_add(people::member_bytes(member)?)?;
     }
@@ -15,9 +15,9 @@ pub(super) fn compound(operations: &List<people::Operation>) -> Option<u64> {
     for operation in operations {
         let owned = match operation {
             people::Operation::Cancel { reason, .. } | people::Operation::Move { reason, .. } => {
-                u64::try_from(reason.len()).ok()?
+                skein_lib::len_u64(reason.len())
             }
-            people::Operation::Message { words, .. } => u64::try_from(words.len()).ok()?,
+            people::Operation::Message { words, .. } => skein_lib::len_u64(words.len()),
             people::Operation::Amend { amendment, .. } => {
                 u64::try_from(size_of::<people::Amendment>()).ok()?.checked_add(people::amendment_bytes(amendment)?)?
             }

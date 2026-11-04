@@ -1,0 +1,1 @@
+{"setting":{"kind":"landing-rule","number":1},"revision":5,"value":{"pattern":{"segments":["ff"],"last":{"open":"61"}},"enforce":true,"ci":false,"up_to_date":true,"gates":[{"number":2,"blocking":false,"freshness":"clean"}],"approvals":[{"role":0,"people":1,"freshness":"exact"}]},"application":{"follows":"default","size":24,"charters":[]}}

@@ -213,6 +213,7 @@ fn a_mismatched_ended_subject_cannot_route_an_act() {
 // Verbs without a retiring subject still send the same key and request, and
 // print its first refusal in both formats. This also guards future table rows.
 const DIRECT_CALLS: &[&[&str]] = &[
+    super::goal_template::START,
     f::CREATE_CHAT_CALL,
     f::ADOPTION,
     &["account", "connect", "9", "--key", "connect"],
@@ -228,9 +229,12 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["settings", "apply", "FILE", "--against", "5", "--key", "settings"],
     &["settings", "propose", "FILE", "--against", "5", "--key", "settings"],
     &["revision", "advance", "5", "--key", "advance"],
+    &["revision", "restore", "4", "--key", "restore-4"],
     &["project", "fund", "1", "200", "--key", "fund"],
+    &["project", "amend", "1", "--visibility", "public", "--key", "visibility"],
     &["forge", "setup", "3", "--key", "setup"],
     &["forge", "connect", "3", "github", "--key", "connect"],
+    &["forge", "replace", "3", "file", "--key", "replace"],
     &["forge", "install", "3", "--key", "install"],
     &["forge", "accept", "3", "22", "--key", "accept"],
     &["playground", "start", "--key", "start"],
@@ -239,10 +243,13 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["forge", "setup", "--key", "new-setup"],
     &["forge", "connect", "github", "--key", "new-github"],
 ];
+fn direct_me(argv: &[&str]) -> c::Me {
+    if argv.first() == Some(&"goal") { super::goal_template::goal_me() } else { f::chat_me(f::CHAT_BUDGET) }
+}
 fn direct(argv: &[&str]) {
     for json in [false, true] {
         let mut root = f::chat_root(f::CHAT_BUDGET, f::SEED);
-        let mut me = f::chat_me(f::CHAT_BUDGET);
+        let mut me = direct_me(argv);
         me.providers = f::provider_offers();
         root.deliver(c::Delivery::Me(Box::new(me)));
         let mut parsed = f::call(argv);
@@ -255,7 +262,13 @@ fn direct(argv: &[&str]) {
         let mut request = None;
         let mut key = None;
         for _ in 0_u32..2 {
-            let value = if parsed.tool == rows::ADD_KEY_AT
+            let value = if crate::table::TOOLS[usize::from(parsed.tool)].name == b"forge replace" {
+                Some(skein_lib::Secret::new(
+                    b"-----BEGIN RSA PRIVATE KEY-----\nfake-key-for-step-tests\n-----END RSA PRIVATE KEY-----"
+                        .as_slice()
+                        .into(),
+                ))
+            } else if parsed.tool == rows::ADD_KEY_AT
                 || parsed.tool == rows::REPLACE_KEY_AT
                 || parsed.tool == rows::IMPORT_AT
             {

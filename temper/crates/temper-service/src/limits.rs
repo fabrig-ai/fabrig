@@ -1,5 +1,9 @@
 //! The small profile and checked field overrides (protocol/configuration.md, section 7).
 mod names;
+mod reference;
+use alloc::boxed::Box;
+pub use names::{NAMES, Name, Unit, find};
+pub use reference::{engine_reference, reference};
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
@@ -125,8 +129,9 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     lifetime: Duration::from_secs(10),
     // Allowance for clock movement, from the engine forge world fixture.
     clock_margin: Duration::from_secs(1),
-    // Live forge resources, from the engine forge world fixture.
-    resources: 8,
+    // Three chat branches, six change names, two followed tier branches and
+    // four departing reads fit sixteen slots (domain/forge.md, 5.1).
+    resources: 16,
     // Repositories retained, from the engine forge world fixture.
     repositories: 2,
     // Normal resource polling interval, from the engine forge world fixture.
@@ -190,10 +195,15 @@ const FORGE: forge::Limits = forge::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     // Project judge tables, from the engine forge world fixture.
     judge_projects: 2,
     // Criteria in each judge table, from the engine forge world fixture.
     judge_criteria: 8,
+    landing_rules: 4,
+    roles: 4,
+    setting_proposals: 4,
+    setting_history: 4,
     // Forge brief sections gathering at once, from the engine forge world fixture.
     brief_sections: 32,
     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
@@ -221,6 +231,10 @@ const FORGE: forge::Limits = forge::Limits {
         resolutions: 3,
         // Update attempts, from the engine forge world fixture.
         updates: 3,
+        // The reference's bound (draft/reference-code-production.md, section 8).
+        questions: 4,
+        // Small's producer, a review, and two repairs each followed by its review.
+        tasks: 6,
         // Outlast ordinary CI; report a silent forge within the same sitting (domain/forge.md, 8.4).
         stall: Duration::from_secs(30 * 60),
         // Gates retained by a change, from the engine forge world fixture.
@@ -287,13 +301,15 @@ const ROOT: Root = Root {
     brief: engine::BriefLimits {
         // Concurrent gathers, from the root world.
         briefs: 2,
-        // Sections per gather, from the root world.
-        sections: 3,
+        // Core sections and two charter documents per gather.
+        sections: 8,
         // Parts per section, from the root world.
         parts: 2,
         // One section's read bytes: at least the task section's.
         read_bytes: 4608,
         budgets: engine::BriefBudgets {
+            // Bytes of each charter document section the forge prepares.
+            document: 4096,
             // Task section's bytes: a whole jig small spec (4096) with its contract and
             // requester lines, so an agent always reads all of what it was asked.
             task: 4608,
@@ -377,6 +393,9 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         // The budget is the engine's own memory_bytes, set where it starts.
         memory_bytes: u64::MAX,
         watermark: engine::default_watermark(&limits.root.journal),
+        public_watermark: engine::default_watermark(&limits.root.journal).checked_div(2).expect("half the watermark"),
+        public_reads: jig.clients.public.reads,
+        public: jig.core.public,
         journal: limits.root.journal,
         loads: limits.root.loads,
         brief: limits.root.brief,
@@ -392,7 +411,13 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         call_answer_bytes: jig.core.call_answer_bytes,
         settings: jig.core.settings,
         call_records: jig.core.call_records,
-        forge: forge::Limits { authority_segments: jig.core.authority.segments, ..limits.forge },
+        forge: forge::Limits {
+            authority_segments: jig.core.authority.segments,
+            roles: jig.core.authority.roles,
+            setting_proposals: jig.core.settings.proposals,
+            setting_history: jig.core.settings.history,
+            ..limits.forge
+        },
     }
 }
 
@@ -417,12 +442,11 @@ pub fn handed_on(name: &[u8]) -> bool {
     (name.starts_with(b"setup.") && name != b"setup.runs" && name != b"setup.states" && name != b"setup.state_life_ms")
         || name.starts_with(b"box.")
 }
-/// Setup bounds also consumed by the engine's host; the old shell keeps its four overrides.
+/// Setup bounds consumed by the engine's host.
 #[must_use]
 pub fn host_setup(name: &[u8]) -> bool {
     [
-        b"setup.orgs".as_slice(),
-        b"setup.deadline_ms",
+        b"setup.deadline_ms".as_slice(),
         b"setup.backoff_ms",
         b"setup.backoff_max_ms",
         b"setup.runs",
@@ -446,5 +470,45 @@ pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
             send: jig.clients_http.send,
         },
         stall: Duration::from_secs(30),
+    }
+}
+
+/// Job files and error output (temper/docs/design/protocol/tooling.md, 6).
+pub(crate) const TOOLING_FILE_BYTES: u32 = 1_048_576;
+pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
+pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
+pub(crate) fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
+    temper_worker_domain::tooling::Limits {
+        file_bytes: TOOLING_FILE_BYTES,
+        tail_bytes: TOOLING_LOG_BYTES,
+        path_bytes: TOOLING_PATH_BYTES,
+        jobs: slots,
+        path: b"/usr/bin:/bin".as_slice().into(),
+    }
+}
+
+/// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+pub(crate) const MERGE_KIND: u32 = 3;
+pub(crate) const MERGE_SPEC_BYTES: u32 = 4_096;
+pub(crate) const MERGE_RESULT_BYTES: u32 = 512;
+pub(crate) const MERGE_DEADLINE: Duration = Duration::from_secs(600);
+
+pub(crate) fn merge_bound() -> jig_domain_host::JobBound {
+    jig_domain_host::JobBound {
+        kind: jig_domain_host::JobKind(MERGE_KIND),
+        spec: MERGE_SPEC_BYTES,
+        result: MERGE_RESULT_BYTES,
+        deadline: MERGE_DEADLINE,
+    }
+}
+
+/// Declare merge only where the tasks child holds its bounds
+/// (temper/docs/design/domain/worker.md, 4.4).
+pub(crate) fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[jig_domain_host::JobBound]> {
+    let bound = merge_bound();
+    if bound.spec <= jig.core.tasks.spec_bytes && bound.result <= jig.core.tasks.result_bytes {
+        Box::new([bound])
+    } else {
+        Box::new([])
     }
 }

@@ -59,10 +59,9 @@ fn input(configuration: &Configuration) -> Input {
         prompt: prompt(),
         endpoint_name: llm::Endpoint(1),
         endpoint: configuration.endpoint.clone(),
-        credential: shared::Credential {
-            value: configuration.credential.value.clone(),
-            account_id: configuration.credential.account_id.clone(),
-            scheme: skein_llm::Scheme::Bearer,
+        credential: match configuration.credential.scheme {
+            skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()),
+            skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()),
         },
         receiving: smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes)
             .expect("fixture receiving bound"),
@@ -91,10 +90,9 @@ fn scripts(calls: bool) -> Box<[api::Script]> {
 
 fn adopt(input: Input, calls: bool) -> (Context, Exchange) {
     let endpoint = input.endpoint.clone();
-    let credential = shared::Credential {
-        value: input.credential.value.clone(),
-        account_id: input.credential.account_id.clone(),
-        scheme: skein_llm::Scheme::Bearer,
+    let credential = match input.credential.scheme {
+        shared::Scheme::Bearer => shared::Credential::bearer(input.credential.value.clone()),
+        shared::Scheme::Key => shared::Credential::key(input.credential.value.clone()),
     };
     let codec::Prepared { client, context } = codec::prepare(input, &limits()).expect("positive admission");
     let peer = Exchange::prepared(client, endpoint, Some(credential), limits().client, scripts(calls));
@@ -246,10 +244,9 @@ fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context,
     offered.prompt.served = Box::new([llm::Served::SubAgent]);
     let schema = codec::schemas(&offered.prompt, &limits().stated)[0].schema.clone();
     let endpoint = offered.endpoint.clone();
-    let credential = shared::Credential {
-        value: offered.credential.value.clone(),
-        account_id: offered.credential.account_id.clone(),
-        scheme: skein_llm::Scheme::Bearer,
+    let credential = match offered.credential.scheme {
+        shared::Scheme::Bearer => shared::Credential::bearer(offered.credential.value.clone()),
+        shared::Scheme::Key => shared::Credential::key(offered.credential.value.clone()),
     };
     let codec::Prepared { client, context } = codec::prepare(offered, &limits()).expect("observed admission");
     let script = Box::new([api::Script {

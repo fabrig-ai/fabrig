@@ -231,6 +231,7 @@ impl World {
                         | people::Stored::Roles { .. }
                         | people::Stored::Acted { .. }
                         | people::Stored::Deletion { .. }
+                        | people::Stored::Public { .. }
                         | people::Stored::Policy { .. }
                         | people::Stored::Answer { .. },
                     )
@@ -558,6 +559,7 @@ impl World {
                 | engine::Request::ResetAct { .. }
                 | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
+                | engine::Request::Replace { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }

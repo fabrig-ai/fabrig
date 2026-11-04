@@ -1,5 +1,6 @@
 //! Exhaustive routing of the root's journal, with values kept in their owners (service.md, 4).
 use crate::{Engine, PartyOutput, clients, stop};
+use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -76,6 +77,28 @@ fn deliver(engine: &mut Engine, delivery: root::Delivery) {
             }
             if let Some(workers) = &mut engine.workers {
                 workers.send(engine.env.now, channel, down, &engine.values, &mut engine.events);
+            }
+        }
+        root::Delivery::AssignedJob { channel, job, items } => {
+            let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
+                Some(bytes) => Box::new([jig_protocol_worker_wire::Part {
+                    token: job.workspace.as_ref().expect("job workspace items have a workspace").items,
+                    bytes,
+                }]),
+                None => Box::new([]),
+            };
+            let values = engine.values.grants(&job.grants, engine.env.now);
+            if let Some(workers) = &mut engine.workers {
+                workers.down(
+                    engine.env.now,
+                    jig_protocol_engine_workers::Event::Down {
+                        channel,
+                        down: jig_domain_host::LinkDown::AssignJob { job },
+                        parts,
+                        values,
+                    },
+                    &mut engine.events,
+                );
             }
         }
         root::Delivery::Assigned { channel, assignment } => {
@@ -229,7 +252,9 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         core::Now::DropCall { call } => {
             engine.tools.forget_name(&call.name);
         }
-        core::Now::NoteBusy { key, .. } | core::Now::SettledCallRefused { key, .. } => engine.tools.forget(key),
+        core::Now::TaskRead { key, .. }
+        | core::Now::NoteBusy { key, .. }
+        | core::Now::SettledCallRefused { key, .. } => engine.tools.forget(key),
         core::Now::CallBusy { .. }
         | core::Now::Relayed { .. }
         | core::Now::Undelivered { .. }
@@ -255,6 +280,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
 
 fn core_held(engine: &mut Engine, held: core::Held) {
     match held {
+        core::Held::PublicWait { .. } => unreachable!("the root consumes its durability callbacks"),
         core::Held::Sources { .. } | core::Held::CheckSource { .. } | core::Held::SignOutSource { .. } => {
             unreachable!("link translates host-wide source commands")
         }
@@ -266,7 +292,8 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         core::Held::NotesLoad { owner, range } => {
             crate::store::request(engine, jig_test_store::StoreOut::NotesLoad { owner, range });
         }
-        held @ (core::Held::Read { .. }
+        held @ (core::Held::PublicRead { .. }
+        | core::Held::Read { .. }
         | core::Held::Delivery { .. }
         | core::Held::WatchEnded { .. }
         | core::Held::PeopleReply { .. }

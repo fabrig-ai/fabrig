@@ -15,6 +15,7 @@ pub struct Limits {
     pub accepted_values: u32,
     pub origin_api: u32,
     pub pem_value: u32,
+    pub pasted_items: u32,
 }
 
 /// The schema's maximum limits.
@@ -28,6 +29,7 @@ pub const CEILINGS: Limits = Limits {
     accepted_values: 256,
     origin_api: 259,
     pem_value: 4_090,
+    pasted_items: 3,
 };
 
 /// A field or tag that caused a codec problem.
@@ -91,8 +93,8 @@ pub enum Path {
     PemTail,
     /// The tag of `PastedItem`.
     PastedItemTag,
-    /// The `item` field of `Pasted`.
-    PastedItem,
+    /// The `items` field of `Pasted`.
+    PastedItems,
     /// The version of `Pasted`.
     PastedVersion,
     /// Bytes after `Pasted`.
@@ -122,6 +124,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.accepted_values > CEILINGS.accepted_values { return Err(Problem { path: Path::AcceptedValues, reason: skein_codec::Reason::Bound }); }
     if limits.origin_api > CEILINGS.origin_api { return Err(Problem { path: Path::OriginApi, reason: skein_codec::Reason::Bound }); }
     if limits.pem_value > CEILINGS.pem_value { return Err(Problem { path: Path::PemValue, reason: skein_codec::Reason::Bound }); }
+    if limits.pasted_items > CEILINGS.pasted_items { return Err(Problem { path: Path::PastedItems, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
@@ -675,35 +678,38 @@ impl PastedItem {
 /// Movable fields of `Pasted`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PastedParts {
-    /// The `item` field.
-    pub item: PastedItem,
+    /// The `items` field.
+    pub items: List<PastedItem>,
 }
 
 /// `Pasted` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Pasted {
-    item: PastedItem,
+    items: List<PastedItem>,
 }
 
 impl Pasted {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: PastedParts) -> Result<Self, Problem> {
-        let PastedParts { item } = parts;
-        let value = Self { item };
+        let PastedParts { items } = parts;
+        let value = Self { items };
         value.check(limits)?;
         Ok(value)
     }
 
-    /// Reads the `item` field.
+    /// Reads the `items` field.
     #[must_use]
-    pub fn item(&self) -> &PastedItem { &self.item }
+    pub fn items(&self) -> &List<PastedItem> { &self.items }
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> PastedParts { PastedParts { item: self.item } }
+    pub fn into_parts(self) -> PastedParts { PastedParts { items: self.items } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.item.check(limits)?;
+        if self.items.capacity() > limits.pasted_items.min(CEILINGS.pasted_items) { return Err(Problem { path: Path::PastedItems, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.items.as_slice() {
+        item_0.check(limits)?;
+        }
         Ok(())
     }
 }
@@ -1262,16 +1268,22 @@ impl Pasted {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_item = &self.item;
-        size = size.checked_add(field_item.measure()).expect("schema ceilings fit u32");
+        let field_items = &self.items;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_items.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         writer.put(&1_u16.to_be_bytes())?;
-        let field_item = &self.item;
-        field_item.encode(writer)?;
+        let field_items = &self.items;
+        writer.put(&field_items.len().to_be_bytes())?;
+        for item_0 in field_items.as_slice() {
+        item_0.encode(writer)?;
+        }
         Ok(())
     }
 
@@ -1285,8 +1297,8 @@ impl Pasted {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let version = reader.u16().ok_or(Problem { path: Path::PastedVersion, reason: skein_codec::Reason::Short })?;
         if version != 1 { return Err(Problem { path: Path::PastedVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_item = PastedItem::decode_from(limits, reader)?;
-        Ok(Self { item: decoded_item })
+        let decoded_items = { let count = match skein_codec::read_count(reader, limits.pasted_items.min(CEILINGS.pasted_items)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PastedItems, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::PastedItems, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = PastedItem::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { items: decoded_items })
     }
 }
 
@@ -1736,7 +1748,7 @@ impl Pasted {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 2_u64;
-        size = size.checked_add(PastedItem::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.pasted_items).checked_mul(PastedItem::encoded_bound_within(limits)?)?)?)?;
         size.checked_add(0)
     }
 
@@ -1749,7 +1761,7 @@ impl Pasted {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(PastedItem::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<PastedItem>::price(limits.pasted_items)?.checked_add(u64::from(limits.pasted_items).checked_mul(PastedItem::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
 }
@@ -1928,8 +1940,8 @@ mod golden_tests {
         ("enum_pasted_item_origin_full", || { let value = PastedItem::Origin(Origin::new(&CEILINGS, OriginParts { kind: Kind::Forgejo, api: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 0, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PastedItem::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_pasted_item_pem_smallest", || { let value = PastedItem::Pem(Pem::new(&CEILINGS, PemParts { value: skein_lib::Secret::new(Box::from([].as_slice())) }).expect("golden within ceilings")); let bytes: &[u8] = &[10, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PastedItem::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_pasted_item_pem_full", || { let value = PastedItem::Pem(Pem::new(&CEILINGS, PemParts { value: skein_lib::Secret::new(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings")); let bytes: &[u8] = &[10, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PastedItem::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_pasted_smallest", || { let value = Pasted::new(&CEILINGS, PastedParts { item: PastedItem::AdminToken(AdminToken::new(&CEILINGS, AdminTokenParts { value: skein_lib::Secret::new(Box::from([].as_slice())) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 1, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Pasted::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_pasted_full", || { let value = Pasted::new(&CEILINGS, PastedParts { item: PastedItem::AdminToken(AdminToken::new(&CEILINGS, AdminTokenParts { value: skein_lib::Secret::new(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 1, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Pasted::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_pasted_smallest", || { let value = Pasted::new(&CEILINGS, PastedParts { items: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 1, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Pasted::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_pasted_full", || { let value = Pasted::new(&CEILINGS, PastedParts { items: { let mut items = skein_lib::List::with_capacity(1); items.push(PastedItem::AdminToken(AdminToken::new(&CEILINGS, AdminTokenParts { value: skein_lib::Secret::new(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"))).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Pasted::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];
 
     #[test]
@@ -1937,7 +1949,7 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static BOUNDS_0: [Case; 9] = [
+    static BOUNDS_0: [Case; 10] = [
         ("bound_admin_token_value", || bound((Path::AdminTokenValue, skein_codec::Reason::Bound), &Limits { admin_token_value: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match AdminToken::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_api_token_value", || bound((Path::ApiTokenValue, skein_codec::Reason::Bound), &Limits { api_token_value: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match ApiToken::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_git_token_value", || bound((Path::GitTokenValue, skein_codec::Reason::Bound), &Limits { git_token_value: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match GitToken::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -1947,6 +1959,7 @@ mod golden_tests {
         ("bound_accepted_values", || bound((Path::AcceptedValues, skein_codec::Reason::Bound), &Limits { accepted_values: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Accepted::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_origin_api", || bound((Path::OriginApi, skein_codec::Reason::Bound), &Limits { origin_api: 3, ..CEILINGS }, &[0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Origin::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_pem_value", || bound((Path::PemValue, skein_codec::Reason::Bound), &Limits { pem_value: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Pem::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_pasted_items", || bound((Path::PastedItems, skein_codec::Reason::Bound), &Limits { pasted_items: 3, ..CEILINGS }, &[0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Pasted::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
     ];
 
     #[test]

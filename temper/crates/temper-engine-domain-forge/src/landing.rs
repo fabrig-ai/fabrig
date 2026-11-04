@@ -14,12 +14,13 @@ use temper_engine_domain_forge_landing as policy;
 type Position = (u64, u16, u16);
 type RepositoryGate = (api::Repository, Box<[u8]>);
 type KeyAt = (api::Commit, policy::Key);
+type ProjectLanding = (change::Way, Box<[RepositoryGates]>, crate::AfterLanding, Option<Box<[u8]>>);
 #[derive(Debug)]
 pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
     pub(crate) due: Map<u64, Wall>,
     pub(crate) receipts: Map<ReceiptKey, Receipt>,
-    pub(crate) projects: Map<u32, (change::Way, Box<[RepositoryGates]>)>,
+    pub(crate) projects: Map<u32, ProjectLanding>,
     pub(crate) pending: Map<Token, Pending>,
     pub(crate) keys: Map<Position, (api::Commit, policy::Key)>,
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
@@ -59,7 +60,7 @@ fn result_slots(l: &Limits) -> Option<u32> {
     slots(l)?.checked_mul(4)?.checked_add(l.landings.checked_mul(l.landing_members)?)
 }
 fn receipt_slots(l: &Limits) -> Option<u32> {
-    l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)
+    l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)
 }
 // Landing row indices and retained table counts must fit before construction.
 pub(crate) fn valid(l: &Limits) -> bool {
@@ -93,12 +94,12 @@ impl State {
     }
     pub fn way(&self, project: u32) -> change::Way {
         match self.projects.get(&project) {
-            Some((way, _)) => *way,
+            Some((way, _, _, _)) => *way,
             None => change::Way::Queue,
         }
     }
     pub(crate) fn gates(&self, project: u32, repository: api::Repository) -> &[policy::Gate] {
-        if let Some((_, repositories)) = self.projects.get(&project) {
+        if let Some((_, repositories, _, _)) = self.projects.get(&project) {
             for row in repositories {
                 if row.repository == repository {
                     return &row.gates;
@@ -108,9 +109,48 @@ impl State {
         &[]
     }
 }
+fn valid_tier(tier: &crate::Tier, limits: &Limits) -> bool {
+    if tier.name.is_empty()
+        || tier.name.len() > policy::CHECK_NAME_BYTES
+        || tier.workflow.is_empty()
+        || tier.workflow.len() > policy::WORKFLOW_BYTES
+        || tier.workflow.contains(&b'/')
+        || tier.artifact.is_empty()
+        || tier.artifact.len() > policy::CHECK_NAME_BYTES
+        || tier.artifact.contains(&b'/')
+        || tier.ignored.len() > usize::try_from(limits.ignored_paths).expect("u32 fits")
+    {
+        return false;
+    }
+    match &tier.follows {
+        crate::Follows::Branch(branch) if branch.is_empty() => return false,
+        crate::Follows::Branch(_) | crate::Follows::Landing | crate::Follows::Goals => {}
+    }
+    for byte in &tier.name {
+        if !byte.is_ascii_alphanumeric() && *byte != b'_' && *byte != b'-' {
+            return false;
+        }
+    }
+    for path in &tier.ignored {
+        if path.is_empty()
+            || path.len() > usize::try_from(limits.name_bytes).expect("u32 fits")
+            || path.first() == Some(&b'/')
+            || path.last() == Some(&b'/')
+        {
+            return false;
+        }
+    }
+    true
+}
 impl Domain {
     /// A project's way and repository test gates (domain/landing.md, 13.1).
-    pub fn project_landing(&mut self, project: u32, way: change::Way, gates: Box<[RepositoryGates]>) -> bool {
+    pub fn project_landing(
+        &mut self,
+        project: u32,
+        way: change::Way,
+        gates: Box<[RepositoryGates]>,
+        after: crate::AfterLanding,
+    ) -> bool {
         let l = &self.landing.limits;
         if gates.len() > usize::try_from(l.repositories).expect("u32 fits") {
             return false;
@@ -129,6 +169,24 @@ impl Domain {
             }
             if repository.gates.len() > usize::try_from(l.gates).expect("u32 fits") {
                 return false;
+            }
+            if repository.tiers.len() > usize::try_from(l.tiers.tiers).expect("u32 fits") {
+                return false;
+            }
+            for (index, tier) in repository.tiers.iter().enumerate() {
+                if !valid_tier(tier, l) {
+                    return false;
+                }
+                for gate in &repository.gates {
+                    if gate.name == tier.name {
+                        return false;
+                    }
+                }
+                for prior in repository.tiers.get(..index).expect("preceding tiers") {
+                    if prior.name == tier.name {
+                        return false;
+                    }
+                }
             }
             for (index, gate) in repository.gates.iter().enumerate() {
                 if gate.name.is_empty()
@@ -160,7 +218,41 @@ impl Domain {
                 }
             }
         }
-        self.landing.projects.insert(project, (way, gates)).is_ok()
+        let mut has_tiers = false;
+        if let Some((_, old, _, _)) = self.landing.projects.get(&project) {
+            for repository in old {
+                has_tiers |= !repository.tiers.is_empty();
+            }
+        }
+        for repository in &gates {
+            has_tiers |= !repository.tiers.is_empty();
+        }
+        let saved = self.landing.projects.insert(project, (way, gates, after, None)).is_ok();
+        if saved && has_tiers {
+            self.tier_ops.dirty = true;
+        }
+        saved
+    }
+    /// A configured project's merge command (temper/docs/design/protocol/configuration.md, 3).
+    pub fn project_merge_job(&mut self, project: u32, merge_job: Box<[u8]>) -> bool {
+        let Some((_, _, _, command)) = self.landing.projects.get_mut(&project) else { return false };
+        *command = Some(merge_job);
+        true
+    }
+    /// The project's optional merge command (temper/docs/design/protocol/configuration.md, 3).
+    #[must_use]
+    pub fn merge_job(&self, project: u32) -> Option<&[u8]> {
+        let (_, _, _, command) = self.landing.projects.get(&project)?;
+        command.as_deref()
+    }
+    /// The project's retained verification settings (domain/after-landing.md, 11).
+    #[must_use]
+    #[expect(clippy::manual_map, reason = "the foundation uses explicit options without callbacks")]
+    pub fn after_landing(&self, project: u32) -> Option<crate::AfterLanding> {
+        match self.landing.projects.get(&project) {
+            Some((_, _, after, _)) => Some(*after),
+            None => None,
+        }
     }
     /// The connected changes of a pending cross-repository dependency, upstream
     /// first. The root supplies jig's current graph on each decision; no graph is
@@ -345,7 +437,12 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
         };
     }
     match row.change.state {
-        change::State::NoChange { .. } | change::State::Ended | change::State::Landed { .. } => false,
+        change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => false,
         change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
@@ -784,10 +881,29 @@ pub(crate) fn answered(
                         Ok(_) | Err(_) => {
                             // Its change can finish and release the branch as soon as
                             // the merge is read back, before this landing's next read.
-                            let landed = if let change::State::Landed { merge } = change.change.state {
-                                Some(merge)
-                            } else {
-                                member.landed
+                            let landed = match change.change.state {
+                                change::State::Landed { merge, .. }
+                                | change::State::Red { merge, .. }
+                                | change::State::Cleared { merge }
+                                | change::State::Uncleared { merge } => Some(merge),
+                                change::State::Producing { .. }
+                                | change::State::Opening { .. }
+                                | change::State::Recreating { .. }
+                                | change::State::Reopening { .. }
+                                | change::State::Checking { .. }
+                                | change::State::Gating { .. }
+                                | change::State::Ready { .. }
+                                | change::State::Preparing { .. }
+                                | change::State::CancellingGates { .. }
+                                | change::State::Queued { .. }
+                                | change::State::First { .. }
+                                | change::State::Updating { .. }
+                                | change::State::Resolving { .. }
+                                | change::State::Repairing { .. }
+                                | change::State::Landing { .. }
+                                | change::State::NoChange { .. }
+                                | change::State::Ended
+                                | change::State::Held { .. } => member.landed,
                             };
                             let Some(head) = landed else {
                                 wait(p.task, env, out);
@@ -907,6 +1023,7 @@ pub(crate) fn answered(
                     policy::Verdict::Passed | policy::Verdict::Failed => {
                         let run = ended.run.expect("a verdict has a run");
                         let receipt = Receipt {
+                            failures: None,
                             passed: ended.outcome == policy::Verdict::Passed,
                             candidate,
                             ended: env.wall,
@@ -952,6 +1069,7 @@ pub(crate) fn answered(
                 wait(p.task, env, out);
                 return;
             };
+            let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
             for entry in entries {
                 if p.entries
                     .push(policy::Entry {
@@ -966,11 +1084,17 @@ pub(crate) fn answered(
                     })
                     .is_err()
                 {
-                    emit(out, Request::Refused { task: p.task });
+                    crate::refusal::limit(
+                        out,
+                        p.task,
+                        repo,
+                        "forge.key_entries",
+                        env.limits.key_entries,
+                        u64::from(p.entries.len()).saturating_add(1),
+                    );
                     return;
                 }
             }
-            let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
             if more {
                 let Some(page) = page.checked_add(1) else {
                     emit(out, Request::Refused { task: p.task });
@@ -982,7 +1106,14 @@ pub(crate) fn answered(
             }
             let entries = core::mem::replace(&mut p.entries, List::with_capacity(env.limits.key_entries));
             if p.trees.push(policy::Tree { object, entries: entries.into_boxed() }).is_err() {
-                emit(out, Request::Refused { task: p.task });
+                crate::refusal::limit(
+                    out,
+                    p.task,
+                    repo,
+                    "forge.trees_in_flight",
+                    env.limits.trees_in_flight,
+                    u64::from(p.trees.len()).saturating_add(1),
+                );
                 return;
             }
             let configured =
@@ -1234,7 +1365,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         policy::Decision::Dispatch { member, gate, key, try_ }
         | policy::Decision::Retry { member, gate, key, try_ } => {
             if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                emit(out, Request::Refused { task: p.task });
+                refuse_entry(d, env, &p, &row, member, out);
                 return;
             }
             let m = row.landing.members.get(usize::from(member)).expect("member");
@@ -1289,7 +1420,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         }
         policy::Decision::Post { member, gate, posting } => {
             if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                emit(out, Request::Refused { task: p.task });
+                refuse_entry(d, env, &p, &row, member, out);
                 return;
             }
             let m = row.landing.members.get(usize::from(member)).expect("member");
@@ -1315,7 +1446,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         }
         policy::Decision::Merge { member, candidate } => {
             if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                emit(out, Request::Refused { task: p.task });
+                refuse_entry(d, env, &p, &row, member, out);
                 return;
             }
             let m = row.landing.members.get(usize::from(member)).expect("member");
@@ -1381,7 +1512,7 @@ fn purpose_identity(row: &LandingRow, member: u16, gate: u16, operation: u8, att
     .identity()
     .expect("fixed purpose")
 }
-fn inputs(candidate: api::Commit, key: policy::Key) -> Box<[api::Input]> {
+pub(crate) fn inputs(candidate: api::Commit, key: policy::Key) -> Box<[api::Input]> {
     let mut length = 32;
     if candidate[20..] == [0; 12] {
         length = 20;
@@ -1488,12 +1619,22 @@ fn keep(
     );
 }
 
-fn put_receipt(d: &mut Domain, env: &Env<Limits>, key: ReceiptKey, receipt: Receipt, out: &mut Queue<Request>) {
+#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
+pub(crate) fn put_receipt(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    key: ReceiptKey,
+    receipt: Receipt,
+    out: &mut Queue<Request>,
+) {
     let mut count = 0_u32;
     let mut oldest: Option<(Wall, ReceiptKey)> = None;
     let protected = match &key.check {
         Check::Gate(name) => d.landing.main_keys.get(&(key.repository, name.clone())).copied(),
-        Check::Tier(_) => None,
+        Check::Tier(name) => match d.tier_ops.tip_keys.get(&(key.repository, name.clone())) {
+            Some(judged) => Some((judged.tip, judged.key)),
+            None => None,
+        },
     };
     for (saved, value) in &d.landing.receipts {
         if saved.project != key.project || saved.repository != key.repository || saved.check != key.check {
@@ -1809,18 +1950,17 @@ fn hex(bytes: &[u8]) -> Box<[u8]> {
     out.into_boxed()
 }
 pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
-    let mut bytes = u64::try_from(row.landing.members.len())
-        .ok()?
+    let mut bytes = skein_lib::len_u64(row.landing.members.len())
         .checked_mul(u64::try_from(size_of::<policy::Member>()).ok()?)?
         .checked_add(
-            u64::try_from(row.asks.len()).ok()?.checked_mul(u64::try_from(size_of::<Option<change::Ask>>()).ok()?)?,
+            skein_lib::len_u64(row.asks.len()).checked_mul(u64::try_from(size_of::<Option<change::Ask>>()).ok()?)?,
         )?
         .checked_add(
-            u64::try_from(row.entries.len()).ok()?.checked_mul(u64::try_from(size_of::<LandingEntry>()).ok()?)?,
+            skein_lib::len_u64(row.entries.len()).checked_mul(u64::try_from(size_of::<LandingEntry>()).ok()?)?,
         )?;
     for member in &row.landing.members {
         bytes = bytes.checked_add(
-            u64::try_from(member.gates.len()).ok()?.checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
+            skein_lib::len_u64(member.gates.len()).checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
         )?;
     }
     if let policy::Phase::Held { .. } = row.landing.phase {
@@ -1832,7 +1972,11 @@ pub(crate) fn receipt_bytes(key: &ReceiptKey, receipt: &Receipt) -> Option<u64> 
     let name = match &key.check {
         Check::Gate(name) | Check::Tier(name) => name,
     };
-    u64::try_from(name.len()).ok()?.checked_add(u64::try_from(receipt.run.url.len()).ok()?)
+    let mut held = skein_lib::len_u64(name.len()).checked_add(skein_lib::len_u64(receipt.run.url.len()))?;
+    if let Some(failures) = &receipt.failures {
+        held = held.checked_add(crate::tiers::failures_bytes(failures)?)?;
+    }
+    Some(held)
 }
 fn wake_proved(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
     // Permission is refreshed by the root at the next authorized step.
@@ -2238,5 +2382,35 @@ fn mark_key(d: &Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
     }
     if !tasks.is_empty() {
         emit(out, Request::Marked { tasks: tasks.into_boxed() });
+    }
+}
+
+fn refuse_entry(
+    d: &Domain,
+    env: &Env<Limits>,
+    pending: &Pending,
+    row: &LandingRow,
+    member: u16,
+    out: &mut Queue<Request>,
+) {
+    let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
+    if d.entries.contains_key(&pending.entry) {
+        crate::refusal::read(
+            out,
+            pending.task,
+            b"reserve landing effect",
+            repo,
+            &api::Read::Settings,
+            api::Error::Exists,
+        );
+    } else {
+        crate::refusal::limit(
+            out,
+            pending.task,
+            repo,
+            "forge.entries",
+            env.limits.entries,
+            u64::from(d.entries.len()).saturating_add(1),
+        );
     }
 }

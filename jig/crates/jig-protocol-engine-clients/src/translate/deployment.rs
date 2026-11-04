@@ -58,6 +58,7 @@ pub(super) fn hello(value: fleet::HelloRefusal, limits: &w::Limits) -> Result<w:
             limits,
             w::HelloRefusalAgentParts { why: shortfall(why, limits)? },
         )?),
+        fleet::HelloRefusal::JobKinds => w::HelloRefusal::JobKinds,
         fleet::HelloRefusal::ReservedChannel => w::HelloRefusal::ReservedChannel,
         fleet::HelloRefusal::Workers { limit } => {
             w::HelloRefusal::Workers(w::HelloRefusalWorkers::new(limits, w::HelloRefusalWorkersParts { limit })?)

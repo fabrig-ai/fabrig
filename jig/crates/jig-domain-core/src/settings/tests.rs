@@ -8,6 +8,7 @@ use skein_lib::{Duration, Env, Time};
 
 fn template() -> Template {
     Template {
+        resources: Box::new([]),
         number: 1,
         name: Box::from(b"chat".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
@@ -26,11 +27,12 @@ fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
         Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
+        Value::Application(_) => unreachable!("an application's setting: apps-core"),
     }
 }
 #[test]
 fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
-    let mut current = Current::new(config(1).defaults, &limits());
+    let mut current = Current::new(config(1).defaults, &limits(), &[]);
     let original = current.charter(1).unwrap().clone();
     let mut changed = original.clone();
     changed.spend += 1;
@@ -57,7 +59,7 @@ fn fault_case(fault: Fault) {
     let limits = limits();
     let mut policy = config.seed_projects[0].policy.clone();
     config.defaults.templates = Box::new([template()]);
-    let mut current = Current::new(config.defaults, &limits);
+    let mut current = Current::new(config.defaults, &limits, &[]);
     let setting = match fault {
         Fault::Shape => {
             let count = limits.run_bytes.checked_add(1).expect("one past the run bound");
@@ -121,6 +123,7 @@ fn fault_case(fault: Fault) {
                 .unwrap();
             Setting::Policy(1)
         }
+        Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
     assert_eq!(
         check(&current, &config.settings, &config.connectors, &limits),
@@ -160,19 +163,19 @@ fn the_whole_check_names_owner_and_its_setting() {
 
 #[test]
 fn pruning_a_lowered_history_limit_uses_only_the_commits_remaining_room() {
-    let (writes, oldest) = revision_writes(None, List::with_capacity(0), 1, 20, 2, 4);
+    let (writes, oldest) = revision_writes(None, List::with_capacity(0), 1, 1, 20, 2, 4);
     assert_eq!(oldest, 4);
     assert_eq!(writes.len(), 4);
-    let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { oldest: stored }))) =
+    let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { oldest: stored, .. }))) =
         &writes.as_slice()[3]
     else {
         panic!("the extent closes the pruning commit")
     };
     assert_eq!(*stored, 4);
-    let (writes, oldest) = revision_writes(None, List::with_capacity(0), oldest, 20, 2, 32);
+    let (writes, oldest) = revision_writes(None, List::with_capacity(0), oldest, 1, 20, 2, 32);
     assert_eq!(oldest, 18);
     assert_eq!(writes.len(), 15);
-    let (writes, oldest) = revision_writes(None, List::with_capacity(0), oldest, 20, 2, 32);
+    let (writes, oldest) = revision_writes(None, List::with_capacity(0), oldest, 1, 20, 2, 32);
     assert!(writes.is_empty());
     assert_eq!(oldest, 18);
 }
@@ -180,7 +183,7 @@ fn pruning_a_lowered_history_limit_uses_only_the_commits_remaining_room() {
 #[test]
 fn the_whole_check_refuses_unconfigured_model_bits() {
     let config = config(1);
-    let mut current = Current::new(config.defaults, &limits());
+    let mut current = Current::new(config.defaults, &limits(), &[]);
     let mut rules = current.rules().clone();
     rules.ceiling.models = authority::Models::Named(2);
     current
@@ -195,7 +198,7 @@ fn the_whole_check_refuses_unconfigured_model_bits() {
 #[test]
 fn the_whole_check_refuses_unconfigured_contract_connectors() {
     let config = config(1);
-    let mut current = Current::new(config.defaults, &limits());
+    let mut current = Current::new(config.defaults, &limits(), &[]);
     let mut value = template();
     value.contract = tasks::Contract::Change { connector: u16::MAX, kind: 1, words: 1 };
     current
@@ -216,7 +219,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
     let policy = config.seed_projects[0].policy.clone();
     config.defaults.policies = Map::with_capacity(1);
     config.defaults.policies.insert(1, policy).unwrap();
-    let mut current = Current::new(config.defaults, &limits);
+    let mut current = Current::new(config.defaults, &limits, &[]);
     for setting in [Setting::Charter(1), Setting::Template(1), Setting::Policy(1), Setting::Rules] {
         let original = current.value(setting).unwrap().clone();
         let items = [Item { setting, edit: Edit::Set(original.clone()) }];
@@ -264,6 +267,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
             }
             Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
             Value::Rules(_) => None,
+            Value::Application(_) => unreachable!("an application's setting: apps-core"),
         };
         if let Some((setting, value)) = added {
             for erase in [Edit::Removed, Edit::Reset] {
@@ -299,7 +303,7 @@ fn current_lookup_keeps_each_kinds_default_change_and_removal_origin() {
     config.defaults.templates = Box::new([template()]);
     config.defaults.policies = Map::with_capacity(1);
     config.defaults.policies.insert(1, config.seed_projects[0].policy.clone()).unwrap();
-    let mut current = Current::new(config.defaults, &limits());
+    let mut current = Current::new(config.defaults, &limits(), &[]);
     for setting in [Setting::Charter(1), Setting::Template(1), Setting::Policy(1), Setting::Rules] {
         let default = current.value(setting).unwrap().clone();
         assert_eq!(current.lookup(setting), (Some(&default), Some((false, 1))));
@@ -325,9 +329,9 @@ fn stored_policy_change(bytes: u64) -> (Core, Limits, Record) {
     for record in [
         Record::Revision {
             history: false,
-            revision: Revision { head: core.current.head.clone(), items: Box::new([]) },
+            revision: Revision { head: core.current.head.clone(), items: Box::new([]), applications: Box::default() },
         },
-        Record::Extent { oldest: 0 },
+        Record::Extent { oldest: 0, keys: 1 },
     ] {
         let _restored = core.restore_core(CoreRecord::Settings(record), &limits);
     }
@@ -466,6 +470,7 @@ fn releasing_multiple_revisions_writes_one_extent_after_all_copies_and_erases() 
     for request in &out {
         if let crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
             oldest,
+            ..
         })))) = request
         {
             extents += 1;
@@ -481,6 +486,7 @@ fn releasing_multiple_revisions_writes_one_extent_after_all_copies_and_erases() 
     }
     let Some(crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
         oldest: 1,
+        ..
     }))))) = out.pop()
     else {
         panic!("extent follows every revision write")
@@ -605,13 +611,19 @@ fn restore_settings_fixture() -> (Core, Limits) {
     for row in defaults.into_boxed() {
         assert!(core.restore_setting(row, &limits));
     }
-    assert!(core.restore_setting(Record::Extent { oldest: 0 }, &limits));
+    assert!(core.restore_setting(Record::Extent { oldest: 0, keys: 1 }, &limits));
     (core, limits)
 }
 
 fn restore_head(core: &mut Core, limits: &Limits, number: u32) -> bool {
     let head = version_head(core, number);
-    core.restore_setting(Record::Revision { history: false, revision: Revision { head, items: Box::new([]) } }, limits)
+    core.restore_setting(
+        Record::Revision {
+            history: false,
+            revision: Revision { head, items: Box::new([]), applications: Box::default() },
+        },
+        limits,
+    )
 }
 
 #[test]
@@ -689,7 +701,8 @@ fn a_held_revision_left_without_holders_is_released_by_the_start() {
                 erased_version |=
                     *key == crate::Key::Core(crate::CoreKey::Settings(Key::Charter { charter: 1, revision: 1 }));
             }
-            if let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { oldest }))) = write {
+            if let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { oldest, .. }))) = write
+            {
                 saved_extent |= oldest == 1;
             }
         }
@@ -716,4 +729,97 @@ fn a_settings_commit_before_the_first_start_seed_keeps_the_supplied_defaults() {
     assert!(restart::first_start(&mut core, &env, &mut writes));
     assert!(!writes.is_empty());
     assert_eq!(core.current.newest(), 1);
+}
+
+#[test]
+fn a_charter_with_a_zero_paced_span_is_refused_as_shape() {
+    let config = config(1);
+    let limits = limits();
+    let mut current = Current::new(config.defaults, &limits, &[]);
+    let mut invalid = current.charter(1).unwrap().clone();
+    invalid.wake.news = tasks::WakeRule::Paced { span: Duration::ZERO };
+    let setting = Setting::Charter(1);
+    let expected = Err(Failure { setting, fault: Fault::Shape });
+    let value = Value::Charter(Box::new(invalid));
+    assert_eq!(check::shape(setting, &value, &limits), expected);
+    let items = [Item { setting, edit: Edit::Set(value.clone()) }];
+    assert_eq!(check_change(&current, &items, &config.settings, &config.connectors, &limits), expected);
+    current.defaults.get_mut(&setting).unwrap().value = value;
+    assert_eq!(check(&current, &config.settings, &config.connectors, &limits), expected);
+}
+
+#[test]
+fn default_wake_reads_current_settings_and_falls_back_without_a_charter() {
+    let limits = limits();
+    let mut core = Core::new(config(1), &limits).unwrap();
+    let agent = tasks::Executor::Agent { charter: 1 };
+    let mut changed = core.charter(1).unwrap().clone();
+    changed.wake.results = tasks::ResultsWake::Each;
+    let expected = changed.wake;
+    core.current
+        .changes
+        .insert(Setting::Charter(1), Changed { value: Some(Value::Charter(Box::new(changed))), revision: 2 })
+        .unwrap();
+    assert_eq!(crate::admission::amendments::default_wake(&core, &agent), expected);
+    for executor in [
+        tasks::Executor::Agent { charter: 999 },
+        tasks::Executor::Procedure { connector: 1, code: 1 },
+        tasks::Executor::Job { kind: 1 },
+        tasks::Executor::Person(tasks::PersonAddress::Person(1)),
+    ] {
+        assert_eq!(crate::admission::amendments::default_wake(&core, &executor), tasks::WakePolicy::DEFAULT);
+    }
+    core.current.changes.insert(Setting::Charter(1), Changed { value: None, revision: 3 }).unwrap();
+    assert_eq!(crate::admission::amendments::default_wake(&core, &agent), tasks::WakePolicy::DEFAULT);
+}
+
+fn delegation_rules(count: u32) -> Value {
+    let mut rules = config(1).defaults.rules;
+    let mut kinds = List::with_capacity(count);
+    for number in 1..=count {
+        kinds.push(authority::Executor::Procedure(number)).expect("delegation count");
+    }
+    rules.ceiling.delegation.kinds = kinds.into_boxed();
+    Value::Rules(Box::new(rules))
+}
+
+#[test]
+fn delegation_count_accepts_the_limit_and_names_overflow() {
+    let config = config(1);
+    let limits = limits();
+    let mut current = Current::new(config.defaults, &limits, &[]);
+    for count in [limits.authority.executors, limits.authority.executors + 1] {
+        let value = delegation_rules(count);
+        let expected = if count <= limits.authority.executors {
+            Ok(())
+        } else {
+            Err(Failure { setting: Setting::Rules, fault: Fault::Count })
+        };
+        let items = [Item { setting: Setting::Rules, edit: Edit::Set(value.clone()) }];
+        assert_eq!(check_change(&current, &items, &config.settings, &config.connectors, &limits), expected);
+        assert_eq!(check::restore_fit(Setting::Rules, &value, &limits), expected);
+        current.changes.insert(Setting::Rules, Changed { value: Some(value), revision: 2 }).unwrap();
+        assert_eq!(check(&current, &config.settings, &config.connectors, &limits), expected);
+    }
+}
+
+#[test]
+fn malformed_rules_within_the_delegation_limit_remain_shape() {
+    let limits = limits();
+    let Value::Rules(mut rules) = delegation_rules(limits.authority.executors) else { unreachable!() };
+    rules.minimum_run_spend = rules.maximum_run_spend;
+    assert_eq!(
+        check::shape(Setting::Rules, &Value::Rules(rules), &limits),
+        Err(Failure { setting: Setting::Rules, fault: Fault::Shape })
+    );
+}
+
+#[test]
+fn delegation_count_restore_names_overflow() {
+    let limits = limits();
+    let value = delegation_rules(limits.authority.executors + 1);
+    assert_eq!(
+        check::restore_fit(Setting::Rules, &value, &limits),
+        Err(Failure { setting: Setting::Rules, fault: Fault::Count })
+    );
 }

@@ -325,10 +325,7 @@ fn allowed_line<'a>(line: &'a str, account: &str) -> Option<&'a str> {
             | "smith: chat chat"
     ) || trust_notice(line)
         || budget_line(line)
-        || credential_line(line, account)
-        || ["codex", "anthropic"].iter().any(|account| {
-            line == format!("smith: warning: {}", smith_local_shell::credentials::Credential::NotSignedIn.line(account))
-        });
+        || credential_line(line, account);
     if complete { Some(line) } else { agent_failure_line(line) }
 }
 

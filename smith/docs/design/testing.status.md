@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-02. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-03. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 2.1: only the local-process world sweeps the simulator's faults
@@ -20,3 +20,10 @@
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).
+- **Departs:**
+  - 2: domain worlds use domains and fakes only, never protocol crates,
+    but `tests/session/src/translate.rs`, `call` and `render_with_namespace`,
+    use `smith-protocol-llm`, and `tests/tools/src/translate.rs`, `perform`,
+    uses `smith-protocol-machine::Listing`; their `Cargo.toml` files
+    declare these dependencies. No reason is recorded (the code's side
+    is `smith/docs/development/debt/D017-domain-worlds-on-protocols.md`).

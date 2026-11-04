@@ -71,7 +71,7 @@ application root            routes between the core and every connector
 
   | Down, root to connector | Up, connector to root |
   |---|---|
-  | a live task names these resources; it no longer does | each resource's role and kind of hold; unknown; not adopted |
+  | a live task names these resources; a task is erased, so nothing it named need be kept for it (3.4) | each resource's role and kind of hold; unknown; not adopted |
   | holds taken, handed down or released; a writer slot taken or freed | a pool's slots changed; a resource read afresh after a lost attempt |
   | describe this effect, from an agent's call or a step | its description: kind, resources, purpose, condition, form, price |
   | keep this effect under this key, or under this proposal; drop it | — (part of the decision) |
@@ -123,6 +123,13 @@ application root            routes between the core and every connector
 - **Names after a task:** a connector may define resources named after
   the task that makes them, under a prefix of the deployment's, which a
   batch names symbolically (authority.md, section 4).
+- **Symbols:** a connector may offer numbered symbols, each a resource
+  it names after a task once the task has its number (a forge's *its own
+  goal branch*), which a batch member or a template names
+  (`../protocol/configuration.md`, 3.3). The connector says, per symbol,
+  the name it resolves to and the hold it takes, and which tasks may name
+  it (tracked ones only, say); it refuses a batch naming a symbol it does
+  not offer that task, naming the symbol (tasks.md, 6.2).
 
 ### 3.2 Roles
 
@@ -146,10 +153,16 @@ connector says what they apply to:
   shrinks below its holders keeps them, and the connector says which
   holder's allocation is gone, which is drift (tasks.md, 6.6);
 - **whether a taken hold refuses or waits** (tasks.md, 6.2);
+- **what a taking does** to the resource, as effects of its own (4.7):
+  a branch made at its base's tip, say;
 - **what a release does** to the resource, per way its task ended (4.6).
 
 Shared resources take no hold: writing into them is ordered by the
-connector's own mechanics, such as a landing queue. Such a queue is
+connector's own mechanics, such as a landing queue. A held resource may
+be ordered by such a queue too: a goal's own branch, held by its goal,
+that its goal's changes land into one at a time. The queue then orders
+only writes made under the hold, by the holder's delegates, each taking
+the resource's writer slot as it writes (tasks.md, 6.1 and 6.3). Such a queue is
 outside the waits the core checks for circles (tasks.md, 6.7), so its
 connector keeps it clear of them: a task kept by a dependency (tasks.md,
 5.7) leaves it, and comes back once it goes on, so that no task in it
@@ -160,6 +173,18 @@ waits behind one that waits for it.
 The resources live tasks name are the connector's live resources: what
 its working set holds (section 5) and what it reads afresh at a restart.
 When no live task names a resource, it leaves the working set.
+
+- **What an ended task named** may outlive its release as a record of
+  the connector's own, which watches nothing, until the task is erased:
+  temper's forge keeps the repositories an ended chat worked on, so that
+  the chat reads their names while the store keeps it.
+- **The core tells every connector when a task is erased:** `Unname`,
+  in the decision that erases the task whole, whichever erases it: a
+  deleted project's erasure of its tasks (people.md, 5.2), the forget
+  of a task forgotten once read (people.md, section 6), or retention at
+  the deployment's horizon (`../protocol/store.md`, 11.1). From then on
+  nothing it named need be kept for it. A connector that keeps nothing
+  past a release takes `Unname` as nothing to do.
 
 ## 4. Effects and the outbox
 
@@ -321,6 +346,22 @@ Infrastructure's closing table is bounded by its configured tasks plus
 procedures plus effects. This is independent of the refresh table's
 bound: a restart can have more fresh reads under way than closing tasks.
 
+### 4.7 Takings
+
+- **A taking may have effects,** as a release does. When a task takes a
+  write hold (tasks.md, 6.2), the core tells the hold's connector, with a
+  numbered outbox entry of the taking's own; per kind of resource, the
+  connector says what taking it does: none, for most; a forge's goal
+  branch is made at its base's tip.
+- **Keyed by the task and the resource,** in the outbox as any effect
+  (4.2), taking the resource's writer slot while in flight (tasks.md,
+  6.3). The connector orders its own later uses of the resource after
+  them: a write into a branch still being made waits for it.
+- **A taking's effect failed for good holds the task** (tasks.md, 5.5),
+  its words the connector's, saying why: the resource it could not make
+  and what its system answered. The task keeps its holds, and its
+  requester decides, as for any effect that failed for good.
+
 ## 5. Facts and events
 
 ### 5.1 The working set
@@ -444,7 +485,19 @@ way but failed or cancelled while kept and asking no effect that waits
 for dependencies (4.1). It is for work whose producing may run beside
 its dependency's, and whose landing or result is what the dependency
 orders: temper's change procedure, whose dependent change across
-repositories is coded beside its dependency and merged after it.
+repositories is coded beside its dependency and merged after it. The
+declaration is the connector's, given with its configuration to the
+core, which keeps it for each procedure it names by connector and code.
+
+**A dependency started from.** A step of such a procedure may mark
+pending dependencies of its task as started from, when what its task
+makes builds on their unfinished work (temper's early start, whose
+producer starts on its dependencies' pushed heads). The mark is kept
+with the task's dependencies and never lifted: an amendment that leaves
+a marked dependency out is refused, naming it (tasks.md, section 7),
+since the task's work cannot drop what it was built on; its requester
+cancels the task and makes it again instead. A mark naming a task that
+is not among its task's dependencies refuses the step whole (6.3).
 
 ### 6.2 When it steps
 
@@ -479,6 +532,12 @@ repositories is coded beside its dependency and merged after it.
 
 One decision, committed with its new state:
 
+- optional specification words for its own task: `ProcedureStep.words`
+  reaches `ProcedureDecision.words`, replaces only its specification
+  words, and saves in this decision (tasks.md, 5.3). Its connector and
+  code must match the task's due step; words and byte-valued parameters
+  share `Limits::spec_bytes`. Parameters, inputs and `asks` do not change;
+  this adds no revision, amendment, message, wake or amendment history;
 - effects, described and kept for the outbox (4.1);
 - batches of delegates: agents for what needs judgement (a triage, a
   diagnosis, a repair), people for what needs a decision, each task
@@ -495,6 +554,7 @@ One decision, committed with its new state:
 - messages: words to its delegates and to the tasks its task references
   (tasks.md, 8.5), and an answer to a delegate's question; and up, a
   question, an escalation, news its requester should have;
+- marks on pending dependencies of its task, started from (6.1);
 - a hold, when it needs a decision it cannot make;
 - its result, which ends its task: in jig's terms (a report, a verdict),
   or a connector's result it keeps, with words summarising it (tasks.md,
@@ -877,6 +937,19 @@ bytes.
   the kinds' bounds, in the decision that makes the proposal; it erases
   them when the proposal is withdrawn or rejected, and an acceptance
   makes them the changes.
+- **What its items replaced, for a restore** (engine.md, 17.10). As it
+  saves a committed change's items, it keeps beside each the value the
+  setting held before (none for one that followed its default or was
+  removed), by the revision the change made, and erases those of a
+  revision in the decision that erases the revision's record from the
+  history (engine.md, 17.7); a release's revision asks it to keep
+  none. Its worst case prices, for each record the history may keep, a
+  whole set of its kinds' values. A restore's decision hands it the
+  proposal the restore makes and its items of its kinds, each by kind,
+  scope and number with the revision whose record replaced it; it keeps
+  the value it kept as that revision's replaced one as the proposal's
+  item, as a proposal's items are kept, and answers each item's size and
+  the charters it names, checked against its kinds' bounds alone.
 - **Read through it.** The application's children and clients read a
   value from the connector, by kind, scope and number: the newest,
   whatever revision a task it serves was made in. Never pinned.

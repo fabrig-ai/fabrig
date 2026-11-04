@@ -1,9 +1,9 @@
 //! Driver terminals retain redacted state for hosts (protocol/hosts.md, 5.4).
-use super::{Accounts, CredentialRequest, Origin, Settled, account_form, claim_identifier, oauth};
-use skein_lib::{Queue, Time, Wall};
+use super::{Accounts, CredentialRequest, Origin, Settled, oauth};
+use skein_lib::{Queue, Time};
 use smith_local_domain as local;
 impl Accounts {
-    pub(super) fn emit(&mut self, now: Time, wall: Wall, out: &mut Queue<CredentialRequest>) {
+    pub(super) fn emit(&mut self, now: Time, out: &mut Queue<CredentialRequest>) {
         if let Some((account, reason)) = self.failed.take() {
             out.push(CredentialRequest::Failed { event: local::Event::NoCredential { account, reason } });
         }
@@ -13,23 +13,13 @@ impl Accounts {
                     let account = self.entries.get_mut(index).expect("account index");
                     account.wanted = false;
                     account.loading = false;
-                    if !claim_identifier(account, &token, wall, &self.limits.client.document) {
-                        out.push(CredentialRequest::Failed {
-                            event: local::Event::NoCredential {
-                                account: account.number,
-                                reason: local::CredentialFailure::Missing,
-                            },
-                        });
-                        self.down(oauth::Request::Release { account: index }, now, wall);
-                        continue;
-                    }
                     out.push(CredentialRequest::Ready {
                         event: local::Event::Credential {
-                            form: account_form(&account.identifier),
+                            form: smith_host_domain::Form::Credential(account.scheme()),
                             grant: smith_domain::Grant {
                                 name: smith_domain::GrantName { account: account.number, generation },
                                 valid,
-                                renewable: true,
+                                renewable: account.scheme() == smith_host_domain::Scheme::Bearer,
                             },
                         },
                         value: token,

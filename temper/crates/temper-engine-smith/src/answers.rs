@@ -76,6 +76,28 @@ impl Text {
 /// and byte escaping. A cut keeps the log's end and says bytes were omitted.
 #[must_use]
 pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
+    bounded(answer, &[], max_bytes)
+}
+
+/// Render a decided answer with its host tool's name, naming a refused family.
+/// Job logs fit the configured bound, including metadata and byte escaping.
+#[must_use]
+pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
+    bounded(answer, tool, max_bytes)
+}
+
+fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
+    if let CallAnswer::TaskRead(read) = answer {
+        let cap = usize::try_from(max_bytes).expect("u32 fits").min(HostAnswer::CAPACITY);
+        return match task_read(read, cap) {
+            Ok(answer) => answer,
+            Err(_) => {
+                let why = b"Task metadata exceeds the host answer limit.";
+                HostAnswer::new(bytes::copy_of(why.get(..cap.min(why.len())).expect("bounded refusal")), true)
+                    .expect("bounded task refusal")
+            }
+        };
+    }
     if let CallAnswer::ForgeRead(read) = answer
         && let Ok(api::Answer::Job { attempt, step, log, truncated }) = read.as_ref()
     {
@@ -95,7 +117,7 @@ pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
             }
         };
     }
-    self::answer(answer)
+    answer_text(answer, tool)
 }
 
 fn job_text(
@@ -122,7 +144,7 @@ fn job_text(
         text.add(b", no step failed")?;
     }
     text.add(b":\n")?;
-    let cap = usize::try_from(max_bytes).expect("u32 fits usize").min(HostAnswer::CAPACITY);
+    let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
     let room = cap.checked_sub(text.len).ok_or(Problem::TooLarge)?;
     let whole = escaped_len(log);
     if !truncated && whole <= room {
@@ -155,7 +177,11 @@ fn escaped_len(text: &[u8]) -> usize {
 /// becomes a bounded host error, so no decided call is left unanswered.
 #[must_use]
 pub fn answer(answer: &CallAnswer) -> HostAnswer {
-    match rendered(answer) {
+    answer_text(answer, &[])
+}
+
+fn answer_text(answer: &CallAnswer, tool: &[u8]) -> HostAnswer {
+    match rendered(answer, tool) {
         Ok(answer) => answer,
         Err(Problem::TooLarge) => HostAnswer::new(
             bytes::copy_of(b"The recorded answer exceeded the host text limit; ask a narrower read."),
@@ -170,9 +196,10 @@ pub fn answer(answer: &CallAnswer) -> HostAnswer {
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable answer vocabulary")]
-fn rendered(answer: &CallAnswer) -> Result<HostAnswer, Problem> {
+fn rendered(answer: &CallAnswer, tool: &[u8]) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
+        CallAnswer::TaskRead(read) => return task_read(read, HostAnswer::CAPACITY),
         CallAnswer::SettingsRefused(why) => {
             settings_refused(&mut text, why)?;
             true
@@ -220,26 +247,12 @@ fn rendered(answer: &CallAnswer) -> Result<HostAnswer, Problem> {
             forge_error(&mut text, *refusal)?;
             true
         }
-        value @ (CallAnswer::ForgeEffectDenied { answer, findings }
-        | CallAnswer::ToolDenied { answer, findings }
-        | CallAnswer::DelegationDenied { answer, findings }) => {
-            text.add(b"Authority ")?;
-            authority(&mut text, *answer)?;
-            text.add(b": ")?;
-            let mut change_hint = false;
-            for finding in findings {
-                finding_text(&mut text, *finding)?;
-                text.add(b"; ")?;
-                if let CallAnswer::DelegationDenied { .. } = value
-                    && let jig_domain_authority::Finding::Executor { .. } | jig_domain_authority::Finding::Grant { .. } =
-                        finding
-                {
-                    change_hint = true;
-                }
-            }
-            if change_hint {
-                text.add(b"For a change to a repository, call change with what to change.")?;
-            }
+        CallAnswer::ForgeEffectDenied { answer, findings } | CallAnswer::ToolDenied { answer, findings } => {
+            authority_findings(&mut text, *answer, findings, tool, false)?;
+            true
+        }
+        CallAnswer::DelegationDenied { answer, findings } => {
+            authority_findings(&mut text, *answer, findings, tool, true)?;
             true
         }
         CallAnswer::ForgeRead(read) => match read.as_ref() {
@@ -488,6 +501,61 @@ fn authority(text: &mut Text, answer: jig_domain_authority::Answer) -> Result<()
         jig_domain_authority::Answer::Propose => text.add(b"needs proposal"),
         jig_domain_authority::Answer::Refuse => text.add(b"refused"),
     }
+}
+
+fn authority_findings(
+    text: &mut Text,
+    answer: jig_domain_authority::Answer,
+    findings: &[jig_domain_authority::Finding],
+    tool: &[u8],
+    delegation: bool,
+) -> Result<(), Problem> {
+    use jig_domain_authority::Finding;
+    text.add(b"Authority ")?;
+    authority(text, answer)?;
+    text.add(b": ")?;
+    let mut family_seen = false;
+    let mut change_hint = false;
+    for finding in findings {
+        if *finding == Finding::Tool {
+            if family_seen {
+                continue;
+            }
+            family_seen = true;
+            text.add(b"tool family")?;
+            if let Some(family) = tool_family(tool) {
+                text.add(b" ")?;
+                text.add(family)?;
+            }
+        } else {
+            finding_text(text, *finding)?;
+        }
+        text.add(b"; ")?;
+        if delegation && let Finding::Executor { .. } | Finding::Grant { .. } = finding {
+            change_hint = true;
+        }
+    }
+    if change_hint {
+        text.add(b"For a change to a repository, call change with what to change.")?;
+    }
+    Ok(())
+}
+
+fn tool_family(tool: &[u8]) -> Option<&'static [u8]> {
+    Some(match tool {
+        b"amend" | b"cancel" | b"release" => b"control",
+        b"goal" | b"change" | b"delegate" => b"delegate",
+        b"message" | b"introduce" => b"message",
+        b"decide" | b"withdraw" | b"decide_escalation" => b"decide",
+        b"propose" => b"propose",
+        b"subscribe" | b"subscribe_forge" | b"unsubscribe" => b"subscribe",
+        b"effect_forge" => b"effect",
+        b"note" => b"note",
+        b"recall" => b"recall",
+        b"settings" | b"propose_settings" => b"settings",
+        name if name.starts_with(b"read_") => b"read",
+        _ => return None,
+    })
 }
 
 fn finding_text(text: &mut Text, finding: jig_domain_authority::Finding) -> Result<(), Problem> {
@@ -897,7 +965,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
             api::BranchCreation::Created => text.add(b"Branch created")?,
             api::BranchCreation::Exists => text.add(b"Branch already exists")?,
         },
-        api::Answer::Runs { .. } | api::Answer::Run(_) | api::Answer::Tree { .. } => {
+        api::Answer::Runs { .. } | api::Answer::Run(_) | api::Answer::Commits { .. } | api::Answer::Tree { .. } => {
             unreachable!("agent forge reads do not request Actions or trees")
         }
         api::Answer::Queued => unreachable!("temper-12 gives merge queue answers meaning"),
@@ -1088,4 +1156,144 @@ fn directory_text(
         text.add(b"[directory cut]")?;
     }
     Ok(())
+}
+
+fn task_read(
+    read: &Result<jig_domain_core::reads::run_task::TaskRead, jig_domain_tasks::Refusal>,
+    maximum: usize,
+) -> Result<HostAnswer, Problem> {
+    let mut text = Text::new();
+    let read = match read {
+        Ok(read) => read,
+        Err(why) => {
+            text.add(b"Task read refused: ")?;
+            task_problem(&mut text, &jig_domain_tasks::Problem::new(None, *why))?;
+            if text.len > maximum {
+                return Err(Problem::TooLarge);
+            }
+            return text.finish(true);
+        }
+    };
+    task_read_metadata(&mut text, read)?;
+    text.add(b"\nWords from ")?;
+    text.number(read.words.from)?;
+    text.add(b":\n")?;
+    task_read_words(&mut text, &read.words, maximum)?;
+    text.finish(false)
+}
+
+fn task_read_metadata(text: &mut Text, read: &jig_domain_core::reads::run_task::TaskRead) -> Result<(), Problem> {
+    use jig_domain_core::reads::run_task::TaskState;
+    text.add(b"Task ")?;
+    text.number(read.task)?;
+    text.add(b", spec revision ")?;
+    text.number(read.spec_revision)?;
+    text.add(b"\nState: ")?;
+    text.add(match read.state {
+        TaskState::Waiting => b"waiting",
+        TaskState::Active(_) => b"active",
+        TaskState::Closing(_) => b"closing",
+        TaskState::Held => b"held",
+        TaskState::Ended(jig_domain_tasks::Status::Done) => b"done",
+        TaskState::Ended(jig_domain_tasks::Status::Failed) => b"failed",
+        TaskState::Ended(jig_domain_tasks::Status::Cancelled) => b"cancelled",
+    })?;
+    text.add(b"\nDependencies:")?;
+    for task in &read.dependencies {
+        text.add(b" ")?;
+        text.number(*task)?;
+    }
+    if let Some(hold) = &read.hold {
+        text.add(b"\nHold revision ")?;
+        text.number(hold.revision)?;
+        text.add(b": ")?;
+        task_hold_reason(text, hold.reason)?;
+        if let Some(words) = &hold.words {
+            text.add(b"\n")?;
+            text.add(words)?;
+        }
+    }
+    Ok(())
+}
+
+fn task_hold_reason(text: &mut Text, reason: jig_domain_tasks::Hold) -> Result<(), Problem> {
+    use jig_domain_tasks::{Class, Hold};
+    let (label, number): (&[u8], Option<u64>) = match reason {
+        Hold::Dependency(task) => (b"dependency ", Some(task)),
+        Hold::Placed { hold } => (b"placed hold ", Some(hold)),
+        Hold::Uncertain { entry } => (b"effect outcome uncertain, entry ", Some(entry)),
+        Hold::PoolLost { pool } => (b"pool lost ", Some(pool)),
+        Hold::Exceeded(exceeded) => return task_exceeded(text, exceeded),
+        Hold::Failures(class) => {
+            return text.add(match class {
+                Class::Transient => b"retry allowance exhausted: transient failures",
+                Class::Permanent => b"retry allowance exhausted: permanent failures",
+                Class::Run => b"retry allowance exhausted: run failures",
+                Class::Agent => b"retry allowance exhausted: agent failures",
+                Class::Lost => b"retry allowance exhausted: lost runs",
+                Class::Invalid => b"retry allowance exhausted: invalid results",
+            });
+        }
+        Hold::Stalled => (b"executor stalled", None),
+        Hold::Stopped => (b"stopped", None),
+        Hold::Drift => (b"resource drift", None),
+        Hold::ResourceUnavailable => (b"resource unavailable", None),
+        Hold::ResourceAccess => (b"resource access", None),
+        Hold::Effects => (b"effects", None),
+        Hold::EffectFailed => (b"effect failed", None),
+        Hold::Budget => (b"budget spent", None),
+        Hold::Deadline => (b"deadline", None),
+        Hold::HoldsWaited => (b"hold wait exceeded", None),
+        Hold::Procedure => (b"procedure held", None),
+        Hold::Circle => (b"circle of waits", None),
+    };
+    text.add(label)?;
+    match number {
+        Some(number) => text.number(number),
+        None => Ok(()),
+    }
+}
+
+fn task_exceeded(text: &mut Text, exceeded: jig_domain_tasks::Exceeded) -> Result<(), Problem> {
+    use jig_domain_tasks::Bound;
+    text.add(b"configured limit exceeded: ")?;
+    text.add(match exceeded.bound {
+        Bound::Reasoning => b"reasoning bytes ",
+        Bound::Metadata => b"metadata bytes ",
+        Bound::Items => b"answer items ",
+        Bound::Answer => b"answer bytes ",
+        Bound::Tools => b"tools ",
+        Bound::HistoryItems => b"history items ",
+        Bound::History => b"history ",
+        Bound::Window => b"window tokens ",
+        Bound::Output => b"output tokens ",
+    })?;
+    text.number(exceeded.value)
+}
+
+fn task_read_words(text: &mut Text, words: &jig_domain_core::reads::TaskText, maximum: usize) -> Result<(), Problem> {
+    // A continuation contains a newline, label and at most twenty decimal digits.
+    const CONTINUATION: usize = 27;
+    if words.next.is_none() && text.len.saturating_add(escaped_len(&words.bytes)) <= maximum {
+        return text.add(&words.bytes);
+    }
+    let room =
+        maximum.checked_sub(text.len).ok_or(Problem::TooLarge)?.checked_sub(CONTINUATION).ok_or(Problem::TooLarge)?;
+    let mut used = 0_usize;
+    let mut count = 0_usize;
+    for byte in &words.bytes {
+        let size = escaped_len(core::slice::from_ref(byte));
+        if used.saturating_add(size) > room {
+            break;
+        }
+        used = used.saturating_add(size);
+        count = count.saturating_add(1);
+    }
+    let prefix = bytes::utf8_prefix(&words.bytes, count);
+    if prefix.is_empty() && !words.bytes.is_empty() {
+        return Err(Problem::TooLarge);
+    }
+    text.add(prefix)?;
+    text.add(b"\nnext: ")?;
+    text.number(words.from.checked_add(skein_lib::len_u64(prefix.len())).ok_or(Problem::TooLarge)?)
 }

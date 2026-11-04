@@ -2152,6 +2152,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
         Step::Run(Call::new(&["forge", "list", "--json"])),
     ];
     steps.extend(first_repository::playground_read_steps(scratch.path()));
+    steps.push(Step::Run(Call::new(&["project", "show", "1", "--json"])));
     let ended = support::boxed::run_ctl_with_llm(
         scratch.path(),
         flags,
@@ -2164,7 +2165,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
     let stderr = String::from_utf8_lossy(&ended.stderr);
     assert_eq!(ended.exit, Some(Exit::Code(0)), "box drained: {stderr}");
     assert_eq!(ended.left, Some(Vec::new()), "no processes outlive the box");
-    assert_eq!(ended.calls.len(), 8, "setup, reads and pull completed: {stderr}");
+    assert_eq!(ended.calls.len(), 9, "setup, reads and pull completed: {stderr}");
     for call in &ended.calls {
         assert_eq!(
             call.exit,
@@ -2174,17 +2175,23 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
             String::from_utf8_lossy(&call.stderr)
         );
     }
+    assert_playground_setup(&ended);
+    scratch.remove();
+}
+
+fn assert_playground_setup(ended: &support::boxed::CtlOutcome<support::first_repository::PlaygroundReads>) {
     let adoption = String::from_utf8_lossy(&ended.calls[1].stdout);
-    assert!(adoption.lines().any(|line| line == "project: 2 · widget"), "{adoption}");
+    assert!(adoption.lines().any(|line| line == "project: 1 · widget"), "{adoption}");
     assert!(adoption.contains("Adopted playground/widget on forge 1 as owned."), "{adoption}");
     assert!(adoption.contains("It is the project's home."), "{adoption}");
     let rows = support::ctl::json(&ended.calls[2]);
     let row = rows["forges"].as_array().expect("forge rows").iter().find(|row| row["number"] == 1).expect("forge 1");
-    assert_eq!(row["first"]["project"]["new"], "widget");
+    assert_eq!(row["first"]["state"], "made");
+    assert_eq!(row["state"], "connected");
     assert_eq!(row["first"]["org"], "playground");
     assert_eq!(row["first"]["repository"], "widget");
     assert_eq!(row["first"]["playground"], true);
-    let evidence = ended.checked.expect("live worker reads");
+    let evidence = ended.checked.as_ref().expect("live worker reads");
     assert_eq!(evidence.panel.exit, Some(Exit::Code(0)), "pull panel read succeeded");
     assert!(evidence.producer.contains("\"path\":\".forgejo/workflows/ci.yml\"}\nRead "), "{}", evidence.producer);
     assert!(evidence.producer.contains("\"path\":\"src/main.rs\"}\nRead "), "{}", evidence.producer);
@@ -2193,7 +2200,19 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
     let panel = support::ctl::json(&evidence.panel);
     assert_eq!(panel["landing"], "main", "{panel}");
     assert_eq!(panel["pull"]["address"], format!("http://{}/playground/widget/pulls/1", evidence.address));
-    scratch.remove();
+    let project = support::ctl::json(&ended.calls[8]);
+    assert_eq!(project["number"], 1);
+    assert_eq!(project["name"]["bytes"], "widget");
+    let resources = project["resources"].as_array().expect("project repositories");
+    assert_eq!(resources.len(), 1);
+    assert_eq!(
+        resources[0]["part"],
+        serde_json::json!({
+            "connector":1, "kind":"resource", "key":{"path":["0001", "00000001"]}
+        })
+    );
+    assert_eq!(resources[0]["role"], "owned");
+    assert_eq!(resources[0]["home"], true);
 }
 
 // The move uses a fake issuer and no forge or model work.

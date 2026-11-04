@@ -100,7 +100,7 @@ fn make_domain_with_limits(
             usage_fields: skein_fake_llm_protocol::documents::UsageFields::ALL,
             echo: skein_llm::openai::Echo::NONE,
             provider: match endpoint.provider {
-                Provider::OpenAi | Provider::OpenAiCodex => documents::Provider::OpenAi,
+                Provider::OpenAi => documents::Provider::OpenAi,
                 Provider::Anthropic => documents::Provider::Anthropic,
             },
             path: endpoint.target,
@@ -328,19 +328,16 @@ fn local_peer(endpoint: Endpoint, credential: Credential) -> llm::Peer {
 fn accept_returns_each_credentials_index_in_order() {
     let mut peer = local_peer(Endpoint::anthropic(), key());
     for index in 1..provider::MAX_CREDENTIALS {
-        assert_eq!(peer.accept(bearer()), Ok(index), "index {index}");
+        assert_eq!(peer.accept(key()), Ok(index), "index {index}");
     }
 }
 
 #[test]
 fn accept_refuses_a_list_the_route_cannot_serve() {
-    let codex = || Credential::codex(b"b0".as_slice().into(), b"a0".as_slice().into());
     let cap = skein_llm_world::fake::limits(&skein_llm_world::limits()).http.head;
     let rows = [
-        (Endpoint::anthropic(), key(), 1, Credential { account_id: b"a0".as_slice().into(), ..key() }),
-        (Endpoint::openai(), key(), 1, codex()),
-        (Endpoint::codex(), codex(), 1, bearer()),
-        (Endpoint::anthropic(), key(), provider::MAX_CREDENTIALS, bearer()),
+        (Endpoint::anthropic(), key(), 1, bearer()),
+        (Endpoint::anthropic(), key(), provider::MAX_CREDENTIALS, key()),
         (
             Endpoint::anthropic(),
             key(),
@@ -351,7 +348,7 @@ fn accept_refuses_a_list_the_route_cannot_serve() {
     for (row, (endpoint, first, count, added)) in rows.into_iter().enumerate() {
         let mut peer = local_peer(endpoint, first);
         for _ in 1..count {
-            peer.accept(bearer()).expect("list filled to its bound");
+            peer.accept(key()).expect("list filled to its bound");
         }
         assert_eq!(peer.accept(added), Err(skein_fake_peers::Error::Limits), "row {row}");
     }
@@ -375,21 +372,19 @@ fn anthropic_reset_script() -> api::Script {
 }
 
 #[test]
-fn accept_refuses_a_key_at_an_anthropic_reset_lines_index() {
-    let scripts = Box::new([anthropic_reset_script()]);
-    let mut peer = make_scripted(
+fn an_anthropic_reset_script_is_refused() {
+    let result = make_scripted(
         Endpoint::anthropic(),
-        bearer(),
+        key(),
         SocketAddr::from((Ipv4Addr::LOCALHOST, 0)),
         Transport::Plaintext,
-        scripts,
-    )
-    .unwrap();
-    assert_eq!(peer.accept(key()), Err(skein_fake_peers::Error::Limits));
+        Box::new([anthropic_reset_script()]),
+    );
+    assert_eq!(result.err(), Some(skein_fake_peers::Error::Limits));
 }
 
 #[test]
-fn played_failures_validate_future_credentials_in_every_group() {
+fn played_anthropic_resets_are_refused_in_every_group() {
     let script = anthropic_reset_script();
     let rows = [
         ("cued", api::Scripts { cued: Box::new([script.clone()]), asked: Box::new([]), otherwise: Box::new([]) }),
@@ -401,17 +396,15 @@ fn played_failures_validate_future_credentials_in_every_group() {
         let domain =
             domain::Domain::played(&config, 23, scripts, api::Menu { arguments: Box::new([]), invalid: Box::new([]) })
                 .expect("played script domain");
-        let mut peer = make_domain_with_limits(
+        let result = make_domain_with_limits(
             Endpoint::anthropic(),
-            bearer(),
+            key(),
             SocketAddr::from((Ipv4Addr::LOCALHOST, 0)),
             Transport::Plaintext,
             domain,
             limits(),
-        )
-        .expect("future credential indices are admitted");
-        assert_eq!(peer.accept(key()), Err(skein_fake_peers::Error::Limits), "{label}");
-        assert_eq!(peer.accept(bearer()), Ok(FUTURE_CREDENTIAL), "{label}");
+        );
+        assert_eq!(result.err(), Some(skein_fake_peers::Error::Limits), "{label}");
     }
 }
 
@@ -482,7 +475,7 @@ fn accept_is_refused_once_a_request_has_reached_the_peer() {
     let endpoint = Endpoint::anthropic();
     let mut peer = local_peer(endpoint.clone(), key());
     send_request(&mut peer, &endpoint, b"x-api-key: k0\r\n", b"");
-    assert_eq!(peer.accept(bearer()), Err(skein_fake_peers::Error::Limits));
+    assert_eq!(peer.accept(key()), Err(skein_fake_peers::Error::Limits));
 }
 
 struct Seen {
@@ -525,7 +518,7 @@ fn observation_rows() -> [(Endpoint, &'static [u8], [ObservationRow; 5]); 2] {
                 .as_slice(),
             [
                 (b"x-api-key: k0\r\n".as_slice(), Some(Scheme::Key), Some(0), &[Some(0)]),
-                (b"authorization: Bearer b1\r\n", Some(Scheme::Bearer), Some(1), &[Some(1)]),
+                (b"x-api-key: k1\r\n", Some(Scheme::Key), Some(1), &[Some(1)]),
                 (b"x-api-key: unknown\r\n", Some(Scheme::Key), None, &[]),
                 (b"authorization: Bearer unknown\r\n", Some(Scheme::Bearer), None, &[]),
                 (b"", None, None, &[]),
@@ -553,7 +546,12 @@ fn each_request_is_observed_by_route_scheme_and_index() {
     for (endpoint, body, rows) in observation_rows() {
         for (row, (fields, scheme, index, query)) in rows.into_iter().enumerate() {
             let mut peer = local_peer(endpoint.clone(), key());
-            peer.accept(bearer()).expect("second credential accepted");
+            let second = if endpoint.provider == Provider::Anthropic {
+                Credential::key(b"k1".as_slice().into())
+            } else {
+                bearer()
+            };
+            peer.accept(second).expect("second credential accepted");
             send_request(&mut peer, &endpoint, fields, body);
             let got = seen(&peer);
             assert_eq!(
@@ -570,12 +568,7 @@ fn each_request_is_observed_by_route_scheme_and_index() {
 fn no_head_observation_holds_a_credential_field() {
     let endpoint = Endpoint::anthropic();
     let mut peer = local_peer(endpoint.clone(), key());
-    send_request(
-        &mut peer,
-        &endpoint,
-        b"Authorization: Bearer b1\r\nX-API-Key: k0\r\nChatgpt-Account-Id: a0\r\nx-visible: visible\r\n",
-        b"",
-    );
+    send_request(&mut peer, &endpoint, b"Authorization: Bearer b1\r\nX-API-Key: k0\r\nx-visible: visible\r\n", b"");
     let names: Vec<_> = peer
         .observations()
         .iter()
@@ -622,11 +615,7 @@ fn a_refused_field_is_named() {
         let got = documents::request_on(Provider::OpenAi, &body(&extra), &limits).map(|_| ());
         assert_eq!(got, Err(documents::Error::Refused(field)));
     }
-    for (route, extra) in [
-        (Provider::OpenAi, ""),
-        (Provider::OpenAi, r#", "x-extra":{"top_p":null}"#),
-        (Provider::OpenAiCodex, r#", "top_p":null"#),
-    ] {
+    for (route, extra) in [(Provider::OpenAi, ""), (Provider::OpenAi, r#", "x-extra":{"top_p":null}"#)] {
         assert_eq!(documents::request_on(route, &body(extra), &limits).map(|_| ()), Ok(()));
     }
 }
@@ -657,7 +646,7 @@ struct ScopeRow {
     expected: Vec<api::Caching>,
 }
 
-fn scope_rows() -> [ScopeRow; 4] {
+fn scope_rows() -> [ScopeRow; 3] {
     let scope = api::Caching::Scope([0xab; 16]);
     [
         ScopeRow {
@@ -679,13 +668,6 @@ fn scope_rows() -> [ScopeRow; 4] {
             credential: key(),
             fields: b"authorization: Bearer k0\r\n",
             extra: r#", "prompt_cache_key":"ABABABAB-ABAB-ABAB-ABAB-ABABABABABAB""#,
-            expected: vec![],
-        },
-        ScopeRow {
-            endpoint: Endpoint::codex(),
-            credential: Credential::codex(b"b1".as_slice().into(), b"a0".as_slice().into()),
-            fields: b"authorization: Bearer b1\r\nchatgpt-account-id: a0\r\n",
-            extra: r#", "prompt_cache_key":"abababab-abab-abab-abab-abababababab""#,
             expected: vec![],
         },
     ]

@@ -347,10 +347,6 @@ fn box_setup(
                         forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge }).unwrap()),
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
-                        project: w::SetUpProject::Existing(
-                            w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 })
-                                .expect("project"),
-                        ),
                     },
                 )
                 .unwrap(),
@@ -439,16 +435,13 @@ fn a_new_webhook_after_idle_gets_its_whole_delivery_period() {
     let mut service = fixtures::ready();
     let config = fixtures::engine();
     let mut found = jig_protocol_config::Problems::empty();
-    let mut settings = crate::forge::settings(
+    let settings = crate::forge::settings(
         &fixtures::forges(),
         fixtures::forge_runtime(),
         Some(skein_forge_connection::hooks::Webhooks { listener: fixtures::http::address() }),
         &mut found,
     )
     .unwrap();
-    for at in 0..settings.forges.len() {
-        settings.forges.get_mut(at).unwrap().access = None;
-    }
     let layer = &mut service.engine.as_mut().unwrap().forge;
     layer.component = skein_forge_connection::Component::new(
         settings,

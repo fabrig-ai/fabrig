@@ -96,7 +96,7 @@ impl Invocation {
             state,
             pid,
             peer_pid,
-            peer: smith_agent_process_world::fake::peer(),
+            peer: smith_agent_process_world::fake::peer_openai(),
             local,
             input,
             output,

@@ -1,0 +1,35 @@
+draft = "debt-6"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-6/inputs/request.md", "temper/docs/plan/debt-6/inputs/kv-scripted-review.md"]
+
+# Two independent parts (inputs/request.md), one per tree. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "kv-review"
+title = "skein-kv, Part A of the review: two defects fixed, then the store's copies and forwarding go"
+mode = "direct"
+needs = []
+design = "skein/docs/design/kv.md, 7"
+
+[[part]]
+id = "jig-review"
+title = "jig, Part B of the review: the D028 stories can fail on their rules, then the fixtures shrink"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/testing.md, 4"
+
+[[slice]]
+id = 1
+story = "skein-kv keeps only the keys of commits in flight or queued, under any load, and settles a snapshot's file on every failure, with its on-disk format and its crash and golden tests unchanged"
+parts = ["kv-review"]
+walk = false
+
+[[slice]]
+id = 2
+story = "the last-changed order and the delegate record's rule each fail a shared story when broken, and this part's net line change is negative"
+parts = ["jig-review"]
+walk = false

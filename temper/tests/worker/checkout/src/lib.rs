@@ -31,6 +31,8 @@
 
 pub mod client;
 pub mod forge;
+/// The hosted fake git's fixtures, shared by the worlds that host it.
+pub mod hosted;
 pub mod merges;
 mod noisy;
 pub mod translate;

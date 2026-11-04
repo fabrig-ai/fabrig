@@ -253,7 +253,13 @@ fn unsent_result(retried: bool) -> crate::AttemptResult {
             }
         }
     }
-    for record in records {
+    // Synthetic public-route names retain the recorded unsent failure's accounting.
+    for mut record in records {
+        if let Some(model) = record.get_mut("model")
+            && model["endpoint"] == "codex"
+        {
+            model["endpoint"] = serde_json::json!("openai");
+        }
         observer.feed(format!("{record}\n").as_bytes()).expect("recorded event");
     }
     observer.finish().expect("whole lines");

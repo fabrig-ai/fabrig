@@ -43,8 +43,7 @@ impl Effects {
 
     /// Configure the result shapes used by completion tool schemas.
     pub fn contract(&mut self, outcome: run::outcome::OutcomeSpec) {
-        self.stages.delivery.clone_from(&outcome.change);
-        self.stages.outcome = Some(outcome);
+        self.stages.opening.contract(outcome);
     }
 
     /// Adopt opened workspace roots and replace the host's opaque names with file tokens.
@@ -60,10 +59,9 @@ impl Effects {
         }
         for (directory, fd) in workspace.directories.iter_mut().zip(&roots) {
             let root = self.stages.files.adopt_root(*fd).ok_or(ConfigError::Io)?;
-            self.stages.roots.push(root).expect("admitted root count");
+            self.stages.roots.adopt(root, self.stages.limits.machine.roots);
             directory.root = root;
         }
-        self.stages.root_close_next = self.stages.roots.len();
         self.stages.machine.workspace(&workspace);
         Ok(workspace)
     }
@@ -118,7 +116,7 @@ impl Effects {
         let service = &mut self.stages;
         domain_down(service, None);
         component_down(service);
-        teardown::advance(service, None);
+        teardown::follow(service, None);
         if let Some(events) = &mut service.events {
             events.sinks().down(service.io_env.now, &mut service.io_requests);
         }

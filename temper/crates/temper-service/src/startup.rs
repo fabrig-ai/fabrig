@@ -1,5 +1,9 @@
 //! The document's shape and its checked startup (protocol/configuration.md, 2).
 pub(crate) mod application;
+pub mod members;
+mod reference;
+pub use crate::limits::{engine_reference, reference};
+pub use reference::{configuration_reference, engine_configuration_reference};
 #[cfg(test)]
 mod calls_tests;
 pub(crate) mod checks;
@@ -45,7 +49,7 @@ pub fn shape_with(
 pub fn shape(input: &[u8], directories: &config::Directories) -> Result<Shape, Problems> {
     shape_with(input, directories, &crate::stock::Given::Stock)
 }
-fn finish_shape(document: &skein_json::Document, object: read::Object, path: &Path, problems: &mut Problems) {
+fn finish_shape(document: &skein_json::Document, object: members::Object, path: &Path, problems: &mut Problems) {
     let mut found = config::Problems::empty();
     object.finish(document, path, &mut found);
     for found in &found.problems {
@@ -360,7 +364,7 @@ fn load_document(
     let shape = nearest(document);
     let mut problems = Problems::empty();
     let mut found = config::Problems::empty();
-    let mut whole = match read::Object::new(document, 0) {
+    let mut whole = match members::object(document, 0, "document") {
         Ok(object) => object,
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
@@ -443,7 +447,7 @@ fn load_document(
     if check_start && let Some(engine) = &engine {
         match given {
             crate::stock::Given::Stock => checks::stock(engine, &mut problems),
-            crate::stock::Given::Own(_) => {}
+            crate::stock::Given::Own { .. } => {}
         }
     }
     let application = match &engine {
@@ -697,13 +701,18 @@ fn checked_start_with(
         own,
         &mut problems,
     );
+    let mut host_part = None;
     if let Some(agent) = agent {
+        let measured = temper_engine_smith::room::host_part(&agent.run_limits);
         checks::agent(&parsed.engine, agent, &mut problems);
+        checks::room(&parsed.engine, measured, &mut problems);
+        host_part = Some(measured);
     }
     if !problems.is_empty() {
         return Err(problems);
     }
-    let core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    core.jobs = crate::limits::merge_jobs(&parsed.engine.limits);
     if let Some(agent) = agent {
         checks::admission(&core, &parsed.engine, agent, &mut problems);
         checks::agent_answer(agent, &mut problems);
@@ -729,6 +738,7 @@ fn checked_start_with(
         None
     };
     let mut engine = settings::Engine {
+        host_part,
         machine: parsed.application.machine,
         directories: directories.clone(),
         jig: parsed.engine,
@@ -737,11 +747,15 @@ fn checked_start_with(
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,
-        landing: parsed.application.landing,
-        charter: parsed.application.charter,
+        kinds_stock: Box::default(),
+        landings: parsed.application.landings,
         limits: parsed.application.limits,
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
+    engine.kinds_stock = match given {
+        crate::stock::Given::Stock => crate::stock::forge(&root),
+        crate::stock::Given::Own { forge, .. } => forge.clone(),
+    };
     checks::root(core, &engine, seeds, &parsed.application.landing_projects, &root, &mut problems);
     if !problems.is_empty() {
         return Err(problems);

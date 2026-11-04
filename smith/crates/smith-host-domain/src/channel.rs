@@ -119,8 +119,6 @@ pub enum Form {
     Credential(Scheme),
     /// A program source, by its name; the run takes the program backend.
     Program(SourceName),
-    /// The withdrawn id-and-bearer form, removed by the second part of LLM accounts once its last host has moved.
-    Withdrawn,
 }
 
 /// A credential's scheme, named by the host (protocol/channel.md, section 6).

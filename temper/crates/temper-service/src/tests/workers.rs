@@ -732,3 +732,65 @@ fn refusal_notes_resume_after_the_operator_sink_drains() {
     };
     assert_eq!((task, attempt), (run.task, run.attempt));
 }
+
+/// temper/docs/design/domain/worker.md, 4.4: jobs receive the run path's repository records.
+#[test]
+fn a_jobs_forge_workspace_becomes_worker_items() {
+    let mut service = fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    engine.workers.forges = fixtures::forge_table(&fixtures::forges());
+    engine.workers.encoding = fixtures::encoding(&fixtures::engine());
+    let mut repository = fixtures::repository(7, b"acme", b"shop");
+    repository.start =
+        temper_engine_domain::ForgeStart::Merge { branch: b"temper/change".as_slice().into(), base: [4; 32] };
+    repository.push = Some(b"temper/change".as_slice().into());
+    let workspace = temper_engine_domain::ForgeWorkspace { repositories: Box::new([repository]) };
+    let job = job_assignment(true);
+    let event = crate::route::job_assignment(engine, Token::new(8), job, Some(&workspace)).expect("job encodes");
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::AssignJob { job }, parts, .. } = event else {
+        panic!("job assignment")
+    };
+    assert_eq!(parts.len(), 1);
+    assert_eq!(parts[0].token, job.workspace.unwrap().items);
+    let items = temper_protocol_worker_wire::v1::Items::decode(
+        &engine.workers.encoding.limits,
+        &mut skein_lib::Reader::new(&parts[0].bytes),
+    )
+    .expect("worker items");
+    assert_eq!(items.repositories().len(), 1);
+    let item = items.repositories().get(0).unwrap();
+    assert_eq!(item.remote(), b"https://forge.example/acme/shop.git");
+    assert_eq!(item.name(), b"shop");
+    assert_eq!(item.identity(), 1);
+    let temper_protocol_worker_wire::v1::Start::Merge(start) = item.start() else { panic!("merge start") };
+    assert_eq!(start.branch(), b"temper/change");
+    assert_eq!(start.base(), &[4; 32]);
+    let temper_protocol_worker_wire::v1::Access::Writable(access) = item.access() else { panic!("writable") };
+    assert_eq!(access.push(), b"temper/change");
+    assert!(item.save().is_none());
+}
+
+/// temper/docs/design/domain/worker.md, 4.4: a job without repositories has no items part.
+#[test]
+fn a_job_without_a_forge_workspace_sends_no_part() {
+    let mut service = fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    let event = crate::route::job_assignment(engine, Token::new(8), job_assignment(false), None).expect("job encodes");
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::AssignJob { job }, parts, .. } = event else {
+        panic!("job assignment")
+    };
+    assert!(job.workspace.is_none());
+    assert!(parts.is_empty());
+}
+
+fn job_assignment(workspace: bool) -> host::JobAssignment {
+    host::JobAssignment {
+        run: Token::new(7),
+        attempt: Token::new(2),
+        kind: host::JobKind(3),
+        spec: b"merge spec".as_slice().into(),
+        deadline: skein_lib::Duration::from_secs(600),
+        workspace: if workspace { Some(host::Workspace { workstream: 4, items: Token::new(9) }) } else { None },
+        grants: Box::new([]),
+    }
+}

@@ -67,6 +67,7 @@ fn started_world_with_words(
         link: engine::Link::Hello {
             worker: 0,
             hello: host::Hello {
+                jobs: Box::default(),
                 slots: SLOTS,
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),
@@ -125,8 +126,11 @@ fn a_goal_without_modify_cannot_modify_but_its_change_producer_can() {
 
     agree_plan(&mut world, chat.task, &work);
     let work = admitted(&world, task);
-    let change =
-        delegated(&mut world, &work, engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None });
+    let change = delegated(
+        &mut world,
+        &work,
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(b"Small fix".as_slice().into(), None)]) },
+    );
     advance(&mut world);
     let producer = admitted(&world, next_child(&world, change, change));
     assert_eq!(producer.charter, 2);
@@ -340,7 +344,11 @@ fn land_change(world: &mut World, work: &engine::Assignment) -> (u64, [u64; 3]) 
 }
 
 fn land_change_with_words(world: &mut World, work: &engine::Assignment, words: &[u8]) -> (u64, [u64; 3]) {
-    let change = delegated(world, work, engine::Tool::Change { words: words.into(), repository: None });
+    let change = delegated(
+        world,
+        work,
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(words.into(), None)]) },
+    );
     answer(world, work, WORK_TURNS, tasks::End::Parked);
     assert_eq!(
         record(world, work.task).phase,
@@ -404,9 +412,10 @@ fn land_change_with_words(world: &mut World, work: &engine::Assignment, words: &
 
 #[test]
 fn b2s_tree_admits_every_run_under_the_stock() {
-    // protocol/configuration.md, 13.4: W has its run and two 5K changes.
-    const WORK_RUNS: u64 = 11;
-    const CHANGE_RUNS: u64 = 5;
+    // A goal has half of a 16K chat, and each change half of what the goal has left
+    // (domain/agent.md, 4.3.1): its three runs, a producer, a repair and a review.
+    const WORK_RUNS: u64 = 7;
+    const CHANGE_RUNS: u64 = 3;
     let (mut world, chat) = stock_world();
     let tree = tree(&mut world, &chat);
     let defaults = defaults();
@@ -691,7 +700,7 @@ fn every_row_of_b2s_tree_reads_whole_on_small() {
     assert_eq!(world.store.read_joins(), joins, "the real store uses the box allowance");
     let tasks::Party::Person(person) = record(&world, tree.chat).requester else { panic!("the person's chat") };
     let lines = box_limits().documents.lines;
-    assert_eq!(lines, 3, "the box's document-line bound");
+    assert_eq!(lines, 8, "the box's document-line bound");
     assert_eq!(world.env.limits.documents.lines, lines);
     let lines = usize::try_from(lines).expect("bounded document lines");
     for expected in read_rows(&tree) {
@@ -703,7 +712,7 @@ fn every_row_of_b2s_tree_reads_whole_on_small() {
         let mut lineage = document.lineage.iter().map(|chip| chip.number).collect::<Vec<_>>();
         lineage.reverse();
         let expected_lineage = expected.ancestors.iter().take(lines).copied().collect::<Vec<_>>();
-        // Reviewers have five parameters; their list can cut beside the lineage.
+        // Reviewers' five parameters share the lineage's receiving bound.
         let parameters = record(&world, expected.task).spec.parameters.len();
         assert_eq!(
             usize::try_from(document.spec.parameters.len()).expect("bounded parameters"),

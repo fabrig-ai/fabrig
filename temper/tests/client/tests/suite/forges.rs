@@ -233,16 +233,18 @@ impl World {
             while let Some(request) = self.out.pop() {
                 moved = true;
                 match request {
-                    root::Request::Client {
-                        request: client::Request::Down { down: client::Down::Save { record } },
+                    root::Request::Unlinked {
+                        request: client::UnlinkedRequest::Down { down: client::Down::Save { record } },
                     } => {
                         self.saved.insert(record.key, record.request);
                     }
-                    root::Request::Client { request: client::Request::Down { down: client::Down::Erase { key } } } => {
+                    root::Request::Unlinked {
+                        request: client::UnlinkedRequest::Down { down: client::Down::Erase { key } },
+                    } => {
                         self.saved.remove(&key);
                     }
-                    root::Request::Client { request: request @ client::Request::Down { .. } } => {
-                        let client::Request::Down { down } = request else { unreachable!("down request") };
+                    root::Request::Unlinked { request: request @ client::UnlinkedRequest::Down { .. } } => {
+                        let client::UnlinkedRequest::Down { down } = request else { unreachable!("down request") };
                         self.component.send(CLIENT, down);
                     }
                     root::Request::Printed { number, printed } => {
@@ -252,6 +254,7 @@ impl World {
                     root::Request::Ready => {}
                     root::Request::Progress { line } => self.progress.push(line),
                     root::Request::Client { request } => panic!("unlinked transport: {request:?}"),
+                    root::Request::Unlinked { request } => panic!("unlinked transport: {request:?}"),
                     root::Request::Kept { .. } | root::Request::Fact { .. } => {
                         panic!("no restored calls or unknown owners")
                     }
@@ -358,17 +361,19 @@ fn under_the_box_setup_is_followed_through_each_step_to_settled() {
     assert!(world.saved.is_empty());
 }
 #[test]
-fn without_the_box_the_row_and_setup_refusal_name_the_manual_commands() {
+fn without_the_box_the_row_and_setup_refusal_say_to_start_temper_with_the_box() {
     use temper_client_domain::forge::{forges::Offer, words};
     let mut world = World::new(false);
     world.read();
     assert_eq!(row(&world, FORGE).offer, Offer::NotUnderTheBox);
     let printed = world.invoke(&[b"forge", b"list"]);
-    assert!(contains(&printed.stdout, &words::set_up_commands(FORGE)));
+    assert!(contains(&printed.stdout, b"Not set up: start temper with temper box"));
+    assert!(!contains(&printed.stdout, b"temper forge fetch"));
     let printed = world.invoke(&[b"forge", b"setup", b"3"]);
     assert_eq!(printed.status, 2);
     assert!(contains(&printed.stderr, b"refused: not under the box"));
-    assert!(contains(&printed.stderr, &words::set_up_commands(FORGE)));
+    assert!(contains(&printed.stderr, words::UNDER_THE_BOX));
+    assert!(!contains(&printed.stderr, b"temper forge fetch"));
     assert_eq!(world.box_calls, 0);
 }
 #[test]
@@ -456,7 +461,6 @@ fn setup_fields_reach_the_engine_and_unknown_project_names_are_admitted() {
             playground: false,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
-            project: d::SetUpProject::Existing(1),
             state: d::FirstState::Making,
             label: Box::from(b"temper-host".as_slice()),
         })
@@ -471,10 +475,7 @@ fn setup_fields_reach_the_engine_and_unknown_project_names_are_admitted() {
     assert!(!world.printed.contains_key(&next));
     assert_eq!(world.box_calls, 1, "new project is admitted to the box");
     world.read();
-    assert_eq!(
-        row(&world, FORGE).first.as_ref().expect("first repository").project,
-        d::SetUpProject::New(b"Next".as_slice().into())
-    );
+    assert_eq!(row(&world, FORGE).first.as_ref().expect("first repository").repository.as_ref(), b"hello");
 }
 #[test]
 fn invalid_setup_names_are_refused_without_a_box_effect() {

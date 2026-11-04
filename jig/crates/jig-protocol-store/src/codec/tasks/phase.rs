@@ -40,6 +40,9 @@ pub fn wake_rule(source: &domain::WakeRule, limits: &wire::Limits) -> Result<wir
         domain::WakeRule::Batch { count, age } => {
             wire::WakeRule::Batch(wire::WakeBatch::new(limits, wire::WakeBatchParts { count: *count, age: *age })?)
         }
+        domain::WakeRule::Paced { span } => {
+            wire::WakeRule::Paced(wire::WakePace::new(limits, wire::WakePaceParts { span: *span })?)
+        }
     })
 }
 /// Read `WakeRule` from its store value.
@@ -51,6 +54,7 @@ pub fn read_wake_rule(source: wire::WakeRule) -> Result<domain::WakeRule, wire::
             let wire::WakeBatchParts { count, age } = value.into_parts();
             domain::WakeRule::Batch { count, age }
         }
+        wire::WakeRule::Paced(value) => domain::WakeRule::Paced { span: value.span() },
     })
 }
 
@@ -699,6 +703,9 @@ pub fn read_template(
 pub fn result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<wire::TaskResult, wire::Problem> {
     check_result(source, limits)?;
     Ok(match source {
+        domain::TaskResult::Job { bytes } => {
+            wire::TaskResult::Job(wire::JobResult::new(limits, wire::JobResultParts { bytes: bytes.clone() })?)
+        }
         domain::TaskResult::Approved { state, words } => wire::TaskResult::Approved(wire::Approved::new(
             limits,
             wire::ApprovedParts { state: state.clone(), words: words.clone() },
@@ -739,6 +746,7 @@ pub fn result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<wire
 /// Read a result within its combined byte bound.
 pub fn read_result(source: wire::TaskResult, limits: &wire::Limits) -> Result<domain::TaskResult, wire::Problem> {
     let source = match source {
+        wire::TaskResult::Job(value) => domain::TaskResult::Job { bytes: value.into_parts().bytes },
         wire::TaskResult::Approved(value) => {
             let wire::ApprovedParts { state, words } = value.into_parts();
             domain::TaskResult::Approved { state, words }
@@ -761,6 +769,7 @@ pub fn read_result(source: wire::TaskResult, limits: &wire::Limits) -> Result<do
 }
 fn check_result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<(), wire::Problem> {
     let bytes = match source {
+        domain::TaskResult::Job { bytes } => bytes.len(),
         domain::TaskResult::Approved { state, words } => state.len().saturating_add(match words {
             Some(value) => value.len(),
             None => 0,

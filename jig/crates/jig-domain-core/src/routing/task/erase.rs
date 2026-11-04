@@ -166,6 +166,12 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: re
                 Phase::Record => {
                     assert!(rows.is_empty() && next.is_none(), "task rows are gone before its record");
                     out.push(Request::Write(Write::Erase(Key::Tasks(tasks::Key::Ended(number)))));
+                    for &connector in core.connectors.as_ref() {
+                        out.push(Request::Ask {
+                            connector,
+                            ask: crate::Ask::Effect(crate::effects::connector::Ask::Unname { task: number }),
+                        });
+                    }
                     core.erasures.walk = Some(walk);
                     next_record(core, env, &mut out);
                 }

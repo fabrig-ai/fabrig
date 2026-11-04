@@ -72,7 +72,7 @@ of domain/host.md, section 2.
   one version, its release's, and offers only that one: the channel is
   pre-release, and no half reads an older version (README.md, section
   8).
-  The current version is 5 (`channel-v5.schema`).
+  The current version is 6 (`channel-v6.schema`).
 - **The credential** is empty over a spawned agent's pipes. A connected
   agent's is still open (README.md, section 11).
 - **The agent accepts at once** over pipes. A daemon decides by its
@@ -358,7 +358,7 @@ edge is independent of the channel's own flow control (section 7).
   - how long it is valid;
   - its value.
 - **A value is one of,** told apart by a tag in the record, so no form
-  is read as another and the withdrawn one needs no guess:
+  is read as another:
   - **a credential:** its scheme, `bearer` or `key`, and its bytes,
     never empty. A key is a credential its host never renews; a bearer
     may be renewed by a later generation (domain/session.md, section 4).
@@ -367,13 +367,7 @@ edge is independent of the channel's own flow control (section 7).
   - **a program source:** its name, 1 to 32 characters of `a-z`, `0-9`
     and `-`, which names its configuration directory in the agent's
     programs directory (agent.md, section 4; programs.md, section 3). It
-    holds no secret, and a later generation changes nothing;
-  - ***withdrawn:*** **an account's id and a bearer,** for the withdrawn
-    `codex` dialect (llm.md, section 7): the id's length in two bytes,
-    big-endian, then the id, then the bearer token, never empty. The
-    agent accepts it from a host that still sends it; smith's own host
-    never does, and no new host may. It goes when its last host has
-    moved.
+    holds no secret, and a later generation changes nothing.
 - **An LLM with no account has no grant.** Its charter names it no
   account, so the start carries no grant for it, and its calls carry no
   credential (charter.md, section 2; llm.md, section 7). No value stands
@@ -527,8 +521,8 @@ a trace is kept is the agent's configuration (agent.md).
     refused;
   - a peer that leaves an optional kind out of its terms;
   - grants refreshed while a call is in flight;
-  - a grant of each form: a bearer, a key, a program source's name, and
-    the withdrawn id and bearer, each installed; one of each kind the
+  - a grant of each form: a bearer, a key, a program source's name,
+    each installed; one of each kind the
     agent cannot install, refused;
   - each notice: unauthorized, limited with a reset and without one, and
     refused, and a failed run naming its limited or refused account;

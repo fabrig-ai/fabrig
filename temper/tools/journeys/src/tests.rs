@@ -211,7 +211,7 @@ fn every_journey_has_its_description() {
 #[test]
 fn a_reprint_keeps_a_journeys_readme() {
     let scratch = Scratch::new("temper-client-journeys-readme");
-    let directory = scratch.path().join("welcome-set-up");
+    let directory = scratch.path().join("welcome-playground");
     fs::create_dir(&directory).expect("journey directory");
     let readme = directory.join("README.md");
     let description = b"The journey's description.\n";

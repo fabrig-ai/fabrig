@@ -14,6 +14,9 @@ pub enum Meaning {
     Ci,
     Adopt,
     AdminToken,
+    ForgejoToken(forge::tokens::Field),
+    ConnectTokens(u16),
+    ReplaceValue { forge: u16, field: forge::replace::Field },
     AdminField(forge::admin::Field),
     ConnectAdmin(u16),
     AppId,
@@ -24,9 +27,6 @@ pub enum Meaning {
     SetUp(u16),
     SetUpAtOnce(u16),
     SetupField(forge::forges::SetupField),
-    StartIn(u16),
-    Picker { forge: u16, act: forge::picker::Act },
-    PickerName(u16),
 }
 #[derive(Debug)]
 struct Entry {
@@ -66,9 +66,6 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
             (Meaning::PlaceField(field), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::Forges(forge::forges::Act::PlaceWrite { field, text: value })))
             }
-            (Meaning::PickerName(forge), Act::Input { value }) => {
-                Some(Action::Forge(forge::Act::Picker { forge, act: forge::picker::Act::Write(value) }))
-            }
             (Meaning::AdminField(field), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::AdminWrite { field, text: value }))
             }
@@ -94,6 +91,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::Ci => Action::Forge(forge::Act::Ci),
                 Meaning::SetUp(forge) => Action::Forge(forge::Act::SetUp { forge }),
                 Meaning::SetUpAtOnce(forge) => Action::Forge(forge::Act::SetUpAtOnce { forge }),
+                Meaning::ConnectTokens(forge) => Action::Forge(forge::Act::ConnectTokens { forge }),
                 Meaning::ConnectAdmin(forge) => Action::Forge(forge::Act::ConnectAdmin { forge }),
                 Meaning::ConnectApp(forge) => Action::Forge(forge::Act::ConnectApp { forge }),
                 Meaning::ConnectManifest { forge, back } => Action::Forge(forge::Act::ConnectManifest {
@@ -104,12 +102,11 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                     Action::Forge(forge::Act::Install { forge, back: temper_client_domain::address::print(&back) })
                 }
                 Meaning::Adopt => Action::Forge(forge::Act::Adopt),
-                Meaning::Picker { forge, act } => Action::Forge(forge::Act::Picker { forge, act }),
-                Meaning::StartIn(forge) => Action::Forge(forge::Act::StartIn { forge }),
                 Meaning::PlaceField(_)
-                | Meaning::PickerName(_)
                 | Meaning::AdminField(_)
                 | Meaning::AdminToken
+                | Meaning::ReplaceValue { .. }
+                | Meaning::ForgejoToken(_)
                 | Meaning::AppId
                 | Meaning::AppKey
                 | Meaning::Field(_)
@@ -157,16 +154,48 @@ fn check(values: &mut List<u32>, text: &[u8]) -> Option<()> {
 #[must_use]
 pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_client_domain::Event> {
     for entry in &bindings.entries {
-        if entry.token == token && (entry.meaning == Meaning::AppKey || entry.meaning == Meaning::AdminToken) {
-            if let Act::Input { value } = act {
+        if entry.token != token {
+            continue;
+        }
+        match entry.meaning {
+            Meaning::ReplaceValue { forge, field } => {
+                let Act::Input { value } = act else { return None };
+                return Some(temper_client_domain::Event::Forge(forge::Event::ReplaceValue {
+                    forge,
+                    field,
+                    value: skein_lib::Secret::new(value),
+                }));
+            }
+            Meaning::AdminToken | Meaning::AppKey | Meaning::ForgejoToken(_) => {
+                let Act::Input { value } = act else { return None };
                 let value = skein_lib::Secret::new(value);
+                if let Meaning::ForgejoToken(field) = entry.meaning {
+                    return Some(temper_client_domain::Event::Forge(forge::Event::ForgejoToken { field, value }));
+                }
                 return Some(temper_client_domain::Event::Forge(if entry.meaning == Meaning::AdminToken {
                     forge::Event::AdminToken { value }
                 } else {
                     forge::Event::AppKey { value }
                 }));
             }
-            return None;
+            Meaning::EndPlayground
+            | Meaning::Forges(_)
+            | Meaning::PlaceField(_)
+            | Meaning::Field(_)
+            | Meaning::Role(_)
+            | Meaning::Home
+            | Meaning::Ci
+            | Meaning::Adopt
+            | Meaning::AdminField(_)
+            | Meaning::ConnectAdmin(_)
+            | Meaning::ConnectTokens(_)
+            | Meaning::AppId
+            | Meaning::ConnectApp(_)
+            | Meaning::ConnectManifest { .. }
+            | Meaning::Install { .. }
+            | Meaning::SetUp(_)
+            | Meaning::SetUpAtOnce(_)
+            | Meaning::SetupField(_) => {}
         }
     }
     Some(temper_client_domain::Event::Act { action: decode(bindings, token, act)? })

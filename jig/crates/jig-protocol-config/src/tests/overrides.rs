@@ -21,6 +21,13 @@ fn an_override_replaces_one_limit_of_the_profile() {
     expected.core.tasks.inbox_messages = 9;
     assert_eq!(parse(br#"{"profile":"small","overrides":{"tasks.inbox_messages":9}}"#), Ok(expected));
 }
+
+#[test]
+fn the_charter_documents_limit_can_be_overridden() {
+    let mut expected = small();
+    expected.core.tasks.charter_documents = 0;
+    assert_eq!(parse(br#"{"profile":"small","overrides":{"tasks.charter_documents":0}}"#), Ok(expected));
+}
 fn an_override_of_an_unknown_name_is_refused() {
     assert_eq!(overrides::apply(&mut small(), b"tasks.absent", 1), Err(What::Override));
 }
@@ -52,7 +59,9 @@ fn overrides_past_a_familys_bound_are_each_reported_once() {
 
 #[test]
 fn every_limit_of_the_small_profile_has_a_name() {
-    for &(name, value) in SMALL {
+    for row in SMALL {
+        let name = row.name.as_bytes();
+        let value = (row.value)(&small());
         let mut limits = small();
         assert_eq!(overrides::apply(&mut limits, name, value), Ok(()), "{name:?}");
         assert_eq!(limits, small(), "{name:?}");
@@ -96,6 +105,28 @@ fn limits_problems_keep_the_named_profile_and_applied_overrides_for_connectors()
         assert_eq!(problems.past, 0);
         assert_eq!(problems.problems.get(0).unwrap().path, path(&[b"limits", b"overrides", b"bogus"]));
         assert_eq!(problems.problems.get(0).unwrap().what, What::Override);
+    }
+}
+#[test]
+fn limits_problems_without_a_profile_add_no_bound_of_small() {
+    use super::fixtures::{ENGINE_SMALL, engine, with};
+
+    let bytes = with(ENGINE_SMALL, br#""connectors": [1]"#, br#""connectors": [1, 2, 3]"#);
+    for (case, limits, expected) in [
+        ("unknown profile", Some(br#"{"profile":"standrd"}"#.as_slice()), path(&[b"limits", b"profile"])),
+        ("profile of the wrong kind", Some(br#"{"profile":7}"#.as_slice()), path(&[b"limits", b"profile"])),
+        ("missing profile", Some(b"{}".as_slice()), path(&[b"limits", b"profile"])),
+        ("limits of the wrong kind", Some(b"7".as_slice()), path(&[b"limits"])),
+        ("missing limits", None, path(&[b"limits"])),
+    ] {
+        let bytes = match limits {
+            Some(limits) => with(&bytes, br#"{"profile": "small"}"#, limits),
+            None => with(&bytes, br#""limits": {"profile": "small"},"#, b""),
+        };
+        let problems = engine(&bytes).unwrap_err();
+        assert_eq!(problems.problems.len(), 1, "{case}: {problems:?}");
+        assert_eq!(problems.past, 0, "{case}: {problems:?}");
+        assert_eq!(problems.problems.get(0).unwrap().path, expected, "{case}: {problems:?}");
     }
 }
 fn a_missing_profile_is_refused_naming_it() {
@@ -175,205 +206,7 @@ fn an_invalid_compound_member_is_refused_naming_it() {
     );
 }
 
-const SMALL: &[(&[u8], u64)] = &[
-    (b"tasks.placed_holds", 4),
-    (b"tasks.project_placed_holds", 4),
-    (b"tasks.party_placed_holds", 2),
-    (b"tasks.exemptions", 8),
-    (b"tasks.tasks", 8),
-    (b"tasks.funders", 8),
-    (b"tasks.project_tasks", 8),
-    (b"tasks.project_goals", 8),
-    (b"tasks.tree_tasks", 32),
-    (b"tasks.depth", 8),
-    (b"tasks.delegates", 4),
-    (b"tasks.references", 8),
-    (b"tasks.subscriptions", 4),
-    (b"tasks.batch", 2),
-    (b"tasks.dependencies", 8),
-    (b"tasks.circle", 8),
-    (b"tasks.holdings", 4),
-    (b"tasks.hold_kinds", 8),
-    (b"tasks.resource_reports", 128),
-    (b"tasks.pools", 8),
-    (b"tasks.hold_segments", 4),
-    (b"tasks.hold_bytes", 1_024),
-    (b"tasks.hold_waiters", 8),
-    (b"tasks.hold_wait_ms", 120_000),
-    (b"tasks.grace_ms", 600_000),
-    (b"tasks.inputs", 8),
-    (b"tasks.spec_bytes", 4_096),
-    (b"tasks.parameters", 4),
-    (b"tasks.result_bytes", 512),
-    (b"tasks.run_inbox", 8),
-    (b"tasks.inbox_messages", 8),
-    (b"tasks.inbox_bytes", 4_096),
-    (b"tasks.message_bytes", 4_096),
-    (b"tasks.person_stall_ms", 3_600_000),
-    (b"tasks.proposal_stall_ms", 3_600_000),
-    (b"tasks.escalation_stall_ms", 3_600_000),
-    (b"tasks.saved_resources", 4),
-    (b"tasks.contract_choices", 1),
-    (b"tasks.charters", 4),
-    (b"tasks.authority_grants", 4),
-    (b"tasks.authority_segments", 4),
-    (b"tasks.authority_bytes", 2_048),
-    (b"tasks.executor_kinds", 4),
-    (b"tasks.facts", 32),
-    (b"tasks.room_refusals", 8),
-    (b"people.people", 4),
-    (b"people.inbox_entries", 8),
-    (b"people.inbox_tasks", 16),
-    (b"people.inbox_recipients", 32),
-    (b"people.sign_ins", 8),
-    (b"people.projects", 3),
-    (b"people.holdings", 8),
-    (b"people.batch", 2),
-    (b"people.operations", 8),
-    (b"people.initial_owners", 2),
-    (b"people.requests", 32),
-    (b"people.room_refusals", 8),
-    (b"people.pending", 8),
-    (b"people.waiters", 4),
-    (b"people.identity_bytes", 1_024),
-    (b"people.words", 2_048),
-    (b"people.amendment_bytes", 8_192),
-    (b"people.sign_in_lifetime_ms", 86_400_000),
-    (b"people.request_retention_ms", 86_400_000),
-    (b"people.facts", 32),
-    (b"fleet.workers", 2),
-    (b"fleet.needs_bytes", 65_536),
-    (b"fleet.grants", 8),
-    (b"fleet.engine_slots", 0),
-    (b"fleet.slots", 2),
-    (b"fleet.workstreams", 8),
-    (b"fleet.attempts", 8),
-    (b"fleet.calls", 32),
-    (b"fleet.call_name_bytes", 64),
-    (b"fleet.progress_bytes", 1_024),
-    (b"fleet.turns", 32),
-    (b"fleet.grace_ms", 120_000),
-    (b"fleet.facts", 32),
-    (b"fleet.history", 8),
-    (b"authority.projects", 2),
-    (b"authority.roles", 4),
-    (b"authority.requirements", 4),
-    (b"authority.facts", 16),
-    (b"authority.grants", 4),
-    (b"authority.executors", 4),
-    (b"authority.segments", 4),
-    (b"authority.segment_bytes", 256),
-    (b"authority.implications", 8),
-    (b"authority.batch", 2),
-    (b"authority.accounts", 4),
-    (b"authority.writes", 4),
-    (b"brief.briefs", 4),
-    (b"brief.sections", 4),
-    (b"brief.read_bytes", 8_192),
-    (b"brief.brief_bytes", 16_384),
-    (b"accounts.accounts", 4),
-    (b"accounts.credentials", 3),
-    (b"accounts.backoff_base_ms", 2_000),
-    (b"accounts.backoff_max_ms", 60_000),
-    (b"accounts.retry_ms", 30_000),
-    (b"accounts.move_deadline_ms", 60_000),
-    (b"accounts.spent_attention_ms", 300_000),
-    (b"accounts.facts", 32),
-    (b"accounts.holder_accounts", 4),
-    (b"accounts.sources", 3),
-    (b"accounts.program_names", 12),
-    (b"accounts.sign_ins", 2),
-    (b"accounts.sign_in_deadline_ms", 300_000),
-    (b"views.runs", 4),
-    (b"views.watchers", 4),
-    (b"views.watchers_per_party", 4),
-    (b"views.subjects_per_change", 32),
-    (b"views.text_bytes", 65_536),
-    (b"views.facts", 32),
-    (b"notes.scopes", 8),
-    (b"notes.entries_per_scope", 16),
-    (b"notes.pattern_bytes", 256),
-    (b"notes.description_bytes", 256),
-    (b"notes.body_bytes", 4_096),
-    (b"notes.references", 8),
-    (b"notes.load_rows", 4),
-    (b"notes.lines", 4),
-    (b"notes.recalled", 4),
-    (b"documents.rows", 4),
-    (b"documents.text_bytes", 4_096),
-    (b"documents.chips", 4),
-    (b"documents.lines", 4),
-    (b"core.brief_core_budgets.task", 4_096),
-    (b"core.brief_core_budgets.dependencies", 2_048),
-    (b"core.brief_core_budgets.attempts", 1_024),
-    (b"core.brief_core_budgets.plan", 2_048),
-    (b"core.brief_core_budgets.notes", 2_048),
-    (b"core.templates", 8),
-    (b"core.fill_mark", 268_435_456),
-    (b"core.connectors", 2),
-    (b"core.resume_bytes", 65_536),
-    (b"core.run_bytes", 16_384),
-    (b"core.policy_bytes", 16_384),
-    (b"core.escalation_reason_bytes", 512),
-    (b"core.load_slots", 4),
-    (b"core.load_bytes", 65_536),
-    (b"core.call_records", 32),
-    (b"core.call_answer_bytes", 32_768),
-    (b"core.brief_parts", 8),
-    (b"hub.slots", 2),
-    (b"hub.accounts", 8),
-    (b"hub.charter_bytes", 65_536),
-    (b"hub.transcript_bytes", 262_144),
-    (b"hub.delivery_evidence_bytes", 4_096),
-    (b"hub.turn_bytes", 65_536),
-    (b"hub.outcome_bytes", 4_096),
-    (b"hub.detail_bytes", 4_096),
-    (b"hub.held", 8),
-    (b"hub.inbox", 8),
-    (b"hub.event_bytes", 65_536),
-    (b"hub.run_calls", 8),
-    (b"hub.facts", 64),
-    (b"hub.told", 64),
-    (b"hub.piece_bytes", 4096),
-    (b"hub.turns", 8),
-    (b"hub.turn_queue_bytes", 524_288),
-    (b"link.chunk", 16_384),
-    (b"link.name", 32),
-    (b"link.secret", 256),
-    (b"link.names", 8),
-    (b"link.opening", 4),
-    (b"link.handshake_ms", 10_000),
-    (b"link.hello_ms", 10_000),
-    (b"link.ping_ms", 5_000),
-    (b"link.silence_ms", 15_000),
-    (b"link.stall_ms", 30_000),
-    (b"link.backoff_ms", 250),
-    (b"link.ceiling_ms", 30_000),
-    (b"link.proved_ms", 60_000),
-    (b"link.busy_ms", 2_000),
-    (b"link.facts", 4470),
-    (b"accounts.token", 7934),
-    (b"tasks.retries.transient.retries", 3),
-    (b"tasks.retries.transient.base_ms", 1_000),
-    (b"tasks.retries.transient.max_ms", 30_000),
-    (b"tasks.retries.permanent.retries", 3),
-    (b"tasks.retries.permanent.base_ms", 1_000),
-    (b"tasks.retries.permanent.max_ms", 30_000),
-    (b"tasks.retries.run.retries", 3),
-    (b"tasks.retries.run.base_ms", 1_000),
-    (b"tasks.retries.run.max_ms", 30_000),
-    (b"tasks.retries.agent.retries", 3),
-    (b"tasks.retries.agent.base_ms", 1_000),
-    (b"tasks.retries.agent.max_ms", 30_000),
-    (b"tasks.retries.lost.retries", 3),
-    (b"tasks.retries.lost.base_ms", 1_000),
-    (b"tasks.retries.lost.max_ms", 30_000),
-    (b"tasks.retries.invalid.retries", 3),
-    (b"tasks.retries.invalid.base_ms", 1_000),
-    (b"tasks.retries.invalid.max_ms", 30_000),
-    (b"documents.versions.minimum", 1),
-    (b"documents.versions.maximum", 1),
-];
+pub(super) const SMALL: &[crate::names::Name] = &crate::names::NAMES;
 
 fn overrides_past_their_types_are_refused() {
     table([
@@ -648,5 +481,63 @@ fn placed_hold_overrides_reject_zero_and_exemptions_past_the_live_set() {
         br#"{"profile":"small","overrides":{"tasks.exemptions":9}}"#,
         &[b"limits", b"overrides", b"tasks.exemptions"],
         What::Override,
+    );
+}
+
+#[test]
+fn capacity_dependencies_survive_override_parsing() {
+    for (bytes, member, configured, dependency, minimum) in [
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.tasks":64}}"#.as_slice(),
+            b"tasks.tasks".as_slice(),
+            64,
+            b"people.inbox_tasks".as_slice(),
+            128,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.delegates":8}}"#,
+            b"tasks.delegates",
+            8,
+            b"people.operations",
+            9,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.delegates":16}}"#,
+            b"tasks.delegates",
+            16,
+            b"people.operations",
+            17,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"tasks.project_goals":9}}"#,
+            b"tasks.project_goals",
+            9,
+            b"people.operations",
+            9,
+        ),
+    ] {
+        problem(
+            bytes,
+            &[b"limits", b"overrides", member],
+            What::Capacity { member, configured, requires: dependency, required: minimum },
+        );
+    }
+    parse(br#"{"profile":"small","overrides":{"tasks.project_tasks":64}}"#).expect("project capacity is independent");
+    parse(br#"{"profile":"small","overrides":{"tasks.tasks":64,"people.inbox_tasks":128}}"#)
+        .expect("sufficient inbox capacity");
+}
+
+#[test]
+fn batch_past_the_schema_keeps_its_binding_count() {
+    problem(
+        br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.batch":8}}"#,
+        &[b"limits", b"overrides", b"tasks.batch"],
+        What::CodecCeiling {
+            bound: crate::CodecBound {
+                field: b"tasks-v9.ResultFollowupsDelegates.value",
+                needed: 8,
+                ceiling: jig_protocol_store::tasks_v9::CEILINGS.result_followups_delegates_value,
+            },
+        },
     );
 }

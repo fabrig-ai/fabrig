@@ -1,14 +1,7 @@
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{Branches, Limits, Observation, Operation, api as a, promises::Recorded};
-use skein_json::{
-    Token,
-    tokenizer::{self as json, Tokenizer},
-};
-use skein_lib::{
-    Env, List, Queue, Time, Wall, base64,
-    bytes::copy_of,
-    stream::{Down, Held},
-};
+use skein_json::{Token, tokenizer as json};
+use skein_lib::{List, Time, base64, bytes::copy_of};
 
 /// A refused member, and its observation variant when the tag is known.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -138,19 +131,15 @@ pub fn decode_with_limits(line: &[u8], limits: &Limits) -> Result<Recorded, Refu
 }
 
 fn tokenize(line: &[u8], limits: json::Limits, count: u32) -> Result<(List<Token>, Box<[u8]>), Refusal> {
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut machine = Tokenizer::new(&limits);
-    let mut input = Held::new(copy_of(line));
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut feed = json::Feed::new(line, &limits);
     let mut tokens = List::with_capacity(count);
     let mut member = copy_of(b"observation");
     let mut variant = copy_of(b"");
     let mut depth = 0_u32;
-    json::down(&mut machine, &env, json::Request::Next, &mut above, &mut below);
-    for _ in 0..line.len().saturating_mul(6).saturating_add(32) {
-        match above.pop() {
-            Some(json::Event::Token(token)) => {
+    // Every token reads a byte, so the end comes within one answer more.
+    for _answer in 0..=line.len() {
+        match feed.answer(json::Request::Next) {
+            json::Event::Token(token) => {
                 if let Token::Key(key) = &token {
                     member.clone_from(key);
                 }
@@ -166,19 +155,11 @@ fn tokenize(line: &[u8], limits: json::Limits, count: u32) -> Result<(List<Token
                     Token::Key(_) | Token::String(_) | Token::Number(_) | Token::True | Token::False | Token::Null => {}
                 }
                 tokens.push(token).or(Err(refuse(&variant, &member, Reason::Limit)))?;
-                json::down(&mut machine, &env, json::Request::Next, &mut above, &mut below);
             }
-            Some(json::Event::Done) => return Ok((tokens, variant)),
-            Some(json::Event::Failed(_)) => return Err(refuse(&variant, &member, Reason::Json)),
-            Some(json::Event::Long(_) | json::Event::Skipped(_) | json::Event::Closed) => {
+            json::Event::Done => return Ok((tokens, variant)),
+            json::Event::Failed(_) => return Err(refuse(&variant, &member, Reason::Json)),
+            json::Event::Long(_) | json::Event::Skipped(_) | json::Event::Closed => {
                 return Err(refuse(&variant, &member, Reason::Json));
-            }
-            None => {
-                let Some(Down::Demand { read, .. }) = below.pop() else {
-                    return Err(refuse(&variant, &member, Reason::Json));
-                };
-                let delivery = input.answer(read).ok_or(refuse(&variant, &member, Reason::Json))?;
-                json::up(&mut machine, &env, delivery, &mut above, &mut below);
             }
         }
     }

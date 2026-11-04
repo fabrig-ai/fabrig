@@ -1,6 +1,6 @@
 [package]
 name = "fabrig-boundary"
-description = "Checks that the trees' dependencies point one way: skein, smith, jig, temper"
+description = "Checks the repository's boundaries: the trees' dependencies point one way, and no file names an outside lab"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

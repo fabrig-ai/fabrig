@@ -4,14 +4,22 @@ family jig-store-settings 1
 record Text { bytes: bytes 32 }
 record ModelName { name: bytes 4096 efforts: list 16 bytes 32 }
 record Model { dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 }
-record RunPolicy { instructions: bytes 65536 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: Model alternatives: list 64 Model inspect: bool modify: bool shell: bool agents: bool call_timeout: duration }
+record RunPolicy { instructions: bytes 65536 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: Model alternatives: list 64 Model inspect: bool modify: bool shell: bool agents: bool call_timeout: duration tools: u64 }
 enum Kinds { workers, engine, both }
-record Charter { number: u32 policy: RunPolicy hosts: Kinds spend: u64 }
+record WakeBatch { count: u32 age: duration }
+record WakePace { span: duration }
+enum WakeRule { never, immediate, batch: WakeBatch, paced: WakePace }
+enum ResultsWake { never, each, last_or_failure }
+record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
+record Segment { bytes: bytes 4096 }
+record Document { connector: u16 name: list 8 Segment path: bytes 256 heading: option bytes 80 }
+record Charter { number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document }
 record CharterNumber { number: u32 }
 record TemplateNumber { number: u32 }
 record PolicyNumber { number: u32 }
-enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules }
-record Segment { bytes: bytes 4096 }
+record ApplicationSetting { kind: u32 scope: u32 number: u32 }
+record ProjectPolicySetting { project: u32 }
+enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting }
 record LastExact { bytes: bytes 4096 }
 record LastOpen { bytes: bytes 4096 }
 enum Last { exact: LastExact, open: LastOpen }
@@ -21,7 +29,8 @@ record ResourceScope { connector: u16 pattern: Pattern }
 record ExecutorCharter { number: u32 }
 record ExecutorProcedure { number: u32 }
 record ExecutorRole { number: u32 }
-enum Executor { charter: ExecutorCharter, procedure: ExecutorProcedure, role: ExecutorRole }
+record ExecutorJob { kind: u32 }
+enum Executor { charter: ExecutorCharter, procedure: ExecutorProcedure, role: ExecutorRole, job: ExecutorJob }
 record Delegation { kinds: list 32 Executor tasks: u32 depth: u32 }
 record Models { bits: u64 all: bool }
 record Budget { spend: u64 deadline: option u64 }
@@ -61,7 +70,8 @@ enum EndedBy { result, requester }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record ModelEffort { model: u8 effort: option u8 }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
-record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice }
+record Symbol { connector: u16 symbol: u16 }
+record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
 enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules }
 record Party { number: u64 }
 enum Decider { first_start, release, party: Party }
@@ -71,10 +81,21 @@ record Head { number: u32 against: u32 at: u64 by: Decider proposal: option Prop
 record Set { value: Value }
 enum Edit { set: Set, removed, reset }
 record Item { setting: Setting edit: Edit }
+enum Replaced { value: Set, default, removed, not_offered }
+record RevisionItem { setting: Setting edit: Edit replaced: Replaced }
+
+record FollowsRevision { revision: u32 }
+enum Follows { default, changed: FollowsRevision, removed: FollowsRevision }
+record SizedSet { size: u32 }
+enum SizedEdit { set: SizedSet, remove, reset }
+record Recorded { kind: u32 scope: u32 number: u32 edit: SizedEdit }
+enum SizedReplaced { changed: SizedSet, default, removed, not_offered }
+record RevisionRecorded { kind: u32 scope: u32 number: u32 edit: SizedEdit replaced: SizedReplaced }
+versioned record ApplicationState { follows: Follows size: u32 charters: list 255 u32 }
 
 versioned record Default { models: list 64 ModelName value: Value revision: u32 }
 versioned record Changed { models: list 64 ModelName value: option Value revision: u32 }
-versioned record Revision { models: list 64 ModelName head: Head items: list 128 Item }
-versioned record Extent { oldest: u32 }
+versioned record Revision { models: list 64 ModelName head: Head items: bytes 3221225472 pieces RevisionItem applications: list 128 RevisionRecorded }
+versioned record Extent { oldest: u32 keys: u64 }
 versioned record CharterVersion { charter: option Charter }
-versioned record Proposal { models: list 64 ModelName against: u32 items: list 128 Item }
+versioned record Proposal { key: option u64 models: list 64 ModelName against: u32 items: list 128 Item applications: list 128 Recorded }

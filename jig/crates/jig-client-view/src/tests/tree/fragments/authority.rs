@@ -69,14 +69,7 @@ fn render(value: &AuthorityDocument, words: &crate::words::Words, rows: u32) -> 
         depth: required.depth,
         text_per_node: required.text_per_node,
         text_bytes: required.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 0,
-        patches: 0,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 0,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     };
     let mut builder = Builder::new(&limits);
     view::document_words(&mut builder, value, words, 5, rows);

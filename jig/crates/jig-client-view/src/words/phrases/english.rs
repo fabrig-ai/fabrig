@@ -13,6 +13,21 @@ pub fn language() -> Language {
     let mut phrases = List::with_capacity(u32::try_from(ALL.len()).expect("phrase count fits"));
     for phrase in ALL {
         let segments: Box<[Segment]> = match phrase {
+            JigPhrase::SettingProjectPolicy => Box::new([
+                Segment::Text(copy_of(b"project ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b"'s policy")),
+            ]),
+            JigPhrase::SettingsRestored => Box::new([
+                Segment::Text(copy_of(b"Proposed restoring as proposal ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to role ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingsForgotten => Box::new([
+                Segment::Text(copy_of(b"That revision is forgotten; the oldest kept is revision ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+            ]),
             JigPhrase::MovedToNewest => Box::new([
                 Segment::Text(copy_of(b"Moved ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
@@ -54,6 +69,15 @@ pub fn language() -> Language {
             JigPhrase::SettingPolicy => {
                 Box::new([Segment::Text(copy_of(b"policy ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
             }
+            JigPhrase::SettingApplication => Box::new([
+                Segment::Text(copy_of(b"application kind ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingFaultJudged => Box::new([Segment::Text(copy_of(b"refused by its owner"))]),
             JigPhrase::SettingRules => Box::new([Segment::Text(copy_of(b"the rules"))]),
             JigPhrase::SettingFaultShape => {
                 Box::new([Segment::Text(copy_of(b"Setting is out of shape or past its bound"))])
@@ -1102,6 +1126,9 @@ pub fn language() -> Language {
                 Segment::Hole { index: 1, kind: HoleKind::Number },
                 Segment::Text(copy_of(b" left")),
             ]),
+            JigPhrase::Job => {
+                Box::new([Segment::Text(copy_of(b"job ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
+            }
             JigPhrase::Agent => Box::new([Segment::Text(copy_of(b"Agent"))]),
             JigPhrase::Procedure => Box::new([Segment::Text(copy_of(b"Procedure"))]),
             JigPhrase::Person | JigPhrase::FramePerson => Box::new([Segment::Text(copy_of(b"Person"))]),

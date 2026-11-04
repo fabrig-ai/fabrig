@@ -66,15 +66,26 @@ impl Draft {
         self.change.tracked = if tracking == self.tracked { None } else { Some(tracking) };
     }
     pub fn deadline(&mut self, deadline: Option<Wall>) -> Result<(), Cut> {
-        let base = self.authority.as_ref().ok_or(Cut::Authority)?;
-        self.change.authority = if deadline == base.deadline {
-            None
-        } else {
-            let mut authority = base.clone();
-            authority.deadline = deadline;
-            Some(authority)
-        };
+        let mut authority = self.authority_edit()?;
+        authority.deadline = deadline;
+        self.keep_authority(authority);
         Ok(())
+    }
+    /// Replace the lifetime task allowance, preserving every other authority control.
+    pub fn tasks(&mut self, tasks: u32) -> Result<(), Cut> {
+        let mut authority = self.authority_edit()?;
+        authority.delegation.tasks = tasks;
+        self.keep_authority(authority);
+        Ok(())
+    }
+    fn authority_edit(&self) -> Result<c::Authority, Cut> {
+        match &self.change.authority {
+            Some(authority) => Ok(authority.clone()),
+            None => self.authority.clone().ok_or(Cut::Authority),
+        }
+    }
+    fn keep_authority(&mut self, authority: c::Authority) {
+        self.change.authority = if self.authority.as_ref() == Some(&authority) { None } else { Some(authority) };
     }
     pub fn instructions(&mut self, text: c::Text) {
         let same = match &self.instructions {

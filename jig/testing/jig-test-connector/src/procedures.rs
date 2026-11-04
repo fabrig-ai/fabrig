@@ -75,7 +75,7 @@ pub(crate) fn step(
     if state.awaiting {
         let expected = match spec.actions.get(usize::from(state.index)) {
             Some(ProcedureAction::Effect { .. }) => ProcedureSignal::Settled,
-            Some(ProcedureAction::Delegate { .. }) => ProcedureSignal::DelegateDone,
+            Some(ProcedureAction::Delegate { .. } | ProcedureAction::Job { .. }) => ProcedureSignal::DelegateDone,
             Some(ProcedureAction::Propose { .. }) => ProcedureSignal::ProposalDone,
             Some(_) | None => return,
         };
@@ -134,6 +134,10 @@ fn decide(
         ProcedureAction::Delegate { kinds } => {
             state.awaiting = true;
             StepDecision::Delegate { kinds: kinds.clone() }
+        }
+        ProcedureAction::Job { kind, spec, deadline } => {
+            state.awaiting = true;
+            StepDecision::Job { kind: *kind, spec: spec.clone(), deadline: *deadline }
         }
         ProcedureAction::Amend { words, priority } => match state.delegate {
             Some(task) => {
@@ -280,6 +284,7 @@ pub(crate) fn made(
             Some(spec) => match spec.actions.get(usize::from(state.index)) {
                 Some(
                     ProcedureAction::Delegate { .. }
+                    | ProcedureAction::Job { .. }
                     | ProcedureAction::Amend { .. }
                     | ProcedureAction::Cancel { .. }
                     | ProcedureAction::Message { .. },

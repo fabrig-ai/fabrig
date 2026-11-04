@@ -3,7 +3,10 @@
 //! executor identity, live topology, result contract and the step's offered inbox fence. It never
 //! knows connector facts or effects. A due step may make one whole batch,
 //! finish after its delegates, hold, or wait for changed facts.
-#![expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")]
+#![cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")
+)]
 use crate::domain::{Domain, make_admitted, publish, record, task_mut};
 use crate::{
     Active, Closing, Ending, Executor, Limits, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Request, Stage,
@@ -26,12 +29,23 @@ pub(crate) fn stepped(
     if let Err(problem) = fence(domain, number, step, read) {
         return out.push(Request::ProcedureRefused { task: number, step, problem });
     }
+    task_mut(domain, number).expect("fenced procedure").record.room_wait = None;
     let staged = match check(domain, env, number, step, read, &decision) {
         Ok(staged) => staged,
-        Err(problem) => return out.push(Request::ProcedureRefused { task: number, step, problem }),
+        Err(problem) => {
+            if let Some(room) = problem.freeing_count() {
+                crate::room::wait(domain, env, number, room, out);
+            }
+            return out.push(Request::ProcedureRefused { task: number, step, problem });
+        }
     };
     crate::inbox::keep_refusals(domain, number, &[]);
+    let started_from = staged.record(domain, number).expect("staged procedure task").started_from.clone();
     let live = task_mut(domain, number).expect("procedure step preflighted");
+    live.record.started_from = started_from;
+    if let Some(words) = decision.words {
+        live.record.spec.words = words;
+    }
     live.record.attempt = step;
     crate::inbox::take(&mut live.record, read);
     live.procedure_offered = None;
@@ -44,24 +58,7 @@ pub(crate) fn stepped(
     for plan in staged.plans.into_boxed() {
         crate::compound::apply(domain, env, Party::Task(number), plan, out);
     }
-    match decision.end {
-        ProcedureEnd::Result(result) => {
-            let ending = match result {
-                TaskResult::Failure { reason } => Ending::Failed { reason },
-                TaskResult::Approved { .. }
-                | TaskResult::Report { .. }
-                | TaskResult::Verdict { .. }
-                | TaskResult::NoChange { .. }
-                | TaskResult::Change { .. } => Ending::Done(result),
-            };
-            task_mut(domain, number).expect("procedure task live").record.phase =
-                Phase::Closing(Closing { stage: Stage::Delegates, ending });
-            publish(domain, env, number, out);
-        }
-        ProcedureEnd::Hold(why) => crate::run::hold(domain, env, number, why, out),
-        ProcedureEnd::HoldFrom { why, source } => crate::run::hold_from(domain, env, number, why, Some(source), out),
-        ProcedureEnd::Wait => publish(domain, env, number, out),
-    }
+    end_step(domain, env, number, decision.end, out);
     crate::wake::after_step(domain, env, number, out);
     match numbers {
         Some(tasks) => out.push(Request::Made { reply_to: to, tasks }),
@@ -76,7 +73,9 @@ fn fence(domain: &Domain, number: u64, step: u64, read: Option<u64>) -> Result<(
     let task = record(domain, number).ok_or(problem(number, Refusal::Unknown))?;
     match task.executor {
         Executor::Procedure { .. } => {}
-        Executor::Agent { .. } | Executor::Person(_) => return Err(problem(number, Refusal::Executor)),
+        Executor::Agent { .. } | Executor::Person(_) | Executor::Job { .. } => {
+            return Err(problem(number, Refusal::Executor));
+        }
     }
     if task.phase != Phase::Active(Active::Due) || task.attempt.checked_add(1) != Some(step) {
         return Err(problem(number, Refusal::Attempt));
@@ -100,20 +99,8 @@ fn check(
     decision: &ProcedureDecision,
 ) -> Result<crate::compound::Staged, crate::Problem> {
     let task = record(domain, number).expect("step task checked");
-    if decision.cancels.len() > skein_lib::length::usize_of(env.limits.batch)
-        || decision.amendments.len() > skein_lib::length::usize_of(env.limits.batch)
-        || decision.messages.len() > skein_lib::length::usize_of(env.limits.batch)
-        || decision.proposals.len() > 1
-    {
-        return Err(problem(number, Refusal::Batch));
-    }
-    if let ProcedureEnd::HoldFrom { why, source } = &decision.end
-        && (!why.valid()
-            || crate::placed::is_placed(*why)
-            || !crate::hold_origin::valid(&env.limits, *why, Some(source)))
-    {
-        return Err(problem(number, Refusal::Holds));
-    }
+    check_words(task, &env.limits, decision.words.as_deref())?;
+    check_shape(&env.limits, number, decision)?;
     if let ProcedureEnd::Result(result) = &decision.end {
         let end = crate::End::Finished { result: result.clone(), cancel_delegates: false };
         if crate::run::ends::kept(domain, number).parks(&end) {
@@ -132,6 +119,19 @@ fn check(
     let bound = env.limits.tasks.max(env.limits.batch.saturating_mul(3).saturating_add(1));
     let mut staged = crate::compound::Staged::new(bound);
     let mut parent = task.clone();
+    let mut started_from = skein_lib::List::with_capacity(env.limits.dependencies);
+    for dependency in &task.started_from {
+        started_from.push(*dependency).expect("marks bounded by dependencies");
+    }
+    for dependency in &decision.started_from {
+        if !task.dependencies.contains(dependency) {
+            return Err(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency]));
+        }
+        if !started_from.as_slice().contains(dependency) {
+            started_from.push(*dependency).expect("marks are a subset of dependencies");
+        }
+    }
+    parent.started_from = started_from.into_boxed();
     parent.attempt = step;
     parent.phase = Phase::Active(Active::Idle);
     crate::inbox::take(&mut parent, read);
@@ -249,5 +249,53 @@ fn retain(
     }
     staged.after(domain, &env.limits, &plan);
     assert!(staged.plans.push(plan).is_ok(), "bounded procedure parts");
+    Ok(())
+}
+
+fn check_words(task: &crate::TaskRecord, limits: &Limits, words: Option<&[u8]>) -> Result<(), crate::Problem> {
+    let Some(words) = words else { return Ok(()) };
+    let mut spec = task.spec.clone();
+    spec.words = Box::from(words);
+    if !crate::batch::valid_spec(limits, &spec) {
+        return Err(problem(task.number, Refusal::Spec));
+    }
+    Ok(())
+}
+
+fn end_step(domain: &mut Domain, env: &Env<Limits>, number: u64, end: ProcedureEnd, out: &mut Queue<Request>) {
+    match end {
+        ProcedureEnd::Result(result) => {
+            let ending = match result {
+                TaskResult::Failure { reason } => Ending::Failed { reason },
+                TaskResult::Approved { .. }
+                | TaskResult::Report { .. }
+                | TaskResult::Verdict { .. }
+                | TaskResult::Job { .. }
+                | TaskResult::NoChange { .. }
+                | TaskResult::Change { .. } => Ending::Done(result),
+            };
+            task_mut(domain, number).expect("procedure task live").record.phase =
+                Phase::Closing(Closing { stage: Stage::Delegates, ending });
+            publish(domain, env, number, out);
+        }
+        ProcedureEnd::Hold(why) => crate::run::hold(domain, env, number, why, out),
+        ProcedureEnd::HoldFrom { why, source } => crate::run::hold_from(domain, env, number, why, Some(source), out),
+        ProcedureEnd::Wait => publish(domain, env, number, out),
+    }
+}
+
+fn check_shape(limits: &Limits, number: u64, decision: &ProcedureDecision) -> Result<(), crate::Problem> {
+    if decision.cancels.len() > skein_lib::length::usize_of(limits.batch)
+        || decision.amendments.len() > skein_lib::length::usize_of(limits.batch)
+        || decision.messages.len() > skein_lib::length::usize_of(limits.batch)
+        || decision.proposals.len() > 1
+    {
+        return Err(problem(number, Refusal::Batch));
+    }
+    if let ProcedureEnd::HoldFrom { why, source } = &decision.end
+        && (!why.valid() || crate::placed::is_placed(*why) || !crate::hold_origin::valid(limits, *why, Some(source)))
+    {
+        return Err(problem(number, Refusal::Holds));
+    }
     Ok(())
 }

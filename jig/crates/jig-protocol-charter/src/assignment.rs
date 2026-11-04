@@ -84,7 +84,7 @@ fn model(value: core::Model) -> Model {
 }
 fn contract(value: tasks::Contract) -> Option<Contract> {
     Some(match value {
-        tasks::Contract::Approval { .. } => return None,
+        tasks::Contract::Approval { .. } | tasks::Contract::Job { .. } => return None,
         tasks::Contract::Report { words } => Contract {
             report: Some(TextRule { max: words.min(CONTRACT_TEXT_MAX), fields: Box::new([]) }),
             failure: Some(TextRule { max: words.min(CONTRACT_TEXT_MAX), fields: Box::new([]) }),

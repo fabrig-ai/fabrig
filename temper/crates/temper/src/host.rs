@@ -153,6 +153,9 @@ pub fn ending(
                 found.clone(),
                 &jig_protocol_config::Path::root(),
             )),
+            Stop::Room(short) => {
+                format!("temper serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
+            }
             Stop::RestorePage { range, failure } => {
                 format!("temper serve: restore {}: {}\n", restore_kind(*range), page_failure(failure.as_ref()))
             }
@@ -252,6 +255,9 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
             format!("{source} setting {:?}: {:?}", failure.setting, failure.fault)
         }
         Failure::ProjectPolicy { project } => format!("project {project}: policy refused"),
+        Failure::Application { kind, scope, number, why } => {
+            format!("application setting {kind}/{scope}/{number}: {why:?}")
+        }
         Failure::HeldPastLimit { which, held, limit } => format!("{which:?}, held {held}, limit {limit}"),
         Failure::AccountsPastLimit { failure } => {
             format!("accounts {:?}, key {:?}, limit {}", failure.set, failure.key, failure.limit)
@@ -344,7 +350,6 @@ fn set_up_refused_line(number: u16, why: temper_engine_domain_forge::SetUpRefusa
         SetUpRefusal::NotUnderTheBox => "not under the box",
         SetUpRefusal::NotOffered => "not offered",
         SetUpRefusal::Busy => "busy",
-        SetUpRefusal::NewProject => "a new project waits on jig's projects at runtime",
         SetUpRefusal::Invalid => "invalid: the organization, repository or project name is empty or too long",
     };
     format!("temper serve: forge {number}: set up refused: {why}\n")
@@ -517,6 +522,16 @@ fn other_endings_keep_their_exit_behavior() {
             1,
         ),
         (Some(End::Stopped(Stop::Start(problems))), false, "temper serve: deployment: unknown reference\n", 1),
+        (
+            Some(End::Stopped(Stop::Room(temper_engine_domain::room::Short {
+                charter: 3,
+                room: 2_047,
+                bound: 51_717,
+            }))),
+            false,
+            "temper serve: restart refused: charter 3 leaves its brief 2,047 bytes of its host part's 51,717; it needs at least 2,048\n",
+            1,
+        ),
         (Some(End::Stopped(Stop::Binding)), false, "temper serve: deployment namespace binding refused\n", 1),
         (Some(End::Stopped(Stop::CommitFailed { number: 7 })), false, "temper serve: commit 7 failed\n", 1),
         (

@@ -30,7 +30,7 @@ pub fn turn_bytes() -> (u64, u64) {
         let turn = protocol::session_turn(sequence, u64::MAX, TURN_TEXT, first);
         owned = owned.max(turn.owned_bytes().expect("an owned turn"));
         let bytes = protocol::transcript_turn(sequence, TURN_TEXT, first);
-        encoded = encoded.max(u64::try_from(bytes.len()).expect("a length"));
+        encoded = encoded.max(skein_lib::len_u64(bytes.len()));
     }
     (encoded, owned)
 }
@@ -42,6 +42,13 @@ pub fn turn_bytes() -> (u64, u64) {
 pub fn limits() -> Limits {
     let (encoded, owned) = turn_bytes();
     Limits {
+        tooling: temper_worker_domain::tooling::Limits {
+            file_bytes: 4096,
+            tail_bytes: 65_536,
+            path_bytes: 4096,
+            jobs: 3,
+            path: b"/usr/bin:/bin".as_slice().into(),
+        },
         watermark: temper_worker_domain::WATERMARK,
         host: host::Limits {
             program_sources: 12,

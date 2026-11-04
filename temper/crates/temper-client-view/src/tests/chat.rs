@@ -21,9 +21,7 @@ fn the_playground_project_is_named_playground() {
             }
         }
         let context = context.expect("chat context");
-        assert!(
-            skein_lib::bytes::find(&fixtures::node_text(tree, context), "Playground · acme/shop".as_bytes()).is_some()
-        );
+        assert!(skein_lib::bytes::find(&fixtures::node_text(tree, context), "Shop · acme/shop".as_bytes()).is_some());
     }
 }
 
@@ -753,9 +751,9 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
     let mut activity = None;
     while let Some(request) = out.pop() {
         match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open {
                                 watch: token,
@@ -763,13 +761,14 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
                             },
                     },
             } => watch = Some(token),
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
                     },
             } => activity = Some(read),
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -854,9 +853,9 @@ fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
     let (mut root, mut out) = history();
     let mut seen = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Jig(ask), .. },
                 },
         } = request
@@ -881,8 +880,8 @@ fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
     chat_event(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
     let mut attempt = None;
     for request in &out {
-        if let Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: token, .. } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: token, .. } },
         } = request
         {
             attempt = Some(*token);

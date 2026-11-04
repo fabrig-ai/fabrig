@@ -50,9 +50,13 @@ fn call() -> Call {
             affinity: None,
             max_output_tokens: None,
         },
-        endpoint: Endpoint::codex(),
-        credential: Some(Credential::codex(bytes::copy_of(b"secret"), bytes::copy_of(b"account"))),
+        endpoint: Endpoint::openai(),
+        credential: Some(Credential::bearer(bytes::copy_of(b"secret"))),
     }
+}
+
+fn gzip_call() -> Call {
+    Call { endpoint: Endpoint { encoding: Encoding::Gzip, ..Endpoint::openai() }, ..call() }
 }
 
 /// One call, started and sent, with the events it has raised so far.
@@ -225,10 +229,10 @@ fn content_length(head: &str) -> usize {
 }
 
 #[test]
-fn a_codex_request_sends_its_rendered_body_gzip_encoded_with_its_length() {
-    let world = World::started();
+fn a_gzip_endpoint_sends_its_rendered_body_gzip_encoded_with_its_length() {
+    let world = World::started_with(gzip_call());
     let (head, body) = split(&world.sent);
-    let rendered = translate::encode_request(Provider::OpenAiCodex, &call().prompt, &limits().native()).unwrap();
+    let rendered = translate::encode_request(Provider::OpenAi, &call().prompt, &limits().native()).unwrap();
     let mut room = bytes::zeroed(skein_http::gzip::bound(rendered.len()).unwrap());
     let end = skein_http::gzip::encode(&rendered, &mut room).unwrap();
     assert!(head.contains("\r\nContent-Encoding: gzip\r\n"), "{head}");
@@ -244,8 +248,8 @@ fn a_codex_request_sends_its_rendered_body_gzip_encoded_with_its_length() {
 }
 
 #[test]
-fn a_codex_body_compresses_only_while_it_and_its_room_fit_the_request_bound() {
-    let rendered = translate::encode_request(Provider::OpenAiCodex, &call().prompt, &limits().native()).unwrap();
+fn a_gzip_endpoint_compresses_only_while_it_and_its_room_fit_the_request_bound() {
+    let rendered = translate::encode_request(Provider::OpenAi, &call().prompt, &limits().native()).unwrap();
     let rendered = u32::try_from(rendered.len()).unwrap();
     // A body within one stored block takes 10 header, 5 block and 8 trailer
     // bytes beside its own in its bound: 2 × rendered + 23 holds both.
@@ -253,14 +257,14 @@ fn a_codex_body_compresses_only_while_it_and_its_room_fit_the_request_bound() {
     for (request, gzip) in [(both, true), (both - 1, false)] {
         let mut bounds = limits();
         bounds.request = request;
-        let world = World::started_within(call(), bounds);
+        let world = World::started_within(gzip_call(), bounds);
         let (head, body) = split(&world.sent);
         assert_eq!(head.contains("\r\nContent-Encoding: gzip\r\n"), gzip, "{request}: {head}");
         assert_eq!(content_length(head), body.len());
         let measured = world.client.measured();
         assert_eq!(measured.compressed, if gzip { rendered + 23 } else { 0 }, "{request}");
         if !gzip {
-            let as_rendered = translate::encode_request(Provider::OpenAiCodex, &call().prompt, &bounds.native());
+            let as_rendered = translate::encode_request(Provider::OpenAi, &call().prompt, &bounds.native());
             assert_eq!(body, &*as_rendered.unwrap(), "a body past the bound's room is sent as rendered");
             assert_eq!(usize::try_from(measured.head).unwrap(), head.len());
         }
@@ -269,7 +273,7 @@ fn a_codex_body_compresses_only_while_it_and_its_room_fit_the_request_bound() {
         // the largest head the endpoint's bounds measure.
         assert!(reservation(measured, &bounds).unwrap() <= largest_reservation(&bounds).unwrap());
         assert!(u64::from(measured.body) + u64::from(measured.compressed) <= u64::from(request));
-        let largest_head = request_head(&Endpoint::codex(), &CredentialLimits { value: 6, account_id: 7 }, &bounds);
+        let largest_head = request_head(&gzip_call().endpoint, &CredentialLimits { value: 6 }, &bounds);
         assert!(measured.head <= largest_head.unwrap(), "{request}");
     }
 }
@@ -302,7 +306,7 @@ fn the_largest_head_and_body_have_an_exact_request_byte_measure() {
 #[test]
 fn a_caller_field_cannot_name_the_content_coding() {
     let mut input = call();
-    let mut endpoint = Endpoint::codex();
+    let mut endpoint = Endpoint::openai();
     endpoint.headers = Box::new([Header { name: bytes::copy_of(b"Content-Encoding"), value: bytes::copy_of(b"br") }]);
     input.endpoint = endpoint;
     assert!(Client::prepare(input, &limits()).is_err());
@@ -341,13 +345,11 @@ fn dispatch_without_next(world: &mut World, source: &[u8], activity: u64) -> boo
 
 #[test]
 fn responses_activity_counts_output_at_dispatch_and_ignores_status_and_extension_events() {
-    for endpoint in [Endpoint::openai(), Endpoint::codex()] {
+    {
+        let endpoint = Endpoint::openai();
         let mut input = call();
         input.endpoint = endpoint;
         input.credential = Some(Credential::key(bytes::copy_of(b"key")));
-        if input.endpoint.provider == Provider::OpenAiCodex {
-            input.credential = call().credential;
-        }
         let mut world = World::started_with(input);
         world.feed(HEAD);
         assert_eq!(world.client.activity(), 0, "the response head carries no model output");
@@ -434,11 +436,10 @@ fn a_malformed_message_fails_without_counting_activity() {
 fn provider_call(provider: Provider) -> Call {
     let mut input = call();
     input.endpoint = match provider {
-        Provider::OpenAiCodex => Endpoint::codex(),
         Provider::OpenAi => Endpoint::openai(),
         Provider::Anthropic => Endpoint::anthropic(),
     };
-    if provider != Provider::OpenAiCodex {
+    if provider != Provider::OpenAi {
         input.credential = Some(Credential::key(bytes::copy_of(b"key")));
     }
     input
@@ -446,7 +447,7 @@ fn provider_call(provider: Provider) -> Call {
 
 #[test]
 fn an_owned_measurement_preserves_provider_bytes_lengths_and_policy() {
-    for provider in [Provider::OpenAiCodex, Provider::OpenAi, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         for enabled in [false, true] {
             for encoding in [Encoding::Identity, Encoding::Gzip] {
                 let mut input = provider_call(provider);
@@ -455,9 +456,7 @@ fn an_owned_measurement_preserves_provider_bytes_lengths_and_policy() {
                 let admitted = bounds;
                 let expected = measure(&input.prompt, input.credential.as_ref(), &input.endpoint, &bounds).unwrap();
                 let rendered = match provider {
-                    Provider::OpenAiCodex | Provider::OpenAi => {
-                        translate::encode_request(provider, &input.prompt, &bounds.native()).unwrap()
-                    }
+                    Provider::OpenAi => translate::encode_request(provider, &input.prompt, &bounds.native()).unwrap(),
                     Provider::Anthropic => {
                         anthropic::encode_request(&input.prompt, bounds.declared_output_tokens, &bounds.native())
                             .unwrap()
@@ -493,7 +492,7 @@ fn an_owned_measurement_preserves_provider_bytes_lengths_and_policy() {
 
 #[test]
 fn owned_measurement_preserves_admission_refusals() {
-    for provider in [Provider::OpenAiCodex, Provider::OpenAi, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         for enabled in [false, true] {
             for fault in 0_usize..6 {
                 let mut input = provider_call(provider);
@@ -517,7 +516,7 @@ fn owned_measurement_preserves_admission_refusals() {
 
 #[test]
 fn the_encoder_checks_written_bytes_against_the_measurement() {
-    for provider in [Provider::OpenAiCodex, Provider::OpenAi, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         for difference in [-1_i32, 1_i32] {
             let mut checked = measure_request(provider_call(provider), &limits(), false).unwrap();
             checked.measured.body = checked.measured.body.checked_add_signed(difference).unwrap();
@@ -541,11 +540,11 @@ fn request_goldens_follow_the_declared_calls_per_response() {
             conversations: 1,
         };
         let derived = crate::Limits::derive(&declared).unwrap();
-        for provider in [Provider::OpenAi, Provider::OpenAiCodex, Provider::Anthropic] {
+        for provider in [Provider::OpenAi, Provider::Anthropic] {
             let bounds = derived.dialect(provider);
             let prompt = call().prompt;
             let expected: &[u8] = match provider {
-                Provider::OpenAi | Provider::OpenAiCodex => {
+                Provider::OpenAi => {
                     if calls == 1 {
                         br#"{"model":"test-model","instructions":"","stream":true,"store":false,"include":["reasoning.encrypted_content"],"tools":[],"tool_choice":"auto","parallel_tool_calls":false,"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"text":{"verbosity":"low"}}"#
                     } else {
@@ -561,15 +560,13 @@ fn request_goldens_follow_the_declared_calls_per_response() {
                 }
             };
             let encoded = match provider {
-                Provider::OpenAi | Provider::OpenAiCodex => {
-                    translate::encode_request(provider, &prompt, &bounds.native()).unwrap()
-                }
+                Provider::OpenAi => translate::encode_request(provider, &prompt, &bounds.native()).unwrap(),
                 Provider::Anthropic => {
                     anthropic::encode_request(&prompt, bounds.declared_output_tokens, &bounds.native()).unwrap()
                 }
             };
             assert_eq!(encoded.as_ref(), expected, "{provider:?}, {calls} calls");
-            if provider == Provider::OpenAiCodex {
+            if provider == Provider::OpenAi {
                 let native = translate::request(&prompt, provider, &bounds.native()).unwrap();
                 assert_eq!(openai::encode_request(&native, &bounds.native()).unwrap().as_ref(), expected);
             }
@@ -666,4 +663,39 @@ fn valid_refuses_tagged_text_capacity_past_u32() {
 fn valid_ignores_heap_opened_items() {
     let bounds = Limits { output_items: u32::MAX, input: u32::MAX, retained: 1, ..limits() };
     assert!(valid(&bounds));
+}
+
+#[test]
+fn anthropic_refuses_a_bearer_at_admission() {
+    let mut input = call();
+    input.endpoint = Endpoint::anthropic();
+    input.credential = Some(Credential::bearer(bytes::copy_of(b"secret")));
+    assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid));
+}
+
+#[test]
+fn anthropic_sends_a_key_or_no_credential_with_its_version() {
+    for credential in [Some(Credential::key(bytes::copy_of(b"secret"))), None] {
+        let present = credential.is_some();
+        let mut input = call();
+        input.endpoint = Endpoint::anthropic();
+        input.credential = credential;
+        let world = World::started_with(input);
+        let (head, _) = split(&world.sent);
+        let lower = head.to_ascii_lowercase();
+        assert_eq!(lower.contains("\r\nx-api-key: secret\r\n"), present);
+        assert!(lower.contains("\r\nanthropic-version: 2023-06-01\r\n"));
+        assert!(!lower.contains("authorization:"));
+        assert!(!lower.contains("anthropic-beta:"));
+        assert_eq!(usize::try_from(world.client.measured().head).unwrap(), head.len());
+        if present {
+            let maximum = request_head(&Endpoint::anthropic(), &CredentialLimits { value: 6 }, &limits())
+                .expect("key head bound");
+            let digits = |length: usize| length.to_string().len();
+            assert_eq!(
+                usize::try_from(maximum).unwrap(),
+                head.len() - digits(content_length(head)) + digits(usize::try_from(limits().request).unwrap())
+            );
+        }
+    }
 }

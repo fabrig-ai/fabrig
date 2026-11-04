@@ -192,7 +192,7 @@ temper                       the binary: `temper ctl` runs the host
   hold's number), `LANDING`, `FINDING`, `REVISION` (a
   settings revision), `REV` (a revision a read printed of the object
   acted on: a spec's, a hold's), `PROPOSAL`, `QUESTION`, `NUMBER` (a
-  setting's), `TEMPLATE`, `CURSOR`, `COUNT`, `PART`, `OFFSET`, `PAGE`,
+  setting's), `TEMPLATE`, `CHARTER`, `CURSOR`, `COUNT`, `PART`, `OFFSET`, `PAGE`,
   `TURN`, `DIGEST`, `CONDITION`, `DURATION`, `TIME`, `PRIORITY`,
   `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
   `PREFIX`, `GATE`, `LABEL`, `IDS`, `APP`, `ROLE`, `FILE`, `TEXT`,
@@ -212,7 +212,7 @@ watch's subject, its digest (5.4). It needs no key.
 |---|---|---|
 | `me` | the party, its projects with their roles and pools, what waits for it counted, the bounds of what it may create, configured provider offers and key-byte ceilings, the retention | `me` |
 | `inbox [--project PROJECT] [--kind questions\|proposals\|escalations\|person-tasks\|results\|replies] [--root TASK] [--after CURSOR]` | what needs the party, then updates, each with its acts | `inbox` |
-| `project show PROJECT` | the project: its name and homes, its roles, each with its parties and its spend per period, and its policy's spend per period; its open period, its number, start and next start (`../domain/root.md`, 5.7), its budget and what is reserved, spent and left of it; and each party's pool in it, with the same numbers | a project, and its spend's first page |
+| `project show PROJECT` | the project: its name, whether it is public and, if so, its public page's path, and its homes, its roles, each with its parties and its spend per period, and its policy's spend per period; its open period, its number, start and next start (`../domain/root.md`, 5.7), its budget and what is reserved, spent and left of it; and each party's pool in it, with the same numbers | a project, and its spend's first page |
 | `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract.md`, 6.1, its parent key) |
 | `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
 | `landing show LANDING` | a landing: its members, each candidate with its base, each gate's key with its receipt or run, the proof's state, the turn, its stale proofs and faults (`../domain/landing.md`, section 14) | the forge's family |
@@ -231,8 +231,8 @@ watch's subject, its digest (5.4). It needs no key.
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
 | `settings show charter NUMBER [--revision REVISION]`, `settings show template\|policy NUMBER`, `settings show rules` | one setting's value whole, as the newest reads it, or a charter as held REVISION reads it; with `--json`, the value in the form `settings apply` takes. A REVISION no longer held exits 2, `temper ctl: revision R is no longer held; its record is in temper ctl revision show R, and the held ones in temper ctl settings show` | `setting{kind, number, revision}` |
-| `settings show landing-rule NUMBER [--project PROJECT]`, `settings show forge-charter` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or the forge's charter; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
-| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, temper's kinds' items with their sizes alone, their past values not kept; a revision forgotten past the history names the oldest kept | `revision{n}` |
+| `settings show landing-rule NUMBER [--project PROJECT]`, `settings show forge-charter NUMBER` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
+| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' items with their sizes and the state they replaced alone, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}` |
 | `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 
@@ -321,10 +321,10 @@ agent must name.
 | `task answer TASK QUESTION TEXT` | answers question QUESTION of the task | `Answer` | |
 | `proposal decide PROPOSAL accept\|reject\|pass-up [REASON] [--running stays\|moves]` | decides a proposal: PROPOSAL is `tN/K` for task N's, `pN/K` for party N's | `Decide` | |
 | `task decide TASK --hold REV release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |
-| `settings propose FILE [REASON] --against REVISION` | proposes the whole settings set to the deployment owners; FILE or `-` shares the format and bounds of `settings apply`; the optional reason is forwarded unchanged | `Propose` settings | yes |
+| `settings propose FILE [REASON] --against REVISION` | proposes the whole settings set to the owners of its items, the deployment's and each project's it names; FILE or `-` shares the format and bounds of `settings apply`; the optional reason is forwarded unchanged | `Propose` settings | yes |
 | `settings apply FILE --against REVISION [--running stays\|moves]` | changes the settings in one decision: FILE (or `-`) holds the items; REVISION is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
 | `revision advance REVISION` | moves every live agent task on held REVISION that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
-| `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items; prints the proposal's number and the settings of temper's kinds it leaves out; `proposal show` then shows its items, and an owner decides it | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
+| `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items: jig's kinds, temper's (`../protocol/configuration.md`, 13.2) and each project's policy a later revision set; REASON follows jig's "restores revision R"; prints the proposal's number and what it leaves out, a deleted project's settings and policy, by kind, project and number; `proposal show` then shows its items, and an owner decides it with `proposal decide`. A revision forgotten past the history exits 2 naming the oldest kept, `temper ctl: revision R is forgotten; the oldest kept is revision O`, and one too large to restore says so, exit 2, a later revision restorable instead | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
 | `task release TASK --hold REV [--again]` | lifts a hold | `Release` | |
 | `task stop TASK` | cancels a task's run, the task held | `Stop` | |
 | `task move TASK --under TASK` | makes the second task the first's requester (jig's `domain/tasks.md`, section 7) | `Move` | yes |
@@ -335,6 +335,7 @@ agent must name.
 | `qa choose LANDING` | chooses a landing's mark for the next QA pass (`../domain/findings.md`, section 8) | the forge's request | yes |
 | `task hold TASK --stop\|--drain REASON` | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks.md`, 5.9) | `Hold` | yes |
 | `project hold PROJECT --stop\|--drain REASON` | places a hold of the party's over the whole project, the party's chats exempt | `Hold` | yes |
+| `project amend PROJECT --visibility public\|private` | makes the project readable by anyone without signing in, or private again (jig's `domain/people.md`, 13.2), by its owner; prints `project 1: public` and, made public, the public page's path from `me`'s public identifier, `/public/projects/3f2a9c01d4e5b6a7`; project 0 and a member are refused, exit 2 | `SetVisibility` | yes |
 | `project fund PROJECT AMOUNT [--role ROLE]` | sets what the project's period may spend, its spend per period, to AMOUNT, in the deployment's unit, or with `--role` that role's; either resizes what the open period gave (jig's `domain/authority.md`, section 7), so a raise funds the next chat at once, and each period the calendar opens takes it (`../domain/root.md`, 5.7). An owner's chats are funded from their pool, their role's, and pools reserve from the project's period, so a raise for them is two calls, the project's first, then the role's; a role's raise past the period's room is refused, exit 2, naming what the period has left. A cut goes the other way, the role's first, since a project's spend below a role's is refused; it keeps each budget at what it has used. A refusal past a ceiling (jig's typed ceiling, its holder, dimension and, for a scalar, its value) exits 2 with one line naming it and the next step: `project fund: past the rules' period spend, V; raise the rules first with temper ctl settings apply`; with `--role`, `past the project's period spend, V; fund the project first: temper ctl project fund P AMOUNT`; a cut, `below role R's period spend, V; lower the role first: temper ctl project fund P AMOUNT --role R`; an authority over its ceiling when rechecked, `the project's authority is past the rules' DIMENSION[, V]; raise the rules with temper ctl settings apply, or narrow the project's policy` (for a role, `role R's authority is past the project's DIMENSION[, V]`), a list's dimension (tools, executors, grants, notes) named without its contents, read whole with `settings show`. Its answer is the edit, `project 1: spend per period 449696` or `role 0: spend per period 415104`, the same under one key by construction (section 7); then a read marked as such, `now: period 1: budget 449696, left 449590`, and with `--role` each of the role's pools now: a replay prints the edit as first answered and today's numbers after it | the project's policy edit, `ProjectSpend`, or with `--role` `RoleSpend` | yes |
 | `hold lift HOLD --rev REV [--with-tasks]` | ends a placed hold; with `--with-tasks`, releases every task it held that nothing else holds | `Lift` | yes |
 | `task cancel TASK [--grace DURATION] REASON` | cancels a task and its tree; a task that has ended refuses a cancel (exit 2), saying how it ended, and the same cancel under its key gets its first answer | `Cancel` | |
@@ -346,28 +347,49 @@ agent must name.
   `{"kind": "charter"|"template"|"policy", "number": N}`,
   `{"kind": "rules"}`, `{"kind": "landing-rule", "number": N}` for the
   deployment's, `{"kind": "landing-rule", "project": P, "number": N}`
-  for project P's, or `{"kind": "forge-charter"}`; VALUE is exactly the
+  for project P's, `{"kind": "forge-charter", "number": N}`, N 1
+  the change's charter and 2 its reviews', or `{"kind":
+  "project-policy", "project": P}`, project P's own policy (jig's
+  `domain/engine.md`, 17.2), set alone and at most once in a file; VALUE is exactly the
   `value` member `settings show … --json` prints: for a landing rule, section
-  3's rule member as `temper.json` wrote it (`../protocol/configuration.md`,
-  13.2), for the forge's charter a charter's number. Decoded bounded (6.4): the file's size, the item count and every
+  3's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
+  `landing-pattern` form, its segments as hex
+  (`../protocol/configuration.md`, 13.2), for the forge's charter a charter's
+  number, and for a project's policy a policy in the form `settings show
+  policy NUMBER --json` prints, the stock's policy 1 a project's starting
+  point. Decoded bounded (6.4): the file's size, the item count and every
   value's bounds are jig's (`ChangeSettings`' own, and the limits the engine's
   `me` gives where it gives them). Past a bound it is refused before anything
   is sent, naming the item and the bound. Unknown members are refused,
   naming them. A member `FIELDS` marks optional may be left out and
   takes the default its row names: a template's model choice is
   `{"main": {"model": M, "effort": E}}` alone, its `account` none and
-  its `subagents` empty; a required
+  its `subagents` empty; a template's `resources`, the symbols a task
+  filled from it holds, is a list of `{"connector": C, "symbol": S}` as
+  jig's format has it (jig's `protocol/configuration.md`, 3.3), left
+  out `[]`, so the reference's goal template names the forge's *its own
+  goal branch* as `{"connector": F, "symbol": 1}`, F the forge's
+  connector (`../domain/forge.md`, section 2); a required
   member left out is refused naming its path, `llm.main`. Every refusal a person reads numbers items from 1, the
   decoder's and the engine's alike (jig's index plus one), and names a
   member by its path in the file, `charter.alternatives`, never by the
   wire's limit's name. `null` is refused where a member takes a value:
   a charter's `model` is a model and its `alternatives` a list, and an
-  authority's models are `"all"` or a list of model names. jig's kinds are the deployment's; a landing rule names
-  its scope, the deployment's or a project's, and a set that touches a
-  project's needs an owner of it (jig's `domain/people.md`, 5.1).
+  authority's models are `"all"` or a list of model names. A project's
+  policy `removed` or `reset`, or a second one, is refused before
+  anything is sent, naming the item. jig's kinds are the deployment's; a landing rule names
+  its scope, the deployment's or a project's, as a project's policy
+  names its project, and a set that touches a project's needs an owner
+  of it, one that touches the deployment's too one person who owns both
+  (jig's `domain/people.md`, 5.1); `settings propose` sends such a set
+  to them, and `settings apply` from one who is not both is refused
+  naming the item, exit 2.
   `proposal show` prints the values of temper's items from the forge's
-  `ProposalItems` read, and `settings show` lists temper's settings with
-  jig's, by the names above.
+  `ProposalItems` read, and a project's policy as it is now and as it
+  would be, each whole, from jig's review; `settings show` lists
+  temper's settings with jig's, by the names above, and no project's
+  policy, which is no setting (`project show` prints its roles and
+  spends).
 - **The form's fields are one table,** `FIELDS`, beside the form's
   decoder in the crate ctl and the runs' `propose_settings` share
   (`temper-settings-form`): a row per member of a shape, by the shape's
@@ -410,6 +432,11 @@ agent must name.
   sent as `Propose` where it is proposable, and the result says so; past
   them, refused by the client, nothing sent. Where `me` gives no bound
   for a draft, it is sent and the engine's answer printed.
+
+A charter's `tools` in a settings file is an integer mask in the same bits
+as an authority's tools. Left out, it is 1,023, every jig family but
+settings, so a settings file written without that member does not offer the
+settings family to its runs (2026-11-04).
 
 ### 5.4 Waiting
 
@@ -469,7 +496,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   | `task list` | none |
   | `account list` | `usable` (an account the party's work may use has a source usable on a host); `settled` (no sign-in or check the party asked is in progress) |
   | `forge list` | `settled` (no forge setting up or connecting: no set up, connect or install the deployment asked is in progress); `connected:FORGE` (forge FORGE is connected); `made:FORGE` (forge FORGE's first repository is made, `../protocol/setup.md`, 6.7) |
-  | `change show TASK` | `pull` (its pull request opened: the panel names its number, which it keeps after the pull request closes or lands); `ci:pending`, `ci:passed`, `ci:failed` (CI at its head, as the panel says it); `held` (it is held); `landed` (its step is landed) |
+  | `change show TASK` | `pull` (its pull request opened: the panel names its number, which it keeps after the pull request closes or lands); `ci:pending`, `ci:passed`, `ci:failed` (CI at its head, as the panel says it); `held` (it is held); `landed` (its step is landed, or one after it: verifying, red, cleared); `cleared` (its step is cleared, or it ended landed and uncleared, as the panel says) |
 
 - **A change's wait outlives its panel's watch,** as the change's page
   does (`../client/forge.md`, 9.2, **Its subject**): when the panel's
@@ -492,6 +519,9 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   not met, exit 3, naming how the task ended (`ended: cancelled`), with
   the panel's last delivery and its digest; one with no panel ever
   delivered prints `no change panel for task N`, exit 2.
+- **A task wait fills its text document before printing** through the same
+  bounded specification reads as plain `task show` (6.4). These supplemental
+  words leave its completion, terminal result and digest unchanged.
 - **`replied`** holds while a chat's status (jig's
   `client/domain/client.md`, section 19, its facts) is parked, waiting
   for you, waiting for them, held, closing or ended. A chat wakes on its
@@ -561,6 +591,16 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `SubjectEnded` answers not met with the last document and its digest,
   and an opening `Unknown` keeps status 2. Run/tree waits retain their
   watch-based completion; there is no additional retry or timer policy.
+  A tree completing from `SubjectEnded` prints `tree ended (watch)`
+  and labels its retained rows `last observed snapshot` before the tree.
+  Their chip phases remain as delivered, even when live: the watch
+  establishes tree completion, not terminal chip facts or a task result.
+  JSON retains the tree and its snapshot digest unchanged and adds
+  `"completion":{"source":"watch","ended":true}` and
+  `"snapshot":"last_observed"` outside it. The digest describes the
+  last observed snapshot, never a reconstructed final tree. A terminal
+  delivery uses the ordinary tree form. Without any delivery, a
+  run/tree watch end refuses `gone`, status 2.
 - **`--timeout`:** 300 seconds by default, at most 3600; answered with
   the current document, its digest, and that the condition is not met
   (6.3).
@@ -601,11 +641,33 @@ The table grows area by area, each with its stories (section 11).
    `../README.md`, section 2): the host's tools of 5.6; every read
    of 5.2 other than the general proposal read of area 2; the watched
    reads' waits (5.4); every act of 5.3.
-2. **Goals and plans:** `goal start --project PROJECT [--priority
-   PRIORITY] [--budget AMOUNT | --as-allowed] [--deadline TIME] TEXT`
+2. **Goals and plans:** `goal start --project PROJECT [--template TEMPLATE]
+   [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT | --as-allowed] [--deadline TIME] TEXT`
    (`shapes::set_goal`, keyed), `proposal show PROPOSAL`, `task amend
    TASK [--rev REV] CHANGE... REASON`, `proposal withdraw PROPOSAL`,
    `seen`.
+
+   `goal start` defaults to stock template 2; `--template` names an
+   offered template, including its charter, contract, tracking, label,
+   flags, LLM choice and symbolic resources. The chosen executor needs
+   `--charter CHARTER`; omitting it fails as usage, exit 1, nothing sent:
+   `template 2 lets its creator choose the executor; name it: --charter CHARTER`.
+   A fixed executor takes its template's charter; also giving `--charter`
+   fails as usage: `template 4's executor is charter 5; leave out --charter`
+   (the numbers name that template and charter). A charter not offered
+   in the project's creating bounds sends nothing, naming the template,
+   the required charter and the offered charters. A budget or deadline
+   past the offered ceiling has a separate diagnostic; a refusal beyond
+   the direct bounds retains jig's reason. If the project has no creating
+   offer, the diagnostic points to the role and the receiving bound
+   `documents.lines` for charter and procedure lists. The fill and authority/proposal
+   judgement are jig's (`jig/docs/design/client/domain/pages.md`, 6.2).
+   Absent controls keep template defaults. A given budget requires
+   `--budget` or `--as-allowed`; a given deadline requires `--deadline`,
+   UTC to the minute as `2026-10-24T17:00Z`. Explicit budget or deadline
+   controls replace the template's corresponding default before filling;
+   `--priority` replaces a tracked template's priority. Model controls
+   are area 5's; absent sub-agent flags preserve the template's list.
 
    The general `proposal show PROPOSAL` reads every proposal kind. For
    settings it prints the engine's current/origin/would-be review and its
@@ -637,7 +699,10 @@ The table grows area by area, each with its stories (section 11).
      the next bullets say. It is the way out a hold for a task's own
      budget or tasks names (jig's `domain/tasks.md`, 5.5; `../domain/forge.md`,
      8.4): `task amend 41 --rev 8 --budget 2000 "room for its review"`,
-     then `task release 41 --hold 3`; a hold whose lack the task's
+     then `task release 41 --hold 3`; for tasks, the hold prints
+     `task amend 41 --rev 8 --tasks N REASON`, then the release. N is
+     a replacement lifetime allowance with room for a repair and review;
+     release never erases tasks already made. A hold whose lack the task's
      authority does not hold (a project's period, a pool) names `project
      fund` instead, and a hold no amendment lifts names the cancel.
    - **`--rev REV` is the spec's revision** that `task show TASK`
@@ -655,7 +720,7 @@ The table grows area by area, each with its stories (section 11).
      tasks restates the task's authority, a spec's words its spec. Where the document cut
      it to the client's bounds, the tool sends nothing and exits 1,
      `temper ctl: task 41's authority is cut in this read; amend its
-     deadline from a client with wider bounds` (or `spec`, `words`).
+     deadline or tasks from a client with wider bounds` (or `spec`, `words`).
    - **Beyond the party's bounds,** an amendment follows 5.3, compared
      by jig's admission for the task's offered `amend` act: within,
      sent; past what the party holds but proposable, a deadline later
@@ -735,6 +800,15 @@ The table grows area by area, each with its stories (section 11).
      result text ceiling; nested sources, hosts, programs and offers do not
      consume an account list's row count. Text presents the bounded JSON
      projection, sharing its omissions and digest for reads and waits.
+   - **Model text** names `models for project N`, then `provider P · NAME`
+     and each `model NAME`. Each model names its description, window and
+     output in tokens, efforts, and input, cached input, cache write and
+     output prices per the supplied token unit, in deployment spend units.
+     Missing provider numbers, names and descriptions print `unknown`;
+     an empty effort list prints `none listed`. The accompanying accounts
+     use the account text above, preserving supplied source and readiness
+     states without inferring provider readiness. Loss prints `cut: true`
+     and the result keeps its `models` digest; JSON retains its records.
    - **One result per call.** `account connect` prints the address and
      returns; the sign-in goes on at the engine, and `account list
      --until settled` follows it (5.4). It never opens a browser, and
@@ -766,8 +840,15 @@ The table grows area by area, each with its stories (section 11).
      ACCOUNT as `account list` shows it.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
-     LLM choice, the charter's default without them (jig's
+     LLM choice, the template's choice or the charter's default without them (jig's
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
+     Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
+     the choice's sub-agents in the order given (jig's
+     `protocol/configuration.md`, 3.1), a model at most once, its effort
+     required where the model declares efforts as `--model`'s is; given,
+     they replace the template's sub-agents whole, and they need
+     `--model`. Without them the choice keeps the template's sub-agents,
+     or names none.
      The bracket applies only to a model with no declared efforts: when
      a model declares efforts, `--effort EFFORT` is required, naming one
      of them. An amendment replaces the main choice whole; its effort is
@@ -868,17 +949,17 @@ The table grows area by area, each with its stories (section 11).
    | `forge list` | each forge the store keeps by its number, kind and `web` address: its connection, "connected as LOGIN (ID)", connecting and what it waits for, stopped and why, not set up, setting up and at which step, set up failed and why, or not connected and why; how its last connect ended, a GitHub App's lacking permissions and events each named; its mode, and "admin's token kept" for managed and owned; on GitHub, the App's slug and its installations, each with its id, its account's login, all or selected repositories, suspended, or not accepted (a stray), "not accepted · kept", with its act, `forge accept FORGE INSTALLATION`; a job's log on a host it does not read, with how to add it; its load; its acts | the forge's deployment part, read and watched (`forge.md`, section 9) | |
    | `forge connect [FORGE] github` | starts GitHub's manifest flow, FORGE a kept GitHub forge, or, with none, a new one, the App made under the person's own account and installed on any account GitHub offers them: prints the link to open in a browser, the manifest's page on the clients' listener, and the call that follows it, `forge list --until settled`; exits 0 once the request is durable | `Connect { forge, how: GitHubManifest { back: none } }` | yes |
    | `forge connect [FORGE] github-app APP FILE [--read-only]` | connects an App of the person's own, FORGE a kept GitHub forge, or, with none, a new one: APP its id, FILE its private key, PEM as GitHub gives it; no webhook secret; temper points the App's hook at `https://SLUG.invalid/` and says so in its output, unless `--read-only` leaves it as read; then `forge list --until settled` | `Connect { forge, how: GitHubApp { id, read_only?, key } }` | yes |
-   | `forge connect FORGE forgejo FILE` (not offered) | connects a Forgejo through its bot's tokens, FILE a tokens file (below) naming `api`, `git` and, where the person made hooks to temper's listener, `webhook_secret`; then `forge list --until settled` | `Connect { forge, how: ForgejoTokens { api, git, webhook_secret? } }` | yes |
-   | `forge connect [FORGE] forgejo-admin FILE [--first ORG/REPOSITORY [--project PROJECT] [--label LABEL]] [--api HOST:PORT --git URL [--tls NAME] [--web URL] [--git-program FILE]]` | connects a Forgejo as its site admin, FILE the admin's token: FORGE a kept managed Forgejo, or, with none, a new one, managed, at `--api`, its API's host and port, and `--git`, its remotes' base, both required without FORGE and refused with it, as are the three that follow, with `--tls`, its TLS server name, plaintext without it, `--web`, its pages, and `--git-program`, the git its workers run, theirs without it (`README.md`, 4.6, `ManagedForge`); Reconcile makes or finds its marked bot, never TakeOver; with `--first`, makes ORG/REPOSITORY with the starter workflow, PROJECT a number or name as for `forge setup`, default a new project named REPOSITORY, runner LABEL default `docker`; the token is kept only after Reconcile and Create are Done, and every end erases the carried value; without `--first`, prints `connecting` and `forge list --until connected:FORGE`; with `--first`, prints `connecting`, waits for Made and Connected, then shares `forge setup`'s MakeProject and adoption continuation, as PROJECT's home unless it has one, with key `first-repository-F`; prints the project number and adoption (JSON: `project` and `outcome`) and exits 0; a stop or failed Create exits 1 naming the reason or step; an ORG equal to the bot's login, case-folded, is refused before any write and exits 2, `first_is_bot`, "the organization is the bot's login: name another organization" | `Connect { forge, how: ForgejoAdmin { first? } }`, `forge` the kept one or a `ManagedForge`, token carried as AdminToken | yes |
+   | `forge connect [FORGE] forgejo FILE [--api HOST:PORT --git URL [--tls NAME] [--web URL] [--git-program FILE]]` | connects a Forgejo through its bot's tokens, FILE a tokens file (below) naming `api`, `git` and, where the person made hooks to temper's listener, `webhook_secret`: FORGE a kept connected Forgejo, not connected or stopped, or, with none, a new one, connected, at `--api` and `--git`, both required without FORGE and refused with it, as are the three that follow, as `forgejo-admin`'s are; the setup host checks that both tokens answer as one user, not a site admin, and on a kept forge as its kept user, then keeps them and connects as that user; prints `connecting` and the call that follows, `forge list --until connected:FORGE`, and exits 0 once the request is durable; refused, exit 2, in `ForgeRefusal`'s words (`README.md`, 4.6) | `Connect { forge, how: ForgejoTokens }`, `forge` the kept one or a `connected` `ManagedForge`, the tokens and the secret carried as `ApiToken`, `GitToken` and `WebhookSecret` | yes |
+   | `forge connect [FORGE] forgejo-admin FILE [--first ORG/REPOSITORY [--project PROJECT] [--label LABEL]] [--api HOST:PORT --git URL [--tls NAME] [--web URL] [--git-program FILE]]` | connects a Forgejo as its site admin, FILE the admin's token: FORGE a kept managed Forgejo, or, with none, a new one, managed, at `--api`, its API's host and port, and `--git`, its remotes' base, both required without FORGE and refused with it, as are the three that follow, with `--tls`, its TLS server name, plaintext without it, `--web`, its pages, and `--git-program`, the git its workers run, theirs without it (`README.md`, 4.6, `ManagedForge`); Reconcile makes or finds its marked bot, never TakeOver; with `--first`, makes ORG/REPOSITORY with the starter workflow, unadopted, PROJECT a number or name as for `forge setup`, default a new project named REPOSITORY, held in the call's own run and never sent in `first`, runner LABEL default `docker`; the token is kept only after Reconcile and Create are Done, and every end erases the carried value; without `--first`, prints `connecting` and `forge list --until connected:FORGE`; with `--first`, prints `connecting`, waits for Made and Connected, then shares `forge setup`'s MakeProject and adoption continuation, as PROJECT's home unless it has one, with key `first-repository-F`; prints the project number and adoption (JSON: `project` and `outcome`) and exits 0; a stop or failed Create exits 1 naming the reason or step; an ORG equal to the bot's login, case-folded, is refused before any write and exits 2, `first_is_bot`, "the organization is the bot's login: name another organization" | `Connect { forge, how: ForgejoAdmin { first? } }`, `forge` the kept one or a `ManagedForge`, token carried as AdminToken | yes |
    | `forge install FORGE` | prints a fresh link to install temper's App on another account, GitHub alone; the installation shows on `forge list` once the person's browser comes back | `Install { forge, back: none }` | |
    | `forge accept FORGE INSTALLATION` | accepts INSTALLATION, an installation of temper's App that exists already on GitHub and that `forge list` shows not accepted, with no browser: read on GitHub as the App's, then kept as an installation accepted through the setup route is (`../protocol/setup.md`, 17.4); prints `accepted: installation I on forge F` and the call that follows, `forge repositories FORGE --installation INSTALLATION`, exit 0, and the same when it is accepted already; refused, exit 2, as `forge install` is, or, its run stopped, in the forge's words for its reason (`README.md`, 4.6): "GitHub has no installation I of this App", "GitHub refused the App's read of installation I", "GitHub did not answer: try again", "temper keeps at most N installations" | `Accept { forge, installation }` | |
-   | `forge replace FORGE FILE` | replaces what a person pasted: on GitHub, FILE the App's new key; on a connected Forgejo, a tokens file naming `api`, `git` or both; it must answer as the forge's user, and the old is erased once the new is kept | `Replace { forge, value }` | |
+   | `forge replace FORGE FILE` | replaces what a person pasted, on a forge connected or stopped: on GitHub, FILE the App's new key, PEM as GitHub gives it, which must be a key of the same App; on a connected Forgejo, a tokens file naming `api`, `git` or both, and `webhook_secret` when the hooks' secret changes, which must answer as the forge's user; each new value is kept over the old, and the forge connects with them; prints `connecting` and `forge list --until connected:FORGE`, and exits 0 once the request is durable; refused, exit 2, in `ForgeRefusal`'s words, `not connected` on a forge not connected and `busy` while it connects | `Replace { forge }`, the key or the tokens carried | yes |
    | `forge forget FORGE` | erases a managed forge's admin's token; the forge is connected, its bot and tokens kept | `Forget { forge }` | |
-   | `forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground]` | sets up an owned Forgejo here, under the box, with its first repository, FORGE a kept owned Forgejo, or, with none, a new one, made as the request is admitted (`../protocol/forge.md`, 2.2): the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `ORG/REPOSITORY` (default `work/hello`) with the starter workflow, or with `--playground` makes `playground/widget` as the playground's copy, its files beside the starter workflow, taking no `--org` or `--repository` (a usage error, exit 1, with either), and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `forge list --until made:FORGE` does, then adopts `ORG/REPOSITORY` into PROJECT, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named REPOSITORY (`../draft/archive/first-run.md`, 2.4), as `repository adopt --project PROJECT --forge FORGE --owner ORG --name REPOSITORY --landing main` would, as PROJECT's home unless PROJECT already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption and exits 0. Refused, exit 2: "not offered" (the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "a new project" (a new one, by no `--project` or a PROJECT no project holds, waits on jig's projects at runtime), "invalid" (ORG or REPOSITORY not a name Forgejo takes, or ORG, REPOSITORY or PROJECT's name empty or too long), or, without the box, "not under the box", saying to start temper with `temper box` (`../client/forge.md`, 5.4; `../protocol/setup.md`, 7.4). Set up failed, or its first repository failed, exit 1, naming the step. With `--playground`, ORG and REPOSITORY above are `playground` and `widget`, and the default project a new one named `widget` | `SetUp { forge, org, repository, project, playground }`; then `Adopt` | |
+   | `forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground]` | sets up an owned Forgejo here, under the box, with its first repository, FORGE a kept owned Forgejo, or, with none, a new one, made as the request is admitted (`../protocol/forge.md`, 2.2): the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `ORG/REPOSITORY` (default `work/hello`) with the starter workflow, or with `--playground` makes `playground/widget` as the playground's copy, its files beside the starter workflow, taking no `--org` or `--repository` (a usage error, exit 1, with either), and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `forge list --until made:FORGE` does, then adopts `ORG/REPOSITORY` into PROJECT, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named REPOSITORY (`../draft/archive/first-run.md`, 2.4); PROJECT is the call's own, held in its run and never sent with `SetUp`, which names no project (`../protocol/setup.md`, 6.7), so that a call restored from its kept `SetUp` takes it from its own arguments; it adopts as `repository adopt --project PROJECT --forge FORGE --owner ORG --name REPOSITORY --landing main` would, as PROJECT's home unless PROJECT already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption and exits 0. Refused, exit 2: "not offered" (the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "invalid" (ORG or REPOSITORY not a name Forgejo takes, or ORG, REPOSITORY or PROJECT's name empty or too long, PROJECT's checked by the call before it sends), or, without the box, "not under the box", saying to start temper with `temper box` (`../client/forge.md`, 5.4; `../protocol/setup.md`, 7.4). Set up failed, or its first repository failed, exit 1, naming the step. With `--playground`, ORG and REPOSITORY above are `playground` and `widget`, and the default project a new one named `widget` | `SetUp { forge, org, repository, playground }`; then `MakeProject` when PROJECT names no project, and `Adopt` | |
    | `playground start` | starts the playground (`../protocol/setup.md`, 8.4): the engine makes its fake forge, the box starts its fakes, and the engine adds the scripted model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (a real forge kept). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartPlayground` | |
    | `playground end` | resets the playground (`../protocol/setup.md`, 8.4), as the banner's "set up temper" does (`README.md`, 4.8): its project deleted, its fake forge removed and the scripted model's account removed, each a kept act the engine resumes at its next start if one is cut; waits for the answer, then prints `reset` and exits 0, once the playground is gone. Refused, exit 2: "not offered" (no playground) | `EndPlayground` | |
    | `forge remove FORGE` | removes forge FORGE (`../domain/forge.md`, 4.1): ended at once, then, by kept acts, its live work cancelled, its box group stopped and its directory removed, its records erased; on the forge itself only what temper ran is undone, a managed Forgejo's bot and hooks and a GitHub App staying the person's. Prints `removed` and exits 0 once the forge is ended. Refused, exit 2, in `ForgeRefusal`'s words: not the deployment's owner, no such forge, or not taken by this forge (the playground's, which `playground end` removes) | `RemoveForge { forge }` | |
-   | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../client/forge.md`, 9.2; `README.md`, 4.6), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../client/forge.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; then the call that follows it, `change show TASK --until landed` while it is live. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`forge.md`, 9.2) | |
+   | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../client/forge.md`, 9.2; `README.md`, 4.6), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../client/forge.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; its questions (`forge.md`, 9.2): its route, the questions taken used of its bound, and one line per open question, its asker's task and the question's number, where it stands (`taken`, `with foreman F`, `asked of requester`, `answered, held for dependencies`) and the first line of its words; then the call that follows it, `change show TASK --until landed` while it is live and has not landed, `change show TASK --until cleared` while it is verifying or red. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`forge.md`, 9.2) | |
    | `forge repositories FORGE [--installation INSTALLATION] [--page PAGE]` | the picker's PAGE, from 1 (`README.md`, 4.4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `repository adopt --ids`; then the call that reads page PAGE plus one while more follow, or that none do. `--installation INSTALLATION` is an accepted installation's id, as `forge list` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
 
    - **`forge list`'s text,** one line per forge, in number order: `forge N
@@ -910,8 +991,9 @@ The table grows area by area, each with its stories (section 11).
      user's own, no group or other bits, not reached through a link),
      within the bound of section 12. Group or other permissions are refused
      before reading, naming the file and its mode in octal. An admin's
-     token is item 1, with six bytes of framing within 4096 bytes; it
-     is never restored as an RSA key or replayed from a carried request.
+     token is a bundle of one `AdminToken` item, within 4096 bytes in
+     all; it is never restored as an RSA key or replayed from a carried
+     request.
      `--project` and `--label` require `--first`; ORG and REPOSITORY are
      nonempty within the wire's bounds, and LABEL is 1 to 64 letters,
      digits, dots, dashes or underscores. A key's file and an admin's
@@ -1092,11 +1174,16 @@ digest: task 7c1e09a2b44f0d13
   (forty characters), the pull request by its number, as the result's
   settled resource gives it (its repository and host too where the
   resource is a path, `README.md`, 4.1), then the call that reads its
-  panel, `change show TASK`; the id is the words' first line, and their
-  second, the same pull request with its address (`../domain/root.md`,
-  section 6), prints as `pull request: ADDRESS` when the task's document
+  panel, `change show TASK`; the id is the words' first line. The
+  pull request line, after any verification words, with its address
+  (`../domain/root.md`, section 6), prints as `pull request: ADDRESS` when the task's document
   carries it whole: a line the document's text window cut prints
-  nothing, and `change show TASK` has the address; a change's words that
+  nothing, and `change show TASK` has the address. Verification words
+  immediately after the id remain readable: `Cleared by TIER run N.`,
+  or why it is uncleared. Within ctl's text budget, their evidence takes
+  room before the optional pull address. Retained results with the pull
+  line immediately after the id and verification after the landing line
+  render alike when the document carries those lines. A change's words that
   are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
   as they are; a connector's its summary and its part in the forge's
   words; a failed or cancelled task's its reason, if it gave one. Words
@@ -1271,6 +1358,15 @@ may change with them.
 - **Program identifiers and manage URLs are whole or omitted.** If one
   cannot fit the text budget, JSON prints null and text omits its bytes;
   the document's cut flag is true. A displayed prefix is never a target.
+- **Text `task show`, including waits, fills its `asked:` words** with
+  sequential specification reads when the overview is cut, up to the smaller
+  of the part and text bounds and the result byte ceiling. Rendering shares the result's text
+  budget; any undisplayed source ends with a `task text TASK --field
+  specification --from OFFSET` continuation. A refused or nonadvancing
+  chunk stops retrieval and keeps a continuation. A wait retains its validated
+  terminal task and result, or its meeting delivery, while retrieving these
+  words; its status and `met` envelope stay those of that completion. JSON keeps
+  the bounded overview and its digest; supplemental text never changes the digest.
 - **Long texts are paged, never whole by default:** `chat show`, `task
   activity`, `task turn` and `task text` take a cursor or an offset.
   `task text` reads the source rather than the overview's prefix. It prints
@@ -1396,6 +1492,22 @@ temper ctl help [GROUP [VERB]]
 - **`address`** is `temper-client-shell-cli`'s: one line,
   `http://HOST:PORT`, `0o600`, written by `sign-in` and read by every
   other call.
+- **A DIRECTORY the call cannot use** ends it, exit 1, with one line
+  naming what failed: `DIRECTORY does not exist`; `DIRECTORY is not
+  private` (or its `address` or `token`); `DIRECTORY is not signed in`,
+  with no `address`, no `token` or a zero-byte one; `DIRECTORY is busy
+  with another call` (8.3); otherwise the step and the error,
+  `DIRECTORY could not be read: STEP: ERROR`, STEP `open`, `lock`,
+  `address` or `token`, or `DIRECTORY could not be written: address:
+  ERROR` when `sign-in` writes it. ERROR is the file layer's error by
+  its name (`NotFound`, `Permission`, ...), `too large` past the file's
+  bound, or `unexpected answer`.
+- **A FILE the call reads** that cannot be read ends it the same way,
+  naming the file and the error: `FILE could not be read: ERROR` for
+  `sign-in`'s link and `--call`'s call, `text file could not be read:
+  ERROR` for a text file, `key file could not be read: ERROR` for a key
+  file, `record file` for `account import`'s. A DIRECTORY failure is
+  never printed as a FILE's, nor a FILE's as DIRECTORY's.
 - **`--call FILE`** reads one call as JSON, `{"tool": ..., "arguments":
   {...}}`, from FILE, or from stdin for `-`.
 - **A call `--call` reads gives no argument of the type a file** (5.1),
@@ -1638,6 +1750,12 @@ is reset, the store empty again.
   hidden history, Busy, sign-out and read failure. Only matching
   terminal records meet `ended`; each path emits exactly one result
   and releases its handles and timer. No new harness (5.4).
+- **Tree waits,** in the same tools step fixture: an Idle-root delivery
+  remains pending until `SubjectEnded`; text and JSON then report
+  watch completion and label the unchanged rows as the last observed
+  snapshot, with its digest. Terminal deliveries, no-delivery `gone`,
+  timeout, `--since`, and a single answer with watch/timer cleanup
+  are covered here: no forge, workflow, model or kernel is needed (5.4).
 - **The boundary:** `src/jig/` names no temper item (section 4).
 - **The bounds:** each of the tools' ceilings within the client's limit
   it reads from, and a picker's page within a result's text (section
@@ -1689,7 +1807,8 @@ list --until settled` and the forge connected; a pasted connect cut
 before its answer and asked again with its key and file, one connect;
 an App lacking a permission and an event, each named on the forge's
 row; a tokens file with a line broken, exit 1 naming the line and
-never its value; `forge repositories` by page number, a full last
+never its value; a connected Forgejo connected by its tokens file, its
+replace of one token, and a replace refused `not connected`; `forge repositories` by page number, a full last
 page's next and a page past the last answering no rows, and one row
 adopted with `--ids`; a second picker's read while one runs, busy; a
 call by a party whose role does not hold the deployment's connectors,
@@ -1782,7 +1901,11 @@ person clicks it, and no story calls github.com:
   project and adoption; existing projects by name or number, reruns,
   stops and failed Create are covered. Without `--first`, prints `forge
   list --until connected:FORGE`. Also an owned forge's `forge
-  repositories`. Plain `forgejo FILE` stays unoffered.
+  repositories`, and a connected Forgejo: `forge connect forgejo
+  FILE --api HOST:PORT --git URL` with a tokens file, connected as its
+  user; `forge replace FORGE FILE` with a new git token alone,
+  connected again as the same user; and a tokens file of another user,
+  stopped, named on its row, the forge as it was.
 - **No secret kept:** after each, no pasted value, key, token or secret
   in a root, a fact, a record but the secrets' store's, a request or an
   answer, nor in DIRECTORY's store.
@@ -1821,9 +1944,11 @@ Settings inventory, individual values, history, proposals, owner decisions
 and placed holds use the CLI's scripted machine world, client tools' step
 tests and jig's core worlds. Their rendering is 11.1's. Running work
 keeps its revision in `tests/system/tests/suite/running_revision.rs`
-(`../domain/testing.md`, 2.1): two parked chats retain R after an owner's
-instruction change makes R+1; the owner's advance moves both, and smith's
-next requests read R+1's instructions. Jig's worlds cover a restart with
+(`../domain/testing.md`, 2.1): after an owner's instruction change makes
+R+1, running work staying, a parked task that is no conversation runs
+again on R, its run and smith's requests reading R's instructions, while
+a parked chat moves at its next run and reads R+1's; the owner's advance
+then moves the first, whose next run reads R+1's. Jig's worlds cover a restart with
 R held, a removed charter and revision bounds.
 
 The focused suite has one short path through the shipped binary on fakes

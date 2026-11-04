@@ -67,6 +67,7 @@ pub(super) fn validate_transcript(
     conversation: &Conversation,
     transcript: &crate::record::Transcript,
     answered: &[crate::record::Answered],
+    withheld_name: Option<&[u8]>,
     limits: &Limits,
 ) -> Result<(u32, u64, Resumed), crate::record::Refusal> {
     use crate::record::{Refusal, VERSION};
@@ -111,11 +112,11 @@ pub(super) fn validate_transcript(
             validate_recorded(message)?;
             match withheld {
                 Some(id) => {
-                    validate_wait_result(message, id)?;
+                    validate_withheld_result(message, id)?;
                     withheld = None;
                 }
                 None => {
-                    let missing = validate_link(previous, message)?;
+                    let missing = validate_link(previous, message, withheld_name)?;
                     if let Some(position) = missing {
                         let assistant = previous.expect("a missing result follows its assistant call");
                         withheld = match assistant
@@ -154,7 +155,7 @@ pub(super) fn validate_transcript(
     if count.checked_add(3).ok_or(Refusal::TooLarge)? > limits.history_messages || bytes > limits.history_bytes {
         return Err(Refusal::TooLarge);
     }
-    let resumed = resumed_tail(tail, withheld);
+    let resumed = resumed_tail(tail, withheld, withheld_name);
     Ok((sequence, bytes, resumed))
 }
 
@@ -206,22 +207,22 @@ pub(super) fn validate_answers(
     Ok(())
 }
 
-pub(super) fn resumed_tail(tail: &Message, withheld: Option<&[u8]>) -> Resumed {
+pub(super) fn resumed_tail(tail: &Message, withheld: Option<&[u8]>, withheld_name: Option<&[u8]>) -> Resumed {
     match withheld {
-        Some(id) => Resumed::WaitWithheld { id: skein_lib::bytes::copy_of(id) },
+        Some(id) => Resumed::Withheld { id: skein_lib::bytes::copy_of(id) },
         None => match tail.role {
             Role::User => Resumed::Settled,
             Role::Assistant => {
-                let mut wait = None;
+                let mut withheld = None;
                 for block in &tail.content {
                     match block {
-                        Block::ToolCall { id, name, .. } if name.as_ref() == b"wait" => {
-                            if wait.is_some() {
+                        Block::ToolCall { id, name, .. } if withheld_name == Some(name.as_ref()) => {
+                            if withheld.is_some() {
                                 // A generic assistant tail may hold several unstarted calls.
-                                // Only the single own wait tail identifies a held wait.
+                                // Only a single matching call identifies a withheld result.
                                 return Resumed::Settled;
                             }
-                            wait = Some(id);
+                            withheld = Some(id);
                         }
                         Block::ToolCall { .. }
                         | Block::Text { .. }
@@ -230,8 +231,8 @@ pub(super) fn resumed_tail(tail: &Message, withheld: Option<&[u8]>) -> Resumed {
                         | Block::ToolResult { .. } => {}
                     }
                 }
-                match wait {
-                    Some(id) => Resumed::WaitWithheld { id: id.clone() },
+                match withheld {
+                    Some(id) => Resumed::Withheld { id: id.clone() },
                     None => Resumed::Settled,
                 }
             }
@@ -243,10 +244,12 @@ pub(super) fn restore(
     conversation: &mut Conversation,
     mut transcript: crate::record::Transcript,
     mut answered: Box<[crate::record::Answered]>,
+    withheld_name: Option<&[u8]>,
     limits: &Limits,
 ) -> Result<u32, crate::record::Refusal> {
     use crate::record::Refusal;
-    let (sequence, mut bytes, resumed) = validate_transcript(conversation, &transcript, &answered, limits)?;
+    let (sequence, mut bytes, resumed) =
+        validate_transcript(conversation, &transcript, &answered, withheld_name, limits)?;
     conversation.jobs.highest = transcript.turns.last().expect("validated nonempty history").jobs;
     compaction::restore(conversation, &transcript, &mut bytes)?;
     bytes = bytes.checked_sub(compaction::carry_over(conversation, &mut transcript)?).ok_or(Refusal::TooLarge)?;
@@ -260,7 +263,7 @@ pub(super) fn restore(
         transcript.turns.last().expect("validated nonempty history").messages.last().expect("validated nonempty turn");
     let waiting = match &resumed {
         Resumed::Settled => false,
-        Resumed::WaitWithheld { .. } => true,
+        Resumed::Withheld { .. } => true,
     };
     let added = match last.role {
         Role::Assistant => {
@@ -268,7 +271,7 @@ pub(super) fn restore(
         }
         Role::User => match &resumed {
             Resumed::Settled => prompt_charge,
-            Resumed::WaitWithheld { id } => {
+            Resumed::Withheld { id } => {
                 prompt_charge.checked_add(len(id).ok_or(Refusal::TooLarge)?).ok_or(Refusal::TooLarge)?
             }
         },
@@ -308,11 +311,15 @@ pub(super) fn restore(
                     unreachable!("admission constructs one text block")
                 }
             };
-            unrun(conversation, text, &mut answered, waiting)
+            let withheld = match &resumed {
+                Resumed::Settled => None,
+                Resumed::Withheld { id } => Some(id.as_ref()),
+            };
+            unrun(conversation, text, &mut answered, withheld)
         }
         Role::User => match resumed {
             Resumed::Settled => prompt.content,
-            Resumed::WaitWithheld { id } => {
+            Resumed::Withheld { id } => {
                 let mut parts = prompt.content.into_iter();
                 let text = match parts.next().expect("admission's initial text") {
                     Block::Text { text, .. } => text,
@@ -413,6 +420,7 @@ pub(super) fn validate_recorded(message: &Message) -> Result<(), crate::record::
 pub(super) fn validate_link(
     previous: Option<&Message>,
     message: &Message,
+    withheld_name: Option<&[u8]>,
 ) -> Result<Option<u32>, crate::record::Refusal> {
     use crate::record::Refusal;
     let Some(previous) = previous else {
@@ -454,20 +462,20 @@ pub(super) fn validate_link(
                 }
             }
         }
-        Role::User => return validate_results(previous, message),
+        Role::User => return validate_results(previous, message, withheld_name),
     }
     Ok(None)
 }
 
 /// A resumed withheld result must appear before the next assistant turn.
-pub(super) fn validate_wait_result(message: &Message, wait: &[u8]) -> Result<(), crate::record::Refusal> {
+pub(super) fn validate_withheld_result(message: &Message, withheld: &[u8]) -> Result<(), crate::record::Refusal> {
     if message.role != Role::User {
         return Err(crate::record::Refusal::Malformed);
     }
     let mut found = false;
     for block in &message.content {
         match block {
-            Block::ToolResult { id, .. } if id.as_ref() == wait && !found => found = true,
+            Block::ToolResult { id, .. } if id.as_ref() == withheld && !found => found = true,
             Block::ToolResult { .. } | Block::ToolCall { .. } => return Err(crate::record::Refusal::Malformed),
             Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {}
         }
@@ -478,7 +486,11 @@ pub(super) fn validate_wait_result(message: &Message, wait: &[u8]) -> Result<(),
     Ok(())
 }
 
-pub(super) fn validate_results(previous: &Message, message: &Message) -> Result<Option<u32>, crate::record::Refusal> {
+pub(super) fn validate_results(
+    previous: &Message,
+    message: &Message,
+    withheld_name: Option<&[u8]>,
+) -> Result<Option<u32>, crate::record::Refusal> {
     use crate::record::Refusal;
     let mut next = 0_u32;
     let mut seen = next_result(&message.content, &mut next)?;
@@ -500,7 +512,7 @@ pub(super) fn validate_results(previous: &Message, message: &Message) -> Result<
                     };
                     if matches {
                         seen = next_result(&message.content, &mut next)?;
-                    } else if name.as_ref() == b"wait" && withheld.is_none() {
+                    } else if withheld_name == Some(name.as_ref()) && withheld.is_none() {
                         withheld = Some(u32::try_from(position).or(Err(Refusal::TooLarge))?);
                     } else {
                         return Err(Refusal::Malformed);
@@ -553,9 +565,9 @@ pub(super) fn recorded_shape(message: &Message, limits: &Limits) -> Result<(), c
     }
 }
 
-/// The restored opening is either fresh user text or the result of the last own wait.
+/// The restored opening is either fresh user text or the result of the withheld call.
 #[derive(Debug)]
 pub(super) enum Resumed {
     Settled,
-    WaitWithheld { id: Box<[u8]> },
+    Withheld { id: Box<[u8]> },
 }

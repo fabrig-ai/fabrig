@@ -4,7 +4,7 @@ use skein_fake_forge_domain::{Observation, api};
 use skein_fake_llm_domain::api::Scripts;
 use temper_real_loop_world::{
     Exit, argv,
-    calls::{D1, Step, call, file, number, sign_in},
+    calls::{D1, Step, call, file, number, sign_in, until},
     fixtures,
     github::{self, check_chat_heard_the_landing_at, check_landing_at},
     landing, llm, run_github,
@@ -307,6 +307,20 @@ fn refused_repair_scripts(at: std::net::SocketAddr) -> Scripts {
     use serde_json::json;
     use skein_fake_llm_domain::api::{Finish, Line, Turn};
     let mut scripts = repair_scripts(at);
+    // Each refused repair wakes the chat with a hold, rather than a landed change.
+    let chat = scripts.cued.first_mut().expect("chat script");
+    let mut turns = chat.turns.to_vec();
+    let waiting = Turn {
+        lines: Box::new([
+            Line::Text { text: b"The repair is held.".as_slice().into() },
+            Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
+        ]),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    };
+    *turns.last_mut().expect("chat's landing report") = waiting.clone();
+    turns.push(waiting);
+    chat.turns = turns.into();
     let script = scripts.cued.last_mut().expect("repair script");
     script.turns = Box::new([Turn {
         lines: Box::new([Line::Call {
@@ -328,8 +342,16 @@ fn replacement_acts() -> Vec<Step> {
     acts.extend([
         call(D1, argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"]),
         call(D1, argv!["task", "release", number(CHANGE_TASK), "--hold", "1"]),
-        call(D1, argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"]),
+        // The replacement's no_change verdict creates hold 2; the panel can still show hold 1 after release.
+        until(
+            D1,
+            argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"],
+            b"task release 2 --hold 2;",
+            b"task release 2 --hold 1;",
+        ),
         call(D1, argv!["task", "activity", number(CHANGE_TASK), "--json"]),
+        // The replacement's hold wakes the chat; wait for its acknowledgement to park.
+        call(D1, argv!["task", "show", number(CHAT_TASK), "--until", "phase:idle", "--json"]),
     ]);
     acts
 }

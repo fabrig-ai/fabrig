@@ -1,9 +1,6 @@
 //! GitHub's bounded field walker, independent of Forgejo's tables.
 use super::super::delivery::{Ci, Event as Hook};
-use super::super::{
-    document,
-    limits::{DEPTH, Limits},
-};
+use super::super::{document, limits::Limits};
 use super::{Malformed, pull_graphql::Node as PullNode};
 use skein_json::{
     Token,
@@ -720,7 +717,7 @@ impl Walk {
         Self::root(Role::Payload(Payload::Root(event)), limits)
     }
     fn root(role: Role, limits: &Limits) -> Self {
-        Self { open: Stack::with_capacity(DEPTH), want: Want::Start(role), limits: *limits, enqueue: false }
+        Self { open: Stack::with_capacity(limits.json.depth), want: Want::Start(role), limits: *limits, enqueue: false }
     }
     pub(super) fn step(&mut self, event: Event) -> Result<Move, Malformed> {
         if let Event::Failed(error) = event {
@@ -1095,7 +1092,7 @@ impl Walk {
                 return Err(Malformed::Shape { field: b"" });
             }
         };
-        if self.open.len().saturating_add(depth) > DEPTH {
+        if self.open.len().saturating_add(depth) > self.limits.json.depth {
             return Err(Malformed::Json(tokenizer::Error::TooDeep));
         }
         if depth == 0 {

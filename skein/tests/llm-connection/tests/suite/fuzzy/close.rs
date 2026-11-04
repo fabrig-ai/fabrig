@@ -13,12 +13,12 @@ fn close_and_abort_cross_racing_call_terminals_without_spin_or_repeated_events()
         let per_endpoint = u32::try_from(rng.between(1, 3)).expect("draw fits");
         let run = |seed| {
             let mut input = skein_llm_world::call(7);
-            input.endpoint = skein_llm::Endpoint::codex();
+            input.endpoint = skein_llm::Endpoint::openai();
             input.prompt.instructions = b"close-world".as_slice().into();
             let mut bounds = skein_llm_world::limits();
             bounds.http.request = skein_llm::client::request_head(
                 &input.endpoint,
-                &skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+                &skein_llm::client::CredentialLimits { value: 2048 },
                 &bounds,
             )
             .unwrap();

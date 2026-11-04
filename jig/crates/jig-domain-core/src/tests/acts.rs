@@ -199,7 +199,7 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
     assert_eq!(budget_left, 400);
     assert_eq!(authority.ceiling.spend, 500);
     assert_eq!(ceiling.ceiling.spend, 600);
-    assert_eq!(authority.tasks, core.tasks.delegation(1).unwrap().tasks_left);
+    assert_eq!(authority.tasks, core.authority.role(1, 0).unwrap().authority.delegation.tasks);
     assert_eq!(beyond, Beyond::Proposed { to: policy_holder(&[0]) });
     let mut after = core.tasks.task(1).unwrap().authority.clone();
     after.budget.spend = 550;
@@ -861,6 +861,58 @@ fn procedure_goal_bounds_and_admission_keep_exact_executor_and_authority_facts()
 }
 
 #[test]
+fn charter_goal_bounds_refuse_an_incomplete_executor_list() {
+    let (mut core, mut limits) = core();
+    limits.tasks.charters = 8;
+    limits.authority.executors = 6;
+    limits.documents.executors = 6;
+    limits.documents.lines = 3;
+    let numbers = [1, 2, 4, 5, 6, 7];
+    let kinds = numbers.map(authority::Executor::Charter);
+    let mut defaults = config(1).defaults;
+    defaults.charters = numbers
+        .map(|number| {
+            let mut charter = core.current.charter(1).unwrap().clone();
+            charter.number = number;
+            charter
+        })
+        .into();
+    core.current = crate::settings::Current::new(defaults, &limits, &[]);
+    let mut rules = core.authority.rules().clone();
+    rules.ceiling.delegation.kinds = kinds.into();
+    let mut policy = core.authority.policy(1).unwrap().clone();
+    policy.ceiling.delegation.kinds = kinds.into();
+    policy.roles[0].authority.delegation.kinds = kinds.into();
+    core.authority = authority::Domain::new(rules, limits.authority).unwrap();
+    let mut out = Queue::uncapped();
+    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
+    assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
+    assert_eq!(
+        fixtures::creating(&core, &limits, 1, 1),
+        Admission::Refused(people::Refusal::Limit { which: people::LimitKind::Authority })
+    );
+    limits.documents.lines = 8;
+    let Admission::Bounded { within: Bounds::Create { charters, procedures, .. }, .. } =
+        fixtures::creating(&core, &limits, 1, 1)
+    else {
+        panic!("complete goal facts")
+    };
+    assert_eq!(charters.as_slice(), &numbers);
+    assert!(procedures.is_empty(), "charter overflow is independent of procedures");
+    crate::acts::bounds::create_start(
+        &core,
+        1,
+        1,
+        people::Role::Owner,
+        tasks::Executor::Agent { charter: 5 },
+        100,
+        None,
+        limits.tasks.tree_tasks,
+    )
+    .unwrap();
+}
+
+#[test]
 fn procedure_goal_bounds_refuse_an_incomplete_executor_list() {
     let (core, mut limits) = core();
     limits.documents.lines = 1;
@@ -1137,4 +1189,48 @@ fn person_task_flight(core: &mut Core, token: Token) -> Option<PersonTaskRoute> 
     }
     let flight::Flight::PersonTask { route, .. } = core.land(found?.token())? else { return None };
     Some(route)
+}
+
+#[test]
+fn a_party_can_replace_a_tasks_lifetime_allowance_within_its_roles_authority() {
+    let (mut core, limits) = core();
+    policy(&mut core, true, 1000);
+    make_task(&mut core, &limits, 1);
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::CarvePool {
+            reply_to: ReplyTo::new(Token::new(2)),
+            project: 1,
+            person: 1,
+            period: 1,
+            budget: 600,
+        },
+    );
+    let mut after = core.tasks.task(1).unwrap().authority.clone();
+    after.delegation.tasks = core.authority.role(1, 0).unwrap().authority.delegation.tasks;
+    assert!(after.delegation.tasks > core.tasks.delegation(1).unwrap().tasks_left);
+    let mut change = tasks::Amendment { authority: Some(after), ..fixtures::unchanged(b"") };
+    assert_eq!(
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
+        Ok(false)
+    );
+    change.authority.as_mut().unwrap().delegation.tasks += 1;
+    assert_eq!(
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
+        Err(people::Refusal::Authority {
+            lacking: people::Lack::Tasks { left: core.authority.role(1, 0).unwrap().authority.delegation.tasks },
+            proposable: Some(people::Accepter::Role(0)),
+        })
+    );
 }

@@ -32,7 +32,7 @@ pub(super) fn parse(
         return None;
     }
     let path = path.member(b"provider");
-    let mut object = check::object(document, at, &path, problems)?;
+    let mut object = check::object(document, at, &path, problems, "client-provider")?;
     let key = check::path(&mut object, document, b"key", &path, Directory::Data, directories, problems);
     let mut clients = List::<ProviderClient>::with_capacity(document.len());
     if let Some(items) = check::list(&mut object, document, b"clients", document.len(), &path, problems) {
@@ -72,7 +72,7 @@ fn client(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<ProviderClient> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "provider-client")?;
     let id = check::text(&mut object, document, b"id", path, problems);
     if let Some(id) = &id {
         if id.is_empty() || id.len() > 255 {

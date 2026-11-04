@@ -475,6 +475,138 @@ fn escape_presses_the_dialogs_escape_button() {
     assert_eq!(page.act(Event::Cancel { dialog: ESCAPE_DIALOG }, &mut Vec::new()), Some((ESCAPE_BUTTON, Act::Press)));
 }
 
+// Preorder: page, main, form, field, disabled button, first enabled button,
+// second enabled button, button outside the form.
+const FORM_FIELD: NodeId = NodeId(4);
+const FORM_ESCAPE: NodeId = NodeId(6);
+const OUTSIDE_FORM: NodeId = NodeId(8);
+fn form_escape(b: &mut Builder, names_escape: bool) {
+    main(b);
+    b.open(Role::Form);
+    b.open(Role::TextField);
+    b.bind(fixtures::binding(1));
+    b.close();
+    for disabled in [true, false, false] {
+        b.open(Role::Button);
+        b.bind(fixtures::binding(1));
+        if names_escape {
+            b.shortcut(Shortcut::ESCAPE);
+        }
+        if disabled {
+            b.state(State::Disabled);
+        }
+        b.close();
+    }
+    b.close();
+    b.open(Role::Button);
+    b.bind(fixtures::binding(1));
+    b.close();
+    end(b);
+}
+fn form_escape_page(names_escape: bool) -> Page<'static> {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| form_escape(b, names_escape)), &mut Vec::new());
+    page
+}
+
+#[test]
+fn escape_in_a_form_presses_its_escape_button() {
+    for (focus, in_field) in [(FORM_FIELD, true), (FORM_ESCAPE, false)] {
+        let mut page = form_escape_page(true);
+        page.focused(focus);
+        let mut key = plain_key(b"Escape");
+        if let Event::Key { in_field: field, .. } = &mut key {
+            *field = in_field;
+        }
+        assert_eq!(page.act(key, &mut Vec::new()), Some((FORM_ESCAPE, Act::Press)));
+    }
+}
+
+#[test]
+fn escape_in_a_form_naming_none_does_nothing() {
+    let mut page = form_escape_page(false);
+    page.focused(FORM_FIELD);
+    assert_eq!(page.act(plain_key(b"Escape"), &mut Vec::new()), None);
+}
+
+#[test]
+fn escape_outside_a_form_presses_nothing() {
+    let mut page = form_escape_page(true);
+    page.focused(OUTSIDE_FORM);
+    assert_eq!(page.act(plain_key(b"Escape"), &mut Vec::new()), None);
+}
+
+// Preorder: page, main, outer form, outer button, inner form, field, inner button.
+const INNER_FORM_FIELD: NodeId = NodeId(6);
+const INNER_FORM_ESCAPE: NodeId = NodeId(7);
+fn nested_form_escape_page(inner_escape: bool) -> Page<'static> {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.open(Role::Form);
+            b.open(Role::Button);
+            b.bind(fixtures::binding(1));
+            b.shortcut(Shortcut::ESCAPE);
+            b.close();
+            b.open(Role::Form);
+            b.open(Role::TextField);
+            b.close();
+            b.open(Role::Button);
+            b.bind(fixtures::binding(1));
+            if inner_escape {
+                b.shortcut(Shortcut::ESCAPE);
+            }
+            b.close();
+            b.close();
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.focused(INNER_FORM_FIELD);
+    page
+}
+
+#[test]
+fn escape_presses_the_innermost_forms_button() {
+    let mut page = nested_form_escape_page(true);
+    assert_eq!(page.act(plain_key(b"Escape"), &mut Vec::new()), Some((INNER_FORM_ESCAPE, Act::Press)));
+}
+
+#[test]
+fn escape_in_an_inner_form_does_not_press_the_outer_button() {
+    let mut page = nested_form_escape_page(false);
+    assert_eq!(page.act(plain_key(b"Escape"), &mut Vec::new()), None);
+}
+
+#[test]
+fn escape_in_a_dialogs_form_waits_for_its_cancel_event() {
+    const DIALOG_FORM_BUTTON: NodeId = NodeId(5); // page, main, dialog/form, form/dialog, button.
+    for roles in [[Role::Dialog, Role::Form], [Role::Form, Role::Dialog]] {
+        let (mut page, mut view) = (page(), View::new(&LIMITS));
+        page.apply(
+            &fixtures::patches(&mut view, 0, |b| {
+                main(b);
+                for role in roles {
+                    b.open(role);
+                }
+                b.open(Role::Button);
+                b.bind(fixtures::binding(1));
+                b.shortcut(Shortcut::ESCAPE);
+                b.close();
+                for _ in roles {
+                    b.close();
+                }
+                end(b);
+            }),
+            &mut Vec::new(),
+        );
+        page.focused(DIALOG_FORM_BUTTON);
+        assert_eq!(page.act(plain_key(b"Escape"), &mut Vec::new()), None);
+    }
+}
+
 const SELECT: NodeId = NodeId(3); // page, main, select
 const SELECTED_OPTION: NodeId = NodeId(4); // page, main, select, first option
 const CHOSEN_OPTION: NodeId = NodeId(5); // page, main, select, first option, second option

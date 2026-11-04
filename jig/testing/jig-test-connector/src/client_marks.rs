@@ -99,7 +99,11 @@ fn resource(domain: &Domain, subject: &Subject, owner: Option<u32>, path: &crate
                     | Record::Subscription { .. }
                     | Record::Pool { .. }
                     | Record::Outbox(_)
-                    | Record::Made { .. },
+                    | Record::Made { .. }
+                    | Record::SettingDefault { .. }
+                    | Record::SettingChange { .. }
+                    | Record::SettingReplaced { .. }
+                    | Record::SettingProposal { .. },
                 )
                 | None => false,
             }
@@ -125,7 +129,11 @@ fn saved(domain: &Domain, subject: &Subject, record: &Record) -> bool {
         | Record::ApplicationAnswer { .. }
         | Record::Subscription { .. }
         | Record::Pool { .. }
-        | Record::Made { .. } => false,
+        | Record::Made { .. }
+        | Record::SettingDefault { .. }
+        | Record::SettingChange { .. }
+        | Record::SettingReplaced { .. }
+        | Record::SettingProposal { .. } => false,
     }
 }
 
@@ -142,7 +150,11 @@ fn erased(domain: &Domain, subject: &Subject, key: &RecordKey) -> bool {
         | RecordKey::ApplicationAnswer(_)
         | RecordKey::Subscription { .. }
         | RecordKey::Pool(_)
-        | RecordKey::Made(_) => false,
+        | RecordKey::Made(_)
+        | RecordKey::SettingDefault { .. }
+        | RecordKey::SettingChange { .. }
+        | RecordKey::SettingReplaced { .. }
+        | RecordKey::SettingProposal { .. } => false,
     }
 }
 
@@ -159,7 +171,12 @@ pub(crate) fn collect(domain: &Domain, env: &Env<Limits>, out: &mut Queue<Reques
                 Request::Save { record } => saved(domain, subject, record),
                 Request::Erase { key } => erased(domain, subject, key),
                 Request::Changed { resource: path } => resource(domain, subject, None, path),
-                Request::Document { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
+                | Request::SettingsDefaults { .. }
+                | Request::SettingValue { .. }
+                | Request::RestoreRefused { .. }
+                | Request::Document { .. }
                 | Request::ReadAnswered { .. }
                 | Request::Marked { .. }
                 | Request::ApplicationDone { .. }

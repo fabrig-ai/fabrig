@@ -59,6 +59,7 @@ pub fn limits() -> engine::Limits {
         saved_resources: 2,
         contract_choices: 1,
         charters: 1,
+        charter_documents: 2,
         revisions: 4,
         versions: 8,
         authority_grants: 1,
@@ -160,6 +161,9 @@ pub fn limits() -> engine::Limits {
         authority: authority_limits(),
         memory_bytes: u64::MAX,
         watermark: engine::default_watermark(&journal),
+        public_watermark: engine::default_watermark(&journal).checked_div(2).expect("half the watermark"),
+        public_reads: 0,
+        public: jig_domain_core::PublicIndexLimits::OFF,
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,
@@ -179,6 +183,7 @@ pub fn limits() -> engine::Limits {
             parts: 2,
             read_bytes: 256,
             budgets: engine::BriefBudgets {
+                document: 4096,
                 task: 128,
                 dependencies: 128,
                 ci: 128,
@@ -225,7 +230,7 @@ fn authority_limits() -> authority::Limits {
     authority::Limits {
         projects: 1,
         roles: 1,
-        requirements: 1,
+        requirements: 2,
         facts: 2,
         grants: 1,
         executors: 1,
@@ -285,12 +290,16 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
+        host_part: None,
+        kinds_stock: crate::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
             deployment: [31; 16],
             seed,
             // The worlds' workers run apart from the engine (domain/root.md, 2).
             workers_in_process: false,
+            jobs: Box::new([]),
+            kept_starts: Box::new([]),
             worker_names: Box::new([Box::from(b"worker".as_slice())]),
             hub_turns: HUB_TURNS,
             owners: Box::new([people::InitialOwner {
@@ -298,6 +307,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
                 identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
             }]),
             grants: Box::new([]),
+            kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
                 rules,
                 charters: Box::new([charter()]),
@@ -335,11 +345,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landing: engine::LandingPolicy {
-            deployment: Box::new([]),
-            projects: skein_lib::Map::with_capacity(1),
-            landings: skein_lib::Map::with_capacity(1),
-        },
+        landings: skein_lib::Map::with_capacity(1),
         forge: skein_forge_client::Config {
             namespace: Box::from(&b"root"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 1 }]),
@@ -347,7 +353,6 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         // The forge's git identity is application credential 1, which the
         // worlds name at start (D10).
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
-        forge_charter: 1,
         machine: None,
         forges: configured_forges(),
         under_box: false,
@@ -386,6 +391,8 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
+        documents: Box::new([]),
         number: 1,
         policy: engine::RunPolicy {
             instructions: b"Complete the task within its authority.".as_slice().into(),
@@ -416,6 +423,7 @@ pub fn charter() -> engine::Charter {
             shell: true,
             agents: true,
             call_timeout: Duration::from_secs(10),
+            tools: engine::RunPolicy::EVERY_FAMILY,
         },
         hosts: fleet::Kinds::Workers,
         spend: 100,
@@ -476,8 +484,13 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
+    landing_rules: 4,
+    roles: 4,
+    setting_proposals: 4,
+    setting_history: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     client: CLIENT,
@@ -493,6 +506,8 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
         repairs: 3,
         resolutions: 3,
         updates: 3,
+        questions: 4,
+        tasks: 6,
         stall: Duration::from_secs(30),
         gates: 8,
         clean_heads: 8,
@@ -733,6 +748,7 @@ impl StartStore {
                     | engine::Request::Return { .. }
                     | engine::Request::SetUp { .. }
                     | engine::Request::Connect { .. }
+                    | engine::Request::Replace { .. }
                     | engine::Request::Manifest { .. }
                     | engine::Request::Reachable { .. }
                     | engine::Request::Accept { .. }

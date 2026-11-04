@@ -79,7 +79,7 @@ pub struct Page {
 
 /// `index`, then the concepts, walks, recipes, reference pages and guides, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 53] = [
+pub static PAGES: [Page; 59] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -249,6 +249,13 @@ pub static PAGES: [Page; 53] = [
         text: include_str!("../../../docs/help/template.md"),
     },
     Page {
+        name: "tier",
+        kind: Kind::Concept,
+        title: "Tier",
+        summary: "A tier is a slow check of a branch after changes land on it: each run covers every landing since the last, and its verdict clears them or blames the one whose commit broke a test.",
+        text: include_str!("../../../docs/help/tier.md"),
+    },
+    Page {
         name: "box",
         kind: Kind::Walk,
         title: "Run a local box",
@@ -354,6 +361,13 @@ pub static PAGES: [Page; 53] = [
         text: include_str!("../../../docs/help/reference/ctl-chat.md"),
     },
     Page {
+        name: "ctl-goal",
+        kind: Kind::Reference,
+        title: "temper ctl goal",
+        summary: "Goals: start one from a project template.",
+        text: include_str!("../../../docs/help/reference/ctl-goal.md"),
+    },
+    Page {
         name: "ctl-proposal",
         kind: Kind::Reference,
         title: "temper ctl proposal",
@@ -438,11 +452,39 @@ pub static PAGES: [Page; 53] = [
         text: include_str!("../../../docs/help/reference/ctl-playground.md"),
     },
     Page {
+        name: "configuration",
+        kind: Kind::Reference,
+        title: "Configuration",
+        summary: "The configuration document's top level and application members, their bounds and what temper init writes.",
+        text: include_str!("../../../docs/help/reference/configuration.md"),
+    },
+    Page {
+        name: "configuration-engine",
+        kind: Kind::Reference,
+        title: "Engine configuration",
+        summary: "The engine and worker configuration members, their bounds and what temper init writes.",
+        text: include_str!("../../../docs/help/reference/configuration-engine.md"),
+    },
+    Page {
         name: "host-tools",
         kind: Kind::Reference,
         title: "Host tools",
         summary: "Every tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.",
         text: include_str!("../../../docs/help/reference/host-tools.md"),
+    },
+    Page {
+        name: "limits",
+        kind: Kind::Reference,
+        title: "Limits",
+        summary: "Every limit application.limits.overrides takes: its unit, the small profile's value and what it bounds.",
+        text: include_str!("../../../docs/help/reference/limits.md"),
+    },
+    Page {
+        name: "limits-engine",
+        kind: Kind::Reference,
+        title: "Engine limits",
+        summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.",
+        text: include_str!("../../../docs/help/reference/limits-engine.md"),
     },
     Page {
         name: "settings-fields",

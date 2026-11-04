@@ -469,8 +469,9 @@ fn github_delivery_logged_payload_decodes() {
     );
     let mut relaxed = limits();
     relaxed.json.depth = DEPTH.saturating_add(1);
+    assert_eq!(delivery::decode(b"issues", &nested_payload(relaxed.json.depth), &relaxed), Ok(read(b"issues", ISSUE)));
     assert_eq!(
-        delivery::decode(b"issues", &nested_payload(DEPTH.saturating_add(1)), &relaxed),
+        delivery::decode(b"issues", &nested_payload(relaxed.json.depth.saturating_add(1)), &relaxed),
         Err(Malformed::Json(tokenizer::Error::TooDeep))
     );
 }

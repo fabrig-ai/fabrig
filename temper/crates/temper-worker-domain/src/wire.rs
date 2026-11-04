@@ -10,6 +10,14 @@ use alloc::boxed::Box;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Undecodable;
 
+/// A job's command and request bytes, decoded by the service
+/// (temper/docs/design/domain/worker.md, 4.4).
+#[derive(PartialEq, Eq, Debug)]
+pub struct JobSpec {
+    pub command: Box<[u8]>,
+    pub request: Box<[u8]>,
+}
+
 /// The repositories a run works in (`domain/worker.md`, 4.1). The checkout
 /// that holds them is keyed by jig's workstream, the holding task's number;
 /// an empty list means the run has no workspace items, so no checkout is
@@ -50,6 +58,11 @@ pub struct Repository {
 /// Where a repository's checkout starts.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Start {
+    /// A base branch with each head merged into it in order and committed.
+    Merged {
+        branch: Box<[u8]>,
+        heads: Box<[[u8; 32]]>,
+    },
     Merge {
         branch: Box<[u8]>,
         base: [u8; 32],
@@ -172,6 +185,8 @@ pub enum Preparation {
     /// The forge refused the identity of the repository named by `tag`:
     /// permanent until the identity's credentials or permissions change.
     Refused { tag: u64 },
+    /// The head that did not merge into this repository's base.
+    Conflicted { tag: u64, head: [u8; 32] },
 }
 
 /// What the forge does not have.

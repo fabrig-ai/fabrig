@@ -11,10 +11,12 @@ pub enum PersonAddress {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
 pub enum Executor {
     Agent { charter: u32 },
     Procedure { connector: u16, code: u32 },
     Person(PersonAddress),
+    Job { kind: u32 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

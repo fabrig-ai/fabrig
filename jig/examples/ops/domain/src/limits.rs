@@ -68,3 +68,6 @@ impl Policy {
 
 /// The reference deployment's reason for closing a released environment's chat.
 pub const ENVIRONMENT_CLOSED_REASON: &[u8] = b"environment torn down";
+
+/// The reference deployment's grace for closing a released environment's chat.
+pub const ENVIRONMENT_CLOSE_GRACE: skein_lib::Duration = skein_lib::Duration::from_secs(1);

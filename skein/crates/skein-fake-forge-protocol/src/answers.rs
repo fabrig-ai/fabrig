@@ -230,6 +230,9 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
@@ -308,6 +311,9 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
@@ -359,8 +365,8 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
     let skip = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(limit));
     let start = usize::try_from(skip).unwrap_or(usize::MAX).min(values.len());
     let end = start.saturating_add(usize::try_from(limit).expect("u32 fits")).min(values.len());
-    // Forgejo 17 combines only the requested page: ladder-b01/g2/report-2.md,
-    // box2/evidence/decisive-samples.json records success hiding a pending job.
+    // Forgejo 17 combines only the requested page: a walk against it, recorded on
+    // 2026-10-27, saw a success hide a job still pending on a later page.
     let values = values.get(start..end).expect("bounded page");
     let mut rows = List::with_capacity(u32::try_from(values.len()).expect("domain bound"));
     let mut combined = None;
@@ -392,6 +398,40 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
 #[expect(clippy::too_many_lines, reason = "each domain answer has an explicit Forgejo document projection")]
 pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answer) -> Result<Answer, a::Error> {
     match answer {
+        a::Answer::Artifacts(values) => {
+            let Request::Artifacts { run, name, .. } = request else {
+                return Err(a::Error::Refused);
+            };
+            let mut out = List::with_capacity(u32::try_from(values.len()).expect("bounded artifacts"));
+            for value in values {
+                if name.is_none() || name.as_ref() == Some(&value.name) {
+                    out.push(d::Artifact {
+                        id: value.id,
+                        name: value.name.clone(),
+                        run_id: *run,
+                        size_in_bytes: value.size_in_bytes,
+                    })
+                    .expect("artifact subset");
+                }
+            }
+            Ok(Answer::Artifacts(out.into_boxed()))
+        }
+        a::Answer::Commits { commits } => {
+            let mut out = List::with_capacity(u32::try_from(commits.len()).expect("domain bound"));
+            for value in commits.iter().rev() {
+                let mut parents = List::with_capacity(u32::try_from(value.parents.len()).expect("bounded parents"));
+                for id in &value.parents {
+                    parents.push(routes::object(*id)).expect("one id per parent");
+                }
+                out.push(d::CommitMessage {
+                    id: routes::object(value.id),
+                    parents: parents.into_boxed(),
+                    message: value.message.clone(),
+                })
+                .expect("one row per commit");
+            }
+            Ok(Answer::Commits { commits: out.into_boxed() })
+        }
         a::Answer::Settings(settings) => repository(config, request, settings),
         a::Answer::Items { items, .. } => {
             let mut out = List::with_capacity(u32::try_from(items.len()).expect("domain bound"));
@@ -489,6 +529,7 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
         | a::Answer::Comment { .. }
         | a::Answer::Dependencies(_)
         | a::Answer::Labels(_)
+        | a::Answer::Artifact { .. }
         | a::Answer::Tree(_)
         | a::Answer::Directory(_)
         | a::Answer::File(_)
@@ -552,6 +593,9 @@ fn collaborators(
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }

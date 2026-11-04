@@ -27,20 +27,20 @@ pub(super) fn text(
                 super::super::task_source::text(page, limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) => {
-                super::projects::text(project, call, limits, vocabulary, out);
+                super::projects::text(project, call, me, limits, vocabulary, out);
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)
                 | c::ReadValue::Setting(_)
                 | c::ReadValue::Revision(_)
                 | c::ReadValue::Revisions(_)),
-            )) => super::settings::text(value, crate::jig::call::number(call, 0), limits, out),
+            )) => super::settings::text(value, crate::jig::call::number(call, 0), limits, vocabulary, out),
 
             Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Proposal(_))) => {
                 super::proposal::text(value, reading, limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
-                super::task_text(task, me, book, vocabulary, out);
+                super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), out);
                 vocabulary.task_next(task, out);
                 super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
             }
@@ -51,7 +51,7 @@ pub(super) fn text(
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => {
                 let (task, result) = super::super::ended_task(value).expect("validated ended task");
-                super::task_text(task, me, book, vocabulary, out);
+                super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), out);
                 super::result_text(result, vocabulary, out);
                 vocabulary.task_next(task, out);
                 super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
@@ -106,7 +106,7 @@ pub(super) fn text(
         }
     }
 }
-pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
+pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
     let call = &reading.called.call;
     if call.tool == 1 && super::subjects::inbox_eligible(call) {
         super::subjects::encode_inbox_read(reading, limits, out);
@@ -128,7 +128,7 @@ pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budg
                 super::super::task_source::encode(page, limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) => {
-                super::projects::encode(project, call, limits, out, budget);
+                super::projects::encode(project, call, me, limits, out, budget);
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)

@@ -1,7 +1,7 @@
 //! Whole settings values and retained revision facts (client/domain/contract.md, 3–7; domain/engine.md, 17).
 use super::{
     Authority, DocumentText, Grant, KindImplication, PolicyEditRole, PolicyPermission, PolicyRequirement, ProposalKey,
-    Proposer, Template, TemplateOverride, Text,
+    Proposer, Template, TemplateOverride, Text, WakePolicy,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
@@ -15,6 +15,15 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    Application {
+        kind: u32,
+        scope: u32,
+        number: u32,
+    },
+    /// A project's own policy, an item of its scope (domain/engine.md, 17.2).
+    ProjectPolicy {
+        project: u32,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingModel {
@@ -38,9 +47,18 @@ pub enum SettingHosts {
     Engine,
     Both,
 }
+/// A charter's document (jig/docs/design/domain/engine.md, 17.9).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CharterDocument {
+    pub connector: u16,
+    pub name: List<Box<[u8]>>,
+    pub path: Box<[u8]>,
+    pub heading: Option<Box<[u8]>>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "the whole charter carries independent tool grants and resume")]
 pub struct Charter {
+    pub documents: List<CharterDocument>,
     pub number: u32,
     pub instructions: Text,
     pub waiting: Duration,
@@ -56,8 +74,10 @@ pub struct Charter {
     pub shell: bool,
     pub agents: bool,
     pub call_timeout: Duration,
+    pub tools: u64,
     pub hosts: SettingHosts,
     pub spend: u64,
+    pub wake: WakePolicy,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingPolicy {
@@ -85,6 +105,7 @@ pub enum SettingValue {
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
+    Application(Box<[u8]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingSet {
@@ -135,6 +156,7 @@ pub enum SettingFault {
     Budget,
     Grace,
     Owner,
+    Judged,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {
@@ -161,11 +183,24 @@ pub enum SettingFollows {
     Change,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ApplicationFollows {
+    Default,
+    Changed { revision: u32 },
+    Removed { revision: u32 },
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationState {
+    pub follows: ApplicationFollows,
+    pub size: u32,
+    pub charters: List<u32>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingLine {
     pub setting: Setting,
     pub name: Option<DocumentText>,
     pub follows: SettingFollows,
-    pub last: u32,
+    pub last: Option<u32>,
+    pub application: Option<ApplicationState>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RevisionParty {
@@ -207,23 +242,43 @@ pub struct SettingsDocument {
 pub struct SettingDocument {
     pub setting: Setting,
     pub revision: u32,
-    pub value: SettingValue,
+    pub value: Option<SettingValue>,
+    pub application: Option<ApplicationState>,
+    pub proposed: Option<SizedEdit>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Size {
     pub bytes: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SizedEdit {
+    Set { size: u32 },
+    Remove,
+    Reset,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionEdit {
     Set(SettingSet),
     TooLarge(Size),
+    Application(SizedEdit),
     Removed,
     Reset,
+}
+/// What a revision item replaced (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum RevisionReplaced {
+    Value(SettingSet),
+    TooLarge(Size),
+    Default,
+    Removed,
+    NotOffered,
+    Application { size: u32 },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RevisionItem {
     pub setting: Setting,
     pub edit: RevisionEdit,
+    pub replaced: RevisionReplaced,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RevisionDocument {
@@ -291,15 +346,22 @@ pub enum ReviewValue {
     None,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationReview {
+    pub edit: SizedEdit,
+    pub now: Option<ApplicationState>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReviewItem {
     pub setting: Setting,
     pub edit: RevisionItemEdit,
     pub now: ReviewValue,
     pub origin: SettingOrigin,
     pub would_be: ReviewValue,
+    pub application: Option<ApplicationReview>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingsReview {
+    pub key: Option<u64>,
     pub newest: u32,
     pub items: List<ReviewItem>,
     pub cut: bool,

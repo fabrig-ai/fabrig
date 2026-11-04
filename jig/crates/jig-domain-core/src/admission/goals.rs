@@ -12,7 +12,7 @@ impl Core {
     pub fn recurring_admit(&self, project: u32, given: &tasks::Authority, template: &tasks::RecurringTemplate) -> bool {
         for member in &template.batch {
             match member.executor {
-                tasks::Executor::Person(_) => return false,
+                tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return false,
                 tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => {}
             }
         }

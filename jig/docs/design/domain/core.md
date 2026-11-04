@@ -399,7 +399,14 @@ A plan is three things, kept apart:
 
 1. **The strategy:** why this approach, in what order, what was dropped
    and why. It is text, and it is the LLM's: its transcript, its notes, a
-   goal's projection. It changes freely.
+   goal's projection. It changes freely. Where the work writes into a
+   workspace an application keeps (a repository), the plan's text may
+   live there instead, where the work does: the shapes the plan's tasks
+   share and each part's detail written into that workspace by the
+   plan's own tasks, each delegate's spec citing it there, so a task
+   reads it in its own checkout. jig neither reads nor keeps it: to jig
+   it is what those tasks wrote, and the tasks' words, their results and
+   their notes are what jig carries (engine.md, section 10).
 2. **The structure:** tasks and their dependencies. It is the engine's
    state, and the engine runs it.
 3. **The authority** to run it: the budget, the kinds and number of

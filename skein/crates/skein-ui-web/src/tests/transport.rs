@@ -92,3 +92,12 @@ fn a_refused_write_cancels_the_stream() {
     carry(requests, &mut Store::new(b"notes-", Some(0)), &mut platform, &mut Vec::new());
     assert_eq!(platform.calls, vec![]);
 }
+
+#[test]
+fn the_platform_takes_abandons_and_read_ons() {
+    use crate::platform::Platform;
+    let mut platform = FakePlatform::default();
+    Platform::abandon(&mut platform, u32::MAX);
+    Platform::read_on(&mut platform);
+    assert_eq!(platform.calls, vec![Call::Abandon(u32::MAX), Call::ReadOn]);
+}

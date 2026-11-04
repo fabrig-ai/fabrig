@@ -1,7 +1,8 @@
 # playground: status
 
-2026-11-02. Where skein's code lags or departs from [playground.md](playground.md).
+2026-11-03. Where skein's code lags or departs from [playground.md](playground.md).
 
-- **Not yet:** 2 to 8: `skein-playground` is not built; nor are
-  `skein-ui-web`'s bridge messages, session log and worker platform (5, 6;
-  ui-web.md, 18), or `skein-ui-bundle`'s worker module (7).
+- **Departs:** 2: `skein-playground`'s manifest names two crates past
+  those 2 and README.md, 3 give it: `skein-shell`, for the `Host` that
+  `skein-sim-world` re-exports, and `skein-sim`, which none of its code
+  uses; no reason is recorded.

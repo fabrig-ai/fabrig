@@ -44,6 +44,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         w::Ask::Lift(_)
         | w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
+        | w::Ask::Restore(_)
         | w::Ask::Propose(_)
         | w::Ask::Withdraw(_)
         | w::Ask::Create(_)
@@ -62,6 +63,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         | w::Ask::AccountChange(_)
         | w::Ask::SignOut(_)
         | w::Ask::RemoveProject(_)
+        | w::Ask::SetVisibility(_)
         | w::Ask::Rename(_)
         | w::Ask::MakeProject(_)
         | w::Ask::SetPool(_) => return Err(problem()),
@@ -99,6 +101,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             c::Ask::Lift { .. }
             | c::Ask::ChangeSettings(_)
             | c::Ask::MoveToNewest(_)
+            | c::Ask::Restore { .. }
             | c::Ask::Propose { .. }
             | c::Ask::Withdraw { .. }
             | c::Ask::Create { .. }
@@ -117,6 +120,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             | c::Ask::AccountChange { .. }
             | c::Ask::SignOut { .. }
             | c::Ask::RemoveProject { .. }
+            | c::Ask::SetVisibility { .. }
             | c::Ask::Rename { .. }
             | c::Ask::MakeProject { .. }
             | c::Ask::SetPool { .. } => return Err(problem()),

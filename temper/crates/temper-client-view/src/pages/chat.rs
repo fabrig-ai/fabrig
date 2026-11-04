@@ -201,7 +201,7 @@ pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Word
         return;
     }
     let Some(me) = root.pages().me(root.client()) else { return };
-    let project = match super::project_name(Some(me), root.forge().playground(), project, words) {
+    let project = match super::project_name(Some(me), project) {
         Some(name) => name,
         None => words.say(Word::Project, &[Hole::Number(u64::from(project))]),
     };

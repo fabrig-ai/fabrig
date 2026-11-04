@@ -377,7 +377,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
         json!([
             {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
-                "identity":"plain", "connect":10000, "handshake":10000, "headers":[],
+                "connect":10000, "handshake":10000, "headers":[],
                 "models":[{"name":"claude-haiku-5-5", "prices":{"input":1, "cached":1, "output":1, "unit":1000},
                     "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":30000}]},
             agent_before["endpoints"][1]
@@ -475,9 +475,9 @@ fn stubbed_story_launcher(
     fs::create_dir(&login).expect("synthetic held directory");
     fs::set_permissions(&login, fs::Permissions::from_mode(0o700)).expect("private login fixture");
     fs::create_dir(login.join("opaque-entry")).expect("listing fixture only");
-    let heavy = scratch.path().join("heavy");
-    fs::write(&heavy, format!("#!/bin/sh\n{body}\n")).expect("offline queue stub");
-    fs::set_permissions(&heavy, fs::Permissions::from_mode(0o700)).expect("executable stub");
+    let cargo = scratch.path().join("cargo");
+    fs::write(&cargo, format!("#!/bin/sh\n{body}\n")).expect("offline build stub");
+    fs::set_permissions(&cargo, fs::Permissions::from_mode(0o700)).expect("executable build stub");
     let mut command = launcher(scratch.path(), story, if story == "forge-land-claude" { Some(&login) } else { None });
     command.env("PATH", format!("{}:/usr/bin:/bin", scratch.path().display()));
     if default_store {
@@ -552,7 +552,6 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
             seen.lines().collect::<Vec<_>>(),
             [
                 stores,
-                "cargo",
                 "nextest",
                 "run",
                 "-p",
@@ -561,7 +560,6 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
                 "live-temper",
                 "--no-run",
                 stores,
-                "cargo",
                 "nextest",
                 "run",
                 "-p",
@@ -579,6 +577,54 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
         );
         scratch.remove();
     }
+}
+
+/// `TEMPER_WRAPPER` names one command that runs each of the launcher's builds, cargo's
+/// own arguments following it.
+#[test]
+fn the_launcher_runs_its_builds_through_the_wrapper_it_is_given() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let scratch = support::Scratch::new("live-launcher-wrapper");
+    let root = scratch.path();
+    for (name, body) in [("cargo", "exit 99"), ("wrap", "printf '%s\\n' \"$@\" >> \"$HOME/seen\"\nexit 0")] {
+        let stub = root.join(name);
+        support::write_private(&stub, format!("#!/bin/sh\n{body}\n").as_bytes());
+        fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable build stub");
+    }
+    let output = launcher(root, "forge-land", None)
+        .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
+        .env("TEMPER_WRAPPER", "wrap")
+        .output()
+        .expect("wrapped launcher");
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    let seen = fs::read_to_string(root.join("seen")).expect("wrapper arguments");
+    assert_eq!(
+        seen.lines().collect::<Vec<_>>(),
+        [
+            "cargo",
+            "nextest",
+            "run",
+            "-p",
+            "temper",
+            "--profile",
+            "live-temper",
+            "--no-run",
+            "cargo",
+            "nextest",
+            "run",
+            "-p",
+            "temper",
+            "--profile",
+            "live-temper",
+            "--ignore-default-filter",
+            "--run-ignored",
+            "only",
+            "--no-capture",
+            "-E",
+            "binary(=live) & test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge)",
+        ]
+    );
+    scratch.remove();
 }
 
 fn program_accounts() -> Value {
@@ -662,9 +708,9 @@ fn held_launcher(case: &str, story: &str, body: &str) -> (support::Scratch, std:
     let root = scratch.path();
     let account = root.join("synthetic-record");
     support::write_private(&account, b"synthetic fixture");
-    let heavy = root.join("heavy");
-    support::write_private(&heavy, format!("#!/bin/sh\nset -eu\n{body}\n").as_bytes());
-    fs::set_permissions(&heavy, fs::Permissions::from_mode(0o700)).expect("executable queue stub");
+    let cargo = root.join("cargo");
+    support::write_private(&cargo, format!("#!/bin/sh\nset -eu\n{body}\n").as_bytes());
+    fs::set_permissions(&cargo, fs::Permissions::from_mode(0o700)).expect("executable build stub");
     let output = launcher(root, story, None)
         .env("TEMPER_LIVE_ACCOUNT", &account)
         .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
@@ -686,7 +732,7 @@ fn the_launcher_returns_the_ordinary_held_login_after_build_failure() {
 #[test]
 fn the_launcher_runs_the_ordinary_return_hook_before_stopping_after_a_signal() {
     for story in ["forge-land", "rung-b0"] {
-        // The first queue call represents the build; the second imports a
+        // The first cargo call represents the build; the second imports a
         // synthetic record and installs the same hook contract as the story.
         let body = r#"case " $* " in *" --no-run "*) exit 0 ;; esac
 mkdir -p "$TEMPER_LIVE_STORE"
@@ -789,6 +835,82 @@ fn each_landing_story_takes_its_own_store_under_one_live_store() {
     scratch.remove();
 }
 
+/// domain/testing.md, 2.7: the held record's import and give-back name the sitting's
+/// client directory, never the run's root.
+#[test]
+fn the_held_records_import_and_give_back_name_the_sittings_client_directory() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    use support::forge_land::{LiveModel, LivePlan};
+    let scratch = support::Scratch::new("held-login-client");
+    let store = scratch.path().join("stores/forge-land");
+    let paths = ["config", "data", "cache"].map(|name| store.join(name));
+    let run = store.join("first");
+    let client = run.join("client");
+    let held = scratch.path().join("held");
+    for directory in [store.parent().expect("stores"), &store, &paths[0], &paths[1], &paths[2], &run, &client, &held] {
+        fs::create_dir(directory).expect("fixture directory");
+        fs::set_permissions(directory, fs::Permissions::from_mode(0o700)).expect("private fixture directory");
+    }
+    let record = held.join("record");
+    support::write_private(&record, b"synthetic fixture");
+    let stub = scratch.path().join("ctl-stub's path");
+    let seen = scratch.path().join("seen");
+    support::write_private(
+        &stub,
+        br#"#!/bin/sh
+set -eu
+printf '%s\n' "$@" >> "$(dirname "$0")/seen"
+case "$4" in
+import) ;;
+list) printf '%s\n' '{"accounts":{"party":[{"provider":1,"plan":true,"number":7}]}}' ;;
+export) test "$5" = 7; umask 077; printf '%s' synthetic > "$6" ;;
+*) exit 1 ;;
+esac
+"#,
+    );
+    fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable synthetic ctl");
+    let plan = LivePlan {
+        paths: &paths,
+        client: &run,
+        first: true,
+        kept: false,
+        model: LiveModel::ChatGpt { account: Some(&record) },
+        address: None,
+        tasks: None,
+        baseline: None,
+        roots: None,
+        words: "",
+        line: "",
+    };
+    assert_eq!(plan.client_directory(), client);
+    let arguments = ["account", "import", record.to_str().expect("record path"), "--key", "connect-plan"];
+    let imported = support::ctl::alone(&run, plan.held_import(&stub, &arguments));
+    assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(0)));
+    let imported = fs::read_to_string(&seen).expect("import arguments");
+    assert_eq!(imported.lines().nth(1), plan.client_directory().to_str(), "import's DIRECTORY");
+    assert_eq!(imported, format!("ctl\n{}\n{}\n", client.display(), arguments.join("\n")));
+    fs::remove_file(&seen).expect("clear import arguments");
+    plan.install_return_hook(&stub);
+    fs::remove_file(&record).expect("synthetic import removes the record");
+    let returned = std::process::Command::new(store.join("give-back"))
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("return hook");
+    assert!(returned.status.success(), "{}", String::from_utf8_lossy(&returned.stderr));
+    assert_eq!(
+        fs::read_to_string(&seen).expect("give-back arguments"),
+        format!(
+            "ctl\n{client}\naccount\nlist\n--json\nctl\n{client}\naccount\nexport\n7\n{record}\n",
+            client = client.display(),
+            record = record.display(),
+        )
+    );
+    let returned = fs::symlink_metadata(&record).expect("returned synthetic record");
+    assert!(returned.is_file() && returned.len() > 0);
+    assert_eq!(returned.permissions().mode() & 0o777, 0o600);
+    scratch.remove();
+}
+
 #[test]
 fn an_imported_records_path_is_printed_as_file() {
     use support::forge_land::printed_command;
@@ -803,5 +925,133 @@ fn an_imported_records_path_is_printed_as_file() {
         &["account", "import"],
     ] {
         assert_eq!(printed_command(&words(kept)), words(kept));
+    }
+}
+
+fn delegate_read(rows: &[u64], cut: bool, after: Option<&str>) -> Value {
+    json!({
+        "live": [], "live_after": null,
+        "ended": {"rows": {
+            "rows": rows.iter().map(|task| json!({"chip": {"task": task}})).collect::<Vec<_>>(),
+            "cut": cut,
+            "after": after.map(|value| json!({"value": value}))
+        }}
+    })
+}
+
+/// domain/testing.md, 2.7: the chat's and the change's ended delegates are read whole,
+/// a page at a time, by the cursor each page prints.
+#[test]
+fn ended_delegates_are_read_whole_by_their_cursor() {
+    use support::forge_land::EndedDelegates;
+    let mut ended = EndedDelegates::new(2, [2, 3]);
+    assert_eq!(ended.first(), ["task", "list", "--project", "2", "--parent", "2", "--ended", "--json"]);
+    for (read, expected) in [
+        (
+            delegate_read(&[3], false, Some("3")),
+            vec!["task", "list", "--project", "2", "--parent", "2", "--ended", "--json", "--after", "3"],
+        ),
+        (
+            delegate_read(&[5], true, Some("5")),
+            vec!["task", "list", "--project", "2", "--parent", "2", "--ended", "--json", "--after", "5"],
+        ),
+        (delegate_read(&[], false, None), vec!["task", "list", "--project", "2", "--parent", "3", "--ended", "--json"]),
+    ] {
+        assert_eq!(ended.read(&read), Ok(Some(expected.into_iter().map(str::to_owned).collect())), "{read}");
+    }
+    assert_eq!(ended.read(&delegate_read(&[7, 6], false, None)), Ok(None));
+    assert_eq!(ended.whole(), [vec![3, 5], vec![6, 7]]);
+}
+
+/// domain/testing.md, 2.7: what the story refuses of a delegate page, naming it.
+#[test]
+fn an_ended_delegate_read_refuses_live_rows_a_cut_without_a_cursor_and_a_33rd_page() {
+    use support::forge_land::EndedDelegates;
+    let mut live_row = delegate_read(&[], false, None);
+    live_row["live"] = json!([{"chip": {"task": 4}}]);
+    let mut live_after = delegate_read(&[], false, None);
+    live_after["live_after"] = json!({"value": "4"});
+    let mut missing_task = delegate_read(&[4], false, None);
+    missing_task["ended"]["rows"]["rows"] = json!([{"chip": {}}]);
+    let mut missing_rows = delegate_read(&[], false, None);
+    missing_rows["ended"]["rows"]["rows"] = Value::Null;
+    for (read, expected) in [
+        (live_row, "no live delegates"),
+        (live_after, "no live delegates"),
+        (delegate_read(&[4], true, None), "ended delegate page cut without a cursor"),
+        (missing_task, "delegate task missing (chip.task)"),
+        (missing_rows, "ended delegate rows missing"),
+    ] {
+        let mut ended = EndedDelegates::new(2, [2, 3]);
+        assert_eq!(ended.read(&read), Err(expected.to_owned()), "{read}");
+    }
+    // The bound holds within one parent and across both parents.
+    for first in [delegate_read(&[3], false, Some("3")), delegate_read(&[], false, None)] {
+        let mut ended = EndedDelegates::new(2, [2, 3]);
+        assert!(ended.read(&first).expect("first delegate page").is_some());
+        for _ in 1..EndedDelegates::PAGES {
+            assert!(ended.read(&delegate_read(&[4], false, Some("4"))).expect("within page bound").is_some());
+        }
+        assert_eq!(
+            ended.read(&delegate_read(&[], false, None)),
+            Err("ended delegates exceed 32-page bound".to_owned())
+        );
+    }
+}
+
+#[test]
+fn setup_accepts_a_project_free_first_repository_row() {
+    use skein_io::kernel::Exit;
+    let scratch = support::Scratch::new("setup-project-free-row");
+    let row = json!({"forges":[{
+        "number":1,"mode":"owned","state":"connected",
+        "first":{"state":"made","org":"work","repository":"hello","id":1}
+    }]});
+    let calls = [
+        String::new(),
+        json!({"forges":[]}).to_string(),
+        "setting up\nproject: 1 · hello\nAdopted work/hello on forge 1 as owned.\nIt is the project's home.\n"
+            .to_owned(),
+        String::new(),
+        row.to_string(),
+        "forge 1 · Forgejo · owned · Connected as temper (2)".to_owned(),
+    ]
+    .map(|stdout| support::Ended { exit: Some(Exit::Code(0)), stdout: stdout.into_bytes(), stderr: vec![] });
+    assert_eq!(
+        support::forge_land::assert_forgejo_setup_after_sign_in(
+            "first",
+            &calls,
+            "forgejo-1: started\nrunner-1: started",
+            None,
+            scratch.path()
+        ),
+        2
+    );
+    scratch.remove();
+}
+
+#[test]
+fn setup_resolves_the_adopted_project_on_fresh_and_seeded_deployments() {
+    use support::first_repository::project_number;
+    for (projects, name, expected) in [
+        (json!([{"project":1,"name":{"bytes":"hello"}}]), "hello", 1),
+        (json!([{"project":1,"name":{"bytes":"widget"}}]), "widget", 1),
+        (json!([{"project":1,"name":{"bytes":"seed"}},{"project":8,"name":{"bytes":"hello"}}]), "hello", 8),
+    ] {
+        assert_eq!(project_number(&json!({"projects":projects}), name), Ok(expected));
+    }
+}
+
+#[test]
+fn setup_refuses_missing_or_ambiguous_adopted_projects() {
+    use support::first_repository::project_number;
+    for me in [
+        json!({}),
+        json!({"projects":[]}),
+        json!({"projects":[{"project":1,"name":{"bytes":"seed"}}]}),
+        json!({"projects":[{"project":0,"name":{"bytes":"hello"}}]}),
+        json!({"projects":[{"project":1,"name":{"bytes":"hello"}},{"project":2,"name":{"bytes":"hello"}}]}),
+    ] {
+        assert!(project_number(&me, "hello").is_err(), "{me}");
     }
 }

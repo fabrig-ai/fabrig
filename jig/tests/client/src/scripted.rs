@@ -330,7 +330,7 @@ impl Scripted {
         }
     }
     fn routed(&mut self, client: ClientId, request: Request) -> Request {
-        let Request::Client { request: jig_client::Request::Down { down } } = request else { return request };
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { return request };
         let down = match down {
             Down::Send { attempt, key, request, value } => {
                 let first = matches!(&request, Ask::Family { .. });
@@ -358,7 +358,7 @@ impl Scripted {
             }
             Down::Save { .. } | Down::Erase { .. } => unreachable!("store writes belong to the shell"),
         };
-        Request::Client { request: jig_client::Request::Down { down } }
+        Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } }
     }
 }
 
@@ -423,7 +423,7 @@ impl Front<Test> for Scripted {
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
         let party = self.parties[&client];
         let request = self.routed(client, request);
-        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
             unreachable!("shell classified a wire request")
         };
         match down {

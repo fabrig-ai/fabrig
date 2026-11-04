@@ -146,6 +146,7 @@ fn person_result(key: &Key, limits: &Limits, result: &crate::PersonResult) -> Re
 
 pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), RestoreCause> {
     match value {
+        Ask::Restore { reason, .. } => within(key, RestoreBound::Words, reason.len(), limits.words),
         Ask::Compound { operations, .. } => {
             measured(RestoreBound::Operations, u64::from(operations.len()), limits.operations)?;
             for operation in operations {
@@ -211,6 +212,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         },
         Ask::AccountChange { change, .. } => account_change(key, limits, change),
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::ChangeSettings { .. }
@@ -259,6 +261,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::ServiceMade { .. }
         | Outcome::Adopted { .. }
         | Outcome::Created { .. }
+        | Outcome::Restored { .. }
         | Outcome::Proposed { .. }
         | Outcome::Withdrawn { .. }
         | Outcome::Stopped { .. }
@@ -278,6 +281,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -298,7 +302,9 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
             within(key, RestoreBound::NamedTasks, tasks.len(), crate::NAMED_TASKS)
         }
         Refusal::Kept { pending } => within(key, RestoreBound::KeptPending, pending.len(), 64),
-        Refusal::SignInRedirect { .. }
+        Refusal::Judged { .. }
+        | Refusal::SignInRedirect { .. }
+        | Refusal::Forgotten { .. }
         | Refusal::Stale { .. }
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }

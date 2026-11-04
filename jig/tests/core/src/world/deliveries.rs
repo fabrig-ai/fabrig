@@ -118,6 +118,9 @@ impl World {
                     .push(super::AssignedTranscript { task: assignment.task, turns: assignment.transcript.clone() });
                 self.assigned = Some(assignment);
             }
+            root::Delivery::AssignedJob { channel, job, .. } => {
+                self.jobs.push((channel, job));
+            }
             root::Delivery::Core(core::Held::Grant { channel, run, attempt, grant }) => {
                 self.grant_delivered(channel, run, attempt, grant);
             }
@@ -220,6 +223,7 @@ impl World {
             | root::Delivery::Link { .. }
             | root::Delivery::Core(
                 core::Held::Delivery { .. }
+                | core::Held::PublicRead { .. }
                 | core::Held::SettledCall { .. }
                 | core::Held::Assign { .. }
                 | core::Held::Inbound { .. }
@@ -238,6 +242,9 @@ impl World {
                 | core::Held::Refuse { .. }
                 | core::Held::MakeEffect { .. },
             ) => {}
+            root::Delivery::Core(core::Held::PublicWait { .. }) => {
+                panic!("root releases its public durability callbacks internally");
+            }
             root::Delivery::Fleet(_) => panic!("root releases its fleet continuations internally"),
         }
     }

@@ -1,6 +1,7 @@
 //! Owned facts, identities and bounded text shared within the client vocabulary.
 //! No engine or application type crosses here. Text is checked before ownership
 //! moves in; list owners choose capacities from limits. See client/domain/contract.md, 5.
+use super::PhaseClass;
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 /// Owned UTF-8 text, checked by its owner before it is kept.
@@ -135,15 +136,29 @@ pub enum Actor {
 
 /// The kind of executor carrying out a task.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
 pub enum ChipExecutor {
     /// An agent and its charter.
-    Agent { charter: u32 },
+    Agent {
+        charter: u32,
+    },
     /// A connector procedure.
-    Procedure { connector: u16, kind: u32 },
+    Procedure {
+        connector: u16,
+        kind: u32,
+    },
     /// A named party.
-    Party { party: u64 },
+    Party {
+        party: u64,
+    },
     /// Any party holding a role.
-    Role { project: u32, role: u32 },
+    Role {
+        project: u32,
+        role: u32,
+    },
+    Job {
+        kind: u32,
+    },
 }
 
 /// The task phase, without words from the view.
@@ -177,6 +192,26 @@ pub enum Phase {
     Failed,
     /// Cancelled.
     Cancelled,
+}
+
+impl Phase {
+    /// The class a task query selects by.
+    #[must_use]
+    pub const fn class(self) -> PhaseClass {
+        match self {
+            Self::Waiting => PhaseClass::Waiting,
+            Self::Held => PhaseClass::Held,
+            Self::Closing => PhaseClass::Closing,
+            Self::Ended | Self::Done | Self::Failed | Self::Cancelled => PhaseClass::Ended,
+            Self::Idle
+            | Self::Due
+            | Self::Preparing
+            | Self::Claimed
+            | Self::Running
+            | Self::BackingOff
+            | Self::Active => PhaseClass::Working,
+        }
+    }
 }
 
 /// An application value named without carrying its type.

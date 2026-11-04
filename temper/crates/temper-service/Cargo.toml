@@ -8,9 +8,11 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-engine-domain-forge-tiers.workspace = true
 jig-protocol-charter.workspace = true
 jig-domain-brief.workspace = true
 temper-forge-setup.workspace = true
+temper-box.workspace = true
 temper-protocol-records = { workspace = true, features = ["forge"] }
 skein-forge-setup.workspace = true
 skein-forge.workspace = true
@@ -65,6 +67,7 @@ temper-worker-protocol-git.workspace = true
 jig-protocol-worker-link.workspace = true
 
 [dev-dependencies]
+settings-form.workspace = true
 smith-agent-shell.workspace = true
 smith-agent-service.workspace = true
 smith-domain.workspace = true

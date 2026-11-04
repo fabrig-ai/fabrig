@@ -100,6 +100,7 @@ pub fn project_document() -> d::Project {
 
 pub fn template() -> jig_domain_core::Template {
     jig_domain_core::Template {
+        resources: Box::new([]),
         number: 1,
         name: b"task".as_slice().into(),
         executor: jig_domain_people::TemplateExecutor::Charter(1),

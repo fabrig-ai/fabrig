@@ -305,6 +305,7 @@ impl Harness {
                     crate::Lower::Complete { .. }
                     | crate::Lower::Cancel { .. }
                     | crate::Lower::Yield { .. }
+                    | crate::Lower::Close { .. }
                     | crate::Lower::Io { .. }
                     | crate::Lower::Job { .. }
                     | crate::Lower::CancelIo { .. }
@@ -1089,6 +1090,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
             | Request::Lower(
                 crate::Lower::Cancel { .. }
                 | crate::Lower::Yield { .. }
+                | crate::Lower::Close { .. }
                 | crate::Lower::Io { .. }
                 | crate::Lower::Job { .. }
                 | crate::Lower::CancelIo { .. }

@@ -28,7 +28,10 @@ pub struct Settings {
 
 /// Each Io request ends with exactly one Done echoing its owner.
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "operation payloads bounded by checkout limits stay inline")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "operation payloads bounded by checkout limits stay inline")
+)]
 pub enum Request {
     Io { owner: Token, op: git::Op, deadline: Time, identity: Option<Identity> },
     CancelIo { owner: Token },

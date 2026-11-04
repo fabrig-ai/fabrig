@@ -254,7 +254,6 @@ const fn completion_cap(cap: &wire::Cap) -> host::Cap {
         wire::Cap::Answer => host::Cap::Answer,
         wire::Cap::ErrorBody => host::Cap::ErrorBody,
         wire::Cap::AccessToken => host::Cap::AccessToken,
-        wire::Cap::AccountId => host::Cap::AccountId,
     }
 }
 

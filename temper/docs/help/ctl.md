@@ -109,17 +109,17 @@ both do. `--until changed` returns at the subject's next change.
   cancelled); `waiting-on-me`, over the task's tree; `held`;
   `replied`, once a chat waits on someone, holds, closes or ends;
   `phase:PHASE`, a live phase in any case;
-- `task tree TASK`, `task run TASK`: `ended`, met by a read that
-  shows it ended; for `task run`, met at once when the task has no
-  live run. A watch that ends with no read of it delivered is
-  refused: `gone`, status 2;
+- `task tree TASK`, `task run TASK`: `ended`, by delivery or watch end.
+  A tree watch end says `tree ended (watch)`; rows are the
+  `last observed snapshot`. No live run meets at once.
+  No delivery: `gone`, status 2;
 - `task list`, without `--after` or `--ended`: none;
 - `account list`: `usable`, an account your work may use; `settled`,
   no sign-in or check you asked still in progress;
 - `forge list`: `settled`, no set up, connect or install in progress;
   `connected:FORGE`; `made:FORGE`, its first repository made;
 - `change show TASK`: `pull`, `ci:pending`, `ci:passed`, `ci:failed`,
-  `held`, `landed`.
+  `held`, `landed`, `cleared`.
 
 - **Keys:** an act takes `--key KEY` where its usage shows one,
   required or optional; reads and waits take none. Agents that share
@@ -151,18 +151,19 @@ both do. `--until changed` returns at the subject's next change.
 
 ## Limits
 
+`temper help configuration`: what needs a restart.
+
 - ctl reaches an engine on loopback alone: `127.0.0.0/8` or `[::1]`.
-- The link's deadline is 30 seconds: an engine that does not answer
-  within it fails the call (exit 1).
-- A call whose argument is wrong prints one line naming the tool, the
-  argument and what it takes, such as `temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity`.
-  A call that names no tool prints the usage line: `temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool`.
-  A word that names no group or tool says which, and where help lists
-  them.
+- The link's deadline is 30 seconds: no engine answer by then fails
+  the call (exit 1).
+- A wrong argument prints one line naming its tool, the argument and
+  what it takes, such as `temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity`.
+  Naming no tool prints usage: `temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool`.
+  An unknown group or tool says which, and where help lists them.
 - A `DIR` holds one party's sign-in; several parties take several
   directories. Give `temper open` a directory of its own.
 - Calls that send take `DIR` in turns: a second waits up to 60
   seconds, then exits 1. Reads and waits never wait for `DIR`.
 - A kept request is answered only within its retention; past it, its
   outcome is unknown, and reading again tells what happened.
-- ctl opens no browser and runs no program.
+- ctl opens no browser, runs no program.

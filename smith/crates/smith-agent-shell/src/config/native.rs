@@ -61,7 +61,6 @@ pub(super) fn endpoints(
             destination,
             connect: endpoint.connect,
             handshake: endpoint.handshake,
-            identity: endpoint.identity,
             models: endpoint.models,
         });
     }

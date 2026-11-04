@@ -82,6 +82,7 @@ fn the_durable_observer_retains_a_settings_copy_before_its_erase() {
             moved: false,
         },
         items: Box::new([]),
+        applications: Box::new([]),
     };
     let held = core::Record::Core(core::CoreRecord::Settings(s::Record::Revision {
         history: false,

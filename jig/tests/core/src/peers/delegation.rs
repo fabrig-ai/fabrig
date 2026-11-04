@@ -9,12 +9,12 @@ pub(super) fn delegate(words: Box<[u8]>, executor: tasks::Executor, budget: u64)
         tracked: None,
         budget: jig_domain_people::Budget::Named,
         executor,
-        spec: tasks::Spec { asks: false, words, parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec { job: None, asks: false, words, parameters: Box::new([]), inputs: Box::new([]) },
         contract: tasks::Contract::Report { words: 128 },
         authority: authority(budget, true),
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
     }
 }

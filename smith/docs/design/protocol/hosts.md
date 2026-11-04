@@ -19,8 +19,7 @@ The contract is domain/host.md's.
   - translates between the channel's records and `smith-host-domain`'s
     vocabulary;
   - fills grants' values in from the host's credentials, each in the
-    form the channel names (channel.md, section 6), the withdrawn
-    one included for a host that still writes it;
+    form the channel names (channel.md, section 6);
   - checks a program source's login, and signs it out, when its host
     asks (section 2).
 - **The streams are the host's to make:**

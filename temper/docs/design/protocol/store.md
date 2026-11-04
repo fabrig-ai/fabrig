@@ -72,7 +72,7 @@ section 7).
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
 | 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection and settings | `repositories` |
 | 3 | `Hold` | `Hold(Name)` | a held resource, its task, its writer and its drift | `holds` |
-| 4 | `Names` | `Names(u64)`: the task | the live resources one task names | `tasks` |
+| 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge.md`, 4.1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
 | 6 | `BranchHead` | `BranchHead(Name)` | a branch's last observed tip | the client's `resources` |
 | 7 | `PullState` | `PullState(Name)` | a pull request's last published state | the client's `resources` |
@@ -80,7 +80,7 @@ section 7).
 | 9 | `Landed` | `Landed(Commit)` | a merge temper made, and its task | `landings` |
 | 10 | `Entry` | `Entry(u64)`: the entry's number | an unsettled outbox entry, held or not, and whether the forge's merge queue holds its merge (`queued`, skein's `forge-client.md`, 7.7) | `entries` |
 | 11 | `Client` | `Client(client::Key)`: `Live(Resource)` or `Repository(Repository)` | the client's working set: a live resource's row, or a repository's listing mark | the client's `resources` and `repositories` |
-| 12 | `Change` | `Change(u64)`: the task | a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge.md`, 8.4) | `changes` |
+| 12 | `Change` | `Change(u64)`: the task | a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge.md`, 8.4); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held for dependencies with its words (`../domain/forge.md`, 8.11) | `changes` |
 | 13 | `Issue` | `Issue(u64)`: the goal | a goal's issue projection | `issues` |
 | 14 | `Release` | `Release(u64)`: the task | a closing task's release | `tasks` |
 | 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends (jig's `domain/connectors.md`, 5.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/README.md`, section 8) | `applications` |
@@ -88,7 +88,7 @@ section 7).
 | 17 | reserved | none | no row: the byte is never reused | none |
 | 18 | `Binding` | `Binding(address)`: a member's address, ASCII letters folded to lower case | the Google subject that first signed in with that member's address, `{ address, subject }`, the subject at most 255 bytes (`sign-in.md`, section 5). Written by the first sign-in alone, never erased. A family of the forge connector's though it is people's, as `Playground` is: `Stored` holds every family of temper's, restored in the one restart step and written in the root's decisions, so it takes no range of its own | `bindings`, the configured members |
 | 19 | reserved | none | no row, as 17 | none |
-| 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2 or 3), 0 or a project's number, the setting's number, and the slot, `Default`, `Change` or `Proposal { proposer, number }` | a value of temper's kinds (configuration.md, 13.2): a `LandingRule`, or the forge's charter's number; the stock default the binary last gave, the current change, a removal being a change with no value, or a pending proposal's item. Written in jig's decisions as jig's `domain/engine.md`, 17.5 says: a default in the release's revision when the stock differs, a change at its commit, a proposal's item at its making; erased with the change a reset undoes, and with the proposal's end | the forge's `landing_rules` per scope, times the scopes and the slots, plus the pending proposals of settings' items |
+| 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2 or 3), 0 or a project's number, the setting's number, and the slot, `Default`, `Change`, `Proposal(proposal)`, the proposal as jig's core names it to its connector (jig's `domain/engine.md`, 17.6), or `Replaced(revision)`, the revision whose change replaced the value | its key's fields and its edit: a value of temper's kinds (configuration.md, 13.2), a `LandingRule` or the forge's charter's number, with its size, the bytes of its encoding that jig counts; a removal; or, for a proposal's item alone, a reset. The stock default the binary last gave, the current change, a removal being a change with no value, a pending proposal's item, or the value a committed change replaced, kept for a restore (jig's `domain/engine.md`, 17.10). Written in jig's decisions as jig's `domain/engine.md`, 17.5 says: a default in the release's revision when the stock differs, a change at its commit, beside it the value it replaced where the setting held a change with a value, a proposal's item at its making; erased with the change a reset undoes, with the proposal's end, and a replaced value with its revision's record, in the decision that erases it from jig's history | the forge's `landing_rules` per scope, times the scopes and the slots, plus the pending proposals of settings' items and, for each revision jig's history keeps (`settings.history`), a whole set of its kinds' values |
 | 21 | `Flight` | `Flight { task, entry }`: the entry's task, then its number | a write the forge sent and has not settled for good: saved in the commit that records an entry's attempt, beside the `Entry` row; kept through an uncertain outcome, a retry, a merge queued on the forge's queue and the restart's settlement; erased in the commit that settles the entry for good (made, failed for good, withdrawn, not made) or holds it for a person, and saved again before a held entry is made again. So after a stop that settled none is left (jig's `protocol/store.md`, 10.3, "Effects in flight"; `../domain/root.md`, 9.2). Its record is its key's fields, `{ task, entry }`, as every row holds its key's (section 3), so a start that refuses to patch over it names each write from its key alone | `entries` |
 | 22 | `Delivery` | `Delivery(CallKey)`: the call's task, attempt, completion and position | a delivery's reply, typed in temper's schema (from smith's `DeliveryReply`), which the worker's routing renders for a resumed run: saved in the decision that settles the delivery, first settlement kept, erased when the call retires (a later turn commits, or the task ends); the routing encodes smith's reply from it into the assignment's evidence (jig's `protocol/channel.md`, 6.2). | `named_calls` |
 
@@ -100,7 +100,7 @@ section 7).
 
   | Byte | Family | Key | What a row holds | Bounded by |
   |---|---|---|---|---|
-  | 25 | `Forge` | `Forge(forge)`: the forge's number | a forge, a record of the forge connector's (forge.md, 2.1): its kind, Forgejo or GitHub; its mode, connected, managed, owned or fake; its place, the API's host, port and TLS name, the remotes' base and the pages; its git program; whether a pasted App is read-only; its bot's login, name and email; whether its start waits to be asked, an owned forge's; a first set up's intent, its organization, repository, project (existing by number, or new by name), runner label and whether it is the playground's; and its state, kept or ended with whether its secrets are erased and its box group removed. Written by the act that makes the forge and at each change, erased once its removal is whole (forge.md, 2.3) | `forges` |
+  | 25 | `Forge` | `Forge(forge)`: the forge's number | a forge, a record of the forge connector's (forge.md, 2.1): its kind, Forgejo or GitHub; its mode, connected, managed, owned or fake; its place, the API's host, port and TLS name, the remotes' base and the pages; its git program; whether a pasted App is read-only; its bot's login, name and email; whether its start waits to be asked, an owned forge's; a first set up's intent, its organization, repository, runner label and whether it is the playground's, and no project (setup.md, 6.7); and its state, kept or ended with whether its secrets are erased and its box group removed. Written by the act that makes the forge and at each change, erased once its removal is whole (forge.md, 2.3) | `forges` |
   | 26 | `ForgeNumber` | `ForgeNumber`: one row | the last forge number given, `{ last }`, so a number is never given twice (forge.md, 2.1). Written as each forge is made, never erased | one row |
   | 27 | `Playground` | `Playground`: one row | the playground's state, starting, running, or resetting at its step, the project's, the forge's or the account's; its fake forge's number; and its project's and scripted account's numbers once its start has made them (setup.md, 8.4). Written at its start, at each act its start makes, and at each step of its reset; erased when the reset ends; no row is no playground | one row |
 
@@ -108,11 +108,21 @@ section 7).
 - **Beside them,** after the forges (`../domain/after-landing.md`,
   section 10; `../domain/findings.md`, section 9): 28 `Tier`, keyed by
   repository and tier, its run in flight, last judged tip, failures
-  and flakes; 29 `Verification`, keyed by repository and landing
+  and flakes, and up to 8192 bytes of execution observations until their
+  task words are saved, and, for a tier following goal branches, each
+  goal branch it follows with its last run's tip, failures and start;
+  29 `Verification`, keyed by repository and landing
   commit, a landing's tier verdicts, the failures blamed on it and what
-  repaired it; 30 `LandingLog`, keyed by repository, its last landings
+  repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, its last landings
   with their times, changes, trailers and verdicts; 31 `Finding`, 32
-  `Mark` and 33 `QaPass`.
+  `Mark` and 33 `QaPass`. A
+  receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
+  section 2), and the `Change` family's `Landed` state means verifying,
+  `Red`, `Cleared` and `Uncleared` joining it after its last state
+  (`../domain/after-landing.md`, section 6); its row keeps the red
+  landing it repairs (`repairs`, `../domain/after-landing.md`, section
+  7).
+
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads them: the engine serves none of the forge's
   client parts but the adoption form (`../client/README.md`, section 4).
@@ -249,6 +259,17 @@ section 7).
 
   Other commit failures retain their existing diagnostic. Earlier durable
   data is recoverable; the refusal changes no stored or wire format.
+
+A stored open question's whole words and a held answer's words each have a
+schema ceiling of 65,536 bytes. Their runtime bounds, `open_words` and
+`held_answer`, both come from `forge.client.op_bytes`; the start refuses a
+bound above the ceiling by the ordinary schema-bound check (2026-11-04).
+
+A tier's stored goal-branch list has a ceiling of 256, sorted by goal number
+with no duplicate. Its runtime bound is `forge.holds`; a value above 256
+refuses the start. The ceiling keeps the tier row's worst-case encoding,
+including each goal's failing-test IDs, within the codec's u32 length
+envelope (2026-11-04).
 
 ## 5. The restart
 

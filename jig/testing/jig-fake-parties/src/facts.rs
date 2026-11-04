@@ -1,9 +1,24 @@
 //! Independent answer facts at the party face (client/domain/contract.md, section 4).
 use skein_lib::Wall;
 
+/// A setting named independently of the engine's vocabulary.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Setting {
+    Charter(u32),
+    Template(u32),
+    Policy(u32),
+    Rules,
+    Application { kind: u32, scope: u32, number: u32 },
+}
+
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    Judged {
+        at: u32,
+        setting: Setting,
+        why: Box<[u8]>,
+    },
     Circle {
         tasks: Box<[u64]>,
         cut: bool,

@@ -9,8 +9,8 @@ forge connect FORGE github --key KEY
   github (way): one of github; required. temper's App, made in a browser from its manifest
 forge connect FORGE forgejo FILE --key KEY
   FORGE (forge): a number from 1 to 65535; required. The Forgejo's forge number
-  forgejo (way): one of forgejo; required. Not offered yet
-  FILE (file): text, at most 1048576 bytes; required. Not offered yet; no file is read
+  forgejo (way): one of forgejo; required. As a Forgejo user, by their tokens
+  FILE (file): a file; required. The private tokens file of the Forgejo user
 forge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY
   FORGE (forge): a number from 1 to 65535; required. The Forgejo's forge number
   forgejo-admin (way): one of forgejo-admin; required. As the Forgejo's site admin
@@ -36,13 +36,24 @@ forge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [-
   --git URL: text, at most 1048576 bytes; required. The git address
   --web URL: text, at most 1048576 bytes; optional. The web address
   --git-program FILE: text, at most 1048576 bytes; optional. The git executable; the worker's git when absent
-Connect GitHub through an App, or a Forgejo as its site admin
+forge connect forgejo FILE --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY
+  forgejo (way): one of forgejo; required. As a Forgejo user, by their tokens
+  FILE (file): a file; required. The private tokens file of the Forgejo user
+  --api HOST:PORT: text, at most 1048576 bytes; required. The Forgejo API host and port
+  --tls NAME: text, at most 1048576 bytes; optional. The TLS server name; plaintext when absent
+  --git URL: text, at most 1048576 bytes; required. The git address
+  --web URL: text, at most 1048576 bytes; optional. The web address
+  --git-program FILE: text, at most 1048576 bytes; optional. The git executable; the worker's git when absent
+Connect GitHub through an App, or a Forgejo by its tokens or as its site admin
 Prints: `connecting`, then the wait to make; for github, the address to open in a browser
 --json: the record forge-connect.
 Key: --key KEY, required.
-The key or token file holds 1 to 4089 bytes after one final
+The key or tokens file holds 1 to 4085 bytes after one final
 newline is trimmed. Then forge list --until connected:FORGE, or,
 after a browser, --until settled.
+A tokens file has one `NAME VALUE` line per item: api, git and
+webhook_secret, each at most once, one space then a nonempty value
+to the line's end; no other line. Connect needs api and git.
 With `--first`, it goes on to make and adopt that repository, and
 prints its project. `connected already` (exit 2): the forge holds a
-key, which this build cannot replace.
+key or tokens; forge replace replaces them.

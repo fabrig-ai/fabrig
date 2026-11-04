@@ -32,9 +32,6 @@ pub struct Forge {
     pub web: Option<Box<[u8]>>,
     /// The pasted GitHub App, its hook and installations belong to another owner.
     pub app_read_only: bool,
-    /// The API token, read from its private file: the forge component's alone.
-    pub api_token: Option<Secret>,
-    pub webhook_secret: Option<Secret>,
     /// The forge user the API token belongs to: the forge writer.
     pub user: u64,
     /// The number of this forge's git identity.
@@ -104,6 +101,8 @@ pub struct Setup {
 /// temper's members (protocol/configuration.md, sections 2 and 3).
 #[derive(Debug)]
 pub struct Engine {
+    /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent.md, 4.3).
+    pub host_part: Option<temper_engine_domain::room::HostPart>,
     pub machine: temper_forge_setup::machine::Machine,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,
@@ -112,8 +111,8 @@ pub struct Engine {
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub demo: Option<Demo>,
-    pub landing: temper_engine_domain::LandingPolicy,
-    pub charter: u32,
+    pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
+    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     pub limits: super::limits::Limits,
 }
 

@@ -6,24 +6,39 @@ use jig_domain_tasks as tasks;
 
 pub(super) fn record(row: &Record) -> Option<u64> {
     match row {
+        Record::Application { state, .. } => u64::try_from(size_of::<jig_domain_core::settings::application::State>())
+            .ok()?
+            .checked_add(skein_lib::len_u64(state.charters.len()).checked_mul(4)?),
         Record::Default { default, .. } => value(&default.value),
         Record::Changed { changed, .. } => match &changed.value {
             Some(changed) => value(changed),
             None => Some(0),
         },
-        Record::Revision { revision, .. } => items(&revision.items),
+        Record::Revision { revision, .. } => {
+            let mut bytes = skein_lib::len_u64(revision.items.len())
+                .checked_mul(u64::try_from(size_of::<jig_domain_core::settings::RevisionItem>()).ok()?)?;
+            for item in &revision.items {
+                if let Edit::Set(set) = &item.edit {
+                    bytes = bytes.checked_add(value(set)?)?;
+                }
+                if let jig_domain_core::settings::Replaced::Value(replaced) = &item.replaced {
+                    bytes = bytes.checked_add(value(replaced)?)?;
+                }
+            }
+            Some(bytes)
+        }
         Record::Proposal { value, .. } => items(&value.items),
         Record::Charter { value: version, .. } => match &version.charter {
             Some(charter) => u64::try_from(size_of::<jig_domain_core::Charter>())
                 .ok()?
-                .checked_add(jig_domain_core::policy_owned_bytes(&charter.policy)?),
+                .checked_add(jig_domain_core::charter_owned_bytes(charter)?),
             None => Some(0),
         },
         Record::Extent { .. } => Some(0),
     }
 }
 fn items(items: &[Item]) -> Option<u64> {
-    let mut bytes = u64::try_from(items.len()).ok()?.checked_mul(u64::try_from(size_of::<Item>()).ok()?)?;
+    let mut bytes = skein_lib::len_u64(items.len()).checked_mul(u64::try_from(size_of::<Item>()).ok()?)?;
     for item in items {
         if let Edit::Set(set) = &item.edit {
             bytes = bytes.checked_add(value(set)?)?;
@@ -35,16 +50,15 @@ fn value(value: &Value) -> Option<u64> {
     match value {
         Value::Charter(charter) => u64::try_from(size_of::<jig_domain_core::Charter>())
             .ok()?
-            .checked_add(jig_domain_core::policy_owned_bytes(&charter.policy)?),
+            .checked_add(jig_domain_core::charter_owned_bytes(charter)?),
         Value::Template(template) => {
             let mut bytes = u64::try_from(size_of::<jig_domain_core::Template>())
                 .ok()?
-                .checked_add(u64::try_from(template.name.len()).ok()?)?
+                .checked_add(skein_lib::len_u64(template.name.len()))?
                 .checked_add(contract(&template.contract)?)?;
             if let Some(choice) = &template.llm {
                 bytes = bytes.checked_add(
-                    u64::try_from(choice.subagents.len())
-                        .ok()?
+                    skein_lib::len_u64(choice.subagents.len())
                         .checked_mul(u64::try_from(size_of::<tasks::ModelEffort>()).ok()?)?,
                 )?;
             }
@@ -58,18 +72,15 @@ fn value(value: &Value) -> Option<u64> {
                 .checked_add(grants(&policy.projections)?)?
                 .checked_add(requirements(&policy.requirements)?)?
                 .checked_add(
-                    u64::try_from(policy.roles.len())
-                        .ok()?
+                    skein_lib::len_u64(policy.roles.len())
                         .checked_mul(u64::try_from(size_of::<authority::Role>()).ok()?)?,
                 )?
                 .checked_add(
-                    u64::try_from(configured.permissions.len())
-                        .ok()?
+                    skein_lib::len_u64(configured.permissions.len())
                         .checked_mul(u64::try_from(size_of::<jig_domain_people::PermissionRole>()).ok()?)?,
                 )?
                 .checked_add(
-                    u64::try_from(configured.templates.len())
-                        .ok()?
+                    skein_lib::len_u64(configured.templates.len())
                         .checked_mul(u64::try_from(size_of::<jig_domain_people::TemplateOverride>()).ok()?)?,
                 )?;
             for role in &policy.roles {
@@ -84,18 +95,17 @@ fn value(value: &Value) -> Option<u64> {
             .checked_add(
                 u64::from(rules.implies.len()).checked_mul(u64::try_from(size_of::<authority::Implication>()).ok()?)?,
             ),
+        Value::Application(bytes) => Some(skein_lib::len_u64(bytes.len())),
     }
 }
 fn authority(value: &authority::Authority) -> Option<u64> {
     let mut bytes = grants(&value.grants)?
         .checked_add(
-            u64::try_from(value.delegation.kinds.len())
-                .ok()?
+            skein_lib::len_u64(value.delegation.kinds.len())
                 .checked_mul(u64::try_from(size_of::<authority::Executor>()).ok()?)?,
         )?
         .checked_add(
-            u64::try_from(value.note_resources.len())
-                .ok()?
+            skein_lib::len_u64(value.note_resources.len())
                 .checked_mul(u64::try_from(size_of::<authority::ResourceScope>()).ok()?)?,
         )?;
     for scope in &value.note_resources {
@@ -104,17 +114,15 @@ fn authority(value: &authority::Authority) -> Option<u64> {
     Some(bytes)
 }
 fn grants(grants: &[authority::Grant]) -> Option<u64> {
-    let mut bytes =
-        u64::try_from(grants.len()).ok()?.checked_mul(u64::try_from(size_of::<authority::Grant>()).ok()?)?;
+    let mut bytes = skein_lib::len_u64(grants.len()).checked_mul(u64::try_from(size_of::<authority::Grant>()).ok()?)?;
     for grant in grants {
         bytes = bytes.checked_add(pattern(&grant.pattern)?)?;
     }
     Some(bytes)
 }
 fn requirements(requirements: &[authority::Requirement]) -> Option<u64> {
-    let mut bytes = u64::try_from(requirements.len())
-        .ok()?
-        .checked_mul(u64::try_from(size_of::<authority::Requirement>()).ok()?)?;
+    let mut bytes =
+        skein_lib::len_u64(requirements.len()).checked_mul(u64::try_from(size_of::<authority::Requirement>()).ok()?)?;
     for requirement in requirements {
         bytes = bytes.checked_add(pattern(&requirement.pattern)?)?;
     }
@@ -122,27 +130,25 @@ fn requirements(requirements: &[authority::Requirement]) -> Option<u64> {
 }
 fn pattern(pattern: &authority::Pattern) -> Option<u64> {
     let mut bytes =
-        u64::try_from(pattern.segments.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+        skein_lib::len_u64(pattern.segments.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
     for segment in &pattern.segments {
-        bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+        bytes = bytes.checked_add(skein_lib::len_u64(segment.len()))?;
     }
     match &pattern.last {
-        authority::Last::Exact(last) | authority::Last::Open(last) => {
-            bytes.checked_add(u64::try_from(last.len()).ok()?)
-        }
+        authority::Last::Exact(last) | authority::Last::Open(last) => bytes.checked_add(skein_lib::len_u64(last.len())),
     }
 }
 fn contract(contract: &tasks::Contract) -> Option<u64> {
     match contract {
-        tasks::Contract::Report { .. } | tasks::Contract::Change { .. } => Some(0),
+        tasks::Contract::Report { .. } | tasks::Contract::Change { .. } | tasks::Contract::Job { .. } => Some(0),
         tasks::Contract::Approval { state, part } => {
-            let mut bytes = u64::try_from(state.len()).ok()?;
+            let mut bytes = skein_lib::len_u64(state.len());
             if let tasks::PartKey::Path(segments) = &part.key {
                 bytes = bytes.checked_add(
                     u64::from(segments.capacity()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
                 )?;
                 for segment in segments {
-                    bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+                    bytes = bytes.checked_add(skein_lib::len_u64(segment.len()))?;
                 }
             }
             Some(bytes)
@@ -150,14 +156,13 @@ fn contract(contract: &tasks::Contract) -> Option<u64> {
         tasks::Contract::Verdict { choices } => {
             // Each verdict owns its field rules and their names.
             let mut bytes =
-                u64::try_from(choices.len()).ok()?.checked_mul(u64::try_from(size_of::<tasks::Verdict>()).ok()?)?;
+                skein_lib::len_u64(choices.len()).checked_mul(u64::try_from(size_of::<tasks::Verdict>()).ok()?)?;
             for choice in choices {
                 for field in &choice.fields {
-                    bytes = bytes.checked_add(u64::try_from(field.name.len()).ok()?)?;
+                    bytes = bytes.checked_add(skein_lib::len_u64(field.name.len()))?;
                 }
                 bytes = bytes.checked_add(
-                    u64::try_from(choice.fields.len())
-                        .ok()?
+                    skein_lib::len_u64(choice.fields.len())
                         .checked_mul(u64::try_from(size_of::<tasks::FieldRule>()).ok()?)?,
                 )?;
             }

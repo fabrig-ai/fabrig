@@ -1,11 +1,12 @@
 //! A chat's list fixtures use the same task facts as the real owner's query.
-use super::{frame, list, task, text};
+use super::{list, task, text};
 use jig_client_domain::contract::*;
 use skein_lib::{List, Wall};
 
 #[must_use]
 pub fn templates() -> List<Template> {
     let chat = Template {
+        resources: List::with_capacity(0),
         llm: None,
         number: jig_client::shapes::CHAT,
         name: DocumentText::complete(text(b"Chat")),
@@ -86,19 +87,5 @@ pub fn list_world(seed: u64, tasks: &[Task]) -> super::World<super::Test, super:
             )
             .expect("fixture task admitted");
     }
-    world
-}
-#[must_use]
-pub fn without_chats(seed: u64) -> super::World<super::Test, super::Scripted> {
-    let mut world = super::world(seed);
-    let mut me = frame(7);
-    for index in 0..me.projects.len() {
-        me.projects.get_mut(index).expect("project index").templates.clear();
-    }
-    world
-        .front()
-        .engine
-        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Me(me))
-        .expect("fixture me admitted");
     world
 }

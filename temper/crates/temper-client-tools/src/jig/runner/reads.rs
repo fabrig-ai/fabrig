@@ -19,12 +19,15 @@ pub(crate) struct Reading {
     pub pages: BTreeMap<u32, Readout>,
     pub documents: BTreeMap<u32, c::Delivery>,
     pub text: Option<c::RunText>,
+    pub specification: Option<super::specification::Specification>,
     pub thread: Option<Thread>,
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
     pub question: Option<(u64, u64)>,
     pub met_inbox: Option<Printed>,
+    pub parts: &'static dyn render::Parts,
+    pub application: super::application::Reading,
 }
-fn handle(runner: &Runner, prefix: u32, local: u32) -> Handle {
+pub(super) fn handle(runner: &Runner, prefix: u32, local: u32) -> Handle {
     Handle { asker: runner.asker, number: (u64::from(prefix) << 32u32) | u64::from(local) }
 }
 fn read(runner: &Runner, reading: &mut Reading, local: u32, what: c::Read, out: &mut Queue<Out>) {
@@ -78,10 +81,13 @@ fn start_reading(
         pages: BTreeMap::new(),
         documents: BTreeMap::new(),
         text: None,
+        specification: None,
         thread: None,
         questions: BTreeMap::new(),
         question: None,
         met_inbox,
+        application: super::application::Reading::new(),
+        parts: runner.parts.expect("host vocabulary"),
     };
     if reading.called.call.tool <= 3 {
         start_overview(runner, client, env, reading, out);
@@ -181,7 +187,14 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             let what = c::Read::Proposal { proposal: *proposal };
             read(runner, &mut reading, 1, what, out);
         }
-        rows::SETTINGS_AT..=rows::REVISIONS_AT => settings_start(runner, &mut reading, out),
+        rows::SETTINGS_AT..=rows::REVISIONS_AT => {
+            if !reading.parts.prepare_setting(&mut reading.called.call, super::acts::me(runner, client)) {
+                let printed = render::failure(b"unknown project", reading.called.json, 1);
+                finish(reading, printed, out);
+                return;
+            }
+            settings_start(runner, &mut reading, out);
+        }
         rows::TREE_AT => watch(runner, &mut reading, 3, c::Subject::Tree { task, window: env.limits.rows }, out),
         7 => watch(runner, &mut reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out),
         _ => unreachable!("read tool"),
@@ -240,30 +253,32 @@ pub(super) fn page(
     let prefix = u32::try_from(handle.number >> 32u32).expect("high half");
     let local = u32::try_from(handle.number & u64::from(u32::MAX)).expect("low half");
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
+    if local == super::application::SLOT && reading.application.query.is_some() {
+        reading.pending &= !(1 << super::application::SLOT);
+        if let Err(page) = super::application::received(&mut reading, page) {
+            let printed = render::read(
+                &page,
+                client,
+                runner.me(),
+                reading.called.json,
+                &env.limits,
+                runner.parts.expect("host vocabulary"),
+            );
+            finish(reading, printed, out);
+            return;
+        }
+        complete(runner, client, env, reading, out);
+        return;
+    }
     // Joined setting reads share the last bit; inbox question details use slot 6.
     reading.pending &= !1u8.checked_shl(local.min(7)).expect("fixed read slot");
+    if reading.called.call.tool == 3 && local == 7 {
+        super::specification::accept(&mut reading, &page);
+        complete(runner, client, env, reading, out);
+        return;
+    }
     if reading.called.call.tool == 1 && local == 6 {
-        let key = reading.question.take().expect("one question read in flight");
-        let question = match page {
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Question(question)))
-                if (question.task.task, question.message) == key =>
-            {
-                Some(question)
-            }
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => match value.value {
-                c::EndedValue::Question { question, .. } if (question.task.task, question.message) == key => {
-                    Some(Box::new(question))
-                }
-                c::EndedValue::Task { .. }
-                | c::EndedValue::Proposal(_)
-                | c::EndedValue::PersonProposal { .. }
-                | c::EndedValue::Escalation { .. }
-                | c::EndedValue::Question { .. }
-                | c::EndedValue::PersonTask { .. } => None,
-            },
-            Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
-        };
-        reading.questions.insert(key, question);
+        question_page(&mut reading, page);
         complete(runner, client, env, reading, out);
         return;
     }
@@ -279,7 +294,16 @@ pub(super) fn page(
         && local == 6
         && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = &page
     {
-        let setting = super::super::settings_file::selector(&reading.called.call);
+        let setting = match reading.parts.setting_selector(&reading.called.call) {
+            Some(setting) => setting,
+            None => super::super::settings_file::selector(&reading.called.call),
+        };
+        if let c::Setting::Application { .. } = setting {
+            super::application::inventory(&mut reading, settings, setting);
+            super::application::read(runner, &mut reading, super::application::Query::Setting(setting), out);
+            complete(runner, client, env, reading, out);
+            return;
+        }
         let what = c::Read::Setting(c::ReadSetting { setting, revision: settings.newest, proposal: None });
         read(runner, &mut reading, 1, what, out);
         complete(runner, client, env, reading, out);
@@ -406,6 +430,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
+    if let Some(what) = super::specification::next(&mut reading, &env.limits) {
+        read(runner, &mut reading, 7, what, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
     if reading.called.call.tool == rows::PROPOSAL_AT
         && let Some((local, what)) = super::proposal::next(&reading)
     {
@@ -413,30 +442,14 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
-    if let Some(thread) = &mut reading.thread
-        && let Some(c::Delivery::RunState(run)) = reading.documents.get(&4)
+    if reading.called.call.tool == rows::PROPOSAL_AT
+        && let Some(query) = super::application::next(&reading)
     {
-        thread.run(run, reading.text.as_ref());
+        super::application::read(runner, &mut reading, query, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
     }
-    if let Some(thread) = &reading.thread
-        && let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(_)))) = reading.pages.get(&1)
-    {
-        // JSON and text expose the same kept window, not just the final
-        // transport page used to fill it. Thread rows are newest first.
-        let mut rows = skein_lib::List::with_capacity(thread.lines.rows.len());
-        for row in thread.lines.rows.as_slice().iter().rev() {
-            rows.push(row.clone()).expect("bounded conversation rows");
-        }
-        reading.pages.insert(
-            1,
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
-                rows,
-                cut: thread.page_cut,
-                before: edge_cursor(&thread.lines.edges.after),
-                after: edge_cursor(&thread.lines.edges.before),
-            })))),
-        );
-    }
+    join_thread(&mut reading);
     if reading.called.call.tool == 25
         || (27..=30).contains(&reading.called.call.tool)
         || reading.called.call.tool == 33
@@ -539,7 +552,10 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
         rows::SETTINGS_AT => read(runner, reading, 1, c::Read::Settings, out),
         rows::SETTING_AT => {
             let call = &reading.called.call;
-            let setting = super::super::settings_file::selector(call);
+            let setting = match reading.parts.setting_selector(call) {
+                Some(setting) => setting,
+                None => super::super::settings_file::selector(call),
+            };
             match number(call, 2) {
                 Some(n) => {
                     let revision = u32::try_from(n).expect("parsed revision");
@@ -655,4 +671,55 @@ fn finish(reading: Reading, mut printed: Printed, out: &mut Queue<Out>) {
         printed.status = fallback.status;
     }
     super::finish(reading.called, printed, out);
+}
+
+fn question_page(reading: &mut Reading, page: Readout) {
+    let key = reading.question.take().expect("one question read in flight");
+    let question = match page {
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Question(question)))
+            if (question.task.task, question.message) == key =>
+        {
+            Some(question)
+        }
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => match value.value {
+            c::EndedValue::Question { question, .. } if (question.task.task, question.message) == key => {
+                Some(Box::new(question))
+            }
+            c::EndedValue::Task { .. }
+            | c::EndedValue::Proposal(_)
+            | c::EndedValue::PersonProposal { .. }
+            | c::EndedValue::Escalation { .. }
+            | c::EndedValue::Question { .. }
+            | c::EndedValue::PersonTask { .. } => None,
+        },
+        Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
+    };
+    reading.questions.insert(key, question);
+}
+
+fn join_thread(reading: &mut Reading) {
+    if let Some(thread) = &mut reading.thread
+        && let Some(c::Delivery::RunState(run)) = reading.documents.get(&4)
+    {
+        thread.run(run, reading.text.as_ref());
+    }
+    if let Some(thread) = &reading.thread
+        && let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(_)))) = reading.pages.get(&1)
+    {
+        // JSON and text expose the same kept window, not just the final
+        // transport page used to fill it. Thread rows are newest first.
+        let mut rows = skein_lib::List::with_capacity(thread.lines.rows.len());
+        for row in thread.lines.rows.as_slice().iter().rev() {
+            rows.push(row.clone()).expect("bounded conversation rows");
+        }
+        reading.pages.insert(
+            1,
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+                rows,
+                cut: thread.page_cut,
+                before: edge_cursor(&thread.lines.edges.after),
+                after: edge_cursor(&thread.lines.edges.before),
+            })))),
+        );
+    }
 }

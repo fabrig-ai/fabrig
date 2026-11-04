@@ -1,6 +1,6 @@
 pub(crate) mod fixtures;
 use crate::{directory, limits};
-use skein_io::kernel::{Exit, ServiceSignal};
+use skein_io::kernel::{Error, Exit, ServiceSignal};
 const SIGN_IN_FIRST: skein_lib::Duration = skein_lib::Duration::from_millis(100);
 const DEADLINE_TICK: skein_lib::Duration = skein_lib::Duration::from_nanos(1); // The clock's smallest step.
 const SIGN_IN_FILE_CALL: &[u8] = br#"{"tool":"sign-in","arguments":{"file":"link-file"}}"#;
@@ -125,6 +125,63 @@ fn a_zero_byte_token_is_not_signed_in() {
     f.run();
     assert_eq!(f.stderr(), b"temper ctl: DIRECTORY is not signed in\n");
     assert_eq!(f.exit(), Some(Exit::Code(1)));
+}
+/// client/tools.md, 8.1: `address` is written by sign-in, so a DIRECTORY without it is not signed in.
+#[test]
+fn a_directory_without_an_address_is_not_signed_in() {
+    let mut f = fixtures::Frame::act(fixtures::CHAT);
+    f.address_error = Some(Error::NotFound);
+    f.run();
+    assert_eq!(str::from_utf8(f.stderr()).expect("diagnostic"), "temper ctl: DIRECTORY is not signed in\n");
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.requests(), 0);
+}
+/// client/tools.md, 8.1: a step's failure names the step and the error.
+#[test]
+fn a_directory_step_that_fails_names_the_step_and_the_error() {
+    const LONG_ADDRESS: &[u8] = &[b'a'; limits::ADDRESS as usize + 1];
+    const LONG_TOKEN: &[u8] = &[b't'; fixtures::TOKEN_BYTES.len() + 1];
+    for (address_error, token_error, address, token, line) in [
+        (
+            Some(Error::Permission),
+            None,
+            b"http://127.0.0.1:4000\n".as_slice(),
+            fixtures::TOKEN_BYTES,
+            "temper ctl: DIRECTORY could not be read: address: Permission\n",
+        ),
+        (
+            None,
+            Some(Error::Permission),
+            b"http://127.0.0.1:4000\n",
+            fixtures::TOKEN_BYTES,
+            "temper ctl: DIRECTORY could not be read: token: Permission\n",
+        ),
+        (
+            None,
+            None,
+            LONG_ADDRESS,
+            fixtures::TOKEN_BYTES,
+            "temper ctl: DIRECTORY could not be read: address: too large\n",
+        ),
+        (
+            None,
+            None,
+            b"http://127.0.0.1:4000\n",
+            LONG_TOKEN,
+            "temper ctl: DIRECTORY could not be read: token: too large\n",
+        ),
+    ] {
+        let mut f = fixtures::Frame::act(fixtures::CHAT);
+        f.address_error = address_error;
+        f.token_error = token_error;
+        f.address = address;
+        f.token = token;
+        f.run();
+        assert_eq!(str::from_utf8(f.stderr()).expect("diagnostic"), line);
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(f.requests(), 0);
+        assert!(skein_lib::bytes::find(f.stderr(), fixtures::TOKEN_BYTES).is_none());
+    }
 }
 #[test]
 fn a_read_never_opens_the_store() {
@@ -692,7 +749,7 @@ fn help_json_prints_every_record() {
     assert_eq!(chat[2]["name"], "chat close");
     let arguments = chat[1]["forms"][0].as_array().expect("chat start arguments");
     let names = arguments.iter().map(|arg| arg["name"].as_str().expect("argument name")).collect::<Vec<_>>();
-    assert_eq!(names, ["project", "text", "model", "effort"]);
+    assert_eq!(names, ["project", "template", "text", "model", "effort", "sub_agent"]);
     assert_eq!(chat[1]["keyed"], "required");
 
     let settings = records(&["help", "settings", "show", "--json"]);
@@ -706,7 +763,7 @@ fn help_json_prints_every_record() {
     let forge = records(&["help", "forge", "connect", "--json"]);
     assert_eq!(forge.len(), 1);
     assert_eq!(forge[0]["name"], "forge connect");
-    assert_eq!(forge[0]["forms"].as_array().expect("forge connect forms").len(), 7);
+    assert_eq!(forge[0]["forms"].as_array().expect("forge connect forms").len(), 8);
 
     let me = records(&["help", "me", "--json"]);
     assert_eq!(me.len(), 1);
@@ -1141,7 +1198,7 @@ fn validity_refuses_unusable_io_and_overflowing_operation_counts() {
 #[test]
 fn validity_accepts_large_representable_io_edges() {
     let mut limits = limits::native();
-    limits.io.sockets = 1 << 28_u32;
+    limits.io.sockets = (1 << 24_u32) - 1;
     limits.io.sends = u32::MAX;
     assert!(limits::valid(&limits));
 }

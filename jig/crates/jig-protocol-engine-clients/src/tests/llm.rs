@@ -360,6 +360,7 @@ fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_t
             fleet::HelloRefusal::StopBound { grace: Duration::from_secs(10) },
             c::HelloRefusal::StopBound { grace: Duration::from_secs(10) },
         ),
+        (fleet::HelloRefusal::JobKinds, c::HelloRefusal::JobKinds),
         (fleet::HelloRefusal::Position { worker: 7 }, c::HelloRefusal::Position { worker: 7 }),
         (fleet::HelloRefusal::Workers { limit: 3 }, c::HelloRefusal::Workers { limit: 3 }),
     ] {

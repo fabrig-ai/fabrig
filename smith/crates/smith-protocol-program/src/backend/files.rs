@@ -222,8 +222,19 @@ impl Backend {
         let mut tools = List::with_capacity(u32::try_from(count).expect("admitted tool count"));
         for schema in schemas {
             match schema.kind {
-                protocol::ToolKind::SubAgent
-                | protocol::ToolKind::Owned(
+                protocol::ToolKind::SubAgent => {
+                    tools
+                        .push(mcp::Tool {
+                            name: schema.name,
+                            description: json::join(&[
+                                &schema.description,
+                                b" On this backend a sub-agent reads only: its tools are [\"inspect\"]. Several asked in one message run side by side.",
+                            ]),
+                            input_schema: json::sub_agent_schema(&schema.schema),
+                        })
+                        .expect("inventory capacity");
+                }
+                protocol::ToolKind::Owned(
                     Tool::Read | Tool::List | Tool::Search | Tool::Write | Tool::Edit | Tool::Shell | Tool::Job,
                 ) => {}
                 protocol::ToolKind::Finish if self.result_contract() => {}

@@ -37,7 +37,7 @@ const ENGINE: &[u8] = br#"{
 "people.people":1,"people.projects":2,"people.sign_ins":2,"people.holdings":1,
 "people.inbox_tasks":4,"people.pending":1,"people.waiters":1,
 "fleet.attempts":1,"fleet.calls":1,"fleet.turns":8,
-"brief.briefs":1,"brief.sections":1,
+"brief.briefs":1,"brief.sections":6,"tasks.charter_documents":0,
 "notes.entries_per_scope":1,"views.runs":1,"views.watchers":4,"views.watchers_per_party":4,
 "core.load_slots":1,"core.load_bytes":8192,"core.resume_bytes":4096,"core.run_bytes":4096,"views.text_bytes":1024
 ,"core.templates":2,"documents.rows":1,"documents.lines":1,"documents.chips":1,"documents.text_bytes":128
@@ -47,7 +47,7 @@ const ENGINE: &[u8] = br#"{
 "endpoints": [{
 "name": "fake",
 "number": 1,
-"dialect": 1,
+"dialect": 3,
 "provider": "fake-provider",
 "address": {"socket": "127.0.0.1:7101"},
 "transport": "plaintext",
@@ -157,7 +157,7 @@ pub fn seeds() -> Seeds {
 pub(crate) fn endpoints() -> smith_protocol_channel::Endpoints {
     let mut entries = List::with_capacity(1);
     entries
-        .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 0, dialect: 1 })
+        .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 0, dialect: 3 })
         .expect("one endpoint");
     smith_protocol_channel::Endpoints::new(entries)
 }
@@ -257,7 +257,6 @@ fn agent_configuration_for(llm: skein_llm::Endpoint) -> smith_agent_service::Con
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            identity: smith_protocol_llm::IdentityProfile::Plain,
             models: Box::default(),
         }]),
         1,
@@ -412,6 +411,7 @@ pub(crate) fn peer_hello() -> skein_channel::Frame {
             stop_bound: Duration::from_secs(15),
             workstreams: List::with_capacity(0),
             hosting: List::with_capacity(0),
+            jobs: List::with_capacity(0),
             bounds,
         },
     )
@@ -578,6 +578,7 @@ pub fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: words.into(),
@@ -596,7 +597,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             notes: 0,
             note_resources: Box::new([]),
         },
-        wake: people::WakePolicy {
+        wake: Some(people::WakePolicy {
             words: people::WakeRule::Immediate,
             notices: people::WakeRule::Never,
             news: people::WakeRule::Never,
@@ -604,7 +605,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             questions: false,
             answers: false,
             timers: false,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: None,
         label: 0,

@@ -139,8 +139,8 @@ fn agent_endpoint_document(directory: &std::path::Path, program: bool, program_e
     let mut value = serde_json::json!({
         "profile":{"name":"standard","declared":{"tool_payload":512,"read_window":256},
             "policy":{"max_turns":5,"group_stop":10}},
-        "endpoints":[{"name":"fake","number":0,"dialect":3,"account":1,"provider":"openai",
-            "address":"127.0.0.1:34443","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"identity":"plain","connect":1000,"handshake":1000,
+        "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
+            "address":"127.0.0.1:34443","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"connect":1000,"handshake":1000,
             "models":[{"name":"fake","window":1_048_576,"output":1024,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1000},"head":60000,"idle":30000}]}],
         "environment":[{"name":"JIG_SOURCE_CHECK","value":"configured"}]
     });
@@ -211,4 +211,30 @@ fn provider_key_files_refuse_group_permissions_and_symbolic_links() {
     let error = super::read_startup_file(link.as_os_str().as_bytes(), 8192, user).expect_err("link refused");
     assert!(error.contains("Unsafe(Link)"));
     assert!(!error.contains("key contents"));
+}
+
+#[test]
+fn debug_of_an_agent_start_shows_the_environments_count_never_its_entries() {
+    const CANARY: &[u8] = b"canary-7f3a9c";
+    let sources = super::SourceSettings {
+        directory: Box::from(b"/private/programs".as_slice()),
+        executable: Box::from(b"/private/claude".as_slice()),
+        environment: Box::new([Box::from(b"API_KEY=canary-7f3a9c".as_slice())]),
+    };
+    let expected = format!(
+        "SourceSettings {{ directory: {:?}, executable: {:?}, environment_entries: 1 }}",
+        sources.directory, sources.executable
+    );
+    let sources_debug = format!("{sources:?}");
+    let directory = tempfile::tempdir().expect("agent configuration scratch");
+    let mut start = super::agent(&agent_document(directory.path(), false)).expect("configured agent");
+    start.sources = Some(sources);
+    let start_debug = format!("{start:?}");
+    let canary_debug = format!("{CANARY:?}");
+    for debug in [&sources_debug, &start_debug] {
+        assert!(skein_lib::bytes::find(debug.as_bytes(), CANARY).is_none());
+        assert!(!debug.contains(canary_debug.trim_matches(['[', ']'])));
+        assert!(debug.contains("environment_entries: 1"));
+    }
+    assert_eq!(sources_debug, expected);
 }

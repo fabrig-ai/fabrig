@@ -81,7 +81,15 @@ fn later(admin_token: bool) -> Drive {
     assert_eq!(drive.versions(found, true), Request::Layout);
     let Request::Write { file: File::AppIni, contents } = drive.send(Event::Done) else { panic!("settings") };
     assert!(skein_lib::bytes::find(contents.expose(), b"key-secret").is_some());
+    refreshed(&mut drive);
     drive
+}
+fn refreshed(drive: &mut Drive) {
+    assert_eq!(drive.send(Event::Done), run(Command::Register));
+    let Request::Write { file: File::RunnerConfiguration, .. } = drive.send(fixtures::ran_ok()) else {
+        panic!("runner configuration")
+    };
+    let Request::Write { file: File::State, .. } = drive.send(Event::Done) else { panic!("record") };
 }
 #[test]
 fn another_forgejo_binary_is_refused_naming_its_path_and_line() {
@@ -180,7 +188,29 @@ fn a_first_preparation_with_a_runner_asks_for_the_runners_lock() {
     assert_eq!(drive.send(Event::Done), Request::Draw);
 }
 #[test]
-fn a_later_preparation_at_the_same_versions_writes_app_ini_and_nothing_else() {
+fn a_later_capacity_change_rewrites_the_runner_without_replacing_its_registration() {
+    let mut owned = fixtures::owned();
+    owned.runner.as_mut().unwrap().capacity = 2;
+    let mut drive = Drive::new(owned.clone());
+    assert_eq!(drive.versions(fixtures::later(), true), Request::Layout);
+    let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings") };
+    assert_eq!(
+        drive.send(Event::Done),
+        Request::Run { command: Command::Register, spec: spec::command(Command::Register, &owned, &fixtures::place()) }
+    );
+    let Request::Write { file: File::RunnerConfiguration, contents } = drive.send(fixtures::ran(b"kept-uuid\n")) else {
+        panic!("updated runner configuration")
+    };
+    let text = contents.expose();
+    assert!(text.starts_with(b"runner:\n  capacity: 2\n"));
+    assert!(skein_lib::bytes::find(text, b"uuid: \"kept-uuid\"").is_some());
+    assert!(skein_lib::bytes::find(text, b"token_url: \"file:/srv/forge-2/runner/secret\"").is_some());
+    let Request::Write { file: File::State, contents } = drive.send(Event::Done) else { panic!("record") };
+    assert_eq!(contents, fixtures::later().state.unwrap());
+    assert_eq!(drive.send(Event::Done), Request::End(Ok(())));
+}
+#[test]
+fn a_later_preparation_at_the_same_versions_refreshes_the_configuration() {
     let mut drive = later(true);
     assert_eq!(drive.send(Event::Done), Request::End(Ok(())));
 }
@@ -277,6 +307,7 @@ fn each_missing_person_header_is_remade_without_touching_the_other() {
         let mut drive = Drive::new(fixtures::owned());
         assert_eq!(drive.versions(Found { person_headers: present, ..fixtures::later() }, true), Request::Layout);
         let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings") };
+        refreshed(&mut drive);
         assert_eq!(headers(&mut drive, &[file]), Request::End(Ok(())));
     }
 }
@@ -285,6 +316,7 @@ fn a_preparation_from_before_person_headers_makes_both() {
     let mut drive = Drive::new(fixtures::owned());
     assert_eq!(drive.versions(Found { person_headers: [false; 2], ..fixtures::later() }, true), Request::Layout);
     drive.send(Event::Done);
+    refreshed(&mut drive);
     assert_eq!(headers(&mut drive, &[File::PersonReadHeader, File::PersonWriteHeader]), Request::End(Ok(())));
 }
 
@@ -306,6 +338,7 @@ fn a_person_token_failure_names_the_header_and_masks_the_token() {
     let mut drive = Drive::new(fixtures::owned());
     drive.versions(Found { person_headers: [false, true], ..fixtures::later() }, true);
     drive.send(Event::Done);
+    refreshed(&mut drive);
     assert_eq!(drive.send(Event::Done), Request::Draw);
     let Request::PersonToken { file: File::PersonReadHeader, .. } = drive.send(Event::Drew(fixtures::draw(7))) else {
         panic!("read token")

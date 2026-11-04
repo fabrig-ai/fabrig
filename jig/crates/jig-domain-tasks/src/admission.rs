@@ -170,6 +170,9 @@ pub(crate) fn activation(
     if attempt == 0 || crate::run::run_attempt(&old.phase) != Some(attempt) || old.last_answer == Some(attempt) {
         return refused(to, Some(number), Refusal::Attempt, out);
     }
+    if crate::run::refuses_job_end(old.executor, &end) {
+        return refused(to, Some(number), Refusal::Executor, out);
+    }
     if !crate::run::saved_within(saved.as_deref(), &environment.limits) {
         return refused(to, Some(number), Refusal::Contract, out);
     }

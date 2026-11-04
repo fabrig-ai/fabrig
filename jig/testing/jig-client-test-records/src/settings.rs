@@ -1,12 +1,13 @@
 //! Independent whole settings fixtures (client/domain/contract.md, 3–7).
 use jig_client_domain::contract::{
-    Authority, AuthorityModels, ChangeSettings, Charter, Delegation, DocumentText, EndedBy, Grant, HeldRevision,
-    KindImplication, LlmChoice, ModelEffort, Pattern, PatternEnd, PolicyEditRole, PolicyGuard, PolicyJudge,
-    PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider, RevisionDocument,
-    RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead, RevisionParty, RevisionRow,
-    RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts, SettingItem, SettingLine,
-    SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument, Size, TaskContractDocument,
-    TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor, TemplateOverride, Text,
+    Authority, AuthorityModels, ChangeSettings, Charter, CharterDocument, Delegation, DocumentText, EndedBy, Grant,
+    HeldRevision, KindImplication, LlmChoice, ModelEffort, Pattern, PatternEnd, PolicyEditRole, PolicyGuard,
+    PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider,
+    RevisionDocument, RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead, RevisionParty,
+    RevisionReplaced, RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts,
+    SettingItem, SettingLine, SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument,
+    Size, TaskContractDocument, TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor,
+    TemplateOverride, Text,
 };
 use skein_lib::{Duration, List, Wall};
 fn text(value: &[u8]) -> Text {
@@ -42,7 +43,7 @@ fn model() -> SettingModel {
     let mut efforts = List::with_capacity(1);
     efforts.push(text(b"high")).expect("one effort");
     SettingModel {
-        dialect: 1,
+        dialect: 3,
         endpoint: 2,
         program: Some(text(b"runner")),
         name: text(b"model"),
@@ -68,6 +69,18 @@ pub fn settings_values() -> List<SettingValue> {
     alternatives.push(other).expect("one alternative");
     values
         .push(SettingValue::Charter(Box::new(Charter {
+            documents: {
+                let mut documents = List::with_capacity(2);
+                for heading in [None, Some(Box::from(b"Rules".as_slice()))] {
+                    let mut name = List::with_capacity(2);
+                    name.push(Box::from(b"resource".as_slice())).expect("segment");
+                    name.push(Box::from(b"part".as_slice())).expect("segment");
+                    documents
+                        .push(CharterDocument { connector: 2, name, path: Box::from(b"guide.md".as_slice()), heading })
+                        .expect("document");
+                }
+                documents
+            },
             number: 2,
             instructions: text("instructions λ".as_bytes()),
             waiting: Duration::from_secs(11),
@@ -83,12 +96,23 @@ pub fn settings_values() -> List<SettingValue> {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(14),
+            tools: 1536,
             hosts: SettingHosts::Both,
             spend: 99,
+            wake: jig_client_domain::contract::WakePolicy {
+                words: jig_client_domain::contract::WakeRule::Immediate,
+                notices: jig_client_domain::contract::WakeRule::Immediate,
+                news: jig_client_domain::contract::WakeRule::Immediate,
+                results: jig_client_domain::contract::ResultsWake::LastOrFailure,
+                questions: true,
+                answers: true,
+                timers: true,
+            },
         })))
         .expect("charter");
     values
         .push(SettingValue::Template(Box::new(Template {
+            resources: List::with_capacity(0),
             number: 1,
             name: DocumentText::complete(text(b"chat")),
             executor: TemplateExecutor::Charter(2),
@@ -201,7 +225,8 @@ pub fn settings_document() -> SettingsDocument {
                 setting,
                 name: if setting == Setting::Rules { None } else { Some(DocumentText::complete(text(b"name"))) },
                 follows: SettingFollows::Change,
-                last: 6,
+                last: Some(6),
+                application: None,
             })
             .expect("four settings");
     }
@@ -211,14 +236,44 @@ pub fn settings_document() -> SettingsDocument {
 }
 #[must_use]
 pub fn settings_revision() -> RevisionDocument {
-    let mut items = List::with_capacity(7);
+    let mut items = List::with_capacity(10);
     for item in settings_change().items.into_boxed() {
         let SettingEdit::Set(value) = item.edit else { unreachable!("set fixture") };
-        items.push(RevisionItem { setting: item.setting, edit: RevisionEdit::Set(value) }).expect("settings");
+        items
+            .push(RevisionItem {
+                setting: item.setting,
+                edit: RevisionEdit::Set(value.clone()),
+                replaced: RevisionReplaced::Value(value),
+            })
+            .expect("settings");
     }
-    for edit in [RevisionEdit::Removed, RevisionEdit::Reset, RevisionEdit::TooLarge(Size { bytes: 999 })] {
-        items.push(RevisionItem { setting: Setting::Charter(SettingNumber { number: 8 }), edit }).expect("edit");
+    for (edit, replaced) in [
+        (RevisionEdit::Removed, RevisionReplaced::Default),
+        (RevisionEdit::Reset, RevisionReplaced::Removed),
+        (RevisionEdit::TooLarge(Size { bytes: 999 }), RevisionReplaced::NotOffered),
+        (RevisionEdit::Removed, RevisionReplaced::TooLarge(Size { bytes: 1001 })),
+    ] {
+        items
+            .push(RevisionItem { setting: Setting::Charter(SettingNumber { number: 8 }), edit, replaced })
+            .expect("edit");
     }
+    let SettingValue::Policy(policy) = settings_values().get(2).expect("policy").clone() else {
+        unreachable!("policy fixture")
+    };
+    items
+        .push(RevisionItem {
+            setting: Setting::ProjectPolicy { project: 5 },
+            edit: RevisionEdit::Set(SettingSet { value: SettingValue::Policy(policy.clone()) }),
+            replaced: RevisionReplaced::Value(SettingSet { value: SettingValue::Policy(policy) }),
+        })
+        .expect("project policy");
+    items
+        .push(RevisionItem {
+            setting: Setting::Application { kind: 2, scope: 3, number: 4 },
+            edit: RevisionEdit::Application(jig_client_domain::contract::SizedEdit::Set { size: 20 }),
+            replaced: RevisionReplaced::Application { size: 10 },
+        })
+        .expect("application");
     RevisionDocument { head: settings_head(), items }
 }
 #[must_use]

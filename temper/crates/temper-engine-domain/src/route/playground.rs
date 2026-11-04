@@ -3,6 +3,9 @@ use super::{Decision, Delivery, Domain, Env, Limits, Work, applications, core, e
 use alloc::boxed::Box;
 use skein_lib::{ReplyTo, Token};
 
+/// Temper's chat template (temper/docs/design/protocol/configuration.md, 2).
+const CHAT_TEMPLATE: u32 = 1;
+
 #[derive(Debug)]
 pub(crate) struct Context {
     pub sign_in: u64,
@@ -110,7 +113,7 @@ fn project(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
         fail(domain, forge::StartFailure::Adoption);
         return;
     };
-    ask(domain, Reply::Project, b"project", people::Ask::MakeProject { name: "Playground".into(), policy });
+    ask(domain, Reply::Project, b"project", people::Ask::MakeProject { name: "Demo".into(), policy });
 }
 fn fail(domain: &mut Domain, why: forge::StartFailure) {
     domain.playground_start = None;
@@ -288,7 +291,13 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
 pub(crate) fn reset(domain: &mut Domain, key: [u8; 16], act: forge::ResetAct) {
     let reply_to = reply_to(domain, Reply::Reset { key, act });
     let act = match act {
-        forge::ResetAct::RemoveProject { project } => people::Act::RemoveProject { project },
+        forge::ResetAct::RemoveProject { project } => people::Act::RemoveProject {
+            project,
+            grace: match domain.core.current.template(CHAT_TEMPLATE) {
+                Some(template) => template.grace,
+                None => None,
+            },
+        },
         forge::ResetAct::RemoveAccount { account } => people::Act::RemoveAccount { account },
     };
     domain.work.push(Work::Core(core::Event::Act {
@@ -327,7 +336,8 @@ pub(crate) fn acted(
         people::Outcome::Refused(people::Refusal::Role { held: None }) => {
             (true, Some(b"no first owner configured".as_slice()))
         }
-        people::Outcome::Refused(_)
+        people::Outcome::Restored { .. }
+        | people::Outcome::Refused(_)
         | people::Outcome::CompoundRefused { .. }
         | people::Outcome::Compound { .. }
         | people::Outcome::AccountRemoved { .. }
@@ -336,6 +346,7 @@ pub(crate) fn acted(
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
         | people::Outcome::ProjectRemoved { .. }
+        | people::Outcome::VisibilitySet { .. }
         | people::Outcome::Created { .. }
         | people::Outcome::MarkedSeen { .. }
         | people::Outcome::Applied { .. }

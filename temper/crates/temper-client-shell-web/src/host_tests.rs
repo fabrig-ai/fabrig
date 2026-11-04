@@ -22,13 +22,14 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
         .out
         .iter()
         .find_map(|request| match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
                     },
             } => Some(*watch),
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -73,13 +74,14 @@ fn deliver_forges(host: &mut Host, forges: &temper_client_protocol_wire::v1::For
         .out
         .iter()
         .find_map(|request| match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { .. } },
                     },
             } => Some(*watch),
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -128,10 +130,11 @@ fn send(host: &mut Host, name: &[u8]) -> Token {
     host.out
         .iter()
         .find_map(|request| match request {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } => {
-                Some(*attempt)
-            }
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => Some(*attempt),
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -383,6 +386,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         exchange: activity,
         status: 200,
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        headers: Vec::new(),
     });
     build(&mut host);
     let shown = host

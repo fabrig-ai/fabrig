@@ -2,6 +2,25 @@
 use crate::support;
 
 #[test]
+fn native_forgejo_settings_preserve_the_coding_producer() {
+    support::forgejo::tests::native_settings_preserve_the_coding_producer();
+}
+
+#[test]
+fn owned_settings_preserve_the_ordinary_producer_without_review() {
+    let scratch = support::Scratch::new("owned_producer");
+    let owned = support::owned::Owned { review: false, ..support::owned::Owned::example() };
+    support::owned::lay(scratch.path(), &owned);
+    let settings: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(scratch.path().join("native-landing-settings.json")).expect("landing settings"),
+    )
+    .expect("settings JSON");
+    assert_eq!(settings["items"][1]["set"], 1, "owned fixture uses the ordinary charter");
+    assert_eq!(settings["items"][0]["set"]["gates"], serde_json::json!([]));
+    scratch.remove();
+}
+
+#[test]
 fn story_command_a_callback_command_captures_output_and_keeps_a_bad_exit() {
     support::story_command::tests::a_callback_command_captures_output_and_keeps_a_bad_exit();
 }

@@ -109,9 +109,9 @@ fn root_chat_with_reads(
     for _ in 0..EXCHANGES {
         let Some(request) = out.pop() else { break };
         match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Read {
                                 read,
@@ -130,9 +130,9 @@ fn root_chat_with_reads(
                     &mut out,
                 );
             }
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open {
                                 watch,
@@ -154,9 +154,9 @@ fn root_chat_with_reads(
                 chat.activity = activity.rows.get(0).expect("newest activity").source.position;
                 up(&mut root, task_delivery(watch, chat), receiving, &mut out);
             }
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open {
                                 watch,
@@ -171,13 +171,14 @@ fn root_chat_with_reads(
                     up(&mut root, task_delivery(watch, task.clone()), receiving, &mut out);
                 }
             }
-            request @ Request::Client {
+            request @ Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { what: jig_client::Readable::Jig(c::Read::Task { .. }), .. },
                     },
             } => reads.push(request),
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -791,9 +792,9 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     let cut = fixtures::find(view.tree(), Role::Status, b"Earlier text omitted").is_some();
     assert_eq!(cut, turn_text < 2048, "the first turn is cut only below its 1.2 KB");
     assert_csv_card(&view, false);
-    let Some(Request::Client {
+    let Some(Request::Unlinked {
         request:
-            jig_client::Request::Down {
+            jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task: CHANGE }) },
             },
     }) = reads.pop()
@@ -917,5 +918,30 @@ fn an_ended_chat_has_no_composer_line_or_chooser() {
             assert!(!node.styles.as_slice().contains(&token));
         }
         assert!(!(node.role == Role::Disclosure && node.name.as_deref() == Some(b"Change model")));
+    }
+}
+
+#[test]
+fn cleared_and_uncleared_cards_keep_their_verification_words() {
+    for (words, label) in [
+        (b"1a2b3c4\nCleared by fast run 2.".as_slice(), b"Cleared".as_slice()),
+        (
+            b"1a2b3c4\nNot cleared: no verdict within the verification bound.".as_slice(),
+            b"Landed, uncleared".as_slice(),
+        ),
+    ] {
+        let mut task = landed();
+        task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Change {
+            kind: 1,
+            part: c::Part { connector: fixtures::FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(CHANGE) },
+            words: document(words),
+        }))));
+        let view = view(Some(task), &[CHANGE], false);
+        status(&view, label, look::STATUS_DONE);
+        let newline = skein_lib::bytes::find(words, b"\n").unwrap();
+        for line in [words.get(..newline).unwrap(), words.get(newline.checked_add(1).unwrap()..).unwrap()] {
+            assert!(find(&view, Find::text(line)).is_some());
+        }
+        steps(&view, true);
     }
 }

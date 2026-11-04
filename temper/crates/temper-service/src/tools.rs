@@ -47,6 +47,10 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
         Problem::TooLarge => (b"host call too large", None),
         Problem::Missing(member) => (b"host call member missing", Some(member)),
         Problem::Type(member) => (b"host call member of wrong type", Some(member)),
+        Problem::Range(b"full commit identifier") => (
+            b"expected a full commit identifier (40 or 64 lowercase hexadecimal digits); use the full head from the review brief",
+            None,
+        ),
         Problem::Range(member) => (b"host call out of range", Some(member)),
         Problem::UnknownTool => (b"unknown tool", None),
     };
@@ -71,8 +75,8 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
         answer: core::SettledAnswer::Host { error: true, body },
     })
 }
-pub(crate) fn render(to: ReplyTo, answer: &engine::CallAnswer, max_bytes: u32) -> engine::Event {
-    let (body, error) = temper_engine_smith::answer_bounded(answer, max_bytes).into_parts();
+pub(crate) fn render(to: ReplyTo, answer: &engine::CallAnswer, tool: &[u8], max_bytes: u32) -> engine::Event {
+    let (body, error) = temper_engine_smith::answer_for_tool(answer, tool, max_bytes).into_parts();
     engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
         to,
         answer: core::SettledAnswer::Host { error, body },

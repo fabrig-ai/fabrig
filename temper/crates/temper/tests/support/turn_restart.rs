@@ -50,7 +50,7 @@ pub fn configure(root: &Path, repository: u64) {
     let path = root.join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     config["application"]["landing"]["projects"] = json!([{
-        "project":1,"by":"turn","rules":[],
+        "project":1,"by":"turn",
         "gates":[{"forge":1,"repository":repository,
             "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true}]}]
     }]);

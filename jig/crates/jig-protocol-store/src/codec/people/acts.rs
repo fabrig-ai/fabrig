@@ -3,9 +3,9 @@ use super::{asks, compound, domain, wire};
 
 pub(super) fn encode(act: &domain::Act, limits: &wire::Limits) -> Result<wire::Act, wire::Problem> {
     Ok(match act {
-        domain::Act::RemoveProject { project } => wire::Act::RemoveProject(wire::ActRemoveProject::new(
+        domain::Act::RemoveProject { project, grace } => wire::Act::RemoveProject(wire::ActRemoveProject::new(
             limits,
-            wire::ActRemoveProjectParts { project: *project },
+            wire::ActRemoveProjectParts { project: *project, grace: compound::encode_grace(*grace) },
         )?),
         domain::Act::MakeProject { maker, name, policy } => wire::Act::MakeProject(wire::ActMakeProject::new(
             limits,
@@ -36,7 +36,9 @@ pub(super) fn encode(act: &domain::Act, limits: &wire::Limits) -> Result<wire::A
 }
 pub(super) fn decode(act: wire::Act, limits: &wire::Limits) -> Result<domain::Act, wire::Problem> {
     Ok(match act {
-        wire::Act::RemoveProject(value) => domain::Act::RemoveProject { project: value.project() },
+        wire::Act::RemoveProject(value) => {
+            domain::Act::RemoveProject { project: value.project(), grace: compound::decode_grace(*value.grace()) }
+        }
         wire::Act::MakeProject(value) => {
             let wire::ActMakeProjectParts { maker, name, policy } = value.into_parts();
             domain::Act::MakeProject { maker, name: asks::project_name(&name, wire::Path::ActMakeProjectName)?, policy }

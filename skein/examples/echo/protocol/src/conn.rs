@@ -13,12 +13,14 @@
 //! Owner transitions (examples.md, section 3.3; shell.md, section 13):
 //! | State | Owner request | Next and effects |
 //! |---|---|---|
-//! | Greeting, Reading, Draining | Drain | Closing; Close and Gone if admitted |
-//! | Admitting, Answering | Drain | Same; ended noted until its reply |
-//! | Closing | Drain | Same |
+//! | Greeting, Reading, Draining | Drain | Closing(Clear); Close and Gone if admitted |
+//! | Admitting, AdmittingEnded | Drain | AdmittingEnded; wait for its reply |
+//! | Answering, AnsweringEnded | Drain | AnsweringEnded; wait for its reply |
+//! | Closing, Shut | Drain | Same |
 //! | Open | Abort | Closing; Abort, Gone if known, any call still awaited |
-//! | Closing | Abort | Same; Abort unless Closed already arrived |
-//! | Closing owing Gone | Resume | Gone; retire only after both bindings end |
+//! | Closing | Abort | Same; Abort |
+//! | Shut | Abort | Same |
+//! | Closing(Owed), Shut(Owed) | Resume | Same outer state, Clear; Gone |
 //! No peer bytes or domain text are kept after they have moved to their owner.
 
 use alloc::boxed::Box;
@@ -58,43 +60,36 @@ enum Stop {
 enum State {
     /// Bound: room for an answer demanded. Idle deadline.
     Greeting,
-    /// The domain asked to admit the peer; whether the peer ended meanwhile.
-    Admitting {
-        ended: bool,
-    },
+    /// The domain asked to admit the peer.
+    Admitting,
+    /// The peer ended while its `Open` is out.
+    AdmittingEnded,
     /// Admitted as `session`: a line demanded. Idle deadline.
-    Reading {
-        session: Token,
-    },
-    /// A line handed to the domain; whether the peer ended meanwhile.
-    Answering {
-        session: Token,
-        ended: bool,
-    },
+    Reading { session: Token },
+    /// A line handed to the domain.
+    Answering { session: Token },
+    /// The peer ended while its line is out.
+    AnsweringEnded { session: Token },
     /// The answer sent: room for the next demanded. Idle deadline.
-    Draining {
-        session: Token,
-    },
-    Closing(Closing),
+    Draining { session: Token },
+    /// io asked to close the socket, gracefully.
+    Closing(Settle),
+    /// io told `Closed`; the domain's binding still settles.
+    Shut(Settle),
     /// Terminal: holds nothing.
     Closed,
 }
 
-/// Closing: io asked to close the socket, gracefully.
+/// What the domain still holds of a closing connection (examples.md, 3.4).
 #[derive(Debug)]
-struct Closing {
-    /// io told `Closed`.
-    closed: bool,
-    /// A call is out, whose reply is awaited.
-    call: bool,
-    /// The session the domain is still to be told is gone, from the ready
-    /// list: a reply that came in the down pass admitted it, or found the
-    /// peer ended.
-    owed: Option<Token>,
+enum Settle {
+    /// Its call is out, whose reply is awaited.
+    Call,
+    /// The session the domain is still to be told is gone, from the ready list.
+    Owed(Token),
+    /// Nothing.
+    Clear,
 }
-
-/// What the domain answers into: a closing connection that awaits nothing.
-const CLOSING: Closing = Closing { closed: false, call: false, owed: None };
 
 /// A socket just bound, greeting its peer. [`follow`] states its demand.
 pub(crate) const fn opened(socket: Token) -> Conn {
@@ -110,12 +105,16 @@ impl Conn {
     /// Whether it owes the domain a `Gone`, for the ready list.
     pub(crate) const fn owes(&self) -> bool {
         match self.state {
-            State::Closing(Closing { owed: Some(_), call: false, .. }) => true,
-            State::Closing(_)
-            | State::Greeting
-            | State::Admitting { .. }
+            State::Closing(ref settle) | State::Shut(ref settle) => match settle {
+                Settle::Owed(_) => true,
+                Settle::Call | Settle::Clear => false,
+            },
+            State::Greeting
+            | State::Admitting
+            | State::AdmittingEnded
             | State::Reading { .. }
             | State::Answering { .. }
+            | State::AnsweringEnded { .. }
             | State::Draining { .. }
             | State::Closed => false,
         }
@@ -125,13 +124,19 @@ impl Conn {
     /// and nothing is owed the domain. It is then retired, once.
     pub(crate) const fn is_done(&self) -> bool {
         match self.state {
-            State::Closing(Closing { closed, call, owed }) => closed && !call && owed.is_none(),
+            State::Shut(ref settle) => match settle {
+                Settle::Clear => true,
+                Settle::Call | Settle::Owed(_) => false,
+            },
             // Retired already.
             State::Closed
+            | State::Closing(_)
             | State::Greeting
-            | State::Admitting { .. }
+            | State::Admitting
+            | State::AdmittingEnded
             | State::Reading { .. }
             | State::Answering { .. }
+            | State::AnsweringEnded { .. }
             | State::Draining { .. } => false,
         }
     }
@@ -153,7 +158,13 @@ pub(crate) fn follow(conn: &Conn, id: Id<Conn>, env: &Env<Limits>, tables: &mut 
     let demand = match conn.state {
         State::Greeting | State::Draining { .. } => Some((Read::Nothing, line)),
         State::Reading { .. } => Some((Read::Scan { until: Delimiter::LF, max: line }, 0)),
-        State::Admitting { .. } | State::Answering { .. } | State::Closing(_) | State::Closed => None,
+        State::Admitting
+        | State::AdmittingEnded
+        | State::Answering { .. }
+        | State::AnsweringEnded { .. }
+        | State::Closing(_)
+        | State::Shut(_)
+        | State::Closed => None,
     };
     match demand {
         Some((read, room)) => {
@@ -183,7 +194,13 @@ pub(crate) fn idled(conn: &mut Conn, up: &mut Queue<Call>, down: &mut Queue<Io>)
     conn.state = match state {
         State::Greeting => close(socket, None, up, down),
         State::Reading { session } | State::Draining { session } => close(socket, Some(session), up, down),
-        State::Admitting { .. } | State::Answering { .. } | State::Closing(_) | State::Closed => {
+        State::Admitting
+        | State::AdmittingEnded
+        | State::Answering { .. }
+        | State::AnsweringEnded { .. }
+        | State::Closing(_)
+        | State::Shut(_)
+        | State::Closed => {
             unreachable!("the idle deadline runs only while greeting, reading or draining")
         }
     };
@@ -193,11 +210,14 @@ pub(crate) fn idled(conn: &mut Conn, up: &mut Queue<Call>, down: &mut Queue<Io>)
 pub(crate) fn closed(conn: &mut Conn) {
     let state = mem::replace(&mut conn.state, State::Closed);
     conn.state = match state {
-        State::Closing(closing) => State::Closing(Closing { closed: true, ..closing }),
-        State::Greeting
-        | State::Admitting { .. }
+        State::Closing(settle) => State::Shut(settle),
+        State::Shut(_)
+        | State::Greeting
+        | State::Admitting
+        | State::AdmittingEnded
         | State::Reading { .. }
         | State::Answering { .. }
+        | State::AnsweringEnded { .. }
         | State::Draining { .. }
         | State::Closed => unreachable!("io tells Closed only after the connection's close"),
     };
@@ -233,34 +253,47 @@ pub(crate) fn resumed(conn: &mut Conn, up: &mut Queue<Call>, down: &mut Queue<Io
     }
     let state = mem::replace(&mut conn.state, State::Closed);
     conn.state = match state {
-        State::Closing(Closing { owed: Some(session), call: false, closed }) => {
-            up.push(Call::Gone { session });
-            State::Closing(Closing { closed, call: false, owed: None })
-        }
-        State::Closing(_)
-        | State::Greeting
-        | State::Admitting { .. }
+        State::Closing(settle) => State::Closing(tell_gone(settle, up)),
+        State::Shut(settle) => State::Shut(tell_gone(settle, up)),
+        State::Greeting
+        | State::Admitting
+        | State::AdmittingEnded
         | State::Reading { .. }
         | State::Answering { .. }
+        | State::AnsweringEnded { .. }
         | State::Draining { .. }
         | State::Closed => unreachable!("only a connection that owes a Gone is on the ready list"),
     };
 }
 
+/// Ends the domain's binding from the ready list.
+fn tell_gone(settle: Settle, up: &mut Queue<Call>) -> Settle {
+    match settle {
+        Settle::Owed(session) => {
+            up.push(Call::Gone { session });
+            Settle::Clear
+        }
+        Settle::Call | Settle::Clear => {
+            unreachable!("only a connection that owes a Gone is on the ready list")
+        }
+    }
+}
+
 /// An owner abort leaves calls to settle, but io no longer flushes output.
 fn abort(state: State, socket: Token, up: &mut Queue<Call>, down: &mut Queue<Io>) -> State {
     match state {
-        State::Closing(closing) => {
-            if !closing.closed {
-                down.push(Io::Abort { entity: socket });
-            }
-            State::Closing(closing)
+        State::Closing(settle) => {
+            down.push(Io::Abort { entity: socket });
+            State::Closing(settle)
         }
+        State::Shut(settle) => State::Shut(settle),
         State::Closed => State::Closed,
         State::Greeting
-        | State::Admitting { .. }
+        | State::Admitting
+        | State::AdmittingEnded
         | State::Reading { .. }
         | State::Answering { .. }
+        | State::AnsweringEnded { .. }
         | State::Draining { .. } => abort_open(state, socket, up, down),
     }
 }
@@ -268,17 +301,17 @@ fn abort(state: State, socket: Token, up: &mut Queue<Call>, down: &mut Queue<Io>
 fn abort_open(state: State, socket: Token, up: &mut Queue<Call>, down: &mut Queue<Io>) -> State {
     down.push(Io::Abort { entity: socket });
     match state {
-        State::Greeting => State::Closing(CLOSING),
+        State::Greeting => State::Closing(Settle::Clear),
         State::Reading { session } | State::Draining { session } => {
             up.push(Call::Gone { session });
-            State::Closing(CLOSING)
+            State::Closing(Settle::Clear)
         }
-        State::Admitting { .. } => State::Closing(Closing { call: true, ..CLOSING }),
-        State::Answering { session, .. } => {
+        State::Admitting | State::AdmittingEnded => State::Closing(Settle::Call),
+        State::Answering { session } | State::AnsweringEnded { session } => {
             up.push(Call::Gone { session });
-            State::Closing(Closing { call: true, ..CLOSING })
+            State::Closing(Settle::Call)
         }
-        State::Closing(_) | State::Closed => unreachable!("only open states abort here"),
+        State::Closing(_) | State::Shut(_) | State::Closed => unreachable!("only open states abort here"),
     }
 }
 
@@ -287,7 +320,7 @@ fn read(state: State, bytes: &[u8], id: Id<Conn>, socket: Token, up: &mut Queue<
         State::Reading { session } => match bytes.split_last() {
             Some((&b'\n', text)) => {
                 up.push(Call::Line { session, reply_to: ReplyTo::new(id.token()), text: bytes::copy_of(text) });
-                State::Answering { session, ended: false }
+                State::Answering { session }
             }
             // The scan met its maximum without the end of the line.
             Some(_) => {
@@ -297,10 +330,12 @@ fn read(state: State, bytes: &[u8], id: Id<Conn>, socket: Token, up: &mut Queue<
             None => unreachable!("a scan delivers its delimiter, or its maximum, which is not zero"),
         },
         // Told before io took the close.
-        State::Closing(closing) => State::Closing(closing),
+        state @ (State::Closing(_) | State::Shut(_)) => state,
         State::Greeting
-        | State::Admitting { .. }
+        | State::Admitting
+        | State::AdmittingEnded
         | State::Answering { .. }
+        | State::AnsweringEnded { .. }
         | State::Draining { .. }
         | State::Closed => unreachable!("io delivers bytes only for a read demand"),
     }
@@ -310,11 +345,16 @@ fn roomy(state: State, id: Id<Conn>, up: &mut Queue<Call>) -> State {
     match state {
         State::Greeting => {
             up.push(Call::Open { reply_to: ReplyTo::new(id.token()) });
-            State::Admitting { ended: false }
+            State::Admitting
         }
         State::Draining { session } => State::Reading { session },
-        State::Closing(closing) => State::Closing(closing),
-        State::Admitting { .. } | State::Reading { .. } | State::Answering { .. } | State::Closed => {
+        state @ (State::Closing(_) | State::Shut(_)) => state,
+        State::Admitting
+        | State::AdmittingEnded
+        | State::Reading { .. }
+        | State::Answering { .. }
+        | State::AnsweringEnded { .. }
+        | State::Closed => {
             unreachable!("io grants room only for a room demand")
         }
     }
@@ -326,9 +366,9 @@ fn ended(state: State, socket: Token, up: &mut Queue<Call>, down: &mut Queue<Io>
     match state {
         State::Greeting => close(socket, None, up, down),
         State::Reading { session } | State::Draining { session } => close(socket, Some(session), up, down),
-        State::Admitting { ended: _ } => State::Admitting { ended: true },
-        State::Answering { session, ended: _ } => State::Answering { session, ended: true },
-        State::Closing(closing) => State::Closing(closing),
+        State::Admitting | State::AdmittingEnded => State::AdmittingEnded,
+        State::Answering { session } | State::AnsweringEnded { session } => State::AnsweringEnded { session },
+        state @ (State::Closing(_) | State::Shut(_)) => state,
         State::Closed => unreachable!("a closed connection is retired"),
     }
 }
@@ -340,18 +380,18 @@ fn failed(state: State, socket: Token, up: &mut Queue<Call>, down: &mut Queue<Io
         State::Greeting => close(socket, None, up, down),
         State::Reading { session } | State::Draining { session } => close(socket, Some(session), up, down),
         // The session is not known until the domain answers.
-        State::Admitting { .. } => {
+        State::Admitting | State::AdmittingEnded => {
             down.push(Io::Close { entity: socket });
-            State::Closing(Closing { call: true, ..CLOSING })
+            State::Closing(Settle::Call)
         }
         // The line is ahead of the `Gone` in the domain's queue, so the
         // domain answers it before the session ends.
-        State::Answering { session, .. } => {
+        State::Answering { session } | State::AnsweringEnded { session } => {
             down.push(Io::Close { entity: socket });
             up.push(Call::Gone { session });
-            State::Closing(Closing { call: true, ..CLOSING })
+            State::Closing(Settle::Call)
         }
-        State::Closing(closing) => State::Closing(closing),
+        state @ (State::Closing(_) | State::Shut(_)) => state,
         State::Closed => unreachable!("a closed connection is retired"),
     }
 }
@@ -363,18 +403,24 @@ fn close(socket: Token, session: Option<Token>, up: &mut Queue<Call>, down: &mut
     if let Some(session) = session {
         up.push(Call::Gone { session });
     }
-    State::Closing(CLOSING)
+    State::Closing(Settle::Clear)
 }
 
 fn admitted(state: State, session: Token, socket: Token, down: &mut Queue<Io>) -> State {
     match state {
-        State::Admitting { ended: false } => State::Reading { session },
-        State::Admitting { ended: true } => {
+        State::Admitting => State::Reading { session },
+        State::AdmittingEnded => {
             down.push(Io::Close { entity: socket });
-            State::Closing(Closing { owed: Some(session), ..CLOSING })
+            State::Closing(Settle::Owed(session))
         }
-        State::Closing(closing) => State::Closing(Closing { call: false, owed: Some(session), ..answered(closing) }),
-        State::Greeting | State::Reading { .. } | State::Answering { .. } | State::Draining { .. } | State::Closed => {
+        State::Closing(settle) => State::Closing(answered(settle, Settle::Owed(session))),
+        State::Shut(settle) => State::Shut(answered(settle, Settle::Owed(session))),
+        State::Greeting
+        | State::Reading { .. }
+        | State::Answering { .. }
+        | State::AnsweringEnded { .. }
+        | State::Draining { .. }
+        | State::Closed => {
             unreachable!("one reply per call: only an Open is admitted")
         }
     }
@@ -383,13 +429,19 @@ fn admitted(state: State, session: Token, socket: Token, down: &mut Queue<Io>) -
 /// Refused at the entrance: the refusal goes in the room greeting asked for.
 fn busy(state: State, socket: Token, down: &mut Queue<Io>) -> State {
     match state {
-        State::Admitting { .. } => {
+        State::Admitting | State::AdmittingEnded => {
             down.push(Io::Stream { stream: socket, down: Down::Send(bytes::copy_of(BUSY)) });
             down.push(Io::Close { entity: socket });
-            State::Closing(CLOSING)
+            State::Closing(Settle::Clear)
         }
-        State::Closing(closing) => State::Closing(answered(closing)),
-        State::Greeting | State::Reading { .. } | State::Answering { .. } | State::Draining { .. } | State::Closed => {
+        State::Closing(settle) => State::Closing(answered(settle, Settle::Clear)),
+        State::Shut(settle) => State::Shut(answered(settle, Settle::Clear)),
+        State::Greeting
+        | State::Reading { .. }
+        | State::Answering { .. }
+        | State::AnsweringEnded { .. }
+        | State::Draining { .. }
+        | State::Closed => {
             unreachable!("one reply per call: only an Open is refused")
         }
     }
@@ -397,28 +449,39 @@ fn busy(state: State, socket: Token, down: &mut Queue<Io>) -> State {
 
 fn echoed(state: State, text: &[u8], socket: Token, env: &Env<Limits>, down: &mut Queue<Io>) -> State {
     match state {
-        State::Answering { session, ended } => {
+        State::Answering { session } => {
             let answer = encode(text, env.limits.line);
             down.push(Io::Stream { stream: socket, down: Down::Send(answer) });
-            if ended {
-                down.push(Io::Close { entity: socket });
-                State::Closing(Closing { owed: Some(session), ..CLOSING })
-            } else {
-                State::Draining { session }
-            }
+            State::Draining { session }
+        }
+        State::AnsweringEnded { session } => {
+            let answer = encode(text, env.limits.line);
+            down.push(Io::Stream { stream: socket, down: Down::Send(answer) });
+            down.push(Io::Close { entity: socket });
+            State::Closing(Settle::Owed(session))
         }
         // Closing already: the answer has no one to go to.
-        State::Closing(closing) => State::Closing(answered(closing)),
-        State::Greeting | State::Admitting { .. } | State::Reading { .. } | State::Draining { .. } | State::Closed => {
+        State::Closing(settle) => State::Closing(answered(settle, Settle::Clear)),
+        State::Shut(settle) => State::Shut(answered(settle, Settle::Clear)),
+        State::Greeting
+        | State::Admitting
+        | State::AdmittingEnded
+        | State::Reading { .. }
+        | State::Draining { .. }
+        | State::Closed => {
             unreachable!("one reply per call: only a line is echoed")
         }
     }
 }
 
 /// The reply to the call out has come.
-fn answered(closing: Closing) -> Closing {
-    assert!(closing.call, "one reply per call: a closing connection is answered only for its call out");
-    Closing { call: false, ..closing }
+fn answered(settle: Settle, next: Settle) -> Settle {
+    match settle {
+        Settle::Call => next,
+        Settle::Owed(_) | Settle::Clear => {
+            unreachable!("one reply per call: a closing connection is answered only for its call out")
+        }
+    }
 }
 
 /// A line's answer: its text and the end of line, in a box of exactly their

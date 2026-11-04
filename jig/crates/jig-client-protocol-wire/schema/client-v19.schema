@@ -55,7 +55,8 @@ record ChipExecutorAgent { charter: u32 }
 record ChipExecutorProcedure { connector: u16 kind: u32 }
 record ExecutorParty { party: u64 }
 record ExecutorRole { project: u32 role: u32 }
-enum ChipExecutor { agent: ChipExecutorAgent, procedure: ChipExecutorProcedure, party: ExecutorParty, role: ExecutorRole }
+record ChipExecutorJob { kind: u32 }
+enum ChipExecutor { agent: ChipExecutorAgent, procedure: ChipExecutorProcedure, party: ExecutorParty, role: ExecutorRole, job: ChipExecutorJob }
 enum Phase { waiting, idle, due, preparing, claimed, running, backing_off, active, closing, held, ended, done, failed, cancelled }
 record RunStageClaimed { attempt: u64 }
 record RunStageRunning { attempt: u64 }
@@ -116,9 +117,11 @@ record AttemptFailure { attempt: u64 class: FailureClass reason: text 65536 at: 
 record ExecutorAgent { charter: u32 }
 record ExecutorProcedure { connector: u16 code: u32 }
 record ExecutorPerson { value: PersonAddress }
-enum Executor { agent: ExecutorAgent, procedure: ExecutorProcedure, person: ExecutorPerson }
+record ExecutorJob { kind: u32 }
+enum Executor { agent: ExecutorAgent, procedure: ExecutorProcedure, person: ExecutorPerson, job: ExecutorJob }
 record WakeRuleBatch { count: u32 age: duration }
-enum WakeRule { never, immediate, batch: WakeRuleBatch }
+record WakeRulePaced { span: duration }
+enum WakeRule { never, immediate, batch: WakeRuleBatch, paced: WakeRulePaced }
 enum ResultsWake { never, each, last_or_failure }
 record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 record PersonStallNotice { message: u64 at: u64 activity: u64 }
@@ -243,7 +246,8 @@ record Grant { connector: u16 kind: u16 pattern: Pattern }
 record AuthorityExecutorCharter { value: u32 }
 record AuthorityExecutorProcedure { value: u32 }
 record AuthorityExecutorRole { value: u32 }
-enum AuthorityExecutor { charter: AuthorityExecutorCharter, procedure: AuthorityExecutorProcedure, role: AuthorityExecutorRole }
+record AuthorityExecutorJob { value: u32 }
+enum AuthorityExecutor { charter: AuthorityExecutorCharter, procedure: AuthorityExecutorProcedure, role: AuthorityExecutorRole, job: AuthorityExecutorJob }
 record Delegation { kinds: list 32 AuthorityExecutor tasks: u32 depth: u32 }
 record ResourceScope { connector: u16 pattern: Pattern }
 record ModelSetNames { names: list 64 text 4096 }
@@ -326,7 +330,8 @@ enum EndedBy { result, requester }
 record TaskFlags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum NewDeadline { named, span: DeadlineSpan }
-record NewTask { deadline: NewDeadline executor: Executor spec: Specification contract: NewContract authority: Authority budget: NewBudget wake: option WakePolicy dependencies: list 32 TaskRef named: bytes 16777216 tracked: option u32 label: u32 flags: TaskFlags llm: option LlmChoice }
+record Symbol { connector: u16 symbol: u16 }
+record NewTask { deadline: NewDeadline executor: Executor spec: Specification contract: NewContract authority: Authority budget: NewBudget wake: option WakePolicy dependencies: list 32 TaskRef named: bytes 16777216 tracked: option u32 label: u32 flags: TaskFlags llm: option LlmChoice symbols: list 32 Symbol }
 record Create { project: u32 tasks: bytes 1048576 }
 record ProposeBatch { tasks: bytes 1048576 }
 record ProposeAmendment { task: u64 revision: Revision change: Amendment }
@@ -373,11 +378,12 @@ record OutcomeAccountKeyKept { source: u32 }
 record OutcomeAccountRemoved { confirmed: bool failed_hosts: list 128 AccountHostFailure }
 record OutcomeRenamed { project: u32 }
 record OutcomeProjectMade { project: u32 }
+record OutcomeVisibilitySet { project: u32 public: bool }
 record OutcomeProjectRemoved { project: u32 }
 record OutcomeAccountMovedIn { account: u32 renewed: bool }
 record OutcomeAccountFinishing { source: u32 }
 record OutcomeLifted { hold: u64 released: u32 }
-enum DocumentOutcome { marked_seen: OutcomeMarkedSeen, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, proposed: OutcomeProposed, withdrawn: OutcomeWithdrawn, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, compound: OutcomeCompound, created: OutcomeCreated, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, renamed: OutcomeRenamed, project_made: OutcomeProjectMade, account_moved_in: OutcomeAccountMovedIn, account_finishing: OutcomeAccountFinishing, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved }
+enum DocumentOutcome { marked_seen: OutcomeMarkedSeen, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, proposed: OutcomeProposed, withdrawn: OutcomeWithdrawn, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, compound: OutcomeCompound, created: OutcomeCreated, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, renamed: OutcomeRenamed, project_made: OutcomeProjectMade, account_moved_in: OutcomeAccountMovedIn, account_finishing: OutcomeAccountFinishing, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved, visibility_set: OutcomeVisibilitySet }
 record MadeTasks { tasks: list 32 u64 }
 record MadeService { party: u64 credential: secret 40 }
 record MadePersonResult { task: u64 }
@@ -456,7 +462,7 @@ record ReadSpend { project: u32 after: option Cursor }
 record ReadProject { project: u32 }
 record ReadNotes { scope: NoteScope description: option text 65536 after: option Cursor }
 enum PhaseClass { working, waiting, held, closing, ended }
-enum ExecutorKind { agent, procedure, person }
+enum ExecutorKind { agent, procedure, person, job }
 enum QueryOrder { number, changed, activity, priority, ended }
 record TaskQuery { project: option u32 requester: option Requester root: option u64 parent: option u64 label: option u32 phase: option PhaseClass executor: option ExecutorKind tracked: option bool order: QueryOrder }
 record ReadTasks { query: TaskQuery live: option Cursor ended: option Cursor }
@@ -517,7 +523,8 @@ record TaskContractDocumentApproval { state: bytes 65536 part: Part }
 record TaskContractDocumentReport { words: u32 }
 record TaskContractDocumentVerdict { choices: bytes 16777216 cut: bool }
 record TaskContractDocumentChange { connector: u16 kind: u16 words: u32 }
-enum TaskContractDocument { approval: TaskContractDocumentApproval, report: TaskContractDocumentReport, verdict: TaskContractDocumentVerdict, change: TaskContractDocumentChange }
+record TaskContractDocumentJob { bytes: u32 }
+enum TaskContractDocument { approval: TaskContractDocumentApproval, report: TaskContractDocumentReport, verdict: TaskContractDocumentVerdict, change: TaskContractDocumentChange, job: TaskContractDocumentJob }
 record TaskLinkLive { value: Chip }
 record TaskLinkRetained { chip: Chip at: option u64 }
 record TaskLinkStored { number: u64 status: option TaskStatus }
@@ -567,7 +574,9 @@ record RetainedActionAmend { task: u64 change: RetainedAmendment }
 record RetainedActionWiden { task: u64 authority: AuthorityDocument }
 record RetainedActionRelease { task: u64 }
 record SettingNumber { number: u32 }
-enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules }
+record ApplicationSetting { kind: u32 scope: u32 number: u32 }
+record ProjectPolicySetting { project: u32 }
+enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting }
 enum RevisionItemEdit { set, removed, reset }
 record RevisionItemHead { setting: Setting edit: RevisionItemEdit }
 record RetainedActionSettings { against: u32 items: list 128 RevisionItemHead made: option u32 }
@@ -636,7 +645,7 @@ record InboxPage { selection: option bytes 16777216 cut: bool rows: bytes 167772
 record PoolLedger { source: Funder parent: option Funder numbers: Numbers left: u64 closed: bool began: option u64 next: option u64 }
 record MeParty { number: u64 kind: PartyKind login: DocumentText name: DocumentText }
 record Needs { questions: u32 proposals: u32 escalations: u32 person_tasks: u32 }
-record Template { number: u32 name: DocumentText executor: TemplateExecutor contract: TaskContractDocument shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: TaskFlags label: u32 grace: option duration llm: option LlmChoice }
+record Template { number: u32 name: DocumentText executor: TemplateExecutor contract: TaskContractDocument shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: TaskFlags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
 record MePrices { input: u64 cached: u64 cache_write: option u64 output: u64 unit: u32 }
 record MeModel { name: text 4096 provider: option u32 window: u32 output: u32 efforts: list 16 text 32 prices: MePrices description: option text 512 }
 record ProviderOffer { provider: u32 name: DocumentText sign_in: bool key: bool programs: list 32 text 32 programs_cut: bool none: bool signed_in_plan: bool manage_usage: option bytes 2048 key_bytes: u32 }
@@ -671,7 +680,7 @@ record HelloRefusalAgent { why: AgentShortfall }
 record HelloRefusalWorkers { limit: u32 }
 record HelloRefusalPosition { worker: u32 }
 record HelloRefusalStopBound { grace: duration }
-enum HelloRefusal { agent: HelloRefusalAgent, reserved_channel, workers: HelloRefusalWorkers, stop_bound: HelloRefusalStopBound, position: HelloRefusalPosition }
+enum HelloRefusal { agent: HelloRefusalAgent, reserved_channel, workers: HelloRefusalWorkers, stop_bound: HelloRefusalStopBound, position: HelloRefusalPosition, job_kinds }
 record TaskWaitHello { kind: HostKind at: u64 why: HelloRefusal }
 enum TaskWaitRefused { hello: TaskWaitHello }
 record TaskRunWaitRefused { value: TaskWaitRefused }
@@ -699,7 +708,7 @@ record ProposalActionAmend { task: TaskLink addressed: option AddressChange befo
 record ProposalActionWiden { task: TaskLink before: AuthorityDocument after: AuthorityDocument }
 record ProposalActionRelease { task: TaskLink hold: option ChipHold }
 # items is a list of length-prefixed ReviewItem records, at most 128, within the document's byte bound.
-record SettingsReview { newest: u32 items: bytes 16777216 cut: bool }
+record SettingsReview { key: option u64 newest: u32 items: bytes 16777216 cut: bool }
 record ProposalActionSettings { against: u32 items: list 128 RevisionItemHead review: option SettingsReview made: option u32 }
 enum ProposalAction { batch: ProposalActionBatch, effect: ProposalActionEffect, procedure_effect: ProposalActionProcedureEffect, amend: boxed ProposalActionAmend, widen: ProposalActionWiden, release: ProposalActionRelease, settings: boxed ProposalActionSettings }
 record ProposalWaiting { holder: HistoryHolder since: u64 }
@@ -801,7 +810,8 @@ record TaskCapacityActionBatch { first: option u64 members: u32 }
 record TaskCapacityActionProposal { number: u64 }
 record TaskCapacityActionPersonProposal { number: u64 }
 record TaskCapacityActionMessage { task: u64 number: u64 }
-record RemoveProject { project: u32 }
+record SetVisibility { project: u32 public: bool }
+record RemoveProject { project: u32 grace: option duration }
 record Rename { project: u32 name: text 64 }
 record MakeProject { name: text 64 policy: u32 }
 record Authorize { query: bytes 8192 }

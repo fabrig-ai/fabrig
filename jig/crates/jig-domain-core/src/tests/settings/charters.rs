@@ -4,7 +4,7 @@ use crate::tests::*;
 fn a_charter_whose_default_spend_misses_its_floor_is_refused() {
     let mut config = config(1);
     config.defaults.charters[0].spend = 1;
-    let current = crate::settings::Current::new(config.defaults, &limits());
+    let current = crate::settings::Current::new(config.defaults, &limits(), &[]);
     assert_eq!(
         crate::settings::check(&current, &config.settings, &config.connectors, &limits()),
         Err(crate::settings::Failure {
@@ -34,6 +34,7 @@ pub(in crate::tests) fn context(task: u64, charter: u32) -> Box<tasks::RunContex
         project: 1,
         executor: tasks::Executor::Agent { charter },
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"task".as_slice().into(),
             parameters: Box::new([]),

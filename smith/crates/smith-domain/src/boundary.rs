@@ -403,6 +403,10 @@ pub enum Lower {
     /// it early lets it complete normally. No terminal of its own is owed;
     /// an owner with no outstanding completion is ignored.
     Yield { owner: Token },
+    /// The child conversation `owner` has ended and asks nothing more: a backend
+    /// that keeps a process for it ends it (protocol/programs.md, 5.10). Sent once,
+    /// after the terminal of the conversation's last `Complete`; nothing answers it.
+    Close { owner: Token },
     /// Ask io for `op` for a session's tools, giving up at `deadline`.
     Io { owner: Token, op: tools::Op, deadline: Time },
     /// Abandon the `Io` in flight for `owner`. Its terminal event still comes:

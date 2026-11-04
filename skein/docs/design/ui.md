@@ -409,11 +409,15 @@ two platforms (4.1); section 16 maps each onto the web, iOS and Android.
   presses only with its shortcut's modifier held and no other: none, the
   primary one alone, or Alt alone. Any other set, Shift held among it,
   or Control on Apple's platforms, is no shortcut.
-- **Escape** is named only inside a dialog (section 14). The platform's
-  Escape key, or its escape or back gesture, presses the first bound,
-  enabled node in the open dialog that names it, wherever the focus is
-  in the dialog. In a dialog naming none, Escape does nothing of its
-  own: the dialog's buttons decide.
+- **Escape** is named only inside a dialog or a form (section 14). The
+  platform's Escape key, or its escape or back gesture, presses the
+  first bound, enabled node in the open dialog that names it, wherever
+  the focus is in the dialog. Outside every open dialog, while the focus
+  is in a form, it presses the first bound, enabled node naming it in
+  the innermost form that holds the focus: a field edited in place, in
+  a landmark of its own, is cancelled by Escape as a dialog is. In a
+  dialog or a form naming none, Escape does nothing of its own: its
+  buttons decide.
 - **No new act:** a shortcut is a `Press`. The text shell and the fake
   person ignore shortcuts and act on the node itself.
 
@@ -774,7 +778,7 @@ that is missing).
 | exactly one main | a second main, or none |
 | at most one banner; at most one content info | a second of either |
 | each shortcut at most once | a shortcut an earlier node names |
-| Escape only inside a dialog | a node outside every dialog naming Escape |
+| Escape only inside a dialog or a form | a node outside every dialog and every form naming Escape |
 
 - **Nothing else hangs from the page node,** so every node a person reads
   or acts on is inside a landmark or a dialog.
@@ -793,7 +797,7 @@ builder asserts each before it allocates.
 |---|---|
 | `nodes` | a tree's nodes, fallbacks and spliced fragments included |
 | `depth` | its nesting, fragments included |
-| `text_per_node` | a node's name, description, placeholder, runs, value and external target together |
+| `text_per_node` | a node's name, description, placeholder, image address, runs, value and external target together |
 | `text_bytes` | the same, across the tree |
 | `drawing_bytes` | a drawing's data, and an act on a drawing |
 | `styles_per_node` | a node's style tokens, and a mark's |
@@ -811,6 +815,15 @@ builder asserts each before it allocates.
   does not make otherwise representable limits invalid.
 - **`markdown_bound(bytes, depth)`** bounds the reader's scratch for the
   admitted text and nesting.
+- **`Limits::EMPTY`** holds no capacity: an empty tree without scenes. A
+  caller sets over it the fields it means
+  (`Limits { nodes, depth, ..Limits::EMPTY }`), so a tree without scenes
+  writes no scene field, and a field skein-ui adds stays empty for a
+  caller that does not set it.
+- **`Node::text_bytes`** gives the bytes the builder charges a node
+  against `text_per_node`, which add up across the tree against
+  `text_bytes`. A caller's size test reads it rather than counting a
+  node's text itself.
 - **An owner derives the numbers;** skein-ui holds none (policy above,
   numbers below). An application derives its limits from its own: every
   window of its state full and every text at its most bytes, each phrase
@@ -893,7 +906,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | a value, a focus request | `value`; `focus()` |
 | a count, a position | `aria-setsize`, `aria-posinset`; on a table and its rows, `aria-rowcount`, `aria-rowindex` |
 | spans, a sort | `rowspan`, `colspan`; `aria-sort` |
-| a shortcut | `aria-keyshortcuts`; Escape, the `<dialog>`'s `cancel` event |
+| a shortcut | `aria-keyshortcuts`; Escape, the `<dialog>`'s `cancel` event, or in a form its `keydown` |
 | a region name, style tokens | `data-region`; classes |
 
 ### 16.2 iOS
@@ -1086,6 +1099,9 @@ to 7 and 11 settle.
 - **Parts for a phone or a desktop,** as `skein-ui-web`'s are a
   browser's: each waits for an application shipping on that platform;
   until then its shell is the application's (section 16).
+- **temper's side of section 15:** temper's literals that write out a
+  `Limits` whole move onto `Limits::EMPTY` in its own tree. They wait
+  with no debt item to hold them.
 
 ## 19. Open questions
 

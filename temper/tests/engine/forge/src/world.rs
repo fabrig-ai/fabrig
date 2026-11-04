@@ -58,8 +58,13 @@ pub const LIMITS: top::Limits = top::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
+    landing_rules: 4,
+    roles: 4,
+    setting_proposals: 4,
+    setting_history: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     client: CLIENT,
@@ -75,6 +80,8 @@ pub const LIMITS: top::Limits = top::Limits {
         repairs: 3,
         resolutions: 3,
         updates: 3,
+        questions: 4,
+        tasks: 6,
         stall: Duration::from_secs(30),
         gates: 8,
         clean_heads: 8,
@@ -84,6 +91,7 @@ pub const LIMITS: top::Limits = top::Limits {
 
 #[derive(Debug)]
 struct Pending {
+    repository: Box<[u8]>,
     client: Token,
     op: skein_forge::api::Op,
     generation: u64,
@@ -118,6 +126,20 @@ pub struct World {
 
 impl World {
     #[must_use]
+    pub fn tiered(seed: u64, workflow: raw::Workflow) -> World {
+        Self::configured(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            6,
+            false,
+            Some(workflow),
+        )
+    }
+    #[must_use]
     pub fn turn() -> World {
         Self::configured(
             11,
@@ -128,6 +150,7 @@ impl World {
             false,
             4,
             true,
+            None,
         )
     }
     pub fn project_landing(
@@ -136,9 +159,22 @@ impl World {
         way: temper_engine_domain_forge_change::Way,
         gates: Box<[top::RepositoryGates]>,
     ) -> bool {
-        let accepted = self.top.project_landing(project, way, gates.clone());
+        let accepted = self.top.project_landing(
+            project,
+            way,
+            gates.clone(),
+            top::AfterLanding {
+                verdict: temper_engine_domain_forge_tiers::Settings {
+                    retries: 2,
+                    suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+                },
+                bound: Duration::from_millis(7_200_000),
+            },
+        );
         if accepted {
             self.landing_config = Some((project, way, gates));
+            top::resume(&mut self.top, &self.env, &mut self.top_out);
+            self.take_top();
         }
         accepted
     }
@@ -180,6 +216,7 @@ impl World {
             false,
             4,
             false,
+            None,
         )
     }
 
@@ -195,6 +232,7 @@ impl World {
             signatures,
             4,
             false,
+            None,
         )
     }
 
@@ -209,6 +247,7 @@ impl World {
             false,
             branches,
             false,
+            None,
         )
     }
 
@@ -238,7 +277,27 @@ impl World {
         signatures: bool,
         branches: u32,
         turn: bool,
+        tier: Option<raw::Workflow>,
     ) -> World {
+        Self::configured_repositories(seed, facts, hooked, writer, protection, signatures, branches, turn, tier, 1)
+    }
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the public world adds repository room to the shared scenario switches"
+    )]
+    fn configured_repositories(
+        seed: u64,
+        facts: u32,
+        hooked: bool,
+        writer: Option<skein_forge_client::Writer>,
+        protection: Option<raw::Protection>,
+        signatures: bool,
+        branches: u32,
+        turn: bool,
+        tier: Option<raw::Workflow>,
+        repositories: u32,
+    ) -> World {
+        let tiered = tier.is_some();
         let limits = top::Limits {
             landings: if turn { 2 } else { LIMITS.landings },
             facts,
@@ -247,8 +306,20 @@ impl World {
         };
         let mut config = fake_config();
         config.limits.branches = branches;
-        config.limits.workflows = u32::from(turn);
-        config.limits.workflow_runs = if turn { 4 } else { 0 };
+        config.limits.repositories = repositories;
+        if tiered {
+            config.limits.statuses = 16;
+            config.limits.content_bytes = 512;
+            config.limits.commits = 32;
+        }
+        config.limits.workflows = u32::from(turn || tiered);
+        config.limits.workflow_runs = if tiered {
+            16
+        } else if turn {
+            4
+        } else {
+            0
+        };
         config.limits.bypassing_users = protection
             .as_ref()
             .map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
@@ -257,19 +328,7 @@ impl World {
             &mut fake,
             &config,
             raw::Setup {
-                workflows: if turn {
-                    Box::new([raw::Workflow {
-                        file: Box::from(b"gate.yml".as_slice()),
-                        jobs: Box::new([Box::from(b"test".as_slice())]),
-                        latency_min: Duration::from_secs(2),
-                        latency_max: Duration::from_secs(2),
-                        silent: 0,
-                        passes: 1000,
-                        cue: None,
-                    }])
-                } else {
-                    Box::new([])
-                },
+                workflows: workflows(turn, tier),
                 id: 2,
                 name: Box::from(&b"org/repo"[..]),
                 default: Box::from(&b"main"[..]),
@@ -334,7 +393,17 @@ impl World {
     /// Construct and restart without any configured writer.
     #[must_use]
     pub fn writerless(seed: u64) -> World {
-        Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false)
+        Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false, None)
+    }
+    pub fn tier_failures(&mut self, failing_tests: u32) {
+        self.env.limits.tiers.failing_tests = failing_tests;
+    }
+    pub fn runner_lost(&mut self, lost: u32) {
+        self.forge_env.limits.lost = lost;
+    }
+    #[must_use]
+    pub fn has_branch(&self, branch: &[u8]) -> bool {
+        self.forge.branch(b"org/repo", branch).is_some()
     }
     pub fn give_writer(&mut self, writer: skein_forge_client::Writer) -> bool {
         let accepted = top::writer(&mut self.top, &self.env, writer, &mut self.top_out);
@@ -358,6 +427,7 @@ impl World {
             false,
             4,
             false,
+            None,
         )
     }
 
@@ -398,12 +468,139 @@ impl World {
         number
     }
 
+    /// Read exactly the public tasks the scripted core hands to the forge.
+    #[must_use]
+    pub fn public(
+        &self,
+        project: u32,
+        kind: u16,
+        task: Option<u64>,
+        public: &[top::PublicTask],
+    ) -> Option<top::PublicMade> {
+        self.top.public(
+            &top::PublicAsk {
+                project,
+                kind,
+                version: temper_client_protocol_wire::PUBLIC_VERSION,
+                task,
+                public,
+                now: self.env.wall,
+            },
+            &self.env.limits,
+        )
+    }
+    /// A turn world whose independent runner follows the supplied workflow.
+    #[must_use]
+    pub fn public_turn(seed: u64, workflow: raw::Workflow) -> World {
+        let mut world = Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            4,
+            true,
+            Some(workflow.clone()),
+            2,
+        );
+        forge::repository(
+            &mut world.forge,
+            &world.forge_env.limits,
+            raw::Setup {
+                id: 3,
+                name: Box::from(b"org/second".as_slice()),
+                default: Box::from(b"main".as_slice()),
+                tree: Box::new([]),
+                labels: Box::new([]),
+                workflows: Box::new([workflow]),
+                protection: None,
+                hooked: false,
+                checks: raw::Checks {
+                    cues: Box::new([]),
+                    contexts: Box::new([]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    reruns: 0,
+                    cue: None,
+                },
+            },
+        );
+        forge::grant(&mut world.forge, b"org/second", 1, raw::Permission::Admin);
+        forge::grant(&mut world.forge, b"org/second", 2, raw::Permission::Write);
+        world
+    }
+    /// Prepare a second member through the independent repository's git and pull API.
+    pub fn public_second(&mut self, task: u64, branch: &[u8]) {
+        self.event(top::Event::Application {
+            role: None,
+            carried: None,
+            request: Token::new(101),
+            token: Token::new(101),
+            retention: Duration::from_secs(60),
+            ask: top::Ask::Adopt(top::Adoption {
+                project: 5,
+                home: false,
+                forge: REPO.forge,
+                host: Box::from(b"forge.example".as_slice()),
+                owner: Box::from(b"org".as_slice()),
+                name: Box::from(b"second".as_slice()),
+                prefix: Box::from(b"temper/".as_slice()),
+                role: top::Role::Owned,
+                landing: Box::from(b"main".as_slice()),
+                ci: true,
+                checks: Box::new([]),
+            }),
+        });
+        self.run_for(1);
+        let main = self.forge.branch(b"org/second", b"main").expect("second main");
+        self.external_repository(
+            b"org/second",
+            raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: main }),
+            2,
+        );
+        forge::advance(&mut self.forge, &self.forge_env, b"org/second", branch, b"file", b"change", 1)
+            .expect("second change");
+        let raw::Answer::Created(pull) = self.external_repository(
+            b"org/second",
+            raw::Op::Write(raw::Write::OpenPull {
+                opens_empty: false,
+                title: Box::from(b"secret-public-title".as_slice()),
+                body: Box::from(b"secret-public-body".as_slice()),
+                head: Box::from(branch),
+                base: Box::from(b"main".as_slice()),
+            }),
+            1,
+        ) else {
+            panic!("second pull")
+        };
+        let head = translate::commit(self.forge.branch(b"org/second", branch).expect("second head"));
+        let mut row = crate::changes::change_row();
+        row.task = task;
+        row.change.task = task;
+        row.repository.repository = 3;
+        row.branch = Box::from(branch);
+        row.pull = Some(pull);
+        row.change.last_head = Some(head);
+        row.change.state = temper_engine_domain_forge_change::State::Ready { head, ready_since: self.env.wall };
+        row.change.way = temper_engine_domain_forge_change::Way::Turn;
+        crate::public::mark(&mut row);
+        self.event(top::Event::Change { row });
+    }
     pub fn check_pull(&mut self, number: u64, span: Duration) {
         forge::check(&mut self.forge, &self.forge_env, b"org/repo", number, span);
     }
 
     fn hear(&mut self, hook: &forge::Request) {
-        if let Some(hint) = translate::hint(REPO, hook) {
+        let repository = match hook {
+            forge::Request::Hook { repository, .. } if repository.as_ref() == b"org/second" => {
+                skein_forge::api::Repository { forge: REPO.forge, repository: 3 }
+            }
+            forge::Request::Hook { .. } | forge::Request::Reply { .. } => REPO,
+        };
+        if let Some(hint) = translate::hint(repository, hook) {
             self.to_top.push((self.generation, top::Event::Hint { hint: hint.clone() }));
             self.hints.push(hint);
         }
@@ -527,7 +724,18 @@ impl World {
         )
         .expect("same configured connector");
         if let Some((project, way, gates)) = &self.landing_config {
-            assert!(self.top.project_landing(*project, *way, gates.clone()));
+            assert!(self.top.project_landing(
+                *project,
+                *way,
+                gates.clone(),
+                top::AfterLanding {
+                    verdict: temper_engine_domain_forge_tiers::Settings {
+                        retries: 2,
+                        suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+                    },
+                    bound: Duration::from_millis(7_200_000),
+                },
+            ));
         }
         let mut rows = List::with_capacity(self.stored.len());
         for (_, record) in &self.stored {
@@ -669,6 +877,9 @@ impl World {
     }
 
     fn external(&mut self, op: raw::Op, user: u64) -> raw::Answer {
+        self.external_repository(b"org/repo", op, user)
+    }
+    fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
         let mut config = self.forge_env.limits;
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
@@ -678,7 +889,7 @@ impl World {
         forge::step(
             &mut self.forge,
             &env,
-            forge::Event::Call { reply_to: ReplyTo::new(token), user, repository: Box::from(&b"org/repo"[..]), op },
+            forge::Event::Call { reply_to: ReplyTo::new(token), user, repository: Box::from(repository), op },
             &mut self.forge_out,
         );
         let mut answer = None;
@@ -778,12 +989,15 @@ impl World {
                         self.stored.insert(key(&record), record).expect("world store capacity");
                     }
                 }
-                top::Request::Save { record, .. } => {
+                top::Request::Save { record, release, .. } => {
                     if matches!(record, top::Stored::Writer(_)) {
                         self.writer_saves += 1;
                     }
                     let key = key(&record);
                     self.stored.insert(key, record).expect("world store capacity");
+                    if let Some(entry) = release {
+                        self.to_top.push((self.generation, top::Event::Committed { entry }));
+                    }
                 }
                 top::Request::Erase { key } => {
                     self.stored.remove(&key).expect("erased row exists");
@@ -811,6 +1025,7 @@ impl World {
                 | top::Request::BoxRemove { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::Connect { .. }
+                | top::Request::Replace { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }
@@ -820,7 +1035,9 @@ impl World {
                 | top::Request::Resource { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
+                | top::Request::ResourceRefused { .. }
                 | top::Request::LostReadFailed { .. }
+                | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
@@ -830,6 +1047,7 @@ impl World {
                 | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -837,6 +1055,8 @@ impl World {
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::TierRun { .. }
+                | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
@@ -858,7 +1078,7 @@ impl World {
 
     fn submit(&mut self, call: Token, repository: skein_forge::api::Repository, op: skein_forge::api::Op) {
         assert_eq!(repository.forge, REPO.forge);
-        assert!(repository.repository == REPO.repository || repository.repository == 0);
+        assert!(repository.repository == REPO.repository || repository.repository == 0 || repository.repository == 3);
         self.calls += 1;
         self.call_ops.push(op.clone());
         if let skein_forge::api::Op::Write(_) = op {
@@ -867,9 +1087,11 @@ impl World {
         self.serial += 1;
         let token = Token::new(self.serial);
         let raw = translate::op(&op, &self.env.limits.client);
-        let name = translate::locate_name(&op).unwrap_or_else(|| Box::from(&b"org/repo"[..]));
+        let name = translate::locate_name(&op).unwrap_or_else(|| {
+            Box::from(if repository.repository == 3 { b"org/second".as_slice() } else { b"org/repo".as_slice() })
+        });
         self.pending
-            .insert(token, Pending { client: call, op, generation: self.generation })
+            .insert(token, Pending { client: call, op, generation: self.generation, repository: name.clone() })
             .expect("world call slots");
         self.to_forge.push(forge::Event::Call { reply_to: ReplyTo::new(token), user: 1, repository: name, op: raw });
     }
@@ -886,7 +1108,11 @@ impl World {
                             if let skein_forge::api::Answer::Run(run) = &mut answer {
                                 let raw::Answer::Jobs(jobs) = self
                                     .forge
-                                    .inspect(&self.forge_env.limits, b"org/repo", &raw::Read::Jobs { run: run.id })
+                                    .inspect(
+                                        &self.forge_env.limits,
+                                        &pending.repository,
+                                        &raw::Read::Jobs { run: run.id },
+                                    )
                                     .expect("run jobs")
                                 else {
                                     panic!("jobs answer")
@@ -950,6 +1176,7 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
+        top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },
         top::Stored::Release(row) => top::Key::Release(row.task),
@@ -958,6 +1185,8 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }
 
@@ -1034,6 +1263,28 @@ fn configured_forge() -> top::Configured {
     }
 }
 
+fn workflows(turn: bool, tier: Option<raw::Workflow>) -> Box<[raw::Workflow]> {
+    if let Some(tier) = tier {
+        Box::new([tier])
+    } else if turn {
+        Box::new([raw::Workflow {
+            fails: Box::new([]),
+            flaky: Box::new([]),
+            report: None,
+            select: None,
+            file: Box::from(b"gate.yml".as_slice()),
+            jobs: Box::new([Box::from(b"test".as_slice())]),
+            latency_min: Duration::from_secs(2),
+            latency_max: Duration::from_secs(2),
+            silent: 0,
+            passes: 1000,
+            cue: None,
+        }])
+    } else {
+        Box::new([])
+    }
+}
+
 #[cfg(test)]
 mod records {
     use super::*;
@@ -1061,7 +1312,6 @@ mod records {
                     playground: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
-                    project: top::SetUpProject::Existing(5),
                     label: b"Work".as_slice().into(),
                 }),
             };

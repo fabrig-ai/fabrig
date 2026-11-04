@@ -664,6 +664,18 @@ fn native_settings_setup(directory: &Path) -> Vec<ctl::Step> {
             // These scripts deliver their answer through finish; preserve the
             // inherited result ending before the native client makes its chat.
             ctl::setting_change_file(&file, &calls[2], |value| value["flags"]["ended_by"] = "result".into());
+            let landing = file.parent().expect("settings directory").join("native-landing-settings.json");
+            if landing.exists() {
+                let mut change: serde_json::Value =
+                    serde_json::from_slice(&fs::read(&file).expect("template settings")).expect("settings JSON");
+                let landing: serde_json::Value =
+                    serde_json::from_slice(&fs::read(landing).expect("native landing settings")).expect("landing JSON");
+                change["items"]
+                    .as_array_mut()
+                    .expect("settings items")
+                    .extend(landing["items"].as_array().expect("landing items").iter().cloned());
+                write_private(&file, &serde_json::to_vec(&change).expect("native settings JSON"));
+            }
             ctl::settings_change(&calls[1], &file, "native-chat-settings").in_directory("private")
         })),
     ]

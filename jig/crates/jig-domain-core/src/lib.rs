@@ -17,6 +17,7 @@ mod funding;
 mod inbox;
 mod limits;
 mod numbers;
+pub mod public;
 pub mod reads;
 mod routing;
 pub mod runs;
@@ -62,8 +63,15 @@ pub use crate::{
         },
     },
     funding::pools::CreateStart,
-    limits::{Problem, policy_owned_bytes, valid},
+    limits::{
+        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_KIND, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY, Problem,
+        brief_holds_documents, charter_owned_bytes, policy_owned_bytes, valid,
+    },
     numbers::{Counters, Deployment, Family, fresh},
+    public::{
+        PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicCounts, PublicDocument, PublicExecutor,
+        PublicGoal, PublicHold, PublicLine, PublicPhase, PublicProject, PublicProjects, PublicRead,
+    },
     reads::{SettingsAnswer, SettingsRead},
     routing::{
         fire, resume_fleet,
@@ -87,7 +95,10 @@ pub use crate::{
         },
         transcript_text::{TranscriptRow, TranscriptText},
     },
-    settings::{charters::Charter, templates::Template},
+    settings::{
+        charters::{Charter, Document},
+        templates::Template,
+    },
     start::{Census, HeldLimit, ReadResults, Restore, RestoreRange, restore_cursor},
     stored::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
@@ -95,8 +106,9 @@ pub use crate::{
     },
     translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
     vocabulary::{
-        Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-        ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+        Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, NamedAction, Now,
+        PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, StepRefusal, Timer, ToolKind,
+        TranscriptLoad, WatchRefusal, Write,
     },
 };
 
@@ -136,12 +148,18 @@ pub struct Config {
     pub grants: Box<[people::ActGrant]>,
     /// Configured authority and policy.
     pub defaults: settings::Defaults,
+    /// An application's kinds of settings (domain/engine.md, 17.5).
+    pub kinds: Box<[settings::Kind]>,
     /// Deployment and run settings retained by the core.
     pub settings: Settings,
     /// Projects used only by the first start (configuration.md, 3).
     pub seed_projects: Box<[SeedProject]>,
     /// Numbered connectors the application routes for task lifecycle handoffs.
     pub connectors: Box<[u16]>,
+    /// Application job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+    pub jobs: Box<[jig_domain_link::JobBound]>,
+    /// Connectors' procedures that start kept (jig/docs/design/domain/connectors.md, 6.1).
+    pub kept_starts: Box<[jig_domain_tasks::KeptStart]>,
 }
 
 /// Immutable deployment and run settings used by core decisions.
@@ -256,6 +274,9 @@ pub struct Core {
     pub(crate) ended_chats: Map<u64, inbox::EndedChat>,
     pub(crate) proposed_input: Option<Result<Box<settings::Proposal>, people::Malformed>>,
     pub(crate) settings_proposals: Map<(people::Proposer, u32), settings::Proposal>,
+    pub(crate) kinds: Box<[settings::Kind]>,
+    pub(crate) restoring: settings::Restoring,
+    pub(crate) settings_judging: settings::application::Judging,
     pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32)>,
     pub(crate) key_input: Option<Carried>,
     pub(crate) application_input: Option<routing::application_routes::Input>,
@@ -266,6 +287,7 @@ pub struct Core {
     pub(crate) restart_attempts: u32,
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
+    pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     /// Subjects owned by the parent; the child echoes each watch token.
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
     pub(crate) changed_views: skein_lib::Set<skein_lib::Id<WatchedSubject>>,
@@ -293,6 +315,9 @@ pub struct Core {
     pub(crate) restore_failure: Option<start::Failure>,
     /// Names seeded or restored with the project policies (core.md, 6.1).
     pub(crate) names: Map<u32, Box<str>>,
+    visibility: admission::visibility::Visibility,
+    public_index: public::Index,
+    public_reads: skein_lib::Slab<Option<public::reads::Pending>>,
     /// Mutable connector permission mappings approved by policy edits.
     pub permission_roles: Map<u32, Box<[people::PermissionRole]>>,
     /// Template overrides retained with each project policy.
@@ -320,6 +345,7 @@ pub struct Core {
     /// Live task preparation contexts.
     pub(crate) contexts: Map<u64, Box<tasks::RunContext>>,
     pub(crate) workspace_credentials: Map<u64, Box<[u32]>>,
+    pub(crate) job_workspaces: Map<u64, Box<[u8]>>,
     /// Recent transcript windows for runs being prepared.
     pub transcripts: Map<u64, Transcript>,
     /// Current durable claim evidence.
@@ -383,6 +409,15 @@ impl Core {
             "core prices every configured connector number"
         );
         assert_connector_registry(&config.connectors);
+        let mut previous = None;
+        for job in &config.jobs {
+            if let Some(kind) = previous {
+                assert!(kind < job.kind, "job kinds are ascending and distinct");
+            }
+            assert!(job.spec <= limits.tasks.spec_bytes, "job specs fit the tasks child");
+            assert!(job.result <= limits.tasks.result_bytes, "job results fit the tasks child");
+            previous = Some(job.kind);
+        }
         for grant in &config.grants {
             assert!(config.connectors.contains(&grant.connector), "acts name configured connectors");
         }
@@ -423,7 +458,7 @@ impl Core {
             );
         }
         let fleet_needs = fleet_needs::configured(&config, limits);
-        let current = settings::Current::new(config.defaults, limits);
+        let current = settings::Current::new(config.defaults, limits, &config.kinds);
         for project in &config.seed_projects {
             assert!(
                 project.policy.templates.is_empty()
@@ -457,6 +492,9 @@ impl Core {
             proposed_input: None,
             settings_proposals: Map::with_capacity(limits.settings.proposals),
             settings_input: None,
+            restoring: settings::Restoring::new(&config.kinds),
+            settings_judging: settings::application::Judging::new(&config.kinds),
+            kinds: config.kinds,
             key_input: None,
             application_input: None,
             task_capacity_mark: 0,
@@ -484,9 +522,13 @@ impl Core {
             projects: List::with_capacity(limits.authority.projects),
 
             names: Map::with_capacity(limits.authority.projects),
+            visibility: admission::visibility::Visibility::new(limits.authority.projects),
+            public_index: public::Index::new(limits.people.projects, limits.tasks.depth),
+            public_reads: skein_lib::Slab::with_capacity(limits.load_slots),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
             connectors: config.connectors,
+            jobs: config.jobs,
             pending_calls: Map::with_capacity(limits.call_records),
             call_parts: Map::with_capacity(limits.call_records),
             call_settled: Map::with_capacity(limits.call_records),
@@ -500,6 +542,7 @@ impl Core {
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),
             workspace_credentials: Map::with_capacity(limits.tasks.tasks),
+            job_workspaces: Map::with_capacity(limits.tasks.tasks),
             transcripts: Map::with_capacity(limits.tasks.tasks),
             proofs: Map::with_capacity(limits.tasks.tasks),
             replaced: Map::with_capacity(limits.tasks.tasks),
@@ -508,13 +551,17 @@ impl Core {
             claiming: Map::with_capacity(limits.tasks.tasks),
             due: Queue::uncapped(),
             adopted: Queue::uncapped(),
-            tasks: tasks::Domain::new(
-                &limits.tasks,
-                config.seed,
-                current.newest(),
-                charters::models(&current, &config.settings, limits),
-                charters::efforts(&config.settings),
-            ),
+            tasks: {
+                let mut tasks = tasks::Domain::new(
+                    &limits.tasks,
+                    config.seed,
+                    current.newest(),
+                    charters::models(&current, &config.settings, limits),
+                    charters::efforts(&config.settings),
+                );
+                tasks.set_kept_starts(config.kept_starts);
+                tasks
+            },
             current,
             held: settings::Held::new(limits),
             hub_turns: config.hub_turns,

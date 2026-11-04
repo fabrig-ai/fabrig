@@ -445,10 +445,20 @@ fn startup_admission_keeps_no_forge() {
     service.engine.as_mut().expect("engine").step(startup_adopt(88));
     fixtures::settle_root(&mut service, &mut Queue::with_capacity(32));
     let rows = fixtures::load(&mut service.engine.as_mut().expect("engine").store, root::Range::Forge);
-    let [root::Record::Forge { row }] = rows.as_ref() else { panic!("one durable application row: {rows:?}") };
-    let forge::Stored::Application { token, outcome, .. } = row.as_ref() else { panic!("application row: {row:?}") };
-    assert_eq!(*token, 1);
-    assert_eq!(outcome, &forge::ApplicationOutcome::ForgeRefused(forge::AdoptionRefusal::NoSuchForge));
+    let mut applications = 0_u32;
+    for record in &rows {
+        let root::Record::Forge { row } = record else { panic!("forge row: {record:?}") };
+        if let forge::Stored::Setting(_) = row.as_ref() {
+            continue;
+        }
+        let forge::Stored::Application { token, outcome, .. } = row.as_ref() else {
+            panic!("application row: {row:?}")
+        };
+        assert_eq!(*token, 1);
+        assert_eq!(outcome, &forge::ApplicationOutcome::ForgeRefused(forge::AdoptionRefusal::NoSuchForge));
+        applications += 1;
+    }
+    assert_eq!(applications, 1, "one durable application beside the startup defaults");
     let engine = service.engine.as_mut().expect("engine");
     fixtures::restore_forge(engine, fixtures::forge_record(1));
     engine.step(root::Event::Forge(Box::new(forge::Event::Connection {
@@ -496,6 +506,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }
+                | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Accept { .. }
@@ -566,7 +577,12 @@ fn nothing_leaves_before_the_mark() {
     assert!(engine.forge.starts.is_empty());
     assert!(!engine.forge.startup_begun());
     assert!(!engine.setup.startup_restored());
-    assert!(!engine.work_pending(Time::from_nanos(1)), "a held mark waits for its storage answer");
+    assert_eq!(engine.clients.secrets.len(), 1, "the public names key waits for the mark");
+    assert!(
+        !engine.work_pending(Time::from_nanos(1)),
+        "a held mark waits for its storage answer: {:?}",
+        engine.pending(Time::from_nanos(1))
+    );
     let mark = engine.store.held_mark.take().expect("held mark");
     engine.store.hold_mark = false;
     assert!(engine.store.down(mark));
@@ -988,7 +1004,7 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
                 cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
                 row: Some(store::restore::RowSite {
                     family: Some(store::Family::Tasks),
-                    key_bytes: u64::try_from(key.len()).unwrap(),
+                    key_bytes: skein_lib::len_u64(key.len()),
                     key,
                     truncated: false,
                 }),

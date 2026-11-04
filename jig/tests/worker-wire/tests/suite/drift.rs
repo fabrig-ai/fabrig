@@ -10,7 +10,7 @@ fn worker_wire_schema_matches_generated_code_and_goldens() {
     let code = root.join("src/generated/v9.rs");
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    let again = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-worker-wire-world --test drift";
+    let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-worker-wire-world --test drift";
     if write {
         fs::write(&code, &output.rust).expect("write generated code");
         fs::create_dir_all(&goldens).expect("create golden directory");

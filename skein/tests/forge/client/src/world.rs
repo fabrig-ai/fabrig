@@ -832,6 +832,7 @@ fn inbox_count(answer: &api::Answer) -> u32 {
         | api::Answer::Runs { .. }
         | api::Answer::Run(_)
         | api::Answer::Tree { .. }
+        | api::Answer::Commits { .. }
         | api::Answer::Located { .. }
         | api::Answer::Pull(_)
         | api::Answer::Statuses { .. }

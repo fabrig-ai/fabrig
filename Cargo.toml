@@ -36,6 +36,7 @@ members = [
     "skein/crates/skein-oauth",
     "skein/crates/skein-oauth-accounts",
     "skein/crates/skein-oauth-issuer",
+    "skein/crates/skein-playground",
     "skein/crates/skein-shell",
     "skein/crates/skein-sim",
     "skein/crates/skein-sim-world",
@@ -93,6 +94,7 @@ members = [
     "skein/tests/oauth",
     "skein/tests/oauth-issuer",
     "skein/tests/oauth-accounts",
+    "skein/tests/playground",
     "skein/tests/protocol",
     "skein/tests/ring",
     "skein/tests/readiness",
@@ -234,15 +236,17 @@ members = [
     "temper/crates/temper-settings-form",
     "temper/crates/temper-docs",
     "temper/crates/temper-fake",
+    "temper/crates/temper-playground",
     "temper/crates/temper-protocol-records",
     "temper/tests/real-loop",
     "temper/crates/temper-box",
     "temper/tools/gallery",
     "temper/tools/journeys",
+    "temper/tools/stage-one",
     "temper/tools/fake-claude",
     "temper/tests/one-process",
     "temper/crates/temper-fake-git",
-    "temper/testing/temper-fake-git-hosted",
+    "temper/crates/temper-fake-git-hosted",
     "temper/testing/temper-github-app",
     "temper/crates/temper",
     "temper/crates/temper-client-bundle",
@@ -272,11 +276,14 @@ members = [
     "temper/crates/temper-engine-smith",
     "temper/crates/temper-engine-domain-forge-change",
     "temper/crates/temper-engine-domain-forge-landing",
+    "temper/crates/temper-engine-domain-forge-tiers",
     "temper/crates/temper-engine-domain-forge-issues",
     "temper/crates/temper-engine-domain-forge",
     "temper/crates/temper-worker-domain",
     "temper/crates/temper-worker-domain-checkout",
+    "temper/crates/temper-worker-domain-tooling",
     "temper/tests/fake-checkout",
+    "temper/tests/playground",
     "temper/tests/engine/domain",
     "temper/tests/system",
     "temper/tests/conformance",
@@ -350,12 +357,17 @@ skein-fake-machine = { path = "skein/crates/skein-fake-machine" }
 skein-fake-channel = { path = "skein/testing/skein-fake-channel" }
 skein-fake-checkout = { path = "skein/crates/skein-fake-checkout" }
 skein-sim-world = { path = "skein/crates/skein-sim-world" }
+skein-playground = { path = "skein/crates/skein-playground" }
 skein-world = { path = "skein/testing/skein-world" }
 wasm-bindgen-cli-support = { version = "=0.2.126" }
 io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
 ring = { version = "0.17" }
-rustls = { version = "=0.23.41", default-features = false, features = ["ring", "std", "tls12"] }
+# rustls, pinned, without std and with ring for its cryptography (skein/docs/design/tls.md, 4):
+# its std, whose clock wasm32-unknown-unknown lacks, is native only, asked for by each crate
+# that uses it.
+rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
+rustls-pki-types = { version = "1.15" }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 skein-tls-world = { path = "skein/tests/tls" }
@@ -460,6 +472,8 @@ settings-form = { package = "temper-settings-form", path = "temper/crates/temper
 temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-fake = { path = "temper/crates/temper-fake" }
+temper-playground = { path = "temper/crates/temper-playground" }
+temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
 temper-box = { path = "temper/crates/temper-box" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }
@@ -468,7 +482,7 @@ temper-init = { path = "temper/crates/temper-init" }
 temper-client-bundle = { path = "temper/crates/temper-client-bundle" }
 jig-boundary = { path = "jig/tests/boundary" }
 temper-fake-git = { path = "temper/crates/temper-fake-git" }
-temper-fake-git-hosted = { path = "temper/testing/temper-fake-git-hosted" }
+temper-fake-git-hosted = { path = "temper/crates/temper-fake-git-hosted" }
 jig-channel-world = { path = "jig/tests/channel" }
 temper-client-shell-terminal = { path = "temper/crates/temper-client-shell-terminal" }
 temper-client-shell-cli = { path = "temper/crates/temper-client-shell-cli" }
@@ -490,10 +504,12 @@ temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-cal
 temper-engine-smith = { path = "temper/crates/temper-engine-smith" }
 temper-engine-domain-forge-change = { path = "temper/crates/temper-engine-domain-forge-change" }
 temper-engine-domain-forge-landing = { path = "temper/crates/temper-engine-domain-forge-landing" }
+temper-engine-domain-forge-tiers = { path = "temper/crates/temper-engine-domain-forge-tiers" }
 temper-engine-domain-forge-issues = { path = "temper/crates/temper-engine-domain-forge-issues" }
 temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge" }
 temper-worker-domain = { path = "temper/crates/temper-worker-domain" }
 temper-worker-domain-checkout = { path = "temper/crates/temper-worker-domain-checkout" }
+temper-worker-domain-tooling = { path = "temper/crates/temper-worker-domain-tooling" }
 jig-core-world = { path = "jig/tests/core" }
 jig-tasks-world = { path = "jig/tests/tasks" }
 jig-people-world = { path = "jig/tests/people" }
@@ -589,6 +605,9 @@ opt-level = 3
 [profile.dev.package.jig-boundary]
 opt-level = 3
 
+[profile.dev.package.fabrig-boundary]
+opt-level = 3
+
 [profile.dev.package.skein-codegen]
 opt-level = 3
 
@@ -607,4 +626,8 @@ codegen-units = 1
 panic = "abort"
 overflow-checks = true
 strip = true
+
+[profile.playground]
+inherits = "web"
+opt-level = "z"
 

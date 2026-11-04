@@ -36,7 +36,7 @@ mod tests {
             environment_bytes: 835,
             endpoints: Box::new([Endpoint {
                 number: 1,
-                provider: skein_llm::Provider::OpenAiCodex,
+                provider: skein_llm::Provider::OpenAi,
                 option_bytes: 3,
                 connect: skein_lib::Duration::from_secs(10),
                 handshake: skein_lib::Duration::from_secs(10),

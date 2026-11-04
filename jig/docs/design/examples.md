@@ -312,8 +312,11 @@ Q, a developer
 - **A chat closed with its environment:** once E's environment is torn
   down, infrastructure closes C in the deployment's name, granted the
   deployment's `close` by `ops`'s configuration (`domain/people.md`,
-  5.3): C is asked to finish within its template's grace, and cancelled
-  if it outlives it. Infrastructure keeps the act's key with E's record
+  5.3): C is asked to finish within the grace that configuration gives
+  the close, as it gives its reason, and cancelled if it outlives it.
+  The grace is the close's own, within the tasks child's bound, whichever
+  template made C: a task keeps no template (`domain/engine.md`, 11.1).
+  Infrastructure keeps the act's key with E's record
   until it hears the answer, so an engine restarted between the act's
   commit and its answer sends it again and is answered once, C closed
   once.
@@ -513,3 +516,9 @@ shows, it reads through the public client.
 - **Triage before an LLM:** whether the connector's classification,
   with a wake policy batching what it lets through, is enough before a
   cheap model triages.
+- **A chat's own template's grace:** no close honours it, since a task
+  keeps no template (`domain/engine.md`, 11.1): the deployment's close
+  gives the grace `ops` configures (7.3), and a person's gives that of
+  the chat template `me` offers now (`client/domain/client.md`, 19).
+  Whether a task keeps its grace as a value, which would honour it at
+  the price of a stored format. Default: as said.

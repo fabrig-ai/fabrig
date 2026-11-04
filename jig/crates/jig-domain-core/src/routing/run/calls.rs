@@ -427,6 +427,9 @@ pub(crate) fn named_action(
     action: NamedAction,
 ) -> Queue<Request> {
     assert!(core.current_proof(key.task, key.attempt), "named action belongs to current claim");
+    if let NamedAction::ReadTask { task, from } = action {
+        return crate::reads::run_task::run(core, env, to, key, task, from);
+    }
     if let NamedAction::Settings(read) = action {
         return crate::reads::settings::run(core, env, to, key, read);
     }
@@ -446,6 +449,7 @@ pub(crate) fn named_action(
     let token = to.into_token();
     let mut out = Queue::uncapped();
     match action {
+        NamedAction::ReadTask { .. } => unreachable!("task reads use the unrecorded path"),
         NamedAction::Settings(_) => unreachable!("settings reads use the unrecorded path"),
         NamedAction::ProposeSettings { against, items, reason } => {
             return crate::routing::settings::dispatch::propose_run(
@@ -587,7 +591,9 @@ pub(crate) fn named_action(
                                 capacity: None,
                             })
                         }
-                        jig_domain_people::Refusal::Stale { .. }
+                        jig_domain_people::Refusal::Forgotten { .. }
+                        | jig_domain_people::Refusal::Judged { .. }
+                        | jig_domain_people::Refusal::Stale { .. }
                         | jig_domain_people::Refusal::Full { .. }
                         | jig_domain_people::Refusal::Circle { .. }
                         | jig_domain_people::Refusal::Dependency { .. }
@@ -711,6 +717,7 @@ pub(crate) fn named_action(
 
 pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
     match action {
+        NamedAction::ReadTask { .. } => ToolKind::Read,
         NamedAction::Settings(_) | NamedAction::ProposeSettings { .. } => ToolKind::Settings,
         NamedAction::Message { target, .. } => ToolKind::Message { target: *target },
         NamedAction::Introduce { left, .. } => ToolKind::Message { target: *left },

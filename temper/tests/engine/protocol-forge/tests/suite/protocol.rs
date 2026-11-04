@@ -18,6 +18,7 @@ fn change_row() -> top::ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 51,
@@ -48,8 +49,16 @@ fn change_row() -> top::ChangeRow {
         queue_repairs: 0,
         producing_charter: 2,
         review_charter: 4,
+        producing_llm: None,
+        review_llm: None,
+        foreman_charter: 6,
+        questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        report: Box::new([]),
+        repairs: None,
+        catch_up: None,
+        merge_result: None,
     }
 }
 
@@ -82,9 +91,11 @@ fn change_step_task(
 ) -> change::Decision {
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task,
         entry,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: heard,
@@ -94,6 +105,7 @@ fn change_step_task(
         },
         gates,
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -470,9 +482,11 @@ fn main_name() -> top::Name {
 
 fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, released: bool) {
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate,
@@ -482,6 +496,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
 }
@@ -512,6 +527,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::BoxGroup { .. }
                 | top::Request::BoxRemove { .. }
                 | top::Request::Connect { .. }
+                | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
@@ -528,7 +544,9 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Erase { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
+                | top::Request::ResourceRefused { .. }
                 | top::Request::LostReadFailed { .. }
+                | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
@@ -539,6 +557,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::ProjectionEffect { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -557,6 +576,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::TierRun { .. }
+                | top::Request::TierDecision { .. }
                 | top::Request::Call { .. } => {}
             }
         }
@@ -630,7 +651,7 @@ fn held_branch(world: &mut Protocol) -> (top::Name, skein_forge::api::Commit) {
     };
     world.event(top::Event::Change { row: change_row() });
     world.event(top::Event::Names { task: 51, resources: Box::new([name.clone()]) });
-    world.event(top::Event::Hold { task: 51, resource: name.clone(), from: None });
+    world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
     world.run_for(1);
     world.event(top::Event::Claim { task: 51, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
     world.produce(b"temper/51");
@@ -856,6 +877,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         change::Decision::Hold(why) => hold_reason = Some(why),
                         change::Decision::Finish { .. } => finished = true,
                         change::Decision::None
+                        | change::Decision::CancelProducer
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
                         | change::Decision::Effect(_)
@@ -878,9 +900,11 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
         if due {
             due = false;
             world.event(top::Event::StepChange {
+                merge_job: false,
                 task: 51,
                 entry,
                 heard: change::Heard {
+                    start_conflict: None,
                     lacking: None,
                     spend: None,
                     delegate: change::Status::Unknown,
@@ -890,6 +914,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                 },
                 gates: Box::new([]),
                 queue_repair_active: false,
+                pending: Box::new([]),
                 kept: false,
             });
             entry += 1;
@@ -1080,7 +1105,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
     let deadline = Wall::from_nanos(start.as_nanos() + HORIZON.as_nanos());
     let run = branch_name(b"temper/1/r1");
     world.event(top::Event::Names { task: 1, resources: Box::new([run.clone()]) });
-    world.event(top::Event::Hold { task: 1, resource: run, from: None });
+    world.event(top::Event::Hold { entry: 0, task: 1, resource: run, from: None });
     let mut row = change_row();
     row.change.since = start;
     row.change.gates = Box::new([change::Gate {
@@ -1093,7 +1118,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
     world.event(top::Event::Change { row });
     let branch = branch_name(b"temper/51");
     world.event(top::Event::Names { task: 51, resources: Box::new([branch.clone(), main_name()]) });
-    world.event(top::Event::Hold { task: 51, resource: branch.clone(), from: None });
+    world.event(top::Event::Hold { entry: 0, task: 51, resource: branch.clone(), from: None });
     world.run_for(0);
     let mut due = true;
     let mut until = None;

@@ -18,20 +18,31 @@ const FAULTS: &[(&str, Role, &[Role], Option<Fault>)] = &[
         Some(Fault { rule: Rule::OneContentInfo, node: 4 }),
     ),
     ("shortcut", Role::Page, &[Role::Main], Some(Fault { rule: Rule::ShortcutOnce, node: 4 })),
-    ("escape main", Role::Page, &[Role::Main], Some(Fault { rule: Rule::EscapeInDialog, node: 3 })),
+    ("escape main", Role::Page, &[Role::Main], Some(Fault { rule: Rule::EscapeInDialogOrForm, node: 3 })),
     ("escape dialog", Role::Page, &[Role::Main, Role::Dialog], None),
+    ("escape form", Role::Page, &[Role::Main, Role::Form], None),
+    ("escape banner form", Role::Page, &[Role::Banner, Role::Form], None),
 ];
 
 #[test]
 fn each_rule_names_its_first_fault() {
     for (label, root, roles, fault) in FAULTS {
         let mut b = page();
+        if roles.first() == Some(&Role::Banner) {
+            b = Builder::new(&LIMITS);
+            b.open(Role::Page);
+            b.open(Role::Main);
+            b.close();
+        }
         for role in *roles {
             b.open(*role);
             if label == &"empty region name" && *role == Role::Region {
                 b.name(b"");
             }
-            if (label == &"escape main" && *role == Role::Main) || (label == &"escape dialog" && *role == Role::Dialog)
+            if (label == &"escape main" && *role == Role::Main)
+                || (label == &"escape dialog" && *role == Role::Dialog)
+                || (label == &"escape form" && *role == Role::Form)
+                || (label == &"escape banner form" && *role == Role::Form)
             {
                 b.open(Role::Button);
                 b.bind(Binding { owner: Owner { number: 1 }, token: Token::new(1) });
@@ -54,6 +65,43 @@ fn each_rule_names_its_first_fault() {
     }
     let empty = Builder::new(&LIMITS).finish();
     assert_eq!(check(&empty), Some(Fault { rule: Rule::PageRoot, node: 0 }), "empty tree");
+}
+
+#[test]
+fn escape_inside_a_nested_form_keeps_its_outline() {
+    const NESTED_LIMITS: crate::Limits = crate::Limits { depth: 6, ..LIMITS }; // page and five nested roles.
+    for landmark in [Role::Main, Role::Banner] {
+        let mut b = Builder::new(&NESTED_LIMITS);
+        b.open(Role::Page);
+        if landmark != Role::Main {
+            b.open(Role::Main);
+            b.close();
+        }
+        let roles = [landmark, Role::Region, Role::Form, Role::Region, Role::Button];
+        for role in roles {
+            b.open(role);
+        }
+        b.bind(Binding { owner: Owner { number: 1 }, token: Token::new(1) });
+        b.shortcut(Shortcut::ESCAPE);
+        for _ in roles {
+            b.close();
+        }
+        assert_eq!(check(&finish(b)), None, "{landmark:?}");
+    }
+}
+
+#[test]
+fn escape_after_a_form_is_outside_it() {
+    let mut b = page();
+    b.open(Role::Form);
+    b.close();
+    b.open(Role::Main);
+    b.open(Role::Button);
+    b.bind(Binding { owner: Owner { number: 1 }, token: Token::new(1) });
+    b.shortcut(Shortcut::ESCAPE);
+    b.close();
+    b.close();
+    assert_eq!(check(&finish(b)), Some(Fault { rule: Rule::EscapeInDialogOrForm, node: 4 }));
 }
 
 #[test]

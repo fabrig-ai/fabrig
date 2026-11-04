@@ -1,6 +1,8 @@
 mod box_kinds;
 mod commands;
 mod help;
+mod limits;
+mod reference_settings;
 mod settings_fields;
 
 #[test]
@@ -17,7 +19,6 @@ fn directory_commands_take_flags_after_their_command_words() {
         (vec!["forge", "fetch", "1"], true),
         (vec!["forge", "remove", "1"], true),
         (vec!["forge", "run", "1", "runner"], true),
-        (vec!["forge", "reconcile", "1"], true),
         (vec!["forge", "sign-in", "1"], true),
         (vec!["unknown"], false),
     ] {
@@ -88,7 +89,6 @@ fn open_without_two_arguments_prints_its_usage() {
     }
 }
 
-#[path = "../tests/support/configuration.rs"]
 pub(crate) mod configuration;
 
 #[test]

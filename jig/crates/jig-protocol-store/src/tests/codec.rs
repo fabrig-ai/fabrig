@@ -381,6 +381,7 @@ fn bound_problem(path: crate::tasks_v9::Path) -> crate::tasks_v9::Problem {
 }
 fn spec_with_bytes(bytes: usize) -> jig_domain_tasks::Spec {
     jig_domain_tasks::Spec {
+        job: None,
         asks: false,
         words: Box::new([]),
         parameters: Box::new([jig_domain_tasks::Parameter::Bytes { name: 1, value: skein_lib::bytes::zeroed(bytes) }]),
@@ -1451,17 +1452,21 @@ fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
 #[test]
 fn a_remove_project_act_round_trips() {
     use jig_domain_people::{Act, ActKey, Outcome, Refusal, Stored};
-    people_round_trip(Stored::Acted {
-        key: ActKey { connector: u16::MAX, key: [255; 16] },
-        act: Act::RemoveProject { project: u32::MAX },
-        outcome: Outcome::Refused(Refusal::Unknown),
-        at: skein_lib::Wall::from_nanos(u64::MAX),
-    });
+    for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+        people_round_trip(Stored::Acted {
+            key: ActKey { connector: u16::MAX, key: [255; 16] },
+            act: Act::RemoveProject { project: u32::MAX, grace },
+            outcome: Outcome::Refused(Refusal::Unknown),
+            at: skein_lib::Wall::from_nanos(u64::MAX),
+        });
+    }
 }
 
 #[test]
 fn a_remove_project_ask_round_trips() {
-    ask_round_trip(jig_domain_people::Ask::RemoveProject { project: u32::MAX });
+    for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+        ask_round_trip(jig_domain_people::Ask::RemoveProject { project: u32::MAX, grace });
+    }
 }
 
 #[test]
@@ -1475,7 +1480,9 @@ fn a_project_removed_outcome_round_trips() {
 fn a_deletion_row_round_trips_at_each_step() {
     use jig_domain_people::{DeletionStep, Stored};
     for step in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
-        people_round_trip(Stored::Deletion { project: u32::MAX, step });
+        for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+            people_round_trip(Stored::Deletion { project: u32::MAX, step, grace });
+        }
     }
     let key = jig_domain_core::Key::People(jig_domain_people::Key::Deletion(u32::MAX));
     let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("deletion key fits");
@@ -1509,4 +1516,149 @@ fn a_nothing_awaited_notice_survives_storage_with_small_caller_limits() {
     });
     let bytes = crate::codec::tasks::encode(&row, &limits, &[]).expect("fixed notice fits");
     assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &[]), Ok(row));
+}
+
+/// Application job values survive total store translations (jig/docs/design/protocol/store.md, 5.1).
+#[test]
+fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
+    use crate::{
+        codec::tasks::{activity, phase, value as translate},
+        tasks_v9 as w,
+    };
+    use jig_domain_tasks as t;
+    let limits = tasks_limits();
+    for kind in [0, u32::MAX] {
+        let executor = t::Executor::Job { kind };
+        let encoded = translate::executor(executor, &limits).unwrap();
+        let encoded = saved_wire(encoded, w::Executor::measure, w::Executor::encode, w::Executor::decode);
+        assert_eq!(translate::read_executor(encoded), executor);
+        let delegation = t::AuthorityExecutor::Job(kind);
+        let encoded = translate::authority_executor(&delegation, &limits).unwrap();
+        let encoded = saved_wire(
+            encoded,
+            w::AuthorityExecutor::measure,
+            w::AuthorityExecutor::encode,
+            w::AuthorityExecutor::decode,
+        );
+        assert_eq!(translate::read_authority_executor(encoded), delegation);
+    }
+    for deadline in [skein_lib::Duration::ZERO, skein_lib::Duration::from_nanos(u64::MAX)] {
+        let spec = t::Spec {
+            job: Some(Box::new(t::JobSpec { bytes: Box::new([0xff; 32]), deadline })),
+            words: Box::new([]),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+            asks: false,
+        };
+        let encoded = translate::spec(&spec, &limits).unwrap();
+        let encoded = saved_wire(encoded, w::Spec::measure, w::Spec::encode, w::Spec::decode);
+        assert_eq!(translate::read_spec(encoded, &limits), Ok(spec));
+    }
+    let contract = t::Contract::Job { bytes: limits.job_result_bytes };
+    let encoded = translate::contract(&contract, &limits).unwrap();
+    let encoded = saved_wire(encoded, w::Contract::measure, w::Contract::encode, w::Contract::decode);
+    assert_eq!(translate::read_contract(encoded, &limits), Ok(contract));
+    let mut bytes = skein_lib::bytes::zeroed(skein_lib::length::usize_of(limits.job_result_bytes));
+    bytes.fill(0xff);
+    let result = t::TaskResult::Job { bytes };
+    let encoded = phase::result(&result, &limits).unwrap();
+    let encoded = saved_wire(encoded, w::TaskResult::measure, w::TaskResult::encode, w::TaskResult::decode);
+    assert_eq!(phase::read_result(encoded, &limits), Ok(result));
+    let encoded = activity::result_kind(&t::ResultKind::Job, &limits).unwrap();
+    let encoded = saved_wire(encoded, w::ResultKind::measure, w::ResultKind::encode, w::ResultKind::decode);
+    assert_eq!(activity::read_result_kind(encoded, &limits), Ok(t::ResultKind::Job));
+}
+
+/// The spec's application bytes obey their own bound (jig/docs/design/protocol/store.md, 5.1).
+#[test]
+fn job_spec_bytes_one_past_the_bound_are_refused() {
+    use crate::{codec::tasks::value as translate, tasks_v9 as w};
+    let limits = tasks_limits();
+    let mut spec = spec_with_bytes(0);
+    spec.job = Some(Box::new(jig_domain_tasks::JobSpec {
+        bytes: Box::new([0xff; 33]),
+        deadline: skein_lib::Duration::from_secs(7),
+    }));
+    assert_eq!(translate::spec(&spec, &limits), Err(bound_problem(w::Path::JobSpecBytes)));
+    let wider = w::Limits { job_spec_bytes: 33, ..limits };
+    let encoded = translate::spec(&spec, &wider).unwrap();
+    assert_eq!(translate::read_spec(encoded.clone(), &limits), Err(bound_problem(w::Path::JobSpecBytes)));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(encoded.measure()));
+    encoded.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    assert_eq!(
+        w::Spec::decode(&limits, &mut skein_lib::Reader::new(&bytes)),
+        Err(bound_problem(w::Path::JobSpecBytes))
+    );
+}
+
+/// People's delegations retain job kinds (jig/docs/design/protocol/store.md, 5.1).
+#[test]
+fn job_delegation_kinds_round_trip_in_people() {
+    let mut policy = fixtures::people_policy();
+    policy.ceiling.delegation.kinds = Box::new([jig_domain_people::Executor::Job(u32::MAX)]);
+    policy.roles[0].authority.delegation.kinds = Box::new([jig_domain_people::Executor::Job(0)]);
+    people_round_trip(jig_domain_people::Stored::Policy { project: 3, name: Box::from("Jobs"), value: policy });
+}
+
+#[test]
+fn a_stored_member_keeps_its_symbols() {
+    const BOUND: u16 = 32;
+    use jig_domain_people as p;
+    let limits = people_limits();
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
+    assert_eq!(limits.member_symbols, u32::from(BOUND));
+    for count in [0, 2, BOUND, BOUND + 1] {
+        let mut member = fixtures::people_member();
+        let mut symbols = skein_lib::List::with_capacity(u32::from(count));
+        for symbol in 0..count {
+            symbols.push(p::Symbol { connector: u16::MAX - symbol, symbol }).expect("symbol fixture count");
+        }
+        member.symbols = symbols.into_boxed();
+        for ask in [
+            p::Ask::Create { project: 1, batch: Box::new([member.clone()]) },
+            p::Ask::Propose { project: 1, action: p::Action::Batch(Box::new([member])), reason: Box::new([]) },
+        ] {
+            let row = p::Stored::Answer {
+                key: p::RequestKey { person: 1, key: [2; 16] },
+                ask: Box::new(ask),
+                models: fixtures::model_names(&[b"first"]),
+                outcome: p::Outcome::Refused(p::Refusal::Unknown),
+                at: skein_lib::Wall::EPOCH,
+            };
+            if count > BOUND {
+                assert_eq!(
+                    crate::codec::people::encode(&row, &limits, &names),
+                    Err(crate::people_v14::Problem {
+                        path: crate::people_v14::Path::MemberSymbols,
+                        reason: skein_codec::Reason::Bound,
+                    }),
+                );
+                continue;
+            }
+            let bytes = crate::codec::people::encode(&row, &limits, &names).expect("bounded symbols");
+            assert_eq!(crate::codec::people::decode(&bytes, &limits, &names), Ok(row));
+            if count == BOUND {
+                let mut narrower = limits;
+                narrower.member_symbols = u32::from(BOUND - 1);
+                assert_eq!(
+                    crate::codec::people::decode(&bytes, &narrower, &names),
+                    Err(crate::people_v14::Problem {
+                        path: crate::people_v14::Path::MemberSymbols,
+                        reason: skein_codec::Reason::Bound,
+                    }),
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_visibility_set_outcome_round_trips_as_kept() {
+    for public in [false, true] {
+        people_round_trip(fixtures::people_outcomes::answered(jig_domain_people::Outcome::VisibilitySet {
+            project: u32::MAX,
+            public,
+        }));
+    }
 }

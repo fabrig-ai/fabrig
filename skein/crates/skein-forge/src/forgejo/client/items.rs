@@ -108,6 +108,9 @@ fn target(request: &Request, out: &mut Target) {
         | Request::PullFiles { .. }
         | Request::Compare { .. }
         | Request::Contents { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
         | Request::WorkflowRuns { .. }

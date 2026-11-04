@@ -1,5 +1,6 @@
 //! Deployment settings, defaults and revisions (domain/engine.md, section 17).
 
+pub mod application;
 mod change;
 pub mod charters;
 pub(crate) mod check;
@@ -17,18 +18,21 @@ use jig_domain_authority as authority;
 use jig_domain_people as people;
 use skein_lib::{List, Map, Wall};
 
+pub use application::{Kind, KindScope};
 pub(crate) use change::{apply, change_shape, changes_current};
 pub use check::{check, check_change};
 pub use held::{Held, VersionKey};
 pub use restart::revision_writes;
 
 pub use people::{Running, Setting, SettingFault as Fault};
+/// A party's setting value (jig/docs/design/domain/engine.md, 17.1, 17.5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Charter(Box<Charter>),
     Template(Box<Template>),
     Policy(Box<ConfiguredPolicy>),
     Rules(Box<authority::Rules>),
+    Application(Box<[u8]>),
 }
 #[derive(Debug)]
 pub struct Defaults {
@@ -52,6 +56,21 @@ pub enum Edit {
     Set(Value),
     Removed,
     Reset,
+}
+/// What an item replaced (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Replaced {
+    Value(Value),
+    Default,
+    Removed,
+    NotOffered,
+}
+/// A revision's item and what it replaced (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RevisionItem {
+    pub setting: Setting,
+    pub edit: Edit,
+    pub replaced: Replaced,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Item {
@@ -99,10 +118,12 @@ pub fn model_names(models: &[crate::Model]) -> Box<[ModelName]> {
     }
     names.into_boxed()
 }
+/// A revision and the state each item replaced (jig/docs/design/domain/engine.md, 17.10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Revision {
     pub head: Head,
-    pub items: Box<[Item]>,
+    pub items: Box<[RevisionItem]>,
+    pub applications: Box<[application::RevisionRecorded]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Failure {
@@ -136,8 +157,10 @@ pub struct CharterVersion {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Proposal {
+    pub key: Option<u64>,
     pub against: u32,
     pub items: Box<[Item]>,
+    pub applications: Box<[application::Recorded]>,
 }
 
 /// Only defaults and changes own current values. Revision history stays in the store.
@@ -145,12 +168,14 @@ pub struct Proposal {
 pub struct Current {
     pub(crate) defaults: Map<Setting, Default>,
     pub(crate) changes: Map<Setting, Changed>,
+    pub(crate) applications: Map<Setting, application::State>,
     pub(crate) head: Head,
     pub(crate) oldest: u32,
+    pub(crate) keys: u64,
 }
 impl Current {
     #[must_use]
-    pub fn new(mut defaults: Defaults, limits: &crate::Limits) -> Self {
+    pub fn new(mut defaults: Defaults, limits: &crate::Limits, kinds: &[Kind]) -> Self {
         let mut values = Map::with_capacity(capacity(limits).expect("settings count"));
         for charter in defaults.charters {
             let previous = values
@@ -182,6 +207,7 @@ impl Current {
             .expect("rules slot");
         Self {
             defaults: values,
+            applications: Map::with_capacity(application::capacity(kinds, limits).expect("application settings count")),
             changes: Map::with_capacity(capacity(limits).expect("settings count")),
             head: Head {
                 number: 1,
@@ -192,6 +218,7 @@ impl Current {
                 moved: false,
             },
             oldest: 0,
+            keys: 1,
         }
     }
     #[must_use]
@@ -215,6 +242,16 @@ impl Current {
             },
         }
     }
+    /// The state before an edit (jig/docs/design/domain/engine.md, 17.10).
+    #[must_use]
+    pub fn replaced(&self, setting: Setting) -> Replaced {
+        match self.lookup(setting) {
+            (Some(value), Some((true, _))) => Replaced::Value(value.clone()),
+            (None, Some((true, _))) => Replaced::Removed,
+            (_, Some((false, _))) => Replaced::Default,
+            (_, None) => Replaced::NotOffered,
+        }
+    }
     #[must_use]
     pub fn default_value(&self, setting: Setting) -> Option<&Value> {
         match self.defaults.get(&setting) {
@@ -227,6 +264,7 @@ impl Current {
         match self.value(Setting::Charter(number)) {
             Some(Value::Charter(value)) => Some(value),
             Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -234,6 +272,7 @@ impl Current {
         match self.value(Setting::Template(number)) {
             Some(Value::Template(value)) => Some(value),
             Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -241,6 +280,7 @@ impl Current {
         match self.value(Setting::Policy(number)) {
             Some(Value::Policy(value)) => Some(value),
             Some(Value::Charter(_) | Value::Template(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -250,6 +290,7 @@ impl Current {
             Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_)) | None => {
                 unreachable!("checked settings always offer rules")
             }
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -304,8 +345,9 @@ fn offered(defaults: &Map<Setting, Default>, changes: &Map<Setting, Changed>) ->
 pub enum Record {
     Default { setting: Setting, default: Default },
     Changed { setting: Setting, changed: Changed },
+    Application { setting: Setting, state: application::State },
     Revision { history: bool, revision: Revision },
-    Extent { oldest: u32 },
+    Extent { oldest: u32, keys: u64 },
     Charter { charter: u32, revision: u32, value: CharterVersion },
     Proposal { proposer: people::Proposer, proposal: u32, value: Proposal },
 }
@@ -314,7 +356,7 @@ impl Record {
     pub fn key(&self) -> Key {
         match self {
             Self::Default { setting, .. } => Key::Default(*setting),
-            Self::Changed { setting, .. } => Key::Changed(*setting),
+            Self::Changed { setting, .. } | Self::Application { setting, .. } => Key::Changed(*setting),
             Self::Revision { history, revision } => {
                 if *history {
                     Key::History(revision.head.number)
@@ -333,15 +375,25 @@ impl Record {
 /// carrier shares the conservative construction bound.
 #[must_use]
 pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
-    let charters = u64::from(limits.tasks.charters)
-        .checked_mul(u64::from(limits.run_bytes).checked_add(u64::try_from(size_of::<Charter>()).ok()?)?)?;
+    let segment = u64::from(limits.authority.segment_bytes).checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+    let document = u64::try_from(size_of::<crate::Document>())
+        .ok()?
+        .checked_add(u64::from(limits.authority.segments).checked_mul(segment)?)?
+        .checked_add(u64::from(crate::DOCUMENT_PATH_BYTES))?
+        .checked_add(u64::from(crate::DOCUMENT_HEADING_BYTES))?;
+    let charters = u64::from(limits.tasks.charters).checked_mul(
+        u64::from(limits.run_bytes)
+            .checked_add(u64::try_from(size_of::<Charter>()).ok()?)?
+            .checked_add(u64::from(limits.tasks.charter_documents).checked_mul(document)?)?,
+    )?;
     let templates = u64::from(limits.templates).checked_mul(
         u64::try_from(size_of::<Template>())
             .ok()?
             .checked_add(u64::from(limits.documents.text_bytes))?
             .checked_add(crate::limits::task_carrier(limits)?)?,
     )?;
-    let policies = u64::from(limits.authority.projects)
+    // A change or proposal may carry one live project's policy beside all policy settings.
+    let policies = u64::from(limits.authority.projects.checked_add(1)?)
         .checked_mul(limits.policy_bytes.checked_add(u64::try_from(size_of::<ConfiguredPolicy>()).ok()?)?)?;
     charters
         .checked_add(templates)?
@@ -349,11 +401,13 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(authority::rules_bound(&limits.authority)?)?
         .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)
 }
-/// One record's whole items, priced independently of the held heads.
+/// One record's items and a whole set of replaced values, priced independently of the held heads
+/// (jig/docs/design/domain/engine.md, 17.10).
 #[must_use]
 pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
     set_bound(limits)?
-        .checked_add(List::<Item>::price(capacity(limits)?.checked_mul(2)?)?)?
+        .checked_mul(2)?
+        .checked_add(List::<RevisionItem>::price(capacity(limits)?.checked_mul(2)?.checked_add(1)?)?)?
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
 }
 
@@ -363,6 +417,7 @@ impl Current {
         match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
             Value::Charter(value) => value,
             Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!("fixture charter value"),
+            Value::Application(_) => unreachable!("an application's setting: apps-core"),
         }
     }
     pub(crate) fn test_templates(&mut self, templates: Box<[Template]>) {
@@ -370,7 +425,8 @@ impl Current {
         for (&setting, _) in &self.defaults {
             match setting {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
-                Setting::Charter(_) | Setting::Policy(_) | Setting::Rules => {}
+                Setting::Charter(_) | Setting::Policy(_) | Setting::Rules | Setting::ProjectPolicy { .. } => {}
+                Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
             }
         }
         for setting in old.into_boxed() {
@@ -399,7 +455,8 @@ pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
     first
         .max(count.checked_mul(4)?.checked_add(8)?.checked_add(limits.settings.versions.checked_mul(2)?)?)
         .checked_add(withdrawal_writes(limits)?)?
-        .checked_add(move_writes(limits)?)
+        .checked_add(move_writes(limits)?)?
+        .checked_add(limits.people.holdings.checked_mul(2)?.checked_add(2)?)
 }
 
 /// A party withdrawal takes five writes. A task withdrawal takes two activity
@@ -413,6 +470,9 @@ pub fn withdrawal_writes(limits: &crate::Limits) -> Option<u32> {
 pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
     let mut heads = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
+        if application::is_application(item.setting) || is_project_policy(item.setting) {
+            continue;
+        }
         heads
             .push(jig_domain_tasks::SettingHead {
                 setting: match item.setting {
@@ -420,6 +480,8 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Template(n) => jig_domain_tasks::Setting::Template(n),
                     Setting::Policy(n) => jig_domain_tasks::Setting::Policy(n),
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
+                    Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+                    Setting::ProjectPolicy { .. } => continue,
                 },
                 edit: match item.edit {
                     Edit::Set(_) => jig_domain_tasks::SettingEdit::Set,
@@ -440,4 +502,52 @@ pub(crate) fn release_writes(limits: &crate::Limits) -> Option<u32> {
 /// Each moved live record and at most two projection rows, plus release cleanup.
 pub(crate) fn move_writes(limits: &crate::Limits) -> Option<u32> {
     limits.tasks.tasks.checked_mul(3)?.checked_add(release_writes(limits)?)
+}
+
+/// A project's own policy is never retained among current settings (engine.md, 17.2).
+pub(crate) fn is_project_policy(setting: Setting) -> bool {
+    match setting {
+        Setting::ProjectPolicy { .. } => true,
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::Application { .. } => false,
+    }
+}
+
+/// One paged restore and its connector continuations (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Debug)]
+pub(crate) struct Restoring {
+    pub(crate) pending: Option<Restoration>,
+    pub(crate) groups: skein_lib::Slab<Option<RestoreGroup>>,
+}
+impl Restoring {
+    pub(crate) fn new(kinds: &[Kind]) -> Self {
+        Self {
+            pending: None,
+            groups: skein_lib::Slab::with_capacity(u32::try_from(kinds.len()).expect("declared kinds")),
+        }
+    }
+}
+#[derive(Debug)]
+pub(crate) struct Restoration {
+    pub(crate) party: crate::routing::party::dispatch::Party,
+    pub(crate) revision: u32,
+    pub(crate) newest: u32,
+    pub(crate) reason: Box<[u8]>,
+    pub(crate) items: Map<Setting, RestoreEdit>,
+    pub(crate) left_out: Box<[Setting]>,
+    pub(crate) proposal: Option<u64>,
+}
+#[derive(Debug)]
+pub(crate) enum RestoreEdit {
+    Core(Edit),
+    Application(application::RestoredEdit),
+}
+#[derive(Debug)]
+pub(crate) struct RestoreGroup {
+    pub(crate) connector: u16,
+    pub(crate) items: Box<[application::Restored]>,
+    pub(crate) judged: Option<Box<[crate::effects::connector::Judged]>>,
 }

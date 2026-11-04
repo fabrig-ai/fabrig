@@ -1,0 +1,128 @@
+//! Engine and worker documents (temper/docs/design/playground.md, 3).
+use skein_lib::{List, Secret};
+const DIGEST: &[u8] = b"6fb46f7a92742970166379ed5195e79c4493a7cc5664280c039cfd4095ba5faf";
+const ENGINE: &[u8] = br#"{
+"limits": {"profile": "small", "overrides": {
+"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1,
+"people.operations":2,"tasks.tasks":2,"tasks.exemptions":2,"tasks.funders":2,"tasks.project_tasks":1,"tasks.tree_tasks":1,"tasks.project_goals":1,
+"tasks.batch":1,"tasks.dependencies":1,"tasks.delegates":1,"tasks.charters":1,
+"people.people":1,"people.projects":2,"people.sign_ins":2,"people.holdings":1,
+"people.inbox_tasks":4,"people.pending":1,"people.waiters":1,
+"fleet.attempts":1,"fleet.calls":1,"fleet.turns":8,
+"brief.briefs":1,"brief.sections":6,"tasks.charter_documents":0,
+"notes.entries_per_scope":1,"views.runs":1,"views.watchers":4,"views.watchers_per_party":4,
+"core.load_slots":1,"core.load_bytes":8192,"core.resume_bytes":4096,"core.run_bytes":4096,"views.text_bytes":1024
+,"core.templates":2,"documents.rows":1,"documents.lines":1,"documents.chips":1,"documents.text_bytes":128
+}},
+"llm": {
+"providers":[{"name":"fake-provider","number":1,"models":["fake"],"sources":{"keys":true}}],
+"endpoints": [{
+"name": "fake",
+"number": 1,
+"dialect": 3,
+"provider": "fake-provider",
+"address": {"socket": "127.0.0.1:7101"},
+"transport": "plaintext",
+"headers": [],
+"connect_ms": 10000,
+"handshake_ms": 10000
+}],
+"models": [{
+"name": "fake",
+"endpoint": "fake",
+"window": 1048576,
+"output": 512,
+"prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000000}
+}]
+},
+"hosts": {
+"workers": [
+{"name": "worker-a", "digest": "secrets/worker-a.digest"}
+],
+"listener": [{"socket": "127.0.0.1:7200"}]
+},
+"charters": [{
+"number": 1, "instructions": "charters/chat.txt", "model": "fake", "alternatives": [],
+"hosts": "workers", "waiting_ms": 10000, "resume": true,
+"turns": 4, "time_ms": 30000, "reserve_turns": 1, "reserve_time_ms": 5000, "spend": 20,
+"inspect": false, "modify": false, "shell": false, "agents": false, "call_timeout_ms": 10000
+}],
+"templates": [
+{"number": 1, "name": "chat", "executor": {"charter": 1}, "contract": {"report": {"words": 32}}, "shallower": 1, "budget": {"as_allowed": null}, "deadline": "none", "tracked": null, "conversation": true, "listed": false, "retention": "kept", "label": 1, "grace_ms": 5000, "llm": null},
+{"number": 2, "name": "goal", "executor": "chosen", "contract": {"report": {"words": 32}}, "shallower": 1, "budget": "given", "deadline": "given", "tracked": {"priority": 1}, "conversation": false, "listed": true, "retention": "kept", "label": 2, "grace_ms": null, "llm": null}
+],
+"clients": {
+"heartbeat_ms": 10000,
+"link": true
+},
+"deployment": {"directory": "state", "seed": 7},
+"owners": [{"provider": 1, "subject": "owner-a"}],
+"providers": [{"number": 1, "kind": "link"}, {"number": 2, "kind": "deployment"}],
+"connectors": [1,2],
+"memory_bytes": 1152921504606846976,
+"rules": {
+"ceiling": {"tools": 0, "grants": [],
+"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
+"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []},
+"period_spend": 100, "minimum_run_spend": 1, "maximum_run_spend": 100,
+"implies": [], "requirements": []
+},
+"projects": [{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
+"policy": {"templates": [], "escalation_role": 0, "period_spend": 100, "projections": [], "requirements": [],
+"ceiling": {"tools": 0, "grants": [],
+"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
+"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []},
+"roles": [{"number": 0, "period_spend": 100, "requests": 511, "decides": 31,
+"authority": {"tools": 0, "grants": [],
+"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
+"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []}}]
+}}]
+}"#;
+
+pub(super) const WORKER_DOCUMENT: &[u8] = br#"{
+"workers":[{
+"engine":{"socket":"127.0.0.1:7200"},"name":"worker-a","secret":"worker.secret","slots":1,
+"programs":{"check_interval_ms":60000},
+"graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
+"agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},
+"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
+"memory_bytes":1152921504606846976
+}],"application":{"workers":[{"root":"agent-root"}]}}
+"#;
+
+pub(super) fn engine_document() -> Vec<u8> {
+    document(ENGINE)
+}
+fn document(engine: &[u8]) -> Vec<u8> {
+    let mut document = b"{\"engine\":".to_vec();
+    document.extend_from_slice(engine);
+    document.extend_from_slice(
+        br#", "application":{"server":{"listener":{"socket":"127.0.0.1:7100"}},"credential":"app.secret","connectors":[
+        {"prefix":["one"],"resources":[]},{"prefix":["two"],"resources":[]}]},
+        "service":{"components":["accounts","workers","clients"]}}"#,
+    );
+    document
+}
+pub(super) fn files(worker: bool) -> temper_service::settings::Files {
+    let inputs: &[(&[u8], &[u8])] = if worker {
+        &[(b"worker.secret", b"worker-secret"), (b"agent.json", b"{}")]
+    } else {
+        &[
+            (b"charters/chat.txt", b"Reply to the person."),
+            (b"secrets/worker-a.digest", DIGEST),
+            (b"app.secret", b"application-token"),
+        ]
+    };
+    let mut entries = List::with_capacity(u32::try_from(inputs.len()).expect("fixture files"));
+    for (name, bytes) in inputs {
+        entries.push(((*name).into(), Secret::new((*bytes).into()))).expect("fixture files");
+    }
+    temper_service::settings::Files { entries }
+}
+pub(super) fn endpoints() -> smith_protocol_channel::Endpoints {
+    let mut entries = List::with_capacity(1);
+    entries
+        .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 0, dialect: 3 })
+        .expect("one endpoint");
+    smith_protocol_channel::Endpoints::new(entries)
+}

@@ -9,6 +9,7 @@ use skein_lib::Token;
 pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
     match held {
         core::Held::PeopleReply { to, reply } => Some(kit::Event::Reply { to, reply }),
+        core::Held::PublicRead { reply, answer } => Some(kit::Event::Public { reply, answer }),
         core::Held::Read { reply, answer } => Some(kit::Event::Read { reply, answer }),
         core::Held::Delivery { watcher, document } => Some(kit::Event::Delivery { watcher, document }),
         core::Held::WatchEnded { watcher, why } => Some(kit::Event::WatchEnded { watcher, why }),
@@ -18,6 +19,7 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
         | core::Held::ReadLoad { .. }
+        | core::Held::PublicWait { .. }
         | core::Held::Applied { .. }
         | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
@@ -63,6 +65,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::CallBusy { .. }
         | core::Now::Relayed { .. }
         | core::Now::EffectAnswer { .. }
+        | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
@@ -117,6 +120,7 @@ pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Message { .. }
         | root::Delivery::Core(..)
         | root::Delivery::CallAnswer { .. }
+        | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::Fleet(..)
         | root::Delivery::System { .. }
@@ -135,6 +139,9 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::Stopping
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
+        | core::Event::PublicRead { .. }
+        | core::Event::PublicAnswered { .. }
+        | core::Event::PublicDurable { .. }
         | core::Event::Read { .. }
         | core::Event::Act { .. }
         | core::Event::ProposeSettings { .. }
@@ -205,6 +212,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. }) => {
             Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
         }
+        core::Event::PublicRead { reply, .. } => Some(kit::Event::Public { reply, answer: core::PublicAnswer::Busy }),
         core::Event::Read { reply, .. } => {
             Some(kit::Event::Read { reply, answer: core::reads::Answer::None(core::reads::Why::Busy) })
         }
@@ -216,6 +224,8 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Stopping
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
+        | core::Event::PublicAnswered { .. }
+        | core::Event::PublicDurable { .. }
         | core::Event::Act { .. }
         | core::Event::Key { .. }
         | core::Event::Application { .. }

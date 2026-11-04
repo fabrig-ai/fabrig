@@ -20,6 +20,12 @@ pub(super) fn encode_owner_authority_executor(
 ) {
     let value = &value;
     match value {
+        jig_client::contract::AuthorityExecutor::Job(field_0) => {
+            out.object_start();
+            out.key(b"job");
+            out.unsigned(u64::from(*field_0));
+            out.object_end();
+        }
         jig_client::contract::AuthorityExecutor::Charter(field_0) => {
             out.object_start();
             out.key(b"charter");

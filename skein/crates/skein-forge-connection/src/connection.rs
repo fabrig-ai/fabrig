@@ -1039,8 +1039,8 @@ fn sending(down: &Down) -> bool {
 }
 fn raw_request(request: &request::Request) -> bool {
     match request {
-        request::Request::Raw { .. } | request::Request::JobLog { .. } => true,
-        request::Request::Contents { .. }
+        request::Request::ArtifactZip { .. } | request::Request::Raw { .. } | request::Request::JobLog { .. } => true,
+        request::Request::Artifacts { .. } | request::Request::Contents { .. }
         | request::Request::User
         | request::Request::ApiSettings
         | request::Request::RepositoryById { .. }
@@ -1067,6 +1067,7 @@ fn raw_request(request: &request::Request) -> bool {
         | request::Request::Pulls { .. }
         | request::Request::PullFiles { .. }
         | request::Request::Compare { .. }
+        | request::Request::Commits { .. }
         | request::Request::Tree { .. }
         | request::Request::WorkflowRuns { .. }
         | request::Request::Dispatch { .. }

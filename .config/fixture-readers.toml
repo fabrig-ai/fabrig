@@ -186,59 +186,6 @@ paths = [
 disposition = "provenance"
 reason = "Capture provenance and recorder metadata for the archived Anthropic responses."
 
-# src/openai/tests.rs: fixture(); src/translate.rs test module reads requests.
-[[fixture]]
-paths = ["skein/crates/skein-llm/src/openai/fixtures/*/request.json"]
-[[fixture.reader]]
-pair = "default"
-package = "skein-llm"
-filter = "kind(lib)"
-
-# skein-llm/src/derive/tests.rs; llm world derive.rs: capture/captured_head.
-[[fixture]]
-paths = ["skein/crates/skein-llm/src/openai/fixtures/*/response.headers"]
-[[fixture.reader]]
-pair = "default"
-package = "skein-llm"
-filter = "kind(lib)"
-[[fixture.reader]]
-pair = "default"
-package = "skein-llm-world"
-filter = "binary(=suite) & test(/archived_heads_fit_with_headroom/)"
-
-# src/openai/tests.rs: fixture(); llm world derive.rs: capture().
-[[fixture]]
-paths = ["skein/crates/skein-llm/src/openai/fixtures/*/response.sse"]
-[[fixture.reader]]
-pair = "default"
-package = "skein-llm"
-filter = "kind(lib)"
-[[fixture.reader]]
-pair = "default"
-package = "skein-llm-world"
-filter = "binary(=suite) & test(/archived_heads_fit_with_headroom/)"
-
-# Capture provenance and recorder metadata for the archived OpenAI responses.
-[[fixture]]
-paths = [
-    "skein/crates/skein-llm/src/openai/fixtures/README.md",
-    "skein/crates/skein-llm/src/openai/fixtures/*/meta.json",
-]
-disposition = "provenance"
-reason = "Capture provenance and recorder metadata for the archived OpenAI responses."
-
-# src/openai/tests.rs; llm world suite/selective.rs include the completion.
-[[fixture]]
-paths = ["skein/crates/skein-llm/src/openai/fixtures/provider-completed.json"]
-[[fixture.reader]]
-pair = "default"
-package = "skein-llm"
-filter = "kind(lib)"
-[[fixture.reader]]
-pair = "default"
-package = "skein-llm-world"
-filter = "binary(=suite) & test(/a_captured_completion_decodes/)"
-
 # src/tests.rs: test_key(); tests/documents.rs reads discovery/key-set goldens.
 [[fixture]]
 paths = [
@@ -613,30 +560,6 @@ paths = [
 pair = "default"
 package = "smith-bench"
 filter = "binary(=suite)"
-
-# suite/large_write_probe.rs: check_task(), recursive seed validation, and direct source reads for
-# each version.
-[[fixture]]
-paths = [
-    "smith/benchmarks/tests/fixtures/large-write/*",
-    "smith/benchmarks/tests/fixtures/large-write/seed/*",
-    "smith/benchmarks/tests/fixtures/large-write/v5/*",
-    "smith/benchmarks/tests/fixtures/large-write/v5/seed/*",
-    "smith/benchmarks/tests/fixtures/large-write/v6/*",
-    "smith/benchmarks/tests/fixtures/large-write/v6/seed/*",
-    "smith/benchmarks/tests/fixtures/large-write/v7/*",
-    "smith/benchmarks/tests/fixtures/large-write/v7-corrected/*",
-    "smith/benchmarks/tests/fixtures/large-write/v7-corrected/seed/*",
-    "smith/benchmarks/tests/fixtures/large-write/v7/seed/*",
-    "smith/benchmarks/tests/fixtures/large-write/v8/*",
-    "smith/benchmarks/tests/fixtures/large-write/v8/seed/*",
-    "smith/benchmarks/tests/fixtures/large-write/v9/*",
-    "smith/benchmarks/tests/fixtures/large-write/v9/seed/*",
-]
-[[fixture.reader]]
-pair = "default"
-package = "smith-bench"
-filter = "binary(=suite) & test(/large_write_probe::/)"
 
 # suite/stories.rs reads read-past-payload.json before configuration refusal.
 [[fixture]]

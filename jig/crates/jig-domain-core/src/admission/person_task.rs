@@ -33,6 +33,7 @@ fn approval_matches(contract: &tasks::Contract, result: &people::PersonResult) -
     match result {
         people::PersonResult::Approved { state, .. } => match contract {
             tasks::Contract::Approval { state: expected, .. } => state == expected,
+            tasks::Contract::Job { .. } => false,
             tasks::Contract::Report { .. } | tasks::Contract::Verdict { .. } | tasks::Contract::Change { .. } => true,
         },
         people::PersonResult::Report { .. }
@@ -77,7 +78,9 @@ impl Core {
                 tasks::Executor::Person(tasks::PersonAddress::Role(address)) => {
                     role.expect("membership").number() == address
                 }
-                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => false,
+                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {
+                    false
+                }
             };
         if !allowed {
             return people::Outcome::Refused(people::Refusal::Unknown);

@@ -1,7 +1,6 @@
 //! Account grants, visits and source operations in the service's kernel namespace.
 //! The source driver owns expiry; the service owns tagged values and local-domain events.
 use super::{Close, Error, Service, local};
-use alloc::boxed::Box;
 use skein_lib::{List, Queue, Time, Wall, Writer};
 
 // Shell and terminal destinations reserve six slots before an account pass.
@@ -53,15 +52,10 @@ impl Service {
         for _ in 0..out.len() {
             match out.pop() {
                 Some(crate::CredentialRequest::Ready { event: local::Event::Credential { grant, .. }, value }) => {
-                    let identifier = accounts.account_id(grant.name.account).expect("selected account");
-                    // accounts-sources moves the presets to their own sources.
-                    let value = if identifier.is_empty() {
-                        smith_protocol_translate::GrantValue::Bearer(value)
-                    } else {
-                        smith_protocol_translate::GrantValue::Withdrawn {
-                            account_id: Box::from(identifier),
-                            bearer: value,
-                        }
+                    let scheme = accounts.scheme(grant.name.account).expect("selected account");
+                    let value = match scheme {
+                        smith_host_domain::Scheme::Bearer => smith_protocol_translate::GrantValue::Bearer(value),
+                        smith_host_domain::Scheme::Key => smith_protocol_translate::GrantValue::Key(value),
                     };
                     self.credential(grant, value);
                 }

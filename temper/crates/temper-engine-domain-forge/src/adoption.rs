@@ -255,9 +255,7 @@ pub(crate) fn adopt(d: &mut Domain, env: &Env<Limits>, reply_to: Token, out: &mu
         adopted(d, out, reply_to, Err(api::Error::Refused));
         return;
     }
-    if request.checks.len() > usize::try_from(env.limits.change_policy.gates).expect("u32 fits usize")
-        || request.checks.contains(&0)
-    {
+    if request.checks.len() > skein_lib::usize_of(env.limits.change_policy.gates) || request.checks.contains(&0) {
         adopted(d, out, reply_to, Err(api::Error::TooLarge));
         return;
     }
@@ -499,6 +497,7 @@ fn finish_adoption(d: &mut Domain, owner: Token, pending: PendingAdoption, out: 
         };
     if !writer_held {
         d.repositories.insert(row.provider, row.clone()).expect("adoption capacity checked");
+        d.tier_ops.dirty |= !crate::tiers::configured_all(d, row.provider).is_empty();
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.clone()) });
     }
     // The forges row lists its adoptions (client/forge.md, 5.4).
@@ -507,7 +506,7 @@ fn finish_adoption(d: &mut Domain, owner: Token, pending: PendingAdoption, out: 
 }
 
 fn invalid_fields(request: &Adoption, limits: &Limits) -> bool {
-    let bound = usize::try_from(limits.name_bytes).expect("u32 fits usize");
+    let bound = skein_lib::usize_of(limits.name_bytes);
     for field in [&request.host, &request.owner, &request.name, &request.landing, &request.prefix] {
         if field.is_empty() || field.len() > bound {
             return true;
@@ -525,7 +524,7 @@ fn invalid_fields(request: &Adoption, limits: &Limits) -> bool {
     if segments > u64::from(limits.authority_segments) {
         return true;
     }
-    request.checks.len() > usize::try_from(limits.change_policy.gates).expect("u32 fits usize")
+    request.checks.len() > skein_lib::usize_of(limits.change_policy.gates)
 }
 
 fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: AdoptionRefusal, out: &mut Queue<Request>) {
@@ -543,13 +542,37 @@ pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Qu
         }
     }
     let changed = !repositories.is_empty();
-    for provider in repositories.into_boxed() {
-        d.repositories.remove(&provider);
-        emit(out, Request::Erase { key: Key::Repository(provider) });
-        emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(provider)) });
+    for provider in &repositories {
+        d.repositories.remove(provider);
+        emit(out, Request::Erase { key: Key::Repository(*provider) });
+        emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(*provider)) });
     }
     if changed {
         emit(out, Request::MarkedForges);
     }
+    let mut changed_rows = List::with_capacity(d.kept.capacity());
+    for (task, names) in &d.kept {
+        let mut remaining = List::with_capacity(u32::try_from(names.len()).expect("bounded kept names"));
+        for name in names {
+            let provider = api::Repository { forge: name.forge, repository: name.repository };
+            if !repositories.as_slice().contains(&provider) {
+                remaining.push(name.clone()).expect("bounded kept names");
+            }
+        }
+        if remaining.as_slice() != names.as_ref() {
+            changed_rows.push((*task, remaining.into_boxed())).expect("bounded kept rows");
+        }
+    }
+    for (task, resources) in changed_rows.into_boxed() {
+        if resources.is_empty() {
+            d.kept.remove(&task);
+            emit(out, Request::Erase { key: Key::Names(task) });
+        } else {
+            d.kept.insert(task, resources.clone()).expect("replaces kept row");
+            emit(out, Request::Save { record: Stored::Names { task, resources }, release: None, read_afresh: None });
+        }
+    }
+    crate::removal::unnamed(d, out);
+    d.erase_project_settings(project, out);
     emit(out, Request::ProjectReleased { request });
 }

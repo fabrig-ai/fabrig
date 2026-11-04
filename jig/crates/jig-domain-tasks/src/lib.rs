@@ -109,6 +109,8 @@ mod proposals;
 mod recurring;
 mod refs;
 mod retire;
+mod room;
+pub use room::{LiveRoom, RoomWait};
 mod run;
 mod runtime;
 mod settings;
@@ -130,9 +132,9 @@ pub use batch::{bounded_batch, valid_authority, valid_contract, valid_spec};
 pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
-    InvalidResult, Key, Kind, MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party, PersonAddress,
-    PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureAmendment, ProcedureCancel,
-    ProcedureDecision, ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionCredit, QuestionNotice,
+    InvalidResult, JobSpec, KeptStart, Key, Kind, MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party,
+    PersonAddress, PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureAmendment,
+    ProcedureCancel, ProcedureDecision, ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionCredit, QuestionNotice,
     RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField,
     ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision, Spec, Stage,
     Status, Stored, Stub, Subscription, SubscriptionKind, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule,
@@ -151,7 +153,7 @@ pub use failures::{Class, Retries, Retry, Tries};
 pub use funders::FundingRecord;
 pub use grace::Grace;
 pub use holds::valid_name;
-pub use limits::{Limits, valid};
+pub use limits::{Limits, VERDICT_FIELDS, valid};
 pub use llm::{AccountWhy, CharterModels, LlmChoice, LlmFault, MODELS, ModelEffort};
 pub use owned::{phase_bytes, stored_bytes, task_bytes, terminal_bytes};
 pub use parts::{Part, PartKey, PartKind};
@@ -166,6 +168,7 @@ pub use value::{
     Authority, AuthorityExecutor, Budget, Delegation, Funder, Grant, Last, Models, Numbers, Pattern, ResourceScope,
     Scopes, Tools,
 };
+pub use wake::valid as wake_valid;
 
 pub use run::run_attempt;
 

@@ -75,7 +75,9 @@ pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c
     match value {
         w::Setting::Charter(item) => c::Setting::Charter(settings_restore_setting_number(item, limits)),
         w::Setting::Template(item) => c::Setting::Template(settings_restore_setting_number(item, limits)),
+        w::Setting::ProjectPolicy(item) => c::Setting::ProjectPolicy { project: item.project() },
         w::Setting::Policy(item) => c::Setting::Policy(settings_restore_setting_number(item, limits)),
+        w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
         w::Setting::Rules => c::Setting::Rules,
     }
 }
@@ -150,6 +152,21 @@ pub(crate) fn settings_restore_revision_item(
     Ok(c::RevisionItem {
         setting: settings_restore_setting(value.setting(), limits),
         edit: settings_restore_revision_edit(value.edit(), limits)?,
+        replaced: settings_restore_revision_replaced(value.replaced(), limits)?,
+    })
+}
+
+pub(crate) fn settings_restore_revision_replaced(
+    value: &w::RevisionReplaced,
+    limits: &Limits,
+) -> Result<c::RevisionReplaced, w::Problem> {
+    Ok(match value {
+        w::RevisionReplaced::Value(item) => c::RevisionReplaced::Value(settings_restore_setting_set(item, limits)?),
+        w::RevisionReplaced::TooLarge(item) => c::RevisionReplaced::TooLarge(settings_restore_size(item, limits)),
+        w::RevisionReplaced::Application(item) => c::RevisionReplaced::Application { size: item.size() },
+        w::RevisionReplaced::Default => c::RevisionReplaced::Default,
+        w::RevisionReplaced::Removed => c::RevisionReplaced::Removed,
+        w::RevisionReplaced::NotOffered => c::RevisionReplaced::NotOffered,
     })
 }
 
@@ -161,6 +178,7 @@ pub(crate) fn settings_restore_revision_edit(
         w::RevisionEdit::Set(item) => c::RevisionEdit::Set(settings_restore_setting_set(item, limits)?),
         w::RevisionEdit::TooLarge(item) => c::RevisionEdit::TooLarge(settings_restore_size(item, limits)),
         w::RevisionEdit::Removed => c::RevisionEdit::Removed,
+        w::RevisionEdit::Application(v) => c::RevisionEdit::Application(restore_sized_edit(v.edit())),
         w::RevisionEdit::Reset => c::RevisionEdit::Reset,
     })
 }
@@ -186,6 +204,7 @@ pub(crate) fn settings_restore_setting_value(
         w::SettingValue::Policy(item) => {
             c::SettingValue::Policy(Box::new(settings_restore_setting_policy(item, limits)?))
         }
+        w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(v.bytes())),
         w::SettingValue::Rules(item) => c::SettingValue::Rules(Box::new(settings_restore_rules(item, limits)?)),
     })
 }
@@ -245,7 +264,7 @@ pub(crate) fn documents_owner_resource_scope_piece(
             return Ok(rows);
         };
         sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
+            .checked_add(skein_lib::len_u64(item.len()))
             .ok_or(root_too_large())?
             .checked_add(4)
             .ok_or(root_too_large())?;
@@ -303,6 +322,7 @@ pub(crate) fn documents_owner_authority_executor_fields(
     _limits: &Limits,
 ) -> c::AuthorityExecutor {
     match value {
+        w::AuthorityExecutor::Job(row) => c::AuthorityExecutor::Job(row.value()),
         w::AuthorityExecutor::Charter(row) => c::AuthorityExecutor::Charter(row.value()),
         w::AuthorityExecutor::Procedure(row) => c::AuthorityExecutor::Procedure(row.value()),
         w::AuthorityExecutor::Role(row) => c::AuthorityExecutor::Role(row.value()),
@@ -326,7 +346,7 @@ pub(crate) fn documents_owner_grant_piece(
             return Ok(rows);
         };
         sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
+            .checked_add(skein_lib::len_u64(item.len()))
             .ok_or(root_too_large())?
             .checked_add(4)
             .ok_or(root_too_large())?;
@@ -494,7 +514,14 @@ pub(crate) fn settings_restore_policy_edit_role(
 }
 
 pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Result<c::Template, w::Problem> {
+    let mut resources = List::with_capacity(value.resources().len());
+    for resource in value.resources() {
+        resources
+            .push(c::Symbol { connector: resource.connector(), symbol: resource.symbol() })
+            .expect("same capacity");
+    }
     Ok(c::Template {
+        resources,
         number: value.number(),
         name: facts_document_text(value.name(), limits)?,
         executor: operations_restore_executor(value.executor()),
@@ -554,6 +581,7 @@ pub(crate) fn documents_task_contract_document_fields(
     limits: &Limits,
 ) -> Result<c::TaskContractDocument, w::Problem> {
     Ok(match value {
+        w::TaskContractDocument::Job(row) => c::TaskContractDocument::Job { bytes: row.bytes() },
         w::TaskContractDocument::Approval(row) => c::TaskContractDocument::Approval {
             state: documents_raw(row.state(), limits)?,
             part: facts_owner_part(row.part(), limits),
@@ -586,7 +614,7 @@ pub(crate) fn documents_verdict_choice_piece(
             return Ok(rows);
         };
         sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
+            .checked_add(skein_lib::len_u64(item.len()))
             .ok_or(root_too_large())?
             .checked_add(4)
             .ok_or(root_too_large())?;
@@ -621,7 +649,7 @@ pub(crate) fn documents_field_rule_fields(value: &w::FieldRule, limits: &Limits)
 }
 
 pub(crate) fn documents_raw(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
-    if u64::try_from(value.len()).expect("usize fits u64") > u64::from(limits.text) {
+    if skein_lib::len_u64(value.len()) > u64::from(limits.text) {
         return Err(root_too_large());
     }
     Ok(bytes::copy_of(value))
@@ -679,7 +707,19 @@ pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> R
     for item in value.alternatives() {
         alternatives.push(settings_restore_setting_model(item, limits)?).expect("same capacity");
     }
+    let mut documents = List::with_capacity(value.documents().len());
+    for item in value.documents() {
+        documents
+            .push(c::CharterDocument {
+                connector: item.connector(),
+                name: item.name().clone(),
+                path: item.path().into(),
+                heading: item.heading().clone(),
+            })
+            .expect("same capacity");
+    }
     Ok(c::Charter {
+        documents,
         switches: [value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
         number: value.number(),
         instructions: settings_text(value.instructions(), 1_114_240)?,
@@ -691,8 +731,10 @@ pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> R
         model: settings_restore_setting_model(value.model(), limits)?,
         alternatives,
         call_timeout: value.call_timeout(),
+        tools: value.tools(),
         hosts: settings_restore_setting_hosts(value.hosts(), limits),
         spend: value.spend(),
+        wake: settings_restore_wake(value.wake()),
     })
 }
 
@@ -743,7 +785,7 @@ pub(crate) fn settings_text(value: &[u8], bound: u32) -> Result<c::Text, w::Prob
 }
 
 pub(crate) fn settings_item_count(values: &[u8], limits: &Limits) -> Result<u32, w::Problem> {
-    if u64::try_from(values.len()).expect("piece bytes fit u64") > limits.ask_bytes {
+    if skein_lib::len_u64(values.len()) > limits.ask_bytes {
         return Err(root_too_large());
     }
     let mut reader = Reader::new(values);
@@ -759,11 +801,23 @@ pub(crate) fn settings_item_count(values: &[u8], limits: &Limits) -> Result<u32,
     Err(root_too_large())
 }
 
+#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> Result<c::SettingDocument, w::Problem> {
     Ok(c::SettingDocument {
         setting: settings_restore_setting(value.setting(), limits),
         revision: value.revision(),
-        value: settings_restore_setting_value(value.value(), limits)?,
+        value: match value.value() {
+            Some(v) => Some(settings_restore_setting_value(v, limits)?),
+            None => None,
+        },
+        application: match value.application() {
+            Some(v) => Some(restore_application_state(v)),
+            None => None,
+        },
+        proposed: match value.proposed() {
+            Some(v) => Some(restore_sized_edit(v)),
+            None => None,
+        },
     })
 }
 
@@ -794,6 +848,7 @@ pub(crate) fn settings_restore_held_revision(value: &w::HeldRevision, limits: &L
     c::HeldRevision { head: settings_restore_revision_head(value.head(), limits), holders: value.holders() }
 }
 
+#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub(crate) fn settings_restore_setting_line(
     value: &w::SettingLine,
     limits: &Limits,
@@ -805,7 +860,11 @@ pub(crate) fn settings_restore_setting_line(
             None => None,
         },
         follows: settings_restore_setting_follows(value.follows(), limits),
-        last: value.last(),
+        last: *value.last(),
+        application: match value.application() {
+            Some(v) => Some(restore_application_state(v)),
+            None => None,
+        },
     })
 }
 
@@ -898,6 +957,10 @@ pub(crate) fn settings_wire_setting_value(
         c::SettingValue::Charter(item) => w::SettingValue::Charter(Box::new(settings_wire_charter(item, limits)?)),
         c::SettingValue::Template(item) => w::SettingValue::Template(Box::new(settings_wire_template(item, limits)?)),
         c::SettingValue::Policy(item) => w::SettingValue::Policy(Box::new(settings_wire_setting_policy(item, limits)?)),
+        c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue::new(
+            limits,
+            w::ApplicationValueParts { bytes: v.clone() },
+        )?),
         c::SettingValue::Rules(item) => w::SettingValue::Rules(Box::new(settings_wire_rules(item, limits)?)),
     })
 }
@@ -966,9 +1029,9 @@ pub(crate) fn asks_wire_owner_resource_scope_piece(
     if length > limits.owned_record {
         return Err(root_too_large());
     }
-    let mut writer = Writer::new(usize::try_from(length).expect("u32 fits usize"));
+    let mut writer = Writer::new(skein_lib::usize_of(length));
     for row in rows {
-        let mut item = Writer::new(usize::try_from(row.measure()).expect("u32 fits usize"));
+        let mut item = Writer::new(skein_lib::usize_of(row.measure()));
         row.encode(&mut item).expect("measured row");
         let item = item.finish();
         skein_codec::piece::write(&mut writer, &item).expect("measured piece");
@@ -992,6 +1055,9 @@ pub(crate) fn asks_wire_owner_authority_executor(
     limits: &w::Limits,
 ) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
+        c::AuthorityExecutor::Job(value) => {
+            w::AuthorityExecutor::Job(w::AuthorityExecutorJob::new(limits, w::AuthorityExecutorJobParts { value })?)
+        }
         c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
             w::AuthorityExecutorCharterParts { value },
@@ -1015,9 +1081,9 @@ pub(crate) fn asks_wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Lim
     if length > limits.owned_record {
         return Err(root_too_large());
     }
-    let mut writer = Writer::new(usize::try_from(length).expect("u32 fits usize"));
+    let mut writer = Writer::new(skein_lib::usize_of(length));
     for row in rows {
-        let mut item = Writer::new(usize::try_from(row.measure()).expect("u32 fits usize"));
+        let mut item = Writer::new(skein_lib::usize_of(row.measure()));
         row.encode(&mut item).expect("measured row");
         let item = item.finish();
         skein_codec::piece::write(&mut writer, &item).expect("measured piece");
@@ -1253,9 +1319,16 @@ pub(crate) fn asks_wire_policy_edit_role(
 }
 
 pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
+    let mut resources = List::with_capacity(value.resources.len());
+    for resource in &value.resources {
+        resources
+            .push(w::Symbol::new(limits, w::SymbolParts { connector: resource.connector, symbol: resource.symbol })?)
+            .expect("same capacity");
+    }
     w::Template::new(
         limits,
         w::TemplateParts {
+            resources,
             number: value.number,
             name: settings_wire_document_text(&value.name, limits)?,
             executor: operations_executor(value.executor, limits)?,
@@ -1318,6 +1391,10 @@ pub(crate) fn settings_wire_task_contract(
     limits: &w::Limits,
 ) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
+        c::TaskContractDocument::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob::new(
+            limits,
+            w::TaskContractDocumentJobParts { bytes: *bytes },
+        )?),
         c::TaskContractDocument::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
                 limits,
@@ -1415,9 +1492,24 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
     for item in &value.alternatives {
         alternatives.push(settings_wire_setting_model(item, limits)?).expect("same capacity");
     }
+    let mut documents = List::with_capacity(value.documents.len());
+    for item in &value.documents {
+        documents
+            .push(w::CharterDocument::new(
+                limits,
+                w::CharterDocumentParts {
+                    connector: item.connector,
+                    name: item.name.clone(),
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                },
+            )?)
+            .expect("same capacity");
+    }
     w::Charter::new(
         limits,
         w::CharterParts {
+            documents,
             skein_bools: [value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
@@ -1429,8 +1521,10 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
             model: settings_wire_setting_model(&value.model, limits)?,
             alternatives,
             call_timeout: value.call_timeout,
+            tools: value.tools,
             hosts: settings_wire_setting_hosts(&value.hosts, limits),
             spend: value.spend,
+            wake: settings_wire_wake(value.wake, limits)?,
         },
     )
 }
@@ -1476,7 +1570,14 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
         c::Setting::Charter(item) => w::Setting::Charter(settings_wire_setting_number(item, limits)?),
         c::Setting::Template(item) => w::Setting::Template(settings_wire_setting_number(item, limits)?),
         c::Setting::Policy(item) => w::Setting::Policy(settings_wire_setting_number(item, limits)?),
+        c::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
+            limits,
+            w::ApplicationSettingParts { kind, scope, number },
+        )?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::ProjectPolicy { project } => {
+            w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
+        }
     })
 }
 
@@ -1514,4 +1615,78 @@ fn optional_deadline(value: Option<&w::TemplateDeadline>) -> Option<c::TemplateD
 fn optional_text(value: Option<&c::Text>) -> Option<Box<[u8]>> {
     let value = value?;
     Some(bytes::copy_of(value.bytes()))
+}
+
+fn settings_wire_wake(value: c::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
+    w::WakePolicy::new(
+        limits,
+        w::WakePolicyParts {
+            words: settings_wire_wake_rule(value.words, limits)?,
+            notices: settings_wire_wake_rule(value.notices, limits)?,
+            news: settings_wire_wake_rule(value.news, limits)?,
+            results: match value.results {
+                c::ResultsWake::Never => w::ResultsWake::Never,
+                c::ResultsWake::Each => w::ResultsWake::Each,
+                c::ResultsWake::LastOrFailure => w::ResultsWake::LastOrFailure,
+            },
+            questions: value.questions,
+            answers: value.answers,
+            timers: value.timers,
+        },
+    )
+}
+fn settings_wire_wake_rule(value: c::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
+    Ok(match value {
+        c::WakeRule::Never => w::WakeRule::Never,
+        c::WakeRule::Immediate => w::WakeRule::Immediate,
+        c::WakeRule::Batch { count, age } => {
+            w::WakeRule::Batch(w::WakeRuleBatch::new(limits, w::WakeRuleBatchParts { count, age })?)
+        }
+        c::WakeRule::Paced { span } => {
+            w::WakeRule::Paced(w::WakeRulePaced::new(limits, w::WakeRulePacedParts { span })?)
+        }
+    })
+}
+
+fn settings_restore_wake(value: &w::WakePolicy) -> c::WakePolicy {
+    c::WakePolicy {
+        words: settings_restore_wake_rule(value.words()),
+        notices: settings_restore_wake_rule(value.notices()),
+        news: settings_restore_wake_rule(value.news()),
+        results: match value.results() {
+            w::ResultsWake::Never => c::ResultsWake::Never,
+            w::ResultsWake::Each => c::ResultsWake::Each,
+            w::ResultsWake::LastOrFailure => c::ResultsWake::LastOrFailure,
+        },
+        questions: value.questions(),
+        answers: value.answers(),
+        timers: value.timers(),
+    }
+}
+fn settings_restore_wake_rule(value: &w::WakeRule) -> c::WakeRule {
+    match value {
+        w::WakeRule::Never => c::WakeRule::Never,
+        w::WakeRule::Immediate => c::WakeRule::Immediate,
+        w::WakeRule::Batch(value) => c::WakeRule::Batch { count: value.count(), age: value.age() },
+        w::WakeRule::Paced(value) => c::WakeRule::Paced { span: value.span() },
+    }
+}
+
+fn restore_sized_edit(v: &w::SizedEdit) -> c::SizedEdit {
+    match v {
+        w::SizedEdit::Set(v) => c::SizedEdit::Set { size: v.size() },
+        w::SizedEdit::Remove => c::SizedEdit::Remove,
+        w::SizedEdit::Reset => c::SizedEdit::Reset,
+    }
+}
+fn restore_application_state(v: &w::ApplicationState) -> c::ApplicationState {
+    c::ApplicationState {
+        follows: match v.follows() {
+            w::ApplicationFollows::Default => c::ApplicationFollows::Default,
+            w::ApplicationFollows::Changed(v) => c::ApplicationFollows::Changed { revision: v.revision() },
+            w::ApplicationFollows::Removed(v) => c::ApplicationFollows::Removed { revision: v.revision() },
+        },
+        size: v.size(),
+        charters: v.charters().clone(),
+    }
 }

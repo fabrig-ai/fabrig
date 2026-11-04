@@ -22,7 +22,7 @@ pub const FAMILIES: &[Family] = &[
         schemas: &["schema/client-v19.schema", "schema/client-v19-part1.schema"],
         generated: &["src/generated/v19.rs"],
         golden: "golden",
-        fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin"],
+        fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin", "public"],
     },
     Family {
         name: "view records",
@@ -136,12 +136,20 @@ pub const FAMILIES: &[Family] = &[
         golden: "golden",
         fixtures: &[],
     },
+    Family {
+        name: "public",
+        root: "crates/jig-client-protocol-wire",
+        schemas: &["schema/public-v1.schema"],
+        generated: &["src/generated/public_v1.rs"],
+        golden: "golden/public",
+        fixtures: &[],
+    },
 ];
 
 pub fn check() {
     let tree = skein_scratch::paths::tree();
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    let again = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world -p jig-store-codecs-world -E 'test(drift::)'";
+    let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world -p jig-store-codecs-world -E 'test(drift::)'";
     for family in FAMILIES {
         let root = tree.join(family.root);
         let mut source = String::new();

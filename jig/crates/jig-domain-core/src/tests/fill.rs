@@ -1,14 +1,14 @@
 //! Store fill and admission at the high-water mark (protocol/store.md, 11.2).
 use super::*;
 
-fn filled_core(bytes: u64) -> (Core, Env<Limits>) {
+pub(super) fn filled_core(bytes: u64) -> (Core, Env<Limits>) {
     let (mut core, limits) = core();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     drop(step(&mut core, &env, Event::Fill { bytes }));
     (core, env)
 }
 
-fn signed_in(core: &mut Core, env: &Env<Limits>) {
+pub(super) fn signed_in(core: &mut Core, env: &Env<Limits>) {
     drop(step(
         core,
         env,
@@ -30,7 +30,7 @@ fn signed_in(core: &mut Core, env: &Env<Limits>) {
     drop(step(core, env, Event::Period { project: 1, period: 1, budget: 1000, next: None }));
 }
 
-fn ask(core: &mut Core, env: &Env<Limits>, ask: people::Ask) -> Queue<Request> {
+pub(super) fn ask(core: &mut Core, env: &Env<Limits>, ask: people::Ask) -> Queue<Request> {
     step(
         core,
         env,
@@ -44,7 +44,7 @@ fn ask(core: &mut Core, env: &Env<Limits>, ask: people::Ask) -> Queue<Request> {
     )
 }
 
-fn goal() -> people::Ask {
+pub(super) fn goal() -> people::Ask {
     let mut member = fixtures::member(b"new goal", 100);
     member.tracked = Some(1);
     people::Ask::Create { project: 1, batch: Box::new([member]) }
@@ -93,13 +93,19 @@ fn a_goal_below_the_fill_mark_is_made() {
     let mut out = ask(&mut core, &env, goal());
     let mut request = None;
     while let Some(next) = out.pop() {
-        if let Request::Ask { ask: Ask::TaskHoldings { request: token, .. }, .. } = next {
+        if let Request::Ask { ask: Ask::TaskHoldings { request: token, tracked, symbols, .. }, .. } = next {
+            assert!(tracked);
+            assert!(symbols.is_empty());
             request = Some(token);
         }
     }
     let request = request.expect("goal asks for connector holdings");
     for connector in [1, 2] {
-        drop(step(&mut core, &env, Event::Holdings { request, connector, holdings: Some(Box::new([])) }));
+        drop(step(
+            &mut core,
+            &env,
+            Event::Holdings { refused: None, request, connector, holdings: Some(Box::new([])) },
+        ));
     }
     assert!(core.tasks.task(1).is_some(), "the goal was made below the mark");
 }
@@ -147,4 +153,104 @@ fn a_full_sign_in_pool_holds_its_answer_and_advances_the_deployment_numbers() {
     assert_eq!(after.people, before.people + 1);
     assert_eq!(after.sign_ins, before.sign_ins + 1);
     assert_eq!(after.commits, before.commits + 1);
+}
+
+fn take_write_holdings(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
+    let hold = tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits };
+    send_task(
+        core,
+        &env.limits,
+        tasks::Event::Kinds { connector: 2, kinds: Box::new([tasks::Kind { connector: 2, kind: 1, hold }]) },
+    );
+    let mut member = new_row(core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
+    let mut holdings = List::with_capacity(2);
+    for path in [b"first".as_slice(), b"second".as_slice()] {
+        let resource = tasks::Name { connector: 2, path: Box::new([Box::from(path)]) };
+        send_task(core, &env.limits, tasks::Event::Resource { name: resource.clone(), hold });
+        send_task(
+            core,
+            &env.limits,
+            tasks::Event::ResourceAccess {
+                project: 1,
+                name: resource.clone(),
+                access: tasks::ResourceAccess::Writable,
+            },
+        );
+        holdings.push(tasks::Holding::Write { resource, kind: 1 }).unwrap();
+    }
+    member.holdings = holdings.into_boxed();
+    step(
+        core,
+        env,
+        Event::Tasks(tasks::Event::Make {
+            reply_to: ReplyTo::new(Token::new(7203)),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([member]),
+        }),
+    )
+}
+
+#[test]
+fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
+    let (mut core, limits) = tree_core();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = take_write_holdings(&mut core, &env);
+    let mut entries = List::with_capacity(2);
+    let mut resources = List::with_capacity(2);
+    while let Some(request) = out.pop() {
+        if let Request::Ask { connector, ask: Ask::Hold { task, resource, entry } } = request {
+            assert_eq!(task, 1);
+            assert_eq!(connector, 2);
+            assert_eq!(resource.connector, connector);
+            assert_ne!(entry, 0);
+            entries.push(entry).unwrap();
+            resources.push(resource.path).unwrap();
+        }
+    }
+    assert_eq!(entries.len(), 2);
+    assert_ne!(entries.as_slice()[0], entries.as_slice()[1]);
+    assert_eq!(
+        resources.as_slice(),
+        &[Box::from([Box::from(b"first".as_slice())]), Box::from([Box::from(b"second".as_slice())])]
+    );
+    drop(step(
+        &mut core,
+        &env,
+        Event::Tasks(tasks::Event::Control {
+            reply_to: ReplyTo::new(Token::new(7204)),
+            by: tasks::Party::Person(1),
+            task: 1,
+            control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        }),
+    ));
+    let mut releases = 0_u32;
+    for connector in [1, 2] {
+        let mut out = step(&mut core, &env, Event::EffectConnector(connector::Event::Closed { task: 1, connector }));
+        while let Some(request) = out.pop() {
+            if let Request::Ask { ask: Ask::Release { task, entry, .. }, .. } = request {
+                assert_eq!(task, 1);
+                assert_ne!(entry, 0);
+                assert!(!entries.as_slice().contains(&entry));
+                releases += 1;
+            }
+        }
+    }
+    assert_eq!(releases, 2);
+}
+
+#[test]
+fn an_exhausted_taking_holds_the_task_without_telling_any_connector() {
+    for remaining in [0, 1] {
+        let (mut core, limits) = tree_core();
+        core.counters.deployment.connector_rows = u64::MAX - remaining;
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        let mut out = take_write_holdings(&mut core, &env);
+        while let Some(request) = out.pop() {
+            if let Request::Ask { ask: Ask::Hold { .. }, .. } = request {
+                panic!("an exhausted taking sends no hold asks");
+            }
+        }
+        let tasks::Phase::Held { why, .. } = core.tasks.task(1).unwrap().phase else { panic!("budget hold") };
+        assert_eq!(why, tasks::Hold::Budget);
+    }
 }

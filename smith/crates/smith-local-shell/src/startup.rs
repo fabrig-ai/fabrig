@@ -102,7 +102,7 @@ pub fn stream_header(
         delivery: delivery.encoded(),
         versions: smith_events::Versions {
             events: 4,
-            channel: 5,
+            channel: 6,
             charter: 4,
             transcript: 6,
             chat_store: Some(smith_local_protocol::CHAT_STORE_VERSION),

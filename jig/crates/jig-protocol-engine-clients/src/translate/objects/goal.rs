@@ -114,6 +114,10 @@ pub fn spec(value: &t::Spec, limits: &w::Limits) -> Result<w::Specification, w::
 }
 pub fn contract(value: &t::Contract, limits: &w::Limits) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
+        t::Contract::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob::new(
+            limits,
+            w::TaskContractDocumentJobParts { bytes: *bytes },
+        )?),
         t::Contract::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
                 limits,

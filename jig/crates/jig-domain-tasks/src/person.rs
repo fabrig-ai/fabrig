@@ -32,7 +32,10 @@ pub(crate) fn take(
     let row = record(domain, number).expect("entrance names task");
     match row.executor {
         Executor::Person(PersonAddress::Role(_)) => {}
-        Executor::Person(PersonAddress::Person(_)) | Executor::Agent { .. } | Executor::Procedure { .. } => {
+        Executor::Person(PersonAddress::Person(_))
+        | Executor::Agent { .. }
+        | Executor::Procedure { .. }
+        | Executor::Job { .. } => {
             return refused(to, Some(number), Refusal::Executor, out);
         }
     }
@@ -59,7 +62,10 @@ pub(crate) fn hand_back(
     let row = record(domain, number).expect("entrance names task");
     match row.executor {
         Executor::Person(PersonAddress::Role(_)) => {}
-        Executor::Person(PersonAddress::Person(_)) | Executor::Agent { .. } | Executor::Procedure { .. } => {
+        Executor::Person(PersonAddress::Person(_))
+        | Executor::Agent { .. }
+        | Executor::Procedure { .. }
+        | Executor::Job { .. } => {
             return refused(to, Some(number), Refusal::Executor, out);
         }
     }
@@ -88,7 +94,7 @@ pub(crate) fn answer(
     let addressed = match row.executor {
         Executor::Person(PersonAddress::Person(address)) => address == person && address != 0,
         Executor::Person(PersonAddress::Role(_)) => row.taken_by == Some(person) && person != 0,
-        Executor::Agent { .. } | Executor::Procedure { .. } => false,
+        Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => false,
     };
     if !addressed || !active(&row.phase) {
         return refused(to, Some(number), Refusal::State, out);
@@ -98,6 +104,7 @@ pub(crate) fn answer(
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::Job { .. }
         | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => false,
     };
@@ -121,6 +128,7 @@ pub(crate) fn answer(
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::Job { .. }
         | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => Ending::Done(result),
     };
@@ -159,7 +167,7 @@ pub(crate) fn waiting(row: &mut crate::TaskRecord, env: &Env<Limits>) {
                 });
             }
         }
-        Executor::Agent { .. } | Executor::Procedure { .. } => row.person_wait = None,
+        Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => row.person_wait = None,
     }
 }
 
@@ -169,7 +177,7 @@ pub(crate) fn pending(row: &crate::TaskRecord) -> bool {
             Some(wait) => wait.notice.is_none(),
             None => false,
         },
-        Executor::Agent { .. } | Executor::Procedure { .. } => false,
+        Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => false,
     }
 }
 
@@ -180,7 +188,7 @@ pub(crate) fn credit(row: &crate::TaskRecord) -> bool {
             Some(wait) => wait.notice.is_none(),
             None => true,
         },
-        Executor::Agent { .. } | Executor::Procedure { .. } => false,
+        Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => false,
     }
 }
 

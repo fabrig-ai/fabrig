@@ -11,6 +11,8 @@ mod b2;
 mod change_panel;
 mod chat;
 mod choice;
+mod clearing;
+mod configuring_chat;
 mod connect_forge;
 mod connect_model;
 mod forges;
@@ -22,12 +24,14 @@ mod open_chat;
 mod playground;
 mod project_fund;
 mod recovery;
+mod settings_tools;
 mod stories;
 mod task;
 mod task_tree;
 mod welcome;
 mod fuzzy {
     mod client;
+    mod public_address;
 }
 
 mod accounts_edges;
@@ -36,6 +40,8 @@ mod change_panel_edges;
 mod connect_model_edges;
 mod first_repository;
 mod first_run_hooks;
+mod forge_replace;
+mod forgejo_tokens;
 mod forges_edges;
 mod github_connect;
 mod live_text;

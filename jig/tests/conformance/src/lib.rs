@@ -680,6 +680,7 @@ impl Application for Testing {
             | root::Delivery::ApplicationRead { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::Core(_)
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }

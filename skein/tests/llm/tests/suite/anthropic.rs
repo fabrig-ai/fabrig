@@ -64,7 +64,7 @@ fn anthropic_requires_an_explicit_event_stream_content_type() {
 }
 
 #[test]
-fn oauth_request_text_usage_and_http_fragmentation() {
+fn key_request_text_usage_and_http_fragmentation() {
     for chunked in [false, true] {
         for fragment in [1, 257] {
             let mut world = World::new(anthropic_call(7), limits(), text_response(chunked), 2);
@@ -78,15 +78,12 @@ fn oauth_request_text_usage_and_http_fragmentation() {
             let (head, body) = sent.split_once("\r\n\r\n").unwrap();
             assert!(head.starts_with("POST /v1/messages HTTP/1.1\r\n"));
             let lower = head.to_ascii_lowercase();
-            for expected in [
-                "host: api.anthropic.com",
-                "authorization: bearer synthetic-oauth-token",
-                "anthropic-version: 2023-06-01",
-                "oauth-2025-04-20",
-            ] {
+            for expected in ["host: api.anthropic.com", "x-api-key: synthetic-key", "anthropic-version: 2023-06-01"] {
                 assert!(lower.contains(expected), "{head}");
             }
             assert!(!lower.contains("chatgpt-account-id"), "{head}");
+            assert!(!lower.contains("authorization:"), "{head}");
+            assert!(!lower.contains("anthropic-beta:"), "{head}");
             assert!(lower.contains(&format!("content-length: {}", body.len())));
             for expected in
                 ["\"model\":\"fixture-model\"", "\"stream\":true", "\"max_tokens\":1024", "Be brief.", "Hello"]
@@ -299,12 +296,6 @@ fn nested_provider_errors_classify_http_and_sse_with_retry_headers() {
             "Retry-After: 13\r\n",
             Failure::RateLimited { retry_after: Duration::from_secs(13) },
         ),
-        (
-            429,
-            r#"{"type":"error","error":{"type":"rate_limit_error","message":"subscription spent"}}"#,
-            "Retry-After: 17\r\nanthropic-ratelimit-unified-status: rejected\r\n",
-            Failure::Exhausted { retry_after: None },
-        ),
         (529, r#"{"type":"error","error":{"type":"overloaded_error","message":"busy"}}"#, "", Failure::Overloaded),
         (200, r#"{"type":"error","error":{"type":"overloaded_error","message":"busy"}}"#, "", Failure::Overloaded),
         (
@@ -508,7 +499,7 @@ fn explicit_call_reasoning_policy_never_drops_anthropic_thinking() {
         bounds.reasoning = 24;
         let mut input = skein_llm_world::call(78);
         input.endpoint = skein_llm::Endpoint::anthropic();
-        input.credential = Some(skein_llm::Credential::anthropic(b"fake-token".as_slice().into()));
+        input.credential = Some(skein_llm::Credential::key(b"fake-token".as_slice().into()));
         input.prompt.affinity = None;
         input.prompt.output_ceiling(skein_llm::Provider::Anthropic, 4096).expect("configured output");
         let machine = client::Client::prepare_with_reasoning_drop(input, &bounds, enabled).expect("explicit policy");

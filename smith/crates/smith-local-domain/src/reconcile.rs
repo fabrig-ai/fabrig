@@ -1,7 +1,10 @@
 //! Recovery of saved delivery intents (protocol/hosts.md, section 5.5).
 //! Only inspected commit evidence can establish a landed effect; remote uncertainty
-//! retains the intent rather than claiming a successful delivery.
+//! retains the intent rather than claiming a successful delivery. Delivering owns
+//! this loaded intent until follow yields its saved answer or ends recovery.
+//! `reconcile_git` consumes one git terminal; follow derives the next request.
 use super::Domain;
+use super::delivery::{self, AfterSave, Delivering};
 use crate::chat::State as ChatState;
 use crate::{DeliveryIntent, DeliveryRecord, DeliveryState, GitOp, GitResult, IntentDirectory, Limits, Request};
 use alloc::boxed::Box;
@@ -30,7 +33,7 @@ pub(super) struct Reconcile {
 
 impl Reconcile {
     pub(super) fn new(record: DeliveryRecord) -> Self {
-        Self { record, next: 0, receipts: List::with_capacity(agent::run::MAX_DIRECTORIES), state: State::Done }
+        Self { record, next: 0, receipts: List::with_capacity(agent::run::MAX_DIRECTORIES), state: State::Advance }
     }
 
     fn intent(&self) -> &DeliveryIntent {
@@ -47,8 +50,12 @@ impl Reconcile {
     }
 }
 
-pub(super) fn reconcile_next(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let mut reconcile = domain.reconciling.take().expect("loaded intent is being reconciled");
+fn reconcile_next(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    mut reconcile: Reconcile,
+    out: &mut Queue<Request>,
+) -> Delivering {
     let start = usize::try_from(reconcile.next).expect("bounded directory position");
     for index in start..reconcile.intent().directories.len() {
         let entry = reconcile.intent().directories.get(index).expect("position in saved intent").clone();
@@ -61,30 +68,29 @@ pub(super) fn reconcile_next(domain: &mut Domain, env: &Env<Limits>, out: &mut Q
                 let name = reconcile.record.name;
                 let directory = entry.directory;
                 reconcile.state = State::Inspect { entry };
-                domain.reconciling = Some(reconcile);
                 out.push(Request::Git {
                     owner: Token::new(0),
                     directory,
                     op: GitOp::Inspect { name },
                     deadline: env.now.saturating_add(domain.config.budget.time),
                 });
-                return;
+                return Delivering::Reconciling(reconcile);
             }
             None => reconcile.receipt(entry.directory, Box::from(&b"files kept"[..])),
         }
     }
-    reconcile_answer(domain, reconcile, None, out);
+    reconcile_answer(reconcile, None, out)
 }
 
 pub(super) fn reconcile_git(
     domain: &mut Domain,
     env: &Env<Limits>,
+    mut reconcile: Reconcile,
     owner: Token,
     result: GitResult,
     out: &mut Queue<Request>,
-) {
+) -> Reconcile {
     assert_eq!(owner, Token::new(0), "recovery inspection has its own owner");
-    let mut reconcile = domain.reconciling.take().expect("inspection answers a loaded intent");
     let state = core::mem::replace(&mut reconcile.state, State::Done);
     reconcile.state = match state {
         State::Inspect { entry } => inspected(domain, env, &mut reconcile, entry, result, out),
@@ -94,7 +100,7 @@ pub(super) fn reconcile_git(
             unreachable!("recovery terminal answers an issued git request")
         }
     };
-    follow(domain, env, reconcile, out);
+    reconcile
 }
 
 fn pushed(
@@ -184,32 +190,35 @@ fn inspected(
     }
 }
 
-fn follow(domain: &mut Domain, env: &Env<Limits>, mut reconcile: Reconcile, out: &mut Queue<Request>) {
+pub(super) fn follow(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    mut reconcile: Reconcile,
+    out: &mut Queue<Request>,
+) -> Delivering {
     let state = core::mem::replace(&mut reconcile.state, State::Done);
     match state {
-        State::Advance => {
-            domain.reconciling = Some(reconcile);
-            reconcile_next(domain, env, out);
-        }
-        State::Interrupted { directory } => reconcile_answer(domain, reconcile, Some(directory), out),
-        State::Answer(answer) => reconcile_terminal(domain, reconcile, *answer, out),
+        State::Advance => reconcile_next(domain, env, reconcile, out),
+        State::Interrupted { directory } => reconcile_answer(reconcile, Some(directory), out),
+        State::Answer(answer) => reconcile_terminal(reconcile, *answer, out),
         State::Unknown => recovery_unknown(domain, out),
         state @ (State::Inspect { .. } | State::Push { .. } | State::InspectPush) => {
             reconcile.state = state;
-            domain.reconciling = Some(reconcile);
+            Delivering::Reconciling(reconcile)
         }
         State::Done => unreachable!("each recovery transition yields its next state"),
     }
 }
 
-fn recovery_unknown(domain: &mut Domain, out: &mut Queue<Request>) {
+fn recovery_unknown(domain: &mut Domain, out: &mut Queue<Request>) -> Delivering {
     domain.ending.fail_store();
     crate::person::show_dropped(&mut domain.lines, out);
     domain.chat.phase = ChatState::Done;
     out.push(Request::Exit { status: crate::end::exit_status(domain.ending.cause()) });
+    Delivering::Idle
 }
 
-fn reconcile_answer(domain: &mut Domain, reconcile: Reconcile, interrupted: Option<u32>, out: &mut Queue<Request>) {
+fn reconcile_answer(reconcile: Reconcile, interrupted: Option<u32>, out: &mut Queue<Request>) -> Delivering {
     let mut landed = List::with_capacity(agent::run::MAX_DIRECTORIES);
     for receipt in &reconcile.receipts {
         landed.push(receipt.clone()).expect("admitted directories");
@@ -246,26 +255,19 @@ fn reconcile_answer(domain: &mut Domain, reconcile: Reconcile, interrupted: Opti
             })
         }
     };
-    reconcile_terminal_with_receipts(domain, reconcile.record.name, answer, landed.into_boxed(), out);
+    reconcile_terminal_with_receipts(reconcile.record.name, answer, landed.into_boxed(), out)
 }
 
-fn reconcile_terminal(
-    domain: &mut Domain,
-    reconcile: Reconcile,
-    answer: agent::run::Delivery,
-    out: &mut Queue<Request>,
-) {
-    reconcile_terminal_with_receipts(domain, reconcile.record.name, answer, reconcile.receipts.into_boxed(), out);
+fn reconcile_terminal(reconcile: Reconcile, answer: agent::run::Delivery, out: &mut Queue<Request>) -> Delivering {
+    reconcile_terminal_with_receipts(reconcile.record.name, answer, reconcile.receipts.into_boxed(), out)
 }
 
 fn reconcile_terminal_with_receipts(
-    domain: &mut Domain,
     name: agent::run::CallName,
     answer: agent::run::Delivery,
     landed: Box<[agent::run::Receipt]>,
     out: &mut Queue<Request>,
-) {
+) -> Delivering {
     let record = DeliveryRecord { name, state: DeliveryState::Answer(answer), landed };
-    domain.saving = Some(record.clone());
-    out.push(Request::SaveDelivery { record: Box::new(record) });
+    delivery::save(record, AfterSave::ResumeLoading, out)
 }

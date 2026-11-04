@@ -43,14 +43,13 @@ fn the_credential_catalog_uses_the_resolvers_needed_accounts_and_omits_values() 
 
 #[test]
 fn an_env_value_is_access_only_and_an_invalid_header_value_is_refused() {
-    let record = env_record(b"UNISSUED_ACCESS", false, wall()).expect("synthetic API value");
+    let record = env_record(b"UNISSUED_ACCESS", wall()).expect("synthetic API value");
     assert!(record.record.access_token.as_ref() == b"UNISSUED_ACCESS", "the variable is the access value");
     assert!(
-        record.record.refresh_token.is_none() && record.account_id.is_empty(),
+        record.record.refresh_token.is_none() && record.record.metadata.is_none(),
         "an API variable holds no refresh or Codex identity"
     );
-    assert!(env_record(b"UNISSUED\nHEADER", false, wall()).is_none(), "a variable cannot inject a header");
-    assert!(env_record(b"UNISSUED_ACCESS", true, wall()).is_none(), "Codex's variable must supply its account claim");
+    assert!(env_record(b"UNISSUED\nHEADER", wall()).is_none(), "a variable cannot inject a header");
 }
 
 pub(crate) fn resolved_source(files: &Files, source: &str) -> settings::resolve::Resolved {
@@ -120,6 +119,6 @@ fn file_sources_require_a_credentials_directory_before_inspection() {
     let files = Files::new("smith-credentials");
     for name in ["key", "sign_in"] {
         let resolved = resolved_source(&files, name);
-        assert!(matches!(source(&resolved.accounts[0], false, None), Err(Credential::NotSignedIn)));
+        assert!(matches!(source(&resolved.accounts[0], None), Err(Credential::NotSignedIn)));
     }
 }

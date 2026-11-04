@@ -1,7 +1,6 @@
 //! Measured native Messages requests and shape-derived cache markers.
 //! Keeps no state; replay is never modified. Entrances validate, measure and encode.
 //! Contract: llm.md, sections 4.5 and 4.7.
-use super::identity::CLAUDE_CODE_SYSTEM_IDENTITY;
 use crate::{Block, Error, Json, Prompt, Provider, Replay, Role, Tool, openai};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer};
@@ -375,24 +374,8 @@ fn breakpoints(prompt: &Prompt) -> Breakpoints {
 }
 
 fn write_system(out: &mut writer::Encoder, instructions: &[u8], marked: bool) {
-    let extra = if instructions == CLAUDE_CODE_SYSTEM_IDENTITY {
-        Some(b"".as_slice())
-    } else {
-        match instructions.strip_prefix(CLAUDE_CODE_SYSTEM_IDENTITY) {
-            Some(remaining) => remaining.strip_prefix(b"\n\n"),
-            None => None,
-        }
-    };
     out.array_start();
-    match extra {
-        Some(extra) => {
-            write_system_text(out, CLAUDE_CODE_SYSTEM_IDENTITY, marked && extra.is_empty());
-            if !extra.is_empty() {
-                write_system_text(out, extra, marked);
-            }
-        }
-        None => write_system_text(out, instructions, marked),
-    }
+    write_system_text(out, instructions, marked);
     out.array_end();
 }
 

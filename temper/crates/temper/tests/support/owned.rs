@@ -34,17 +34,11 @@ pub fn document(value: &mut serde_json::Value, names: &Names<'_>) {
     value["application"]["machine"] = members["machine"].take();
 }
 
-// temper-15 removes this old form and temper-01a's Adopt stand-in.
-pub fn old_form(application: &mut serde_json::Value) {
-    let _ = application;
-}
-
 pub fn configuration(directory: &Path, names: &Names<'_>) {
     super::configuration(directory, &super::Forge::Unreached);
     let path = directory.join("temper.json");
     let mut value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     document(&mut value, names);
-    old_form(&mut value["application"]);
     super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     super::write_private(&directory.join("box/groups/1"), b"owned\n");
@@ -411,8 +405,6 @@ pub fn setup_without_runner(directory: &Path) {
 pub fn refused(directory: &Path, verb: &str, expected: &[u8]) {
     let result = if verb == "prepare" {
         prepare(directory, 1)
-    } else if verb == "reconcile" {
-        reconcile(directory, 1)
     } else {
         command(directory, "forgejo").output().expect("run refuses")
     };
@@ -455,16 +447,6 @@ pub fn start(directory: &Path) -> Running {
     let running = run(directory, "forgejo");
     eprintln!("stage start: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
     running
-}
-#[must_use]
-pub fn reconcile(directory: &Path, forge: u16) -> Output {
-    Command::new(skein_scratch::paths::binary("temper"))
-        .args(["forge", "reconcile"])
-        .args(super::configuration::flags(directory))
-        .arg(forge.to_string())
-        .current_dir(directory)
-        .output()
-        .expect("temper forge reconcile")
 }
 /// Attaches the owned Forgejo through preparation's private admin token.
 #[must_use]
@@ -572,16 +554,11 @@ fn edited(bytes: &[u8], owned: &Owned) -> String {
 fn example_value(owned: &Owned) -> serde_json::Value {
     let mut value: serde_json::Value = serde_json::from_str(&edited(EXAMPLE, owned)).expect("owned JSON");
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":owned.llm.to_string()});
-    if !owned.review {
-        value["application"]["landing"]["projects"][0]["rules"][0]["gates"] = serde_json::json!([]);
-    }
     value
 }
 #[must_use]
 pub fn application(owned: &Owned) -> serde_json::Value {
-    let mut value = example_value(owned)["application"].take();
-    value["charter"] = 1.into();
-    value
+    example_value(owned)["application"].take()
 }
 #[must_use]
 pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
@@ -603,6 +580,9 @@ pub fn lay(directory: &Path, owned: &Owned) {
         fs::write(directory.join(name), text).expect("shipped file");
     }
     local_agent(directory, "owned/agent.json", owned.llm);
+    if !owned.review {
+        native_landing_settings(directory);
+    }
     super::write_private(&directory.join("secrets/worker.secret"), b"worker-secret\n");
     super::write_private(
         &directory.join("secrets/worker.digest"),
@@ -751,7 +731,7 @@ pub fn bounded(directory: &Path) -> Bounded {
     )
 }
 
-/// The shipped owned form has file-free access and no orgs.
+/// The shipped owned form has file-free access.
 #[must_use]
 pub fn bounded_records(directory: &Path) -> Bounded {
     let owned =
@@ -776,6 +756,33 @@ pub fn bounded_records(directory: &Path) -> Bounded {
 /// Init's own document and agent, with the same counted paths at their bounds.
 #[must_use]
 pub fn bounded_template(directory: &Path) -> Bounded {
+    bounded_template_profile(directory, &[])
+}
+
+/// The reference overlays init's document and agent (temper/docs/design/protocol/configuration.md, 13.9).
+#[must_use]
+pub fn bounded_reference(directory: &Path) -> Bounded {
+    bounded_template_profile(
+        directory,
+        &[
+            ("temper.json", include_bytes!("../../../../docs/examples/reference/limits.json")),
+            ("agent.json", include_bytes!("../../../../docs/examples/reference/agent.json")),
+        ],
+    )
+}
+
+fn merge_profile(value: &mut serde_json::Value, overlay: serde_json::Value) {
+    match (value, overlay) {
+        (serde_json::Value::Object(members), serde_json::Value::Object(overrides)) => {
+            for (name, value) in overrides {
+                merge_profile(members.entry(name).or_insert(serde_json::Value::Null), value);
+            }
+        }
+        (value, overlay) => *value = overlay,
+    }
+}
+
+fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])]) -> Bounded {
     use std::num::NonZeroU16;
     use temper_init::{Content, Directories, Facts, Ports};
     let answer = temper_init::files(
@@ -806,6 +813,12 @@ pub fn bounded_template(directory: &Path) -> Bounded {
             }
             Content::Link { .. } => {}
         }
+    }
+    for (name, overlay) in overlays {
+        let path = directory.join(name);
+        let mut value = serde_json::from_slice(&fs::read(&path).expect("init file")).expect("init JSON");
+        merge_profile(&mut value, serde_json::from_slice(overlay).expect("reference overlay"));
+        super::write_private(&path, &serde_json::to_vec(&value).expect("merged profile JSON"));
     }
     local_agent(directory, "agent.json", "127.0.0.1:8370".parse().expect("LLM stand-in"));
     let value =
@@ -1048,4 +1061,24 @@ pub fn adopt(
             .expect("hook answers");
         assert_eq!(response.status, 201, "repository hook");
     }
+}
+
+/// This fixture's changes use the ordinary charter without an agent review.
+pub fn native_landing_settings(directory: &Path) {
+    producer_landing_settings(directory, 1);
+}
+
+/// Stage no-review landing rules and the producer charter this fixture delegates to.
+/// temper/docs/design/protocol/configuration.md, 13.4–13.6.
+pub fn producer_landing_settings(directory: &Path, producer: u64) {
+    let value = serde_json::json!({"items":[
+        {"setting":{"kind":"landing-rule","number":1},"set":{
+            "pattern":{"segments":["666f726765"],"last":{"open":""}},
+            "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}},
+        {"setting":{"kind":"forge-charter","number":1},"set":producer}
+    ]});
+    super::write_private(
+        &directory.join("native-landing-settings.json"),
+        &serde_json::to_vec(&value).expect("native landing settings"),
+    );
 }

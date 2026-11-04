@@ -4,6 +4,8 @@ use crate::{Profile, profile};
 fn supplied_profiles_have_valid_domain_limits() {
     for selected in [Profile::Small, Profile::Standard] {
         let limits = profile(selected);
+        assert_eq!(limits.core.tasks.charter_documents, 2);
+        assert_eq!(limits.core.brief.sections, 8);
         assert!(jig_domain_core::valid(&limits.core), "{selected:?} core");
         assert!(jig_domain_host::valid_hub(&limits.hub), "{selected:?} hub");
     }
@@ -74,9 +76,9 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     // The frame bound is TurnRecord::encoded_bound + 12, including
     // version, optional read, transcript length, checksum and both lengths.
     const MAX_FRAME: u64 = 8_388_672;
-    // Standard's map page includes the task/run revisions and placed reference;
+    // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 1_590_110), (Profile::Standard, 262_144, 10_666_854)] {
+    for (kind, request, page) in [(Profile::Small, 65_536, 2_168_979), (Profile::Standard, 262_144, 10_769_629)] {
         let configured = profile(kind);
         let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);

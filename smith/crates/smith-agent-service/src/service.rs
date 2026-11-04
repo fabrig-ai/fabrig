@@ -7,12 +7,15 @@
 
 use alloc::boxed::Box;
 
+mod admission;
 mod down;
 mod effects;
 mod face;
 pub(crate) mod link;
+mod opening;
 mod readiness;
 mod request;
+mod roots;
 mod routing;
 mod stages;
 mod up;
@@ -39,7 +42,7 @@ use teardown::Teardown;
 
 use skein_channel::{Lower as ChannelLower, StreamMode};
 use skein_io::{self as io, file, file_layer, kernel};
-use skein_lib::{Duration, Env, List, Map, Queue, Slab, Time, Token, Wall};
+use skein_lib::{Duration, Env, Map, Queue, Slab, Time, Token, Wall};
 use smith_domain::{self as domain, run};
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
@@ -205,23 +208,12 @@ pub(crate) struct Stages {
     input: Option<Token>,
     output: Option<Token>,
     signals: Option<Token>,
-    admitted: Option<Token>,
+    admission: admission::Admission,
     run_started: Time,
-    cancel_pending: bool,
-    failure: Option<Failure>,
-    pub(crate) final_answer_at: Time,
-    pub(crate) final_failure: Option<run::Failure>,
-    pub(crate) final_refusal: Option<run::Refusal>,
-    pub(crate) final_detail: Box<[u8]>,
-    outcome: Option<run::outcome::OutcomeSpec>,
-    delivery: Option<run::outcome::ChangeSpec>,
-    pending_start: Option<Box<smith_protocol_translate::DecodedStart>>,
-    directories: List<run::Directory>,
-    root_index: u32,
+    pub(crate) line: crate::terminal::Line,
+    opening: opening::Opening,
     pipe_routes: Map<Token, Token>,
-    roots: List<Token>,
-    root_close_next: u32,
-    root_close_pending: bool,
+    roots: roots::Roots,
 }
 
 const START_REPLY: Token = Token::new(1);
@@ -396,13 +388,7 @@ impl Service {
     /// The next host-supplied mount path that the shell must open as a root.
     #[must_use]
     pub fn root_to_open(&self) -> Option<&[u8]> {
-        let start = self.stages.pending_start.as_ref()?;
-        let mounts = start.mounts.as_ref()?;
-        let index = usize::try_from(self.stages.root_index).ok()?;
-        match mounts.get(index) {
-            Some(mount) => Some(&mount.path),
-            None => None,
-        }
+        self.stages.opening.next_mount()
     }
 
     /// Receiving ceiling for absolute host metadata at root attachment.
@@ -417,27 +403,9 @@ impl Service {
         match root {
             Ok(fd) => match self.stages.files.adopt_root(fd) {
                 Some(token) => {
-                    self.stages.roots.push(token).expect("root count was checked before opening");
-                    self.stages.root_close_next = self.stages.roots.len();
-                    let start = self.stages.pending_start.as_ref().expect("a root belongs to a pending Start");
-                    let mounts = start.mounts.as_ref().expect("a requested root belongs to a workspace");
-                    let index = usize::try_from(self.stages.root_index).expect("root index fits usize");
-                    let mount = mounts.get(index).expect("one mount requested at a time");
-                    self.stages
-                        .directories
-                        .push(run::Directory {
-                            host,
-                            name: mount.name.clone(),
-                            root: token,
-                            writable: mount.writable,
-                            git: mount.git,
-                            conflicts: mount.conflicts.clone(),
-                        })
-                        .expect("root count was checked before opening");
-                    self.stages.root_index = self.stages.root_index.checked_add(1).expect("bounded mount count");
-                    if self.root_to_open().is_none() {
-                        self.stages.start_ready(&mut self.frame);
-                    }
+                    self.stages.roots.adopt(token, self.stages.limits.machine.roots);
+                    self.stages.opening.attached(host, token);
+                    opening::follow(&mut self.stages, &mut self.frame);
                 }
                 None => self.stages.refuse_start(&mut self.frame, run::Invalid::Workspace),
             },
@@ -451,13 +419,6 @@ fn credential(value: &smith_protocol_translate::GrantValue) -> Option<skein_llm:
     let credential = match value {
         smith_protocol_translate::GrantValue::Bearer(value) => skein_llm::Credential::bearer(value.clone()),
         smith_protocol_translate::GrantValue::Key(value) => skein_llm::Credential::key(value.clone()),
-        smith_protocol_translate::GrantValue::Withdrawn { account_id, bearer } => {
-            if account_id.is_empty() {
-                skein_llm::Credential::bearer(bearer.clone())
-            } else {
-                skein_llm::Credential::codex(bearer.clone(), account_id.clone())
-            }
-        }
         smith_protocol_translate::GrantValue::Program(_) => return None,
     };
     if credential.value.is_empty() {
@@ -477,7 +438,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     up::domain_up(stages, frame);
     down::domain_down(stages, Some(frame));
     down::component_down(stages);
-    teardown::advance(stages, Some(frame));
+    teardown::follow(stages, Some(frame));
     if let Some(events) = &mut stages.events {
         events.sinks().down(stages.io_env.now, &mut stages.io_requests);
     }

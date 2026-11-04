@@ -56,6 +56,7 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     saved_resources: 4,
     contract_choices: 1,
     charters: 4,
+    charter_documents: 2,
     revisions: 4,
     versions: 8,
     authority_grants: 4,
@@ -127,7 +128,7 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     writes: 4,
 };
 pub(super) const BRIEF: brief::Limits =
-    brief::Limits { briefs: 4, sections: 4, read_bytes: 8_192, brief_bytes: 16_384 };
+    brief::Limits { briefs: 4, sections: 8, read_bytes: 8_192, brief_bytes: 16_384 };
 pub(super) const ACCOUNTS: accounts::Limits = accounts::Limits {
     accounts: 4,
     holder_accounts: 4,
@@ -183,6 +184,7 @@ pub(super) const BUDGETS: core::CoreBriefBudgets = core::CoreBriefBudgets {
     notes: 2_048,
 };
 pub(super) const CORE: core::Limits = core::Limits {
+    public: core::PublicIndexLimits::OFF,
     // The sum of child route bounds when this configured hand-off bound was set.
     routes: 20_783,
     settings: core::settings::Limits {
@@ -286,6 +288,7 @@ pub(super) const LIMITS: Limits = Limits {
     driver: DRIVER,
     clients: CLIENTS,
     clients_http: jig_protocol_engine_clients_http::Limits {
+        public_calls: 0,
         calls: 4,
         streams: 2,
         body: CLIENTS.message_bytes,
@@ -300,6 +303,7 @@ pub(super) const LIMITS: Limits = Limits {
 
 /// Native client HTTP: 4 sockets, 8 exchanges, 5 minute link, 30 second stall.
 pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_engine_clients::Limits {
+    public: jig_protocol_engine_clients::PublicLimits::OFF,
     streams: 2,
     watches_per_stream: 4,
     queued_bytes: 65536,
@@ -382,9 +386,13 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
 // Ending authority adds (batch + 1)^2 = (2 + 1)^2 = 9 bytes: the row,
 // its recurring members and its proposed creations with their recurring members.
 // Task/run settings revisions add nine bytes: u32 plus an optional u32.
+// Each stored spec includes optional job bytes and a deadline.
+// The optional live-room condition costs fourteen bytes in the largest task row.
+// Started-from dependencies cost a four-byte count plus 8 eight-byte numbers = 68 bytes.
 pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     key: 2079,
-    value: 1_567_847,
+    // Settings history with twelve configured charters and RunPolicy.tools needs 2,166,900 bytes.
+    value: 2_166_900,
     // Two operations per journal write, three creation rows and an orphan erase: 2 * 20,801 + 4.
     ops: 41_606,
     // 256 MiB values + 41,606 operations * (2,079 key + 9 framing) + 26 frame bytes.
@@ -395,11 +403,9 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: 268_435_456,
     segment: 710_617_620,
     snapshot_after: 355_308_810,
-    chunk: 1_569_946,
-    // Accounting ceiling for applications' derived pages: the shipped largest
-    // admitted ordinary turn (1,590,046) plus current TurnRecord and frame (64).
-    // No row, chunk, decoder, queue or read-slot capacity changes with it.
-    page: skein_kv::Page { rows: 2, bytes: 1_590_110 },
+    chunk: 2_168_999,
+    // The revision envelope, including what its items replaced, fits with its key.
+    page: skein_kv::Page { rows: 2, bytes: 2_168_979 },
     deadline: Duration::from_secs(30),
 };
 pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

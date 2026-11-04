@@ -8,3 +8,6 @@ request identities are redacted.
 
 They show the provider's response grammar, not what a subscription admits
 today. Synthetic tests are in `src/tests.rs`.
+
+These were recorded on the subscription route with Claude Code's betas and
+identity, and are read for their response grammar and as historical requests.

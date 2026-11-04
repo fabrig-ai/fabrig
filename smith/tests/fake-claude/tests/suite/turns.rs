@@ -438,6 +438,36 @@ fn together_calls_share_one_assistant_message() {
 }
 
 #[test]
+fn together_checks_each_calls_reply() {
+    let run = print::with_server(
+        story(
+            vec![Step::Together(vec![
+                Step::CallChecked { tool: "lookup".into(), input: json!({"q":"one"}), contains: "found".into() },
+                Step::CallChecked { tool: "lookup".into(), input: json!({"q":"two"}), contains: "missing".into() },
+            ])],
+            End::default(),
+        ),
+        print::invocation(1),
+        smith_fake_claude::ServerScript {
+            tools: vec![smith_fake_claude::Tool {
+                name: "lookup".into(),
+                answer: smith_fake_claude::Answer::Text("found".into()),
+            }],
+            ..Default::default()
+        },
+    );
+    let calls: Vec<_> = seen(run.observations.as_ref().expect("observations"))
+        .into_iter()
+        .filter(|record| matches!(record, Seen::Called { .. }))
+        .collect();
+    assert_eq!(
+        calls,
+        [Seen::Called { tool: "lookup".into(), error: false }, Seen::Called { tool: "lookup".into(), error: true }]
+    );
+    assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
+}
+
+#[test]
 fn a_deaf_program_waits_through_its_interrupt() {
     let invocation = print::signal(print::invocation(1).terminate(), ServiceSignal::Interrupt, "assistant");
     let run =

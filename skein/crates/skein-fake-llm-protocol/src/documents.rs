@@ -37,7 +37,7 @@ pub enum UsageField {
     CacheWrite,
     /// Completion output, sent by the peer when configured.
     Output,
-    /// Reasoning within output, sent only on Codex when configured.
+    /// Reasoning within output, sent only on Responses when configured.
     Reasoning,
 }
 /// The configured subset of usage fields the peer writes; omission preserves None.
@@ -130,7 +130,6 @@ pub fn request_on(route: skein_llm::Provider, data: &[u8], limits: &Limits) -> R
     match route {
         skein_llm::Provider::Anthropic => anthropic_request(data, &limits.anthropic),
         skein_llm::Provider::OpenAi => openai_request(data, limits, true),
-        skein_llm::Provider::OpenAiCodex => openai_request(data, limits, false),
     }
 }
 
@@ -291,7 +290,7 @@ pub fn event(
     event_with_options(provider, answer, sequence, call, &[], Options::DEFAULT, limits)
 }
 
-/// Encode one event with the optional Codex request echo from its bounded body.
+/// Encode one event with the optional Responses request echo from its bounded body.
 pub fn event_with_options(
     provider: Provider,
     answer: &api::Answer,

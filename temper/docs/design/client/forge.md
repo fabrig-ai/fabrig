@@ -1,6 +1,6 @@
 # The forge in temper's client
 
-Provisional, 2026-10-05, revised 2026-10-23. What the forge connector
+Provisional, 2026-10-05, revised 2026-11-03. What the forge connector
 adds to temper's client: a change's way to landing and its result, a
 project's landing queues, approvals at a head, the forge's holds in
 words, repositories with their health and landing rules, the picker of
@@ -89,8 +89,8 @@ The steps of `../domain/forge.md`, 8.2, with the one it is at and
 why:
 
 ```
-producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing ─ landed
-                 repairing · updating · resolving · recreating · reopening
+producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing ─ landed ─ verifying ─ cleared
+                 repairing · updating · resolving · recreating · reopening        red
 ```
 
 | Step | It says |
@@ -107,6 +107,9 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | recreating, reopening | after drift released (6.2): its branch made again at the head temper last knew, or its pull request reopened or retargeted back |
 | landing | merging at its head |
 | landed | its merge commit, and when |
+| verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any (`../domain/after-landing.md`, section 6) |
+| red | landed, its merge commit, and each tier whose verdict blames it, with the run and the failing tests blamed on it, counted, or "many" (`../domain/after-landing.md`, 5.3) |
+| cleared | landed and cleared by every tier following its landing branch, and the run that cleared it in each; or, past the project's verification bound with no verdict or cancelled while verifying, "landed, uncleared": the change ended there (`../domain/after-landing.md`, section 6) |
 
 On the change's task page, the steps its panel carries (9.2) and their
 words are `README.md`'s, 5.10: the steps as the mockup's six, each side
@@ -189,10 +192,11 @@ What the first milestone needs of the forge's parts (`../README.md`,
 section 2, steps 6 and 7):
 
 - **Its result,** a connector's result (jig's
-  `client/domain/objects.md`, section 8): landed, with its pull
+  `client/domain/objects.md`, section 8), given at cleared
+  (`../domain/after-landing.md`, section 6): landed, with its pull
   request's number and title, its merge commit (through GitHub's merge
   queue, the commit its group landed), and the address of each on the
-  forge; or ended otherwise, with what became of its pull request
+  forge, and cleared, or uncleared past the verification bound; or ended otherwise, with what became of its pull request
   and its branch. It shows on the change's page, in the chat that
   delegated it, as its delegate's result, and in the update of the
   person who asked for it.
@@ -416,7 +420,7 @@ and `connect-forge.html`.
   summary: its name, "forge N · KIND · WEB" (its number, its kind and
   its `web` address), its connection's words (below) and its line:
   connected, its repositories, "OWNER/NAME · project PROJECT" each;
-  setting up, its set up's first repository, "ORG/NAME, into PROJECT";
+  setting up, its set up's first repository, "ORG/NAME";
   set up failed or stopped, why. Opened, it holds the rest of the row's
   parts below and its actions. Every row starts folded.
 - **"Open Forgejo ↗"** on a connected Forgejo that signs its people in
@@ -506,7 +510,16 @@ and `connect-forge.html`.
   record as its request is admitted, never before
   (`../protocol/forge.md`, 2.2). While the playground is read, Choose
   offers no card: there is nothing to add (`README.md`, 4.8). The
-  welcome's Forge step offers the same cards (`README.md`, 3.5):
+  welcome's Forge step offers two (`README.md`, 3.5): GitHub's, as
+  here, and one "Forgejo" card, "A forge of your own. temper can start
+  it and manage it, or you can connect your own deployment.", with
+  Forgejo on this machine's muted line while it is offered and Your
+  Forgejo's otherwise; its button "Run on this machine", while
+  Forgejo on this machine is offered, sends its `SetUp` at once, its
+  first repository `work/hello` asked of no one (`README.md`, 3.5), and
+  its quiet link "Or connect your deployment" opens the help's server
+  page (`../../help/server.md`) on GitHub, in place of Your Forgejo's
+  Details for now. Choose's cards:
   - *GitHub:* "Your repositories on GitHub. temper makes its own App
     there; you choose the account and the repositories it may use." ·
     "In this tab, on GitHub · about two minutes"; in its link's place
@@ -580,18 +593,17 @@ and `connect-forge.html`.
   - *Forgejo on this machine,* under the box: "temper box downloads
     Forgejo and its runner, starts them, and makes your first
     repository, with a README and a CI workflow. No restart."; the set
-    up's fields, its organization (default `work`), its repository
-    (default `hello`) and its project, a new one named as the
-    repository; "Its CI jobs run on this machine, as you, with no
+    up's fields, its organization (default `work`) and its repository
+    (default `hello`); "Its CI jobs run on this machine, as you, with no
     isolation." and "Forgejo stops when temper box stops. Its
     repositories are kept in temper’s data directory."; and "Set up a
     Forgejo here", which sends `SetUp` of a new owned Forgejo
     (`README.md`, 4.6, `Making`), or of the kept one, and, once
-    accepted, shows Setting up. The fields: "Organization", `work` until changed;
-    "Repository", `hello`; and "Into a new project, named", the
-    repository's name until changed: the first run offers no existing
-    project (`../draft/archive/first-run.md`, 2.4). An organization, repository
-    or project's name left empty is the page's refusal,
+    accepted, shows Setting up. The fields: "Organization", `work` until changed,
+    and "Repository", `hello`; no project's: the set up adopts nothing,
+    its repository made unadopted (`../protocol/setup.md`, 6.7;
+    `../draft/first-run-projects.md`, 4). An organization or repository
+    left empty is the page's refusal,
     "Required.". The set up's refusals show under the button in its
     words (`README.md`, 4.6): `invalid`, which also marks the organization and
     repository fields invalid, the fields kept for the person to fix.
@@ -604,11 +616,34 @@ and `connect-forge.html`.
     and no action;
   - *Your Forgejo,* a forge to make: its addresses, "Its address", its
     API's host, "Its git base", the base of its remotes, and "Its web
-    address", its pages, optional; then its admin's form, as a managed
-    Forgejo's (below). "Connect as its admin" sends `Connect` of a new
-    managed forge, `ManagedForge` naming those addresses (`README.md`,
-    4.6), which the request's decision makes as its record
+    address", its pages, optional; then two forms, its admin's, as a
+    managed Forgejo's, and its bot's tokens, as a connected Forgejo's
+    (both below). "Connect as its admin" sends `Connect` of a new
+    managed forge, `managed` naming those addresses, and "Connect with
+    its tokens" of a new connected one, `connected` naming them
+    (`README.md`, 4.6), which the request's decision makes as its record
     (`../protocol/forge.md`, 2.2); with no address, nothing is sent.
+  - *A connected Forgejo,* kept or to make: "Connect with its bot’s
+    tokens", then "Make a Forgejo user for temper, not a site admin, with
+    write access to each repository temper will work on, and paste two
+    of its tokens: one with the scopes read:user, write:issue and
+    write:repository, and one for git with write:repository and
+    read:user. temper acts as that user." Its fields, "API token" and
+    "Git token", and "Webhook secret", with the hint "Only if you made
+    hooks to temper’s listener: their secret.", each a password field
+    passed straight to a `Secret`, outside text actions, as the admin's
+    token is. The button "Connect with its tokens" sends `Connect {
+    forge, how: ForgejoTokens }`, `forge` the kept forge's number or the
+    new one's addresses, the tokens and the secret carried as one bundle
+    of `ApiToken`, `GitToken` and `WebhookSecret` when given
+    (`../protocol/credentials.md`, 2.2), and empties the three fields as
+    it leaves; a stop empties them again. Before sending: an empty
+    token, "Required."; the bundle past its bound, "The pasted values
+    are past 4 KiB, the most a request carries." Refused, the refusal
+    shows under the button in `ForgeRefusal`'s words (Details, above;
+    `connected`, "Forge N is connected already: replace its tokens on
+    Forges."). A kept connected Forgejo, not connected or stopped, shows
+    this form alone, under its name.
   - *A managed Forgejo,* kept or to make: "Connect as its admin", then "Paste a
     site admin’s token with the scopes write:admin, read:user,
     write:organization and write:repository. temper keeps it, and uses it
@@ -616,15 +651,14 @@ and `connect-forge.html`.
     access to it. To stop temper using it, delete the token on Forgejo."
     "The site admin’s token" is a password field, passed straight to a
     `Secret`, outside text actions. "Your first repository" has
-    "Organization" (`work`), "Repository" (`hello`), "Into a new project,
-    named" (following Repository until edited), and "Runner label"
-    (`docker`). Its hint is "Its CI runs on your forge’s runners with this
+    "Organization" (`work`), "Repository" (`hello`) and "Runner label"
+    (`docker`), and no project's field. Its hint is "Its CI runs on your forge’s runners with this
     label. Forgejo’s runner registers as docker unless told otherwise."
     The button "Connect as its admin" sends `Connect { forge, how:
     ForgejoAdmin { first: Some(FirstAsk) } }`, `forge` the kept forge's
-    number or the new one's addresses, with the four fields and
-    the token carried as item 1, a single-item bundle with its six-byte
-    header, at most 4 KiB. No RSA armour restoration applies. Sending
+    number or the new one's addresses, with the three fields and
+    the token carried as a bundle of one `AdminToken` item, at most 4
+    KiB in all. No RSA armour restoration applies. Sending
     empties the token field; a stop empties it again and keeps the other
     fields. Before sending: an empty token or name, "Required."; a bundle
     past its bound, "The pasted values are past 4 KiB, the most a request
@@ -651,32 +685,36 @@ and `connect-forge.html`.
   repository or starter workflow), with the diagnostic and "Paste the
   token again to finish it." Every stop says "temper kept nothing of the
   token." No "Set up again" action is offered.
+- **Connecting, with its bot's tokens,** says "Connecting forge F with
+  its bot’s tokens." and "Checking that both answer as one user, not a
+  site admin." A stop returns to Details with its fields empty and the
+  row's last connect's line under the button (the row's table, below).
+  Connected, it is Ready with no first repository (below): "FORGE is
+  connected", "Connected as LOGIN.", LOGIN the user its tokens answer
+  as.
 - **Refused at admission,** the refusal shows above the fields, the token
   asked for again. `first is bot`: "That organization has the name of
   temper's bot on this forge, and on Forgejo users and organizations
   share names: name another organization.", and the organization's field
   is marked invalid.
 - **Ready, on that Forgejo,** says "Connected as LOGIN (id ID), managed."
-  and "Made ORG/NAME, and its project PROJECT. Its CI runs on your forge’s
+  and "Made ORG/NAME. Its CI runs on your forge’s
   runners labelled LABEL; with none, a change’s checks wait." LABEL is
-  `first.label`, including after reload. "Open PROJECT" waits for the
-  existing keyed project creation and adoption, once; a repeated row
-  starts neither twice. With `row.web`, "Open ORG/NAME on Forgejo ↗"
-  links to the repository. After reload, the durable adoption supplies
-  the project for Open.
+  `first.label`, including after reload. Nothing is adopted: "Adopt a
+  repository", as on Ready below, and, with `row.web`, "Open ORG/NAME on Forgejo ↗"
+  links to the repository.
 - **Setting up** shows the set up as its row says it: the level-2
   heading "Setting up Forgejo on this machine", its first repository's
-  line, "ORG/NAME, into PROJECT", then its steps as a list, each with
+  line, "ORG/NAME", then its steps as a list, each with
   its state in words, "done", "under way" or none for one to come:
   "Fetching Forgejo and its runner" ("Fetched Forgejo and its runner"
   once done), "Preparing: its database, temper’s admin, your account",
   "Starting Forgejo and its runner", "Connecting as temper", and
-  "Making ORG/NAME, and adopting it into PROJECT". The box's step
+  "Making ORG/NAME". The box's step
   names the one under way (fetch, prepare or run); none named yet, no
-  individual step is marked. Connecting is the fourth, making and
-  adopting the fifth, done only once the first repository is adopted
-  into its project. Before the target is known, the fifth reads
-  "Making the first repository, and adopting it into its project".
+  individual step is marked. Connecting is the fourth, making the
+  fifth, done once the first repository is made, unadopted. Before the
+  target is known, the fifth reads "Making the first repository".
   GitHub rows never list Forgejo's steps. The first and the Details
   name the versions the row's `owned` pins, "Fetching Forgejo 17.0.0
   and its runner 13.2.0"; the person's login stays off until the row
@@ -718,41 +756,25 @@ and `connect-forge.html`.
   not made yet shows nowhere: its tab is GitHub's, no run holds the
   forge, and Connect GitHub again draws a fresh state, the first
   ending unused (9.1).
-- **Ready** ends on the work: "ORG/NAME is ready", the level-2 heading,
-  then "In PROJECT, on FORGE.", FORGE its name, the steps all done,
-  "Open PROJECT", a link to the chats page in that project, and "FORGE
-  is on the Forges page, with its details.", "Forges" a link to it. Its repository is
-  adopted by the client that asked the set up: once the row says the
-  first repository made, the forge's side, which keeps the `SetUp` it
-  sent, sends `Adopt` of it into its project, once, on whatever page
-  the person is (`../protocol/setup.md`, 6.7), as `temper ctl
-  forge setup` does (`tools.md`, 5.5): keyed `first-repository-F`, F
-  the forge's number, as the project's home unless it has one, so that
-  the two never adopt it twice; and "Open PROJECT"
-  waits for its outcome; refused, the adoption's outcome shows in its
-  words (`README.md`, 4.7). A client that did not send it (another
-  tab, or after a reload) shows Ready on the row's made alone. With
-  no first repository on the row (one a restart has dropped): "FORGE is
-  connected", "Connected as LOGIN.", "Adopt a repository", a link to
-  `Adopt { project }`, and the Forges line.
-- **Ready, on GitHub,** starts with the repository to start in, while
-  none of the forge's is adopted: "Choose a repository to start in",
-  "SLUG is installed on ACCOUNT, with all its repositories, N." or
-  "…, with N repositories you chose.", then the repositories of its
-  accepted installations as one choice, each "OWNER/NAME", marked
-  "private" where it is, the first chosen (`Reachable`, each
-  installation's, as the picker reads them, 4.3); "Into a new project,
-  named", a field, the chosen repository's name until changed;
-  "Adopt OWNER/NAME", which sends jig's `MakeProject` of that name,
-  then `Adopt` of it into that new project, as its home (`README.md`, 4.7); and "Not listed?
-  Choose its repositories on GitHub, and GitHub sends you back here.",
-  whose link sends `Install` and takes the tab to GitHub's install
-  page, where an account installed already offers Configure. Once one
-  is adopted: "OWNER/NAME is ready", "In the new project PROJECT, on
-  GitHub.", what its adoption found of its CI and its branch's rules
-  (`../domain/forge.md`, section 4), "Open PROJECT", "Open on GitHub
-  ↗", the repository's page in a tab of its own, and the Forges
-  line.
+- **Ready** ends on the forge connected, and adopts nothing
+  (`../protocol/setup.md`, 6.7; `../draft/first-run-projects.md`, 4):
+  "FORGE is connected", the level-2 heading, "Connected as LOGIN.",
+  then, with a first repository made on the row, "Made ORG/NAME." and
+  the steps all done; "Adopt a repository", a link to
+  `Adopt { project }` for the project the person is in, which the form
+  fills for that repository (`README.md`, 4.4), none while the person
+  is in no project; and "FORGE is on the Forges page, with its
+  details.", "Forges" a link to it. The made repository waits,
+  unadopted, until the person adopts it; `temper ctl forge setup`
+  adopts it in its own run (`tools.md`, 5.5). The same shows with no
+  first repository on the row, without its line.
+- **Ready, on GitHub,** is the same, once an installation is
+  accepted: "GitHub is connected", "Connected as LOGIN.", the App's
+  line, each accepted installation by its account's login (the row's
+  table, below), "Adopt a repository" and the Forges line. It offers
+  no repository of its own and makes no project: the repositories its
+  installations reach are the adoption form's picker's (`README.md`,
+  4.4).
 - **Elsewhere:** the navigation's
   "Forges" carries a dot, amber while a forge sets up or connects, red
   while one needs the person: set up failed, stopped, or not connected
@@ -785,10 +807,16 @@ says:
   writing run is taken, or `setup.runs` runs are running) is its
   request's outcome, shown by the page or the tool that sent it, and
   never on the row. The reasons a run stops with include
-  "the pasted value changed", "the API token and the git token answer as
-  LOGIN and LOGIN", "LOGIN is not temper's bot: add `temper:bot` to its
-  full name on Forgejo" (5.5), the forge unreachable, a `Manifest` or an
-  `Install` that stopped, its failure said here and never in its answer
+  "the pasted value changed", "the pasted values are not a Forgejo's
+  tokens", a connected Forgejo's `Check`'s ("the git token answers as
+  another user than the API token", "the tokens answer as another user
+  than LOGIN, this forge's: connect that user as a new forge", LOGIN
+  the record's, "the API token is a site admin's: give the tokens of a
+  user that is not one", "Forgejo refused the API token" or "Forgejo
+  refused the git token"; `../protocol/setup.md`, section 4), "LOGIN is
+  not temper's bot: add `temper:bot` to its full name on Forgejo"
+  (5.5), the forge unreachable, a `Manifest` or an `Install` that
+  stopped, its failure said here and never in its answer
   (`README.md`, section 8), or "interrupted; paste again" after a
   restart, once the connect's own record is kept; until then a restart
   drops a running connect unsaid, its carried value erased at start
@@ -868,15 +896,14 @@ says:
 
 Its actions, each a request of the forge's family (`README.md`, section
 8), offered by kind, mode, setup and state. The engine domain decides
-every offer; the client reads it (`../domain/forge.md`, 4.1). The
-bot-token paste is not offered by the current client:
+every offer; the client reads it (`../domain/forge.md`, 4.1):
 
 | Action | Offered | What it does |
 |---|---|---|
 | Connect | GitHub, to make, or kept, not connected or stopped | "Connect GitHub", with `back`, the page's address to come back to: the answer is a link to the manifest's page (9.1), a path on the page's own origin, `/forges/N/github/manifest?state=S`; without `back`, the terminal's link is the whole address on the clients' listener. The browser goes to it in the page's own tab; the page posts temper's manifest to GitHub, the person creates the App under their own account and installs it on an account GitHub offers, and the setup route sends the tab back to `back`. Or "Connect an App of your own": its id, and its private key pasted as GitHub gives it; no webhook secret is asked, since temper points the App's hook at `https://SLUG.invalid/` and hears changes from its delivery log |
-| Connect (not offered) | Forgejo through its bot's tokens | its bot's API token, its git token and, where the person made hooks to temper's listener, their secret, pasted together; both tokens must answer as one user |
+| Connect | Forgejo of the connected mode, kept, not connected or stopped, or one to make by its addresses | "Connect with its tokens": its bot's API token, its git token and, where the person made hooks to temper's listener, their secret, pasted together; `Check` finds both answer as one user, not a site admin, and on a kept forge as its kept user; only then are they kept, its login with the record, and the forge connected; tokens of another user stop it, the forge as it was (`../protocol/setup.md`, section 4) |
 | Connect | Forgejo with `admin` true, not connected or connecting, or one to make by its addresses | "Connect as its admin": a site admin's token pasted, with the first repository, project and runner label (default `docker`); Reconcile makes or finds the marked bot, then Create makes the repository; only after Done is the admin token kept and the forge connected; never `TakeOver` (`../protocol/setup.md`, 5.5) |
-| Replace | GitHub, connected or stopped; a Forgejo of the connected mode, connected or stopped | a new App key, or a new API token, git token or both, pasted, which must answer as the forge's user (on GitHub, the same App); the old is erased once the new is kept |
+| Replace | GitHub, connected or stopped; a Forgejo of the connected mode, connected or stopped | "Replace", which opens its fields in the row: on GitHub "Private key", the App's new key as GitHub gives it, restored as Connect's is, and "Replace the key"; on a Forgejo "API token", "Git token" and "Webhook secret", and "Replace the tokens"; then `Replace { forge }`, the key or the tokens and the secret given carried as one bundle; they must answer as the forge's user (on GitHub, the same App), and each is kept over the old; answered connecting, the row says Connecting, and a stop leaves it as it was with its last connect's line; refused, the refusal shows under the button in `ForgeRefusal`'s words (`not connected`, "Connect it first."); the terminal shell, with no secret field of several lines, says in the key's field's place "Paste the key on this page in a browser, or run temper ctl forge replace N FILE, FILE the key's file, readable by you alone." (`tools.md`, 5.5) |
 | Install the App; Install on another account | GitHub, connected: "Install on GitHub" before any accepted installation (Connecting), "Install on another account" after one, and Ready's "Choose its repositories on GitHub" | a fresh link to temper's App's install page, with `back`, where the browser goes in the page's own tab; the person picks the account and its repositories on GitHub, keeping GitHub's default, all of them, or choosing some, and the setup route sends the tab back to `back` |
 | New repository | Forgejo owned or managed, connected | the set up's same fields: organization (default `work`), repository (default `hello`) and a project, one of the person's or a new one; the general form of the first repository (`../protocol/setup.md`, section 15) |
 | Forget the admin's token | managed | the admin's token erased; the forge is connected, its bot and tokens kept, and adopting a repository grants nothing more: the person makes the bot a collaborator |
@@ -884,10 +911,11 @@ bot-token paste is not offered by the current client:
 | Set up again | the row's offer offered, set up failed | the same ask again: what the last one left is kept, a fetched binary hashed and not fetched again |
 | Remove | every forge of the person's, the playground's aside | "Remove", confirmed in its row, its words naming what goes and what stays on the forge (Removing a forge, above); then `RemoveForge`, which ends the forge at once and removes it whole (`../domain/forge.md`, 4.1) |
 
-Connect, but on a stopped forge or one whose records say why it is not
-connected, "Connect as its admin" and "Set up a Forgejo here" are the
-flow's, at its Details; every other action is a row's, in its opened
-part.
+GitHub's Connect, but on a stopped forge or one whose records say why
+it is not connected, "Connect with its tokens", "Connect as its admin"
+and "Set up a Forgejo here" are the flow's, at its Details, which a
+row offering one links to, "Connect ›", `ConnectForge` at its forge;
+every other action is a row's, in its opened part.
 
 A pasted value is a field of its own (`README.md`, 3.6 and section 8),
 emptied as the request leaves and shown nowhere, then or after; the
@@ -939,6 +967,14 @@ the forge, and what each act will do. A release resets the change's
 repairs, resolutions and updates, and counts its stall from the release.
 Nothing on the forge is written over until the person decides
 (`../domain/forge.md`, 8.4 and 8.5).
+
+A local watch-admission wait needs no release: recovery or a departing
+read can temporarily consume the client's capacity, and temper retries.
+A persistent resource refusal names the operation, its resource, the
+configuration member, its value and the required usage. Its words say
+what to reduce or reconfigure before release. Release asks for a refused
+watch set again, and holds again while the same bound refuses it. A branch, base or pull
+read failure names its backend cause and what a release retries.
 
 ### 6.1 The change's own
 
@@ -1050,9 +1086,10 @@ and its hold (2.5) follow.
 | the picker (5.1) | temper's `Adopt` page, through the `Reachable` request (`README.md`, section 8) | `../protocol/forge.md`, the setup's host's `Reachable`; `../domain/forge.md`, section 4 |
 | each forge's connection, its mode, installations and actions (5.4, 5.5) | temper's `Forges` page; the deployment's part | `../protocol/forge.md`, at start, connecting at runtime, a forge stopped, GitHub's installations and the setup's host; `../protocol/credentials.md`, the forges' records |
 | the browser's steps of a connect (9.1) | none of jig's: temper's routes on the clients' listener | `../protocol/forge.md`, the setup's host |
+| a public project's changes and landings, for a visitor (section 11) | jig's public reads, `PublicRead`, of the forge's public kinds | `../domain/forge.md`, sections 8 and 9; `../domain/landing.md`, section 14 |
 | the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
-| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { proposer, number }`, beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
 
 ### 9.1 The browser's steps, on the clients' listener
 
@@ -1230,7 +1267,11 @@ made by the forge connector from what it keeps of the change
   - its gates (2.2), each with its number, its kind, whether it is
     blocking or advisory, and its verdict at the current head, a clean
     update's carry counted (`../domain/forge.md`, 8.3);
-  - its repairs, resolutions and updates, each used of its limit (8.4).
+  - its repairs, resolutions and updates, each used of its limit (8.4);
+  - its questions (`../domain/forge.md`, 8.11): its route, the questions
+    taken used of its bound, and its open questions, each with its
+    asker, the first line of its words and where it stands, so that a
+    person sees what a change waits on before its requester answers.
 - **The address on the forge is the engine's.** The routing builds it as
   it encodes the document, from the addresses the forge's record keeps and its
   kind: `WEB/OWNER/NAME/pull/N` on GitHub, WEB its `web`, github.com's
@@ -1261,6 +1302,11 @@ made by the forge connector from what it keeps of the change
   the version move that first needs it.
 - **A change's files in the client:** whether the panel lists the files a
   change touches, from the connector's read, short of showing the diff.
+- **A change's questions on its page** (9.2; `../domain/forge.md`,
+  8.11). Default: the panel carries them and `ctl`'s `change show`
+  prints them; the change's task page shows none until the web client's
+  pages for a plan's work are designed (`../draft/reference-case.execution.md`,
+  section 6, leaves them to rung W).
 - **Conflicts seen early** (`../domain/forge.md`, section 20):
   warning two goals whose open changes conflict before either lands, as
   a panel on both.
@@ -1281,11 +1327,24 @@ made by the forge connector from what it keeps of the change
   request of 2026-10-27, one Forgejo card, run on this machine or a
   deployment of one's own, set up at once with `work`, `hello` and a
   project `Default` (the look request `welcome-forgejo-card`), waits
-  on the user's review of these pages.
+  on the user's review of these pages; its project is Ready's now, the
+  set up naming none (`README.md`, 3.5; `../draft/first-run-projects.md`,
+  4).
 - **An App of one's own, offered again** (5.4). Default: GitHub's card
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor
   supports the own App officially.
+- **A connect's stop told from the one before it** (5.4). Default: the
+  stop that empties a connected Forgejo's tokens again is their sent
+  connect's own, its forge's row stopped where the connect last saw it
+  not stopped, or stopped with other `ended` words (`README.md`, 4.6);
+  that stop, the row connected or an answer that starts no connect
+  ends what the connect watches, and another forge's row empties
+  nothing. A second connect whose stop has the first's connection and
+  words, with no row delivered between, is not told from it and
+  empties nothing more, its fields emptied at its send and its answer;
+  a request's id on the row would tell them apart, a change to the
+  forges records.
 - **A browser on another machine** for GitHub's connect. Default: the
   link names the clients' listener's fixed address, and the person
   opens it where that address reaches (in standalone, the engine's
@@ -1309,3 +1368,123 @@ made by the forge connector from what it keeps of the change
   repository is listed, and adopting one the project holds is refused
   by the engine as any adoption; the request naming the project is the
   candidate, and the domain's page is asked to say which.
+
+## 11. Public documents
+
+What a visitor reads of a public project's forge, without signing in
+(jig's `domain/people.md`, section 13; `../draft/first-release.md`,
+5.3): the forge's public projections, beside jig's board and cards. Each
+is a record of its own, made by a projection from the forge's state,
+never a cut of a panel: a field is in it only once added there. None
+holds words, a configured name or an internal number; its only strings
+are the forge's addresses it links (11.3).
+
+### 11.1 Their kinds
+
+Declared by the forge family to jig's clients' component at start, read
+by jig's `PublicRead` (jig's `protocol/client.md`, section 19; over HTTP,
+17.5), each naming a public project first, made by the forge child from
+its state and encoded there in `public-v1`, its addresses from the forge
+records it holds, as the panels' are, and carried in jig's
+`PublicApplication`, whose list names every task a record refers to by
+its place (jig's `client/domain/contract.md`, section 12):
+
+| Kind | Names | Answered with |
+|---|---|---|
+| *change* | a project, a public change's task | `PublicChange`: the change's task; its repository's and its pull's addresses on the forge; its head's hash; its step, without words; its hold's kind; CI's state; its gates, each its number, kind, whether it blocks and its verdict; its repairs, resolutions and updates, used and allowed; its way; and whether it is a member of a public landing |
+| *landings* | a project | `PublicLandings`: the public landing that holds the turn, if one does; the project's public landings, newest first within the panel's bound, each its members' tasks, its phase and its landed commits' hashes; and each landing branch's queue, as its repository's address and its public changes in order, each its task, its public goal and when it became ready |
+| *landing* | a project, a public change's task | `PublicLanding`, of the public landing that change is a member of: its phase; its hold's kind and counts; its members, each its change's task, its repository's and pull's addresses, its base's, candidate's and landed commits' hashes, and its gates, each its number, kind, whether it blocks, its proof's state and, once run, the run's address; its stale proofs' count; whether it holds the turn |
+
+### 11.2 Which are public
+
+jig's rule (jig's `domain/people.md`, 13.7), applied by the forge to
+the public tasks jig's core hands it with the ask:
+
+- **A public change** is a change whose task is public. A change
+  outside every goal's tree (`../domain/forge.md`, section 9 lets one
+  queue) is not, nor is a change of another project.
+- **A public landing** is a landing of the project whose every member
+  is a public change. A landing with a member that is not, a pin-only
+  member among them (`../domain/landing.md`, 4.1), is not public at
+  all: it is absent from *landings*, and *landing* through any of its
+  members is unknown. A landing's own task, which the deployment
+  requests for the project (`../domain/landing.md`, 4.2), is never
+  named: a public landing is reached through one of its members.
+- **Filtered before it is ordered or counted:** a queue lists its
+  public changes alone, in the queue's order; a change's place and the
+  tasks ahead of it are not given, since they count changes that are
+  not public; the turn is given only when a public landing holds it;
+  every count is of public members.
+- **Named through the list:** every task a record names, and the goal
+  a queue's change serves, is one of the tasks jig handed, listed in
+  the answer's tasks for jig's core to check again before it answers
+  (jig's `domain/people.md`, 13.10). A task jig did not hand is never
+  named.
+
+### 11.3 What crosses, and what never
+
+- **Structure and mechanics:** steps and phases, holds' kinds, CI's
+  states, gates' numbers, kinds and verdicts, counts, commit hashes,
+  times to the second, a run's state.
+- **Linked, not shown:** a pull request, a commit and a CI run are
+  addresses on the forge, its web address with the repository's path,
+  the pull's number, the commit's hash or the run's number, never a
+  title, body or message; the forge decides who reads there.
+- **A step without words:** the step's name; for a repair, its
+  reason's kind (CI, a gate's number, semantic) without its words; for
+  a landed change, its merge's hash.
+- **Never:** a question's line and every question (2.2), an authority
+  hold's reason, a verifying or red tier's text (the step carries the
+  tiers' count alone), a change's or a landing branch's name, a gate's
+  or a charter's configured name, a review's words, a result, findings,
+  the outbox's descriptions, a forge's credentials, installations or
+  accounts, the settings, and a task's or a project's number.
+- **Every field's source:**
+
+  | Field | Source | Made by |
+  |---|---|---|
+  | a task, a member's task, a queue's change and its goal | the change's or landing member's task, the goal of its public tree | its place in the answer's tasks |
+  | a repository's, a pull's, a run's address | the adoption's forge and repository, the pull's number, CI's run | the forge's web address and path |
+  | a head, base, candidate, landed or merge hash | the change's and landing's commits | as is |
+  | step, repair kind, hold's kind, phase, CI's state, way, proof's state | the change's and landing's state | its kind alone, never its words |
+  | a gate's number, kind, whether it blocks, verdict | the landing rule's gates and their verdicts | never the gate's name |
+  | counts used and allowed, stale proofs | the change's and landing's counters | public members alone |
+  | when it became ready | the change's `ready_since` | to the second |
+
+### 11.4 Their records and golden
+
+- **A schema of their own,** `temper-client-protocol-wire`'s
+  `public-v1.schema`, versioned apart from the family's other records:
+  its records name only one another and scalars, never a record of the
+  panels' schema, so a field added to a panel never reaches a visitor.
+  A test reads the schema and refuses a name from elsewhere.
+- **The golden of the whole reachable wire shape:** a text file beside
+  the schema listing every record and enum reachable from the kinds'
+  answers, each field with its type, tag and default and each variant
+  with its tag and payload, which a test compares with the schema. Any
+  change shows in review as a public one; adding a field passes the
+  user's test, that no agent wrote it.
+- **Tested for meaning:** each projection compared with an expected
+  record built independently from the source table, from a forge state
+  whose forbidden sources (a question line, a branch, a gate's name, a
+  reason, tiers' text, a task number) hold distinct markers that no
+  answer's bytes contain; mutation tests show the golden failing on a
+  nested field added to a copy of the schema and the projection test
+  failing on a field filled from the wrong source.
+- **Bounded** as the panels are (`Bounds`), each list within its
+  panel's bound, so each kind's largest answer is known at start and
+  declared to jig.
+
+### 11.5 Their world
+
+In the forge's world (`../domain/forge.md`, section 18): a public
+project's change, from producing to landed, read at each step as its
+public document, with no question line, branch, gate name or reason in
+it; a landing with two members and a failed gate read as its public
+document, the run's address in it, reached through either member; a
+change of a private project, one outside every goal's tree, and one in
+a conversation's tree, unknown; a queue holding a change outside every
+goal's tree, which the landings leave out and count nowhere; a landing
+with a member that is not public, absent and unknown; a task jig did
+not hand never named; and the golden test failing on a field added to
+`public-v1.schema` until the golden says it.

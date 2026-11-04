@@ -4,17 +4,20 @@ use jig_domain_host as host;
 use skein_lib::{Duration, List};
 use smith_host_domain as agent;
 use temper_worker_domain_checkout as checkout;
+use temper_worker_domain_tooling as tooling;
 
 use crate::translate::SAVED;
 
 /// The worker domain's limits (section 7), handed to every step read-only: its
 /// child domains', each handed down to the one it bounds, and what the hub's
 /// hello says (jig's `domain/hosts.md`, section 2).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Limits {
     pub host: host::Limits,
     pub checkout: checkout::Limits,
     pub agent: agent::Limits,
+    /// The job capability's file, process and path bounds (temper/docs/design/domain/worker.md, 4.4).
+    pub tooling: tooling::Limits,
     /// The longest host answer the agent takes: smith's `host_reply_bytes`,
     /// its channel's `bodies.host_reply_text`. A hub's answer past it
     /// reaches the agent as smith's `TooLarge` (`domain/agent.md`, 4.3).
@@ -142,7 +145,7 @@ pub fn unfit(limits: &Limits) -> List<Unfit> {
 const UNFIT: u32 = 20;
 
 fn len(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("a length fits in a u64")
+    skein_lib::len_u64(bytes.len())
 }
 
 /// Facts kept until the loop drains them: as many as the child domains keep.
@@ -156,6 +159,8 @@ pub fn valid(limits: &Limits) -> bool {
     unfit(limits).is_empty()
         && host::valid_hub(&limits.host)
         && checkout::valid(&limits.checkout)
+        && tooling::valid(&limits.tooling)
+        && limits.tooling.jobs >= limits.host.slots
         && limits.agent.agents.checked_mul(limits.agent.calls).is_some()
         && limits.host.slots.checked_add(1).is_some()
         && facts(limits).is_some()

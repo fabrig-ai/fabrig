@@ -159,6 +159,10 @@ engine's protocol layer
   loopback), the dialect's path and headers, and its options. It names
   no account: a run's charter names a grant for each of its LLMs
   (smith's `protocol/agent.md`, section 4).
+- **Its dialect is one smith serves,** by smith's number: 2, Anthropic's
+  Messages, or 3, OpenAI's public Responses (smith's `protocol/agent.md`,
+  section 4). The configuration refuses any other number at the
+  endpoint's `dialect`.
 - **One list, three views.** The configuration's list makes the
   charter's endpoint names (`jig-protocol-charter`), smith's component's
   endpoints and skein's connection endpoints, by index, in the

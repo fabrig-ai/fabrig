@@ -112,14 +112,14 @@ pub(crate) fn goal(
     };
     Ok(Delegate {
         executor: tasks::Executor::Agent { charter },
-        spec: tasks::Spec { asks: agree, words, parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec { job: None, asks: agree, words, parameters: Box::new([]), inputs: Box::new([]) },
         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
         authority,
         deadline: tasks::Deadline::Named,
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: None,
         tracked,
         label,
         flags,
@@ -145,7 +145,7 @@ fn brief(
     for part in parts {
         length = length.checked_add(part.len()).ok_or(tasks::Refusal::Spec)?;
     }
-    let room = usize::try_from(bound).expect("u32 fits usize").checked_sub(length).ok_or(tasks::Refusal::Spec)?;
+    let room = skein_lib::usize_of(bound).checked_sub(length).ok_or(tasks::Refusal::Spec)?;
     let person = match person_words {
         Some(bytes) => forge::ResultText { bytes, cut: 0 }
             .fitted(u32::try_from(room).expect("room within spec bound"))

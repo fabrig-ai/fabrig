@@ -221,15 +221,20 @@ pub enum NoteChange {
 /// Authenticated keyed requests admitted by the people child and routed by
 /// the root after role checks (domain/people.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::large_enum_variant,
+        reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
+    )
 )]
 pub enum Ask {
+    /// Propose the settings as a revision left them (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/people.md, 5.1).
+    Restore { revision: u32, reason: Box<[u8]> },
     /// Delete an owned project (jig/docs/design/domain/people.md, 5.2).
-    RemoveProject { project: u32 },
+    RemoveProject { project: u32, grace: Option<Duration> },
     /// Deployment owner changes settings, whose value the core holds during admission.
-    ChangeSettings { against: u32, digest: [u8; 32] },
+    ChangeSettings { against: u32, digest: [u8; 32], projects: Box<[u32]> },
     /// Deployment owner moves live agent tasks to the newest (engine.md, 17.4; people.md, 5.1).
     MoveToNewest { revision: u32 },
     /// Several task operations committed together under one key.
@@ -317,6 +322,8 @@ pub enum Ask {
     AccountSignOut { holder: AccountHolder, source: u32 },
     /// Change this holder's LLM accounts; carried keys and moved records retain only their digest.
     AccountChange { holder: AccountHolder, change: AccountChange },
+    /// Set an owned project's visibility (jig/docs/design/domain/people.md, 13.2).
+    SetVisibility { project: u32, public: bool },
 }
 
 /// A person's answer to a report, choice or failure contract; root translates it for tasks.
@@ -396,6 +403,12 @@ pub enum EscalationChoice {
 /// final outcomes with the parent's task decision. (domain/people.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
+    /// A restore's proposal and omitted settings (jig/docs/design/domain/engine.md, 17.10).
+    Restored {
+        proposal: u64,
+        to: u32,
+        left_out: Box<[crate::Setting]>,
+    },
     /// The project is closed and its deletion kept; the rest completes on its own
     /// (jig/docs/design/domain/people.md, 5.2).
     ProjectRemoved {
@@ -596,6 +609,11 @@ pub enum Outcome {
     },
     /// Final refusal, retained under the request key.
     Refused(/** Final refusal facts, retained under the request key. */ Refusal),
+    /// The project is public or private from this decision (jig/docs/design/domain/people.md, 13.2).
+    VisibilitySet {
+        project: u32,
+        public: bool,
+    },
 }
 
 /// Child-to-client answer routed by the parent; state-changing answers are withheld externally
@@ -677,6 +695,7 @@ pub enum Act {
     /// (jig/docs/design/domain/people.md, 5.2). Answered once the project is closed.
     RemoveProject {
         project: u32,
+        grace: Option<Duration>,
     },
 }
 
@@ -729,6 +748,8 @@ pub enum Key {
     Acted(ActKey),
     /// Live deletion, resumed at start (jig/docs/design/domain/people.md, 5.2).
     Deletion(u32),
+    /// Present while the project is public (jig/docs/design/domain/people.md, 13.2).
+    Public(u32),
 }
 
 impl Key {
@@ -745,7 +766,8 @@ impl Key {
             | Self::Policy(_)
             | Self::Answer(_)
             | Self::Acted(_)
-            | Self::Deletion(_) => true,
+            | Self::Deletion(_)
+            | Self::Public(_) => true,
         }
     }
 }
@@ -755,7 +777,7 @@ impl Key {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
     /// Kept deletion (jig/docs/design/domain/people.md, 5.2).
-    Deletion { project: u32, step: DeletionStep },
+    Deletion { project: u32, step: DeletionStep, grace: Option<Duration> },
     /// Connector-scoped act and its permanent answer (people.md, 5.3).
     Acted { key: ActKey, act: Act, outcome: Outcome, at: Wall },
     /// Persistent party identity; provider/subject and party numbers must be unique on restore.
@@ -803,6 +825,8 @@ pub enum Stored {
         /** Wall time the answer was made; completed keys are retained for `Limits::request_retention`. */
         at: Wall,
     },
+    /// Present while the project is public (jig/docs/design/domain/people.md, 13.2).
+    Public { project: u32 },
 }
 
 impl Stored {
@@ -812,6 +836,7 @@ impl Stored {
     pub const fn key(&self) -> Key {
         match self {
             Stored::Deletion { project, .. } => Key::Deletion(*project),
+            Stored::Public { project } => Key::Public(*project),
             Stored::Person { number, .. } => Key::Person(*number),
             Stored::ReadResults { party, .. } => Key::ReadResults { party: *party },
             Stored::ReadConversation { party, task, .. } => Key::ReadConversation { party: *party, task: *task },
@@ -836,12 +861,20 @@ pub enum DeletionStep {
     Release,
 }
 
+/// A kept deletion's step and the grace its conversations are cancelled with
+/// (jig/docs/design/domain/people.md, 5.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct KeptDeletion {
+    pub step: DeletionStep,
+    pub grace: Option<Duration>,
+}
+
 /// Root-to-child inputs; authenticated identity, authoritative roles and restored records
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
     /// Keep or erase a deletion row (jig/docs/design/domain/people.md, 5.2).
-    Deleting { project: u32, step: Option<DeletionStep> },
+    Deleting { project: u32, step: Option<DeletionStep>, grace: Option<Duration> },
     /// Remove project roles from memory and storage (jig/docs/design/domain/people.md, 5.2).
     CloseProject { project: u32 },
     /// Erase retained project answers and acts (jig/docs/design/domain/people.md, 5.2).
@@ -1144,6 +1177,7 @@ impl Outcome {
             | Outcome::NoteEdited { .. }
             | Outcome::ServiceMade { .. }
             | Outcome::Adopted { .. }
+            | Outcome::Restored { .. }
             | Outcome::Proposed { .. }
             | Outcome::Withdrawn { .. }
             | Outcome::Stopped { .. }
@@ -1164,6 +1198,7 @@ impl Outcome {
             | Outcome::Renamed { .. }
             | Outcome::ProjectMade { .. }
             | Outcome::ProjectRemoved { .. }
+            | Outcome::VisibilitySet { .. }
             | Outcome::SettingsChanged { .. }
             | Outcome::MovedToNewest { .. }
             | Outcome::EscalationDecided { .. }

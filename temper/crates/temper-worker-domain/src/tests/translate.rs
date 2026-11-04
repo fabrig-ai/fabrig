@@ -32,7 +32,6 @@ fn every_smith_limit_names_a_hold_or_stays_a_model_failure() {
         ("number", Limit::Path(Cap::Number), None),
         ("error body", Limit::Path(Cap::ErrorBody), None),
         ("access token", Limit::Path(Cap::AccessToken), None),
-        ("account id", Limit::Path(Cap::AccountId), None),
     ];
     for (name, which, bound) in rows {
         let failure = agent::RunFailure::Model(agent::ModelFault::Completion {
@@ -48,4 +47,21 @@ fn every_smith_limit_names_a_hold_or_stays_a_model_failure() {
         };
         assert_eq!(crate::translate::run_failure(&failure), expected, "{name}");
     }
+}
+
+#[test]
+fn a_conflicted_preparation_is_permanent_with_its_resource_and_tag() {
+    use crate::{checkout, wire};
+    use skein_lib::Token;
+    let head = [3; 32];
+    let failure = crate::translate::failure(
+        checkout::Failure::Conflicted { repository: 1, head: checkout::git::Commit::new(head) },
+        &[7, 9],
+    );
+    assert_eq!(failure, wire::Preparation::Conflicted { tag: 9, head });
+    let resource = Token::new(5);
+    assert_eq!(
+        crate::translate::preparation(failure, resource),
+        host::Preparation::Permanent { resource: Some(resource) }
+    );
 }

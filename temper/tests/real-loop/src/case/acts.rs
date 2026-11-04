@@ -1520,7 +1520,7 @@ const WAITING_REVIEW_CREATED: usize = WAITING_OWNER_REPLIED + 1;
 const WAITING_REVIEW_WRITING: usize = WAITING_REVIEW_CREATED + 1;
 const WAITING_E1_PENDING: usize = WAITING_REVIEW_WRITING + 1;
 const WAITING_REPIN_PENDING: usize = WAITING_E1_PENDING + 1;
-const WAITING_DIRECTOR_ENDED: usize = WAITING_REPIN_PENDING + 1;
+const WAITING_DIRECTOR_ENDED: usize = WAITING_REPIN_PENDING + 3;
 const WAITING_ENDED_FIRST: usize = WAITING_DIRECTOR_ENDED + 1;
 pub const READS_6_6: &[(Read, usize)] = &[
     (Read::WaitingReviewWriting, WAITING_REVIEW_WRITING),
@@ -1541,7 +1541,10 @@ pub const READS_6_6: &[(Read, usize)] = &[
 pub fn step_6_6() -> Vec<calls::Step> {
     use super::{
         Agent,
-        waiting::{A1, DIRECTOR, E1, E1_CODER, E1_REVIEWER, PERSON, REPIN, REPIN_CODER, REPIN_REVIEWER, REVIEW_HOLD},
+        waiting::{
+            A1, DIRECTOR, E1, E1_CODER, E1_REVIEWER, PERSON, REPIN, REPIN_CODER, REPIN_HOLD, REPIN_REVIEWER,
+            REVIEW_HOLD,
+        },
     };
     let mut steps = vec![sign_in(D1)];
     for name in ["app", "kit"] {
@@ -1569,12 +1572,25 @@ pub fn step_6_6() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
         call(D1, argv!["task", "show", number(A1), "--until", "replied"]),
         calls::until(D1, argv!["task", "show", number(E1), "--json"], Agent::Review.cue(), b"\"task\""),
-        calls::until(D1, argv!["task", "show", number(E1_REVIEWER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        calls::until(
+            D1,
+            argv!["task", "show", calls::delegate(WAITING_REVIEW_CREATED), "--json"],
+            b"\"work\":\"writing\"",
+            b"\"task\"",
+        ),
         call(D1, argv!["task", "show", number(E1), "--json"]),
         call(D1, argv!["task", "show", number(REPIN), "--activity", "32", "--json"]),
+        calls::until(
+            D1,
+            argv!["task", "show", calls::delegate(WAITING_REPIN_PENDING), "--json"],
+            b"\"work\":\"writing\"",
+            b"\"task\"",
+        ),
         calls::release_hold(REVIEW_HOLD),
-        // After this release, the person only waits and reads. No targeted
-        // release/amend/message starts repin; the initial dependency does.
+        // The producer is already running. Its scripted write waits for the
+        // kit result so it can pin the landing commit.
+        call(D1, argv!["task", "show", number(E1), "--until", "ended"]),
+        calls::release_hold(REPIN_HOLD),
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "ended"]),
     ]);
     for task in [DIRECTOR, A1, E1, REPIN, E1_CODER, E1_REVIEWER, REPIN_CODER, REPIN_REVIEWER] {

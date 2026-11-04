@@ -16,6 +16,13 @@ pub const ACCOUNT_RESET: Duration = Duration::from_millis(5);
 /// at a time, with smith's limits around the hub's.
 pub fn limits() -> Limits {
     Limits {
+        tooling: crate::tooling::Limits {
+            file_bytes: 4096,
+            tail_bytes: 65_536,
+            path_bytes: 4096,
+            jobs: 2,
+            path: b"/usr/bin:/bin".as_slice().into(),
+        },
         watermark: crate::WATERMARK,
         host: host::Limits {
             program_sources: 12,

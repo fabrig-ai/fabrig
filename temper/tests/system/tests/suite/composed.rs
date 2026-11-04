@@ -432,3 +432,198 @@ fn assert_plan_reads(world: &World) {
         .collect::<Vec<_>>();
     assert_eq!(outcomes, [true, false, false, false, false, false]);
 }
+
+#[test]
+fn an_unfinished_review_is_retried_at_the_same_head() {
+    let mut world = World::review_change(923, unfinished_review(), approve_review());
+    world.until_review_or_terminal(3);
+    let first = world.assignment().task;
+    let head = review_started(&mut world);
+    world.until_review_or_terminal(first);
+    assert!(world.assignment().task > first, "a failed review needs a fresh task");
+    assert_eq!(review_started(&mut world), head);
+    assert_retry_brief(&world, b"without a verdict");
+    assert_no_person_escalation(&world);
+    assert_review_failed(&world, first);
+    assert_unfinished_reads(world.review_agent(first));
+    world.until_review_or_terminal(world.assignment().task);
+    assert!(
+        matches!(world.reviewed_change().change.state, temper_engine_domain_forge_change::State::Landed { .. }),
+        "{:?}",
+        world.reviewed_change()
+    );
+    assert_eq!(world.reviewed_change().change.repairs, 0);
+}
+
+#[test]
+fn a_review_model_failure_is_retried_and_two_failures_hold_the_change() {
+    let mut world = World::review_change(924, failed_review_model(), failed_review_model());
+    world.until_review_or_terminal(3);
+    let first = world.assignment().task;
+    let head = review_started(&mut world);
+    world.until_review_or_terminal(first);
+    let second = world.assignment().task;
+    assert!(second > first, "model failure needs a fresh review task");
+    assert_eq!(review_started(&mut world), head);
+    assert_retry_brief(&world, b"model call failed");
+    assert_no_person_escalation(&world);
+    assert_review_failed(&world, first);
+    let agent = world.review_agent(first);
+    assert!(matches!(
+        agent.answer(),
+        smith_domain_run::Answer::Failed { failure: smith_domain_run::Failure::Model(_), .. }
+    ));
+    assert!(agent.host_submissions().is_empty(), "no transcript of tool calls in the model-failure sighting");
+    world.until_review_or_terminal(second);
+    world.run();
+    assert_review_failed(&world, second);
+    assert_failed_review_hold(&world);
+}
+
+fn assert_failed_review_hold(world: &World) {
+    let reviews = world
+        .store
+        .rows
+        .values()
+        .filter(|row| {
+            matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))
+            if row.requester == tasks::Party::Task(2) && matches!(row.contract, tasks::Contract::Verdict { .. }))
+        })
+        .count();
+    assert_eq!(reviews, 2, "no third review");
+    assert!(matches!(
+        world.reviewed_change().change.state,
+        temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Failed, .. }
+    ));
+    assert_eq!(world.reviewed_change().change.repairs, 0);
+    assert!(world.reviewed_change().verdicts.is_empty());
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(change)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(2))))
+    else {
+        panic!("held change")
+    };
+    assert!(matches!(change.phase, tasks::Phase::Held { why: tasks::Hold::EffectFailed, .. }));
+    assert!(
+        matches!(&change.phase, tasks::Phase::Held { source: Some(source), .. }
+        if matches!(source.as_ref(), tasks::HoldSource::Account { words, .. }
+            if words.windows(b"model call failed".len()).any(|bytes| bytes == b"model call failed"))),
+        "the hold names the failed review: {:?}",
+        change.phase
+    );
+    assert!(
+        world
+            .reviewed_change()
+            .gate_remarks
+            .iter()
+            .any(|remark| remark.words.windows(b"model call failed".len()).any(|bytes| bytes == b"model call failed"))
+    );
+}
+
+fn unfinished_review() -> skein_fake_llm_domain::api::Script {
+    use temper_system_world::composed::call;
+    // Only the two abbreviated-hash reads and the missing verdict are recorded
+    // in the sighting; the other four reads use the brief's full head.
+    let mut turns = vec![
+        call(b"read_compare", br#"{"repository":"org/repo","before":"f471720","after":"$HEAD"}"#),
+        call(b"read_file", br#"{"repository":"org/repo","head":"f471720","path":"README.md"}"#),
+    ];
+    for _ in 0..4 {
+        turns.push(call(b"read_file", br#"{"repository":"org/repo","head":"$HEAD","path":"README.md"}"#));
+    }
+    turns.push(skein_fake_llm_domain::api::Turn {
+        lines: Box::default(),
+        finish: skein_fake_llm_domain::api::Finish::Stop,
+        tokens: 0,
+    });
+    skein_fake_llm_domain::api::Script { cue: b"Review the change".as_slice().into(), turns: turns.into_boxed_slice() }
+}
+
+fn approve_review() -> skein_fake_llm_domain::api::Script {
+    use temper_system_world::composed::call;
+    skein_fake_llm_domain::api::Script {
+        cue: b"Review the change".as_slice().into(),
+        turns: Box::new([call(b"finish", br#"{"verdict":"1","body":"The CSV header is correct."}"#)]),
+    }
+}
+
+fn failed_review_model() -> skein_fake_llm_domain::api::Script {
+    use skein_fake_llm_domain::api::{Error, Finish, Line, Report, Script, Turn};
+    Script {
+        cue: b"Review the change".as_slice().into(),
+        turns: Box::new([Turn {
+            lines: Box::new([Line::Fail {
+                error: Error::InvalidRequest,
+                report: Report::none(),
+                credentials: Box::default(),
+            }]),
+            finish: Finish::Stop,
+            tokens: 0,
+        }]),
+    }
+}
+
+fn review_started(world: &mut World) -> [u8; 32] {
+    world.assert_review_ci();
+    let row = world.reviewed_change();
+    let head = row.change.last_head.expect("review head");
+    assert!(row.verdicts.is_empty());
+    assert_eq!(row.change.repairs, 0);
+    head
+}
+
+fn assert_retry_brief(world: &World, reason: &[u8]) {
+    assert!(
+        world.assignment().sections.iter().any(|section| matches!(&section.body,
+        temper_engine_domain::BriefBody::Text(text) if text.windows(reason.len()).any(|bytes| bytes == reason))),
+        "retry brief must name {}",
+        String::from_utf8_lossy(reason)
+    );
+}
+
+fn assert_no_person_escalation(world: &World) {
+    assert!(world.store.rows.values().all(|row| !matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+            if matches!(row.phase, tasks::Phase::Held { .. })
+                || !matches!(row.escalation, tasks::Escalation::Unheld { revision: 0 }))));
+}
+
+fn assert_review_failed(world: &World, task: u64) {
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))))
+    else {
+        panic!("review task {task} must end failed");
+    };
+    assert!(matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Failed { .. })));
+}
+
+fn assert_unfinished_reads(agent: &smith_agent_world::World) {
+    use smith_domain_session::llm::{Block, Returned};
+    assert!(matches!(
+        agent.answer(),
+        smith_domain_run::Answer::Failed {
+            failure: smith_domain_run::Failure::Policy(smith_domain_run::Policy::Unfinished { rejected: 0, .. }),
+            ..
+        }
+    ));
+    let refused = agent
+        .turns()
+        .iter()
+        .take(6)
+        .map(|turn| {
+            turn.messages
+                .iter()
+                .flat_map(|message| &message.content)
+                .find_map(|block| match block {
+                    Block::ToolResult { result: Returned::Text { error, .. }, .. } => Some(*error),
+                    Block::Opaque { .. }
+                    | Block::Refusal { .. }
+                    | Block::Text { .. }
+                    | Block::ToolCall { .. }
+                    | Block::ToolResult { .. } => None,
+                })
+                .expect("each read is answered")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(refused, [true, true, false, false, false, false]);
+}

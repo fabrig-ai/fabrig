@@ -226,6 +226,7 @@ impl Peers {
             | root::Delivery::ApplicationDocument { .. }
             | root::Delivery::ApplicationRead { .. }
             | root::Delivery::Projection { .. }
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
@@ -421,7 +422,7 @@ fn waiting(store: &Store, party: &parties::Party) -> Option<parties::Waiting> {
         let visible = match task.executor {
             tasks::Executor::Person(tasks::PersonAddress::Person(holder)) => holder == person,
             tasks::Executor::Person(tasks::PersonAddress::Role(role)) => role == role_number(party.role),
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => false,
+            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => false,
         };
         if visible
             && task.taken_by.is_none_or(|holder| holder == person)
@@ -541,6 +542,20 @@ pub fn fixture(seed: u64, engine_slots: u32) -> (root::Config, root::Limits) {
 
 fn party_refusal(why: people::Refusal) -> parties::Refusal {
     match why {
+        people::Refusal::Judged { at, setting, why } => parties::Refusal::Judged {
+            at,
+            setting: match setting {
+                jig_domain_people::Setting::ProjectPolicy { project } => parties::Setting::Policy(project),
+                people::Setting::Charter(n) => parties::Setting::Charter(n),
+                people::Setting::Template(n) => parties::Setting::Template(n),
+                people::Setting::Policy(n) => parties::Setting::Policy(n),
+                people::Setting::Rules => parties::Setting::Rules,
+                people::Setting::Application { kind, scope, number } => {
+                    parties::Setting::Application { kind, scope, number }
+                }
+            },
+            why,
+        },
         people::Refusal::Circle { tasks, cut } => parties::Refusal::Circle { tasks, cut },
         people::Refusal::Kept { pending } => parties::Refusal::Kept { pending },
         people::Refusal::Dependency { dependency, how } => parties::Refusal::Dependency {
@@ -579,7 +594,8 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
         people::Refusal::SignInRedirect { .. } | people::Refusal::AccountMove { .. } => {
             unreachable!("fake parties ask for no account moves")
         }
-        people::Refusal::Stale { .. }
+        people::Refusal::Forgotten { .. }
+        | people::Refusal::Stale { .. }
         | people::Refusal::Full { .. }
         | people::Refusal::NotWellFormed {
             why: people::Malformed::Settings { .. } | people::Malformed::SettingsUnchanged | people::Malformed::Running,

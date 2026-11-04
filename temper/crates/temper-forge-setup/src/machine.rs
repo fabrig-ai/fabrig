@@ -14,6 +14,43 @@ use skein_forge_setup::{
 use skein_json::{Document, document::Kind};
 use skein_lib::{Decimal, List, bytes};
 
+/// The configuration table's shapes and rows (temper/docs/design/protocol/documentation.md, 8).
+pub use config::members::{Member, Shape};
+
+/// An object whose requested names belong to one configuration shape.
+#[derive(Debug)]
+pub struct MemberObject {
+    object: read::Object,
+    shape: &'static str,
+    rows: &'static [Member],
+}
+impl MemberObject {
+    pub fn shaped(d: &Document, at: u32, shape: &'static str, rows: &'static [Member]) -> Result<Self, config::What> {
+        Ok(Self { object: read::Object::new(d, at)?, shape, rows })
+    }
+    pub fn member(&mut self, d: &Document, name: &[u8]) -> Option<u32> {
+        #[cfg(debug_assertions)]
+        {
+            let mut found = false;
+            for row in self.rows {
+                found |= row.shape == self.shape && row.name.as_bytes() == name;
+            }
+            assert!(found, "configuration member missing from table: {} {name:?}", self.shape);
+        }
+        self.object.member(d, name)
+    }
+    pub fn required(&mut self, d: &Document, name: &[u8], p: &Path, ps: &mut config::Problems) -> Option<u32> {
+        let at = self.member(d, name);
+        if at.is_none() {
+            ps.push(p.member(name), config::What::Missing);
+        }
+        at
+    }
+    pub fn finish(self, d: &Document, p: &Path, ps: &mut config::Problems) {
+        self.object.finish(d, p, ps);
+    }
+}
+
 /// What a box runs a forge's group as (temper/docs/design/protocol/setup.md, 7.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BoxKind {
@@ -125,7 +162,7 @@ pub fn read(
     if clean { result } else { None }
 }
 fn machine(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Machine> {
-    let mut o = object(d, at, p, ps)?;
+    let mut o = object(d, at, "machine", p, ps)?;
     let owned_at = o.member(d, b"owned");
     let fake_at = o.member(d, b"fake");
     let github_at = o.member(d, b"github");
@@ -176,7 +213,6 @@ pub fn entry(machine: &Machine, forge: u16, kind: BoxKind, directories: &config:
         forge,
         directory: directories.join(config::Directory::Data, &directory(forge, kind)).ok()?,
         bot: Account { login: bytes::copy_of(b"temper"), email: bytes::copy_of(b"temper@localhost") },
-        orgs: Box::new([]),
         mode,
         asked: kind == BoxKind::Owned,
     })
@@ -206,7 +242,7 @@ pub fn group_path(forge: u16) -> Box<[u8]> {
 }
 
 fn fake(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<FakeMachine> {
-    let mut o = object(d, at, p, ps)?;
+    let mut o = object(d, at, "machine-fake", p, ps)?;
     let listen_at = o.required(d, b"listen", p, ps);
     let remote = text(d, &mut o, b"remote", p, ps);
     let git = text(d, &mut o, b"git", p, ps);
@@ -219,7 +255,7 @@ fn fake(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Fa
     Some(FakeMachine { listen, remote, git })
 }
 fn github(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<GitHubMachine> {
-    let mut o = object(d, at, p, ps)?;
+    let mut o = object(d, at, "machine-github", p, ps)?;
     let api_at = o.required(d, b"api", p, ps);
     let transport_at = o.required(d, b"transport", p, ps);
     let remote = text(d, &mut o, b"remote", p, ps);
@@ -276,11 +312,11 @@ fn transport(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Opti
         valid(value.as_ref() == b"plaintext", p.clone(), ps);
         return Some(false);
     }
-    let mut o = object(d, at, p, ps)?;
+    let mut o = object(d, at, "machine-transport", p, ps)?;
     let tls_at = o.required(d, b"tls", p, ps);
     o.finish(d, p, ps);
     let p = p.member(b"tls");
-    let mut o = object(d, tls_at?, &p, ps)?;
+    let mut o = object(d, tls_at?, "machine-tls", &p, ps)?;
     let server_name = text(d, &mut o, b"server_name", &p, ps);
     let trust = o.required(d, b"trust", &p, ps);
     o.finish(d, &p, ps);
@@ -294,8 +330,8 @@ fn transport(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Opti
     Some(true)
 }
 
-fn object(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<read::Object> {
-    match read::Object::new(d, at) {
+fn object(d: &Document, at: u32, shape: &'static str, p: &Path, ps: &mut config::Problems) -> Option<MemberObject> {
+    match MemberObject::shaped(d, at, shape, &MEMBERS) {
         Ok(o) => Some(o),
         Err(w) => {
             ps.push(p.clone(), w);
@@ -303,12 +339,12 @@ fn object(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<
         }
     }
 }
-fn text(d: &Document, o: &mut read::Object, name: &[u8], p: &Path, ps: &mut config::Problems) -> Option<Box<[u8]>> {
+fn text(d: &Document, o: &mut MemberObject, name: &[u8], p: &Path, ps: &mut config::Problems) -> Option<Box<[u8]>> {
     bounded_text(d, o, name, 4096, p, ps)
 }
 fn bounded_text(
     d: &Document,
-    o: &mut read::Object,
+    o: &mut MemberObject,
     name: &[u8],
     max: u32,
     p: &Path,
@@ -332,10 +368,10 @@ fn path(b: &[u8]) -> bool {
     !b.is_empty() && !b.contains(&0)
 }
 fn account(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Account> {
-    let o = object(d, at, p, ps)?;
+    let o = object(d, at, "machine-account", p, ps)?;
     account_members(d, o, p, ps)
 }
-fn account_members(d: &Document, mut o: read::Object, p: &Path, ps: &mut config::Problems) -> Option<Account> {
+fn account_members(d: &Document, mut o: MemberObject, p: &Path, ps: &mut config::Problems) -> Option<Account> {
     let login_value = text(d, &mut o, b"login", p, ps);
     let email_value = text(d, &mut o, b"email", p, ps);
     o.finish(d, p, ps);
@@ -375,7 +411,7 @@ fn strings(
     Some(values.into_boxed())
 }
 fn runner(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Runner> {
-    let mut o = object(d, at, p, ps)?;
+    let mut o = object(d, at, "machine-runner", p, ps)?;
     let binary = text(d, &mut o, b"binary", p, ps);
     let labels_at = o.required(d, b"labels", p, ps);
     let cap_at = o.required(d, b"capacity", p, ps);
@@ -401,7 +437,7 @@ fn runner(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<
     })
 }
 fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<OwnedMachine> {
-    let mut o = object(d, at, p, ps)?;
+    let mut o = object(d, at, "machine-owned", p, ps)?;
     let remote = text(d, &mut o, b"remote", p, ps);
     let forgejo = text(d, &mut o, b"forgejo", p, ps);
     let runner_at = o.required(d, b"runner", p, ps);
@@ -453,7 +489,7 @@ fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<O
     Some(OwnedMachine { listen, remote, person, public, fetch, forgejo, runner })
 }
 fn mirror(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Mirror> {
-    let mut o = object(d, at, p, ps)?;
+    let mut o = object(d, at, "machine-mirror", p, ps)?;
     let forgejo = text(d, &mut o, b"forgejo", p, ps);
     let runner = text(d, &mut o, b"runner", p, ps);
     o.finish(d, p, ps);
@@ -568,3 +604,317 @@ fn resolve_path(
         Err(what) => problems.push(path, what),
     }
 }
+
+/// The machine shapes, re-exported in the application’s configuration reference.
+pub const SHAPES: [Shape; 9] = [
+    Shape {
+        name: "machine",
+        paths: &["application.machine"],
+        line: "The machine places offered when a forge is made.",
+    },
+    Shape {
+        name: "machine-owned",
+        paths: &["application.machine.owned"],
+        line: "The owned Forgejo and its runner on this machine.",
+    },
+    Shape {
+        name: "machine-fake",
+        paths: &["application.machine.fake"],
+        line: "The playground’s fake forge on this machine.",
+    },
+    Shape {
+        name: "machine-github",
+        paths: &["application.machine.github"],
+        line: "A GitHub test peer’s addresses and transport.",
+    },
+    Shape {
+        name: "machine-runner",
+        paths: &["application.machine.owned.runner"],
+        line: "The owned Forgejo’s runner program and capacity.",
+    },
+    Shape {
+        name: "machine-account",
+        paths: &["application.machine.owned.person"],
+        line: "The person account made on the owned forge.",
+    },
+    Shape {
+        name: "machine-mirror",
+        paths: &["application.machine.owned.mirror"],
+        line: "HTTPS origins used to fetch pinned binaries.",
+    },
+    Shape {
+        name: "machine-transport",
+        paths: &["application.machine.github.transport"],
+        line: "A TLS transport object, or plaintext as text.",
+    },
+    Shape {
+        name: "machine-tls",
+        paths: &["application.machine.github.transport.tls"],
+        line: "TLS identity and trust for the GitHub test peer.",
+    },
+];
+
+/// The machine members read by this decoder and printed by the application.
+pub const MEMBERS: [Member; 29] = [
+    Member {
+        shape: "machine",
+        name: "owned",
+        kind: "machine-owned",
+        bound: "",
+        required: false,
+        line: "The box’s owned Forgejo place, absent when none is offered.",
+        gone: None,
+    },
+    Member {
+        shape: "machine",
+        name: "fake",
+        kind: "machine-fake",
+        bound: "",
+        required: false,
+        line: "The playground’s fake forge place, absent when none is offered.",
+        gone: None,
+    },
+    Member {
+        shape: "machine",
+        name: "github",
+        kind: "machine-github or null",
+        bound: "",
+        required: false,
+        line: "GitHub’s place, null for the public service.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-owned",
+        name: "remote",
+        kind: "text",
+        bound: "at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash",
+        required: true,
+        line: "The base of the owned forge’s repository remotes.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-owned",
+        name: "forgejo",
+        kind: "text",
+        bound: "cache path or fetched; at most 4,096 bytes",
+        required: true,
+        line: "The Forgejo binary, fetched at the pinned version when requested.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-owned",
+        name: "runner",
+        kind: "machine-runner or null",
+        bound: "",
+        required: true,
+        line: "The runner to prepare, or null for none.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-owned",
+        name: "listen",
+        kind: "address",
+        bound: "loopback socket, unique among listeners",
+        required: true,
+        line: "The owned Forgejo listener.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-owned",
+        name: "person",
+        kind: "machine-account",
+        bound: "",
+        required: true,
+        line: "The person account made at setup.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-owned",
+        name: "mirror",
+        kind: "machine-mirror",
+        bound: "",
+        required: false,
+        line: "Alternate HTTPS origins for fetching the pinned binaries.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-owned",
+        name: "public",
+        kind: "text",
+        bound: "HTTPS origin; at most 4,096 bytes",
+        required: false,
+        line: "The browser origin of the owned forge behind its proxy.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-fake",
+        name: "listen",
+        kind: "address",
+        bound: "loopback socket, unique among listeners",
+        required: true,
+        line: "The fake forge listener.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-fake",
+        name: "remote",
+        kind: "text",
+        bound: "at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash",
+        required: true,
+        line: "The base of the fake forge’s repository remotes.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-fake",
+        name: "git",
+        kind: "text",
+        bound: "data path; at most 4,096 bytes",
+        required: true,
+        line: "The fake git program for the playground’s repositories.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-github",
+        name: "api",
+        kind: "address",
+        bound: "socket or host and port",
+        required: true,
+        line: "The GitHub API address.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-github",
+        name: "transport",
+        kind: "machine-transport or text",
+        bound: "plaintext on loopback, or TLS",
+        required: true,
+        line: "The transport to the GitHub API.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-github",
+        name: "remote",
+        kind: "text",
+        bound: "at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash",
+        required: true,
+        line: "The base of the GitHub repository remotes.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-github",
+        name: "web",
+        kind: "text",
+        bound: "at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash",
+        required: true,
+        line: "The base of GitHub’s browser pages.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-github",
+        name: "git",
+        kind: "text",
+        bound: "data path; at most 4,096 bytes",
+        required: false,
+        line: "The git program for repositories on the test peer.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-runner",
+        name: "binary",
+        kind: "text",
+        bound: "cache path or fetched; at most 4,096 bytes",
+        required: true,
+        line: "The runner binary, fetched at the pinned version when requested.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-runner",
+        name: "labels",
+        kind: "list of text",
+        bound: "1 to 8 labels, each at most 128 bytes",
+        required: true,
+        line: "The labels offered to the forge’s jobs.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-runner",
+        name: "capacity",
+        kind: "integer",
+        bound: "1 to 64",
+        required: true,
+        line: "The number of jobs the runner may execute at once.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-runner",
+        name: "path",
+        kind: "text",
+        bound: "at most 4,096 bytes; nonempty without NUL",
+        required: true,
+        line: "The PATH the runner gives its jobs.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-account",
+        name: "login",
+        kind: "text",
+        bound: "valid forge login; at most 4,096 bytes",
+        required: true,
+        line: "The person’s forge login.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-account",
+        name: "email",
+        kind: "text",
+        bound: "valid forge email; at most 4,096 bytes",
+        required: true,
+        line: "The person’s forge email address.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-mirror",
+        name: "forgejo",
+        kind: "text",
+        bound: "HTTPS origin; at most 4,096 bytes",
+        required: true,
+        line: "The origin serving the pinned Forgejo binary.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-mirror",
+        name: "runner",
+        kind: "text",
+        bound: "HTTPS origin; at most 4,096 bytes",
+        required: true,
+        line: "The origin serving the pinned runner binary.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-transport",
+        name: "tls",
+        kind: "machine-tls",
+        bound: "",
+        required: true,
+        line: "The API’s TLS server name and trust roots.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-tls",
+        name: "server_name",
+        kind: "text",
+        bound: "at most 4,096 bytes",
+        required: true,
+        line: "The server name checked during the TLS handshake.",
+        gone: None,
+    },
+    Member {
+        shape: "machine-tls",
+        name: "trust",
+        kind: "text or null",
+        bound: "at most 1,048,576 bytes",
+        required: true,
+        line: "The trust roots, or null for the machine’s roots.",
+        gone: None,
+    },
+];

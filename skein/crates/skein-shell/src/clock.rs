@@ -1,6 +1,6 @@
 //! The clock (shell.md, 5; programming-model.md, section 9).
 
-use skein_lib::{Time, Wall};
+use skein_lib::{Env, Time, Wall};
 
 use crate::system;
 
@@ -21,6 +21,14 @@ pub struct Now {
     pub now: Time,
     /// `CLOCK_REALTIME`, for things about the world, never a deadline.
     pub wall: Wall,
+}
+
+impl Now {
+    /// These times, for a step with `limits`.
+    #[must_use]
+    pub fn with<L>(self, limits: L) -> Env<L> {
+        Env { now: self.now, wall: self.wall, limits }
+    }
 }
 
 impl Clock {

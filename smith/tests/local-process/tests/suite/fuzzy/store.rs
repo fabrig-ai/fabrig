@@ -240,7 +240,7 @@ fn initial_files(initial: Initial) -> Vec<skein_fake_machine::Item> {
             let mut items = initial_files(Initial::Current);
             let endpoints = smith_local_process_world::process::lower_configuration().channel_endpoints;
             let turn = smith_domain::Turn {
-                dialect: 1,
+                dialect: 3,
                 ..smith_domain::session::fixture::turn(
                     b"model".as_slice().into(),
                     smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {

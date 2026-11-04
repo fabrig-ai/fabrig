@@ -50,3 +50,22 @@ fn a_channel_cascade_settles_before_the_next_entrance() {
     world.down(Event::Stop);
     assert!(matches!(world.root(), [Request::Ready, Request::Lost, Request::RelayCancelled { .. }, Request::Closed]));
 }
+
+/// Jobs mixed with runs keep their order under seeded fragmentation (jig/docs/design/protocol/channel.md, 5.4).
+#[test]
+fn jobs_mixed_with_runs_keep_their_order() {
+    for seed in 0..8 {
+        let mut world = World::new(&fixtures::limits(), seed);
+        world.engine(fixtures::engine_accepting());
+        world.run();
+        world.down(Event::Hello { hello: fixtures::hello() });
+        let mut expected = vec![0x0100];
+        for _ in 0..12 {
+            world.down(Event::Up { up: fixtures::turn(), parts: Box::new([]) });
+            world.down(Event::Up { up: super::jobs::answer(), parts: fixtures::work_parts() });
+            world.down(Event::Up { up: fixtures::answer(), parts: fixtures::work_parts() });
+            expected.extend([0x0101, 0x018c, 0x0103]);
+        }
+        assert_eq!(world.records()[0].iter().map(|r| r.kind).collect::<Vec<_>>(), expected, "seed {seed}");
+    }
+}

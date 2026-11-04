@@ -144,7 +144,13 @@ fn unit_budget_stops_after_the_crossing_turn_settles_and_child_counts_once() {
     world.open(opening(None, 20));
     world.complete(recorded::called(), llm::Stop::ToolUse, recorded::USAGE);
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: bytes(b"answer"), error: false, spent: 9 });
+    world.step(session::Event::Answered {
+        owner,
+        text: bytes(b"answer"),
+        error: false,
+        spent: 9,
+        after: session::After::Complete,
+    });
     assert_eq!(world.end, Some(session::End::Budget { spent: session::Dimension::Unit }));
     assert_eq!(world.prompts.len(), 1);
     assert_eq!(world.turns[0].spent, 25);
@@ -157,7 +163,13 @@ fn unit_budget_stops_after_the_crossing_turn_settles_and_child_counts_once() {
         session::step(
             &mut world.domain,
             &world.env,
-            session::Event::Answered { owner, text: bytes(b"duplicate"), error: false, spent: 9 },
+            session::Event::Answered {
+                owner,
+                text: bytes(b"duplicate"),
+                error: false,
+                spent: 9,
+                after: session::After::Complete,
+            },
             &mut world.out,
         );
         assert!(world.out.is_empty());
@@ -203,7 +215,13 @@ fn closing_preserves_withdrawn_and_late_answers_and_provider_completions() {
         let owner = world.delegated[0];
         world.step(session::Event::Close { session: world.session.expect("the scenario supplied a value") });
         if wins {
-            world.step(session::Event::Answered { owner, text: bytes(b"late child"), error: false, spent: 9 });
+            world.step(session::Event::Answered {
+                owner,
+                text: bytes(b"late child"),
+                error: false,
+                spent: 9,
+                after: session::After::Complete,
+            });
             assert_eq!(world.turns[0].spent, 25);
         } else {
             world.step(session::Event::AnswerCancelled { owner, spent: 9 });
@@ -361,6 +379,7 @@ fn cumulative_child_spend_overflow_is_a_typed_failure() {
         text: bytes(b"child"),
         error: false,
         spent: u64::MAX,
+        after: session::After::Complete,
     });
     assert_eq!(world.spend, [16]);
     assert_eq!(world.end, Some(session::End::PriceOverflow));
@@ -463,10 +482,22 @@ fn repeated_provider_ids_keep_distinct_origins_and_restore_includes_history_pref
     first.open(opening(None, 1000));
     first.complete(recorded::called(), llm::Stop::ToolUse, llm::Usage::ZERO);
     let owner = first.delegated[0];
-    first.step(session::Event::Answered { owner, text: bytes(b"first"), error: false, spent: 0 });
+    first.step(session::Event::Answered {
+        owner,
+        text: bytes(b"first"),
+        error: false,
+        spent: 0,
+        after: session::After::Complete,
+    });
     first.complete(recorded::called(), llm::Stop::ToolUse, llm::Usage::ZERO);
     let owner = first.delegated[0];
-    first.step(session::Event::Answered { owner, text: bytes(b"second"), error: false, spent: 0 });
+    first.step(session::Event::Answered {
+        owner,
+        text: bytes(b"second"),
+        error: false,
+        spent: 0,
+        after: session::After::Complete,
+    });
     assert_eq!(
         first.origins,
         [record::Origin { sequence: 1, position: 1 }, record::Origin { sequence: 2, position: 1 }]
@@ -477,7 +508,13 @@ fn repeated_provider_ids_keep_distinct_origins_and_restore_includes_history_pref
     resumed.complete(recorded::called(), llm::Stop::ToolUse, llm::Usage::ZERO);
     assert_eq!(resumed.origins, [record::Origin { sequence: 3, position: 1 }]);
     let owner = resumed.delegated[0];
-    resumed.step(session::Event::Answered { owner, text: bytes(b"third"), error: false, spent: 0 });
+    resumed.step(session::Event::Answered {
+        owner,
+        text: bytes(b"third"),
+        error: false,
+        spent: 0,
+        after: session::After::Complete,
+    });
     resumed.close();
 }
 
@@ -621,7 +658,13 @@ fn full_history_batch_credit_keeps_maximum_late_results() {
     assert!(world.end.is_none());
     for byte in [b'a', b'b'] {
         let owner = world.delegated[0];
-        world.step(session::Event::Answered { owner, text: vec![byte; 2048].into(), error: byte == b'b', spent: 0 });
+        world.step(session::Event::Answered {
+            owner,
+            text: vec![byte; 2048].into(),
+            error: byte == b'b',
+            spent: 0,
+            after: session::After::Complete,
+        });
     }
     assert_eq!(world.end, Some(session::End::Closed));
     let turn = world.turns.last().expect("final turn survives full history");
@@ -834,7 +877,13 @@ fn a_delegated_result_can_yield_after_its_seen_turn_before_the_next_provider_req
     world.open(opening(None, 100));
     world.complete(recorded::called(), llm::Stop::ToolUse, recorded::USAGE);
     let owner = world.delegated[0];
-    world.step(session::Event::AnsweredAndYield { owner, text: bytes(b"messages-arrived"), error: false, spent: 0 });
+    world.step(session::Event::Answered {
+        owner,
+        text: bytes(b"messages-arrived"),
+        error: false,
+        spent: 0,
+        after: session::After::Yield,
+    });
     assert_eq!(world.turns.len(), 1, "the result settles in its original concrete turn");
     assert_eq!(world.prompts.len(), 1, "the opener chooses the next user work");
     assert!(world.completing.is_none() && world.delegated.is_empty());
@@ -1099,7 +1148,13 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
         first.complete(content.into(), llm::Stop::ToolUse, recorded::USAGE);
         if earlier {
             let owner = first.delegated[0];
-            first.step(session::Event::Answered { owner, text: bytes(b"earlier result"), error: false, spent: 0 });
+            first.step(session::Event::Answered {
+                owner,
+                text: bytes(b"earlier result"),
+                error: false,
+                spent: 0,
+                after: session::After::Complete,
+            });
         }
         if earlier {
             first.resume();

@@ -19,11 +19,11 @@ use smith_protocol_llm_world::{
     client_peer::{self, Configuration},
 };
 
-// Codex retains known reasoning fields; unknown extensions are scanned and
+// OpenAI retains known reasoning fields; unknown extensions are scanned and
 // skipped (skein/docs/design/llm.md, section 4.4). Anthropic thinking below stays whole.
-const CODEX_REASONING: &[u8] = br#"{"id":"rs_c","type":"reasoning","encrypted_content":"exact-opaque","summary":[]}"#;
-const CODEX_TEXT_REPLAY: &[u8] = br#"{"id":"msg_c","phase":"commentary"}"#;
-const CODEX_REFUSAL_REPLAY: &[u8] = br#"{"id":"msg_r"}"#;
+const OPENAI_REASONING: &[u8] = br#"{"id":"rs_c","type":"reasoning","encrypted_content":"exact-opaque","summary":[]}"#;
+const OPENAI_TEXT_REPLAY: &[u8] = br#"{"id":"msg_c","phase":"commentary"}"#;
+const OPENAI_REFUSAL_REPLAY: &[u8] = br#"{"id":"msg_r"}"#;
 // The native stream retains unknown head fields before its assembled final
 // thinking/signature values. This independent literal keeps that documented
 // order and every extension; no encoder constructs the expected value.
@@ -35,7 +35,7 @@ const CALL_ID: &[u8] = b"call_0000000000000001";
 const INVALID: &[u8] = b"Error: input is not a complete JSON object";
 const HOST_RESULT: &[u8] = b"opaque host answer: first decision";
 
-const CODEX_RESPONSE: &[&str] = &[
+const OPENAI_RESPONSE: &[&str] = &[
     r#"{"type":"response.output_item.added","output_index":0,"item":{"id":"rs_c","type":"reasoning"}}"#,
     r#"{"type":"response.output_item.done","output_index":0,"item":{"id":"rs_c","type":"reasoning","encrypted_content":"exact-opaque","summary":[],"future":{"proof":[1,true,null]}}}"#,
     r#"{"type":"response.output_item.added","output_index":1,"item":{"id":"msg_c","type":"message"}}"#,
@@ -74,7 +74,7 @@ data: {"type":"message_stop"}
 
 "#;
 
-const CODEX_HISTORY: &[u8] = br#""input":[{"id":"rs_c","type":"reasoning","encrypted_content":"exact-opaque","summary":[]},{"type":"message","role":"assistant","id":"msg_c","phase":"commentary","content":[{"type":"output_text","text":"Reading"}]},{"type":"message","role":"assistant","id":"msg_r","content":[{"type":"refusal","refusal":"Cannot comply"}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"Continue."}]}]"#;
+const OPENAI_HISTORY: &[u8] = br#""input":[{"id":"rs_c","type":"reasoning","encrypted_content":"exact-opaque","summary":[]},{"type":"message","role":"assistant","id":"msg_c","phase":"commentary","content":[{"type":"output_text","text":"Reading"}]},{"type":"message","role":"assistant","id":"msg_r","content":[{"type":"refusal","refusal":"Cannot comply"}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"Continue."}]}]"#;
 const ANTHROPIC_HISTORY: &[u8] = br#""messages":[{"role":"assistant","content":[{"type":"thinking","future":{"proof":[1,true,null]},"thinking":"Plan carefully","signature":"signed-opaque"},{"type":"redacted_thinking","data":"hidden-opaque"},{"type":"text","text":"Answer"}]},{"role":"user","content":[{"type":"text","text":"Continue.","cache_control":{"type":"ephemeral"}}]}]"#;
 
 fn receiving(bounds: &Limits) -> Receiving {
@@ -116,10 +116,9 @@ fn adopt(
             prompt: prompt(messages),
             endpoint_name: llm::Endpoint(1),
             endpoint: configuration.endpoint.clone(),
-            credential: shared::Credential {
-                value: configuration.credential.value.clone(),
-                account_id: configuration.credential.account_id.clone(),
-                scheme: skein_llm::Scheme::Bearer,
+            credential: match configuration.credential.scheme {
+                skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()),
+                skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()),
             },
 
             receiving: receiving(&bounds),
@@ -203,7 +202,7 @@ fn usage(observed: llm::Usage, expected: [Option<u64>; 4]) {
     }
 }
 
-fn codex_evidence(completion: &llm::Completion) -> bool {
+fn openai_evidence(completion: &llm::Completion) -> bool {
     let [
         llm::Said::Opaque { bytes },
         llm::Said::Text { text, replay: Some(text_replay) },
@@ -213,11 +212,11 @@ fn codex_evidence(completion: &llm::Completion) -> bool {
         return false;
     };
     completion.stop == llm::Stop::Refusal
-        && envelope(bytes, *b"\x00\x01\x01\x00\x00\x00\x50", CODEX_REASONING)
+        && envelope(bytes, *b"\x00\x01\x03\x00\x00\x00\x50", OPENAI_REASONING)
         && text.as_ref() == b"Reading"
-        && envelope(&text_replay.bytes, *b"\x00\x01\x01\x00\x00\x00\x23", CODEX_TEXT_REPLAY)
+        && envelope(&text_replay.bytes, *b"\x00\x01\x03\x00\x00\x00\x23", OPENAI_TEXT_REPLAY)
         && refusal.as_ref() == b"Cannot comply"
-        && envelope(&refusal_replay.bytes, *b"\x00\x01\x01\x00\x00\x00\x0e", CODEX_REFUSAL_REPLAY)
+        && envelope(&refusal_replay.bytes, *b"\x00\x01\x03\x00\x00\x00\x0e", OPENAI_REFUSAL_REPLAY)
 }
 
 fn anthropic_evidence(completion: &llm::Completion) -> bool {
@@ -245,7 +244,7 @@ fn history(completion: llm::Completion) -> Box<[llm::Message]> {
     Box::new([llm::Message { role: llm::Role::Assistant, content: blocks.into() }, user(b"Continue.")])
 }
 
-/// The first request's body as it reads without its coding (gzip on the Codex route).
+/// The first request's body with its endpoint's content coding decoded.
 fn native_body(peer: &RawWorld) -> Vec<u8> {
     let sent = skein_llm_world::identity(&peer.sent);
     let at = sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("observed HTTP request") + 4;
@@ -272,29 +271,29 @@ fn native_corruptions(peer: &RawWorld, expected: &[u8], markers: &[&[u8]]) {
 }
 
 #[test]
-fn codex_reasoning_refusal_and_message_identity_continue_exactly() {
-    let configuration = client_peer::configurations().into_iter().next().expect("literal Codex fixture");
-    let source = response(200, "Content-Type: text/event-stream\r\n", &events(CODEX_RESPONSE), true);
+fn openai_reasoning_refusal_and_message_identity_continue_exactly() {
+    let configuration = client_peer::configurations().into_iter().next().expect("literal OpenAI fixture");
+    let source = response(200, "Content-Type: text/event-stream\r\n", &events(OPENAI_RESPONSE), true);
     let (context, mut peer) = adopt(&configuration, Token::new(0), Box::new([user(b"Start.")]), source);
     let mut completion = completed(context, &mut peer, Token::new(0));
-    assert!(codex_evidence(&completion), "observed translated ordered replay/refusal: {completion:?}");
+    assert!(openai_evidence(&completion), "observed translated ordered replay/refusal: {completion:?}");
     usage(completion.usage, [Some(8), Some(3), Some(4), None]);
     completion.content.swap(0, 1);
-    assert!(!codex_evidence(&completion));
+    assert!(!openai_evidence(&completion));
     completion.content.swap(0, 1);
     let llm::Said::Refusal { replay, .. } = &mut completion.content[2] else { panic!("observed refusal") };
     let retained = replay.take();
-    assert!(!codex_evidence(&completion));
+    assert!(!openai_evidence(&completion));
     let llm::Said::Refusal { replay, .. } = &mut completion.content[2] else { panic!("observed refusal") };
     *replay = retained;
-    assert!(codex_evidence(&completion));
+    assert!(openai_evidence(&completion));
     close(&mut peer);
     let (context, mut next) = adopt(&configuration, Token::new(99), history(completion), text_response(false));
     let continued = completed(context, &mut next, Token::new(99));
     assert_eq!(continued.stop, llm::Stop::EndTurn);
     native_corruptions(
         &next,
-        CODEX_HISTORY,
+        OPENAI_HISTORY,
         &[b"exact-opaque", b"msg_c", b"commentary", b"msg_r", b"refusal", b"Cannot comply"],
     );
     close(&mut next);
@@ -453,7 +452,7 @@ fn corrected_host(world: &World) {
             |block| matches!(block,
         recorded::Block::ToolCall { id, name, input, replay: Some(replay), .. }
         if id.as_ref() == CALL_ID && name.as_ref() == b"host_action" && input.as_ref() == RAW
-        && envelope(&replay.bytes, *b"\x00\x01\x01\x00\x00\x00\x16", ROOT_REPLAY))
+        && envelope(&replay.bytes, *b"\x00\x01\x03\x00\x00\x00\x16", ROOT_REPLAY))
         ),
         "observed root Turn retains original malformed call replay"
     );
@@ -474,7 +473,7 @@ fn retired(world: &World) {
 
 #[test]
 fn root_malformed_call_has_no_effect_and_corrected_call_runs_once() {
-    let configuration = client_peer::configurations().into_iter().next().expect("raw-string Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("raw-string OpenAI fixture");
     let mut bounds = limits();
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
@@ -655,10 +654,9 @@ fn block_peer(configuration: &Configuration, bounds: &Limits, source: Vec<u8>) -
             prompt: requested,
             endpoint_name: llm::Endpoint(1),
             endpoint: configuration.endpoint.clone(),
-            credential: shared::Credential {
-                value: configuration.credential.value.clone(),
-                account_id: configuration.credential.account_id.clone(),
-                scheme: skein_llm::Scheme::Bearer,
+            credential: match configuration.credential.scheme {
+                skein_llm::Scheme::Bearer => shared::Credential::bearer(configuration.credential.value.clone()),
+                skein_llm::Scheme::Key => shared::Credential::key(configuration.credential.value.clone()),
             },
 
             receiving: receiving(bounds),
@@ -681,7 +679,7 @@ const BLOCK_RESPONSE: &[&str] = &[
 
 #[test]
 fn an_oversized_call_beside_an_ordinary_one_completes_with_a_fixable_error() {
-    let configuration = client_peer::configurations().into_iter().next().expect("Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("OpenAI fixture");
     let mut bounds = limits();
     bounds.client.input = 16;
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(BLOCK_RESPONSE), true);
@@ -703,7 +701,7 @@ fn an_oversized_call_beside_an_ordinary_one_completes_with_a_fixable_error() {
 
 #[test]
 fn a_cut_call_is_replaced_and_the_next_request_replays() {
-    let configuration = client_peer::configurations().into_iter().next().expect("Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("OpenAI fixture");
     let messages = [
         r#"{"type":"response.output_item.added","output_index":0,"item":{"id":"cut","call_id":"cut-call","type":"function_call","name":"host_action","arguments":""}}"#,
         r#"{"type":"response.output_item.done","output_index":0,"item":{"id":"cut","call_id":"cut-call","type":"function_call","name":"host_action","status":"incomplete","arguments":"{broken"}}"#,
@@ -739,7 +737,7 @@ fn a_cut_call_is_replaced_and_the_next_request_replays() {
         },
     ]);
     close(&mut peer);
-    let source = response(200, "Content-Type: text/event-stream\r\n", &events(CODEX_RESPONSE), true);
+    let source = response(200, "Content-Type: text/event-stream\r\n", &events(OPENAI_RESPONSE), true);
     let (context, mut next) = adopt(&configuration, Token::new(72), history, source);
     drop(completed(context, &mut next, Token::new(72)));
     let body = native_body(&next);
@@ -751,12 +749,12 @@ fn a_cut_call_is_replaced_and_the_next_request_replays() {
 
 #[test]
 fn a_reasoning_item_past_its_bound_fails_unless_the_model_drops_it() {
-    let configuration = client_peer::configurations().into_iter().next().expect("Codex fixture");
+    let configuration = client_peer::configurations().into_iter().next().expect("OpenAI fixture");
     for enabled in [false, true] {
         let mut bounds = limits();
         bounds.client.reasoning = u32::try_from(b"exact-opaque".len() - 1).expect("fixture size");
         bounds.client.drop_reasoning = enabled;
-        let source = response(200, "Content-Type: text/event-stream\r\n", &events(CODEX_RESPONSE), true);
+        let source = response(200, "Content-Type: text/event-stream\r\n", &events(OPENAI_RESPONSE), true);
         let (context, mut peer) = block_peer(&configuration, &bounds, source);
         peer.request(client::Request::Start);
         peer.run();

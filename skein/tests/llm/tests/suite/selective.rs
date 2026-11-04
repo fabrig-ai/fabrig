@@ -13,10 +13,50 @@ fn tiny() -> client::Limits {
 }
 
 #[test]
-fn a_captured_completion_decodes_under_tiny_retained_limits() {
-    let capture = include_str!("../../../../crates/skein-llm/src/openai/fixtures/provider-completed.json");
+fn a_synthetic_echo_heavy_completion_decodes_under_tiny_retained_limits() {
+    use skein_llm::openai;
+    const ECHO_BYTES: usize = 8192; // Each echo exceeds tiny()'s retained text and strings.
+    let mut encoding = limits().native();
+    encoding.request = 65_536;
+    encoding.retained = 65_536;
+    encoding.strings = 16_384;
+    let request = openai::Request {
+        model: b"synthetic".as_slice().into(),
+        instructions: vec![b'i'; ECHO_BYTES].into(),
+        tools: Box::new([openai::Tool {
+            name: b"read".as_slice().into(),
+            description: vec![b't'; ECHO_BYTES].into(),
+            schema: skein_llm::Json::from_bytes(b"{}", &encoding.document()).unwrap(),
+        }]),
+        input: Box::new([openai::Input::Message {
+            role: openai::Role::User,
+            text: b"hello".as_slice().into(),
+            id: None,
+            phase: None,
+            refusal: false,
+        }]),
+        effort: None,
+        prompt_cache_key: None,
+        choice: skein_llm::ToolChoice::Auto,
+    };
+    // Synthetic: replaces the recorded completion's instructions/tools/attribution echoes.
+    let usage = openai::Usage {
+        input: Some(5256),
+        output: Some(36),
+        cache_read: Some(0),
+        cache_write: Some(0),
+        reasoning: Some(0),
+    };
+    let golden = openai::encode_peer_event(
+        &openai::Event::Completed { stop: openai::Stop::EndTurn, usage },
+        Some(&request),
+        openai::Echo { instructions: true, tools: true, attribution_bytes: u32::try_from(ECHO_BYTES).unwrap() },
+        &encoding,
+    )
+    .unwrap();
+    let golden = std::str::from_utf8(&golden).unwrap();
     let mut world =
-        World::new(call(1), tiny(), response(200, "Content-Type: text/event-stream\r\n", &events(&[capture]), true), 4);
+        World::new(call(1), tiny(), response(200, "Content-Type: text/event-stream\r\n", &events(&[golden]), true), 4);
     world.fragmentation(1, 3);
     world.request(client::Request::Start);
     world.run();
@@ -120,7 +160,7 @@ fn a_long_messages_argument_delta_counts_the_whole_scanned_fragment() {
     ];
     let mut input = call(5);
     input.endpoint = skein_llm::Endpoint::anthropic();
-    input.credential = Some(skein_llm::Credential::anthropic(b"test-oauth".as_slice().into()));
+    input.credential = Some(skein_llm::Credential::key(b"test-oauth".as_slice().into()));
     input.prompt.affinity = None;
     let wire = response(200, "Content-Type: text/event-stream\r\n", &events(&documents), true);
     let mut world = World::new(input, tiny(), wire, 11);

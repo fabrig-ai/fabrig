@@ -13,10 +13,15 @@ const PATH_BYTES: usize = 1024;
 const ENVIRONMENT_ENTRIES: u32 = 64;
 const ENVIRONMENT_BYTES: u64 = 4096;
 
-#[derive(Debug)]
 pub struct Resources {
     programs: Programs,
     environment: Box<[Box<[u8]>]>,
+}
+// Command entries may contain credentials. Debug exposes only retained counts.
+impl core::fmt::Debug for Resources {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Resources").field("programs", &1).field("environment_entries", &self.environment.len()).finish()
+    }
 }
 impl Resources {
     /// Startup's already parsed agent paths and explicit environment.
@@ -110,7 +115,10 @@ impl Component {
             sources::Operation::Check => SourceAsk::Check,
             sources::Operation::SignOut => SourceAsk::SignOut,
         };
-        let source = smith::SourceName::new(name.as_bytes()).expect("same source name grammar");
+        let Some(source) = smith::SourceName::new(name.as_bytes()) else {
+            above.push(failed(owner, operation, jig::SourceFailure::Unconfigured, b"invalid source name", self.detail));
+            return;
+        };
         match ProgramSource::new(
             io_owner,
             ask,

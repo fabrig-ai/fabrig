@@ -79,6 +79,11 @@ pub enum AnswerOn {
 /// Every jig request, without keys owned by the root table.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ask {
+    /// Propose the settings as a revision left them, against the newest (domain/engine.md, 17.10).
+    Restore {
+        revision: u32,
+        reason: Text,
+    },
     ChangeSettings(super::ChangeSettings),
     MoveToNewest(super::MoveToNewest),
     /// Admit and create a batch together.
@@ -212,6 +217,7 @@ pub enum Ask {
     /// Remove a project as its owner (jig/docs/design/domain/people.md, 5.2).
     RemoveProject {
         project: u32,
+        grace: Option<Duration>,
     },
     /// Make a project in the deployment scope (contract.md, 7.5).
     MakeProject {
@@ -239,6 +245,11 @@ pub enum Ask {
         holder: AskAccountHolder,
         source: u32,
     },
+    /// Set the project visibility (jig/docs/design/client/domain/contract.md, 3.2; jig/docs/design/domain/people.md, 13.2).
+    SetVisibility {
+        project: u32,
+        public: bool,
+    },
 }
 
 /// The holder of an LLM account sign-in.
@@ -251,6 +262,12 @@ pub enum AskAccountHolder {
 /// The durable result of one ask.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Outcome {
+    /// A restore proposed for review (domain/engine.md, 17.10).
+    Restored {
+        proposal: u64,
+        to: u32,
+        left_out: List<super::Setting>,
+    },
     SettingsChanged(super::OutcomeSettingsChanged),
     MovedToNewest(super::OutcomeMovedToNewest),
     /// Whole committed owner facts, without inferred names or explanations.

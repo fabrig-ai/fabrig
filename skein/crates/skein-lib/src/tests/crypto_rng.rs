@@ -22,6 +22,26 @@ const FIVE: [u8; 64] = [
 fn rng(stream: u64) -> CryptoRng {
     CryptoRng::new(&Secret::new(bytes::copy_of(&[0; 32])), stream).expect("32 bytes")
 }
+
+/// Whether `T` is `Clone`, decided at compile time: the inherent constant applies only where
+/// `T: Clone`, the trait's default everywhere else.
+#[expect(clippy::disallowed_types, reason = "the trait probe needs a marker for its generic type")]
+struct Probe<T>(core::marker::PhantomData<T>);
+trait Fallback {
+    const CLONE: bool = false;
+}
+impl<T> Fallback for Probe<T> {}
+impl<T: Clone> Probe<T> {
+    const CLONE: bool = true;
+}
+
+#[test]
+#[expect(clippy::assertions_on_constants, reason = "the trait probe is a nextest regression check")]
+fn a_generator_is_neither_copied_nor_cloned() {
+    assert!(Probe::<crate::Token>::CLONE, "the probe sees a Clone type");
+    assert!(!Probe::<CryptoRng>::CLONE, "a copy would yield its bytes again (lib.md, 8)");
+}
+
 #[test]
 fn a_zero_seed_on_stream_zero_gives_rfc_8439_vector_one() {
     let mut block = [0_u8; 64];

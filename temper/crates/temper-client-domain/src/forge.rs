@@ -12,9 +12,10 @@ pub mod listed;
 pub(crate) mod me;
 pub mod model;
 pub mod panel;
-pub mod picker;
 pub mod playground;
+pub mod replace;
 pub mod start;
+pub mod tokens;
 mod vocabulary;
 pub mod words;
 pub use form::{Act, Broken, Check, Field, Form, Marks, Text, Typed, adoption, broken, form, write};
@@ -29,6 +30,8 @@ pub struct Limits {
 pub enum Event {
     Act { act: Act },
     AdminToken { value: skein_lib::Secret },
+    ForgejoToken { field: tokens::Field, value: skein_lib::Secret },
+    ReplaceValue { forge: u16, field: replace::Field, value: skein_lib::Secret },
     AppKey { value: skein_lib::Secret },
     Panel { subject: Option<panel::Subject> },
     RefreshPanel { subject: panel::Subject },
@@ -44,6 +47,7 @@ pub enum Request {
     PlaygroundReset,
     PanelEnded { subject: panel::Subject },
     Show { address: Address },
+    ConnectForge { forge: u16 },
     Leave { to: Box<[u8]> },
     Client { asked: jig_client::Event },
     Send { request: skein_lib::Token, name: Option<skein_lib::RequestKey>, ask: jig_client::Ask },
@@ -55,9 +59,11 @@ pub struct Side {
     forges_open: bool,
     set_up: Option<Box<forges::SetUp>>,
     setup_form: forges::Draft,
-    pickers: skein_lib::List<picker::Picker>,
     admin_form: admin::Draft,
     admin: Option<admin::Pending>,
+    tokens_form: tokens::Draft,
+    tokens: Option<tokens::Pending>,
+    replacements: skein_lib::List<replace::Draft>,
     app_form: github::Draft,
     app: Option<github::Pending>,
     panel: Option<panel::Panel>,
@@ -66,7 +72,6 @@ pub struct Side {
     served: Served,
     form: Option<Form>,
     serial: u64,
-    start_attempts: skein_lib::List<(u16, u64)>,
     party: Option<u64>,
     me: bool,
     link: jig_client::Link,
@@ -81,9 +86,11 @@ impl Side {
             forges_open: false,
             set_up: None,
             setup_form: forges::Draft::new(),
-            pickers: skein_lib::List::with_capacity(forges::ROWS),
             admin_form: admin::Draft::new(),
             admin: None,
+            tokens_form: tokens::Draft::new(),
+            tokens: None,
+            replacements: skein_lib::List::with_capacity(forges::ROWS),
             app_form: github::Draft::new(),
             app: None,
             panel: None,
@@ -92,7 +99,6 @@ impl Side {
             served: Served::Unknown,
             form: None,
             serial: skein_lib::Rng::new(seed).next_u64(),
-            start_attempts: skein_lib::List::with_capacity(forges::ROWS),
             party: None,
             me: false,
             link: jig_client::Link::Starting,
@@ -178,6 +184,14 @@ impl Side {
         self.admin.as_ref()
     }
     #[must_use]
+    pub const fn tokens_form(&self) -> &tokens::Draft {
+        &self.tokens_form
+    }
+    #[must_use]
+    pub const fn tokens(&self) -> Option<&tokens::Pending> {
+        self.tokens.as_ref()
+    }
+    #[must_use]
     pub const fn app_form(&self) -> &github::Draft {
         &self.app_form
     }
@@ -186,21 +200,40 @@ impl Side {
         self.app.as_ref()
     }
     #[must_use]
-    pub fn picker(&self, forge: u16) -> Option<&picker::Picker> {
-        picker::get(self, forge)
+    #[expect(clippy::manual_find, reason = "step code uses loops rather than iterator callbacks")]
+    pub fn replacement(&self, forge: u16) -> Option<&replace::Draft> {
+        for draft in &self.replacements {
+            if draft.forge == forge {
+                return Some(draft);
+            }
+        }
+        None
     }
     fn changed(&mut self) {
+        // Opening the form and delivering forge rows both publish through here.
+        if let Some(draft) = &mut self.form {
+            let mut unwritten = true;
+            for field in &draft.texts {
+                unwritten &= field.written == 0;
+            }
+            if unwritten && let Some((forge, org, name)) = listed::unadopted_first(&self.forges) {
+                form::fill_first(draft, forge, org, name);
+            }
+        }
         self.shown = self.shown.checked_add(1).expect("forge shown count fits");
     }
 }
 pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::AdminToken { value } => admin::token(side, value),
+        Event::ForgejoToken { field, value } => tokens::write(side, field, value),
+        Event::ReplaceValue { forge, field, value } => replace::write(side, forge, field, value),
         Event::AppKey { value } => github::key(side, value),
         Event::Panel { subject } => panel::subject(side, env.limits, subject, out),
         Event::RefreshPanel { subject } => panel::refresh(side, env.limits, subject, out),
         Event::Watched { handle, watched } => panel::watched(side, handle, watched, out),
         Event::Went { address } => {
+            side.replacements.clear();
             side.address = Some(address);
             let Address::Adopt { project } = address;
             let mut draft = form(project);
@@ -210,6 +243,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             side.changed();
         }
         Event::Left => {
+            side.replacements.clear();
             side.form = None;
             if side.address.take().is_some() {
                 side.changed();
@@ -218,12 +252,6 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         Event::Served { served: value } => served(side, value),
         Event::Act { act } => act_on(side, env.limits, act, out),
         Event::Progress { request, progress } => {
-            if progress == skein_lib::RequestProgress::Unknown
-                && (picker::adopted(side, request, &Answer::Unknown)
-                    || forges::adopted(side, env.limits, request, &Answer::Unknown, out))
-            {
-                return;
-            }
             if let Some(draft) = &mut side.form
                 && let Some((pending, _)) = draft.pending
                 && pending == request
@@ -247,9 +275,6 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             }
         }
         Event::Answered { request, answer } => {
-            if picker::adopted(side, request, &answer) || forges::adopted(side, env.limits, request, &answer, out) {
-                return;
-            }
             if let Some(draft) = &mut side.form
                 && let Some((pending, _)) = draft.pending
                 && pending == request
@@ -265,15 +290,14 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             }
         }
     }
-    forges::maybe_adopt(side, env.limits, out);
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
         Act::Forges(act) => forges::act(side, limits, act, out),
-        Act::Picker { forge, act } => picker::act(side, limits, forge, act, out),
         Act::Go { address } => out.push(Request::Show { address }),
         Act::AdminWrite { field, text } => admin::write(side, limits, field, text),
         Act::ConnectAdmin { forge } => admin::send(side, limits, forge, out),
+        Act::ConnectTokens { forge } => tokens::send(side, limits, forge, out),
         Act::AppWrite { text } => github::write(side, text, limits),
         Act::ConnectManifest { forge, back } => github::manifest(side, limits, forge, back, out),
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),
@@ -283,7 +307,6 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
         Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
         Act::SetupWrite { field, text } => forges::write(side, limits, field, text),
-        Act::StartIn { forge } => forges::retry_start(side, limits, forge, out),
         Act::Adopt => {
             let Some(_party) = side.party else {
                 return;
@@ -343,8 +366,8 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     }
 }
 #[must_use]
-pub fn next_deadline(side: &Side) -> Option<Time> {
-    picker::next_deadline(side)
+pub const fn next_deadline(_side: &Side) -> Option<Time> {
+    None
 }
 pub const fn reclaim(_side: &mut Side) {}
 #[must_use]
@@ -374,6 +397,10 @@ fn served(side: &mut Side, served: Served) {
 #[must_use]
 pub fn wire_limits(limits: &Limits) -> Option<temper_client_protocol_wire::v1::Limits> {
     temper_client_protocol_wire::limits(&temper_client_protocol_wire::Bounds {
+        segments: temper_client_protocol_wire::v1::CEILINGS.landing_pattern_segments,
+        segment_bytes: temper_client_protocol_wire::v1::CEILINGS.landing_pattern_segments_item,
+        gates: temper_client_protocol_wire::v1::CEILINGS.landing_rule_gates,
+        approvals: temper_client_protocol_wire::v1::CEILINGS.landing_rule_approvals,
         field_bytes: limits.field_bytes,
         checks: limits.checks,
         contexts: limits.checks,

@@ -740,3 +740,23 @@ fn a_moved_record_bound_past_the_wire_value_bound_refuses_start() {
     };
     assert_eq!(problems.problems.get(0).expect("bound refusal").what, jig_protocol_config::What::Bound);
 }
+
+#[test]
+fn debug_of_the_clients_shows_the_links_count_never_a_link() {
+    const CANARY: &str = "http://127.0.0.1:7100/jig/v1/sign-in/link?secret=canary-jig-links-84d2f6";
+    let (config, _) = crate::startup::fixture_connectors(&f::engine_document());
+    let mut clients = crate::clients::Clients::new(
+        &config,
+        address(),
+        &f::seeds(),
+        &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+    )
+    .expect("clients fixture");
+    clients.links.push(Box::from(CANARY.as_bytes()));
+
+    let debug = alloc::fmt::format(format_args!("{clients:?}"));
+    let canary_bytes = alloc::fmt::format(format_args!("{:?}", CANARY.as_bytes()));
+    assert!(!debug.contains(CANARY), "Debug hides the printed link's text");
+    assert!(!debug.contains(canary_bytes.as_str()), "Debug hides the printed link's bytes");
+    assert!(debug.contains("links_entries: 1"), "Debug shows the printed link count");
+}

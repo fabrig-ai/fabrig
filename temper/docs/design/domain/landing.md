@@ -169,10 +169,12 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   in which its first member becomes ready, with that member and every
   change joined to it. Members joined later are added by the connector
   in the decision that joins them.
-- **Requested by the deployment on the project's behalf,** funded from
-  the project's spend, reserving `1K` of the project's period, with the
-  authority the project's policy gives landings (jig's `domain/authority.md`, section 6), as a branch's
-  repair under `queue` is (`forge.md`, section 9). It answers to no one:
+- **Requested by the deployment on the project's behalf,** with the
+  authority the project's policy gives landings, as a branch's repair
+  under `queue` is (`forge.md`, section 9); funded from the project's
+  spend, made with a budget of zero, its priced effects funded at the
+  effect from the period's unreserved spend, so that a period reserved
+  whole never stops it (jig's `domain/authority.md`, section 6). It answers to no one:
   its escalations go to the project's escalation role, and its members'
   goals hear of it as news.
 - **Its members' change tasks wait on it:** each steps only on its
@@ -573,7 +575,7 @@ the forge's, judged in the change's decision:
 | Kind | Scope | Numbers | Value |
 |---|---|---|---|
 | 4, a project's landing | each project | 1 | the members below |
-| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks; `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format (`after-landing.md`, section 2) |
+| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks; `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, and the branch it follows (`after-landing.md`, section 2) |
 
 Kind 4's members, each with its default and the section it serves:
 
@@ -581,6 +583,7 @@ Kind 4's members, each with its default and the section it serves:
 |---|---|---|
 | `by`: `queue` or `turn` | `queue` | section 1 |
 | `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | 5.3, 6.1 |
+| `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge.md`, 8.4 and 10 |
 | `dependencies_join` | yes | 4.1 |
 | `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | 4.1, 5.3 |
 | `stale_proofs`; `gate_retries` | 2; 2 | 9; 7.4 |
@@ -589,8 +592,10 @@ Kind 4's members, each with its default and the section it serves:
 | `questions_on_forge` | off | `forge.md`, 12.1 |
 
 - **Until both kinds are settings** on jig's application settings (jig's
-  `domain/engine.md`, 17.5), a project's `by` and its repositories'
-  gates are configured in the document's `landing` member
+  `domain/engine.md`, 17.5), a project's `by`, its `tier_retries` and
+  `verification_bound` (`verification_bound_ms` there), its
+  `merge_job`, and its repositories' gates and tiers are
+  configured in the document's `landing` member
   (`../protocol/configuration.md`, section 3), as the landing rules are,
   and read at the start.
 - **`turn` is refused** for a project with a repository where temper

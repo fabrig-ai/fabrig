@@ -12,7 +12,7 @@ const ENGINE: &[u8] = br#"{
 "endpoints": [{
 "name": "fake",
 "number": 1,
-"dialect": 1,
+"dialect": 3,
 "provider": "fake-provider",
 "address": {"socket": "127.0.0.1:7101"},
 "transport": "plaintext",
@@ -413,14 +413,14 @@ pub fn assignment(config: &jig_protocol_config::Engine) -> jig_test_domain::Assi
 pub fn endpoints() -> smith_protocol_channel::Endpoints {
     let mut entries = List::with_capacity(1);
     entries
-        .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 1, dialect: 1 })
+        .push(smith_protocol_channel::Endpoint { name: b"fake".as_slice().into(), number: 1, dialect: 3 })
         .expect("endpoint");
     smith_protocol_channel::Endpoints::new(entries)
 }
 pub fn call(input: &[u8]) -> jig_domain_fleet::Call {
-    let name = smith_channel::v5::CallName::new(
-        &smith_channel::v5::CEILINGS,
-        smith_channel::v5::CallNameParts { activation: 3, completion: 7, position: 2 },
+    let name = smith_channel::CallName::new(
+        &smith_channel::CEILINGS,
+        smith_channel::CallNameParts { activation: 3, completion: 7, position: 2 },
     )
     .expect("call name");
     let mut writer = Writer::new(skein_lib::length::usize_of(name.measure()));
@@ -548,7 +548,7 @@ pub fn worker_service() -> Service {
         .expect("worker service")
 }
 pub fn worker_assignment() -> jig_domain_host::LinkDown {
-    let names = [jig_protocol_charter::EndpointName { number: 1, name: b"fake".as_slice().into(), dialect: 1 }];
+    let names = [jig_protocol_charter::EndpointName { number: 1, name: b"fake".as_slice().into(), dialect: 3 }];
     let mut assignment =
         crate::tools::charter(assignment(&config()), &names, &seeds().deployment).expect("charter assignment");
     assignment.assignment.identity = [3; 16];
@@ -569,7 +569,7 @@ pub fn concrete_turn() -> smith_host_domain::Turn {
         effort: None,
         version: record::VERSION,
         endpoint: Some(llm::Endpoint(1)),
-        dialect: 1,
+        dialect: 3,
         sequence: 1,
         kind: record::Kind::First(Box::new(record::Opener {
             affinity: llm::Affinity { key: [3; 16], thread: 1 },
@@ -645,6 +645,7 @@ pub fn combined_files(document: &[u8]) -> Files {
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: words.into(),
@@ -663,7 +664,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             notes: 0,
             note_resources: Box::new([]),
         },
-        wake: people::WakePolicy {
+        wake: Some(people::WakePolicy {
             words: people::WakeRule::Immediate,
             notices: people::WakeRule::Never,
             news: people::WakeRule::Never,
@@ -671,7 +672,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             questions: false,
             answers: false,
             timers: false,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: None,
         label: 0,

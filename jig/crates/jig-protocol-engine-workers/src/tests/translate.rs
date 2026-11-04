@@ -192,6 +192,7 @@ fn down(record: jig_domain_host::LinkDown) -> translate::Down {
         | LinkDown::Relayed { .. }
         | LinkDown::TurnKept { .. }
         | LinkDown::Acknowledge { .. }
+        | LinkDown::AssignJob { .. }
         | LinkDown::Cancel { .. } => translate::down(record, &[], Box::new([]), &codec()),
     };
     translated.expect("complete output")

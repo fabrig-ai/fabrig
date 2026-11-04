@@ -293,6 +293,7 @@ pub(crate) fn overview(b: &mut Builder, client: &Borrowed<'_>, doc: &Task, words
     }
     slots(b, doc, TaskSection::Overview, words, bindings);
     match doc.chip.executor {
+        ChipExecutor::Job { kind } => words.text(b, JigPhrase::Job, &[Hole::Number(u64::from(kind))]),
         ChipExecutor::Agent { charter } => words.text(b, JigPhrase::Charter, &[Hole::Number(u64::from(charter))]),
         ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
             if let Some(id) = objects.find(ObjectKey::PersonTask(doc.chip.task))
@@ -351,7 +352,9 @@ fn activity(b: &mut Builder, client: &Borrowed<'_>, doc: &Task, words: &Words, b
                 }
             }
         }
-        ChipExecutor::Procedure { .. } => slots(b, doc, TaskSection::Activity, words, bindings),
+        ChipExecutor::Job { .. } | ChipExecutor::Procedure { .. } => {
+            slots(b, doc, TaskSection::Activity, words, bindings);
+        }
         ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
             if let Some(id) = objects.find(ObjectKey::PersonTask(doc.chip.task))
                 && !client.owes(id)
@@ -380,7 +383,7 @@ pub(crate) fn budget(b: &mut Builder, doc: &Task, words: &Words, bindings: &mut 
         }
     }
     match doc.chip.executor {
-        ChipExecutor::Agent { .. } | ChipExecutor::Procedure { .. } => {
+        ChipExecutor::Agent { .. } | ChipExecutor::Job { .. } | ChipExecutor::Procedure { .. } => {
             crate::tree::fragments::authority::document_words(b, &doc.authority, words, text_limit, rows);
         }
         ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {}

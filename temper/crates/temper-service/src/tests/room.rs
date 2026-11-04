@@ -1,0 +1,90 @@
+//! Defaults are checked before a service starts
+//! (temper/docs/design/domain/agent.md, 4.3).
+use super::fixtures;
+use crate::{startup, stock};
+use alloc::boxed::Box;
+use jig_protocol_config as config;
+
+const CHARTER: u32 = 3;
+const SHORT: u64 = 2_047;
+const ENOUGH: u64 = 2_048;
+
+#[expect(clippy::disallowed_macros, reason = "the test reads the embedded stock agent configuration")]
+fn agent() -> crate::settings::Agent {
+    let bytes = include_str!("../../../temper-init/template/agent.json")
+        .replace("$llm", "127.0.0.1:8370")
+        .replace("\"$programs\"", "{}");
+    let parsed = smith_agent_shell::config::parse(bytes.as_bytes()).unwrap();
+    let mut agent = fixtures::startup_agent();
+    agent.run_limits = parsed.service.limits.domain.run;
+    agent
+}
+
+fn start(room: u64) -> Result<crate::Service, startup::Problems> {
+    // The long instructions need the charter carriers, independently of the host-part bound.
+    let document = super::stock::limited(&fixtures::document(), b"core.run_bytes", 65_536);
+    let overrides = fixtures::value(&document, b"application.limits.overrides");
+    let prefix = overrides.strip_suffix(b"}").unwrap();
+    let suffix = b",\"root.journal.run_bytes\":65536}";
+    let mut out = skein_lib::Writer::new(prefix.len().checked_add(suffix.len()).unwrap());
+    out.put(prefix).unwrap();
+    out.put(suffix).unwrap();
+    let document = fixtures::with(&document, b"application.limits.overrides", &out.finish());
+    let agent = agent();
+    let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+    let host = temper_engine_smith::room::host_part(&agent.run_limits);
+    let mut defaults = stock::defaults(&engine.llm);
+    for charter in &mut defaults.charters {
+        if charter.number == CHARTER {
+            charter.policy.instructions = Box::new([]);
+            // Smith adds two line-ending bytes after these non-newline instructions.
+            let instructions = host.room(&charter.policy).checked_sub(room).unwrap().checked_sub(2).unwrap();
+            let mut bytes = skein_lib::List::with_capacity(u32::try_from(instructions).unwrap());
+            for _ in 0..instructions {
+                bytes.push(b'x').unwrap();
+            }
+            charter.policy.instructions = bytes.into_boxed();
+        }
+    }
+    startup::startup_with(
+        &document,
+        &config::Directories::working(),
+        &fixtures::files(),
+        &agent,
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+        &stock::Given::Own { jig: defaults, forge: Box::default() },
+    )
+}
+
+#[test]
+fn defaults_leaving_2047_bytes_refuse_the_start() {
+    let Err(found) = start(SHORT) else { panic!("a short charter refuses the start") };
+    assert_eq!(
+        startup::lines(&found).as_ref(),
+        b"charter 3: charter 3 leaves its brief 2,047 bytes of its host part's 51,717; it needs at least 2,048\n",
+    );
+}
+
+#[test]
+fn defaults_leaving_2048_bytes_start() {
+    start(ENOUGH).expect("the least brief room starts");
+}
+
+#[test]
+#[expect(
+    clippy::print_stderr,
+    clippy::disallowed_macros,
+    reason = "the check reports each stock charter's room for the implementation report"
+)]
+fn stock_charters_leave_at_least_2048_bytes() {
+    let engine = fixtures::parse_engine(&fixtures::value(&fixtures::document(), b"engine"));
+    let host = temper_engine_smith::room::host_part(&agent().run_limits);
+    for charter in &engine.charters {
+        let room = host.room(&charter.policy);
+        std::eprintln!("stock charter {}: room {room}, bound {}", charter.number, host.bound);
+        assert!(room >= ENOUGH);
+    }
+}

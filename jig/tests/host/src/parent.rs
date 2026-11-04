@@ -204,6 +204,8 @@ pub struct Parent {
     /// workspaces.
     delivering: BTreeMap<Token, Token>,
     tally: Tally,
+    jobs: BTreeMap<Token, (Option<Token>, bool)>,
+    pub(crate) job_end: Option<jig_domain_host::JobEnd>,
 }
 
 impl Parent {
@@ -219,6 +221,8 @@ impl Parent {
             agents: BTreeMap::new(),
             delivering: BTreeMap::new(),
             tally: Tally::default(),
+            jobs: BTreeMap::new(),
+            job_end: None,
         }
     }
 
@@ -245,12 +249,13 @@ impl Parent {
                 return false;
             }
         }
-        true
+        self.jobs.get(&owner).is_none_or(|(_, gone)| *gone)
     }
 
     /// Checks that nothing is left: every workspace released, every agent
     /// gone, nothing in flight.
     pub fn assert_settled(&self) {
+        assert!(self.jobs.values().all(|(_, gone)| *gone), "every job is gone");
         assert!(self.preparing.is_empty(), "every prepare has ended");
         assert!(self.delivering.is_empty(), "every delivery has ended");
         for (token, space) in &self.spaces {
@@ -264,6 +269,12 @@ impl Parent {
     /// Takes the host's request `request`, which is for the parent.
     pub fn take(&mut self, request: Request) -> Vec<Out> {
         match request {
+            Request::Job(jig_domain_host::ToJob::Run { owner, workspace, .. }) => self.run_job(owner, workspace),
+            Request::Job(jig_domain_host::ToJob::Stop { owner }) => {
+                assert!(self.jobs.contains_key(&owner), "only a running job is stopped");
+                self.tally.stops += 1;
+                Vec::new()
+            }
             Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
             Request::Prepare { owner, workspace } => self.prepare(owner, &workspace),
             // A notice: the prepare still ends as it was going to, which the
@@ -279,7 +290,9 @@ impl Parent {
             Request::Agent(ToAgent::Message { agent, .. }) => self.deliver(agent),
             Request::Agent(ToAgent::Answer { agent, call: _, answer: _ }) => self.reply(agent),
             Request::Agent(ToAgent::Cancel { agent }) => self.stop(agent),
-            Request::Deliver { owner, workspace, .. } => self.delivery(owner, workspace),
+            Request::DeliverJob { owner, workspace, .. } | Request::Deliver { owner, workspace, .. } => {
+                self.delivery(owner, workspace)
+            }
             Request::Save { owner, workspace } => self.save(owner, workspace),
             Request::Release { workspace } => self.release(workspace),
             Request::Agent(ToAgent::Grant { .. }) => Vec::new(),
@@ -292,6 +305,7 @@ impl Parent {
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
                 | LinkUp::Turn { .. }
+                | LinkUp::JobAnswer { .. }
                 | LinkUp::Answer { .. }
                 | LinkUp::Call { .. },
             )
@@ -578,6 +592,9 @@ impl Parent {
         assert!(!space.released, "nothing is {what} after its release");
         assert_eq!(space.deliveries, 0, "nothing is {what} while a delivery is in flight");
         assert!(!space.saving, "nothing is {what} while a save is in flight");
+        for (job_space, gone) in self.jobs.values() {
+            assert!(*job_space != Some(workspace) || *gone, "nothing is {what} while a job may be running");
+        }
         if let Some(agent) = space.agent {
             let phase = self.agents.get(&agent).expect("an agent is kept once made").phase;
             assert_eq!(phase, Phase::Gone, "nothing is {what} while the run's agent may still be running");
@@ -672,4 +689,34 @@ fn host(after: Duration, event: Event) -> Out {
 
 fn bytes(len: u64) -> Box<[u8]> {
     vec![b'x'; usize::try_from(len).expect("a test length fits")].into_boxed_slice()
+}
+
+impl Parent {
+    fn run_job(&mut self, owner: Token, workspace: Option<Token>) -> Vec<Out> {
+        use jig_domain_host::{FromJob, JobEnd};
+        if let Some(workspace) = workspace {
+            let space = self.spaces.get(&workspace).expect("a job uses a prepared workspace");
+            assert!(space.owner == owner && !space.released && space.agent.is_none());
+        }
+        assert!(self.jobs.insert(owner, (workspace, false)).is_none(), "one job per owner");
+        self.tally.starts += 1;
+        let end =
+            self.job_end.take().unwrap_or_else(|| JobEnd::Finished { result: Box::from(&b"r"[..]), delivery: None });
+        let start = self.script.start.draw(&mut self.rng);
+        let end_at = start.saturating_add(self.script.step.draw(&mut self.rng));
+        let gone = end_at.saturating_add(self.script.exit.draw(&mut self.rng));
+        vec![
+            host(start, Event::Job(FromJob::Started { owner })),
+            host(end_at, Event::Job(FromJob::Ended { owner, end })),
+            host(gone, Event::Job(FromJob::Gone { owner, detail: Box::new([]) })),
+        ]
+    }
+
+    pub(crate) fn job_event(&mut self, event: &jig_domain_host::FromJob) {
+        if let jig_domain_host::FromJob::Gone { owner, .. } = event {
+            let (_, gone) = self.jobs.get_mut(owner).expect("a job was run");
+            assert!(!*gone, "Gone is terminal once");
+            *gone = true;
+        }
+    }
 }

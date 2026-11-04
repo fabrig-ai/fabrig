@@ -97,7 +97,7 @@ fn configured_accounts_are_refused_at_their_path() {
 }
 #[test]
 fn an_endpoint_account_is_refused_at_its_path() {
-    let document = replaced(&fixtures::document(), br#""dialect": 1,"#, br#""dialect": 1,"account": 1,"#);
+    let document = replaced(&fixtures::document(), br#""dialect": 3,"#, br#""dialect": 3,"account": 1,"#);
     let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*crate::startup::lines(&found), b"engine.llm.endpoints[0].account: unknown member\n");
 }

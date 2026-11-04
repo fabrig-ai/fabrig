@@ -1,4 +1,4 @@
-//! Bounded channel records and the version-five kind table. This crate keeps no
+//! Bounded channel records and the version-six kind table. This crate keeps no
 //! runtime state and knows no domain, credentials or host policy. Generated
 //! constructors, encoders and decoders handle bodies; [`schema`] advertises
 //! their largest permitted encodings. Contracts: `protocol/channel.md`,
@@ -13,8 +13,8 @@ extern crate alloc;
 pub mod fixture;
 
 #[rustfmt::skip]
-#[path = "generated/v5.rs"]
-pub mod v5;
+#[path = "generated/v6.rs"]
+pub mod v6;
 
 mod frame;
 pub mod kind;
@@ -23,13 +23,13 @@ pub mod reason;
 
 pub use frame::{Body, frame};
 
-pub use kinds::{KindRule, Overflow, V5, peer_terms_gap, schema};
-pub use v5::{
+pub use kinds::{KindRule, Overflow, V6, peer_terms_gap, schema};
+pub use v6::{
     Cap, CompletionLimit, CompletionPhase, LimitFailure, LimitFailureParts, PathCap, PathCapParts, PoolLimit,
     PoolLimitParts, ResponseEvidence, ResponseEvidenceParts, TimeoutFailure, TimeoutFailureParts,
 };
 
-pub use v5::{
+pub use v6::{
     Accepted, AcceptedParts, AccountRefused, AccountRefusedParts, Acknowledge, AcknowledgeParts, Admitted,
     AdmittedParts, Answer, AnswerParts, AnsweredCall, AnsweredCallParts, Ask, BudgetCeiling, BudgetCeilingValue,
     BudgetCeilingValueParts, BudgetChecks, BudgetChecksParts, BudgetCompletion, BudgetCompletionParts, BudgetFailure,
@@ -51,6 +51,5 @@ pub use v5::{
     RefusedFaultParts, RefusedParts, Reply, RunFailure, RunResult, SavedReply, Scheme, Start, StartParts, StartRefusal,
     TranscriptRefusal, TranscriptRefusalValue, TranscriptRefusalValueParts, Turn, TurnParts, Unauthorized,
     UnauthorizedFault, UnauthorizedFaultParts, UnauthorizedParts, Waiting, WaitingParts, Window, WindowBound,
-    WindowBoundParts, WindowParts, Withdraw, WithdrawParts, WithdrawnValue, WithdrawnValueParts, Workspace,
-    WorkspaceParts,
+    WindowBoundParts, WindowParts, Withdraw, WithdrawParts, Workspace, WorkspaceParts,
 };

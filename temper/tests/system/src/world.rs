@@ -109,6 +109,7 @@ pub fn hello(slots: u32) -> engine::Event {
         link: engine::Link::Hello {
             worker: 0,
             hello: host::Hello {
+                jobs: Box::default(),
                 slots,
                 stop_bound: Duration::from_secs(1),
                 workstreams: Box::new([]),

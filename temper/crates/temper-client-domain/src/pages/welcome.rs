@@ -27,7 +27,7 @@ pub enum FirstRun {
 /// None while the session's playground, forge or account facts are missing.
 #[must_use]
 pub fn decision(root: &Domain) -> Option<FirstRun> {
-    accounts::current_me(root.client())?;
+    let me = accounts::current_me(root.client())?;
     if !root.forge().playground_answered() {
         return None;
     }
@@ -43,41 +43,53 @@ pub fn decision(root: &Domain) -> Option<FirstRun> {
         for row in rows {
             if row.mode != forges::Mode::Fake {
                 kept = true;
-                connected |= first_adopted(row);
+                connected |= forge_connected(row);
             }
         }
     }
-    Some(if connected && model {
+    Some(if connected && model && !me.projects.is_empty() {
         FirstRun::Whole
     } else if !kept && !model {
         FirstRun::Empty
     } else if !connected {
         FirstRun::Unfinished { step: crate::Step::Forge { forge: None } }
-    } else {
+    } else if !model {
         FirstRun::Unfinished { step: crate::Step::Model { way: None } }
+    } else {
+        FirstRun::Unfinished { step: crate::Step::Ready }
     })
 }
-fn first_adopted(row: &forges::Row) -> bool {
-    match row.connection {
-        forges::Connection::Connected { .. } => {}
+/// A real connected forge, including GitHub's accepted installation (3.5).
+#[must_use]
+pub fn forge_connected(row: &forges::Row) -> bool {
+    let connected = match row.connection {
+        forges::Connection::Connected { .. } => true,
         forges::Connection::NotConnected
         | forges::Connection::NotSetUp
         | forges::Connection::SettingUp { .. }
         | forges::Connection::SetUpFailed { .. }
         | forges::Connection::Connecting
-        | forges::Connection::Stopped { .. } => return false,
+        | forges::Connection::Stopped { .. } => false,
+    };
+    row.mode != forges::Mode::Fake && connected && (row.kind != forges::Kind::GitHub || forges::accepted(row))
+}
+/// Ready's request and last ending survive navigation (3.5).
+#[derive(Debug)]
+pub struct DefaultProject {
+    pub making: Option<jig_client::Key>,
+    pub attempt: u64,
+    pub ended: Option<Ended>,
+    pub project: Option<u32>,
+}
+impl DefaultProject {
+    pub(crate) const fn new() -> Self {
+        Self { making: None, attempt: 0, ended: None, project: None }
     }
-    let Some(first) = &row.first else { return false };
-    match first.state {
-        forges::FirstState::Made { .. } => {}
-        forges::FirstState::Making | forges::FirstState::Failed { .. } => return false,
-    }
-    for repository in &row.repositories {
-        if repository.owner == first.org && repository.name == first.repository {
-            return true;
-        }
-    }
-    false
+}
+#[derive(Debug, PartialEq, Eq)]
+pub enum Ended {
+    Refused(jig_client::contract::Refusal),
+    Unknown,
 }
 /// A real account alone keeps the playground offered (3.5).
 #[must_use]

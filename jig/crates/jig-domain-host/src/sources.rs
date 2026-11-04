@@ -86,7 +86,6 @@ pub(crate) fn replace(domain: &mut Domain, env: &Env<Limits>, names: Box<[Source
         return;
     }
     if domain.closed {
-        out.push(Request::SourceFault);
         return;
     }
     let mut old = core::mem::replace(&mut domain.rows, List::with_capacity(env.limits.program_sources));
@@ -127,6 +126,9 @@ pub fn unique(names: &[SourceName]) -> bool {
     true
 }
 pub(crate) fn check(domain: &mut Domain, env: &Env<Limits>, name: SourceName, out: &mut Queue<Request>) {
+    if domain.closed {
+        return;
+    }
     let mut found = false;
     for index in 0..domain.rows.len() {
         let row = domain.rows.get_mut(index).expect("source row");
@@ -136,7 +138,7 @@ pub(crate) fn check(domain: &mut Domain, env: &Env<Limits>, name: SourceName, ou
             found = true;
         }
     }
-    if !found || domain.closed {
+    if !found {
         out.push(Request::SourceFault);
         return;
     }

@@ -1,6 +1,6 @@
 # The shell kit
 
-Provisional, 2026-10-03, revised 2026-10-23. The design of
+Provisional, 2026-10-03, revised 2026-11-03. The design of
 `skein-shell`: what a service's `main` runs its loop on. The kernel (the
 io_uring backend of the kernel boundary, kernel.md, and the readiness
 backend for hosts without it, macOS among them), the clock and the
@@ -138,7 +138,8 @@ target is a compile error naming the three (7.5, 7.6).
 - **The clock gives two times,** read together once per iteration:
   `CLOCK_MONOTONIC`, for every deadline (the kernel's wait deadline is on
   this clock), and `CLOCK_REALTIME`, for things about the world. The loop
-  hands both to the steps in `Env`.
+  hands both to the steps in `Env`; `Now::with(limits)` makes the `Env` of
+  one reading for a step with those limits.
 - **The seed** comes from `getrandom`, once, at startup; everything random
   after it is drawn from the layers' state. It fails, and the service
   does not start, when the kernel refuses `getrandom`.
@@ -585,8 +586,27 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   their usual results. An `Open` whose `..` raced a rename or a mount
   (`EAGAIN`) is made again, up to 16 times, then fails with
   `Other(EAGAIN)`. A `Close` is never made again: its descriptor may
-  already be another's. The rule for an interrupted `Socket`, `Accept`,
-  `Connect` or `Open` is open (section 10).
+  already be another's.
+- **Every other interrupted operation completes `Other(EINTR)`,** a
+  `Close` among them (above), as the ring's does, so that one error
+  number means one thing on both backends: a `Socket`, `Bind`, `Listen`,
+  `Accept`, `Connect`, `Shutdown`, `Open`, `Truncate`, `Sync`, `Stat`,
+  `Rename`, `Remove`, `MakeDirectory`, `List`, `Lock`, `Wait`, `Spawn`,
+  `Signal`, `Usage` or `Window`. Neither the shared part nor the
+  system's call (7.5) makes it again, nor any call of its own: an `Open`
+  makes one `openat2` (`openat` on Darwin), a `Wait` one `waitid`, and a
+  `Connect` never calls `connect` a second time on its socket, which one
+  whose connection is under way would answer `EALREADY`. The calls that
+  set up or inspect around an operation's own (a socket's options, a
+  bound address, the kind of what an `Open` opened, a `Spawn`'s working
+  directory and the report of its exec) keep their retries: none makes
+  the operation again. On Linux the ring's synchronous operations share
+  these calls (section 3), so its `List`, `Lock`, `Spawn`, `Signal`,
+  `Usage` and `Window` complete so too. The callers outside the kernel
+  that share a call make it again: a held listener's `bind` and `listen`
+  (6.6), and `poll_child`, the harness's. With the signals the shell
+  watches blocked (Linux) or ignored (Darwin), these calls are seldom
+  interrupted.
 - **Errors map as the ring's do,** per operation, by the same functions
   (7.5): an error number means what it means to the ring.
 - **A cancel** of a record that waits takes it off its side, completes
@@ -994,9 +1014,6 @@ and changes no code above io:
 - **A hashed certificate directory** (`SSL_CERT_DIR`) as the machine's
   trust roots, on a machine with no bundle file: read it, or refuse to
   start, as the shell does (6.2).
-- **An interrupted `Socket`, `Accept`, `Connect` or `Open`** (7.4): whether
-  each is made again or completes `Other(EINTR)`; a `Connect` made again
-  must not call `connect` a second time on its socket.
 - **An inherited listener under the readiness backend** (7.3): whether
   the kit makes a listener it was given non-blocking, which the shared
   description makes non-blocking for every process that holds it.

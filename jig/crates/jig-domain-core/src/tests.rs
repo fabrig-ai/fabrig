@@ -8,10 +8,13 @@ mod effects;
 mod fill;
 mod fixtures;
 mod funding;
+mod holdings;
 mod inbox;
+mod jobs;
 mod limits;
 mod reads;
 mod routing;
+mod run_policy_tools;
 mod runs;
 mod settings;
 mod start;
@@ -20,7 +23,7 @@ mod translate;
 use crate::{
     Settings,
     admission::{amendments, compound, person_task},
-    documents::*,
+    documents::{Document, *},
     effects::{connector, projections},
     routing::Work,
     runs::state as run,
@@ -97,6 +100,7 @@ pub(crate) fn limits() -> Limits {
         saved_resources: 2,
         contract_choices: 1,
         charters: 1,
+        charter_documents: 2,
         revisions: 4,
         versions: 8,
         authority_grants: 1,
@@ -162,6 +166,7 @@ pub(crate) fn limits() -> Limits {
         history: 2,
     };
     Limits {
+        public: PublicIndexLimits::OFF,
         routes: 20_783,
         settings: crate::settings::Limits {
             revisions: 4,
@@ -366,7 +371,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 /// The one configured model, its charter's, which declares two efforts (tasks.md, 3).
 fn scripted_model() -> Model {
     Model {
-        dialect: 1,
+        dialect: 3,
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),
@@ -416,6 +421,8 @@ pub(crate) fn config(seed: u64) -> Config {
         requirements: Box::new([]),
     };
     Config {
+        jobs: Box::new([]),
+        kept_starts: Box::new([]),
         worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
         deployment: [31; 16],
         seed,
@@ -459,8 +466,11 @@ pub(crate) fn config(seed: u64) -> Config {
                 }]),
             },
         },
+        kinds: Box::default(),
         defaults: crate::settings::Defaults {
             charters: Box::new([Charter {
+                wake: jig_domain_tasks::WakePolicy::DEFAULT,
+                documents: Box::new([]),
                 number: 1,
                 hosts: fleet::Kinds::Workers,
                 spend: 100,
@@ -479,6 +489,7 @@ pub(crate) fn config(seed: u64) -> Config {
                     shell: true,
                     agents: true,
                     call_timeout: Duration::from_secs(10),
+                    tools: RunPolicy::EVERY_FAMILY,
                 },
             }]),
             templates: Box::new([]),
@@ -607,6 +618,7 @@ fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: t
         executor: tasks::Executor::Agent { charter: 1 },
         llm: None,
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"A task title\nThe specification".as_slice().into(),
             parameters: Box::new([]),
@@ -651,6 +663,7 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
     assert_eq!(
         frame.projects.as_slice(),
         &[FrameProjectRole {
+            public: false,
             project: 1,
             role: people::Role::Owner,
             name: Text { bytes: Box::from(&b"Project 1"[..]), cut: false },
@@ -861,6 +874,7 @@ fn new_row(core: &Core, number: u64, funder: tasks::Funder, tracked: Option<u32>
         executor: tasks::Executor::Agent { charter: 1 },
         llm: None,
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"Work\nDetailed instructions".as_slice().into(),
             parameters: Box::new([]),
@@ -878,7 +892,8 @@ fn new_row(core: &Core, number: u64, funder: tasks::Funder, tracked: Option<u32>
     }
 }
 
-fn make_tree() -> (Core, Limits) {
+/// A live parent with three delegates, one held for budget.
+pub(crate) fn make_tree() -> (Core, Limits) {
     let (mut core, limits) = tree_core();
     let root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
     send_task(
@@ -2063,6 +2078,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
             worker: 0,
             channel: Token::new(10),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::from_secs(1),
                 slots: 1,
@@ -2094,6 +2110,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
             worker: 1,
             channel: Token::new(11),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
                 slots: 2,

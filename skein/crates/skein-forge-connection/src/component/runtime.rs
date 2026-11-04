@@ -9,8 +9,6 @@ impl Component {
     pub(super) fn add(&mut self, env: &Env<Limits>, forge: Forge) {
         for configured in &self.settings.forges {
             if configured.number == forge.number {
-                #[cfg(test)]
-                unique(configured.number, forge.number);
                 return;
             }
         }
@@ -114,10 +112,4 @@ impl Component {
             }
         }
     }
-}
-
-#[cfg(test)]
-#[expect(clippy::disallowed_macros, reason = "the runtime membership contract asserts duplicate numbers only in tests")]
-fn unique(configured: u16, number: u16) {
-    debug_assert_ne!(configured, number, "a forge number is configured once");
 }

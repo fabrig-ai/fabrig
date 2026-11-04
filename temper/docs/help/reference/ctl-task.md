@@ -47,6 +47,10 @@ An act marked `(no tool)` has no tool here yet; one followed by a
 colon and a reason is refused as it stands; one marked `proposed
 to` asks another party first. A change task adds `next:` and the
 call that reads its change. An ended task prints its result.
+Text reads and waits fill `asked:` from the specification within their output
+bounds. If words remain, `task text TASK --field specification --from OFFSET`
+reads on from the first undisplayed byte. JSON keeps the bounded overview
+and its digest.
 ```
 
 ## task activity
@@ -183,7 +187,7 @@ Read a task's live tree: the task and each delegate its window holds, a line eac
 Prints: `tree:`, the task, then a line per delegate; `cut:` and the call that reads the rest when it folds some; and `digest: tree`
 --json: the record tree.
 Key: none.
-With `--until ended`, it returns when a read shows the tree ended; a watch that ends with no read of it delivered is refused: `gone`, status 2.
+With `--until ended`, it returns when a delivery shows the tree ended or its watch reports completion. Watch completion prints `tree ended (watch)` and labels the retained rows `last observed snapshot`; their phases and digest describe that snapshot. JSON keeps the tree unchanged and adds `completion: {source: "watch", ended: true}` and `snapshot: "last_observed"` outside it. A watch that ends with no delivery is refused: `gone`, status 2.
 A large tree folds what does not fit: read the rest with task list
 --parent TASK, a page at a time.
 ```
@@ -191,7 +195,7 @@ A large tree folds what does not fit: read the rest with task list
 ## task amend
 
 ```
-task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] REASON [--key KEY]
+task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]
   TASK (task): a number; required. The task's number
   --rev REV: a number; optional. The spec revision the task prints; not needed for its priority alone
   --priority PRIORITY: a number; optional. Track it at this priority
@@ -205,6 +209,7 @@ task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME
   --model MODEL: text, at most 1048576 bytes, or - to read stdin; optional. A model the task may use, as models lists it
   --effort EFFORT: text, at most 1048576 bytes, or - to read stdin; optional. An effort that model offers
   REASON (reason): text, at most 1048576 bytes, or - to read stdin; required. Why
+  --tasks N: a number; optional. The tasks its subtree may make over its life; the rest of its authority kept
 Amend a task: each control you name is replaced, the rest kept
 Prints: `done: task N, amend`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record amend.

@@ -733,3 +733,28 @@ fn a_long_targets_temporary_keeps_its_first_230_bytes() {
         .as_bytes()
     );
 }
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "verify Debug hides a store's contents in flight")]
+fn debug_of_file_io_hides_a_store_in_flight() {
+    const CANARY: &[u8] = b"canary-7f3a9c";
+    let mut rig = Rig::new();
+    file_layer::down(
+        &mut rig.io,
+        Time::ZERO,
+        Request::Store {
+            owner: OWNER,
+            root: rig.root,
+            path: Box::from(&b"dir/file"[..]),
+            bytes: Box::from(CANARY),
+            expected: Expect::Any,
+            no_follow: true,
+        },
+        &mut rig.events,
+        &mut rig.subs,
+    );
+    let debug = alloc::format!("{:?}", rig.io);
+    assert!(!debug.contains("canary-7f3a9c"));
+    assert!(!debug.contains(&alloc::format!("{CANARY:?}")));
+    assert!(debug.contains("len: 13"));
+}

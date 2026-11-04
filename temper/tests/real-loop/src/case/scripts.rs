@@ -1639,7 +1639,7 @@ pub fn step_6_7_rules() -> Box<[Box<[Rule]>]> {
 pub fn step_6_6(forge: SocketAddr) -> Box<[Script]> {
     use super::waiting::{
         APP_ID, APP_REVIEW_HEAD, DIRECTOR_REPORT, E1_SPEC, FILE, FIXED, KIT_ID, KIT_REVIEW_HEAD, OWNER_REPORT,
-        OWNER_SPEC, PIN, REPIN_SPEC, REVIEW_HOLD, pin_input,
+        OWNER_SPEC, PIN, REPIN_HOLD, REPIN_SPEC, REVIEW_HOLD, pin_input,
     };
     let mut owner = direction_owner(forge, OWNER_SPEC, 30, 0, 6);
     owner["authority"]["tools"] = 1.into();
@@ -1675,10 +1675,13 @@ pub fn step_6_6(forge: SocketAddr) -> Box<[Script]> {
         Script { cue: review_cue(KIT_REVIEW_HEAD), turns: Box::new([direction_held(REVIEW_HOLD, verdict())]) },
         Script {
             cue: task_cue(Agent::WaitingAppCoder.cue()),
-            turns: Box::new([finish_change(
-                call(b"write", &json!({"path":PIN,"content":pin_input()})),
-                "Repin kit",
-                "Use e1's landed kit commit.",
+            turns: Box::new([direction_held(
+                REPIN_HOLD,
+                finish_change(
+                    call(b"write", &json!({"path":PIN,"content":pin_input()})),
+                    "Repin kit",
+                    "Use e1's landed kit commit.",
+                ),
             )]),
         },
         Script { cue: review_cue(APP_REVIEW_HEAD), turns: Box::new([verdict()]) },
@@ -1693,7 +1696,7 @@ pub fn step_6_6_rules() -> Box<[Box<[Rule]>]> {
     };
     Box::new([
         table(&[(OWNER_REPORT, 1), (CROSSED, 1), (&format!("{DELEGATED}{A1}"), 2), (BEGIN, 0), ("", 2)]),
-        // e1's ending selects only a wait; repin starts by its dependency rail.
+        // e1's ending selects only a wait; the repin producer is already running.
         table(&[(&format!("Result from task {REPIN}:"), 1), (CROSSED, 1), (DELEGATED, 2), (BEGIN, 0), ("", 2)]),
         Box::new([]),
         Box::new([]),

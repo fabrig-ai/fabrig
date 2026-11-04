@@ -20,7 +20,7 @@ pub(crate) fn parse(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Clients> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "clients")?;
     let heartbeat = check::duration(&mut object, document, b"heartbeat_ms", path, problems);
     let mut link = None;
     if let Some(at) = object.required(document, b"link", path, problems) {
@@ -121,6 +121,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         (b"authority.implications".as_slice(), core.authority.implications, wire.rules_implies),
         (b"core.templates".as_slice(), core.templates, wire.setting_policy_templates),
         (b"core.settings.permissions".as_slice(), core.settings.permissions, wire.setting_policy_permissions),
+        (b"tasks.charter_documents".as_slice(), core.tasks.charter_documents, wire.charter_documents),
         (b"core.settings.alternatives".as_slice(), core.settings.alternatives, wire.charter_alternatives),
         (b"core.run_bytes".as_slice(), core.run_bytes, wire.charter_instructions),
         (b"documents.text_bytes".as_slice(), core.documents.text_bytes, wire.document_text_bytes),
@@ -265,4 +266,49 @@ mod proposal_settings_tests {
             }
         }
     }
+}
+
+// PublicLine's bound is 128 bytes until public-wire supplies its encoded bound
+// (jig/docs/design/domain/people.md, 13.9).
+const PUBLIC_LINE_BYTES: u64 = 128;
+
+/// Public admission relations checked at start (configuration.md, 6).
+pub(crate) fn check_public(limits: &crate::Limits, problems: &mut Problems) {
+    let public = &limits.clients.public;
+    if public.max_age > 60 {
+        problems.push(crate::domain::codec_path(b"clients.public.max_age"), crate::What::Bound);
+    }
+    if !public.on() {
+        return;
+    }
+    for (name, holds) in [
+        (b"clients.public.rate_burst".as_slice(), public.rate_burst >= public.rate),
+        (b"clients.public.bytes_burst".as_slice(), public.bytes_burst >= public.bytes),
+        (b"clients.public.answer_bytes".as_slice(), u64::from(public.answer_bytes) <= public.bytes_burst),
+        (b"clients_http.public_calls".as_slice(), limits.clients_http.public_calls <= public.reads),
+        (b"clients.public.reads".as_slice(), public.reads > 0),
+        (b"core.public.goals".as_slice(), limits.core.public.goals > 0),
+        (b"core.public.ended".as_slice(), limits.core.public.ended > 0),
+        (b"core.public.lines".as_slice(), limits.core.public.lines > 0),
+        (b"core.public.depth".as_slice(), limits.core.public.depth > 0),
+    ] {
+        if !holds {
+            problems.push(crate::domain::codec_path(name), crate::What::Bound);
+        }
+    }
+    // Configuration has no per-process estimate; the index must fit u32 bytes.
+    if match public_index_bytes(&limits.core) {
+        Some(bytes) => bytes > u64::from(u32::MAX),
+        None => true,
+    } {
+        problems.push(crate::domain::codec_path(b"core.public.lines"), crate::What::Bound);
+    }
+}
+
+fn public_index_bytes(limits: &jig_domain_core::Limits) -> Option<u64> {
+    u64::from(limits.public.goals)
+        .checked_add(u64::from(limits.public.ended))?
+        .checked_mul(u64::from(limits.public.lines))?
+        .checked_mul(PUBLIC_LINE_BYTES)?
+        .checked_mul(u64::from(limits.people.projects))
 }

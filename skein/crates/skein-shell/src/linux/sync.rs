@@ -90,12 +90,11 @@ pub(crate) fn read_signal(info: &libc::signalfd_siginfo, count: usize) -> Result
     Ok(Done::Signalled(signal))
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn lock(fd: Fd) -> Result<(), i32> {
-    crate::linux::retry(|| {
-        // SAFETY: flock takes only the descriptor and integer flags, and never waits.
-        let result = unsafe { libc::flock(fd.raw(), libc::LOCK_EX | libc::LOCK_NB) };
-        if result == 0 { Ok(()) } else { Err(last_errno()) }
-    })
+    // SAFETY: flock takes only the descriptor and integer flags, and never waits.
+    let result = unsafe { libc::flock(fd.raw(), libc::LOCK_EX | libc::LOCK_NB) };
+    if result == 0 { Ok(()) } else { Err(last_errno()) }
 }
 
 /// `bytes` and a NUL after them: the string the kernel reads for a path or

@@ -11,8 +11,12 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod admission;
 mod budget;
+mod documents;
+mod forge_route;
 mod projection_settled;
+mod public;
 pub(crate) use projection_settled::live_task;
+mod kinds;
 mod release;
 mod removal;
 mod restore_fit;
@@ -504,6 +508,7 @@ fn deep_child_rows_and_arbitrary_internal_payloads_are_refused_before_retention(
         worker: 0,
         channel: Token::new(1),
         hello: fleet::Hello {
+            jobs: Box::default(),
             stop_bound: skein_lib::Duration::from_secs(0),
             slots: 1,
             workstreams: Box::new([]),
@@ -612,6 +617,7 @@ fn held_assignment() -> crate::Assignment {
                 shell: false,
                 agents: false,
                 call_timeout: skein_lib::Duration::from_secs(1),
+                tools: crate::RunPolicy::EVERY_FAMILY,
             },
             contract: jig_domain_tasks::Contract::Report { words: 1 },
             authority: jig_domain_tasks::Authority {
@@ -685,7 +691,7 @@ fn an_issued_program_counts_its_retained_name() {
         name: name.as_slice().into(),
         signed_out: true,
     }));
-    assert_eq!(crate::record_bytes(&row), Some(u64::try_from(name.len()).expect("bounded name bytes")));
+    assert_eq!(crate::record_bytes(&row), Some(skein_lib::len_u64(name.len())));
 }
 
 #[test]
@@ -824,3 +830,5 @@ fn a_dropped_transcript_crosses_the_journal() {
         Key::Core(core::Key::Core(core::CoreKey::Turn { task: 7, attempt: 1, turn: 1 }))
     );
 }
+
+mod room_checks;

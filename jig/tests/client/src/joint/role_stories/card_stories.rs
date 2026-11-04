@@ -49,6 +49,7 @@ fn a_real_engine_question_offers_exactly_its_admitted_answer_act() {
                 budget: jig_domain_people::Budget::Named,
                 executor: jig_domain_tasks::Executor::Agent { charter: 1 },
                 spec: jig_domain_tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"ask its parent".as_slice().into(),
                     parameters: Box::new([]),
@@ -59,7 +60,7 @@ fn a_real_engine_question_offers_exactly_its_admitted_answer_act() {
                 llm: None,
                 symbolic_grants: Box::new([]),
                 dependencies: Box::new([]),
-                wake: jig_domain_tasks::WakePolicy::DEFAULT,
+                wake: Some(jig_domain_tasks::WakePolicy::DEFAULT),
             }]),
             stubs: Box::new([]),
         }),

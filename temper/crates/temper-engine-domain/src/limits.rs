@@ -30,6 +30,11 @@ pub struct Limits {
     pub routes: u32,
     /// Admission watermark, in backlog entries (skein/docs/foundation/programming-model.md, 7.1).
     pub watermark: u32,
+    /// Public admission bounds (jig/docs/design/domain/root.md, 10).
+    pub public_watermark: u32,
+    pub public_reads: u32,
+    /// Public index bounds copied into the core (jig/docs/design/domain/people.md, 13.9).
+    pub public: jig_domain_core::PublicIndexLimits,
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.
     pub memory_bytes: u64,
@@ -83,6 +88,7 @@ pub struct BriefLimits {
 /// Byte ceilings for the root's core sections and its forge connector.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct BriefBudgets {
+    pub document: u32,
     pub task: u32,
     pub dependencies: u32,
     pub ci: u32,
@@ -94,7 +100,7 @@ pub struct BriefBudgets {
 }
 
 pub(crate) fn environment_core(env: &Env<Limits>) -> Env<jig_domain_core::Limits> {
-    Env { now: env.now, wall: env.wall, limits: core_limits(&env.limits) }
+    env.with(core_limits(&env.limits))
 }
 
 /// The store map's bytes at or above which new party work is refused, as
@@ -119,6 +125,7 @@ pub const VIEWS: views::Limits = views::Limits {
 #[must_use]
 pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
     jig_domain_core::Limits {
+        public: limits.public,
         routes: limits.routes,
         fill_mark: FILL_MARK,
         load_bytes: limits.loads.read_bytes,
@@ -224,16 +231,16 @@ pub(crate) fn run_policy_bytes(policy: &RunPolicy) -> Option<u64> {
     }
     let mut bytes = u64::try_from(size_of::<RunCharter>())
         .ok()?
-        .checked_add(u64::try_from(policy.instructions.len()).ok()?)?
-        .checked_add(u64::try_from(policy.model.name.len()).ok()?)?
+        .checked_add(skein_lib::len_u64(policy.instructions.len()))?
+        .checked_add(skein_lib::len_u64(policy.model.name.len()))?
         .checked_add(
-            u64::try_from(policy.alternatives.len()).ok()?.checked_mul(u64::try_from(size_of::<Model>()).ok()?)?,
+            skein_lib::len_u64(policy.alternatives.len()).checked_mul(u64::try_from(size_of::<Model>()).ok()?)?,
         )?;
     for model in &policy.alternatives {
         if model.name.is_empty() || model.window == 0 || model.output == 0 || model.price_unit == 0 {
             return None;
         }
-        bytes = bytes.checked_add(u64::try_from(model.name.len()).ok()?)?;
+        bytes = bytes.checked_add(skein_lib::len_u64(model.name.len()))?;
     }
     Some(bytes)
 }
@@ -274,46 +281,41 @@ pub(crate) fn run_policy_bound(policy: &RunPolicy, limits: &Limits) -> Option<u6
 pub(crate) fn run_charter_bytes(charter: &RunCharter) -> Option<u64> {
     let mut bytes = run_policy_bytes(&charter.policy)?
         .checked_add(
-            u64::try_from(charter.sources.len()).ok()?.checked_mul(u64::try_from(size_of::<Option<u32>>()).ok()?)?,
+            skein_lib::len_u64(charter.sources.len()).checked_mul(u64::try_from(size_of::<Option<u32>>()).ok()?)?,
         )?
         .checked_add(
-            u64::try_from(charter.accounts.len())
-                .ok()?
+            skein_lib::len_u64(charter.accounts.len())
                 .checked_mul(u64::try_from(size_of::<jig_domain_authority::AccountBinding>()).ok()?)?,
         )?;
     match &charter.contract {
-        tasks::Contract::Report { .. } | tasks::Contract::Change { .. } => {}
-        tasks::Contract::Approval { state, .. } => bytes = bytes.checked_add(u64::try_from(state.len()).ok()?)?,
+        tasks::Contract::Report { .. } | tasks::Contract::Change { .. } | tasks::Contract::Job { .. } => {}
+        tasks::Contract::Approval { state, .. } => bytes = bytes.checked_add(skein_lib::len_u64(state.len()))?,
         tasks::Contract::Verdict { choices } => {
             bytes = bytes.checked_add(
-                u64::try_from(choices.len()).ok()?.checked_mul(u64::try_from(size_of::<tasks::Verdict>()).ok()?)?,
+                skein_lib::len_u64(choices.len()).checked_mul(u64::try_from(size_of::<tasks::Verdict>()).ok()?)?,
             )?;
         }
     }
     bytes = bytes
         .checked_add(
-            u64::try_from(charter.authority.grants.len())
-                .ok()?
+            skein_lib::len_u64(charter.authority.grants.len())
                 .checked_mul(u64::try_from(size_of::<tasks::Grant>()).ok()?)?,
         )?
         .checked_add(
-            u64::try_from(charter.authority.note_resources.len())
-                .ok()?
+            skein_lib::len_u64(charter.authority.note_resources.len())
                 .checked_mul(u64::try_from(size_of::<tasks::ResourceScope>()).ok()?)?,
         )?
         .checked_add(
-            u64::try_from(charter.authority.delegation.kinds.len())
-                .ok()?
+            skein_lib::len_u64(charter.authority.delegation.kinds.len())
                 .checked_mul(u64::try_from(size_of::<tasks::AuthorityExecutor>()).ok()?)?,
         )?;
     for grant in &charter.authority.grants {
         bytes = bytes.checked_add(
-            u64::try_from(grant.pattern.segments.len())
-                .ok()?
+            skein_lib::len_u64(grant.pattern.segments.len())
                 .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
         )?;
         for segment in &grant.pattern.segments {
-            bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+            bytes = bytes.checked_add(skein_lib::len_u64(segment.len()))?;
         }
         let terminal = match &grant.pattern.last {
             tasks::Last::Exact(bytes) | tasks::Last::Open(bytes) => bytes.len(),
@@ -322,12 +324,11 @@ pub(crate) fn run_charter_bytes(charter: &RunCharter) -> Option<u64> {
     }
     for scope in &charter.authority.note_resources {
         bytes = bytes.checked_add(
-            u64::try_from(scope.pattern.segments.len())
-                .ok()?
+            skein_lib::len_u64(scope.pattern.segments.len())
                 .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
         )?;
         for segment in &scope.pattern.segments {
-            bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+            bytes = bytes.checked_add(skein_lib::len_u64(segment.len()))?;
         }
         let terminal = match &scope.pattern.last {
             tasks::Last::Exact(bytes) | tasks::Last::Open(bytes) => bytes.len(),
@@ -425,7 +426,7 @@ pub fn valid(limits: &Limits) -> bool {
         && loads::valid(&limits.loads)
         && crate::journal_valid(&limits.journal)
         && jig_domain_core::settings::revision_bound(&core_limits(limits)).is_some()
-        && jig_domain_core::reads::answer_bound(&core_limits(limits)).is_some()
+        && jig_domain_core::reads::answer_bound(&core_limits(limits), &[]).is_some()
         && payload_slots(limits).is_some()
         && limits.call_records.checked_add(limits.tasks.tasks).is_some()
         && inbox_slots(limits).is_some()

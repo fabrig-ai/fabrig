@@ -107,8 +107,11 @@ impl OneShot {
                         &call,
                         if call.tool == temper_client_tools::jig::rows::IMPORT_AT {
                             b"record file must contain 1 to 131072 bytes"
-                        } else if arguments::key_bytes(&call) == 4089 {
-                            b"key file must contain 1 to 4089 bytes after one final newline"
+                        } else if arguments::key_bytes(&call)
+                            == u32::try_from(temper_client_domain::forge::forges::PASTED_PAYLOAD)
+                                .expect("carried bundle bound")
+                        {
+                            b"key file must contain 1 to 4085 bytes after one final newline"
                         } else {
                             b"key file must contain 1 to 4096 bytes after one final newline"
                         },
@@ -149,11 +152,13 @@ impl OneShot {
         }
     }
     pub(super) fn key_file_fail(&mut self, call: &jig::call::Call, reason: &[u8]) {
+        let Some(rest) = reason.strip_prefix(b"key file").or_else(|| reason.strip_prefix(b"record file")) else {
+            self.fail(reason);
+            return;
+        };
         if call.tool == temper_client_tools::jig::rows::IMPORT_AT {
             let mut message = b"record file".to_vec();
-            message.extend_from_slice(
-                reason.strip_prefix(b"key file").unwrap_or(reason.strip_prefix(b"record file").unwrap_or(reason)),
-            );
+            message.extend_from_slice(rest);
             self.fail(&message);
         } else if TOOLS[usize::from(call.tool)].name == b"forge connect" {
             let mut message = reason.to_vec();

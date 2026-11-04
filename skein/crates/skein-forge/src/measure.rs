@@ -71,13 +71,15 @@ pub fn op(value: &Op) -> Option<u64> {
 }
 fn read(value: &Read) -> Option<u64> {
     match value {
+        Read::Artifact { name, .. } => bytes(name),
         Read::Runs { workflow, .. } => bytes(workflow),
         Read::Locate { owner, name } => bytes(owner)?.checked_add(bytes(name)?),
         Read::File { path, .. } => bytes(path),
         Read::Branches { prefix } => bytes(prefix),
         Read::PullFor { head, base } => bytes(head)?.checked_add(bytes(base)?),
         Read::Branch { branch } | Read::Protection { branch } => bytes(branch),
-        Read::Run { .. }
+        Read::Commits { .. }
+        | Read::Run { .. }
         | Read::Tree { .. }
         | Read::Items { .. }
         | Read::Reviews { .. }
@@ -150,6 +152,7 @@ fn files(values: &[File]) -> Option<u64> {
 #[expect(clippy::too_many_lines, reason = "the accounting match lists every forge answer and its owned payloads")]
 pub fn answer(value: &Answer) -> Option<u64> {
     match value {
+        Answer::Commits { commits, .. } => commit_messages(commits),
         Answer::Run(value) => run(value),
         Answer::Runs { runs, .. } => {
             let mut held = rows(runs.len(), RUN_BYTES)?;
@@ -273,6 +276,14 @@ pub fn run(value: &api::Run) -> Option<u64> {
         if let Some(step) = &job.step {
             held = held.checked_add(bytes(&step.name)?)?;
         }
+    }
+    Some(held)
+}
+
+fn commit_messages(commits: &[api::CommitMessage]) -> Option<u64> {
+    let mut held = rows(commits.len(), size_of::<api::CommitMessage>())?;
+    for commit in commits {
+        held = held.checked_add(rows(commit.parents.len(), COMMIT_BYTES)?)?.checked_add(bytes(&commit.message)?)?;
     }
     Some(held)
 }

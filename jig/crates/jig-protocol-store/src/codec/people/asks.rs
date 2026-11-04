@@ -296,18 +296,32 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
-        domain::Ask::RemoveProject { project } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
+        domain::Ask::SetVisibility { project, public } => wire::Ask::SetVisibility(wire::AskSetVisibility::new(
             limits,
-            wire::AskRemoveProjectParts { project: *project },
+            wire::AskSetVisibilityParts { project: *project, public: *public },
+        )?),
+        domain::Ask::Restore { revision, reason } => wire::Ask::Restore(wire::AskRestore::new(
+            limits,
+            wire::AskRestoreParts { revision: *revision, reason: reason.clone() },
+        )?),
+        domain::Ask::RemoveProject { project, grace } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
+            limits,
+            wire::AskRemoveProjectParts { project: *project, grace: super::compound::encode_grace(*grace) },
         )?),
         domain::Ask::MoveToNewest { revision } => wire::Ask::MoveToNewest(wire::AskMoveToNewest::new(
             limits,
             wire::AskMoveToNewestParts { revision: *revision },
         )?),
-        domain::Ask::ChangeSettings { against, digest } => wire::Ask::ChangeSettings(wire::AskChangeSettings::new(
-            limits,
-            wire::AskChangeSettingsParts { against: *against, digest: *digest },
-        )?),
+        domain::Ask::ChangeSettings { against, digest, projects } => {
+            wire::Ask::ChangeSettings(wire::AskChangeSettings::new(
+                limits,
+                wire::AskChangeSettingsParts {
+                    against: *against,
+                    digest: *digest,
+                    projects: encode_projects(projects, limits)?,
+                },
+            )?)
+        }
         domain::Ask::Compound { project, operations } => wire::Ask::Compound(wire::AskCompound::new(
             limits,
             wire::AskCompoundParts { project: *project, operations: super::compound::encode(operations, limits)? },
@@ -515,10 +529,21 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask, wire::Problem> {
     Ok(match value {
-        wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject { project: value.project() },
+        wire::Ask::SetVisibility(value) => {
+            domain::Ask::SetVisibility { project: value.project(), public: value.public() }
+        }
+        wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject {
+            project: value.project(),
+            grace: super::compound::decode_grace(*value.grace()),
+        },
         wire::Ask::MoveToNewest(value) => domain::Ask::MoveToNewest { revision: value.revision() },
+        wire::Ask::Restore(value) => {
+            let wire::AskRestoreParts { revision, reason } = value.into_parts();
+            domain::Ask::Restore { revision, reason }
+        }
         wire::Ask::ChangeSettings(value) => {
-            domain::Ask::ChangeSettings { against: value.against(), digest: *value.digest() }
+            let wire::AskChangeSettingsParts { against, digest, projects } = value.into_parts();
+            domain::Ask::ChangeSettings { against, digest, projects: projects.into_boxed() }
         }
         wire::Ask::Compound(value) => {
             let wire::AskCompoundParts { project, operations } = value.into_parts();
@@ -719,4 +744,17 @@ pub(super) fn project_name(bytes: &[u8], path: wire::Path) -> Result<Box<str>, w
         Ok(name) => Ok(name.into()),
         Err(_) => Err(wire::Problem { path, reason: skein_codec::Reason::Utf8 }),
     }
+}
+
+fn encode_projects(projects: &[u32], limits: &wire::Limits) -> Result<skein_lib::List<u32>, wire::Problem> {
+    let mut result = skein_lib::List::with_capacity(limits.ask_change_settings_projects);
+    for &project in projects {
+        if result.push(project).is_err() {
+            return Err(wire::Problem {
+                path: wire::Path::AskChangeSettingsProjects,
+                reason: skein_codec::Reason::Bound,
+            });
+        }
+    }
+    Ok(result)
 }

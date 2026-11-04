@@ -20,7 +20,7 @@ fn channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
 
 // The wire version and frame header size come from protocol/channel.md, section 2,
 // and skein/docs/design/channel.md, section 3.
-const VERSION: u16 = 5;
+const VERSION: u16 = smith_channel::kind::VERSION;
 const HEADER_BYTES: usize = 8;
 const CALL: Token = Token::new(1);
 const REUSED_CALL: Token = Token::new(2);
@@ -302,13 +302,6 @@ fn each_value_lends_its_own_form() {
         (
             GrantValue::Program(Box::from(b"claude-code".as_slice())),
             Form::Program(SourceName::new(b"claude-code").expect("channel name")),
-        ),
-        (
-            GrantValue::Withdrawn {
-                account_id: Box::from(b"account".as_slice()),
-                bearer: Box::from(b"token".as_slice()),
-            },
-            Form::Withdrawn,
         ),
     ] {
         assert_eq!(grant_form(&value), Ok(form));

@@ -71,7 +71,12 @@ pub(crate) fn main(
     }
     b.close();
 }
-fn connection(row: &Row) -> Box<[u8]> {
+fn connection(row: &Row, root: &Domain, w: &Words) -> Box<[u8]> {
+    if let Some(draft) = root.forge().replacement(row.number)
+        && draft.connecting()
+    {
+        return w.say(Word::Connecting, &[]);
+    }
     if forge::connect::failed(row) {
         return forge::words::forge_connection(row);
     }
@@ -106,7 +111,7 @@ fn personal(
     };
     let summary = forge::words::forge_summary(
         &w.say(Word::ForgeSummary, &[Hole::Number(u64::from(row.number)), Hole::Name(w.say(kind, &[]))]),
-        &connection(row),
+        &connection(row, root, w),
     );
     let line = repository_line(root, w, row);
     if let Some(line) = line {
@@ -146,13 +151,7 @@ fn personal(
         crate::cards::text(
             b,
             Role::Description,
-            &w.say(
-                Word::SetupMade,
-                &[
-                    Hole::Name(forge::words::full_name(&first.org, &first.repository)),
-                    Hole::Name(connect::project_name(root, w, &first.project)),
-                ],
-            ),
+            &w.say(Word::SetupMade, &[Hole::Name(forge::words::full_name(&first.org, &first.repository))]),
         );
         b.close();
     }
@@ -162,6 +161,15 @@ fn personal(
     }
     if row.kind == Kind::GitHub {
         github(b, root, w, bindings, forge, row);
+    }
+    if forge::tokens::offered(row) {
+        connect::link(
+            b,
+            w,
+            bindings,
+            Word::TokensLink,
+            Address::ConnectForge { forge: Some(Choice::Forge(row.number)) },
+        );
     }
     if forge::connect::failed(row) && row.offer == Offer::Offered {
         connect::setup_control(b, root, w, forge, row.number, Word::ForgeAgain);
@@ -187,6 +195,7 @@ fn personal(
             | Connection::Stopped { .. } => {}
         }
     }
+    replacement(b, root, w, forge, row);
     removal(b, root, w, forge, row);
     b.close();
 }
@@ -239,7 +248,7 @@ fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
         | Connection::Connecting => {}
     }
 }
-fn repository_line(root: &Domain, w: &Words, row: &Row) -> Option<Box<[u8]>> {
+fn repository_line(_root: &Domain, w: &Words, row: &Row) -> Option<Box<[u8]>> {
     if forge::connect::failed(row) {
         return None;
     }
@@ -257,13 +266,7 @@ fn repository_line(root: &Domain, w: &Words, row: &Row) -> Option<Box<[u8]>> {
             | Connection::Stopped { .. } => Word::SetupInto,
         },
     };
-    Some(w.say(
-        word,
-        &[
-            Hole::Name(forge::words::full_name(&first.org, &first.repository)),
-            Hole::Name(connect::project_name(root, w, &first.project)),
-        ],
-    ))
+    Some(w.say(word, &[Hole::Name(forge::words::full_name(&first.org, &first.repository))]))
 }
 fn account(b: &mut Builder, w: &Words, row: &Row) {
     if let Connection::Connected { id, login } = &row.connection {
@@ -393,4 +396,98 @@ pub(crate) fn removal_words(b: &mut Builder, w: &Words, row: &Row) {
         b.external(&address.finish());
         b.close();
     }
+}
+
+fn replacement(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
+    use super::bindings::Meaning;
+    use forge::{forges::Act, replace::Field};
+    let draft = root.forge().replacement(row.number);
+    if draft.is_none() {
+        if forge::replace::offered(row) {
+            flow::control(
+                b,
+                flow::Control::Button {
+                    name: &w.say(Word::ForgeReplace, &[]),
+                    to: bindings.insert(Meaning::Forges(Act::OpenReplace { forge: row.number })),
+                },
+            );
+        }
+        return;
+    }
+    let draft = draft.expect("opened replacement");
+    let github = row.kind == Kind::GitHub;
+    let terminal = github && w.shell == crate::words::Shell::Terminal;
+    if terminal {
+        crate::cards::text(
+            b,
+            Role::Paragraph,
+            &w.say(Word::ForgeReplaceTerminal, &[Hole::Number(u64::from(row.number))]),
+        );
+    } else {
+        let fields: &[(Field, Word)] = if github {
+            &[(Field::Key, Word::ForgePrivateKey)]
+        } else {
+            &[(Field::Api, Word::TokensApi), (Field::Git, Word::TokensGit), (Field::Webhook, Word::TokensWebhook)]
+        };
+        let missing = if github { !draft.has(Field::Key) } else { !draft.has(Field::Api) && !draft.has(Field::Git) };
+        for (field, word) in fields {
+            b.open(Role::TextField);
+            b.name(&w.say(*word, &[]));
+            b.entry(skein_ui::EntryKind::Secret);
+            b.value(b"", *draft.written.get(field.index()).expect("four writes"));
+            b.bind(bindings.insert(Meaning::ReplaceValue { forge: row.number, field: *field }));
+            if draft.checked && (draft.too_long || (missing && *field != Field::Webhook)) {
+                b.state(skein_ui::State::Invalid);
+            }
+            b.close();
+        }
+        let title = w.say(if github { Word::ForgeReplaceKey } else { Word::ForgeReplaceTokens }, &[]);
+        let control =
+            if draft.busy() || !forge::replace::offered(row) || root.forge().served() == forge::Served::OutOfDate {
+                flow::Control::PrimaryDisabled { name: &title }
+            } else {
+                flow::Control::PrimaryButton {
+                    name: &title,
+                    to: bindings.insert(Meaning::Forges(Act::Replace { forge: row.number })),
+                }
+            };
+        flow::control(b, control);
+        if draft.checked {
+            if draft.too_long {
+                connect::text(b, w, Role::Alert, Word::AdminTooLong);
+            } else if missing {
+                connect::text(b, w, Role::Alert, if github { Word::SetupRequired } else { Word::ForgeReplaceEmpty });
+            }
+        }
+        if let Some(answer) = &draft.answer {
+            match answer {
+                forge::github::Answer::Refused(temper_client_protocol_wire::v1::ForgeRefusal::NotConnected) => {
+                    connect::text(b, w, Role::Alert, Word::ForgeReplaceFirst);
+                }
+                forge::github::Answer::Connecting => {}
+                forge::github::Answer::Entrance(refusal) => {
+                    b.open(Role::Alert);
+                    w.refusal(b, refusal.refusal(), w.name_bytes);
+                    b.close();
+                }
+                forge::github::Answer::Link(_)
+                | forge::github::Answer::Page(_)
+                | forge::github::Answer::NoAccess
+                | forge::github::Answer::NotFound
+                | forge::github::Answer::Refused(_)
+                | forge::github::Answer::Unknown => {
+                    if let Some(line) = forge::words::app_refusal(answer.clone(), row.number) {
+                        crate::cards::text(b, Role::Alert, &line);
+                    }
+                }
+            }
+        }
+    }
+    flow::control(
+        b,
+        flow::Control::Button {
+            name: &w.say(Word::ForgeReplaceClose, &[]),
+            to: bindings.insert(Meaning::Forges(Act::CloseReplace { forge: row.number })),
+        },
+    );
 }

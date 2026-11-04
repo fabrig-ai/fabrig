@@ -64,6 +64,8 @@ pub const ENDINGS: [&str; 21] = [
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Settings {
+    /// Run the scripted work as jobs, with no turns, calls or messages.
+    pub job: Option<jig_domain_link::JobBound>,
     /// Seeds the world.
     pub seed: u64,
     pub limits: Limits,
@@ -136,6 +138,7 @@ impl Settings {
     #[must_use]
     pub fn calm(seed: u64) -> Settings {
         Settings {
+            job: None,
             seed,
             limits: LIMITS,
             workers: 3,
@@ -884,6 +887,7 @@ impl World {
                     worker: u32::try_from(self.channels[&channel].worker).expect("configured worker position"),
                     channel: token,
                     hello: Hello {
+                        jobs: self.settings.job.into_iter().collect(),
                         bounds: crate::fixtures::bounds(),
                         slots,
                         workstreams,
@@ -977,7 +981,9 @@ impl World {
             }
             Request::Grant { channel, run, attempt, grant } => self.record_grant(channel, run, attempt, grant),
             Request::Unauthorized { .. } | Request::Limited { .. } | Request::AccountRefused { .. } => {}
-            Request::Assign { channel, run, attempt, .. } => self.assignment_sent(channel, run, attempt),
+            Request::Assign { channel, run, attempt, .. } | Request::AssignJob { channel, run, attempt } => {
+                self.assignment_sent(channel, run, attempt);
+            }
             Request::Inbound { channel, run, attempt, message } => {
                 assert_eq!(
                     self.payloads.end(message.words.raw()),
@@ -1120,16 +1126,26 @@ impl World {
         self.stats.starts += 1;
         self.calls.open(attempt, ());
         self.observe(Seen::Started { run, attempt });
-        self.stage.push(Event::Start {
-            placement: None,
-            version: jig_domain_fleet::Version { charter: 1, revision: 1 },
-            grants: Box::new([crate::fixtures::ANALYST]),
-            reply_to: ReplyTo::new(Token::new(attempt)),
-            run: Token::new(run),
-            attempt: Token::new(attempt),
-            workstream: run,
-            kinds: fleet::Kinds::Workers,
-            assignment: fleet::Assignment { turns: Token::new(0), answered: Token::new(0) },
+        self.stage.push(match self.settings.job {
+            Some(job) => Event::StartJob {
+                reply_to: ReplyTo::new(Token::new(attempt)),
+                run: Token::new(run),
+                attempt: Token::new(attempt),
+                workstream: run,
+                job,
+                adopt: false,
+            },
+            None => Event::Start {
+                placement: None,
+                version: jig_domain_fleet::Version { charter: 1, revision: 1 },
+                grants: Box::new([crate::fixtures::ANALYST]),
+                reply_to: ReplyTo::new(Token::new(attempt)),
+                run: Token::new(run),
+                attempt: Token::new(attempt),
+                workstream: run,
+                kinds: fleet::Kinds::Workers,
+                assignment: fleet::Assignment { turns: Token::new(0), answered: Token::new(0) },
+            },
         });
         let at = self.now.saturating_add(self.settings.timeout);
         self.send(at, Delivery::Timeout { item, attempt });
@@ -1301,15 +1317,25 @@ impl World {
                 self.adopting.push(attempt);
                 self.calls.open(attempt, ());
                 let token = Token::new(attempt);
-                self.stage.push(Event::Adopt {
-                    holds: Box::new([]),
-                    grants: Box::new([]),
-                    reply_to: ReplyTo::new(token),
-                    run,
-                    attempt: token,
-                    kept: 0,
-                    kind: fleet::HostKind::Worker,
-                    worked: false,
+                self.stage.push(match self.settings.job {
+                    Some(job) => Event::StartJob {
+                        reply_to: ReplyTo::new(token),
+                        run,
+                        attempt: token,
+                        workstream: run.raw(),
+                        job,
+                        adopt: true,
+                    },
+                    None => Event::Adopt {
+                        holds: Box::new([]),
+                        grants: Box::new([]),
+                        reply_to: ReplyTo::new(token),
+                        run,
+                        attempt: token,
+                        kept: 0,
+                        kind: fleet::HostKind::Worker,
+                        worked: false,
+                    },
                 });
                 if cancelled {
                     self.observe(Seen::Cancelled { run: run.raw(), attempt });
@@ -1329,7 +1355,9 @@ impl World {
 /// An event, for the trace, without its payload's bytes.
 fn describe(event: &Event) -> String {
     match event {
-        Event::Start { run, attempt, .. } => format!("Start {} {}", run.raw(), attempt.raw()),
+        Event::Start { run, attempt, .. } | Event::StartJob { run, attempt, .. } => {
+            format!("Start {} {}", run.raw(), attempt.raw())
+        }
         Event::Hello { worker: _, channel, hello } => {
             format!("Hello {} slots {} hosting {:?}", channel.raw(), hello.slots, hello.hosting)
         }

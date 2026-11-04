@@ -76,23 +76,31 @@ pub fn peer() -> llm::Peer {
 /// The same one-turn text response in the selected provider dialect.
 #[must_use]
 pub fn peer_for(anthropic: bool) -> llm::Peer {
+    let scripts = one_turn();
+    let credential = credential(anthropic);
+    if anthropic { configured_anthropic(scripts, credential) } else { configured(scripts, credential, Duration::ZERO) }
+}
+
+/// The one-turn product fixture on the public Responses route.
+#[must_use]
+pub fn peer_openai() -> llm::Peer {
+    Options { openai: true, ..Options::default() }
+        .make(one_turn(), skein_llm::Credential::bearer(b"token".as_slice().into()))
+}
+
+fn one_turn() -> Box<[api::Script]> {
     let turns = Box::new([smith_agent_world::fixture::says(
         Box::new([api::Line::Text { text: b"Hello".as_slice().into() }]),
         1,
     )]);
-    let scripts = Box::new([api::Script { cue: Box::new([]), turns }]);
-    let credential = credential(anthropic);
-    if anthropic { configured_anthropic(scripts, credential) } else { configured(scripts, credential, Duration::ZERO) }
+    Box::new([api::Script { cue: Box::new([]), turns }])
 }
 
 /// The shared scenario credential for the selected provider dialect.
 #[must_use]
 pub fn credential(anthropic: bool) -> skein_llm::Credential {
-    skein_llm::Credential {
-        value: b"token".as_slice().into(),
-        account_id: if anthropic { Box::new([]) } else { b"acc".as_slice().into() },
-        scheme: skein_llm::Scheme::Bearer,
-    }
+    let value = b"token".as_slice().into();
+    if anthropic { skein_llm::Credential::key(value) } else { skein_llm::Credential::bearer(value) }
 }
 
 /// Script a reply with the shared scenario's standard credential.
@@ -128,6 +136,17 @@ pub fn configured_transport(
     Options { latency, transport, ..Options::default() }.make(scripts, credential)
 }
 
+/// Script the public Responses route for product worlds on either transport.
+#[must_use]
+pub fn configured_openai(
+    scripts: Box<[api::Script]>,
+    credential: skein_llm::Credential,
+    latency: Duration,
+    transport: Transport,
+) -> llm::Peer {
+    Options { openai: true, latency, transport, ..Options::default() }.make(scripts, credential)
+}
+
 /// Select Anthropic's real byte codec for the native live-text scenario.
 #[must_use]
 pub fn configured_anthropic(scripts: Box<[api::Script]>, credential: skein_llm::Credential) -> llm::Peer {
@@ -144,6 +163,7 @@ struct Options {
     latency: Duration,
     transport: Transport,
     anthropic: bool,
+    openai: bool,
     rejected: bool,
     request_bytes: u32,
     document_bytes: u32,
@@ -155,6 +175,7 @@ impl Default for Options {
             latency: Duration::ZERO,
             transport: Transport::Plaintext,
             anthropic: false,
+            openai: false,
             rejected: false,
             request_bytes: 32_768,
             document_bytes: 16_384,
@@ -164,7 +185,7 @@ impl Default for Options {
 
 impl Options {
     fn make(self, scripts: Box<[api::Script]>, credential: skein_llm::Credential) -> llm::Peer {
-        let Self { latency, transport, anthropic, rejected, request_bytes, document_bytes } = self;
+        let Self { latency, transport, anthropic, openai, rejected, request_bytes, document_bytes } = self;
         let mut config = skein_llm_world::fake::config();
         config.latency_min = latency;
         config.latency_max = latency;
@@ -193,8 +214,10 @@ impl Options {
                 provider: if anthropic { documents::Provider::Anthropic } else { documents::Provider::OpenAi },
                 path: if anthropic {
                     skein_llm::Endpoint::anthropic().target
+                } else if openai {
+                    skein_llm::Endpoint::openai().target
                 } else {
-                    skein_llm_world::call(1).endpoint.target
+                    skein_llm_world::public_call(1).endpoint.target
                 },
                 headers: Box::new([]),
                 without_credential: false,

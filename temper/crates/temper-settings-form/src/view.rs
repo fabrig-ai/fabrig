@@ -28,8 +28,19 @@ pub struct Charter {
     pub model: SettingModel,
     pub alternatives: List<SettingModel>,
     pub call_timeout: Duration,
+    pub tools: u64,
     pub hosts: SettingHosts,
     pub spend: u64,
+    pub wake: WakePolicy,
+    pub documents: List<CharterDocument>,
+}
+/// A charter document (temper/docs/design/protocol/configuration.md, 13.7).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CharterDocument {
+    pub connector: u16,
+    pub name: List<Box<[u8]>>,
+    pub path: Box<[u8]>,
+    pub heading: Option<Box<[u8]>>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DocumentText {
@@ -82,6 +93,7 @@ pub enum AuthorityExecutor {
     Charter(u32),
     Procedure(u32),
     Role(u32),
+    Job(u32),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Delegation {
@@ -208,6 +220,7 @@ pub struct RevisionDocument {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionEdit {
+    Application(SizedEdit),
     Set(SettingSet),
     TooLarge(Size),
     Removed,
@@ -230,6 +243,17 @@ pub struct RevisionHead {
 pub struct RevisionItem {
     pub setting: Setting,
     pub edit: RevisionEdit,
+    pub replaced: RevisionReplaced,
+}
+/// The state before an item changed it (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum RevisionReplaced {
+    Value(SettingSet),
+    TooLarge(Size),
+    Application { size: u32 },
+    Default,
+    Removed,
+    NotOffered,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionItemEdit {
@@ -274,16 +298,27 @@ pub enum Running {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Setting {
+    Application {
+        kind: u32,
+        scope: u32,
+        number: u32,
+    },
     Charter(SettingNumber),
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    /// A project's own policy (jig/docs/design/domain/engine.md, 17.2).
+    ProjectPolicy {
+        project: u32,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingDocument {
     pub setting: Setting,
     pub revision: u32,
-    pub value: SettingValue,
+    pub value: Option<SettingValue>,
+    pub application: Option<ApplicationState>,
+    pub proposed: Option<SizedEdit>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingEdit {
@@ -293,6 +328,7 @@ pub enum SettingEdit {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFault {
+    Judged,
     Shape,
     Count,
     Reference,
@@ -322,7 +358,8 @@ pub struct SettingLine {
     pub setting: Setting,
     pub name: Option<DocumentText>,
     pub follows: SettingFollows,
-    pub last: u32,
+    pub last: Option<u32>,
+    pub application: Option<ApplicationState>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingModel {
@@ -361,6 +398,7 @@ pub struct SettingSet {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
+    Application(Box<[u8]>),
     Charter(Box<Charter>),
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
@@ -388,6 +426,7 @@ pub enum TaskContractDocument {
     Report { words: u32 },
     Verdict { choices: List<VerdictChoice>, cut: bool },
     Change { connector: u16, kind: u16, words: u32 },
+    Job { bytes: u32 },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TaskFlags {
@@ -398,6 +437,8 @@ pub struct TaskFlags {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Template {
+    /// Connector symbols resolved to resources when the task is created.
+    pub resources: List<Symbol>,
     pub number: u32,
     pub name: DocumentText,
     pub executor: TemplateExecutor,
@@ -428,6 +469,14 @@ pub enum TemplateDeadline {
 pub enum TemplateExecutor {
     Charter(u32),
     Chosen,
+}
+/// A connector's resource named after the task (jig/docs/design/protocol/configuration.md, 3.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Symbol {
+    /// The connector that resolves the symbol.
+    pub connector: u16,
+    /// The connector's resource symbol.
+    pub symbol: u16,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TemplateOverride {
@@ -510,4 +559,59 @@ impl Charter {
     pub fn agents(&self) -> bool {
         *self.switches.get(4).expect("charter switch")
     }
+}
+
+/// A charter's default activation policy (jig/docs/design/domain/tasks.md, 8.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct WakePolicy {
+    pub words: WakeRule,
+    pub notices: WakeRule,
+    pub news: WakeRule,
+    pub results: ResultsWake,
+    pub questions: bool,
+    pub answers: bool,
+    pub timers: bool,
+}
+impl WakePolicy {
+    pub const DEFAULT: Self = Self {
+        words: WakeRule::Immediate,
+        notices: WakeRule::Immediate,
+        news: WakeRule::Immediate,
+        results: ResultsWake::LastOrFailure,
+        questions: true,
+        answers: true,
+        timers: true,
+    };
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WakeRule {
+    Never,
+    Immediate,
+    Batch { count: u32, age: Duration },
+    Paced { span: Duration },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ResultsWake {
+    Never,
+    Each,
+    LastOrFailure,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ApplicationFollows {
+    Default,
+    Changed { revision: u32 },
+    Removed { revision: u32 },
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApplicationState {
+    pub follows: ApplicationFollows,
+    pub size: u32,
+    pub charters: List<u32>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SizedEdit {
+    Set { size: u32 },
+    Remove,
+    Reset,
 }

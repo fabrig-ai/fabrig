@@ -6,6 +6,8 @@ use temper_engine_domain_forge as forge;
 
 /// The `Binding` family's byte, taken at landing as a version is (protocol/store.md, 2).
 pub const BINDING: u8 = 18;
+/// The forge's settings of kinds 1 to 3 (temper/docs/design/protocol/store.md, 2).
+pub const SETTING: u8 = 20;
 // Family bytes 17 and 19 are reserved and are not reused.
 /// A write with a committed attempt (protocol/store.md, 2).
 pub const FLIGHT: u8 = 21;
@@ -15,6 +17,10 @@ pub const FORGE: u8 = 25;
 pub const FORGE_NUMBER: u8 = 26;
 /// Playground state (temper/docs/design/protocol/store.md, 2).
 pub const PLAYGROUND: u8 = 27;
+/// One repository tier (temper/docs/design/protocol/store.md, 2).
+pub const TIER: u8 = 28;
+/// One landing's verification (temper/docs/design/protocol/store.md, 2).
+pub const VERIFICATION: u8 = 29;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -87,6 +93,33 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {
+        forge::Key::Setting(key) => {
+            writer.tag(SETTING).u64(u64::from(key.kind)).u64(u64::from(key.scope)).u64(u64::from(key.number));
+            match key.slot {
+                forge::settings::SettingSlot::Default => {
+                    writer.tag(0);
+                }
+                forge::settings::SettingSlot::Change => {
+                    writer.tag(1);
+                }
+                forge::settings::SettingSlot::Proposal(proposal) => {
+                    writer.tag(2).u64(proposal);
+                }
+                forge::settings::SettingSlot::Replaced(revision) => {
+                    writer.tag(3).u64(revision);
+                }
+            }
+        }
+        forge::Key::Tier { repository, tier } => {
+            writer.tag(TIER);
+            write_repository(&mut writer, *repository);
+            writer.bytes(tier);
+        }
+        forge::Key::Verification { repository, commit } => {
+            writer.tag(VERIFICATION);
+            write_repository(&mut writer, *repository);
+            writer.bytes(commit);
+        }
         forge::Key::Forge(number) => {
             writer.tag(FORGE).u64(u64::from(*number));
         }
@@ -219,6 +252,36 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         14 => forge::Key::Release(reader.u64()?),
         15 => forge::Key::Application(reader.u64()?),
         16 => forge::Key::Writer(u16::try_from(reader.u64()?).ok()?),
+        TIER => {
+            let repository = read_repository(&mut reader)?;
+            let tier = reader.bytes()?;
+            if tier.is_empty() || tier.len() > forge::CHECK_NAME_BYTES {
+                return None;
+            }
+            for byte in &tier {
+                if !byte.is_ascii_alphanumeric() && *byte != b'-' && *byte != b'_' {
+                    return None;
+                }
+            }
+            forge::Key::Tier { repository, tier }
+        }
+        VERIFICATION => {
+            forge::Key::Verification { repository: read_repository(&mut reader)?, commit: read_commit(&mut reader)? }
+        }
+        SETTING => {
+            let kind = u32::try_from(reader.u64()?).ok()?;
+            forge::settings::Kind::of(kind)?;
+            let scope = u32::try_from(reader.u64()?).ok()?;
+            let number = u32::try_from(reader.u64()?).ok()?;
+            let slot = match reader.tag()? {
+                0 => forge::settings::SettingSlot::Default,
+                1 => forge::settings::SettingSlot::Change,
+                2 => forge::settings::SettingSlot::Proposal(reader.u64()?),
+                3 => forge::settings::SettingSlot::Replaced(reader.u64()?),
+                _ => return None,
+            };
+            forge::Key::Setting(forge::settings::SettingKey { kind, scope, number, slot })
+        }
         FLIGHT => forge::Key::Flight { task: reader.u64()?, entry: reader.u64()? },
         BINDING => {
             let address = reader.bytes()?;

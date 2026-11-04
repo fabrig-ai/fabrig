@@ -1,10 +1,10 @@
-//! `ChatGPT` Responses documents, both sides, and an ordered answer decoder.
+//! `OpenAI` Responses documents, both sides, and an ordered answer decoder.
 mod common;
 pub(crate) mod filter;
 pub(crate) use common::{limit_detail, measured};
-pub mod identity;
 pub(crate) mod json;
 mod request;
+pub(crate) use request::VERBOSITY;
 pub(crate) mod response;
 pub(crate) use common::clipped as clip_detail;
 pub use common::{

@@ -173,7 +173,7 @@ fn a_chat_runs_the_same_with_its_agent_in_process() {
         let key = match &queries.first().expect("native request").caching {
             skein_fake_llm_domain::api::Caching::Scope(key) => *key,
             skein_fake_llm_domain::api::Caching::Unscoped | skein_fake_llm_domain::api::Caching::Marks(_) => {
-                panic!("Codex run affinity is rendered")
+                panic!("public Responses run affinity is rendered")
             }
         };
         for query in queries {

@@ -12,7 +12,7 @@ use temper_engine_domain as engine;
 /// Render one already bounded root brief section with its kind as a title.
 #[must_use]
 pub fn section(section: &engine::BriefSection) -> run::Section {
-    let title: &[u8] = match section.kind {
+    let title: &[u8] = match &section.kind {
         engine::BriefKind::Core(brief::Core::Task) => b"Task",
         engine::BriefKind::Core(brief::Core::Lineage) => b"Lineage",
         engine::BriefKind::Core(brief::Core::Results) => b"Dependencies",
@@ -22,20 +22,29 @@ pub fn section(section: &engine::BriefSection) -> run::Section {
         engine::BriefKind::Core(brief::Core::Waiting) => b"Waiting",
         engine::BriefKind::Core(brief::Core::NotesIndex) => b"Notes",
         engine::BriefKind::Core(brief::Core::TranscriptTail) => b"Transcript tail",
+        engine::BriefKind::Forge(engine::ForgeBriefKind::Document(words)) => {
+            let mut title = Writer::new(b"Document ".len().checked_add(words.len()).expect("bounded document title"));
+            title.put(b"Document ").expect("title prefix");
+            title.put(words).expect("title words");
+            return run::Section { title: title.finish(), text: section_text(&section.body) };
+        }
         engine::BriefKind::Forge(engine::ForgeBriefKind::Home) => b"Home",
         engine::BriefKind::Forge(engine::ForgeBriefKind::Ci) => b"CI",
         engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews) => b"Reviews",
         engine::BriefKind::Forge(engine::ForgeBriefKind::Pull) => b"Pull request",
     };
-    let text = match &section.body {
+    run::Section { title: bytes::copy_of(title), text: section_text(&section.body) }
+}
+
+fn section_text(body: &engine::BriefBody) -> Box<[u8]> {
+    match body {
         engine::BriefBody::Text(text) => text.clone(),
         engine::BriefBody::Missing(reason) => match reason {
             brief::GatherMissing::Failed => bytes::copy_of(b"[read failed]"),
             brief::GatherMissing::Late => bytes::copy_of(b"[read timed out]"),
             brief::GatherMissing::Budget => bytes::copy_of(b"[read exceeded limit]"),
         },
-    };
-    run::Section { title: bytes::copy_of(title), text }
+    }
 }
 
 /// Produce Smith's complete typed start after the root's claim is durable.
@@ -117,7 +126,7 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
             .expect("bounded brief sections");
     }
     let policy = &assignment.run.policy;
-    let declarations = crate::calls::tools_for(policy.call_timeout, assignment.run.authority.tools);
+    let declarations = crate::calls::tools_for(policy.call_timeout, policy.tools, assignment.run.authority.tools);
     let mut tools = List::with_capacity(u32::try_from(declarations.len()).expect("bounded host tools"));
     for tool in declarations {
         tools
@@ -219,7 +228,7 @@ fn note_omitted(charter: &mut run::Charter, titles: &[Box<[u8]>], room: u64, own
     if titles.is_empty() {
         return;
     }
-    let count = Decimal::of(u64::try_from(titles.len()).expect("bounded sections"));
+    let count = Decimal::of(skein_lib::len_u64(titles.len()));
     let mut length = b"[ sections omitted: ; whole: the task's activity]\n"
         .len()
         .saturating_add(count.as_bytes().len())

@@ -77,8 +77,8 @@ fn configured_environment_commands_fit_the_composed_agent_bound() {
 
 #[test]
 fn every_conversation_open_with_the_pool_full_stays_under_the_ceiling() {
-    // Peak 285_260 B on 2026-10-28; a quarter of headroom, rounded up.
-    const FULL_POOL_CEILING: u64 = 360_000;
+    // Peak 34_503 B on 2026-11-03; a quarter of headroom, rounded up.
+    const FULL_POOL_CEILING: u64 = 45_000;
 
     use skein_lib::{Env, Queue, Time, Token, Wall};
     use skein_llm_connection::{Component, Deadlines, Request};
@@ -92,7 +92,7 @@ fn every_conversation_open_with_the_pool_full_stays_under_the_ceiling() {
     let mut up = Queue::with_capacity(32);
     let mut io = Queue::with_capacity(32);
     for number in 0..pool.calls {
-        let call = skein_llm_world::call(u64::from(number));
+        let call = skein_llm_world::public_call(u64::from(number));
         component.down(
             &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: pool },
             Request::Start {
@@ -120,7 +120,7 @@ fn full_pool() -> (List<skein_llm_connection::Endpoint>, skein_llm_connection::L
     let configured = smith_agent_process_world::configuration();
     let (mut endpoints, _) = configured.llm_endpoints.into_parts();
     let client = endpoints.get_mut(0).expect("one endpoint");
-    let call = skein_llm_world::call(7);
+    let call = skein_llm_world::public_call(7);
     let measured = skein_llm::client::measure(&call.prompt, call.credential.as_ref(), &client.llm, &client.limits)
         .expect("fixture fits");
     // A gzip body is compressed only while it and its room fit the request

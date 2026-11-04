@@ -16,6 +16,7 @@ pub fn me() -> Me {
     let mut templates = List::with_capacity(ONE);
     templates
         .push(Template {
+            resources: List::with_capacity(0),
             number: TEMPLATE,
             name: DocumentText::complete(acts::text(b"Chat")),
             executor: TemplateExecutor::Charter(CHARTER),
@@ -56,6 +57,7 @@ pub fn me() -> Me {
     me.projects = List::with_capacity(ONE);
     me.projects
         .push(MeProject {
+            public: None,
             project: PROJECT,
             name: DocumentText::complete(Text::new(b"Project 1".as_slice().into(), 64).expect("project name")),
             role: HeldRole::Owner,

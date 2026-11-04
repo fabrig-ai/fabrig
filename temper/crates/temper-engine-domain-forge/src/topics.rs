@@ -187,7 +187,7 @@ pub(crate) fn answer(
             Ok(skein_forge::api::Answer::PullFiles { head, files, more }) if head == pending.head => {
                 let empty = files.is_empty();
                 for file in files {
-                    if file.path.len() > usize::try_from(env.limits.name_bytes).expect("u32 fits usize")
+                    if file.path.len() > skein_lib::usize_of(env.limits.name_bytes)
                         || pending.paths.push(file.path).is_err()
                     {
                         finish(d, pending, None);
@@ -243,7 +243,7 @@ fn finish(d: &mut Domain, pending: Pending, paths: Option<Box<[Box<[u8]>]>>) {
 pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Class {
     let (after, files) = match news {
         News::Landing { after, files, .. } => (after, files),
-        News::Ci { .. } | News::Changed { .. } => return Class::Wakes,
+        News::Ci { .. } | News::Changed { .. } | News::Red(_) => return Class::Wakes,
     };
     let Some(tasks) = &subscriber.goal_tasks else { return domain::classify(d, subscriber, news) };
     if let Some(owner) = d.landed.get(after)
@@ -264,7 +264,12 @@ pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Clas
             continue;
         };
         match row.change.state {
-            change::State::Landed { .. } | change::State::NoChange { .. } | change::State::Ended => continue,
+            change::State::Landed { .. }
+            | change::State::Red { .. }
+            | change::State::Cleared { .. }
+            | change::State::Uncleared { .. }
+            | change::State::NoChange { .. }
+            | change::State::Ended => continue,
             change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }

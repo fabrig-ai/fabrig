@@ -684,6 +684,7 @@ impl World {
                 | engine::Request::ResetAct { .. }
                 | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
+                | engine::Request::Replace { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }
@@ -817,9 +818,11 @@ impl World {
             | Delivery::Panel { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }
+            | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
+            | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
@@ -832,6 +835,8 @@ impl World {
             | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadLoad { .. }
+            | Delivery::Public { .. }
+            | Delivery::PublicWait { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }
             | Delivery::NotesLoad { .. }

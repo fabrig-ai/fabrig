@@ -25,6 +25,95 @@ fn forge_document() -> Value {
         "repositories":[{"name":"widget","landing":"main","ci":null}]})
 }
 #[test]
+fn the_llm_documents_pace_is_its_replies_latency() {
+    for ms in [None, Some(0_u32), Some(1500), Some(60_000)] {
+        let mut value = llm_document();
+        if let Some(ms) = ms {
+            value["pace"] = json!({"reply_ms":ms});
+        }
+        let doc = llm::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let limits = doc.limits();
+        let latency = skein_lib::Duration::from_millis(u64::from(ms.unwrap_or(0)));
+        assert_eq!(limits.latency_min, latency);
+        assert_eq!(limits.latency_max, latency);
+        assert_eq!(llm::configuration(&doc, b"key", 23).limits, limits);
+    }
+    for (pace, expected) in [
+        (json!({"reply_ms":60_001}), "pace.reply_ms: past its bound\n"),
+        (json!({"reply_ms":1500,"extra":0}), "pace.extra: unknown member\n"),
+        (json!({"ci_ms":1500}), "pace.ci_ms: unknown member\n"),
+        (json!({}), "pace.reply_ms: missing\n"),
+        (json!({"reply_ms":-1}), "pace.reply_ms: past its bound\n"),
+        (json!({"reply_ms":4_294_967_296_u64}), "pace.reply_ms: past its bound\n"),
+        (json!({"reply_ms":"1500"}), "pace.reply_ms: wrong value kind\n"),
+        (Value::Null, "pace: wrong value kind\n"),
+    ] {
+        let mut value = llm_document();
+        value["pace"] = pace;
+        assert_eq!(
+            llm::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err().line().as_ref(),
+            expected.as_bytes(),
+        );
+    }
+}
+
+#[test]
+fn a_paced_reply_waits_its_pace() {
+    use skein_fake_llm_domain as domain;
+    use skein_lib::Duration;
+    for pieces in [false, true] {
+        let mut value = llm_document();
+        value["pace"] = json!({"reply_ms":1500});
+        if pieces {
+            value["otherwise"] = json!([piece_turn(json!([
+                {"text":"first", "hold":null}, {"text":"second", "hold":null}
+            ]))]);
+        }
+        let doc = llm::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let mut domain = doc.domain(23);
+        let mut env =
+            Env { now: Time::ZERO.saturating_add(Duration::from_secs(10)), wall: Wall::EPOCH, limits: doc.limits() };
+        let due = env.now.saturating_add(Duration::from_millis(1500));
+        let mut out = Queue::with_capacity(2);
+        domain::step(
+            &mut domain,
+            &env,
+            domain::Event::Call {
+                reply_to: ReplyTo::new(Token::new(1)),
+                call: Token::new(2),
+                query: query(b"", b"other"),
+            },
+            &mut out,
+        );
+        assert!(out.is_empty());
+        assert_eq!(domain.next_deadline(), Some(due));
+        env.now = Time::from_nanos(due.as_nanos().checked_sub(1).expect("positive deadline"));
+        domain::fire(&mut domain, &env, &mut out);
+        assert!(out.is_empty());
+        env.now = due;
+        domain::fire(&mut domain, &env, &mut out);
+        if pieces {
+            let Some(domain::Request::Piece { text, .. }) = out.pop() else { panic!("first piece") };
+            assert_eq!(text.as_ref(), b"first");
+            let due = due.saturating_add(Duration::from_millis(1500));
+            assert_eq!(domain.next_deadline(), Some(due));
+            env.now = Time::from_nanos(due.as_nanos().checked_sub(1).expect("positive deadline"));
+            domain::fire(&mut domain, &env, &mut out);
+            assert!(out.is_empty());
+            env.now = due;
+            domain::fire(&mut domain, &env, &mut out);
+        }
+        let Some(domain::Request::Reply { result, .. }) = out.pop() else { panic!("paced reply") };
+        let expected: &[u8] = if pieces { b"firstsecond" } else { b"fallback" };
+        assert_eq!(result.unwrap().parts.as_ref(), &[api::Part::Text { text: expected.into() }]);
+        assert!(out.is_empty());
+        assert_eq!(domain.next_deadline(), None);
+        domain.reclaim();
+        assert_eq!(domain.calls(), 0);
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one table names every document bound and refusal path")]
 fn llm_document_checks() {
     let scripts = json!([{"cue":"hello","turns":["answer"]}]);
@@ -194,6 +283,81 @@ fn llm_document_checks() {
     doc["key"] = json!("/".to_owned() + &"x".repeat(4095));
     doc["tls"] = json!({"root":"/".to_owned()+&"x".repeat(4095)});
     llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap();
+}
+
+#[test]
+fn the_forge_documents_pace_is_its_ci_latency() {
+    use skein_fake_forge_domain::{self as domain, api as a};
+    use skein_lib::Duration;
+    for ms in [None, Some(0_u32), Some(1500), Some(60_000)] {
+        let mut value = forge_document();
+        value["repositories"] = json!([
+            {"name":"widget", "landing":"main", "ci":{"path":"ci/result", "green":"green"}},
+            {"name":"spare", "landing":"main", "ci":null}
+        ]);
+        if let Some(ms) = ms {
+            value["pace"] = json!({"ci_ms":ms});
+        }
+        let doc = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let latency = Duration::from_millis(u64::from(ms.unwrap_or(0)));
+        for repository in doc.repositories() {
+            let checks = forge::checks_paced(repository.ci.as_ref(), ms.unwrap_or(0));
+            assert_eq!(checks.latency_min, latency);
+            assert_eq!(checks.latency_max, latency);
+            assert_eq!(forge::checks(repository.ci.as_ref()).latency_min, Duration::ZERO);
+            assert_eq!(forge::checks(repository.ci.as_ref()).latency_max, Duration::ZERO);
+        }
+        for name in [b"fake/widget".as_slice(), b"fake/spare"] {
+            let (mut forge, _) = doc.seed(23);
+            let mut env = Env {
+                now: Time::ZERO.saturating_add(Duration::from_secs(10)),
+                wall: Wall::EPOCH,
+                limits: forge::LIMITS,
+            };
+            let due = env.now.saturating_add(latency);
+            let head =
+                domain::advance(&mut forge.domain, &env, name, b"main", b"ci/result", b"red", forge::OWNER).unwrap();
+            let mut out = Queue::with_capacity(128);
+            if latency != Duration::ZERO {
+                env.now = Time::from_nanos(due.as_nanos().checked_sub(1).expect("positive deadline"));
+                domain::fire(&mut forge.domain, &env, &mut out);
+                let a::Answer::Statuses(statuses) =
+                    forge.domain.inspect(&forge::LIMITS, name, &a::Read::Statuses { commit: head }).unwrap()
+                else {
+                    panic!("statuses")
+                };
+                assert_eq!(statuses[0].state, a::Check::Pending);
+            }
+            assert_eq!(forge.domain.next_deadline(), Some(due));
+            env.now = due;
+            domain::fire(&mut forge.domain, &env, &mut out);
+            let a::Answer::Statuses(statuses) =
+                forge.domain.inspect(&forge::LIMITS, name, &a::Read::Statuses { commit: head }).unwrap()
+            else {
+                panic!("statuses")
+            };
+            assert_eq!(statuses.len(), 1);
+            let expected = if name == b"fake/widget" { a::Check::Failed } else { a::Check::Passed };
+            assert_eq!(statuses[0].state, expected);
+        }
+    }
+    for (pace, expected) in [
+        (json!({"ci_ms":60_001}), "pace.ci_ms: past its bound\n"),
+        (json!({"ci_ms":1500,"extra":0}), "pace.extra: unknown member\n"),
+        (json!({"reply_ms":1500}), "pace.reply_ms: unknown member\n"),
+        (json!({}), "pace.ci_ms: missing\n"),
+        (json!({"ci_ms":-1}), "pace.ci_ms: past its bound\n"),
+        (json!({"ci_ms":4_294_967_296_u64}), "pace.ci_ms: past its bound\n"),
+        (json!({"ci_ms":"1500"}), "pace.ci_ms: wrong value kind\n"),
+        (Value::Null, "pace: wrong value kind\n"),
+    ] {
+        let mut value = forge_document();
+        value["pace"] = pace;
+        assert_eq!(
+            forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err().line().as_ref(),
+            expected.as_bytes(),
+        );
+    }
 }
 
 #[test]

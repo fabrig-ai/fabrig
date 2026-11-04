@@ -148,7 +148,7 @@ fn pipe_and_escaped_ids_complete_restore_and_pair_exactly_on_actual_continuation
         name,
         arguments,
         replay: Some(Replay {
-            provider: skein_llm::Provider::OpenAiCodex,
+            provider: skein_llm::Provider::OpenAi,
             value: skein_llm::Json::from_bytes(br#"{"item_id":"changed|item"}"#, &(limits().native()).document())
                 .expect("bounded corruption"),
         }),

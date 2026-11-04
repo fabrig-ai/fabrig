@@ -492,8 +492,9 @@ account a preferred number or an endpoint default.
   check, which the claim records too. A sub-agent's model whose LLM
   provider has no usable account serving the payer is left out of that
   run's models (smith's `domain/run.md`, 5.3). A run on a program
-  backend has no sub-agents: the program's own are withheld and smith's
-  are not served (smith's `protocol/programs.md`, section 2).
+  backend has smith's sub-agents, inspect only, each a program session
+  of its own on main's account, and the program's own are withheld
+  (smith's `protocol/programs.md`, 5.10).
 - **Replay stays with its account.** A provider's opaque replay
   (reasoning, signatures and item ids) is kept only for the account that
   made it: a task whose account changes resumes its conversation carried

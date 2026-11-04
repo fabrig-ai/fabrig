@@ -72,6 +72,13 @@ fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
         SettingValue::Charter(value) => values::encode_charter(value, out),
         SettingValue::Template(value) => values::encode_template(value, out),
         SettingValue::Policy(value) => values::encode_setting_policy(value, out),
+        SettingValue::Application(value) => {
+            out.array_start();
+            for &byte in value {
+                out.unsigned(u64::from(byte));
+            }
+            out.array_end();
+        }
         SettingValue::Rules(value) => values::encode_rules(value, out),
     }
 }
@@ -126,7 +133,7 @@ fn scalar(value: &Json, field: &Field, limits: &Limits, pending: &mut Vec<(Shape
         }
         Value::Text(bound) => {
             let text = value.as_str().expect("text");
-            assert!(u64::try_from(text.len()).expect("text length") <= fields::most(*bound, limits), "text bound");
+            assert!(skein_lib::len_u64(text.len()) <= fields::most(*bound, limits), "text bound");
         }
         Value::Hex(bound) => {
             let text = value.as_str().expect("hexadecimal text");
@@ -167,7 +174,7 @@ fn walk(shape: Shape, value: Json) {
             }
             if let Some(bound) = field.list {
                 let list = value.as_array().expect("list");
-                assert!(u64::try_from(list.len()).expect("list length") <= fields::most(bound, &limits), "list bound");
+                assert!(skein_lib::len_u64(list.len()) <= fields::most(bound, &limits), "list bound");
                 for value in list {
                     scalar(value, field, &limits, &mut pending);
                 }
@@ -180,8 +187,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // Stock has three charters, two templates, one policy and the rules.
-    const STOCK_VALUES: usize = 7;
+    // Stock has five charters, three templates, one policy and the rules.
+    const STOCK_VALUES: usize = 10;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::defaults(&llm);

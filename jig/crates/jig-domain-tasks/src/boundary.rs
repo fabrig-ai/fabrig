@@ -6,12 +6,27 @@ use crate::{Authority, Class, Funder, Numbers, Tries};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, ReplyTo, Wall};
 
+/// A connector's procedure whose tasks, made with a pending dependency, are active and
+/// kept rather than waiting (jig/docs/design/domain/connectors.md, 6.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct KeptStart {
+    pub connector: u16,
+    pub code: u32,
+}
+
 /// A closed wake rule for task words and subscription hints (domain/tasks.md, section 8.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WakeRule {
     Never,
     Immediate,
-    Batch { count: u32, age: Duration },
+    Batch {
+        count: u32,
+        age: Duration,
+    },
+    /// At most once in `span` from the task's last run's start (domain/tasks.md, 8.3).
+    Paced {
+        span: Duration,
+    },
 }
 
 /// How delegate result messages wake their requester.
@@ -132,6 +147,7 @@ pub enum MessageKind {
 /// Terminal shape carried with a delegate's bounded message words.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ResultKind {
+    Job,
     /// Exact approved state; presence distinguishes absent from empty explanation words.
     Approved {
         state: Box<[u8]>,
@@ -215,7 +231,8 @@ impl Word {
                 crate::verdict::fields_bytes(fields)?.checked_add(self.words.len())
             }
             MessageKind::Result(
-                ResultKind::NoChange
+                ResultKind::Job
+                | ResultKind::NoChange
                 | ResultKind::Report
                 | ResultKind::Change { .. }
                 | ResultKind::Failed
@@ -301,6 +318,8 @@ pub enum Executor {
     Procedure { connector: u16, code: u32 },
     /// A person or any current holder of a project role answers in the people inbox.
     Person(PersonAddress),
+    /// Application job kind (jig/docs/design/domain/tasks.md, 5.3.1).
+    Job { kind: u32 },
 }
 
 /// Opaque person-task destination; root authenticates the identity or role membership.
@@ -345,11 +364,15 @@ pub struct RecurringState {
 /// (domain/tasks.md, section 5.3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ProcedureDecision {
+    /// Replace this procedure task's specification words, within the specification byte bound.
+    pub words: Option<Box<[u8]>>,
     pub batch: Box<[New]>,
     pub amendments: Box<[ProcedureAmendment]>,
     pub cancels: Box<[ProcedureCancel]>,
     pub messages: Box<[ProcedureMessage]>,
     pub proposals: Box<[crate::Proposal]>,
+    /// Dependencies the procedure's work started from (domain/connectors.md, 6.1).
+    pub started_from: Box<[u64]>,
     pub end: ProcedureEnd,
 }
 
@@ -387,11 +410,13 @@ impl ProcedureDecision {
     #[must_use]
     pub fn new(end: ProcedureEnd) -> Self {
         Self {
+            words: None,
             batch: Box::new([]),
             amendments: Box::new([]),
             cancels: Box::new([]),
             messages: Box::new([]),
             proposals: Box::new([]),
+            started_from: Box::new([]),
             end,
         }
     }
@@ -429,6 +454,8 @@ pub enum Parameter {
 /// Owned task description supplied by root, bounded at admission (domain/tasks.md, section 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Spec {
+    /// Application bytes, present exactly for a job executor (jig/docs/design/domain/tasks.md, 5.3.1).
+    pub job: Option<Box<JobSpec>>,
     /// Owned UTF-8 specification words; combined with text-valued parameters, bounded by
     /// `Limits::spec_bytes`.
     pub words: Box<[u8]>,
@@ -439,6 +466,13 @@ pub struct Spec {
     pub inputs: Box<[u64]>,
     /// Immutable obligation to ask its requester a question (domain/tasks.md, 5.7).
     pub asks: bool,
+}
+
+/// A job task's application bytes and per-attempt deadline (jig/docs/design/domain/tasks.md, 5.3.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct JobSpec {
+    pub bytes: Box<[u8]>,
+    pub deadline: Duration,
 }
 
 /// One required named machine field and its value byte cap.
@@ -473,6 +507,8 @@ pub struct Verdict {
 /// admission. (domain/tasks.md, sections 3 and 5.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Contract {
+    /// Maximum application result bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+    Job { bytes: u32 },
     /// Approval of exact opaque connector state (domain/people.md, section 8).
     Approval { state: Box<[u8]>, part: crate::Part },
     /// Bounded report result.
@@ -514,6 +550,8 @@ impl ChangeTitle {
 /// connector interpretation and outward delivery remain with root. (domain/tasks.md, section 5.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TaskResult {
+    /// Opaque application result (jig/docs/design/domain/tasks.md, 5.3.1).
+    Job { bytes: Box<[u8]> },
     /// Exact state approved by the addressed person, with optional explanation.
     Approved { state: Box<[u8]>, words: Option<Box<[u8]>> },
     /// Successful bounded report matching a report contract.
@@ -1137,6 +1175,8 @@ pub struct TaskRecord {
     /// Admitted dependency identities, bounded by `Limits::dependencies`: those named at creation,
     /// then those amendments added, the oldest first (domain/tasks.md, section 7).
     pub dependencies: Box<[u64]>,
+    /// Dependencies started from, in first-marked order, each once (domain/connectors.md, 6.1).
+    pub started_from: Box<[u64]>,
     /// The dependencies an amendment added, each with when and by whom, in their order among
     /// `dependencies`.
     pub added: Box<[Added]>,
@@ -1195,6 +1235,8 @@ pub struct TaskRecord {
     pub refusals: u32,
     /// Current lifecycle or the retained final outcome.
     pub phase: Phase,
+    /// A procedure batch refused for live task room (connectors.md, 6.2).
+    pub room_wait: Option<crate::RoomWait>,
     /// A question-form message to its requester has been admitted; never cleared.
     pub asked_requester: bool,
 }
@@ -1387,7 +1429,8 @@ pub struct Problem {
     /// Bounded structural, lifecycle, financial or restore admission reason.
     pub why: Refusal,
     /// The tasks the refusal names: the live delegates that prevented a finish, in the requester's
-    /// current order; a circle's tasks; an unreachable dependency; an ended dependency; or the
+    /// current order; a circle's tasks; an unreachable dependency; an ended dependency;
+    /// omitted dependencies marked started from; or the
     /// pending dependencies keeping the task. Absent for every other refusal.
     pub blocked_by: Option<Box<[u64]>>,
     /// Exact room check metadata; absent for shape, state and other refusals.

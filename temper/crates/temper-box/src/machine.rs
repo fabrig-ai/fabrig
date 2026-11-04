@@ -1190,7 +1190,9 @@ impl Machine {
                 Phase::Backoff { at, next: following } if at <= now => {
                     let mut first = step;
                     for before in (0..step).rev() {
-                        if self.chain(before) != self.chain(step) {
+                        if self.states.get(before).expect("bounded step").role != Role::Command
+                            || self.chain(before) != self.chain(step)
+                        {
                             continue;
                         }
                         if self.states.get(before).expect("bounded step").kind != Kind::Once {

@@ -123,10 +123,13 @@ pub fn offers(task: &Task) -> Offered {
         || !task.resources.is_empty()
         || match task.chip.executor {
             ChipExecutor::Procedure { .. } => true,
-            ChipExecutor::Agent { .. } | ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => false,
+            ChipExecutor::Job { .. }
+            | ChipExecutor::Agent { .. }
+            | ChipExecutor::Party { .. }
+            | ChipExecutor::Role { .. } => false,
         };
     let budget = match task.chip.executor {
-        ChipExecutor::Agent { .. } | ChipExecutor::Procedure { .. } => true,
+        ChipExecutor::Agent { .. } | ChipExecutor::Job { .. } | ChipExecutor::Procedure { .. } => true,
         ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
             task.budget.numbers.budget > 0
                 || task.budget.numbers.spent > 0
@@ -208,7 +211,10 @@ pub fn parts(task: &Task, section: TaskSection, limit: u32) -> List<ApplicationP
             ChipExecutor::Procedure { connector, .. } => {
                 push(&mut parts, ApplicationPart::Panel { connector, task: task.chip.task });
             }
-            ChipExecutor::Agent { .. } | ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {}
+            ChipExecutor::Job { .. }
+            | ChipExecutor::Agent { .. }
+            | ChipExecutor::Party { .. }
+            | ChipExecutor::Role { .. } => {}
         },
         TaskSection::Budget => {
             for grant in &task.authority.authority.grants {
@@ -230,7 +236,10 @@ pub fn parts(task: &Task, section: TaskSection, limit: u32) -> List<ApplicationP
                 ChipExecutor::Procedure { connector, .. } => {
                     push(&mut parts, ApplicationPart::Panel { connector, task: task.chip.task });
                 }
-                ChipExecutor::Agent { .. } | ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {}
+                ChipExecutor::Job { .. }
+                | ChipExecutor::Agent { .. }
+                | ChipExecutor::Party { .. }
+                | ChipExecutor::Role { .. } => {}
             }
         }
         TaskSection::Plan | TaskSection::History => {}
@@ -432,7 +441,7 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queu
                 );
             }
         }
-        ChipExecutor::Procedure { .. } => {}
+        ChipExecutor::Job { .. } | ChipExecutor::Procedure { .. } => {}
         ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => {
             let key = ObjectKey::PersonTask(number);
             let source = Source::Window { number: PERSON_TASK_READ };

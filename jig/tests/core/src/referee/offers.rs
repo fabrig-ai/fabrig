@@ -161,6 +161,7 @@ impl Referee {
             | root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
             | root::Delivery::Core(_)
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
@@ -280,7 +281,8 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         people::Ask::SetRoles { project, .. } => (Act::SetRoles, Subject::Project { project: *project }),
         people::Ask::MakeService { project, .. } => (Act::MakeService, Subject::Project { project: *project }),
         people::Ask::SetPool { project, .. } => (Act::SetPool, Subject::Project { project: *project }),
-        people::Ask::Lift { .. }
+        people::Ask::Restore { .. }
+        | people::Ask::Lift { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::MoveToNewest { .. }
         | people::Ask::MakeProject { .. }
@@ -293,6 +295,7 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         | people::Ask::AccountSignOut { .. }
         | people::Ask::AccountChange { .. }
         | people::Ask::RemoveProject { .. }
+        | people::Ask::SetVisibility { .. }
         | people::Ask::MarkSeen { seen: people::Seen::Results { .. } } => return None,
     })
 }

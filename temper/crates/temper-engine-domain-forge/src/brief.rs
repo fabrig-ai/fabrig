@@ -125,7 +125,7 @@ pub(crate) fn brief_part(words: &BriefWords, parts: u32, bytes: u32) -> BriefRea
     if parts == 0 {
         return BriefRead::Failed;
     }
-    let kept = words.bytes.as_slice().len().min(usize::try_from(bytes).expect("u32 fits usize"));
+    let kept = words.bytes.as_slice().len().min(skein_lib::usize_of(bytes));
     let start = if words.tail { words.bytes.as_slice().len().saturating_sub(kept) } else { 0 };
     BriefRead::Got {
         bytes: Box::from(words.bytes.as_slice().get(start..start.saturating_add(kept)).expect("Kept is within source")),
@@ -239,6 +239,9 @@ pub(crate) fn brief_answer(
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
     out: &mut Queue<Request>,
 ) -> bool {
+    if domain.document_fetches.contains_key(&owner) {
+        return crate::brief_document::answer(domain, owner, result, out);
+    }
     let Some(mut fetch) = domain.brief_fetches.remove(&owner) else { return false };
     if result == Err(skein_forge::api::Error::Busy) {
         fetch.refused = Some(domain.brief_reclaim);
@@ -468,6 +471,10 @@ pub(crate) fn gather(
         return;
     }
     let read = match source {
+        BriefSource::Document => {
+            crate::brief_document::gather(domain, owner, parts, max_job_bytes, out);
+            None
+        }
         BriefSource::Home { repository } => Some(match domain.repository(repository) {
             Some(home) if parts > 0 => home_access_reason(&home.owner, &home.name, bytes),
             Some(_) | None => BriefRead::Failed,
@@ -482,7 +489,7 @@ pub(crate) fn gather(
 }
 
 fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
-    let index = usize::try_from(fetch.next_review).expect("u32 fits usize");
+    let index = skein_lib::usize_of(fetch.next_review);
     let review = *fetch.review_ids.get(index)?;
     fetch.next_review = fetch.next_review.checked_add(1).expect("bounded review count");
     fetch.stage = BriefStage::Remarks;
@@ -493,7 +500,7 @@ fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
 fn next_failed_job(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
     let total = u32::try_from(fetch.checks.len()).expect("bounded check list");
     for index in fetch.next_check..total {
-        let status = fetch.checks.get(usize::try_from(index).expect("u32 fits usize")).expect("index in check list");
+        let status = fetch.checks.get(skein_lib::usize_of(index)).expect("index in check list");
         fetch.next_check = index.checked_add(1).expect("bounded check count");
         if status.check != skein_forge::api::Check::Failed {
             continue;
@@ -695,11 +702,14 @@ fn waiting_owner(domain: &Domain) -> Option<Token> {
 }
 
 pub(crate) fn waiting(domain: &Domain) -> bool {
-    waiting_owner(domain).is_some()
+    waiting_owner(domain).is_some() || crate::brief_document::waiting(domain)
 }
 
 pub(crate) fn retry(domain: &mut Domain, out: &mut Queue<Request>) {
-    let Some(owner) = waiting_owner(domain) else { return };
+    let Some(owner) = waiting_owner(domain) else {
+        crate::brief_document::retry(domain, out);
+        return;
+    };
     let fetch = domain.brief_fetches.get_mut(&owner).expect("waiting brief");
     fetch.refused = None;
     out.push(Request::BriefClient {
@@ -717,13 +727,14 @@ fn section_owner(domain: &Domain, section: Token) -> Option<Token> {
 }
 
 pub(crate) fn set_deadline(domain: &mut Domain, section: Token, deadline: skein_lib::Time) {
+    crate::brief_document::set_deadline(domain, section, deadline);
     if let Some(owner) = section_owner(domain, section) {
         domain.brief_fetches.get_mut(&owner).expect("section fetch").deadline = Some(deadline);
     }
 }
 
 pub(crate) fn next_deadline(domain: &Domain) -> Option<skein_lib::Time> {
-    let mut next: Option<skein_lib::Time> = None;
+    let mut next = crate::brief_document::next_deadline(domain);
     for (_, fetch) in &domain.brief_fetches {
         if let Some(deadline) = fetch.deadline
             && fetch.refused.is_some()
@@ -751,6 +762,7 @@ fn expired_owner(domain: &Domain, now: skein_lib::Time) -> Option<Token> {
 
 /// Finish Busy-retained reads at the parent's deadline; in-flight reads stay late.
 pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<Request>) {
+    crate::brief_document::expire(domain, now, out);
     for _ in 0..domain.brief_fetches.capacity() {
         let Some(owner) = expired_owner(domain, now) else { break };
         let mut fetch = domain.brief_fetches.remove(&owner).expect("expired brief");
@@ -773,6 +785,7 @@ pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<
 }
 
 pub(crate) fn drop_section(domain: &mut Domain, section: Token) {
+    domain.document_fetches.remove(&crate::brief_document::call(section));
     if let Some(owner) = section_owner(domain, section) {
         domain.brief_fetches.remove(&owner);
     }
@@ -800,6 +813,9 @@ fn pull_mode(state: &change::State, clean: &[[u8; 32]]) -> PullMode {
         | change::State::NoChange { .. }
         | change::State::Ended
         | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
         | change::State::Held { .. } => PullMode::Other,
     }
 }

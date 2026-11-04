@@ -144,6 +144,26 @@ fn me_prints_its_retention_in_whole_seconds() {
     }
 }
 #[test]
+fn me_explains_creating_delegation_bounds() {
+    let mut root = fixtures::started(skein_lib::List::with_capacity(fixtures::EMPTY));
+    let mut me = fixtures::chat_me(0);
+    let creating = me.projects.get_mut(0).expect("one project").creating.as_mut().expect("creating bounds");
+    creating.within.authority.authority.delegation.tasks = 31;
+    creating.within.authority.authority.delegation.depth = 5;
+    root.deliver(jig_client::contract::Delivery::Me(Box::new(me)));
+    let call = root.submit(fixtures::ME_CALL);
+    let answer = root.answer(call).expect("me answered from the live frame");
+    assert_eq!(answer.status, 0);
+    for words in [
+        b"; tasks 31; depth 5 }".as_slice(),
+        b"creating delegation: tasks = min(role tasks, deployment tree tasks) - 1; depth = role depth - 1",
+        b"the root task consumes one task and one depth level",
+    ] {
+        assert!(skein_lib::bytes::find(&answer.stdout, words).is_some(), "{:?}", answer.stdout);
+    }
+}
+
+#[test]
 fn no_call_runs_before_me_is_live() {
     let mut root = fixtures::started(skein_lib::List::with_capacity(fixtures::EMPTY));
     let call = root.submit(fixtures::TASK_CALL);
@@ -440,7 +460,7 @@ fn a_document_at_its_byte_bound_prints_its_maximal_json_escapes() {
     let printed = document::print(Document::Task(&task, None), true, &crate::limits::tools(), &crate::root::Parts);
 
     assert_eq!(printed.status, 0, "{:?}", printed.stderr);
-    assert!(u64::try_from(printed.stdout.len()).expect("output length fits") > crate::limits::DOCUMENT);
+    assert!(skein_lib::len_u64(printed.stdout.len()) > crate::limits::DOCUMENT);
     assert!(skein_lib::bytes::find(&printed.stdout, br"\u0000").is_some(), "control text is JSON escaped");
 }
 

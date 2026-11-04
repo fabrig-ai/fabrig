@@ -65,6 +65,7 @@ fn a_policy_change_overriding_a_template_twice_is_refused_as_a_repeated_identity
 
 fn template() -> Template {
     Template {
+        resources: Box::new([people::Symbol { connector: 1, symbol: 7 }]),
         number: PROJECT,
         name: Box::from(&b"work"[..]),
         executor: people::TemplateExecutor::Chosen,
@@ -118,7 +119,14 @@ fn an_override_replaces_only_the_fields_it_names() {
             Template { tracked: Some(5), ..template() },
         ),
     ] {
-        assert_eq!(templates::merged(&[template()], &[overrides]).as_ref(), &[expected], "{name}");
+        assert_eq!(
+            templates::merged(&[template()], core::slice::from_ref(&overrides)).as_ref(),
+            core::slice::from_ref(&expected),
+            "{name}"
+        );
+        let (mut core, _) = make_tree();
+        core.current.test_templates(Box::new([template()]));
+        assert_eq!(templates::current_merged(&core.current, &[overrides]).as_ref(), &[expected], "{name}");
     }
 }
 
@@ -191,7 +199,7 @@ fn choice_fits(main: tasks::ModelEffort, subagents: &[tasks::ModelEffort], execu
     let mut settings = template_settings();
     settings.defaults.templates.first_mut().expect("template").llm = Some(choice(main, subagents));
     {
-        let current = crate::settings::Current::new(settings.defaults, &limits());
+        let current = crate::settings::Current::new(settings.defaults, &limits(), &[]);
         templates::valid(&current, &settings.settings, &[executor_override(executor)])
     }
 }
@@ -247,7 +255,7 @@ fn template_core() -> (Core, Limits) {
     let (mut core, limits) = make_tree();
     let configured = template_settings();
     core.settings = configured.settings;
-    core.current = crate::settings::Current::new(configured.defaults, &limits);
+    core.current = crate::settings::Current::new(configured.defaults, &limits, &[]);
     (core, limits)
 }
 
@@ -303,7 +311,7 @@ fn startup_refuses_requester_templates_without_conversation_or_a_named_executor(
         let mut template = requester_template(conversation);
         template.executor = executor;
         config.defaults.templates = Box::new([template]);
-        let current = crate::settings::Current::new(config.defaults, &limits());
+        let current = crate::settings::Current::new(config.defaults, &limits(), &[]);
         assert_eq!(
             crate::settings::check(&current, &config.settings, &config.connectors, &limits()),
             Err(crate::settings::Failure {

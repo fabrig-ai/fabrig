@@ -105,6 +105,11 @@ fn live_ci_is_rebuilt_but_terminal_ci_and_task_identity_are_durable() {
         repairs: PanelUsed { used: 0, limit: 3 },
         resolutions: PanelUsed { used: 0, limit: 3 },
         updates: PanelUsed { used: 0, limit: 3 },
+        questions: temper_engine_domain_forge::PanelQuestions {
+            route: temper_engine_domain_forge_change::Route::None,
+            taken: temper_engine_domain_forge::PanelUsed { used: 0, limit: 4 },
+            open: Box::new([]),
+        },
     };
     let mut changed = panel.clone();
     changed.ci = Status::Unknown;

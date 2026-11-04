@@ -156,6 +156,9 @@ fn event_in(
                 carried: None,
             }));
         }
+        Event::Core(core::Event::PublicRead { reply, .. }) => {
+            held(decision, Output::Core(core::Held::PublicRead { reply, answer: core::PublicAnswer::Busy }));
+        }
         Event::Core(event) => work.push(Work::Core(event)),
         Event::Infrastructure(event) => work.push(Work::Infrastructure(event)),
         Event::Observability(event) => work.push(Work::Observability(event)),
@@ -282,6 +285,8 @@ fn core_held(
         Err(value) => value,
     };
     match value {
+        core::Held::PublicRead { .. } => {}
+        core::Held::PublicWait { read } => child(decision, Released::Core(core::Event::PublicDurable { read })),
         core::Held::Load(load) => held(decision, Output::CoreLoad(*load)),
         core::Held::ApplicationDelivery { .. } => unreachable!("document assembly owns this synchronous output"),
         core::Held::ApplicationWatchEnded { watcher, connector, subject, why } => {
@@ -420,6 +425,9 @@ fn core_ask(
 ) {
     let destination = jig_ops_domain_connectors::connector(number);
     match (destination, ask) {
+        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Public { reply, .. }) => {
+            work.push(Work::Core(core::Event::PublicAnswered { reply, answer: None }));
+        }
         (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::ReleaseProject { project }) => {
             work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
         }
@@ -484,6 +492,7 @@ fn core_ask(
             Some(Connector::Infrastructure | Connector::Observability) | None,
             core::Ask::TaskHoldings { request, executor, spec, .. },
         ) => work.push(Work::Core(core::Event::Holdings {
+            refused: None,
             request,
             connector: number,
             holdings: connector_holdings(env, number, executor, &spec),
@@ -501,7 +510,12 @@ fn core_ask(
                 }
             }
             let holdings = if valid { Some(holdings.into_boxed()) } else { None };
-            work.push(Work::Core(core::Event::DelegateHoldings { request, connector: number, holdings }));
+            work.push(Work::Core(core::Event::DelegateHoldings {
+                refused: None,
+                request,
+                connector: number,
+                holdings,
+            }));
         }
         (
             Some(Connector::Infrastructure | Connector::Observability) | None,
@@ -516,7 +530,13 @@ fn core_ask(
                 }
             }
             let holdings = if valid { Some(holdings.into_boxed()) } else { None };
-            work.push(Work::Core(core::Event::ProcedureHoldings { task, step, connector: number, holdings }));
+            work.push(Work::Core(core::Event::ProcedureHoldings {
+                refused: None,
+                task,
+                step,
+                connector: number,
+                holdings,
+            }));
         }
         (
             Some(Connector::Infrastructure | Connector::Observability) | None,
@@ -524,6 +544,7 @@ fn core_ask(
         ) => {
             let task = context.task;
             let code = match context.executor {
+                tasks::Executor::Job { .. } => return,
                 tasks::Executor::Procedure { code, .. } => code,
                 tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
                     unreachable!("core-selected procedure executor")
@@ -612,6 +633,31 @@ fn core_ask(
         (Some(Connector::Infrastructure), core::Ask::ClaimDone { task, attempt, kinds, version }) => {
             crate::link::route(domain, env, decision, LinkEvent::Start { task, attempt, kinds, version }, true, work);
         }
+        (
+            Some(Connector::Infrastructure),
+            core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace },
+        ) => {
+            crate::link::route(
+                domain,
+                env,
+                decision,
+                LinkEvent::StartJob {
+                    job: jig_domain_hub_link::JobStart {
+                        task,
+                        attempt,
+                        workstream: task,
+                        kind,
+                        spec,
+                        deadline,
+                        result,
+                        grants,
+                        workspace,
+                    },
+                },
+                true,
+                work,
+            );
+        }
         (Some(Connector::Infrastructure), core::Ask::Close { task, .. }) => {
             work.push(Work::Infrastructure(infrastructure::Event::Close { task }));
         }
@@ -656,7 +702,10 @@ fn core_ask(
         }
         (
             Some(Connector::Observability) | None,
-            core::Ask::DropApplication { .. } | core::Ask::ClaimDone { .. } | core::Ask::UnsubscriptionDone { .. },
+            core::Ask::DropApplication { .. }
+            | core::Ask::ClaimDone { .. }
+            | core::Ask::JobClaimed { .. }
+            | core::Ask::UnsubscriptionDone { .. },
         )
         | (None, core::Ask::Close { .. } | core::Ask::Release { .. } | core::Ask::SubscriptionDone { .. })
         | (
@@ -838,6 +887,16 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connecto
             | connector::Ask::Adopt { .. }
             | connector::Ask::Restore { .. },
         ) => {}
+        (
+            Some(Connector::Infrastructure | Connector::Observability) | None,
+            connector::Ask::RestoreSettings { .. }
+            | connector::Ask::ForgetReplaced { .. }
+            | connector::Ask::JudgeSettings { .. }
+            | connector::Ask::KeepSettings { .. }
+            | connector::Ask::KeepProposalSettings { .. }
+            | connector::Ask::DropProposalSettings { .. }
+            | connector::Ask::SaveSettingsDefaults { .. },
+        ) => unreachable!("no application kind is declared"),
     }
 }
 
@@ -1022,20 +1081,6 @@ pub(crate) fn connector_out(
         ConnectorRequest::Infrastructure(infrastructure::Request::Close { key, project, chat }) => {
             let token = domain.token();
             domain.hub_link.keep_close_reply(token, key);
-            let mut grace = None;
-            for setting in &domain.core.current.offered() {
-                let number = match setting {
-                    core::settings::Setting::Template(number) => *number,
-                    core::settings::Setting::Charter(_)
-                    | core::settings::Setting::Policy(_)
-                    | core::settings::Setting::Rules => continue,
-                };
-                let template = domain.core.current.template(number).expect("offered template");
-                if template.flags.conversation {
-                    grace = template.grace;
-                    break;
-                }
-            }
             work.push(Work::Core(core::Event::Act {
                 reply_to: ReplyTo::new(token),
                 connector: number,
@@ -1043,7 +1088,7 @@ pub(crate) fn connector_out(
                 act: Box::new(jig_domain_people::Act::Close {
                     project,
                     task: chat,
-                    grace,
+                    grace: Some(domain.environment_close_grace),
                     reason: domain.environment_closed_reason.clone(),
                 }),
                 carried: None,
@@ -1265,6 +1310,8 @@ fn core_now(
             work.push(Work::Core(core::Event::WorkspacePrepared {
                 task,
                 attempt,
+                holds: Box::new([]),
+                workspace: None,
                 credentials: Box::new([]),
                 writes: Some(Box::new([])),
             }));
@@ -1356,6 +1403,7 @@ fn core_now(
         }
         other @ (core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
+        | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::NoteBusy { .. }
         | core::Now::SettledCallRefused { .. }

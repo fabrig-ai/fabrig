@@ -204,6 +204,7 @@ fn task_saved(
         }
         match task.phase {
             tasks::Phase::Ended(_) => {
+                drop(core.job_workspaces.remove(&task.number));
                 drop(core.workspace_credentials.remove(&task.number));
             }
             tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {}
@@ -211,6 +212,7 @@ fn task_saved(
         clear_stale_preparation(core, env, task, pending, out);
         crate::effects::projections::save(core, &env.limits, task, out);
         touch_task(core, &env.limits, task);
+        crate::public::follow(core, &env.limits, task);
     }
 }
 

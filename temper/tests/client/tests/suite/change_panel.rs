@@ -96,7 +96,7 @@ fn order(step: &w::Step) -> u8 {
         w::Step::Queued(_) => 4,
         w::Step::First => 5,
         w::Step::Landing => 6,
-        w::Step::Landed(_) => 7,
+        w::Step::Landed(_) | w::Step::Verifying(_) | w::Step::Red(_) | w::Step::Cleared(_) => 7,
         w::Step::Ended
         | w::Step::Ready(_)
         | w::Step::Preparing(_)
@@ -639,6 +639,7 @@ fn silent_ci_world() -> (World<Temper, Joint>, u64, u64) {
                 batch: Box::new([engine::Delegate {
                     executor: tasks::Executor::Procedure { connector: 1, code: 2 },
                     spec: tasks::Spec {
+                        job: None,
                         asks: false,
                         words: b"Wait for CI on the pushed change".as_slice().into(),
                         parameters: Box::new([

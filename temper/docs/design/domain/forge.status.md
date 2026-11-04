@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-04. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
   - 4.1: a removal without the box, its group's act answered in its
@@ -22,39 +22,73 @@
     (`temper-service/src/family.rs`).
   - 7.1, 12: the findings topic and findings (`findings.md`).
   - 7.3: a hold parked until a landing.
-  - 8.1: a change's own bounds, gates and charters: `change` takes
-    parameters 1 to 6, 9 and 10, its bounds are the deployment's
-    `change_policy` and its charters the deployment's
-    (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
-    page's line that a change takes no words.
-  - 8.2: the pull request's body naming its goal's issue; a landed change
-    living until its landing is cleared (`after-landing.md`, section 6).
+  - 8.1: a change's own bounds and gates: `change` takes parameters 1
+    to 6, 9 to 12, 14 and 16, its bounds, the questions it takes among
+    them, are the deployment's `change_policy`, and its gates its landing
+    branch's rules' (`temper-engine-domain/src/route/forge_route.rs`,
+    `start_change`); its page's line that a change takes no words.
+  - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
-    when the change asks; a verdict posted as a commit status; the review
-    charter, kind 3's number 2, is fixed at charter 4.
+    when the change asks; a verdict posted as a commit status.
+  - 8.4: widening exhausted spend with ctl before release: `task amend`'s
+    `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
+    hold offers cancellation or asking afresh instead.
+  - 8.4, 8.5: a goal's landing held past its repairs, then released after
+    a change into its goal branch (`../draft/reference-landing.md`,
+    section 9's second story), is built, but its story is ignored: after
+    the released landing, the restart oracle finds the deployment's
+    `messages` number changed across a restart, its cause not yet found
+    (`tests/engine/domain/tests/suite/forge_routes/goal_landing_held.rs`).
+  - 8.4, 10, 11.1: a goal's landing whose update into main conflicts,
+    settled by the merge job and a resolution on its goal's branch
+    (`../draft/reference-landing.md`, section 9's first story), is built
+    by every change's path, the job writing the branch under the goal's
+    hold as the landing's resolution does
+    (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),
+    but no story runs it: the merge job's stories are changes into a
+    goal's branch and into main, none a goal's landing
+    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`).
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
-  - 8.7: the explicit choice to adopt a GitHub repository without CI;
-    requirements 5 and 6.
-  - 8.7 to 8.9, 16, 18: the landing rules and the forge's charter as
-    settings of temper's kinds; the rules are read from the document's
-    `landing` member at start and compiled into the core's requirements
-    and the forge's gate templates (`root.md`'s status).
+  - 8.7: the explicit choice to adopt a GitHub repository without CI.
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.
-  - 11.1: a goal's own branch.
+  - 8.11: a dependent's landing holding its dependency's pushed head in
+    g's ancestry is unobserved in stories, the fake forge squashing
+    merges (skein's `fake-forge.md`, 2.2).
+  - 8.11: a repair's or a resolution's question, relayed as a producer's
+    is (`temper-engine-domain/src/route/forge_route/relay.rs`,
+    `asking_delegate`), is unobserved in stories: every relay story's
+    asker is the change's producing task
+    (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
+    `foremen.rs` and `goal_questions.rs`).
+  - 9: a branch a tier follows still pauses its queue on its own CI's
+    red and makes a repair, where its tiers judge it instead
+    (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
   - 12: the issue's milestones but its lifecycle and revisions: the plan
     accepted, a change landed or held, a report kept.
   - 12.1: questions on the forge.
   - 13: participating objects beyond their news; a landing waiting for
     someone else's merge where temper may not merge (also 4.4 and 9).
   - 14: upstream contributions.
-- **Departs:** 4.1: a removed forge's repositories' rows are erased
-  once no live task, hold or subscription names them, a task's names
-  going at its release (`temper-engine-domain-forge/src/domain.rs`,
-  `erase_removed_repositories` and `unnamed`), not once no kept task
-  does, so a chat that worked on one reads its name until the chat
-  ends, not until it is erased, because the connector keeps names for
-  live tasks alone; which rule holds is the user's to decide (section
-  20).
+  - 18: the rules as settings (8.9) in the forge's world: `tests/engine/forge`
+    tells none of them. The engine's domain world tells a rule changed
+    between two merges, a rule refused in its change's decision, a
+    change kept on the charters it was made with and one held when its
+    charter is no longer offered, and a restart
+    (`tests/engine/domain/tests/suite/settings/kinds.rs`,
+    `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
+    asked for on a queued change, a gate a rule drops no longer waited
+    on, or a project's rule adding an approval.
+- **Departs:** 8.11: a change taking `foreman` gives its producing, each
+  repair and each resolution half the spend the change may give it,
+  keeping the rest for the foremen of that agent's questions, since a
+  foreman runs while the agent that asked waits
+  (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate`);
+  8.4 and 8.11 make a change's delegates under its own authority and
+  name no such split.
+- **Departs:** 8.11: every answer relayed down is cut from its end to
+  `tasks.message_bytes` and marked with `…`, as a question passed up is.
+  This keeps the message within its admission bound, where the design says
+  the answer's words are whole.

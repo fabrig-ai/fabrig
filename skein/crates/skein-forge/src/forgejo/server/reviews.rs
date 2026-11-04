@@ -127,6 +127,8 @@ pub(super) fn write(json: &mut Encoder, answer: &Answer) -> Result<(), writer::R
         | Answer::Files(_)
         | Answer::Compare { .. }
         | Answer::Tree { .. }
+        | Answer::Artifacts(_)
+        | Answer::Commits { .. }
         | Answer::Runs { .. }
         | Answer::Run(_)
         | Answer::Job { .. }

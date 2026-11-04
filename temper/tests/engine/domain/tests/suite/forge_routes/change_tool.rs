@@ -26,6 +26,19 @@ pub(super) fn change(
     repository: Option<&[u8]>,
     words: &[u8],
 ) -> engine::CallAnswer {
+    change_landing(world, chat, name, repository, words, None)
+}
+
+pub(super) fn change_landing(
+    world: &mut World,
+    chat: &engine::Assignment,
+    name: u64,
+    repository: Option<&[u8]>,
+    words: &[u8],
+    landing: Option<engine::ChangeLanding>,
+) -> engine::CallAnswer {
+    let mut change = engine::ChangeCall::words(words.into(), repository.map(Box::from));
+    change.landing = landing;
     let before = world.answers.len();
     let event = world.protocol.call(
         Token::new(7),
@@ -35,7 +48,7 @@ pub(super) fn change(
         engine::Call {
             completion: u32::try_from(name).expect("bounded call name"),
             position: 1,
-            tool: engine::Tool::Change { words: words.into(), repository: repository.map(Box::from) },
+            tool: engine::Tool::Change { changes: Box::new([change]) },
         },
     );
     world.send(event);
@@ -46,6 +59,220 @@ pub(super) fn change(
         }
     }
     panic!("change was not answered");
+}
+
+// Two changes share the half left after the chat's 60-unit run reservation.
+const PLAN_CAP: u64 = 200;
+const PLAN_CALL: u64 = 93;
+const PLAN_STEPS: u32 = 1000;
+const CHAT_AND_FIRST_PRODUCER: usize = 2;
+const CHAT_AND_BOTH_PRODUCERS: usize = 3;
+const TWO_CHANGES: usize = 2;
+
+fn plan_world(control: bool) -> (World, engine::Assignment) {
+    let mut world = World::configured(true, true);
+    world.env.limits.tasks.batch = u32::try_from(TWO_CHANGES).expect("two changes fit u32");
+    // This constructor rebuilds the cold root with its configured policy and current bounds.
+    let client = world.env.limits.forge.client;
+    world = world.with_forge_client(client);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(PLAN_CAP) };
+    let family = jig_domain_core::ToolFamilies::JIG.control.0;
+    if control {
+        batch[0].authority.tools |= family;
+    } else {
+        batch[0].authority.tools &= !family;
+    }
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    (world, chat)
+}
+
+fn plan_change(world: &mut World, chat: &engine::Assignment, input: &[u8]) -> Option<engine::CallAnswer> {
+    world.until(Until::Ready);
+    let before = world.answers.len();
+    let input = smith_domain_run::HostInput::attested(input.into()).expect("bounded input");
+    let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call_configured(
+        smith_domain_run::CallName { activation: chat.attempt, completion: 1, position: 1 },
+        b"change",
+        &input,
+        &walking::models(),
+    )
+    .expect("change decodes") else {
+        panic!("change call")
+    };
+    let event = world.protocol.call(Token::new(7), chat.task, chat.attempt, PLAN_CALL, call);
+    world.send(event);
+    world.until(Until::Ready);
+    world.answers.get(before).cloned()
+}
+
+fn stored_change(world: &World, task: u64) -> &forge_top::ChangeRow {
+    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
+        panic!("registered change")
+    };
+    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
+    row
+}
+
+#[test]
+fn a_plan_member_from_a_task_without_control_is_refused() {
+    let (mut world, chat) = plan_world(false);
+    let rows = world.store.rows.clone();
+    plan_change(&mut world, &chat, br#"{"words":"Small fix","landing":"main"}"#);
+    assert_eq!(world.call_errors.len(), 1);
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, questions, repairs, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.store.rows, rows, "no delegate or call record is built");
+}
+
+#[test]
+fn a_branch_without_the_control_family_is_a_plans_member_refused() {
+    let (mut world, chat) = plan_world(false);
+    let rows = world.store.rows.clone();
+    plan_change(&mut world, &chat, br#"{"words":"Small fix","branch":"mine"}"#);
+    assert_eq!(world.call_errors.len(), 1);
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, questions, repairs, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.store.rows, rows, "no delegate or call record is built");
+}
+
+#[test]
+fn a_producer_from_a_task_without_control_is_refused() {
+    let (mut world, chat) = plan_world(false);
+    let rows = world.store.rows.clone();
+    plan_change(&mut world, &chat, br#"{"words":"Small fix","producer":6}"#);
+    assert_eq!(world.call_errors.len(), 1);
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, questions, repairs, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.store.rows, rows, "no delegate or call record is built");
+    assert_eq!(world.assigned.len(), 1);
+}
+
+#[test]
+fn a_control_changes_choices_are_validated_before_delegation() {
+    for (input, expected) in [
+        (br#"{"words":"Small fix","producer":7}"#.as_slice(), tasks::Refusal::Executor),
+        (br#"{"changes":[{"words":"First fix"},{"words":"Second fix","producer":7}]}"#, tasks::Refusal::Executor),
+    ] {
+        let (mut world, chat) = plan_world(true);
+        let answer = plan_change(&mut world, &chat, input);
+        assert!(
+            matches!(&answer, Some(engine::CallAnswer::DelegationRefused(problem)) if problem.why == expected),
+            "{input:?}: {answer:?}"
+        );
+        assert!(world.call_errors.is_empty());
+        assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
+        assert_eq!(
+            world
+                .store
+                .rows
+                .keys()
+                .filter(|key| matches!(key, Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(_)))))
+                .count(),
+            1,
+            "no delegate is built"
+        );
+        assert_eq!(world.assigned.len(), 1);
+    }
+}
+
+#[test]
+fn a_control_changes_producer_llm_is_admitted_and_saved() {
+    let (mut world, chat) = plan_world(true);
+    let answer = plan_change(
+        &mut world,
+        &chat,
+        br#"{"words":"Small fix","producer":1,"llm":{"producer":{"main":{"model":"scripted"}}}}"#,
+    );
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("configured choices admitted: {answer:?}") };
+    assert!(world.call_errors.is_empty());
+    let row = stored_change(&world, made[0].task);
+    assert_eq!(row.producing_charter, 1);
+    assert_eq!(
+        row.producing_llm.as_ref().expect("saved producer choice").main,
+        tasks::ModelEffort { model: 0, effort: None }
+    );
+    assert!(row.review_llm.is_none());
+}
+
+#[test]
+fn two_changes_in_one_call_are_one_batch_the_second_after_the_first() {
+    let (mut world, chat) = plan_world(true);
+    let answer = plan_change(
+        &mut world,
+        &chat,
+        br#"{"changes":[{"name":"a","words":"First fix"},{"words":"Second fix","after":["a"]}]}"#,
+    );
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("one batch: {answer:?}") };
+    assert_eq!(made.len(), TWO_CHANGES);
+    assert_eq!(live(&world, made[0].task).spec.words.as_ref(), b"First fix");
+    let second = live(&world, made[1].task);
+    assert_eq!(second.spec.words.as_ref(), b"Second fix");
+    assert_eq!(second.dependencies.as_ref(), &[made[0].task]);
+    assert_eq!(second.authority.delegation.tasks, 3, "eleven left, less the first change and its six delegates");
+    assert_eq!(second.authority.budget.spend, 35, "half of the 140 left, shared equally");
+    world.until(Until::SecondAssignment);
+    world.until(Until::Ready);
+    assert_eq!(world.assigned.len(), CHAT_AND_FIRST_PRODUCER);
+    let producer = world.assigned[1].clone();
+    assert_eq!(live(&world, producer.task).requester, tasks::Party::Task(made[0].task));
+    let branch = stored_change(&world, made[0].task).branch.clone();
+    land_change(&mut world, &producer, &branch);
+    for _ in 0..PLAN_STEPS {
+        world.tick();
+        if world.assigned.len() == CHAT_AND_BOTH_PRODUCERS {
+            break;
+        }
+    }
+    assert_eq!(world.merges, 1);
+    assert_eq!(world.assigned.len(), CHAT_AND_BOTH_PRODUCERS);
+    assert_eq!(live(&world, world.assigned[2].task).requester, tasks::Party::Task(made[1].task));
+}
+
+#[test]
+fn a_change_names_its_landing_branch() {
+    let (mut world, chat) = plan_world(true);
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: b"release".as_slice().into(), commit: 1 }));
+    let answer = plan_change(&mut world, &chat, br#"{"words":"Small fix","landing":"release"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("delegated: {answer:?}") };
+    assert!(
+        live(&world, made[0].task)
+            .spec
+            .parameters
+            .contains(&tasks::Parameter::Bytes { name: 2, value: b"release".as_slice().into() })
+    );
+    world.until(Until::SecondAssignment);
+    let branch = stored_change(&world, made[0].task).branch.clone();
+    let producer = world.assigned[1].clone();
+    land_change(&mut world, &producer, &branch);
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number: 1 })) else {
+        panic!("opened pull")
+    };
+    assert_eq!(pull.base.as_ref(), b"release");
+    assert_eq!(world.merges, 1);
+}
+
+#[test]
+fn landing_goal_without_a_held_goal_branch_is_refused() {
+    let (mut world, chat) = plan_world(true);
+    let rows = world.store.rows.clone();
+    plan_change(&mut world, &chat, br#"{"words":"Small fix","landing":"goal"}"#);
+    assert_eq!(world.call_errors.len(), 1);
+    assert_eq!(world.call_errors[0].text.as_ref(), b"landing goal: this task holds no goal branch in org/repo.");
+    assert_eq!(world.store.rows, rows, "the missing goal branch makes no delegate");
+}
+
+#[test]
+fn an_after_naming_no_earlier_change_is_refused() {
+    let (mut world, chat) = plan_world(true);
+    let answer = plan_change(
+        &mut world,
+        &chat,
+        br#"{"changes":[{"words":"First fix","after":["b"]},{"name":"b","words":"Second fix"}]}"#,
+    );
+    assert!(matches!(answer, Some(engine::CallAnswer::DelegationRefused(problem))
+        if problem.why == tasks::Refusal::Dependencies));
+    assert_eq!(world.assigned.len(), 1);
+    assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
 }
 
 fn live(world: &World, task: u64) -> &tasks::TaskRecord {
@@ -69,6 +296,7 @@ fn change_expands_the_only_repository_field_by_field() {
     assert_eq!(
         row.spec,
         tasks::Spec {
+            job: None,
             asks: false,
             words: Box::from(&b"Small fix"[..]),
             parameters: Box::new([
@@ -230,7 +458,7 @@ fn change_accepts_a_second_change_within_the_chats_task_allotment() {
 #[test]
 fn change_refuses_oversized_words_as_a_delegate_spec() {
     let (mut world, chat) = chat_world(true);
-    let words = vec![b'x'; usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize") + 1];
+    let words = vec![b'x'; skein_lib::usize_of(world.env.limits.tasks.spec_bytes) + 1];
     assert!(
         matches!(change(&mut world, &chat, 93, None, &words), engine::CallAnswer::DelegationRefused(problem) if problem.why == tasks::Refusal::Spec)
     );
@@ -890,4 +1118,53 @@ fn push_change(world: &mut World, branch: &[u8]) {
             link: Box::new([]),
         }),
     );
+}
+
+#[test]
+fn questions_are_a_plans_member() {
+    let (mut world, chat) = plan_world(false);
+    let rows = world.store.rows.clone();
+    let assigned = world.assigned.len();
+    assert_eq!(plan_change(&mut world, &chat, br#"{"words":"Small fix","questions":"none"}"#), None);
+    assert_eq!(world.call_errors.len(), 1);
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, questions, repairs, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.store.rows, rows, "no delegate or call record is built");
+    assert_eq!(world.assigned.len(), assigned, "nothing is delegated");
+}
+
+#[test]
+fn questions_foreman_is_offered_alone_and_in_a_batch() {
+    const ONE_CHANGE: usize = 1;
+    for (input, count) in [
+        (br#"{"words":"Small fix","questions":"foreman"}"#.as_slice(), ONE_CHANGE),
+        (
+            br#"{"changes":[{"name":"a","words":"First fix"},{"words":"Small fix","questions":"foreman","after":["a"]}]}"#.as_slice(),
+            TWO_CHANGES,
+        ),
+    ] {
+        let (mut world, chat) = plan_world(true);
+        let answer = plan_change(&mut world, &chat, input);
+        let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("delegated: {answer:?}") };
+        assert_eq!(made.len(), count);
+        assert!(world.call_errors.is_empty());
+        let task = made.last().expect("foreman change").task;
+        let change = live(&world, task);
+        assert_eq!(change.spec.words.as_ref(), b"Small fix");
+        assert!(change.spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 1 }));
+        assert!(change.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Charter(6)));
+    }
+}
+
+#[test]
+fn questions_none_makes_the_change_as_today() {
+    let (mut world, chat) = plan_world(true);
+    let answer = plan_change(&mut world, &chat, br#"{"words":"Small fix","questions":"none"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("delegated: {answer:?}") };
+    assert_eq!(made.len(), 1);
+    assert_eq!(live(&world, made[0].task).spec.words.as_ref(), b"Small fix");
+    world.until(Until::SecondAssignment);
+    let producer = world.assigned[1].clone();
+    let branch = stored_change(&world, made[0].task).branch.clone();
+    land_change(&mut world, &producer, &branch);
+    assert_eq!(world.merges, 1, "the change lands on the fake forge");
 }

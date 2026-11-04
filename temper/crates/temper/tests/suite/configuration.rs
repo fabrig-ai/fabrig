@@ -1,4 +1,6 @@
 use crate::support;
+#[path = "creating.rs"]
+mod creating;
 
 // The process configuration reader admits a MiB, 64K tokens and 32 levels.
 const DOCUMENT: jig_protocol_config::DocumentLimits =
@@ -12,8 +14,8 @@ fn process_engine() -> jig_protocol_config::Engine {
     // Forge::Unreached omits Forgejo's overrides; include its whole-authority bounds here.
     value["engine"]["limits"]["overrides"]["authority.grants"] = 14.into();
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 14.into();
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 6.into();
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 6.into();
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 8.into();
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 8.into();
     value["engine"]["limits"]["overrides"]["notes.scopes"] = 17.into();
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
@@ -22,6 +24,15 @@ fn process_engine() -> jig_protocol_config::Engine {
         .expect("engine configuration");
     scratch.remove();
     engine
+}
+
+#[test]
+fn the_browsers_client_bounds_are_the_terminals() {
+    assert_eq!(
+        temper_client_shell_web::limits::client(),
+        temper_client_shell_terminal::limits::native().client,
+        "the browser receives what the terminal does (client/README.md, 2)"
+    );
 }
 
 #[test]
@@ -75,13 +86,13 @@ fn the_owned_example_fits_the_native_client() {
 fn assert_owned_limits(limits: &serde_json::Value) {
     let mut expected = serde_json::json!({"engine":{"limits":{"profile":"small","overrides":{
         "authority.segments":8,"tasks.hold_segments":8,"tasks.authority_segments":8,
-        "documents.rows":2,"documents.lines":3,"documents.text_bytes":128,
+        "documents.rows":2,"documents.lines":8,"documents.text_bytes":128,
         "views.watchers":16,"views.watchers_per_party":16,
         "authority.grants":14,"tasks.authority_grants":14,"notes.scopes":17,
-        "authority.executors":6,"tasks.executor_kinds":6,
+        "authority.executors":12,"tasks.executor_kinds":12,
         "clients.streams":8,"clients.exchanges":12,
         "clients_http.streams":8,"clients_http.calls":12,
-        "tasks.authority_bytes":512,"tasks.batch":1
+        "tasks.authority_bytes":512,"tasks.batch":1,"tasks.charters":8,"tasks.contract_choices":4
     }}}});
     let agent: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned/agent.json")).expect("owned agent");

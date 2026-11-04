@@ -7,14 +7,24 @@ A chat is a conversation between a party and an agent in a project: an untracked
 ## What it is
 
 - **A chat is a task** labelled `chat`, made from its project's chat
-  template, template 1: its charter, its budget rule and its model.
+  template, template 1 by default, or another offered chat template:
+  its charter, its budget rule and its model.
   It is untracked, has no deadline, and keeps its transcript.
+- **The configuring chat,** template 3 under charter 3 in the stock,
+  turns how you describe your work into a proposal of settings. Describe
+  it in your words, paste a text, or name a document in an adopted
+  repository. The agent reads the settings and asks one question at a
+  time until it can propose. What temper must enforce becomes settings;
+  what agents must follow stays in their instructions or in documents
+  their charters name. An owner decides the proposal; the agent changes
+  nothing itself (temper help settings).
 - **Its conversation** is what `chat show` reads: each turn's words, from
   the party and from the agent, and each run's start and end.
 - **A reply is not a result.** The agent's words answer the party,
   and the chat goes on: it ends only when its party closes it.
-- **A change is another task's.** Asked for a change to a repository,
-  the chat first reads the code it touches with the forge's reads:
+- **A change is another task's.** The stock chat can inspect its workspace;
+  its tools cannot write, edit or remove files. Asked for a repository
+  change, the chat first reads the code it touches with the forge's reads:
   `read_branch` for its head, then `read_file`. It asks for the change
   with the host tool `change`, giving the party's request and only code
   it has read. If a fix's named fault is absent, it changes nothing and
@@ -86,13 +96,24 @@ A chat is a conversation between a party and an agent in a project: an untracked
   same `chat close` again gets its first answer; `task show` on its
   task with `--until replied` returns once it has answered or waits on
   someone; `task tree` shows the change tasks it started.
+- **To describe how you work,** start the configuring chat:
+
+  ```
+  temper ctl DIR chat start --project PROJECT --template 3 TEXT --key KEY < /dev/null
+  ```
+
+  On the web, a project's first chat starts it when template 3 is
+  offered; otherwise it starts the default chat.
 - **temper's runs** in a chat use the host tools `change`, `goal`,
   `delegate` and `message`, and read these pages with `read_docs`.
 
 ## Limits
 
-- temper does not let ctl choose a chat's template: `chat start` uses the
-  project's chat template.
+For the configuration members that need a restart, read `temper help configuration`.
+
+- `chat start` uses the project's chat template unless `--template`
+  names another of its chat templates; a template that is no chat's
+  starts none.
 - temper does not promise a final summary before the close's grace
   ends.
 - A chat whose request goes past what the party may start alone is

@@ -1,14 +1,20 @@
 use crate::*;
 
 use temper_engine_domain_forge_issues as issues;
+mod admission;
 mod adoption;
 mod binding;
+mod brief_document;
 mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
+mod early;
 mod fixtures;
 mod flight;
+mod goal_branch;
+mod held_branch;
+mod kinds;
 #[path = "tests/landing.rs"]
 mod landing_routes;
 mod limits;
@@ -21,9 +27,13 @@ mod reconcile;
 mod records;
 mod release;
 mod removal;
+mod requires;
 mod restore_fit;
 mod runs;
+mod settings;
+mod standing;
 mod stopping;
+mod tiers;
 mod views;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -87,8 +97,13 @@ const LIMITS: Limits = Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
+    landing_rules: 4,
+    roles: 4,
+    setting_proposals: 4,
+    setting_history: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     issue_policy: temper_engine_domain_forge_issues::Limits {
@@ -103,6 +118,8 @@ const LIMITS: Limits = Limits {
         repairs: 3,
         resolutions: 3,
         updates: 3,
+        questions: 4,
+        tasks: 6,
         stall: Duration::from_secs(30),
         gates: 8,
         clean_heads: 8,
@@ -132,8 +149,11 @@ fn restoring_domain(started: Wall) -> Domain {
     d
 }
 fn domain() -> Domain {
+    domain_with_limits(&LIMITS)
+}
+fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
-        &LIMITS,
+        limits,
         4,
         skein_forge_client::Config {
             namespace: Box::from(&b"test"[..]),
@@ -229,7 +249,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let name = branch();
-    let first = outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+    let first = outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
     assert_eq!(first.len(), 1);
     assert_eq!(
         first[0],
@@ -240,7 +260,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
         }
     );
     assert_eq!(
-        outputs(&mut d, Event::Hold { task: 8, resource: name.clone(), from: None }).as_ref(),
+        outputs(&mut d, Event::Hold { entry: 0, task: 8, resource: name.clone(), from: None }).as_ref(),
         &[Request::Taken { task: 8, resource: name.clone(), by: 7 }]
     );
     outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) });
@@ -328,7 +348,9 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::ResourceRefused { .. }
         | Request::LostReadFailed { .. }
+        | Request::MakeFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -340,6 +362,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -359,6 +382,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
         | Request::Connect { .. }
+        | Request::Replace { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
@@ -374,6 +398,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::TierRun { .. }
+        | Request::TierDecision { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -403,7 +429,9 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::ResourceRefused { .. }
         | Request::LostReadFailed { .. }
+        | Request::MakeFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -415,6 +443,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -434,6 +463,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
         | Request::Connect { .. }
+        | Request::Replace { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
@@ -449,6 +479,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::TierRun { .. }
+        | Request::TierDecision { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -475,7 +507,9 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::ResourceRefused { .. }
         | Request::LostReadFailed { .. }
+        | Request::MakeFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -487,6 +521,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -506,6 +541,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
         | Request::Connect { .. }
+        | Request::Replace { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
@@ -521,6 +557,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::TierRun { .. }
+        | Request::TierDecision { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
@@ -652,7 +690,7 @@ fn named_resource_reports_distinguish_private_branches_context_and_shared_landin
     outputs(&mut d, Event::Restore { record: Stored::Repository(context) });
     assert_eq!(d.resource_facts(&private), Some((Access::Context, resources::HoldKind::Shared)));
     assert_eq!(
-        outputs(&mut d, Event::Hold { task: 7, resource: private, from: None }).as_ref(),
+        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: private, from: None }).as_ref(),
         &[Request::Refused { task: 7 }]
     );
 }
@@ -883,7 +921,7 @@ fn four_writers() -> Domain {
         let name = run_branch(task);
         let head = BranchHead { name: name.clone(), commit: [2; 32], owned: true };
         outputs(&mut d, Event::Restore { record: Stored::BranchHead(head) });
-        outputs(&mut d, Event::Hold { task: holder, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Hold { entry: 0, task: holder, resource: name.clone(), from: None });
         outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name]), holders: Box::new([holder]) });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -945,7 +983,7 @@ fn a_release_waits_for_its_lost_writers_reread_even_after_restart() {
             outputs(&mut d, Event::ReadAfresh);
             outputs(&mut d, Event::SettleOutbox);
             let name = run_branch(b"7");
-            outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+            outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
             outputs(
                 &mut d,
                 Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) },
@@ -1027,7 +1065,7 @@ fn a_failed_goals_lost_writer_reports_its_read_failure() {
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
     let name = run_branch(b"7");
-    outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+    outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
     outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
     assert!(d.change(7).is_none(), "a goal has no change procedure");
     outputs(&mut d, Event::Lost { task: 7, attempt: 4 });
@@ -1051,7 +1089,7 @@ fn a_task_can_claim_its_own_stale_writer() {
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);
         let name = run_branch(b"7");
-        outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
         outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
         if lost {
             outputs(&mut d, Event::Lost { task: 7, attempt: 4 });
@@ -1600,7 +1638,6 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
             forge: Making::Kept(forge),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: SetUpProject::Existing(1),
         },
     }
 }
@@ -1758,12 +1795,11 @@ fn a_configured_forge_without_routing_input_reads_not_connected() {
 }
 
 #[test]
-fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
+fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
     let mut d = setup_domain(&configured(), true);
     outputs(&mut d, Event::Connection { forge: 1, state: Connection::NotSetUp });
     let request = Token::new(91);
     let token = Token::new(92);
-    let project = SetUpProject::New(b"Next".as_slice().into());
     let emitted = outputs(
         &mut d,
         Event::Application {
@@ -1777,7 +1813,6 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
                 forge: Making::Kept(1),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
-                project: project.clone(),
             },
         },
     );
@@ -1794,7 +1829,6 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
             }
         ]
     );
-    assert_eq!(d.forges().rows[0].first.as_ref().unwrap().project, project);
     assert!(d.application_answer(token).is_none());
 }
 #[test]
@@ -1846,7 +1880,6 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     forge: Making::Kept(1),
                     org: org_name.clone(),
                     repository: repository.clone(),
-                    project: SetUpProject::Existing(1),
                 };
                 let mut emitted = Queue::uncapped();
                 step(
@@ -1885,9 +1918,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
 #[test]
 fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_them() {
     let mut d = setup_domain(&configured(), true);
-    for (number, org, repository, project) in
-        [(91, b"work".as_slice(), b"hello".as_slice(), 1), (93, b"team", b"widget", 2)]
-    {
+    for (number, org, repository) in [(91, b"work".as_slice(), b"hello".as_slice()), (93, b"team", b"widget")] {
         outputs(
             &mut d,
             Event::Connection { forge: 1, state: Connection::SetUpFailed { why: b"retry".as_slice().into() } },
@@ -1898,7 +1929,6 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             playground: false,
             org: org.into(),
             repository: repository.into(),
-            project: SetUpProject::Existing(project),
             state: FirstState::Making,
             label: Box::from(b"temper-host".as_slice()),
         };
@@ -1907,7 +1937,6 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             forge: Making::Kept(1),
             org: first.org.clone(),
             repository: first.repository.clone(),
-            project: first.project.clone(),
         };
         assert_eq!(
             outputs(
@@ -1995,7 +2024,7 @@ fn pushed_heads_match_their_own_forge_only() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
         let mut name = branch();
         name.forge = forge;
-        outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
         outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name]), holders: Box::new([7]) });
     }
     for forge in [1, 3] {
@@ -2117,6 +2146,41 @@ fn setup_failures_name_the_held_step_until_state_changes() {
     }
 }
 
+/// A merge job keeps its repository's name (temper/docs/design/domain/worker.md, 4.4).
+#[test]
+fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
+    use temper_engine_domain_forge_change as change;
+    const CHILD: u64 = 90;
+    // project (7), forge.example (13), org (3), and the push branch temper/51 (9).
+    const FIXED_ITEM_BYTES: usize = 32;
+    for (from, branch) in [(Some(fixtures::HEAD), b"temper/51".as_slice()), (None, b"main".as_slice())] {
+        let mut d = domain();
+        let mut repository = adopted();
+        repository.name = Box::from(b"project".as_slice());
+        outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+        let mut row = fixtures::opening_row();
+        row.delegate = Some((CHILD, change::Delegate::Merge { base: fixtures::BASE, from }));
+        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        let item = d
+            .workspace_item(items::Seed {
+                task: CHILD,
+                parent: Some(fixtures::CHANGE),
+                repository: REPO,
+                run_branch: Box::from(b"run".as_slice()),
+                saved_branch: None,
+            })
+            .expect("merge item");
+        assert_eq!(item.provider, REPO);
+        assert_eq!(item.name.as_ref(), b"project");
+        assert_eq!(item.start, items::Start::Merge { branch: Box::from(branch), base: fixtures::BASE });
+        assert_eq!(item.push.as_deref(), Some(b"temper/51".as_slice()));
+        assert_eq!(item.holder, Some(fixtures::CHANGE));
+        assert_eq!(item.landing, None);
+        let payload = FIXED_ITEM_BYTES + branch.len();
+        assert_eq!(item.bytes, u64::try_from(size_of::<items::Item>() + payload).expect("sized merge item"));
+    }
+}
+
 #[test]
 fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
     use temper_engine_domain_forge_change as change;
@@ -2164,6 +2228,7 @@ fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
                         items::Start::Base(b)
                         | items::Start::Branch(b)
                         | items::Start::Saved(b)
+                        | items::Start::Merged { branch: b, .. }
                         | items::Start::Merge { branch: b, .. } => b,
                     };
                     let pushed = match &item.push {
@@ -2288,9 +2353,17 @@ fn turn_refuses_github_but_queue_remains_available() {
                 5,
                 way,
                 Box::new([RepositoryGates {
+                    tiers: Box::new([]),
                     repository: skein_forge::api::Repository { forge, repository: 2 },
                     gates: Box::new([])
-                }])
+                }]),
+                AfterLanding {
+                    verdict: temper_engine_domain_forge_tiers::Settings {
+                        retries: 2,
+                        suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                    },
+                    bound: Duration::from_millis(7_200_000)
+                }
             ),
             expected
         );
@@ -2322,7 +2395,14 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
             d.project_landing(
                 5,
                 Way::Turn,
-                Box::new([RepositoryGates { repository: REPO, gates: gates.into_boxed() }])
+                Box::new([RepositoryGates { tiers: Box::new([]), repository: REPO, gates: gates.into_boxed() }]),
+                AfterLanding {
+                    verdict: temper_engine_domain_forge_tiers::Settings {
+                        retries: 2,
+                        suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                    },
+                    bound: Duration::from_millis(7_200_000)
+                }
             ),
             expected
         );

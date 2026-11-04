@@ -273,6 +273,16 @@ pub fn party(number: u64, me: Option<&Me>, out: &mut Text) {
 }
 pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     match why {
+        Refusal::Forgotten { oldest } => {
+            out.put(b"forgotten; the oldest kept is revision ");
+            out.number(u64::from(*oldest));
+            return;
+        }
+        Refusal::Judged { why, .. } => {
+            out.put(b"refused by its owner: ");
+            out.put(why.bytes());
+            return;
+        }
         Refusal::Stale(value) => {
             settings_form::refusal(&settings_form::Refusal::Stale(value.newest), out);
             return;
@@ -350,9 +360,10 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
 fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     let word = Word::refusal(why);
     let text = match why {
-        Refusal::Stale(_) | Refusal::Full(_) => {
+        Refusal::Forgotten { .. } | Refusal::Stale(_) | Refusal::Full(_) => {
             unreachable!("the tools do not request settings")
         }
+        Refusal::Judged { why, .. } => book.say(0, word.id(), &[Hole::Name(why.bytes().into())]),
         Refusal::Account { account, .. } => book.say(0, word.id(), &[Hole::Number(u64::from(*account))]),
         Refusal::Taken { by } => book.say(0, word.id(), &[Hole::Number(*by)]),
         Refusal::Llm { model, .. } => book.say(0, word.id(), &[Hole::Name(model.bytes().into())]),
@@ -446,6 +457,10 @@ pub fn authority(document: &AuthorityDocument, out: &mut Text) {
     for kind in &value.delegation.kinds {
         out.put(b" ");
         match kind {
+            AuthorityExecutor::Job(n) => {
+                out.put(b"job ");
+                out.number(u64::from(*n));
+            }
             AuthorityExecutor::Charter(n) => {
                 out.put(b"charter ");
                 out.number(u64::from(*n));

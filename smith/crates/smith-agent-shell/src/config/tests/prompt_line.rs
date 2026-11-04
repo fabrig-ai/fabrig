@@ -52,8 +52,4 @@ pub(super) fn assert_native_prompt_line(
         !encoded.contains(std::str::from_utf8(&credential.value).expect("fixture access UTF8")),
         "grant access bytes never enter content"
     );
-    assert!(
-        !encoded.contains(std::str::from_utf8(&credential.account_id).expect("fixture account UTF8")),
-        "grant account bytes never enter content"
-    );
 }

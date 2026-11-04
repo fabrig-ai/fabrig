@@ -15,8 +15,8 @@ fn settings(text: &str) -> Settings {
 }
 
 #[test]
-fn the_preset_names_include_openai_beside_codex() {
-    for (preset, endpoint) in [(Preset::OpenAi, "openai"), (Preset::Codex, "codex"), (Preset::Anthropic, "anthropic")] {
+fn the_presets_are_openai_and_anthropic() {
+    for (preset, endpoint) in [(Preset::OpenAi, "openai"), (Preset::Anthropic, "anthropic")] {
         let table: toml::Table = toml::from_str(presets::built_in(preset)).unwrap();
         assert!(table["endpoints"].get(endpoint).is_some());
     }

@@ -147,3 +147,31 @@ fn committed_call_outcomes_survive_with_or_without_an_explicit_result_block() {
         assert!(matches!(blocks.get(1), Some(c::Block::Result { call: 1, failed: true, .. })));
     }
 }
+
+/// Both job executor forms round-trip through the link (jig/docs/design/client/domain/contract.md, 5.7).
+#[test]
+fn a_job_chip_round_trips_wire_to_domain_to_wire() {
+    let limits = front::limits(&Bounds::default()).expect("valid limits");
+    let mut details = crate::tests::chip_details(c::ChipPhase::Active(c::RunStage::Running { attempt: 1 }));
+    details.details.executor = c::Executor::Job { kind: 7 };
+    let chip = c::Chip {
+        task: 8,
+        title: c::DocumentText::complete(c::Text::new(Box::from(b"job task".as_slice()), 32).expect("fixture title")),
+        executor: c::ChipExecutor::Job { kind: 7 },
+        phase: c::Phase::Running,
+        details: Box::new(details),
+    };
+    let wire = facts::chip(&chip, limits.wire()).expect("job chip fits");
+    let restored = translate::documents::chip(wire.clone(), &limits).expect("job chip decodes");
+    assert_eq!(restored, chip);
+    assert_eq!(facts::chip(&restored, limits.wire()), Ok(wire));
+}
+
+/// jig/docs/design/protocol/channel.md, 4.3: scripted engines carry the fleet's reason.
+#[test]
+fn job_kinds_hello_refusal_round_trips() {
+    let record = values::wire_hello_refusal(&c::HelloRefusal::JobKinds, &w::CEILINGS).expect("unit refusal");
+    let bytes = encoded(&record, w::HelloRefusal::measure, w::HelloRefusal::encode).expect("encoded refusal");
+    let decoded = w::HelloRefusal::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("decoded refusal");
+    assert_eq!(decoded, record);
+}

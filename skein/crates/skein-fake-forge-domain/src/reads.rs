@@ -35,10 +35,38 @@ use crate::store::{Repository, names, numbers};
 use crate::{pulls, wiki};
 
 /// What `read` answers on the repository `id`.
+#[expect(clippy::too_many_lines, reason = "the read dispatcher names every variant of the domain vocabulary")]
 pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &Read) -> Result<Answer, Error> {
     let limits = &config.limits;
     let repository = domain.repositories.get(id).expect("a repository of the forge");
     match read {
+        Read::Artifacts { run } => {
+            let kept = crate::actions::run(repository, *run).or(Err(Error::Missing(What::Job)))?;
+            let values: Box<[crate::api::ArtifactInfo]> = match &kept.artifact {
+                Some(artifact) => Box::from([crate::api::ArtifactInfo {
+                    id: *run,
+                    name: artifact.name.clone(),
+                    size_in_bytes: u64::try_from(artifact.bytes.len()).expect("bounded report"),
+                }]),
+                None => Box::new([]),
+            };
+            Ok(Answer::Artifacts(values))
+        }
+        Read::ArtifactById { id } => {
+            let kept = crate::actions::run(repository, *id).or(Err(Error::Missing(What::File)))?;
+            let artifact = kept.artifact.as_ref().ok_or(Error::Missing(What::File))?;
+            Ok(Answer::Artifact { commit: kept.run.commit, artifact: artifact.clone() })
+        }
+        Read::Artifact { run, name } => {
+            let kept = crate::actions::run(repository, *run).or(Err(Error::Missing(What::File)))?;
+            match &kept.artifact {
+                Some(artifact) if artifact.name == *name => {
+                    Ok(Answer::Artifact { commit: kept.run.commit, artifact: artifact.clone() })
+                }
+                Some(_) | None => Err(Error::Missing(What::File)),
+            }
+        }
+        Read::Commits { before, after } => crate::reports::commits(domain, repository, limits, *before, *after),
         Read::ListingPermission => Err(Error::Refused),
         Read::Locate => Ok(Answer::Located { id: repository.id }),
         Read::Items { state, kind, labels, author, order, since, page, limit } => {

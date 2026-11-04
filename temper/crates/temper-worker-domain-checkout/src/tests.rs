@@ -714,7 +714,11 @@ fn supplied_landing_cannot_invent_eligibility_or_change_saved_semantics() {
         let mut h = Harness::new(MERGES);
         let merging = match start {
             Start::Merge { .. } => true,
-            Start::Base { .. } | Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } => false,
+            Start::Base { .. }
+            | Start::Branch { .. }
+            | Start::Commit { .. }
+            | Start::Saved { .. }
+            | Start::Merged { .. } => false,
         };
         let repo = Repository { start, ..retry_repository() };
         let hold = h.ready(1, spec(b"w", Box::new([repo])));
@@ -1408,4 +1412,145 @@ fn a_saved_start_keeps_its_delivery_branch_as_the_push_baseline() {
     let op = h.next(hold, Done::Unchanged);
     let Op::Push { commit: head, expected, .. } = op else { panic!("saved tree is delivered") };
     assert_eq!((head, expected), (commit(9), Some(commit(3))));
+}
+
+fn merged_spec(heads: &[Commit]) -> Spec {
+    let mut repo = repository(b"a", true);
+    repo.identity = 3;
+    repo.start = Start::Merged { branch: bytes(b"main"), heads: heads.into() };
+    Spec { key: bytes(b"merged"), repositories: Box::new([repo]) }
+}
+
+/// Complete the fetches and clean checkout; the first ancestry query is in flight.
+fn begin_merged(h: &mut Harness, heads: &[Commit]) -> Token {
+    let (hold, _) = h.prepare(1, merged_spec(heads));
+    h.next(hold, Done::Succeeded);
+    h.next(hold, Done::Succeeded);
+    let mut op = h.next(hold, Done::Fetched { commit: commit(1) });
+    for head in heads {
+        let Op::Fetch { want: Want::Commit { commit }, .. } = op else { panic!("head fetched") };
+        assert_eq!(commit, *head);
+        op = h.next(hold, Done::Fetched { commit: *head });
+    }
+    let Op::CheckOut { commit: base, clean, .. } = op else { panic!("base checkout") };
+    assert_eq!(base, commit(1));
+    assert!(clean);
+    let Op::IsAncestor { ancestor, commit: base, .. } = h.next(hold, Done::Succeeded) else { panic!("ancestry") };
+    assert_eq!((ancestor, base), (heads[0], commit(1)));
+    hold
+}
+
+#[test]
+fn merged_heads_commit_each_merge_in_order() {
+    let mut h = Harness::new(MERGES);
+    let hold = begin_merged(&mut h, &[commit(7), commit(8)]);
+    let next = commit_merged_head(
+        &mut h,
+        hold,
+        7,
+        1,
+        11,
+        b"Merge 0707070707070707070707070707070707070707070707070707070707070707",
+    );
+    let Op::IsAncestor { ancestor, commit: ours, .. } = io(next, hold) else { panic!("next head") };
+    assert_eq!((ancestor, ours), (commit(8), commit(11)));
+    let ready = commit_merged_head(
+        &mut h,
+        hold,
+        8,
+        11,
+        12,
+        b"Merge 0808080808080808080808080808080808080808080808080808080808080808",
+    );
+    let Request::Prepared { prepared: Prepared::Ready { conflicts, .. }, .. } = ready else { panic!("ready") };
+    assert!(conflicts.is_empty());
+    let Op::Commit { parent, merging, .. } = io(h.one(Event::Save { hold, message: message() }), hold) else {
+        panic!("save")
+    };
+    assert_eq!((parent, merging), (commit(12), None));
+    assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
+    h.one(Event::Push { hold, message: message() });
+    let Op::Push { commit: pushed, .. } = h.next(hold, Done::Unchanged) else { panic!("first delivery") };
+    assert_eq!(pushed, commit(12));
+}
+
+fn commit_merged_head(h: &mut Harness, hold: Token, head: u8, parent: u8, merged: u8, title: &[u8]) -> Request {
+    let Op::Merge { theirs, .. } = h.next(hold, Done::IsAncestor { contains: false }) else { panic!("merge") };
+    assert_eq!(theirs, commit(head));
+    let Op::Commit { parent: ours, merging, identity, title: message, body, .. } = h.next(hold, Done::Merged) else {
+        panic!("commit merge")
+    };
+    assert_eq!((ours, merging), (commit(parent), Some(commit(head))));
+    assert_eq!(identity, 3);
+    assert_eq!(&*message, title);
+    assert!(body.is_empty());
+    h.one(Event::Done { owner: hold, done: Done::Committed { commit: commit(merged) } })
+}
+
+#[test]
+fn merged_head_already_contained_makes_no_merge() {
+    let mut h = Harness::new(MERGES);
+    let hold = begin_merged(&mut h, &[commit(7)]);
+    let Request::Prepared { prepared: Prepared::Ready { .. }, .. } =
+        h.one(Event::Done { owner: hold, done: Done::IsAncestor { contains: true } })
+    else {
+        panic!("ready without a merge")
+    };
+    let Op::Commit { parent, merging, .. } = io(h.one(Event::Push { hold, message: message() }), hold) else {
+        panic!("ordinary commit")
+    };
+    assert_eq!((parent, merging), (commit(1), None));
+    assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
+}
+
+#[test]
+fn merged_head_conflict_fails_naming_it() {
+    let mut h = Harness::new(MERGES);
+    let hold = begin_merged(&mut h, &[commit(7), commit(8)]);
+    h.next(hold, Done::IsAncestor { contains: false });
+    h.next(hold, Done::Merged);
+    h.next(hold, Done::Committed { commit: commit(11) });
+    h.next(hold, Done::IsAncestor { contains: false });
+    assert_eq!(
+        h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"code")]) } }),
+        Request::Prepared {
+            client: Token::new(1),
+            prepared: Prepared::Failed { failure: Failure::Conflicted { repository: 0, head: commit(8) } }
+        }
+    );
+    assert_eq!(h.domain.holds(), 1);
+    assert_eq!(
+        h.one(Event::Save { hold, message: message() }),
+        Request::Saved { client: Token::new(1), outcome: Outcome::Refused { refusal: Refusal::Busy } }
+    );
+    assert_eq!(
+        h.one(Event::Push { hold, message: message() }),
+        Request::Pushed { client: Token::new(1), outcome: Outcome::Refused { refusal: Refusal::Busy } }
+    );
+    h.one(Event::Release { hold });
+    assert_eq!(h.domain.holds(), 0);
+}
+
+#[test]
+fn merged_heads_empty_or_too_many_are_invalid() {
+    // channel.md, 4: one to 64 heads; the two invalid sides share the refusal.
+    const HEADS: usize = 64;
+    for heads in [&[][..], &[commit(7); HEADS + 1][..]] {
+        let mut h = Harness::new(MERGES);
+        assert_eq!(
+            h.one(Event::Prepare { client: Token::new(1), spec: merged_spec(heads) }),
+            Request::Prepared { client: Token::new(1), prepared: Prepared::Refused { refusal: Refusal::Invalid } }
+        );
+        assert_eq!(h.domain.holds(), 0);
+    }
+    let mut h = Harness::new(MERGES);
+    let hold = begin_merged(&mut h, &[commit(7); HEADS]);
+    for _ in 1..HEADS {
+        h.next(hold, Done::IsAncestor { contains: true });
+    }
+    let Request::Prepared { prepared: Prepared::Ready { .. }, .. } =
+        h.one(Event::Done { owner: hold, done: Done::IsAncestor { contains: true } })
+    else {
+        panic!("ready without a merge")
+    };
 }

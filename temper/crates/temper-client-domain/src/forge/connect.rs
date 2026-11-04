@@ -44,6 +44,9 @@ pub fn step(choice: Option<AddressChoice>, rows: &State, playground: Option<u16>
         ) => Shown::Details(choice),
         Some(AddressChoice::Forge(number)) => {
             let Some(row) = row(number, rows, playground) else { return Shown::Choose };
+            if row.kind == Kind::Forgejo && row.mode == Mode::Connected && disconnected(row) {
+                return Shown::Details(AddressChoice::Forge(number));
+            }
             if row.admin && admin_stopped(row) {
                 return Shown::Details(AddressChoice::Forge(number));
             }
@@ -126,7 +129,7 @@ fn offered(row: &Row) -> bool {
             | Connection::Connected { .. } => false,
         },
         Kind::Forgejo => {
-            (row.admin && disconnected(row))
+            ((row.admin || row.mode == Mode::Connected) && disconnected(row))
                 || (row.mode == Mode::Owned && row.connection == Connection::NotSetUp && row.offer != Offer::NotOffered)
         }
     }

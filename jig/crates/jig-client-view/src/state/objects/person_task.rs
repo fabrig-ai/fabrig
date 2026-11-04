@@ -68,6 +68,6 @@ pub fn answer(
             }
             None
         }
-        TaskContractDocument::Change { .. } => None,
+        TaskContractDocument::Job { .. } | TaskContractDocument::Change { .. } => None,
     }
 }

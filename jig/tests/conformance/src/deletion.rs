@@ -215,6 +215,7 @@ fn task_rows(world: &mut World) {
             budget: people::Budget::Named,
             executor: tasks::Executor::Agent { charter: 1 },
             spec: tasks::Spec {
+                job: None,
                 asks: false,
                 words: b"delegate".as_slice().into(),
                 parameters: Box::new([]),
@@ -225,7 +226,7 @@ fn task_rows(world: &mut World) {
             llm: None,
             symbolic_grants: Box::new([]),
             dependencies: Box::new([]),
-            wake: tasks::WakePolicy::DEFAULT,
+            wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
         stubs: Box::new([]),
     }));
@@ -341,7 +342,7 @@ pub fn remove(world: &mut World) {
             }
         })
         .collect();
-    act(world, 50, people::Act::RemoveProject { project: 1 });
+    act(world, 50, people::Act::RemoveProject { project: 1, grace: None });
     // A cut before the acknowledgement can lose the answer; the kept deletion still ends whole.
     assert!(
         world.peers.acts.contains(&people::Outcome::ProjectRemoved { project: 1 })

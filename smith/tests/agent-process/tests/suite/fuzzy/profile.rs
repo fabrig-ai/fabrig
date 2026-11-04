@@ -23,7 +23,7 @@ fn seeded_profiles_refuse_without_wrapping_or_keep_the_checked_relationships() {
                 role_bound: None,
                 environment_bytes: u32::try_from(rng.next_u64() % 128).expect("environment"),
                 endpoints: Box::new([Endpoint {
-                    provider: skein_llm::Provider::OpenAiCodex,
+                    provider: skein_llm::Provider::OpenAi,
                     option_bytes: 0,
                     number: 7,
                     connect: Duration::from_secs(2),

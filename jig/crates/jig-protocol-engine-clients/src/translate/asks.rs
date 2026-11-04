@@ -26,7 +26,9 @@ pub(crate) fn named(record: w::Ask, models: &[crate::Model], limits: &w::Limits)
             }
         }
     }
-    p::remap_models(&mut ask, &moved);
+    if !original.is_empty() {
+        p::remap_models(&mut ask, &moved);
+    }
     Ok(NamedAsk { ask, models: canonical })
 }
 
@@ -43,6 +45,10 @@ fn decode(
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Ask, Untranslatable> {
     Ok(match record {
+        w::Ask::Restore(value) => {
+            let value = value.into_parts();
+            p::Ask::Restore { revision: value.revision, reason: value.reason }
+        }
         w::Ask::MoveToNewest(value) => p::Ask::MoveToNewest { revision: value.revision() },
         w::Ask::ChangeSettings(value) => {
             let against = value.against();
@@ -50,6 +56,7 @@ fn decode(
             let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut bytes).expect("measured ask");
             p::Ask::ChangeSettings {
+                projects: Box::default(),
                 against,
                 digest: crate::sign_in::digest(&bytes.finish()).expose().try_into().expect("32-byte digest"),
             }
@@ -128,7 +135,8 @@ fn decode(
         w::Ask::SignOut(value) => {
             p::Ask::AccountSignOut { holder: account_holder(value.holder()), source: value.source() }
         }
-        w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project() },
+        w::Ask::SetVisibility(value) => p::Ask::SetVisibility { project: value.project(), public: value.public() },
+        w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project(), grace: *value.grace() },
         w::Ask::Rename(value) => {
             let v = value.into_parts();
             p::Ask::Rename { project: v.project, name: project_name(&v.name, w::Path::RenameName)? }
@@ -304,6 +312,7 @@ fn wake_rule(value: w::WakeRule) -> p::WakeRule {
         w::WakeRule::Never => p::WakeRule::Never,
         w::WakeRule::Immediate => p::WakeRule::Immediate,
         w::WakeRule::Batch(v) => p::WakeRule::Batch { count: v.count(), age: v.age() },
+        w::WakeRule::Paced(v) => p::WakeRule::Paced { span: v.span() },
     }
 }
 pub(super) fn wake(value: w::WakePolicy) -> p::WakePolicy {
@@ -433,6 +442,7 @@ pub(super) fn authority(
     for kind in delegation.kinds.into_boxed() {
         kinds
             .push(match kind {
+                w::AuthorityExecutor::Job(v) => p::Executor::Job(v.value()),
                 w::AuthorityExecutor::Charter(v) => p::Executor::Charter(v.value()),
                 w::AuthorityExecutor::Procedure(v) => p::Executor::Procedure(v.value()),
                 w::AuthorityExecutor::Role(v) => p::Executor::Role(v.value()),

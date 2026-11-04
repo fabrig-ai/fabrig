@@ -37,12 +37,15 @@ pub enum EndedBy {
 /// An open task is an agent's conversation (5.8).
 #[must_use]
 pub fn shaped(flags: Flags, executor: crate::Executor) -> bool {
+    if crate::batch::matches_job(executor) {
+        return flags.ended_by == EndedBy::Result && !flags.conversation;
+    }
     if flags.ended_by == EndedBy::Result {
         return true;
     }
     let agent = match executor {
         crate::Executor::Agent { .. } => true,
-        crate::Executor::Person(_) | crate::Executor::Procedure { .. } => false,
+        crate::Executor::Person(_) | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
     };
     flags.conversation && agent
 }

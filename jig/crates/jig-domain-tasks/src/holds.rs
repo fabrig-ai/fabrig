@@ -1,9 +1,12 @@
 //! Connector-configured, whole-set hold admission and bounded waiting
 //! (domain/tasks.md, 6.2, 6.5, 6.6 and 6.7). Names are opaque; the hub orders tasks and
 //! never interprets a connector's path.
-#![expect(
-    clippy::result_large_err,
-    reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
+#![cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::result_large_err,
+        reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
+    )
 )]
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{
@@ -451,7 +454,7 @@ pub(crate) fn next_ready(domain: &Domain, limits: &Limits) -> Option<u64> {
         let row = record(domain, *number).expect("indexed live task");
         if row.phase != Phase::Waiting
             || row.holdings.is_empty()
-            || !row.waiting_on.is_empty()
+            || !domain.dependencies_ready(row)
             || !free(domain, *number)
         {
             continue;
@@ -496,7 +499,7 @@ fn place(domain: &Domain, limits: &Limits, number: u64, resource: &Name) -> u32 
     for ((_, other), ()) in domain.waits.waiters.range((resource.clone(), 0)..=(resource.clone(), u64::MAX)) {
         if *other != number {
             let row = record(domain, *other).expect("indexed live task");
-            if queued(row) && earlier(domain, *other, number, limits) {
+            if queued(domain, row) && earlier(domain, *other, number, limits) {
                 for needed in &row.holdings {
                     if name(needed) == resource {
                         place = place.saturating_add(1);
@@ -519,7 +522,7 @@ pub(crate) fn leave(domain: &mut Domain, number: u64) {
 /// its bound counted afresh from then (domain/tasks.md, 6.2).
 pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     let Some(row) = record(domain, number) else { return };
-    if !queued(row) {
+    if !queued(domain, row) {
         return;
     }
     let mut blocked = None;
@@ -542,9 +545,10 @@ pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     out.push(Request::Waiting { task: number, resource, place });
 }
 
-/// In a queue: waiting for holds with every dependency done (domain/tasks.md, 6.2).
-pub(crate) fn queued(row: &TaskRecord) -> bool {
-    row.phase == Phase::Waiting && row.hold_wait_since.is_some() && !row.holds_taken && row.waiting_on.is_empty()
+/// In a queue: waiting for holds once dependencies permit starting (domain/tasks.md, 6.2;
+/// connectors.md, 6.1).
+pub(crate) fn queued(domain: &Domain, row: &TaskRecord) -> bool {
+    row.phase == Phase::Waiting && row.hold_wait_since.is_some() && !row.holds_taken && domain.dependencies_ready(row)
 }
 
 /// Take every resource in the same commit as activation.
@@ -570,7 +574,7 @@ pub(crate) fn take(domain: &mut Domain, number: u64, out: &mut Queue<Request>) {
 pub(crate) fn expire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if let Some(number) = domain.hold_alarms.expire(env.now) {
         let waiting = match record(domain, number) {
-            Some(row) => queued(row),
+            Some(row) => queued(domain, row),
             None => false,
         };
         if waiting {
@@ -654,7 +658,7 @@ pub(crate) fn retained(
 pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>) {
     for (number, _) in &domain.names {
         let row = record(domain, *number).expect("restored live row");
-        if queued(row)
+        if queued(domain, row)
             && let Some(since) = row.hold_wait_since
         {
             let since = match row.hold_bound_since {

@@ -302,7 +302,9 @@ pub(crate) fn observability_spec(spec: &tasks::Spec) -> observability::Spec {
 pub(crate) const fn infrastructure_executor(executor: tasks::Executor) -> infrastructure::Executor {
     match executor {
         tasks::Executor::Procedure { connector, code } => infrastructure::Executor::Procedure { connector, code },
-        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => infrastructure::Executor::Other,
+        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+            infrastructure::Executor::Other
+        }
     }
 }
 pub(crate) fn holdings(number: u16, values: Option<Box<[infrastructure::Holding]>>) -> Option<Box<[tasks::Holding]>> {
@@ -366,6 +368,7 @@ pub(crate) fn watch_inputs(inbox: Box<[tasks::Word]>) -> Box<[observability::Wat
                         observability::ResultKind::Verdict { code, fields: values.into_boxed() }
                     }
                     tasks::ResultKind::Approved { .. }
+                    | tasks::ResultKind::Job
                     | tasks::ResultKind::NoChange
                     | tasks::ResultKind::Report
                     | tasks::ResultKind::Change { .. }

@@ -401,10 +401,9 @@ fn two_calls(
     let mut input = prompt();
     input.served = Box::new([input.served[0].clone(), llm::Served::Finish]);
     let endpoint = configuration.endpoint.clone();
-    let credential = skein_llm::Credential {
-        value: configuration.credential.value.clone(),
-        account_id: configuration.credential.account_id.clone(),
-        scheme: skein_llm::Scheme::Bearer,
+    let credential = match configuration.credential.scheme {
+        skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()),
+        skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()),
     };
     let codec::Prepared { client, context } = codec::prepare(
         codec::Input {
@@ -412,10 +411,9 @@ fn two_calls(
             endpoint_name: input.endpoint,
             prompt: input,
             endpoint: endpoint.clone(),
-            credential: skein_llm::Credential {
-                value: credential.value.clone(),
-                account_id: credential.account_id.clone(),
-                scheme: skein_llm::Scheme::Bearer,
+            credential: match credential.scheme {
+                skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()),
+                skein_llm::Scheme::Key => skein_llm::Credential::key(credential.value.clone()),
             },
             receiving,
         },
@@ -573,27 +571,17 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
 }
 
 #[test]
-fn observed_requests_render_the_run_key_and_thread_only_for_codex() {
+fn observed_requests_render_the_run_key_only_for_openai() {
     for configuration in client_peer::configurations() {
-        for (thread, expected_thread) in
-            [(0, "42424242-4242-4242-4242-424242424242"), (0x0102_0304, "42424242-4242-4242-4242-424243404146")]
-        {
+        for thread in [0, 0x0102_0304] {
             let mut prompt = prompt();
             prompt.affinity = llm::Affinity { key: [0x42; 16], thread };
             let (wire, terminal) = run_client(prompt, &configuration, 200 + u64::from(thread));
             assert!(matches!(terminal, Event::Below(smith_domain::Below::Completed { .. })));
             let request = smith_protocol_llm_world::referee::NativeRequest::from_http(&wire.peer.requests);
             match configuration.endpoint.provider {
-                skein_llm::Provider::OpenAi => panic!("fixture exercises the withdrawn routes"),
-                skein_llm::Provider::OpenAiCodex => {
-                    assert_eq!(
-                        request.affinity,
-                        Some([
-                            "\"42424242-4242-4242-4242-424242424242\"".into(),
-                            "42424242-4242-4242-4242-424242424242".into(),
-                            expected_thread.into()
-                        ])
-                    );
+                skein_llm::Provider::OpenAi => {
+                    assert_eq!(request.affinity, Some("\"42424242-4242-4242-4242-424242424242\"".into()));
                     assert_eq!(wire.peer.queries[0].caching, skein_fake_llm_domain::api::Caching::Scope([0x42; 16]));
                 }
                 skein_llm::Provider::Anthropic => {

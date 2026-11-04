@@ -74,7 +74,7 @@ pub const TASK: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"`acts:` lists the calls the engine offers your party, ready to copy.\nAn act marked `(no tool)` has no tool here yet; one followed by a\ncolon and a reason is refused as it stands; one marked `proposed\nto` asks another party first. A change task adds `next:` and the\ncall that reads its change. An ended task prints its result.\n",
+    notes: b"`acts:` lists the calls the engine offers your party, ready to copy.\nAn act marked `(no tool)` has no tool here yet; one followed by a\ncolon and a reason is refused as it stands; one marked `proposed\nto` asks another party first. A change task adds `next:` and the\ncall that reads its change. An ended task prints its result.\nText reads and waits fill `asked:` from the specification within their output\nbounds. If words remain, `task text TASK --field specification --from OFFSET`\nreads on from the first undisplayed byte. JSON keeps the bounded overview\nand its digest.\n",
 };
 pub const CHAT: Tool = Tool {
     name: b"chat show",
@@ -189,13 +189,21 @@ pub const CHAT_CREATE: Tool = Tool {
     result: b"chat_create",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"template", b"TEMPLATE", Kind::Number, Optional, b"A chat's template by its number; the project's chat template when absent"),
         positional(b"text", b"TEXT", Kind::Text, Required, b"The opening words"),
-        super::table::Argument { line: b"A model the chat may use, as models lists it", ..MODEL },
+        super::table::Argument { line: b"A model the chat may use, as model list shows it", ..MODEL },
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
+        super::table::repeated(
+            b"sub-agent",
+            b"MODEL[:EFFORT]",
+            Kind::Text,
+            64,
+            b"Sub-agent choices: each model named once, with one effort; effort is required when the model declares efforts",
+        ),
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\nThen task show TASK --until replied.\n",
+    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\n`--template` names one of the project's chat templates; one that is\nno chat's, or not offered, fails naming those `me` offers (exit 1).\n`--sub-agent` needs `--model` and replaces the template's sub-agents.\nTwo choices: --sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B\nwith distinct model names offered by `model list`.\nAvailable choices only: this list neither starts children nor assigns\nchoices by child order. The parent's `sub_agent` call selects a model with\noptional `llm`; omitted, it uses main's model and effort.\nOne model cannot be offered at two child efforts;\nmultiple children may use the same choice.\nThen task show TASK --until replied.\n",
 };
 pub const MESSAGE: Tool = Tool {
     name: b"task message",
@@ -338,7 +346,7 @@ pub const TREE: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"With `--until ended`, it returns when a read shows the tree ended; a watch that ends with no read of it delivered is refused: `gone`, status 2.\nA large tree folds what does not fit: read the rest with task list\n--parent TASK, a page at a time.\n",
+    notes: b"With `--until ended`, it returns when a delivery shows the tree ended or its watch reports completion. Watch completion prints `tree ended (watch)` and labels the retained rows `last observed snapshot`; their phases and digest describe that snapshot. JSON keeps the tree unchanged and adds `completion: {source: \"watch\", ended: true}` and `snapshot: \"last_observed\"` outside it. A watch that ends with no delivery is refused: `gone`, status 2.\nA large tree folds what does not fit: read the rest with task list\n--parent TASK, a page at a time.\n",
 };
 
 /// Area 5 reads append to preserve earlier tool and keyed-call identities.
@@ -501,6 +509,7 @@ pub const AMEND: Tool = Tool {
         super::table::Argument { line: b"A model the task may use, as models lists it", ..MODEL },
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
         positional(b"reason", b"REASON", Kind::Text, Required, b"Why"),
+        flag(b"tasks", b"N", Kind::Number, Optional, b"The tasks its subtree may make over its life; the rest of its authority kept"),
     ]],
     keyed: Keyed::Optional,
     area: 2,
@@ -570,15 +579,15 @@ pub const IMPORT: Tool = Tool {
 };
 /// `export`'s and `import`'s places in the host's table, `table::TOOLS`,
 /// after every row before them (tests/help.rs checks them).
-pub const EXPORT_AT: u8 = 40;
-pub const IMPORT_AT: u8 = 41;
+pub const EXPORT_AT: u8 = 41;
+pub const IMPORT_AT: u8 = 42;
 
-/// Settings append after account moves to preserve every published identity.
-pub const SETTINGS_AT: u8 = 42;
-pub const SETTING_AT: u8 = 43;
-pub const REVISION_AT: u8 = 44;
-pub const REVISIONS_AT: u8 = 45;
-pub const CHANGE_SETTINGS_AT: u8 = 46;
+/// Settings follow account moves in the tools table.
+pub const SETTINGS_AT: u8 = 43;
+pub const SETTING_AT: u8 = 44;
+pub const REVISION_AT: u8 = 45;
+pub const REVISIONS_AT: u8 = 46;
+pub const CHANGE_SETTINGS_AT: u8 = 47;
 pub const SETTINGS: Tool = Tool {
     name: b"settings show",
     line: b"Read the settings, the revisions running work holds, and pending proposals",
@@ -592,7 +601,7 @@ pub const SETTINGS: Tool = Tool {
 pub const SETTING: Tool = Tool {
     name: b"settings show",
     line: b"Read one setting's value whole",
-    prints: b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON on one line",
+    prints: b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON",
     result: b"setting",
     forms: &[
         &[
@@ -674,12 +683,12 @@ pub const CHANGE_SETTINGS: Tool = Tool {
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `settings apply: stale; newest revision R; read settings show\nagain` (exit 2): read the settings, then decide again.\n",
+    notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `settings apply: stale; newest revision R; read settings show\nagain` (exit 2): read the settings, then decide again.\n`{\"kind\": \"project-policy\", \"project\": P}` sets project P's own\npolicy, set alone, once a file; it needs an owner of P, and with\nthe deployment's items one owner of both.\n",
 };
 
-/// New rows append to preserve every earlier durable call identity.
-pub const PROPOSE_SETTINGS_AT: u8 = 47;
-pub const PROPOSAL_AT: u8 = 48;
+/// The row's position in the tools table.
+pub const PROPOSE_SETTINGS_AT: u8 = 48;
+pub const PROPOSAL_AT: u8 = 49;
 pub const PROPOSE_SETTINGS: Tool = Tool {
     name: b"settings propose",
     line: b"Propose a change of the settings to the deployment's owners",
@@ -715,11 +724,11 @@ pub const PROPOSAL: Tool = Tool {
     )]],
     keyed: Keyed::Never,
     area: 2,
-    notes: b"A decided proposal prints how it was decided. Decide a live one\nwith proposal decide.\n",
+    notes: b"A settings proposal includes landing rules and the forge's charters,\neach set whole, removed or reset.\nA decided proposal prints how it was decided. Decide a live one\nwith proposal decide.\n",
 };
 
-/// New rows append to preserve every earlier durable call identity.
-pub const MOVE_TO_NEWEST_AT: u8 = 51;
+/// The row's position in the tools table.
+pub const MOVE_TO_NEWEST_AT: u8 = 52;
 pub const MOVE_TO_NEWEST: Tool = Tool {
     name: b"revision advance",
     line: b"Move the live tasks on held REVISION to the newest revision",
@@ -737,8 +746,8 @@ pub const MOVE_TO_NEWEST: Tool = Tool {
     notes: b"",
 };
 
-/// The held-task decision appends to keep existing durable call identities.
-pub const TASK_DECIDE_AT: u8 = 52;
+/// The held-task decision's position in the tools table.
+pub const TASK_DECIDE_AT: u8 = 53;
 pub const TASK_DECIDE: Tool = Tool {
     name: b"task decide",
     line: b"Decide the escalation of a held task",
@@ -814,12 +823,12 @@ pub(crate) fn watched(tool: u8) -> Option<&'static Tool> {
     })
 }
 
-pub const PROJECT_SHOW_AT: u8 = 53;
-pub const PROJECT_FUND_AT: u8 = 54;
+pub const PROJECT_SHOW_AT: u8 = 54;
+pub const PROJECT_FUND_AT: u8 = 55;
 pub const PROJECT_SHOW: Tool = Tool {
     name: b"project show",
-    line: b"Read a project, its roles and spends, its open period and each party's pool",
-    prints: b"The project, its homes and spend per period, each role, its open period and each pool",
+    line: b"Read a project, its public page, roles and spends, its open period and each party's pool",
+    prints: b"The project, whether it is public and its public page's path, its homes and spend per period, each role, its open period and each pool",
     result: b"project",
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
@@ -840,10 +849,10 @@ pub const PROJECT_FUND: Tool = Tool {
     area: 1,
     notes: b"An owner's chats are funded from their pool, and pools reserve from the project's period. Raise both with two calls: project fund PROJECT AMOUNT first, then project fund PROJECT AMOUNT --role ROLE. A role's raise past the period's room is refused, exit 2, naming what the period has left. A cut keeps each budget at what it has used. A key replay prints the original edit, then today's balances marked now:. JSON has answer (project, optional role, period_spend) and now (the project read).\n",
 };
-pub const LIFT_AT: u8 = 55;
+pub const LIFT_AT: u8 = 56;
 
 /// The bounded source-text read's position in the tools table.
-pub const TASK_TEXT_AT: u8 = 60;
+pub const TASK_TEXT_AT: u8 = 61;
 /// Retrieve stored task words without the overview's text truncation.
 pub const TASK_TEXT: Tool = Tool {
     name: b"task text",
@@ -870,4 +879,109 @@ pub const TASK_TEXT: Tool = Tool {
     keyed: Keyed::Never,
     area: 1,
     notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision.\n",
+};
+
+/// The goal creation tool's durable position.
+pub const GOAL_START_AT: u8 = 62;
+/// Fill a project's offered goal template and submit a keyed request.
+pub const GOAL_START: Tool = Tool {
+    name: b"goal start",
+    line: b"Start a goal from a project's template",
+    prints: b"`done: task N, goal`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree",
+    result: b"goal_create",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(
+            b"template",
+            b"TEMPLATE",
+            Kind::NumberRange { min: 1, max: 4_294_967_295 },
+            Optional,
+            b"An offered template; stock goal template 2 when absent",
+        ),
+        positional(b"text", b"TEXT", Kind::Text, Required, b"The goal's words"),
+        flag(
+            b"charter",
+            b"CHARTER",
+            Kind::NumberRange { min: 1, max: 4_294_967_295 },
+            Optional,
+            b"Required when the template lets its creator choose; omit when it fixes a charter",
+        ),
+        flag(
+            b"priority",
+            b"PRIORITY",
+            Kind::NumberRange { min: 0, max: 4_294_967_295 },
+            Optional,
+            b"Override the template's tracked priority",
+        ),
+        flag(
+            b"budget",
+            b"AMOUNT",
+            Kind::NumberRange { min: 0, max: u64::MAX },
+            Optional,
+            b"The spend in the deployment's unit; required for a given budget unless --as-allowed",
+        ),
+        switch(b"as-allowed", b"Take as much as allowed instead of a named budget"),
+        flag(
+            b"deadline",
+            b"TIME",
+            Kind::Literal,
+            Optional,
+            b"UTC to the minute, as 2026-10-24T17:00Z; required for a given deadline",
+        ),
+        MODEL,
+        EFFORT,
+        super::table::repeated(
+            b"sub-agent",
+            b"MODEL[:EFFORT]",
+            Kind::Text,
+            64,
+            b"Replace the template's sub-agents; needs --model; each model once, with its required effort",
+        ),
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"The template fills charter, contract, tracking, label, flags, models
+and symbolic resources. --charter is required only for a chosen executor.
+A template with budget given needs --budget or --as-allowed; one
+with deadline given needs --deadline. Other absent controls keep defaults.
+--budget and --as-allowed are alternatives. --effort needs --model;
+a model declaring efforts requires --effort. Without --sub-agent,
+the template's sub-agents survive a model override. Explicit sub-agents
+replace them. Bounds and proposal judgement are the same as for goals
+set from a client: within bounds, created; past them but proposable,
+proposed (exit 0); not offered or past ceilings, nothing sent (exit 1).
+Then task show TASK --until replied.
+",
+};
+
+/// The restore's position in the tools table; positions are durable (tests/help.rs).
+pub const RESTORE_AT: u8 = 63;
+pub const RESTORE: Tool = Tool {
+    name: b"revision restore",
+    line: b"Propose the settings as REVISION left them, to the owners of its items",
+    prints: b"`proposed restoring revision R as proposal P to role K`, then each item left out",
+    result: b"restore",
+    forms: &[&[
+        positional(b"revision", b"REVISION", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Required, b"The revision to restore"),
+        positional(b"reason", b"REASON", Kind::Text, Optional, b"Why; restores revision R when absent"),
+    ]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"A forgotten revision exits 2, naming the oldest kept. A revision\ntoo large to restore exits 2; restore a later revision instead.\nRead the proposal with proposal show PROPOSAL, then decide it\nwith proposal decide PROPOSAL accept --key KEY.\n",
+};
+
+/// Visibility's position in the tools table (client/tools.md, 5.3).
+pub const PROJECT_AMEND_AT: u8 = 64;
+pub const PROJECT_AMEND: Tool = Tool {
+    name: b"project amend",
+    line: b"Make a project readable by anyone without signing in, or private again",
+    prints: b"`project 1: public` and, made public, `page: /public/projects/3f2a9c01d4e5b6a7`; made private, `project 1: private`",
+    result: b"project_amend",
+    forms: &[&[
+        positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"visibility", b"public|private", Kind::Word { set: &[b"public", b"private"] }, Required, b"Public reading, or private again"),
+    ]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };

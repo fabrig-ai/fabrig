@@ -118,6 +118,12 @@ pub(super) fn encode_wake_rule(value: &jig_client::contract::WakeRule, out: &mut
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::WakeRule::Paced { span } => {
+            out.object_start();
+            out.key(b"paced");
+            out.unsigned(span.as_nanos());
+            out.object_end();
+        }
     }
 }
 

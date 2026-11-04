@@ -305,6 +305,7 @@ pub fn project_role(limits: &Limits) -> MeProject {
     MeProject::new(
         limits,
         MeProjectParts {
+            public: None,
             models: List::with_capacity(0),
             templates: Box::from([]),
             creating: None,
@@ -365,7 +366,10 @@ pub fn wake_policy(limits: &Limits) -> WakePolicy {
         WakePolicyParts {
             words: WakeRule::Batch(wake_rule_batch(limits)),
             notices: WakeRule::Immediate,
-            news: WakeRule::Never,
+            news: WakeRule::Paced(
+                WakeRulePaced::new(limits, WakeRulePacedParts { span: skein_lib::Duration::from_nanos(u64::MAX) })
+                    .expect("bounded wake pace"),
+            ),
             results: ResultsWake::LastOrFailure,
             questions: true,
             answers: false,

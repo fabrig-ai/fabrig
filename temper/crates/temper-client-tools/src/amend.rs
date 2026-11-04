@@ -125,16 +125,7 @@ fn named_draft(
     } else if value(call, 3).is_some() {
         change.tracked = Some(c::Tracking::Untracked);
     }
-    if value(call, 4).is_some() || value(call, 5).is_some() {
-        let Some(mut authority) = task.authority.whole() else {
-            return Err(Failed::Fixed(b"task authority is cut"));
-        };
-        authority.deadline = match value(call, 4) {
-            Some(Value::Text(text)) => Some(crate::jig::argv::deadline(text).expect("checked deadline")),
-            _ => None,
-        };
-        change.authority = Some(authority);
-    }
+    change.authority = named_authority(call, task)?;
     if value(call, 6).is_some() {
         change.instructions = Some(words(call, 6, limits)?);
     }
@@ -169,6 +160,25 @@ fn named_draft(
         };
     let revision = if priority_alone { None } else { Some(task.spec_revision) };
     Ok(temper_client_domain::amend::Drafted { revision, change })
+}
+
+fn named_authority(call: &Call, task: &c::Task) -> Result<Option<c::Authority>, Failed> {
+    if value(call, 4).is_none() && value(call, 5).is_none() && number(call, 13).is_none() {
+        return Ok(None);
+    }
+    let Some(mut authority) = task.authority.whole() else {
+        return Err(Failed::Fixed(b"task authority is cut"));
+    };
+    if value(call, 4).is_some() || value(call, 5).is_some() {
+        authority.deadline = match value(call, 4) {
+            Some(Value::Text(text)) => Some(crate::jig::argv::deadline(text).expect("checked deadline")),
+            _ => None,
+        };
+    }
+    if let Some(tasks) = number(call, 13) {
+        authority.delegation.tasks = u32::try_from(tasks).expect("checked task allowance");
+    }
+    Ok(Some(authority))
 }
 
 fn amend_error(task: &c::Task, suffix: &[u8], moved: Option<(u64, u64)>, prefix: &[u8]) -> Failed {
@@ -225,6 +235,9 @@ fn controls(
     } else if value(call, 5).is_some() {
         whole(draft.deadline(None), task)?;
     }
+    if let Some(tasks) = number(call, 13) {
+        whole(draft.tasks(u32::try_from(tasks).expect("checked task allowance")), task)?;
+    }
     if value(call, 6).is_some() {
         draft.instructions(words(call, 6, limits)?);
     }
@@ -251,7 +264,7 @@ fn whole(result: Result<(), temper_client_domain::amend::Cut>, task: &c::Task) -
     let suffix = match result {
         Ok(()) => return Ok(()),
         Err(Cut::Authority) => {
-            b"'s authority is cut in this read; amend its deadline from a client with wider bounds".as_slice()
+            b"'s authority is cut in this read; amend its deadline or tasks from a client with wider bounds".as_slice()
         }
         Err(Cut::Spec) => b"'s spec is cut in this read; amend its words from a client with wider bounds".as_slice(),
     };

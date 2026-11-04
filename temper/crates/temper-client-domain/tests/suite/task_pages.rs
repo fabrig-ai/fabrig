@@ -72,6 +72,7 @@ mod tests {
         let mut projects = List::with_capacity(2);
         projects
             .push(MeProject {
+                public: None,
                 project: 1,
                 name: DocumentText::complete(
                     contract::Text::new(skein_lib::bytes::copy_of(project_name), 32).expect("name fits"),
@@ -143,7 +144,7 @@ mod tests {
         domain::step(root, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, event, &mut out);
         let mut down = Vec::new();
         while let Some(request) = out.pop() {
-            if let Request::Client { request: jig_client::Request::Down { down: value } } = request {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: value } } = request {
                 down.push(value);
             }
         }

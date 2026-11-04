@@ -38,7 +38,7 @@ impl Section {
     }
 
     pub(crate) fn push(&mut self, head: Box<[u8]>, log: Box<[u8]>, truncated: bool) {
-        let room = usize::try_from(self.budget).expect("u32 fits usize");
+        let room = skein_lib::usize_of(self.budget);
         let mut heads = head.len();
         let mut logs = log.len();
         for check in &self.checks {
@@ -60,7 +60,7 @@ impl Section {
         for index in 0..count {
             let check = self.checks.get_mut(index).expect("bounded check");
             let share = remaining
-                .checked_div(usize::try_from(count.saturating_sub(index)).expect("u32 fits usize"))
+                .checked_div(skein_lib::usize_of(count.saturating_sub(index)))
                 .expect("positive remaining count");
             let tail = held::edge(&check.log, check.log.len().min(share), true);
             let lost = check.log.len().saturating_sub(tail.len());

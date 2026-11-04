@@ -71,7 +71,7 @@ fn a_document_one_byte_past_its_measured_limit_is_refused() {
 fn document_decodes_borrow_the_kept_bounds() {
     let limits = fixtures::limits();
     let bounds = limits.receiving();
-    assert_eq!(bounds.document_text_bytes, limits.client().text);
+    assert_eq!(bounds.document_text_bytes, limits.client().text.max(512));
     assert_eq!(bounds.call_input, limits.client().text);
     assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
     assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
@@ -376,4 +376,27 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
     assert_eq!(limits.wire().setting_model_program_some, 32);
     assert_eq!(limits.wire().setting_model_effort_some, 32);
     assert_eq!(limits.wire().setting_model_efforts_item, 32);
+}
+
+#[test]
+fn hold_accounts_decode_whole_past_the_text_preview_bound() {
+    let limits = fixtures::limits();
+    assert!(limits.client().text < 512);
+    let cases: [(Box<[u8]>, bool); 2] = [(Box::new([b'x'; 512]), true), (Box::new([b'x'; 513]), false)];
+    for (bytes, accepted) in cases {
+        let mut parts = jig_client_test_records::hold_record().into_parts();
+        parts.words = Some(
+            w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: bytes.clone(), cut: false }).unwrap(),
+        );
+        let mut task = fixtures::task_record().into_parts();
+        task.hold = Some(w::ChipHold::new(&w::CEILINGS, parts).unwrap());
+        let decoded = documents::task(w::Task::new(&w::CEILINGS, task).unwrap(), &limits);
+        if accepted {
+            let words = decoded.unwrap().hold.unwrap().words.unwrap();
+            assert_eq!(words.bytes.bytes(), bytes.as_ref());
+            assert!(!words.cut);
+        } else {
+            assert_eq!(decoded, Err(Undecodable::TooLarge));
+        }
+    }
 }

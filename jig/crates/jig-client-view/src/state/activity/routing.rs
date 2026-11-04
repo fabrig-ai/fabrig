@@ -39,7 +39,10 @@ pub(crate) fn document(domain: &mut Ui, task: &Task, out: &mut Queue<Request>, l
     }
     match task.chip.executor {
         ChipExecutor::Agent { .. } => {}
-        ChipExecutor::Procedure { .. } | ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => return,
+        ChipExecutor::Job { .. }
+        | ChipExecutor::Procedure { .. }
+        | ChipExecutor::Party { .. }
+        | ChipExecutor::Role { .. } => return,
     }
     domain.conversation.run_finished = match &task.context {
         Some(context) => match &context.runtime {

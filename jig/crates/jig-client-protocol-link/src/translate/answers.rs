@@ -47,6 +47,9 @@ pub(crate) fn escalation_choice(value: &w::EscalationChoice) -> c::EscalationCho
 
 pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> Result<c::DocumentOutcome, w::Problem> {
     Ok(match value {
+        w::DocumentOutcome::VisibilitySet(row) => {
+            c::DocumentOutcome::VisibilitySet { project: row.project(), public: row.public() }
+        }
         w::DocumentOutcome::ProjectRemoved(row) => c::DocumentOutcome::ProjectRemoved { project: row.project() },
         w::DocumentOutcome::Created(row) => c::DocumentOutcome::Created {
             first: row.first(),
@@ -208,6 +211,7 @@ pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
 
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
+        w::Outcome::Restored(value) => restore_outcome_restored(value)?,
         w::Outcome::Document(row) => c::Outcome::Document(document_outcome(row.value(), limits)?),
         w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what()) },
         w::Outcome::MovedToNewest(value) => c::Outcome::MovedToNewest(c::OutcomeMovedToNewest {
@@ -233,6 +237,7 @@ pub(crate) fn held_role(value: &w::HeldRole) -> c::HeldRole {
 
 pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
     match value {
+        w::ChipExecutor::Job(row) => c::ChipExecutor::Job { kind: row.kind() },
         w::ChipExecutor::Agent(row) => c::ChipExecutor::Agent { charter: row.charter() },
         w::ChipExecutor::Procedure(row) => c::ChipExecutor::Procedure { connector: row.connector(), kind: row.kind() },
         w::ChipExecutor::Party(row) => c::ChipExecutor::Party { party: row.party() },
@@ -497,6 +502,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
                 w::TaskStatus::Cancelled => c::TaskStatus::Cancelled,
             },
         },
+        w::Refusal::Forgotten(value) => restore_refusal_forgotten(value),
         w::Refusal::Stale(value) => c::Refusal::Stale(super::settings::restore_refusal_stale(value)?),
         w::Refusal::Full(value) => c::Refusal::Full(super::settings::restore_refusal_full(value)?),
         w::Refusal::NotWaiting => c::Refusal::NotWaiting,
@@ -565,6 +571,14 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::Unknown => c::Refusal::Unknown,
         w::Refusal::NoEscalationHolder => c::Refusal::NoEscalationHolder,
         w::Refusal::Llm(row) => super::llm::refusal(row, limits)?,
+        w::Refusal::Judged(row) => c::Refusal::Judged {
+            at: row.at(),
+            setting: super::settings::restore_setting(row.setting())?,
+            why: match c::Text::new(bytes::copy_of(row.why()), limits.client().text) {
+                Ok(v) => v,
+                Err(_) => return Err(super::too_large()),
+            },
+        },
         w::Refusal::NameTaken => c::Refusal::NameTaken,
         w::Refusal::NotOffered => c::Refusal::NotOffered,
         w::Refusal::KeyConflict => c::Refusal::KeyConflict,
@@ -694,4 +708,31 @@ fn ceiling_dimension(value: &w::CeilingDimension) -> c::CeilingDimension {
         w::CeilingDimension::Deadline => c::CeilingDimension::Deadline,
         w::CeilingDimension::Notes => c::CeilingDimension::Notes,
     }
+}
+
+pub fn restore_outcome_restored(value: &w::OutcomeRestored) -> Result<c::Outcome, w::Problem> {
+    let mut left_out = List::with_capacity(value.left_out().len());
+    for setting in value.left_out() {
+        left_out.push(super::settings::restore_setting(setting)?).expect("same capacity");
+    }
+    Ok(c::Outcome::Restored { proposal: value.proposal(), to: value.to(), left_out })
+}
+pub fn wire_outcome_restored(
+    proposal: u64,
+    to: u32,
+    left_out: &List<c::Setting>,
+    limits: &w::Limits,
+) -> Result<w::OutcomeRestored, w::Problem> {
+    let mut settings = List::with_capacity(left_out.len());
+    for setting in left_out {
+        settings.push(super::settings::wire_setting(setting, limits)?).expect("same capacity");
+    }
+    w::OutcomeRestored::new(limits, w::OutcomeRestoredParts { proposal, to, left_out: settings })
+}
+#[must_use]
+pub fn restore_refusal_forgotten(value: &w::RefusalForgotten) -> c::Refusal {
+    c::Refusal::Forgotten { oldest: value.oldest() }
+}
+pub fn wire_refusal_forgotten(oldest: u32, limits: &w::Limits) -> Result<w::RefusalForgotten, w::Problem> {
+    w::RefusalForgotten::new(limits, w::RefusalForgottenParts { oldest })
 }

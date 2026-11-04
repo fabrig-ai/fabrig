@@ -150,7 +150,7 @@ fn a_kept_project_removal_prints_its_operation_and_outcome() {
     for json in [false, true] {
         let mut records = fixtures::restored_message(fixtures::PARTY);
         records.get_mut(0).expect("one restored ask").request.request =
-            jig_client::Ask::Jig(Box::new(c::Ask::RemoveProject { project: 7 }));
+            jig_client::Ask::Jig(Box::new(c::Ask::RemoveProject { project: 7, grace: None }));
         let mut root = fixtures::started_with(records, fixtures::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
         root.done(fixtures::EMPTY, c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project: 7 }));

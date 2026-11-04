@@ -1,5 +1,6 @@
 //! Offered acts are read once, then kept by the shared client's request table.
 pub(crate) mod choice;
+mod goal;
 mod subject;
 use super::{Called, Out, Runner, finish};
 use crate::jig::{
@@ -10,7 +11,7 @@ use crate::jig::{
 };
 use alloc::boxed::Box;
 use jig_client::{Client, Event, Handle, Key, Latest, Readable, Readout, contract as c, shapes};
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Decimal, Env, List, Queue, Writer};
 #[derive(Debug)]
 pub(super) struct Reading {
     called: Called,
@@ -24,6 +25,14 @@ pub(super) struct Sent {
     pub(super) dispatched: bool,
     alternate: Option<c::Ask>,
 }
+/// A durable visibility answer waits within its call for me to carry its page
+/// (client/tools.md, 5.3).
+#[derive(Debug)]
+pub(super) struct Visibility {
+    called: Called,
+    project: u32,
+    public: bool,
+}
 pub(crate) fn me<'a>(runner: &Runner, client: &'a Client) -> Option<&'a c::Me> {
     match client.document(runner.me())?.latest? {
         Latest::Jig(c::Delivery::Me(me)) => Some(me),
@@ -31,9 +40,13 @@ pub(crate) fn me<'a>(runner: &Runner, client: &'a Client) -> Option<&'a c::Me> {
     }
 }
 pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
-    if called.call.tool == rows::PROJECT_FUND_AT {
+    if called.call.tool == rows::PROJECT_FUND_AT || called.call.tool == rows::PROJECT_AMEND_AT {
         let Some(me) = me(runner, client) else { return };
-        let request = project_fund(&called.call, me);
+        let request = if called.call.tool == rows::PROJECT_AMEND_AT {
+            project_amend(&called.call, me)
+        } else {
+            project_fund(&called.call, me)
+        };
         prepared(runner, client, env, called, request, out);
         return;
     }
@@ -44,6 +57,18 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
             with_tasks: value(&called.call, 2).is_some(),
         };
         prepared(runner, client, env, called, Ok((Request::Ask(ask), None)), out);
+        return;
+    }
+    if called.call.tool == rows::RESTORE_AT {
+        let request = match words(&called.call, 1, &env.limits) {
+            Ok(reason) => {
+                let revision =
+                    u32::try_from(number(&called.call, 0).expect("revision argument")).expect("revision fits u32");
+                Ok((Request::Ask(c::Ask::Restore { revision, reason }), None))
+            }
+            Err(why) => Err(why),
+        };
+        prepared(runner, client, env, called, request, out);
         return;
     }
     if called.call.tool == rows::MOVE_TO_NEWEST_AT {
@@ -86,9 +111,9 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         prepared(runner, client, env, called, request, out);
         return;
     }
-    if called.call.tool == rows::CHAT_CREATE_AT {
+    if called.call.tool == rows::CHAT_CREATE_AT || called.call.tool == rows::GOAL_START_AT {
         let Some(me) = me(runner, client) else { return };
-        let ask = chat(&called.call, me, &env.limits);
+        let ask = creation(&called.call, me, &env.limits);
         prepared(runner, client, env, called, ask, out);
         return;
     }
@@ -116,9 +141,16 @@ pub(crate) enum Failed {
     Fixed(&'static [u8]),
     Unknown { what: &'static [u8], name: Box<[u8]> },
     EffortRequired { name: Box<[u8]> },
+    SubAgentNamedTwice { name: Box<[u8]> },
     Detail(Box<[u8]>),
 }
 pub(crate) type Prepared = Result<(Request, Option<c::Recipient>), Failed>;
+fn project_amend(call: &Call, me: &c::Me) -> Prepared {
+    let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
+    let Some(Value::Word(visibility)) = value(call, 1) else { unreachable!("visibility argument") };
+    let public = *visibility == 0;
+    Ok((Request::Ask(c::Ask::SetVisibility { project, public }), None))
+}
 fn project_fund(call: &Call, me: &c::Me) -> Prepared {
     match super::reads::project(call, me) {
         Some(project) => {
@@ -132,14 +164,34 @@ fn project_fund(call: &Call, me: &c::Me) -> Prepared {
         None => Err(Failed::Fixed(b"unknown project")),
     }
 }
+fn creation(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
+    if call.tool == rows::GOAL_START_AT { goal::start(call, me, limits) } else { chat(call, me, limits) }
+}
 fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
-    let Ok(mut ask) = shapes::chat(me, project, words(call, 1, limits)?) else {
-        return Err(Failed::Fixed(b"chat not offered"));
+    let template = number(call, 1);
+    let words = words(call, 2, limits)?;
+    let shaped = match template {
+        Some(template) => match u32::try_from(template) {
+            Ok(template) => shapes::chat_from(me, project, template, words),
+            Err(_) => return Err(chat_template_refusal(me, project, template)),
+        },
+        None => shapes::chat(me, project, words),
+    };
+    let mut ask = match shaped {
+        Ok(ask) => ask,
+        Err(why) => {
+            if why == shapes::NotOffered::Template
+                && let Some(template) = template
+            {
+                return Err(chat_template_refusal(me, project, template));
+            }
+            return Err(Failed::Fixed(b"chat not offered"));
+        }
     };
     let c::Ask::Create { tasks, .. } = &mut ask else { unreachable!("chat creates") };
     let task = tasks.get_mut(0).expect("chat creates one task");
-    task.llm = choice::llm(call, 2, 3, me, project, task.llm.as_ref())?;
+    task.llm = choice::selection(call, 3, 4, 5, me, project, task.llm.as_ref())?;
     let mut creating = None;
     for membership in &me.projects {
         if membership.project == project {
@@ -170,6 +222,66 @@ fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         }
         shapes::Fall::Refused(_) | shapes::Fall::NotOffered(_) => Err(Failed::Fixed(b"chat exceeds offered bounds")),
     }
+}
+// client/tools.md, 5.3: name the chat templates offered here.
+fn chat_template_refusal(me: &c::Me, project: u32, template: u64) -> Failed {
+    let number = Decimal::of(template);
+    let prefix = b"template ";
+    let middle = b" is no chat template of this project; its chat templates: ";
+    let mut length = prefix
+        .len()
+        .checked_add(number.as_bytes().len())
+        .expect("template number fits")
+        .checked_add(middle.len())
+        .expect("refusal prefix fits");
+    let mut any = false;
+    for membership in &me.projects {
+        if membership.project == project {
+            for template in &membership.templates {
+                if template.flags.conversation {
+                    let digits = Decimal::of(u64::from(template.number));
+                    length = length
+                        .checked_add(if any { 2 } else { 0 })
+                        .expect("separator fits")
+                        .checked_add(digits.as_bytes().len())
+                        .expect("template number fits")
+                        .checked_add(1)
+                        .expect("space fits")
+                        .checked_add(template.name.bytes().len())
+                        .expect("template name fits");
+                    any = true;
+                }
+            }
+        }
+    }
+    if !any {
+        length = length.checked_add(b"none".len()).expect("empty list fits");
+    }
+    let mut out = Writer::new(length);
+    out.put(prefix).expect("measured prefix");
+    out.put(number.as_bytes()).expect("measured template number");
+    out.put(middle).expect("measured refusal");
+    let mut any = false;
+    for membership in &me.projects {
+        if membership.project == project {
+            for template in &membership.templates {
+                if template.flags.conversation {
+                    if any {
+                        out.put(b", ").expect("measured separator");
+                    }
+                    let digits = Decimal::of(u64::from(template.number));
+                    out.put(digits.as_bytes()).expect("measured number");
+                    out.put(b" ").expect("measured space");
+                    out.put(template.name.bytes()).expect("measured name");
+                    any = true;
+                }
+            }
+        }
+    }
+    if !any {
+        out.put(b"none").expect("measured empty list");
+    }
+    Failed::Detail(out.finish())
 }
 pub(crate) fn words(call: &Call, index: usize, limits: &Limits) -> Result<c::Text, Failed> {
     let bytes = match value(call, index) {
@@ -474,6 +586,7 @@ pub(crate) fn prepared(
                 Failed::Detail(why) => render::failure(&why, called.json, 1),
                 Failed::Unknown { what, name } => choice::named(b"unknown ", what, &name, called.json),
                 Failed::EffortRequired { name } => choice::named(b"effort required", b"", &name, called.json),
+                Failed::SubAgentNamedTwice { name } => choice::named(b"sub-agent named twice", b"", &name, called.json),
             };
             finish(called, printed, out);
             return;
@@ -607,10 +720,7 @@ fn send(
     if let Some(me) = me(runner, client) {
         operation.party = Some(me.party.number);
     }
-    // The compound's public operation is close, rather than its final cancellation.
-    if called.call.tool == rows::CLOSE_AT {
-        operation.word = b"close";
-    }
+    operation.word = operation_word(called.call.tool, operation.word);
     if (rows::CONNECT_AT..=rows::RETRY_AT).contains(&called.call.tool)
         || called.call.tool == rows::DECLARE_AT
         || called.call.tool == rows::VERIFY_AT
@@ -666,6 +776,19 @@ pub(super) fn answered(
             *sent.called.call.values.get_mut(0).expect("project argument") =
                 Some(Values::One(Value::Project(crate::jig::call::Project::Number(*project))));
             super::reads::start(runner, client, env, sent.called, out);
+            return;
+        }
+        if sent.called.call.tool == rows::PROJECT_AMEND_AT
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::VisibilitySet { project, public },
+            )))) = outcome
+        {
+            visibility_complete(
+                runner,
+                client,
+                Visibility { called: sent.called, project: *project, public: *public },
+                out,
+            );
             return;
         }
         let mut printed = render::outcome::print(
@@ -765,5 +888,33 @@ fn draw_name(runner: &mut Runner, called: &mut Called) {
             }
         }
         called.call.key = Some(crate::jig::key::Name::new(&bytes).expect("drawn hexadecimal name"));
+    }
+}
+
+fn operation_word(tool: u8, word: &'static [u8]) -> &'static [u8] {
+    match tool {
+        rows::GOAL_START_AT => b"goal",
+        rows::CLOSE_AT => b"close",
+        _ => word,
+    }
+}
+
+fn visibility_complete(runner: &mut Runner, client: &Client, waiting: Visibility, out: &mut Queue<Out>) {
+    if let Some(me) = me(runner, client) {
+        for project in &me.projects {
+            if project.project == waiting.project && project.public.is_some() == waiting.public {
+                let printed = render::visibility::print(waiting.project, project.public, waiting.called.json);
+                finish(waiting.called, printed, out);
+                return;
+            }
+        }
+    }
+    runner.visibility.insert(waiting.called.call_number, waiting);
+}
+pub(super) fn visibility_changed(runner: &mut Runner, client: &Client, out: &mut Queue<Out>) {
+    // Visit each waiting call once, including those still awaiting agreement.
+    let waiting = runner.visibility.split_off(&0);
+    for (_, waiting) in waiting {
+        visibility_complete(runner, client, waiting, out);
     }
 }

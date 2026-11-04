@@ -242,7 +242,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 
   `<task>` and `<project>` are the task's and the project's numbers in
   decimal. A later page's path comes with it, in this shape
-  (`/projects/<project>/board`, `/projects/<project>/changes`).
+  (`/projects/<project>/board`, `/projects/<project>/changes`). The
+  public pages' paths, under `/public`, are section 8's.
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with
   every field unset, so that `/` is the inbox unfiltered and
@@ -360,7 +361,9 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   instead: temper's mark, "Sign in" and "Continue with Google", the ways
   read from the page's `temper-sign-in` meta at start
   (`../protocol/sign-in.md`, section 7); the link leaves for Google's
-  sign-in and comes back to the page's address.
+  sign-in and comes back to the page's address. Where the deployment
+  has public projects, the signed-out main and the sign-in page add a
+  link, "Read the public projects", to `/public` (section 8).
 - **A link's sign-in not taken,** answered full, busy or not ready: the
   link is not spent, and the main says why and that the link stays
   usable until it expires (`README.md`, 5.1), full with the deployment's
@@ -466,9 +469,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   mockups. At phone width, 760 px and under as in the mockups, the
   banner keeps temper's name and the view's "Menu" alone (`README.md`,
   5.1): its summary a ☰, an image drawn over its word, and its
-  content the projects, the navigation and the corner (the link's
-  state, the person, "Sign out") in a panel that opens under the
-  banner's end, as `terminal-chat.css` draws the mockups' menu. Theirs
+  content the project's switcher, its first row, the navigation and
+  the corner (the link's state, the person, "Sign out") in a panel
+  that opens under the banner's end, as `terminal-chat.css` draws the
+  mockups' menu. Theirs
   holds the navigation alone, which leaves a phone no way to choose a
   project or sign out; temper's holds the corner and the projects too.
   Wider, `temper.css` draws the menu's content in the banner whether
@@ -477,6 +481,24 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   elsewhere the ☰ is drawn at every width. Choosing an entry folds the
   menu: skein's page folds its open disclosures when its address moves
   (skein's `ui-web.md`, section 7).
+- **The banner is one quiet line,** on the canvas with no fill of its
+  own: its words on the wordmark's baseline, the navigation plain
+  words, the inactive ones `--temper-faint`, the current one ink. The
+  switcher draws the open project's name with a chevron; wider than
+  phone width its list drops under it, the open one ticked. "Set up
+  temper →" is the banner's one coloured control, outlined in the
+  accent, its arrow drawn by the sheet (`README.md`, 5.1).
+- **The chats page reads as a terminal** (`README.md`, 3.5): a narrow
+  left pane under the banner, of the viewport's height and scrolling
+  alone, ruled from the rest; in it the new chat's bar and context as
+  lines, the heading "Chats" in small capitals over its filters as
+  plain words and a flat list, and the playground's banner over a
+  hairline, in the chats' size. The rest is the prompt, a bare box,
+  its hint under its left edge and the composer's line under its
+  right, the chooser's list dropping below it; under 1100 px the hint
+  gives way to that line. At phone width the pane follows the prompt,
+  as a section of its own. The sheet selects the pane's page by the
+  pane (`:has`), so a page without it is drawn as before.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
@@ -485,7 +507,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   (skein's `ui-web.md`, section 7), which the view allows in a
   composer's words, counted within its bound (`README.md`, 5.1). A
   chat's shows its placeholder, "Message T6…", while it is empty, as
-  `placeholder`, its name staying "Message" (`README.md`, 3.5). They
+  `placeholder`, its name staying "Message", and the chats' "Describe
+  a change", its name staying "Start a chat" (`README.md`, 3.5). They
   grow with their words and shrink after sending by `temper.css` alone
   (`field-sizing: content`, from one line to a bound), with no
   component and no script of temper's; a browser without it shows an
@@ -781,6 +804,11 @@ real key in that restored form.
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (2.6).
+- **The playground's test** (4.6, 12) runs on the built playground
+  instead, `scripts/bundle.sh --playground` in its own profiles
+  (`../playground.md`, 7), served as static files with their `headers`
+  by the tier's own static server, which maps them as a site's host
+  would; the tier reads the world's figures from the page's frame.
 - **A cap: at most 12 tests, and 120 seconds** on the slowest of the
   machines that build temper (the user, 10-27, temper#15). Past it,
   stories that share a setup become one test of several steps before
@@ -867,8 +895,8 @@ The tier's tests, each one test of the steps it names, each on its own
    chat reconnects after a server restart and remains live after rapid reloads.
 2. **History** (4.1, 2): from the chats to a chat by its link, Back and
    Forward; a new chat's composer focused, and its filter's address and
-   pressed state kept across a reload and Back.
-3. **An address that is no page** opens the inbox at `/` (4.1, 2).
+   pressed state kept across a reload and Back, and an address that is no page opens
+   the inbox at `/` (4.1, 2).
 4. **The composer** (4.1, 3).
 5. **A panic** (4.1, 4).
 6. **jig's attacks that need a browser** (4.1, 5): a cross-site request
@@ -881,16 +909,20 @@ The tier's tests, each one test of the steps it names, each on its own
 9. **`ConnectModel`'s round trip** (4.2).
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
-11. **The task pages** by their addresses (4.2).
+11. **The task pages** by their addresses (4.2); then, the
+    playground's project made, the Chats page Live, never Behind, with
+    the story's chat, before and after a reload (`README.md`, 2).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
+13. **Reading a public project** (8.4), with no sign-in, and
+    losing it when it is made private.
 
 The cap includes all browser tests, whatever their names.
 
 Not in the tier, each in the lowest world that shows it:
 - **Address-codec edge rows:** `temper-client-domain`'s
   `tests::address::{a_path_that_is_no_page_is_missing,each_number_spans_its_types_range}`.
-  Browser test 3 keeps the shell's replacement of a missing address with `/`.
+  Browser test 2 keeps the shell's replacement of a missing address with `/`.
 - **Repeated loads at the watcher bound:** the client world's
   `suite::reloads::repeated_loads_release_the_previous_clients_watches`.
 - **Composer bounds:** the client domain's
@@ -941,6 +973,10 @@ Not in the tier, each in the lowest world that shows it:
   `skein-ui.css` does. Default: light only (2.5).
 - **Other browsers** than Chromium are `skein-browser`'s question
   (skein's `browser.md`).
+- **One shared stream per public document,** fanned out by the server
+  to every visitor reading it, in place of each page reading again
+  (section 8). Default: none; pages read again at the `max-age`, and a
+  visitor never holds a stream.
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
@@ -1103,3 +1139,94 @@ gallery builds it.
   `scripts/bundle.sh`'s order, read from that script.
 - **Their cost:** together at most 1 s (0.5 s before the user's doubling of
   10-22, provisional) of the default suite; no fuzzy test.
+
+## 8. Reading without signing in
+
+The web client's anonymous mode: a visitor reads a public project
+(jig's `domain/people.md`, section 13) through its public documents,
+jig's and the forge's (`forge.md`, section 11), never signing in and
+never streaming (`../draft/first-release.md`, 5.3).
+
+### 8.1 Its pages and addresses
+
+| Page | Path | Reads |
+|---|---|---|
+| `PublicProjects` | `/public` | jig's *projects* |
+| `PublicBoard { project }` | `/public/projects/<project>` | jig's *board*, and the forge's *landings* for its queues' lines |
+| `PublicTask { project, task }` | `/public/projects/<project>/tasks/<task>` | jig's *card*, and the forge's *change* where the task makes one |
+| `PublicLandings { project }` | `/public/projects/<project>/landings` | the forge's *landings* |
+| `PublicLanding { project, task }` | `/public/projects/<project>/landings/<task>` | the forge's *landing*, through a member's change's task |
+
+- **By temper's address codec,** as every page's (2.3); `<project>`
+  and `<task>` are public identifiers, 16 lowercase hexadecimal digits
+  (jig's `domain/people.md`, 13.8), never numbers. A path under
+  `/public` that does not read is `/public`.
+- **Served as every page is:** the server answers each with the page
+  and the bundle (2.2); nothing on the server is new but the public
+  kinds the forge declares to jig (`forge.md`, 11.1).
+
+### 8.2 How it reads
+
+- **No sign-in, no stream, no small store.** At an address under
+  `/public`, the shell starts the public mode in place of `jig-client`'s
+  sign-in: no `Transport`, no credential, no watch. It reads each
+  document its page shows by jig's public `GET` through jig's HTTP
+  client end (jig's `protocol/client.md`, 17.5), and decodes it with
+  jig's and the forge's public records alone.
+- **It reads again by itself,** when a document's freshness ends (the
+  `max-age` its answer gave, less the `Age` a cache added), while its
+  tab is visible; a hidden tab reads nothing, and reads at once when
+  shown. The proxy's cache answers most of these reads; the engine sees
+  one per document per `max-age` (`../protocol/sign-in.md`, 2.4).
+- **Nothing shown past its freshness.** A document is shown only until
+  its freshness ends: a read again that is answered busy or fails keeps
+  it until then, marked as of when it was read, and after it the page
+  drops it and says "Not available just now.", reading again after
+  `Retry-After`, doubling to a bound of a minute. So a project made
+  private leaves an open page within the `max-age`, as it leaves the
+  proxy; a copy already shown or saved is not withdrawn.
+- **Unknown** shows "Not public, or not here." with a link to
+  `/public`, and drops what the page showed.
+- **Anyone, signed in or not,** sees the same pages at these addresses:
+  the answers are the same for every visitor. A signed-in person's
+  cookie goes with the `GET` and is never read. The banner offers "Sign
+  in" where the deployment has a way, and nothing else of a person's.
+
+### 8.3 What it shows
+
+- **Titles and the project's name, no other text:** the records carry
+  no text but these (jig's `domain/people.md`, 13.3), so a project is
+  its name, and a goal is "Goal" and a task "task", each with the first
+  eight digits of its public identifier, then its title, with "…" where
+  cut; an executor is its kind, "an agent", "a procedure", "a person".
+- **The board:** the project's goals, each a line: its identifier and
+  title, its phase in words, for how long, its spend; under it its
+  tree's lines: "task 3f2a9c01 Write the parser, an agent, running for
+  14 minutes", its phase, its
+  times; the count of lines folded; and the queues' lines from the
+  landings.
+- **A task:** its line, its lineage up to its goal as links, its
+  delegates, and where it makes a change, the change's step in words,
+  CI's state, its gates' verdicts by number and kind, and "its change
+  on the forge", the pull's address, with the head's commit linked by
+  its short hash.
+- **The landings:** the turn, each queue in order, without places, and
+  the recent landings, each landed commit a link.
+- **Never** a person's name, any words but a title, or anything the
+  records do not carry: the view reads only the public records.
+
+### 8.4 Its tests
+
+- **Step tests:** the address codec's public paths, both ways, and a
+  malformed one (a number, upper-case, short or long identifiers) read
+  as `/public`; the public mode's reads, its timer from the answer's
+  freshness and `Age`, a hidden tab reading nothing, busy keeping the
+  page until its freshness ends and then dropping it, backing off,
+  unknown's main.
+- **Fuzzy tests:** the address codec's parser over seeded paths under
+  `/public`, never panicking and printing back what it read.
+- **The browser tier** (section 4): a public project on fakes read at
+  `/public`, its board, a task and its landings, by a page with no
+  sign-in and no stream, the view's text checked against the public
+  records' fields alone; and a project made private, its pages unknown
+  at the next read.

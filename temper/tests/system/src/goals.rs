@@ -162,7 +162,7 @@ fn proposed_goal(spec: &[u8], budget: u64, priority: u32) -> people::Ask {
     batch[0].authority.delegation =
         people::Delegation { kinds: Box::new([people::Executor::Charter(1)]), tasks: 3, depth: 1 };
     batch[0].contract = people::Contract::Report { words: 128 };
-    batch[0].wake.results = people::ResultsWake::LastOrFailure;
+    batch[0].wake.as_mut().expect("goal fixture names its wake policy").results = people::ResultsWake::LastOrFailure;
     ask
 }
 

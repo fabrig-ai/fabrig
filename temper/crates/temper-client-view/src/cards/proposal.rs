@@ -245,6 +245,7 @@ fn proposed(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &W
             words.text(b, Word::ProposalOwn, &[]);
         }
         match task.executor {
+            c::Executor::Job { kind } => words.text(b, Word::Job, &[Hole::Number(u64::from(kind))]),
             c::Executor::Agent { charter } => {
                 b.text(skein_ui::Run::Plain, &words.say_card(P::Charter, &[Hole::Number(u64::from(charter))]));
             }
@@ -332,6 +333,13 @@ fn authority_facts(b: &mut Builder, document: &c::AuthorityDocument, words: &Wor
     }
     for kind in window_facts(b, words, value.delegation.kinds.as_slice(), rows, inline) {
         let (word, number) = match kind {
+            c::AuthorityExecutor::Job(number) => {
+                if inline {
+                    separator(b);
+                }
+                words.text(b, Word::Job, &[Hole::Number(u64::from(*number))]);
+                continue;
+            }
             c::AuthorityExecutor::Charter(number) => (P::Charter, *number),
             c::AuthorityExecutor::Procedure(number) => (P::ProcedureCode, *number),
             c::AuthorityExecutor::Role(number) => (P::PersonRole, *number),

@@ -1,0 +1,4 @@
+#!/bin/sh
+# The reference's merge job (temper/docs/design/protocol/tooling.md, 4.1).
+set -eu
+exec python3 -I -B "$(dirname "$0")/../tools/merge/merge.py" "$@"

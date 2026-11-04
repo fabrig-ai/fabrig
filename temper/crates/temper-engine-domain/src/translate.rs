@@ -14,6 +14,8 @@ use temper_engine_domain_forge as forge;
 /// the core's whole, as jig's applications hold it, and temper's own.
 #[derive(Debug)]
 pub struct Config {
+    /// Charter brief-room costs, absent when no agent is configured (temper/docs/design/domain/agent.md, 4.3).
+    pub host_part: Option<crate::room::HostPart>,
     /// Deployment funding span (domain/root.md, 5.7).
     pub period_span: skein_lib::Duration,
     /// The core's rules, charters, owners and projects; its one connector is
@@ -21,16 +23,15 @@ pub struct Config {
     /// configuration too, set by an in-process hosts' listener: standalone,
     /// they do (domain/root.md, 2).
     pub core: jig_domain_core::Config,
-    /// Forge landing requirements and their connector-owned judge parameters.
-    pub landing: LandingPolicy,
+    /// Each project's landing way and repository checks.
+    pub landings: Map<u32, ProjectLanding>,
+    /// The forge's kind defaults at this start (temper/docs/design/domain/root.md, 5.6).
+    pub kinds_stock: Box<[forge::settings::Stock]>,
     /// Forge writer identities and this deployment's branch namespace.
     pub forge: skein_forge_client::Config,
     /// Each forge's git identity, an application credential (D10;
     /// protocol/credentials.md, "each repository to a git identity").
     pub identities: Box<[forge::GitIdentity]>,
-    /// The charter the forge's procedures start their agent work under, one
-    /// of the core's charters (domain/root.md, 6).
-    pub forge_charter: u32,
     /// Machine places for new forge records (temper/docs/design/protocol/configuration.md, 3).
     pub machine: Option<forge::Machine>,
     pub forges: Box<[forge::Configured]>,
@@ -41,24 +42,25 @@ pub struct Config {
 /// What the root keeps of its configuration once its children hold theirs.
 #[derive(Debug)]
 pub(crate) struct RootConfig {
+    pub(crate) merge_kind: Option<jig_domain_host::JobBound>,
     pub(crate) forge_connector: u16,
-    pub(crate) forge_charter: u32,
     pub(crate) landings: Map<u32, ProjectLanding>,
 }
 
-/// Typed forge landing policy retained by the application for policy snapshots.
+/// Landing rules for test worlds' builders alone (domain/root.md, 6).
 #[derive(Debug)]
-pub struct LandingPolicy {
+pub struct LandingRules {
     pub deployment: Box<[LandingRule]>,
     pub projects: Map<u32, Box<[LandingRule]>>,
-    pub landings: Map<u32, ProjectLanding>,
 }
 
 /// A project's landing way and repository checks (protocol/configuration.md, 3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ProjectLanding {
     pub by: Way,
+    pub merge_job: Option<Box<[u8]>>,
     pub repositories: Box<[RepositoryChecks]>,
+    pub after: AfterLandingCheck,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Way {
@@ -69,6 +71,7 @@ pub enum Way {
 pub struct RepositoryChecks {
     pub repository: skein_forge::api::Repository,
     pub gates: Box<[GateCheck]>,
+    pub tiers: Box<[TierCheck]>,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct GateCheck {
@@ -76,6 +79,23 @@ pub struct GateCheck {
     pub workflow: Box<[u8]>,
     pub ignored: Box<[Box<[u8]>]>,
     pub blocking: bool,
+}
+/// A repository's tier and the branch it follows (domain/after-landing.md, 2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierCheck {
+    pub name: Box<[u8]>,
+    pub workflow: Box<[u8]>,
+    pub ignored: Box<[Box<[u8]>]>,
+    pub artifact: Box<[u8]>,
+    pub format: temper_engine_domain_forge_tiers::Format,
+    pub follows: forge::Follows,
+    pub span_ms: u64,
+}
+/// A project's verification settings (protocol/configuration.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct AfterLandingCheck {
+    pub tier_retries: u8,
+    pub verification_bound_ms: u64,
 }
 pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: &ProjectLanding) -> bool {
     let mut repositories =
@@ -92,22 +112,56 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
                 })
                 .expect("counted gates");
         }
+        let mut tiers = skein_lib::List::with_capacity(u32::try_from(repository.tiers.len()).expect("tiers"));
+        for tier in &repository.tiers {
+            tiers
+                .push(forge::Tier {
+                    name: tier.name.clone(),
+                    workflow: tier.workflow.clone(),
+                    ignored: tier.ignored.clone(),
+                    artifact: tier.artifact.clone(),
+                    format: tier.format,
+                    follows: tier.follows.clone(),
+                    span: match tier.span_ms {
+                        0 => None,
+                        millis => Some(skein_lib::Duration::from_millis(millis)),
+                    },
+                })
+                .expect("counted tiers");
+        }
         repositories
-            .push(forge::RepositoryGates { repository: repository.repository, gates: gates.into_boxed() })
+            .push(forge::RepositoryGates {
+                repository: repository.repository,
+                gates: gates.into_boxed(),
+                tiers: tiers.into_boxed(),
+            })
             .expect("counted repositories");
     }
-    forge.project_landing(
+    if !forge.project_landing(
         project,
         match landing.by {
             Way::Queue => temper_engine_domain_forge_change::Way::Queue,
             Way::Turn => temper_engine_domain_forge_change::Way::Turn,
         },
         repositories.into_boxed(),
-    )
+        forge::AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: u32::from(landing.after.tier_retries),
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+            },
+            bound: skein_lib::Duration::from_millis(landing.after.verification_bound_ms),
+        },
+    ) {
+        return false;
+    }
+    match &landing.merge_job {
+        Some(command) => forge.project_merge_job(project, command.clone()),
+        None => true,
+    }
 }
 
 pub(crate) fn environment_forge(env: &Env<Limits>) -> Env<forge::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.forge }
+    env.with(env.limits.forge)
 }
 
 pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
@@ -115,6 +169,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
         Tool::Note { entry, .. } => notes::valid_new(entry, &limits.notes),
         Tool::Recall { by, .. } => notes::valid_recall(by, &limits.notes),
         Tool::Goal { .. }
+        | Tool::ReadTask { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::Change { .. }
@@ -153,6 +208,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             Tool::Propose { .. } | Tool::Decide { .. } | Tool::Withdraw { .. } => Tool::RejectedProposal(why),
             Tool::Note { .. } | Tool::Recall { .. } => Tool::RejectedNote(jig_domain_notes::Refusal::Oversized),
             Tool::Goal { .. }
+            | Tool::ReadTask { .. }
             | Tool::Settings { .. }
             | Tool::ProposeSettings { .. }
             | Tool::Change { .. }
@@ -188,7 +244,8 @@ pub(crate) fn relay_call(
 pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     match tool {
         Tool::Goal { agree, .. } => *agree,
-        Tool::Settings { .. }
+        Tool::ReadTask { .. }
+        | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::Change { .. }
         | Tool::Unavailable
@@ -229,12 +286,12 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
 pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::Refusal> {
     match tool {
         Tool::Propose { action, reason, .. } => {
-            if reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+            if reason.len() > skein_lib::usize_of(limits.message_bytes) {
                 return Some(tasks::Refusal::Read);
             }
             match action {
                 ProposedAction::Batch(batch) => {
-                    if batch.is_empty() || batch.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+                    if batch.is_empty() || batch.len() > skein_lib::usize_of(limits.batch) {
                         return Some(tasks::Refusal::Batch);
                     }
                     for member in batch {
@@ -243,7 +300,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
                         }
                         if !tasks::valid_contract(limits, &member.contract)
                             || !tasks::valid_authority(limits, &member.authority)
-                            || member.dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize")
+                            || member.dependencies.len() > skein_lib::usize_of(limits.dependencies)
                         {
                             return Some(tasks::Refusal::AuthorityShape);
                         }
@@ -251,7 +308,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
                     None
                 }
                 ProposedAction::Amend { amendment, .. } => {
-                    if amendment.reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+                    if amendment.reason.len() > skein_lib::usize_of(limits.message_bytes) {
                         Some(tasks::Refusal::Read)
                     } else if match &amendment.authority {
                         Some(authority) => !tasks::valid_authority(limits, authority),
@@ -273,22 +330,19 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             }
         }
         Tool::Decide { decision, .. } => match decision {
-            ProposalChoice::Reject { reason }
-                if reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") =>
-            {
+            ProposalChoice::Reject { reason } if reason.len() > skein_lib::usize_of(limits.message_bytes) => {
                 Some(tasks::Refusal::Read)
             }
             ProposalChoice::Accept | ProposalChoice::Reject { .. } | ProposalChoice::Pass => None,
         },
         Tool::DecideEscalation { decision, .. } => match decision {
-            EscalationChoice::Reject { reason }
-                if reason.len() > usize::try_from(limits.result_bytes).expect("u32 fits usize") =>
-            {
+            EscalationChoice::Reject { reason } if reason.len() > skein_lib::usize_of(limits.result_bytes) => {
                 Some(tasks::Refusal::Read)
             }
             EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
         },
         Tool::Goal { .. }
+        | Tool::ReadTask { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::Change { .. }
@@ -310,14 +364,14 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         | Tool::Unsubscribe { .. }
         | Tool::Release { .. } => None,
         Tool::Cancel { reason, .. } => {
-            if reason.len() > usize::try_from(limits.result_bytes).expect("u32 fits usize") {
+            if reason.len() > skein_lib::usize_of(limits.result_bytes) {
                 Some(tasks::Refusal::Read)
             } else {
                 None
             }
         }
         Tool::Amend { amendment, .. } => {
-            if amendment.reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+            if amendment.reason.len() > skein_lib::usize_of(limits.message_bytes) {
                 return Some(tasks::Refusal::Read);
             }
             if let Some(spec) = &amendment.spec
@@ -331,14 +385,14 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
                 return Some(tasks::Refusal::AuthorityShape);
             }
             if let Some(dependencies) = &amendment.dependencies
-                && dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize")
+                && dependencies.len() > skein_lib::usize_of(limits.dependencies)
             {
                 return Some(tasks::Refusal::Dependencies);
             }
             None
         }
         Tool::Message { form, words, .. } => {
-            if words.is_empty() || words.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+            if words.is_empty() || words.len() > skein_lib::usize_of(limits.message_bytes) {
                 return Some(tasks::Refusal::Read);
             }
             match form {
@@ -348,7 +402,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             None
         }
         Tool::Delegate { batch } => {
-            if batch.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+            if batch.len() > skein_lib::usize_of(limits.batch) {
                 return Some(tasks::Refusal::Batch);
             }
             for member in batch {
@@ -361,7 +415,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
                 if !tasks::valid_authority(limits, &member.authority) {
                     return Some(tasks::Refusal::AuthorityShape);
                 }
-                if member.dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize") {
+                if member.dependencies.len() > skein_lib::usize_of(limits.dependencies) {
                     return Some(tasks::Refusal::Dependencies);
                 }
             }
@@ -387,7 +441,7 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         Tool::EffectForge { .. } => jig_domain_core::ToolKind::Effect,
         Tool::Note { entry, .. } => jig_domain_core::ToolKind::Note { scope: entry.scope.clone() },
         Tool::Recall { by, .. } => jig_domain_core::ToolKind::Recall { by: by.clone() },
-        Tool::ReadNamed { .. } | Tool::ReadForge { .. } => jig_domain_core::ToolKind::Read,
+        Tool::ReadTask { .. } | Tool::ReadNamed { .. } | Tool::ReadForge { .. } => jig_domain_core::ToolKind::Read,
         Tool::Unavailable
         | Tool::Rejected(_)
         | Tool::RejectedMessage(_)
@@ -428,7 +482,8 @@ pub(crate) fn keep_connector_answer(
         CallAnswer::ForgeEffect { entry, deadline, outcome } => forge::CallPayload::Effect { entry, deadline, outcome },
         CallAnswer::ForgeEffectRefused(error) => forge::CallPayload::Refused(error),
         CallAnswer::ForgeRead(answer) => forge::CallPayload::Read(answer),
-        answer @ (CallAnswer::ForgeEffectDenied { .. }
+        answer @ (CallAnswer::TaskRead(_)
+        | CallAnswer::ForgeEffectDenied { .. }
         | CallAnswer::ToolDenied { .. }
         | CallAnswer::EscalationDecided { .. }
         | CallAnswer::EscalationRefused(_)
@@ -469,9 +524,9 @@ pub(crate) fn keep_connector_answer(
     }
 }
 
-pub(crate) fn is_settings_read(tool: &Tool) -> bool {
+pub(crate) fn is_core_read(tool: &Tool) -> bool {
     match tool {
-        Tool::Settings { .. } => true,
+        Tool::ReadTask { .. } | Tool::Settings { .. } => true,
         Tool::ProposeSettings { .. }
         | Tool::Goal { .. }
         | Tool::Note { .. }
@@ -500,4 +555,15 @@ pub(crate) fn is_settings_read(tool: &Tool) -> bool {
         | Tool::RejectedNote(_)
         | Tool::Unavailable => false,
     }
+}
+
+/// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root.md, 6).
+#[must_use]
+pub fn landing_stock(
+    deployment: &[LandingRule],
+    projects: &Map<u32, Box<[LandingRule]>>,
+    change: u32,
+    review: u32,
+) -> Box<[forge::settings::Stock]> {
+    crate::route::policy_translate::landing_stock(deployment, projects, change, review)
 }

@@ -9,6 +9,11 @@ use jig_client::contract::{
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable};
 use skein_lib::{Env, Queue};
 
+/// The person's first message of the first chat (temper/docs/design/client/README.md, 3.5).
+pub const FIRST_CHAT_WORDS: &[u8] = b"Help me tell temper how I work.";
+/// The configuring agent's stock template (temper/docs/design/protocol/configuration.md, 13.4).
+const CONFIGURING_TEMPLATE: u32 = 3;
+
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the configured query is private watch bookkeeping")]
 pub struct Chats {
@@ -113,7 +118,7 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        self.send(env, me, project, self.words.clone(), choice, serial, out);
+        self.send(env, me, project, jig_client::shapes::CHAT, self.words.clone(), choice, serial, out);
     }
     #[expect(
         clippy::too_many_arguments,
@@ -129,17 +134,35 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        self.send(env, me, project, words.into(), choice, serial, out);
+        self.send(env, me, project, jig_client::shapes::CHAT, words.into(), choice, serial, out);
+    }
+    pub(crate) fn first_chat(
+        &mut self,
+        env: &Env<Limits>,
+        me: Option<&Me>,
+        project: Option<u32>,
+        choice: &super::choice::Draft,
+        serial: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
+        let template = match (me, project) {
+            (Some(me), Some(project)) if jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE).is_some() => {
+                CONFIGURING_TEMPLATE
+            }
+            _ => jig_client::shapes::CHAT,
+        };
+        self.send(env, me, project, template, FIRST_CHAT_WORDS.into(), choice, serial, out);
     }
     #[expect(
         clippy::too_many_arguments,
-        reason = "both entry paths supply their words and borrow the same bounded draft"
+        reason = "chat starts supply their template and words and borrow the same bounded draft"
     )]
     fn send(
         &mut self,
         _env: &Env<Limits>,
         me: Option<&Me>,
         project: Option<u32>,
+        template: u32,
         words: Box<[u8]>,
         choice: &super::choice::Draft,
         serial: &mut u64,
@@ -153,7 +176,12 @@ impl Chats {
             return;
         }
         let Ok(words) = Text::new(words, temper_client_protocol_wire::CUE_BYTES) else { return };
-        match jig_client::shapes::chat(me, project, words) {
+        let ask = if template == jig_client::shapes::CHAT {
+            jig_client::shapes::chat(me, project, words)
+        } else {
+            jig_client::shapes::chat_from(me, project, template, words)
+        };
+        match ask {
             Ok(mut ask) => {
                 if let c::Ask::Create { tasks, .. } = &mut ask
                     && let Some(task) = tasks.get_mut(0)

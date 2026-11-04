@@ -8,8 +8,8 @@ use std::{
 };
 
 const JOURNEYS: &str = "docs/design/client/journeys";
-const PAGE: &str = "docs/design/client/journeys/welcome-set-up/01.html";
-const OTHER_PAGE: &str = "docs/design/client/journeys/welcome-set-up/02.html";
+const PAGE: &str = "docs/design/client/journeys/welcome-playground/01.html";
+const OTHER_PAGE: &str = "docs/design/client/journeys/welcome-playground/02.html";
 const OVERLAY: &str = "docs/design/client/journeys/overlay.css";
 
 struct Repositories {
@@ -29,7 +29,7 @@ impl Repositories {
         let repos = Self { scratch, person, origin };
         repos.git(repos.scratch.path(), &["init", "--bare", "--quiet", "origin.git"]);
         repos.git(repos.scratch.path(), &["clone", "--quiet", "origin.git", "person"]);
-        fs::create_dir_all(repos.person.join(JOURNEYS).join("welcome-set-up")).expect("journey directory");
+        fs::create_dir_all(repos.person.join(JOURNEYS).join("welcome-playground")).expect("journey directory");
         repos.write(PAGE, "<p>Cards</p>\n");
         repos.write(OTHER_PAGE, "<p>Banner</p>\n");
         // Blank context separates independent overlay edits in this fixture.

@@ -3,7 +3,8 @@ use super::routing::io_down;
 use super::stages::backlog;
 use super::up::{component_up, domain_up, lower_events};
 use setup::{Input, enter};
-use skein_lib::ReplyTo;
+use skein_lib::{List, ReplyTo};
+mod lifecycles;
 mod setup;
 
 pub(crate) use setup::{account_request, account_service, charter, configuration, domain_configuration};
@@ -41,10 +42,7 @@ fn a_colocated_host_gets_typed_machine_terminals_without_an_agent_channel() {
         name: domain::GrantName { account: 0, generation: 1 },
         valid: Duration::from_secs(60),
     };
-    let value = smith_protocol_translate::GrantValue::Withdrawn {
-        account_id: Box::from(&b"acc"[..]),
-        bearer: Box::from(&b"token"[..]),
-    };
+    let value = smith_protocol_translate::GrantValue::Bearer(Box::from(&b"token"[..]));
     effects.grant(grant, &value, Time::ZERO).expect("first grant");
     effects.grant(grant, &value, Time::from_nanos(1)).expect("same saved generation on another activation");
     effects.close();
@@ -59,22 +57,12 @@ fn each_grant_value_installs_its_scheme() {
     use skein_llm::Scheme;
     use smith_protocol_translate::GrantValue;
     let rows = [
-        (GrantValue::Bearer(Box::from(&b"value"[..])), Scheme::Bearer, &b""[..]),
-        (GrantValue::Key(Box::from(&b"value"[..])), Scheme::Key, &b""[..]),
-        (
-            GrantValue::Withdrawn { account_id: Box::from(&b"account"[..]), bearer: Box::from(&b"value"[..]) },
-            Scheme::Bearer,
-            &b"account"[..],
-        ),
-        (
-            GrantValue::Withdrawn { account_id: Box::default(), bearer: Box::from(&b"value"[..]) },
-            Scheme::Bearer,
-            &b""[..],
-        ),
+        (GrantValue::Bearer(Box::from(&b"value"[..])), Scheme::Bearer),
+        (GrantValue::Key(Box::from(&b"value"[..])), Scheme::Key),
     ];
-    for (index, (input, scheme, account_id)) in rows.into_iter().enumerate() {
+    for (index, (input, scheme)) in rows.into_iter().enumerate() {
         let installed = credential(&input).expect("installable form");
-        assert_eq!((installed.scheme, installed.account_id.as_ref()), (scheme, account_id), "row {index}");
+        assert_eq!(installed.scheme, scheme, "row {index}");
     }
 }
 
@@ -225,7 +213,7 @@ fn the_answer_requests_every_close_in_one_pass() {
     service.stages.mark_failed(Failure::Send);
     teardown::answered(&mut service.stages);
     assert!(!service.stages.llm.closed());
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     assert!(service.stages.llm.closed(), "an empty pool reports its close immediately");
     for expected in [11, 12] {
         match service.stages.io_requests.pop() {
@@ -248,7 +236,7 @@ fn the_answer_requests_every_close_in_one_pass() {
 fn a_sent_answer_keeps_its_channel_output_right_until_finish() {
     let mut service = with_channel_streams(None);
     teardown::answered(&mut service.stages);
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     match service.stages.io_requests.pop() {
         Some(io::Request::Close { entity }) => assert_eq!(entity, Token::new(11)),
         unexpected => panic!("input close: {unexpected:?}"),
@@ -263,7 +251,7 @@ fn an_answer_requests_its_close_at_once() {
         enter(&mut service, Input::IoRequest(io::Request::Usage { owner: Token::new(1) }));
     }
     teardown::answered(&mut service.stages);
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     assert_eq!(
         service.stages.teardown,
         Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Components }
@@ -287,19 +275,19 @@ fn done_is_some_only_when_closed() {
     assert_eq!(done(&service), None);
     teardown::answered(&mut service.stages);
     assert_eq!(done(&service), None);
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     enter(&mut service, Input::OperationSubmitted { global: Token::new(77), original: Token::new(4) });
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     assert_eq!(done(&service), None);
     enter(&mut service, Input::OperationCompleted { global: Token::new(77) });
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     assert_eq!(
         service.stages.teardown,
         Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Stream }
     );
     assert_eq!(done(&service), None);
     assert!(work_pending(&service, Time::ZERO), "the last close wakes the phase after reclaim");
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     assert_eq!(done(&service), Some(true));
 }
 
@@ -307,16 +295,16 @@ fn done_is_some_only_when_closed() {
 fn a_settled_event_producer_is_runnable_before_its_usage_request() {
     let mut service = event_service();
     teardown::answered(&mut service.stages);
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     assert!(work_pending(&service, Time::ZERO), "usage must be requested before the kernel waits");
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     match service.stages.io_requests.pop() {
         Some(io::Request::Usage { owner }) => assert_eq!(owner, USAGE_OWNER),
         unexpected => panic!("usage request: {unexpected:?}"),
     }
     assert_eq!(done(&service), None);
     assert!(!teardown::work_pending(&service.stages, Some(&service.frame)), "the usage terminal is owed exactly once");
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     assert!(service.stages.io_requests.is_empty());
 }
 
@@ -324,8 +312,8 @@ fn a_settled_event_producer_is_runnable_before_its_usage_request() {
 fn usage_writes_the_session_end_before_the_stream_closes() {
     let mut service = event_service();
     teardown::answered(&mut service.stages);
-    teardown::advance(&mut service.stages, Some(&service.frame));
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     service.stages.io_requests.pop().expect("usage request");
     record_usage(&mut service.stages, Some(&service.frame), io::Measured::Unread);
     assert!(service.pop_usage_unread());
@@ -334,7 +322,7 @@ fn usage_writes_the_session_end_before_the_stream_closes() {
         Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Stream }
     );
     assert_eq!(done(&service), None);
-    teardown::advance(&mut service.stages, Some(&service.frame));
+    teardown::follow(&mut service.stages, Some(&service.frame));
     assert_eq!(done(&service), Some(true));
 }
 

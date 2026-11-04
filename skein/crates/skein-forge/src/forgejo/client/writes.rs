@@ -151,6 +151,9 @@ fn target(request: &Request, out: &mut Target) -> (Method, bool) {
         | Request::Permission { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
@@ -322,6 +325,9 @@ fn write(json: &mut Encoder, request: &Request) {
         | Request::Permission { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }

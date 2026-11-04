@@ -93,11 +93,11 @@ fn refresh_fixture(scratch: &Scratch, earliest_refresh_at: Option<Wall>) -> (Box
     .expect("current fixture kept");
     let host = smith_real_world::loopback();
     let configuration = format!(
-        "model='codex/gpt-6-luna'\neffort='low'\ninstructions='@local-shell Assist'\n\
+        "model='openai/gpt-6-luna'\neffort='low'\ninstructions='@local-shell Assist'\n\
          [accounts.test]\nsource='sign_in'\nclient_id='client'\nscope='{scope}'\n\
          authorization_url='http://{host}:34444/authorize'\ntoken_url='http://{host}:34444/token'\n\
          redirect_uri='http://127.0.0.1:{}/callback'\ntoken_format='form'\n\
-         [endpoints.codex]\naccount='test'\naddress='{host}:34443'\nserver_name='skein.test'\n\
+         [endpoints.openai]\naccount='test'\naddress='{host}:34443'\nserver_name='skein.test'\n\
          trust.system=false\ntrust.der=['{}']\n",
         smith_real_world::redirect_port(),
         scratch.path().join("root.der").display(),
@@ -129,14 +129,7 @@ fn exec_on_raised_lead(scratch: &Scratch, accepted: Box<[u8]>, refreshed: Box<[u
         Process::Script(Proc::Terminal(Box::new(Terminal::piped(input, output, vec![Action::Eof]))))
     });
     world.spawn(|| {
-        Process::Script(Proc::Peer(Box::new(world::headless_provider(
-            false,
-            skein_llm::Credential {
-                value: accepted,
-                account_id: b"acc".as_slice().into(),
-                scheme: skein_llm::Scheme::Bearer,
-            },
-        ))))
+        Process::Script(Proc::Peer(Box::new(world::headless_provider(false, skein_llm::Credential::bearer(accepted)))))
     });
     world.spawn(|| {
         Process::Script(Proc::Issuer(Box::new(IssuerProcess::with_token(

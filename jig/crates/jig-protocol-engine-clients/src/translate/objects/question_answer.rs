@@ -101,6 +101,9 @@ pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::Mes
 }
 pub fn word_result(value: &t::ResultKind, limits: &w::Limits) -> Result<w::WordResult, w::Problem> {
     Ok(match value {
+        t::ResultKind::Job => {
+            return Err(w::Problem { path: w::Path::WordResultTag, reason: skein_codec::Reason::Malformed });
+        }
         t::ResultKind::NoChange | t::ResultKind::Report => w::WordResult::Report,
         t::ResultKind::Failed => w::WordResult::Failed,
         t::ResultKind::Cancelled => w::WordResult::Cancelled,

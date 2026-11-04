@@ -48,6 +48,25 @@ fn outputs(
                 let assignment = crate::assemble::assignment(domain, env, &assignment).expect("validated charter");
                 Released::Host(host::Event::Down(host::LinkDown::Assign { assignment }))
             }
+            link::Request::AssignedJob { channel, job } => {
+                assert!(channel == Token::new(0), "ops engine's permanent link");
+                Released::Host(host::Event::Down(host::LinkDown::AssignJob {
+                    job: host::JobAssignment {
+                        run: Token::new(job.task),
+                        attempt: Token::new(job.attempt),
+                        kind: job.kind,
+                        spec: job.spec,
+                        deadline: job.deadline,
+                        workspace: match job.workspace {
+                            Some(_) => {
+                                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
+                            }
+                            None => None,
+                        },
+                        grants: job.grants,
+                    },
+                }))
+            }
             link::Request::ReadResult { payload, outcome } => {
                 now(domain, Output::ReadResult { payload, outcome });
                 continue;
@@ -113,6 +132,19 @@ pub(crate) fn host_out(
 ) {
     for _ in 0..out.len() {
         match out.pop().expect("host requests") {
+            host::Request::Job(host::ToJob::Run { owner, .. }) => {
+                work.push(Work::Host(host::Event::Job(host::FromJob::StartRefused {
+                    owner,
+                    why: Box::from(&b"no job capability"[..]),
+                })));
+            }
+            host::Request::Job(host::ToJob::Stop { owner }) => {
+                work.push(Work::Host(host::Event::Job(host::FromJob::Gone { owner, detail: Box::new([]) })));
+            }
+            host::Request::DeliverJob { owner, .. } => work.push(Work::Host(host::Event::Delivered {
+                owner,
+                delivery: host::Delivery { outcome: host::DeliveryOutcome::Refused, changed: false, left: owner },
+            })),
             host::Request::Agent(request) => crate::domain::held(decision, Output::Agent(request)),
             host::Request::Up(value) => {
                 route(domain, env, decision, link::Event::Up { channel: Token::new(0), value }, false, work);

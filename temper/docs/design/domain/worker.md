@@ -181,8 +181,11 @@ temper's workspace items beside it:
     each operation and never reads; otherwise the worker's own git
     (`../protocol/git.md`, section 3);
   - where to start: a base branch, a branch, a commit by its full object
-    id, saved work, or **a merge in progress**: a branch, and the commit
-    of its base to merge into it (section 5);
+    id, saved work, **a merge in progress**: a branch, and the commit
+    of its base to merge into it, or **a base with heads merged in**: a
+    base branch, and the commits to merge into its tip, one by one in
+    their order, each by its full object id (a change's early start:
+    `forge.md`, 8.11) (section 5);
   - whether it may be written, and if so the branch a change is pushed
     to, and the head that branch must still be at, if the assignment
     names one (section 5);
@@ -321,7 +324,7 @@ it a unit the tag does not identify.
   `ResponseFields`, `Skip`, `Field`, `Retained`, `Tokens`, `Depth`,
   `Strings`, `Number` and `ErrorBody` can describe framing or a transient
   error body, rather than the call's configured allowance.
-  `Cap::AccessToken` and `Cap::AccountId` depend on credentials.
+  `Cap::AccessToken` depends on credentials.
   `Limit::Pool` is a connection reservation, which can depend on
   credential-bearing request headers; `CompletionFailure::ApplicationLimit`
   also covers temporary call-slot refusal. None is classified as one of
@@ -338,7 +341,25 @@ smith's agent processes, and declares in its hello the kinds it runs:
 |---|---|---|---|
 | 1, prepare | a landing's candidate for one repository (`landing.md`, 5.3): the project's prepare command, or temper's own rebase of a stack when the project names none | the repository, its main's tip, its members' heads in order, the upstream candidates and the pins between them, the command and the home's revision | the candidate's commit, or the conflict's member and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
+| 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`forge.md`, 8.4) | the command, the head and the base | the files settled, and those left |
 
+- **Its kinds are entries** the root gives the capability: each a
+  kind's number, the command's verb (its second argument,
+  `../protocol/tooling.md`, section 2) and whether it delivers. The hello
+  declares each with the worker's limits for jobs: its spec's and
+  result's bytes and its longest deadline. Prepare and key are the first
+  two, by the table, and merge the third; a worker declares a kind only
+  once it is built, and none before.
+- **One spec and one result for every kind:** the spec, temper's record
+  in its payload codec, the command's path in the job's directory and
+  the request file's bytes, the path under `home/` for a command of the
+  project's home (prepare and key) and under the repository's own name
+  for one of the repository it merges (merge); the result, the result file's bytes as the
+  command wrote them. Exit 0 and 3 finish the job with that result
+  (`../protocol/tooling.md`, section 1); any other exit fails it as its
+  own, with the end of its error output as detail; a result file missing
+  or past its bound fails it too. The engine's procedure that made the
+  job reads the result.
 - **In the checkout,** prepared from the job's items as a run's
   workspace is (section 5): the repository at its main's tip, each
   member's head fetched beside it, each upstream at its candidate, and
@@ -354,9 +375,44 @@ smith's agent processes, and declares in its hello the kinds it runs:
   may not be a fast-forward, made only for a prepare job's candidate;
   a lease refused fails the job as permanent until the branch is read
   afresh, and the landing prepares again. The rewrite is the change's,
-  not drift (`forge.md`, 8.5). A key job delivers nothing.
+  not drift (`forge.md`, 8.5). A key job delivers nothing. A delivering
+  kind other than prepare delivers, on exit 0, the head of the repository
+  its items name as writable, as a fast-forward onto that branch through
+  the checkout's push (section 5), as a run's delivery is; a push refused
+  fails the job as undelivered.
 - **The worker's limits** bound a job's spec, its result, its output
   files and its processes, and a job beyond them is refused as invalid.
+- **The merge kind,** kind 3, verb `merge`, delivering, is built first
+  (`../protocol/tooling.md`, 4.1). Its checkout holds one repository,
+  the change's, under its own name, writable, prepared as a resolution's is:
+  the head checked out and the base merged in, not committed, the
+  conflicts marked (section 5); its command is the project's
+  `merge_job`, a path in that repository, so the spec's command is the
+  repository's name, `/`, then that path. On exit 0 the delivery commits
+  the tree as the merge, both parents, and pushes it as a fast-forward
+  onto the branch the item names as writable, a resolution's push; a
+  file still unmerged or marked refuses it, and the job fails as
+  undelivered. On exit 3 nothing is delivered. The engine learns which
+  from the branch, not the result: its head moved, or not (`forge.md`,
+  8.4). Its bounds, the engine's declaration and the worker's alike:
+  a spec of 4,096 bytes and a result of 512, within jig's
+  `tasks.spec_bytes` and `tasks.result_bytes` in the small profile,
+  which the core holds every declared kind to, and a deadline of 10
+  minutes, the small profile's constants. The engine declares the kind
+  only where its tasks limits hold those bounds; a deployment that
+  configures them smaller declares no kind 3 and makes no merge job.
+- **The spec is written by the engine's root** as it makes the job, in
+  the worker wire's `JobSpec` record, since jig takes a job's spec as
+  the application's bytes when the job is made (jig's
+  `domain/tasks.md`, 5.3.1) and only the root makes it: the one record
+  of a protocol crate the root encodes, a pure function of the
+  command's path and the request's two commits. The domain reads no
+  job's result: the change acts on its branch, read afresh, and carries
+  the result's bytes as words.
+
+Before writing the request or starting the command, the job capability
+refuses a command path that is absolute or contains a `..` segment. The path
+resolves relative to the job's workspace root (2026-11-04).
 
 ## 5. Checkouts
 
@@ -398,6 +454,17 @@ runs as contained processes and whose output it parses.
   preparation. The next hold fetches it afresh, so the landing tip may move
   between attempts. This comparison changes neither the checkout start nor
   ownership, drift admission or the saved-work baseline.
+- **A base with heads merged in** fetches the base branch and each head,
+  checks out the base's tip, and merges each head into it in their
+  order, committing each merge at once, with two parents (what was
+  checked out so far and the head) and the repository's identity as its
+  author; a head the checkout already contains is no merge. The last
+  commit is the checkout's start, for its saves and its push alike, and
+  the branch it pushes is made by its first push, as a base's is. A
+  head that does not merge cleanly fails the preparation as a conflict,
+  naming the head, permanent for this assignment: nothing of the
+  merges is kept, and nothing is pushed. The change it was for then
+  waits for its dependencies to land (`forge.md`, 8.11).
 - **A merge in progress** fetches the branch and the base commit, checks
   out the branch, and merges the base into it as git does, leaving the
   files in conflict with their markers and the merge's state in the
@@ -458,6 +525,10 @@ runs as contained processes and whose output it parses.
   or commits, names the repository's identity, which the protocol layer
   maps to credentials or an author for that invocation only, never into a
   checkout's configuration, where an agent could read them.
+
+Each commit made while preparing a base with heads merged in has the title
+`Merge <head>`, where `<head>` is the merged head's full hexadecimal object
+ID (2026-11-04).
 
 ## 6. Agent processes
 

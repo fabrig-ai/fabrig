@@ -53,6 +53,11 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Task { .. }
             | Address::Adopt { .. } => false,
         }
+        || (root.forge().playground_running() || root.forge().leaving())
+            && match root.forge().playground() {
+                Some(playground) => playground.project.is_some() && playground.project == root.pages().project(),
+                None => false,
+            }
         || root.pages().availability(root.client()) != Some(false)
     {
         return;
@@ -97,7 +102,10 @@ pub(crate) fn composer(
     if let Some(task) = task {
         match task.chip.executor {
             c::ChipExecutor::Agent { .. } => {}
-            c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => return,
+            c::ChipExecutor::Job { .. }
+            | c::ChipExecutor::Procedure { .. }
+            | c::ChipExecutor::Party { .. }
+            | c::ChipExecutor::Role { .. } => return,
         }
     }
     let draft = root.pages().choice();
@@ -737,6 +745,7 @@ fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
 }
 fn hello_refusal(w: &Words, why: c::HelloRefusal) -> Box<[u8]> {
     match why {
+        c::HelloRefusal::JobKinds => w.say(W::HelloJobKinds, &[]),
         c::HelloRefusal::ReservedChannel => w.say(W::HelloReservedChannel, &[]),
         c::HelloRefusal::Position { worker } => w.say(W::HelloPosition, &[Hole::Number(u64::from(worker))]),
         c::HelloRefusal::Workers { limit } => {

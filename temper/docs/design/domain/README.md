@@ -123,7 +123,7 @@ smith's are smith's.
 | push | temper's delivery: the tree the run checked, committed and pushed as a fast-forward, never forced (agent.md, section 6) |
 | git identity | a forge's token and commit author for git, one per forge, one of temper's application credentials (`../protocol/credentials.md`, section 4) |
 | failed preparation | a repository the worker could not prepare, for good: the forge lacks it, its branch or its commit, or refused the identity (worker.md, 4.3; root.md, 7.4) |
-| the forge's charter | the charter configuration names for the agent tasks the forge's procedures make (root.md, section 6) |
+| the forge's charters | temper's kind 3: the charters the agent tasks of a change are made under, its producer's by default, its reviews' and its foremen's (`../protocol/configuration.md`, 13.2; root.md, section 6) |
 | standalone | one engine and one worker in one process on one person's machine (`../protocol/README.md`, section 8) |
 
 ## 5. Decisions this design takes

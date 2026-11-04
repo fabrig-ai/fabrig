@@ -13,7 +13,7 @@ fn limits() -> Limits {
         environment_bytes: 0,
         endpoints: Box::new([Endpoint {
             number: 0,
-            provider: skein_llm::Provider::OpenAiCodex,
+            provider: skein_llm::Provider::OpenAi,
             option_bytes: 0,
             connect: Duration::from_secs(30),
             handshake: Duration::from_secs(30),

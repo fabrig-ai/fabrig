@@ -1,8 +1,11 @@
 //! Generic delegate executor and symbolic-grant decisions owned by the core
 //! (domain/engine.md, 4.4 and 17.3).
-#![expect(
-    clippy::result_large_err,
-    reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
+#![cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::result_large_err,
+        reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
+    )
 )]
 
 use alloc::boxed::Box;
@@ -38,7 +41,7 @@ pub struct Delegate {
     /// Open connector grants narrowed with the allocated task number.
     pub symbolic_grants: Box<[tasks::Grant]>,
     pub dependencies: Box<[Dependency]>,
-    pub wake: tasks::WakePolicy,
+    pub wake: Option<tasks::WakePolicy>,
     pub tracked: Option<u32>,
     pub label: u32,
     pub flags: tasks::Flags,
@@ -48,11 +51,16 @@ pub struct Delegate {
 /// A connector-owned procedure's chosen task action before core admission.
 #[derive(PartialEq, Eq, Debug)]
 pub struct ProcedureStep {
+    /// Replace this procedure task's specification words, within the specification byte bound.
+    pub words: Option<Box<[u8]>>,
     pub batch: Box<[Delegate]>,
     pub amendments: Box<[StepAmendment]>,
     pub cancels: Box<[StepCancel]>,
     pub messages: Box<[StepMessage]>,
     pub proposals: Box<[tasks::ProposalAction]>,
+    /// Dependencies of the procedure's task its work started from; an amendment may never
+    /// remove them (jig/docs/design/domain/connectors.md, 6.1).
+    pub started_from: Box<[u64]>,
     pub end: StepEnd,
 }
 
@@ -89,11 +97,13 @@ impl ProcedureStep {
     #[must_use]
     pub fn new(end: StepEnd) -> Self {
         Self {
+            words: None,
             batch: Box::new([]),
             amendments: Box::new([]),
             cancels: Box::new([]),
             messages: Box::new([]),
             proposals: Box::new([]),
+            started_from: Box::new([]),
             end,
         }
     }
@@ -189,6 +199,10 @@ impl Core {
         }
         let mut asked = List::with_capacity(limits.batch);
         for member in batch {
+            match member.executor {
+                tasks::Executor::Job { .. } => return Err(delegate_refused(None, tasks::Refusal::Executor)),
+                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {}
+            }
             if let tasks::Executor::Agent { charter } = member.executor
                 && self.charter(charter).is_none()
             {
@@ -273,6 +287,7 @@ impl Core {
     #[must_use]
     pub fn delegation_executor(&self, project: u32, executor: tasks::Executor) -> Option<authority::Executor> {
         match executor {
+            tasks::Executor::Job { kind } => Some(authority::Executor::Job(kind)),
             tasks::Executor::Agent { charter } => Some(authority::Executor::Charter(charter)),
             tasks::Executor::Procedure { code, .. } => Some(authority::Executor::Procedure(code)),
             tasks::Executor::Person(tasks::PersonAddress::Role(role)) => Some(authority::Executor::Role(role)),
@@ -332,3 +347,25 @@ pub fn resolved_delegate_authority(
 
 /// One delegation waiting for the task child's durable creation reply.
 pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<jig_domain_people::Given>);
+
+/// A procedure's job takes its application's bounds (jig/docs/design/domain/engine.md, 7.5).
+pub(crate) fn job_member(jobs: &[jig_domain_link::JobBound], member: &mut Delegate) -> Result<(), tasks::Refusal> {
+    let tasks::Executor::Job { kind } = member.executor else { return Ok(()) };
+    let mut declared = None;
+    for bound in jobs {
+        if bound.kind.0 == kind {
+            declared = Some(bound);
+            break;
+        }
+    }
+    let bound = declared.ok_or(tasks::Refusal::Executor)?;
+    let spec = member.spec.job.as_ref().ok_or(tasks::Refusal::Spec)?;
+    if spec.bytes.len() > skein_lib::length::usize_of(bound.spec) || spec.deadline > bound.deadline {
+        return Err(tasks::Refusal::Spec);
+    }
+    if member.llm.is_some() {
+        return Err(tasks::Refusal::Executor);
+    }
+    member.contract = tasks::Contract::Job { bytes: bound.result };
+    Ok(())
+}

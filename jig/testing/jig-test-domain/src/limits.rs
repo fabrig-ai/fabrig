@@ -12,7 +12,7 @@ fn checked_valid(limits: &Limits) -> Option<()> {
     if limits.routes == 0 || !core::valid(&limits.core) || !connector::valid(&limits.connector) {
         return None;
     }
-    core::reads::answer_bound(&limits.core)?;
+    core::reads::answer_bound(&limits.core, &[])?;
     connector::document_bound(&limits.connector)?;
     Some(())
 }

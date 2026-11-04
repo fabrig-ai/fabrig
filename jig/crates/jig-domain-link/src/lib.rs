@@ -251,6 +251,8 @@ pub enum GrantTable {
 /// What a worker says first on every channel (domain/engine.md, section 8).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Hello {
+    /// Job kinds this host runs, ascending and unique (jig/docs/design/domain/hosts.md, 6.9).
+    pub jobs: Box<[JobBound]>,
     pub bounds: Bounds,
     /// The worker's longest stop time after losing contact. It must be
     /// strictly below the engine's grace.
@@ -348,4 +350,17 @@ mod grammar_tests {
             assert!(LoginMethod::new(value).is_none(), "{value:?}");
         }
     }
+}
+
+/// An application's job kind (jig/docs/design/domain/hosts.md, 6.9).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct JobKind(pub u32);
+
+/// The bounds of a declared job kind (jig/docs/design/domain/hosts.md, 6.9).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct JobBound {
+    pub kind: JobKind,
+    pub spec: u32,
+    pub result: u32,
+    pub deadline: Duration,
 }

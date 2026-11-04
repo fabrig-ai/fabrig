@@ -1128,11 +1128,7 @@ impl Scenario {
     #[must_use]
     pub fn provider(&self) -> crate::llm::Peer {
         if self.launch.lending == Some(Lending::Key) {
-            return self.provider_with(skein_llm::Credential {
-                value: b"key-for-work".as_slice().into(),
-                account_id: Box::new([]),
-                scheme: skein_llm::Scheme::Key,
-            });
+            return self.provider_with(skein_llm::Credential::key(b"key-for-work".as_slice().into()));
         }
         let token = if self.launch.lending.is_some() {
             login_token(false)
@@ -1141,10 +1137,10 @@ impl Scenario {
         } else {
             b"token".as_slice().into()
         };
-        self.provider_with(skein_llm::Credential {
-            value: token,
-            account_id: b"acc".as_slice().into(),
-            scheme: skein_llm::Scheme::Bearer,
+        self.provider_with(if self.launch.lending == Some(Lending::Env) {
+            skein_llm::Credential::key(token)
+        } else {
+            skein_llm::Credential::bearer(token)
         })
     }
 
@@ -1183,7 +1179,7 @@ impl Scenario {
         if self.launch.lending == Some(Lending::Key) {
             return smith_agent_process_world::fake::configured_anthropic(provider_scripts, credential);
         }
-        smith_agent_process_world::fake::configured_transport(
+        smith_agent_process_world::fake::configured_openai(
             provider_scripts,
             credential,
             if self.interrupt_on_query {
@@ -1236,7 +1232,7 @@ pub fn load_chat(path: &Path, endpoints: &smith_protocol_translate::Endpoints) -
 /// Existing report or waiting script, with the product story's synthetic credential.
 #[must_use]
 pub fn headless_provider(wait: bool, credential: skein_llm::Credential) -> crate::llm::Peer {
-    smith_agent_process_world::fake::configured_transport(
+    smith_agent_process_world::fake::configured_openai(
         if wait { waiting_scripts() } else { scripts() },
         credential,
         Duration::ZERO,
@@ -1246,7 +1242,7 @@ pub fn headless_provider(wait: bool, credential: skein_llm::Credential) -> crate
 
 /// The existing checked change script with the product story's synthetic grant.
 pub fn change_provider(credential: skein_llm::Credential) -> crate::llm::Peer {
-    smith_agent_process_world::fake::configured_transport(
+    smith_agent_process_world::fake::configured_openai(
         tool_scripts(),
         credential,
         Duration::ZERO,

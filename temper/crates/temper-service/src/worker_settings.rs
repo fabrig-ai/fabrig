@@ -8,9 +8,10 @@ use smith_host_protocol as host;
 use temper_protocol_worker_wire::{self as payload, v1};
 use temper_worker_domain as root;
 
-/// Git's operations and the worker root's close.
+/// Git's operations, job files and the worker root's close. Git's operation
+/// count covers the checkout workspaces, which cover the worker's slots.
 pub(crate) fn operations(git: &temper_worker_protocol_git::Limits) -> Option<u32> {
-    temper_worker_protocol_git::limits::operations(git)?.checked_add(1)
+    temper_worker_protocol_git::limits::operations(git)?.checked_add(1)?.checked_add(git.operations)
 }
 
 /// Every queue and component bound established before constructing a worker.
@@ -69,6 +70,7 @@ pub fn root_limits(worker: &settings::Worker, agent: &settings::Agent, own: &lim
     let mut host = worker.jig.limits.hub;
     host.slots = worker.jig.slots;
     root::Limits {
+        tooling: limits::tooling(worker.jig.slots),
         host,
         checkout: own.checkout,
         agent: agent.host_limits,
@@ -83,7 +85,7 @@ pub fn root_limits(worker: &settings::Worker, agent: &settings::Agent, own: &lim
 #[must_use]
 pub fn payload_limits(own: &limits::Limits) -> Option<v1::Limits> {
     let checkout = &own.checkout;
-    payload::limits(&payload::Bounds {
+    let mut limits = payload::limits(&payload::Bounds {
         repositories: checkout.repositories,
         name_bytes: checkout.name_bytes,
         remote_bytes: checkout.name_bytes,
@@ -93,7 +95,10 @@ pub fn payload_limits(own: &limits::Limits) -> Option<v1::Limits> {
         entries: own.forges.installations,
         entry_token_bytes: own.forge_component.token_bytes,
         text_bytes: v1::CEILINGS.identity_name,
-    })
+    })?;
+    limits.job_spec_command = limits::TOOLING_PATH_BYTES;
+    limits.job_spec_request = limits::TOOLING_FILE_BYTES;
+    Some(limits)
 }
 
 /// Jig's link profile, with every temper part priced by the generated codec.

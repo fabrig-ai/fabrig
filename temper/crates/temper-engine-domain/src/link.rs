@@ -3,6 +3,7 @@
 //! Payloads stay owned here until the fleet asks for or drops them. The
 //! protocol layer alone reads an ended answer's outcome and encodes typed
 //! assignments.
+//! Review run failures follow temper/docs/design/domain/forge.md, 8.3.
 use crate::boundary::{Link, Parts, Payload, Request, Work, WorkerInput, WorkerRequest};
 use crate::domain::Domain;
 use alloc::boxed::Box;
@@ -52,11 +53,7 @@ pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option
             Some(core::Event::Fleet(fleet::Event::Lost { channel }))
         }
         Link::Up { up, parts } => {
-            let bytes = if let host::LinkUp::Turn { turn, .. } = &up {
-                u64::try_from(turn.body.len()).expect("bounded turn bytes")
-            } else {
-                0
-            };
+            let bytes = if let host::LinkUp::Turn { turn, .. } = &up { skein_lib::len_u64(turn.body.len()) } else { 0 };
             let invalid = !parts_within(&parts, &domain.limits);
             let mut event = hub::up(&mut domain.hub_link, channel, up)?;
             domain.hold_bytes(bytes);
@@ -77,7 +74,11 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
         WorkerInput::DecodedHostCall { .. }
         | WorkerInput::RenderedHostCall { .. }
         | WorkerInput::Link {
-            link: Link::Up { up: host::LinkUp::Turn { .. } | host::LinkUp::Answer { .. }, .. },
+            link:
+                Link::Up {
+                    up: host::LinkUp::Turn { .. } | host::LinkUp::JobAnswer { .. } | host::LinkUp::Answer { .. },
+                    ..
+                },
             ..
         } => true,
         WorkerInput::ResultRead { .. }
@@ -110,13 +111,13 @@ pub(crate) fn room(domain: &Domain) -> bool {
 /// resources it saved (domain/forge.md). Beyond them the answer is invalid.
 fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
     let saved = match &parts.saved {
-        Some(tags) => tags.len() <= usize::try_from(limits.tasks.saved_resources).expect("u32 fits usize"),
+        Some(tags) => tags.len() <= skein_lib::usize_of(limits.tasks.saved_resources),
         None => true,
     };
-    saved && parts.pushed.len() <= usize::try_from(limits.forge.resources_per_task).expect("u32 fits usize")
+    saved && parts.pushed.len() <= skein_lib::usize_of(limits.forge.resources_per_task)
 }
 
-/// The shared link interprets worker endings; temper adds the forge parts.
+/// Interpret worker endings with forge parts and the change's failed-review policy.
 pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: Token) {
     if match domain.answer_parts.get(&payload) {
         Some(parts) => !parts_within(parts, &domain.limits),
@@ -136,6 +137,7 @@ pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
     for _ in 0..out.len() {
         match out.pop().expect("link output count") {
             hub::Request::Core(mut event) => {
+                fail_review(domain, &mut event);
                 decorate_answer(domain, &mut event);
                 domain.work.push(Work::Core(event));
             }
@@ -143,7 +145,8 @@ pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
                 let request = Request::Worker(WorkerRequest::ReadResult { payload, outcome });
                 assert!(crate::domain::now(domain, request), "result read door reserved");
             }
-            hub::Request::Assigned { .. }
+            hub::Request::AssignedJob { .. }
+            | hub::Request::Assigned { .. }
             | hub::Request::Down { .. }
             | hub::Request::Relayed { .. }
             | hub::Request::Message { .. }
@@ -155,6 +158,58 @@ pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
     }
 }
 
+// A run that cannot judge supplies no verdict (temper/docs/design/domain/forge.md, 8.3).
+fn fail_review(domain: &Domain, event: &mut core::Event) {
+    let core::Event::AnswerPayload { run, attempt, payload, end, .. } = event else { return };
+    if !domain.core.current_proof(run.raw(), attempt.raw()) || !current_review(domain, run.raw()) {
+        return;
+    }
+    let Some(Payload::Answer {
+        end: hub::Ending::Link(host::Ending::Failed { failure: host::Failure::Run(failure), .. }),
+        ..
+    }) = domain.hub_link.payload(*payload)
+    else {
+        return;
+    };
+    let Some(reason) = review_failure(failure) else { return };
+    *end =
+        tasks::End::Finished { result: tasks::TaskResult::Failure { reason: reason.into() }, cancel_delegates: false };
+}
+
+fn current_review(domain: &Domain, task: u64) -> bool {
+    let Some(task_row) = domain.core.tasks.task(task) else { return false };
+    let tasks::Party::Task(parent) = task_row.requester else { return false };
+    let Some(row) = domain.forge.change(parent) else { return false };
+    let Some((child, temper_engine_domain_forge_change::Delegate::Gate { number, head })) = row.delegate else {
+        return false;
+    };
+    if child != task
+        || row.change.last_head != Some(head)
+        || row.change.state == (temper_engine_domain_forge_change::State::CancellingGates { head })
+    {
+        return false;
+    }
+    for gate in &row.change.gates {
+        if gate.number == number && gate.kind == temper_engine_domain_forge_change::GateKind::Agent {
+            return true;
+        }
+    }
+    false
+}
+
+fn review_failure(failure: &host::RunFailure) -> Option<&'static [u8]> {
+    match failure {
+        host::RunFailure::Model => Some(b"Review model call failed before giving a verdict"),
+        host::RunFailure::Policy => Some(b"Review ended without a verdict"),
+        host::RunFailure::Budget => Some(b"Review exhausted its run budget without a verdict"),
+        host::RunFailure::Exceeded(_) => Some(b"Review exceeded a model call bound without a verdict"),
+        host::RunFailure::Cancelled
+        | host::RunFailure::Stale
+        | host::RunFailure::Limited { .. }
+        | host::RunFailure::Refused { .. } => None,
+    }
+}
+
 /// Translate link hand-outs through temper's assignment, inbox and tool rendering.
 pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Delivery {
     let mut out = Queue::uncapped();
@@ -163,6 +218,28 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
     match out.pop().expect("link delivery") {
         hub::Request::Assigned { channel, assignment: value } => {
             crate::Delivery::Assigned { channel, assignment: assignment(domain, value) }
+        }
+        hub::Request::AssignedJob { channel, job } => {
+            let workspace = domain.job_workspaces.remove(&job.task);
+            assert_eq!(workspace.is_some(), job.workspace.is_some(), "prepared job items");
+            let host_workspace = if workspace.is_some() {
+                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
+            } else {
+                None
+            };
+            crate::Delivery::AssignedJob {
+                channel,
+                workspace,
+                job: host::JobAssignment {
+                    run: Token::new(job.task),
+                    attempt: Token::new(job.attempt),
+                    kind: job.kind,
+                    spec: job.spec,
+                    deadline: job.deadline,
+                    workspace: host_workspace,
+                    grants: job.grants,
+                },
+            }
         }
         hub::Request::Message { channel, run, attempt, word } => {
             crate::Delivery::Link { channel, down: message(run, attempt, &word) }
@@ -209,6 +286,13 @@ fn decorate_answer(domain: &mut Domain, event: &mut core::Event) {
     let (task, attempt) = (run.raw(), attempt.raw());
     let parts = domain.answer_parts.get(payload).expect("worker answer has temper parts").clone();
     let Parts { saved, pushed, preparation } = if parts_within(&parts, &domain.limits) { parts } else { Parts::none() };
+    if let Some(crate::Preparation::Conflicted { tag, head }) = &preparation {
+        domain.work.push(Work::Forge(temper_engine_domain_forge::Event::StartConflicted {
+            child: task,
+            tag: *tag,
+            head: *head,
+        }));
+    }
     if let Some(preparation) = preparation
         && domain.facts.try_push(crate::Fact::PreparationFailed { task, attempt, preparation }).is_err()
     {
@@ -329,6 +413,10 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
     if let tasks::MessageKind::SettingsDecision { outcome, .. } = word.kind {
         return settings_decision_words(outcome, &word.words);
     }
+    if let tasks::MessageKind::Escalation { task, revision, .. } = word.kind {
+        return escalation_words(task, revision, &word.words);
+    }
+
     let (label, number) = match word.kind {
         tasks::MessageKind::QuestionAnswered { question } => {
             if let tasks::Party::Task(asker) = word.from
@@ -491,6 +579,28 @@ fn sender(value: tasks::Party) -> Box<[u8]> {
     }
 }
 
+fn escalation_words(task: u64, revision: u64, words: &[u8]) -> Box<[u8]> {
+    let task = Decimal::of(task);
+    let revision = Decimal::of(revision);
+    let parts: [&[u8]; 6] = [
+        words,
+        b"\nHeld task ",
+        task.as_bytes(),
+        b", hold revision ",
+        revision.as_bytes(),
+        b". Use read_task on that task.",
+    ];
+    let mut size = 0_usize;
+    for part in parts {
+        size = size.checked_add(part.len()).expect("bounded escalation envelope");
+    }
+    let mut writer = Writer::new(size);
+    for part in parts {
+        writer.put(part).expect("sized escalation envelope");
+    }
+    writer.finish()
+}
+
 fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Box<[u8]> {
     let number = Decimal::of(match outcome {
         tasks::SettingsOutcome::Accepted { revision } => u64::from(revision),
@@ -516,6 +626,21 @@ fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Bo
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn review_failures_leave_cancellation_and_account_waits_to_the_core() {
+        for failure in [
+            host::RunFailure::Cancelled,
+            host::RunFailure::Stale,
+            host::RunFailure::Limited { account: 1, reset: None },
+            host::RunFailure::Refused { account: 1 },
+        ] {
+            assert_eq!(review_failure(&failure), None);
+        }
+        for failure in [host::RunFailure::Model, host::RunFailure::Policy, host::RunFailure::Budget] {
+            assert!(review_failure(&failure).is_some());
+        }
+    }
 
     #[test]
     fn text_pieces_reach_the_core_with_their_identity_and_offsets() {

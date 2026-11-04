@@ -79,6 +79,14 @@ pub(crate) fn route_connector_repair(
     contract: tasks::Contract,
     holdings: Box<[tasks::Holding]>,
 ) -> Queue<Request> {
+    if seed.budget == 0 {
+        match executor {
+            tasks::Executor::Procedure { .. } => {}
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+                return Queue::uncapped();
+            }
+        }
+    }
     if seed.open_period {
         work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(core.internal(Internal::Admission)),
@@ -217,10 +225,7 @@ pub(crate) fn route_tasks(
 fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
     if let tasks::Event::Message { reply_to, project, task, word } = event {
         let person = match core.tasks.task(task) {
-            Some(row) => match row.requester {
-                tasks::Party::Person(person) => Some(person),
-                tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
-            },
+            Some(row) => core.conversation_requester(row),
             None => None,
         };
         if core.person_answers
@@ -238,6 +243,7 @@ fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
 
 pub(crate) fn result_words(result: tasks::TaskResult) -> Box<[u8]> {
     match result {
+        tasks::TaskResult::Job { .. } => Box::new([]),
         tasks::TaskResult::NoChange { words }
         | tasks::TaskResult::Report { words }
         | tasks::TaskResult::Verdict { words, .. }
@@ -264,6 +270,7 @@ pub(crate) fn ending_words(ending: tasks::Ending) -> Box<[u8]> {
 pub(crate) fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u8]>) {
     match ending {
         tasks::Ending::Done(result) => match result {
+            tasks::TaskResult::Job { bytes } => (tasks::ResultKind::Job, bytes),
             tasks::TaskResult::Approved { state, words } => {
                 let words_present = words.is_some();
                 let words = match words {
@@ -344,7 +351,7 @@ fn tag_tasks(
         | tasks::Request::WriterWaiting { task: None, .. }
         | tasks::Request::EscalationsInspected { .. }
         | tasks::Request::EscalationsRechecked { .. } => {}
-        tasks::Request::Taken { task, holdings } => terminals::taken(task, holdings, out),
+        tasks::Request::Taken { task, holdings } => terminals::taken(core, env, task, holdings, pending, out),
         tasks::Request::EndTopic { task, subscription, connector } => {
             terminals::end_topic(task, subscription, connector, out);
         }

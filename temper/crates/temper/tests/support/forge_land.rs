@@ -9,9 +9,9 @@ use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 pub mod rung;
 
-/// forge-setup's first repository goes into a project of its own, made after
-/// project 1 (tools.md 5.5): work/hello is project 2's.
-const FIRST_PROJECT: &str = "2";
+/// forge-setup's first repository goes into project 1, the first made
+/// (temper/docs/design/client/tools.md, 5.5): work/hello is project 1's.
+const FIRST_PROJECT: &str = "1";
 
 /// The model side: processes a story adds beside the box and ctl.
 #[expect(
@@ -391,6 +391,85 @@ pub fn plan_ended_tasks(calls: &[super::Ended]) -> (usize, [Vec<u64>; 2]) {
     (tasks_at, tasks)
 }
 
+/// The chat's ended delegates and its change's, read whole, a page at a time, by `--after`
+/// and the cursor each page prints (temper/docs/design/domain/testing.md, 2.7).
+pub struct EndedDelegates {
+    project: u64,
+    parents: [u64; 2],
+    parent: usize,
+    pages: usize,
+    tasks: [Vec<u64>; 2],
+}
+
+impl EndedDelegates {
+    /// The pages read in all before the story fails.
+    pub const PAGES: usize = 32;
+
+    /// `parents` is `[chat, change]`.
+    #[must_use]
+    pub fn new(project: u64, parents: [u64; 2]) -> Self {
+        Self { project, parents, parent: 0, pages: 0, tasks: [Vec::new(), Vec::new()] }
+    }
+
+    /// The first read: `task list --project P --parent CHAT --ended --json`.
+    #[must_use]
+    pub fn first(&self) -> Vec<String> {
+        self.page(self.parents[0], None)
+    }
+
+    /// Take the read of the page last asked for: the next read (the same parent's with
+    /// `--after CURSOR` appended, or the change's first), or `None` once both are whole.
+    /// # Errors
+    /// A live delegate (`live` not empty or `live_after` set: "no live delegates"), rows
+    /// missing, a row with no `chip.task`, a page `cut` with no cursor, or a read past
+    /// `PAGES`.
+    pub fn read(&mut self, read: &serde_json::Value) -> Result<Option<Vec<String>>, String> {
+        require(self.pages < Self::PAGES, &format!("ended delegates exceed {}-page bound", Self::PAGES))?;
+        require(self.parent < self.parents.len(), "both ended delegate sets already read whole")?;
+        self.pages += 1;
+        require(read["live"] == serde_json::json!([]) && read["live_after"].is_null(), "no live delegates")?;
+        let ended = &read["ended"]["rows"];
+        let rows = ended["rows"].as_array().ok_or("ended delegate rows missing")?;
+        let after = ended["after"]["value"].as_str();
+        require(ended["cut"] != true || after.is_some(), "ended delegate page cut without a cursor")?;
+        for row in rows {
+            self.tasks[self.parent].push(row["chip"]["task"].as_u64().ok_or("delegate task missing (chip.task)")?);
+        }
+        if let Some(after) = after {
+            return Ok(Some(self.page(self.parents[self.parent], Some(after))));
+        }
+        self.parent += 1;
+        Ok(self.parents.get(self.parent).map(|parent| self.page(*parent, None)))
+    }
+
+    /// Both parents' ended delegates, each sorted; once `read` has answered `None`.
+    #[must_use]
+    pub fn whole(mut self) -> [Vec<u64>; 2] {
+        assert_eq!(self.parent, self.parents.len(), "both ended delegate sets read whole");
+        for tasks in &mut self.tasks {
+            tasks.sort_unstable();
+        }
+        self.tasks
+    }
+
+    fn page(&self, parent: u64, after: Option<&str>) -> Vec<String> {
+        let mut words = vec![
+            "task".to_owned(),
+            "list".to_owned(),
+            "--project".to_owned(),
+            self.project.to_string(),
+            "--parent".to_owned(),
+            parent.to_string(),
+            "--ended".to_owned(),
+            "--json".to_owned(),
+        ];
+        if let Some(after) = after {
+            words.extend(["--after".to_owned(), after.to_owned()]);
+        }
+        words
+    }
+}
+
 #[must_use]
 pub fn ended_tasks(calls: &[super::Ended], parent: u64, expected: &[u64]) -> Vec<u64> {
     let mut tasks = Vec::new();
@@ -661,29 +740,7 @@ pub fn assert_forgejo_setup_after_sign_in(
     let row = super::first_repository::owned_row(&made);
     let number = row["number"].as_u64().expect("forge number");
     if run == "first" {
-        let offered = super::ctl::json(&calls[1]);
-        assert_eq!(offered["forges"], serde_json::json!([]), "a fresh store has no forge records");
-        assert!(!String::from_utf8_lossy(&calls[0].stdout).lines().any(|line| line.starts_with("forge ")));
-        assert_eq!(number, 1, "the first forge record is numbered one");
-        assert!(calls[2].stdout.starts_with(b"setting up\n"));
-        let adoption = String::from_utf8_lossy(&calls[2].stdout);
-        assert!(
-            adoption.contains(&format!("Adopted work/hello on forge {number} as owned.")),
-            "ctl printed the first adoption: {adoption}"
-        );
-        eprintln!("{run} first repository adoption: {adoption}");
-        eprintln!("{run} first repository read: {}", row["first"]);
-        assert_eq!(row["first"]["state"], "made");
-        assert_eq!(row["first"]["project"]["new"], "hello");
-        assert_eq!(row["first"]["org"], "work");
-        assert_eq!(row["first"]["repository"], "hello");
-        assert_eq!(row["first"]["id"], 1, "the script tags the first forge and repository");
-        assert_eq!(row["state"], "connected");
-        // Preparation is silent on success; Forgejo's startup
-        // and the runner's lines reach the box with their step prefixes.
-        for step in [format!("forgejo-{number}: "), format!("runner-{number}: ")] {
-            assert!(stderr.lines().any(|line| line.starts_with(&step)), "group step {step}: {stderr}");
-        }
+        assert_first_setup(run, calls, stderr, row, number);
     } else {
         assert!(
             !stderr.lines().any(|line| line.starts_with("fetch ") || line.contains("download")),
@@ -707,6 +764,33 @@ pub fn assert_forgejo_setup_after_sign_in(
         assert!(!data.join(format!("forge-{number}")).join(name).exists(), "{run}: no forge-{number}/{name}");
     }
     user
+}
+
+fn assert_first_setup(run: &str, calls: &[super::Ended], stderr: &str, row: &serde_json::Value, number: u64) {
+    let offered = super::ctl::json(&calls[1]);
+    assert_eq!(offered["forges"], serde_json::json!([]), "a fresh store has no forge records");
+    assert!(!String::from_utf8_lossy(&calls[0].stdout).lines().any(|line| line.starts_with("forge ")));
+    assert_eq!(number, 1, "the first forge record is numbered one");
+    assert!(calls[2].stdout.starts_with(b"setting up\n"));
+    let adoption = String::from_utf8_lossy(&calls[2].stdout);
+    assert!(
+        adoption.contains(&format!("Adopted work/hello on forge {number} as owned.")),
+        "ctl printed the first adoption: {adoption}"
+    );
+    eprintln!("{run} first repository adoption: {adoption}");
+    eprintln!("{run} first repository read: {}", row["first"]);
+    assert_eq!(row["first"]["state"], "made");
+    assert!(adoption.lines().any(|line| line == "project: 1 · hello"), "{adoption}");
+    assert!(adoption.contains("It is the project's home."), "{adoption}");
+    assert_eq!(row["first"]["org"], "work");
+    assert_eq!(row["first"]["repository"], "hello");
+    assert_eq!(row["first"]["id"], 1, "the script tags the first forge and repository");
+    assert_eq!(row["state"], "connected");
+    // Preparation is silent on success; Forgejo's startup
+    // and the runner's lines reach the box with their step prefixes.
+    for step in [format!("forgejo-{number}: "), format!("runner-{number}: ")] {
+        assert!(stderr.lines().any(|line| line.starts_with(&step)), "group step {step}: {stderr}");
+    }
 }
 
 /// The SUT's cached copy still contains every byte of its pinned source.
@@ -1322,16 +1406,32 @@ pub struct LivePlan<'a> {
 }
 
 impl LivePlan<'_> {
-    fn install_return_hook(&self) {
+    /// The sitting's client directory, `client` beneath the run's root: every ctl call's
+    /// DIRECTORY, the held record's import and give-back included (domain/testing.md, 2.7).
+    #[must_use]
+    pub fn client_directory(&self) -> PathBuf {
+        self.client.join("client")
+    }
+
+    /// Install the held record's give-back in the story's store; `binary` is the temper
+    /// the hook runs.
+    pub fn install_return_hook(&self, binary: &std::path::Path) {
         if let LiveModel::ChatGpt { account: Some(account) } = self.model {
             super::held_login::return_hook(
-                &skein_scratch::paths::binary("temper"),
+                binary,
                 self.paths[0].parent().expect("store"),
-                self.client,
+                &self.client_directory(),
                 account,
             );
         }
     }
+
+    /// The held record's import as the sitting runs it, behind the give-back's lock.
+    #[must_use]
+    pub fn held_import(&self, binary: &std::path::Path, words: &[&str]) -> super::ctl::Call {
+        super::held_login::import_guard(binary, self.paths[0].parent().expect("store"), &self.client_directory(), words)
+    }
+
     fn starting_phase(&self) -> LivePhase {
         if self.first && !self.kept && matches!(self.model, LiveModel::ClaudeCode { .. }) {
             LivePhase::ProgramDeclared
@@ -1446,6 +1546,7 @@ enum LivePhase {
     Progress,
     Snapshot,
     Pages,
+    Ended,
     Closing,
     Done,
     Returning,
@@ -1479,7 +1580,7 @@ struct LiveJudge<'a> {
     phase: LivePhase,
     snapshot: Option<String>,
     replies: std::collections::BTreeMap<u64, serde_json::Value>,
-    tasks_at: usize,
+    ended: Option<EndedDelegates>,
     tools: std::collections::BTreeSet<String>,
     ended_at: Option<u64>,
     pages: usize,
@@ -1577,6 +1678,13 @@ impl LiveJudge<'_> {
                 self.phase = LivePhase::Pages;
             }
             LivePhase::Pages => self.read_page(calls, &last)?,
+            LivePhase::Ended => {
+                if let Some(words) = self.ended.as_mut().ok_or("ended delegate reader missing")?.read(&last)? {
+                    self.pending.push_back(words);
+                } else {
+                    self.queue_closing();
+                }
+            }
             LivePhase::Closing => {
                 self.check_landing(calls)?;
                 self.phase = LivePhase::Done;
@@ -1605,32 +1713,7 @@ impl LiveJudge<'_> {
         let owned = super::first_repository::owned_forge(self.plan.client);
         let number = owned["number"].as_u64().ok_or("forge number missing")?;
         let token = oracle_token(self.plan.paths, self.plan.first, number);
-        if self.plan.first {
-            let pulls = merged_pulls(address, &token);
-            self.baseline = pulls.iter().map(pull_number).collect();
-            if self.plan.kept {
-                // The first-repository offer is transient and closed chats
-                // are unlisted. The owned pull names its root task; ctl's
-                // durable task document supplies the project it belongs to.
-                let me = live_json(&calls.ends()[4])?;
-                self.tasks.project = kept_project(self.plan.client, &me, &pulls)?;
-            } else {
-                let forges = live_json(&calls.ends()[5])?;
-                let forge = super::first_repository::owned_row(&forges);
-                require(
-                    forge["first"]["org"] == "work" && forge["first"]["repository"] == "hello",
-                    "first repository is work/hello",
-                )?;
-                let made = forge["first"]["project"]["new"].as_str().ok_or("first project missing")?;
-                self.tasks.project = live_json(&calls.ends()[7])?["projects"]
-                    .as_array()
-                    .ok_or("person's projects missing")?
-                    .iter()
-                    .find(|row| row["name"]["bytes"] == made)
-                    .and_then(|row| row["project"].as_u64())
-                    .ok_or("made first project missing")?;
-            }
-        }
+        self.setup_project(calls, address, &token, u16::try_from(number).map_err(|_| "forge number invalid")?)?;
         self.token = Some(token);
         if self.plan.first {
             // All fixed setup indices were consumed before these extra reads.
@@ -1650,6 +1733,33 @@ impl LiveJudge<'_> {
             self.wait_round(now)?;
         }
 
+        Ok(())
+    }
+    fn setup_project(
+        &mut self,
+        calls: &super::ctl::Calls,
+        address: std::net::SocketAddr,
+        token: &str,
+        forge: u16,
+    ) -> Result<(), String> {
+        if self.plan.first {
+            let pulls = merged_pulls(address, token);
+            self.baseline = pulls.iter().map(pull_number).collect();
+            if self.plan.kept {
+                let me = live_json(&calls.ends()[4])?;
+                self.tasks.project = read_kept_project(self.plan.client, &me, address, token, forge)?;
+            } else {
+                let forges = live_json(&calls.ends()[5])?;
+                let forge = super::first_repository::owned_row(&forges);
+                require(
+                    forge["first"]["org"] == "work" && forge["first"]["repository"] == "hello",
+                    "first repository is work/hello",
+                )?;
+                let repository = forge["first"]["repository"].as_str().ok_or("first repository missing")?;
+                self.tasks.project =
+                    super::first_repository::project_number(&live_json(&calls.ends()[7])?, repository)?;
+            }
+        }
         Ok(())
     }
     fn settings(&mut self, calls: &super::ctl::Calls) -> Result<(), String> {
@@ -1727,10 +1837,8 @@ impl LiveJudge<'_> {
 
         Ok(())
     }
-    fn read_page(&mut self, calls: &super::ctl::Calls, last: &serde_json::Value) -> Result<(), String> {
+    fn read_page(&mut self, _calls: &super::ctl::Calls, last: &serde_json::Value) -> Result<(), String> {
         let chat = self.tasks.chat.to_string();
-        let change = self.tasks.change.to_string();
-        let project = self.tasks.project.to_string();
         self.pages += 1;
         require(self.pages <= 32, "bounded conversation pages")?;
         let activity = &last["activity"];
@@ -1756,21 +1864,10 @@ impl LiveJudge<'_> {
             self.queue(&["task", "show", &chat, "--json"]);
             self.phase = LivePhase::Snapshot;
         } else {
-            self.tasks_at = calls.ends().len();
-            for parent in [&chat, &change] {
-                self.queue(&["task", "list", "--project", &project, "--parent", parent, "--ended", "--json"]);
-            }
-            if !self.plan.first {
-                let key = format!("close-live-chat-{chat}");
-                for args in [
-                    &["chat", "close", &chat, "--key", &key, "--json"][..],
-                    &["task", "tree", &chat, "--until", "ended", "--timeout", "300s", "--json"],
-                    &["task", "list", "--project", &project, "--json"],
-                ] {
-                    self.queue(args);
-                }
-            }
-            self.phase = LivePhase::Closing;
+            let ended = EndedDelegates::new(self.tasks.project, [self.tasks.chat, self.tasks.change]);
+            self.pending.push_back(ended.first());
+            self.ended = Some(ended);
+            self.phase = LivePhase::Ended;
         }
 
         Ok(())
@@ -1818,21 +1915,7 @@ impl LiveJudge<'_> {
         }
         let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change);
         require(self.tools.contains("change"), "the chat's committed change call succeeded")?;
-        let mut delegates = [Vec::new(), Vec::new()];
-        for (offset, tasks) in delegates.iter_mut().enumerate() {
-            let value = live_json(&calls.ends()[self.tasks_at + offset])?;
-            require(value["live"] == serde_json::json!([]) && value["live_after"].is_null(), "no live delegates")?;
-            let ended = &value["ended"]["rows"];
-            require(ended["cut"] == false, "whole delegate set")?;
-            require(ended["after"].is_null(), "whole delegate set")?;
-            *tasks = ended["rows"]
-                .as_array()
-                .ok_or("ended delegates missing")?
-                .iter()
-                .map(|row| row["chip"]["task"].as_u64().ok_or("delegate task missing"))
-                .collect::<Result<_, _>>()?;
-            tasks.sort_unstable();
-        }
+        let delegates = self.ended.take().ok_or("ended delegate reader missing")?.whole();
         require(delegates[0].contains(&self.tasks.change), "change task belongs to the chat that called change")?;
         require(!self.tools.contains("delegate"), "no raw delegate started the task")?;
         let mut tasks = vec![self.tasks.chat, self.tasks.change];
@@ -1867,6 +1950,21 @@ impl LiveJudge<'_> {
     }
 }
 impl LiveJudge<'_> {
+    fn queue_closing(&mut self) {
+        if !self.plan.first {
+            let chat = self.tasks.chat.to_string();
+            let project = self.tasks.project.to_string();
+            let key = format!("close-live-chat-{chat}");
+            for args in [
+                &["chat", "close", &chat, "--key", &key, "--json"][..],
+                &["task", "tree", &chat, "--until", "ended", "--timeout", "300s", "--json"],
+                &["task", "list", "--project", &project, "--json"],
+            ] {
+                self.queue(args);
+            }
+        }
+        self.phase = LivePhase::Closing;
+    }
     fn queue_delegates(&mut self) {
         self.queue(&["task", "show", &self.tasks.chat.to_string(), "--json"]);
         self.queue(&[
@@ -2191,12 +2289,7 @@ impl LiveJudge<'_> {
             } else if words.starts_with(&["account", "import"])
                 && matches!(self.plan.model, LiveModel::ChatGpt { account: Some(_) })
             {
-                super::held_login::import_guard(
-                    &skein_scratch::paths::binary("temper"),
-                    self.plan.paths[0].parent().expect("store"),
-                    self.plan.client,
-                    &words,
-                )
+                self.plan.held_import(&skein_scratch::paths::binary("temper"), &words)
             } else {
                 super::ctl::Call::new(&words)
             }));
@@ -2299,7 +2392,7 @@ pub fn run_live(
     if let Face::Fake { peer, .. } = &face {
         peer.configure(&plan.paths[0]);
     }
-    plan.install_return_hook();
+    plan.install_return_hook(&skein_scratch::paths::binary("temper"));
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         Command {
@@ -2351,7 +2444,7 @@ pub fn run_live(
         plan,
         snapshot: None,
         replies: std::collections::BTreeMap::new(),
-        tasks_at: 0,
+        ended: None,
         tools: std::collections::BTreeSet::new(),
         ended_at: None,
         pages: 0,
@@ -2491,26 +2584,119 @@ fn client_address(calls: &super::ctl::Calls) -> Result<std::net::SocketAddr, Str
         .map_err(|_| "client listener address".into())
 }
 
-/// Shipped branches are temper/ROOT/NAME (`forge_route::tree_branch`).
-/// Forgejo keeps the branch in head.label after merge (head.ref becomes
-/// refs/pull/N/head). The root's ctl document supplies its project.
-fn kept_project(client: &std::path::Path, me: &serde_json::Value, pulls: &[serde_json::Value]) -> Result<u64, String> {
-    let projects = me["projects"].as_array().ok_or("person's projects missing")?;
-    for pull in pulls.iter().rev() {
-        let Some(root) = pull["head"]["label"]
-            .as_str()
-            .and_then(|branch| branch.strip_prefix("temper/"))
-            .and_then(|branch| branch.split_once('/'))
-            .and_then(|(root, _)| root.parse::<u64>().ok())
-        else {
-            continue;
-        };
-        let read = super::ctl::alone(client, super::ctl::Call::new(&["task", "show", &root.to_string(), "--json"]));
-        require(read.exit == Some(Exit::Code(0)), "kept change read failed")?;
-        let task = live_json(&read)?;
-        let project = task["project"].as_u64().ok_or("kept change project missing")?;
-        require(projects.iter().any(|row| row["project"] == project), "kept change project is visible to the person")?;
-        return Ok(project);
+/// Read durable adoptions even when the kept sitting has never landed a change.
+fn read_kept_project(
+    client: &std::path::Path,
+    me: &serde_json::Value,
+    address: std::net::SocketAddr,
+    token: &str,
+    forge: u16,
+) -> Result<u64, String> {
+    let repository = super::owned::answer(address.port(), "/api/v1/repos/work/hello", Some(token))
+        .map_err(|error| format!("kept work/hello read failed: {error}"))?;
+    let repository = repository["id"]
+        .as_u64()
+        .and_then(|number| u32::try_from(number).ok())
+        .filter(|number| *number != 0)
+        .ok_or("kept work/hello repository number invalid")?;
+    let mut projects = Vec::new();
+    for project in visible_projects(me)? {
+        let read =
+            super::ctl::alone(client, super::ctl::Call::new(&["project", "show", &project.to_string(), "--json"]));
+        require(read.exit == Some(Exit::Code(0)), "kept project read failed")?;
+        let document = live_json(&read)?;
+        require(document["number"] == project, "kept project read names another project")?;
+        projects.push(document);
     }
-    Err("kept deployment lacks a merged work/hello change".into())
+    kept_project(me, &projects, forge, repository)
+}
+
+fn visible_projects(me: &serde_json::Value) -> Result<Vec<u64>, String> {
+    require(me["cut"] == false, "person's projects read is incomplete")?;
+    let mut numbers = Vec::new();
+    for row in me["projects"].as_array().ok_or("person's projects missing")? {
+        let number = row["project"].as_u64().filter(|number| *number != 0).ok_or("person's project number invalid")?;
+        require(!numbers.contains(&number), "person's project number repeated")?;
+        numbers.push(number);
+    }
+    Ok(numbers)
+}
+
+/// Init's forge connector is 1; adoption paths encode forge and repository numbers
+/// as big-endian bytes (`temper-engine-domain/src/route/forge_route.rs`, `report_adoption`).
+fn kept_project(
+    me: &serde_json::Value,
+    projects: &[serde_json::Value],
+    forge: u16,
+    repository: u32,
+) -> Result<u64, String> {
+    let visible = visible_projects(me)?;
+    let part = serde_json::json!({"connector":1,"kind":"resource",
+        "key":{"path":[format!("{forge:04x}"),format!("{repository:08x}")]}});
+    let mut found = None;
+    for project in projects {
+        let number = project["number"].as_u64().ok_or("kept project number missing")?;
+        require(visible.contains(&number), "kept project is not visible to the person")?;
+        require(project["cut"] == false, "kept project's adoptions read is incomplete")?;
+        for resource in project["resources"].as_array().ok_or("kept project's adoptions missing")? {
+            if resource["role"] == "owned" && resource["part"] == part {
+                require(found.is_none(), "kept work/hello adoption is ambiguous")?;
+                found = Some(number);
+            }
+        }
+    }
+    found.ok_or_else(|| "kept deployment lacks an owned work/hello adoption".to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+
+    fn person() -> Value {
+        json!({"projects":[{"project":2,"name":{"bytes":"hello"}},
+            {"project":7,"name":{"bytes":"renamed"}}],"cut":false})
+    }
+
+    fn adopted(project: u64, forge: u16, repository: u32, role: &str) -> Value {
+        json!({"number":project,"resources":[{"role":role,"home":true,
+            "part":{"connector":1,"kind":"resource","key":{"path":[
+                format!("{forge:04x}"),format!("{repository:08x}")]}}}],"cut":false})
+    }
+
+    #[test]
+    fn a_kept_deployment_with_no_merged_pulls_can_find_its_project() {
+        let projects = [adopted(2, 1, 9, "owned"), adopted(7, 3, 42, "owned")];
+        assert_eq!(super::kept_project(&person(), &projects, 3, 42), Ok(7));
+    }
+
+    #[test]
+    fn a_kept_project_matches_the_owned_adoptions_identity() {
+        for (forge, repository, role) in [(1, 42, "owned"), (3, 9, "owned"), (3, 42, "context")] {
+            let projects = [adopted(7, forge, repository, role)];
+            assert!(super::kept_project(&person(), &projects, 3, 42).is_err());
+        }
+        let mut project = adopted(7, 3, 42, "owned");
+        project["resources"][0]["part"]["connector"] = json!(2);
+        assert!(super::kept_project(&person(), &[project], 3, 42).is_err());
+    }
+
+    #[test]
+    fn a_kept_project_requires_complete_visible_unambiguous_adoptions() {
+        let project = adopted(7, 3, 42, "owned");
+        for me in [
+            json!({}),
+            json!({"projects":[],"cut":false}),
+            json!({"projects":[{"project":7}],"cut":true}),
+            json!({"projects":[{"project":0}],"cut":false}),
+        ] {
+            assert!(super::kept_project(&me, std::slice::from_ref(&project), 3, 42).is_err());
+        }
+        let projects = [adopted(2, 3, 42, "owned"), project.clone()];
+        assert!(super::kept_project(&person(), &projects, 3, 42).is_err());
+        for key in ["cut", "resources", "number"] {
+            let mut incomplete = project.clone();
+            incomplete.as_object_mut().expect("project").remove(key);
+            assert!(super::kept_project(&person(), &[incomplete], 3, 42).is_err());
+        }
+    }
 }

@@ -69,6 +69,9 @@ fn newer(kept: &mut Kept, grant: Grant, now: Time) -> bool {
 pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, grant: Grant, out: &mut Queue<Request>) {
     for (_, &id) in &domain.names {
         let attempt = domain.attempts.get_mut(id).expect("a named attempt is tracked");
+        if attempt.job.is_some() {
+            continue;
+        }
         match attempt.state {
             State::Waiting { .. } | State::Adopted { .. } | State::Claimed { .. } => {}
             State::Cancelled { .. }
@@ -103,6 +106,9 @@ pub(crate) fn resend(
     now: Time,
     out: &mut Queue<Request>,
 ) {
+    if attempt.job.is_some() {
+        return;
+    }
     let State::Claimed { at: Where::On(channel), .. } = attempt.state else { return };
     let channel = channels.get(channel).expect("a claimed channel is connected").token;
     for kept in &attempt.grants {

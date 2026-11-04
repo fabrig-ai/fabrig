@@ -69,8 +69,7 @@ impl Referee<Process> for Judge {
                         || line == "smith: agent started"
                         || line == "smith: commands run in process groups and are not contained"
                         || line == "smith: chat chat"
-                        || trust_notice(line)
-                        || unused_preset_notice(line))),
+                        || trust_notice(line))),
                     "live Smith emitted an unexpected diagnostic; credential-bearing bytes are withheld"
                 );
             }
@@ -161,11 +160,7 @@ pub fn run_fake(scratch: &Scratch, scenario: &smith_local_process_world::world::
         if change { "change it" } else { "hello" },
         change,
         Expectation { before: change.then(|| scratch.checkout().head().expect("initial head")), files },
-        Some(scenario.provider_with(skein_llm::Credential {
-            value: token,
-            account_id: b"acc".as_slice().into(),
-            scheme: skein_llm::Scheme::Bearer,
-        })),
+        Some(scenario.provider_with(skein_llm::Credential::bearer(token))),
     );
 }
 
@@ -228,11 +223,5 @@ fn trust_notice(line: &str) -> bool {
                 .iter()
                 .zip([" taken", " skipped", " malformed blocks", " other blocks"])
                 .all(|(field, suffix)| field.strip_suffix(suffix).is_some_and(|count| count.parse::<u32>().is_ok()))
-    })
-}
-
-fn unused_preset_notice(line: &str) -> bool {
-    ["codex", "anthropic"].iter().any(|account| {
-        line == format!("smith: warning: {}", smith_local_shell::credentials::Credential::NotSignedIn.line(account))
     })
 }

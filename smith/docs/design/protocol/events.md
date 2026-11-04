@@ -164,7 +164,7 @@ also writes an `operator` notice saying that usage could not be read.
 | `messages` | integer | the start's messages (domain/run.md, 3.2) |
 | `main` | model | main's LLM (3.10) |
 | `budget` | object | `turns`, `spend`, `time_ms`, and `reserve`: `turns`, `time_ms` and its derived `spend` (domain/run.md, 9.1) |
-| `tools` | object | `families` granted, as a list of `inspect`, `modify`, `shell` and `sub_agents`; `withheld`, the granted families the run does not offer, `sub_agents` on a program backend (programs.md, section 2); `wait` and `deliver`, bools; `host`, the host tools declared |
+| `tools` | object | `families` granted, as a list of `inspect`, `modify`, `shell` and `sub_agents`; `withheld`, the granted families the run does not offer, none on either backend (programs.md, section 2); `wait` and `deliver`, bools; `host`, the host tools declared |
 | `contract` | list | the result forms the contract allows: `report`, `verdict`, `change`, `failure` |
 
 **`run.completed`**, authoritative, once per run, also for a start

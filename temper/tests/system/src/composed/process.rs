@@ -439,7 +439,20 @@ fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
         run::Answer::Failed { failure: run::Failure::Cancelled, spent, turns } => {
             (turns, spent.units, agent::RunResult::Failed { failure: agent::RunFailure::Cancelled })
         }
-        other @ (run::Answer::Refused(_) | run::Answer::Failed { .. }) => panic!("unscripted Smith ending: {other:?}"),
+        run::Answer::Failed { failure, spent, turns } => {
+            let failure = match failure {
+                run::Failure::Policy(run::Policy::Unfinished { nudges, rejected }) => {
+                    agent::RunFailure::Policy(agent::Policy::Unfinished { nudges, rejected })
+                }
+                run::Failure::Model(_) => agent::RunFailure::Model(agent::ModelFault::Provider),
+                other @ (run::Failure::Transcript(_)
+                | run::Failure::Budget { .. }
+                | run::Failure::Cancelled
+                | run::Failure::Stale) => panic!("unscripted Smith failure: {other:?}"),
+            };
+            (turns, spent.units, agent::RunResult::Failed { failure })
+        }
+        run::Answer::Refused(other) => panic!("unscripted Smith refusal: {other:?}"),
     }
 }
 

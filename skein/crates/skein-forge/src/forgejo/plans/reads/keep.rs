@@ -30,6 +30,8 @@ pub(super) fn keep_row(row: &d::Row, forge: u16, tables: &mut Tables) {
         | d::Row::Entry { .. }
         | d::Row::File(_)
         | d::Row::Commit(_)
+        | d::Row::Artifact(_)
+        | d::Row::CommitMessage(_)
         | d::Row::TreeEntry(_)
         | d::Row::Run(_)
         | d::Row::Hook(_)
@@ -104,6 +106,9 @@ pub(super) fn page_bound(request: &Request) -> Option<u32> {
         | Request::Permission { .. }
         | Request::Compare { .. }
         | Request::Contents { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::Run { .. }
         | Request::Job { .. }
@@ -167,6 +172,8 @@ pub fn long(heard: &Heard) -> bool {
             | d::Row::Entry { .. }
             | d::Row::File(_)
             | d::Row::Commit(_)
+            | d::Row::Artifact(_)
+            | d::Row::CommitMessage(_)
             | d::Row::TreeEntry(_)
             | d::Row::Run(_)
             | d::Row::Hook(_)

@@ -523,9 +523,6 @@ fn decode(
     if input.len() > usize::try_from(limits.stated.call_input_bytes).expect("call input cap") {
         return llm::Decoded::Invalid { problem: llm::Problem::TooLarge };
     }
-    if name == b"sub_agent" {
-        return llm::Decoded::Invalid { problem: llm::Problem::UnknownTool };
-    }
     for served in &prompt.served {
         match served {
             llm::Served::Finish if name == b"finish" => return protocol::decode_finish(input, outcome, limits),
@@ -558,7 +555,18 @@ fn decode(
             | llm::Served::SubAgent => {}
         }
     }
-    protocol::decode(name, input, prompt.tools, &prompt.served, prompt.asker, limits)
+    let decoded = protocol::decode(name, input, prompt.tools, &prompt.served, prompt.asker, limits);
+    match &decoded {
+        llm::Decoded::Served { ask: run::Ask::SubAgent { families, .. } }
+            if families.tools.modify || families.tools.shell =>
+        {
+            llm::Decoded::Invalid { problem: llm::Problem::BadValue { field: b"tools".as_slice().into() } }
+        }
+        llm::Decoded::Served { .. }
+        | llm::Decoded::Owned { .. }
+        | llm::Decoded::Builtin { .. }
+        | llm::Decoded::Invalid { .. } => decoded,
+    }
 }
 
 fn token_kind(document: &skein_json::Document, index: Option<u32>) -> Option<Kind> {

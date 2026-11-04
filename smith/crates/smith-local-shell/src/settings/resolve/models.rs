@@ -71,7 +71,7 @@ pub(in crate::settings) fn resolve(settings: &mut Settings, active: &[String]) -
         let prefix = format!("endpoints.{}", super::super::name(endpoint));
         let dialect = text(settings, &format!("{prefix}.dialect"))?.to_string();
         let default_idle = match dialect.as_str() {
-            "openai" | "codex" => 300,
+            "openai" => 300,
             "anthropic" => 120,
             _ => return Err(input::refuse(settings, &format!("{prefix}.dialect"), "unsupported dialect")),
         };

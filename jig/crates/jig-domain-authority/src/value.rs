@@ -96,7 +96,7 @@ impl Models {
     #[must_use]
     pub const fn run_by(self, executor: Executor) -> Self {
         match executor {
-            Executor::Procedure(_) => Self::NONE,
+            Executor::Procedure(_) | Executor::Job(_) => Self::NONE,
             Executor::Charter(_) | Executor::Role(_) => self,
         }
     }
@@ -178,6 +178,8 @@ pub enum Last {
 /// retained here. (domain/authority.md, sections 3–5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Executor {
+    /// Permission to delegate to an application job kind (jig/docs/design/domain/authority.md, 3).
+    Job(u32),
     /// An agent running a configured charter.
     Charter(u32),
     /// A configured procedure executor.

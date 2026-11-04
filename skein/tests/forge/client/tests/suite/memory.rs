@@ -26,6 +26,8 @@ enum Asked {
     Review,
     Merge,
     Compare(api::Commit, api::Commit),
+    Artifact,
+    Commits,
     Done,
 }
 struct Measured {
@@ -35,6 +37,7 @@ struct Measured {
     calls: Queue<Call>,
     meter: Meter,
     ceiling: u64,
+    peak: u64,
 }
 impl Measured {
     fn new(limits: Limits, ceiling: u64) -> Measured {
@@ -51,7 +54,15 @@ impl Measured {
         );
         let domain =
             Domain::configured(&limits, 0, client::Config { namespace, writers }).expect("bounded root config");
-        Measured { domain, env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, out, calls, meter, ceiling }
+        Measured {
+            domain,
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            out,
+            calls,
+            meter,
+            ceiling,
+            peak: 0,
+        }
     }
     fn event(&mut self, event: Event) {
         self.meter.start();
@@ -83,7 +94,7 @@ impl Measured {
                 | Request::OutboxDone => {}
             }
         }
-        self.meter.check(measured, self.ceiling, &self.env.limits);
+        self.peak = self.peak.max(self.meter.check(measured, self.ceiling, &self.env.limits));
         self.domain.reclaim();
     }
     fn answer(&mut self, call: Call) {
@@ -141,6 +152,20 @@ impl Measured {
                 files: Box::new([]),
                 commits: Box::new([]),
             },
+            Asked::Artifact => api::Answer::File {
+                head: [1; 32],
+                path: Box::from(*b"failed.txt"),
+                bytes: bytes(self.env.limits.answer_bytes - FAILED_PATH_BYTES, b'a'),
+                truncated: true,
+            },
+            Asked::Commits => api::Answer::Commits {
+                commits: Box::new([api::CommitMessage {
+                    id: [3; 32],
+                    parents: Box::new([[1; 32], [2; 32]]),
+                    message: bytes(self.env.limits.answer_bytes - MERGE_MESSAGE_OVERHEAD, b'm'),
+                }]),
+                more: false,
+            },
             Asked::Done => api::Answer::Done,
         };
         self.event(Event::Answered { call: call.token, cost: 1, free: 0, rate: None, result: Ok(result) });
@@ -165,6 +190,8 @@ fn asked(op: &api::Op) -> Asked {
             api::Read::Pull { number } => Asked::Pull(*number),
             api::Read::Reviews { .. } => Asked::Reviews,
             api::Read::Branch { .. } => Asked::Branch,
+            api::Read::Artifact { .. } => Asked::Artifact,
+            api::Read::Commits { .. } => Asked::Commits,
             api::Read::Compare { before, after } => Asked::Compare(*before, *after),
             api::Read::Locate { .. }
             | api::Read::PullFor { .. }
@@ -361,3 +388,23 @@ fn restore_participants(m: &mut Measured, limits: Limits) -> Box<[Watch]> {
     }
     watches.into_boxed()
 }
+
+#[test]
+#[expect(clippy::print_stdout, reason = "report the measured client peak beside its ceiling")]
+fn artifacts_and_full_commit_messages_fit_the_memory_bound() {
+    // Peak 2992 bytes, plus a quarter, rounded up to two significant digits.
+    const CEILING: u64 = 3_800;
+    let mut measured = Measured::new(LIMITS, CEILING);
+    for (owner, read) in [
+        (1, api::Read::Artifact { run: 1, name: bytes(LIMITS.op_bytes, b'a'), max_bytes: LIMITS.answer_bytes }),
+        (2, api::Read::Commits { before: [1; 32], after: [3; 32], page: 1 }),
+    ] {
+        measured.event(Event::Read { owner: Token::new(owner), repository: REPO, read });
+        measured.drive();
+    }
+    println!("artifact and commits client peak={} ceiling={CEILING}", measured.peak);
+}
+
+// failed.txt is ten bytes. A native commit slot and its two 32-byte parents precede the message.
+const FAILED_PATH_BYTES: u32 = 10;
+const MERGE_MESSAGE_OVERHEAD: u32 = 64 + 2 * 32;

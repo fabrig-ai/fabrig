@@ -12,6 +12,7 @@ pub const ATTEMPT: Token = Token::new(3);
 
 pub fn hello() -> host::Hello {
     host::Hello {
+        jobs: Box::default(),
         slots: 2,
         stop_bound: Duration::from_secs(10),
         workstreams: Box::new([4, 5]),
@@ -87,6 +88,8 @@ pub fn env() -> Env<Limits> {
             connector: jig_test_connector_world::LIMITS,
             routes: 512,
             watermark: crate::default_watermark(&journal),
+            public_watermark: crate::default_watermark(&journal).checked_div(2).expect("half the watermark"),
+            public_reads: 0,
             journal,
         },
     }
@@ -110,6 +113,8 @@ pub fn domain() -> Domain {
             first: jig_test_connector_world::config(1),
             second: jig_test_connector_world::config(2),
             core: core::Config {
+                jobs: Box::new([]),
+                kept_starts: Box::new([]),
                 worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
                 deployment: [1; 16],
                 seed: 1,
@@ -138,8 +143,11 @@ pub fn domain() -> Domain {
                         }]),
                     },
                 },
+                kinds: Box::default(),
                 defaults: core::settings::Defaults {
                     charters: Box::new([core::Charter {
+                        wake: jig_domain_tasks::WakePolicy::DEFAULT,
+                        documents: Box::new([]),
                         number: 1,
                         hosts: fleet::Kinds::Workers,
                         spend: 37,
@@ -184,7 +192,7 @@ pub fn run() -> Box<core::RunCharter> {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(10),
             model: core::Model {
-                dialect: 1,
+                dialect: 3,
                 endpoint: 1,
                 program: None,
                 name: b"small".as_slice().into(),
@@ -204,6 +212,7 @@ pub fn run() -> Box<core::RunCharter> {
             shell: false,
             agents: false,
             call_timeout: Duration::from_secs(10),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     })
 }

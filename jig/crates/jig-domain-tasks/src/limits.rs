@@ -1,6 +1,10 @@
 //! Root-configured admission and edge limits (domain/tasks.md, section 10).
 use crate::{Class, Retries};
 
+/// Maximum fields in one verdict, equal to the settings-v1 schema's `list 512` ceiling
+/// (domain/tasks.md, section 11).
+pub const VERDICT_FIELDS: u32 = 512;
+
 /// Immutable root-configured limits for live task state, finite sources, owned semantic payloads
 /// and retry policies; validate through `valid` before construction. (domain/tasks.md, section 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -87,6 +91,8 @@ pub struct Limits {
     pub contract_choices: u32,
     /// Maximum retained configured agent-charter numbers.
     pub charters: u32,
+    /// Maximum documents per charter (domain/engine.md, 17.9).
+    pub charter_documents: u32,
     /// Charter versions held besides the newest view.
     pub versions: u32,
     /// Settings revisions held besides the newest.

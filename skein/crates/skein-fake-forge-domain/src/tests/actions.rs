@@ -357,6 +357,10 @@ fn dispatch_harness(config: Config, jobs: &[&[u8]]) -> Harness {
     let mut configured = setup();
     configured.checks.contexts = Box::new([]);
     configured.workflows = Box::new([crate::api::Workflow {
+        fails: Box::new([]),
+        flaky: Box::new([]),
+        report: None,
+        select: None,
         file: copy_of(b"gate.yml"),
         jobs: names(jobs),
         latency_min: Duration::from_secs(10),

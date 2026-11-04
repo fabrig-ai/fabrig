@@ -95,10 +95,6 @@ impl Core {
     /// Decide a run against current policy, funds, account usability and
     /// connector-translated workspace writes.
     #[must_use]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one run answer preserves deadline, budget, writer and readiness precedence"
-    )]
     pub fn run_admission(&self, task: &tasks::RunContext, wall: Wall, writes: Box<[authority::Write]>) -> RunAdmission {
         let Some(task) = self.tasks.run_context(task.task) else { return RunAdmission::Wait(crate::RunWait::Host) };
         let choice = self.run_choice(task.task);
@@ -145,67 +141,13 @@ impl Core {
                 choice.accounts = accounts;
                 RunAdmission::Allow(Box::new(crate::RunAllowance { choice, spend }))
             }
-            authority::RunAnswer::Wait | authority::RunAnswer::Propose | authority::RunAnswer::Refuse => {
-                let mut account = false;
-                let mut hold = None;
-                for _ in 0..findings.len() {
-                    match findings.pop().expect("authority finding count") {
-                        authority::Finding::Account => account = true,
-                        authority::Finding::Deadline => hold = Some(tasks::Hold::Deadline),
-                        authority::Finding::RunBudget
-                        | authority::Finding::RunCap
-                        | authority::Finding::Arithmetic
-                        | authority::Finding::Spend { .. }
-                        | authority::Finding::Price { .. } => {
-                            if hold != Some(tasks::Hold::Deadline) {
-                                hold = Some(tasks::Hold::Budget);
-                            }
-                        }
-                        authority::Finding::ResourceUnavailable => {
-                            if hold.is_none()
-                                || hold == Some(tasks::Hold::Effects)
-                                || hold == Some(tasks::Hold::ResourceAccess)
-                            {
-                                hold = Some(tasks::Hold::ResourceUnavailable);
-                            }
-                        }
-                        authority::Finding::ResourceAccess => {
-                            if hold.is_none() || hold == Some(tasks::Hold::Effects) {
-                                hold = Some(tasks::Hold::ResourceAccess);
-                            }
-                        }
-                        authority::Finding::Oversized
-                        | authority::Finding::UnknownProject
-                        | authority::Finding::UnknownRole
-                        | authority::Finding::Authority { .. }
-                        | authority::Finding::Executor { .. }
-                        | authority::Finding::Tasks { .. }
-                        | authority::Finding::Writer
-                        | authority::Finding::Tool
-                        | authority::Finding::Grant { .. }
-                        | authority::Finding::Reference
-                        | authority::Finding::Scope { .. }
-                        | authority::Finding::Required { .. }
-                        | authority::Finding::Failed { .. }
-                        | authority::Finding::Unguarded { .. }
-                        | authority::Finding::Unpermitted
-                        | authority::Finding::Undecidable
-                        | authority::Finding::PeriodSpend => {
-                            if hold.is_none() {
-                                hold = Some(tasks::Hold::Effects);
-                            }
-                        }
-                    }
-                }
-                match hold {
-                    Some(why) => RunAdmission::Hold(why),
-                    None if account => RunAdmission::Wait(match choice {
-                        Err(wait) => wait,
-                        Ok(_) => crate::RunWait::Credential,
-                    }),
-                    None => RunAdmission::Hold(tasks::Hold::Effects),
-                }
-            }
+            authority::RunAnswer::Wait | authority::RunAnswer::Propose | authority::RunAnswer::Refuse => denied(
+                &mut findings,
+                match choice {
+                    Err(wait) => wait,
+                    Ok(_) => crate::RunWait::Credential,
+                },
+            ),
         }
     }
 
@@ -423,6 +365,16 @@ pub struct RunPolicy {
     pub shell: bool,
     pub agents: bool,
     pub call_timeout: skein_lib::Duration,
+    /// The host families its runs are offered, a mask of the configured `ToolFamilies` as a
+    /// task's authority's tools are; a family it or the task's authority leaves out is not
+    /// offered (domain/engine.md, 7.1).
+    pub tools: jig_domain_tasks::Tools,
+}
+
+impl RunPolicy {
+    /// Every family: the identity under a task's authority, and what a decoder whose
+    /// record carries no mask fills in.
+    pub const EVERY_FAMILY: jig_domain_tasks::Tools = jig_domain_tasks::Tools(u64::MAX);
 }
 
 /// The root's complete task-specific charter, kept behind one bounded
@@ -522,5 +474,62 @@ impl Core {
     pub(crate) fn run_reserve(&self, task: u64) -> u64 {
         // No spend holds a reserve beyond the numbers' range, so no run of it starts.
         reserve_floor(&self.chosen_policy(task)).unwrap_or(u64::MAX)
+    }
+}
+
+/// Map admission findings with the run's deadline, funding and resource precedence.
+pub(crate) fn denied(findings: &mut Queue<authority::Finding>, wait: crate::RunWait) -> RunAdmission {
+    let mut account = false;
+    let mut hold = None;
+    for _ in 0..findings.len() {
+        match findings.pop().expect("authority finding count") {
+            authority::Finding::Account => account = true,
+            authority::Finding::Deadline => hold = Some(tasks::Hold::Deadline),
+            authority::Finding::RunBudget
+            | authority::Finding::RunCap
+            | authority::Finding::Arithmetic
+            | authority::Finding::Spend { .. }
+            | authority::Finding::Price { .. } => {
+                if hold != Some(tasks::Hold::Deadline) {
+                    hold = Some(tasks::Hold::Budget);
+                }
+            }
+            authority::Finding::ResourceUnavailable => {
+                if hold.is_none() || hold == Some(tasks::Hold::Effects) || hold == Some(tasks::Hold::ResourceAccess) {
+                    hold = Some(tasks::Hold::ResourceUnavailable);
+                }
+            }
+            authority::Finding::ResourceAccess => {
+                if hold.is_none() || hold == Some(tasks::Hold::Effects) {
+                    hold = Some(tasks::Hold::ResourceAccess);
+                }
+            }
+            authority::Finding::Oversized
+            | authority::Finding::UnknownProject
+            | authority::Finding::UnknownRole
+            | authority::Finding::Authority { .. }
+            | authority::Finding::Executor { .. }
+            | authority::Finding::Tasks { .. }
+            | authority::Finding::Writer
+            | authority::Finding::Tool
+            | authority::Finding::Grant { .. }
+            | authority::Finding::Reference
+            | authority::Finding::Scope { .. }
+            | authority::Finding::Required { .. }
+            | authority::Finding::Failed { .. }
+            | authority::Finding::Unguarded { .. }
+            | authority::Finding::Unpermitted
+            | authority::Finding::Undecidable
+            | authority::Finding::PeriodSpend => {
+                if hold.is_none() {
+                    hold = Some(tasks::Hold::Effects);
+                }
+            }
+        }
+    }
+    match hold {
+        Some(why) => RunAdmission::Hold(why),
+        None if account => RunAdmission::Wait(wait),
+        None => RunAdmission::Hold(tasks::Hold::Effects),
     }
 }

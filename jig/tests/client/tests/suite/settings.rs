@@ -17,11 +17,11 @@ impl Story {
         for _ in 0..128 {
             if let Some(event) = events.pop_front() {
                 let mut out = Queue::uncapped();
-                self.client.step(self.now, Wall::EPOCH, event, &mut out);
+                self.client.step_unlinked(self.now, Wall::EPOCH, event, &mut out);
                 while let Some(request) = out.pop() {
                     match request {
-                        client::Request::Told { told } => self.told.push(told),
-                        client::Request::Down { down } => match down {
+                        client::UnlinkedRequest::Told { told } => self.told.push(told),
+                        client::UnlinkedRequest::Down { down } => match down {
                             client::Down::Open { watch, subject: client::Watchable::Jig(subject) } => {
                                 self.engine.open(self.now, 11, watch, subject).expect("valid public story fixture");
                             }
@@ -40,14 +40,9 @@ impl Story {
                             | client::Down::Open { .. }
                             | client::Down::Read { .. }) => panic!("unexpected public down: {other:?}"),
                         },
-                        other @ (client::Request::Exchange { .. }
-                        | client::Request::OpenStream { .. }
-                        | client::Request::CloseStream
-                        | client::Request::Save { .. }
-                        | client::Request::Erase { .. }
-                        | client::Request::SignOut
-                        | client::Request::Authorized(_)
-                        | client::Request::ServiceCredential { .. }) => panic!("unexpected public request: {other:?}"),
+                        other @ (client::UnlinkedRequest::SignOut | client::UnlinkedRequest::Authorized(_)) => {
+                            panic!("unexpected public request: {other:?}")
+                        }
                     }
                 }
             }
@@ -105,7 +100,9 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     setup.truth.setting_values.push(c::SettingDocument {
         setting: c::Setting::Rules,
         revision: 6,
-        value: settings_values.pop().expect("valid public story fixture"),
+        value: Some(settings_values.pop().expect("valid public story fixture")),
+        application: None,
+        proposed: None,
     });
     setup.truth.revisions.insert(6, c::RevisionAnswer::Revision(values::settings_revision()));
     setup.truth.revision_pages.insert(None, values::settings_page());

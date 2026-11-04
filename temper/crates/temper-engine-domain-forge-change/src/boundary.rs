@@ -132,9 +132,11 @@ pub enum Hold {
     Rejected,
     /// The next delegate is beyond the change's remaining authority.
     Authority(AuthorityHold),
+    /// Another question would exceed the change's bound.
+    Questions,
 }
 
-/// A change's committed place on its way to landing.
+/// A change's committed place through verification (temper/docs/design/domain/after-landing.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum State {
     /// A producing delegate has yet to push the branch.
@@ -167,14 +169,20 @@ pub enum State {
     Repairing { requested: bool, why: Repair },
     /// A merge at the named head is outstanding.
     Landing { head: Commit },
-    /// The pull request merged at this commit.
-    Landed { merge: Commit },
+    /// Merged at this commit and verifying; `since` is when the top first saw the merge.
+    Landed { merge: Commit, since: Wall },
     /// The producer concluded that the request does not apply, with no landing.
     NoChange { words: Box<[u8]> },
     /// The task ended after its outstanding effects and holdings settled.
     Ended,
     /// No write is made until a release lifts this cause.
     Held { was: Box<State>, why: Hold },
+    /// A tier blames this landing; wait for its failures to be repaired.
+    Red { merge: Commit, since: Wall },
+    /// Every tier following its branch cleared this landing.
+    Cleared { merge: Commit },
+    /// The verification bound expired or the verifying change was cancelled.
+    Uncleared { merge: Commit },
 }
 
 /// How the change's project lands (domain/landing.md, 1; domain/forge.md, 8.2).
@@ -184,9 +192,47 @@ pub enum Way {
     Turn,
 }
 
+/// A pending dependency of the change as the top reads it each step
+/// (temper/docs/design/domain/forge.md, 8.11).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Pending {
+    pub task: u64,
+    pub kind: PendingKind,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PendingKind {
+    /// A change into the same repository and landing branch: its pushed head, if any, and
+    /// whether it is itself kept by a pending dependency.
+    Change { head: Option<Commit>, kept: bool },
+    /// A change into another repository: it orders the landings alone.
+    Elsewhere,
+    /// Anything else: no head to start from, so the producer waits for it to be done.
+    Other,
+}
+
+/// One dependency's pushed head a producer started from.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct StartedFrom {
+    pub task: u64,
+    pub head: Commit,
+}
+
+/// The change's early start (temper/docs/design/domain/forge.md, 8.11).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Early {
+    /// No producer has started early.
+    None,
+    /// Its producer started from the landing branch's tip with these heads merged in, in order.
+    Started(Box<[StartedFrom]>),
+    /// Its early start is spent: refused for a conflict, or its early producer ended failed.
+    Spent(Box<[StartedFrom]>),
+}
+
 /// The top-owned procedure record for one change task.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
+    pub early: Early,
     pub task: u64,
     pub way: Way,
     /// Its landing's task, once it is a member (domain/landing.md, 4.2).
@@ -236,10 +282,26 @@ pub enum Ask {
     Repair { gate: u16, candidate: Commit },
 }
 
+/// What the top reads of the landing's verification each step
+/// (temper/docs/design/domain/after-landing.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Verification {
+    /// No tier follows its landing branch, or it has not landed.
+    Unfollowed,
+    /// Some tier following its branch has not judged it yet.
+    Verifying,
+    /// A tier blames it and no later run has passed those failures.
+    Red,
+    /// Every tier following its branch cleared it.
+    Cleared,
+}
+
 /// Fresh forge and queue facts gathered by the top.
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// Pending dependencies in the order of the change's dependencies.
+    pub pending: Box<[Pending]>,
     /// Its landing's current request; absent under queue.
     pub ask: Option<Ask>,
     pub branch: Option<Commit>,
@@ -249,19 +311,38 @@ pub struct Facts {
     pub base_ci: Ci,
     pub base_tip: Commit,
     pub contains_base: Status,
+    /// Whether a merge job is configured, declared and authorized (temper/docs/design/domain/forge.md, 8.4).
+    pub merge_job: bool,
+    /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
+    /// `None` when it has none.
+    pub delegate: Option<Delegate>,
+    /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
+    pub catch_up: Option<Commit>,
+    /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge.md, 8.2).
+    pub contains_catch_up: Status,
+    /// Whether its landing branch's rules ask up to date (domain/forge.md, 8.7).
+    pub updates: bool,
     pub mergeable: Status,
     pub gates: Box<[GateReport]>,
     /// The head of the top's outstanding gate delegate, until its terminal result.
     pub live_gate: Option<Commit>,
     pub writer_taken: bool,
+    /// Its branch is its requester's held branch (domain/forge.md, 8.1): a move with no
+    /// drift and no writer in the slot is its new head, checked again (8.5).
+    pub requester_branch: bool,
     pub drift: Option<Hold>,
     pub first: bool,
     pub may_merge: bool,
     pub queue_repair_active: bool,
     /// The task has a pending dependency (jig's `domain/tasks.md`, 5.7), so it is not ready.
     pub kept: bool,
+    /// An open question of the change's current agent stands (domain/forge.md, 8.4 and 8.11).
+    pub asking: bool,
     /// The end of the window Forgejo is still settling in, when open.
     pub settling: Option<Wall>,
+    pub verification: Verification,
+    /// The project's `verification_bound` (temper/docs/design/protocol/configuration.md, 3).
+    pub verification_bound: Duration,
 }
 
 /// Committed delegate and effect results supplied by the top.
@@ -291,6 +372,8 @@ pub struct DelegateSpend {
 /// Current task and effect standing, independent of the wake trigger.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Heard {
+    /// The head its live producing delegate conflicted on, until that delegate ends.
+    pub start_conflict: Option<Commit>,
     /// Current authority, translated from jig's live accounting.
     pub lacking: Option<AuthorityHold>,
     pub spend: Option<DelegateSpend>,
@@ -311,6 +394,8 @@ pub enum Delegate {
     Resolve { base: Commit },
     /// Obtain a gate's verdict at the current head.
     Gate { number: u64, head: Commit },
+    /// Merge `base` into the head `from`, absent for a catch-up (temper/docs/design/domain/forge.md, 8.4).
+    Merge { base: Commit, from: Option<Commit> },
 }
 
 /// The effect the top should commit after checking authority.
@@ -345,6 +430,8 @@ pub enum Decision {
     Effect(Effect),
     /// Cancel live gate delegates at the head whose CI failed.
     CancelGates { head: Commit },
+    /// Cancel the live producing delegate: its early start conflicted (domain/forge.md, 8.11).
+    CancelProducer,
     /// Tell the top this change is ready for its queue or landing.
     Ready,
     /// Ask the top for the branch's one queue repair.
@@ -366,15 +453,69 @@ pub struct Stepped {
     pub decision: Decision,
 }
 
-/// Bounds on delegates, updates, stalls and supplied gate facts.
+/// Bounds on delegates, updates, stalls and supplied gate facts
+/// (temper/docs/design/domain/agent.md, 4.3.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub repairs: u32,
     pub resolutions: u32,
     pub updates: u32,
+    /// Questions a change takes from its making or its last release (domain/forge.md, 8.11).
+    pub questions: u32,
+    /// Tasks a change's delegate may make beside its foremen.
+    pub tasks: u32,
     pub stall: Duration,
     pub gates: u32,
     pub clean_heads: u32,
+}
+
+/// How a change takes its agents' questions (domain/forge.md, 8.11).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+pub enum Route {
+    #[default]
+    None,
+    Foreman,
+    Up,
+}
+
+/// Open questions a change's record keeps at most (domain/forge.md, 8.11).
+pub const QUESTIONS_OPEN: usize = 16;
+/// Bytes of a question's first line kept on the record and shown on the panel.
+pub const QUESTION_LINE: usize = 256;
+
+/// A change's relay of its agents' questions (domain/forge.md, 8.11).
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
+pub struct Questions {
+    pub route: Route,
+    /// Questions taken since the change was made or last released.
+    pub taken: u32,
+    /// Open questions in the order taken; the first is the one being worked.
+    pub open: Box<[Open]>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Open {
+    /// The asking task: the change's producing task, a repair or a resolution.
+    pub asker: u64,
+    /// The question's number in the change's inbox, which its answer names.
+    pub number: u64,
+    /// Its words' first line, at most `QUESTION_LINE` bytes, cut on a UTF-8 boundary, marked "…".
+    pub line: Box<[u8]>,
+    /// The question's whole words, within the deployment's message bound.
+    pub words: Box<[u8]>,
+    pub stands: Stands,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Stands {
+    /// Waiting its turn, its foreman's delegation or its passing up.
+    Taken,
+    /// With its foreman: `None` while the delegate is asked, its task once made.
+    Foreman { task: Option<u64> },
+    /// Asked of the change's requester, the change kept by its own question.
+    Asked,
+    /// Answered by the requester and held while the change is kept by a pending dependency.
+    Held { answer: Box<[u8]> },
 }
 
 /// One change ready for a landing branch's derived queue.

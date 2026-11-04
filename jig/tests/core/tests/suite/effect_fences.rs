@@ -474,6 +474,52 @@ fn a_kept_procedures_waiting_effect_is_refused_naming_its_pending_dependency() {
 }
 
 #[test]
+fn a_configured_kept_start_starts_its_procedure_and_refuses_its_waiting_effect() {
+    use jig_core_world::fixtures::{delegate, live_row, member};
+    const SEED: u64 = 889;
+    let (mut configuration, limits) = jig_core_world::faults::plan_fixture(SEED);
+    configuration.core.kept_starts = Box::new([tasks::KeptStart { connector: 1, code: 1 }]);
+    let mut world = World::new(Setup { seed: SEED, configuration: Some(configuration), limits, ..Setup::default() });
+    world.hold_procedures = true;
+    let parent = world.assignments[0];
+    let dependency = member(&world, tasks::Executor::Agent { charter: 1 }, b"prerequisite");
+    let dependency = delegate(&mut world, parent, 1, dependency);
+    let mut target = member(&world, tasks::Executor::Procedure { connector: 1, code: 1 }, b"kept start");
+    target.dependencies = Box::new([core::Dependency::Existing(dependency)]);
+    let task = delegate(&mut world, parent, 2, target);
+    assert_eq!(live_row(&world, task).phase, tasks::Phase::Active(tasks::Active::Due));
+    assert!(
+        world.procedure_inputs.iter().any(|(_, connector, code, context)| {
+            *connector == 1 && *code == 1 && context.task == task && context.pending.as_ref() == [dependency]
+        }),
+        "Ask::StartProcedure reaches the connector with its pending dependency"
+    );
+    let (mut configuration, _) = jig_core_world::faults::plan_fixture(SEED);
+    configuration.core.kept_starts = Box::new([tasks::KeptStart { connector: 1, code: 1 }]);
+    let (mut core, env) = recovered_with(&world, configuration, &limits);
+    let before = core.tasks.task(task).expect("live procedure").clone();
+    let origin = procedure_origin(&core, task);
+    let outputs = describe_effect(&mut core, &env, origin, true);
+    let problem = tasks::Problem::naming(Some(task), tasks::Refusal::Kept, &[dependency]);
+    assert!(outputs.iter().any(|request| matches!(request,
+        core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: number, why: core::StepRefusal::Refused(why), .. } }
+            if *number == task && *why == problem
+    )));
+    assert!(outputs.iter().any(|request| matches!(
+        request,
+        core::Request::Ask {
+            ask: core::Ask::Effect(core::effects::connector::Ask::Drop {
+                answer: authority::Answer::Refuse,
+                why: core::effects::connector::EffectRefusal::Dependencies,
+                ..
+            }),
+            ..
+        }
+    )));
+    assert_eq!(core.tasks.task(task), Some(&before));
+}
+
+#[test]
 fn a_kept_procedures_non_waiting_effect_is_admitted() {
     const SEED: u64 = 881;
     let (mut world, task, dependency) = dependency_world(SEED, tasks::Executor::Procedure { connector: 1, code: 1 });

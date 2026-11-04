@@ -31,6 +31,24 @@ fn a_workspace_reaches_items_with_each_remote_made_from_its_base() {
     }
 }
 #[test]
+fn a_machine_without_github_gives_each_remote_one_separator() {
+    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
+    let assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+    let mut forge = fixtures::forges().into_iter().next().unwrap();
+    forge.git = crate::system::machine_config(&machine).github.git;
+    let items = translate::items(
+        &assignment,
+        &fixtures::forge_table(&[forge]),
+        &crate::forge::tokens::Tokens::empty(),
+        &fixtures::wire_limits(),
+    )
+    .unwrap()
+    .unwrap()
+    .into_parts();
+    let first = items.repositories.into_boxed().into_iter().next().unwrap().into_parts();
+    assert_eq!(first.remote.as_ref(), b"https://github.com/acme/shop.git");
+}
+#[test]
 fn each_repository_takes_its_forges_git_program() {
     let mut forges = List::with_capacity(3);
     for (number, program) in
@@ -380,4 +398,42 @@ fn each_repository_keeps_its_own_saved_work_destination() {
     let workspace = translate::workspace(Some(&items));
     let saves = [workspace.repositories[0].save.as_deref(), workspace.repositories[1].save.as_deref()];
     assert_eq!(saves, [Some(b"temper/7/s7".as_slice()), Some(b"other/7/s7".as_slice())]);
+}
+
+#[test]
+fn a_conflicted_preparation_reaches_the_engine_with_its_tag_and_head() {
+    use temper_worker_domain::wire as worker;
+    let source = worker::Preparation::Conflicted { tag: 7, head: [3; 32] };
+    let resource = translate::preparation(&source).expect("permanent resource");
+    let bytes = temper_protocol_worker_wire::preparation(&resource);
+    let decoded = wire::Preparation::decode(&fixtures::wire_limits(), &mut skein_lib::Reader::new(&bytes)).unwrap();
+    assert_eq!(
+        translate::parts(None, None, Some(decoded)).preparation,
+        Some(root::Preparation::Conflicted { tag: 7, head: [3; 32] })
+    );
+}
+
+#[test]
+fn a_merged_start_carries_its_branch_and_heads_in_order() {
+    let limits = fixtures::wire_limits();
+    let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+    assignment.workspace.repositories[0].start =
+        root::ForgeStart::Merged { branch: b"main".as_slice().into(), heads: Box::new([[4; 32], [3; 32], [4; 32]]) };
+    let items = translate::items(
+        &assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &crate::forge::tokens::Tokens::empty(),
+        &limits,
+    )
+    .unwrap()
+    .unwrap();
+    let bytes = temper_protocol_worker_wire::items(&items);
+    let decoded = wire::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    assert_eq!(
+        translate::workspace(Some(&decoded)).repositories[0].start,
+        temper_worker_domain::wire::Start::Merged {
+            branch: b"main".as_slice().into(),
+            heads: Box::new([[4; 32], [3; 32], [4; 32]])
+        }
+    );
 }

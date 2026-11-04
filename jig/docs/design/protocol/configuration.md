@@ -99,7 +99,7 @@ the application's main (its shell)
 | rules | the deployment's rules, as the default of that setting when the application passes none (`../domain/engine.md`, 17.7): the ceilings every project's policy is under (`../domain/authority.md`, section 6). A ceiling, the rules' or a project policy's, names in `models` the configured models it allows, from the llm member's, or every one without it; a role's authority names its models the same way: they seed the role on a first start, and the store keeps them by name (`store.md`, 5.1) | authority |
 | projects | each project seeded on a first start: its number, from 1, since 0 is the deployment's roles' and refused here (`What::Bound` at the number; `../domain/people.md`, section 3); its name, which may be left out for "Project N", N its number, the seed's names unique and in shape or the start refused (`../domain/core.md`, 6.1); its policy, either inline, with its spend per period, its roles (each one's authority, the spend a party in it may allot per period, the kinds of proposal it decides; `../domain/authority.md`, section 6) and its overrides of templates' defaults (3.1), or as `policy: N`, the number of a policy among the settings, which the seed copies from the current settings as `MakeProject` copies one (`../domain/people.md`, 5.2), so that an application's stock policy reaches its seeded projects with no copy of its own; its parties' roles. Its resources and homes come by adoption (below) | the core, on a first start |
 | policies | each policy a project made after the first start starts from (`../domain/core.md`, 6.1), as defaults when the application passes none (`../domain/engine.md`, 17.7), with the store's changes over them: numbered from 1 and never renumbered, as templates are (3.1); each a whole policy in a seed's format: its ceiling, its spend per period, its roles, its escalation role, its requirements, its projections' authority, its permissions' roles for adoption and its overrides of templates' defaults. Checked at every start as a seed's policy is: within the rules, its roles well formed, its overrides' templates configured, and its owner role able to be a root's requester (`../domain/people.md`, 5.1); one that fails refuses the start, at its path. A project made from one keeps a copy, which no later change or removal here reaches (`../domain/people.md`, 5.2). With none, no project is made after the first start | the core, at each `MakeProject` |
-| charters | each charter the deployment offers, as defaults when the application passes none (`../domain/engine.md`, 17.7), with the store's changes over them, numbered: its instructions (a file it names, a configuration path), its documents (`../domain/engine.md`, 17.9: each a resource's name, a path and an optional heading), its models, named from the llm member's (its main model, and those its sub-agents may use), its tool families: smith's (inspect, modify, shell, agents) and the host families its runs are offered (`tools`, a `ToolFamilies` mask, offered where the task's authority holds them too: `../domain/engine.md`, 7.1), the hosts that may run it, its waiting time, whether its runs resume, its default budget (turns, spend and time, and a reserve of turns and time), which applies to a task whose batch gives none (`../domain/hosts.md`, section 8). Its models are those it allows, in order, or every configured one; a task that names none takes the first whose LLM provider has a usable account serving its payer (`../domain/tasks.md`, section 3). It names no account: the core chooses one with each run's check (`../domain/accounts.md`, 4.3) | the core; `jig-protocol-charter` |
+| charters | each charter the deployment offers, as defaults when the application passes none (`../domain/engine.md`, 17.7), with the store's changes over them, numbered: its instructions (a file it names, a configuration path), its documents (`../domain/engine.md`, 17.9: each a resource's name, a path and an optional heading, `{"connector": n, "name": [s, ...], "path": s, "heading": s}`, `heading` optional, and none when the member is absent), its models, named from the llm member's (its main model, and those its sub-agents may use), its tool families: smith's (inspect, modify, shell, agents) and the host families its runs are offered (`tools`, a `ToolFamilies` mask, offered where the task's authority holds them too: `../domain/engine.md`, 7.1), the hosts that may run it, its waiting time, its default wake policy (`../domain/tasks.md`, 8.3: `wake`, below), which a task made under it takes when its batch entry names none, a template's task among them (3.1), whether its runs resume, its default budget (turns, spend and time, and a reserve of turns and time), which applies to a task whose batch gives none (`../domain/hosts.md`, section 8). Its models are those it allows, in order, or every configured one; a task that names none takes the first whose LLM provider has a usable account serving its payer (`../domain/tasks.md`, section 3). It names no account: the core chooses one with each run's check (`../domain/accounts.md`, 4.3) | the core; `jig-protocol-charter` |
 | templates | each template the application defines, as defaults when the application passes none (`../domain/engine.md`, 17.7), with the store's changes over them, numbered and never renumbered, with its defaults; jig's chat and goal among them unless the application drops them (3.1) | the core, only to serve each project's merged templates in `me` (`../client/domain/contract.md`, 5.1); the client, which fills them in |
 | hosts | the engine's own slots, if it runs agents in the engine (shape 2), and their `smith-inline-agent`'s limits; the workers' names, each with the file of its secret's digest, a data path; the workers' listener: its addresses, socket addresses or an in-process name (skein's `io.md`, section 4), and its certificate and key files, data paths, but for an in-process name (`channel.md`, section 10); a listener on an in-process name tells the core its workers are in its process, and that no worker outlives it (`../domain/engine.md`, section 6) | the fleet; `jig-protocol-engine-workers`; `smith-inline-agent`, through the application's startup |
 | llm | the LLM providers (`../domain/providers.md`), each numbered, with its name for showing; its endpoints, each with the models it serves and an optional `program` named among that model provider's `programs`; each model's window, output, the efforts it takes, in order, the first being the one a task given no LLM choice takes (`../domain/tasks.md`, section 3), or none, and the rest of what smith's agent configuration declares of it (smith's `protocol/agent.md`, section 4), its prices (input, cached input, output, and cache writes when priced apart) and its optional `description`, what it is good at, for the brief's catalogue (`../domain/engine.md`, section 9); the sources it offers: a sign-in, with its public registration (its entry client id, its name hint, its authorization, token, revocation and published keys' addresses with their transport, its issuer, its scopes and those that must be granted, its resource, its redirect's path, and its port where fixed, an ephemeral loopback port for each sign-in otherwise), a key, a program, named `claude_code` where the program is Claude Code (smith's `protocol/programs.md`, section 3), or none; a sign-in waits for its redirect within the profile's sign-in deadline, as a limit of the driver (section 6; skein's `oauth.md`, section 3); and the facts its terms ask an application to show: whether a signed-in source is a plan, and its manage-usage address (`../domain/providers.md`, 2.6). No account, key or record: accounts are made at runtime and kept in the store (`../domain/accounts.md`, 3.1; `llm.md`, sections 4 and 5) | the core; smith's and skein's components and skein's accounts driver, through the application's startup; `jig-protocol-accounts` |
@@ -125,6 +125,16 @@ is false; account classification is recomputed from its remaining sources
 on removal and from current configuration on restore. No separate plan
 display name is configured.
 
+- **A delegation's kinds,** in an authority the rules, a policy or a
+  role gives (`../domain/authority.md`, section 3): a list of
+  `{"kind", "number"}`, at most `authority.executors`, `kind` one of
+  `charter`, `procedure`, `role` and `job`. A charter's number names one
+  of `charters` and a role's one of its policy's roles, or the start is
+  refused at the number; a procedure's number is its connector's and a
+  job's its application's kind, neither checked here, since the core
+  refuses a batch naming a job of a kind the application does not
+  declare (`../domain/engine.md`, 7.5). Any other `kind` refuses the
+  start at its path.
 - **Each connector's own configuration** (its system's address, its
   credentials' files, the address of its webhooks' listener, its
   procedures' settings and texts) is the application's, in its own
@@ -208,15 +218,16 @@ not select accounts or infer provider membership. The public JSON refuses
   - the flags: *conversation*, *listed*, and the retention class,
     *kept* or *forgotten once read* (`../domain/tasks.md`, section 3);
   - the label: an opaque 32-bit number, which jig gives no meaning;
-  - the grace its helper cancels with, or none;
+  - the grace its helpers give a close or a deletion, or none;
   - the LLM choice: none, for the charter's default; or a main model
     with its effort, and the models its run's sub-agents may use, each
     with an effort (`../domain/tasks.md`, section 3). It names no
     account.
 
-  It names no wake policy, parameters, inputs, dependencies or
-  resources: a task filled from it wakes and parks as its executor's
-  defaults say (`../domain/tasks.md`, 8.3), and its helper names none
+  It names no wake policy, parameters, inputs or dependencies, and
+  resources only by its connectors' symbols (3.3): a task filled from it wakes by its charter's default wake
+  policy, as the settings hold it when the task is made, and parks as
+  its executor's defaults say (`../domain/tasks.md`, 8.3), and its helper names none
   of the rest (`../client/domain/client.md`, section 19).
 - **jig's defaults** are two, which an application keeps, changes or
   drops, by writing them in its `templates` member or leaving them out;
@@ -239,7 +250,7 @@ not select accounts or infer provider membership. The public JSON refuses
 | listed | no | yes |
 | retention | kept | kept |
 | label | 1 | 2 |
-| grace | a span, which the helper closing a chat cancels with | none |
+| grace | a span, which the helpers closing a chat or deleting a project give | none |
 | LLM choice | none: the charter's default | none: the charter's default |
 
 - **A project's policy may override,** per template number, the
@@ -311,6 +322,33 @@ client template carries this flag into the NewTask record, without a
 template identity in the request. Tool-created and deployment tasks use
 Result explicitly; the tools take no `ended_by` key.
 
+### 3.3 A template's own resources
+
+- **A template names the resources a task filled from it holds** as its
+  connectors' symbols: each a connector's number and a symbol that
+  connector offers (`../domain/connectors.md`, 3.1), such as a forge's
+  *its own goal branch*. A symbol stands for a resource named after the
+  task, which no creator can name before the task has its number.
+- **In the format** (section 10), `resources` is optional: a list of
+  `{"connector": c, "symbol": s}`, each `c` a connector's number and each
+  `s` its symbol's, at most the tasks child's limit on holdings, no pair
+  twice; left out, or `[]`, the template names none. jig's chat and goal
+  name none.
+- **Filled as any default:** the client copies the symbols into the batch
+  member it fills, its `symbols`, which a member written by hand may name
+  too (`../domain/tasks.md`, 6.2). Served in `me` with the rest of the
+  template, and kept by the settings with it; never overridden by a
+  project's policy, since they are part of the shape.
+- **A symbol grants nothing.** Its connector resolves it once the task has
+  its number, into the name of the resource and the hold the task takes
+  on it, or refuses the batch, naming the symbol: a symbol the connector
+  does not offer, or one it offers only to tracked tasks named for an
+  untracked one. What the task may then do to the resource is its
+  authority's, as for any resource (`../domain/authority.md`, section 4).
+- **Checked at start:** the list's shape and bound, and no pair twice.
+  Whether a connector offers a symbol is the connector's to say, at the
+  batch.
+
 ## 4. jig's part for a worker
 
 | Member | What it gives |
@@ -381,6 +419,11 @@ host's half reports it (`llm.md`, 5.5).
   `memory_bytes` is the application's byte budget, handed to it
   unchecked (skein's programming-model.md, 6.1 and 6.3), and a worker's
   is optional, since no worker reads one.
+- **A document that resolves no profile.** Its `limits` are refused at
+  that member, and the rest of the document is checked against the
+  largest shipped profile, so that the refusal adds no bound the
+  operator did not choose. Named profiles keep their own bounds, whatever
+  else their `limits` get wrong.
 - **Made projects count too.** Authority's and people's
   `projects` bound every project the deployment holds, seeded and made
   after the first start (`../domain/core.md`, 6.1): a deployment that
@@ -396,6 +439,34 @@ host's half reports it (`llm.md`, 5.5).
   list's allocated capacity, and the deployment's roster is the only
   one implied. `Core::new` asserts the same people-roster relation as
   a programmer precondition (`../domain/engine.md`, section 14).
+- **Public reading's limits,** the clients' component's
+  (`../domain/people.md`, 13.5; `client.md`, section 19):
+  `clients.public.reads` in flight; `clients.public.rate` reads per
+  second and `clients.public.rate_burst`, the most its bucket holds;
+  `clients.public.bytes` of answers per second and
+  `clients.public.bytes_burst`; `clients.public.answer_bytes`, the
+  ceiling of one answer; and `clients.public.max_age` in seconds, at
+  most 60. The HTTP mount's `clients_http.public_calls` in flight. The
+  root's public figures follow from these (`../domain/root.md`, section
+  10). The core's public index (`../domain/people.md`, 13.9):
+  `core.public.goals`, live goals per board, `core.public.ended`, ended
+  goals kept per project, `core.public.lines`, lines per goal and
+  delegates per card, and `core.public.depth`, a card's lineage.
+  Every profile's public figures are zero, a rate of zero answering
+  every public read busy: a deployment that opens sets its own.
+- **Their relations, checked at start** once the rate is above zero
+  (with a rate of zero only `max_age`'s bound is), each refusing the
+  start at its path: a burst at least its rate, but for a rate of zero;
+  `answer_bytes` within `bytes_burst`, every jig kind's and every
+  declared application kind's bound within `answer_bytes`;
+  `clients_http.public_calls` within `clients.public.reads`; `max_age`
+  at most 60;
+  and the public index's memory, its bounds times the deployment's
+  projects, within the process's fit check (`../domain/engine.md`,
+  section 13).
+- **The role `public` has no number:** a policy, configured or in the
+  rules, names roles by number, so none can name the public party's
+  (`../domain/authority.md`, section 6).
 - **Charters' budgets:** each charter's turns and time are above its
   reserve's, and its default budget holds its reserve and one of its
   default model's most costly completions (`../domain/authority.md`,
@@ -483,6 +554,15 @@ host's half reports it (`llm.md`, 5.5).
 - **The application's limits** are its own members, checked in the same
   sum.
 
+Capacity dependencies are checked after all overrides, before family admission.
+`What::Capacity` retains the source member, configured count, dependent
+member and required minimum. Live task capacity needs at least twice as
+many `people.inbox_tasks`; `people.operations` holds the larger of
+`tasks.delegates` plus one and `tasks.project_goals`. A failed relation
+names its source and the dependency to raise, without labeling unrelated
+overrides invalid. Raising a dependency still requires the resulting
+profile to pass every admission check.
+
 The **effective store codec envelope** bounds the framed byte collections
 people-v14 derives from `core.policy_bytes` and `people.amendment_bytes`,
 as well as its independent fields. Configuration checks it after overrides
@@ -511,7 +591,7 @@ binding record field's required bytes and ceiling. The binding field is
 the generated first failure at maximum plus one; its required bytes are
 read at the configured value. An arithmetic refusal has no representable
 required bound. `What::CodecCeiling` retains the generated first independent
-failure, without labeling item counts as bytes; `What::CodecArithmetic` and
+people failure or a task batch field's configured count and schema ceiling, without labeling item counts as bytes; `What::CodecArithmetic` and
 `What::StoreCodec` distinguish arithmetic and a combined-codec failure
 outside the people envelope.
 `Problem::codec_message()` gives these problems' words as owned bytes.
@@ -689,3 +769,14 @@ the same capacities even when every run slot is occupied.
   number), or `null` where the template's own stands:
   `{"template": 2, "executor": null, "budget": null, "deadline": null,
   "priority": 5}`.
+- **A charter's default wake policy,** its optional `wake` member (section
+  3; `../domain/tasks.md`, 8.3), is one JSON object whose members are all
+  required: `words`, `notices` and `news`, each a rule, `"never"`,
+  `"immediate"`, `{"batch": {"count": n, "age_ms": n}}` or `{"paced":
+  {"span_ms": n}}`, its count, age and span above zero; `results`,
+  `"never"`, `"each"` or `"last_or_failure"`; and `questions`, `answers`
+  and `timers`, booleans. Left out, the charter's default is jig's: every
+  rule `"immediate"`, `results` `"last_or_failure"`, the three `true`. A
+  coordinator's: `{"words": "immediate", "notices": "immediate", "news":
+  {"paced": {"span_ms": 1800000}}, "results": "each", "questions": true,
+  "answers": true, "timers": true}`.

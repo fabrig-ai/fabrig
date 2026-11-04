@@ -342,7 +342,7 @@ fn a_start_cut_by_a_restart_resets_the_playground() {
 }
 
 #[test]
-fn running_restarts_the_group_without_start_acts() {
+fn a_restart_with_the_playground_running_resets_it() {
     let d = running();
     let row = *d.playground().unwrap();
     let forge = d.record(row.forge).unwrap().clone();
@@ -350,11 +350,18 @@ fn running_restarts_the_group_without_start_acts() {
     outputs(&mut restored, Event::Restore { record: Stored::Forge(forge) });
     outputs(&mut restored, Event::Restore { record: Stored::Playground(row) });
     outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert!(outputs(&mut restored, Event::ReadAfresh).contains(&Request::BoxGroup {
-        forge: 1,
-        kind: BoxKind::Fake,
-        request: Token::new(u64::MAX),
-    }));
+    let sent = outputs(&mut restored, Event::ReadAfresh);
+    let resetting = Playground { state: PlaygroundState::Resetting(ResetStep::Project), ..row };
+    assert_eq!(restored.playground(), Some(&resetting));
+    assert_eq!(
+        sent.first(),
+        Some(&Request::Save { record: Stored::Playground(resetting), release: None, read_afresh: None })
+    );
+    assert_eq!(
+        reset_act(&sent),
+        (crate::playground::reset_key(row.forge, ResetStep::Project), ResetAct::RemoveProject { project: 5 })
+    );
+    assert!(!sent.iter().any(|request| if let Request::BoxGroup { .. } = request { true } else { false }));
     assert!(!connect(&mut restored).iter().any(|request| if let Request::PlaygroundActs { .. } = request {
         true
     } else {

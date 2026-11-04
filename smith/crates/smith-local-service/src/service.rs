@@ -476,9 +476,6 @@ impl Service {
             smith_protocol_translate::GrantValue::Bearer(bytes)
             | smith_protocol_translate::GrantValue::Key(bytes)
             | smith_protocol_translate::GrantValue::Program(bytes) => bytes.len(),
-            smith_protocol_translate::GrantValue::Withdrawn { account_id, bearer } => {
-                account_id.len().saturating_add(bearer.len())
-            }
         };
         if u64::try_from(bytes).expect("grant payload bytes fit u64") > self.limits.envelope_bytes {
             self.local_events.push(local::Event::NoCredential {
@@ -954,7 +951,7 @@ impl Service {
                 | local::CredentialFailure::ProgramInterrupted
                 | local::CredentialFailure::BorrowedExpiring { .. } => true,
                 local::CredentialFailure::Missing | local::CredentialFailure::Refresh => match &self.accounts {
-                    Some(accounts) => accounts.account_id(*account).is_some(),
+                    Some(accounts) => accounts.scheme(*account).is_some(),
                     None => false,
                 },
             },

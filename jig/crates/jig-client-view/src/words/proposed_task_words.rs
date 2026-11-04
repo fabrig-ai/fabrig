@@ -1,5 +1,5 @@
 //! Checked words for exact batch member facts (client/domain/view.md, 7).
-//! IDs 5000–5025 are reserved for this closed vocabulary.
+//! IDs 5000–5026 are reserved for this closed vocabulary.
 use crate::Owner;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -15,6 +15,7 @@ pub enum ProposedPhrase {
     ExecutorParty,
     ExecutorRole,
     ContractReport,
+    ContractJob,
     ContractApproval,
     ContractVerdict,
     ContractChange,
@@ -32,13 +33,14 @@ pub enum ProposedPhrase {
     PartOutbox,
     PartHold,
 }
-pub const ALL: [ProposedPhrase; 22] = [
+pub const ALL: [ProposedPhrase; 23] = [
     ProposedPhrase::DeadlineSpan,
     ProposedPhrase::ExecutorCharter,
     ProposedPhrase::ExecutorProcedure,
     ProposedPhrase::ExecutorParty,
     ProposedPhrase::ExecutorRole,
     ProposedPhrase::ContractReport,
+    ProposedPhrase::ContractJob,
     ProposedPhrase::ContractApproval,
     ProposedPhrase::ContractVerdict,
     ProposedPhrase::ContractChange,
@@ -66,6 +68,7 @@ impl ProposedPhrase {
             Self::ExecutorParty => 5002,
             Self::ExecutorRole => 5003,
             Self::ContractReport => 5008,
+            Self::ContractJob => 5026,
             Self::ContractApproval => 5009,
             Self::ContractVerdict => 5010,
             Self::ContractChange => 5011,
@@ -93,6 +96,7 @@ impl ProposedPhrase {
             | Self::ExecutorParty
             | Self::ExecutorRole
             | Self::ContractReport
+            | Self::ContractJob
             | Self::FieldCap
             | Self::PartConnector
             | Self::PartNumber => 1,
@@ -155,6 +159,10 @@ pub fn language() -> Language {
             ProposedPhrase::ExecutorRole => {
                 Box::new([Segment::Text(copy_of(b"Project role ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
             }
+            ProposedPhrase::ContractJob => Box::new([
+                Segment::Text(copy_of(b"Job result byte limit ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+            ]),
             ProposedPhrase::ContractReport => Box::new([
                 Segment::Text(copy_of(b"Report word byte limit ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },

@@ -15,11 +15,13 @@ pub struct VerdictChoice {
 
 /// Result form, owner bounds and explicit projection completeness.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
 pub enum TaskContractDocument {
     Approval { state: Box<[u8]>, part: Part },
     Report { words: u32 },
     Verdict { choices: List<VerdictChoice>, cut: bool },
     Change { connector: u16, kind: u16, words: u32 },
+    Job { bytes: u32 },
 }
 
 /// Financial source, independent of requester and executor topology.

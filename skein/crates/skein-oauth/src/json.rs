@@ -2,8 +2,7 @@
 use crate::{DecodeError, Limits};
 use alloc::boxed::Box;
 use skein_json::{Token, tokenizer, writer};
-use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Env, List, Queue, Stack, Time, Wall, bytes};
+use skein_lib::{List, Stack};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Json {
@@ -24,54 +23,16 @@ impl Json {
         if input.len() > usize::try_from(limits.document_bytes).expect("u32 fits usize") {
             return Err(DecodeError::TooLarge);
         }
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tokenizer_limits() };
-        let mut machine = tokenizer::Tokenizer::new(&env.limits);
-        let mut above = Queue::uncapped();
-        let mut below = Queue::uncapped();
+        let mut feed = tokenizer::Feed::new(input, &limits.tokenizer_limits());
         let mut collector = Collector::new(limits);
-        let mut at: usize = 0;
-        let ticks = input.len().saturating_mul(4).saturating_add(16);
-        for _tick in 0..ticks {
-            match machine.waiting() {
-                tokenizer::Waiting::Next => {
-                    tokenizer::down(&mut machine, &env, tokenizer::Request::Next, &mut above, &mut below);
-                }
-                tokenizer::Waiting::Bytes => {
-                    let demand = below.pop().ok_or(DecodeError::Malformed)?;
-                    let read = match demand {
-                        Down::Demand { read, .. } => read,
-                        Down::Send(_) | Down::Finish => return Err(DecodeError::Malformed),
-                    };
-                    let remaining = input.get(at..).ok_or(DecodeError::Malformed)?;
-                    let count = match read {
-                        Read::Fill(n) => usize::try_from(n).expect("u32 fits usize"),
-                        Read::Scan { until, max } => {
-                            let max = usize::try_from(max).expect("u32 fits usize");
-                            let scanned = remaining.get(..remaining.len().min(max)).ok_or(DecodeError::Malformed)?;
-                            match bytes::find(scanned, until.as_bytes()) {
-                                Some(pos) => pos.saturating_add(until.as_bytes().len()),
-                                None => max,
-                            }
-                        }
-                        Read::Nothing | Read::Line { .. } | Read::Arrived { .. } => return Err(DecodeError::Malformed),
-                    };
-                    if count <= remaining.len() {
-                        let delivery = bytes::copy_of(remaining.get(..count).ok_or(DecodeError::Malformed)?);
-                        at = at.checked_add(count).ok_or(DecodeError::TooLarge)?;
-                        tokenizer::up(&mut machine, &env, Up::Bytes(delivery), &mut above, &mut below);
-                    } else {
-                        tokenizer::up(&mut machine, &env, Up::End, &mut above, &mut below);
-                    }
-                }
-                tokenizer::Waiting::Close | tokenizer::Waiting::Nothing => return Err(DecodeError::Malformed),
-            }
-            if let Some(event) = above.pop() {
-                match event {
-                    tokenizer::Event::Token(token) => collector.push(token)?,
-                    tokenizer::Event::Done => return collector.finish(limits),
-                    tokenizer::Event::Failed(error) => return Err(tokenizer_error(error)),
-                    tokenizer::Event::Long(_) | tokenizer::Event::Skipped(_) => unreachable!("only Next is demanded"),
-                    tokenizer::Event::Closed => return Err(DecodeError::Malformed),
+        // Every token reads a byte, so the end comes within one answer more.
+        for _answer in 0..=input.len() {
+            match feed.answer(tokenizer::Request::Next) {
+                tokenizer::Event::Token(token) => collector.push(token)?,
+                tokenizer::Event::Done => return collector.finish(limits),
+                tokenizer::Event::Failed(error) => return Err(tokenizer_error(error)),
+                tokenizer::Event::Long(_) | tokenizer::Event::Skipped(_) | tokenizer::Event::Closed => {
+                    return Err(DecodeError::Malformed);
                 }
             }
         }

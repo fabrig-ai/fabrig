@@ -1,17 +1,16 @@
 //! A `FileIo` child for a world's socket owner (io.md, sections 5.2 and 5.3).
 //! Queued requests keep their deadlines; descriptor cleanup remains admitted
 //! until it can close the descriptor. Cancellation is routed even while a
-//! different request runs. File operations use the upper token bit, leaving
-//! the socket driver's namespace intact. The owner still routes file terminals
+//! different request runs. `FileIo`'s operation lane distinguishes its completions
+//! from the socket driver's (io.md, 5). The owner still routes file terminals
 //! and closes its startup root after its component has settled.
 
 use alloc::collections::VecDeque;
 use skein_io::file::{Event, Request};
 use skein_io::file_layer::{self, FileIo};
-use skein_io::kernel::{Complete, Error, Fd, Op, Submit};
+use skein_io::kernel::{Complete, Error, Fd, Submit};
 use skein_lib::{Duration, Queue, Time, Token};
 
-const TAG: u64 = 1 << 63;
 const ROOM: u32 = 64;
 
 struct Queued {
@@ -119,32 +118,22 @@ impl Driver {
         }
     }
 
-    /// Routes one tagged kernel completion back to the file driver's local namespace.
-    pub fn up(&mut self, mut complete: Complete) {
+    /// Routes one kernel completion back to the file driver.
+    pub fn up(&mut self, complete: Complete) {
         assert!(Self::owns(complete.op), "completion belongs to the file namespace");
-        complete.op = Token::new(complete.op.raw() & !TAG);
-        if let Op::Cancel { target } = &mut complete.kind {
-            *target = Token::new(target.raw() & !TAG);
-        }
         file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
     }
 
     /// Whether this kernel owner token belongs to the file driver.
     #[must_use]
     pub const fn owns(token: Token) -> bool {
-        token.raw() & TAG != 0
+        file_layer::owns(token)
     }
 
-    /// One kernel submission, tagged without changing its cancellation target's identity.
+    /// One kernel submission with its file-operation token and cancellation target.
     #[must_use]
     pub fn take_submit(&mut self) -> Option<Submit> {
-        let mut submit = self.submissions.pop()?;
-        assert!(!Self::owns(submit.op), "finite worlds keep local tokens below the namespace bit");
-        submit.op = Token::new(submit.op.raw() | TAG);
-        if let Op::Cancel { target } = &mut submit.kind {
-            *target = Token::new(target.raw() | TAG);
-        }
-        Some(submit)
+        self.submissions.pop()
     }
 
     /// One file terminal for the component owner to route by its request token.

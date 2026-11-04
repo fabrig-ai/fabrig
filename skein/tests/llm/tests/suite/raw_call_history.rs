@@ -1,4 +1,4 @@
-//! Actual malformed Codex calls remain exact correction history, not effects.
+//! Actual malformed Responses calls remain exact correction history, not effects.
 //! Handwritten native responses and full outside predicates are independent evidence.
 use skein_lib::Token;
 use skein_llm::{Block, Call, Completion, Error, Json, Message, Replay, Role, client, openai};
@@ -257,8 +257,8 @@ fn native_and_actual_client_request_bounds_charge_complete_escaped_history() {
     world.request(client::Request::Start);
     world.run();
     completed(&world, 71);
-    // The request cap is on the body as rendered (llm.md, section 4.8), which
-    // the Codex route sends gzip: its length is read back in identity.
+    // The public route sends its rendered body under the request cap
+    // (llm.md, section 4.8).
     let rendered = |sent: &[u8]| {
         let sent = skein_llm_world::identity(sent);
         let at = sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("actual native body") + 4;
@@ -284,7 +284,7 @@ fn native_and_actual_client_request_bounds_charge_complete_escaped_history() {
 fn anthropic_history(arguments: &[u8]) -> Call {
     let mut input = history(arguments);
     input.endpoint = skein_llm::Endpoint::anthropic();
-    input.credential = Some(skein_llm::Credential::anthropic(b"caller-token".as_slice().into()));
+    input.credential = Some(skein_llm::Credential::key(b"caller-token".as_slice().into()));
     input.prompt.max_output_tokens = Some(32);
     input
 }

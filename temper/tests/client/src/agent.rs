@@ -44,9 +44,12 @@ impl Agent {
         builder.close();
         builder.open(Role::Main);
         for task in &self.release_tasks {
-            builder.open(Role::Item);
-            builder.key(skein_ui::Key { owner: temper_client_view::frame::owner(), kind: 2, a: *task, b: 0 });
-            builder.close();
+            // The printed task supplies both its spec and its hold controls.
+            for kind in [0, 2] {
+                builder.open(Role::Item);
+                builder.key(skein_ui::Key { owner: temper_client_view::frame::owner(), kind, a: *task, b: 0 });
+                builder.close();
+            }
         }
         builder.close();
         builder.close();
@@ -101,7 +104,7 @@ pub fn new(seed: u64) -> (Root, View) {
     )
 }
 fn environment(env: &Env<domain::Limits>) -> Env<root::Limits> {
-    Env { now: env.now, wall: env.wall, limits: root::Limits::new(env.limits, temper_client_tools::limits::tools()) }
+    env.with(root::Limits::new(env.limits, temper_client_tools::limits::tools()))
 }
 pub fn step(agent: &mut Agent, env: &Env<domain::Limits>, event: Event, out: &mut Queue<Request>) {
     let env = environment(env);
@@ -138,6 +141,7 @@ fn drain(agent: &mut Agent, requests: &mut Queue<root::Request>, out: &mut Queue
         match request {
             temper_client_tools::root::Request::Record { .. } => unreachable!("world agent does not move accounts"),
             root::Request::Client { request } => out.push(Request::Client { request }),
+            root::Request::Unlinked { request } => out.push(Request::Unlinked { request }),
             root::Request::Fact { fact } => out.push(Request::Fact { fact }),
             root::Request::Ready => agent.ready = true,
             root::Request::Kept { line } => agent.kept_lines.push(line),

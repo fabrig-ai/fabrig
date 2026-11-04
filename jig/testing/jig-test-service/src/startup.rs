@@ -316,6 +316,7 @@ fn connector_config(
             .expect("resource count checked");
     }
     let config = connector::Config {
+        settings: None,
         deployment: [0; 16],
         prefix,
         resources: resources.into_boxed(),

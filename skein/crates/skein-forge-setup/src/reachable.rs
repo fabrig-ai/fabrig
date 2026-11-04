@@ -437,6 +437,8 @@ impl Reachable {
                     | Row::Entry { .. }
                     | Row::File(_)
                     | Row::Commit(_)
+                    | Row::Artifact(_)
+                    | Row::CommitMessage(_)
                     | Row::TreeEntry(_)
                     | Row::Run(_)
                     | Row::Job(_)

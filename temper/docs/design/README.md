@@ -82,9 +82,9 @@ One story:
    (`client/README.md`, 3.5 and 5.5).
 3. The person adopts a repository into the configured project, through
    the adoption form (`client/README.md`, 4.4).
-4. The person starts a chat and asks for a change; the chat makes a
-   small one itself and hands its branch to a change task, or delegates
-   the change whole (`domain/forge.md`, 8.1).
+4. The person starts a chat and asks for a change; the stock chat reads
+   the code through the forge and delegates the change whole to a change
+   task (`domain/agent.md`, 4.3.1; `domain/forge.md`, 8.1).
 5. Agents do the rest: the change is produced, its pull request opened,
    checked by CI and by an agent's review (a gate the usual landing rule
    asks for, `domain/forge.md`, 8.3 and 8.7), repaired when either
@@ -191,7 +191,7 @@ forge, temper adds:
   its identity and floors, what the machine must have, how a release
   is made, and its walk on a fresh machine.
 - **`draft/`:** the drafts, the vision this design is written from
-  (the repository's `AGENTS.md`, section 9).
+  (the repository's `AGENTS.md`, section 6).
 - **Status files:** beside each document, `<name>.status.md`, where
   the code lags or departs from it; `STATUS.md` indexes them.
 
@@ -238,11 +238,12 @@ temper's crates follow jig's rule (jig's `README.md`, section 15), with
 temper's side before the layer:
 
 - `temper-engine-domain` (the root), its forge children
-  `temper-engine-domain-forge`, `-forge-change`, `-forge-landing` and
-  `-forge-issues`, which own skein's forge client, `skein-forge-client`,
-  and its calendar, `temper-engine-domain-calendar`;
-  `temper-worker-domain` (the worker's root) and
-  `temper-worker-domain-checkout`;
+  `temper-engine-domain-forge`, `-forge-change`, `-forge-landing`,
+  `-forge-issues` and `-forge-tiers`, which own skein's forge client,
+  `skein-forge-client`, and its calendar, `temper-engine-domain-calendar`;
+  `temper-worker-domain` (the worker's root),
+  `temper-worker-domain-checkout` and its job capability,
+  `temper-worker-domain-tooling` (`domain/worker.md`, 4.4);
 - the protocol layer's: `temper-worker-protocol-git`,
   `temper-protocol-store`, `temper-protocol-records` (the forges'
   records), `temper-protocol-worker-wire`, and `temper-engine-smith`,
@@ -257,11 +258,14 @@ temper's side before the layer:
   (`protocol/documentation.md`); the settings' form, `temper-settings-form`;
   `temper init`'s files, `temper-init`; the fakes the binary ships,
   `temper-fake` and `temper-fake-git` (`domain/testing.md`, 4.3);
+- the playground's, of no side: its composition, `temper-playground`,
+  and the fake git program it hosts, `temper-fake-git-hosted`
+  (`playground.md`, 3);
 - the client's, under `temper-client` (`client/README.md`, section 2);
 - the services, `temper-service`, and the binary, `temper`.
 
 `protocol/README.md`, section 5 says what each holds and depends on. Test
-kits are named by their kind (`testing/temper-fake-git-hosted`); the
+kits are named by their kind (`testing/temper-github-app`); the
 forge's are skein's (`skein-fake-forge-domain` in skein's `crates/`,
 `testing/skein-throwaway-forgejo`), and the worlds live in `tests/`
 (`domain/testing.md`, section 7).

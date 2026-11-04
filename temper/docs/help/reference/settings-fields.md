@@ -17,15 +17,16 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy` or `rules`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter` or `project-policy`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
 
 Which setting: its kind and, but for the rules, its number.
 
-- `kind`: `"charter"`, `"template"`, `"policy"` or `"rules"`. The setting's kind.
+- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind. `"project-policy"`: A project's own policy, set alone and at most once; its value is a policy.
 - `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for the rules.
+- `project`: integer, 0 to 4,294,967,295. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
 ## charter
 
@@ -46,8 +47,21 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `shell`: true or false. Whether the run's agent may run commands in its workspace.
 - `agents`: true or false. Whether the run's agent may open sub-agents, each with no more tools than its own.
 - `call_timeout`: nanoseconds. The longest one of the run's calls to temper's tools may take.
+- `tools`: integer. The host families its runs are offered, a bit each as an authority's `tools` has them; a family it or its task's authority leaves out is not offered, and temper offers by it the settings family's tools (1024) alone; 1023, every family but settings, when left out.
 - `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: The deployment's workers alone. `"engine"`: The engine's own slots alone. `"both"`: Either.
 - `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
+- `wake`: `wake`, or null. Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `"immediate"`, `results` `"last_or_failure"`, and questions, answers and timers waking.
+- `documents`: list of at most 8, each `document`. The documents the charter's runs read, each as a brief section of its own; at most `tasks.charter_documents`, else refused as `shape`.
+
+## document
+
+A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run.
+
+- `forge`: text, at most 32,768 bytes. The forge's host, as its repositories' names carry it.
+- `repository`: text, at most 65,537 bytes. The repository as OWNER/NAME; one adopted in no project gives a section saying so.
+- `branch`: text, at most 131,075 bytes. The branch whose head is read, its segments joined by `/`.
+- `path`: text, at most 256 bytes. The file's path in the repository, at most 256 bytes.
+- `heading`: text, at most 80 bytes, or null. A Markdown heading's text: the run reads from that heading to the next of its level or above; null reads the whole file.
 
 ## model
 
@@ -67,10 +81,39 @@ One of the deployment's models, as a charter offers it. Every member but `effort
 - `efforts`: list of at most 16, each text, at most 32 bytes. The efforts it takes, in order, as configured.
 - `effort`: text, at most 32 bytes, or null. The effort a run asks of it, one of `efforts`, or null for its default.
 
+## wake
+
+What wakes a task, kind of message by kind; a proposal, an escalation and a cancel always wake it.
+
+- `words`: `wake_rule`. Words from tasks and from the deployment; a person's words always wake it at once.
+- `notices`: `wake_rule`. Notices: a task it references done or held, a proposal passing through, a hold it waits for.
+- `news`: `wake_rule`. News its connectors class as waking for it.
+- `results`: `"never"`, `"each"` or `"last_or_failure"`. Its delegates' results. `"never"`: None wakes it. `"each"`: Each delegate's result wakes it. `"last_or_failure"`: The last delegate's result, or any failure.
+- `questions`: true or false. Whether a delegate's question wakes it.
+- `answers`: true or false. Whether an answer to its own question wakes it.
+- `timers`: true or false. Whether its timers wake it.
+
+## wake_rule
+
+How a kind of message wakes a task: a word, or an object with one member.
+
+- `"never"`: It waits for the task's next run.
+- `"immediate"`: It wakes the task at once.
+- `batch`: `wake_batch`. Once enough have arrived, or the oldest has waited long enough.
+- `paced`: nanoseconds. At most once in this span from the task's last run's start; the first after a quiet span wakes it at once. Above zero, else refused as `shape`.
+
+## wake_batch
+
+A batch of messages that wakes a task once.
+
+- `count`: integer, 0 to 4,294,967,295. Wake once this many have arrived; above zero, else refused as `shape`.
+- `age`: nanoseconds. Or once the oldest has waited this long; above zero, else refused as `shape`.
+
 ## template
 
 How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it.
 
+- `resources`: list of at most 32, each `symbol`. Optional; absent means an empty list. No pair twice. Resource symbols resolved for the new task; forge connector 1, symbol 1 is its own goal branch.
 - `number`: integer, 0 to 4,294,967,295. The template's number, the same as `setting.number`; a chat is filled from template 1 and a goal from template 2.
 - `name`: `text`. Its name, as clients show it.
 - `executor`: `executor`. Who runs the task.
@@ -83,6 +126,13 @@ How a new task of one shape is filled: its executor, result, budget, deadline an
 - `label`: integer, 0 to 4,294,967,295. A number that groups the task in the lists of ended tasks; temper reads nothing else from it.
 - `grace`: nanoseconds, or null. How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, refused as `grace`.
 - `llm`: `llm`, or null. The models the task asks for, or null for its charter's default.
+
+## symbol
+
+A connector resource resolved when the task is created.
+
+- `connector`: integer, 0 to 65,535. The connector that resolves the symbol; 1 is the forge.
+- `symbol`: integer, 0 to 65,535. The connector's resource symbol; the forge's 1 is its own goal branch.
 
 ## text
 
@@ -368,3 +418,48 @@ When a requirement is judged: a word, or an object with one member.
 A requirement judged from facts read before the effect.
 
 - `freshness`: nanoseconds. How old those facts may be.
+
+## landing-rule
+
+A landing rule for the deployment or one project. Its criteria apply to every landing it covers.
+
+- `pattern`: `landing-pattern`. The resources the rule covers: a forge's host, repository owner and name, then branch and its segments.
+- `enforce`: true or false. True makes each criterion a requirement every landing it covers must meet; false leaves them to the change procedure alone.
+- `ci`: true or false. CI must have passed at the change's head.
+- `up_to_date`: true or false. The change's head must contain its base's tip.
+- `gates`: list of at most 64, each `landing-gate`. The gates every change it covers asks for.
+- `approvals`: list of at most 64, each `landing-approval`. The distinct people holding each role who must approve the change by a forge review.
+
+## landing-gate
+
+A gate every change covered by the rule asks for: an agent's review, or a repository's check when it has no CI.
+
+- `number`: integer, 0 to 4,294,967,295. The agent review's or repository check's gate number.
+- `blocking`: true or false. Whether this gate must pass before the change lands.
+- `freshness`: `"exact"` or `"clean"`. At which later heads a verdict still counts. `"exact"`: The verdict counts at the head it was given at. `"clean"`: The verdict also counts at later heads reached by updates that merged cleanly.
+
+## landing-approval
+
+Distinct people holding a project role approve the change, each by a review on the forge.
+
+- `role`: integer, 0 to 4,294,967,295. A role in the project's policy whose people approve the change.
+- `people`: integer, 0 to 4,294,967,295. How many distinct people holding the role must approve the change.
+- `freshness`: `"exact"` or `"clean"`. At which later heads an approval still counts. `"exact"`: The verdict counts at the head it was given at. `"clean"`: The verdict also counts at later heads reached by updates that merged cleanly.
+
+## landing-pattern
+
+The resources the rule covers: the exact base segments, then an exact last segment or an open prefix and all below it.
+
+- `segments`: list of at most 9, each hex, at most 4,096 bytes. The exact base segments of the resources the rule covers.
+- `last`: `landing-last`. One more segment, equal to an exact value or beginning with an open value, with all below it.
+
+## landing-last
+
+The final resource segment, in the same hex form as a pattern's last segment.
+
+- `exact`: hex, at most 4,096 bytes. One last segment equal to these bytes.
+- `open`: hex, at most 4,096 bytes. A final segment beginning with these bytes, with all below it.
+
+## forge-charter
+
+An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'.

@@ -9,6 +9,9 @@ use jig_client_view::address::{Address as Page, ProjectSection};
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;
 
+const TASK_ONE: &[u8] = b"Task 1: First goal";
+const TASK_TWO: &[u8] = b"Task 2: Second goal";
+
 fn ready<F: Front<Test>>(world: &mut World<Test, F>, section: ProjectSection) -> ClientId {
     world.seed(Seed::ChatProject { party: 1, project: 1 });
     world.seed(Seed::Project(Facts::Goals));
@@ -27,6 +30,16 @@ fn goal_order<F: Front<Test>>(world: &World<Test, F>, client: ClientId) -> Vec<u
     tasks.dedup();
     tasks
 }
+fn goal_titles<F: Front<Test>>(world: &World<Test, F>, client: ClientId) -> Vec<&[u8]> {
+    world
+        .tree(client)
+        .nodes()
+        .iter()
+        .filter(|node| node.role == Role::Link)
+        .filter_map(|node| node.name.as_deref())
+        .filter(|name| name.ends_with(b"goal"))
+        .collect()
+}
 pub fn moving_a_goal_up_reorders_the_board<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world, ProjectSection::Goals);
     assert_eq!(goal_order(world, client), vec![1, 2]);
@@ -39,6 +52,31 @@ pub fn moving_a_goal_up_reorders_the_board<F: Front<Test>>(world: &mut World<Tes
     );
     finish(world);
     assert_eq!(goal_order(world, client), vec![2, 1]);
+}
+/// The last changed first: `QueryOrder::Changed`, on the project's tasks section.
+pub fn a_project_s_tasks_section_lists_the_last_changed_first<F: Front<Test>>(world: &mut World<Test, F>) {
+    let client = ready(world, ProjectSection::Tasks);
+    assert_eq!(goal_titles(world, client), [TASK_TWO, TASK_ONE]);
+    world.person(
+        client,
+        vec![
+            Step::Go { address: Address::Jig(Page::Project { project: 1, section: ProjectSection::Goals }) },
+            Step::See { find: Find::text(b"Second goal"), within: WAIT },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Move up") },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
+        ],
+    );
+    finish(world);
+    world.person(
+        client,
+        vec![
+            Step::Go { address: Address::Jig(Page::Project { project: 1, section: ProjectSection::Tasks }) },
+            Step::See { find: Find::named(Role::Link, b"First goal"), within: WAIT },
+            Step::See { find: Find::named(Role::Link, b"Second goal"), within: WAIT },
+        ],
+    );
+    finish(world);
+    assert_eq!(goal_titles(world, client), [TASK_ONE, TASK_TWO]);
 }
 pub fn the_project_overview_shows_the_board_s_first_goals<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world, ProjectSection::Overview);

@@ -20,6 +20,15 @@ fn charter_path(engine: &config::Engine, index: usize) -> Path {
     name.put(number.as_bytes()).expect("setting number counted");
     Path::root().member(&name.finish())
 }
+/// Each default charter leaves its brief room before the core admits work
+/// (temper/docs/design/domain/agent.md, 4.3).
+pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mut Problems) {
+    for (index, charter) in engine.charters.iter().enumerate() {
+        if let Err(short) = host.check(charter.number, &charter.policy) {
+            problems.push(charter_path(engine, index), What::Room(short));
+        }
+    }
+}
 fn own(name: &[u8]) -> Path {
     Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
 }
@@ -40,6 +49,13 @@ fn against(problems: &mut Problems, name: &[u8], other: &'static [u8]) {
 }
 /// Named compatibility checks on the envelope runtime and store actually use.
 pub fn engine_envelope(root: &domain::Limits, problems: &mut Problems) {
+    if !jig_domain_core::brief_holds_documents(root.brief.sections, root.tasks.charter_documents) {
+        against(
+            problems,
+            b"root.brief.sections",
+            b"engine.limits.overrides.tasks.charter_documents and the core sections",
+        );
+    }
     if let Err(found) = config::check_effective_limits(&domain::core_limits(root)) {
         let mut path = Path::root().member(b"engine");
         for segment in &found.path.segments {
@@ -312,15 +328,15 @@ pub fn longest_remote(machine: &temper_forge_setup::machine::Machine, name_bytes
     Some(machine_remote(machine, name_bytes)?.max(u64::from(temper_engine_domain_forge::PULL_ADDRESS_BYTES)))
 }
 pub fn machine_remote(machine: &temper_forge_setup::machine::Machine, name_bytes: u32) -> Option<u64> {
-    let mut base = u64::try_from(b"https://github.com/".len()).ok()?;
+    let mut base = skein_lib::len_u64(crate::system::GITHUB_REMOTE.len());
     if let Some(owned) = &machine.owned {
-        base = base.max(u64::try_from(owned.remote.len()).ok()?);
+        base = base.max(skein_lib::len_u64(owned.remote.len()));
     }
     if let Some(fake) = &machine.fake {
-        base = base.max(u64::try_from(fake.remote.len()).ok()?);
+        base = base.max(skein_lib::len_u64(fake.remote.len()));
     }
     if let Some(github) = &machine.github {
-        base = base.max(u64::try_from(github.remote.len()).ok()?);
+        base = base.max(skein_lib::len_u64(github.remote.len()));
     }
     remote(base, name_bytes)
 }
@@ -619,38 +635,38 @@ fn index_of(numbers: &[u32], number: u32) -> usize {
     }
     index
 }
-fn landing_config(engine: &settings::Engine) -> domain::LandingPolicy {
-    let mut projects = Map::with_capacity(engine.landing.projects.capacity());
-    for (&project, rules) in &engine.landing.projects {
-        projects.insert(project, rules.clone()).expect("the same capacity");
-    }
-    let mut landings = Map::with_capacity(engine.landing.landings.capacity());
-    for (&project, landing) in &engine.landing.landings {
+fn landing_config(engine: &settings::Engine) -> Map<u32, domain::ProjectLanding> {
+    let mut landings = Map::with_capacity(engine.landings.capacity());
+    for (&project, landing) in &engine.landings {
         landings.insert(project, landing.clone()).expect("the same capacity");
     }
-    domain::LandingPolicy { deployment: engine.landing.deployment.clone(), projects, landings }
+    landings
 }
 
 /// What the root's construction asserts, refused before it is made, each
 /// naming the configuration that breaks it (domain/root.md, 6).
 pub fn root(
-    core: jig_domain_core::Config,
+    mut core: jig_domain_core::Config,
     engine: &settings::Engine,
     seeds: &settings::Seeds,
     landing_projects: &[u32],
     limits: &domain::Limits,
     problems: &mut Problems,
 ) {
-    let landing = landing_config(engine);
+    let landings = landing_config(engine);
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
+    if let Some(&connector) = core.connectors.first() {
+        core.kinds = crate::stock::kinds(limits, connector);
+    }
     let config = domain::Config {
+        host_part: engine.host_part,
+        kinds_stock: engine.kinds_stock.clone(),
         period_span: crate::stock::PERIOD_SPAN,
         playground: crate::system::playground_config(engine.demo.as_ref(), engine.limits.setup.deadline),
         core,
-        landing,
+        landings,
         forge,
         identities,
-        forge_charter: engine.charter,
         machine: Some(crate::system::machine_config(&engine.machine)),
         forges: Box::new([]),
         under_box: false,
@@ -1066,7 +1082,7 @@ pub fn records(jig: &config::Engine, limits: &limits::Limits, problems: &mut Pro
             }
         }
         Err(refused) => {
-            let found = store_refusal(refused);
+            let found = task_store_refusal(jig, refused);
             for problem in &found.problems {
                 problems.push(problem.path.clone(), problem.what);
             }
@@ -1104,6 +1120,50 @@ pub(crate) fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> 
     let root = limits::engine(&jig.limits, own)
         .ok_or(crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling))?;
     Ok(crate::store::layout(&root, &root.forge, &jig.limits.store)?.secrets.value)
+}
+
+fn task_record_binds(codec: &jig_protocol_store::tasks_v9::Limits) -> bool {
+    match jig_protocol_store::tasks_v9::Value::encoded_bound(codec) {
+        Some(bytes) => jig_protocol_store::tasks_v9::TaskRecord::encoded_bound(codec) == bytes.checked_sub(1),
+        None => false,
+    }
+}
+
+fn map_value(refused: crate::store::Refusal) -> Option<(u32, u32)> {
+    use crate::store::Refusal;
+    use jig_protocol_store::sizes::SizeRefusal;
+    match refused {
+        Refusal::Map(SizeRefusal::Value { needs, has }) => Some((needs, has)),
+        Refusal::Map(
+            SizeRefusal::Key { .. }
+            | SizeRefusal::Ops { .. }
+            | SizeRefusal::Commit { .. }
+            | SizeRefusal::Page { .. }
+            | SizeRefusal::Queue { .. }
+            | SizeRefusal::QueuedBytes { .. }
+            | SizeRefusal::Whole { .. }
+            | SizeRefusal::Ceiling,
+        )
+        | Refusal::ReadRoom { .. }
+        | Refusal::Transcript { .. }
+        | Refusal::Page { .. } => None,
+    }
+}
+
+fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -> Problems {
+    if let Some((needs, has)) = map_value(refused)
+        && let Some(codec) = jig_protocol_store::codec::tasks::limits(&engine.limits.core.tasks)
+        && jig_protocol_store::tasks_v9::Row::encoded_bound(&codec) == Some(u64::from(needs))
+        && task_record_binds(&codec)
+    {
+        let mut problems = Problems::empty();
+        problems.push(
+            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch"),
+            What::StoreTask { needs, has, batch: engine.limits.core.tasks.batch },
+        );
+        return problems;
+    }
+    store_refusal(refused)
 }
 
 pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {

@@ -676,7 +676,7 @@ checks this document's contract:
   credential in an argument; scenario memory peaks under their ceilings.
   Its scripted outputs are the transcripts.
 - **The fake git program,** its core `crates/temper-fake-git` and its
-  hosted half `testing/temper-fake-git-hosted` (`../domain/testing.md`,
+  hosted half `crates/temper-fake-git-hosted` (`../domain/testing.md`,
   4.3), answers this document's invocations as real
   git does, and is checked against the same transcripts: each
   transcript's arguments and environment, run on the fake over the

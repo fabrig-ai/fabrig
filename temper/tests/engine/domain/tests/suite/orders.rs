@@ -550,7 +550,7 @@ fn the_root_sends_no_more_commits_than_the_store_takes_in_flight() {
     let mut answered = Vec::new();
     for _ in 0..STEPS {
         if let Some((number, _)) = driver.store.pending.front() {
-            assert_eq!(*number, first + u64::try_from(answered.len()).expect("small burst"));
+            assert_eq!(*number, first + skein_lib::len_u64(answered.len()));
             answered.push(*number);
             commit_one(&mut driver);
         }
@@ -697,6 +697,7 @@ fn assert_releases_durable(driver: &Driver, assignment: &engine::Assignment) {
             | host::LinkDown::Message { .. }
             | host::LinkDown::Relayed { .. }
             | host::LinkDown::Cancel { .. }
+            | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Grant { .. }) => panic!("worker_notices returned an unrelated notice: {other:?}"),
         };
         assert!(

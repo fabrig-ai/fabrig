@@ -9,7 +9,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Token, Wall};
 
-use crate::{Core, Family, fresh, translate};
+use crate::{Core, Family, fresh, settings, translate};
 
 /// Core-authorized task identity and funding for one connector repair.
 #[derive(Debug)]
@@ -102,8 +102,23 @@ pub enum EffectRefusal {
 }
 
 /// A connector's answer in jig's vocabulary, after root translation.
+/// Application settings: jig/docs/design/domain/engine.md, 17.5;
+/// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Debug)]
 pub enum Event {
+    /// A restore's judged items (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    SettingsRestored {
+        owner: Token,
+        judged: Box<[Judged]>,
+    },
+    SettingsJudged {
+        owner: Token,
+        judged: Box<[Judged]>,
+    },
+    SettingsDefaults {
+        connector: u16,
+        defaults: Box<[DefaultState]>,
+    },
     Resource {
         project: u32,
         name: tasks::Name,
@@ -224,13 +239,76 @@ pub struct AdoptedParty {
     pub role: people::Role,
 }
 
+/// A connector's judgment of one item (jig/docs/design/domain/engine.md, 17.5;
+/// jig/docs/design/domain/connectors.md, section 17).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Judged {
+    Accept { size: u32, charters: Box<[u32]> },
+    Same,
+    Refuse { why: Box<[u8]> },
+}
+
+/// A connector's default metadata (jig/docs/design/domain/engine.md, 17.5;
+/// jig/docs/design/domain/connectors.md, section 17).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct DefaultState {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub size: u32,
+    pub charters: Box<[u32]>,
+    pub differs: bool,
+}
+
 /// What the core asks a numbered connector to do.
+/// Application settings: jig/docs/design/domain/engine.md, 17.5;
+/// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Debug)]
 pub enum Ask {
+    /// Erase replaced values below the history cutoff (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    ForgetReplaced {
+        before: u64,
+    },
+    /// Keep restored values as proposal items (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    RestoreSettings {
+        owner: Token,
+        proposal: u64,
+        items: Box<[settings::application::Restored]>,
+    },
+    /// Judge items in this decision, in their order, for the revision they would make.
+    JudgeSettings {
+        owner: Token,
+        revision: u64,
+        /// Accepted proposal whose kept values Set items name, with empty bytes.
+        proposal: Option<u64>,
+        items: Box<[settings::application::Item]>,
+    },
+    /// Keep committed changes in the same decision, taking a proposal's kept values when named.
+    KeepSettings {
+        revision: u64,
+        proposal: Option<u64>,
+        items: Box<[settings::application::Item]>,
+    },
+    /// Keep a proposal's values, checked against the kinds' bounds alone.
+    KeepProposalSettings {
+        proposal: u64,
+        items: Box<[settings::application::Item]>,
+    },
+    /// Erase the values of a withdrawn or rejected proposal.
+    DropProposalSettings {
+        proposal: u64,
+    },
+    /// Save defaults in the release's decision; none means no revision was needed.
+    SaveSettingsDefaults {
+        revision: Option<u64>,
+    },
+    /// The live task names these resources.
     Names {
         task: u64,
         resources: Box<[tasks::Name]>,
     },
+    /// The task is erased whole: nothing it named need be kept for it
+    /// (jig/docs/design/domain/connectors.md, 3.4).
     Unname {
         task: u64,
     },
@@ -426,6 +504,55 @@ impl Core {
             budget: authority.budget.spend,
             authority: translate::task_authority(&authority),
         })
+    }
+
+    /// Allocate a deployment-started procedure task that runs no agent
+    /// (jig/docs/design/domain/authority.md, 6): the project's ceiling authority
+    /// and a budget of zero, so a period reserved whole never stops it. None
+    /// only when the project is not open, has no policy or no task number is left.
+    pub fn procedure_seed(&mut self, project: u32) -> Option<RepairSeed> {
+        self.start_input();
+        if !self.open_project(project) {
+            return None;
+        }
+        let mut authority = self.authority.policy(project)?.ceiling.clone();
+        authority.budget.spend = 0;
+        let number = fresh(&mut self.counters, Family::Task)?;
+        let period = self.period(project);
+        Some(RepairSeed {
+            number,
+            project,
+            period,
+            period_budget: self.period_budget(project),
+            open_period: self.tasks.funding(tasks::Funder::Period { project, period }).is_none(),
+            budget: 0,
+            authority: translate::task_authority(&authority),
+        })
+    }
+
+    /// Deployment procedures with no task budget spend only at the effect,
+    /// from the current period (jig/docs/design/domain/authority.md, 6–7).
+    /// These durable facts distinguish them from procedures funded by a task
+    /// or a person's pool.
+    pub(crate) fn procedure_effect_funder(&self, task: u64) -> Option<tasks::Funder> {
+        let row = self.tasks.task(task)?;
+        let procedure = match row.executor {
+            tasks::Executor::Procedure { .. } => true,
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
+        };
+        let funded = match row.funder {
+            tasks::Funder::Period { project, .. } => project == row.project,
+            tasks::Funder::Task(_) | tasks::Funder::Pool { .. } | tasks::Funder::Recurring { .. } => false,
+        };
+        if row.requester != (tasks::Party::Deployment { project: row.project })
+            || !procedure
+            || row.numbers.budget != 0
+            || row.authority.budget.spend != 0
+            || !funded
+        {
+            return None;
+        }
+        Some(tasks::Funder::Period { project: row.project, period: self.period(row.project) })
     }
 
     /// Whether a live task may address a resource adopted into this project.
@@ -679,18 +806,40 @@ impl Core {
             return authority::Answer::Refuse;
         }
         let Some(context) = self.tasks.delegation(task) else { return authority::Answer::Refuse };
-        authority::check_effect(
+        let period = self.procedure_effect_funder(task);
+        let mut given = translate::tasks_authority(&context.authority);
+        let mut numbers = translate::authority_numbers(context.numbers);
+        if period.is_some() {
+            // Check every permission and both ceilings at the described price;
+            // this task has no allotment to widen. Available funds are checked below.
+            let maximum = description.effect.price.unwrap_or(0);
+            given.budget.spend = maximum;
+            numbers = authority::Numbers { budget: maximum, spent: 0, spent_below: 0, reserved: 0 };
+        }
+        let answer = authority::check_effect(
             &self.authority,
             &authority::EffectAsk {
                 project: context.project,
-                authority: translate::tasks_authority(&context.authority),
-                numbers: translate::authority_numbers(context.numbers),
+                authority: given,
+                numbers,
                 effect: super::resources::effect(self, context.project, description.effect.clone()),
                 now,
             },
             verdicts,
             findings,
-        )
+        );
+        if answer == authority::Answer::Allow
+            && let Some(funder) = period
+        {
+            let available = match self.tasks.funding(funder) {
+                Some(row) => authority::left(translate::authority_numbers(row.numbers)),
+                None => 0,
+            };
+            if description.effect.price.unwrap_or(0) > available {
+                return authority::Answer::Wait;
+            }
+        }
+        answer
     }
 
     /// Decide authority for a connector read described in jig's terms.

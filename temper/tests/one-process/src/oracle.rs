@@ -1,16 +1,20 @@
 //! Public readback over the service's cold restart (temper testing.md, 2.5).
 use crate::{
     ctl::{Caller, Command},
-    machine::{Machine, SignalHost},
+    fixtures,
     referee::{self, Store},
     stories,
-    world::{self, Proc, Settings, Story},
+    world::{self, HarnessProcess, OneProcess, Proc, Settings, Story},
 };
 use serde_json::Value;
 use skein_io::kernel::Exit;
 use skein_lib::Time;
 use skein_shell::Host;
 use std::{cell::RefCell, rc::Rc};
+use temper_playground::{
+    machine::{Machine, SignalHost},
+    programs,
+};
 
 // These are the public documents read by the adoption world's native person and setup.
 const READS: &[&[&[u8]]] = &[
@@ -74,7 +78,7 @@ pub(crate) fn readback(procs: &mut [Proc]) -> bool {
         }
         let caller = procs
             .iter_mut()
-            .find_map(|proc| if let Proc::Calls(caller) = proc { Some(caller) } else { None })
+            .find_map(|proc| if let Proc::Other(HarnessProcess::Calls(caller)) = proc { Some(caller) } else { None })
             .expect("crash world has an oracle caller");
         if !state.sent {
             assert!(!state.link.is_empty(), "oracle has the printed sign-in link");
@@ -101,7 +105,7 @@ impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, _: Time, procs: &mut [Proc]) {
         let (first, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Calls(caller) = &mut other[0] else { panic!("oracle caller second") };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { panic!("oracle caller second") };
         if !self.sent && !service.service.links().is_empty() {
             commands(caller);
             self.sent = true;
@@ -140,28 +144,50 @@ pub(crate) fn cold(
     previous.recovering();
     let store = Rc::new(RefCell::new(previous));
     world::lower_store(Some(store));
-    world::share(run.borrow().forge.clone());
+    let transport = run.borrow().forge.clone().expect("cut world forge");
     let client = disk.reopen_root(2);
-    let mut world = skein_world::World::new_controlled(
-        settings.seed,
-        settings.config,
-        skein_world::Memory::Unchecked,
-        |controls| Judge { controls, before, sent: false, stopping: false },
-    )
-    .with_machine(Machine(disk));
-    world::host_programs(&mut world);
-    world.spawn_restartable(world::service_roots(), world::service);
-    world.spawn_root(skein_sim::Handle::new(client.raw()), |root| Proc::Calls(Box::new(Caller::oracle(root))));
-    world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(Story::Adoption), None))));
-    world.spawn(|| Proc::Forge(Box::new(SignalHost::new(world::peer(), None))));
-    let outcome = world.run();
+    let machine = Machine::new(disk);
+    let parameters = world::parameters(&machine, transport.clone());
+    let outcome = programs::with(parameters, || {
+        let mut world = skein_world::World::new_controlled(
+            settings.seed,
+            settings.config,
+            skein_world::Memory::Unchecked,
+            |controls| Judge { controls, before, sent: false, stopping: false },
+        )
+        .with_machine(machine);
+        for (program, roots) in programs::programs::<OneProcess>() {
+            world.host_roots(program, roots);
+        }
+        let limits = temper_client_shell_cli::limits::native();
+        world.host_roots(
+            skein_world::HostedProgram {
+                program: crate::ctl::PROGRAM.into(),
+                make: |spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited)))),
+                instances: 1,
+                operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
+            },
+            crate::ctl::roots,
+        );
+        world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
+        world.spawn_root(skein_sim::Handle::new(client.raw()), |root| {
+            Proc::Other(HarnessProcess::Calls(Box::new(Caller::oracle(root))))
+        });
+        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(Story::Adoption), None))));
+        world.spawn(|| {
+            Proc::Forge(Box::new(SignalHost::new(
+                temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
+                None,
+            )))
+        });
+        world.run()
+    });
     assert!(outcome.procs.iter().all(Host::is_empty), "cold public readback drains every process");
     world::lower_store(None);
-    world::share(None);
 }
 
 pub(crate) fn caller(inherited: &skein_world::Inherited) -> Proc {
-    Proc::Calls(Box::new(Caller::restartable(inherited)))
+    Proc::Other(HarnessProcess::Calls(Box::new(Caller::restartable(inherited))))
 }
 
 pub(crate) fn spawn<R: skein_world::Referee<Proc>>(world: &mut skein_world::World<Proc, R, Machine>) {

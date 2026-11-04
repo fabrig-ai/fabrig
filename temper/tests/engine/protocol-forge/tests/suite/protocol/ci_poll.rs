@@ -18,13 +18,13 @@ pub(super) fn pending_github_change(passes: u32) -> (Protocol, Wall, Wall, u64) 
     world.adopt();
     let run = branch_name(b"temper/1/r1");
     world.event(top::Event::Names { task: 1, resources: Box::new([run.clone()]) });
-    world.event(top::Event::Hold { task: 1, resource: run, from: None });
+    world.event(top::Event::Hold { entry: 0, task: 1, resource: run, from: None });
     let mut row = change_row();
     row.change.since = world.wall();
     world.event(top::Event::Change { row });
     let branch = branch_name(b"temper/51");
     world.event(top::Event::Names { task: 51, resources: Box::new([branch.clone(), branch_name(b"main")]) });
-    world.event(top::Event::Hold { task: 51, resource: branch, from: None });
+    world.event(top::Event::Hold { entry: 0, task: 51, resource: branch, from: None });
     world.run_for(0);
     assert_eq!(
         change_step(&mut world, 2, change::Status::Unknown, Box::new([])),

@@ -87,6 +87,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         domain::Request::Lower(
             smith_domain::Lower::Complete { .. }
             | smith_domain::Lower::Yield { .. }
+            | smith_domain::Lower::Close { .. }
             | smith_domain::Lower::Cancel { .. }
             | smith_domain::Lower::Io { .. }
             | smith_domain::Lower::Job { .. }
@@ -152,7 +153,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
             &mut service.channel_below,
         ),
         domain::Request::Admitted { host_run: _, run } => {
-            service.admitted = Some(run);
+            service.admission.admit(run);
             frame.channel.send_admitted(token, &mut service.channel_events, &mut service.channel_below)
         }
         domain::Request::Answer { to, answer, read, detail } => {
@@ -231,6 +232,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         domain::Request::Lower(
             smith_domain::Lower::Complete { .. }
             | smith_domain::Lower::Yield { .. }
+            | smith_domain::Lower::Close { .. }
             | smith_domain::Lower::Cancel { .. }
             | smith_domain::Lower::Io { .. }
             | smith_domain::Lower::Job { .. }

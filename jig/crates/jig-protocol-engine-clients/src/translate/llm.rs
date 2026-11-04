@@ -214,9 +214,11 @@ pub(crate) fn refused(
         w::Ask::Amend(value) => (None, lacking(value.change().llm().as_ref(), models)),
         w::Ask::Compound(value) => operations(value.operations(), models, limits)?,
         w::Ask::RemoveProject(_)
+        | w::Ask::SetVisibility(_)
         | w::Ask::Rename(_)
         | w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
+        | w::Ask::Restore(_)
         | w::Ask::MakeProject(_)
         | w::Ask::Message(_)
         | w::Ask::Answer(_)
@@ -411,6 +413,7 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
                     }
                     found
                 }
+                w::SettingValue::Application(_) => None,
                 w::SettingValue::Rules(value) => settings_selector(value.ceiling().models().as_ref(), models),
             },
         };

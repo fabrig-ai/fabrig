@@ -69,14 +69,11 @@ fn build(value: &MilestoneLine, words: &Words) -> (Tree, JigBindings, Limits) {
         depth: f.depth,
         text_per_node: f.text_per_node,
         text_bytes: f.text_bytes,
-        drawing_bytes: 0,
         styles_per_node: 2,
-        patches: 0,
         bindings: f.bindings,
         slots: f.slots,
         markdown_depth: 2,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     };
     let mut b = Builder::new(&capacity);
     let mut bindings = JigBindings::new(f.bindings, 256);
@@ -89,8 +86,8 @@ fn build(value: &MilestoneLine, words: &Words) -> (Tree, JigBindings, Limits) {
     assert!(tree.len() <= f.nodes);
     let mut total = 0_u64;
     for node in tree.nodes() {
-        assert!(crate::tests::text_bytes(node) <= f.text_per_node);
-        total = total.checked_add(u64::from(crate::tests::text_bytes(node))).unwrap();
+        assert!(node.text_bytes() <= f.text_per_node);
+        total = total.checked_add(u64::from(node.text_bytes())).unwrap();
     }
     assert!(total <= u64::from(f.text_bytes));
     (tree, bindings, f)

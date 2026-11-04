@@ -15,7 +15,7 @@ desktop browsers are well supported (the user, 10-26).
 - **The box's playground, with no box.** The playground a person meets
   in `temper box` runs in the visitor's browser: "Try the playground"
   makes its ordinary records, the Playground forge, the Scripted model
-  and the Playground project with `playground/widget` adopted, and the
+  and the project Demo with `playground/widget` adopted, and the
   banner's "set up temper" resets them (`protocol/setup.md`, 8.4).
   Nothing to install, no account, no server, no real model.
 - **Product code on fakes, with no fake branch.** The engine, the
@@ -50,7 +50,7 @@ desktop browsers are well supported (the user, 10-26).
   following the printed link: signed in as the deployment's owner, on
   the welcome. The visitor chooses "Try the playground", which sends
   `StartPlayground`: the playground's ordinary records are made, the
-  fake forge's, the scripted account and the project Playground, and
+  fake forge's, the scripted account and the project Demo, and
   `playground/widget` is adopted into it once the fake forge connects
   (`protocol/setup.md`, 8.4). From there, the box's playground: the
   banner, the three suggested requests, a change followed from a branch
@@ -175,6 +175,12 @@ desktop browsers are well supported (the user, 10-26).
   the browser (5.4), so the box and the browser tell one story, and the
   ladder's rung A walks the same requests on real backends.
 
+Story A's documents give the scripted model a fixed 1200 ms before each
+reply's first piece and CI a fixed 4000 ms from a head's push to its
+verdict. These are the story's pace at 1×, so a person can follow the
+delegate's phases; the frame's speed changes how long the person waits
+(2026-11-04).
+
 ### 5.3 From the ladder
 
 - **B0 to B2 become stories as their rungs pass,** each from its passing
@@ -292,6 +298,13 @@ desktop browsers are well supported (the user, 10-26).
 - **By hand, before the release:** Firefox and Safari on a desktop,
   walking story A.
 
+The calm-start check keeps the service, the fake model peer and the fake
+forge running. A hosted git command may have ended successfully, including
+the worker's startup version probe: the world retains completed programs.
+Every other process end, and a git command's nonzero exit, signal or kill,
+fails this check. Calm does not require a successful command to remain
+running (decided 2026-11-03).
+
 ## 10. Its bar for v0.1.0
 
 - **Story A walks in the browser,** from the welcome to the CSV change
@@ -309,8 +322,17 @@ desktop browsers are well supported (the user, 10-26).
   nothing up:** the client tells nothing of it, and the welcome is the
   user's page. Default: both as they are, Set up temper and the
   banner's link unpressed, until the user says what replaces them.
-- **The memory bar for a desktop browser:** the draft's 256 MiB was a
-  phone's; measured first, then the user's.
+- **The memory and slice bars for a desktop browser:** the draft's
+  256 MiB was a phone's, and a page that answers while the world steps
+  has no figure. The browser tier measures both
+  (`temper/docs/development/playground-figures.md`). The user sets
+  them, at about 1.5 times what story A measures with the tier failing
+  past them, or keeps them reported until a second story exists.
+  Default: reported, no bar enforced.
+- **The frame's download link:** no document names the download's
+  address: `release.md` leaves it to the site, whose design is not
+  written. Default: the frame says it in words, with no link, until
+  the site's design names its download page.
 - **The welcome, or straight in.** Default: the welcome, the product's
   path.
 - **The address,** and the crate's name `temper-playground`: the site's

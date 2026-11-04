@@ -21,8 +21,15 @@ settings show charter|template|policy NUMBER [--revision REVISION]
   --revision REVISION: a number from 0 to 4294967295; optional. Its value at this revision; the newest when absent
 settings show rules
   rules (kind): one of rules; required. The deployment's rules
+settings show landing-rule NUMBER [--project PROJECT]
+  landing-rule (kind): one of landing-rule; required. A landing rule
+  NUMBER (number): a number from 1 to 4294967295; required. The rule's number
+  --project PROJECT: a project's name or number; optional. The project's rule; the deployment's when absent
+settings show forge-charter NUMBER
+  forge-charter (kind): one of forge-charter; required. One of the forge's charters
+  NUMBER (number): a number from 1 to 2; required. 1 the change's charter, 2 its reviews'
 Read one setting's value whole
-Prints: `KIND N, revision R`, or `rules, revision R`, then the value as JSON on one line
+Prints: `KIND N, revision R`, or `rules, revision R`, then the value as JSON; temper's settings also show their state
 --json: the record setting.
 Key: none.
 The JSON value is what a settings file's `set` takes.
@@ -45,6 +52,9 @@ is `{"setting": {"kind": KIND, "number": NUMBER}, "set": VALUE}`, or
 number. A file out of form names the item, member and rule (exit
 1). `settings apply: stale; newest revision R; read settings show
 again` (exit 2): read the settings, then decide again.
+`{"kind": "project-policy", "project": P}` sets project P's own
+policy, set alone, once a file; it needs an owner of P, and with
+the deployment's items one owner of both.
 ```
 
 ## settings propose
