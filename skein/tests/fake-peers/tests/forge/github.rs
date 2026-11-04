@@ -24,10 +24,7 @@ use skein_forge::{
 use skein_forge_connection::grow::Tail;
 use skein_io::kernel::{Complete, Done, Family, Fd, Op, Submit};
 use skein_json::tokenizer;
-use skein_lib::{
-    Env, Intake, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes,
-    stream::{Down, Up},
-};
+use skein_lib::{List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
 use skein_shell::Host;
 use skein_sim::{Pid, Sim};
 use std::{cell::RefCell, rc::Rc};
@@ -159,31 +156,18 @@ impl Reply {
         mut decoder: github::decode::Decoder,
         bounds: &github::limits::Limits,
     ) -> (Vec<github::document::Row>, Document) {
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds.json };
-        let mut tokenizer = tokenizer::Tokenizer::new(&bounds.json);
-        let mut above = Queue::with_capacity(1);
-        let mut below = Queue::with_capacity(1);
-        let mut intake = Intake::with_capacity(RESPONSE_BYTES);
-        intake.append(&self.body).expect("response fits intake");
+        let mut feed = tokenizer::Feed::new(&self.body, &bounds.json);
+        let mut request = tokenizer::Request::Next;
         let mut rows = Vec::new();
-        tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-        for _ in 0..self.body.len().saturating_mul(8).saturating_add(64) {
-            if let Some(event) = above.pop() {
-                let (request, step) = decoder.step(event);
-                match step {
-                    github::decode::Step::Demand => {}
-                    github::decode::Step::Row(row) => rows.push(row),
-                    github::decode::Step::Done(doc) => return (rows, doc),
-                    github::decode::Step::Malformed(_) => panic!("response document must decode"),
-                }
-                tokenizer::down(&mut tokenizer, &env, request, &mut above, &mut below);
-            } else {
-                let Down::Demand { read, .. } = below.pop().expect("JSON input demand") else {
-                    panic!("JSON reads only")
-                };
-                let up = intake.meet(read).map_or(Up::End, Up::Bytes);
-                tokenizer::up(&mut tokenizer, &env, up, &mut above, &mut below);
+        for _answer in 0..=self.body.len() {
+            let (next, step) = decoder.step(feed.answer(request));
+            match step {
+                github::decode::Step::Demand => {}
+                github::decode::Step::Row(row) => rows.push(row),
+                github::decode::Step::Done(doc) => return (rows, doc),
+                github::decode::Step::Malformed(_) => panic!("response document must decode"),
             }
+            request = next;
         }
         panic!("response decoding settles")
     }
