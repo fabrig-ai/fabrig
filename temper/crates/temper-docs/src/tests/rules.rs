@@ -136,6 +136,43 @@ fn capacity_help_names_members_and_dependencies() {
 }
 
 #[test]
+fn configure_help_grants_reference_tools_and_note_scopes() {
+    let text = find(b"configure").expect("configure page").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "Installing charters alone grants no task authority",
+        "decide_escalation",
+        "propose 16",
+        "subscribe_forge",
+        "note 128",
+        "recall 256",
+        "tools 1983",
+        "goal and project note scopes",
+        "notes 3",
+        "rules ceiling, policy 1's ceiling and the creator-role authority",
+        "coordinator charter 5",
+        "designer charter 7",
+        "merge job 3",
+        "Policy 1 affects future projects. Existing projects need project-policy",
+        "saved whole current `project-policy` settings item",
+        "Existing tasks do not gain widened authority automatically",
+        "amend or allot their authority explicitly",
+    ] {
+        assert!(text.contains(instruction), "configure help must explain: {instruction}");
+    }
+    for command in [
+        "settings show rules --json",
+        "settings show policy 1 --json",
+        "--slurpfile required reference-authority.json",
+        "select(.number == $role)",
+        ".set.ceiling |= widen",
+        ".notes |= grant($required[0].notes)",
+    ] {
+        assert!(text.contains(command), "configure recipe must use: {command}");
+    }
+}
+
+#[test]
 fn the_index_names_every_concept_walk_and_recipe_once() {
     let text = find(b"index").expect("index").text;
     for entry in &PAGES {
@@ -300,4 +337,33 @@ fn a_head_refuses_wrong_fields_and_tests_each_byte_bound_on_both_sides() {
     head(&fixture(Kind::Index, "# Fixture\n\nKind: index\n\nFix\nture.\n")).expect_err("joined summary differs");
     head(&Page { summary: "Fix ture.", ..fixture(Kind::Index, "# Fixture\n\nKind: index\n\nFix\nture.\n") })
         .expect("joined summary");
+}
+
+#[test]
+fn deployment_explains_tool_payload_and_its_dependencies() {
+    let text = find(b"deployment").expect("deployment help").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for requirement in [
+        "profile.declared.tool_payload",
+        "per piece",
+        "4,487",
+        "10,662",
+        "input-answer",
+        "99876",
+        "65536",
+        "8194",
+        "8192",
+        "checkout.message_bytes",
+        "hub.event_bytes",
+        "hub.turn_bytes",
+        "hub.turn_queue_bytes",
+        "hub.transcript_bytes",
+        "core.resume_bytes",
+        "root.journal.transcript_bytes",
+        "root.loads",
+        "stop",
+        "restart",
+    ] {
+        assert!(text.contains(requirement), "deployment help must name {requirement}");
+    }
 }

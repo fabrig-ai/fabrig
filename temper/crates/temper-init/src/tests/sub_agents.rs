@@ -3,31 +3,23 @@
 
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust test code traverses fake provider observations")]
 
-use super::fixtures::{self, DIRECTORIES, content, parse};
+use super::fixtures::{self, DIRECTORIES, call, content, parse};
 use serde_json::{Value, json};
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Message, Part, Script, Turn};
-use skein_lib::{Duration, Token};
-use skein_world::domain::Span;
-use smith_agent_world::{CompletionTerminal, Job, Settings, World, fixture, scripted_charter};
+use skein_lib::Token;
+use smith_agent_world::{CompletionTerminal, World, fixture, scripted_charter};
 use smith_domain::run;
 
 // The recorded parent response has two inspect-only calls, each with this allowance.
 const CHILDREN: usize = 2;
 const CHILD_TURNS: u32 = 3;
 const CHILD_SECONDS: u32 = 30;
-// The shared world installs fake-1, fake-2 and fake-3.
-const FAKE_MODELS: u64 = 3;
-const FAKE_MODEL_BYTES: usize = b"fake-1".len();
 // Each child reads and replies; the parent delegates and finishes.
 const COMPLETIONS: usize = CHILDREN * 2 + 2;
 const FILES: [(&str, &[u8]); CHILDREN] =
     [("src/main.rs", b"fn main() {}"), ("README.md", b"A small example application.")];
 const REPORT: &str = "src/main.rs defines main; README.md describes the application.";
-
-fn call(name: &[u8], arguments: &Value) -> Line {
-    Line::Call { name: name.into(), arguments: serde_json::to_vec(arguments).expect("call JSON").into() }
-}
 
 fn calls(lines: Box<[Line]>) -> Turn {
     fixture::calls(lines, 1)
@@ -66,38 +58,8 @@ fn scripts() -> Box<[Script]> {
     ])
 }
 
-fn settings(mut document: Value) -> Settings {
-    // Destinations are inert: retain the shipped profile and model quantities,
-    // but consult no programs directory, trust file or name service.
-    document["programs"] = json!({});
-    for endpoint in document["endpoints"].as_array_mut().expect("endpoints") {
-        endpoint["address"] = json!("127.0.0.1:9");
-        endpoint["transport"] = json!("plaintext");
-        endpoint.as_object_mut().expect("endpoint").remove("server_name");
-    }
-    let configuration = smith_agent_shell::config::from_value(document).expect("stock profile derives");
-    let mut settings = Settings {
-        limits: configuration.service.limits.domain,
-        budget: configuration.service.limits.domain.run.budget,
-        window: configuration.declarations.endpoints[0].models[0].window,
-        job: Job::Reporting,
-        writable: false,
-        network: Span::millis(1, 1),
-        ..Settings::calm(144)
-    };
-    // The shared world installs three six-byte fake model names, independently
-    // of the shipped destinations. Only their retained declaration room differs.
-    settings.limits.configured_model_bytes = smith_domain::ConfiguredModel::owned_bound(FAKE_MODEL_BYTES, &[])
-        .expect("fake model declaration")
-        .checked_mul(FAKE_MODELS)
-        .expect("three fake models");
-    settings.provider.latency_min = Duration::from_millis(100);
-    settings.provider.latency_max = settings.provider.latency_min;
-    settings
-}
-
 fn world(document: Value) -> World {
-    let settings = settings(document);
+    let settings = fixtures::agent_settings(document);
     let mut charter = scripted_charter(&settings);
     charter.models = Box::new([]);
     charter.instructions = b"@parent".as_slice().into();
