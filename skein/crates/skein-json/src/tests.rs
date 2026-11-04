@@ -7,6 +7,7 @@
 
 mod collector;
 mod document;
+mod feed;
 mod parse;
 mod position;
 mod text;
