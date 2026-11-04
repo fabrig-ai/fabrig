@@ -193,7 +193,8 @@ fn park(world: &mut World, goal: &engine::Assignment) {
     });
 }
 
-fn read_messages(world: &mut World, goal: &engine::Assignment) -> (Option<u64>, u32) {
+/// Consume the inbox through the windows delivered to this run.
+pub(super) fn read_messages(world: &mut World, goal: &engine::Assignment) -> (Option<u64>, u32) {
     world.until(Until::Ready);
 
     let mut turns = task(world, goal.task).turn;

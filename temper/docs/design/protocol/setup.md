@@ -1755,9 +1755,9 @@ document.
 
 ### 8.1 The owned example
 
-The box document written by `temper init --box` and the owned example give
-`documents.lines` eight entries for each creating executor list, alongside
-`tasks.charters` twelve, jig's `standard`'s.
+The box document written by `temper init --box` and the owned example take
+jig's `standard`'s `documents.lines`, sixteen entries for each creating
+executor list, and its `tasks.charters`, twelve.
 This holds the reference's eligible charters 1, 2, 4, 5, 6 and 7 and its
 configured procedures without shortening either offer. The deployment's
 effective limits must still fit its codecs.
@@ -1849,13 +1849,15 @@ runs it (section 7).
   13.4) with the overrides configuration.md, section 7 asks so that the
   engine's documents fit temper's client, those its agent sets, and the
   machine's concurrency the box keeps, and no other:
-  - `documents.rows` 2, `documents.lines` 8 and `documents.text_bytes`
-    128: temper's client's rows and text;
+  - `documents.rows` 2 and `documents.text_bytes` 128: temper's client's
+    rows and text;
   - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
     advertised message bytes (above): the fleet holds the agent to the
     engine's message bound at its hello (jig's
     `protocol/configuration.md`, 6), and a result is a message in its
-    parent's inbox;
+    parent's inbox; and `tasks.inbox_bytes`, `tasks.inbox_messages` at
+    that bound, 874,120, so that a task's row stays within the journal's
+    carrier (`root.journal.transcript_bytes`, below);
   - the machine's concurrency where `standard` sets another than the box
     had, the hub's and the fleet's slots and workers and the clients'
     streams and their carriers (configuration.md, 13.4), each at what
@@ -1867,10 +1869,15 @@ runs it (section 7).
   the hub's that it, sized for any agent, sets past smith's agent
   (configuration.md, section 7, the worker's check against the agent),
   and the machine's concurrency, and no other: `hub.accounts` 4, the
-  agent's accounts; and `hub.event_bytes`, the agent's advertised
-  message bytes. Its `application.limits` is temper's `standard` with
+  agent's accounts; `hub.run_calls` 48, the agent's calls; and
+  `hub.event_bytes`, the agent's advertised message bytes.
+- **Its `application.limits`** are temper's `standard` with
   `checkout.message_bytes` the agent's payload, so the checkout accepts
-  the agent's largest call.
+  the agent's largest call; `forge.client.op_bytes` the engine's result
+  bound, which the root holds it to, and `forge_component.body_bytes`
+  21,341, which holds that write and its marker; `forge.judge_projects`
+  8, jig's `authority.projects` in `standard`; the forge's repositories
+  and output (8.3); and the turn's bounds below.
 - **Its turn's bounds derive from smith's largest turn,** T, the
   agent's `turn_body`, which its configuration derives (configuration.md,
   section 7, the turn's check). The model's reasoning allowance,
@@ -2193,7 +2200,7 @@ override.
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
 - **Its limits:** the owned example's (8.1), the `standard` profiles,
-  with `forge.repositories`
+  among them `forge.repositories`
   and `forge.client.repositories` 3, counts of the deployment's
   (forge.md, section 7), and `forge.output` 82. Its `memory_bytes` are
   deployment budgets, as the owned example's are (8.1). Startup checks
