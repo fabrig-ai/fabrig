@@ -309,6 +309,11 @@ protocol failures and exceeded CPU budgets keep their failure verdicts.
 Incomplete CPU on cancelled attempts is reported explicitly alongside the
 green warning.
 
+Every summary includes the top-level `unobserved` list and the suite's
+`unobserved` count, including a tools-suite summary. With no unobserved
+attempt they are an empty list and zero. These additional fields leave
+existing summary keys' names and meanings unchanged (2026-11-04).
+
 #### Budgets and completeness
 
 Budgets apply to recorded CPU: user plus system time of the test, its waited
