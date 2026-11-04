@@ -1463,8 +1463,16 @@ section 10.
 - **Contracts** as the world goes; **settled invariants:** no live
   entity, nothing in flight, every child gone and its pipes read to the
   end.
-- **Memory:** `skein-heap` checks each domain against its worst case
-  (skein/docs/foundation/programming-model.md, 6.3), in a test binary of its own.
+- **Memory:** `skein-heap` measures each fixed scenario, in a test binary
+  of its own, and holds its peak under a ceiling named beside its test
+  (skein/docs/foundation/testing-strategy.md, section 6). A scenario that
+  must reach a limit shows it by what it holds, and a formula left at an
+  edge keeps a test of the edge's value
+  (skein/docs/foundation/programming-model.md, 6.3). The large render, a
+  revision of 4,096 entries, 512 of them documents, declarations and
+  templates, with 64 targets, runs through the builder at the shipped
+  limits under a ceiling of its own: it is the measure that the defaults
+  fit a modest machine (hearth/docs/design/domain/render.md, 8.4).
 - **Replay:** a seed replays to the same trace, the same fake machine,
   whose state the fake digests itself, and the same digest of hearth's
   own state: a digest over the state types' derived `Hash`, which
@@ -1516,12 +1524,13 @@ same repository (7.3).
 
 ### 9.1 The two suites
 
-The focused suite takes at most **30 seconds** (15 seconds before the user's
-doubling of 10-22, provisional) and the fuzzy suite **120 seconds** (60
-seconds before the user's doubling of 10-22, provisional), wall time on the
-development machine, idle, as skein's, smith's and temper's are measured;
-nextest's global timeouts enforce them, and raising one is an explicit
-decision (skein/docs/foundation/testing-strategy.md, section 8). temper's gate recorded 1,092
+The focused suite takes at most **30 CPU seconds**, the user's ruling of
+11-04, kept in `tools/tiers/budgets.toml` and measured as the gate does
+(`tools/tiers/design.md`, 7.3). The fuzzy suite takes at most **120 seconds**
+(60 seconds before the user's doubling of 10-22, provisional), wall time on
+the development machine, idle, as skein's, smith's and temper's are measured;
+nextest's global timeouts enforce it. Raising either is an explicit decision
+(skein/docs/foundation/testing-strategy.md, section 8). temper's gate recorded 1,092
 focused tests in 5.2 seconds; the budgets hold when the design is cheap from
 the first step:
 
@@ -1631,23 +1640,23 @@ VM tier its one real machine relies on.
   2.14's env block, systemd 262). It depends on which suites hearth's
   targets run.
 - **The ceilings outside the gate** (9.2): provisional until measured.
-- **The suites' figures** (9.1): whether 30 and 120 seconds stay wall
-  time or become CPU budgets, what the workspace's global timeouts then
-  hold, and whether `hearth-render-world` stays on every change. A
-  budget is CPU seconds, and until the user sets one these figures stand
-  as idle-machine figures (`skein/docs/foundation/testing-strategy.md`,
-  8.1). It depends on the user's ruling on the measurements.
+- **The suites' figures** (9.1): whether the fuzzy suite's 120 seconds
+  stay wall time or become a CPU budget, what the workspace's global
+  timeouts then hold, and whether `hearth-render-world` stays on every
+  change. A budget is CPU seconds, and until the user sets one the fuzzy
+  figure stands as an idle-machine figure
+  (`skein/docs/foundation/testing-strategy.md`, 8.1). It depends on the
+  user's ruling on the measurements.
 - **The conformance tier's budget and its runs** (5.5, 9.2):
   whether it takes a budget and a place after landing
   depends on the user, and on a runner holding its prerequisites (6.4).
 - **The fail-stop check:** whether the gate takes
   `hearth/scripts/fail_stop.py` over the workspace depends on two of
   temper's binaries, `temper-stage-one` and `playground-serve`.
-- **The newer model:** `worst_case` and `MAX_OUT` stay in hearth as
-  allowed old forms, which may only fall
-  (`skein/docs/foundation/programming-model.md`, 6.3). Moving to the
-  model is hearth's debt (`hearth/docs/development/debt/`, D001 to D003),
-  and 8.4's memory check and hearth/docs/design/domain/render.md, 8.4 change with it.
+- **The newer model:** `MAX_OUT` stays in hearth as an allowed old form,
+  which may only fall (`skein/docs/foundation/programming-model.md`, 6.3).
+  Moving to the model is hearth's debt
+  (`hearth/docs/development/debt/`, D001).
 - **Live changes on a real machine:** every item hearth/docs/design/domain/slots.md, section 15
   lists as to verify, run as 7.3's scenarios. Until then the fake
   machine follows the kernel's and systemd's sources (257 to 262) as
