@@ -691,11 +691,16 @@ fn ready_and_the_strip_count_an_owners_deployment_model() {
 }
 
 pub(super) fn ready_default() -> (Domain, Token) {
+    let (root, me, _) = ready_default_with_forges();
+    (root, me)
+}
+pub(super) fn ready_default_with_forges() -> (Domain, Token, Token) {
     let (mut root, me, accounts, forges) = opened(true, Step::Ready);
     answer(&mut root, false);
     account(&mut root, accounts, 18, true);
-    forge_rows(&mut root, forges.unwrap(), Some(3), false);
-    (root, me)
+    let forges = forges.unwrap();
+    forge_rows(&mut root, forges, Some(3), false);
+    (root, me, forges)
 }
 pub(super) fn press_default(root: &mut Domain) -> Queue<Request> {
     event(root, Event::Act { action: Action::Pages(Act::MakeDefault) })
