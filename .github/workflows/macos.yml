@@ -1,5 +1,5 @@
 # What macOS runs (temper/docs/design/domain/testing.md, 2.8): every target
-# compiled. A red run blocks nothing: it is a finding.
+# compiled, then the one story. A red run blocks nothing: it is a finding.
 name: macos
 
 on:
@@ -148,6 +148,33 @@ jobs:
           path: target
           key: target-macos-26-rust-${{ env.RUST_VERSION }}-${{ hashFiles('Cargo.lock') }}
         continue-on-error: true
+
+      - name: The pinned binaries, through temper forge fetch
+        if: ${{ !cancelled() && steps.rust.outcome == 'success' }}
+        id: fetch
+        run: |
+          $RUN build cargo build -p temper --bin temper
+          $RUN build-fake-claude cargo build -p smith-fake-claude --bin fake-claude
+          root="$RUNNER_TEMP/fetch"
+          mkdir -m 700 "$root" "$root/config" "$root/data" "$root/cache"
+          flags=(--config "$root/config" --data "$root/data" --cache "$root/cache")
+          $RUN init target/debug/temper init "${flags[@]}" --box
+          mkdir -p "$root/data/box/groups"
+          printf 'owned\n' >"$root/data/box/groups/1"
+          $RUN fetch target/debug/temper forge fetch "${flags[@]}" 1
+          forgejo=$(echo "$root"/cache/forgejo/*/forgejo)
+          runner=$(echo "$root"/cache/forgejo-runner/*/forgejo-runner)
+          $RUN forgejo-runs "$forgejo" --version
+          $RUN runner-runs "$runner" --version
+          echo "TEMPER_FORGEJO=$forgejo" >>"$GITHUB_ENV"
+          echo "TEMPER_FORGEJO_RUNNER=$runner" >>"$GITHUB_ENV"
+          echo "TEMPER_TEST_CLAUDE=$PWD/target/debug/fake-claude" >>"$GITHUB_ENV"
+
+      - name: The one story
+        if: ${{ !cancelled() && steps.rust.outcome == 'success' && steps.fetch.outcome == 'success' }}
+        run: |
+          $RUN story cargo nextest run --profile process-temper -p temper --test process \
+              -E 'test(=a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart)'
 
       - name: The disk
         if: always()
