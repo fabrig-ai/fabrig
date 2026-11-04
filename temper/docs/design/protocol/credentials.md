@@ -293,6 +293,13 @@ setup.md's (section 9). What is open is listed in section 8.
   nothing tells the person the connect was cut. Saying "interrupted;
   paste again" waits for a stored connect (section 8).
 
+One pasted item alone holds at most 4,085 value bytes, the carried value's
+4,096 bytes less the codec's version, one-item list count, variant and
+length framing. A file for one pasted credential whose value is outside 1 to
+4,085 bytes is refused with `credential file must contain 1 to 4085 bytes`;
+a multi-item tokens bundle must also fit the aggregate carried-value bound
+(decided 2026-11-03).
+
 ## 3. LLM accounts
 
 jig's, as jig has them (jig's `domain/accounts.md`): each an LLM

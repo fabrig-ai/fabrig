@@ -1149,6 +1149,17 @@ goal's landing, a change into the base whose branch is the goal's own
   closes (section 11). Cancelled, its pull request is closed as any
   (8.6), and its requester may make another.
 
+The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
+absent means `none`. The root writes it only for `foreman` or `up`. Any
+other value refuses the change's start as a malformed parameter
+(2026-11-04).
+
+The red landing a change repairs is carried as bytes parameter 12, its merge
+commit as 40 or 64 lowercase hexadecimal digits. The start keeps it with the
+change; a value outside that text form refuses the start as a malformed
+parameter. Without it the change names no red landing to repair
+(2026-11-04).
+
 ### 8.2 Its way to landing
 
 An explicit successful no-change result from the producer ends the change
@@ -1491,6 +1502,13 @@ delegate's terminal wakes it to offer the landed result.
   A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
   missing authority.
+
+A catch-up's first merge job is its producer and spends no resolution
+allowance. If it leaves conflicts, its following resolution spends one. This
+differs from a conflict after production, whose merge job spends one and
+whose following resolution spends none. A resolution asked again after
+release is a resolution directly, with no repeated merge job before it
+(2026-11-04).
 
 ### 8.5 Drift
 
@@ -1851,6 +1869,29 @@ section 9): the foreman and the requester decide, and the change relays
   change into the landing branch, and amendments of the live changes it
   concerns.
 
+A change keeps at most 16 open questions. Its configured question allowance
+must be less than 16, leaving room for the question past that allowance. A
+question beyond the open-queue ceiling is answered with the refusal used by
+a change that takes no questions; it never enters the relay (2026-11-04).
+
+The foreman's brief fits the deployment's brief bound by cutting the
+change's words from their end and marking truncation before cutting anything
+else; the question's words are never cut. Its three verdict choices, in
+order, are code 1 `answer`, code 2 `finish`, code 3 `escalate`, each
+requiring words and no fields. Its words fit both `tasks.result_bytes` and
+`tasks.message_bytes` less 64 bytes, reserving room for the finish prefix in
+the answer relayed down (2026-11-04).
+
+Every relay input read at a step is retained before any message is sent. A
+question is taken once by its asker and number. Reasons awaiting passing up,
+and answers awaiting passing down, stay on the record even when the step has
+no message room; stored pending reasons have a ceiling of 65,536 bytes.
+Passing up after release does not check the spent allowance again. Only the
+result of the current question's assigned foreman settles it; other foreman
+results are dropped. Ask and answer messages share the step's `tasks.batch`
+with its other replies. Work left solely for lack of message room makes the
+next step due at once (2026-11-04).
+
 #### Early starts
 
 The change procedure starts kept (jig's `domain/connectors.md`, 6.1): a
@@ -2110,6 +2151,13 @@ instead (`landing.md`, section 5).
   as it closes: the goal's landing leaves its goal's branch to the
   goal's own close. A release waits for a lost
   writer's reread, and fails only if that reread fails.
+
+A goal's release recognises its branch as landed from a change in the same
+repository on that branch, in landed, red, cleared or uncleared state, whose
+landed head equals the branch's last known tip. With no known tip or no
+matching landed change it keeps the branch; a subsequent unlanded move keeps
+it too. This uses the retained change and branch records, with no new
+ancestry read (2026-11-04).
 
 ### 11.1 A branch per goal
 
