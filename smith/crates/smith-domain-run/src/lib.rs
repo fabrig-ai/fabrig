@@ -67,7 +67,7 @@ mod wind_down;
 mod workspace;
 
 pub use boundary::{
-    Answer, Ask, AskRefusal, Cap, CompletionEvidence, CompletionFailure, CompletionPhase, End, Event, Exit, Failure,
+    Answer, Ask, AskRefusal, Cap, CompletionEvidence, CompletionFailure, CompletionPhase, End, Event, Exit, RunFailure,
     Fault, FinalTurn, Invalid, Limit, Message, MessageRefusal, Opening, Place, Policy, Ran, Read, Refusal, Report,
     Request, Returned, Stop, TranscriptRefusal, Window,
 };

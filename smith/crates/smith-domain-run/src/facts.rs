@@ -18,7 +18,7 @@ use skein_lib::{Duration, Queue, Slab, Time, Token};
 use crate::budget::{Granted, Share, Stage};
 use crate::charter::Reserve;
 
-use crate::boundary::{Answer, End, Exit, Failure, Refusal, Request, Returned};
+use crate::boundary::{Answer, End, Exit, RunFailure, Refusal, Request, Returned};
 use crate::run::{self, Conversation, Run};
 
 /// An observation stamped with the injected time of its emitting step.
@@ -258,7 +258,7 @@ pub enum FailureKind {
     Stale,
 }
 
-impl Failure {
+impl RunFailure {
     /// Classifies the failure without copying its report into a fact.
     #[must_use]
     pub const fn kind(&self) -> FailureKind {

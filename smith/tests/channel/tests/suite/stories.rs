@@ -217,7 +217,7 @@ fn a_run_goes_from_start_to_answer() {
 #[test]
 fn a_model_failure_keeps_transport_evidence_and_cooldown() {
     let answer = smith_domain::run::Answer::Failed {
-        failure: smith_domain::run::Failure::Model(smith_domain::run::Fault::Completion {
+        failure: smith_domain::run::RunFailure::Model(smith_domain::run::Fault::Completion {
             failure: smith_domain::run::CompletionFailure::RateLimited {
                 retry_after: skein_lib::Duration::from_nanos(42),
             },
@@ -259,7 +259,7 @@ fn a_model_failure_reaches_the_host_domain_in_its_typed_vocabulary() {
     for (fault, expected) in channel_faults() {
         let mut world = World::admitted();
         world.agent_answers(run::Answer::Failed {
-            failure: run::Failure::Model(fault),
+            failure: run::RunFailure::Model(fault),
             spent: run::Spend::ZERO,
             turns: 0,
         });
@@ -842,7 +842,7 @@ fn cancellation_records_and_end_each_wait_for_their_read() {
     world.settle();
     world.agent_tells_turn(1, None, &window_turn_fixture());
     world.agent_answers(smith_domain::run::Answer::Failed {
-        failure: smith_domain::run::Failure::Cancelled,
+        failure: smith_domain::run::RunFailure::Cancelled,
         spent: smith_domain::run::Spend::ZERO,
         turns: 1,
     });
@@ -1196,7 +1196,7 @@ fn facts_outside_observed_admission_are_counted_without_failing_the_channel() {
     world.settle();
     assert_eq!(world.lost_facts(), 2);
     world.agent_answers(smith_domain::run::Answer::Failed {
-        failure: smith_domain::run::Failure::Cancelled,
+        failure: smith_domain::run::RunFailure::Cancelled,
         spent: smith_domain::run::Spend::ZERO,
         turns: 0,
     });
@@ -1294,7 +1294,7 @@ mod limits;
 
 fn account_fault_record(fault: smith_domain::run::Fault) -> smith_channel::Answer {
     let answer = smith_domain::run::Answer::Failed {
-        failure: smith_domain::run::Failure::Model(fault),
+        failure: smith_domain::run::RunFailure::Model(fault),
         spent: smith_domain::run::Spend::ZERO,
         turns: 0,
     };

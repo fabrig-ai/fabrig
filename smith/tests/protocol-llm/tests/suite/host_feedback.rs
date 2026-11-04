@@ -94,7 +94,7 @@ fn host_boundary(world: &World, expected_arguments: &[u8], tool_name: &[u8]) {
 }
 
 fn retired_boundary(world: &World, tool_name: &[u8]) {
-    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
+    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
     let [first_binding, second_binding] = world.protocol_calls() else { panic!("settled calls") };
     let owner = first_binding.owner;
     assert_eq!(first_binding.terminal.map(|(_, _, event)| event), Some(Terminal::Completed(owner)));

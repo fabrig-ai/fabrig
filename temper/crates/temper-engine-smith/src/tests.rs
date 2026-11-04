@@ -1210,12 +1210,12 @@ fn account_notices_are_not_turns_and_terminal_failure_classes_stay_distinct() {
         assert_eq!(turn(notice, Box::default()), Err(Problem::Type(b"request")));
     }
     for (failure, class) in [
-        (run::Failure::Stale, tasks::Class::Transient),
-        (run::Failure::Transcript(run::TranscriptRefusal::Malformed), tasks::Class::Transient),
-        (run::Failure::Budget { exhausted: run::Exhausted::Turns, used: Some(2), bound: Some(2) }, tasks::Class::Run),
-        (run::Failure::Policy(run::Policy::Unfinished { nudges: 1, rejected: 1 }), tasks::Class::Run),
-        (run::Failure::Model(run::Fault::Provider), tasks::Class::Run),
-        (run::Failure::Cancelled, tasks::Class::Agent),
+        (run::RunFailure::Stale, tasks::Class::Transient),
+        (run::RunFailure::Transcript(run::TranscriptRefusal::Malformed), tasks::Class::Transient),
+        (run::RunFailure::Budget { exhausted: run::Exhausted::Turns, used: Some(2), bound: Some(2) }, tasks::Class::Run),
+        (run::RunFailure::Policy(run::Policy::Unfinished { nudges: 1, rejected: 1 }), tasks::Class::Run),
+        (run::RunFailure::Model(run::Fault::Provider), tasks::Class::Run),
+        (run::RunFailure::Cancelled, tasks::Class::Agent),
     ] {
         assert_eq!(
             result(run::Answer::Failed { failure, spent: spend(13), turns: 2 }, None),

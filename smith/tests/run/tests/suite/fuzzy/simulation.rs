@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use skein_lib::{Duration, Rng};
 use smith_domain_run as run;
-use smith_domain_run::{Answer, Exhausted, Failure, Fault, Invalid, Limits, Policy, Refusal};
+use smith_domain_run::{Answer, Exhausted, RunFailure, Fault, Invalid, Limits, Policy, Refusal};
 use smith_run_world::host;
 use smith_run_world::partner::Script;
 use smith_run_world::{Checkouts, Settings, Span, World, noisy};
@@ -426,7 +426,7 @@ fn answer_kind(answer: &Answer) -> &'static str {
         Answer::Refused(Refusal::Invalid(Invalid::Conversation)) => "conversation invalid",
         Answer::Refused(Refusal::Invalid(_)) => "invalid",
         Answer::Failed { failure, .. } => match failure {
-            Failure::Model(
+            RunFailure::Model(
                 Fault::Completion { .. }
                 | Fault::Provider
                 | Fault::Unauthorized { .. }
@@ -434,20 +434,20 @@ fn answer_kind(answer: &Answer) -> &'static str {
                 | Fault::Limited { .. }
                 | Fault::Refused { .. },
             ) => "fault",
-            Failure::Model(Fault::Truncated | Fault::Declined | Fault::Malformed) => "stopped",
-            Failure::Budget { exhausted: Exhausted::Turns, .. } => "turns",
-            Failure::Budget { exhausted: Exhausted::Time, .. } => "time",
-            Failure::Budget { exhausted: Exhausted::Spend, .. } => "spend",
-            Failure::Budget { exhausted: Exhausted::Overflow(_), .. } => {
+            RunFailure::Model(Fault::Truncated | Fault::Declined | Fault::Malformed) => "stopped",
+            RunFailure::Budget { exhausted: Exhausted::Turns, .. } => "turns",
+            RunFailure::Budget { exhausted: Exhausted::Time, .. } => "time",
+            RunFailure::Budget { exhausted: Exhausted::Spend, .. } => "spend",
+            RunFailure::Budget { exhausted: Exhausted::Overflow(_), .. } => {
                 panic!("bounded random partner usage and prices remain representable")
             }
-            Failure::Budget { exhausted: Exhausted::Tokens(_), .. } => {
+            RunFailure::Budget { exhausted: Exhausted::Tokens(_), .. } => {
                 panic!("source random partner has no receiving refusal")
             }
-            Failure::Policy(Policy::Unfinished { .. }) => "unfinished",
-            Failure::Cancelled => "cancelled",
-            Failure::Stale => "stale",
-            Failure::Transcript(_) => panic!("source random partner does not restore history"),
+            RunFailure::Policy(Policy::Unfinished { .. }) => "unfinished",
+            RunFailure::Cancelled => "cancelled",
+            RunFailure::Stale => "stale",
+            RunFailure::Transcript(_) => panic!("source random partner does not restore history"),
         },
     }
 }

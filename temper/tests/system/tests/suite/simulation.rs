@@ -56,7 +56,7 @@ fn a_person_stops_a_smith_run_and_releases_the_chat() {
             if run.raw() == task && current.raw() == attempt)));
     world.agent = world::cancelled_agent_for(&world.assignment, Job::Waiting);
     world.run();
-    assert!(matches!(world.agent.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
+    assert!(matches!(world.agent.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
     let revision = world.root.task(task).expect("held chat").revisions.hold;
     world.root.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),

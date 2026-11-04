@@ -955,7 +955,7 @@ pub enum Answer {
     },
     /// The run ended without an outcome, having spent `spent`.
     Failed {
-        failure: Failure,
+        failure: RunFailure,
         spent: Spend,
         /// Main turns emitted in this activation before this terminal.
         turns: u32,
@@ -1026,7 +1026,7 @@ pub enum Invalid {
 
 /// Why a run ended without an outcome: what the host acts on.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Failure {
+pub enum RunFailure {
     /// Exact transient history refusal; never silently starts fresh.
     Transcript(
         /// Session admission classification, translated exhaustively by root.

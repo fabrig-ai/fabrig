@@ -459,7 +459,7 @@ fn corrected_host(world: &World) {
 }
 
 fn retired(world: &World) {
-    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
+    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
     let [first, second, third] = world.protocol_calls() else { panic!("three observed Clients") };
     for binding in [first, second] {
         assert_eq!(binding.terminal.map(|(_, _, event)| event), Some(Terminal::Completed(binding.owner)));

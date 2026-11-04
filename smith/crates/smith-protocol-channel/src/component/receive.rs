@@ -259,7 +259,7 @@ impl Component {
         self.machine.down(Request::Send { token: Token::new(0), frame: admitted }, &mut self.events, below);
         let answer = smith_protocol_translate::answer_record(
             Time::ZERO,
-            run::Answer::Failed { failure: run::Failure::Transcript(reason), spent: run::Spend::ZERO, turns: 0 },
+            run::Answer::Failed { failure: run::RunFailure::Transcript(reason), spent: run::Spend::ZERO, turns: 0 },
             None,
             &self.bodies,
             &self.charter,

@@ -561,7 +561,7 @@ fn oversized_resume_history_is_refused_when_the_conversation_opens() {
         run::Answer::Failed { failure, spent, turns } => {
             assert_eq!(
                 (failure.clone(), *spent, *turns),
-                (run::Failure::Transcript(run::TranscriptRefusal::TooLarge), run::Spend::ZERO, 0)
+                (run::RunFailure::Transcript(run::TranscriptRefusal::TooLarge), run::Spend::ZERO, 0)
             );
         }
         run::Answer::Refused(_) | run::Answer::Parked { .. } | run::Answer::Accepted { .. } => {
@@ -767,7 +767,7 @@ fn no_grant_fails_locally_and_exhaustion_reports_the_account() {
         if let Request::Answer {
             answer:
                 run::Answer::Failed {
-                    failure: run::Failure::Model(run::Fault::Limited { account: 0, reset_at: Some(_) }),
+                    failure: run::RunFailure::Model(run::Fault::Limited { account: 0, reset_at: Some(_) }),
                     ..
                 },
             ..
@@ -1213,7 +1213,7 @@ fn the_runs_deadline_fires_before_the_sessions_expiry_at_the_same_instant() {
     };
     assert_eq!(
         failure,
-        &run::Failure::Budget { exhausted: run::Exhausted::Time, used: Some(600_000), bound: Some(600_000) }
+        &run::RunFailure::Budget { exhausted: run::Exhausted::Time, used: Some(600_000), bound: Some(600_000) }
     );
 }
 
@@ -1588,7 +1588,7 @@ fn custom_check_cancellation_waits_for_the_abort_terminal() {
         &[Request::LongDone { host_run: Token::new(77) }]
     );
     let emitted = harness.next();
-    let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] =
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] =
         emitted.as_ref()
     else {
         panic!("only the abort terminal permits the original Start cancellation answer: {emitted:?}");
@@ -1668,7 +1668,7 @@ fn settle_default_convention_control(harness: &mut Harness, run: Token, main: To
         ended.push(request);
     }
     let ended = collected_requests(ended);
-    let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] = ended.as_ref()
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] = ended.as_ref()
     else {
         panic!("positive default control settles its original Start: {ended:?}");
     };
@@ -1826,7 +1826,7 @@ fn scalar_reservation_denies_before_any_provider_call_or_credential_lookup() {
     };
     assert_eq!(
         *failure,
-        run::Failure::Model(run::Fault::Completion {
+        run::RunFailure::Model(run::Fault::Completion {
             failure: run::CompletionFailure::Limit { which: run::Limit::Window, bound: 8 },
             evidence: run::CompletionEvidence::Unsent,
             model: 0,
@@ -1883,7 +1883,7 @@ fn a_provider_charge_above_its_reserved_maximum_fails_without_recording_it() {
     };
     assert_eq!(
         *failure,
-        run::Failure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Spend), used: None, bound: None }
+        run::RunFailure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Spend), used: None, bound: None }
     );
     assert_eq!((*spent, *turns), (run::Spend::ZERO, 0));
     assert!(harness.turns.is_empty());
@@ -2039,7 +2039,7 @@ fn root_cancel_while_awaiting_releases_unused_restore_context_without_a_session_
     };
     let emitted = harness.step(Event::Cancel { run: *run });
     let [Request::Answer { answer, .. }] = emitted.as_ref() else { panic!("direct cancelled answer: {emitted:?}") };
-    assert_eq!(answer, &run::Answer::Failed { failure: run::Failure::Cancelled, spent: run::Spend::ZERO, turns: 0 });
+    assert_eq!(answer, &run::Answer::Failed { failure: run::RunFailure::Cancelled, spent: run::Spend::ZERO, turns: 0 });
     assert!(harness.next().is_empty());
     assert_eq!((harness.domain.starts.len(), harness.domain.peers.len(), harness.domain.sessions.len()), (0, 0, 0));
     assert_eq!((harness.domain.run.runs(), harness.domain.run.conversations()), (0, 0));
@@ -2213,7 +2213,7 @@ fn command_span_ends_at_the_seen_io_terminal_after_cancel() {
     assert_eq!(h.domain.commands.len(), 0);
     assert_eq!(h.long.as_slice(), &[Some(crate::Operation::Completion), None, Some(crate::Operation::Command), None]);
     let ended = if ended.is_empty() { h.next() } else { ended };
-    let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] = ended.as_ref()
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] = ended.as_ref()
     else {
         panic!("only IO settlement permits the cancellation answer: {ended:?}");
     };
@@ -2319,7 +2319,7 @@ fn a_key_race_uses_the_new_generation_then_ends_on_its_own_policy() {
         assert_eq!(
             answer,
             &run::Answer::Failed {
-                failure: run::Failure::Model(run::Fault::Completion {
+                failure: run::RunFailure::Model(run::Fault::Completion {
                     failure: run::CompletionFailure::Unauthorized,
                     evidence: run::CompletionEvidence::Response { status: Some(401) },
                     model: 0,
