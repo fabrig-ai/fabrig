@@ -130,8 +130,6 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         return;
     }
     // A kept record replaces its previous runtime endpoint.
-    engine.forge.file_access.remove(&kept.number);
-    engine.forge.startup_access.remove(&kept.number);
     if engine.workers.forges.remove(kept.number).is_some() {
         engine.forge.down(skein_forge_connection::Request::Remove { forge: kept.number });
     }
@@ -190,8 +188,6 @@ fn record_settings(
         app_read_only: record.read_only,
         identity: identity.number,
         user: 0,
-        api_token: None,
-        webhook_secret: None,
     };
     (forge, identity)
 }

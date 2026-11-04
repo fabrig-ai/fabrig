@@ -4,21 +4,6 @@ use skein_ui::markdown::markdown_bound;
 use skein_ui::phrases::{self, PhraseLimits};
 use skein_ui::{Limits, valid};
 
-// Zero capacities represent an empty UI, with no scene or Markdown scratch.
-const EMPTY: Limits = Limits {
-    nodes: 0,
-    depth: 0,
-    text_per_node: 0,
-    text_bytes: 0,
-    drawing_bytes: 0,
-    styles_per_node: 0,
-    patches: 0,
-    bindings: 0,
-    slots: 0,
-    markdown_depth: 0,
-    scene_marks: 0,
-    scene_bytes: 0,
-};
 const EMPTY_PHRASES: PhraseLimits =
     PhraseLimits { languages: 0, phrases: 0, holes: 0, segments: 0, text_bytes: 0, hole_bytes: 0 };
 // A few thousand deterministic draws for each function, as this package has no fuzzy suite.
@@ -33,23 +18,23 @@ fn valid_checks_ui_capacity_edges() {
     // Two styles per scene mark fit through floor(u32::MAX/2).
     const LAST_TWO_STYLE_MARKS: u32 = 2_147_483_647;
     let cases = [
-        ("zero", EMPTY, true),
-        ("max nodes", Limits { nodes: u32::MAX, ..EMPTY }, true),
-        ("max depth", Limits { depth: u32::MAX, ..EMPTY }, true),
-        ("max text per node", Limits { text_per_node: u32::MAX, ..EMPTY }, true),
-        ("max text bytes", Limits { text_bytes: u32::MAX, ..EMPTY }, true),
-        ("max drawings", Limits { drawing_bytes: u32::MAX, ..EMPTY }, true),
-        ("max styles", Limits { styles_per_node: u32::MAX, ..EMPTY }, true),
-        ("max patches", Limits { patches: u32::MAX, ..EMPTY }, true),
-        ("max bindings", Limits { bindings: u32::MAX, ..EMPTY }, true),
-        ("max slots", Limits { slots: u32::MAX, ..EMPTY }, true),
-        ("max markdown depth", Limits { markdown_depth: u32::MAX, ..EMPTY }, true),
-        ("max scene marks", Limits { scene_marks: u32::MAX, ..EMPTY }, true),
-        ("max scene bytes", Limits { scene_bytes: u32::MAX, ..EMPTY }, true),
-        ("last scene styles", Limits { scene_marks: LAST_TWO_STYLE_MARKS, styles_per_node: 2, ..EMPTY }, true),
+        ("zero", Limits::EMPTY, true),
+        ("max nodes", Limits { nodes: u32::MAX, ..Limits::EMPTY }, true),
+        ("max depth", Limits { depth: u32::MAX, ..Limits::EMPTY }, true),
+        ("max text per node", Limits { text_per_node: u32::MAX, ..Limits::EMPTY }, true),
+        ("max text bytes", Limits { text_bytes: u32::MAX, ..Limits::EMPTY }, true),
+        ("max drawings", Limits { drawing_bytes: u32::MAX, ..Limits::EMPTY }, true),
+        ("max styles", Limits { styles_per_node: u32::MAX, ..Limits::EMPTY }, true),
+        ("max patches", Limits { patches: u32::MAX, ..Limits::EMPTY }, true),
+        ("max bindings", Limits { bindings: u32::MAX, ..Limits::EMPTY }, true),
+        ("max slots", Limits { slots: u32::MAX, ..Limits::EMPTY }, true),
+        ("max markdown depth", Limits { markdown_depth: u32::MAX, ..Limits::EMPTY }, true),
+        ("max scene marks", Limits { scene_marks: u32::MAX, ..Limits::EMPTY }, true),
+        ("max scene bytes", Limits { scene_bytes: u32::MAX, ..Limits::EMPTY }, true),
+        ("last scene styles", Limits { scene_marks: LAST_TWO_STYLE_MARKS, styles_per_node: 2, ..Limits::EMPTY }, true),
         (
             "first scene style overflow",
-            Limits { scene_marks: LAST_TWO_STYLE_MARKS + 1, styles_per_node: 2, ..EMPTY },
+            Limits { scene_marks: LAST_TWO_STYLE_MARKS + 1, styles_per_node: 2, ..Limits::EMPTY },
             false,
         ),
     ];
@@ -61,7 +46,7 @@ fn valid_checks_ui_capacity_edges() {
 #[test]
 fn valid_accepts_large_independent_node_and_drawing_capacities() {
     const TWO_TO_31: u32 = 2_147_483_648;
-    let limits = Limits { nodes: TWO_TO_31, drawing_bytes: TWO_TO_31, ..EMPTY };
+    let limits = Limits { nodes: TWO_TO_31, drawing_bytes: TWO_TO_31, ..Limits::EMPTY };
     assert!(valid(&limits));
 }
 

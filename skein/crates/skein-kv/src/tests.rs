@@ -255,3 +255,62 @@ fn snapshot_chunks_share_framing_across_rows() {
     assert_eq!(crate::snapshot::chunk(&rows, 36).expect("two rows share twelve framing bytes").len(), 36);
     assert_eq!(crate::snapshot::chunk(&rows, 35), None);
 }
+
+#[test]
+fn snapshot_bound_follows_the_live_map_between_floor_and_ceiling() {
+    let mut limits = limits();
+    limits.snapshot_after = 1_000_000;
+    assert_eq!(crate::SNAPSHOT_FLOOR, 65_536);
+    assert_eq!(crate::SNAPSHOT_MULTIPLE, 2);
+    assert_eq!(limits.snapshot_bound(0), crate::SNAPSHOT_FLOOR);
+    assert_eq!(limits.snapshot_bound(40_000), 80_000);
+    assert_eq!(limits.snapshot_bound(u64::MAX), limits.snapshot_after);
+    limits.snapshot_after = u64::MAX;
+    assert_eq!(limits.snapshot_bound(u64::MAX), u64::MAX);
+    limits.snapshot_after = 1024;
+    assert_eq!(limits.snapshot_bound(0), 1024);
+    assert_eq!(limits.snapshot_bound(40_000), 1024);
+}
+
+#[test]
+fn the_map_keeps_its_encoded_size_through_puts_overwrites_and_erases() {
+    let limits = limits();
+    let mut map = crate::map::KvMap::new(&limits);
+    let mut model = alloc::collections::BTreeMap::new();
+    assert_eq!(map.live(), 0);
+    for ops in [
+        vec![put(b"a", b"one"), put(b"bb", b"two")],
+        vec![put(b"a", b"a longer value")],
+        vec![put(b"bb", b"x")],
+        vec![Op::Erase { key: Box::from(&b"a"[..]) }],
+        vec![put(b"c", b"temporary"), Op::Erase { key: Box::from(&b"c"[..]) }],
+        vec![put(b"bb", b"temporary"), Op::Erase { key: Box::from(&b"bb"[..]) }],
+    ] {
+        let used = map.check(&ops, &limits).expect("the batch fits");
+        map.apply(&ops, used);
+        for op in ops {
+            match op {
+                Op::Put { key, value } => {
+                    model.insert(key, value);
+                }
+                Op::Erase { key } => {
+                    model.remove(&key);
+                }
+            }
+        }
+        let expected: u64 = model
+            .iter()
+            .map(|(key, value)| {
+                8_u64
+                    .checked_add(skein_lib::len_u64(key.len()))
+                    .and_then(|size| size.checked_add(skein_lib::len_u64(value.len())))
+                    .expect("small row")
+            })
+            .sum();
+        assert_eq!(map.live(), expected);
+        assert_eq!(usize::try_from(map.len()).expect("small map"), model.len());
+        for (key, value) in &model {
+            assert_eq!(map.get(key), Some(value.as_ref()));
+        }
+    }
+}

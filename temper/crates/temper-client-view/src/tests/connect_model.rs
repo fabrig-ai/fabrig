@@ -196,10 +196,11 @@ fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
     d::step(root, &env, d::Event::Client { event: jig_client::Event::Stored }, &mut out);
     out.iter()
         .find_map(|request| match request {
-            d::Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } },
+            d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
             } => Some(*attempt),
             d::Request::Client { .. }
+            | d::Request::Unlinked { .. }
             | d::Request::Show { .. }
             | d::Request::Leave { .. }
             | d::Request::SignOut

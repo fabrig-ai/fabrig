@@ -108,6 +108,12 @@ pub fn guard_engine() -> settings::Engine {
     settings
 }
 
+/// The API token held by fixture records (temper/docs/design/protocol/credentials.md, 5).
+pub(crate) const FORGE_TOKEN: &[u8] = b"api-token";
+const FORGE_GIT_TOKEN: &[u8] = b"forge-token-1234";
+const FIRST_FORGE_TOKEN: &[u8] = b"first-forge-token";
+const SECOND_FORGE_TOKEN: &[u8] = b"second-forge-token";
+
 pub fn forges() -> Box<[settings::Forge]> {
     Box::new([settings::Forge {
         log_origins: None,
@@ -120,8 +126,6 @@ pub fn forges() -> Box<[settings::Forge]> {
         git_program: None,
         web: None,
         app_read_only: false,
-        api_token: Some(Secret::new(Box::from(&b"api-token"[..]))),
-        webhook_secret: None,
         user: 42,
         identity: 1,
     }])
@@ -146,8 +150,6 @@ pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
             git_program: forge.git_program.clone(),
             web: forge.web.clone(),
             app_read_only: forge.app_read_only,
-            api_token: forge.api_token.clone(),
-            webhook_secret: forge.webhook_secret.clone(),
             user: forge.user,
             identity: forge.identity,
         }));
@@ -272,14 +274,21 @@ pub fn memory_store() -> crate::store::Store {
     let models = jig_protocol_config::core(&engine().jig, [7; 16], 7).settings.models;
     memory_store_for(&root, &profile, &models)
 }
+fn completed_maps() -> jig_protocol_store::Stores {
+    let mut service = ready();
+    let mut store = memory_store();
+    core::mem::swap(&mut service.engine.as_mut().unwrap().store.component, &mut store.component);
+    store.component.into_stores()
+}
 pub fn records_store() -> crate::store::Store {
     let (root, _, mut profile) = store_limits();
     profile.store.page.rows = 32;
     let models = jig_protocol_config::core(&engine().jig, [7; 16], 7).settings.models;
     // Secret-record fixtures start from a real completed deployment, as the
     // store now refuses secrets until that start's mark is durable.
-    let maps = ready().engine.expect("bootstrap engine").store.component.into_stores();
+    let mut maps = completed_maps();
     let limits = crate::store::limits(&root, &root.forge, &profile).expect("record fixture limits");
+    maps.secrets = skein_kv::Store::memory(&limits.secrets);
     let mut store = memory_store_for(&root, &profile, &models);
     store.component = jig_protocol_store::Store::over(
         &limits,
@@ -470,11 +479,7 @@ fn start_with_worker(
         if let jig_protocol_config::Address::Host { port, .. } = &mut second.api {
             *port = 3001;
         }
-        second.api_token =
-            Some(Secret::new(Box::from(skein_lib::Decimal::of(skein_lib::Rng::new(104).next_u64()).as_bytes())));
-        let mut first = forges().into_iter().next().unwrap();
-        first.api_token =
-            Some(Secret::new(Box::from(skein_lib::Decimal::of(skein_lib::Rng::new(105).next_u64()).as_bytes())));
+        let first = forges().into_iter().next().unwrap();
         sources = Box::new([first, second]);
         let first = runtime.into_boxed().into_iter().next().unwrap();
         let second = crate::ForgeRuntime {
@@ -547,12 +552,10 @@ fn start_with_worker(
             Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
     }
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
+    let seed = ForgeSeed::new(&root, &settings.jig);
     let store = match stored {
         Some(store) => store,
-        None => {
-            let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
-            memory_store_for(&root, &settings.jig.limits.store, &models)
-        }
+        None => memory_store_for(&root, &settings.jig.limits.store, &seed.models),
     };
     let worker_io = if worker.is_some() { Some(worker_settings().jig.limits.io) } else { None };
     let io = crate::startup::checks::process_io(&settings.jig.limits.io, worker_io.as_ref()).unwrap();
@@ -589,7 +592,12 @@ fn start_with_worker(
             service.engine.as_mut().unwrap().forge.names.insert(record.place.api.host.clone(), address.ip()).unwrap();
         }
         keep_forge(&mut service, record);
-        seed_forge_rows(&mut service, &source);
+        let token = if two_forges {
+            if source.number == 1 { FIRST_FORGE_TOKEN } else { SECOND_FORGE_TOKEN }
+        } else {
+            FORGE_TOKEN
+        };
+        seed_forge_rows(&mut service, source.number, token, &seed);
     }
     service
 }
@@ -1254,7 +1262,8 @@ pub struct ConfiguredEngine {
     pub forges: Box<[settings::Forge]>,
     pub identities: Box<[settings::Identity]>,
     pub setup: Box<[settings::Setup]>,
-    pub records_only: Box<[u16]>,
+    /// Forges whose setup host must supply records before connecting.
+    pub without_records: Box<[u16]>,
 }
 impl core::ops::Deref for ConfiguredEngine {
     type Target = settings::Engine;
@@ -1272,11 +1281,11 @@ pub fn configured_engine() -> ConfiguredEngine {
         engine: engine(),
         forges: forges(),
         setup: Box::new([]),
-        records_only: Box::new([]),
+        without_records: Box::new([]),
         identities: Box::new([settings::Identity {
             number: 1,
             forge: 1,
-            token: Secret::new(b"forge-token-1234".as_slice().into()),
+            token: Secret::new(FORGE_GIT_TOKEN.into()),
             login: b"temper".as_slice().into(),
             author: settings::Author {
                 name: b"temper".as_slice().into(),
@@ -1339,6 +1348,8 @@ pub fn configured_prepared(
         }
     }
     let io = config.engine.jig.limits.io;
+    let root = limits::engine(&config.engine.jig.limits, &config.engine.limits).unwrap();
+    let seed = ForgeSeed::new(&root, &config.engine.jig);
     let empty = crate::forge::prepare(&config.engine, skein_lib::List::with_capacity(0))?;
     let mut service = crate::Service::prepared(config.engine, seeds, accounts, empty, worker, io, box_bytes)?;
     service.engine.as_mut().unwrap().store = records_store();
@@ -1420,53 +1431,115 @@ pub fn configured_prepared(
         assert!(engine.store.above.pop().is_some());
         keep_forge(&mut service, record);
         service.engine.as_mut().unwrap().setup.fixture_locals(&config.setup);
-        if source.api_token.is_some()
-            && !config.records_only.contains(&source.number)
-            && source.kind == settings::Kind::Forgejo
-        {
-            seed_forge_rows(&mut service, &source);
-            for item in [
-                temper_protocol_records::Item::Origin,
-                temper_protocol_records::Item::User,
-                temper_protocol_records::Item::ApiToken,
-                temper_protocol_records::Item::GitToken,
-            ] {
-                let engine = service.engine.as_mut().unwrap();
-                let bytes = engine.forge_records.rows.forge(source.number).unwrap().get(item).unwrap();
-                let value = Secret::new(temper_protocol_records::encode(item, bytes).unwrap().into_boxed_slice());
-                assert!(
-                    engine
-                        .store
-                        .secrets(
-                            Token::new(999),
-                            application_request(temper_protocol_records::number(source.number, item), value)
-                        )
-                        .is_none()
-                );
-                assert!(engine.store.above.pop().is_some());
-            }
+        if !config.without_records.contains(&source.number) && source.kind == settings::Kind::Forgejo {
+            seed_forge_rows(&mut service, source.number, FORGE_TOKEN, &seed);
         }
     }
     Ok(service)
 }
 
-fn seed_forge_rows(service: &mut crate::Service, source: &settings::Forge) {
+/// Store inputs for fixture secrets (temper/docs/design/protocol/credentials.md, 2.1).
+#[derive(Debug)]
+struct ForgeSeed {
+    limits: jig_protocol_store::Limits,
+    application: jig_protocol_store::sizes::Application,
+    models: Box<[jig_domain_core::Model]>,
+}
+impl ForgeSeed {
+    fn new(root: &temper_engine_domain::Limits, config: &jig_protocol_config::Engine) -> Self {
+        Self {
+            limits: crate::store::limits(root, &root.forge, &config.limits.store).unwrap(),
+            application: temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap(),
+            models: jig_protocol_config::core(config, [7; 16], 7).settings.models,
+        }
+    }
+    fn component(&self, maps: jig_protocol_store::Stores) -> jig_protocol_store::Store {
+        jig_protocol_store::Store::over(&self.limits, self.application, &self.models, maps)
+    }
+    fn empty(&self) -> jig_protocol_store::Store {
+        self.component(jig_protocol_store::Stores {
+            store: skein_kv::Store::memory(&self.limits.store),
+            secrets: skein_kv::Store::memory(&self.limits.secrets),
+        })
+    }
+}
+
+fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed: &ForgeSeed) {
     use temper_protocol_records as records;
-    let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &source.api).encode();
-    let api = source.api_token.as_ref().expect("fixture API token").expose();
-    for (item, value) in [
+    let engine = service.engine.as_mut().unwrap();
+    // Directory-admission fixtures reach the store before any forge can connect.
+    if !engine.store.opened {
+        return;
+    }
+    let api = match engine.workers.forges.get(forge) {
+        Some(source) => source.api.clone(),
+        None => {
+            let mut api = None;
+            for record in &engine.forge_records.pending {
+                if record.number == forge {
+                    api = Some(jig_protocol_config::Address::Host {
+                        name: record.place.api.host.clone(),
+                        port: record.place.api.port,
+                    });
+                    break;
+                }
+            }
+            api.expect("fixture forge record")
+        }
+    };
+    let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
+    let secret_requests = engine.store.secret_requests;
+    let original = if engine.store.component.mark_durable() {
+        None
+    } else {
+        // Seed secrets through Keep without changing the main store's startup state.
+        let component = core::mem::replace(&mut engine.store.component, seed.empty());
+        let mut maps = component.into_stores();
+        open_seeded(&mut engine.store);
+        mark_store(&mut engine.store);
+        exchange_secrets(&mut engine.store, &mut maps.secrets, seed);
+        Some(maps)
+    };
+    for (item, bytes) in [
         (records::Item::Origin, origin.as_ref()),
         (records::Item::User, 42_u64.to_le_bytes().as_slice()),
-        (records::Item::ApiToken, api),
-        (records::Item::GitToken, b"forge-token-1234".as_slice()),
+        (records::Item::ApiToken, token),
+        (records::Item::GitToken, FORGE_GIT_TOKEN),
     ] {
-        let engine = service.engine.as_mut().unwrap();
+        let number = records::number(forge, item);
+        let value = Secret::new(records::encode(item, bytes).unwrap().into_boxed_slice());
         engine.forge_records.rows.push(
-            records::number(source.number, item),
-            Secret::new(records::encode(item, value).unwrap().into_boxed_slice()),
+            number,
+            value.clone(),
             limits::profile(limits::Profile::Small).records.value_bytes,
         );
+        assert!(engine.store.secrets(Token::new(999), application_request(number, value)).is_none());
+        assert!(engine.store.above.pop().is_some());
     }
+    if let Some(mut maps) = original {
+        exchange_secrets(&mut engine.store, &mut maps.secrets, seed);
+        engine.store.component = seed.component(maps);
+        open_seeded(&mut engine.store);
+        engine.store.secret_requests = secret_requests;
+    }
+}
+
+/// Exchange only secrets, preserving the main store's durable start state.
+fn exchange_secrets(store: &mut crate::store::Store, secrets: &mut skein_kv::Store, seed: &ForgeSeed) {
+    let component = core::mem::replace(&mut store.component, seed.empty());
+    let mut maps = component.into_stores();
+    core::mem::swap(&mut maps.secrets, secrets);
+    store.component = seed.component(maps);
+    open_seeded(store);
+}
+fn open_seeded(store: &mut crate::store::Store) {
+    assert!(store.component.wires(&crate::store::WIRES));
+    store.ask(jig_protocol_store::Request::Open {
+        owner: OWNER,
+        root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
+        installation: seeds().installation,
+    });
+    let Some(jig_protocol_store::Event::Opened { .. }) = store.above.pop() else { panic!("seeded fixture reopened") };
 }
 
 /// Replace the fake durable store while retaining the fixture's kept forge records.

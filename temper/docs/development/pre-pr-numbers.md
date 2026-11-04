@@ -2,7 +2,7 @@
 
 2026-11-03. The evidence behind `../design/protocol/configuration.md`, section 11 ("What the
 project's checks run at each push"), gathered for the reference's M10 from fabrig's history:
-every repair of a red that reached a plan's shared branch (fab's `<draft>/integration`) in 14
+every repair of a red that reached a plan's shared branch (`<draft>/integration`) in 14
 plans landed on main from 2026-10-30 to 11-03. In those plans each implementer ran `cargo fmt`,
 clippy on its changed packages and their focused tests before it pushed.
 

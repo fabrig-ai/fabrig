@@ -59,9 +59,9 @@ fn ready() -> Domain {
     let watch = rows
         .iter()
         .find_map(|row| match row {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
                     },
             } => Some(*watch),
@@ -316,9 +316,11 @@ fn proposal(key: ProposalKey) -> Proposal {
 }
 fn load_cards(root: &mut Domain, rows: Vec<Request>) {
     for row in rows {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down { down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } },
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) },
+                },
         } = row
         {
             let value = match what {
@@ -535,8 +537,8 @@ fn a_family_entrance_refusal_shows_its_budget_and_keeps_the_object_present() {
     );
     let mut attempt = None;
     for request in sends {
-        if let Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: sent, .. } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: sent, .. } },
         } = request
         {
             attempt = Some(sent);
@@ -651,9 +653,9 @@ fn complete_application_object_uses_its_own_zero_value_form_and_exact_terminal_f
     let sends = drive(&mut root, Event::Act { action: decode(&mut view, apply, Act::Press).unwrap() });
     let mut attempt = None;
     for send in sends {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Send {
                             attempt: number, request: jig_client::Ask::Family { record: ask, .. }, ..
@@ -776,9 +778,9 @@ fn family_with_plan(second: Option<u64>) -> Domain {
     let watch =
         rows.iter()
             .find_map(|row| match row {
-                Request::Client {
+                Request::Unlinked {
                     request:
-                        jig_client::Request::Down {
+                        jig_client::UnlinkedRequest::Down {
                             down:
                                 jig_client::Down::Open {
                                     watch,
