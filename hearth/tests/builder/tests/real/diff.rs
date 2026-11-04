@@ -8,7 +8,11 @@ fn hearth_diff_names_each_changed_target_and_its_rebuild() {
     let from = repository.head();
     let to = repository.next(&[fixtures::MOTD_KIND], &[]);
     let rendered = fixtures::diff(&repository, &fixtures::Asked::new(&from, &to));
-    assert_eq!(String::from_utf8_lossy(&rendered.stdout), fixtures::MOTD_DIFF_TEXT, "domain/render.md 6.3");
+    assert_eq!(
+        String::from_utf8_lossy(&rendered.stdout),
+        fixtures::MOTD_DIFF_TEXT,
+        "hearth/docs/design/domain/render.md 6.3"
+    );
 }
 #[test]
 fn a_diff_with_changed_targets_exits_1() {
@@ -18,7 +22,7 @@ fn a_diff_with_changed_targets_exits_1() {
     assert_eq!(
         fixtures::diff(&repository, &fixtures::Asked::new(&from, &to)).exit,
         Exit::Code(1),
-        "client/README.md 3.3"
+        "hearth/docs/design/client/README.md 3.3"
     );
 }
 #[test]
@@ -90,7 +94,7 @@ fn json_lines_give_each_targets_change_then_the_tally_in_the_outcome() {
         Some(
             "{\"record\":\"outcome\",\"outcome\":\"negative\",\"from\":\"FROM\",\"to\":\"TO\",\"targets\":4,\"changed\":2,\"unchanged\":2,\"left_out\":0}"
         ),
-        "client/README.md 3.2"
+        "hearth/docs/design/client/README.md 3.2"
     );
     assert_eq!(
         stdout.lines().filter(|line| line.starts_with("{\"record\":\"change\"")).count(),

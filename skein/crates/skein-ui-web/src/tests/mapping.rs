@@ -3,7 +3,7 @@ use crate::{
     dom::{self, Element},
     mapping::{self, Primary, Words},
 };
-use skein_ui::{Made, Modifier, Picture, Region, Role, Run, Shortcut, State, Style, TextRun, Value};
+use skein_ui::{Fraction, Made, Modifier, Picture, Region, Role, Run, Shortcut, State, Style, TextRun, Value};
 
 const ROLES: &[(Role, &str, &[&[u8]])] = &[
     (Role::Page, "<div></div>", &[b"generic"]),
@@ -104,6 +104,7 @@ enum Property {
     CompletedDescription,
     Placeholder,
     Sort(skein_ui::Sort),
+    Fraction(Option<Fraction>),
     Count,
     Position,
     Spans(skein_ui::Spans),
@@ -126,6 +127,36 @@ enum Property {
 const LINK: Run = Run::Link { to: skein_lib::Token::new(1) };
 
 const PROPERTIES: &[(Role, Property, &str)] = &[
+    (
+        Role::Progress,
+        Property::Fraction(Some(Fraction { done: 42, total: 100 })),
+        r#"<div data-node="1" role="progressbar" aria-valuetext="Words &amp; &lt;b&gt;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="42" data-progress="42">Words &amp; &lt;b&gt;</div>"#,
+    ),
+    (
+        Role::Progress,
+        Property::Fraction(Some(Fraction { done: 100, total: 100 })),
+        r#"<div data-node="1" role="progressbar" aria-valuetext="Words &amp; &lt;b&gt;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" data-progress="100">Words &amp; &lt;b&gt;</div>"#,
+    ),
+    (
+        Role::Progress,
+        Property::Fraction(Some(Fraction { done: 1, total: 3 })),
+        r#"<div data-node="1" role="progressbar" aria-valuetext="Words &amp; &lt;b&gt;" aria-valuemin="0" aria-valuemax="3" aria-valuenow="1" data-progress="33">Words &amp; &lt;b&gt;</div>"#,
+    ),
+    (
+        Role::Progress,
+        Property::Fraction(Some(Fraction { done: 2, total: 3 })),
+        r#"<div data-node="1" role="progressbar" aria-valuetext="Words &amp; &lt;b&gt;" aria-valuemin="0" aria-valuemax="3" aria-valuenow="2" data-progress="66">Words &amp; &lt;b&gt;</div>"#,
+    ),
+    (
+        Role::Progress,
+        Property::Fraction(Some(Fraction { done: u64::MAX, total: u64::MAX })),
+        r#"<div data-node="1" role="progressbar" aria-valuetext="Words &amp; &lt;b&gt;" aria-valuemin="0" aria-valuemax="18446744073709551615" aria-valuenow="18446744073709551615" data-progress="100">Words &amp; &lt;b&gt;</div>"#,
+    ),
+    (
+        Role::Progress,
+        Property::Fraction(None),
+        r#"<div data-node="1" role="progressbar" aria-valuetext="Words &amp; &lt;b&gt;">Words &amp; &lt;b&gt;</div>"#,
+    ),
     (Role::TextField, Property::State(State::Required), r#"<input data-node="1" type="text" required="">"#),
     (Role::TextArea, Property::State(State::Required), r#"<textarea data-node="1" required=""></textarea>"#),
     (Role::Select, Property::State(State::Required), r#"<select data-node="1" required=""></select>"#),
@@ -299,6 +330,10 @@ fn property(made: &mut Made, property: Property) {
         Property::Placeholder => {
             made.attribute.name = Some(b"Words & <b>".as_slice().into());
             made.attribute.placeholder = Some(b"Hint & <b>".as_slice().into());
+        }
+        Property::Fraction(fraction) => {
+            made.attribute.fraction = fraction;
+            made.text = vec![TextRun { run: Run::Plain, text: b"Words & <b>".as_slice().into() }].into_boxed_slice();
         }
         Property::Sort(sort) => made.attribute.sort = Some(sort),
         Property::Count => made.attribute.count = Some(20),

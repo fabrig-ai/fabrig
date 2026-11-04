@@ -64,7 +64,7 @@ pub fn collision_faults() -> [render::Collision; 22] {
         },
         render::Collision::Differs {
             subject: render::Subject::User,
-            name: copy_of(b"free"),
+            name: copy_of(b"bob"),
             first: copy_of(b"first"),
             second: copy_of(b"second"),
         },
@@ -98,7 +98,7 @@ fn id_back(id: records::Id) -> render::Id {
         records::Id::Gid => render::Id::Gid,
     }
 }
-// A valid account id inside protocol/format.md 5.6's bounds.
+// A valid account id inside hearth/docs/design/protocol/format.md 5.6's bounds.
 pub const COLLISION_UID: u32 = 1_000;
 fn shared(id: render::Id) -> render::Collision {
     render::Collision::Shared { id, value: COLLISION_UID, first: copy_of(b"alice"), second: copy_of(b"bob") }

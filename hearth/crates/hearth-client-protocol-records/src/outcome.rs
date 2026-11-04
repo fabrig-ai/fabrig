@@ -1,4 +1,4 @@
-//! Terminal outcomes (client/README.md, 3.3).
+//! Terminal outcomes (hearth/docs/design/client/README.md, 3.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
     Done,
@@ -22,7 +22,7 @@ pub fn code(outcome: Outcome) -> u8 {
     }
 }
 
-/// An error class's terminal outcome (client/README.md, 3.3).
+/// An error class's terminal outcome (hearth/docs/design/client/README.md, 3.3).
 #[must_use]
 pub fn of(class: crate::errors::Class) -> Outcome {
     match class {

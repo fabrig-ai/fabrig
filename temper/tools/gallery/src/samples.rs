@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 92;
+pub const N: usize = 94;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -134,6 +134,8 @@ pub fn samples() -> [Sample; N] {
         ),
         welcome_sample("welcome-model-choose", temper_client_domain::Step::Model { way: None }),
         model_forge_sample("welcome-model-forge-under-way", 6),
+        model_forge_sample("welcome-model-forge-fetching", 24),
+        model_forge_sample("welcome-model-forge-fetching-bytes", 25),
         model_forge_sample("welcome-model-forge-done", 7),
         model_forge_sample("welcome-model-forge-failed", 9),
         welcome_model_sample("welcome-model-key-details", temper_client_domain::WayKind::Key, Shown),

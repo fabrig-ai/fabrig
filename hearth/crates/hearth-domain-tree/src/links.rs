@@ -1,4 +1,4 @@
-//! Hard links: an inode's first path, and what its later paths must agree with (domain/store.md,
+//! Hard links: an inode's first path, and what its later paths must agree with (hearth/docs/design/domain/store.md,
 //! 3.4 and 5.4).
 use crate::{
     limits::Limits,
@@ -71,7 +71,7 @@ pub(crate) fn seen(
 
 /// An unchanged entry's inode, with more than one link, is met: its first path is the entry's
 /// own, or the one it points at. Nothing is checked, since its change time is its inode's, and
-/// that did not move (domain/store.md, 4.3).
+/// that did not move (hearth/docs/design/domain/store.md, 4.3).
 pub(crate) fn met(linked: &mut Linked, limits: &Limits, inode: u64, first: &[u8], agree: Digest) -> Result<(), Cause> {
     if linked.inodes.contains_key(&inode) {
         return Ok(());

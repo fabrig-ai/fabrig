@@ -115,6 +115,22 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   charter carries the declarations (section 5). Each of the forge's reads
   is a tool of its own (`read_items` to `read_permission`), decoded as
   `Tool::ReadForge`, naming the read.
+- **A forge subscription selects an adoption in the task's project.**
+  `subscribe_forge`'s `topic.repository` accepts `owner/name` or the
+  numeric `{forge, repository}` pair. Omitted or empty names select the
+  project's sole readable adoption, as the read tools do; no adoption or
+  an ambiguous choice returns the readable names to choose from. A
+  numeric pair must also be readable in that project. A task's packed
+  resource tag is not a repository ID (`../domain/forge.md`, section 4).
+- **Subscription admission names the failed check.** Refusals identify
+  the task, repository pair and topic: an unadopted or unreadable pair,
+  a duplicate topic (with its existing subscription number), malformed
+  branch segments, oversized paths or branch, exhausted forge or task
+  subscription room, or exhausted per-task resource names. A bounded
+  refusal names the bound and limit. A duplicate keeps the existing
+  interest; changing it requires unsubscribing its number first. These
+  checks precede a backend subscription. Settled named calls retain
+  their rendered feedback for replay (`../domain/root.md`, 5.2).
 - **Decoded in the routing** (jig's `protocol/channel.md`, 6.3), in the
   step that routes the call, keeping no state:
   1. the fleet fences the call, and the root hands it out as

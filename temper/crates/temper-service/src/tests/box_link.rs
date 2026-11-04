@@ -1,6 +1,7 @@
 use crate::route::box_link::{Link, Out, Refused, Step};
 use alloc::boxed::Box;
 use skein_lib::{Queue, Token};
+use temper_engine_domain_forge::{SetUpBinary, SetUpFetched};
 const REQUEST: Token = Token::new(91);
 const OTHER_REQUEST: Token = Token::new(92);
 
@@ -130,6 +131,31 @@ fn each_line_for_the_asked_forge_is_told() {
         (b"step 7 fetch\n".as_slice(), Out::SettingUp { forge: FORGE, step: Some(Step::Fetch) }),
         (b"step 7 prepare\n", Out::SettingUp { forge: FORGE, step: Some(Step::Prepare) }),
         (b"step 7 run\n", Out::SettingUp { forge: FORGE, step: Some(Step::Run) }),
+        (
+            b"fetched 7 forgejo 10 100\n",
+            Out::Fetched {
+                forge: FORGE,
+                fetched: SetUpFetched { binary: SetUpBinary::Forgejo, done: 10, total: Some(100) },
+            },
+        ),
+        (
+            b"fetched 7 runner 0 none\n",
+            Out::Fetched { forge: FORGE, fetched: SetUpFetched { binary: SetUpBinary::Runner, done: 0, total: None } },
+        ),
+        (
+            b"fetched 7 runner 100 100\n",
+            Out::Fetched {
+                forge: FORGE,
+                fetched: SetUpFetched { binary: SetUpBinary::Runner, done: 100, total: Some(100) },
+            },
+        ),
+        (
+            b"fetched 7 forgejo 10 none\n",
+            Out::Fetched {
+                forge: FORGE,
+                fetched: SetUpFetched { binary: SetUpBinary::Forgejo, done: 10, total: None },
+            },
+        ),
         (b"started 7\n", Out::Started { forge: FORGE }),
         (
             b"failed 7 prepare 7 exited 1\n",
@@ -147,6 +173,7 @@ fn each_line_for_the_asked_forge_is_told() {
 fn a_line_for_another_forge_or_with_none_asked_is_named_and_dropped() {
     let rows = [
         (b"step 8 fetch\n".as_slice(), b"box link: dropped step for forge 8, not asked".as_slice()),
+        (b"fetched 8 runner 10 none\n", b"box link: dropped fetched for forge 8, not asked"),
         (b"started 8\n", b"box link: dropped started for forge 8, not asked"),
         (b"failed 8 busy\n", b"box link: dropped failed for forge 8, not asked"),
     ];
@@ -166,6 +193,78 @@ fn a_line_for_another_forge_or_with_none_asked_is_named_and_dropped() {
             }
         }
     }
+}
+#[test]
+fn a_fetched_line_it_cannot_read_is_named() {
+    let lines: &[&[u8]] = &[
+        b"fetched 7 forgejo 0 0\n",
+        b"fetched 7 runner 11 10\n",
+        b"fetched 7 other 0 none\n",
+        b"fetched x runner 0 none\n",
+        b"fetched 65536 runner 0 none\n",
+        b"fetched 7 runner +1 none\n",
+        b"fetched 7 runner -1 none\n",
+        b"fetched 7 runner x none\n",
+        b"fetched 7 runner 0 x\n",
+        b"fetched 7 runner 0 -1\n",
+        b"fetched 7 runner 0 18446744073709551616\n",
+        b"fetched 7 runner 18446744073709551616 none\n",
+        b"fetched 7 runner 0\n",
+        b"fetched 7 runner 0 \n",
+        b"fetched 7 runner  none\n",
+        b"fetched 7 runner 0 none extra\n",
+        b"fetched 7 runner 0 none \n",
+        b"fetched 7 runner 0 none\r\n",
+    ];
+    for line in lines {
+        // The protocol's minimum, so overflow cases reach the decoder.
+        let mut link = Link::new(64, true);
+        let mut out = Queue::with_capacity(OUTPUTS);
+        link.ask(FORGE, REQUEST, &mut out);
+        discard(&mut out);
+        link.read(line, &mut out);
+        tells(&mut out, &[named(b"box link: dropped an unknown line")]);
+        link.read(b"started 7\n", &mut out);
+        tells(&mut out, &[Out::Started { forge: FORGE }]);
+    }
+}
+#[test]
+fn the_longest_fetched_line_fits_the_least_line_bound() {
+    // setup.md, 7.1: LF included, with u16::MAX and two u64::MAX values.
+    const LEAST_LINE_BYTES: u32 = 64;
+    let bytes = b"fetched 65535 forgejo 18446744073709551615 18446744073709551615\n";
+    let mut link = Link::new(LEAST_LINE_BYTES, true);
+    let mut out = Queue::with_capacity(OUTPUTS);
+    link.ask(u16::MAX, REQUEST, &mut out);
+    discard(&mut out);
+    for byte in bytes {
+        link.read(core::slice::from_ref(byte), &mut out);
+    }
+    tells(
+        &mut out,
+        &[Out::Fetched {
+            forge: u16::MAX,
+            fetched: SetUpFetched { binary: SetUpBinary::Forgejo, done: u64::MAX, total: Some(u64::MAX) },
+        }],
+    );
+    let mut service = super::fixtures::ready();
+    let engine = service.engine.as_mut().unwrap();
+    out.push(Out::Fetched {
+        forge: u16::MAX,
+        fetched: SetUpFetched { binary: SetUpBinary::Forgejo, done: u64::MAX, total: Some(u64::MAX) },
+    });
+    crate::route::box_link::drain(engine, &mut out);
+    let Some(temper_engine_domain::Event::Forge(event)) = engine.events.pop() else {
+        panic!("fetch progress reaches the root")
+    };
+    assert_eq!(
+        *event,
+        temper_engine_domain_forge::Event::Fetched {
+            forge: u16::MAX,
+            fetched: SetUpFetched { binary: SetUpBinary::Forgejo, done: u64::MAX, total: Some(u64::MAX) }
+        }
+    );
+    assert!(engine.events.is_empty());
 }
 #[test]
 fn an_unknown_word_step_or_number_is_named_and_dropped() {

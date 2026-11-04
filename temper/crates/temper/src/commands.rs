@@ -142,7 +142,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         line: "Download an owned forge's Forgejo and runner binaries into the cache.",
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
-        notes: "Fetches only the binaries the forge's setup gives as \"fetched\", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture.",
+        notes: "Fetches only the binaries the forge's setup gives as \"fetched\", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent.",
     },
     Row {
         words: &["forge", "prepare"],

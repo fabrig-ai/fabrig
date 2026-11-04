@@ -6,6 +6,7 @@ mod oracle;
 pub mod referee;
 pub mod replay;
 mod restart_control;
+pub mod review_delivery;
 mod stories;
 pub mod world;
 

@@ -29,7 +29,7 @@ fn hearth_render_names_the_two_tasks_of_a_differing_user() {
     let rendered = collisions::render("differing-user", collisions::CLASH);
     assert_eq!(
         fixtures::lines_starting(&rendered.stdout, &["tasks/a/"]),
-        "tasks/a/task.json:1:12: x1-prod: user \"free\" differs between a and b (tasks/b/task.json:1:12)\n"
+        "tasks/a/task.json:1:12: x1-prod: user \"alice\" differs between a and b (tasks/b/task.json:1:12)\n"
     );
 }
 #[test]
@@ -37,7 +37,7 @@ fn hearth_render_names_the_two_users_sharing_a_uid() {
     let rendered = collisions::render("shared-uid", collisions::SHARED);
     assert_eq!(
         fixtures::lines_starting(&rendered.stdout, &["tasks/a/"]),
-        "tasks/a/task.json:1:12: x1-prod: uid 1000 is shared by free and ci (tasks/b/task.json:1:12)\n"
+        "tasks/a/task.json:1:12: x1-prod: uid 1000 is shared by alice and ci (tasks/b/task.json:1:12)\n"
     );
 }
 #[test]

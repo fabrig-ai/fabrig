@@ -22,7 +22,7 @@ fn a_read_of_a_setting_its_task_lacks_is_refused_at_it() {
                 at: at(1, 34)
             }
         )],
-        "protocol/format.md, 6.5: the reader's, at its setting"
+        "hearth/docs/design/protocol/format.md, 6.5: the reader's, at its setting"
     );
 }
 #[test]
@@ -108,7 +108,7 @@ fn an_account_gets_the_shell_its_object_type_defaults() {
         &[(
             b"accounts",
             at(2, 2),
-            map(at(2, 14), &[(b"free", at(2, 15), map(at(2, 23), &[(b"uid", at(2, 24), int(at(2, 31), 1000))]))]),
+            map(at(2, 14), &[(b"alice", at(2, 15), map(at(2, 24), &[(b"uid", at(2, 25), int(at(2, 32), 1000))]))]),
         )],
     ));
     let V::Map(settings) = validate(&schemas::users(), &settings, &Check::Default).expect("valid") else {

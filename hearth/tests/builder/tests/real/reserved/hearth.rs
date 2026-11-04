@@ -11,7 +11,7 @@ fn the_hearth_task_passes_every_reserved_rule() {
             &rendered.stdout,
             &["  request ", "  users ", "  members ", "  presets ", "  download ", "  fetch "]
         ),
-        "  request    git mmdebstrap openssh-client uidmap\n  download   /usr/local/bin/hearth file 0755 root:root ca2dff161724\n  fetch      ca2dff161724 https://git.ekanayaka.io/ai/hearth/releases/download/v0.1.0/hearth-x86_64-linux\n  users      hearth 59999 hearth /nonexistent /usr/sbin/nologin\n  members    hearth systemd-journal\n  presets    hearth-activator.service enable\n  presets    systemd-confext.service disable\n  presets    systemd-sysext.service disable\n"
+        "  request    git mmdebstrap openssh-client uidmap\n  download   /usr/local/bin/hearth file 0755 root:root ca2dff161724\n  fetch      ca2dff161724 https://git.example.org/ai/hearth/releases/download/v0.1.0/hearth-x86_64-linux\n  users      hearth 59999 hearth /nonexistent /usr/sbin/nologin\n  members    hearth systemd-journal\n  presets    hearth-activator.service enable\n  presets    systemd-confext.service disable\n  presets    systemd-sysext.service disable\n"
     );
 }
 #[test]

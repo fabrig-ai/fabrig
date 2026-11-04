@@ -24,8 +24,11 @@ evidence are named separately from zero qualifying approvals.
 Otherwise, until it lands, it prints `next: temper ctl DIR change show TASK
 --until landed`, or, while a task is held, `next: temper ctl DIR
 task show N`; while verifying or red, `next: temper ctl DIR change show TASK
---until cleared`; landed, its merge commit. A wait for its landing ends
-at a hold, `not met: held` (exit 3). A task with no change fails,
-`no change panel for task N` (exit 2). The forge holds its diff,
-reviews and logs: read them there.
+--until cleared`; landed, its merge commit. Successful no-change completion
+prints `result: completed, no change` and `next: temper ctl DIR task show N`
+for its report. An unmet wait ends with `not met: ended`,
+`not met: ended: cancelled` or `not met: ended: failed` (exit 3).
+A wait for landing ends at a hold, `not met: held` (exit 3).
+A task without a panel prints `no change panel for task N` (exit 2).
+The forge holds its diff, reviews and logs: read them there.
 ```

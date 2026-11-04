@@ -177,11 +177,11 @@ A read.
 
 ## subscribe_forge
 
-Hear forge news: landings on a branch, CI on a head, a pull request's state, or the comments and reviews on an issue or pull request.
+Hear forge news: landings on a branch, CI on heads, pull request state, or comments and reviews on an issue or pull request.
 
 A write.
 
-- `topic`: an object; required. {kind, repository: {forge, repository}}: landings with branch, ci with head, pull or participation with number.
+- `topic`: an object; required. {kind,repository?}: owner/name|{forge,repository}, else sole readable; landings+branch,ci+head,pull/participation+number
 - `own_change`: an integer of at least 1; optional. For landings: your change task's number; its own landing does not wake you.
 - `paths`: a list; optional. For landings: a landing wakes you when it changes one of these paths, or a file below one.
 
