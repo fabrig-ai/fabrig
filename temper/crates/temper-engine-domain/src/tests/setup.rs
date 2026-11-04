@@ -86,6 +86,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 | Request::PlaygroundActs { .. }
                 | Request::ResetAct { .. }
                 | Request::BoxRemove { .. }
+                | Request::MakingCopied { .. }
                 | Request::SetUp { .. }
                 | Request::Bound { .. }
                 | Request::Return { .. }

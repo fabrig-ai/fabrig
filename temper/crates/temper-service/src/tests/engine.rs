@@ -520,6 +520,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::ResetAct { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Return { .. }
+                | root::Request::MakingCopied { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }
                 | root::Request::Replace { .. }
