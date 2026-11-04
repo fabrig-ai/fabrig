@@ -84,9 +84,11 @@ fn opened(owner: bool, step: Step) -> (Domain, Token, Token, Option<Token>) {
     go(&mut root, step);
     let mut forges = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down { down: Down::Open { watch, subject: jig_client::Watchable::Family { .. } } },
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Open { watch, subject: jig_client::Watchable::Family { .. } },
+                },
         } = request
         {
             forges = Some(watch);
@@ -385,8 +387,9 @@ fn the_model_step_sends_the_accounts_acts() {
         event(&mut root, Event::Act { action: Action::Pages(Act::ConnectModel(A::Submit { name: [1; 16] })) });
     let mut sent = false;
     while let Some(request) = out.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Send { value: Some(value), .. } } } =
-            request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { value: Some(value), .. } },
+        } = request
         {
             assert_eq!(value.expose(), b"private-test-key");
             sent = true;
@@ -406,7 +409,9 @@ fn leaving_the_welcome_keeps_the_sessions_forges() {
     );
     let mut closed = false;
     while let Some(request) = out.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Close { watch: closing } } } = request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch: closing } },
+        } = request
         {
             closed |= closing == watch;
         }
@@ -423,7 +428,9 @@ fn losing_the_owner_role_keeps_the_sessions_watch() {
     let mut out = deliver(&mut root, me, frame);
     let mut closed = false;
     while let Some(request) = out.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Close { watch: closing } } } = request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch: closing } },
+        } = request
         {
             closed |= closing == watch;
         }
@@ -657,8 +664,9 @@ fn ready_makes_default_once_per_press_with_its_own_key() {
     assert_eq!(key.asker, crate::owner::Owner::Pages.asker());
     let mut sends = 0_u32;
     while let Some(request) = out.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Send { request, key: name, .. } } } =
-            request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, key: name, .. } },
+        } = request
         {
             assert_eq!(
                 request,

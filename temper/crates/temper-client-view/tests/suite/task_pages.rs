@@ -146,7 +146,7 @@ mod tests {
         let mut down = Vec::new();
         while let Some(request) = out.pop() {
             match request {
-                Request::Client { request: jig_client::Request::Down { down: value } } => down.push(value),
+                Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: value } } => down.push(value),
                 Request::Show { address, .. } => {
                     down.extend(root_event(root, Event::Went { place: domain::Place::Address(address) }));
                 }

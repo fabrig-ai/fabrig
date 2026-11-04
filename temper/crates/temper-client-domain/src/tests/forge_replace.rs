@@ -129,9 +129,9 @@ fn replacement_bundles_carry_only_the_new_values() {
         let mut sent = 0_u32;
         let mut out = send(&mut root);
         while let Some(request) = out.pop() {
-            if let Request::Client {
+            if let Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: Down::Send { request: jig_client::Ask::Family { record, .. }, value: Some(bundle), .. },
                     },
             } = request
@@ -198,7 +198,9 @@ fn connected() -> w::Connection {
 }
 fn attempt(out: &Queue<Request>) -> Token {
     for request in out {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Send { attempt, .. } } } = request {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } } } =
+            request
+        {
             return *attempt;
         }
     }
@@ -289,8 +291,9 @@ fn a_key_replacement_restores_armour_and_refuses_empty_keys() {
     let mut out = send(&mut root);
     let mut count = 0_u32;
     while let Some(request) = out.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Send { value: Some(value), .. } } } =
-            request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { value: Some(value), .. } },
+        } = request
         {
             let items = forge::forges::decode_pasted(value.expose()).unwrap();
             assert_eq!(items.len(), 1);
@@ -341,8 +344,8 @@ fn each_row_keeps_its_replacement_and_its_request_name() {
     for number in [FORGE, OTHER] {
         let mut out = act(&mut root, forge::Act::Forges(forge::forges::Act::Replace { forge: number }));
         while let Some(request) = out.pop() {
-            if let Request::Client {
-                request: jig_client::Request::Down { down: Down::Send { key: name, value: Some(value), .. } },
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Send { key: name, value: Some(value), .. } },
             } = request
             {
                 names.push(name).unwrap();

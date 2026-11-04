@@ -406,7 +406,9 @@ fn a_set_up_refusal_is_said_below_its_button() {
     );
     let mut sent = None;
     while let Some(request) = out.pop() {
-        if let d::Request::Client { request: jig_client::Request::Down { down: Down::Send { attempt, .. } } } = request
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } },
+        } = request
         {
             sent = Some(attempt);
         }
@@ -450,8 +452,8 @@ fn act(root: &mut d::Domain, act: d::forge::Act) -> skein_lib::Queue<d::Request>
 }
 fn attempt(mut out: skein_lib::Queue<d::Request>) -> skein_lib::Token {
     while let Some(request) = out.pop() {
-        if let d::Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } },
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
         } = request
         {
             return attempt;
@@ -855,8 +857,8 @@ fn a_connect_refusal_is_said_below_its_button() {
     );
     let mut attempt = None;
     while let Some(request) = out.pop() {
-        if let d::Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: value, .. } },
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: value, .. } },
         } = request
         {
             attempt = Some(value);
@@ -914,8 +916,8 @@ fn connect_github_sends_the_flow_address_at_its_forge() {
         let (_, mut out) = manifest_started(address);
         let mut sent = None;
         while let Some(request) = out.pop() {
-            if let d::Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { request, value, .. } },
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { request, value, .. } },
             } = request
             {
                 assert!(value.is_none());

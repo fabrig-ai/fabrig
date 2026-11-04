@@ -521,9 +521,11 @@ impl Harness {
     pub(crate) fn outputs(&mut self, mut out: Queue<root::Request>) {
         for _ in 0..out.len() {
             match out.pop().expect("counted root output") {
-                root::Request::Client {
+                root::Request::Unlinked {
                     request:
-                        client::Request::Down { down: client::Down::Read { read, what: client::Readable::Jig(what) } },
+                        client::UnlinkedRequest::Down {
+                            down: client::Down::Read { read, what: client::Readable::Jig(what) },
+                        },
                 } => {
                     let call = match self.serving {
                         Some(call) => call,
@@ -536,9 +538,9 @@ impl Harness {
                         self.extra_reads.get_mut(&call).expect("read queue").push((read, what));
                     }
                 }
-                root::Request::Client {
+                root::Request::Unlinked {
                     request:
-                        client::Request::Down {
+                        client::UnlinkedRequest::Down {
                             down: client::Down::Read { read, what: what @ client::Readable::Family { .. } },
                         },
                 } => {
@@ -548,12 +550,14 @@ impl Harness {
                     };
                     assert!(self.family_reads.insert(call, (read, what)).is_none(), "one family read per call");
                 }
-                root::Request::Client {
-                    request: client::Request::Down { down: client::Down::Open { watch, subject } },
+                root::Request::Unlinked {
+                    request: client::UnlinkedRequest::Down { down: client::Down::Open { watch, subject } },
                 } => {
                     self.watches.insert(watch, subject);
                 }
-                root::Request::Client { request: client::Request::Down { down: client::Down::Close { watch } } } => {
+                root::Request::Unlinked {
+                    request: client::UnlinkedRequest::Down { down: client::Down::Close { watch } },
+                } => {
                     let subject = self.watches.remove(&watch).expect("open watch closes");
                     self.closed.push(subject).expect("bounded closes");
                     self.client(client::Event::Up { up: client::Up::WatchEnded { watch, end: c::WatchEnd::Closed } });
@@ -568,8 +572,8 @@ impl Harness {
                     }
                     assert!(self.answers.insert(number, printed).is_none(), "answered exactly once");
                 }
-                root::Request::Client {
-                    request: client::Request::Down { down: client::Down::Send { attempt, key, request, value } },
+                root::Request::Unlinked {
+                    request: client::UnlinkedRequest::Down { down: client::Down::Send { attempt, key, request, value } },
                 } => {
                     let call = self.serving.unwrap_or(self.next);
                     self.sends.insert(call, (attempt, key, request));
@@ -577,7 +581,9 @@ impl Harness {
                         self.carried.insert(call, value);
                     }
                 }
-                root::Request::Client { request: client::Request::Down { down: client::Down::Save { record } } } => {
+                root::Request::Unlinked {
+                    request: client::UnlinkedRequest::Down { down: client::Down::Save { record } },
+                } => {
                     let call = self.serving.unwrap_or(self.next);
                     self.saved.insert(call, record.key);
                 }
@@ -589,7 +595,7 @@ impl Harness {
                 root::Request::Record { number, record } => {
                     self.records.insert(number, record);
                 }
-                root::Request::Client { .. } | root::Request::Ready => {}
+                root::Request::Client { .. } | root::Request::Unlinked { .. } | root::Request::Ready => {}
             }
         }
     }

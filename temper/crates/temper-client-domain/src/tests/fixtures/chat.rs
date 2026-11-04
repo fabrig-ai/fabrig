@@ -46,12 +46,12 @@ pub fn opened() -> Fixture {
         Event::SignIn { with: jig_client::With::Transport },
         Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
     ] {
-        client.step(Time::ZERO, Wall::EPOCH, event, &mut emitted);
+        client.step_unlinked(Time::ZERO, Wall::EPOCH, event, &mut emitted);
     }
     let mut out = Queue::with_capacity(OUTPUTS);
     let mut chat = Chat::new(TASK, FIRST, &limits, &mut out);
     let _read = out.pop();
-    client.step(
+    client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
         Event::Watch { handle: chat.document, subject: Watchable::Jig(c::Subject::Task { task: TASK }) },
@@ -60,12 +60,12 @@ pub fn opened() -> Fixture {
     let mut watch = None;
     let mut me = None;
     while let Some(request) = emitted.pop() {
-        if let jig_client::Request::Down {
+        if let jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Task { .. }) },
         } = request
         {
             watch = Some(token);
-        } else if let jig_client::Request::Down {
+        } else if let jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Me) },
         } = request
         {
@@ -79,7 +79,7 @@ pub fn opened() -> Fixture {
     Fixture { chat, client, out, watch, me: me.expect("automatic me watch") }
 }
 pub fn deliver(client: &mut Client, watch: Token, task: c::Task) {
-    client.step(
+    client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
         Event::Up {
@@ -110,14 +110,14 @@ pub fn with_delegate() -> Fixture {
     task.delegates.push(c::LiveDelegate { chip, takeover_budget: 0 }).expect("delegate");
     deliver(&mut fixture.client, fixture.watch, task);
     let mut out = Queue::with_capacity(OUTPUTS);
-    fixture.client.step(
+    fixture.client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
         Event::Watch { handle: crate::pages::me_handle(), subject: Watchable::Jig(c::Subject::Me) },
         &mut out,
     );
 
-    fixture.client.step(
+    fixture.client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
         Event::Up {

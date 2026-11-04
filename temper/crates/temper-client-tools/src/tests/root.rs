@@ -4,20 +4,20 @@ use jig_client::{self as client, contract as c};
 // Queue the last delivery and its terminal before routing either notification,
 // as the native client can do when it drains several wire events together.
 fn retained_delivery(root: &mut fixtures::Harness, subject: client::Watchable, delivery: c::Delivery) {
+    let env = skein_lib::Env {
+        now: root.now,
+        wall: root.wall,
+        limits: super::Limits::new(root.limits.domain, root.limits.tools),
+    };
     let watch = root.watch_token(&subject);
     let mut pending = skein_lib::Queue::with_capacity(fixtures::OUTPUTS);
     for up in [
         client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) },
         client::Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded },
     ] {
-        root.root.client.step(root.now, root.wall, client::Event::Up { up }, &mut pending);
+        super::step_client(&mut root.root, &env, client::Event::Up { up }, &mut pending);
     }
     root.watches.remove(&watch).expect("engine ended watch");
-    let env = skein_lib::Env {
-        now: root.now,
-        wall: root.wall,
-        limits: super::Limits::new(root.limits.domain, root.limits.tools),
-    };
     let mut child = skein_lib::Queue::with_capacity(fixtures::OUTPUTS);
     let mut out = skein_lib::Queue::with_capacity(fixtures::OUTPUTS);
     super::drain(&mut root.root, &env, &mut pending, &mut child, &mut out);
@@ -171,9 +171,9 @@ fn queued_owner_outputs(
     let mut client = skein_lib::Queue::uncapped();
     let mut child = skein_lib::Queue::uncapped();
     let mut out = skein_lib::Queue::uncapped();
-    root.root.client.step(
-        root.now,
-        root.wall,
+    super::step_client(
+        &mut root.root,
+        &env,
         client::Event::Up {
             up: client::Up::ReadDone {
                 read,
@@ -185,15 +185,18 @@ fn queued_owner_outputs(
     // Route the completed read to its owner, retaining that owner's follow-on
     // outputs until the previous act's terminal is ready beside them.
     while let Some(request) = client.pop() {
-        if let client::Request::Told { told } = request {
-            super::route(&mut root.root, &env, told, &mut child, &mut out);
-        } else {
-            out.push(super::Request::Client { request });
+        match request {
+            super::ClientOutput::Linked(client::Request::Told { told })
+            | super::ClientOutput::Unlinked(client::UnlinkedRequest::Told { told }) => {
+                super::route(&mut root.root, &env, told, &mut child, &mut out);
+            }
+            super::ClientOutput::Linked(request) => out.push(super::Request::Client { request }),
+            super::ClientOutput::Unlinked(request) => out.push(super::Request::Unlinked { request }),
         }
     }
-    root.root.client.step(
-        root.now,
-        root.wall,
+    super::step_client(
+        &mut root.root,
+        &env,
         client::Event::Up {
             up: client::Up::Answer {
                 attempt: *attempt,
@@ -225,10 +228,14 @@ fn a_follow_on_named_request_waits_for_the_previous_erase() {
     let mut saved = false;
     for request in &out {
         match request {
-            super::Request::Client { request: client::Request::Down { down: client::Down::Erase { .. } } } => {
+            super::Request::Unlinked {
+                request: client::UnlinkedRequest::Down { down: client::Down::Erase { .. } },
+            } => {
                 erased = true;
             }
-            super::Request::Client { request: client::Request::Down { down: client::Down::Save { record } } } => {
+            super::Request::Unlinked {
+                request: client::UnlinkedRequest::Down { down: client::Down::Save { record } },
+            } => {
                 assert!(erased, "previous erase leaves before the follow-on named request");
                 assert_eq!(record.key, fixtures::named("port-answer"));
                 saved = true;
@@ -237,6 +244,7 @@ fn a_follow_on_named_request_waits_for_the_previous_erase() {
                 assert!(erased, "previous erase leaves before its result permits another named call");
             }
             super::Request::Client { .. }
+            | super::Request::Unlinked { .. }
             | super::Request::Ready
             | super::Request::Record { .. }
             | super::Request::Kept { .. }
