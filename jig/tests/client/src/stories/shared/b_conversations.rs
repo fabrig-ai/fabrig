@@ -10,6 +10,9 @@ use skein_world::domain::Verdict;
 pub const WAIT: Duration = Duration::from_secs(2);
 pub const PARTY: u64 = 1;
 pub const CHAT: u64 = 1;
+const OTHER_MEMBER: u64 = 3;
+/// The profile's two sign-ins plus both seeded conversation sessions.
+pub const CHAT_SIGN_INS: u32 = 4;
 
 pub fn finish<F: Front<Test>>(world: &mut World<Test, F>) {
     let outcome = world.run(Until::Done);
@@ -137,6 +140,36 @@ pub fn the_conversations_section_lists_live_chats_by_last_activity<F: Front<Test
         .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
         .collect();
     assert_eq!(tasks, vec![2, CHAT]);
+}
+/// Another member's chat is not in this person's list.
+pub fn a_person_s_chats_are_their_own<F: Front<Test>>(world: &mut World<Test, F>) {
+    world.seed(Seed::ChatProject { party: PARTY, project: 1 });
+    world.seed(Seed::Conversation { party: PARTY, project: 1, words: b"Hello".as_slice().into() });
+    world.seed(Seed::ChatProject { party: OTHER_MEMBER, project: 1 });
+    world.seed(Seed::Conversation {
+        party: OTHER_MEMBER,
+        project: 1,
+        words: b"Another member's chat".as_slice().into(),
+    });
+    let client = world.client(PARTY, crate::stories::conversation());
+    world.person(client, sign_in(vec![Step::See { find: Find::named(Role::Link, b"Hello"), within: WAIT }]));
+    finish(world);
+    world.person(
+        client,
+        vec![
+            Step::Go { address: crate::stories::conversation() },
+            Step::See { find: Find::named(Role::Link, b"Hello"), within: WAIT },
+            Step::Gone { find: Find::text(b"Another member's chat"), within: WAIT },
+        ],
+    );
+    finish(world);
+    let tasks: Vec<_> = world
+        .tree(client)
+        .nodes()
+        .iter()
+        .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
+        .collect();
+    assert_eq!(tasks, vec![CHAT]);
 }
 pub fn a_person_s_chats_list_live_then_ended_by_last_activity<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world);

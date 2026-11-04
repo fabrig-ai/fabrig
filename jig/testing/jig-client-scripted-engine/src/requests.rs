@@ -310,7 +310,10 @@ impl<A: crate::Application> Engine<A> {
                 | ReadValue::Notes(_)
                 | ReadValue::Deployment(_) => None,
             };
-            if waiting.as_ref().is_some_and(|waiting| !recipient(&self.truth, party, waiting)) {
+            if waiting.as_ref().is_some_and(|waiting| {
+                (matches!(value, ReadValue::Escalation(_)) && matches!(waiting, Recipient::Task(_)))
+                    || !recipient(&self.truth, party, waiting)
+            }) {
                 return Ok((
                     Answer::Refused {
                         refusal: Refusal::Moved { now: Revision { value: 0 }, what: Moved::Waiting },
@@ -511,11 +514,11 @@ impl<A: crate::Application> Engine<A> {
             | Ask::SetPool { .. } => None,
         };
         if let (Some(key), Some(how)) = (object, how) {
-            if matches!(how, Decision::PassedUp | Decision::LeftHeld { .. }) {
+            if matches!(how, Decision::PassedUp) {
                 return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
             }
             let value = self.truth.objects.get(&key).expect("target checked").clone();
-            let Some((value, outcome)) = decided(value, ask, party, wall, &how) else {
+            let Some((value, outcome)) = decided(&self.truth, value, ask, party, wall, &how) else {
                 return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
             };
             let change =
