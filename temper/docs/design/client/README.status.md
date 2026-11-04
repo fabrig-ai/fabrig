@@ -3,7 +3,7 @@
 2026-11-04. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.5: `Home { project }`,
-  and the project frame (5.1, 5.3). 3.4, 5.5: the composer's
+  and the rail's project switcher (5.3). 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no

@@ -15,14 +15,11 @@
 ></head
 ><body
 ><div id="app"
-><header class="temper-banner"
-><a aria-label="temper chats" class="temper-brand" href="/chats"
+><nav aria-label="Demo" class="temper-rail"
+><a aria-label="temper home" class="temper-brand" href="/projects/1"
 ><span
 >temper</span
 ></a
-><details class="temper-menu"
-><summary
->Menu</summary
 ><details class="temper-projects"
 ><summary
 >Demo</summary
@@ -31,37 +28,33 @@
 ><button type="button" class="temper-project-rename"
 >Rename</button
 ><form aria-label="New project" class="temper-project-new"
-><label for="skein-ui-label-106"
+><label for="skein-ui-label-109"
 >New project</label
-><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-106"
+><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-109"
 ><button type="button"
 >Create</button
 ></form
 ></details
-><nav aria-label="Main navigation" class="temper-navigation"
-><a aria-label="Inbox" href="/"
+><div class="temper-rail-nav"
+><a aria-label="Home" href="/projects/1"
 ><span
->Inbox</span
+>Home</span
+></a
+><a aria-label="Needs you" href="/"
+><span
+>Needs you</span
 ></a
 ><a aria-label="Chats" aria-current="page" href="/chats"
 ><span
 >Chats</span
 ></a
-><a aria-label="Adopt a repository" href="/projects/1/adopt"
+></div
+><a aria-label="New chat" class="temper-rail-new" href="/chats?at=start"
 ><span
->Adopt a repository</span
+>+ New chat</span
 ></a
-><a aria-label="Forges" href="/forges"
-><span
->Forges</span
-></a
-><a aria-label="Accounts" href="/accounts"
-><span
->Accounts</span
-></a
-></nav
-><div class="temper-corner"
-><a aria-label="Set up temper" class="temper-leave-playground" href=""
+><div class="temper-rail-foot"
+><a aria-label="Set up temper" class="temper-leave-playground" href="/projects/1/settings"
 ><span
 >Set up temper</span
 ></a
@@ -71,15 +64,16 @@
 >Live</span
 ></div
 ></section
+><a aria-label="Settings" href="/projects/1/settings"
+><span
+>Settings</span
+></a
 ><div role="status" aria-label="Owner"
 ><span
 >Owner</span
 ></div
-><button type="button"
->Sign out</button
 ></div
-></details
-></header
+></nav
 ><main class="temper-main"
 ><aside aria-label="Project" class="temper-sidebar"
 ><div class="temper-chatbar"
@@ -208,6 +202,24 @@
 ></ul
 ></div
 ></main
+><nav aria-label="Sections" class="temper-tabbar"
+><a aria-label="Home" href="/projects/1"
+><span
+>Home</span
+></a
+><a aria-label="Needs you" href="/"
+><span
+>Needs you</span
+></a
+><a aria-label="Chats" aria-current="page" href="/chats"
+><span
+>Chats</span
+></a
+><a aria-label="Settings" href="/projects/1/settings"
+><span
+>Settings</span
+></a
+></nav
 ></div
 ></body
 ></html

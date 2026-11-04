@@ -913,6 +913,8 @@ fn print_writes_every_page_and_the_bundle() {
         let page = fs::read_to_string(out.join(format!("{}.html", sample.name))).expect("sample page");
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
             assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
+        } else if page.contains("class=\"temper-rail\"") {
+            assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {
             assert!(page.contains("class=\"temper-menu\""), "{}: menu disclosure", sample.name);
             assert!(page.contains("<summary>Menu</summary>"), "{}: menu name", sample.name);

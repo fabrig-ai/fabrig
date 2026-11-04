@@ -38,6 +38,12 @@ pub enum Word {
     WelcomeModelPlan,
     WelcomeModelSubscription,
     BrandChats,
+    BrandHome,
+    RailHome,
+    NeedsYouCount,
+    RailSettings,
+    Sections,
+
     ForgeHereVersionDetails,
     ForgeFetchVersions,
     ForgeFetchedVersions,
@@ -759,11 +765,13 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The chats page with no welcome and no project adds one literal phrase (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
 // Home and Settings add two phrases, each with one hole and three segments (3.5).
-const PHRASES: u32 = 1270;
+// The rail adds four literals and one counted entry (client/README.md, 5.3).
+const PHRASES: u32 = 1275;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
-const SEGMENTS: u32 = 2175;
-const ALL: [Word; 675] = [
+// Four literals and the counted entry's two literals and Number hole add seven segments.
+const SEGMENTS: u32 = 2182;
+const ALL: [Word; 680] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -791,6 +799,11 @@ const ALL: [Word; 675] = [
     Word::WelcomeModelPlan,
     Word::WelcomeModelSubscription,
     Word::BrandChats,
+    Word::BrandHome,
+    Word::RailHome,
+    Word::NeedsYouCount,
+    Word::RailSettings,
+    Word::Sections,
     Word::ForgeHereVersionDetails,
     Word::ForgeFetchVersions,
     Word::ForgeFetchedVersions,
@@ -1468,6 +1481,12 @@ impl Word {
             Self::WelcomeForgejoDescription => 2133,
             Self::WelcomeForgejoRun => 2134,
             Self::BrandChats => 2110,
+            Self::BrandHome => 3080,
+            Self::RailHome => 3081,
+            Self::NeedsYouCount => 3083,
+            Self::RailSettings => 3084,
+            Self::Sections => 3085,
+
             Self::ForgeHereVersionDetails => 2116,
             Self::ForgeFetchVersions => 2117,
             Self::ForgeFetchedVersions => 2118,
@@ -2502,6 +2521,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
             &[Name],
         ),
         Word::BrandChats => (&[b"temper chats"], &[]),
+        Word::BrandHome => (&[b"temper home"], &[]),
+        Word::RailHome => (&[b"Home"], &[]),
+        Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
+        Word::RailSettings => (&[b"Settings"], &[]),
+        Word::Sections => (&[b"Sections"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),
         Word::ForgeFetchVersions => (&[b"Fetching Forgejo ", b" and its runner ", b""], &[Name, Name]),
         Word::ForgeFetchedVersions => (&[b"Fetched Forgejo ", b" and its runner ", b""], &[Name, Name]),

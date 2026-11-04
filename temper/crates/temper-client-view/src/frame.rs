@@ -1,4 +1,4 @@
-//! temper's banner and project switcher (temper/docs/design/client/README.md, 5.1 and 5.6).
+//! temper's frames and project switcher (temper/docs/design/client/README.md, 5.1 and 5.3).
 use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
@@ -349,18 +349,7 @@ pub(crate) fn banner(
         | jig_client::Link::OutOfDate => (crate::words::Word::Connecting, crate::look::CONNECTING),
     };
     text(builder, Role::Status, &words.say(status, &[]), Some(style));
-    let me_behind = match root.client().document(temper_client_domain::pages::me_handle()) {
-        Some(document) => document.state == jig_client::State::Behind,
-        None => false,
-    };
-    let page_behind = match pages.inbox() {
-        Some(inbox) => match root.client().document(inbox.entries) {
-            Some(document) => document.state == jig_client::State::Behind,
-            None => false,
-        },
-        None => false,
-    };
-    if me_behind || page_behind {
+    if behind(root) {
         text(builder, Role::Status, &words.say(crate::words::Word::Behind, &[]), Some(crate::look::BEHIND));
     }
     builder.close();
@@ -377,6 +366,177 @@ pub(crate) fn banner(
     builder.close();
     builder.close();
 }
+fn behind(root: &Domain) -> bool {
+    let pages = root.pages();
+    let me_behind = match root.client().document(temper_client_domain::pages::me_handle()) {
+        Some(document) => document.state == jig_client::State::Behind,
+        None => false,
+    };
+    let page_behind = match pages.inbox() {
+        Some(inbox) => match root.client().document(inbox.entries) {
+            Some(document) => document.state == jig_client::State::Behind,
+            None => false,
+        },
+        None => false,
+    };
+    me_behind || page_behind
+}
+
+/// The project a page's frame is the rail of (temper/docs/design/client/README.md, 5.1).
+pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: &crate::sign_in::Ways) -> Option<u32> {
+    if let Address::Welcome { .. } = root.pages().address() {
+        return None;
+    }
+    if unavailable(root).is_some() || root.authorization().is_some() || crate::sign_in::offered(root, words, sign_in) {
+        return None;
+    }
+    root.pages().me(root.client())?;
+    root.pages().project()
+}
+
+/// The rail (temper/docs/design/client/README.md, 5.3).
+pub(crate) fn rail(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    forge: &mut crate::forge::bindings::Bindings,
+    project: u32,
+) {
+    use crate::words::{Shell, Word};
+    b.open(Role::Navigation);
+    b.style(crate::look::RAIL);
+    let name = crate::pages::project_name(root.pages().me(root.client()), project).expect("open project has a name");
+    b.name(&name);
+    crate::link(b, &w.say(Word::BrandHome, &[]), bindings.insert(Act::Go { address: Address::Home { project } }));
+    b.style(crate::look::BRAND);
+    w.text(b, Word::Brand, &[]);
+    b.close();
+    switcher(b, root, w, bindings, Some(project));
+    b.open(Role::Slot);
+    b.style(crate::look::RAIL_NAV);
+    entries(b, root, w, bindings, project);
+    b.close();
+    crate::link(
+        b,
+        &w.say(Word::NewChat, &[]),
+        bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: true } }),
+    );
+    b.style(crate::look::RAIL_NEW);
+    w.text(b, Word::NewChatLink, &[]);
+    b.close();
+    b.open(Role::Slot);
+    b.style(crate::look::RAIL_FOOT);
+    if root.forge().playground_running() && !root.forge().leaving() {
+        let name = w.say(Word::BannerSetUp, &[]);
+        crate::link(b, &name, forge.insert(crate::forge::bindings::Meaning::EndPlayground));
+        b.style(crate::look::LEAVE_PLAYGROUND);
+        b.text(Run::Plain, &name);
+        b.close();
+    }
+    b.open(Role::Region);
+    b.region(link_region());
+    let (word, style) = match root.client().link().state {
+        jig_client::Link::Offline => (Word::Offline, crate::look::OFFLINE),
+        jig_client::Link::Live => (Word::Live, crate::look::LIVE),
+        jig_client::Link::Starting | jig_client::Link::SignedOut | jig_client::Link::OutOfDate => {
+            (Word::Connecting, crate::look::CONNECTING)
+        }
+    };
+    text(b, Role::Status, &w.say(word, &[]), Some(style));
+    let behind = behind(root);
+    if behind && w.shell == Shell::Terminal {
+        text(b, Role::Status, &w.say(Word::Behind, &[]), Some(crate::look::BEHIND));
+    }
+    b.close();
+    if behind && w.shell == Shell::Browser {
+        text(b, Role::Status, &w.say(Word::Behind, &[]), Some(crate::look::BEHIND));
+    }
+    settings_link(b, root, w, bindings, project);
+    if let Some(me) = root.pages().me(root.client()) {
+        text(b, Role::Status, me.party.name.bytes(), None);
+    }
+    if root.client().link().sign_out_lost {
+        text(b, Role::Alert, &w.say(Word::SignOutLost, &[]), None);
+    }
+    b.close();
+    b.close();
+}
+
+/// A phone's tab bar, the browser's alone (temper/docs/design/client/README.md, 5.3).
+pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
+    b.open(Role::Navigation);
+    b.style(crate::look::TABBAR);
+    b.name(&w.say(crate::words::Word::Sections, &[]));
+    entries(b, root, w, bindings, project);
+    settings_link(b, root, w, bindings, project);
+    b.close();
+}
+
+fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
+    use crate::words::Word;
+    let (home, inbox, chats) = match root.pages().address() {
+        Address::Home { .. } => (true, false, false),
+        Address::Inbox { .. } => (false, true, false),
+        Address::Chats { .. } | Address::Chat { .. } => (false, false, true),
+        Address::Task { .. }
+        | Address::Accounts
+        | Address::ConnectModel { .. }
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Adopt { .. }
+        | Address::Settings { .. }
+        | Address::Welcome { .. } => (false, false, false),
+    };
+    action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
+    let count = root.pages().me(root.client()).expect("rail has me").needs_total;
+    let name = if count == 0 {
+        w.say(Word::NeedsYou, &[])
+    } else {
+        w.say(Word::NeedsYouCount, &[skein_ui::phrases::Hole::Number(u64::from(count))])
+    };
+    crate::link(
+        b,
+        &name,
+        bindings.insert(Act::Go { address: Address::Inbox { filter: temper_client_domain::address::Filter::ALL } }),
+    );
+    if inbox {
+        b.state(skein_ui::State::Current);
+    }
+    if count == 0 {
+        b.text(Run::Plain, &name);
+    } else {
+        let number = skein_lib::Decimal::of(u64::from(count));
+        let prefix = name.len().checked_sub(number.as_bytes().len()).expect("count is the phrase suffix");
+        b.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
+        b.open(Role::Text);
+        b.style(crate::look::NAV_COUNT);
+        b.run(Run::Plain, number.as_bytes());
+        b.close();
+    }
+    b.close();
+    action(
+        b,
+        Role::Link,
+        &w.say(Word::Chats, &[]),
+        Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+        chats,
+        bindings,
+    );
+}
+
+fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
+    let name = w.say(crate::words::Word::RailSettings, &[]);
+    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project } }));
+    b.text(Run::Plain, &name);
+    if let Address::Settings { .. } = root.pages().address() {
+        b.state(skein_ui::State::Current);
+    }
+    forge_mark(b, root, w, true);
+    account_mark(b, root, w, true);
+    b.close();
+}
+
 pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
     if unavailable(root).is_some() {
         return;
@@ -492,7 +652,6 @@ pub(crate) fn playground_banner(
 }
 
 pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
-    use temper_client_domain::forge::listed::{self, Dot};
     crate::link(
         builder,
         &words.say(crate::words::Word::ForgesTitle, &[]),
@@ -515,20 +674,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         builder.state(skein_ui::State::Current);
     }
     builder.text(Run::Plain, &words.say(crate::words::Word::ForgesTitle, &[]));
-    let dot = match listed::dot(root.forges(), temper_client_domain::forge::connect::playground(root.forge())) {
-        Dot::None => None,
-        Dot::Amber => Some((crate::look::NAV_LIMITED, crate::words::Word::ForgeDotAmber)),
-        Dot::Red => Some((crate::look::NAV_NEEDS, crate::words::Word::ForgeDotRed)),
-    };
-    // Drawn as the Accounts entry's dot: its state in words names the node.
-    if let Some((style, word)) = dot {
-        let said = words.say(word, &[]);
-        builder.open(Role::Text);
-        builder.style(style);
-        builder.name(&said);
-        builder.run(Run::Plain, &said);
-        builder.close();
-    }
+    forge_mark(builder, root, words, false);
     builder.close();
 }
 
@@ -557,18 +703,46 @@ pub(crate) fn accounts_link(
     } {
         builder.state(skein_ui::State::Current);
     }
+    account_mark(builder, root, words, false);
+    builder.close();
+}
+
+fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
+    use temper_client_domain::forge::listed::{self, Dot};
+    let dot = match listed::dot(root.forges(), temper_client_domain::forge::connect::playground(root.forge())) {
+        Dot::None => None,
+        Dot::Amber => Some((crate::look::NAV_LIMITED, crate::words::Word::ForgeDotAmber)),
+        Dot::Red => Some((crate::look::NAV_NEEDS, crate::words::Word::ForgeDotRed)),
+    };
+    // Drawn as the Accounts entry's dot: its state in words names the node.
+    if let Some((style, word)) = dot {
+        let said = words.say(word, &[]);
+        builder.open(Role::Text);
+        builder.style(style);
+        builder.name(&said);
+        if separated && words.shell == crate::words::Shell::Terminal {
+            builder.run(Run::Plain, b" \xc2\xb7 ");
+        }
+        builder.run(Run::Plain, &said);
+        builder.close();
+    }
+}
+
+fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
     if let Some(mark) = crate::accounts::words::mark(root) {
         use crate::accounts::words::{Mark, Word};
         let (word, style) = match mark {
             Mark::Needs => (Word::NavNeeds, crate::look::NAV_NEEDS),
             Mark::Limited => (Word::NavLimited, crate::look::NAV_LIMITED),
         };
-        let words = crate::accounts::words::say(words, word, &[]);
+        let said = crate::accounts::words::say(words, word, &[]);
         builder.open(Role::Text);
         builder.style(style);
-        builder.name(&words);
-        builder.run(Run::Plain, &words);
+        builder.name(&said);
+        if separated && words.shell == crate::words::Shell::Terminal {
+            builder.run(Run::Plain, b" \xc2\xb7 ");
+        }
+        builder.run(Run::Plain, &said);
         builder.close();
     }
-    builder.close();
 }

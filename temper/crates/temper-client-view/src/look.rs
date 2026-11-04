@@ -367,6 +367,16 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Description, MODEL_FACT, "dd"),
     (owner(), skein_ui::Role::Heading { level: 3 }, ADMIN_LEGEND, "legend"),
 ];
+/// The project's navigation frame (client/README.md, 5.3).
+pub const RAIL: Style = Style { owner: owner(), token: 175 };
+/// The rail's three page entries.
+pub const RAIL_NAV: Style = Style { owner: owner(), token: 176 };
+/// The rail's new chat link.
+pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
+/// The rail's status, settings and person.
+pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
+/// The browser's phone navigation.
+pub const TABBAR: Style = Style { owner: owner(), token: 179 };
 /// The look's names (skein's ui.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
@@ -548,11 +558,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-flow-busy",
         b"temper-flow-meter",
         // Reserved for the other look-round-3 token ranges.
-        b"temper-reserved-175",
-        b"temper-reserved-176",
-        b"temper-reserved-177",
-        b"temper-reserved-178",
-        b"temper-reserved-179",
+        b"temper-rail",
+        b"temper-rail-nav",
+        b"temper-rail-new",
+        b"temper-rail-foot",
+        b"temper-tabbar",
         b"temper-reserved-180",
         b"temper-reserved-181",
         b"temper-reserved-182",
