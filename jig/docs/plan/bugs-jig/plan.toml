@@ -73,3 +73,16 @@ id = 5
 story = "a project deleted mid-creation makes nothing, and its notes' entries go with it"
 parts = ["closed-project"]
 walk = false
+
+[[part]]
+id = "config-fallback"
+title = "bug 5: a document that resolves no profile gets no bound of Small's"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/configuration.md, 6"
+
+[[slice]]
+id = 6
+story = "a misspelt profile draws one problem, not a false bound beside it"
+parts = ["config-fallback"]
+walk = false

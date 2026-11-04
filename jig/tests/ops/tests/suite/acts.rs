@@ -5,12 +5,16 @@ use jig_domain_tasks as tasks;
 use jig_ops_domain as root;
 use jig_ops_domain_infrastructure as infra;
 use jig_ops_world::conformance::{Config, Ops, Story, chat};
-use skein_lib::{ReplyTo, Token};
+use skein_lib::{Duration, ReplyTo, Token};
 
 fn provisioning(granted: bool) -> Harness<Ops> {
     let config = Config::new(915, Story::Environment);
     let config = if granted { config } else { config.without_close_grant() };
-    let mut world = Harness::<Ops>::new(config, 915);
+    provisioning_with(&config)
+}
+
+fn provisioning_with(config: &Config) -> Harness<Ops> {
+    let mut world = Harness::<Ops>::new(*config, 915);
     world.drain().expect("ops startup");
     world.send(root::Event::Core(core::Event::SignIn {
         held: None,
@@ -122,7 +126,7 @@ fn infrastructure_closes_the_chat_its_environment_served_once_torn_down() {
     world.drain().expect("E finishes; C delegates T, which tears down its environment");
     assert_eq!(world.peers.close_answers.len(), 1, "infrastructure closes C once T's teardown is made");
     assert!(matches!(world.peers.close_answers[0], people::Outcome::Compound { operations: 3, .. }));
-    let grace = task(&world, 1).grace.as_ref().expect("C is asked to finish in its template's grace");
+    let grace = task(&world, 1).grace.as_ref().expect("C is asked to finish in the configured grace");
     assert_eq!(grace.by, tasks::Party::Deployment { project: 1 });
     assert_eq!(grace.reason.as_ref(), b"environment torn down");
     let at = world
@@ -138,6 +142,29 @@ fn infrastructure_closes_the_chat_its_environment_served_once_torn_down() {
     assert!(matches!(task(&world, 3).phase, tasks::Phase::Ended(tasks::Ending::Cancelled { .. })));
     world.advance(1_000_000_000);
     world.drain().expect("C outlives its grace and is cancelled");
+    closed(&world);
+}
+
+#[test]
+fn a_chat_closed_with_its_environment_takes_the_configured_grace() {
+    let mut world = provisioning_with(&Config::new(915, Story::Environment).with_close_grace(Duration::from_secs(2)));
+    world.advance(5_000_000_000);
+    world.drain().expect("E finishes; C delegates T, which tears down its environment");
+    let grace = task(&world, 1).grace.as_ref().expect("C is asked to finish in the configured grace");
+    assert_eq!(grace.by, tasks::Party::Deployment { project: 1 });
+    assert_eq!(grace.reason.as_ref(), b"environment torn down");
+    let at = world
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            root::Record::Core(core::Record::People(people::Stored::Acted { at, .. })) => Some(*at),
+            root::Record::Core(_) | root::Record::Observability(_) | root::Record::Infrastructure(_) => None,
+        })
+        .expect("saved act's decision time");
+    assert_eq!(grace.until.as_nanos(), at.as_nanos() + 2_000_000_000);
+    world.advance(2_000_000_000);
+    world.drain().expect("C outlives its configured grace and is cancelled");
     closed(&world);
 }
 

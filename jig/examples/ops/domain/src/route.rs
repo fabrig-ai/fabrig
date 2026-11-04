@@ -1081,22 +1081,6 @@ pub(crate) fn connector_out(
         ConnectorRequest::Infrastructure(infrastructure::Request::Close { key, project, chat }) => {
             let token = domain.token();
             domain.hub_link.keep_close_reply(token, key);
-            let mut grace = None;
-            for setting in &domain.core.current.offered() {
-                let number = match setting {
-                    core::settings::Setting::Template(number) => *number,
-                    core::settings::Setting::Charter(_)
-                    | core::settings::Setting::Policy(_)
-                    | core::settings::Setting::ProjectPolicy { .. }
-                    | core::settings::Setting::Rules
-                    | core::settings::Setting::Application { .. } => continue,
-                };
-                let template = domain.core.current.template(number).expect("offered template");
-                if template.flags.conversation {
-                    grace = template.grace;
-                    break;
-                }
-            }
             work.push(Work::Core(core::Event::Act {
                 reply_to: ReplyTo::new(token),
                 connector: number,
@@ -1104,7 +1088,7 @@ pub(crate) fn connector_out(
                 act: Box::new(jig_domain_people::Act::Close {
                     project,
                     task: chat,
-                    grace,
+                    grace: Some(domain.environment_close_grace),
                     reason: domain.environment_closed_reason.clone(),
                 }),
                 carried: None,

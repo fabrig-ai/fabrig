@@ -44,26 +44,29 @@ impl Words {
             },
             ChatStatus::Parked => self.text(b, P::Word(Word::Status(StatusWord::Parked)), &[]),
             ChatStatus::Retrying { until, notice } => {
-                self.text(b, P::RunBackingOff, &[Hole::Wall(self.adjusted_wall(*until))]);
-                match notice {
-                    RetryNotice::OwnerFailed { class, count, allowance } => {
-                        crate::tree::fragments::chip::hold_failure(b, *class, self);
-                        self.text(
-                            b,
-                            P::RunRetryFailed,
-                            &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
-                        );
-                    }
-                    RetryNotice::Failed { class, count, allowance } => {
-                        crate::tree::cards::chip::failure(b, *class, self);
-                        self.text(
-                            b,
-                            P::RunRetryFailed,
-                            &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
-                        );
-                    }
-                    RetryNotice::Refused { count } => {
-                        self.text(b, P::RunRetryRefused, &[Hole::Number(u64::from(*count))]);
+                self.text(b, P::Word(Word::status(status)), &[]);
+                self.wall(b, *until);
+                if let Some(notice) = notice {
+                    match notice {
+                        RetryNotice::OwnerFailed { class, count, allowance } => {
+                            crate::tree::fragments::chip::hold_failure(b, *class, self);
+                            self.text(
+                                b,
+                                P::RunRetryFailed,
+                                &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
+                            );
+                        }
+                        RetryNotice::Failed { class, count, allowance } => {
+                            crate::tree::cards::chip::failure(b, *class, self);
+                            self.text(
+                                b,
+                                P::RunRetryFailed,
+                                &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
+                            );
+                        }
+                        RetryNotice::Refused { count } => {
+                            self.text(b, P::RunRetryRefused, &[Hole::Number(u64::from(*count))]);
+                        }
                     }
                 }
             }
