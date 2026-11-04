@@ -175,6 +175,12 @@ desktop browsers are well supported (the user, 10-26).
   the browser (5.4), so the box and the browser tell one story, and the
   ladder's rung A walks the same requests on real backends.
 
+Story A's documents give the scripted model a fixed 1200 ms before each
+reply's first piece and CI a fixed 4000 ms from a head's push to its
+verdict. These are the story's pace at 1×, so a person can follow the
+delegate's phases; the frame's speed changes how long the person waits
+(2026-11-04).
+
 ### 5.3 From the ladder
 
 - **B0 to B2 become stories as their rungs pass,** each from its passing
@@ -291,6 +297,13 @@ desktop browsers are well supported (the user, 10-26).
   from what the frame shows, reported against their bars.
 - **By hand, before the release:** Firefox and Safari on a desktop,
   walking story A.
+
+The calm-start check keeps the service, the fake model peer and the fake
+forge running. A hosted git command may have ended successfully, including
+the worker's startup version probe: the world retains completed programs.
+Every other process end, and a git command's nonzero exit, signal or kill,
+fails this check. Calm does not require a successful command to remain
+running (decided 2026-11-03).
 
 ## 10. Its bar for v0.1.0
 

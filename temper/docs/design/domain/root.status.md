@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-03. Where temper's code lags or departs from [root.md](root.md).
+2026-11-04. Where temper's code lags or departs from [root.md](root.md).
 
 - **Not yet:** 7.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
@@ -9,3 +9,9 @@
   rehearsing root, `temper upgrade --check`. 12: a start story is ignored:
   a duplicate person's identity panics at `Person(2)` rather than refusing
   the page (`tests/engine/domain/tests/suite/root_routes.rs`).
+- **Not yet:** 10: the settings-answer bound must include temper's declared
+  application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
+  passes an empty kinds slice to the core's `reads::answer_bound`, while
+  `decision.rs`, `host_within`, relies on that bound for settings output
+  held before its commit. The application settings' contribution is omitted;
+  no reason is recorded.

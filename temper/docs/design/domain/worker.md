@@ -410,6 +410,10 @@ smith's agent processes, and declares in its hello the kinds it runs:
   job's result: the change acts on its branch, read afresh, and carries
   the result's bytes as words.
 
+Before writing the request or starting the command, the job capability
+refuses a command path that is absolute or contains a `..` segment. The path
+resolves relative to the job's workspace root (2026-11-04).
+
 ## 5. Checkouts
 
 The checkout child domain is the worker's workspace capability (jig's
@@ -521,6 +525,10 @@ runs as contained processes and whose output it parses.
   or commits, names the repository's identity, which the protocol layer
   maps to credentials or an author for that invocation only, never into a
   checkout's configuration, where an agent could read them.
+
+Each commit made while preparing a base with heads merged in has the title
+`Merge <head>`, where `<head>` is the merged head's full hexadecimal object
+ID (2026-11-04).
 
 ## 6. Agent processes
 
