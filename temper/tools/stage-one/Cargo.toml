@@ -12,6 +12,7 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+skein-fail-stop.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json.workspace = true
 settings-form.workspace = true
