@@ -280,11 +280,12 @@ fn startup_stores_keep_conflict_and_refuse_without_leaking_descriptors() {
     fs::set_permissions(&private, fs::Permissions::from_mode(0o740)).expect("group bit");
     let mut kernel = Kernel::open(Config { operations: STORE_OPERATIONS }).expect("store ring");
     let clock = Clock::new();
-    for (directory, answer) in [
-        (StoreDirectory::Root, Ok(Stored::Kept)),
-        (StoreDirectory::Root, Ok(Stored::Conflict)),
+    for (directory, bytes, answer) in [
+        (StoreDirectory::Root, b"kept".as_slice(), Ok(Stored::Kept)),
+        (StoreDirectory::Root, b"conflicting".as_slice(), Ok(Stored::Conflict)),
         (
             StoreDirectory::Private { name: b"private", user: skein_shell::effective_user() },
+            b"refused".as_slice(),
             Err(Unstored::Unsafe(Unsafe::Mode(0o040))),
         ),
     ] {
@@ -297,7 +298,7 @@ fn startup_stores_keep_conflict_and_refuse_without_leaking_descriptors() {
                     root: skein_shell::open_root(scratch.path()).expect("store root"),
                     directory,
                     name: b"file",
-                    bytes: Box::from(b"kept".as_slice()),
+                    bytes: Box::from(bytes),
                     expected: Expect::Absent,
                     timeout: Duration::from_secs(30),
                     seed: 1,
