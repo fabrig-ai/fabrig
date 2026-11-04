@@ -723,12 +723,12 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     const choice = (title, text, meta, acts, cls = '') => `<section class="choice${cls}"><div><h2>${title}</h2><p>${text}</p><p class="meta">${meta}</p></div><div class="acts">${acts}</div></section>`;
     let body;
     if (at === 'welcome') {
-      body = `<header class="setup-head"><p class="kicker">Reliable, scalable and flexible software factory</p><h1 class="headline">Welcome to temper</h1><p class="lede">You describe what you want and how you want it done, and it happens.</p></header>
+      body = `<header class="setup-head"><p class="kicker">Reliable, scalable and flexible software factory.</p><h1 class="headline">Welcome to temper</h1><p class="lede">You describe <strong>what</strong> you want and <strong>how</strong> you want it done, and it happens.</p></header>
         <div class="choices-grid">
-          ${choice('Try the playground', 'A scripted model and a forge, built in. A taste of how temper feels, with nothing to connect.', 'Offline · ready at once', '<button type="button" class="btn" data-playground>Try the playground</button>')}
-          ${choice('Set up temper', 'Your forge: GitHub, or a Forgejo temper runs for you. Your model: ChatGPT, Claude, or an API key.', 'About five minutes', `<a class="btn primary" href="welcome.html?at=${f ? (m?.ready ? 'ready' : 'model') : 'forge'}">${f ? 'Go on setting up' : 'Set up temper'}</a>`, ' lead')}
+          ${choice('Try the playground', 'A built-in scripted model and forge. Get a taste of how temper feels.', 'Fully offline · Ready at once', '<button type="button" class="btn" data-playground>Try the playground</button>')}
+          ${choice('Set up temper', 'Your forge: GitHub or Forgejo<br>Your model: ChatGPT or Claude', 'About five minutes', `<a class="btn primary" href="welcome.html?at=${f ? (m?.ready ? 'ready' : 'model') : 'forge'}">${f ? 'Go on setting up' : 'Set up temper'}</a>`, ' lead')}
         </div>
-        <p class="facts">Tried the playground first? Set up whenever you like; the playground then steps aside.</p>`;
+        <p class="facts">Started in the playground? Connect your own forge and model whenever you like; the playground then steps aside.</p>`;
     } else if (at === 'forge') {
       const which = params.get('forge');
       if (f && f.kind === 'github' && !f.done) {
