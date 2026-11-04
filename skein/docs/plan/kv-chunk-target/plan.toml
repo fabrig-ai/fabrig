@@ -1,0 +1,24 @@
+draft = "kv-chunk-target"
+repo = "fabrig"
+sources = ["skein/docs/plan/kv-chunk-target/inputs/request.md", "AGENTS.md"]
+
+# A snapshot chunk packs to a small target and Limits::chunk is its ceiling
+# (skein/docs/design/kv.md, 3, 5, 7 and 9; inputs/request.md). Released in batches: first the
+# packing, which needs nothing, then recovery's reads and the status.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "pack"
+title = "skein-kv: a snapshot chunk packs to the target, and grows only to hold one row"
+mode = "direct"
+needs = []
+design = "skein/docs/design/kv.md, 5"
+
+[[slice]]
+id = 1
+story = "many small rows under a large chunk are written in chunks of about the target, and a snapshot's step stays near it"
+parts = ["pack"]
+walk = false
