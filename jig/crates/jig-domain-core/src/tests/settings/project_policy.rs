@@ -596,7 +596,7 @@ fn read_policy(core: &mut Core, limits: &Limits, sign_in: u64, project: u32, rev
     answer
 }
 #[test]
-fn current_project_policy_reads_are_whole_and_never_historical() {
+fn current_project_policy_reads_are_whole_only_at_newest() {
     for replaced in [false, true] {
         let (mut core, limits) = fixture();
         if replaced {
@@ -605,7 +605,7 @@ fn current_project_policy_reads_are_whole_and_never_historical() {
             let output = change(&mut core, &limits, Box::new([item(value)]));
             assert_eq!(outcome(&output), people::Outcome::SettingsChanged { revision: 2 });
             core.held.heads.insert(head.number, head).unwrap();
-            assert!(core.held(1), "historical rejection must hold even for a retained revision");
+            assert!(core.held(1), "an older revision is refused even when retained");
             assert_eq!(
                 read_policy(&mut core, &limits, SIGN_IN, PROJECT, 1),
                 crate::reads::Answer::None(crate::reads::Why::Unknown)

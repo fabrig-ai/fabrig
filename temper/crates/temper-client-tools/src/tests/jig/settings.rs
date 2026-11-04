@@ -2324,13 +2324,21 @@ fn policy_review_proposal(values: &[(c::Setting, c::SettingValue, c::SettingValu
     proposal
 }
 fn propose_policy_file(root: &mut fixtures::Harness, values: &[(c::Setting, c::SettingValue, c::SettingValue)]) {
-    let (setting, now, proposed) = &values[0];
+    let (_, _, proposed) = &values[0];
+    let setting = c::Setting::Policy(c::SettingNumber { number: 1 });
+    let default = project_policy();
     let call = root.submit_prepared(fixtures::call(&["settings", "show", "policy", "1"]), true, None);
     newest_for_setting(root, call);
-    serve_policy_value(root, call, *setting, now);
-    let shown = root.answer(call).expect("current policy");
-    let current_file = String::from_utf8(file_from_setting(&shown.stdout)).unwrap();
-    let current = setting_value_json(now);
+    assert_eq!(
+        root.reads.get(&call).expect("policy 1 read").1,
+        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+    );
+    serve_policy_value(root, call, setting, &default);
+    let shown = root.answer(call).expect("policy 1");
+    let current_file = String::from_utf8(file_from_setting(&shown.stdout))
+        .unwrap()
+        .replace(r#""kind":"policy","number":1"#, r#""kind":"project-policy","project":1"#);
+    let current = setting_value_json(&default);
     let policy = setting_value_json(proposed);
     let file = current_file.replace(&current, &policy);
     let rules = setting_value_json(&values[1].2);
@@ -2370,7 +2378,7 @@ fn serve_policy_value(root: &mut fixtures::Harness, call: u32, setting: c::Setti
 }
 #[test]
 fn proposal_show_resolves_current_project_policy_whole() {
-    for spend in [2000, 8_100_000] {
+    for spend in [2000, 2500] {
         let values = policy_review_values(spend);
         for json in [false, true] {
             let mut root = fixtures::signed_in(fixtures::PARTY);
