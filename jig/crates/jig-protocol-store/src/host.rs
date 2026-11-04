@@ -16,6 +16,7 @@ pub enum NotReady {
     Above,
 }
 
+#[expect(clippy::partial_pub_fields, reason = "the owner dispatches terminals and reads the component")]
 pub struct Hosted {
     pub component: crate::Store,
     /// The store's terminals, in order, for the owner's dispatch.
@@ -37,7 +38,7 @@ impl core::fmt::Debug for Hosted {
             .field("secrets", &self.secrets.len())
             .field("sources", &self.sources.len())
             .field("closing", &self.closing)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 impl Hosted {
@@ -50,9 +51,8 @@ impl Hosted {
         not_ready: NotReady,
     ) -> Self {
         let drivers = Host::new(limits, seed);
-        let component = crate::Store::on_directory(limits, application, models, drivers.seeded());
         Self {
-            component,
+            component: crate::Store::on_directory(limits, application, models, drivers.seeded()),
             above: Queue::uncapped(),
             secrets: Queue::uncapped(),
             sources: Queue::uncapped(),
