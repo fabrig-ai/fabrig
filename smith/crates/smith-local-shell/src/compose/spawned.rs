@@ -1,7 +1,9 @@
 //! The generated spawned configuration, written and closed before its launch.
 //! Contract: shell.md, section 5.4; protocol/events.md, section 2.
-use super::{AgentKind, Refused, ResultFile, root};
+use super::{AgentKind, Refused, files::check_path, root};
 use crate::command::Usage;
+use crate::startup::Failure;
+use skein_io::file::Expect;
 use skein_lib::Duration;
 use skein_shell::{Clock, Kernel};
 use std::path::{Path, PathBuf};
@@ -22,7 +24,30 @@ impl Startup<'_> {
         let path = self.chat.with_extension("agent.json");
         if let Some(document) = self.document {
             let document = generated(&document, self.trace, self.exit_grace)?;
-            ResultFile::write_startup(&path, document, self.timeout, self.seed, kernel, clock)?;
+            check_path(&path)?;
+            let parent = path.parent().filter(|parent| !parent.as_os_str().is_empty()).unwrap_or(Path::new("."));
+            let store = skein_shell::StartupStore {
+                root: root(parent)?,
+                directory: skein_shell::StoreDirectory::Root,
+                name: path.file_name().expect("checked file name").as_encoded_bytes(),
+                bytes: document,
+                expected: Expect::Any,
+                timeout: self.timeout,
+                seed: self.seed,
+            };
+            let stored = skein_shell::store_file(kernel, clock, store).map_err(|why| {
+                let detail = match why {
+                    skein_shell::Unstored::Kernel(why) => format!("generated agent configuration: {why:?}"),
+                    why @ (skein_shell::Unstored::Unsafe(_) | skein_shell::Unstored::TooLarge) => {
+                        format!("generated agent configuration: {why:?}")
+                    }
+                };
+                Refused::Local(Failure::Host { detail })
+            })?;
+            match stored {
+                skein_shell::Stored::Kept => {}
+                skein_shell::Stored::Conflict => unreachable!("Expect::Any cannot conflict"),
+            }
         }
         Ok(self.kind.launch(root(self.workspace)?, &path))
     }
