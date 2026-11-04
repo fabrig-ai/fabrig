@@ -3,7 +3,7 @@ id = "making-run"
 part = "making-service"
 kind = "feature"
 needs = ["making-root", "copy-machine", "copy-words", "fake-migrate"]
-files = ["temper/crates/temper-service/src/setup.rs", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/src/setup/making.rs", "temper/crates/temper-service/src/setup/runtime.rs", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/tests/setup_making.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-forge-setup/src/limits.rs", "temper/crates/temper-engine-domain/src/domain.rs"]
+files = ["temper/crates/temper-service/src/setup.rs", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/src/setup/making.rs", "temper/crates/temper-service/src/setup/runtime.rs", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/tests/setup_making.rs", "temper/crates/temper-service/src/tests/setup_create.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-forge-setup/src/limits.rs", "temper/crates/temper-engine-domain/src/domain.rs"]
 effort = "high"
 minutes = 75
 +++
@@ -67,6 +67,7 @@ Acceptance, in a new `temper-service/src/tests/setup_making.rs`, on `setup_creat
   `temper/docs/design/client/README.status.md`.
 - **The root's forwards:** `temper-engine-domain/src/domain.rs`, beside `forge_connection` and `forge_ended`:
   `making`, `next_making` and `making_due`, one line each onto `self.forge`, nothing else in that file.
+- **The fixture:** `temper-service/src/tests/setup_create.rs`, as its Answers say, and nothing else in it.
 - Pre-approved:
   - A run that stops `Busy` here is a bug of the pull's: assert in a test it never happens, and treat it
     as `Waiting` if it does.
@@ -101,3 +102,18 @@ pub fn making_due(&self, forge: u16) -> Option<forge::MakingKey>;
 Do not reimplement the selection through `forges()`. The service's events reach the connector as its others
 do: `root::Event::Forge(Box::new(domain::Event::MakingStarted { .. }))`. The answer changes no code: the
 service's tests are what check the forwards.
+
+2026-11-04. May this task change `temper-service/src/tests/setup_create.rs`, whose fake host its acceptance
+names but whose `configured`, `turn` and `settle` are private and whose `Forge::new` fixes `sources` empty?
+
+Yes, the run's first option: the acceptance is on this host, so it cannot hold without the file, and a
+standalone fixture would copy its setup. The file joins the header's files, for two changes alone:
+
+- `setup_making.rs` is a child module of it, declared at its end as `tests/setup.rs` declares its own:
+  `#[path = "setup_making.rs"] mod making_tests;`. A child sees the private helpers, so none is widened,
+  and `tests/setup.rs` gets no new line.
+- A constructor that takes the catalogue, `Forge::with_sources(refuse_file: bool, sources: Box<[fake::Source]>)`;
+  `Forge::new(refuse_file)` calls it with `Box::new([])`, so every existing caller stays as it is.
+
+No existing test in the file changes, nor what it expects. Anything more the tests want of the fixture goes
+in `setup_making.rs`; if it cannot, ask. The answer changes no production code.

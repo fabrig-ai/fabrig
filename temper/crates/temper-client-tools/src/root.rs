@@ -23,6 +23,7 @@ pub struct Root {
     unlinked: bool,
     runner: runner::Runner,
     adopter: crate::forge::Adopter,
+    maker: crate::making::Maker,
     forges: crate::forges::Forges,
     changes: crate::change::Changes,
     landings: crate::landing::Landings,
@@ -83,6 +84,7 @@ impl Root {
             unlinked,
             runner,
             adopter: crate::forge::Adopter::new(),
+            maker: crate::making::Maker::new(),
             forges: crate::forges::Forges::new(),
             changes: crate::change::Changes::new(),
             landings: crate::landing::Landings::new(),
@@ -130,6 +132,7 @@ impl Root {
     pub fn kept_json(&mut self, json: bool) {
         self.runner.kept_json(json);
         self.adopter.kept_json(json);
+        self.maker.kept_json(json);
         self.forges.kept_json(json);
         self.changed();
     }
@@ -154,6 +157,8 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             let active = root
                 .runner
                 .calls()
+                .checked_add(root.maker.calls())
+                .expect("bounded calls")
                 .checked_add(root.adopter.calls())
                 .expect("bounded calls")
                 .checked_add(root.forges.calls())
@@ -174,7 +179,9 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 let forge = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name
                     == crate::adopt::ROW.name;
                 let called = runner::Called { number, call_number, call, json, value };
-                if crate::landing::owns(&called.call) {
+                if crate::making::owns(&called.call) {
+                    crate::making::call(&mut root.maker, &root.client, env, called, &mut child);
+                } else if crate::landing::owns(&called.call) {
                     crate::landing::call(&mut root.landings, &root.client, env, called, &mut child);
                 } else if crate::change::owns(&called.call) {
                     crate::change::call(&mut root.changes, &root.client, env, called, &mut child);
@@ -420,6 +427,7 @@ fn route_owner(
                 | Told::Ended { .. }
                 | Told::Page { .. } => {}
             }
+            crate::making::told(&mut root.maker, &root.client, env, &told, child);
             crate::landing::told(&mut root.landings, &root.client, env, &told, child);
             crate::change::told(&mut root.changes, &root.client, env, &told, child);
             crate::forges::told(&mut root.forges, &root.client, env, &told, child);
@@ -428,6 +436,7 @@ fn route_owner(
         Some(Owner::Pages) | None => out.push(Request::Fact { fact: temper_client_domain::Fact::UnknownAsker }),
     }
     if me_changed {
+        crate::making::ready(&mut root.maker, &root.client, env, child);
         crate::landing::ready(&mut root.landings, &root.client, env, child);
         crate::change::ready(&mut root.changes, &root.client, env, child);
         crate::forge::ready(&mut root.adopter, &root.client, &env.limits, child);
@@ -452,6 +461,7 @@ pub fn fire(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     drain(root, env, &mut client, &mut child, out);
     jig::wait::fire(&mut root.runner, &root.client, &tools_env(env), &mut child);
+    crate::making::fire(&mut root.maker, &root.client, env, &mut child);
     crate::change::fire(&mut root.changes, env, &mut child);
     crate::forges::fire(&mut root.forges, &root.client, env, &mut child);
     drain(root, env, &mut client, &mut child, out);
@@ -468,6 +478,7 @@ fn deadline(root: &Root) -> Option<Time> {
         .into_iter()
         .chain(jig::wait::next_deadline(&root.runner))
         .chain(root.forges.next_deadline())
+        .chain(root.maker.next_deadline())
         .chain(root.changes.next_deadline())
         .min()
 }
