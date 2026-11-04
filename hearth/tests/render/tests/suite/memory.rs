@@ -3,10 +3,8 @@ use hearth_domain_render::{
     limits,
 };
 use hearth_render_world::fixtures;
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn evaluating_at_the_limits_holds_no_more_than_the_worst_case() {

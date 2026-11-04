@@ -1,5 +1,4 @@
-#[path = "oracle/engine.rs"]
-mod engine;
+use crate::oracle::engine;
 use engine::Oracle;
 use hearth_render_world::{
     expressions::{self, Style},

@@ -1,5 +1,5 @@
 #[path = "oracle/engine.rs"]
-mod engine;
+pub(crate) mod engine;
 use engine::{Oracle, Outcome};
 use hearth_render_world::{
     expressions::{self, Style},
