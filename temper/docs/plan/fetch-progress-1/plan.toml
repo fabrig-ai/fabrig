@@ -1,3 +1,22 @@
 draft = "fetch-progress-1"
 repo = "fabrig"
 sources = ["temper/docs/plan/fetch-progress-1/inputs/request.md", "temper/docs/design/draft/fetch-progress.md", "temper/docs/design/draft/fetch-progress.status.md", "skein/docs/design/draft/progress-value.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "progress-value"
+title = "skein-ui's progress takes a fraction and runs of its own, the web maps them, and skein-ui.css turns the percent into a custom property"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 3.2"
+
+[[slice]]
+id = 1
+story = "a progress node built with a fraction and words reaches a page with its aria-value attributes and data-progress, and the stylesheet gives an owner's rule a width to read"
+parts = ["progress-value"]
+walk = false

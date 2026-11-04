@@ -438,7 +438,7 @@ the host tests (section 14).
 | status, alert, log | `role="status"`, `role="alert"`, `role="log"` |
 | tree, tree item | `role="tree"`, `role="treeitem"`; nested tree items in `<div role="group">` |
 | tabs, tab | `role="tablist"`, `<a role="tab">` |
-| progress | `role="progressbar"` with its text as `aria-valuetext` |
+| progress | `role="progressbar"` with its text, its own runs, shown in it and as `aria-valuetext` |
 | time | `<time>` |
 | code, quote, separator | `<pre><code>`, `<blockquote>`, `<hr>` |
 | image | one of its owner's pictures: `<img src="<prefix><digest>/pictures/<owner prefix>/<file>" alt="<name>">`; an address: `<img src="<the address>" alt="<name>">`; a picture the look lacks: its name as text |
@@ -488,6 +488,15 @@ the host tests (section 14).
     hides it from sight only (section 12): a screen reader reads the
     item's words and then the word ("Branch pushed completed"), and what
     the eye sees is the owner's look, its style token;
+  - *a fraction* on a progress is `aria-valuemin="0"`,
+    `aria-valuemax="<total>"` and `aria-valuenow="<done>"`, the
+    fraction's numbers in decimal, read with its `aria-valuetext`, and
+    `data-progress="<percent>"`, the whole percent, `done × 100 / total`
+    rounded down, made in `u128`, 0 to 100, so a bar never shows full
+    before its work is done. A whole percent is enough for sight, and
+    the words carry what is finer. With no fraction it has none of
+    them, and an owner's rule may draw a moving bar on
+    `[role="progressbar"]:not([data-progress])`;
   - *a placeholder* is `placeholder` on the `<input>` or the
     `<textarea>`. The name stays the label's or `aria-label`'s: a
     browser exposes the placeholder only while the field holds no
@@ -843,6 +852,12 @@ share sheet, a clipboard write, a file picked).
     in the same way (section 6);
   - gives every mark of a scene a default, strokes in the text's colour
     and no fill, and acting marks (`data-act`) `pointer-events: all`;
+  - sets `--skein-ui-progress` from `data-progress` (section 6), one rule
+    per whole percent, `[data-progress="42"] { --skein-ui-progress: 42%; }`,
+    101 rules: the page sets no style inline, and CSS's typed `attr()`
+    is not in every browser the page supports. So the mapping stays
+    attributes alone, and its goldens see all of it. An owner's rule
+    draws a bar with `var(--skein-ui-progress, 0%)`;
   - keeps focus outlines visible;
   - follows the platform's light or dark preference, and reduced motion.
 - **It styles no token and places no region:** skein-ui reserves no
