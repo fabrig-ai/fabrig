@@ -1697,10 +1697,8 @@ fn independent_alpha_and_beta_start_while_a_large_change_is_pending() {
 }
 
 #[test]
-fn beta_at_the_stock_task_limit_waits_for_room_then_starts_its_producer() {
-    let cap = temper_engine_domain_world::forge_routes::box_limits().tasks.tasks;
-    assert_eq!(cap, 8, "the reproduction uses the shipped box's task limit");
-    let (mut world, large, alpha, beta) = pending_large_with_alpha_and_beta(cap);
+fn beta_at_an_eight_task_limit_waits_for_room_then_starts_its_producer() {
+    let (mut world, large, alpha, beta) = pending_large_with_alpha_and_beta(8);
     let _producer = producer_for(&mut world, alpha);
     for _ in 0..80 {
         world.tick();

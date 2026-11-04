@@ -58,7 +58,9 @@ fn a_table_record_saved_then_kept_comes_back_the_same() {
 #[test]
 fn the_native_limits_cover_wire_and_transport() {
     let limits = limits::native();
-    assert_eq!(limits.client.client.domain.authority, 14);
+    assert_eq!(limits.client.client.domain.authority, 16);
+    assert_eq!(limits.client.client.domain.rows, 16);
+    assert_eq!(limits.client.client.domain.delegates, 80);
     let wire = client::forge::wire_limits(&limits.client.forge).expect("client wire bounds");
     let demo = temper_client_protocol_wire::v1::PlaygroundAnswer::encoded_bound(&wire).expect("demo bound");
     assert!(demo <= limits.client.client.domain.document_bytes, "family read answer fits");

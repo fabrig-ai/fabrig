@@ -34,7 +34,7 @@ pub(super) fn config() -> engine::Config {
         descriptions: Box::new([None]),
         providers: Box::new([]),
     };
-    config.core.defaults = temper_service::stock::defaults(&llm);
+    config.core.defaults = temper_service::stock::defaults(&llm, limits().tasks.result_bytes);
     config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy 1").clone();
     let project_owner = config.core.owners[0].clone();
     let mut deployment_owner = project_owner.clone();
@@ -174,8 +174,8 @@ impl World {
         else {
             panic!("hello")
         };
-        hello.bounds.time = Duration::from_secs(120); // Stock charter run time.
-        hello.bounds.turns = 16; // Stock's largest charter.
+        hello.bounds.time = Duration::from_secs(28_800); // Stock work charter run time.
+        hello.bounds.turns = 800; // Stock's largest charter.
         hello.bounds.message_bytes = MESSAGE_BYTES;
         driver.send(greeting);
         driver.settle();

@@ -242,7 +242,7 @@ fn capacity_message(path: &Path, member: &[u8], configured: u32, dependency: &[u
 fn codec_ceiling_message(path: &Path, bound: CodecBound) -> Option<Box<[u8]>> {
     let needed = Decimal::of(u64::from(bound.needed));
     let ceiling = Decimal::of(u64::from(bound.ceiling));
-    if bound.field == b"tasks-v9.ResultFollowupsDelegates.value" {
+    if bound.field == b"tasks-v9.TaskInterests.result_followups" {
         return codec_parts_message(
             path,
             &[

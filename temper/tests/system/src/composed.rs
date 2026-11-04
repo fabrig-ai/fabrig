@@ -362,7 +362,7 @@ impl World {
             std::array::from_fn(|_| configured_parts(config(seed), repository));
         let forge = repository_forge(seed);
         let worker_limits =
-            if config.core.defaults.charters.len() > 1 { agreement::worker_limits() } else { worker_limits() };
+            if config.core.defaults.charters.len() > 1 { agreement::worker_limits(&limits) } else { worker_limits() };
         // The engine waits for a lost worker longer than it may take to stop.
         limits.fleet.grace = worker_limits.stop_bound.saturating_add(Duration::from_secs(1));
         assert!(engine::valid(&limits));

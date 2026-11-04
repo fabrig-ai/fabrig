@@ -82,7 +82,7 @@ impl Limits {
         settings.pattern_end_open_value = 32_768;
         settings.pattern_segments = 9;
         settings.pattern_segments_item = 32_768;
-        settings.delegation_kinds = 12;
+        settings.delegation_kinds = 16;
         settings.authority_grants = 1_048_576;
         settings.authority_note_resources = 1_048_576;
         settings.field_rule_name = 32_768;
@@ -133,7 +133,7 @@ impl Limits {
             result_bytes: 6_292_480,
             text: 32_768,
             rows: 32,
-            authority: 14, // Holds the stock's fourteen forge grants.
+            authority: 16,
             fields: 16,
         }
     }

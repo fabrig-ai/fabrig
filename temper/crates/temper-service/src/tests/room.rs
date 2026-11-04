@@ -21,6 +21,9 @@ fn agent() -> crate::settings::Agent {
 }
 
 fn start(room: u64) -> Result<crate::Service, startup::Problems> {
+    let mut agent = agent();
+    // Exercise the brief floor within the fixture's small charter carriers.
+    agent.run_limits.host_part = 65_536;
     // The long instructions need the charter carriers, independently of the host-part bound.
     let document = super::stock::limited(&fixtures::document(), b"core.run_bytes", 65_536);
     let overrides = fixtures::value(&document, b"application.limits.overrides");
@@ -30,10 +33,9 @@ fn start(room: u64) -> Result<crate::Service, startup::Problems> {
     out.put(prefix).unwrap();
     out.put(suffix).unwrap();
     let document = fixtures::with(&document, b"application.limits.overrides", &out.finish());
-    let agent = agent();
     let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
     let host = temper_engine_smith::room::host_part(&agent.run_limits);
-    let mut defaults = stock::defaults(&engine.llm);
+    let mut defaults = stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     for charter in &mut defaults.charters {
         if charter.number == CHARTER {
             charter.policy.instructions = Box::new([]);
@@ -64,7 +66,7 @@ fn defaults_leaving_2047_bytes_refuse_the_start() {
     let Err(found) = start(SHORT) else { panic!("a short charter refuses the start") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 3: charter 3 leaves its brief 2,047 bytes of its host part's 51,717; it needs at least 2,048\n",
+        b"charter 3: charter 3 leaves its brief 2,047 bytes of its host part's 65,536; it needs at least 2,048\n",
     );
 }
 

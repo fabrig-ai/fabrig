@@ -62,7 +62,8 @@ fn story_as_chats_keep_the_stock_requester_ending() {
     let temper_service::stock::Given::Own { jig, .. } = documents::given(&document) else {
         panic!("the composition supplies its settings")
     };
-    let stock = temper_service::stock::defaults(&documents::settings::configuration(&document).llm);
+    let engine = documents::settings::configuration(&document);
+    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     assert_eq!(jig.templates[0].flags.ended_by, stock.templates[0].flags.ended_by);
     assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
 }
@@ -162,9 +163,14 @@ fn story_as_stock_authority_funds_its_scripted_delegate() {
 }
 
 #[test]
-fn story_as_stock_runs_fit_the_hosted_agents_spend_bound() {
+fn story_as_stock_runs_fit_the_hosted_agents_bounds() {
     let (_, defaults) = story_a_stock();
     assert!(documents::agent().bounds.spend >= defaults.rules.maximum_run_spend);
+    let budget = documents::agent_limits().domain.run.budget;
+    for charter in &defaults.charters {
+        assert!(budget.turns >= charter.policy.turns, "the hosted agent admits the stock turns");
+        assert!(budget.time >= charter.policy.time, "the hosted agent admits the stock time");
+    }
 }
 
 #[test]
@@ -467,7 +473,7 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
 fn story_a_stock() -> (jig_protocol_config::Engine, jig_domain_core::settings::Defaults) {
     let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
     let engine = documents::settings::configuration(&document);
-    let defaults = temper_service::stock::defaults(&engine.llm);
+    let defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     (engine, defaults)
 }
 

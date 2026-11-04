@@ -428,6 +428,33 @@ follow from the limits that bound each kind (5.4).
   So a family's limits, made from the domain's (5.4), are never past
   its ceilings for a count the domain does not have, and a record's
   worst case is the sum, not a count times its largest item.
+- **The tasks family's pieces,** each bounded by the domain's sum and
+  its items' framing at the domain's count of them: an authority's
+  grants, and its note resources, by the authority's bytes
+  (`tasks.authority_bytes`, every grant's and scope's segments
+  together); a resource's name (a holding's, a writer's, a pool's, a
+  hold's source) and an approval's part, their path by the name's bytes
+  (`tasks.hold_bytes`); a saved resource's path by the authority's
+  bytes; a spec's parameters by the spec's bytes (`tasks.spec_bytes`,
+  its words and byte parameters together); a verdict's field rules, and
+  a verdict result's and a verdict message's fields, by the result's
+  bytes (`tasks.result_bytes`), framed for at most `VERDICT_FIELDS`
+  items (`../domain/tasks.md`, section 11), never for as many items as
+  the result has bytes; and a batch's creations, a proposal's and a
+  verdict's follow-ups, and a recurring template's tasks, by the batch's
+  bytes (`tasks.batch_bytes`; `../domain/tasks.md`, 4 and 11), framed
+  for as many tasks as those bytes hold. What the domain counts stays a
+  counted list at its count: a task's delegates, dependencies and
+  holdings, its inbox's items and its questions' lines, a contract's
+  choices.
+- **No batch inside a batch.** A proposed creation carries its recurring
+  template, if it has one, and that template's tasks count in the
+  batch's bytes, so the template is within its creation's piece, never
+  a batch of its own for each creation; a template's tasks cannot recur.
+  So the largest tasks row holds two batches at most, a recurring task's
+  template and its pending proposal's, each one piece by the batch's
+  bytes, and grows with those bytes, not with the square of the batch's
+  count.
 - **Account preferences are separate from claims.** People's retained asks
   keep a choice's optional account number, including through amendments and
   proposed batches. Tasks keep that preference and their last claimed account
@@ -689,6 +716,18 @@ admitted within that edge is never refused as too large.
   framing.
   A deployment's commit then fits skein-kv's `u32` whenever its map's
   budget does.
+- **The largest value is the largest tasks row,** for any limits that
+  make no larger settings revision or application value: a task's
+  definition, with its recurring template, its pending proposal, each a
+  batch by the batch's bytes (5.1), its inbox of the inbox's messages
+  and two, each item at the larger of a message's and a result's bytes
+  with a verdict message's fields, its questions' lines and replies, and
+  its ending's result and reason. Its bound is the sum of its fields'
+  bounds, so it grows with each limit, never with a product of two. A
+  profile's value is that bound, its page and chunk that value and the
+  largest key, and its page holds besides the largest TurnRecord frame
+  its transcript bound admits (8.1); `check_commits` names what the
+  value needs when a profile's is short.
 
 ## 6. Commits
 
@@ -1011,8 +1050,9 @@ first by time is keyed reversed. skein-kv's load runs forwards only
   first two bytes are the core family's version; its `transcript` is
   smith's turn, versioned on its own (smith's `protocol/transcript.md`,
   section 6), so its first two bytes are smith-transcript's version, and
-  the core's schema says so: `transcript: bytes 8388608 holds
-  smith-transcript Turn` (skein's `codec.md`, section 3). No frame is
+  the core's schema says so (skein's `codec.md`, section 3):
+  `transcript: bytes 33554432 holds smith-transcript Turn`, its ceiling
+  smith's largest turn (smith's `protocol/limits.md`, 4). No frame is
   rewritten: one behind the binary's versions is patched each time it is
   read (8.6). The word is core-v6's: it is part of the family's layout
   and moves no byte (skein's `codec.md`, section 9).
@@ -1213,9 +1253,9 @@ nothing is written.
   (`transcripts/patches.rs`, `node_bound`), so every frame the kept
   texts allow is read and none is refused for its nodes. A turn's bytes
   do not bound its nodes (a list of empty records takes none), so
-  smith's real turn, 16 messages of 64 blocks, takes 2,109,520 nodes,
+  smith's real turn, 4 messages of 128 blocks, takes 1,054,764 nodes,
   and its machine is priced at that capacity from the baseline on, about
-  298 MB with what its tables hold while they grow (skein's `codec.md`,
+  249 MB with what its tables hold while they grow (skein's `codec.md`,
   11.7); a machine holds only what the largest record it has met needed
   (section 16).
 - **Windows across a mark.** A patched turn is the same conversation in
@@ -2398,8 +2438,8 @@ intervals, and its indexes, by the rules of section 12.
     map holds a turn; a frames' root kept out of `Row`'s `Value` would
     spare that walk;
   - smith's machine is priced for the most nodes its kept turn allows
-    (8.6): from the baseline on, about 298 MB per serving store
-    (`Patcher::workspace_bound` at 2,109,520 nodes), though a typical
+    (8.6): from the baseline on, about 249 MB per serving store
+    (`Patcher::workspace_bound` at 1,054,764 nodes), though a typical
     turn takes a few hundred nodes. Its tables grow in bounded steps
     (skein's `codec.md`, 11.7), so a store holds what its largest turn
     needed, not the price; but it keeps that room until the machine

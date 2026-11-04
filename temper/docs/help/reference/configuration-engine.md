@@ -34,8 +34,8 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 
 Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and named overrides, shared by engines and workers.
 
-- `profile`: text, small or standard; required; init writes "small". Selects the profile whose values the overrides amend.
-- `overrides`: object, known limit names; optional; init writes {"authority.executors":12,"authority.grants":14,"authority.segments":8,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":1662046,"documents.lines":8,"documents.rows":2,"documents.text_bytes":128,"hub.transcript_bytes":6648178,"hub.turn_bytes":1662042,"hub.turn_queue_bytes":13296336,"notes.scopes":17,"tasks.authority_bytes":512,"tasks.authority_grants":14,"tasks.authority_segments":8,"tasks.batch":1,"tasks.charters":8,"tasks.contract_choices":4,"tasks.executor_kinds":12,"tasks.hold_segments":8,"tasks.inbox_bytes":12288,"tasks.parameters":5,"views.watchers":16,"views.watchers_per_party":16} | {"hub.accounts":4,"hub.event_bytes":4096,"hub.transcript_bytes":6648178,"hub.turn_bytes":1662042,"hub.turn_queue_bytes":13296336}. Overrides the profile's limits by their dotted names.
+- `profile`: text, small or standard; required; init writes "standard". Selects the profile whose values the overrides amend.
+- `overrides`: object, known limit names; optional; init writes {"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":128,"fleet.configured_workers":8,"fleet.slots":2,"fleet.workers":2,"hub.slots":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.slots":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480}. Overrides the profile's limits by their dotted names.
 
 ## engine.deployment
 
@@ -112,7 +112,7 @@ Shape: `model`. Paths: `engine.llm.models[]`. A model, its context bounds, effor
 
 - `name`: text, 4096 bytes; required; init writes "gpt-6-luna" | "demo". Names the model for charters, templates and authorities.
 - `endpoint`: text, 4096 bytes; required; init writes "openai" | "demo". Names the configured endpoint serving this model.
-- `window`: integer, 0 to 4294967295 tokens; required; init writes 1048576 | 177523. Gives the model's context window.
+- `window`: integer, 0 to 4294967295 tokens; required; init writes 1048576. Gives the model's context window.
 - `output`: integer, 0 to 4294967295 tokens; required; init writes 8192. Gives the model's maximum output.
 - `efforts`: list of text, 16 efforts; 32 bytes each; optional; init leaves it out. Lists the efforts the model takes, in order, with none when absent.
 - `prices`: prices; required; init writes object. Gives input, cached input and output prices in spend units.

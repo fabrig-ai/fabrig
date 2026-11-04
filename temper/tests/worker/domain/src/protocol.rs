@@ -142,8 +142,11 @@ pub fn decode(run: Token, source: host::Start, limits: &agent::Limits) -> Result
     let charter = agent::Charter::new(charter, limits.charter_bytes).ok_or(Invalid::Charter)?;
     let piece = smith_protocol_channel::transcript_piece(&source.turns).ok_or(Invalid::Transcript)?;
     let found = smith_transcript::CEILINGS.found_hits;
-    let decoded = smith_protocol_channel::decode_transcript(&piece, 64, found, &smith_transcript::CEILINGS, &endpoints)
-        .map_err(|_| Invalid::Transcript)?;
+    // Each framed turn needs at least its four-byte length, as in the service's decoder.
+    let turns = u32::try_from(limits.transcript_bytes / 4).map_err(|_| Invalid::Transcript)?;
+    let decoded =
+        smith_protocol_channel::decode_transcript(&piece, turns, found, &smith_transcript::CEILINGS, &endpoints)
+            .map_err(|_| Invalid::Transcript)?;
     let transcript = match decoded {
         Some(value) => Some(agent::Transcript::new(value, limits.transcript_bytes).ok_or(Invalid::Transcript)?),
         None => None,

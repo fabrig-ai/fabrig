@@ -288,7 +288,7 @@ pub fn engine_with(
         problems.push(Path::root().member(b"llm").member(b"models"), config::What::Bound);
         return Err(problems);
     }
-    let Some(defaults) = given.defaults(&engine.llm) else {
+    let Some(defaults) = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes) else {
         let mut problems = config::Problems::empty();
         problems.push(
             Path::root().member(b"llm").member(b"models").child(Segment::Index(0)).member(b"prices"),

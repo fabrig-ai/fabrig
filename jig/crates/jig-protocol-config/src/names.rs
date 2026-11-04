@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 231] = [
+pub static NAMES: [Name; 232] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -105,6 +105,12 @@ pub static NAMES: [Name; 231] = [
         unit: Unit::Count,
         line: "Bounds directly created tasks in one atomic nonempty `Make` batch.",
         value: |limits| u64::from(limits.core.tasks.batch),
+    },
+    Name {
+        name: "tasks.batch_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds the complete owned bytes of one task batch.",
+        value: |limits| u64::from(limits.core.tasks.batch_bytes),
     },
     Name {
         name: "tasks.dependencies",

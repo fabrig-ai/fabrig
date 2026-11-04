@@ -89,6 +89,30 @@ fn an_inbox_with_both_groups_becomes_its_record() {
         Ok(jig_client_test_records::inbox_both_groups_record())
     );
 }
+#[test]
+fn an_inbox_entry_33_goals_deep_encodes_at_the_wire_ceiling() {
+    use skein_lib::{Reader, Writer};
+    // The standard task depth plus the task itself (client/domain/pages.md, 3).
+    const STANDARD_GOALS: u32 = 33;
+    let mut source = fixtures::inbox_document();
+    let selection = source.selection.as_mut().unwrap().get_mut(0).unwrap();
+    selection.goals = List::with_capacity(STANDARD_GOALS);
+    for goal in 1..=u64::from(STANDARD_GOALS) {
+        selection.goals.push(goal).unwrap();
+    }
+    let expected = selection.clone();
+    let record = translate::inbox::document(&source, &w::CEILINGS).unwrap();
+    let mut encoded = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut encoded).unwrap();
+    let bytes = encoded.finish();
+    let record = w::Inbox::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let mut selections = Reader::new(record.selection().as_ref().unwrap());
+    let bytes = skein_codec::piece::split(&mut selections).unwrap().unwrap();
+    let selection = w::InboxSelection::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!(selection.cursor(), &translate::inbox::cursor(expected.cursor, &w::CEILINGS).unwrap());
+    assert_eq!(selection.goals(), &expected.goals);
+    assert!(selections.is_empty());
+}
 fn a_deployment_document_becomes_its_record() {
     let limits = fixtures::wire_limits();
     assert_eq!(

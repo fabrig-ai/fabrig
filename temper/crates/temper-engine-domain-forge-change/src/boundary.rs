@@ -479,7 +479,7 @@ pub enum Route {
 }
 
 /// Open questions a change's record keeps at most (domain/forge.md, 8.11).
-pub const QUESTIONS_OPEN: usize = 16;
+pub const QUESTIONS_OPEN: usize = 128;
 /// Bytes of a question's first line kept on the record and shown on the panel.
 pub const QUESTION_LINE: usize = 256;
 

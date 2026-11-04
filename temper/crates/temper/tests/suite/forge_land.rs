@@ -426,7 +426,7 @@ fn stock_charters_choose_claude_before_the_demo_model() {
         .expect("engine");
     let engine = temper_service::startup::engine(&document, at, &support::configuration::directories(&paths[0]).jig())
         .expect("engine schema");
-    let defaults = temper_service::stock::defaults(&engine.llm);
+    let defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
         assert_eq!(
             (charter.policy.model.name.as_ref(), charter.policy.model.endpoint),

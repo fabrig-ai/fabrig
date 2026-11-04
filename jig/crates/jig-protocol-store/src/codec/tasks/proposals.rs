@@ -608,26 +608,11 @@ pub fn read_milestone(source: wire::Milestone, limits: &wire::Limits) -> Result<
     Ok(domain::Milestone { task, position, phase: phase::read_phase(phase, limits)?, at: Wall::from_nanos(at) })
 }
 
-fn batch(
-    source: &[domain::New],
-    limits: &wire::Limits,
-    moved: Option<&[u64; 64]>,
-) -> Result<List<wire::Creation>, wire::Problem> {
-    let mut members = List::with_capacity(limits.proposed_batch_members);
-    for item in source {
-        let item = phase::new(item, limits, moved)?;
-        if members.push(item).is_err() {
-            return Err(wire::Problem { path: wire::Path::ProposedBatchMembers, reason: skein_codec::Reason::Bound });
-        }
-    }
-    Ok(members)
+fn batch(source: &[domain::New], limits: &wire::Limits, moved: Option<&[u64; 64]>) -> Result<Box<[u8]>, wire::Problem> {
+    super::pieces::creations(source, limits, limits.proposed_batch_members, wire::Path::ProposedBatchMembers, moved)
 }
-fn read_batch(source: List<wire::Creation>, limits: &wire::Limits) -> Result<Box<[domain::New]>, wire::Problem> {
-    let mut members = List::with_capacity(source.len());
-    for item in source.into_boxed() {
-        members.push(phase::read_new(item, limits)?).expect("same number of members");
-    }
-    Ok(members.into_boxed())
+fn read_batch(source: Box<[u8]>, limits: &wire::Limits) -> Result<Box<[domain::New]>, wire::Problem> {
+    super::pieces::read_creations(source, limits, wire::Path::ProposedBatchMembers)
 }
 fn dependencies(source: &[u64], limits: &wire::Limits) -> Result<List<wire::Number>, wire::Problem> {
     phase::references(source, limits.settings_dependencies, wire::Path::SettingsDependencies, limits)
