@@ -58,6 +58,46 @@ fn the_help_prints_as_its_golden_files() {
 }
 
 #[test]
+fn help_names_how_to_read_a_runs_brief() {
+    for name in [b"chat".as_slice(), b"charter", b"configure"] {
+        let page = temper_docs::find(name).expect("help page");
+        for guidance in [
+            "temper ctl DIR chat show TASK",
+            "brief",
+            "document sections",
+            "commits",
+            "--before CURSOR",
+            "task text",
+            "specification",
+            "instructions",
+        ] {
+            assert!(
+                skein_lib::bytes::find(page.text.as_bytes(), guidance.as_bytes()).is_some(),
+                "{} help must explain: {guidance}",
+                page.name
+            );
+        }
+    }
+    for (at, guidance) in [
+        (jig::rows::CHAT_AT, "chat show TASK --before CURSOR"),
+        (jig::rows::TURN_AT, "task turn TASK TURN --part PART --from OFFSET"),
+    ] {
+        let help = fixtures::help(Some(at));
+        for fact in [
+            "brief supplied to the run",
+            "document sections",
+            "commits",
+            "task activity TASK",
+            "A.T",
+            "task turn TASK A.T",
+            guidance,
+        ] {
+            assert!(skein_lib::bytes::find(&help, fact.as_bytes()).is_some(), "tool {at} help must explain: {fact}");
+        }
+    }
+}
+
+#[test]
 fn chat_start_explains_subagent_choices() {
     let help = fixtures::help(Some(jig::rows::CHAT_CREATE_AT));
     for explanation in [
