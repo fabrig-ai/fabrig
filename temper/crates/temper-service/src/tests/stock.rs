@@ -521,10 +521,8 @@ fn the_goals_words_survey_before_planning_and_sequence_changes() {
 #[test]
 fn the_chats_words_say_a_delegate_is_started_until_it_reports() {
     let words = include_str!("../stock/chat.txt");
-    assert!(
-        words
-            .contains("After calling change, say only that work started until its Landed result names the pull request and merge commit.")
-    );
+    assert!(words.contains("After calling change, say only that work started until the delegate reports."));
+    assert!(words.contains("For successful NoChange, tell the person nothing changed and why from the delegate's conclusion; claim no landing, implementation or tests."));
 }
 
 #[test]
@@ -891,7 +889,7 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
             "Repository changes must go through change; never implement them by writing your chat workspace."
         )
     );
-    assert!(words.contains("After calling change, say only that work started until its Landed result names the pull request and merge commit."));
+    assert!(words.contains("After calling change, say only that work started until the delegate reports."));
     assert!(words.contains("Name only checks or tests the result names."));
 }
 
