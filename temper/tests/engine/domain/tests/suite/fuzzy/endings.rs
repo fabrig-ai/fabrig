@@ -18,7 +18,6 @@ const ENDING_CHILD_WRITES: u32 = 3_738;
 const WORKER: Token = Token::new(7);
 const DELEGATE: u64 = 90;
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "the script selects one delivery from the closed vocabulary")]
 fn chat(seed: u64, child: bool) -> (Driver, engine::Assignment) {
     let [(bootstrap, bounds), (configuration, _)] = std::array::from_fn(|_| {
         let mut bounds = limits();
@@ -125,10 +124,6 @@ fn a_chat_in_the_ending_sweep_can_delegate_a_child() {
 }
 
 #[test]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "one seeded root story selects its concrete route and durable outcome"
-)]
 fn drawn_root_stories_reach_every_durable_ending_and_held_route() {
     let mut seen = BTreeSet::new();
     for seed in 0..16_u64 {

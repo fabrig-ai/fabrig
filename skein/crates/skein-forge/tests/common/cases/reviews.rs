@@ -28,8 +28,8 @@ pub fn review(id: u64, state: ReviewState, official: bool, dismissed: bool, key:
         state,
         commit_id: forgejo::sha(4),
         body: Body::Kept(Box::from(key)),
-        submitted_at: Some(Wall::from_nanos(1_577_817_005_000_000_000)),
-        updated_at: Some(Wall::from_nanos(1_577_817_005_000_000_000)),
+        submitted_at: Some(Wall::from_nanos(1_577_817_004_000_000_000)),
+        updated_at: Some(Wall::from_nanos(1_577_817_004_000_000_000)),
         official,
         dismissed,
     }

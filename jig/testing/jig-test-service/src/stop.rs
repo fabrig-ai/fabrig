@@ -67,7 +67,7 @@ pub(super) fn advance(engine: &mut Engine) {
             None => false,
         })
         .checked_add(u32::from(match &engine.accounts {
-            Some(accounts) => !accounts.is_empty(),
+            Some(accounts) => !accounts.idle(),
             None => false,
         }))
         .expect("two engine components")

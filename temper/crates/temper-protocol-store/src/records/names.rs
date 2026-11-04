@@ -234,7 +234,6 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
     })
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode_hold(value: &d::Hold) -> w::Hold {
     let d::Hold { name, task, writer, drift } = value;
     w::Hold::new(
@@ -254,7 +253,6 @@ pub(super) fn encode_hold(value: &d::Hold) -> w::Hold {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode_hold(value: w::Hold, bounds: &Bounds) -> Result<d::Hold, Undecodable> {
     let w::HoldParts { name, task, writer, drift } = value.into_parts();
     Ok(d::Hold {

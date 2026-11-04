@@ -165,7 +165,7 @@ unit's journal.
   with `engine` `{"socket": "127.0.0.1:8369"}`, `name` `"w1"`,
   `secret` `"secrets/w1.secret"`, `agent` naming the binary and
   `agent.json` by absolute paths.
-- The runner, Forgejo runner 13.2.0 under a user of its own, its
+- The runner, Forgejo runner 13.2.1 under a user of its own, its
   `url` `http://127.0.0.1:3000`, its `uuid` and secret those of
   `DATA/forge-1/runner/`; its jobs in rootless podman.
 

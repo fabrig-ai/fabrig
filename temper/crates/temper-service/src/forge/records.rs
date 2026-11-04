@@ -107,7 +107,7 @@ fn matches_done(phase: &Phase) -> bool {
     }
 }
 pub(crate) fn advance(engine: &mut crate::engine::Engine) {
-    if engine.end.is_some() || crate::stop::requested(engine) || !engine.store.host.component.mark_durable() {
+    if engine.end.is_some() || crate::stop::requested(engine) || !engine.store.host.mark_durable() {
         return;
     }
     for _ in 0..engine.forge_records.pending.len() {

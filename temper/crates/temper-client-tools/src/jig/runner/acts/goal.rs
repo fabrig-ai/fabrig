@@ -12,7 +12,6 @@ pub(super) fn start(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let llm = choice::selection(call, 8, 9, 10, me, project, template.llm.as_ref())?;
     let mut offered = me.clone();
     controls(call, project, number, &mut offered)?;
-    #[expect(clippy::manual_map, reason = "step code matches the optional priority without closures")]
     let priority = match super::number(call, 4) {
         Some(priority) => Some(u32::try_from(priority).expect("priority fits")),
         None => None,

@@ -104,7 +104,6 @@ pub(super) fn decode_job_attempt(value: w::JobAttempt) -> d::JobAttempt {
     let w::JobAttemptParts { head, run, job, attempt } = value.into_parts();
     d::JobAttempt { head, run, job, attempt }
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 #[expect(clippy::too_many_lines, reason = "the store translation exhaustively lists forge answers and their payloads")]
 pub(super) fn encode(value: &d::Answer) -> w::Answer {
     match value {
@@ -212,7 +211,6 @@ pub(super) fn encode(value: &d::Answer) -> w::Answer {
         d::Answer::Done => w::Answer::Done,
     }
 }
-#[expect(clippy::manual_map, reason = "Step translations use explicit matches without closures")]
 pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Undecodable> {
     Ok(match value {
         w::Answer::Queued => d::Answer::Queued,

@@ -284,45 +284,41 @@ fn preparation_loads(out: &[Request]) -> List<(u64, (u64, u32))> {
 
 #[test]
 fn a_busy_root_keeps_an_agent_with_a_window_to_load_due() {
-    let (mut core, limits) = ready();
-    previous_window(&mut core, &limits, 0, false);
-    let context = core.tasks.run_context(FIRST).unwrap();
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: true });
-    assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
-    assert_eq!(core.due.len(), 1);
-    assert_eq!(core.due.iter().next().expect("deferred activation").task, FIRST);
-    assert!(!core.contexts.contains_key(&FIRST));
-    assert!(!core.transcripts.contains_key(&FIRST));
-    assert!(preparation_loads(&out).is_empty());
-    let context = core.take_due().expect("busy activation stays eligible");
-    assert_eq!(context.task, FIRST);
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
-    assert_eq!(preparation_loads(&out).as_slice(), [(FIRST, (1, 1))]);
-    assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+    for (transient, closed) in [(0, false), (1, true)] {
+        let (mut core, limits) = ready();
+        previous_window(&mut core, &limits, transient, closed);
+        let context = core.tasks.run_context(FIRST).unwrap();
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: true });
+        assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
+        assert_eq!(core.due.len(), 1);
+        assert_eq!(core.due.iter().next().expect("deferred activation").task, FIRST);
+        assert!(!core.contexts.contains_key(&FIRST));
+        assert!(!core.transcripts.contains_key(&FIRST));
+        assert!(preparation_loads(&out).is_empty());
+        let context = core.take_due().expect("busy activation stays eligible");
+        assert_eq!(context.task, FIRST);
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
+        assert_eq!(preparation_loads(&out).as_slice(), [(FIRST, (1, 1))]);
+        assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+    }
 }
 
 #[test]
 fn a_busy_root_still_prepares_an_agent_with_nothing_to_load() {
-    // A transient retry starts an open window over; a closed window remains its tail.
-    for window in [None, Some(false), Some(true)] {
+    fn retry() -> (Core, Limits) {
         let (mut core, limits) = ready();
-        if let Some(closed) = window {
-            previous_window(&mut core, &limits, 1, closed);
-        }
+        previous_window(&mut core, &limits, 1, false);
+        (core, limits)
+    }
+    for setup in [ready, retry] {
+        let (mut core, limits) = setup();
         let context = core.tasks.run_context(FIRST).unwrap();
         let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: true });
         assert!(preparation_loads(&out).is_empty());
-        if window == Some(true) {
-            assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
-            assert_eq!(core.due.iter().next().expect("deferred activation").task, FIRST);
-            assert!(!core.contexts.contains_key(&FIRST));
-            assert!(!core.transcripts.contains_key(&FIRST));
-        } else {
-            assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
-            assert!(core.due.is_empty());
-            assert!(core.contexts.contains_key(&FIRST));
-            assert_eq!(core.transcripts.get(&FIRST).unwrap().window, None);
-            assert!(load(&out).is_some(), "no transcript load is needed before the brief");
-        }
+        assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+        assert!(core.due.is_empty());
+        assert!(core.contexts.contains_key(&FIRST));
+        assert_eq!(core.transcripts.get(&FIRST).unwrap().window, None);
+        assert!(load(&out).is_some(), "no transcript load is needed before the brief");
     }
 }

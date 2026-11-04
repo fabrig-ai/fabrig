@@ -1118,6 +1118,93 @@ fn proposed(bytes: &[u8], json: bool) -> (fixtures::Harness, u32) {
     (root, number)
 }
 #[test]
+fn deployment_settings_proposal_names_its_owners() {
+    let file = charter_file(DOCUMENTS);
+    let mut root = fixtures::signed_in(fixtures::PARTY);
+    let mut call = fixtures::call(&["settings", "propose", "FILE", "Please review", "--against", "5", "--key", "k1"]);
+    *call.values.get_mut(0).expect("FILE") = Some(Values::One(Value::Text(file.clone().into())));
+    let number = root.submit_prepared(call, false, None);
+    let c::Ask::Propose { project, reason, action: c::ProposeAction::Settings(settings) } =
+        fixtures::act_ask(&root, number)
+    else {
+        panic!("settings proposal")
+    };
+    assert_eq!(*project, 0);
+    assert_eq!(reason.bytes(), b"Please review");
+    assert_eq!(settings.against, 5);
+    assert_eq!(settings.items, settings_file::decode(&file, &crate::limits::tools()).expect("settings items"));
+    assert_eq!(root.sent_name(number), Some(fixtures::named("k1")));
+    root.done(number, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 0 }));
+    let answer = root.answer(number).expect("proposal outcome");
+    assert_eq!(answer.status, 0);
+    assert_eq!(answer.stdout.as_ref(), b"proposed: p73/7, to the deployment's owners\n");
+}
+
+#[test]
+fn scoped_settings_proposal_names_every_required_owner() {
+    for (selectors, recipient) in [
+        (
+            vec![
+                r#"{"kind":"template","number":1}"#,
+                r#"{"kind":"policy","number":1}"#,
+                r#"{"kind":"rules"}"#,
+                r#"{"kind":"landing-rule","number":1}"#,
+                r#"{"kind":"forge-charter","number":1}"#,
+            ],
+            "the deployment's owners",
+        ),
+        (vec![r#"{"kind":"landing-rule","project":2,"number":1}"#], "project 2's owners"),
+        (vec![r#"{"kind":"project-policy","project":2}"#], "project 2's owners"),
+        (
+            vec![
+                r#"{"kind":"landing-rule","project":2,"number":1}"#,
+                r#"{"kind":"landing-rule","project":2,"number":2}"#,
+            ],
+            "project 2's owners",
+        ),
+        (
+            vec![
+                r#"{"kind":"landing-rule","project":2,"number":1}"#,
+                r#"{"kind":"landing-rule","project":1,"number":1}"#,
+            ],
+            "project 1's owners and project 2's owners; one person must own every affected scope",
+        ),
+        (
+            vec![r#"{"kind":"charter","number":1}"#, r#"{"kind":"landing-rule","project":1,"number":1}"#],
+            "the deployment's owners and project 1's owners; one person must own every affected scope",
+        ),
+    ] {
+        assert_settings_recipient(&selectors, recipient);
+    }
+}
+
+fn assert_settings_recipient(selectors: &[&str], recipient: &str) {
+    let items: Vec<_> = selectors
+        .iter()
+        .map(|selector| {
+            if selector.contains("project-policy") {
+                let policy = setting_json(c::Setting::Policy(c::SettingNumber { number: 5 }), values()[2].1.clone());
+                let policy = String::from_utf8(file_from_setting(&policy)).expect("policy JSON");
+                policy
+                    .strip_prefix("{\"items\":[")
+                    .expect("items")
+                    .strip_suffix("]}")
+                    .expect("items end")
+                    .replace(r#"{"kind":"policy","number":5}"#, selector)
+            } else {
+                format!(r#"{{"setting":{selector},"edit":"reset"}}"#)
+            }
+        })
+        .collect();
+    let file = format!(r#"{{"items":[{}]}}"#, items.join(","));
+    let (mut root, number) = proposed(file.as_bytes(), false);
+    assert!(root.sends.contains_key(&number), "{file}");
+    root.done(number, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 0 }));
+    let answer = root.answer(number).expect("proposal outcome");
+    assert_eq!(answer.status, 0);
+    assert_eq!(answer.stdout.as_ref(), format!("proposed: p73/7, to {recipient}\n").as_bytes(), "{file}");
+}
+#[test]
 fn propose_settings_uses_the_same_whole_items_and_names_its_durable_proposal() {
     for (setting, value) in values() {
         let file = file_from_setting(&setting_json(setting, value));

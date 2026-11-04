@@ -41,6 +41,10 @@ impl Proxy {
         let port = listener.local_addr()?.port();
         let mirror = mirror.clone();
         let (send, log) = mpsc::channel();
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the loopback proxy runs on its own thread; conformance does not replay"
+        )]
         thread::spawn(move || {
             for connection in listener.incoming() {
                 let Ok(mut stream) = connection else { break };

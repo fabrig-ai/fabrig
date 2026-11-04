@@ -330,6 +330,10 @@ fn property(made: &mut Made, property: Property) {
 }
 
 #[test]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "over a dozen other properties all keep the fixture's Control primary modifier"
+)]
 fn each_state_and_property_maps_to_its_attribute() {
     let fixture = fixtures::made(Role::Text);
     let look = fixtures::look();

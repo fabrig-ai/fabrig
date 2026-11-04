@@ -21,7 +21,12 @@ impl Rig {
                 assert_eq!(more, 0);
                 assert_eq!(seen.len(), 1);
                 self.stage = Stage::Pressing;
-                self.ask(Request::Press { page: PAGE, op: PRESS, node: seen.get(0).unwrap().node, at: None });
+                self.ask(Request::Press {
+                    page: PAGE,
+                    op: PRESS,
+                    node: seen.get(0).expect("download button found").node,
+                    at: None,
+                });
             }
             Event::Done { op: PRESS } => {
                 self.stage = Stage::Expecting;

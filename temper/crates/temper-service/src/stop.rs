@@ -66,7 +66,7 @@ pub(crate) fn advance(engine: &mut Engine) {
     }
     engine.setup.close();
     let closed = match &engine.accounts {
-        Some(accounts) => accounts.is_empty(),
+        Some(accounts) => accounts.idle(),
         None => true,
     };
     if closed

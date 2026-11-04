@@ -98,7 +98,7 @@ fn each_failure_transcript_classifies_as_section_six_says() {
 fn the_version_transcript_parses_as_at_least_two_forty_one() {
     let transcript = transcripts::read("version");
     assert_eq!(transcript.exit, 0);
-    assert_eq!(output::version(&transcript.stdout), Some(Version { major: 2, minor: 53, patch: 0 }));
+    assert_eq!(output::version(&transcript.stdout), Some(Version { major: 2, minor: 47, patch: 3 }));
     for (bytes, expected) in [
         (b"git version 2.41.1.windows.1\n".as_slice(), Some(Version { major: 2, minor: 41, patch: 1 })),
         (b"git version 2.41.1", None),

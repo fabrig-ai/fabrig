@@ -331,12 +331,10 @@ impl Domain {
         if let Some(machine) = config.machine.take() {
             forge.set_machine(machine);
         }
-        #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
         let playground_provider = match &config.playground {
             Some(config) => Some(config.provider),
             None => None,
         };
-        #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
         let playground_policy = match config.core.defaults.policies.first() {
             Some((number, _)) => Some(*number),
             None => None,
@@ -938,7 +936,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             && within_budget(domain, &env.limits)
             && let Some(context) = domain.core.take_due()
         {
-            domain.work.push(Work::Activate(context));
+            domain.work.push(Work::Activate { context, ready: true });
             let decision = route(domain, env);
             close(domain, env, decision, out);
             return;

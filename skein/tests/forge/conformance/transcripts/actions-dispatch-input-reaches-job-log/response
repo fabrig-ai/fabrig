@@ -9,8 +9,8 @@ Date: Wed, 01 Jan 2020 00:00:00 GMT
 Connection: close
 Content-Length: 402
 
-2020-01-01T00:00:42.0000000Z Runner 00000000-0000-0000-0000-000000000003 (version:v13.2.0) received task 4 of job pass, triggered by event: workflow_dispatch
-2020-01-01T00:00:43.0000000Z workflow prepared
-2020-01-01T00:00:44.0000000Z ⭐ Run Main printf 'TURN_INPUT=%s\n' 'KIT_TURN_INPUT'\nsleep 5
-2020-01-01T00:00:45.0000000Z TURN_INPUT=KIT_TURN_INPUT
-2020-01-01T00:00:46.0000000Z 🏁  Job succeeded
+2020-01-01T00:00:41.0000000Z Runner 00000000-0000-0000-0000-000000000003 (version:v13.2.1) received task 4 of job pass, triggered by event: workflow_dispatch
+2020-01-01T00:00:42.0000000Z workflow prepared
+2020-01-01T00:00:43.0000000Z ⭐ Run Main printf 'TURN_INPUT=%s\n' 'KIT_TURN_INPUT'\nsleep 5
+2020-01-01T00:00:44.0000000Z TURN_INPUT=KIT_TURN_INPUT
+2020-01-01T00:00:45.0000000Z 🏁  Job succeeded

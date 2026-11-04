@@ -722,8 +722,8 @@ and `connect-forge.html`.
   fifth, done once the first repository is made, unadopted. Before the
   target is known, the fifth reads "Making the first repository".
   GitHub rows never list Forgejo's steps. The first and the Details
-  name the versions the row's `owned` pins, "Fetching Forgejo 17.0.0
-  and its runner 13.2.0"; the person's login stays off until the row
+  name the versions the row's `owned` pins, "Fetching Forgejo 17.0.1
+  and its runner 13.2.1"; the person's login stays off until the row
   carries it. Then "You may
   leave this page: the steps go on." A failed setup keeps all five steps: those before the failed
   step are done, that step is marked failed (✕), and those after it

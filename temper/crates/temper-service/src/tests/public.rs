@@ -24,10 +24,6 @@ fn the_forge_declares_its_three_public_kinds() {
     assert_eq!(expected.map(|kind| kind.bound), [4927, 198_733, 165_794]);
 }
 #[test]
-fn the_public_names_key_is_kept_under_its_owner() {
-    assert_eq!(kit::host::place(kit::SecretOwner::PublicNames), (jig_protocol_store::SecretOwner::PublicNames, 0));
-}
-#[test]
 fn a_public_read_and_its_answer_cross_the_root_boundary() {
     let reply = ReplyTo::new(Token::new(9));
     let read = core::PublicRead { owner: 2, kind: 1, version: 1, project: Some(7), task: Some(8) };

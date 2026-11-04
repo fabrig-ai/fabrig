@@ -1,6 +1,7 @@
 //! The box's steps, restarts and ordered shutdown (protocol/setup.md, 7).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 mod group_records;
 pub mod host;

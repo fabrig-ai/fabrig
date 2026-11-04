@@ -10,7 +10,6 @@ use crate::{Domain, ForgeCharters, Key, Limits, Request, Stored};
 
 impl Domain {
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the step subset uses exhaustive matches rather than closures")]
     pub fn judge_settings(&self, bounds: &settings::Bounds, items: &[settings::Asked]) -> Box<[settings::Judged]> {
         let mut judged = List::uncapped();
         for item in items {
@@ -122,7 +121,6 @@ impl Domain {
     }
 
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the step subset uses exhaustive matches rather than closures")]
     pub fn restore_settings(
         &mut self,
         bounds: &settings::Bounds,

@@ -1,8 +1,9 @@
-# What the step crates may not use: skein's docs/foundation/programming-model.md, section 10.
+# clippy variant: step (tools/lints/design.md, 4).
+# What the step crates may not use: skein/docs/foundation/programming-model.md, 10.
 #
 # Applies to every crate below this directory that has no clippy.toml of its
-# own. Ordinary Rust (the fakes, the worlds and the binary's shell) has its own
-# clippy.toml.
+# own. A step crate that builds a container on a type that is out says so with a
+# scoped #[expect(clippy::disallowed_types, reason = "...")].
 #
 # panic! is out through the clippy::panic lint rather than here, and
 # format_args! is not listed: unreachable!("why") and assertion messages expand
@@ -73,7 +74,7 @@ disallowed-types = [
     # Time and hashing that the step does not control (reachable in unit tests, which have std).
     { path = "core::time::Duration", reason = "skein_lib::Duration" },
     { path = "std::time::Instant", reason = "env.now, a skein_lib::Time" },
-    { path = "std::time::SystemTime", reason = "env.now, a skein_lib::Time" },
+    { path = "std::time::SystemTime", reason = "env.wall, a skein_lib::Wall" },
     { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },
     { path = "std::collections::HashSet", reason = "iteration order depends on a random seed: BTreeSet" },
 ]
@@ -87,7 +88,7 @@ disallowed-macros = [
     { path = "core::debug_assert", reason = "assertions stay on in production: assert!" },
     { path = "core::debug_assert_eq", reason = "assertions stay on in production: assert!" },
     { path = "core::debug_assert_ne", reason = "assertions stay on in production: assert!" },
-    { path = "core::default::Default", reason = "only the derives of programming-model.md, 10.2; a default can be a live state" },
+    { path = "core::default::Default", reason = "only the derives of skein's programming-model.md, 10.2; a default can be a live state" },
     { path = "core::include", reason = "code the reader cannot see" },
     { path = "core::include_str", reason = "data comes in events and limits" },
     { path = "core::include_bytes", reason = "data comes in events and limits" },

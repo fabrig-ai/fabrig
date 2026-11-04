@@ -13,7 +13,7 @@ use jig_domain_host as host;
 use skein_lib::{Env, Queue, Time, Token};
 use smith_host_domain as smith;
 
-use crate::boundary::{Encodable, Encoded, Invalid, Request};
+use crate::boundary::{Encodable, Encoded, Request};
 use crate::hand_out::{Finish, Pending};
 use crate::{Domain, Limits, route, smith_delivery, translate, workspace};
 
@@ -235,7 +235,12 @@ fn called(
 /// checkout prepared, each repository's directory added; a run with no
 /// repository has none. A start whose run is no longer starting ends at
 /// once, and one that did not decode is refused as invalid.
-pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<Box<smith::Start>, Invalid>) {
+pub(crate) fn decoded(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    start: Result<Box<smith::Start>, host::Undecoded>,
+) {
     let Some(hosting) = domain.host.hosting(owner) else { return };
     if hosting.phase != host::Phase::Starting {
         return route::host_step(
@@ -268,10 +273,10 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, star
         }
         Err(invalid) => {
             let why: &[u8] = match invalid {
-                Invalid::Charter => b"charter",
-                Invalid::Transcript => b"transcript",
-                Invalid::CallName => b"call name",
-                Invalid::Evidence => b"delivery evidence",
+                host::Undecoded::Charter => b"charter",
+                host::Undecoded::Transcript => b"transcript",
+                host::Undecoded::CallName => b"call name",
+                host::Undecoded::Evidence => b"delivery evidence",
             };
             host::FromAgent::StartRefused { owner, cause: host::StartCause::Other, why: Box::from(why) }
         }

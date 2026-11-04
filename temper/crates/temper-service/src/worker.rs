@@ -240,10 +240,9 @@ impl Worker {
             let _request = self.out.pop();
         }
         self.link_down(self.env.now, link::Event::Abort);
-        if let Some(at) = self.sources.next_deadline()
-            && let Some((owner, answer)) = self.sources.fire(at, &mut self.io)
-        {
-            self.events.push(root::Event::SourceAnswered { owner, answer });
+        if let Some(at) = self.sources.next_deadline() {
+            let settled = self.sources.fire(at, &mut self.io);
+            self.answered(settled);
         }
         for (entity, _) in &self.entities {
             self.io.push(io::Request::Abort { entity: *entity });
@@ -332,9 +331,8 @@ impl Worker {
         }
         let owner = event.owner().expect("routed owner");
         if self.sources.owns(owner) {
-            if let Some((owner, answer)) = self.sources.from_io(event, &mut self.io) {
-                self.events.push(root::Event::SourceAnswered { owner, answer });
-            }
+            let settled = self.sources.from_io(event, &mut self.io);
+            self.answered(settled);
             return;
         }
         if owner == Token::new(self.prefix) {
@@ -541,17 +539,9 @@ impl Worker {
                 let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
                 self.next = self.next.checked_add(1).expect("source owner sequence");
                 assert!(self.next < (1_u64 << 48_u32), "worker owner range");
-                if let Some((owner, answer)) = self.sources.start(
-                    owner,
-                    io_owner,
-                    name,
-                    operation,
-                    self.directory.expect("worker root"),
-                    deadline,
-                    &mut self.io,
-                ) {
-                    self.events.push(root::Event::SourceAnswered { owner, answer });
-                }
+                let root = self.directory.expect("worker root");
+                let settled = self.sources.start(owner, io_owner, name, operation, root, deadline, &mut self.io);
+                self.answered(settled);
             }
             root::Request::SourceFault => self.link_down(self.env.now, link::Event::SourceFault),
             root::Request::Hello(hello) => {
@@ -718,13 +708,17 @@ impl Worker {
     // Smith's process adapter keeps exit waits and reaping active.
     fn process_wait() {}
     fn process_reap() {}
+    fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
+        if let Some((owner, answer)) = settled {
+            self.events.push(root::Event::SourceAnswered { owner, answer });
+        }
+    }
     pub fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
         self.jobs_fire(now, false);
-        if let Some((owner, answer)) = self.sources.fire(now, &mut self.io) {
-            self.events.push(root::Event::SourceAnswered { owner, answer });
-        }
+        let settled = self.sources.fire(now, &mut self.io);
+        self.answered(settled);
         self.started = true;
         if !self.git.started && !self.stopping {
             self.git.started = true;

@@ -36,7 +36,7 @@ jobs:
       - name: Each pull request adds changes/<its number>.md
         run: |
           echo 'pull_request.number=${{ github.event.pull_request.number }}'
-          auth=$(printf 'x-access-token:%s' "${{ github.token }}" | base64 -w0)
+          auth=$(printf 'x-access-token:%s' "${{ github.token }}" | base64 | tr -d '\n')
           git -c "http.extraHeader=Authorization: basic $auth" clone --quiet --no-checkout "${{ github.server_url }}/${{ github.repository }}.git" repo
           git -C repo checkout --quiet '${{ github.event.pull_request.head.sha }}'
           test -f 'repo/changes/${{ github.event.pull_request.number }}.md' || { echo 'Missing changes/${{ github.event.pull_request.number }}.md'; exit 1; }

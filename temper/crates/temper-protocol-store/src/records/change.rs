@@ -493,7 +493,6 @@ fn decode_early(value: w::Early) -> d::Early {
     if spent { d::Early::Spent(decoded.into_boxed()) } else { d::Early::Started(decoded.into_boxed()) }
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode_change(value: &d::Change) -> w::Change {
     let d::Change {
         early,
@@ -545,7 +544,6 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode_change(value: w::Change) -> d::Change {
     let w::ChangeParts {
         early,
@@ -593,7 +591,6 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         landing,
     }
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 #[expect(
     clippy::too_many_lines,
     reason = "one stored change maps its captured role choices and question relay together"
@@ -704,7 +701,6 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
     let w::ChangeRowParts {
         task,

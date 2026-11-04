@@ -3,6 +3,33 @@ use std::{fs, os::unix::ffi::OsStrExt};
 use temper_client_tools::jig::call::Parsed;
 
 #[test]
+fn charter_help_explains_documents_and_host_discovery() {
+    let page = help::answer(&configured(&["help", "charter"])).expect("charter help");
+    let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
+    for words in [
+        "documents",
+        "temper ctl DIR forge list",
+        "temper ctl DIR forge list --json",
+        "host",
+        "forge number",
+        "adopted repository",
+        "next run",
+        "next heading of its level or above",
+    ] {
+        assert!(text.contains(words), "charter help must explain {words}");
+    }
+    let example = page.split("```json\n").nth(1).expect("document example");
+    let example: serde_json::Value =
+        serde_json::from_str(example.split("```").next().expect("example JSON")).expect("valid document example");
+    assert_eq!(example["documents"][0]["forge"], "git.example:3000");
+    assert_eq!(example["documents"][0]["repository"], "work/hello");
+    assert_eq!(example["documents"][0]["branch"], "main");
+    assert_eq!(example["documents"][0]["path"], "AGENTS.md");
+    assert_eq!(example["documents"][0]["heading"], "1. In one page");
+    assert!(text.contains("whole file"));
+}
+
+#[test]
 fn configure_example_preserves_stock_landing_gate() {
     use settings_form::view::{Setting, SettingEdit, SettingValue};
     let page = temper_docs::find(b"configure").expect("configure walk");

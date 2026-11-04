@@ -5,4 +5,4 @@ Content-Type: application/json
 Content-Length: 197
 Connection: close
 
-{"type":"forgejo","config":{"url":"http://127.0.0.1:7200/hooks/1","content_type":"json","secret":"0000000000000000000000000000000000000000000000000000000000000006"},"events":["push"],"active":true}
+{"type":"forgejo","config":{"url":"http://127.0.0.1:7200/hooks/1","content_type":"json","secret":"0000000000000000000000000000000000000000000000000000000000000025"},"events":["push"],"active":true}

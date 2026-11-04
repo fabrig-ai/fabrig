@@ -15,7 +15,7 @@ fn transcript_bytes_follow_a_preparation_from_allowance_to_zero() {
     make_task(&mut core, &limits, TASK);
     send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(TASK)), task: TASK });
     core.contexts.insert(TASK, core.tasks.run_context(TASK).expect("preparing task")).unwrap();
-    core.begin_transcript(TASK, ATTEMPT);
+    core.begin_transcript(TASK, ATTEMPT, None);
     core.transcripts.get_mut(&TASK).expect("begun transcript").window = Some((ATTEMPT, FIRST_TURN));
 
     let allowance = u64::from(core.settings.resume_bytes) + u64::from(core.settings.tail_bytes);

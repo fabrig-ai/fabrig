@@ -1790,6 +1790,19 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   charter a charter's number (`../protocol/configuration.md`, 13.2). A
   refusal names the item and what fails, and the whole change is
   refused with it.
+- **The root checks approval eligibility** when a rule is set, after the
+  forge's structural judgement, including when a proposal is accepted.
+  For each project in the setting's scope with an adopted writable
+  repository whose branch names overlap the pattern, each enforcing
+  approval needs at least its required count of distinct project members
+  with the named role and a forge user id known to the core. The root
+  joins the people's identities and roles with the forge's rule; a
+  deployment login or display name supplies no forge identity. A refusal
+  names the project, role, required and eligible counts, and asks for
+  known forge people with that role or removal of the approval. No rule
+  or accompanying settings become effective on refusal. Later membership
+  changes can leave a held rule waiting; the merge still counts only
+  people known by forge user id (8.7).
 - **It holds them** decoded, the deployment's rules and each project's,
   within `landing_rules` per scope and `judge_projects` projects, keeps
   their values in its family `Setting`, and replaces a scope's whole
